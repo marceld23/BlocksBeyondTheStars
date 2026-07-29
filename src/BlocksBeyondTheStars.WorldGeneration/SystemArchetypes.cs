@@ -36,8 +36,8 @@ public enum SystemArchetype
 public static class SystemArchetypes
 {
     /// <summary>Hash01 salt for the archetype draw. 5xx is unused by UniverseGenerator's other draws
-    /// (planets 1xx, moons 2xx, wreck/asteroids 3xx, asteroid families 4xx); 501/502 are reserved for
-    /// the archetype's size-bias and twin-orbit draws.</summary>
+    /// (planets 1xx, moons 2xx, wreck/asteroids 3xx, asteroid families 4xx, planetary rings 6xx);
+    /// 501/502 are reserved for the archetype's size-bias and twin-orbit draws.</summary>
     private const long ArchetypeSalt = 500;
 
     private static readonly (SystemArchetype Archetype, int Weight)[] Table =

@@ -292,6 +292,24 @@ public sealed class DepositContainerIntent
 }
 
 /// <summary>
+/// Client permanently destroys an item it no longer wants (#599) — every other path (cargo hold, storage
+/// crate, trade) only <i>stores</i> it, so without this a stack of 300 dirt is carried around forever.
+/// Addressed by <see cref="Slot"/> rather than by item key: a dyed/shaped stack carries a composite key
+/// (<see cref="Shared.State.ItemKey"/>), and the slot is the one unambiguous handle on what the player
+/// actually clicked. The server then discards <b>every</b> stack of that same key, so one confirmed click
+/// clears the item out completely. The starter kit is refused — see <c>GameServer.IsStarterKitItem</c>.
+/// </summary>
+public sealed class DiscardItemIntent
+{
+    /// <summary>The slot the player is discarding (identifies the item key to drop).</summary>
+    public int Slot { get; set; }
+
+    /// <summary>true = the slot is in the ship's cargo hold rather than the backpack. The hold is where bulk
+    /// junk actually piles up ("stow all" sweeps it there), so it needs its own bin; requires being aboard.</summary>
+    public bool FromCargo { get; set; }
+}
+
+/// <summary>
 /// Client moves items between the personal inventory and the ship's cargo hold. Only valid while aboard the
 /// ship (in flight or standing in the landed cabin — see <c>UpdateAboard</c>); the server rejects it otherwise.
 /// Three modes:
@@ -976,6 +994,11 @@ public sealed class NetBody
     /// bodies, pad map bake) or its rendered size disagrees with the walkable world the server builds.
     /// 0 for every pre-variance body, so old saves and old clients keep the classic hashed size.</summary>
     public float SizeBias { get; set; }
+
+    /// <summary>Planetary-ring style seed (#596): 0 = no rings, non-zero = the client renders a
+    /// Saturn-like ring system around this planet, deriving tilt/bands/hue from the seed. Purely
+    /// cosmetic; an additive contractless field, so old clients/servers simply ignore it.</summary>
+    public int RingSeed { get; set; }
 }
 
 public sealed class NetStarSystem

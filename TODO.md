@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1248 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1257 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,54 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Throw unwanted loot away — and stop losing drops in silence (#599, #600, 2026-07-29, branch feat/discard-materials)
+There was **no way to get rid of an item**. Everything the inventory offered only *moved* it: the cargo
+hold, a storage crate, a trade, or the ✕ "Remove from quick-bar" — which is a *stow* into the backpack, not
+a delete (`MoveItemIntent {ToSlot=-1}`), and a silent no-op when the backpack is full. Every other sink
+*consumes* the item in a recipe. So 300 mined dirt was carried around forever.
+
+**Discard (#599).** New `DiscardItemIntent {Slot, FromCargo}` (NetCodec **182**) → `GameServer.HandleDiscardItem`:
+the slot picks the item (a dyed/shaped stack carries a composite `ItemKey`, so only the slot is unambiguous),
+then **every** stack of that key goes — clearing 300 dirt one stack at a time is busywork. Works on the cargo
+tab too, since "stow all" is exactly what piles junk into the hold; that path is gated on being aboard.
+Protected: the **starter kit** only. `Shared.Definitions.StarterKit` now owns the list
+(`basic_drill`, `hand_scanner`, `suit_lamp`, `machete`, `scrap_pistol`) and `CreatePlayer` *stocks slots 0..4
+from that same array* — one source, so the guard cannot drift from what a fresh pilot is handed. Berries are
+deliberately not protected (food you re-gather, and a toxic batch is what you most want to bin). The client
+hides the button for protected items and the server refuses them anyway. UI: a red **Throw away** button in
+the inventory detail pane that arms on the first click and sends on the second ("Really throw away?" + a
+can't-be-undone line); navigating to another entry disarms it. Observers never reach the handler
+(`SpectatorMayHandle` defaults to false).
+
+**Silent loss (#600).** `MaterialPool.Add` returns what did not fit — and `BreakBlockAt` threw that away.
+With 24/24 slots *and* a full hold, mined blocks were **destroyed with no message, no sound, no hint** (there
+wasn't even an "inventory full" locale key). Rather than patch ~15 call sites, `MaterialPool` now accumulates
+an `Overflow` total and the handlers check it once: mining, crafting, disassembly, and dye/shape — the last
+two matter because re-keying *part* of a stack needs a fresh slot, so a full inventory eats it. One throttled
+toast per player per 8 s (area mining overflows on every block of a burst), sent as the `@inventory_full`
+token and localized client-side like `@spawn_set`. Bilingual keys added. Tests: `DiscardItemTests` (9) —
+discard-all, starter-kit refusal, berries allowed, empty/out-of-range no-op, the aboard gate, the pinned
+starter-kit list, composite-key handling, and the overflow bookkeeping.
+Not covered: entity/space-loot paths already bounce their leftovers into the world-container flow. The
+1024-stack raise below makes the overflow far rarer, but the warning is what makes it visible when it hits.
+
+### ★ Bandits are people, not red-eyed things (#601, 2026-07-29, branch fix/bandit-human-faces)
+Bandits read as red-eyed creatures, uncomfortably close to the Guardian machines. Their eyes were
+already dark cubes — the red came from two other places. **(1) The bandana**: the skull spans
+head-local y −0.05…0.29 while the red band spanned 0.21…0.31 and was *wider* than the skull, so the
+top ~30 % of the head's front face was a solid red slab, while the real eyes (0.07 × 0.05 dark chips
+on skin) vanished after a few metres — next to robots that genuinely have a row of glowing red eyes
+in that head region, the band reads as eyes. **(2) The weapon**: blade and blaster muzzle were built
+with `_eyeMat`, the robots' unlit glowing red sensor material, and the weapon arm swings to head
+height when hostile. Ruled out first: the `Bandit`/`BanditGunner` kind strings match on both sides of
+the wire, so bandits were never falling through to the robot model. Fix in `WorldEntities.BuildBandit`:
+a real face (eye whites + pupils + brow, all protruding past the skull's z 0.17 front face — the
+same trap the player avatar's face hit), hair replacing the band's silhouette mass, a **cloth mask
+over nose and mouth** as the robber cue (muted, per-bandit tones — never red), and **cold blue**
+weapon glow + tracer (`BanditEnergyColor`, fired from the blaster muzzle in the hand instead of the
+drone's chest offset) so no bandit shares the machines' red. Skin, hair, mask and jacket now all vary
+per bandit hash, so a camp is a group of different people. Client-only, no wire/save change.
 
 ### ★ Inventory stacks hold 1024 instead of 99 (#603, 2026-07-29, branch feat/stack-size-1024)
 The stack cap was never code — it is per-item data (`data/items.json`), read through
@@ -6599,6 +6647,45 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-07-29): planetary rings + flight system chart with nav waypoint (#596/#597, branch feat/planet-rings-space-map)
+
+Two features in one pass (Marcel: "beides komplett in einem Rutsch"):
+
+- **Planetary rings (#596)** — ~11 % of planets (large/icy ones more often, up to 30 %; tuned DOWN
+  from an 18 % base after playtest — "every other planet" cheapened it) carry a Saturn-like ring
+  system, **plus the start planet always rings** (server-side guarantee at the start-body pick,
+  `EnsureStartPlanetRings`), visible in all three views:
+  - **Data:** `CelestialBody.RingSeed`/`NetBody.RingSeed` (0 = none), rolled in `UniverseGenerator`
+    from fresh `Hash01` salts **600/601** (6xx = rings; rng stream untouched — verified by an
+    8-config SHA-256 body digest against pre-change `main`: byte-identical). Additive contractless
+    wire field (the `SizeBias` pattern), nothing persisted, **retroactive**: existing worlds gain
+    rings on the same planets every client, deterministically. The playtest surfaced two guarantee
+    iterations: a sys0-only guarantee missed worlds whose start planet lives elsewhere (world 1
+    started on sys5-p5), so the final mechanism rings the START planet itself, server-side at the
+    start-body pick (`EnsureStartPlanetRings`, deterministic from the body id).
+  - **Space view:** shared `PlanetRings` annulus mesh (1.24–2.3 planet radii) + per-seed procedural
+    band texture (3–6 bands, Cassini gaps) on the new always-included `PlanetRing` shader (tint via
+    `_Color`, Cull Off, queue 3001 — after haze 2999/clouds 3000); seeded tilt 8–35°, the ring alone
+    defines perceived axial tilt (bodies never rotate).
+  - **Surface sky:** the same ring child on `SkyBodiesView` discs (≥14 px apparent only), re-tinted
+    per frame with the #585 daytime sky wash so it never reads as a black arc.
+  - **On the ringed planet:** `RingBand` (WorldRig) — a camera-following arc across the sky, bold at
+    night / faint sky-washed by day (Starfield dusk ramp), full-strength on airless worlds.
+  - Tests: `Rings_AreDeterministic_PlanetsOnly_AndReasonablyDistributed` (120 systems).
+- **Flight system chart + nav waypoint (#597, client-only)** — new `SpaceMap` overlay on the new
+  rebindable **FlightMap** action (default **M**, free in flight; the surface map self-gates to
+  on-foot): top-down chart of the current system from the REAL flight coordinates
+  (`SpaceView.Landables` + live space entities + rim-pinned star), ship marker with heading,
+  radius-proportional body discs (#592 legibility rules: white/colour on dark backing + labels).
+  Click a body/station = snap target (`Game.SpaceWaypointId`, launch body via `~home` sentinel);
+  click empty space = free waypoint clamped to the flight bounds (`Game.SpaceWaypointPos`). Menu
+  ownership holds the ship while open (Tab pattern), Esc/M closes. The space radar shows the
+  waypoint as an amber `map_waypoint` blip (rim-pinned like stations) + its own `⌖ N m` distance
+  line; **the VEGA autopilot prefers the waypoint** over its hardcoded nearest-station pick (map +
+  radar work without an AI core; only auto-steering stays gated at Mk2). Cleared with the
+  world-scoped state on travel (the #592 stale-waypoint lesson). Locales DE+EN (`ui.spacemap.*`,
+  `ui.key.flight_map`).
 
 ## ✅ Done (2026-07-29): `/tp` takes named landmarks — admin teleport without coordinates
 

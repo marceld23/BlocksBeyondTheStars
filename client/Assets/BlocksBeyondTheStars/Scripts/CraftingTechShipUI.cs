@@ -2339,6 +2339,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _detailPage = detailPage;
                 ScrollToTop(_detail);
+                _discardArmed = string.Empty; // navigating away disarms a half-confirmed discard (#599)
             }
 
             // Exactly one preview rig may be live at a time, else each rig's camera also picks up the OTHER rig's
@@ -2659,6 +2660,29 @@ namespace BlocksBeyondTheStars.Client
             return y;
         }
 
+        /// <summary>The detail entry whose Discard button is currently armed, or "" when none is (#599). Cleared
+        /// whenever the detail pane switches to another entry, so an armed button never survives navigation.</summary>
+        private string _discardArmed = string.Empty;
+
+        /// <summary>The first slot holding <paramref name="item"/> in the backpack (or the ship's hold), or -1.
+        /// The discard intent addresses a slot, since a dyed/shaped stack carries a composite item key.</summary>
+        private int SlotOfItem(string item, bool inCargo)
+        {
+            var slots = inCargo ? Game.Cargo : Game.Personal;
+            if (slots != null)
+            {
+                foreach (var s in slots)
+                {
+                    if (s.Item == item)
+                    {
+                        return s.Slot;
+                    }
+                }
+            }
+
+            return -1;
+        }
+
         private float DetailInventory()
         {
             string item = _selected.Substring(4);
@@ -2684,6 +2708,47 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddButton(_detail, 8, y, 320, 46, L(fromCargo ? "ui.cargo.to_inventory" : "ui.cargo.to_cargo"),
                     () => Game.Network?.SendMoveCargoItem(toCargo: !fromCargo, item: item, bulkAll: false));
                 y += 54f;
+            }
+
+            // Discard (#599): the only action that actually destroys an item — every other one just moves it
+            // somewhere else. Two-step, because it cannot be undone: the first click arms the button, the second
+            // one sends. The starter kit gets no button at all (and the server refuses it anyway — it never
+            // trusts the client). Works on the cargo tab too: the hold is where "stow all" piles the junk up.
+            bool inCargo = _category == "cargo";
+            int discardSlot = SlotOfItem(item, inCargo);
+            if (discardSlot >= 0 && !StarterKit.IsProtected(item))
+            {
+                bool armed = _discardArmed == _selected;
+                var discardBtn = UiKit.AddButton(_detail, 8, y, 320, 46,
+                    L(armed ? "ui.inventory.discard_confirm" : "ui.inventory.discard"),
+                    () =>
+                    {
+                        if (!armed)
+                        {
+                            _discardArmed = _selected; // first click only asks
+                            RebuildDetail();
+                            return;
+                        }
+
+                        _discardArmed = string.Empty;
+                        Game.Network?.SendDiscardItem(discardSlot, inCargo);
+                        _selected = string.Empty; // the entry is about to vanish from the list
+                        RebuildList();
+                        RebuildDetail();
+                    });
+                var discardImg = discardBtn.GetComponent<Image>();
+                if (discardImg != null)
+                {
+                    discardImg.color = armed ? new Color(0.62f, 0.20f, 0.20f) : new Color(0.40f, 0.26f, 0.26f);
+                }
+
+                y += 54f;
+                if (armed)
+                {
+                    var warn = UiKit.AddText(_detail, 8, y, 620, 48, L("ui.inventory.discard_warn"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    warn.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    y += 52f;
+                }
             }
 
             // Quick-bar assignment (B58): for a personal-inventory item, let the player drop it onto a quick-slot

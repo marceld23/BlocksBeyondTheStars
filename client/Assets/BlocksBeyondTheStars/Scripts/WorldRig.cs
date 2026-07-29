@@ -293,6 +293,13 @@ namespace BlocksBeyondTheStars.Client
             radar.Camera = cam;
             radar.SpaceView = space; // so the radar can show bearings to the system's planets/moons
 
+            // Flight system chart (#597): the clickable in-space map that sets the nav waypoint.
+            var spaceMap = root.AddComponent<SpaceMap>();
+            spaceMap.Game = boot;
+            spaceMap.SpaceView = space;
+            spaceMap.Camera = cam;
+            space.Map = spaceMap;
+
             // Day/night + weather + sun colour (World systems).
             var sky = root.AddComponent<Sky>();
             sky.Game = boot;
@@ -327,6 +334,11 @@ namespace BlocksBeyondTheStars.Client
             var starfield = root.AddComponent<Starfield>();
             starfield.Game = boot;
             starfield.Camera = cam;
+
+            // The planet's own ring arcing across the surface sky, on ringed planets only (#596).
+            var ringBand = root.AddComponent<RingBand>();
+            ringBand.Game = boot;
+            ringBand.Camera = cam;
 
             // The planet + sun seen outside an orbital station's windows (only while boarded).
             var backdrop = root.AddComponent<StationBackdrop>();

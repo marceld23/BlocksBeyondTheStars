@@ -25,7 +25,11 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private RectTransform _center;
         private Text _stationLabel;
+        private Image _wpBlip;    // the nav waypoint (#597), amber — distinct from every entity colour
+        private Text _wpLabel;    // waypoint distance readout under the radar
         private readonly List<Image> _blips = new List<Image>();
+
+        private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
 
         private void EnsureBuilt()
         {
@@ -79,6 +83,33 @@ namespace BlocksBeyondTheStars.Client
             _stationLabel.alignment = TextAnchor.MiddleCenter;
             _stationLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
             _stationLabel.raycastTarget = false;
+
+            // Nav waypoint (#597): the map_waypoint glyph as a radar blip + a distance line of its own —
+            // amber like the surface compass waypoint, so the two systems read as one feature.
+            var wpSprite = UiKit.Icon("map_waypoint");
+            _wpBlip = Dot(_center, Vector2.zero, new Vector2(15f, 15f), WaypointCol);
+            if (wpSprite != null)
+            {
+                _wpBlip.sprite = wpSprite;
+            }
+
+            _wpBlip.gameObject.SetActive(false);
+
+            var wpGo = new GameObject("WaypointLabel", typeof(RectTransform));
+            wpGo.transform.SetParent(root, false);
+            var wrt = wpGo.GetComponent<RectTransform>();
+            wrt.anchorMin = wrt.anchorMax = new Vector2(0.5f, 1f);
+            wrt.pivot = new Vector2(0.5f, 1f);
+            wrt.sizeDelta = new Vector2(280f, 20f);
+            wrt.anchoredPosition = new Vector2(0f, -(16f + (Radius + 8f) * 2f + 26f));
+            _wpLabel = wpGo.AddComponent<Text>();
+            _wpLabel.font = UiKit.Font;
+            _wpLabel.fontSize = 14;
+            _wpLabel.color = WaypointCol;
+            _wpLabel.alignment = TextAnchor.MiddleCenter;
+            _wpLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _wpLabel.raycastTarget = false;
+            _wpLabel.gameObject.SetActive(false);
         }
 
         private static Image Dot(Transform parent, Vector2 pos, Vector2 size, Color color)
@@ -196,6 +227,30 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _blips[i].gameObject.SetActive(false);
                 }
+            }
+
+            // Nav waypoint (#597): amber blip (rim-pinned when out of radar range — it's a navigation
+            // point like a station) + its own distance line, so "am I getting closer?" reads at a glance.
+            bool haveWp = SpaceView != null && SpaceView.TryResolveSpaceWaypoint(out var wpPos, out _);
+            if (_wpBlip.gameObject.activeSelf != haveWp)
+            {
+                _wpBlip.gameObject.SetActive(haveWp);
+                _wpLabel.gameObject.SetActive(haveWp);
+            }
+
+            if (haveWp)
+            {
+                SpaceView.TryResolveSpaceWaypoint(out wpPos, out _);
+                var wdir = wpPos - camPos;
+                var wv = new Vector2(Vector3.Dot(wdir, camR), Vector3.Dot(wdir, camF)) * scale;
+                if (wv.magnitude > Radius)
+                {
+                    wv = wv.normalized * Radius;
+                }
+
+                _wpBlip.rectTransform.anchoredPosition = wv;
+                _wpBlip.rectTransform.SetAsLastSibling(); // over the entity/body blips
+                _wpLabel.text = $"⌖ {Mathf.RoundToInt(wdir.magnitude)}m";
             }
 
             // Readout under the radar: prefer a station name (dockable), else the nearest planet to head for.

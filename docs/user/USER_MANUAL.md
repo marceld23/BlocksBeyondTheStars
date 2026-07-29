@@ -143,7 +143,8 @@ Enter space by launching the ship; on foot you board/leave via the cockpit. Whil
 | **W/A/S/D** | Fly through the **system** — every planet/moon is out there at its real position |
 | **L** | Land — on the body you've flown up to (the HUD shows "land on <name>") or, if none is near, back where you launched. Opens a confirmation (**Enter** = yes, **Esc** = no) |
 | **E** | Board a nearby space station (within range; a short dock-approach plays before you board) |
-| **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to the nearest station / landable body; any manual input takes the helm back |
+| **P** | **Autopilot** (needs an `ai_core_mk2`+ module): flies to your nav waypoint if one is set, else the nearest station / landable body; any manual input takes the helm back |
+| **M** | **System chart**: a top-down map of the current system. Click a body/station to target it or empty space for a free **nav waypoint** — it shows on the radar with a distance readout, and the autopilot flies to it. The ship holds position while the chart is open |
 | **Tab → Map** | Hyperspace **jump to another system** (needs a `jump_generator` module) — flying is within one system |
 
 Ship classes differ in **speed** and **handling** (`data/ships.json`): e.g. the scout is fast and agile,
@@ -224,6 +225,12 @@ separate unlock; admins can still disable it through server world rules.
   while you're aboard (in flight or standing in the landed cabin); on foot the cargo tab says so.
 - **Auto-stow (optional):** turn on *Settings → Comfort → "Auto-stow into cargo on boarding"* to have loose
   materials moved into the hold automatically each time you board. Off by default.
+- **Throwing things away:** select an item in the **Inventory** or **Cargo Hold** tab and press **"Throw
+  away"** — it asks once ("Really throw away?"), and the second click destroys *every* stack of that item.
+  This cannot be undone and gives nothing back. Your starting equipment (drill, scanner, suit lamp, machete,
+  sidearm) has no such button, so you can never leave yourself without a way to dig or a way to see.
+- **When everything is full:** if your backpack *and* your hold are full, whatever you mine or craft next is
+  simply gone — the game warns you when that happens, so throw something away or empty the hold first.
 
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market
@@ -388,6 +395,8 @@ separate unlock; admins can still disable it through server world rules.
   **relic cache** nearby.
 
 ### Bandits (robbers, camps, pirate space)
+- Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
+  and the scruffy jacket — not by glowing eyes, which belong to the Guardian robots.
 - **Lone robbers** roam some survival worlds. One may walk straight up to you and demand roughly a
   third of your two biggest stacks (**never your tools**). You have ~25 seconds and a real choice:
   **[1] Hand it over** — the robber keeps its word, leaves, and won't bother you again for a long

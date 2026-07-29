@@ -298,6 +298,54 @@ public sealed class UniverseTests : IDisposable
         }
     }
 
+    // --- Planetary rings (#596) ---
+
+    [Fact]
+    public void Rings_AreDeterministic_PlanetsOnly_AndReasonablyDistributed()
+    {
+        var desc = new WorldDescription { StarSystemCount = 120 };
+        var a = new UniverseGenerator(42, desc, _content).Generate();
+        var b = new UniverseGenerator(42, desc, _content).Generate();
+
+        // Same seed → the same planets ring, with the same style seed.
+        Assert.Equal(
+            a.AllBodies().Select(x => (x.Id, x.RingSeed)),
+            b.AllBodies().Select(x => (x.Id, x.RingSeed)));
+
+        // Rings are a planet-only feature; moons/asteroids/stations/wrecks never carry one.
+        Assert.All(
+            a.AllBodies().Where(x => x.Kind != CelestialKind.Planet),
+            x => Assert.Equal(0, x.RingSeed));
+
+        // Some planets ring, most don't (base chance ~10-30 % depending on size/type; deliberately
+        // rare — the guaranteed start-planet ring covers the showcase).
+        var planets = a.AllBodies().Where(x => x.Kind == CelestialKind.Planet).ToList();
+        int ringed = planets.Count(x => x.RingSeed != 0);
+        Assert.InRange(ringed / (double)planets.Count, 0.05, 0.25);
+        Assert.All(planets.Where(x => x.RingSeed != 0), x => Assert.InRange(x.RingSeed, 1, 1_000_000));
+    }
+
+    [Fact]
+    public void Rings_StartPlanetGuarantee_RingsOnlyWhatItShould()
+    {
+        // A ring-less start planet gains a deterministic ring...
+        var bare = new CelestialBody { Id = "sys5-p5", Kind = CelestialKind.Planet };
+        UniverseGenerator.EnsureStartPlanetRings(bare);
+        Assert.InRange(bare.RingSeed, 1, 1_000_000);
+        int first = bare.RingSeed;
+        var again = new CelestialBody { Id = "sys5-p5", Kind = CelestialKind.Planet };
+        UniverseGenerator.EnsureStartPlanetRings(again);
+        Assert.Equal(first, again.RingSeed); // ...the SAME ring on every server restart.
+
+        // A natural ring stays untouched, and non-planets never ring.
+        var ringed = new CelestialBody { Id = "sys0-p1", Kind = CelestialKind.Planet, RingSeed = 4242 };
+        UniverseGenerator.EnsureStartPlanetRings(ringed);
+        Assert.Equal(4242, ringed.RingSeed);
+        var moon = new CelestialBody { Id = "sys0-p1-m0", Kind = CelestialKind.Moon };
+        UniverseGenerator.EnsureStartPlanetRings(moon);
+        Assert.Equal(0, moon.RingSeed);
+    }
+
     // --- System archetype variance (#546/#549) ---
 
     private static WorldDescription VarianceDesc(int systems = 150) => new()

@@ -205,6 +205,24 @@ public sealed class UniverseGenerator
                     SystemArchetype.Swarm => -(0.2f + Hash01(i, 501, p) * 0.3f),
                     _ => 0f,
                 };
+                // Planetary rings (#596): a purely visual identity — some planets carry a Saturn-like
+                // ring system. Presence and style come from their own Hash01 salts (600/601; the 6xx
+                // series belongs to rings) so the body sequence — and thus every existing universe —
+                // stays byte-identical; existing worlds simply GAIN rings, retroactive by design.
+                // Big planets ring more often, icy/crystal ones too (real rings are mostly ice).
+                // Kept RARE on purpose (~11 % of planets; playtest: the first cut at 18 % base read
+                // as "every other planet") — the start planet's guaranteed ring covers the showcase.
+                float ringChance = planet.SizeBias > 0.3f ? 0.22f : 0.10f;
+                if (IsRingProneType(planet.PlanetType))
+                {
+                    ringChance = System.Math.Min(0.3f, ringChance * 1.5f);
+                }
+
+                if (Hash01(i, p, 600) < ringChance)
+                {
+                    planet.RingSeed = 1 + (int)(Hash01(i, p, 601) * 999_999f);
+                }
+
                 system.Bodies.Add(planet);
 
                 int moons = archetype switch
@@ -365,6 +383,33 @@ public sealed class UniverseGenerator
 
     /// <summary>Seeded orbit direction: mostly prograde (+1), ~20% retrograde (-1), so a system mixes both.</summary>
     private float OrbitSign(long a, long b, long c) => Hash01(a, b, c) < 0.2f ? -1f : 1f;
+
+    /// <summary>Planet types that ring more often (#596) — icy/crystalline worlds, because real
+    /// planetary rings are mostly water ice.</summary>
+    private static bool IsRingProneType(string? planetType)
+        => planetType is "ice" or "tundra" or "crystal" or "crystal_living";
+
+    /// <summary>Start-planet ring guarantee (#596): the world you spawn on always carries rings — the
+    /// band across the sky is the feature's first impression, and playtesting showed a ring-less start
+    /// reads as "the feature doesn't exist". Called by the server right after it picks the start body
+    /// (only the server knows the pick — type overrides and retype fallbacks decide it at load time).
+    /// Deterministic from the body id alone, so every restart re-derives the same ring; a no-op for
+    /// planets that already rolled rings naturally, and for anything that isn't a planet.</summary>
+    public static void EnsureStartPlanetRings(CelestialBody start)
+    {
+        if (start.Kind != CelestialKind.Planet || start.RingSeed != 0)
+        {
+            return;
+        }
+
+        int h = 17;
+        foreach (char c in start.Id)
+        {
+            h = h * 31 + c;
+        }
+
+        start.RingSeed = 1 + (h & 0x7fffffff) % 999_999;
+    }
 
     /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>
     private (float X, float Z) DiscPoint(int systemIndex, int planets, int salt)

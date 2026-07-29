@@ -30,6 +30,8 @@ namespace BlocksBeyondTheStars.Client
             public GameObject Go;
             public Material Mat;
             public Color Tint;
+            public Material RingMat;      // planetary ring disc (#596), null for ring-less bodies
+            public Color RingTint;        // the ring's seeded base colour (re-tinted per frame for daylight)
             public float Phase;          // 0..1 initial rise-time offset (hashed) — spreads bodies across the day
             public float OrbitPeriodDays; // signed synodic period; the body drifts relative to the sun by this →
                                           // its sun-lit phase waxes/wanes once per |period| (0 = no drift)
@@ -133,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var cam = Camera.main;
+            Color skyCol = SkyBase();
 
             foreach (var b in _bodies)
             {
@@ -192,6 +195,16 @@ namespace BlocksBeyondTheStars.Client
                 // old 0.7 noon dim left the disc 3-4x darker than the ACES-tonemapped daytime sky, which still
                 // read as a silhouette (#585). The shader's sky-colour atmosphere wash now balances the day look.
                 b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 1f, day) * horizon);
+
+                // The ring shader is unlit, so it needs the disc's daytime treatment CPU-side (#585): by day
+                // the ring washes toward the sky colour and fades (the real look — pale, translucent bands),
+                // at night it keeps its seeded ice tint with the same night boost the disc gets.
+                if (b.RingMat != null)
+                {
+                    var ringCol = Color.Lerp(b.RingTint * Mathf.Lerp(1.25f, 1f, day), skyCol * 1.05f, day * 0.55f);
+                    ringCol.a = Mathf.Lerp(0.62f, 0.38f, day) * horizon;
+                    b.RingMat.color = ShaderColor.Srgb(ringCol);
+                }
             }
         }
 
@@ -368,6 +381,16 @@ namespace BlocksBeyondTheStars.Client
 
                 float apparent = Mathf.Clamp(250f * radius / Mathf.Max(dist, 40f), 4f, 120f);
 
+                // Planetary rings (#596): attach the shared ring disc — it inherits the sphere's per-frame
+                // position/scale. Only above ~14 units apparent size; a smaller disc mips the bands to mush.
+                Material ringMat = null;
+                Color ringTint = Color.clear;
+                if (body.RingSeed != 0 && apparent >= 14f)
+                {
+                    PlanetRings.Attach(go.transform, body.RingSeed, sunHue, 0.6f, 3001, out ringMat);
+                    ringTint = PlanetRings.TintFor(body.RingSeed, sunHue);
+                }
+
                 // Where in the sky it sits: the compass bearing of its REAL position relative to us, so each
                 // body genuinely hangs in its own direction (this is what kills the vertical-line stacking the
                 // old raw-hash azimuth caused). A small hashed jitter separates any two near-co-directional
@@ -389,6 +412,8 @@ namespace BlocksBeyondTheStars.Client
                     Go = go,
                     Mat = mat,
                     Tint = tint,
+                    RingMat = ringMat,
+                    RingTint = ringTint,
                     // Initial rise-time offset spreads the bodies across the day; the authoritative per-system
                     // orbital period (signed) then drifts each one relative to the sun → its phase waxes/wanes.
                     Phase = (h >> 7) % 1000 / 1000f,
@@ -421,6 +446,14 @@ namespace BlocksBeyondTheStars.Client
             "skylands" or "highland" => new Color(0.62f, 0.72f, 0.66f),
             _ => new Color(0.62f, 0.58f, 0.52f), // rocky + unknown
         };
+
+        /// <summary>The current daytime sky base colour (packed 0xRRGGBB from the env), the same value the
+        /// camera clear colour builds on — the ring's daylight wash target. Classic blue fallback.</summary>
+        private Color SkyBase()
+        {
+            int packed = Game?.Environment != null ? Game.Environment.SkyColor : 0x8CBFF2;
+            return new Color(((packed >> 16) & 0xFF) / 255f, ((packed >> 8) & 0xFF) / 255f, (packed & 0xFF) / 255f);
+        }
 
         /// <summary>The system star's colour normalised to a pure hue (brightness removed), so it tints the body
         /// without darkening it — same light star-hue wash the orbit/space view applies. White when unknown.</summary>

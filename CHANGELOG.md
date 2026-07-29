@@ -13,6 +13,30 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🪐 Planetary rings (#596)
+
+- **Some planets now carry Saturn-like ring systems** — tilted, banded discs with seeded gaps and
+  an icy tint, unique per planet. You see them from orbit while flying the system, on the discs of
+  ringed neighbours in another world's sky (pale and sky-washed by day, like the real Moon), and —
+  standing on a ringed planet itself — as a ribbon arcing across the sky: bold at night, a faint
+  pale arc by day.
+- Ring assignment is deterministic from the world seed (every player sees the same rings) and
+  purely visual; rings are deliberately rare (~1 planet in 9; large and icy/crystal ones more
+  often), but **the planet you start on always carries them** — the band across your home sky
+  greets you from the first spawn. **Existing worlds gain rings too** — nothing else about your
+  universe changes.
+
+### 🧭 Flight system chart & nav waypoint (#597)
+
+- **Press M while flying to open the system chart** — a top-down map of the current system drawn
+  from the real flight positions: star, planets, moons, asteroids, stations, wrecks, hostiles, and
+  your ship with its heading. The ship holds position while the chart is open; the key is
+  rebindable in Settings → Controls.
+- **Click to set a nav waypoint** — click a body or station to target it, or click empty space for
+  a free waypoint. The space radar shows it as an amber marker with its own live distance readout,
+  and the VEGA autopilot (P, AI Core Mk2) now flies to *your* waypoint instead of just the nearest
+  station. The waypoint clears automatically when you travel — no stale markers in the next world.
+
 ### 🎒 Stacks hold 1024 instead of 99 (#603)
 
 - **Bulk items stack to 1024 per slot.** Every block, ore, material and component (108 items) now fills a
@@ -24,6 +48,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   screen's "Max" button now offers up to a full stack instead of stopping at 99.
 - Existing saves need no migration: old 99-stacks simply keep filling past 99 as you pick items up.
 
+### 🗑️ Throw unwanted items away
+
+- **New "Throw away" button** in the Inventory and Cargo Hold tabs (#599). Until now nothing could actually
+  be *removed* — the cargo hold, a storage crate and the ✕ on the quick-bar all just move an item somewhere
+  else — so a stack of dirt you no longer want was carried around forever. It asks once before destroying,
+  and clears every stack of that item at once.
+- **Your starting equipment is safe.** The drill, scanner, suit lamp, machete and sidearm have no throw-away
+  button and are refused by the server, so nobody can strand themselves without a way to dig or to see.
+  Everything else — ores, blocks, food, better tools — can go.
+- **A full backpack no longer eats things in silence** (#600). With inventory *and* cargo hold full, mined
+  drops and craft outputs were destroyed without any message at all. You now get a warning instead — rarer
+  now that stacks hold 1024, but no longer invisible when it does happen.
+
 ### 🧭 Admin teleport by landmark, not by coordinates
 
 - **`/tp` takes a target word.** World admins can jump to a landmark on the body they are standing on —
@@ -34,6 +71,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **`/tp` on its own lists what is here** — every resolvable target with the exact word to type and its
   distance, so the numbering is discoverable instead of guessed at.
 - **Factories now show on the planet map.** They were tracked by the server but never drawn.
+
+### 🧑 Bandits look like people again (#601)
+
+- **No more red-eyed robbers.** The bandit's red headband sat across the top of the head and, at any
+  distance, read as a pair of glowing red eyes — exactly the look of the Guardian machines. Bandits
+  now have a real face (eye whites, pupils, brow), hair, and a **cloth mask over nose and mouth** as
+  the "this one is a robber" cue.
+- **Their gear stopped glowing Guardian red.** The energy blade, the blaster muzzle and the gunner's
+  tracer shot are now cold blue — bought human tech, not alien machine.
+- **Every bandit looks like a different person.** Skin tone, hair, mask and jacket colour all vary,
+  so a raider camp is a group of individuals instead of one face copied four times.
 
 ## [2026.7.22] — 2026-07-29
 

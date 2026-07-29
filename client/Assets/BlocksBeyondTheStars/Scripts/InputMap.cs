@@ -29,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
         FlightEnterInterior,  // leave the helm and walk the ship interior — default F
         FlightPadChooser,     // open the landing-pad chooser for your launch body — default L
         FlightAutopilot,      // toggle VEGA autopilot — default P
+        FlightMap,            // open the system chart to set a nav waypoint (#597) — default M
         EvaDeployStation,     // deploy a station core during EVA — default B
 
         // Vehicle (speeder) + multiplayer dock/trade
@@ -111,7 +112,7 @@ namespace BlocksBeyondTheStars.Client
         public static readonly InputAction[] FlightRemappable =
         {
             InputAction.FlightEnterInterior, InputAction.FlightPadChooser,
-            InputAction.FlightAutopilot, InputAction.EvaDeployStation,
+            InputAction.FlightAutopilot, InputAction.FlightMap, InputAction.EvaDeployStation,
         };
 
         /// <summary>Vehicle (speeder) + dock/trade actions exposed as a third rebinding group.</summary>
@@ -144,6 +145,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.FlightEnterInterior => KeyCode.F,
             InputAction.FlightPadChooser => KeyCode.L,
             InputAction.FlightAutopilot => KeyCode.P,
+            InputAction.FlightMap => KeyCode.M,
             InputAction.EvaDeployStation => KeyCode.B,
             InputAction.SpeederBoost => KeyCode.LeftShift,
             InputAction.SpeederExit => KeyCode.F,
