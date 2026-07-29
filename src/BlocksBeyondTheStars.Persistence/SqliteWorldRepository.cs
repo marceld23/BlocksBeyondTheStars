@@ -435,6 +435,17 @@ public sealed class SqliteWorldRepository : IWorldRepository
         }
     }
 
+    public bool HasAnyBlockEdits(string planet)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT 1 FROM block_edit WHERE planet = $p LIMIT 1;";
+            cmd.Parameters.AddWithValue("$p", planet);
+            return cmd.ExecuteScalar() is not null;
+        }
+    }
+
     public IReadOnlyList<BlockEdit> LoadChunkEdits(string planet, ChunkCoord chunk)
     {
         var origin = WorldConstants.ChunkOrigin(chunk);

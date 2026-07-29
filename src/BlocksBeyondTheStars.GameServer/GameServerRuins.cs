@@ -103,12 +103,29 @@ public sealed partial class GameServer
             string tier = ir.NextDouble() < 0.55 ? "town" : "city";
             var structure = SettlementGenerator.Generate(tier, ruined: true, instSeed, surface, _content);
 
-            if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out var origin, out int groundY, out bool onIsland))
+            // #586: ruins stamp exactly once and never re-derive positions, so no placement record is
+            // needed — a fresh world gets the guaranteed search (drowned/lava ruins allowed), a legacy
+            // world stamping its one-time ruins now keeps the frozen first-fit search.
+            Vector3i origin;
+            int groundY;
+            bool onIsland;
+            string seat = "legacy";
+            if (_worlds.Active.VirginAtLoad)
+            {
+                if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
+                        wantIsland: false, SeatPolicy.Ruin, avoidPlayerEdits: false,
+                        out origin, out groundY, out onIsland, out seat))
+                {
+                    continue;
+                }
+            }
+            else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out origin, out groundY, out onIsland))
             {
                 continue;
             }
 
-            string name = UniqueName(SettlementDisplayName(tier, true, ir), usedNames);
+            string name = UniqueName(SettlementDisplayName(tier, true,
+                _worlds.Active.VirginAtLoad ? RngFor(instSeed, "name") : ir), usedNames);
             placed.Add(new PlacedSettlement
             {
                 Structure = structure,
@@ -118,12 +135,14 @@ public sealed partial class GameServer
                 Ruined = true,
                 OnIsland = onIsland,
                 Name = name,
+                Seat = seat,
                 Rng = ir,
             });
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
         }
 
+        ReportStamp("ruin", count, placed.Count);
         if (placed.Count == 0)
         {
             return;

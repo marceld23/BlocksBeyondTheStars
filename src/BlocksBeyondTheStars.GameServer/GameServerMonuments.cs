@@ -119,9 +119,23 @@ public sealed partial class GameServer
             var (structure, ir) = BuildMonument(archetype, MonumentSeed(mSeed, i), surface);
 
             // avoidPlayerEdits (#527): monuments are new in this release, so they stamp into worlds people
-            // have already built in — never on top of somebody's base.
-            if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false,
-                    out var origin, out int groundY, out bool onIsland, avoidPlayerEdits: true))
+            // have already built in — never on top of somebody's base. On a fresh world the guaranteed
+            // search takes over (#586) — a relic may even stand in a lava plain; monuments already pin
+            // their positions via their own record keys, so no extra placement record is needed.
+            Vector3i origin;
+            int groundY;
+            bool onIsland;
+            if (_worlds.Active.VirginAtLoad)
+            {
+                if (!TryPlaceStructureGuaranteed(structure, RngFor(MonumentSeed(mSeed, i), "search"), reserved,
+                        wantIsland: false, SeatPolicy.Monument, avoidPlayerEdits: true,
+                        out origin, out groundY, out onIsland, out _))
+                {
+                    continue;
+                }
+            }
+            else if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false,
+                    out origin, out groundY, out onIsland, avoidPlayerEdits: true))
             {
                 continue;
             }
@@ -142,6 +156,7 @@ public sealed partial class GameServer
         }
 
         // Even a body that ends up with none records the decision, so the roll never runs twice.
+        ReportStamp("monument", System.Math.Min(count, pool.Count), placed.Count);
         MarkFeatureStamped("monuments");
         if (placed.Count == 0)
         {

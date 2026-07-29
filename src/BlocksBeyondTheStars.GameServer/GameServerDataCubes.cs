@@ -75,6 +75,7 @@ public sealed partial class GameServer
         double r = rng.NextDouble();
         int count = r < 0.45 ? 0 : r < 0.80 ? 1 : r < 0.95 ? 2 : 3;
 
+        int requested = count;
         for (int i = 0; i < count; i++)
         {
             // A deterministic spot away from the spawn/landing area, each cube in its own direction (mirrors vaults).
@@ -82,7 +83,33 @@ public sealed partial class GameServer
             int az = (60 + rng.Next(360)) * (rng.Next(2) == 0 ? 1 : -1);
             if (OverlapsAnySettlement(ax, az))
             {
-                continue; // don't bury a cube inside a settlement
+                // #586: on a fresh world, nudge deterministically off the settlement footprint (no extra
+                // rng, so the other cubes' rolls are untouched). Legacy worlds keep the frozen skip — the
+                // cube ids are sequential, and a retro-inserted cube would shift every later id.
+                bool nudged = false;
+                if (_worlds.Active.VirginAtLoad)
+                {
+                    for (int radius = 12; radius <= 96 && !nudged; radius += 12)
+                    {
+                        for (int step = 0; step < 8 && !nudged; step++)
+                        {
+                            double a = step * System.Math.PI / 4.0;
+                            int nx = WorldConstants.WrapX(ax + (int)(System.Math.Cos(a) * radius), _world.Circumference);
+                            int nz = az + (int)(System.Math.Sin(a) * radius);
+                            if (!OverlapsAnySettlement(nx, nz))
+                            {
+                                ax = nx;
+                                az = nz;
+                                nudged = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!nudged)
+                {
+                    continue; // don't bury a cube inside a settlement
+                }
             }
 
             int surfaceY = _generator.SurfaceHeight(planet, ax, az);
@@ -113,6 +140,7 @@ public sealed partial class GameServer
             });
         }
 
+        ReportStamp("datacube", requested, System.Math.Min(requested, _dataCubes.Count));
         if (_dataCubes.Count > 0)
         {
             _log.Info($"Scattered {_dataCubes.Count} data cube(s) on '{_world.LocationId}'.");

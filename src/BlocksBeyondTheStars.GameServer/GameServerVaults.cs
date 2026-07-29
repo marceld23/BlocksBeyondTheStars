@@ -73,18 +73,96 @@ public sealed partial class GameServer
             : 0;
         for (int i = 0; i < count; i++)
         {
-            // A deterministic spot away from the spawn/landing area, each vault in its own direction.
+            // A deterministic spot away from the spawn/landing area, each vault in its own direction. The
+            // rolls are consumed unconditionally so every path (fresh/legacy/replay) walks the same stream.
             int ax = (120 + rng.Next(320)) * (rng.Next(2) == 0 ? 1 : -1);
             int az = (90 + rng.Next(280)) * (rng.Next(2) == 0 ? 1 : -1);
             int wx = WorldConstants.WrapX(ax, _world.Circumference);
-            if (OverlapsAnySettlement(wx, az, 6))
+
+            // #586: pinned record → legacy re-derive → guaranteed placement (fresh worlds).
+            var rec = FindPlacementRecord("vault", i);
+            if (rec is not null)
             {
-                continue; // don't drop a vault entrance inside a settlement footprint
+                if (rec.Placed)
+                {
+                    StampVault(rec.X, rec.Z, rng, write, rec.Seat == "wellhead", legacyGate: false);
+                }
+
+                continue;
             }
 
-            StampVault(wx, az, rng, write);
+            if (!_worlds.Active.VirginAtLoad)
+            {
+                // Legacy world: the frozen behaviour (silent skips included), recorded for future loads.
+                if (OverlapsAnySettlement(wx, az, 6))
+                {
+                    RecordPlacementSkip("vault", i);
+                    continue;
+                }
+
+                int before = _vaultEntrances.Count;
+                StampVault(wx, az, rng, write, wellhead: false, legacyGate: true);
+                if (_vaultEntrances.Count > before)
+                {
+                    var e = _vaultEntrances[^1];
+                    RecordPlacement("vault", i, e, e.Y, onIsland: false, "buried", string.Empty);
+                }
+                else
+                {
+                    RecordPlacementSkip("vault", i);
+                }
+
+                continue;
+            }
+
+            // Fresh world, guaranteed: nudge off reserved footprints deterministically; a dry column always
+            // works (the old `surfaceY < 24` gate predates the deep floor — a chamber fits under any dry
+            // ground now), a water column gets the WELLHEAD variant (chamber under the seabed, cased shaft
+            // rising through the water). Lava columns are skipped by the nudge (nobody dives into lava).
+            bool Fits(int x, int z) => !OverlapsAnySettlement(x, z, 6) && !_generator.IsSurfaceLava(planet, x, z);
+            int vx = wx, vz = az;
+            if (!Fits(vx, vz))
+            {
+                bool found = false;
+                for (int radius = 12; radius <= 96 && !found; radius += 12)
+                {
+                    for (int step = 0; step < 8 && !found; step++)
+                    {
+                        double a = step * System.Math.PI / 4.0;
+                        int nx = WorldConstants.WrapX(wx + (int)(System.Math.Cos(a) * radius), _world.Circumference);
+                        int nz = az + (int)(System.Math.Sin(a) * radius);
+                        if (Fits(nx, nz))
+                        {
+                            vx = nx;
+                            vz = nz;
+                            found = true;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    RecordPlacementSkip("vault", i); // all-lava/all-reserved carve-out
+                    continue;
+                }
+            }
+
+            bool wet = _generator.TryGetWaterSurface(planet, vx, vz, out _, out _);
+            int cnt = _vaultEntrances.Count;
+            StampVault(vx, vz, rng, write, wellhead: wet, legacyGate: false);
+            if (_vaultEntrances.Count > cnt)
+            {
+                var e = _vaultEntrances[^1];
+                RecordPlacement("vault", i, e, e.Y, onIsland: false, wet ? "wellhead" : "buried", string.Empty);
+            }
+            else
+            {
+                RecordPlacementSkip("vault", i);
+            }
         }
 
+        SavePlacementRecords();
+        ReportStamp("vault", count, _vaultEntrances.Count);
         if (write && _vaultEntrances.Count > 0)
         {
             _log.Info($"Stamped {_vaultEntrances.Count} buried vault(s) on '{_world.LocationId}'.");
@@ -98,14 +176,28 @@ public sealed partial class GameServer
 
     /// <summary>Carves one vault: surface pillar ring → 2×2 shaft → buried 9×9 chamber (deepslate shell, air
     /// inside) with data caches + two loot containers and a data terminal. With <paramref name="write"/>
-    /// false only the runtime state (entrances, loot markers) is re-derived (#467).</summary>
-    private void StampVault(int ax, int az, System.Random rng, bool write)
+    /// false only the runtime state (entrances, loot markers) is re-derived (#467). The WELLHEAD variant
+    /// (#586) buries the chamber under a water body's seabed and cases the shaft up through the water as a
+    /// stone well tube. <paramref name="legacyGate"/> keeps the pre-deep-floor `surfaceY &lt; 24` skip for
+    /// legacy worlds whose stamped state depends on it; fresh worlds bury under any dry column.</summary>
+    private void StampVault(int ax, int az, System.Random rng, bool write, bool wellhead, bool legacyGate)
     {
         var planet = _world.Planet;
-        int surfaceY = _generator.SurfaceHeight(planet, ax, az);
-        if (surfaceY < 24)
+        int surfaceY;
+        int waterTop = int.MinValue;
+        if (wellhead && _generator.TryGetWaterSurface(planet, ax, az, out int wTop, out int seabed))
         {
-            return; // too low to bury a chamber under (sea floors etc.)
+            surfaceY = seabed; // the chamber hides under the seabed; the shaft cases up through the water
+            waterTop = wTop;
+        }
+        else
+        {
+            surfaceY = _generator.SurfaceHeight(planet, ax, az);
+        }
+
+        if (legacyGate && surfaceY < 24)
+        {
+            return; // frozen legacy behaviour: too low to bury a chamber under (sea floors etc.)
         }
 
         var shell = (_content.GetBlock("deepslate") ?? _content.GetBlock("stone"))!.NumericId;
@@ -143,6 +235,22 @@ public sealed partial class GameServer
                 {
                     Put(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz), BlockId.Air);
                 }
+        }
+
+        // Wellhead (#586): case the shaft up through the water column as a 4×4 stone well tube with the
+        // 2×2 drop inside, mouth one block above the water line — a diveable ancient well.
+        if (waterTop != int.MinValue)
+        {
+            for (int dy = surfaceY + 2; dy <= waterTop + 1; dy++)
+            {
+                for (int dx = -2; dx <= 1; dx++)
+                    for (int dz = -2; dz <= 1; dz++)
+                    {
+                        bool casing = dx is -2 or 1 || dz is -2 or 1;
+                        Put(new Vector3i(WorldConstants.WrapX(ax + dx, _world.Circumference), dy, az + dz),
+                            casing ? shell : BlockId.Air);
+                    }
+            }
         }
 
         // Surface hint: a broken ring of weathered pillars (1–2 tall, some missing) around the shaft mouth.

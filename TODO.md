@@ -6468,6 +6468,35 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-29): structure placement guarantee + terrain-adaptive foundations (#586)
+
+Whatever the seed rolls for a world now actually lands in it — no more silent drops on dramatic terrain
+(the #576–#580 landforms made this acute):
+
+- **Pinned placements** — `WorldMetadata.Placements` records where every settlement/factory/camp/vault
+  instance landed (or that it found no spot) at first stamp. Re-loads REPLAY the record instead of
+  re-running the search, so the search algorithm may evolve without detaching markers/protection/NPCs
+  from already-stamped blocks. `IWorldRepository.HasAnyBlockEdits` is the fresh-vs-legacy ground truth:
+  worlds with prior edits re-derive through the FROZEN legacy search (bit-identical), then self-record.
+- **Guaranteed search** — `TryPlaceStructureGuaranteed`: ring 1 = the classic dry+flat first-fit
+  (no visual change where it succeeds), then widening best-fit rings ranking every candidate
+  (dry lowest-spread → water for stilt-capable kinds → lava for lava-capable kinds), then a margin-2
+  terminal pass + deterministic longitude sweep. Only documented carve-out: policy-forbidden ground
+  everywhere (e.g. all-lava for an inhabited settlement).
+- **Seat styles** — the stamper adapts per terrain: `flat`/`slope` (+ new stepped terrace apron so no
+  sheer foundation walls), `shelf` (cut & fill at footprint median, sub-surface stone fill, 96 skirt),
+  `stilts` (platform at water line on wood/stone pile columns — stilt villages, drowned ruins), `lava`
+  (basalt plinth, ruins + monuments only), `island` (unchanged). Policy matrix per structure kind;
+  bandit camps prefer rugged shelf spots when escalating.
+- **Vaults** — the pre-deep-floor `surfaceY < 24` skip is legacy-only; fresh worlds bury under any dry
+  column, nudge deterministically off reserved footprints, and water columns get the **wellhead**
+  variant (chamber under the seabed, cased 4×4 stone shaft rising one block above the water line).
+  Chests/data cubes gained deterministic no-rng fallbacks (fresh worlds only — legacy streams stay
+  bit-identical to avoid duplicate loot).
+- **Telemetry + tests** — per-kind requested/placed `StampReport` (drop ⇒ WARN),
+  `PlacementGuaranteeTests`: guarantee across rocky/highland/tablelands/karst/badlands/swamp/ocean,
+  record pinning, reload replay (positions + names + vault entrances), ocean stilt/lava policy.
+
 ## ✅ Done (2026-07-29): terrain extremes & landform variety + the deep kilometre (#576–#580)
 
 One combined worldgen wave (⚠️ one-time reshape of existing worlds, accepted like the 0.9.0 overhaul —

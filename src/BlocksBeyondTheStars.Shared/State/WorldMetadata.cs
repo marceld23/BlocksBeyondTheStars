@@ -63,6 +63,16 @@ public sealed class WorldMetadata
     public System.Collections.Generic.List<string> StampedFeatures { get; set; } = new();
 
     /// <summary>
+    /// Persisted structure placements (#586): where each rolled structure instance actually landed (or that
+    /// it could not land), pinned at first stamp. Without this the positions re-derived from re-running the
+    /// placement SEARCH on every load — which froze the search algorithm forever: any improvement would have
+    /// detached existing worlds' markers/protection/NPCs from their already-stamped blocks. A missing entry
+    /// means "this world predates the registry": the frozen legacy search re-derives it once, then records
+    /// the outcome here (self-healing migration; monuments pioneered this pattern via StampedFeatures).
+    /// </summary>
+    public System.Collections.Generic.List<StructurePlacementRecord> Placements { get; set; } = new();
+
+    /// <summary>
     /// Persisted body identity (#468): bodyId → planetType, pinned when a body is first generated. Without
     /// it the whole galaxy's types re-derived from <c>planets.json</c> on every start — ANY data edit (a
     /// new type, a weight rebalance, a reorder) silently re-typed bodies under players' buildings (it
@@ -88,6 +98,23 @@ public sealed class WorldMetadata
     /// Null on saves from before world options existed (the launch config's rules apply then).
     /// </summary>
     public BlocksBeyondTheStars.Shared.Configuration.GameRules? RulesOverride { get; set; }
+}
+
+/// <summary>Where one rolled structure instance landed (#586), pinned at first stamp so the placement search
+/// can evolve without moving structures under existing worlds. <see cref="Placed"/> false records the
+/// decision "no spot" permanently (legacy worlds only — the guaranteed search always finds one).</summary>
+public sealed class StructurePlacementRecord
+{
+    public string LocationId { get; set; } = string.Empty;
+    public string Kind { get; set; } = string.Empty; // settlement | factory | banditcamp | ruin | vault
+    public int Index { get; set; }                    // instance index within its kind's deterministic roll order
+    public bool Placed { get; set; }
+    public int X { get; set; }                        // structure-local (0,0,0) world column (vaults: shaft centre)
+    public int GroundY { get; set; }
+    public int Z { get; set; }
+    public bool OnIsland { get; set; }
+    public string Seat { get; set; } = "legacy";      // seat style: legacy|flat|slope|shelf|stilts|lava|island|buried|wellhead
+    public string Name { get; set; } = string.Empty;  // display name (derives from rng draws AFTER the search, so it must be pinned too)
 }
 
 /// <summary>One player claim over a spawned structure: a stable per-world key, the owner, and a display name.

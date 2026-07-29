@@ -42,6 +42,8 @@ public sealed partial class GameServer
         int placed = 0;
         for (int i = 0; i < count; i++)
         {
+            bool done = false;
+
             // A spot well away from the landing zone, on dry land, clear of any settlement/ruin footprint.
             for (int attempt = 0; attempt < 24; attempt++)
             {
@@ -60,10 +62,40 @@ public sealed partial class GameServer
                 int y = _generator.SurfaceHeight(planet, x, z) + 1;
                 SpawnStructureLoot("chest", "chest", new Vector3f(x, y, z), rng);
                 placed++;
+                done = true;
+                break;
+            }
+
+            if (done || !_worlds.Active.VirginAtLoad)
+            {
+                // Legacy worlds keep the frozen behaviour bit-for-bit: the fallback's extra loot-roll
+                // consumption would shift the next chest's position off its GeneratedLoot key and
+                // duplicate it. The guarantee applies to worlds created from now on.
+                continue;
+            }
+
+            // Terminal fallback (#586): the rolled chest must exist. Deterministic longitude walk; a wet
+            // column floats the salvage capsule on the water line, only lava stays excluded. This runs
+            // AFTER the 24 rolled attempts, so worlds where they used to succeed are byte-identical.
+            for (int step = 0; step < circ / 16; step++)
+            {
+                int x = WorldConstants.WrapX(pad0X + 60 + step * 16, circ);
+                int z = pad0Z + (step % 5 - 2) * 24;
+                if (OverlapsAnySettlement(x, z, 2) || _generator.IsSurfaceLava(planet, x, z))
+                {
+                    continue;
+                }
+
+                int y = _generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _)
+                    ? waterTop + 1
+                    : _generator.SurfaceHeight(planet, x, z) + 1;
+                SpawnStructureLoot("chest", "chest", new Vector3f(x, y, z), rng);
+                placed++;
                 break;
             }
         }
 
+        ReportStamp("chest", count, placed);
         if (placed > 0)
         {
             _log.Info($"Scattered {placed} treasure chest(s) on '{_world.LocationId}'.");

@@ -112,12 +112,54 @@ public sealed partial class GameServer
             var roster = factoryRecipes.OrderBy(_ => ir.Next()).Take(rosterSize).ToList();
 
             var structure = FactoryGenerator.Generate(instSeed, roster.Count, _content);
-            if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out var origin, out int groundY, out _))
+
+            // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds). Factories re-derive
+            // every load, so the record is what keeps them attached to their stamped halls (and their claims,
+            // whose keys embed the origin) when the search algorithm evolves.
+            Vector3i origin;
+            int groundY;
+            string seat;
+            string name;
+            var rec = FindPlacementRecord("factory", i);
+            if (rec is not null)
             {
-                continue;
+                if (!rec.Placed)
+                {
+                    continue;
+                }
+
+                origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
+                groundY = rec.GroundY;
+                seat = rec.Seat;
+                name = rec.Name;
+                usedNames.Add(name);
+            }
+            else if (!_worlds.Active.VirginAtLoad)
+            {
+                if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out origin, out groundY, out _))
+                {
+                    RecordPlacementSkip("factory", i);
+                    continue;
+                }
+
+                seat = "legacy";
+                name = UniqueName(FactoryName(ir), usedNames);
+                RecordPlacement("factory", i, origin, groundY, onIsland: false, seat, name);
+            }
+            else
+            {
+                if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
+                        wantIsland: false, SeatPolicy.Factory, avoidPlayerEdits: false,
+                        out origin, out groundY, out _, out seat))
+                {
+                    RecordPlacementSkip("factory", i);
+                    continue;
+                }
+
+                name = UniqueName(FactoryName(RngFor(instSeed, "name")), usedNames);
+                RecordPlacement("factory", i, origin, groundY, onIsland: false, seat, name);
             }
 
-            string name = UniqueName(FactoryName(ir), usedNames);
             placed.Add((new PlacedSettlement
             {
                 Structure = structure,
@@ -128,11 +170,14 @@ public sealed partial class GameServer
                 OnIsland = false,
                 Name = name,
                 Rng = ir,
+                Seat = seat,
             }, roster));
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
         }
 
+        SavePlacementRecords();
+        ReportStamp("factory", count, placed.Count);
         if (placed.Count == 0)
         {
             return;

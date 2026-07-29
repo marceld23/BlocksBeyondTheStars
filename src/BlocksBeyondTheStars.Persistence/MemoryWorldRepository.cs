@@ -504,6 +504,22 @@ public sealed class MemoryWorldRepository : IWorldRepository
         }
     }
 
+    public bool HasAnyBlockEdits(string planet)
+    {
+        lock (_gate)
+        {
+            foreach (var kv in _blockEdits)
+            {
+                if (kv.Key.Planet == planet)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
     public void DeleteBlockEdits(string planet, Vector3i min, Vector3i max)
     {
         lock (_gate)

@@ -313,6 +313,14 @@ public interface IWorldRepository : IDisposable
     /// question needs its own bounded query.</summary>
     bool HasPlayerBlockEdits(string planet, Vector3i min, Vector3i max);
 
+    /// <summary>True if the location holds ANY persisted block edit, by any writer — worldgen stamps
+    /// included. This is the ground truth for "was this world ever materialised before?" (#586): a world
+    /// with zero edits has never had its stamp chain run, so the placement search may use the current
+    /// algorithm freely; a world with edits must re-derive legacy positions so structures stay attached
+    /// to their stamped blocks. Metadata markers can't answer this — saves from before the stamp registry
+    /// carry none.</summary>
+    bool HasAnyBlockEdits(string planet);
+
     /// <summary>Records the generation/discovery status of a location (system or body).</summary>
     void SetLocationStatus(string locationId, string status);
 

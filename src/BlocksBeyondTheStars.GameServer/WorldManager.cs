@@ -136,6 +136,15 @@ internal sealed class LoadedWorld
         return ship;
     }
 
+    // Placement-guarantee state (#586). VirginAtLoad: captured BEFORE the stamp chain runs — true when the
+    // location held no persisted block edits at all, i.e. the world has never been materialised. Only then
+    // may the placement search use the current (escalating) algorithm; a world with prior edits re-derives
+    // through the frozen legacy search so structures stay attached to their already-stamped blocks.
+    public bool VirginAtLoad { get; set; }
+
+    // Per-kind requested/placed telemetry from this load's stamp chain (test seam + WARN logging).
+    public List<(string Kind, int Requested, int Placed)> StampReport { get; } = new();
+
     // Wreck stamp state.
     public bool WreckStamped { get; set; }
     public Vector3i WreckOrigin { get; set; }

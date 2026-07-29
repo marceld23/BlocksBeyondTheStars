@@ -100,9 +100,48 @@ public sealed partial class GameServer
             var ir = new System.Random(unchecked((int)(instSeed ^ (instSeed >> 32))));
             var structure = BanditCampGenerator.Generate(instSeed, surface, _content);
 
-            if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out var origin, out int groundY, out bool onIsland))
+            // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds; camps prefer rugged
+            // ground when the search escalates — they hide). Camp instances re-derive every load, so the
+            // record keeps guards/markers attached to the once-stamped huts across algorithm changes.
+            Vector3i origin;
+            int groundY;
+            bool onIsland;
+            string seat;
+            var rec = FindPlacementRecord("banditcamp", i);
+            if (rec is not null)
             {
-                continue;
+                if (!rec.Placed)
+                {
+                    continue;
+                }
+
+                origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
+                groundY = rec.GroundY;
+                onIsland = rec.OnIsland;
+                seat = rec.Seat;
+            }
+            else if (!_worlds.Active.VirginAtLoad)
+            {
+                if (!TryPlaceSettlement(structure, ir, reserved, wantIsland: false, out origin, out groundY, out onIsland))
+                {
+                    RecordPlacementSkip("banditcamp", i);
+                    continue;
+                }
+
+                seat = "legacy";
+                RecordPlacement("banditcamp", i, origin, groundY, onIsland, seat, "bandit_camp_" + i);
+            }
+            else
+            {
+                if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved,
+                        wantIsland: false, SeatPolicy.Camp, avoidPlayerEdits: false,
+                        out origin, out groundY, out onIsland, out seat))
+                {
+                    RecordPlacementSkip("banditcamp", i);
+                    continue;
+                }
+
+                RecordPlacement("banditcamp", i, origin, groundY, onIsland, seat, "bandit_camp_" + i);
             }
 
             placed.Add(new PlacedSettlement
@@ -115,11 +154,14 @@ public sealed partial class GameServer
                 OnIsland = onIsland,
                 Name = "bandit_camp_" + i,
                 Rng = ir,
+                Seat = seat,
             });
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
         }
 
+        SavePlacementRecords();
+        ReportStamp("banditcamp", count, placed.Count);
         if (placed.Count == 0)
         {
             return;

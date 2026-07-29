@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -163,6 +164,11 @@ public sealed partial class GameServer
         public required bool OnIsland;
         public required string Name;
         public required System.Random Rng; // per-instance deterministic rng (loot + names)
+
+        /// <summary>Seat style (#586): how the stamper couples this structure to the terrain —
+        /// "legacy"/"flat"/"slope" (foundation + stepped skirt), "shelf" (cut &amp; fill at median height),
+        /// "stilts" (platform over water on pile columns), "lava" (basalt plinth), "island" (sky deck).</summary>
+        public string Seat = "legacy";
     }
 
     private void StampSettlement()
@@ -239,12 +245,62 @@ public sealed partial class GameServer
             }
 
             bool wantIsland = planet.FloatingIslands && ir.NextDouble() < 0.5;
-            if (!TryPlaceSettlement(structure, ir, reserved, wantIsland, out var origin, out int groundY, out bool onIsland))
+
+            // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds only). The record is
+            // written on whichever path runs first, so the search algorithm can evolve without moving
+            // structures under existing worlds.
+            Vector3i origin;
+            int groundY;
+            bool onIsland;
+            string seat;
+            string name;
+            var rec = FindPlacementRecord("settlement", i);
+            if (rec is not null)
             {
-                continue; // no room on this world for this one — skip (reported below)
+                if (!rec.Placed)
+                {
+                    continue; // decided before: this instance has no spot on this world — forever
+                }
+
+                origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
+                groundY = rec.GroundY;
+                onIsland = rec.OnIsland;
+                seat = rec.Seat;
+                name = rec.Name;
+                usedNames.Add(name);
+            }
+            else if (!_worlds.Active.VirginAtLoad)
+            {
+                // Legacy world (stamped before the record registry existed): the FROZEN first-fit search
+                // reproduces the positions its blocks were stamped at; the outcome is recorded so future
+                // loads replay instead of re-deriving.
+                if (!TryPlaceSettlement(structure, ir, reserved, wantIsland, out origin, out groundY, out onIsland))
+                {
+                    RecordPlacementSkip("settlement", i);
+                    continue;
+                }
+
+                seat = "legacy";
+                name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name);
+            }
+            else
+            {
+                // Fresh world: the escalating search guarantees a spot (terrain adapts via the seat style).
+                // It draws from its own rng lane so the shared per-instance stream stays search-independent;
+                // the name comes from a dedicated lane for the same reason.
+                if (!TryPlaceStructureGuaranteed(structure, RngFor(instSeed, "search"), reserved, wantIsland,
+                        ruined ? SeatPolicy.Ruin : SeatPolicy.Inhabited, avoidPlayerEdits: false,
+                        out origin, out groundY, out onIsland, out seat))
+                {
+                    RecordPlacementSkip("settlement", i); // all-lava carve-out — see TryPlaceStructureGuaranteed
+                    continue;
+                }
+
+                name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name);
             }
 
-            string name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
             placed.Add(new PlacedSettlement
             {
                 Structure = structure,
@@ -255,14 +311,16 @@ public sealed partial class GameServer
                 OnIsland = onIsland,
                 Name = name,
                 Rng = ir,
+                Seat = seat,
             });
             reserved.Add((origin.X + structure.Width / 2, origin.Z + structure.Length / 2,
                 structure.Width / 2 + 1, structure.Length / 2 + 1));
         }
 
+        SavePlacementRecords();
+        ReportStamp("settlement", requested, placed.Count);
         if (placed.Count == 0)
         {
-            _log.Info($"No room to place any of {requested} requested settlement(s) on '{_world.LocationId}'.");
             return;
         }
 
@@ -324,20 +382,37 @@ public sealed partial class GameServer
     }
 
     /// <summary>Carves the footprint clear of terrain, lays a flat foundation, then stamps the structure's blocks.
-    /// Must run inside a repo transaction (called once per settlement from the batched stamp).</summary>
+    /// The seat style (#586) picks how the foundation couples to the terrain: legacy/flat/slope keep the classic
+    /// foundation + stepped skirt, shelf cuts into rugged relief and fills with stone, stilts raise a platform
+    /// over water on pile columns, lava raises a basalt plinth above a lava sheet, island keeps the floating
+    /// deck. Must run inside a repo transaction (called once per settlement from the batched stamp).</summary>
     private void StampSettlementBlocks(PlacedSettlement p, string surface)
     {
         var s = p.Structure;
         int gy = p.GroundY;
         var origin = p.Origin;
+        bool shelf = p.Seat == "shelf";
+        bool stilts = p.Seat == "stilts";
+        bool lavaSeat = p.Seat == "lava";
         var foundationId = _content.GetBlock(surface)?.NumericId ?? BlockId.Air;
 
-        // Carve only as high as terrain actually rises above the foundation. Placement guarantees a low height
-        // spread, so the surface never climbs more than a handful of blocks over gy — clearing the structure's
-        // FULL height (up to 128 for a hand-authored tower) would be millions of pointless air writes. Sample
-        // the footprint coarsely to find that intrusion height. (On a sky island the ground is far below, so
-        // maxSurf - gy goes negative and the carve collapses to the minimum.)
+        // Seat materials. The shelf fills with the biome's sub-surface block so the cut reads as bedrock, a
+        // lava plinth is basalt, stilt piles are logs for inhabited builds and weathered stone for ruins.
         var planet = _world.Planet;
+        string sub = planet.Biomes.Count > 0 ? planet.Biomes[0].SubSurfaceBlock : planet.SubSurfaceBlock;
+        var shelfFillId = _content.GetBlock(sub)?.NumericId ?? foundationId;
+        var basaltId = (_content.GetBlock("basalt") ?? _content.GetBlock("stone"))?.NumericId ?? foundationId;
+        var pileId = p.Ruined
+            ? (_content.GetBlock("stone")?.NumericId ?? foundationId)
+            : (_content.GetBlock("wood_log") ?? _content.GetBlock("stone"))?.NumericId ?? foundationId;
+        var floorId = lavaSeat ? basaltId : stilts && !p.Ruined ? pileId : foundationId;
+
+        // Carve only as high as terrain actually rises above the foundation. The classic gates guarantee a
+        // low spread, so clearing the structure's FULL height (up to 128 for a hand-authored tower) would be
+        // millions of pointless air writes; a SHELF seat sits in genuinely rugged relief, so its cut may run
+        // higher than the buildings to open the mountainside above them. Sample the footprint coarsely to
+        // find the intrusion height. (On a sky island the ground is far below, so maxSurf - gy goes negative
+        // and the carve collapses to the minimum.)
         int maxSurf = gy;
         for (int x = 0; x < s.Width; x += 8)
             for (int z = 0; z < s.Length; z += 8)
@@ -345,7 +420,7 @@ public sealed partial class GameServer
                 maxSurf = System.Math.Max(maxSurf, _generator.SurfaceHeight(planet, origin.X + x, origin.Z + z));
             }
 
-        int clearH = System.Math.Clamp(maxSurf - gy + 3, 2, s.Height);
+        int clearH = System.Math.Clamp(maxSurf - gy + 3, 2, shelf ? System.Math.Max(s.Height, 96) : s.Height);
 
         // 1) Clear any terrain occupying the build volume above the foundation, so a hill never buries the
         //    buildings (the structure's own air cells are otherwise left as whatever was there).
@@ -361,18 +436,39 @@ public sealed partial class GameServer
         //    each column also gets a stepped plinth: solid fill from gy down to the natural surface, deep on the
         //    downhill side, shallow uphill. The result is a real multi-level foundation that meets the ground
         //    all the way round instead of a flat platform floating over a dip. (Skipped on sky islands, whose
-        //    deck is meant to float over the void.) Depth is capped so a missed crevasse can't fill a chasm.
-        if (!foundationId.IsAir)
+        //    deck is meant to float over the void.) Depth is capped so a missed crevasse can't fill a chasm —
+        //    a SHELF seat, cut into rugged relief on purpose, gets double the cap. A STILTS seat swaps the
+        //    solid fill for pile columns on a sparse grid over the wet cells (a platform, not a dam).
+        if (!floorId.IsAir)
         {
-            const int maxSkirt = 48;
+            int maxSkirt = shelf ? 96 : 48;
+            var skirtId = shelf ? shelfFillId : lavaSeat ? basaltId : foundationId;
             for (int x = 0; x < s.Width; x++)
                 for (int z = 0; z < s.Length; z++)
                 {
                     int wx = origin.X + x, wz = origin.Z + z;
-                    _world.SetBlock(new Vector3i(wx, gy, wz), foundationId); // flat floor row
+                    _world.SetBlock(new Vector3i(wx, gy, wz), floorId); // flat floor row
 
                     if (p.OnIsland)
                     {
+                        continue;
+                    }
+
+                    if (stilts && _generator.TryGetWaterSurface(planet, wx, wz, out _, out int seabedY))
+                    {
+                        // Wet column: no solid fill — a pile column every few cells plus the footprint rim
+                        // carries the platform down to the seabed; the water flows on beneath the deck.
+                        bool pile = (x % 3 == 0 && z % 3 == 0)
+                            || ((x == 0 || x == s.Width - 1 || z == 0 || z == s.Length - 1) && (x + z) % 3 == 0);
+                        if (pile)
+                        {
+                            int pileFloor = System.Math.Max(seabedY + 1, gy - maxSkirt);
+                            for (int y = gy - 1; y >= pileFloor; y--)
+                            {
+                                _world.SetBlock(new Vector3i(wx, y, wz), pileId);
+                            }
+                        }
+
                         continue;
                     }
 
@@ -380,9 +476,16 @@ public sealed partial class GameServer
                     int floorY = System.Math.Max(colSurf + 1, gy - maxSkirt);
                     for (int y = gy - 1; y >= floorY; y--) // fill the gap down to the natural ground
                     {
-                        _world.SetBlock(new Vector3i(wx, y, wz), foundationId);
+                        _world.SetBlock(new Vector3i(wx, y, wz), skirtId);
                     }
                 }
+
+            // Slope/shelf seats get a stepped apron around the plinth so no sheer foundation wall meets the
+            // ground (#586) — one terrace ring per step, only where the plinth actually stands proud.
+            if (p.Seat is "slope" or "shelf")
+            {
+                StampFoundationApron(p, skirtId);
+            }
         }
 
         // 3) Stamp the structure above the foundation (y=0 of the structure is the foundation row).
@@ -482,6 +585,403 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    // --- guaranteed placement (#586) ------------------------------------------------------------------------
+
+    /// <summary>Which seatings a structure kind tolerates: inhabited builds may stand on stilts but never in
+    /// lava; ruins and monuments may do both (a drowned ruin / a dead relic in a lava plain); factories and
+    /// camps stay on dry land, and camps prefer rugged ground when the search has to escalate (they hide).</summary>
+    private readonly record struct SeatPolicy(bool AllowStilts, bool AllowLava, bool PreferRugged)
+    {
+        public static SeatPolicy Inhabited => new(true, false, false);
+        public static SeatPolicy Ruin => new(true, true, false);
+        public static SeatPolicy Factory => new(false, false, false);
+        public static SeatPolicy Camp => new(false, false, true);
+        public static SeatPolicy Monument => new(false, true, false);
+    }
+
+    /// <summary>Footprint statistics for one candidate spot, gathered over the sample columns.</summary>
+    private sealed class SeatCandidate
+    {
+        public int Cx, Cz;              // footprint centre (world)
+        public int Spread;              // max-min ground height over the samples
+        public int MedianY;             // median ground height (shelf seat level)
+        public int MaxY;                // highest ground sample (lava plinth clears the sheet from here)
+        public int WetSamples;          // water-covered sample columns
+        public int LavaSamples;         // lava-covered sample columns
+        public int Samples;             // total sample columns
+        public int WaterTop = int.MinValue; // highest water surface over the wet samples
+    }
+
+    /// <summary>A deterministic rng lane per instance seed, so the guaranteed search and the display name
+    /// never share draws with the legacy per-instance stream — the search can then grow or shrink its
+    /// consumption freely without shifting any other roll (#586).</summary>
+    private static System.Random RngFor(long instSeed, string lane)
+    {
+        long s = instSeed ^ WorldGenerator.StableHash(lane);
+        return new System.Random(unchecked((int)(s ^ (s >> 32))));
+    }
+
+    /// <summary>The pinned placement record for a structure instance on the active world, or null.</summary>
+    private StructurePlacementRecord? FindPlacementRecord(string kind, int index)
+        => _meta.Placements.Find(r => r.LocationId == _world.LocationId && r.Kind == kind && r.Index == index);
+
+    private bool _placementRecordsDirty;
+
+    /// <summary>Pins where a structure instance landed (#586). Batched — call
+    /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
+    private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
+        string seat, string name)
+    {
+        var rec = FindPlacementRecord(kind, index);
+        if (rec is null)
+        {
+            rec = new StructurePlacementRecord { LocationId = _world.LocationId, Kind = kind, Index = index };
+            _meta.Placements.Add(rec);
+        }
+
+        rec.Placed = true;
+        rec.X = origin.X;
+        rec.GroundY = groundY;
+        rec.Z = origin.Z;
+        rec.OnIsland = onIsland;
+        rec.Seat = seat;
+        rec.Name = name;
+        _placementRecordsDirty = true;
+    }
+
+    /// <summary>Pins the decision that an instance found NO spot (legacy worlds / the all-lava carve-out),
+    /// so later loads don't re-roll it.</summary>
+    private void RecordPlacementSkip(string kind, int index)
+    {
+        if (FindPlacementRecord(kind, index) is not null)
+        {
+            return;
+        }
+
+        _meta.Placements.Add(new StructurePlacementRecord
+        {
+            LocationId = _world.LocationId,
+            Kind = kind,
+            Index = index,
+            Placed = false,
+        });
+        _placementRecordsDirty = true;
+    }
+
+    private void SavePlacementRecords()
+    {
+        if (_placementRecordsDirty)
+        {
+            _placementRecordsDirty = false;
+            _repo.SaveMetadata(_meta);
+        }
+    }
+
+    /// <summary>Per-kind requested/placed telemetry: a drop is a WARN — with the guaranteed search it should
+    /// only ever fire on legacy worlds and the documented all-lava carve-out.</summary>
+    private void ReportStamp(string kind, int requested, int placedCount)
+    {
+        _worlds.Active.StampReport.Add((kind, requested, placedCount));
+        if (placedCount < requested)
+        {
+            _log.Warn($"Placed only {placedCount}/{requested} {kind}(s) on '{_world.LocationId}'.");
+        }
+    }
+
+    /// <summary>Test seam: this load's per-kind requested/placed stamp report.</summary>
+    public IReadOnlyList<(string Kind, int Requested, int Placed)> StampReportForTest
+        => _worlds.Active.StampReport;
+
+    /// <summary>Test seam: the pinned placement records of the active world.</summary>
+    public IReadOnlyList<StructurePlacementRecord> PlacementRecordsForTest
+        => _meta.Placements.Where(r => r.LocationId == _world.LocationId).ToList();
+
+    /// <summary>The guaranteed placement search (#586): first the classic gates (ring 1 — first-fit on dry,
+    /// flat ground, no visual change where they succeed), then widening best-fit rings that rank every seen
+    /// candidate (dry lowest-spread first, then water for stilt-capable kinds, lava last for lava-capable
+    /// kinds), then a terminal pass with the collision margin relaxed 6 → 2, and finally a deterministic
+    /// longitude sweep. The chosen spot is classified into a seat style; the stamper adapts the terrain to
+    /// it. Returns false only when policy forbids every reachable column (in practice: an all-lava ring for
+    /// a kind that may not stand in lava) — the one documented carve-out from the guarantee. Player-edit
+    /// avoidance and pad/settlement reservations are never relaxed beyond margin 2.</summary>
+    private bool TryPlaceStructureGuaranteed(SettlementStructure s, System.Random rng,
+        List<(int Cx, int Cz, int Hw, int Hl)> reserved, bool wantIsland, SeatPolicy policy,
+        bool avoidPlayerEdits, out Vector3i origin, out int groundY, out bool onIsland, out string seat)
+    {
+        origin = default;
+        groundY = 0;
+        onIsland = false;
+        seat = "flat";
+
+        var planet = _world.Planet;
+        int circ = _world.Circumference;
+        int latP = WorldConstants.LatitudePeriodFor(circ);
+        int w = s.Width, l = s.Length;
+        int hw = w / 2 + 1, hl = l / 2 + 1;
+        int latBand = System.Math.Max(8, latP / 2 - System.Math.Max(w, l) / 2 - 16);
+        int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0;
+        int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
+        int baseDist = System.Math.Max(80, (int)(circ * 0.4));
+        int maxSpread = System.Math.Clamp(System.Math.Max(w, l) / 8, 8, 24);
+        bool canIsland = wantIsland && System.Math.Max(w, l) <= 40;
+
+        bool Blocked(int cx, int cz, int margin)
+            => OverlapsFootprint(cx, cz, hw, hl, reserved, margin);
+
+        bool EditGate(int ox, int oz, int gy)
+            => avoidPlayerEdits && FootprintHasPlayerEdits(ox, oz, gy, w, s.Height, l);
+
+        // Ring 1 — the classic gates, first-fit. Where they succeed nothing changes visually.
+        int attempts = System.Math.Max(w, l) > 48 ? 160 : 64;
+        for (int attempt = 0; attempt < attempts; attempt++)
+        {
+            double ang = rng.NextDouble() * System.Math.PI * 2.0;
+            int dist = 40 + rng.Next(0, baseDist);
+            int cx = pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist);
+            int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
+            if (Blocked(cx, cz, SettlementCollisionMargin))
+            {
+                continue;
+            }
+
+            int ox = cx - w / 2, oz = cz - l / 2;
+            if (canIsland)
+            {
+                if (TryIslandFootprint(planet, ox, oz, w, l, out int itop) && !EditGate(ox, oz, itop))
+                {
+                    origin = new Vector3i(ox, itop, oz);
+                    groundY = itop;
+                    onIsland = true;
+                    seat = "island";
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (FootprintWet(planet, ox, oz, w, l) || FootprintSpread(planet, ox, oz, w, l) > maxSpread)
+            {
+                continue;
+            }
+
+            int gy = _generator.SurfaceHeight(planet, cx, cz);
+            if (EditGate(ox, oz, gy))
+            {
+                continue;
+            }
+
+            origin = new Vector3i(ox, gy, oz);
+            groundY = gy;
+            seat = FootprintSpread(planet, ox, oz, w, l) <= 4 ? "flat" : "slope";
+            return true;
+        }
+
+        // Rings 2+ — collect + rank. Widening rings, then a terminal margin-2 ring; the best candidate seen
+        // anywhere wins. Ranking tiers: dry (spread asc — desc for rugged-preferring kinds), then water for
+        // stilt-capable kinds (least wet first), then water for everyone (function over matrix — better a
+        // dry-land kind on stilts than a world missing its rolled structure), then lava if allowed.
+        SeatCandidate? best = null;
+        int bestTier = int.MaxValue, bestScore = int.MaxValue;
+
+        void Consider(SeatCandidate c)
+        {
+            int tier;
+            int score;
+            if (c.LavaSamples > 0)
+            {
+                if (!policy.AllowLava)
+                {
+                    return; // lava is the one absolute no-go for kinds that may not stand in it
+                }
+
+                tier = 3;
+                score = c.LavaSamples * 1000 / System.Math.Max(1, c.Samples);
+            }
+            else if (c.WetSamples > 0)
+            {
+                tier = policy.AllowStilts ? 1 : 2;
+                score = c.WetSamples * 1000 / System.Math.Max(1, c.Samples);
+            }
+            else
+            {
+                tier = 0;
+                score = policy.PreferRugged ? -c.Spread : c.Spread;
+            }
+
+            if (tier < bestTier || (tier == bestTier && score < bestScore))
+            {
+                best = c;
+                bestTier = tier;
+                bestScore = score;
+            }
+        }
+
+        foreach (var (scale, margin, tries) in new[] { (1.0, 6, attempts), (1.5, 6, attempts), (2.0, 6, attempts), (2.0, 2, attempts * 2) })
+        {
+            int maxDist = System.Math.Min(circ / 2, (int)(baseDist * scale));
+            for (int attempt = 0; attempt < tries; attempt++)
+            {
+                double ang = rng.NextDouble() * System.Math.PI * 2.0;
+                int dist = 40 + rng.Next(0, maxDist);
+                int cx = pad0X + (int)System.Math.Round(System.Math.Cos(ang) * dist);
+                int cz = System.Math.Clamp(pad0Z + (int)System.Math.Round(System.Math.Sin(ang) * dist), -latBand, latBand);
+                if (Blocked(cx, cz, margin))
+                {
+                    continue;
+                }
+
+                var c = EvaluateFootprint(planet, cx - w / 2, cz - l / 2, w, l);
+                c.Cx = cx;
+                c.Cz = cz;
+                if (EditGate(cx - w / 2, cz - l / 2, c.MedianY))
+                {
+                    continue;
+                }
+
+                Consider(c);
+            }
+
+            if (best is not null && bestTier == 0)
+            {
+                break; // a dry spot in a tighter ring beats walking further out
+            }
+        }
+
+        // Terminal sweep — deterministic longitude walk on three latitude lines. Only reachable when even
+        // the widened rings found nothing rankable (tiny bodies saturated with reservations).
+        if (best is null)
+        {
+            foreach (int cz in new[] { 0, latBand / 2, -latBand / 2 })
+            {
+                for (int cx = pad0X + 40; cx < pad0X + circ - 40 && best is null; cx += 16)
+                {
+                    int wxc = WorldConstants.WrapX(cx, circ);
+                    if (Blocked(wxc, cz, 2))
+                    {
+                        continue;
+                    }
+
+                    var c = EvaluateFootprint(planet, wxc - w / 2, cz - l / 2, w, l);
+                    c.Cx = wxc;
+                    c.Cz = cz;
+                    if (EditGate(wxc - w / 2, cz - l / 2, c.MedianY))
+                    {
+                        continue;
+                    }
+
+                    Consider(c);
+                }
+            }
+        }
+
+        if (best is null)
+        {
+            return false; // the documented carve-out (e.g. an all-lava surface for a no-lava kind)
+        }
+
+        // Classify the winning footprint into a seat style + its ground level.
+        var bc = best;
+        int bx = bc.Cx - w / 2, bz = bc.Cz - l / 2;
+        if (bc.LavaSamples > 0)
+        {
+            seat = "lava";
+            groundY = bc.MaxY + 2; // the basalt plinth clears the lava sheet
+        }
+        else if (bc.WetSamples > 0)
+        {
+            seat = "stilts";
+            groundY = bc.WaterTop + 1; // platform just above the water line
+        }
+        else if (bc.Spread <= 4)
+        {
+            seat = "flat";
+            groundY = _generator.SurfaceHeight(planet, bc.Cx, bc.Cz);
+        }
+        else if (bc.Spread <= maxSpread)
+        {
+            seat = "slope";
+            groundY = _generator.SurfaceHeight(planet, bc.Cx, bc.Cz);
+        }
+        else
+        {
+            seat = "shelf";
+            groundY = bc.MedianY; // cut & fill around the median so the shelf splits the relief evenly
+        }
+
+        origin = new Vector3i(bx, groundY, bz);
+        return true;
+    }
+
+    /// <summary>Gathers footprint statistics (spread/median over ground heights, wet/lava sample counts,
+    /// highest water surface) for the seat classification — one pass over the standard sample columns.</summary>
+    private SeatCandidate EvaluateFootprint(PlanetType planet, int ox, int oz, int w, int l)
+    {
+        var c = new SeatCandidate();
+        var heights = new List<int>();
+        foreach (var (x, z) in FootprintSamples(ox, oz, w, l))
+        {
+            c.Samples++;
+            if (_generator.IsSurfaceLava(planet, x, z))
+            {
+                c.LavaSamples++;
+            }
+            else if (_generator.TryGetWaterSurface(planet, x, z, out int waterTop, out _))
+            {
+                c.WetSamples++;
+                c.WaterTop = System.Math.Max(c.WaterTop, waterTop);
+            }
+
+            heights.Add(_generator.SurfaceHeight(planet, x, z));
+        }
+
+        heights.Sort();
+        c.MedianY = heights[heights.Count / 2];
+        c.MaxY = heights[^1];
+        c.Spread = heights[^1] - heights[0];
+        return c;
+    }
+
+    /// <summary>Stamps a stepped apron around a slope/shelf plinth (#586): terrace rings just outside the
+    /// footprint, one step lower per ring, filled a few blocks down to the natural ground — so the foundation
+    /// meets the terrain as steps instead of a sheer wall.</summary>
+    private void StampFoundationApron(PlacedSettlement p, BlockId fill)
+    {
+        if (fill.IsAir)
+        {
+            return;
+        }
+
+        var planet = _world.Planet;
+        var s = p.Structure;
+        int gy = p.GroundY;
+        for (int ring = 1; ring <= 2; ring++)
+        {
+            int stepY = gy - ring;
+            int x0 = p.Origin.X - ring, x1 = p.Origin.X + s.Width - 1 + ring;
+            int z0 = p.Origin.Z - ring, z1 = p.Origin.Z + s.Length - 1 + ring;
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    if (x != x0 && x != x1 && z != z0 && z != z1)
+                    {
+                        continue; // ring perimeter only
+                    }
+
+                    int colSurf = _generator.SurfaceHeight(planet, x, z);
+                    if (colSurf >= stepY || _generator.IsSurfaceWater(planet, x, z) || _generator.IsSurfaceLava(planet, x, z))
+                    {
+                        continue; // uphill side / wet ground — no terrace needed or wanted
+                    }
+
+                    int floorY = System.Math.Max(colSurf + 1, stepY - 4); // short footing, not another wall
+                    for (int y = stepY; y >= floorY; y--)
+                    {
+                        _world.SetBlock(new Vector3i(x, y, z), fill);
+                    }
+                }
+        }
     }
 
     /// <summary>True if any cell in the build volume carries a player-authored block edit (#527). Worldgen

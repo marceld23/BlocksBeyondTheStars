@@ -480,6 +480,12 @@ public sealed partial class GameServer
         ResetWorldRuntimeState();
         InitWeather();
 
+        // #586: decide the placement mode BEFORE anything writes blocks. No persisted edits at all ⇒ the
+        // world was never materialised ⇒ the guaranteed (escalating) placement search may run; otherwise the
+        // frozen legacy search re-derives positions so structures stay attached to their stamped blocks.
+        world.VirginAtLoad = !_repo.HasAnyBlockEdits(locationId);
+        world.StampReport.Clear();
+
         // A void world (an orbital station) has no terrain, so it gets none of the planet-surface content —
         // no fauna/flora/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives there
         // (the caller stamps it). Weather is initialised above so the env reads its clear/space-sky settings.

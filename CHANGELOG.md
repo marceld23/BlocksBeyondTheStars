@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏗️ Structure placement guarantee & terrain-adaptive foundations (#586)
+
+- **What the world rolls, the world gets.** Settlements, ruins, factories, bandit camps, monuments,
+  vaults, treasure chests and data cubes are no longer silently dropped when the terrain is dramatic:
+  the placement search now escalates — classic dry-and-flat spots first, then widening best-fit rings —
+  until every rolled structure has a home. (New worlds; existing worlds keep their exact layout.)
+- **Foundations that fit the terrain.** The seat adapts to what it lands on: slopes get stepped terrace
+  aprons instead of sheer foundation walls, rugged massif flanks get a cut-and-fill rock shelf, lakes
+  carry **stilt villages** on pile platforms (and drowned ruins), lava plains may hold a dead city on a
+  basalt plinth, and vaults under a water body rise as a diveable stone **well head**.
+- **Placements are now pinned.** Where each structure landed is stored with the save at first stamp, so
+  future placement improvements can never move villages, camps or vaults out from under their own blocks
+  (previously the positions were re-derived from the seed on every load).
+
 ## [2026.7.21] — 2026-07-29
 
 The landforms release: worlds finally dare vertical drama. The regional terrain pool grows from
