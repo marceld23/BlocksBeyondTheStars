@@ -388,6 +388,8 @@ separate unlock; admins can still disable it through server world rules.
   **relic cache** nearby.
 
 ### Bandits (robbers, camps, pirate space)
+- Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
+  and the scruffy jacket — not by glowing eyes, which belong to the Guardian robots.
 - **Lone robbers** roam some survival worlds. One may walk straight up to you and demand roughly a
   third of your two biggest stacks (**never your tools**). You have ~25 seconds and a real choice:
   **[1] Hand it over** — the robber keeps its word, leaves, and won't bother you again for a long

@@ -24,6 +24,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   distance, so the numbering is discoverable instead of guessed at.
 - **Factories now show on the planet map.** They were tracked by the server but never drawn.
 
+### 🧑 Bandits look like people again (#601)
+
+- **No more red-eyed robbers.** The bandit's red headband sat across the top of the head and, at any
+  distance, read as a pair of glowing red eyes — exactly the look of the Guardian machines. Bandits
+  now have a real face (eye whites, pupils, brow), hair, and a **cloth mask over nose and mouth** as
+  the "this one is a robber" cue.
+- **Their gear stopped glowing Guardian red.** The energy blade, the blaster muzzle and the gunner's
+  tracer shot are now cold blue — bought human tech, not alien machine.
+- **Every bandit looks like a different person.** Skin tone, hair, mask and jacket colour all vary,
+  so a raider camp is a group of individuals instead of one face copied four times.
+
 ## [2026.7.22] — 2026-07-29
 
 The wayfinder release: the planet map becomes a real navigation tool and the world generator

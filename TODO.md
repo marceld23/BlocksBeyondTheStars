@@ -102,6 +102,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Bandits are people, not red-eyed things (#601, 2026-07-29, branch fix/bandit-human-faces)
+Bandits read as red-eyed creatures, uncomfortably close to the Guardian machines. Their eyes were
+already dark cubes — the red came from two other places. **(1) The bandana**: the skull spans
+head-local y −0.05…0.29 while the red band spanned 0.21…0.31 and was *wider* than the skull, so the
+top ~30 % of the head's front face was a solid red slab, while the real eyes (0.07 × 0.05 dark chips
+on skin) vanished after a few metres — next to robots that genuinely have a row of glowing red eyes
+in that head region, the band reads as eyes. **(2) The weapon**: blade and blaster muzzle were built
+with `_eyeMat`, the robots' unlit glowing red sensor material, and the weapon arm swings to head
+height when hostile. Ruled out first: the `Bandit`/`BanditGunner` kind strings match on both sides of
+the wire, so bandits were never falling through to the robot model. Fix in `WorldEntities.BuildBandit`:
+a real face (eye whites + pupils + brow, all protruding past the skull's z 0.17 front face — the
+same trap the player avatar's face hit), hair replacing the band's silhouette mass, a **cloth mask
+over nose and mouth** as the robber cue (muted, per-bandit tones — never red), and **cold blue**
+weapon glow + tracer (`BanditEnergyColor`, fired from the blaster muzzle in the hand instead of the
+drone's chest offset) so no bandit shares the machines' red. Skin, hair, mask and jacket now all vary
+per bandit hash, so a camp is a group of different people. Client-only, no wire/save change.
+
 ### ★ Planet map legible: bold white marker icons + working waypoint navigation (#592, 2026-07-29, branch fix/planet-map-legibility-waypoint)
 The M-map's landmark icons were effectively invisible: the `map_*` sprites were thin cyan line art
 with **1–10 % ink coverage** (the 28 px player arrow lit ~8 pixels), and `Image.color` tints
