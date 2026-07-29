@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
@@ -29,6 +30,33 @@ public class InventoryTests
 
         Assert.Equal(51, leftover);
         Assert.Equal(99, inv.CountOf("stone"));
+    }
+
+    [Fact]
+    public void Add_FillsAFullBulkStack_BeforeTakingASecondSlot()
+    {
+        // Bulk materials stack to 1024 per slot, so 1024 of them must occupy exactly one slot.
+        var inv = new Inventory(2);
+        int leftover = inv.Add("stone", 1024, ItemDefinition.DefaultMaxStack);
+
+        Assert.Equal(0, leftover);
+        Assert.Equal(1024, inv.CountOf("stone"));
+        Assert.Equal(1024, inv.Slots[0]!.Count);
+        Assert.Null(inv.Slots[1]);
+    }
+
+    [Fact]
+    public void Add_TopsUpAPreExistingLegacyStack_PastTheOldCap()
+    {
+        // A save from before the 1024 change carries 99-stacks; they must keep filling, not spill.
+        var inv = new Inventory(2);
+        inv.SetSlot(0, new ItemStack("stone", 99));
+
+        int leftover = inv.Add("stone", 10, ItemDefinition.DefaultMaxStack);
+
+        Assert.Equal(0, leftover);
+        Assert.Equal(109, inv.Slots[0]!.Count);
+        Assert.Null(inv.Slots[1]);
     }
 
     [Fact]

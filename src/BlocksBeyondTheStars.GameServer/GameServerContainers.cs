@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
@@ -72,7 +73,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            int max = _content.GetItem(stack.Item)?.MaxStack ?? 99;
+            int max = _content.GetItem(stack.Item)?.MaxStack ?? ItemDefinition.DefaultMaxStack;
             int notPlaced = inv.Add(stack.Item, stack.Count, max); // Add returns the leftover it couldn't fit
             if (notPlaced < stack.Count)
             {

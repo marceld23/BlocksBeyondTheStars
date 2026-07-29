@@ -84,7 +84,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        int max = _content.GetItem(s.Item)?.MaxStack ?? 99;
+        int max = _content.GetItem(s.Item)?.MaxStack ?? ItemDefinition.DefaultMaxStack;
         int leftover = dst.Add(s.Item, s.Count, max);
         if (leftover >= s.Count)
         {

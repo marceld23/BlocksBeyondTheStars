@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎒 Stacks hold 1024 instead of 99 (#603)
+
+- **Bulk items stack to 1024 per slot.** Every block, ore, material and component (108 items) now fills a
+  slot with up to 1024 instead of 99 — a backpack holds ~24,500 blocks instead of ~2,400, so long mining
+  runs stop ending with a full inventory that silently eats what you dig.
+- **Tools, weapons and equipment are unchanged** (still one per slot), and the deliberately scarce goods
+  keep their small caps (medpacks 20, energy cells 50, access codes 10, food 16).
+- **Crafting keeps up.** A single craft order accepts a full stack (was capped at 999), and the crafting
+  screen's "Max" button now offers up to a full stack instead of stopping at 99.
+- Existing saves need no migration: old 99-stacks simply keep filling past 99 as you pick items up.
+
 ### 🧭 Admin teleport by landmark, not by coordinates
 
 - **`/tp` takes a target word.** World admins can jump to a landmark on the body they are standing on —
