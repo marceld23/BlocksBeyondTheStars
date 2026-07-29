@@ -324,6 +324,19 @@ public sealed class UniverseTests : IDisposable
         Assert.All(planets.Where(x => x.RingSeed != 0), x => Assert.InRange(x.RingSeed, 1, 1_000_000));
     }
 
+    [Fact]
+    public void Rings_StartSystemAlwaysHasARingedPlanet()
+    {
+        // The home system is the feature's shop window: whatever the seed, at least one of its
+        // planets carries rings (the guarantee kicks in when no planet rolled them naturally).
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            var galaxy = new UniverseGenerator(seed, new WorldDescription { StarSystemCount = 4 }, _content).Generate();
+            var sys0Planets = galaxy.Systems[0].Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+            Assert.True(sys0Planets.Any(p => p.RingSeed != 0), $"seed {seed}: start system has no ringed planet");
+        }
+    }
+
     // --- System archetype variance (#546/#549) ---
 
     private static WorldDescription VarianceDesc(int systems = 150) => new()

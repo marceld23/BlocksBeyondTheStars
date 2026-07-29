@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
 
         private bool _open;
+        private int _openedFrame = -1; // frame Open() ran — the SAME key-down must not instantly close it
         private Canvas _canvas;
         private RectTransform _chart;
         private Text _info;
@@ -54,7 +55,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (_open && InputMap.Down(InputAction.FlightMap) && !Game.ChatTyping)
+            // Toggle-close on the map key — but not on the very key-down that opened it: SpaceView's
+            // UpdateCruise runs earlier in the same frame, so without the frame guard the one press
+            // opened the chart there and closed it here before it ever rendered.
+            if (_open && Time.frameCount != _openedFrame && InputMap.Down(InputAction.FlightMap) && !Game.ChatTyping)
             {
                 Close();
                 return;
@@ -84,6 +88,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _open = true;
+            _openedFrame = Time.frameCount;
             Game.SetMenuOwner(this, true); // frees the cursor; UpdateCruise holds the ship while set (#413)
             Build();
         }

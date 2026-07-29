@@ -6593,7 +6593,9 @@ Two features in one pass (Marcel: "beides komplett in einem Rutsch"):
     from fresh `Hash01` salts **600/601** (6xx = rings; rng stream untouched — verified by an
     8-config SHA-256 body digest against pre-change `main`: byte-identical). Additive contractless
     wire field (the `SizeBias` pattern), nothing persisted, **retroactive**: existing worlds gain
-    rings on the same planets every client, deterministically.
+    rings on the same planets every client, deterministically. **Start-system guarantee:** ~46 % of
+    home systems rolled zero ringed planets (measured, 300 seeds) and read as "feature missing" in
+    the playtest — sys0 now force-rings its best-draw planet when none rolled naturally (300/300).
   - **Space view:** shared `PlanetRings` annulus mesh (1.24–2.3 planet radii) + per-seed procedural
     band texture (3–6 bands, Cassini gaps) on the new always-included `PlanetRing` shader (tint via
     `_Color`, Cull Off, queue 3001 — after haze 2999/clouds 3000); seeded tilt 8–35°, the ring alone

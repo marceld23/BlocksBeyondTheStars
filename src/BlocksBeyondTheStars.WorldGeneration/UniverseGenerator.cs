@@ -252,6 +252,28 @@ public sealed class UniverseGenerator
                 }
             }
 
+            // Start-system ring guarantee (#596): the home system is where players first look up — a
+            // ring-less roll across all its planets (a ~46 % outcome at the base rates) reads as "the
+            // feature doesn't exist". If no home planet rolled rings, the one with the highest presence
+            // draw gets them. Deterministic (pure Hash01 re-reads, no rng), planets only, sys0 only.
+            if (i == 0)
+            {
+                var sysPlanets = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
+                if (sysPlanets.Count > 0 && sysPlanets.All(b => b.RingSeed == 0))
+                {
+                    int best = 0;
+                    for (int p = 1; p < sysPlanets.Count; p++)
+                    {
+                        if (Hash01(i, p, 600) > Hash01(i, best, 600))
+                        {
+                            best = p;
+                        }
+                    }
+
+                    sysPlanets[best].RingSeed = 1 + (int)(Hash01(i, best, 601) * 999_999f);
+                }
+            }
+
             // Twin Worlds (#549): size the second twin like the first — BiasToward inverts the size mapping,
             // so both land on (almost) the same circumference despite their independent id hashes.
             if (archetype == SystemArchetype.TwinWorlds)

@@ -21,8 +21,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   standing on a ringed planet itself — as a ribbon arcing across the sky: bold at night, a faint
   pale arc by day.
 - Ring assignment is deterministic from the world seed (every player sees the same rings) and
-  purely visual; large and icy/crystal planets ring more often. **Existing worlds gain rings too**
-  — nothing else about your universe changes.
+  purely visual; large and icy/crystal planets ring more often, and **the start system is
+  guaranteed at least one ringed planet** so the sight greets you from the first launch.
+  **Existing worlds gain rings too** — nothing else about your universe changes.
 
 ### 🧭 Flight system chart & nav waypoint (#597)
 
