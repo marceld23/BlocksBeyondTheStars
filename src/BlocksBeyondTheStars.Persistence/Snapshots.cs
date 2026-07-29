@@ -52,6 +52,11 @@ public sealed class PlayerSnapshot
     public string LastSeenUtc { get; set; } = string.Empty;
     public int InventorySlotCount { get; set; } = 24;
     public List<string> UnlockedBlueprints { get; set; } = new();
+
+    /// <summary>Achievement tallies and the keys already earned. Absent in pre-achievements saves, which then
+    /// simply start every tally at zero — nothing to migrate.</summary>
+    public Dictionary<string, int> AchievementCounters { get; set; } = new();
+    public List<string> Achievements { get; set; } = new();
     public int KnowledgePoints { get; set; }
     public Dictionary<string, int> KnowledgeGivenTo { get; set; } = new();
     public Dictionary<string, NpcRelationship> NpcMemory { get; set; } = new();
@@ -164,6 +169,8 @@ public static class StateMapper
         LastSeenUtc = p.LastSeenUtc,
         InventorySlotCount = p.Inventory.SlotCount,
         UnlockedBlueprints = p.UnlockedBlueprints.ToList(),
+        AchievementCounters = new Dictionary<string, int>(p.AchievementCounters),
+        Achievements = p.Achievements.ToList(),
         KnowledgePoints = p.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(p.KnowledgeGivenTo),
         NpcMemory = CloneNpcMemory(p.NpcMemory),
@@ -266,6 +273,8 @@ public static class StateMapper
         LastSeenUtc = s.LastSeenUtc ?? string.Empty,
         Inventory = RestoreInventory(s.InventorySlotCount, s.Inventory),
         UnlockedBlueprints = new HashSet<string>(s.UnlockedBlueprints),
+        AchievementCounters = new Dictionary<string, int>(s.AchievementCounters ?? new Dictionary<string, int>()),
+        Achievements = new HashSet<string>(s.Achievements ?? new List<string>()),
         KnowledgePoints = s.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(s.KnowledgeGivenTo ?? new Dictionary<string, int>()),
         NpcMemory = CloneNpcMemory(s.NpcMemory),

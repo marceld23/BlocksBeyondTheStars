@@ -206,6 +206,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>An optional world-map waypoint (XZ); the HUD compass points to it when set.</summary>
         public Vector3? Waypoint;
 
+        /// <summary>The player's achievements with live progress, as last sent by the server (authoritative —
+        /// the client never counts anything itself). Empty until the join snapshot arrives.</summary>
+        public NetAchievement[] Achievements { get; private set; } = System.Array.Empty<NetAchievement>();
+
         /// <summary>Interactive ship stations, and the one the player is currently next to (or empty).</summary>
         public NetShipStation[] Stations { get; private set; } = System.Array.Empty<NetShipStation>();
 
@@ -1379,6 +1383,30 @@ namespace BlocksBeyondTheStars.Client
                         m.KnowledgeTotal);
                 }
             };
+            // Achievements: the server owns the counters and the payouts; the client just renders them.
+            Network.AchievementsReceived += m =>
+            {
+                Achievements = m?.Items?.ToArray() ?? System.Array.Empty<NetAchievement>();
+            };
+            Network.AchievementUnlockedReceived += m =>
+            {
+                if (m == null || string.IsNullOrEmpty(m.Key))
+                {
+                    return;
+                }
+
+                string name = Localizer?.Get($"achv.{m.Key}.name") ?? m.Key;
+                string template = Localizer?.Get("ui.achv.unlocked") ?? "Achievement unlocked: {name}";
+                LastMessage = template.Replace("{name}", name);
+                ClientAudio.Instance?.Cue("ui_success", 0.9f);
+            };
+            Network.AchievementRewardDeferredReceived += m =>
+            {
+                // Earned but unpaid — say so, because the reward is the point of the achievement.
+                LastMessage = Localizer?.Get("ui.achv.reward_full")
+                    ?? "Achievement earned — but no room for the reward! Make space in your inventory.";
+            };
+
             Network.DiscoveryLogReceived += m =>
             {
                 if (m.Full)

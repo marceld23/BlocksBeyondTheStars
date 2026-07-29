@@ -537,6 +537,7 @@ public sealed partial class GameServer
         var pool = new MaterialPool(_content, p, _ship);
         BankLoot(session, pool, target.Loot); // the kill already happened — warn if a full inventory loses the drop
         SendInventory(session);
+        OnAchievementDefeat(session);
         if (isCreature)
         {
             BroadcastCreatures();

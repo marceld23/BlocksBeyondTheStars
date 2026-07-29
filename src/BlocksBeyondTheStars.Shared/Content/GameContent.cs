@@ -148,6 +148,36 @@ public sealed class GameContent
     /// these (or "none"); the engine is story-agnostic, so adding a storyline is adding a pack.</summary>
     public IReadOnlyDictionary<string, StoryDefinition> Stories => _stories;
 
+    private IReadOnlyList<AchievementDefinition> _achievements = new List<AchievementDefinition>();
+
+    /// <summary>Achievements in authored order (empty when <c>data/achievements.json</c> is absent — the
+    /// feature then simply does nothing rather than failing to load the world).</summary>
+    public IReadOnlyList<AchievementDefinition> Achievements => _achievements;
+
+    /// <summary>Installs the achievement table (called by the content loader). Entries without a key or
+    /// counter are dropped: a half-authored row must not break every other achievement.</summary>
+    public void SetAchievements(IEnumerable<AchievementDefinition>? achievements)
+    {
+        var list = new List<AchievementDefinition>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in achievements ?? Enumerable.Empty<AchievementDefinition>())
+        {
+            if (a == null || string.IsNullOrEmpty(a.Key) || string.IsNullOrEmpty(a.Counter) || !seen.Add(a.Key))
+            {
+                continue;
+            }
+
+            if (a.Target < 1)
+            {
+                a.Target = 1;
+            }
+
+            list.Add(a);
+        }
+
+        _achievements = list;
+    }
+
     /// <summary>Installs the story packs (called by the content loader). Falls back to the built-in default
     /// pack if the data defines none, so the story still works without the data files present.</summary>
     public void SetStories(IEnumerable<StoryDefinition> stories)

@@ -29,7 +29,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Values match GameMenu.Tab so the whole in-game menu runs on this one uGUI screen. (Launching into
         // space lives on the Map tab now — there is no separate Space tab.)
-        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8, Companions = 9, Photos = 10 }
+        public enum Mode { Inventory = 0, Crafting = 1, Tech = 2, Ship = 3, Map = 4, Missions = 5, Character = 6, Alliances = 7, Story = 8, Companions = 9, Photos = 10, Achievements = 11 }
 
         // Tab bar display order (left→right), decoupled from the Mode enum value so tabs can be reordered without
         // renumbering the modes: each entry carries its Mode (used for activation, routing and badges) and label
@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
             (Mode.Story,     "ui.tab.story"),
             (Mode.Companions, "ui.tab.companions"),
             (Mode.Alliances, "ui.tab.alliances"),
+            (Mode.Achievements, "ui.tab.achievements"),
             (Mode.Photos,    "ui.tab.photos"),
             (Mode.Character, "ui.tab.settings"),
         };
@@ -750,6 +751,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Story: y = BuildStoryList(); break;
                 case Mode.Companions: y = BuildCompanionsList(); break;
                 case Mode.Photos: y = BuildPhotosList(); break;
+                case Mode.Achievements: y = BuildAchievementList(); break;
             }
 
             SetContentHeight(_listContent, y);
@@ -2120,6 +2122,102 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // --- Story Log tab (read-only: progress meter + VEGA beats + recovered net fragments + memories) ---
+
+        /// <summary>
+        /// The achievements page: every achievement grouped by category, with a progress bar and an "x/y" count
+        /// so it doubles as a "what can I do next?" list — a player asked for achievements with rewards, and the
+        /// progress is what makes an unearned one useful rather than just a locked box.
+        /// <para>
+        /// Rows are laid out at ABSOLUTE offsets (no LayoutGroup): a VerticalLayoutGroup with wrapped text
+        /// overflows its rows here, which is a trap this codebase has hit before.
+        /// </para>
+        /// </summary>
+        private float BuildAchievementList()
+        {
+            float y = 8f;
+            var all = Game?.Achievements;
+            if (all == null || all.Length == 0)
+            {
+                UiKit.AddText(_listContent, 8, y, 760, 34, L("ui.achv.none"), 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                return y + 44f;
+            }
+
+            int done = 0;
+            for (int i = 0; i < all.Length; i++)
+            {
+                if (all[i].Earned) done++;
+            }
+
+            UiKit.AddText(_listContent, 8, y, 760, 36,
+                (L("ui.achv.summary") ?? "{done}/{total}").Replace("{done}", done.ToString()).Replace("{total}", all.Length.ToString()),
+                24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 46f;
+
+            // Group by category, keeping the authored order inside each group.
+            var seen = new System.Collections.Generic.List<string>();
+            foreach (var a in all)
+            {
+                string cat = a.Category ?? string.Empty;
+                if (!seen.Contains(cat)) seen.Add(cat);
+            }
+
+            foreach (var cat in seen)
+            {
+                y = AllianceSection(string.IsNullOrEmpty(cat) ? L("ui.achv.title") : L("achv.category." + cat), y);
+
+                foreach (var a in all)
+                {
+                    if ((a.Category ?? string.Empty) != cat)
+                    {
+                        continue;
+                    }
+
+                    y = AchievementRow(y, a);
+                }
+
+                y += 8f;
+            }
+
+            return y + 12f;
+        }
+
+        /// <summary>One achievement row: name, description, a filled bar and the tally (or "Done").</summary>
+        private float AchievementRow(float y, BlocksBeyondTheStars.Networking.Messages.NetAchievement a)
+        {
+            const float RowW = 760f;
+            var nameCol = a.Earned ? UiKit.Ok : UiKit.TextCol;
+
+            UiKit.AddText(_listContent, 8, y, RowW - 150f, 28, (a.Earned ? "✓ " : "") + L($"achv.{a.Key}.name"),
+                20, nameCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            string tally = a.Earned
+                ? L("ui.achv.done")
+                : (L("ui.achv.progress") ?? "{done}/{total}")
+                    .Replace("{done}", a.Progress.ToString())
+                    .Replace("{total}", a.Target.ToString());
+            UiKit.AddText(_listContent, RowW - 140f, y, 140f, 28, tally, 18,
+                a.Earned ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleRight);
+            y += 28f;
+
+            UiKit.AddText(_listContent, 20, y, RowW - 28f, 24, L($"achv.{a.Key}.desc"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 26f;
+
+            // Progress bar: a dim track with a filled portion on top. Earned rows read as full and green.
+            float frac = a.Target > 0 ? Mathf.Clamp01((float)a.Progress / a.Target) : 0f;
+            if (a.Earned)
+            {
+                frac = 1f;
+            }
+
+            UiKit.AddImage(_listContent, 20, y, RowW - 28f, 8f, null, new Color(1f, 1f, 1f, 0.10f));
+            if (frac > 0f)
+            {
+                UiKit.AddImage(_listContent, 20, y, (RowW - 28f) * frac, 8f, null,
+                    a.Earned ? UiKit.Ok : UiKit.Cyan);
+            }
+
+            return y + 20f;
+        }
 
         private float BuildStoryList()
         {

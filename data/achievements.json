@@ -1,0 +1,21 @@
+[
+  { "key": "first_blocks",   "counter": "mine:any",        "target": 10,  "category": "mining",   "rewards": [ { "item": "stone", "count": 8 } ] },
+  { "key": "iron_5",         "counter": "mine:iron_ore",   "target": 5,   "category": "mining",   "rewards": [ { "item": "iron_plate", "count": 2 } ] },
+  { "key": "iron_50",        "counter": "mine:iron_ore",   "target": 50,  "category": "mining",   "rewards": [ { "item": "iron_plate", "count": 10 } ] },
+  { "key": "crystal_10",     "counter": "mine:crystal",    "target": 10,  "category": "mining",   "rewards": [ { "item": "energy_cell_1", "count": 1 } ] },
+  { "key": "quarry",         "counter": "mine:any",        "target": 500, "category": "mining",   "rewards": [ { "item": "iron_plate", "count": 20 } ] },
+
+  { "key": "first_build",    "counter": "build:any",       "target": 1,   "category": "building", "rewards": [] },
+  { "key": "builder_100",    "counter": "build:any",       "target": 100, "category": "building", "rewards": [ { "item": "metal_panel", "count": 6 } ] },
+  { "key": "builder_1000",   "counter": "build:any",       "target": 1000,"category": "building", "rewards": [ { "item": "metal_panel", "count": 24 } ] },
+
+  { "key": "first_craft",    "counter": "craft:any",       "target": 1,   "category": "crafting", "rewards": [] },
+  { "key": "crafter_50",     "counter": "craft:any",       "target": 50,  "category": "crafting", "rewards": [ { "item": "circuit_board", "count": 2 } ] },
+  { "key": "own_door",       "counter": "craft:door_wood", "target": 1,   "category": "crafting", "rewards": [ { "item": "wood_log", "count": 8 } ] },
+
+  { "key": "first_journey",  "counter": "visit:body",      "target": 2,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 1 } ] },
+  { "key": "wanderer",       "counter": "visit:body",      "target": 8,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
+
+  { "key": "first_defeat",   "counter": "defeat:any",      "target": 1,   "category": "survival", "rewards": [ { "item": "medpack", "count": 1 } ] },
+  { "key": "defender_25",    "counter": "defeat:any",      "target": 25,  "category": "survival", "rewards": [ { "item": "medpack", "count": 4 } ] }
+]

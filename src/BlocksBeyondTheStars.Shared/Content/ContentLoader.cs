@@ -85,6 +85,9 @@ public static class ContentLoader
         content.SetStructureTemplates(stationTemplates, settlementTemplates);
         content.SetStories(stories);
 
+        // Achievements are optional content: a data folder without the file just has none.
+        content.SetAchievements(LoadArray<AchievementDefinition>(Path.Combine(dataDir, "achievements.json")));
+
         content.Validate();
         return content;
     }

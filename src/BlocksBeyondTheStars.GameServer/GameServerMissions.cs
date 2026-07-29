@@ -40,6 +40,8 @@ public sealed partial class GameServer
     /// <summary>Called when a player mines a block, to advance any matching Mine objectives.</summary>
     private void OnBlockMined(PlayerSession session, string blockKey)
     {
+        OnAchievementMine(session, blockKey); // "Baue 5 Eisen ab" and friends ride the same event
+
         foreach (var pr in session.State.Missions)
         {
             if (pr.Status != MissionStatus.Active)

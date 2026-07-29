@@ -65,6 +65,15 @@ public sealed class PlayerState
     /// <summary>Blueprint keys the player has unlocked (gates crafting/building).</summary>
     public HashSet<string> UnlockedBlueprints { get; set; } = new();
 
+    /// <summary>Lifetime tallies the achievements watch (counter name → count) — see
+    /// <c>AchievementCounters</c>. Kept as a plain counter bag so a new achievement over an existing counter
+    /// needs no server change, and so progress survives across sessions. Persisted.</summary>
+    public Dictionary<string, int> AchievementCounters { get; set; } = new();
+
+    /// <summary>Achievement keys already earned (and paid out). Persisted, so an achievement can never be
+    /// awarded twice.</summary>
+    public HashSet<string> Achievements { get; set; } = new();
+
     /// <summary>Research knowledge earned by scanning new things. A permanent <b>threshold</b> — unlocking a
     /// blueprint needs <c>KnowledgePoints &gt;= KnowledgeCost</c> but never spends it (item 11), and it can be
     /// taught to other players without losing any.</summary>

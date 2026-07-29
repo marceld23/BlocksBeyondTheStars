@@ -129,6 +129,16 @@ namespace BlocksBeyondTheStars.Client
         // then a one-entry delta per first-time scan.
         public event Action<DiscoveryLog>? DiscoveryLogReceived;
 
+        /// <summary>The player's achievements with live progress: a full snapshot on join and whenever a
+        /// watched counter moves.</summary>
+        public event Action<AchievementList>? AchievementsReceived;
+
+        /// <summary>One achievement just earned — the cue for the celebration toast.</summary>
+        public event Action<AchievementUnlocked>? AchievementUnlockedReceived;
+
+        /// <summary>An achievement is due but its reward has nowhere to go; it stays claimable.</summary>
+        public event Action<AchievementRewardDeferred>? AchievementRewardDeferredReceived;
+
         // Ship AI companion "VEGA": onboarding/advisor/story lines + the active objective chip.
         public event Action<ShipAiLine>? ShipAiLineReceived;
 
@@ -577,6 +587,9 @@ namespace BlocksBeyondTheStars.Client
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
                 case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
+                case AchievementList m: AchievementsReceived?.Invoke(m); break;
+                case AchievementUnlocked m: AchievementUnlockedReceived?.Invoke(m); break;
+                case AchievementRewardDeferred m: AchievementRewardDeferredReceived?.Invoke(m); break;
                 case AllianceList m: AllianceListReceived?.Invoke(m); break;
                 case AllianceRequestNotice m: AllianceRequestReceived?.Invoke(m); break;
                 case TameProgress m: TameProgressReceived?.Invoke(m); break;

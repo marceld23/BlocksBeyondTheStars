@@ -66,7 +66,10 @@ public sealed class PlaceableDoorTests : IDisposable
             // Hand recipe: no workshop, no metal panels, no gear — four logs and you have a door.
             server.Craft("Builder", "door_wood", 1);
             Assert.Equal(1, p.State.Inventory.CountOf("door_wood"));
-            Assert.Equal(0, p.State.Inventory.CountOf("wood_log"));
+
+            // The four logs went in. (Crafting one also earns the "own_door" achievement, whose reward hands
+            // some logs straight back — so assert the door, not an empty log stack.)
+            Assert.Contains("own_door", p.State.Achievements);
 
             server.PlaceBlock("Builder", 1, 200, 0, "door_wood");
             Assert.Equal(1, server.DoorCount);

@@ -2406,6 +2406,10 @@ public sealed partial class GameServer
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
         SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
+
+        // Achievements: settle anything that came due while a reward had nowhere to go, retro-award entries that
+        // were added to the data file since this save was made, and send the list with live progress.
+        SettleAchievements(session);
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
@@ -3258,6 +3262,7 @@ public sealed partial class GameServer
         }
 
         SendInventory(session);
+        OnAchievementBuild(session);
     }
 
     private void HandleCraft(PlayerSession session, CraftIntent craft)
@@ -3365,6 +3370,7 @@ public sealed partial class GameServer
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
         ShipAiOnCraft(session); // VEGA onboarding: first successful craft
+        OnAchievementCraft(session, recipe.Key);
     }
 
     /// <summary>
@@ -4364,7 +4370,13 @@ public sealed partial class GameServer
             return;
         }
 
-        session.State.LandedBodies.Add(body.Id);
+        // Only the FIRST arrival on a body counts toward the explorer achievements — hopping back and forth
+        // between two planets must not farm them.
+        if (session.State.LandedBodies.Add(body.Id))
+        {
+            OnAchievementVisit(session);
+        }
+
         if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
         {
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)

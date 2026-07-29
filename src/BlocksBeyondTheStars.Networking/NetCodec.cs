@@ -345,6 +345,11 @@ public static class NetCodec
         // the bundled server in its own process — a client-only freeze would stop the camera, not the world.
         Register(182, typeof(PauseIntent));              // Client -> Server (menu opened / closed)
         Register(183, typeof(PauseState));               // Server -> Client (holding? and was it allowed?)
+
+        // Achievements with rewards and live progress ("Baue 5 Eisen ap" — a player's own example).
+        Register(184, typeof(AchievementList));          // Server -> Client (join + whenever progress moves)
+        Register(185, typeof(AchievementUnlocked));      // Server -> Client (celebrate this one)
+        Register(186, typeof(AchievementRewardDeferred));// Server -> Client (earned, but make room for the reward)
     }
 
     private static void Register(byte tag, Type type)
