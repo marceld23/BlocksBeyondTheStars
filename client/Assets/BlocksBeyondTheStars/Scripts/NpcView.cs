@@ -120,7 +120,7 @@ namespace BlocksBeyondTheStars.Client
                     Color skin = nd.IsRobot ? new Color(0.75f, 0.78f, 0.82f) : Rgb(nd.SkinRgb);
                     Color outfit = Rgb(nd.OutfitRgb);
                     // Deliberately NO spacesuit: civilians stay bare-headed so suited players are
-                    // recognisable at a glance (suit = player, outfit = NPC, bandana = bandit).
+                    // recognisable at a glance (suit = player, bare face = NPC, face mask = bandit).
                     avatar.Build(skin, outfit, outfit * 0.85f, outfit * 0.7f);
                     avatar.SetVisible(true);
 
