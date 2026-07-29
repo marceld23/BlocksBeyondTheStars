@@ -168,10 +168,8 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");
 
             // ── Delete confirmation (added last so it draws on top; hidden until a ✕ is pressed) ──────
-            var dim = UiKit.AddImage(root, 0f, 0f, 1920f, 1080f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.6f));
-            confirm = dim.gameObject;
-            dim.raycastTarget = true; // swallow clicks behind the dialog
-            var panel = UiKit.AddDialogPanel(confirm.transform, 610f, 420f, 700f, 250f);
+            var (confirmOverlay, panel) = UiKit.AddModalOverlay(root, 610f, 420f, 700f, 250f);
+            confirm = confirmOverlay;
             confirmText = UiKit.AddText(panel.transform, 30f, 30f, 640f, 80f, string.Empty, 20, UiKit.TextCol, TextAnchor.MiddleCenter);
             confirmText.horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddButton(panel.transform, 40f, 160f, 290f, 58f, shell.L("ui.save.delete_yes"), () =>

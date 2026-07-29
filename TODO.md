@@ -102,6 +102,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Sky bodies no longer read as dark silhouettes by day (#585, 2026-07-29, branch fix/sky-bodies-dark-discs)
+Other planets/moons in the surface sky often looked completely dark. Not a lighting bug (the #400
+`_DayLight` ramp already front-lights them by day) but a luminance ratio: baked-map albedo × the 0.7
+noon dim × limb darkening left the disc at ~0.15–0.33 sRGB against a ~0.6–0.75 daytime sky — 3–4×
+darker, and ACES stretches that into a black blob. Fixed with a **daytime atmosphere wash** in
+`SkyBodyPhase.shader` (both subshaders): the final disc colour lerps toward the `_Sc_Sky` global,
+scaled by `_DayLight` × the sky's own luminance — so day-sky bodies read pale and sky-tinted like
+the real daytime Moon, while airless black-sky worlds, the night sky and the space view
+(`_DayLight` = 0) are untouched. The noon dim in `SkyBodiesView` rises 0.7 → 1.0 and the shader's
+`_Earthshine` night-side floor 0.12 → 0.2 so unlit crescent sides survive tonemapping as a faint disc.
+
 ### ★ Update notice on startup + an official update feed that actually exists (#543, 2026-07-27, branch feat/auto-update-notify)
 Installed clients could never learn about a new release: the in-app Velopack updater only ran from a
 manual settings button, the feed URL shipped empty, and — the real killer — the feed files the
@@ -2791,6 +2802,93 @@ not user-moddable. Full design: [docs/developer/MINIGAMES_AND_WIKI.md](docs/deve
 At-a-glance order of everything still open (new items added 2026-06-07 interleaved with the remaining
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
+
+### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't (#588, 2026-07-29, branch fix/menu-dialog-opacity)
+**Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind
+them and are much easier to read. Make it consistent."
+**Scope (confirmed with Marcel):** the **shell/menu dialogs only** — main menu, world picker, settings,
+credits, editors submenu, what's new / update notice, connect & official-worlds modals. In-game overlays
+(crafting/tech/ship, world map, vendor, beacon, beam pad, HUD chrome) are explicitly **out of scope** and
+keep their current look.
+
+**Root cause — the panel sprite can never be opaque.**
+[UiKit.RoundedSprite](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs#L760-L764) bakes
+`fill = (0.05, 0.12, 0.24, **0.82**)` into the generated `PanelSprite` texture. uGUI multiplies sprite
+alpha × `Image.color` alpha, so **every** panel drawn with `UiKit.AddPanel` is capped at 82 % opacity no
+matter what tint is passed. That is why past "make it opaque" fixes that only raised the tint alpha did not
+work: [UiWorldOptions.cs:33](client/Assets/BlocksBeyondTheStars/Scripts/UiWorldOptions.cs#L33) asks for
+alpha 0.97 and actually renders 0.82 × 0.97 = **0.795**.
+`UiKit.AddDialogPanel` ([UiKit.cs:442](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs#L442)) works
+around this by stacking **three** sliced layers (0.656 + 0.82 + 0.82 ⇒ ≈ 98.9 % opaque) — a workaround, not
+a rule, and only some dialogs use it.
+
+**Resulting three panel tiers (effective opacity), used with no rule — menu dialogs split across all three:**
+| helper | effective α | menu dialogs using it |
+|---|---|---|
+| `AddPanel(…, UiKit.Panel)` (tint α 0.80) | **0.656** | credits, content-load error |
+| `AddPanel(…, UiKit.PanelFill)` (tint α 1.0) | **0.82** | face/avatar editor panel |
+| `AddPanel(…, custom α 0.97)` | **0.795** | world options |
+| `AddDialogPanel` (3 layers) | **0.989** | settings, what's new, update notice, feedback, connect, official worlds, portal/rules/password/participate, delete-confirm, pause |
+
+**And 7 different scrim values** among the menu dialogs alone (0.55 / 0.60 / 0.70 / 0.75 / 0.85 / 0.90 /
+0.92), plus overlays with none. `UiKit.AddModalDim` exists (default 0.7) but is used by only some call
+sites; TODO.md line ~1752 already noted "existing overlays can adopt it later". Measured **bleed-through**
+= `(1 − scrim) × (1 − panel α)`, i.e. how much of the animated menu background mixes into the dialog:
+
+| menu dialog | scrim | panel | bleed | |
+|---|---|---|---|---|
+| Connect, Delete-confirm | 0.60 | dialog | 0.44 % | ✅ reads solid |
+| Settings | 0.55 | dialog | 0.50 % | ✅ |
+| What's new, Update notice, Feedback, Official worlds, Participate | 0.70 | dialog | 0.33 % | ✅ |
+| Portal / Rules / Password modals | 0.90–0.92 | dialog | ~0.1 % | ✅ |
+| Maintenance, Disconnect | 0.85–0.92 | dialog | ~0.2 % | ✅ |
+| **World options** | 0.90 | 0.795 | **2.1 %** | ⚠ 4–6× the dialog tier |
+| **Face / avatar editor panel** | 0.60 | 0.82 | **7.2 %** | ❌ |
+| **Content-load error** | 0.75 | 0.656 | **8.6 %** | ❌ |
+| **Credits** | 0.55 | 0.656 | **15.5 %** | ❌ |
+
+The clearest same-screen comparison: **Settings vs. Credits** — identical 0.55 scrim, but Settings uses
+`AddDialogPanel` (0.5 % bleed) and Credits uses `UiKit.Panel` (15.5 %). Likewise in the world picker:
+**Delete-confirm 0.44 % vs. World options 2.1 %**.
+
+Text contrast itself is fine everywhere (13.8:1 on the world-options blue, 16.3:1 on the dialog backing);
+what hurts readability is that the bleed-through comes from the **animated** `MenuBackground` (drifting
+starfield + planet), so even 2 % shimmers and draws the eye.
+
+**Not dialogs, out of scope:** the menu *screens* themselves (main menu, world picker, editors submenu,
+loading) deliberately float `PanelFill` panels over the animated background — that is the menu look, not a
+readability bug. HUD chrome and all in-game overlays likewise stay as they are.
+
+**Decisions (2026-07-29, Marcel):** scrim 0.78 — menu still readable as context but clearly pushed back;
+unify *all* menu dialogs rather than only patching the four broken ones.
+
+**What was built:**
+- **`UiKit.DialogSprite`** ([UiKit.cs](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs)) — the same
+  rounded shape and cyan edge as `PanelSprite`, but a **baked opaque** fill. `RoundedSprite` gained a
+  `Color fill` overload; the fill `(0.002, 0.008, 0.031)` is what the old three-layer stack composited to,
+  so the dialogs that already looked right are unchanged. `PanelSprite` itself is untouched, so the menu
+  screens, buttons and all HUD chrome keep their translucency.
+- **`UiKit.ScrimDialog = 0.78`** — one constant, and `AddModalDim`'s default, replacing the seven ad-hoc
+  values (0.55 / 0.60 / 0.70 / 0.75 / 0.90 / 0.92 and "none").
+- **`UiKit.AddModalOverlay(parent, x, y, w, h)`** — scrim + opaque panel in one call, returning
+  `(Overlay, Panel)`: the scrim GameObject to toggle and the panel transform to hang content off. A new
+  dialog can no longer get the combination wrong.
+- **`AddDialogPanel` is now a single Image** instead of three stacked sliced layers — exactly opaque
+  rather than 98.9 %, and two fewer draw calls per dialog.
+- **Migrated:** world options, credits, content-load error, face/avatar editor (were see-through); pause
+  menu, settings, connect, delete-confirm, feedback, official-worlds sub-modals (portal / rules / password
+  ×2) onto the shared scrim; ship-editor and structure-editor load pickers, which had **no scrim at all**
+  and so left the editor behind them lit and clickable.
+- **Two fixed side effects:** the face editor's "dim backdrop that also blocks clicks" was an `AddPanel`,
+  whose `raycastTarget` is false — it never blocked anything; `AddModalDim` does. Same for the two editor
+  load pickers.
+- **Deliberately NOT changed:** `MaintenanceUi` (0.85) and `DisconnectScreen` (0.92) — those are
+  connection-lost / maintenance takeovers over the *running game*, not menu dialogs, and dropping them to
+  0.78 would make the frozen world behind them more visible. All in-game overlays and the menu screens are
+  untouched.
+
+**Verification:** local Unity build (worktree) + in-game comparison of world options, credits, settings
+and the pause menu, per [[post-change-verification-routine]]. No .NET code changed.
 
 ### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual

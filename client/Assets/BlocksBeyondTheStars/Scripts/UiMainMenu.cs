@@ -260,10 +260,8 @@ namespace BlocksBeyondTheStars.Client
             string[] host = { shell.Host };
             string[] port = { shell.Port };
             string[] pass = { "" };
-            var dim = UiKit.AddImage(root, 0f, 0f, 1920f, 1080f, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.6f));
-            connect = dim.gameObject;
-            dim.raycastTarget = true; // swallow clicks behind the dialog
-            var dlg = UiKit.AddDialogPanel(connect.transform, 660f, 280f, 600f, 520f);
+            var (connectOverlay, dlg) = UiKit.AddModalOverlay(root, 660f, 280f, 600f, 520f);
+            connect = connectOverlay;
             UiKit.AddText(dlg, 30f, 24f, 540f, 30f, shell.L("ui.menu.connect_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(dlg, 30f, 80f, 540f, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             dlgName = UiKit.AddInput(dlg, 30f, 106f, 540f, 38f, name[0], v => name[0] = v);
@@ -661,7 +659,7 @@ namespace BlocksBeyondTheStars.Client
             Transform OpenModalPanel(float x, float y, float w, float h)
             {
                 CloseModal();
-                var mDim = UiKit.AddModalDim(official.transform, 0.9f);
+                var mDim = UiKit.AddModalDim(official.transform);
                 portalModal = mDim.gameObject;
                 return UiKit.AddDialogPanel(portalModal.transform, x, y, w, h);
             }
@@ -687,7 +685,7 @@ namespace BlocksBeyondTheStars.Client
             void ShowRules(System.Action<PortalTermsResult> onAccept)
             {
                 CloseRules();
-                var rDim = UiKit.AddModalDim(official.transform, 0.92f);
+                var rDim = UiKit.AddModalDim(official.transform);
                 rulesModal = rDim.gameObject;
                 var rDlg = UiKit.AddDialogPanel(rulesModal.transform, 160f, 80f, 1600f, 920f);
                 var rTitle = UiKit.AddText(rDlg, 40f, 22f, 1520f, 32f, shell.L("ui.portal.rules_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -1510,7 +1508,7 @@ namespace BlocksBeyondTheStars.Client
                     Object.Destroy(passwordPrompt);
                 }
 
-                var pwDim = UiKit.AddModalDim(official.transform, 0.9f);
+                var pwDim = UiKit.AddModalDim(official.transform);
                 passwordPrompt = pwDim.gameObject;
                 var pwDlg = UiKit.AddDialogPanel(passwordPrompt.transform, 660f, 390f, 600f, 300f);
                 UiKit.AddText(pwDlg, 30f, 24f, 540f, 30f, shell.L("ui.portal.world_password"), 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -1553,7 +1551,7 @@ namespace BlocksBeyondTheStars.Client
                     Object.Destroy(passwordPrompt);
                 }
 
-                var dim = UiKit.AddModalDim(official.transform, 0.9f);
+                var dim = UiKit.AddModalDim(official.transform);
                 passwordPrompt = dim.gameObject;
                 var dlg = UiKit.AddDialogPanel(passwordPrompt.transform, 610f, 350f, 700f, 360f);
                 UiKit.AddText(dlg, 30f, 24f, 640f, 30f, shell.L("ui.menu.connect_name"), 20, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
