@@ -325,16 +325,24 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
-    public void Rings_StartSystemAlwaysHasARingedPlanet()
+    public void Rings_StartPlanetGuarantee_RingsOnlyWhatItShould()
     {
-        // The home system is the feature's shop window: whatever the seed, at least one of its
-        // planets carries rings (the guarantee kicks in when no planet rolled them naturally).
-        for (long seed = 1; seed <= 40; seed++)
-        {
-            var galaxy = new UniverseGenerator(seed, new WorldDescription { StarSystemCount = 4 }, _content).Generate();
-            var sys0Planets = galaxy.Systems[0].Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
-            Assert.True(sys0Planets.Any(p => p.RingSeed != 0), $"seed {seed}: start system has no ringed planet");
-        }
+        // A ring-less start planet gains a deterministic ring...
+        var bare = new CelestialBody { Id = "sys5-p5", Kind = CelestialKind.Planet };
+        UniverseGenerator.EnsureStartPlanetRings(bare);
+        Assert.InRange(bare.RingSeed, 1, 1_000_000);
+        int first = bare.RingSeed;
+        var again = new CelestialBody { Id = "sys5-p5", Kind = CelestialKind.Planet };
+        UniverseGenerator.EnsureStartPlanetRings(again);
+        Assert.Equal(first, again.RingSeed); // ...the SAME ring on every server restart.
+
+        // A natural ring stays untouched, and non-planets never ring.
+        var ringed = new CelestialBody { Id = "sys0-p1", Kind = CelestialKind.Planet, RingSeed = 4242 };
+        UniverseGenerator.EnsureStartPlanetRings(ringed);
+        Assert.Equal(4242, ringed.RingSeed);
+        var moon = new CelestialBody { Id = "sys0-p1-m0", Kind = CelestialKind.Moon };
+        UniverseGenerator.EnsureStartPlanetRings(moon);
+        Assert.Equal(0, moon.RingSeed);
     }
 
     // --- System archetype variance (#546/#549) ---

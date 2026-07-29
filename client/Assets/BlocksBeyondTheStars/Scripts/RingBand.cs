@@ -23,7 +23,8 @@ namespace BlocksBeyondTheStars.Client
         private string _builtFor = "\0";
         private int _ringSeed;
         private Color _tint;
-        private float _fade; // smoothed day/night strength
+        private float _fade = -1f; // smoothed day/night strength; <0 = snap to the target on first sight
+                                   // (playtest: the ramp-in from 0 left the band invisible for minutes)
 
         private void Awake()
         {
@@ -104,13 +105,15 @@ namespace BlocksBeyondTheStars.Client
 
             float dayLen = Mathf.Max(30f, env.DayLengthSeconds);
             float rate = Mathf.Clamp(240f / dayLen, 0.25f, 1.0f);
-            _fade = env.SpaceSky ? night : Mathf.MoveTowards(_fade, night, Time.deltaTime * rate);
+            _fade = env.SpaceSky || _fade < 0f ? night : Mathf.MoveTowards(_fade, night, Time.deltaTime * rate);
 
+            // By day the band washes toward the sky colour but stays a clearly visible pale arc (the
+            // playtest read the original 0.10 day alpha as "no rings at all"); at night it dominates.
             int packed = env.SkyColor;
             var skyCol = new Color(((packed >> 16) & 0xFF) / 255f, ((packed >> 8) & 0xFF) / 255f, (packed & 0xFF) / 255f);
             float day = 1f - _fade;
-            var col = Color.Lerp(_tint, skyCol * 1.05f, day * 0.55f);
-            col.a = Mathf.Lerp(0.10f, 0.45f, _fade);
+            var col = Color.Lerp(_tint, skyCol * 1.05f, day * 0.45f);
+            col.a = Mathf.Lerp(0.28f, 0.55f, _fade);
             _mat.color = ShaderColor.Srgb(col);
         }
 

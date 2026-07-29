@@ -378,6 +378,9 @@ public sealed partial class GameServer
         if (start is not null)
         {
             _meta.ActiveLocationId = start.Id;
+            // #596: the start planet always carries rings — the sky band is the feature's shop window.
+            // Deterministic from the body id, so every restart re-derives the same ring; cosmetic only.
+            UniverseGenerator.EnsureStartPlanetRings(start);
             if (start.Status != GenerationStatus.Visited)
             {
                 start.Status = GenerationStatus.Visited;

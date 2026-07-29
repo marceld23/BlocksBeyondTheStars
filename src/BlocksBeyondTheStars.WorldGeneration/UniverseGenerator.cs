@@ -252,28 +252,6 @@ public sealed class UniverseGenerator
                 }
             }
 
-            // Start-system ring guarantee (#596): the home system is where players first look up — a
-            // ring-less roll across all its planets (a ~46 % outcome at the base rates) reads as "the
-            // feature doesn't exist". If no home planet rolled rings, the one with the highest presence
-            // draw gets them. Deterministic (pure Hash01 re-reads, no rng), planets only, sys0 only.
-            if (i == 0)
-            {
-                var sysPlanets = system.Bodies.Where(b => b.Kind == CelestialKind.Planet).ToList();
-                if (sysPlanets.Count > 0 && sysPlanets.All(b => b.RingSeed == 0))
-                {
-                    int best = 0;
-                    for (int p = 1; p < sysPlanets.Count; p++)
-                    {
-                        if (Hash01(i, p, 600) > Hash01(i, best, 600))
-                        {
-                            best = p;
-                        }
-                    }
-
-                    sysPlanets[best].RingSeed = 1 + (int)(Hash01(i, best, 601) * 999_999f);
-                }
-            }
-
             // Twin Worlds (#549): size the second twin like the first — BiasToward inverts the size mapping,
             // so both land on (almost) the same circumference despite their independent id hashes.
             if (archetype == SystemArchetype.TwinWorlds)
@@ -408,6 +386,28 @@ public sealed class UniverseGenerator
     /// planetary rings are mostly water ice.</summary>
     private static bool IsRingProneType(string? planetType)
         => planetType is "ice" or "tundra" or "crystal" or "crystal_living";
+
+    /// <summary>Start-planet ring guarantee (#596): the world you spawn on always carries rings — the
+    /// band across the sky is the feature's first impression, and playtesting showed a ring-less start
+    /// reads as "the feature doesn't exist". Called by the server right after it picks the start body
+    /// (only the server knows the pick — type overrides and retype fallbacks decide it at load time).
+    /// Deterministic from the body id alone, so every restart re-derives the same ring; a no-op for
+    /// planets that already rolled rings naturally, and for anything that isn't a planet.</summary>
+    public static void EnsureStartPlanetRings(CelestialBody start)
+    {
+        if (start.Kind != CelestialKind.Planet || start.RingSeed != 0)
+        {
+            return;
+        }
+
+        int h = 17;
+        foreach (char c in start.Id)
+        {
+            h = h * 31 + c;
+        }
+
+        start.RingSeed = 1 + (h & 0x7fffffff) % 999_999;
+    }
 
     /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>
     private (float X, float Z) DiscPoint(int systemIndex, int planets, int salt)
