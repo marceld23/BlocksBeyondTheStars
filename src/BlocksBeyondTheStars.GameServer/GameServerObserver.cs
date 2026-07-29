@@ -468,18 +468,9 @@ public sealed partial class GameServer
             }
         }
 
-        session.State.Position = target;
-
-        // A plain PlayerStateUpdate position is discarded by the client and then overwritten by its own
-        // move stream — every server-side teleport has to ride the RespawnNotice snap channel (#414 M7).
-        Send(session, new RespawnNotice
-        {
-            X = target.X,
-            Y = target.Y,
-            Z = target.Z,
-            Reason = de ? $"Gesprungen zu {what}." : $"Jumped to {what}.",
-        });
-        SendPlayerState(session);
+        // The snap has to ride the RespawnNotice channel or the client discards it (#414 M7) — shared with
+        // the named teleport in GameServerAdminTeleport.
+        SnapPlayerTo(session, target, de ? $"Gesprungen zu {what}." : $"Jumped to {what}.");
         CheatLog(session.State, $"jumped to {what} on {bodyId}");
     }
 }

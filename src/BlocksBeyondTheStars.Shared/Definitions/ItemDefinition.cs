@@ -47,8 +47,12 @@ public sealed class ItemDefinition
 
     public ItemCategory Category { get; set; } = ItemCategory.Material;
 
+    /// <summary>Stack size used when <c>data/items.json</c> omits <see cref="MaxStack"/> (and by the few
+    /// call sites that have to guess for an item the registry doesn't know).</summary>
+    public const int DefaultMaxStack = 1024;
+
     /// <summary>Maximum stack size in a single inventory slot.</summary>
-    public int MaxStack { get; set; } = 99;
+    public int MaxStack { get; set; } = DefaultMaxStack;
 
     /// <summary>If this item places a block, the block key it places (else null/empty).</summary>
     public string? PlacesBlock { get; set; }

@@ -278,6 +278,12 @@ namespace BlocksBeyondTheStars.Client
         /// (B58 — customising the quick-bar).</summary>
         public void SendMoveItem(int fromSlot, int toSlot) => Send(new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
 
+        /// <summary>Permanently destroys every stack of the item sitting in <paramref name="slot"/> — of the
+        /// backpack, or of the ship's hold with <paramref name="fromCargo"/> (#599). Irreversible: only call
+        /// this behind a confirmation. The starter kit is refused server-side.</summary>
+        public void SendDiscardItem(int slot, bool fromCargo = false)
+            => Send(new DiscardItemIntent { Slot = slot, FromCargo = fromCargo });
+
         // --- Ship docking (M18) ---
         public void SendDockRequest(string targetPlayer) => Send(new DockRequestIntent { TargetPlayer = targetPlayer });
 

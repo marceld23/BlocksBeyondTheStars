@@ -2017,6 +2017,7 @@ public sealed partial class GameServer
             case MoveIntent move: HandleMove(session, move); break;
             case SelectHotbarIntent hotbar: session.State.SelectedHotbarSlot = System.Math.Clamp(hotbar.Slot, 0, HotbarSlots - 1); break;
             case MoveItemIntent moveItem: HandleMoveItem(session, moveItem); break;
+            case DiscardItemIntent discard: HandleDiscardItem(session, discard); break;
             case MineBlockIntent mine: HandleMine(session, mine); break;
             case PlaceBlockIntent place: HandlePlace(session, place); break;
             case CraftIntent craft: HandleCraft(session, craft); break;
@@ -2387,15 +2388,16 @@ public sealed partial class GameServer
         };
 
         // Starter kit: a basic drill and a hand scanner in the first hotbar slots, plus a suit lamp so the
-        // player can light up caves / the ship at night (toggle with L). Blocks are placed directly — select
-        // a block item and right-click — so there is no separate "block placer" tool.
-        state.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
-        state.Inventory.SetSlot(1, new ItemStack("hand_scanner", 1));
-        state.Inventory.SetSlot(2, new ItemStack("suit_lamp", 1));
-        state.Inventory.SetSlot(3, new ItemStack("machete", 1));       // a simple starter melee weapon
-        state.Inventory.SetSlot(4, new ItemStack("scrap_pistol", 1));   // ...and a weak ranged sidearm so a fresh
-                                                                        // player can fight back from a distance, not
-                                                                        // only by walking into a hostile's bite range
+        // player can light up caves / the ship at night (toggle with L), a simple melee weapon and a weak
+        // ranged sidearm so a fresh player can fight back from a distance, not only by walking into a
+        // hostile's bite range. Blocks are placed directly — select a block item and right-click — so there
+        // is no separate "block placer" tool.
+        // Stocked FROM StarterKit.Items so the list the discard guard protects (#599) is the same list the
+        // player is actually handed — one array, no drift between the two.
+        for (int i = 0; i < StarterKit.Items.Length; i++)
+        {
+            state.Inventory.SetSlot(i, new ItemStack(StarterKit.Items[i], 1));
+        }
 
         // Starter food so a fresh pilot can't starve before discovering the food loop: a few berries to eat by
         // hand straight away (VEGA's "eat" lesson points here), plus emergency rations pre-loaded into the suit
@@ -2793,6 +2795,7 @@ public sealed partial class GameServer
         }
 
         SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: a full backpack + hold used to eat the drops in silence
     }
 
     /// <summary>Breaks one block: clears it, banks its drops in the pool, broadcasts the change,
@@ -3109,7 +3112,8 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(craft.Count, 1, 999); // bound the batch size (avoid input*count overflow)
+        // Bound the batch size (avoid input*count overflow); a full stack in one order is the useful ceiling.
+        int count = System.Math.Clamp(craft.Count, 1, ItemDefinition.DefaultMaxStack);
 
         // Creative mode: no material/blueprint/station cost — just produce the output.
         if (!Rules.CraftingCostsMaterials)
@@ -3190,6 +3194,7 @@ public sealed partial class GameServer
 
         Send(session, new CraftResult { Success = true, RecipeKey = recipe.Key });
         SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: outputs that found no room are gone — say so
         ShipAiOnCraft(session); // VEGA onboarding: first successful craft
     }
 
@@ -3225,16 +3230,18 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(intent.Count, 1, 999);
+        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
         // Preserve any shape the source already carried — colouring a shaped block keeps its form.
         string output = ItemKey.Compose(baseKey, tint, glow, ItemKey.Shape(intent.SourceItemKey));
 
         // Creative mode: no material cost — just produce the coloured material.
         if (!Rules.CraftingCostsMaterials)
         {
-            new MaterialPool(_content, session.State, _ship).Add(output, count);
+            var freeTintPool = new MaterialPool(_content, session.State, _ship);
+            freeTintPool.Add(output, count);
             Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
             SendInventory(session);
+            WarnIfPoolOverflowed(session, freeTintPool); // #600
             return;
         }
 
@@ -3257,6 +3264,8 @@ public sealed partial class GameServer
         pool.Add(output, count);
         Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
         SendInventory(session);
+        // #600: dyeing PART of a stack needs a fresh slot for the new key, so a full inventory can still lose it.
+        WarnIfPoolOverflowed(session, pool);
         ShipAiOnCraft(session);
     }
 
@@ -3299,16 +3308,18 @@ public sealed partial class GameServer
             return;
         }
 
-        int count = System.Math.Clamp(intent.Count, 1, 999);
+        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
         // Only the form changes — keep whatever colour the source carried.
         string output = ItemKey.Compose(baseKey, ItemKey.Tint(intent.SourceItemKey), ItemKey.Glow(intent.SourceItemKey), shape);
 
         // Creative mode: no material cost — just produce the shaped material.
         if (!Rules.CraftingCostsMaterials)
         {
-            new MaterialPool(_content, session.State, _ship).Add(output, count);
+            var freeShapePool = new MaterialPool(_content, session.State, _ship);
+            freeShapePool.Add(output, count);
             Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
             SendInventory(session);
+            WarnIfPoolOverflowed(session, freeShapePool); // #600
             if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
             return;
         }
@@ -3326,6 +3337,7 @@ public sealed partial class GameServer
         pool.Add(output, count);
         Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
         SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: same partial-stack trap as dyeing
         ShipAiOnCraft(session);
         if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
     }
@@ -3396,6 +3408,7 @@ public sealed partial class GameServer
         }
 
         SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: recovered components that found no room are gone
     }
 
     private void HandleDisassemble(PlayerSession session, DisassembleIntent intent)
@@ -3603,6 +3616,12 @@ public sealed partial class GameServer
                 Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "Teleported." });
                 SendPlayerState(session);
                 CheatLog(p, $"teleported to ({cmd.X:0.#}, {cmd.Y:0.#}, {cmd.Z:0.#})");
+                break;
+
+            // The named form of the same command ("/tp village2"). Same-body only and therefore the same
+            // gate as the coordinate teleport it extends — cross-body jumping stays fleet-admin `/goto`.
+            case "teleport_to_named":
+                AdminTeleportNamed(session, cmd.StringArg);
                 break;
 
             case "teleport_to_player":
@@ -4047,6 +4066,27 @@ public sealed partial class GameServer
     private void Reject(PlayerSession session, string action, string reason)
         => Send(session, new ActionRejected { Action = action, Reason = reason });
 
+    /// <summary>Seconds between two "backpack full" toasts for one player (#600).</summary>
+    private const double InventoryFullHintCooldown = 8.0;
+
+    /// <summary>
+    /// Tells the player when a pool could not store everything it was handed (#600). Mined drops and craft
+    /// outputs used to vanish without a word once both the 24 inventory slots and the cargo hold were full —
+    /// the block broke, and nothing arrived. Throttled per player, because one drill swing can overflow on a
+    /// dozen blocks at once. The token is localized client-side (<c>GameBootstrap.ServerMessageText</c>), so
+    /// the player reads it in their own language rather than the server's.
+    /// </summary>
+    private void WarnIfPoolOverflowed(PlayerSession session, MaterialPool pool)
+    {
+        if (pool.Overflow <= 0 || _uptime < session.NextInventoryFullHintAt)
+        {
+            return;
+        }
+
+        session.NextInventoryFullHintAt = _uptime + InventoryFullHintCooldown;
+        Send(session, new ServerMessage { Text = "@inventory_full" });
+    }
+
     private void CraftFail(PlayerSession session, string recipeKey, string reason)
         => Send(session, new CraftResult { Success = false, RecipeKey = recipeKey, Reason = reason });
 
@@ -4317,6 +4357,56 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } session)
         {
             HandleMoveItem(session, new MoveItemIntent { FromSlot = fromSlot, ToSlot = toSlot });
+        }
+    }
+
+    /// <summary>
+    /// Permanently destroys everything the player holds of one item (#599). Every other way to part with an
+    /// item stores it somewhere (hold, crate, trade) or consumes it in a recipe, so unwanted loot used to be
+    /// carried around forever. The slot picks the item — a dyed/shaped stack has a composite key — and then
+    /// <b>all</b> stacks of that key go, because clearing "the 300 dirt" one stack at a time is busywork.
+    /// The starter kit is refused so nobody can strand themselves without a drill or a light; observers never
+    /// reach here (<c>SpectatorMayHandle</c> defaults to false). Client-side the button is hidden for those
+    /// items too — this check exists because the server never trusts the client.
+    /// </summary>
+    private void HandleDiscardItem(PlayerSession session, DiscardItemIntent intent)
+    {
+        if (intent.FromCargo && !session.State.AboardShip)
+        {
+            Reject(session, "discard", "Step aboard the ship to use the cargo hold.");
+            return;
+        }
+
+        var inv = intent.FromCargo ? _ship.Cargo : session.State.Inventory;
+        int slot = intent.Slot;
+        if (slot < 0 || slot >= inv.SlotCount || inv.Slots[slot] is not { IsEmpty: false } stack)
+        {
+            return; // empty or out-of-range slot: nothing to discard
+        }
+
+        if (StarterKit.IsProtected(stack.Item))
+        {
+            Reject(session, "discard", "Starter equipment can't be thrown away.");
+            return;
+        }
+
+        string item = stack.Item;
+        int count = inv.CountOf(item);
+        if (count <= 0 || !inv.Remove(item, count))
+        {
+            return;
+        }
+
+        SendInventory(session);
+        _log.Info($"'{session.State.Name}' discarded {count}x {item} from the {(intent.FromCargo ? "hold" : "backpack")}.");
+    }
+
+    /// <summary>Test seam: discards the item in a player's slot through the real handler (#599).</summary>
+    public void DiscardItemForTest(string playerId, int slot, bool fromCargo = false)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleDiscardItem(session, new DiscardItemIntent { Slot = slot, FromCargo = fromCargo });
         }
     }
 

@@ -45,6 +45,21 @@ public class ContentTests
     }
 
     [Fact]
+    public void BulkItems_StackToAFullThousand_WhileToolsStayUnstackable()
+    {
+        var content = Load();
+
+        // Blocks, ores, materials and components are the bulk group — one slot holds a full 1024.
+        Assert.Equal(ItemDefinition.DefaultMaxStack, content.MaxStackOf("stone"));
+        Assert.Equal(ItemDefinition.DefaultMaxStack, content.MaxStackOf("iron_ore"));
+        Assert.Equal(ItemDefinition.DefaultMaxStack, content.MaxStackOf("iron_plate"));
+
+        // Tools/equipment stay one-per-slot, and the deliberately scarce goods keep their small caps.
+        Assert.Equal(1, content.MaxStackOf("basic_drill"));
+        Assert.Equal(20, content.MaxStackOf("medpack"));
+    }
+
+    [Fact]
     public void BlockById_RoundTrips()
     {
         var content = Load();

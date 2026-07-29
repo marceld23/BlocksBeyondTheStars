@@ -39,7 +39,7 @@ def main():
         "nameKey": f"item.{key}.name",
         "descriptionKey": f"item.{key}.desc",
         "category": b.get("category", "material"),
-        "maxStack": b.get("maxStack", 99),
+        "maxStack": b.get("maxStack", 1024),
     }
     if b.get("placesBlock"):
         item["placesBlock"] = b["placesBlock"]

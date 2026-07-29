@@ -336,7 +336,10 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        LocalLine(L("ui.cmd.usage_tp"));
+                        // Anything that is not three numbers is a named target ("/tp village2"), and an empty
+                        // "/tp" asks for the list. Both go to the server verbatim — it owns the target
+                        // registry, and the client has nothing to check the word against.
+                        net.SendAdminCommand("teleport_to_named", stringArg: t.Substring(p[0].Length).Trim());
                     }
 
                     return true;
@@ -461,6 +464,7 @@ namespace BlocksBeyondTheStars.Client
         private void AdminHelp()
         {
             LocalLine(L("ui.admin.help_cheats"));
+            LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));

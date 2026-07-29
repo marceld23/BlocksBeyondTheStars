@@ -340,6 +340,9 @@ public static class NetCodec
         Register(179, typeof(BanditDemand));             // Server -> Client (the hold-up, with countdown)
         Register(180, typeof(BanditResponseIntent));     // Client -> Server (hand it over / refuse)
         Register(181, typeof(BanditEncounterResult));    // Server -> Client (paid/refused/expired/fled)
+
+        // Throwing unwanted loot away (#599) — the only path that destroys an item instead of storing it.
+        Register(182, typeof(DiscardItemIntent));        // Client -> Server
     }
 
     private static void Register(byte tag, Type type)
