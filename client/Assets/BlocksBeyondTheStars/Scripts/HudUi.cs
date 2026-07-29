@@ -808,11 +808,13 @@ namespace BlocksBeyondTheStars.Client
                 _compassDist.text = distNow >= 0 ? $"{distNow} m" : string.Empty;
             }
 
+            // Amber (matching the waypoint blip) vs the cyan ship line above — colour is the label,
+            // no glyph prefix (the UI font has no guaranteed ✛).
             int wpDistNow = Game.Waypoint.HasValue ? Mathf.RoundToInt(wpDist) : -1;
             if (wpDistNow != _lastCompassWpDist)
             {
                 _lastCompassWpDist = wpDistNow;
-                _compassWpDist.text = wpDistNow >= 0 ? $"✛ {wpDistNow} m" : string.Empty;
+                _compassWpDist.text = wpDistNow >= 0 ? $"{wpDistNow} m" : string.Empty;
             }
 
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
