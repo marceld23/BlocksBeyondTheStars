@@ -960,7 +960,7 @@ public sealed partial class GameServer
         var leftover = new List<ItemAmount>();
         foreach (var item in drop.Loot)
         {
-            int max = _content.GetItem(item.Item)?.MaxStack ?? 99;
+            int max = _content.GetItem(item.Item)?.MaxStack ?? ItemDefinition.DefaultMaxStack;
             int notStowed = _ship.Cargo.Add(item.Item, item.Count, max); // cargo full → leave the rest floating
             if (notStowed < item.Count)
             {

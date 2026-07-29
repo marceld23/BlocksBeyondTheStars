@@ -43,7 +43,7 @@ namespace BlocksBeyondTheStars.Client
 
         // --- item ---
         private string _key = "my_item", _name = "My Item", _desc = "A custom item.", _placesBlock = string.Empty;
-        private int _category, _maxStack = 99;
+        private int _category, _maxStack = BlocksBeyondTheStars.Shared.Definitions.ItemDefinition.DefaultMaxStack;
         private int _toolKind;
         private float _tier = 1, _miningPower = 1, _damage, _range, _energy, _miningRadius, _cooldown;
         private float _consumeHealth, _consumeHunger, _armor, _oxygen, _scan = 1f;
@@ -94,7 +94,7 @@ namespace BlocksBeyondTheStars.Client
             InputRow(left, ref y, L("ui.content.name"), _name, v => _name = v, NameLimit);
             TextAreaRow(left, ref y, L("ui.content.desc"), _desc, v => _desc = v);
             CycleRow(left, ref y, L("ui.content.category"), Display("category", Categories), () => _category, i => _category = i);
-            Stepper(left, ref y, L("ui.content.max_stack"), () => _maxStack, v => _maxStack = (int)v, 1, 999, 1, "0");
+            Stepper(left, ref y, L("ui.content.max_stack"), () => _maxStack, v => _maxStack = (int)v, 1, 4096, 1, "0");
             InputRow(left, ref y, L("ui.content.places_block"), _placesBlock, v => _placesBlock = v, KeyLimit);
 
             Header(left, ref y, L("ui.content.tool_stats"));
