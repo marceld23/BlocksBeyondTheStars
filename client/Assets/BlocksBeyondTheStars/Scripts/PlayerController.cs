@@ -1194,6 +1194,142 @@ namespace BlocksBeyondTheStars.Client
             _verticalVelocity = 0f;
         }
 
+        // --- Never fall out of the world -----------------------------------------------------------------
+        // Reported by a player: "Beim Bauen bin ich von einem Block gefallen, ich wollte mich mit einem Block
+        // retten, doch beim Platzieren war ich an der Stelle des Blocks und bin durch ihn durchgefallen.
+        // Daraufhin bin ich durch die Blöcke durchgefallen ohne Ende."
+        //
+        // The server deliberately ALLOWS placing into your own feet cell so you can pillar-jump, on the
+        // assumption that "the client collider just lifts you onto the new block". That holds at rest or on the
+        // way up — but not in a fast fall: the capsule ends up inside the new solid cell with a large downward
+        // velocity, and Unity's depenetration resolves it downward, straight through the blocks below.
+
+        /// <summary>The last position at which the player stood safely on the ground — the anchor the
+        /// out-of-world guard restores to.</summary>
+        private Vector3 _lastSafeGround;
+        private bool _hasSafeGround;
+
+        /// <summary>Consecutive frames spent stuck inside solid geometry (see <see cref="GuardAgainstFallingOut"/>).</summary>
+        private int _embeddedFrames;
+
+        /// <summary>Frames of being inside a block before the guard yanks the player back. A couple of frames of
+        /// overlap is normal while a chunk re-meshes; a persistent overlap is a desync we must not ride out.</summary>
+        private const int EmbeddedFramesBeforeRescue = 12;
+
+        /// <summary>Below this the player has left the world for good — nothing is generated down here (it mirrors
+        /// the server's build-band floor), so there is nothing left to land on.</summary>
+        private const float OutOfWorldY = -2100f;
+
+        /// <summary>
+        /// A block just became solid where the player is standing. Lift them onto its top instead of leaving
+        /// Unity's depenetration to guess a direction — guessing "down" is what made a player fall through the
+        /// world after saving themselves mid-fall with a block. Called for every block change, so it also covers
+        /// another player or a server path filling the cell.
+        /// </summary>
+        public void LiftOutOfBlockAt(int cellX, int cellY, int cellZ)
+        {
+            if (_controller == null || !_controller.enabled || (Game != null && Game.Spectating))
+            {
+                return;
+            }
+
+            // Does the cell overlap the capsule's own column? Feet at transform.position, head StandHeight above.
+            var pos = transform.position;
+            if (Mathf.FloorToInt(pos.x) != cellX || Mathf.FloorToInt(pos.z) != cellZ)
+            {
+                return;
+            }
+
+            float feet = pos.y;
+            float head = pos.y + (_crouched ? CrouchHeight : StandHeight);
+            if (cellY + 1f <= feet + 0.001f || cellY >= head - 0.001f)
+            {
+                return; // entirely below the feet or above the head — no overlap
+            }
+
+            SnapTo(new Vector3(pos.x, cellY + 1f, pos.z));
+        }
+
+        /// <summary>
+        /// Last line of defence against ending up outside the world: remembers the last spot the player stood on
+        /// safely and restores it if they spend several frames inside solid geometry or drop below the world
+        /// floor. Independent of any particular cause — whatever desync puts the player inside a block, this
+        /// gets them out instead of letting them fall forever.
+        /// </summary>
+        private void GuardAgainstFallingOut(bool grounded, bool inWater, bool onLadder)
+        {
+            // A climbing player legitimately stands INSIDE the ladder cell, and a swimmer inside water — neither
+            // is "stuck in geometry". Observers pass through everything by design.
+            if (onLadder || inWater || (Game != null && Game.Spectating))
+            {
+                _embeddedFrames = 0;
+                return;
+            }
+
+            // Fell out of the bottom of the world — nothing below will ever stop us.
+            if (transform.position.y < OutOfWorldY)
+            {
+                if (_hasSafeGround)
+                {
+                    SnapTo(_lastSafeGround);
+                }
+
+                _embeddedFrames = 0;
+                return;
+            }
+
+            // Solid at chest height means the capsule is inside geometry, not merely brushing it.
+            bool embedded = IsSolidKey(BlockKeyAt(transform.position + Vector3.up * 0.9f));
+            if (embedded)
+            {
+                if (++_embeddedFrames >= EmbeddedFramesBeforeRescue && _hasSafeGround)
+                {
+                    SnapTo(_lastSafeGround);
+                    _embeddedFrames = 0;
+                }
+
+                return;
+            }
+
+            _embeddedFrames = 0;
+
+            // Standing on real ground with clear space around us: this is a spot worth coming back to.
+            if (grounded && _verticalVelocity <= 0f)
+            {
+                _lastSafeGround = transform.position;
+                _hasSafeGround = true;
+            }
+        }
+
+        /// <summary>
+        /// Keeps the auto-step from punching the player's head into a low ceiling. The 1.8 m capsule leaves only
+        /// ~0.14 m of clearance in a 2-block-high gap, and a 0.6 m step sweep eats far more than that — so the
+        /// player wedged and could not walk through a 2-high opening they had built (reported as "Das 2 Blöcke
+        /// Problem"; the earlier skin-width fix only removed part of the cause). Step height is therefore capped
+        /// to the headroom actually available, which still climbs slabs and stair treads in the open.
+        /// </summary>
+        private void UpdateStepOffset()
+        {
+            float capsuleTop = _crouched ? CrouchHeight : StandHeight;
+
+            // Walk upward from the head in step-sized samples and stop at the first solid cell.
+            float headroom = DefaultStepOffset;
+            for (float probe = 0.1f; probe <= DefaultStepOffset + 0.05f; probe += 0.1f)
+            {
+                if (IsSolidKey(BlockKeyAt(transform.position + Vector3.up * (capsuleTop + probe))))
+                {
+                    headroom = Mathf.Max(0f, probe - 0.1f);
+                    break;
+                }
+            }
+
+            _controller.stepOffset = Mathf.Min(DefaultStepOffset, headroom);
+        }
+
+        /// <summary>The step height used in the open — matches the value WorldRig sets up so a slab (0.5) and each
+        /// stair tread are walked up without jumping.</summary>
+        private const float DefaultStepOffset = 0.6f;
+
         // --- Observer mode (issue #487) -------------------------------------------------------------
 
         /// <summary>Base flight speed while observing (blocks/s). Deliberately not much faster than a walk by
@@ -1770,7 +1906,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Cap the auto-step to the headroom above the head before moving, so a 2-block-high opening stays
+            // walkable instead of wedging the capsule (see UpdateStepOffset).
+            UpdateStepOffset();
+
             _controller.Move(move * Time.deltaTime);
+
+            // Last line of defence: if that move left us inside geometry (or below the world), get back out.
+            GuardAgainstFallingOut(grounded, inWater, onLadder);
 
             // Round worlds: latitude (Z) wraps seamlessly like longitude now — the old invisible pole
             // barrier is gone. The transform runs unbounded in both axes; the server canonicalises the

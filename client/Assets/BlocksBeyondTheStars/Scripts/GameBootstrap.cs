@@ -1845,11 +1845,37 @@ namespace BlocksBeyondTheStars.Client
             (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
         };
 
+        private PlayerController _playerController;
+
+        /// <summary>The local player rig (created by <see cref="WorldRig"/>), looked up once and cached. Null in
+        /// the menu, and while a world transition is tearing the old rig down.</summary>
+        private PlayerController Player
+        {
+            get
+            {
+                if (_playerController == null)
+                {
+                    _playerController = FindAnyObjectByType<PlayerController>();
+                }
+
+                return _playerController;
+            }
+        }
+
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
             if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, m.Shape, out var coord))
             {
                 return;
+            }
+
+            // A cell that just became solid where we are standing must lift us out, not swallow us: the server
+            // allows placing into your own feet cell (pillar jumping), and mid-fall that used to drop the player
+            // straight through the world. Every block change funnels through here, so another player filling the
+            // cell is covered too.
+            if (m.Block != BlockId.AirValue && Player != null)
+            {
+                Player.LiftOutOfBlockAt(m.X, m.Y, m.Z);
             }
 
             _dirty.Add(coord);
