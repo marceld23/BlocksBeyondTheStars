@@ -464,15 +464,12 @@ public sealed partial class GameServer
                 _repo.SetStructureBlock(s.Id, pos, BlockId.AirValue);
             }
 
-            // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull).
+            // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull). The cell is
+            // already cleared at this point, so a full inventory can still lose the drop — BankLoot says so.
             if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
             {
                 var pool = new MaterialPool(_content, p, _ship);
-                foreach (var drop in def.Drops)
-                {
-                    pool.Add(drop.Item, drop.Count);
-                }
-
+                BankLoot(session, pool, def.Drops);
                 SendInventory(session);
             }
 
@@ -624,11 +621,7 @@ public sealed partial class GameServer
             if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
             {
                 var pool = new MaterialPool(_content, p, _ship);
-                foreach (var drop in def.Drops)
-                {
-                    pool.Add(drop.Item, drop.Count);
-                }
-
+                BankLoot(session, pool, def.Drops); // cell already cleared — warn if the drop cannot be stored
                 SendInventory(session);
             }
 

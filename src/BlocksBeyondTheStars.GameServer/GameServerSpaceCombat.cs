@@ -763,11 +763,7 @@ public sealed partial class GameServer
         else if (session is not null)
         {
             var pool = new MaterialPool(_content, session.State, _ship);
-            foreach (var drop in target.Loot)
-            {
-                pool.Add(drop.Item, drop.Count);
-            }
-
+            BankLoot(session, pool, target.Loot); // target is already destroyed — warn rather than lose it silently
             SendInventory(session);
         }
 

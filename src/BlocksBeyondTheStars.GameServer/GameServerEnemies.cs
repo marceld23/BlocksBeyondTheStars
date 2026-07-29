@@ -535,11 +535,7 @@ public sealed partial class GameServer
         list.Remove(target);
         _enemyWander.Remove(target.Id); // drop the dead enemy's wander state
         var pool = new MaterialPool(_content, p, _ship);
-        foreach (var drop in target.Loot)
-        {
-            pool.Add(drop.Item, drop.Count);
-        }
-
+        BankLoot(session, pool, target.Loot); // the kill already happened — warn if a full inventory loses the drop
         SendInventory(session);
         if (isCreature)
         {

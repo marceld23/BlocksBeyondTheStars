@@ -821,12 +821,21 @@ namespace BlocksBeyondTheStars.Client
                 return Localizer?.Get("ui.spawn.set") ?? "Spawn point set — you'll respawn here from now on.";
             }
 
+            // Loot from something already destroyed that had nowhere to go (a kill with a full inventory). The
+            // server can't refuse it after the fact, so it tells us — never let a lost drop pass unremarked.
+            if (text == "@loot_lost")
+            {
+                return Localizer?.Get("ui.loot.lost") ?? "Inventory full — the loot was lost!";
+            }
+
             return text;
         }
 
         /// <summary>Turns a craft-failure reason into a player-facing line. Station-availability failures arrive
         /// as a machine-readable "@need_station:&lt;station&gt;" token so the client can localize them and name the
-        /// exact station the recipe needs (Severin playtest #2). Other reasons are shown as-is.</summary>
+        /// exact station the recipe needs (Severin playtest #2); "@inventory_full" is the same idea for "the
+        /// result wouldn't fit". Anything else falls back to a generic localized line — the raw English server
+        /// text used to be shown to the player, which read as broken in a German session.</summary>
         private string CraftFailMessage(string reason)
         {
             const string stationPrefix = "@need_station:";
@@ -838,7 +847,48 @@ namespace BlocksBeyondTheStars.Client
                 return template.Replace("{station}", stationName);
             }
 
-            return $"Craft failed: {reason}";
+            if (reason == "@inventory_full")
+            {
+                return Localizer?.Get("ui.craft.inventory_full")
+                    ?? "No room for the result — make space in your inventory first.";
+            }
+
+            Debug.Log($"Craft failed: {reason}"); // keep the exact server reason for diagnosis, not for the player
+            return Localizer?.Get("ui.craft.failed") ?? "That didn't work.";
+        }
+
+        /// <summary>Turns a rejected action into a player-facing line. Reasons the player is expected to act on
+        /// arrive as machine-readable "@token"s so they can be localized; everything else is a developer-facing
+        /// string that stays in the log rather than being pushed at the player as raw English.</summary>
+        private string RejectionMessage(string action, string reason)
+        {
+            if (reason == "@inventory_full")
+            {
+                // Mining says "make space"; picking a door back up is the same situation.
+                return Localizer?.Get(action == "mine" ? "ui.mine.inventory_full" : "ui.craft.inventory_full")
+                    ?? "Inventory full — make space first.";
+            }
+
+            return $"{action}: {reason}";
+        }
+
+        /// <summary>The "you made something" toast. Names the crafted ITEM in the player's language — this used to
+        /// read "Crafted &lt;recipe_key&gt;" in English regardless of language (a German player saw
+        /// "Crafted glass"), which is also how we learned the craft reported success while the item was being
+        /// destroyed by a full inventory.</summary>
+        private string CraftedMessage(string recipeKey)
+        {
+            // "tint" and "shape" are pseudo-recipes for the dye/re-form actions, not entries in recipes.json.
+            var outputs = Content?.GetRecipe(recipeKey)?.Outputs;
+            if (outputs == null || outputs.Count == 0)
+            {
+                return Localizer?.Get("ui.craft.crafted_generic") ?? "Crafted!";
+            }
+
+            string baseKey = BlocksBeyondTheStars.Shared.State.ItemKey.Parse(outputs[0].Item).Base;
+            string itemName = Localizer?.Get($"item.{baseKey}.name") ?? baseKey;
+            string template = Localizer?.Get("ui.craft.crafted") ?? "Crafted {item}";
+            return template.Replace("{item}", itemName);
         }
 
         /// <summary>Rebuilds <see cref="WikiStateJson"/> from the current star map for the wiki's discovery-gated
@@ -1366,11 +1416,11 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.RespawnOptionsReceived += m => LastMessage = m.Reason; // deferred death: reason shows under the choice modal
             Network.ServerRulesReceived += m => { Rules = m; LastMessage = $"Mode: {m.GameMode} · PvP: {m.Pvp}"; };
-            Network.CraftCompleted += m => LastMessage = m.Success ? $"Crafted {m.RecipeKey}" : CraftFailMessage(m.Reason);
+            Network.CraftCompleted += m => LastMessage = m.Success ? CraftedMessage(m.RecipeKey) : CraftFailMessage(m.Reason);
             Network.ActionRejected += m =>
             {
                 Debug.Log($"Action '{m.Action}' rejected: {m.Reason}");
-                LastMessage = $"{m.Action}: {m.Reason}";
+                LastMessage = RejectionMessage(m.Action, m.Reason);
 
                 // The server is authoritative: if a dig is rejected because the cell is "already empty", the
                 // client's view of it is stale — a ghost block (a cell some server path cleared to air without a

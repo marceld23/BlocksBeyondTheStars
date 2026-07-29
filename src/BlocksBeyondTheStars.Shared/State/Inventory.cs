@@ -86,6 +86,23 @@ public sealed class Inventory
     public bool Has(string item, int count) => CountOf(item) >= count;
 
     /// <summary>
+    /// An independent deep copy — same slot count, cloned stacks. Used to <b>dry-run</b> a sequence of
+    /// <see cref="Add"/> calls without touching the real container, so a caller can find out whether
+    /// everything would fit BEFORE it consumes anything (see <c>MaterialPool.CanFit</c>: crafting used
+    /// to destroy both the output and the already-consumed inputs when the inventory was full).
+    /// </summary>
+    public Inventory Clone()
+    {
+        var copy = new Inventory(_slots.Length);
+        for (int i = 0; i < _slots.Length; i++)
+        {
+            copy._slots[i] = _slots[i]?.Clone();
+        }
+
+        return copy;
+    }
+
+    /// <summary>
     /// Removes <paramref name="count"/> items. Returns false and changes nothing if there
     /// are not enough.
     /// </summary>

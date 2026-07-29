@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -301,12 +302,21 @@ public sealed partial class GameServer
             return true;
         }
 
+        // Room for the returned door block before the door is removed — otherwise picking one up with a full
+        // inventory destroyed it outright.
+        string doorItem = door.Kind == "slide" ? "door_slide" : "door_hinge";
+        var pool = new MaterialPool(_content, session.State, _ship);
+        if (!pool.CanFit(new[] { new ItemAmount(doorItem, 1) }))
+        {
+            Reject(session, "mine", "@inventory_full");
+            return true;
+        }
+
         int bx = (int)System.Math.Floor(door.Pos.X), by = (int)System.Math.Floor(door.Pos.Y), bz = (int)System.Math.Floor(door.Pos.Z);
         _doors.Remove(door);
         _repo.DeleteDoor(_world.LocationId, bx, by, bz);
 
-        var pool = new MaterialPool(_content, session.State, _ship);
-        pool.Add(door.Kind == "slide" ? "door_slide" : "door_hinge", 1); // give the door block back
+        pool.Add(doorItem, 1); // give the door block back
         BroadcastDoors();
         SendInventory(session);
         return true;

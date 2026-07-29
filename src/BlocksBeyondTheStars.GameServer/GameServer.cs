@@ -2781,7 +2781,13 @@ public sealed partial class GameServer
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
-        BreakBlockAt(session, pos, def, pool);
+        if (!BreakBlockAt(session, pos, def, pool))
+        {
+            // Nothing was mined — say so instead of eating the drop. The accumulated progress is kept so the
+            // block breaks on the next swing once the player has made room.
+            Reject(session, "mine", "@inventory_full");
+            return;
+        }
 
         // Powerful drills clear a small area at once.
         if (tool.MiningRadius > 0)
@@ -2793,12 +2799,44 @@ public sealed partial class GameServer
     }
 
     /// <summary>Breaks one block: clears it, banks its drops in the pool, broadcasts the change,
-    /// schedules flora regrowth and advances mining missions. Clears any accumulated mining progress.</summary>
-    private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
+    /// schedules flora regrowth and advances mining missions. Clears any accumulated mining progress.
+    /// <para>
+    /// Returns <c>false</c> — changing nothing at all — when the drops would not fit in the player's
+    /// inventory (or cargo when aboard). Mining used to clear the cell and then silently destroy whatever
+    /// did not fit, so a full inventory quietly ate every drop; refusing the break is the only lossless
+    /// option while there are no ground items to spill onto.
+    /// </para></summary>
+    private bool BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
     {
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
+
+        // Work out exactly what this break would yield, then make sure it all fits before touching the world.
+        var yield = new List<ItemAmount>();
+        bool toxicFloraDrop = IsFlora(current.Value)
+            && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
+        foreach (var drop in def.Drops)
+        {
+            string item = toxicFloraDrop && drop.Item == "berries" ? "toxic_berries" : drop.Item;
+            if ((dropTint != 0 || dropGlow != 0 || dropShape != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
+            {
+                item = ItemKey.Compose(item, dropTint, dropGlow, dropShape);
+            }
+
+            yield.Add(new ItemAmount(item, drop.Count));
+        }
+
+        if (def.Key == "crate")
+        {
+            yield.AddRange(CrateContentsAt(pos)); // a mined crate hands its stored stacks back too
+        }
+
+        if (!pool.CanFit(yield))
+        {
+            return false;
+        }
+
         // Attribution (issue #490): removing a block is an edit like any other, and it is the one that grief
         // reports are actually about ("someone tore my house down") — so the remover is recorded as the owner.
         _world.SetBlock(pos, BlockId.Air, owner: session.State.PlayerId);
@@ -2821,19 +2859,11 @@ public sealed partial class GameServer
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
 
-        // A toxic flora species yields poisonous berries instead of edible ones (the scan warns which is which).
-        bool toxicFlora = IsFlora(current.Value)
-            && _floraSpeciesByBlock.TryGetValue(current.Value, out var fsp) && fsp.Toxic;
-        foreach (var drop in def.Drops)
+        // Bank the yield computed (and capacity-checked) above. The crate case already handed its own stacks
+        // over in RemoveCrateContainer, so only the block's own drops are added here.
+        foreach (var drop in yield.Take(def.Drops.Count))
         {
-            string item = toxicFlora && drop.Item == "berries" ? "toxic_berries" : drop.Item;
-            // If this cell was dyed/glowing/shaped and the drop is the block itself, return it still coloured + formed.
-            if ((dropTint != 0 || dropGlow != 0 || dropShape != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
-            {
-                item = ItemKey.Compose(item, dropTint, dropGlow, dropShape);
-            }
-
-            pool.Add(item, drop.Count);
+            pool.Add(drop.Item, drop.Count);
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
@@ -2851,6 +2881,7 @@ public sealed partial class GameServer
 
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
+        return true;
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.</summary>
@@ -2879,8 +2910,30 @@ public sealed partial class GameServer
                         continue;
                     }
 
+                    // A block whose drops no longer fit is simply left standing (BreakBlockAt returns false
+                    // without changing anything) — the area sweep stops yielding rather than destroying loot.
                     BreakBlockAt(session, p, d, pool);
                 }
+    }
+
+    /// <summary>
+    /// Banks loot from an event that cannot be refused after the fact — a creature is already dead, a wreck
+    /// already burst. Anything that does not fit is genuinely lost, so the player is TOLD instead of the drop
+    /// vanishing in silence (the complaint that started this: "Items futsch"). Prefer a capacity check up
+    /// front (<see cref="MaterialPool.CanFit"/>) wherever the action can still be refused.
+    /// </summary>
+    private void BankLoot(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> drops)
+    {
+        int lost = 0;
+        foreach (var drop in drops)
+        {
+            lost += pool.Add(drop.Item, drop.Count);
+        }
+
+        if (lost > 0)
+        {
+            Send(session, new ServerMessage { Text = "@loot_lost" });
+        }
     }
 
     /// <summary>Auto-orients a placed shape from the surface it was built against: the shape's base rests on
@@ -3173,10 +3226,23 @@ public sealed partial class GameServer
             return;
         }
 
-        pool.Remove(scaledInputs);
-        foreach (var output in recipe.Outputs)
+        // Room for the RESULT before anything is consumed. Without this the inputs were removed, the
+        // output silently dropped on the floor of a full inventory (MaterialPool.Add's leftover was
+        // ignored) and the client was still told Success = true — a player lost crafted glass AND the
+        // sand that went into it with 24/24 slots occupied and no ship cargo in reach. Checked against
+        // the SCALED outputs so a batch craft that only partly fits is refused as a whole.
+        var scaledOutputs = recipe.Outputs.Select(o => new ItemAmount(o.Item, o.Count * count)).ToList();
+        if (!pool.CanFit(scaledOutputs))
         {
-            pool.Add(output.Item, output.Count * count);
+            // Machine-readable so the client can localize it (same convention as "@need_station:").
+            CraftFail(session, recipe.Key, "@inventory_full");
+            return;
+        }
+
+        pool.Remove(scaledInputs);
+        foreach (var output in scaledOutputs)
+        {
+            pool.Add(output.Item, output.Count);
         }
 
         // Bartering at a settlement/station market stall is a trade with that vendor NPC — remembered (item 14).
@@ -3251,6 +3317,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // The coloured result is a DIFFERENT item key than the source, so it always needs a free slot (or a
+        // matching part-stack). Verify before consuming — otherwise a full inventory eats the material.
+        if (!pool.CanFit(new[] { new ItemAmount(output, count) }))
+        {
+            CraftFail(session, "tint", "@inventory_full");
+            return;
+        }
+
         pool.Remove(inputs);
         pool.Add(output, count);
         Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
@@ -3320,6 +3394,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // Same as tinting: the re-formed result carries a different composed key, so it needs room of its
+        // own. Check first — a 1:1 transform must never be able to destroy the material.
+        if (!pool.CanFit(new[] { new ItemAmount(output, count) }))
+        {
+            CraftFail(session, "shape", "@inventory_full");
+            return;
+        }
+
         pool.Remove(inputs);
         pool.Add(output, count);
         Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
@@ -3383,14 +3465,28 @@ public sealed partial class GameServer
             return;
         }
 
-        pool.Remove(new[] { new ItemAmount(itemKey, 1) });
+        // Work out the salvage first so it can be checked for room BEFORE the item is consumed — otherwise
+        // disassembling with a full inventory destroys the item and returns nothing.
+        var salvage = new List<ItemAmount>();
         foreach (var input in recipe.Inputs)
         {
             int recovered = (int)System.Math.Floor(input.Count * DisassemblyRecoveryRate / perCraft);
             if (recovered > 0)
             {
-                pool.Add(input.Item, recovered);
+                salvage.Add(new ItemAmount(input.Item, recovered));
             }
+        }
+
+        if (!pool.CanFit(salvage))
+        {
+            Reject(session, "disassemble", "@inventory_full");
+            return;
+        }
+
+        pool.Remove(new[] { new ItemAmount(itemKey, 1) });
+        foreach (var part in salvage)
+        {
+            pool.Add(part.Item, part.Count);
         }
 
         SendInventory(session);
