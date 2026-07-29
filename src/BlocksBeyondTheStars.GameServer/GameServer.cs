@@ -2662,7 +2662,13 @@ public sealed partial class GameServer
         {
             HandlePlace(session, new PlaceBlockIntent
             {
-                X = x, Y = y, Z = z, ItemKey = itemKey, Label = label ?? string.Empty, UpFace = upFace, Yaw = yaw,
+                X = x,
+                Y = y,
+                Z = z,
+                ItemKey = itemKey,
+                Label = label ?? string.Empty,
+                UpFace = upFace,
+                Yaw = yaw,
             });
         }
     }
