@@ -421,7 +421,12 @@ namespace BlocksBeyondTheStars.Client
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
                 // Tree crowns keep the cutout shell (a volume), solid flora (cactus/crystal/caps) stay cubes.
                 // Cross plants get NO collider, so the player walks through grass/ferns instead of bumping.
-                if (atlas != null && foliage && collKey != null && collKey.StartsWith("flora_", System.StringComparison.Ordinal))
+                // A TORCH rides the same cross-billboard path: it must be a slim prop you can walk past, not a
+                // full glowing cube — and it deliberately does NOT take the flora tint (isFlora is false for it,
+                // so speciesTint stays black), because a torch is not a plant to be recoloured per world.
+                bool isTorchProp = collKey == "torch";
+                if (atlas != null && collKey != null
+                    && (isTorchProp || (foliage && collKey.StartsWith("flora_", System.StringComparison.Ordinal))))
                 {
                     float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
                     Vector3 plantBl = BlockLightAt(wx, wy, wz);  // coloured block-light reaching the plant
@@ -440,8 +445,18 @@ namespace BlocksBeyondTheStars.Client
                     var plantLean = new Vector2(
                         (CrossPlantScale(wx, wy, wz, 0x4, 1f) - 1f) * 0.12f,
                         (CrossPlantScale(wx, wy, wz, 0x8, 1f) - 1f) * 0.12f);
+
+                    // A torch is manufactured, not grown: no size variance and no lean, so a row of them along a
+                    // wall reads as deliberate lighting rather than a wonky hedge.
+                    if (isTorchProp)
+                    {
+                        plantH = 0.8f;
+                        plantW = 0.28f;
+                        plantLean = Vector2.zero;
+                    }
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean, plantH, plantW);
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean, plantH, plantW,
+                        isTorchProp ? 7f : 1f); // 7 = flame flicker (and no flora tint); 1 = flora
                     continue;
                 }
 
@@ -850,7 +865,8 @@ namespace BlocksBeyondTheStars.Client
         /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, float heightScale = 1f, float widthScale = 1f)
+            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, float heightScale = 1f, float widthScale = 1f,
+            float tintMode = 1f)
         {
             // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
             // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
@@ -885,7 +901,9 @@ namespace BlocksBeyondTheStars.Client
                     {
                         colors.Add(col);
                         tangents.Add(tangent);
-                        skyUv.Add(new Vector2(sky, 1f)); // flora flag on — takes the species/world tint
+                        // Tint/anim mode: 1 = flora (species/world tint). A torch passes 7, which takes NO tint
+                        // and instead makes the shader flicker its glow like a real flame.
+                        skyUv.Add(new Vector2(sky, tintMode));
                         leafUv.Add(new Vector4(1f, tint.r, tint.g, tint.b)); // cutout on + per-species tint
                         blockLight.Add(bl); // coloured block-light reaching the plant
                         blockLightDir.Add(blDir); // matching block-light direction

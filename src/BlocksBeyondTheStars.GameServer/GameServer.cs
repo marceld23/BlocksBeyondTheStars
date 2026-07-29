@@ -3091,6 +3091,17 @@ public sealed partial class GameServer
             return;
         }
 
+        // A torch is an open flame: it needs air to burn. On an airless body (atmosphere "none" — asteroids and
+        // the like) there is nothing to sustain it, so it is refused with a reason the player can act on instead
+        // of being placed as a dud that mysteriously gives no light. A toxic atmosphere is fine — you need a
+        // suit, the flame does not. Checked HERE, before the item is consumed further down, so a refused torch
+        // stays in the pack.
+        if (blockDef.Key == "torch" && !AtmospherePresent)
+        {
+            Reject(session, "place", "@no_air");
+            return;
+        }
+
         if (!_world.GetBlock(pos).IsAir)
         {
             Reject(session, "place", "Target is not empty.");

@@ -211,7 +211,21 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // slabs drift over bright cracks (viscous, ~1/3 water speed; average brightness ≈ unchanged so
                 // bloom stays balanced). Procedural on world XZ + time because atlas UVs can't scroll.
                 float lavaGlow = 1.0;
-                if (i.skyl.y > 5.5)
+                if (i.skyl.y > 6.5)
+                {
+                    // TORCH FLAME (mode 7): an open flame never burns steady. Two detuned sine bands plus a
+                    // sharper occasional gust give an irregular flicker, and the phase is offset by the torch's
+                    // own world position so a row of them along a wall flickers out of step instead of pulsing
+                    // in unison. Averages slightly above 1.0 so a torch-lit room does not read dimmer than one
+                    // lit by a steady lamp.
+                    float seed = i.wp.x * 12.9898 + i.wp.z * 78.233 + i.wp.y * 37.719;
+                    float ft = _Time.y;
+                    float flick = 0.62 * sin(ft * 11.0 + seed)
+                                + 0.28 * sin(ft * 19.7 + seed * 1.7)
+                                + 0.34 * smoothstep(0.72, 1.0, sin(ft * 5.3 + seed * 0.7)); // the occasional gust
+                    lavaGlow = clamp(1.0 + 0.34 * flick, 0.55, 1.7);
+                }
+                else if (i.skyl.y > 5.5)
                 {
                     // Falling-lava flank (mode 6): a hot bright streak racing straight DOWN the face (faster than
                     // the creeping surface crust — molten rock in free fall).
@@ -512,7 +526,21 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // slabs drift over bright cracks (viscous, ~1/3 water speed; average brightness ≈ unchanged so
                 // bloom stays balanced). Procedural on world XZ + time because atlas UVs can't scroll.
                 float lavaGlow = 1.0;
-                if (i.skyl.y > 5.5)
+                if (i.skyl.y > 6.5)
+                {
+                    // TORCH FLAME (mode 7): an open flame never burns steady. Two detuned sine bands plus a
+                    // sharper occasional gust give an irregular flicker, and the phase is offset by the torch's
+                    // own world position so a row of them along a wall flickers out of step instead of pulsing
+                    // in unison. Averages slightly above 1.0 so a torch-lit room does not read dimmer than one
+                    // lit by a steady lamp.
+                    float seed = i.wp.x * 12.9898 + i.wp.z * 78.233 + i.wp.y * 37.719;
+                    float ft = _Time.y;
+                    float flick = 0.62 * sin(ft * 11.0 + seed)
+                                + 0.28 * sin(ft * 19.7 + seed * 1.7)
+                                + 0.34 * smoothstep(0.72, 1.0, sin(ft * 5.3 + seed * 0.7)); // the occasional gust
+                    lavaGlow = clamp(1.0 + 0.34 * flick, 0.55, 1.7);
+                }
+                else if (i.skyl.y > 5.5)
                 {
                     // Falling-lava flank (mode 6): a hot bright streak racing straight DOWN the face (faster than
                     // the creeping surface crust — molten rock in free fall).

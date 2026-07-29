@@ -1278,8 +1278,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Solid at chest height means the capsule is inside geometry, not merely brushing it.
-            bool embedded = IsSolidKey(BlockKeyAt(transform.position + Vector3.up * 0.9f));
+            // Solid at chest height means the capsule is inside geometry, not merely brushing it. Only blocks
+            // that really collide count — walking through grass or past a wall torch is not being stuck.
+            bool embedded = IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * 0.9f));
             if (embedded)
             {
                 if (++_embeddedFrames >= EmbeddedFramesBeforeRescue && _hasSafeGround)
@@ -1316,7 +1317,7 @@ namespace BlocksBeyondTheStars.Client
             float headroom = DefaultStepOffset;
             for (float probe = 0.1f; probe <= DefaultStepOffset + 0.05f; probe += 0.1f)
             {
-                if (IsSolidKey(BlockKeyAt(transform.position + Vector3.up * (capsuleTop + probe))))
+                if (IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * (capsuleTop + probe))))
                 {
                     headroom = Mathf.Max(0f, probe - 0.1f);
                     break;
@@ -2021,6 +2022,18 @@ namespace BlocksBeyondTheStars.Client
         /// sink through).</summary>
         private static bool IsSolidKey(string key)
             => !string.IsNullOrEmpty(key) && key != "air" && key != "water" && key != "lava";
+
+        /// <summary>
+        /// A block that actually has a COLLIDER — i.e. one the capsule can be blocked by or stuck inside.
+        /// Cross-billboard props (small flora and the torch) are meshed without a collider on purpose, so the
+        /// player walks straight through them; treating them as solid would make the out-of-world guard think a
+        /// player standing in a grass tuft (or next to a wall torch) was embedded in geometry, and would make a
+        /// torch overhead cancel the auto-step.
+        /// </summary>
+        private static bool IsCollidingKey(string key)
+            => IsSolidKey(key)
+               && key != "torch"
+               && !key.StartsWith("flora_", System.StringComparison.Ordinal);
 
         /// <summary>Whether there is solid footing just past the player's edge in a horizontal direction — used by
         /// the sneak edge-stop. Samples a little ahead of the capsule and allows a single step-down (so you can

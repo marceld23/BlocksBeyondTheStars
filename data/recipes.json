@@ -161,6 +161,7 @@
   { "key": "fiber_alien_grass",  "station": "hand",     "inputs": [ { "item": "alien_grass", "count": 1 } ],                              "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "crate",       "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 3 }, { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "crate", "count": 1 } ] },
   { "key": "door_wood",   "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 } ],                                          "outputs": [ { "item": "door_wood", "count": 1 } ] },
+  { "key": "torch",       "station": "hand",     "inputs": [ { "item": "wood_log", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
   { "key": "door_hinge",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_hinge", "count": 1 } ] },
   { "key": "door_slide",  "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "bronze_gear", "count": 1 } ], "outputs": [ { "item": "door_slide", "count": 1 } ] },
   { "key": "station_core", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 6 }, { "item": "circuit_board", "count": 2 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "station_core", "count": 1 } ] },

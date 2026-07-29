@@ -89,6 +89,20 @@ public sealed partial class GameServer
     /// <summary>Whether the current planet's atmosphere is breathable (no suit-oxygen drain on the surface).</summary>
     public bool AtmosphereBreathable => _breathable;
 
+    /// <summary>
+    /// Whether this world has AIR AT ALL — breathable or toxic, as opposed to atmosphere "none" (asteroids and
+    /// the airless bodies). Distinct from <see cref="AtmosphereBreathable"/>: you still need a suit in a toxic
+    /// atmosphere, but a flame has something to burn in it. Gates the torch.
+    /// </summary>
+    public bool AtmospherePresent
+    {
+        get
+        {
+            var planet = _content.GetPlanet(_worlds.Active?.PlanetType ?? string.Empty);
+            return !(planet?.IsAirless ?? true) && !_spaceSky;
+        }
+    }
+
     /// <summary>Whether this body shows a space sky (black + stars) on the surface (landable asteroids).</summary>
     public bool SpaceSky => _spaceSky;
 

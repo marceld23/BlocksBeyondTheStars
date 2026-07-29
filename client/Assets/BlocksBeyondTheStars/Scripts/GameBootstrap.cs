@@ -873,6 +873,13 @@ namespace BlocksBeyondTheStars.Client
                     ?? "Inventory full — make space first.";
             }
 
+            if (reason == "@no_air")
+            {
+                // A torch on an airless body: there is nothing for the flame to burn.
+                return Localizer?.Get("ui.place.no_air")
+                    ?? "There is no air here — a torch only burns on worlds with an atmosphere.";
+            }
+
             return $"{action}: {reason}";
         }
 
