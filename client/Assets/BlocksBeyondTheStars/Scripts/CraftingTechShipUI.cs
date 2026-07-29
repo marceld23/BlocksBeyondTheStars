@@ -1267,6 +1267,13 @@ namespace BlocksBeyondTheStars.Client
                         : $"   ⊕ {b.PadsFree}/{b.PadsTotal}";
                 }
 
+                // The player's own colour mark, so a marked planet is spottable straight from the list.
+                int listMark = MarkerColorOf(b.Id);
+                if (listMark >= 0 && listMark < PlanetMarkerPalette.Count)
+                {
+                    status += "   ● " + L(PlanetMarkerPalette.NameKeys[listMark]);
+                }
+
                 // Your own claims on this body: a station orbiting it, and/or a founded base on it.
                 if (Game.HasMyStation(b.Id))
                 {
@@ -2712,7 +2719,7 @@ namespace BlocksBeyondTheStars.Client
                 _systemMap = SystemMapWidget.Create(_detail, 40, y, 500, 380);
                 string sel = !string.IsNullOrEmpty(_selected) && _selected.StartsWith("body:", System.StringComparison.Ordinal)
                     ? _selected.Substring(5) : string.Empty;
-                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel);
+                _systemMap.Show(sys.Bodies, map.ActiveLocationId, sel, MarkerColorOf);
                 y += 396f;
             }
 
@@ -2744,6 +2751,32 @@ namespace BlocksBeyondTheStars.Client
             bool here = body.Id == map.ActiveLocationId;
             UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : body.Status, 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 40f;
+
+            // Colour-mark this body. Asked for by a player who wanted to mark planets in space in different
+            // colours: unlike the single surface waypoint, any number of bodies can carry a mark at once, and the
+            // star map haloes each in its colour. A fixed named palette (not a colour picker) keeps it readable
+            // and translatable. Purely local — no server involvement.
+            int mark = MarkerColorOf(body.Id);
+            string markLabel = mark >= 0 && mark < PlanetMarkerPalette.Count
+                ? L("ui.marker.marked") + ": " + L(PlanetMarkerPalette.NameKeys[mark])
+                : L("ui.marker.unmarked");
+            var markBtn = UiKit.AddButton(_detail, 8, y, 330, 44, markLabel, () => CyclePlanetMarker(body.Id));
+            if (mark >= 0 && mark < PlanetMarkerPalette.Count && markBtn != null)
+            {
+                // Tint the button itself so the current choice is visible without reading the label.
+                var img = markBtn.GetComponent<UnityEngine.UI.Image>();
+                if (img != null)
+                {
+                    img.color = Color.Lerp(img.color, PlanetMarkerPalette.Colors[mark], 0.55f);
+                }
+            }
+
+            if (mark >= 0)
+            {
+                UiKit.AddButton(_detail, 346, y, 180, 44, L("ui.marker.clear"), () => SetPlanetMarker(body.Id, -1));
+            }
+
+            y += 52f;
 
             // A space station: show its owner, board it (if visited), and rename it (if it's yours).
             if (isStation)
@@ -3238,6 +3271,40 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        // --- Coloured planet marks in the star map ---------------------------------------------------------
+        // A player wanted to mark planets in space, each in its own colour — several at once, unlike the single
+        // surface waypoint. Stored locally in ClientSettings (never sent to the server) and grouped by world, so
+        // marks from one save don't bleed into another (body ids like "sys0-p5" repeat across saves).
+
+        /// <summary>The save these marks belong to. Set when a local world is started or hosted; for a remote
+        /// server it keeps the last local name, which only ever groups marks slightly oddly — they stay local
+        /// cosmetics either way.</summary>
+        private string MarkerWorld => Menu?.Settings?.LastWorld ?? string.Empty;
+
+        /// <summary>The colour index marking a body, or -1 when unmarked.</summary>
+        private int MarkerColorOf(string bodyId)
+            => Menu?.Settings?.GetPlanetMarker(MarkerWorld, bodyId) ?? -1;
+
+        /// <summary>Steps a body through the palette and off the end back to unmarked, so one button both marks
+        /// and recolours — the fewest controls for the youngest player.</summary>
+        private void CyclePlanetMarker(string bodyId)
+        {
+            int next = MarkerColorOf(bodyId) + 1;
+            SetPlanetMarker(bodyId, next >= PlanetMarkerPalette.Count ? -1 : next);
+        }
+
+        private void SetPlanetMarker(string bodyId, int color)
+        {
+            if (Menu?.Settings == null)
+            {
+                return;
+            }
+
+            Menu.Settings.SetPlanetMarker(MarkerWorld, bodyId, color);
+            Menu.Settings.Save();
+            RebuildDetail(); // redraw the button label/tint and re-halo the orrery
+        }
 
         /// <summary>A mission's display title: FreeText (player missions, L3 LLM board texts) verbatim,
         /// otherwise the locale key resolved.</summary>

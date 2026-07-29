@@ -43,8 +43,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>(Re)builds the orrery for a system's bodies; <paramref name="activeBodyId"/> is highlighted
-        /// (the body the player is on) and <paramref name="selectedBodyId"/> is ringed (the menu selection).</summary>
-        public void Show(IReadOnlyList<NetBody> bodies, string activeBodyId, string selectedBodyId)
+        /// (the body the player is on) and <paramref name="selectedBodyId"/> is ringed (the menu selection).
+        /// <para>
+        /// <paramref name="markerColorOf"/> supplies the player's own coloured mark for a body id (-1 for
+        /// unmarked): a marked body gets a bright halo in that colour, so several planets can be told apart at a
+        /// glance — the thing a player asked for ("Planeten im Weltraum markieren, mit verschiedenen Farben").
+        /// </para></summary>
+        public void Show(IReadOnlyList<NetBody> bodies, string activeBodyId, string selectedBodyId,
+                         System.Func<string, int> markerColorOf = null)
         {
             for (int i = transform.childCount - 1; i >= 0; i--)
             {
@@ -73,6 +79,20 @@ namespace BlocksBeyondTheStars.Client
                 if (active)
                 {
                     col = Color.Lerp(col, Color.white, 0.4f); // the body you're on glows brighter
+                }
+
+                // A marked body gets a halo in the player's chosen colour, added FIRST so it sits behind the dot
+                // and reads as a ring around it. It rides the same orbit, so it tracks the planet as it moves.
+                int marker = markerColorOf?.Invoke(bodies[i].Id) ?? -1;
+                if (marker >= 0 && marker < PlanetMarkerPalette.Count)
+                {
+                    var halo = PlanetMarkerPalette.Colors[marker];
+                    halo.a = 0.75f;
+                    var ring = AddDot(centre, dotSize + 12f, halo);
+                    _orbiters.Add(ring);
+                    _radius.Add(r);
+                    _phase.Add(((bodies[i].Id?.GetHashCode() ?? i) & 0x3FF) * 0.00614f);
+                    _speed.Add(7f + (i % 3) * 5f); // identical orbit params → stays centred on its planet
                 }
 
                 var dot = AddDot(centre, dotSize, col);

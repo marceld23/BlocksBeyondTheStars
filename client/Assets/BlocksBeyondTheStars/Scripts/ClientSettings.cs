@@ -27,6 +27,51 @@ namespace BlocksBeyondTheStars.Client
         public string Key = ""; // a UnityEngine.KeyCode name, e.g. "E"
     }
 
+    /// <summary>
+    /// One coloured mark a player put on a body in the star map. Asked for by a player: "Ich will Planeten im
+    /// Weltraum markieren, aber mit verschiedenen Farben machen können" — several planets marked at once, each
+    /// in its own colour, unlike the single planet-surface waypoint. Purely local (no server involvement), and
+    /// stored as a flat list because JsonUtility cannot persist a Dictionary (as with
+    /// <see cref="MinigameScore"/> / <see cref="KeyBinding"/>).
+    /// </summary>
+    [Serializable]
+    public sealed class PlanetMarker
+    {
+        /// <summary>World (save) name — body ids like "sys0-p5" repeat across saves, so marks are per world.</summary>
+        public string World = "";
+        public string BodyId = "";
+
+        /// <summary>Index into <see cref="PlanetMarkerPalette.Colors"/>; a fixed named set rather than a free
+        /// colour picker, so it stays usable for a child and the labels can be translated.</summary>
+        public int Color;
+    }
+
+    /// <summary>The fixed set of mark colours offered in the star map, with locale keys for their names.</summary>
+    public static class PlanetMarkerPalette
+    {
+        public static readonly Color[] Colors =
+        {
+            new Color(1.00f, 0.30f, 0.30f), // red
+            new Color(1.00f, 0.66f, 0.20f), // orange
+            new Color(1.00f, 0.92f, 0.35f), // yellow
+            new Color(0.40f, 0.85f, 0.45f), // green
+            new Color(0.40f, 0.70f, 1.00f), // blue
+            new Color(0.80f, 0.50f, 1.00f), // purple
+        };
+
+        public static readonly string[] NameKeys =
+        {
+            "ui.marker.color_red",
+            "ui.marker.color_orange",
+            "ui.marker.color_yellow",
+            "ui.marker.color_green",
+            "ui.marker.color_blue",
+            "ui.marker.color_purple",
+        };
+
+        public static int Count => Colors.Length;
+    }
+
     /// <summary>Graphics quality presets, including a Potato profile for weak / low-power machines.</summary>
     public enum QualityPreset { Potato, Low, Medium, High }
 
@@ -290,6 +335,54 @@ namespace BlocksBeyondTheStars.Client
 
             MinigameScores.Add(new MinigameScore { Key = key, Best = score });
             return true;
+        }
+
+        /// <summary>Coloured marks the player put on bodies in the star map, per world. Local only.</summary>
+        public List<PlanetMarker> PlanetMarkers = new List<PlanetMarker>();
+
+        /// <summary>The mark colour index on a body, or -1 when it is unmarked.</summary>
+        public int GetPlanetMarker(string world, string bodyId)
+        {
+            if (string.IsNullOrEmpty(bodyId) || PlanetMarkers == null) return -1;
+            for (int i = 0; i < PlanetMarkers.Count; i++)
+            {
+                if (PlanetMarkers[i].BodyId == bodyId && PlanetMarkers[i].World == (world ?? ""))
+                {
+                    return PlanetMarkers[i].Color;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>Marks a body in a colour, or clears the mark with a negative index. Caller saves.</summary>
+        public void SetPlanetMarker(string world, string bodyId, int color)
+        {
+            if (string.IsNullOrEmpty(bodyId)) return;
+            PlanetMarkers ??= new List<PlanetMarker>();
+            world ??= "";
+
+            for (int i = 0; i < PlanetMarkers.Count; i++)
+            {
+                if (PlanetMarkers[i].BodyId == bodyId && PlanetMarkers[i].World == world)
+                {
+                    if (color < 0)
+                    {
+                        PlanetMarkers.RemoveAt(i);
+                    }
+                    else
+                    {
+                        PlanetMarkers[i].Color = color;
+                    }
+
+                    return;
+                }
+            }
+
+            if (color >= 0)
+            {
+                PlanetMarkers.Add(new PlanetMarker { World = world, BodyId = bodyId, Color = color });
+            }
         }
 
         /// <summary>The bound KeyCode NAME for an input action (empty = the action uses its default key). String-
