@@ -50,7 +50,7 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_root.GetChild(i).gameObject);
             }
 
-            UiKit.AddImage(_root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.55f));
+            UiKit.AddModalDim(_root); // shared menu-dialog scrim (#588)
             _px = 510f; _pw = 900f; // widened from 600 — labels stopped truncating and the rows breathe (Severin playtest)
             UiKit.AddDialogPanel(_root, _px, 80, _pw, 920); // opaque: the menu/game behind must not mix into the rows
 

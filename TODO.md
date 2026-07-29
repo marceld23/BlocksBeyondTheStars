@@ -2792,7 +2792,7 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
-### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't — 🔍 ANALYSIS ONLY (2026-07-29)
+### ★ Menu dialog opacity is inconsistent — some show the menu through, others don't (#588, 2026-07-29, branch fix/menu-dialog-opacity)
 **Report:** "Some dialogs are see-through (e.g. the world-options dialog), others black out the menu behind
 them and are much easier to read. Make it consistent."
 **Scope (confirmed with Marcel):** the **shell/menu dialogs only** — main menu, world picker, settings,
@@ -2848,25 +2848,36 @@ starfield + planet), so even 2 % shimmers and draws the eye.
 loading) deliberately float `PanelFill` panels over the animated background — that is the menu look, not a
 readability bug. HUD chrome and all in-game overlays likewise stay as they are.
 
-**Plan (not implemented):**
-1. **Fix the sprite, not the call sites.** Add `UiKit.PanelSpriteOpaque` (same rounded shape + cyan edge,
-   fill α 1.0) and a `UiKit.PanelDark = (0.02, 0.05, 0.11, 1)` backing colour. `AddDialogPanel` then becomes
-   a single Image instead of three (fewer draw calls, exactly opaque). `PanelSprite` stays as-is so the menu
-   screens and HUD chrome are untouched.
-2. **One named scrim level for menu dialogs** — `UiKit.ScrimDialog = 0.78` (**decided**) — replacing the 7
-   ad-hoc values.
-3. **One entry point** `UiKit.AddModalOverlay(parent, x, y, w, h)` returning the dialog transform, so a new
-   menu dialog cannot get the combination wrong.
-4. **Migrate every menu dialog** onto it (**decided**: full uniformity, not just the broken ones) — the 4
-   ❌/⚠ ones (world options, credits, content-load error, face/avatar editor) get the opaque panel, and the
-   already-solid ones (settings, connect, what's new, update notice, feedback, official worlds,
-   portal/rules/password/participate, delete-confirm, pause, maintenance, disconnect) get the shared 0.78
-   scrim in place of their 0.55–0.92 values. No behaviour change for in-game UI or the menu screens.
-5. **Verify** with a local Unity build + screenshots of world options, credits and settings side by side
-   (per [[post-change-verification-routine]]).
-
 **Decisions (2026-07-29, Marcel):** scrim 0.78 — menu still readable as context but clearly pushed back;
 unify *all* menu dialogs rather than only patching the four broken ones.
+
+**What was built:**
+- **`UiKit.DialogSprite`** ([UiKit.cs](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs)) — the same
+  rounded shape and cyan edge as `PanelSprite`, but a **baked opaque** fill. `RoundedSprite` gained a
+  `Color fill` overload; the fill `(0.002, 0.008, 0.031)` is what the old three-layer stack composited to,
+  so the dialogs that already looked right are unchanged. `PanelSprite` itself is untouched, so the menu
+  screens, buttons and all HUD chrome keep their translucency.
+- **`UiKit.ScrimDialog = 0.78`** — one constant, and `AddModalDim`'s default, replacing the seven ad-hoc
+  values (0.55 / 0.60 / 0.70 / 0.75 / 0.90 / 0.92 and "none").
+- **`UiKit.AddModalOverlay(parent, x, y, w, h)`** — scrim + opaque panel in one call, returning
+  `(Overlay, Panel)`: the scrim GameObject to toggle and the panel transform to hang content off. A new
+  dialog can no longer get the combination wrong.
+- **`AddDialogPanel` is now a single Image** instead of three stacked sliced layers — exactly opaque
+  rather than 98.9 %, and two fewer draw calls per dialog.
+- **Migrated:** world options, credits, content-load error, face/avatar editor (were see-through); pause
+  menu, settings, connect, delete-confirm, feedback, official-worlds sub-modals (portal / rules / password
+  ×2) onto the shared scrim; ship-editor and structure-editor load pickers, which had **no scrim at all**
+  and so left the editor behind them lit and clickable.
+- **Two fixed side effects:** the face editor's "dim backdrop that also blocks clicks" was an `AddPanel`,
+  whose `raycastTarget` is false — it never blocked anything; `AddModalDim` does. Same for the two editor
+  load pickers.
+- **Deliberately NOT changed:** `MaintenanceUi` (0.85) and `DisconnectScreen` (0.92) — those are
+  connection-lost / maintenance takeovers over the *running game*, not menu dialogs, and dropping them to
+  0.78 would make the frozen world behind them more visible. All in-game overlays and the menu screens are
+  untouched.
+
+**Verification:** local Unity build (worktree) + in-game comparison of world options, credits, settings
+and the pause menu, per [[post-change-verification-routine]]. No .NET code changed.
 
 ### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual

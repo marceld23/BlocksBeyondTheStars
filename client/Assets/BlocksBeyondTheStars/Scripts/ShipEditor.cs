@@ -709,8 +709,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            var panel = UiKit.AddDialogPanel(_canvas.transform, 700f, 280f, 520f, 520f);
-            _loadPicker = panel.gameObject;
+            // Shared menu-modal chrome (#588) — the picker had no scrim, so the editor behind it stayed
+            // fully lit and clickable through the gaps.
+            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, 700f, 280f, 520f, 520f);
+            _loadPicker = overlay;
             UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             if (keys.Count == 0)
             {

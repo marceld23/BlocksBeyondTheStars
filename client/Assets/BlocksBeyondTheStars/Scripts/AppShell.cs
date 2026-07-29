@@ -863,10 +863,9 @@ namespace BlocksBeyondTheStars.Client
             canvas.sortingOrder = 90; // above every shell screen — the shell is unusable without content
             var root = canvas.transform;
 
-            UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.75f));
             const float w = 720f, h = 320f;
             float x = (1920f - w) * 0.5f, y = (1080f - h) * 0.5f;
-            UiKit.AddPanel(root, x, y, w, h, UiKit.Panel);
+            UiKit.AddModalOverlay(root, x, y, w, h); // shared scrim + opaque panel (#588)
 
             var title = UiKit.AddText(root, x + 32, y + 28, w - 64, 34,
                 de ? "Inhalte konnten nicht geladen werden" : "Content failed to load",
@@ -1374,10 +1373,7 @@ namespace BlocksBeyondTheStars.Client
             canvas.sortingOrder = 60; // above the in-game HUD/menu
             _quitDialog = canvas.gameObject;
 
-            var bg = UiKit.AddImage(canvas.transform, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0f, 0f, 0f, 0.6f));
-            bg.raycastTarget = true; // swallow clicks behind the dialog
-
-            var panel = UiKit.AddDialogPanel(canvas.transform, 720f, 370f, 480f, 340f);
+            var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, 370f, 480f, 340f);
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
                 de ? "Pause" : "Paused", 26, UiKit.TextCol, TextAnchor.MiddleCenter);
             UiKit.AddButton(panel.transform, 90f, 88f, 300f, 56f, de ? "Weiterspielen" : "Resume", CancelQuit);

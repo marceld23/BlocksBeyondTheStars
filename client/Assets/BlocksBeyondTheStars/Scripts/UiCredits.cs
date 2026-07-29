@@ -18,9 +18,8 @@ namespace BlocksBeyondTheStars.Client
             var root = canvas.transform;
             UiNav.Enable(canvas.gameObject); // gamepad can leave the screen (inert on KB/mouse)
 
-            UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.55f));
             float px = 560f, pw = 800f, py = 230f, ph = 620f;
-            UiKit.AddPanel(root, px, py, pw, ph, UiKit.Panel);
+            UiKit.AddModalOverlay(root, px, py, pw, ph); // shared scrim + opaque panel (#588)
 
             UiKit.AddLogo(root, px + 40, py + 36, pw - 80, 44, shell.L("ui.credits.title"), 30);
 

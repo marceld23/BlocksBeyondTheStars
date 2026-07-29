@@ -25,6 +25,12 @@ namespace BlocksBeyondTheStars.Client
         public static readonly Color Warn = new Color(1.00f, 0.72f, 0.28f); // amber — caution / developer-tool labels
         public static readonly Color TabLocked = new Color(0.30f, 0.34f, 0.42f, 0.85f); // dimmed tab whose context isn't met (stays clickable)
 
+        /// <summary>The ONE dim level behind a menu dialog (#588). The menu stays readable as context but is
+        /// clearly pushed back; every menu modal uses this instead of the seven ad-hoc values (0.55…0.92) the
+        /// screens grew independently. In-game overlays and the connection-lost/maintenance takeovers keep
+        /// their own, deliberately stronger, dims.</summary>
+        public const float ScrimDialog = 0.78f;
+
         /// <summary>True while a uGUI text field has keyboard focus — Esc/Tab hotkey handlers must then
         /// leave the keystroke to the field (unfocus/advance) instead of closing their screen (#413 N5).</summary>
         public static bool TextFieldFocused()
@@ -41,6 +47,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static Font _font;
         private static Sprite _panelSprite;
+        private static Sprite _dialogSprite;
         private static Sprite _buttonSprite;
         private static Sprite _solidSprite;
         private static Sprite _spinnerSprite;
@@ -76,6 +83,14 @@ namespace BlocksBeyondTheStars.Client
 
         public static Sprite PanelSprite => _panelSprite != null ? _panelSprite : _panelSprite = RoundedSprite(18, 3);
         public static Sprite ButtonSprite => _buttonSprite != null ? _buttonSprite : _buttonSprite = RoundedSprite(14, 2);
+
+        /// <summary>The OPAQUE panel sprite used by modal dialogs — same rounded shape and cyan edge as
+        /// <see cref="PanelSprite"/>, but a fully opaque fill. <see cref="PanelSprite"/> bakes alpha 0.82
+        /// into its texture and uGUI multiplies sprite alpha by <c>Image.color</c> alpha, so a panel drawn
+        /// with it can NEVER be made opaque by passing a more opaque tint — the reason dialogs kept
+        /// shimmering the animated menu background through their text (#588). The fill matches what the
+        /// old three-layer dialog stack composited to, so existing dialogs keep their look.</summary>
+        public static Sprite DialogSprite => _dialogSprite != null ? _dialogSprite : _dialogSprite = RoundedSprite(18, 3, new Color(0.002f, 0.008f, 0.031f, 1f));
         public static Sprite SpinnerSprite => _spinnerSprite != null ? _spinnerSprite : _spinnerSprite = SpinnerRingSprite();
 
         /// <summary>Set from <see cref="ClientSettings.Apply"/>: reduced-effects users keep instant panel snaps.</summary>
@@ -427,25 +442,33 @@ namespace BlocksBeyondTheStars.Client
         /// the canvas root right before the dialog panel so the panel draws on top; parent the panel under the
         /// returned scrim's transform. Returns the scrim <see cref="Image"/> (use <c>.gameObject</c> to show/hide
         /// the whole overlay).</summary>
-        public static Image AddModalDim(Transform parent, float alpha = 0.7f)
+        public static Image AddModalDim(Transform parent, float alpha = ScrimDialog)
         {
             var dim = AddImage(parent, 0f, 0f, 1920f, 1080f, SolidSprite, new Color(0f, 0f, 0f, alpha));
             dim.raycastTarget = true; // swallow clicks behind the dialog
             return dim;
         }
 
-        /// <summary>A modal dialog panel: the themed frame plus an OPAQUE dark backing, so whatever lies
+        /// <summary>A modal dialog panel: the themed frame on a genuinely OPAQUE backing, so whatever lies
         /// behind the dialog can never mix into its content (the plain panel sprite is translucent by
-        /// design — fine for HUD chrome, unreadable for forms). The backing is a CHILD of the panel, so
-        /// hiding/destroying the panel takes it along; add dialog content to the returned transform (it
-        /// draws above the backing). Two stacked sliced layers ≈ fully opaque with rounded corners.</summary>
+        /// design — fine for HUD chrome, unreadable for forms). Add dialog content to the returned
+        /// transform. Was three stacked sliced layers ≈ 98.9 % opaque; now one <see cref="DialogSprite"/>
+        /// image that is exactly opaque, in the same colour (#588).</summary>
         public static Transform AddDialogPanel(Transform parent, float x, float y, float w, float h)
         {
-            var panel = AddPanel(parent, x, y, w, h, Panel).transform;
-            var dark = new Color(0.02f, 0.05f, 0.11f, 1f);
-            AddImage(panel, 2f, 2f, w - 4f, h - 4f, PanelSprite, dark, Image.Type.Sliced);
-            AddImage(panel, 2f, 2f, w - 4f, h - 4f, PanelSprite, dark, Image.Type.Sliced);
-            return panel;
+            var panel = AddImage(parent, x, y, w, h, DialogSprite, Color.white, Image.Type.Sliced);
+            panel.gameObject.name = "DialogPanel";
+            return panel.transform;
+        }
+
+        /// <summary>The standard menu modal in one call — the shared <see cref="ScrimDialog"/> scrim plus an
+        /// opaque dialog panel parented to it — so a new dialog cannot get the combination wrong (#588).
+        /// Returns the scrim's GameObject (SetActive that to toggle the whole overlay) and the panel
+        /// transform to hang content off.</summary>
+        public static (GameObject Overlay, Transform Panel) AddModalOverlay(Transform parent, float x, float y, float w, float h, float scrim = ScrimDialog)
+        {
+            var dim = AddModalDim(parent, scrim);
+            return (dim.gameObject, AddDialogPanel(dim.transform, x, y, w, h));
         }
 
         /// <summary>A visible vertical scrollbar for a <see cref="ScrollRect"/> — the wheel already
@@ -758,10 +781,14 @@ namespace BlocksBeyondTheStars.Client
         /// set up for 9-slicing so panels/buttons scale without distorting the corners.
         /// </summary>
         private static Sprite RoundedSprite(int radius, int border)
+            => RoundedSprite(radius, border, new Color(0.05f, 0.12f, 0.24f, 0.82f));
+
+        /// <summary>Same, with an explicit fill — <see cref="DialogSprite"/> needs an opaque one, and the
+        /// fill alpha is BAKED into the texture (tinting can only make an Image more transparent).</summary>
+        private static Sprite RoundedSprite(int radius, int border, Color fill)
         {
             int size = radius * 2 + 8;
             var edge = Cyan;
-            var fill = new Color(0.05f, 0.12f, 0.24f, 0.82f);
 
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {

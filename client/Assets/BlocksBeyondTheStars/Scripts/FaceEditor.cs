@@ -116,10 +116,9 @@ namespace BlocksBeyondTheStars.Client
             _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
             var root = _ui.transform;
 
-            // Dim backdrop (also blocks clicks reaching the menu behind).
-            UiKit.AddPanel(root, 0f, 0f, 1920f, 1080f, new Color(0f, 0f, 0f, 0.6f));
-
-            var panel = UiKit.AddPanel(root, 610f, 60f, 700f, 960f, UiKit.PanelFill).transform;
+            // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
+            // false, so it never actually blocked clicks reaching the menu behind — AddModalDim does.
+            var (_, panel) = UiKit.AddModalOverlay(root, 610f, 60f, 700f, 960f);
             UiKit.AddText(panel, 24f, 18f, 652f, 30f, L("ui.face.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Paint surface (point-filtered → crisp big pixels).

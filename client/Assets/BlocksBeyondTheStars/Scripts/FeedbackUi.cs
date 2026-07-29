@@ -183,7 +183,7 @@ namespace BlocksBeyondTheStars.Client
             _dialogCanvas = UiKit.CreateCanvas("FeedbackDialog");
             _dialogCanvas.sortingOrder = 60; // above the HUD and the in-game menu
             UiNav.Enable(_dialogCanvas.gameObject); // gamepad can drive the dialog (inert on KB/mouse)
-            var dim = UiKit.AddModalDim(_dialogCanvas.transform, 0.7f);
+            var dim = UiKit.AddModalDim(_dialogCanvas.transform);
             _dialog = dim.gameObject;
 
             const float pw = 760f, ph = 648f;
