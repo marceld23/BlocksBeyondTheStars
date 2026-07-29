@@ -3088,9 +3088,14 @@ public sealed partial class GameServer
         }
 
         // A door isn't a voxel block — it fills the (air) cell as a server door entity (Task 5 Stage 3c).
-        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide")
+        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide" || blockDef.Key == "door_wood")
         {
-            PlaceDoor(session, pos, blockDef.Key == "door_slide" ? "slide" : "hinge");
+            PlaceDoor(session, pos, blockDef.Key switch
+            {
+                "door_slide" => "slide",
+                "door_wood" => "wood", // cheap early-game hinge door, swings by hand like the metal one
+                _ => "hinge",
+            });
             SendInventory(session);
             return;
         }

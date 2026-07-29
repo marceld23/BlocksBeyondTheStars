@@ -82,6 +82,7 @@
   { "key": "crate",        "nameKey": "block.crate.name", "category": "building",        "hardness": 1.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "crate", "count": 1 } ] },
   { "key": "door_hinge",   "nameKey": "block.door_hinge.name", "category": "door",   "hardness": 1.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "door_hinge", "count": 1 } ] },
   { "key": "door_slide",   "nameKey": "block.door_slide.name", "category": "door",   "hardness": 1.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "door_slide", "count": 1 } ] },
+  { "key": "door_wood",    "nameKey": "block.door_wood.name", "category": "door",    "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "door_wood", "count": 1 } ] },
   { "key": "flora_palm",      "nameKey": "block.flora_palm.name", "category": "flora",      "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 2 } ] },
   { "key": "flora_moss",      "nameKey": "block.flora_moss.name", "category": "flora",      "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 1 } ] },
   { "key": "flora_orchid",    "nameKey": "block.flora_orchid.name", "category": "flora",    "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "drops": [ { "item": "plant_fiber", "count": 1 }, { "item": "berries", "count": 1 } ] },

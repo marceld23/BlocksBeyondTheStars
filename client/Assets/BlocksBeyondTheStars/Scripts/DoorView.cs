@@ -69,10 +69,15 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Door kinds that swing on a single leaf and are opened by hand with E. The wooden door is the
+        /// cheap early-game variant of the hinge door, so it looks and behaves the same way — only the material
+        /// (and the recipe: wood instead of metal panels + a gear) differs.</summary>
+        private static bool IsHinged(string kind) => kind == "hinge" || kind == "wood";
+
         private void Animate(Door d)
         {
             float w = d.Width;
-            if (d.Kind == "hinge")
+            if (IsHinged(d.Kind))
             {
                 // Swing the leaf around its jamb edge by up to ~96°.
                 d.PanelA.localRotation = Quaternion.Euler(0f, -d.Anim * 96f, 0f);
@@ -144,9 +149,13 @@ namespace BlocksBeyondTheStars.Client
             pivot.localRotation = nd.AxisX ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
 
             float w = Mathf.Max(1f, nd.Width);
-            bool hinge = nd.Kind == "hinge";
-            Color panelCol = hinge ? new Color(0.45f, 0.30f, 0.16f) : new Color(0.62f, 0.69f, 0.78f);
-            Color trimCol = hinge ? new Color(0.30f, 0.19f, 0.10f) : new Color(0.30f, 0.85f, 0.95f);
+            bool hinge = IsHinged(nd.Kind);
+            bool wood = nd.Kind == "wood";
+            // The wooden door reads as lighter, warmer planks so it is telling apart from the metal hinge door.
+            Color panelCol = wood ? new Color(0.58f, 0.40f, 0.22f)
+                : hinge ? new Color(0.45f, 0.30f, 0.16f) : new Color(0.62f, 0.69f, 0.78f);
+            Color trimCol = wood ? new Color(0.38f, 0.25f, 0.13f)
+                : hinge ? new Color(0.30f, 0.19f, 0.10f) : new Color(0.30f, 0.85f, 0.95f);
 
             Transform a, b = null;
             if (hinge)
@@ -301,7 +310,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var at = d.Go.transform.position + Vector3.up * 1f;
-            string id = d.Kind == "hinge" ? "door_hinge" : (d.Open ? "door_slide_open" : "door_slide_close");
+            string id = IsHinged(d.Kind) ? "door_hinge" : (d.Open ? "door_slide_open" : "door_slide_close");
             audio.At(id, at, 1f, 0.85f);
         }
 
@@ -313,7 +322,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var kv in _doors)
             {
                 var d = kv.Value;
-                if (d.Kind != "hinge")
+                if (!IsHinged(d.Kind))
                 {
                     continue;
                 }

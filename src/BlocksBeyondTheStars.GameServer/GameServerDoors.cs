@@ -38,7 +38,7 @@ public sealed partial class GameServer
     internal sealed class ServerDoor
     {
         public int Id;
-        public string Kind = "slide";   // "slide" | "hinge"
+        public string Kind = "slide";   // "slide" | "hinge" | "wood" | "energy"  (wood swings by hand like a hinge)
         public Vector3f Pos;            // doorway-gap centre, floor level
         public bool AxisX;             // wall runs along X (else along Z)
         public float Width = 2f;       // gap width in blocks along the wall axis
@@ -47,6 +47,18 @@ public sealed partial class GameServer
         public bool PlayerBuilt;       // placed by a player (persisted + removable by mining), not stamped
         public float OpenRange = 4.5f; // proximity at which a slide door opens (SlideDoorOpenRange; tighter for the hatch)
     }
+
+    /// <summary>Doors the player swings by hand with E (as opposed to slide/energy doors, which the server opens
+    /// on proximity). The wooden door is a cheap early-game hinge door — same behaviour, wood instead of metal.</summary>
+    private static bool IsHandOperated(string kind) => kind == "hinge" || kind == "wood";
+
+    /// <summary>The item a door of this kind hands back when it is picked up again.</summary>
+    private static string DoorItemFor(string kind) => kind switch
+    {
+        "slide" => "door_slide",
+        "wood" => "door_wood",
+        _ => "door_hinge",
+    };
 
     private List<ServerDoor> _doors => _worlds.Active.Doors;
     private readonly List<Vector3f> _doorTargets = new(); // reused per tick (no per-tick LINQ alloc)
@@ -234,7 +246,7 @@ public sealed partial class GameServer
     private void HandleDoorInteract(PlayerSession session, DoorInteractIntent intent)
     {
         var door = _doors.FirstOrDefault(d => d.Id == intent.DoorId);
-        if (door is null || door.Kind != "hinge")
+        if (door is null || !IsHandOperated(door.Kind))
         {
             return; // unknown door, or a slide door (those are server-automatic)
         }
@@ -304,7 +316,7 @@ public sealed partial class GameServer
 
         // Room for the returned door block before the door is removed — otherwise picking one up with a full
         // inventory destroyed it outright.
-        string doorItem = door.Kind == "slide" ? "door_slide" : "door_hinge";
+        string doorItem = DoorItemFor(door.Kind);
         var pool = new MaterialPool(_content, session.State, _ship);
         if (!pool.CanFit(new[] { new ItemAmount(doorItem, 1) }))
         {

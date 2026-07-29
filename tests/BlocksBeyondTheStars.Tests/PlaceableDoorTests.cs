@@ -48,6 +48,42 @@ public sealed class PlaceableDoorTests : IDisposable
         return p;
     }
 
+    /// <summary>
+    /// The wooden door (asked for by a player: "Ich möchte, dass man ganz einfach Holztüren machen kann, die nur
+    /// etwas Holz brauchen") is a cheap third door kind: crafted by HAND from wood alone, swung by hand like the
+    /// metal hinge door, and it must hand back a <c>door_wood</c> — not a metal door — when mined.
+    /// </summary>
+    [Fact]
+    public void WoodenDoor_CraftsFromWoodByHand_SwingsAndReturnsItself()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Builder");
+            p.State.Position = new Vector3f(0, 200, 0);
+            p.State.Inventory.Add("wood_log", 4, _content.MaxStackOf("wood_log"));
+
+            // Hand recipe: no workshop, no metal panels, no gear — four logs and you have a door.
+            server.Craft("Builder", "door_wood", 1);
+            Assert.Equal(1, p.State.Inventory.CountOf("door_wood"));
+            Assert.Equal(0, p.State.Inventory.CountOf("wood_log"));
+
+            server.PlaceBlock("Builder", 1, 200, 0, "door_wood");
+            Assert.Equal(1, server.DoorCount);
+            Assert.True(server.World.GetBlock(new Vector3i(1, 200, 0)).IsAir); // a door entity, not a solid block
+
+            var wood = server.DoorSnapshots.Single(d => d.Kind == "wood");
+            Assert.False(wood.Open);
+            server.InteractDoorForTest(p, wood.Id);                            // hand-operated like a hinge door
+            Assert.True(server.DoorSnapshots.Single(d => d.Kind == "wood").Open);
+
+            server.MineBlockOnce("Builder", 1, 200, 0);
+            Assert.Equal(0, server.DoorCount);
+            Assert.Equal(1, p.State.Inventory.CountOf("door_wood"));            // itself back, not a metal door
+            Assert.Equal(0, p.State.Inventory.CountOf("door_hinge"));
+        }
+    }
+
     [Fact]
     public void Place_RegistersAndPersists_Toggles_AndMineReturnsTheItem()
     {
