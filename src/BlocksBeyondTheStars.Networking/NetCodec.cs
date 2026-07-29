@@ -340,6 +340,11 @@ public static class NetCodec
         Register(179, typeof(BanditDemand));             // Server -> Client (the hold-up, with countdown)
         Register(180, typeof(BanditResponseIntent));     // Client -> Server (hand it over / refuse)
         Register(181, typeof(BanditEncounterResult));    // Server -> Client (paid/refused/expired/fled)
+
+        // Singleplayer pause: the Esc menu really holds the world now. Server-side because singleplayer runs
+        // the bundled server in its own process — a client-only freeze would stop the camera, not the world.
+        Register(182, typeof(PauseIntent));              // Client -> Server (menu opened / closed)
+        Register(183, typeof(PauseState));               // Server -> Client (holding? and was it allowed?)
     }
 
     private static void Register(byte tag, Type type)

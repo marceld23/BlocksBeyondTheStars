@@ -825,9 +825,24 @@ namespace BlocksBeyondTheStars.Client
 
         private GameBootstrap Boot() => _gameRoot != null ? _gameRoot.GetComponentInChildren<GameBootstrap>() : null;
 
+        /// <summary>
+        /// Asks the server to hold the world while the Esc menu is up, and to let it run again afterwards.
+        /// A player asked for this: the dialog was already called "Pause" with a "Resume" button, but hunger,
+        /// creatures and the clock all kept running behind it.
+        /// <para>
+        /// It has to go through the server — singleplayer runs the bundled server as its own process, so
+        /// stopping the client alone would freeze the camera while the world carried on. The server declines
+        /// while more than one player is joined, and the menu then behaves exactly as it always did.
+        /// </para>
+        /// Tied to <see cref="_confirmQuit"/> (the menu session), not to the dialog's visibility — opening
+        /// Settings from the pause menu hides the dialog but must not resume the world.
+        /// </summary>
+        private void SetWorldPaused(bool paused) => Boot()?.Network?.SendPause(paused);
+
         private void CancelQuit()
         {
             _confirmQuit = false;
+            SetWorldPaused(false);
             ShowQuitDialog(false);
             // Release our ownership — the arbiter re-locks the cursor this frame unless another panel is
             // still open. Before #413 this path only cleared the shared MenuOpen bool and never re-locked,
@@ -1287,8 +1302,10 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        // Ask before leaving the game (rather than quitting instantly).
+                        // Ask before leaving the game (rather than quitting instantly) — and actually hold the
+                        // world while the menu is up, which is what the dialog has always claimed to do.
                         _confirmQuit = true;
+                        SetWorldPaused(true);
                         ShowQuitDialog(true);
                         boot?.SetMenuOwner(this, true); // freezes player control + frees the cursor for the buttons (#413)
                     }

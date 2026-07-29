@@ -941,9 +941,113 @@ public sealed partial class GameServer
 
     // ---------------- Tick ----------------
 
+    // --- Singleplayer pause ---------------------------------------------------------------------------
+    // "Im Einzelspieler sollte das Spiel pausiert werden, wenn man in das Menü geht." The Esc dialog was
+    // already titled "Pause" with a "Resume" button but nothing ever stopped.
+
+    /// <summary>True while a lone player has the world held from their menu. Only the simulation stops — the
+    /// transport keeps being polled, or the unpause could never arrive.</summary>
+    private bool _paused;
+
+    /// <summary>Seconds the world has been held. A client that dies with its menu open must not leave the world
+    /// frozen forever (it would also never save), so the hold expires.</summary>
+    private double _pausedFor;
+
+    /// <summary>Longest a pause may last before the world resumes on its own.</summary>
+    private const double MaxPauseSeconds = 30 * 60;
+
+    /// <summary>True while the world is holding — for tests and the /status snapshot.</summary>
+    public bool IsPaused => _paused;
+
+    /// <summary>Drives the pause intent for tests (the client sends it when the Esc menu opens/closes).</summary>
+    public void PauseForTest(PlayerSession session, bool paused)
+        => HandlePause(session, new PauseIntent { Paused = paused });
+
+    /// <summary>Number of players who have completed the join handshake.</summary>
+    private int JoinedCount
+    {
+        get
+        {
+            int n = 0;
+            foreach (var s in _sessions.Values)
+            {
+                if (s.Joined)
+                {
+                    n++;
+                }
+            }
+
+            return n;
+        }
+    }
+
+    /// <summary>
+    /// Honours a pause request only while the asking player is alone in the world — one player must never be
+    /// able to freeze a dedicated or hosted world under everybody else. The answer goes back either way so the
+    /// client can keep its menu honest instead of claiming a pause it did not get.
+    /// </summary>
+    private void HandlePause(PlayerSession session, PauseIntent intent)
+    {
+        bool allowed = JoinedCount <= 1;
+        if (allowed)
+        {
+            if (intent.Paused && !_paused)
+            {
+                SaveAll(); // a held world is a natural, safe save point — and covers a client that never comes back
+            }
+
+            _paused = intent.Paused;
+            _pausedFor = 0;
+        }
+
+        Send(session, new PauseState { Paused = _paused, Allowed = allowed });
+    }
+
+    /// <summary>Lifts a pause that must not continue: someone else joined, or the holder has been gone too long.
+    /// Returns true when the world is (still) held after this check.</summary>
+    private bool HoldingPause(double deltaSeconds)
+    {
+        if (!_paused)
+        {
+            return false;
+        }
+
+        // The hold only makes sense for exactly the one player who asked for it: a second player arriving always
+        // wins over one player's menu, and a holder who disconnected (or quit to the main menu) leaves nobody to
+        // hold it for — a dedicated world must not sit frozen because someone left with the menu open.
+        if (JoinedCount != 1)
+        {
+            _paused = false;
+            _pausedFor = 0;
+            Broadcast(new PauseState { Paused = false, Allowed = false });
+            return false;
+        }
+
+        _pausedFor += deltaSeconds;
+        if (_pausedFor >= MaxPauseSeconds)
+        {
+            _log.Info("Pause expired — resuming the world.");
+            _paused = false;
+            _pausedFor = 0;
+            Broadcast(new PauseState { Paused = false, Allowed = true });
+            return false;
+        }
+
+        return true;
+    }
+
     public void Tick(double deltaSeconds)
     {
         _transport.Poll();
+
+        // A held world still pumps the network (the unpause has to get through) and still runs the moderation /
+        // maintenance intake, but no simulation advances: no hunger, no creatures, no weather, no clock.
+        if (HoldingPause(deltaSeconds))
+        {
+            Guard("Moderation", deltaSeconds, TickModeration);
+            Guard("Maintenance", deltaSeconds, TickMaintenance);
+            return;
+        }
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
 
         // Tick each occupied world with the Active cursor set to it, so its environment/fauna/fluids/
@@ -2028,6 +2132,7 @@ public sealed partial class GameServer
             case TractorPullIntent pull: HandleTractorPull(session, pull); break;
             case DoorInteractIntent door: HandleDoorInteract(session, door); break;
             case SetSpawnPointIntent spawnPoint: HandleSetSpawnPoint(session, spawnPoint); break;
+            case PauseIntent pause: HandlePause(session, pause); break;
             case RespawnChoiceIntent respawnChoice: HandleRespawnChoice(session, respawnChoice); break;
             case UnlockGameIntent unlockGame: HandleUnlockGame(session, unlockGame); break;
             case MinigameResultIntent miniResult: HandleMinigameResult(session, miniResult); break;

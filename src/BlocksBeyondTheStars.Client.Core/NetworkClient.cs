@@ -76,6 +76,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<MissionResult>? MissionResultReceived;
         public event Action<RespawnNotice>? RespawnNoticeReceived;
         public event Action<RespawnOptions>? RespawnOptionsReceived;
+
+        /// <summary>Whether the world is actually held, and whether the server allowed the request at all
+        /// (it declines with more than one player joined).</summary>
+        public event Action<PauseState>? PauseStateReceived;
         public event Action<ServerRules>? ServerRulesReceived;
 
         // Multiplayer presence (M24).
@@ -392,6 +396,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>E on a placed heal tank: make it the custom spawn point (issue #461).</summary>
         public void SendSetSpawnPoint(int x, int y, int z) => Send(new SetSpawnPointIntent { X = x, Y = y, Z = z });
 
+        /// <summary>Ask the server to hold (or release) the world while the local player sits in a menu. Only
+        /// honoured while they are the sole player — the answer arrives as <see cref="PauseStateReceived"/>.</summary>
+        public void SendPause(bool paused) => Send(new PauseIntent { Paused = paused });
+
         /// <summary>Answers a deferred death respawn: wake at the home spawn or at the ship (issue #462).</summary>
         public void SendRespawnChoice(bool useCustomSpawn) => Send(new RespawnChoiceIntent { UseCustomSpawn = useCustomSpawn });
 
@@ -545,6 +553,7 @@ namespace BlocksBeyondTheStars.Client
                 case MissionResult m: MissionResultReceived?.Invoke(m); break;
                 case RespawnNotice m: RespawnNoticeReceived?.Invoke(m); break;
                 case RespawnOptions m: RespawnOptionsReceived?.Invoke(m); break;
+                case PauseState m: PauseStateReceived?.Invoke(m); break;
                 case ServerRules m: ServerRulesReceived?.Invoke(m); break;
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
