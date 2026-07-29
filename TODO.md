@@ -2792,6 +2792,74 @@ At-a-glance order of everything still open (new items added 2026-06-07 interleav
 analysis-first tasks below). **Same workflow** unless noted: analyse → write the plan here → ask questions →
 only then implement. Items marked *(analysis only)* must NOT be implemented yet.
 
+### ★ Dialog opacity is inconsistent — some overlays show the menu/world through, others don't — 🔍 ANALYSIS ONLY (2026-07-29)
+**Report:** "In the in-game menu some dialogs are see-through (e.g. the world-options dialog), others black
+out the menu behind them and are much easier to read. Make it consistent."
+
+**Root cause — the panel sprite can never be opaque.**
+[UiKit.RoundedSprite](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs#L760-L764) bakes
+`fill = (0.05, 0.12, 0.24, **0.82**)` into the generated `PanelSprite` texture. uGUI multiplies sprite
+alpha × `Image.color` alpha, so **every** panel drawn with `UiKit.AddPanel` is capped at 82 % opacity no
+matter what tint is passed. That is why past "make it opaque" fixes that only raised the tint alpha did not
+work: [UiWorldOptions.cs:33](client/Assets/BlocksBeyondTheStars/Scripts/UiWorldOptions.cs#L33) asks for
+alpha 0.97 and actually renders 0.82 × 0.97 = **0.795**.
+`UiKit.AddDialogPanel` ([UiKit.cs:442](client/Assets/BlocksBeyondTheStars/Scripts/UiKit.cs#L442)) works
+around this by stacking **three** sliced layers (0.656 + 0.82 + 0.82 ⇒ ≈ 98.9 % opaque) — a workaround, not
+a rule, and only some dialogs use it.
+
+**Resulting three panel tiers (effective opacity), used with no rule:**
+| helper | effective α | used by |
+|---|---|---|
+| `AddPanel(…, UiKit.Panel)` (tint α 0.80) | **0.656** | crafting/tech/ship, world map, vendor, credits, beacon, beam pad, content-error |
+| `AddPanel(…, UiKit.PanelFill)` (tint α 1.0) | **0.82** | save picker, main menu, editors, loading, face editor |
+| `AddDialogPanel` (3 layers) | **0.989** | pause menu, settings, what's-new, update notice, feedback, connect/portal/rules/password, delete-confirm, ship/structure editor prompts |
+
+**And 12 different scrim values** (full-screen dim behind a modal), from 0.45 to 0.97 — plus overlays with
+no scrim at all. `UiKit.AddModalDim` exists (default 0.7) but is used by only 9 of ~24 overlays; TODO.md
+line ~1752 already noted "existing overlays can adopt it later". Measured **bleed-through** =
+`(1 − scrim) × (1 − panel α)`, i.e. how much of the live menu/3-D world mixes into the dialog:
+
+| overlay | scrim | panel | bleed | |
+|---|---|---|---|---|
+| Pause menu, Settings, What's new, Update notice, Feedback, Connect/Portal/Rules/Password, Delete-confirm | 0.55–0.92 | dialog | **0.3–0.5 %** | ✅ reads solid |
+| WikiUI / ArcadeUI | 0.96–0.97 | 0.79 | 0.6–0.9 % | ✅ |
+| **World options** | 0.90 | 0.795 | **2.1 %** | ⚠ 4–6× the dialog tier |
+| World map | 0.92 | 0.656 | 2.8 % | ⚠ |
+| Minigame host | 0.82 | 0.80 | 3.5 % | ⚠ |
+| Face editor | 0.60 | 0.82 | 7.2 % | ❌ |
+| Content-load error | 0.75 | 0.656 | 8.6 % | ❌ |
+| Vendor trade | 0.72 | 0.656 | 9.6 % | ❌ |
+| **Crafting / tech / ship menu** | 0.60 | 0.656 | **13.8 %** | ❌ worst in-game; the *animated* 3-D world shows through |
+| Credits | 0.55 | 0.656 | 15.5 % | ❌ |
+| Beacon label / Beam pad | 0.45 | 0.656 | 18.9 % | ❌ |
+| Editors submenu | none | 0.82 | 18 % | ❌ |
+
+Text contrast itself is fine in both tiers (13.8:1 on the world-options blue, 16.3:1 on the dialog backing);
+what hurts readability is the *moving* background bleeding through — 2 % of a drifting starfield or 14 % of
+the live world is far more distracting than a static 2 % would be. Note
+[CraftingTechShipUI.cs:405](client/Assets/BlocksBeyondTheStars/Scripts/CraftingTechShipUI.cs#L405) calls its
+translucency an intentional "holographic-overlay look" — so that one is a **design decision to confirm**,
+not automatically a bug. HUD chrome (`HudUi`, `VegaPanel`, `ChatUi` input row) is translucent by design and
+is explicitly **out of scope**.
+
+**Plan (not implemented):**
+1. **Fix the sprite, not the call sites.** Add `UiKit.PanelSpriteOpaque` (same rounded shape + cyan edge,
+   fill α 1.0) and a `UiKit.PanelDark = (0.02, 0.05, 0.11, 1)` backing colour. `AddDialogPanel` then becomes
+   a single Image instead of three (fewer draw calls, exactly opaque). `PanelSprite` stays as-is so HUD
+   chrome is untouched.
+2. **Two named scrim levels** replacing the 12 ad-hoc values:
+   `UiKit.ScrimDialog = 0.78` (modal over a screen — background recognisable but clearly pushed back) and
+   `UiKit.ScrimFullScreen = 0.94` (a mode that *replaces* the view: map, wiki, arcade, crafting).
+3. **One entry point** `UiKit.AddModalOverlay(parent, x, y, w, h, fullScreen: false)` returning the dialog
+   transform, so a new dialog cannot get the combination wrong.
+4. **Migrate** the ❌/⚠ rows above to it; leave the ✅ rows (they already match tier 1).
+5. **Verify** with a local Unity build + screenshots of the world-options, crafting and vendor overlays
+   (per [[post-change-verification-routine]]).
+
+**Open questions for Marcel:** (a) keep the crafting/tech/ship "holographic" translucency or make it opaque
+like the rest? (b) is `ScrimDialog = 0.78` the right feel, or should modals black the background out
+almost completely (0.9+)? (c) beacon/beam-pad overlays — dialogs (opaque) or HUD chrome (stay translucent)?
+
 ### ★ Self-hosting: web portal client download + Velopack installer & auto-update — ✅ IMPLEMENTED (2026-06-13)
 **Goal:** a LAN host runs the server and players grab the client from the server's own web page — no manual
 zip hand-off. Built on the existing two-process model (`GameServer` UDP + `Api` HTTP); the `Api` already
