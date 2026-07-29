@@ -317,10 +317,11 @@ public sealed class UniverseTests : IDisposable
             a.AllBodies().Where(x => x.Kind != CelestialKind.Planet),
             x => Assert.Equal(0, x.RingSeed));
 
-        // Some planets ring, most don't (base chance ~18-50 % depending on size/type).
+        // Some planets ring, most don't (base chance ~10-30 % depending on size/type; deliberately
+        // rare — the guaranteed start-planet ring covers the showcase).
         var planets = a.AllBodies().Where(x => x.Kind == CelestialKind.Planet).ToList();
         int ringed = planets.Count(x => x.RingSeed != 0);
-        Assert.InRange(ringed / (double)planets.Count, 0.08, 0.45);
+        Assert.InRange(ringed / (double)planets.Count, 0.05, 0.25);
         Assert.All(planets.Where(x => x.RingSeed != 0), x => Assert.InRange(x.RingSeed, 1, 1_000_000));
     }
 

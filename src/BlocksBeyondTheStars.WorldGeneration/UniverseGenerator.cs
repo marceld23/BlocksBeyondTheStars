@@ -210,10 +210,12 @@ public sealed class UniverseGenerator
                 // series belongs to rings) so the body sequence — and thus every existing universe —
                 // stays byte-identical; existing worlds simply GAIN rings, retroactive by design.
                 // Big planets ring more often, icy/crystal ones too (real rings are mostly ice).
-                float ringChance = planet.SizeBias > 0.3f ? 0.35f : 0.18f;
+                // Kept RARE on purpose (~11 % of planets; playtest: the first cut at 18 % base read
+                // as "every other planet") — the start planet's guaranteed ring covers the showcase.
+                float ringChance = planet.SizeBias > 0.3f ? 0.22f : 0.10f;
                 if (IsRingProneType(planet.PlanetType))
                 {
-                    ringChance = System.Math.Min(0.5f, ringChance * 1.5f);
+                    ringChance = System.Math.Min(0.3f, ringChance * 1.5f);
                 }
 
                 if (Hash01(i, p, 600) < ringChance)

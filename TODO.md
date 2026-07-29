@@ -6587,8 +6587,10 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 Two features in one pass (Marcel: "beides komplett in einem Rutsch"):
 
-- **Planetary rings (#596)** — ~18–20 % of planets (large/icy ones more often, up to 50 %) carry a
-  Saturn-like ring system, visible in all three views:
+- **Planetary rings (#596)** — ~11 % of planets (large/icy ones more often, up to 30 %; tuned DOWN
+  from an 18 % base after playtest — "every other planet" cheapened it) carry a Saturn-like ring
+  system, **plus the start planet always rings** (server-side guarantee at the start-body pick,
+  `EnsureStartPlanetRings`), visible in all three views:
   - **Data:** `CelestialBody.RingSeed`/`NetBody.RingSeed` (0 = none), rolled in `UniverseGenerator`
     from fresh `Hash01` salts **600/601** (6xx = rings; rng stream untouched — verified by an
     8-config SHA-256 body digest against pre-change `main`: byte-identical). Additive contractless
