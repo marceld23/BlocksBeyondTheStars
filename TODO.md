@@ -102,6 +102,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Sky bodies no longer read as dark silhouettes by day (#585, 2026-07-29, branch fix/sky-bodies-dark-discs)
+Other planets/moons in the surface sky often looked completely dark. Not a lighting bug (the #400
+`_DayLight` ramp already front-lights them by day) but a luminance ratio: baked-map albedo × the 0.7
+noon dim × limb darkening left the disc at ~0.15–0.33 sRGB against a ~0.6–0.75 daytime sky — 3–4×
+darker, and ACES stretches that into a black blob. Fixed with a **daytime atmosphere wash** in
+`SkyBodyPhase.shader` (both subshaders): the final disc colour lerps toward the `_Sc_Sky` global,
+scaled by `_DayLight` × the sky's own luminance — so day-sky bodies read pale and sky-tinted like
+the real daytime Moon, while airless black-sky worlds, the night sky and the space view
+(`_DayLight` = 0) are untouched. The noon dim in `SkyBodiesView` rises 0.7 → 1.0 and the shader's
+`_Earthshine` night-side floor 0.12 → 0.2 so unlit crescent sides survive tonemapping as a faint disc.
+
 ### ★ Update notice on startup + an official update feed that actually exists (#543, 2026-07-27, branch feat/auto-update-notify)
 Installed clients could never learn about a new release: the in-app Velopack updater only ran from a
 manual settings button, the feed URL shipped empty, and — the real killer — the feed files the

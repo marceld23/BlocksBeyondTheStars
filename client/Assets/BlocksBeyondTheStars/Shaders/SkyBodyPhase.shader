@@ -13,7 +13,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
         _MainTex ("Texture", 2D) = "white" {}
         // xyz = world-space direction TO the sun (set per-material each frame). w unused.
         _PhaseSunDir ("Sun Direction", Vector) = (0, 0, 1, 0)
-        _Earthshine ("Night-side floor", Range(0, 0.4)) = 0.12
+        _Earthshine ("Night-side floor", Range(0, 0.4)) = 0.2
         _TermSoft ("Terminator softness", Range(0.001, 0.4)) = 0.07
         _LimbDark ("Limb darkening", Range(0, 1)) = 0.35
         // 0 = pure sun-lit phase (space view + night surface). 1 = fully front-lit visible disc. The surface sky
@@ -47,6 +47,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _TermSoft;
             float _LimbDark;
             float _DayLight;
+            float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -83,6 +84,13 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float3 Vw = normalize(_WorldSpaceCameraPos - i.wp);
                 float facing = saturate(dot(N, Vw)); // ~1 at centre, ~0 at the rim
                 col *= lerp(1.0 - _LimbDark, 1.0, facing);
+                // Daytime atmosphere wash (#585): the disc's albedo tops out at a fraction of the daytime sky's
+                // brightness, so even front-lit it read as a dark silhouette. The air in front of the body
+                // scatters the sky colour over it — wash toward the sky (like the real daytime Moon: pale,
+                // sky-tinted, never black). Scaled by the sky's own luminance so airless (black-sky) worlds and
+                // the night sky get no wash, and gated by _DayLight so the space view (0) is untouched.
+                float skyLum = dot(_Sc_Sky.rgb, float3(0.299, 0.587, 0.114));
+                col = lerp(col, _Sc_Sky.rgb * 1.05, _DayLight * 0.55 * saturate(skyLum * 4.0));
                 return half4(col, 1);
             }
             ENDHLSL
@@ -111,6 +119,7 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             float _TermSoft;
             float _LimbDark;
             float _DayLight;
+            float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
 
             struct appdata { float4 vertex : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct v2f { float4 pos : SV_POSITION; float3 wn : TEXCOORD0; float2 uv : TEXCOORD1; float3 wp : TEXCOORD2; };
@@ -141,6 +150,10 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
                 float3 Vw = normalize(_WorldSpaceCameraPos - i.wp);
                 float facing = saturate(dot(N, Vw)); // ~1 at centre, ~0 at the rim
                 col *= lerp(1.0 - _LimbDark, 1.0, facing);
+                // Daytime atmosphere wash (#585) — see the URP pass: sky-luminance-scaled blend toward the sky
+                // colour so day-sky bodies read pale instead of silhouette-dark; no-op in space (_DayLight = 0).
+                float skyLum = dot(_Sc_Sky.rgb, float3(0.299, 0.587, 0.114));
+                col = lerp(col, _Sc_Sky.rgb * 1.05, _DayLight * 0.55 * saturate(skyLum * 4.0));
                 return fixed4(col, 1);
             }
             ENDCG

@@ -13,6 +13,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- Other planets and moons in the surface sky no longer read as dark silhouettes against the
+  daytime sky: a sky-colour atmosphere wash makes them pale and sky-tinted by day (like the real
+  daytime Moon), and their unlit night sides survive as a faint disc instead of vanishing to
+  black. Airless worlds and the space view are unchanged. (#585)
+
 ## [2026.7.21] — 2026-07-29
 
 The landforms release: worlds finally dare vertical drama. The regional terrain pool grows from

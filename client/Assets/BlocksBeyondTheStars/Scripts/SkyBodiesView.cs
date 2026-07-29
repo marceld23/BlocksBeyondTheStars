@@ -188,9 +188,10 @@ namespace BlocksBeyondTheStars.Client
                 // feature; the crescent/phase still reads at twilight and night. `day` is 0 at night → 1 at noon.
                 b.Mat.SetFloat(DayLightId, day);
                 float horizon = Mathf.Clamp01((dir.y + 0.04f) / 0.12f);
-                // Overall dim: bodies dominate the night sky and fade toward day — but keep a higher day-time floor
-                // so they don't wash to black against the bright ACES-tonemapped daytime sky (they're a feature).
-                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 0.7f, day) * horizon);
+                // Overall brightness: a night boost so bodies dominate the dark sky, full strength by day — the
+                // old 0.7 noon dim left the disc 3-4x darker than the ACES-tonemapped daytime sky, which still
+                // read as a silhouette (#585). The shader's sky-colour atmosphere wash now balances the day look.
+                b.Mat.color = ShaderColor.Srgb(b.Tint * Mathf.Lerp(1.25f, 1f, day) * horizon);
             }
         }
 
