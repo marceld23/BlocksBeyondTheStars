@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ♿ Portal website accessibility (#574)
+
+- **Every form field on the portal now has a visible label** — account creation, sign-in, password
+  recovery, player name, new world, feedback and player reports. Placeholders alone vanished as soon as
+  you started typing, and screen readers could not tell two "account name" fields apart.
+- **Status and error messages are announced** — the message line at the top of the page is a live
+  region now, and a blocked action moves the cursor to the field that needs fixing.
+- **Enter submits again** — each flow is a real form, so pressing Enter in the password field signs you
+  in instead of doing nothing.
+- **"Forgot your password?" is a proper button** that reports whether it is open and jumps into the
+  recovery fields, and keyboard users get a clearly visible focus ring across the whole portal.
+
+Found and reported by [@SpaleRuby](https://github.com/SpaleRuby) — thank you!
+
 ## [2026.7.23] — 2026-07-30
 
 The milestones release: the game finally tells you what you have achieved and what to try next.

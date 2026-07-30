@@ -203,6 +203,130 @@ public sealed class WorldHostPortalPagesTests
             < html.IndexOf("id='li-name'", StringComparison.Ordinal));
     }
 
+    // ---------------- Accessibility contract (#574) ----------------
+    // A community accessibility review of the public portal found four semantic gaps. These tests pin the
+    // fixes so a later edit cannot quietly drop them again — the markup is hand-written in C# strings,
+    // where nothing else would catch a lost label or a form turning back into a div.
+
+    [Theory]
+    [InlineData("su-name")]
+    [InlineData("su-pass")]
+    [InlineData("li-name")]
+    [InlineData("li-pass")]
+    [InlineData("rc-name")]
+    [InlineData("rc-code")]
+    [InlineData("rc-pass")]
+    public void Landing_EveryAccountField_HasAVisibleLabel(string field)
+    {
+        foreach (string lang in new[] { "de", "en" })
+        {
+            string html = WorldHostPortalPages.Landing(Config, lang);
+            Assert.Contains($"for='{field}'", html, StringComparison.Ordinal);
+            Assert.Contains($"id='{field}'", html, StringComparison.Ordinal);
+        }
+    }
+
+    [Theory]
+    [InlineData("player-name")]
+    [InlineData("w-name")]
+    [InlineData("w-pass")]
+    [InlineData("w-pass2")]
+    [InlineData("f-msg")]
+    [InlineData("r-name")]
+    [InlineData("r-cat")]
+    [InlineData("r-world")]
+    [InlineData("r-msg")]
+    public void Worlds_EveryField_HasAVisibleLabel(string field)
+    {
+        foreach (string lang in new[] { "de", "en" })
+        {
+            string html = WorldHostPortalPages.Worlds(Config, lang);
+            Assert.Contains($"for='{field}'", html, StringComparison.Ordinal);
+            Assert.Contains($"id='{field}'", html, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void Landing_PasswordFields_CarryTheirAutocompleteRole()
+    {
+        string html = WorldHostPortalPages.Landing(Config);
+
+        // Sign-in offers the SAVED password, account creation and recovery ask for a NEW one — the wrong
+        // hint here makes a password manager fight the player.
+        Assert.Contains("id='li-pass' name='password' type='password' autocomplete='current-password'", html);
+        Assert.Contains("id='su-pass' name='new-password' type='password' autocomplete='new-password'", html);
+        Assert.Contains("id='rc-pass' name='new-password' type='password' autocomplete='new-password'", html);
+    }
+
+    [Fact]
+    public void BothPortalPages_AnnounceTheStatusLine()
+    {
+        // Every result of signup/login/recovery/world actions lands in #msg. Without live-region
+        // semantics a screen reader never learns the page said anything.
+        foreach (string html in new[] { WorldHostPortalPages.Landing(Config), WorldHostPortalPages.Worlds(Config) })
+        {
+            Assert.Contains("<div id='msg' role='status' aria-live='polite' aria-atomic='true'></div>", html);
+        }
+    }
+
+    [Fact]
+    public void Landing_SubmitsThroughRealForms_WithRecoveryAsASiblingNotANestedForm()
+    {
+        string html = WorldHostPortalPages.Landing(Config);
+
+        Assert.Contains("<form class='card' id='su-form' novalidate>", html);
+        Assert.Contains("<form id='li-form' novalidate>", html);
+        Assert.Contains("wire('su-form', signup)", html);
+        Assert.Contains("wire('li-form', login)", html);
+        Assert.Contains("wire('li-recover', recover)", html);
+        Assert.Contains("wire('li-terms', reaccept)", html);
+
+        // HTML forbids nested forms, and inside the sign-in form the recovery button would submit the
+        // LOGIN instead: the recovery/re-accept panels must close after the sign-in form has closed.
+        int loginForm = html.IndexOf("<form id='li-form'", StringComparison.Ordinal);
+        int loginFormEnd = html.IndexOf("</form>", loginForm, StringComparison.Ordinal);
+        Assert.True(loginFormEnd < html.IndexOf("<form id='li-recover'", StringComparison.Ordinal),
+            "the recovery form must be a sibling of the sign-in form, never nested inside it");
+        Assert.True(loginFormEnd < html.IndexOf("<form id='li-terms'", StringComparison.Ordinal),
+            "the re-accept form must be a sibling of the sign-in form, never nested inside it");
+    }
+
+    [Fact]
+    public void Worlds_SubmitsThroughRealForms()
+    {
+        string html = WorldHostPortalPages.Worlds(Config);
+
+        Assert.Contains("<form class='card' id='w-form' novalidate>", html);
+        Assert.Contains("wire('w-form', createWorld)", html);
+        Assert.Contains("wire('f-form', sendFeedback)", html);
+        Assert.Contains("wire('r-form', report)", html);
+    }
+
+    [Fact]
+    public void Landing_PasswordResetIsADisclosure_NotALinkToNowhere()
+    {
+        string html = WorldHostPortalPages.Landing(Config);
+
+        // A <a href='#'> that only runs script is announced as a link that goes nowhere and cannot be
+        // triggered with Space; the trigger also has to carry the panel's open/closed state.
+        Assert.Contains("aria-expanded='false' aria-controls='li-recover'", html);
+        Assert.Contains("<button type='button' class='linky' id='li-recover-toggle'", html);
+        Assert.DoesNotContain("<a href='#'", html);
+    }
+
+    [Fact]
+    public void Worlds_SignOutIsAButton_NotALinkToNowhere()
+        => Assert.DoesNotContain("<a href='#'", WorldHostPortalPages.Worlds(Config));
+
+    [Fact]
+    public void PortalShell_KeepsAVisibleFocusIndicator()
+    {
+        // Keyboard-only players lose their place entirely without this — and the portal sets no other
+        // outline, so removing the rule silently falls back to whatever the browser draws on dark blue.
+        string html = WorldHostPortalPages.Landing(Config);
+        Assert.Contains(":focus-visible{outline:3px solid var(--cyan)", html);
+    }
+
     [Fact]
     public void AdminPage_SeparatesFeedbackFromPlayerReports()
     {

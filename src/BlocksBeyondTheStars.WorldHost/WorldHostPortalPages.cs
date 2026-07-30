@@ -119,48 +119,57 @@ public static class WorldHostPortalPages
 <div class='beta'>⚠ <b>Beta:</b> {T(
         "Das Spiel wird noch gebaut — Welten können kaputtgehen oder verloren gehen. Lade regelmäßig eine Sicherung herunter!",
         "The game is still being built — worlds can break or disappear. Download a backup regularly!")}</div>
-<div id='msg'></div>
+<div id='msg' role='status' aria-live='polite' aria-atomic='true'></div>
 <div class='cols'>
- <div class='card'>
+ <form class='card' id='su-form' novalidate>
   <h2>{T("Konto erstellen", "Create account")}</h2>
-  <input id='su-name' placeholder='{T("Erfinde einen Kontonamen (Buchstaben, Zahlen, - und _)", "Invent an account name (letters, digits, - and _)")}' maxlength='24'>
-  <input id='su-pass' type='password' placeholder='{T("Passwort (min. 8 Zeichen)", "Password (min. 8 characters)")}'>
+  <label for='su-name'>{T("Kontoname", "Account name")}</label>
+  <input id='su-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' placeholder='{T("Erfinde einen Kontonamen (Buchstaben, Zahlen, - und _)", "Invent an account name (letters, digits, - and _)")}' maxlength='24'>
+  <label for='su-pass'>{T("Passwort", "Password")}</label>
+  <input id='su-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{T("Min. 8 Zeichen", "At least 8 characters")}'>
   <p class='hint'>{T(
         "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname, Passwort und deine Rettungscodes auf!</b> Mit einem Rettungscode kannst du ein vergessenes Passwort zurücksetzen.",
         "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write down your account name, password and rescue codes!</b> A rescue code lets you reset a forgotten password.")}</p>
   <label class='consent'><input type='checkbox' id='su-accept'> <span>{T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Community-Regeln</a> und den Beta-Hinweis",
         "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</span></label>
-  <button onclick='signup()'>{T("Konto erstellen", "Create account")}</button>
-  <div id='su-codes' style='display:none'>
-    <h2>{T("Deine Rettungscodes", "Your rescue codes")}</h2>
+  <button type='submit'>{T("Konto erstellen", "Create account")}</button>
+  <div id='su-codes' hidden>
+    <h2 id='su-codes-title' tabindex='-1'>{T("Deine Rettungscodes", "Your rescue codes")}</h2>
     <p class='hint'>{T(
         "<b>Schreib diese Codes auf Papier!</b> Mit einem Code kannst du ein neues Passwort setzen, wenn du deins vergisst. Jeder Code geht nur einmal — sie werden nie wieder angezeigt.",
         "<b>Write these codes on paper!</b> A code lets you set a new password if you forget yours. Each code works once — they are never shown again.")}</p>
     <p id='su-codes-list' style='font-size:1.5em'></p>
-    <button onclick=""location.href='/worlds'+LQ"">{T("Aufgeschrieben — weiter", "Written down — continue")}</button>
+    <button type='button' onclick=""location.href='/worlds'+LQ"">{T("Aufgeschrieben — weiter", "Written down — continue")}</button>
   </div>
- </div>
+ </form>
  <div class='card'>
   <h2>{T("Anmelden", "Sign in")}</h2>
-  <input id='li-name' placeholder='{T("Kontoname", "Account name")}' maxlength='24'>
-  <input id='li-pass' type='password' placeholder='{T("Passwort", "Password")}'>
-  <button onclick='login()'>{T("Anmelden", "Sign in")}</button>
-  <p class='hint'><a href='#' onclick=""document.getElementById('li-recover').style.display='block';return false"">{T(
-        "Passwort vergessen? Mit Rettungscode zurücksetzen", "Forgot your password? Reset it with a rescue code")}</a></p>
-  <div id='li-recover' style='display:none'>
-    <input id='rc-name' placeholder='{T("Kontoname", "Account name")}' maxlength='24'>
-    <input id='rc-code' placeholder='{T("Rettungscode (z. B. AB2C-DEF3)", "Rescue code (e.g. AB2C-DEF3)")}' maxlength='12'>
-    <input id='rc-pass' type='password' placeholder='{T("Neues Passwort (min. 8 Zeichen)", "New password (min. 8 characters)")}'>
-    <button onclick='recover()'>{T("Neues Passwort setzen", "Set new password")}</button>
-  </div>
-  <div id='li-terms' style='display:none'>
+  <form id='li-form' novalidate>
+   <label for='li-name'>{T("Kontoname", "Account name")}</label>
+   <input id='li-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' maxlength='24'>
+   <label for='li-pass'>{T("Passwort", "Password")}</label>
+   <input id='li-pass' name='password' type='password' autocomplete='current-password'>
+   <button type='submit'>{T("Anmelden", "Sign in")}</button>
+  </form>
+  <p class='hint'><button type='button' class='linky' id='li-recover-toggle' aria-expanded='false' aria-controls='li-recover'>{T(
+        "Passwort vergessen? Mit Rettungscode zurücksetzen", "Forgot your password? Reset it with a rescue code")}</button></p>
+  <form id='li-recover' novalidate hidden>
+    <label for='rc-name'>{T("Kontoname", "Account name")}</label>
+    <input id='rc-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' maxlength='24'>
+    <label for='rc-code'>{T("Rettungscode", "Rescue code")}</label>
+    <input id='rc-code' name='code' autocomplete='off' autocapitalize='characters' spellcheck='false' placeholder='{T("z. B. AB2C-DEF3", "e.g. AB2C-DEF3")}' maxlength='12'>
+    <label for='rc-pass'>{T("Neues Passwort", "New password")}</label>
+    <input id='rc-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{T("Min. 8 Zeichen", "At least 8 characters")}'>
+    <button type='submit'>{T("Neues Passwort setzen", "Set new password")}</button>
+  </form>
+  <form id='li-terms' novalidate hidden>
     <p>{T("Die Community-Regeln haben sich geändert.", "The community rules changed.")}</p>
     <label class='consent'><input type='checkbox' id='li-accept'> <span>{T(
         "Ich akzeptiere die <a href='/rules?lang=de'>Regeln</a>",
         "I accept the <a href='/rules?lang=en'>rules</a>")}</span></label>
-    <button onclick='reaccept()'>{T("Weiter", "Continue")}</button>
-  </div>
+    <button type='submit'>{T("Weiter", "Continue")}</button>
+  </form>
  </div>
 </div>" + LandingScript
             .Replace("__TERMS__", config.TermsVersion.ToString())
@@ -183,20 +192,26 @@ const TERMS = __TERMS__;
 const L = __L__;
 const LQ = '__LQ__'; // keeps ?lang=en across the JS navigations (the bbs_lang cookie is the fallback)
 function say(t){document.getElementById('msg').textContent = t||'';}
+// Blocking validation: say() alone only updates the status line — a keyboard/screen-reader user is left
+// without a target. Moving focus to the field that needs fixing names the problem where it happened (#574).
+function fail(t, id){ say(t); const e = document.getElementById(id); if(e) e.focus(); }
 async function post(url, body){
   const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   let j = null; try { j = await r.json(); } catch {}
   return {ok: r.ok, status: r.status, j};
 }
 async function signup(){
-  if(!document.getElementById('su-accept').checked) return say(L.acceptFirst);
+  if(!document.getElementById('su-accept').checked) return fail(L.acceptFirst, 'su-accept');
   const r = await post('/api/signup', {name: v('su-name'), password: v('su-pass'), acceptedTermsVersion: TERMS});
   if(!r.ok) return say(bbsErr(r.j, L.err));
   localStorage.setItem('bbs_session', r.j.sessionToken);
   // Rescue codes exist exactly once, in this answer — the page must show them before moving on.
   if(r.j.recoveryCodes && r.j.recoveryCodes.length){
     document.getElementById('su-codes-list').textContent = r.j.recoveryCodes.join('   ');
-    document.getElementById('su-codes').style.display='block';
+    document.getElementById('su-codes').hidden = false;
+    // Codes are shown once, ever — move focus into the panel so it cannot be missed by anyone who
+    // does not see the page change.
+    document.getElementById('su-codes-title').focus();
     return;
   }
   location.href='/worlds'+LQ;
@@ -210,15 +225,30 @@ let pendingSession = null;
 async function login(){
   const r = await post('/api/login', {name: v('li-name'), password: v('li-pass'), acceptedTermsVersion: 0});
   if(!r.ok) return say(r.status===401 ? L.wrongLogin : bbsErr(r.j, L.err));
-  if(r.j.termsOutdated){ pendingSession = r.j.sessionToken; document.getElementById('li-terms').style.display='block'; return; }
+  if(r.j.termsOutdated){ pendingSession = r.j.sessionToken; document.getElementById('li-terms').hidden = false; return; }
   localStorage.setItem('bbs_session', r.j.sessionToken); location.href='/worlds'+LQ;
 }
 async function reaccept(){
-  if(!document.getElementById('li-accept').checked) return say(L.acceptFirst);
+  if(!document.getElementById('li-accept').checked) return fail(L.acceptFirst, 'li-accept');
   await fetch('/api/accept-terms', {method:'POST', headers:{'Authorization':'Bearer '+pendingSession}});
   localStorage.setItem('bbs_session', pendingSession); location.href='/worlds'+LQ;
 }
 function v(id){return document.getElementById(id).value.trim();}
+// Real <form>s, so pressing Enter in any field runs the flow that field belongs to (#574). Recovery and
+// re-accept are SIBLING forms of the sign-in form, never nested ones: HTML forbids nested forms, and
+// inside the sign-in form their Enter/submit would have triggered the login instead.
+function wire(id, fn){
+  document.getElementById(id).addEventListener('submit', function(e){ e.preventDefault(); fn(); });
+}
+wire('su-form', signup); wire('li-form', login); wire('li-recover', recover); wire('li-terms', reaccept);
+// 'Forgot your password?' is a disclosure: the trigger carries the open/closed state, and focus moves
+// into the panel it reveals instead of staying behind on the trigger.
+document.getElementById('li-recover-toggle').addEventListener('click', function(){
+  const box = document.getElementById('li-recover'), opening = box.hidden;
+  box.hidden = !opening;
+  this.setAttribute('aria-expanded', opening ? 'true' : 'false');
+  if(opening) document.getElementById('rc-name').focus();
+});
 </script>";
 
     public static string Worlds(WorldHostConfig config, string lang = "de")
@@ -231,25 +261,29 @@ function v(id){return document.getElementById(id).value.trim();}
 <div class='beta'>⚠ Beta: {T(
         "Welten können kaputtgehen oder verloren gehen — lade Sicherungen herunter!",
         "Worlds can break or vanish — download backups!")}</div>
-<div id='msg'></div>
+<div id='msg' role='status' aria-live='polite' aria-atomic='true'></div>
 <div id='notices'></div>
 <div class='card'>
  <h2>{T("Dein Spielername", "Your player name")}</h2>
- <input id='player-name' placeholder='{T("Dein Spielername", "Your player name")}' maxlength='24'>
+ <label for='player-name'>{T("Spielername", "Player name")}</label>
+ <input id='player-name' name='player-name' autocomplete='nickname' maxlength='24'>
  <p class='hint'>{T("Mit diesem Namen trittst du Welten bei — er ist unabhängig vom Kontonamen und jederzeit änderbar.",
         "You join worlds with this name — it is independent of your account name and can be changed anytime.")}</p>
 </div>
-<div class='card'>
+<form class='card' id='w-form' novalidate>
  <h2>{T("Neue Welt", "New world")}</h2>
- <input id='w-name' placeholder='{T("Weltname", "World name")}' maxlength='40'>
+ <label for='w-name'>{T("Weltname", "World name")}</label>
+ <input id='w-name' name='world-name' maxlength='40'>
  <details>
   <summary>{T("Mit Passwort schützen (optional)", "Protect with a password (optional)")}</summary>
-  <input id='w-pass' type='password' placeholder='{T("Passwort (min. 4 Zeichen)", "Password (min. 4 characters)")}' maxlength='24' autocomplete='new-password'>
-  <input id='w-pass2' type='password' placeholder='{T("Passwort wiederholen", "Repeat password")}' maxlength='24' autocomplete='new-password'>
+  <label for='w-pass'>{T("Passwort", "Password")}</label>
+  <input id='w-pass' type='password' placeholder='{T("Min. 4 Zeichen", "At least 4 characters")}' maxlength='24' autocomplete='new-password'>
+  <label for='w-pass2'>{T("Passwort wiederholen", "Repeat password")}</label>
+  <input id='w-pass2' type='password' maxlength='24' autocomplete='new-password'>
   <p class='hint'>{T("Mit Passwort können nur Spieler beitreten, die es kennen.", "With a password, only players who know it can join.")}</p>
  </details>
- <button id='w-create' onclick='createWorld()'>{T("Erstellen", "Create")}</button>
-</div>
+ <button id='w-create' type='submit'>{T("Erstellen", "Create")}</button>
+</form>
 <div id='list'></div>
 <div class='card'>
  <h2>{T("Öffentliche Welten", "Public worlds")}</h2>
@@ -263,18 +297,27 @@ function v(id){return document.getElementById(id).value.trim();}
  <p class='hint'>{T(
         "Was wünschst du dir für das Spiel? Was können wir besser machen? Schreib es uns!",
         "What do you wish for the game? What could we do better? Tell us!")}</p>
- <input id='f-msg' placeholder='{T("Deine Idee oder dein Wunsch", "Your idea or wish")}' maxlength='500'>
- <button onclick='sendFeedback()'>{T("Abschicken", "Send")}</button>
+ <form id='f-form' novalidate>
+  <label for='f-msg'>{T("Deine Idee oder dein Wunsch", "Your idea or wish")}</label>
+  <input id='f-msg' name='idea' maxlength='500'>
+  <button type='submit'>{T("Abschicken", "Send")}</button>
+ </form>
  <details>
   <summary>{T("Etwas Schlimmes passiert? → Spieler melden", "Something bad happened? → Report a player")}</summary>
   <p class='hint'>{T(
         "Am einfachsten geht es direkt im Spiel: Tippe <code>/report &lt;Name&gt;</code> in den Chat oder nutze den Melden-Knopf in der Spielerliste (Schiff → Allianz). Hier geht es auch:",
         "The easiest way is right in the game: type <code>/report &lt;name&gt;</code> in chat or use the report button in the player list (ship → alliance). It also works here:")}</p>
-  <input id='r-name' placeholder='{T("Spielername", "Player name")}' maxlength='24'>
-  <select id='r-cat'><option value='chat'>Chat</option><option value='name'>Name</option><option value='griefing'>{T("Zerstören (Griefing)", "Griefing")}</option><option value='other'>{T("Anderes", "Other")}</option></select>
-  <select id='r-world'><option value=''>{T("Welche Welt? (optional)", "Which world? (optional)")}</option></select>
-  <input id='r-msg' placeholder='{T("Was ist passiert?", "What happened?")}' maxlength='500'>
-  <button onclick='report()'>{T("Melden", "Report")}</button>
+  <form id='r-form' novalidate>
+   <label for='r-name'>{T("Spielername", "Player name")}</label>
+   <input id='r-name' name='reported-name' autocapitalize='none' maxlength='24'>
+   <label for='r-cat'>{T("Worum geht es?", "What is it about?")}</label>
+   <select id='r-cat' name='category'><option value='chat'>Chat</option><option value='name'>Name</option><option value='griefing'>{T("Zerstören (Griefing)", "Griefing")}</option><option value='other'>{T("Anderes", "Other")}</option></select>
+   <label for='r-world'>{T("Welche Welt? (optional)", "Which world? (optional)")}</label>
+   <select id='r-world' name='world'><option value=''>{T("— keine Angabe —", "— not specified —")}</option></select>
+   <label for='r-msg'>{T("Was ist passiert?", "What happened?")}</label>
+   <input id='r-msg' name='what-happened' maxlength='500'>
+   <button type='submit'>{T("Melden", "Report")}</button>
+  </form>
   <p class='hint'>{T("Wir schauen uns jede Meldung an — niemand wird automatisch bestraft.", "We review every report — nobody is punished automatically.")}</p>
  </details>
 </div>
@@ -287,7 +330,7 @@ function v(id){return document.getElementById(id).value.trim();}
   <button class='danger' onclick='deleteAccount()'>{T("Konto endgültig löschen", "Delete account permanently")}</button>
  </details>
 </div>
-<p><a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> · <a href='#' onclick=""localStorage.removeItem('bbs_session');location.href='/'"">{T("Abmelden", "Sign out")}</a></p>" + WorldsScript
+<p><a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> · <button type='button' class='linky' onclick=""localStorage.removeItem('bbs_session');location.href='/'"">{T("Abmelden", "Sign out")}</button></p>" + WorldsScript
             .Replace("__L__", System.Text.Json.JsonSerializer.Serialize(new
             {
                 err = T("Fehler", "Error"),
@@ -409,6 +452,9 @@ function busy(t){
   m.innerHTML = '<span class=""spin""></span>' + esc(t||'');
   m.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+// Blocking validation: announce on the status line AND move focus to the field that needs fixing, so a
+// keyboard/screen-reader user is told where the problem is rather than only that there is one (#574).
+function fail(t, id){ say(t); const e = document.getElementById(id); if(e) e.focus(); }
 async function api(method, url, body){
   const r = await fetch(url, {method, headers:H, body: body?JSON.stringify(body):undefined});
   if(r.status===401){ location.href='/'; return null; }
@@ -428,10 +474,14 @@ async function load(){
       <label class='up'>${L.upSave}<input type='file' style='display:none' onchange=""upSave('${w.id}', this.files[0])""></label>
       <button class='danger' onclick=""delWorld('${w.id}', '${esc(w.name)}', this)"">${L.del}</button>
       <details><summary>${L.pw} ${w.hasPassword?'🔒':L.pwOff}</summary>
-        <input id='p1-${w.id}' type='password' placeholder='${L.pwNew}' maxlength='24' autocomplete='new-password'>
-        <input id='p2-${w.id}' type='password' placeholder='${L.pwRepeat}' maxlength='24' autocomplete='new-password'>
-        <button onclick=""setWorldPassword('${w.id}')"">${L.pwSet}</button>
-        ${w.hasPassword?`<button onclick=""removeWorldPassword('${w.id}')"">${L.pwRemove}</button>`:''}
+        <form onsubmit=""event.preventDefault();setWorldPassword('${w.id}')"" novalidate>
+          <label for='p1-${w.id}'>${L.pwNew}</label>
+          <input id='p1-${w.id}' type='password' maxlength='24' autocomplete='new-password'>
+          <label for='p2-${w.id}'>${L.pwRepeat}</label>
+          <input id='p2-${w.id}' type='password' maxlength='24' autocomplete='new-password'>
+          <button type='submit'>${L.pwSet}</button>
+          ${w.hasPassword?`<button type='button' onclick=""removeWorldPassword('${w.id}')"">${L.pwRemove}</button>`:''}
+        </form>
       </details>
       ${w.hasPassword
         ? `<button onclick=""setVisibility('${w.id}', ${!w.isPublic})"">${w.isPublic?L.makePrivate:L.makePublic}</button>`
@@ -469,7 +519,7 @@ async function setVisibility(id, makePublic){
 }
 async function createWorld(){
   const pw = document.getElementById('w-pass').value, pw2 = document.getElementById('w-pass2').value;
-  if(pw !== pw2){ say(L.pwMismatch); return; }
+  if(pw !== pw2){ fail(L.pwMismatch, 'w-pass2'); return; }
   // Disable the button + show progress so the create → re-fetch round-trip never looks like a frozen
   // no-op (the new world used to appear only after a manual refresh, #creating-feedback).
   const btn = document.getElementById('w-create'); btn.disabled = true; busy(L.creating);
@@ -479,8 +529,8 @@ async function createWorld(){
 }
 async function setWorldPassword(id){
   const pw = document.getElementById('p1-'+id).value, pw2 = document.getElementById('p2-'+id).value;
-  if(!pw){ say(L.pwEnter); return; }
-  if(pw !== pw2){ say(L.pwMismatch); return; }
+  if(!pw){ fail(L.pwEnter, 'p1-'+id); return; }
+  if(pw !== pw2){ fail(L.pwMismatch, 'p2-'+id); return; }
   if(await api('POST',`/api/worlds/${id}/password`,{password: pw})){ say(L.pwSetDone); load(); }
 }
 async function removeWorldPassword(id){
@@ -564,7 +614,7 @@ async function report(){
 }
 async function sendFeedback(){
   const msg = v('f-msg');
-  if(!msg){ say(L.feedbackEmpty); return; }
+  if(!msg){ fail(L.feedbackEmpty, 'f-msg'); return; }
   // Game feedback rides the reports pipe with its own category and no reported player.
   const j = await api('POST','/api/reports',{reportedName:'', category:'feedback', message:msg, worldId:''});
   if(j){ say(L.feedbackThanks); document.getElementById('f-msg').value=''; }
@@ -634,7 +684,8 @@ async function loadBans(id){
     + (rows.length ? rows.join('') : `<p class='hint'>${L.modNone}</p>`)
     + `<h3>${L.modVisitors}</h3>`
     + (visitors.length ? visitors.join('') : `<p class='hint'>${L.modNoVisitors}</p>`)
-    + `<input id='bans-reason-${id}' placeholder='${L.modReason}' maxlength='200'>`;
+    + `<label for='bans-reason-${id}'>${L.modReason}</label>`
+    + `<input id='bans-reason-${id}' maxlength='200'>`;
 }
 async function banPlayer(id, playerName, accountId){
   const reason = (document.getElementById('bans-reason-'+id)||{}).value || '';
@@ -655,6 +706,13 @@ function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;
 // Shared player-name field: prefilled from the last used name and persisted as it changes, so joining
 // any world (own or public) never has to prompt for it.
 (function(){ const pn=document.getElementById('player-name'); if(pn){ pn.value=localStorage.getItem('bbs_player_name')||''; pn.addEventListener('input',()=>localStorage.setItem('bbs_player_name', pn.value.trim())); } })();
+// Real <form>s so Enter in a field runs that card's action instead of doing nothing (#574). Each card
+// owns its own form — the report form sits inside the feedback card's <details>, never nested in it.
+function wire(id, fn){
+  const f = document.getElementById(id);
+  if(f) f.addEventListener('submit', function(e){ e.preventDefault(); fn(); });
+}
+wire('w-form', createWorld); wire('f-form', sendFeedback); wire('r-form', report);
 load();
 loadPublic();
 loadNotices();
@@ -882,11 +940,23 @@ details{{margin:8px 0}} details summary{{cursor:pointer;color:var(--cyan)}}
 input,select{{display:block;width:100%;margin:8px 0;padding:9px 10px;border-radius:8px;border:1px solid var(--line);
  background:#0a101d;color:#dfe9f7;font:inherit}}
 input[type=checkbox]{{display:inline-block;width:auto;margin:0;padding:0}}
+/* Every field carries a visible label (#574) — a placeholder alone vanishes the moment a kid starts
+   typing, and repeated 'Account name' fields become indistinguishable in a screen reader's field list.
+   The two label classes below have their own layout, so they stay out of this rule. */
+label:not(.consent):not(.up){{display:block;margin:10px 0 2px;font-size:.9rem;font-weight:600;color:#c3d3ea}}
+/* Keyboard users must always see where they are — never remove this without a replacement. */
+:focus-visible{{outline:3px solid var(--cyan);outline-offset:2px}}
+[hidden]{{display:none!important}}
 label.consent{{display:flex;align-items:flex-start;gap:9px;margin:10px 0;line-height:1.5}}
 label.consent input[type=checkbox]{{flex:0 0 auto;margin-top:4px}}
 button{{margin:6px 6px 0 0;padding:9px 16px;border-radius:8px;border:1px solid var(--cyan);background:#12335005;
  color:var(--cyan);font:inherit;font-weight:600;cursor:pointer}}
 button:hover{{background:#1c4a6e55}} button.danger{{border-color:#e05c5c;color:#e05c5c}}
+/* Actions that look like links but ARE buttons: an anchor pointing at the current fragment and doing all
+   its work in script is announced as a link that goes nowhere, and Space does not trigger it. */
+button.linky{{margin:0;padding:0;border:0;background:none;color:var(--cyan);font:inherit;
+ text-decoration:underline;cursor:pointer;text-align:left}}
+button.linky:hover{{background:none;color:#eaf6ff}}
 label.up{{display:inline-block;margin:6px 6px 0 0;padding:9px 16px;border-radius:8px;border:1px solid var(--cyan);
  color:var(--cyan);font-weight:600;cursor:pointer}}
 a.playnow{{display:inline-block;margin:8px 0 2px;padding:12px 22px;border-radius:10px;font-weight:700;font-size:16px;

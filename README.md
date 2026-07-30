@@ -128,6 +128,7 @@ Community contributions we're grateful for:
 - **Cora de la Mouche** ([@corarona](https://github.com/corarona)) — Linux support: client build target, console launcher, bash build scripts and cross-platform release CI/CD ([#69](https://github.com/marceld23/BlocksBeyondTheStars/pull/69))
 - **Maqbool Ahmed** ([@Maqbool61](https://github.com/Maqbool61)) — German localization: removed duplicate keys and fixed awkward wording in `de.json` ([#112](https://github.com/marceld23/BlocksBeyondTheStars/pull/112))
 - **Devin Dixon** ([@ProdigyView](https://github.com/ProdigyView)) — web support: browser-playable WebGL client (WebSocket transport) and optional PostgreSQL persistence backend ([#116](https://github.com/marceld23/BlocksBeyondTheStars/pull/116))
+- **[@SpaleRuby](https://github.com/SpaleRuby)** — accessibility review of the portal website: field labels, announced status messages, real form submission and the password-reset disclosure ([#574](https://github.com/marceld23/BlocksBeyondTheStars/issues/574))
 
 **Playtesters** — hands-on testers whose feedback shaped the game:
 

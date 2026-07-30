@@ -102,6 +102,34 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Portal accessibility: labelled fields, announced messages, keyboard forms (#574, 2026-07-30, branch fix/portal-accessibility)
+A community accessibility review by [@SpaleRuby](https://github.com/SpaleRuby) audited the public portal
+against the source and reported four semantic gaps, all confirmed. Fixed in `WorldHostPortalPages`:
+
+- **Every field has a visible `<label for>`** — account, sign-in, recovery, player name, new world, feedback
+  and report, plus the per-world password and ban-reason fields built in JS. Placeholders survive only where
+  they carry an example or a constraint ("z. B. AB2C-DEF3"), because a placeholder disappears the moment a
+  kid starts typing and repeated "Kontoname" fields are indistinguishable in a screen reader's field list.
+  Password fields also declare `autocomplete` (`current-password` on sign-in, `new-password` elsewhere —
+  `w-pass` already did, the account fields did not), plus `autocapitalize`/`spellcheck` on name and code.
+- **`#msg` is a live region** (`role='status' aria-live='polite' aria-atomic='true'`) on both pages: every
+  signup/login/recovery/world result lands there, and without live semantics a screen reader never learned
+  the page had said anything. Blocking validation now also moves focus to the offending field (`fail()`).
+- **Real `<form>` elements**, so Enter in any field submits that flow — the panels were `div`s with `onclick`
+  buttons and no key handler. Gotcha: recovery and rules-re-accept live *inside* the sign-in card, and HTML
+  forbids nested forms — inside the sign-in form their Enter would have triggered the **login**. They are
+  therefore sibling forms of `li-form`, which a test pins by index.
+- **"Passwort vergessen?" is a disclosure** — a real `<button>` carrying `aria-expanded`/`aria-controls`,
+  moving focus into the panel it reveals, instead of an `<a href='#'>` announced as a link to nowhere that
+  Space cannot trigger. Same treatment for the sign-out link. The rescue-code panel focuses its heading:
+  those codes are shown exactly once, ever.
+
+Two gaps the review did not cover but the issue asked about: the portal had **no `:focus-visible` styling**
+at all (now a 3 px cyan ring — ~11:1 against the dark background), and the logged-in page had the same
+placeholder-only fields the reviewer could not reach without an account. Contrast was measured and is fine
+as-is (hint text ~8.5:1, buttons ~11:1). The **in-game half of #574 is still open** — audio-only cues,
+hold-vs-toggle, colour-coded ores and map markers, reading level — so the issue stays open, re-scoped.
+
 ### ★ Justus playtest batch: no more losing things + 7 wishes (#607–#617, 2026-07-29, PR #618)
 One afternoon of play produced three defects and seven feature wishes; all eleven shipped in one PR.
 
