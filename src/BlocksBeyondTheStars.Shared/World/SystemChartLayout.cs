@@ -75,6 +75,30 @@ public static class SystemChartLayout
         return System.MathF.Max(1f, chartHalf - markerPad) / (extent * FitMargin);
     }
 
+    /// <summary>
+    /// Projects a flight-scene point onto the chart: chart units from the chart's centre, with
+    /// <paramref name="chartY"/> carrying the scene's z. Paired with <see cref="FromChart"/> — the two live
+    /// together so the click path cannot drift out of step with the drawing path, which is exactly how
+    /// clicks ended up landing somewhere other than where they were made.
+    /// </summary>
+    public static void ToChart(
+        float sceneX, float sceneZ, float scale, float centreX, float centreZ,
+        out float chartX, out float chartY)
+    {
+        chartX = (sceneX - centreX) * scale;
+        chartY = (sceneZ - centreZ) * scale;
+    }
+
+    /// <summary>The exact inverse of <see cref="ToChart"/>: the flight-scene point under a chart position
+    /// (a click). <paramref name="scale"/> must be the one the chart was drawn with.</summary>
+    public static void FromChart(
+        float chartX, float chartY, float scale, float centreX, float centreZ,
+        out float sceneX, out float sceneZ)
+    {
+        sceneX = (scale == 0f ? 0f : chartX / scale) + centreX;
+        sceneZ = (scale == 0f ? 0f : chartY / scale) + centreZ;
+    }
+
     /// <summary>The orbit radius to draw for a body whose projected chart position is
     /// <paramref name="chartX"/>/<paramref name="chartZ"/>, measured from the chart's centre — i.e. from
     /// the star. Guarantees the ring passes exactly through the body's own marker.</summary>

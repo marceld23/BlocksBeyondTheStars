@@ -365,10 +365,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (!RectTransformUtility.RectangleContainsScreenPoint(_chart, Input.mousePosition, null)
-                || !RectTransformUtility.ScreenPointToLocalPointInRectangle(_chart, Input.mousePosition, null, out var lp))
+                || !RectTransformUtility.ScreenPointToLocalPointInRectangle(_chart, Input.mousePosition, null, out var local))
             {
                 return;
             }
+
+            // Re-base the click onto the frame the markers live in. ScreenPointToLocalPointInRectangle
+            // measures from the rect's PIVOT, which UiKit.Place puts at the TOP-LEFT, while every marker is
+            // anchored around the chart's CENTRE — so the two frames sat half a chart apart (a click in the
+            // middle came out as (450, -450)). That put every free waypoint in the wrong place and pushed
+            // marker snapping ~636 units out of range, so clicking a body to target it almost never took.
+            var lp = local - _chart.rect.center;
 
             // Snap to the nearest body/station marker; otherwise a free waypoint at the clicked spot,
             // clamped into the flight volume so the autopilot can actually reach it.
@@ -412,8 +419,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                // Inverse of ToChart — the chart is centred on the star, so the centre offset comes back.
-                var scene = new Vector3(lp.x / _scale + _centre.x, 0f, lp.y / _scale + _centre.z);
+                var scene = FromChart(lp);
                 float bounds = SpaceView != null ? SpaceView.FlightBounds : 130f;
                 if (scene.magnitude > bounds)
                 {
@@ -547,7 +553,19 @@ namespace BlocksBeyondTheStars.Client
                 : new Color(0.6f, 0.85f, 0.7f); // unknown to the star map
         }
 
-        private Vector2 ToChart(Vector3 scene) => new Vector2(scene.x - _centre.x, scene.z - _centre.z) * _scale;
+        private Vector2 ToChart(Vector3 scene)
+        {
+            SystemChartLayout.ToChart(scene.x, scene.z, _scale, _centre.x, _centre.z, out float x, out float y);
+            return new Vector2(x, y);
+        }
+
+        /// <summary>The flight-scene point under a chart position — the exact inverse of
+        /// <see cref="ToChart"/>, so a click resolves to the spot it was made on.</summary>
+        private Vector3 FromChart(Vector2 chart)
+        {
+            SystemChartLayout.FromChart(chart.x, chart.y, _scale, _centre.x, _centre.z, out float x, out float z);
+            return new Vector3(x, 0f, z);
+        }
 
         private static Vector2 Clamp(Vector2 p) => p.magnitude > ChartHalf ? p.normalized * ChartHalf : p;
 

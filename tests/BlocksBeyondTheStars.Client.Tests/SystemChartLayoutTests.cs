@@ -221,6 +221,32 @@ public sealed class SystemChartLayoutTests
     }
 
     [Fact]
+    public void FromChart_IsTheExactInverseOfToChart_AcrossRealSystems()
+    {
+        // A click has to resolve to the scene point it was made on. The chart being star-centred means the
+        // centre offset appears in BOTH directions; when only the drawing path had it, every free waypoint
+        // landed somewhere else. Round-tripping every real body pins the pair together.
+        foreach (var (system, home) in RealSystems(10))
+        {
+            var (bodies, starX, starZ) = Project(system, home);
+            float scale = Fit(bodies, starX, starZ);
+
+            foreach (var b in bodies)
+            {
+                SystemChartLayout.ToChart(b.X, b.Z, scale, starX, starZ, out float cx, out float cy);
+                SystemChartLayout.FromChart(cx, cy, scale, starX, starZ, out float sx, out float sz);
+                Assert.Equal(b.X, sx, Tolerance);
+                Assert.Equal(b.Z, sz, Tolerance);
+            }
+
+            // And the chart's own centre must map back to the star, not to the launch body.
+            SystemChartLayout.FromChart(0f, 0f, scale, starX, starZ, out float centreX, out float centreZ);
+            Assert.Equal(starX, centreX, Tolerance);
+            Assert.Equal(starZ, centreZ, Tolerance);
+        }
+    }
+
+    [Fact]
     public void ShowRing_SuppressesOrbitsTooSmallToRead()
     {
         Assert.False(SystemChartLayout.ShowRing(0f));
