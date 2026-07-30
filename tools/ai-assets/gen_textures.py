@@ -103,6 +103,11 @@ TEXTURES = [
     ("flora_icereed", "tall brittle pale blue frozen ice reeds and crystalline stalks, top-down"),
     ("flora_saltgrass", "wiry sparse pale grey-green salt grass tufts on a white salt crust, top-down"),
     ("flora_cinderbush", "charred dark volcanic bush with smouldering glowing orange embers, top-down"),
+    # Greenhouse farming (#627): the cultivated crop + its hydroponic tray. The crop is the ONE plant that
+    # never takes a world's flora hue, so this tile is what the player sees on every world — it has to read
+    # as ripe, edible fruit at a glance.
+    ("flora_cropberry", "cultivated berry bush heavy with plump ripe red berries among glossy green leaves, a tended crop plant, top-down"),
+    ("hydro_tray", "a shallow metal hydroponics tray filled with glowing teal-green nutrient gel, small sprouting seedlings and bubbles, top-down"),
     # Distinct tree crowns for the new conifer + palm archetypes.
     ("pine_needles", "dense dark green pine conifer needle foliage canopy, small overlapping needles, top-down"),
     ("palm_frond", "broad green tropical palm tree fronds, long radiating feathered leaves, top-down"),

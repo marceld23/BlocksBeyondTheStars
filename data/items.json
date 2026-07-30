@@ -42,6 +42,7 @@
   { "key": "plant_fiber",     "nameKey": "item.plant_fiber.name",     "category": "material",   "maxStack": 1024 },
   { "key": "plant_seed",      "nameKey": "item.plant_seed.name",      "category": "block",      "maxStack": 1024, "descriptionKey": "item.plant_seed.desc", "placesBlock": "flora_plant" },
   { "key": "crystal_seed",    "nameKey": "item.crystal_seed.name",    "category": "block",      "maxStack": 1024, "descriptionKey": "item.crystal_seed.desc", "placesBlock": "flora_crystal" },
+  { "key": "berry_seed",      "nameKey": "item.berry_seed.name",      "category": "block",      "maxStack": 1024, "descriptionKey": "item.berry_seed.desc", "placesBlock": "flora_cropberry" },
   { "key": "creature_meat",   "nameKey": "item.creature_meat.name",   "category": "consumable", "maxStack": 20,   "descriptionKey": "item.creature_meat.desc", "consumeHealth": 25, "consumeHunger": 30 },
   { "key": "toxic_gland",     "nameKey": "item.toxic_gland.name",     "category": "consumable", "maxStack": 20,   "descriptionKey": "item.toxic_gland.desc", "consumeHealth": -20 },
   { "key": "berries",         "nameKey": "item.berries.name",         "category": "consumable", "maxStack": 20,   "descriptionKey": "item.berries.desc", "consumeHealth": 5, "consumeHunger": 18 },
@@ -185,5 +186,6 @@
   { "key": "titanium_block",  "nameKey": "item.titanium_block.name",  "category": "block", "maxStack": 1024, "placesBlock": "titanium_block" },
   { "key": "obsidian",        "nameKey": "item.obsidian.name",        "category": "block", "maxStack": 1024, "placesBlock": "obsidian" },
   { "key": "ancient_brick",   "nameKey": "item.ancient_brick.name",   "category": "block", "maxStack": 1024, "placesBlock": "ancient_brick", "descriptionKey": "item.ancient_brick.desc" },
-  { "key": "rune_stone",      "nameKey": "item.rune_stone.name",      "category": "block", "maxStack": 1024, "placesBlock": "rune_stone", "descriptionKey": "item.rune_stone.desc" }
+  { "key": "rune_stone",      "nameKey": "item.rune_stone.name",      "category": "block", "maxStack": 1024, "placesBlock": "rune_stone", "descriptionKey": "item.rune_stone.desc" },
+  { "key": "hydro_tray",      "nameKey": "item.hydro_tray.name",      "category": "block", "maxStack": 1024, "placesBlock": "hydro_tray", "descriptionKey": "item.hydro_tray.desc" }
 ]

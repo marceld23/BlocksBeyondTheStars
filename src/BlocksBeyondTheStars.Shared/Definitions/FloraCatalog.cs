@@ -50,12 +50,18 @@ public static class FloraCatalog
     /// (seabed blocks / water) overlap dry-land surfaces.</param>
     /// <param name="Tags">Climate/style affinities used by <see cref="FloraThemes"/> to weight this species.</param>
     /// <param name="Height">Render height class (tall plants form an upper vegetation layer).</param>
+    /// <param name="Cultivated">True for FARMED crops (greenhouse plants, #627) rather than wild flora. World
+    /// generation never plants these and never rolls a species identity for them, so they keep the same name,
+    /// the same colour and — crucially — the same EDIBLE drop on every world. A wild species rolls
+    /// <see cref="FloraSpecies.Toxic"/> at p = 0.3, and a toxic plant's <c>berries</c> drop is swapped for
+    /// <c>toxic_berries</c> when it is broken; a crop grown in a village greenhouse must never do that.</param>
     public sealed record Species(
         string Key,
         string[] Hosts,
         bool Aquatic = false,
         FloraTag Tags = FloraTag.None,
-        FloraHeight Height = FloraHeight.Short);
+        FloraHeight Height = FloraHeight.Short,
+        bool Cultivated = false);
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -119,7 +125,27 @@ public static class FloraCatalog
         new Species("flora_icereed",     new[] { "ice", "snow" }, Tags: FloraTag.Cold, Height: FloraHeight.Tall),
         new Species("flora_saltgrass",   new[] { "salt", "sand" }, Tags: FloraTag.Dry, Height: FloraHeight.Tall),
         new Species("flora_cinderbush",  new[] { "ash", "basalt" }, Tags: FloraTag.Dry | FloraTag.Glow),
+
+        // --- Cultivated crops (#627): farmed, not wild. Grown in settlement/station greenhouses and by the
+        // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
+        // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
+        new Species("flora_cropberry",   new[] { "dirt", "grass", "mud", "hydro_tray" }, Tags: FloraTag.Lush, Cultivated: true),
     };
+
+    /// <summary>True for a farmed crop rather than wild flora — world generation skips these entirely
+    /// (see <c>FloraGenerator.GenerateRoster</c>), so they never take on a world's plant identity.</summary>
+    public static bool IsCultivated(string key)
+    {
+        foreach (var sp in All)
+        {
+            if (sp.Key == key)
+            {
+                return sp.Cultivated;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>The set of species block keys that render as a TALL cross-billboard (an upper vegetation
     /// layer). Mirrored by the client mesher (ChunkMesher.TallFlora) for the actual geometry.</summary>

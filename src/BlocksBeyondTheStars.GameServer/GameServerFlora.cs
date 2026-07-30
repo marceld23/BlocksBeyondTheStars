@@ -11,7 +11,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// Surface flora (World systems). Worldgen places one plant per eligible column (bounded — no
 /// spreading). When a plant is harvested it <b>regrows on the same cell after a delay, as long
-/// as its host block underneath is still intact</b> (mine the ground and it won't return).
+/// as its host block underneath is still intact</b> (mine the ground and it won't return). Since #628 that
+/// holds <b>aboard a station too</b> — a void world grows nothing of its own, but a hydroponics bay's crops
+/// come back like any other plant, provided the cell stays sealed inside the hull.
 /// Seeds let the player replant flora on a valid host block (validated here). Growth is capped:
 /// one plant per host cell, never spreading.
 ///
@@ -131,21 +133,45 @@ public sealed partial class GameServer
     // an open drop is treated as enclosed. Far larger than any single station room, so real interiors always pass.
     private const int FloraEnclosureFloodBudget = 512;
 
+    // How far below a floorless cell to look for something solid before calling that cell open space (#628).
+    // A hole in a station deck — a stair shaft between two floors — drops onto the room below within a couple of
+    // cells and is NOT the void; the hull's outer edge has nothing under it for the rest of the world. Deep
+    // enough to clear any deck-to-deck gap the station generator builds (room height is at most 8).
+    private const int FloraVoidDropProbe = 10;
+
     /// <summary>Core void-enclosure test, shared by live placement and the void-world stamp paths. Returns true if
     /// the flora cell is NOT fully enclosed — i.e. a billboard plant there would show the void behind it and let the
     /// player walk out into space. <paramref name="get"/> reads the block id at a cell (0 = empty) over whichever
     /// space is being checked (the live world, or a structure's own cell map at stamp time).
     ///
     /// A flora cell is exposed when either the floor directly under it is not solid, OR a bounded flood-fill of the
-    /// walkable space at foot level (stepping through non-solid cells) reaches a cell with nothing solid beneath it
-    /// — a drop the player would fall through into the void. The flood-fill (rather than the old single-neighbour
-    /// check) also catches a plant standing one or more cells in from an open ledge, which the one-cell test missed.</summary>
+    /// walkable space at foot level (stepping through non-solid cells) reaches a cell that opens onto SPACE — a drop
+    /// with nothing solid anywhere below it. The flood-fill (rather than the old single-neighbour check) also
+    /// catches a plant standing one or more cells in from an open ledge, which the one-cell test missed.
+    ///
+    /// A reachable hole is only the void if the fall never lands: a stair shaft cut through a station deck has the
+    /// floor below it a few cells down (#628), and treating that as open space would have barred crops from every
+    /// multi-deck hydroponics bay. The plant's OWN cell still demands solid ground directly beneath it.</summary>
     private bool FloraCellOpensToVoid(System.Func<Vector3i, ushort> get, Vector3i flora)
     {
         bool Solid(Vector3i p)
         {
             ushort id = get(p);
             return id != 0 && (_content.BlockById(new BlockId(id))?.Solid ?? false);
+        }
+
+        // True when a cell has nothing to land on: no solid block within probe range below it.
+        bool OpensToSpace(Vector3i p)
+        {
+            for (int drop = 1; drop <= FloraVoidDropProbe; drop++)
+            {
+                if (Solid(new Vector3i(p.X, p.Y - drop, p.Z)))
+                {
+                    return false; // a deck / the ground below — a fall, not a departure
+                }
+            }
+
+            return true;
         }
 
         // The plant must stand on a solid floor; nothing under it is an immediate fall-through.
@@ -170,9 +196,9 @@ public sealed partial class GameServer
                     continue; // a wall blocks movement here, or the cell was already visited
                 }
 
-                if (!Solid(new Vector3i(n.X, n.Y - 1, n.Z)))
+                if (OpensToSpace(n))
                 {
-                    return true; // a reachable floorless cell — open to the void
+                    return true; // a reachable cell with nothing to land on — open to the void
                 }
 
                 queue.Enqueue(n);
@@ -201,14 +227,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>Restores this world's persisted flora regrowths into the queue (so a harvest-then-restart
-    /// brings the plant back instead of leaving it gone for good). Non-void worlds only — stations grow none.</summary>
+    /// brings the plant back instead of leaving it gone for good). Void worlds (stations) load these too since
+    /// #628 — their hydroponics bay is the one place a plant grows out there, and the enclosure test in
+    /// <see cref="TickFlora"/> is what keeps it inside the hull.</summary>
     private void LoadFloraRegrow()
     {
-        if (_world.Planet.Void)
-        {
-            return;
-        }
-
         foreach (var fr in _repo.ListFloraRegrow(_world.LocationId))
         {
             // Drop stale rows whose block is no longer flora in this content set (defensive — keeps the queue clean).
@@ -244,8 +267,7 @@ public sealed partial class GameServer
 
     private void TickFlora(double dt)
     {
-        // Stations (void worlds) grow no flora; nothing to regrow there.
-        if (_world.Planet.Void || _floraRegrow.Count == 0)
+        if (_floraRegrow.Count == 0)
         {
             return;
         }
@@ -265,8 +287,11 @@ public sealed partial class GameServer
             (done ??= new List<Vector3i>()).Add(pos);
 
             // Regrow only if the cell is still air, not inside a landed ship, and the host below is a
-            // valid ground for it (so flora never grows up through the ship hull/interior).
-            if (!ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)) && _world.GetBlock(pos).IsAir && IsValidFloraHost(floraId, pos))
+            // valid ground for it (so flora never grows up through the ship hull/interior). On a void world
+            // (#628) the cell must additionally be sealed inside a hull — a plant regrowing in an open cell
+            // out there would show the void through its billboard and let the player walk off into space.
+            if (!ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)) && _world.GetBlock(pos).IsAir
+                && IsValidFloraHost(floraId, pos) && IsFloraEnclosedForVoidWorld(pos))
             {
                 _world.SetBlock(pos, new BlockId(floraId));
                 BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = floraId });

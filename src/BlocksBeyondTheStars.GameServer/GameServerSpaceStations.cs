@@ -544,6 +544,7 @@ public sealed partial class GameServer
                 "mission_board" => "quartermaster",
                 "quarters" => "settler",
                 "hangar" => "settler", // a dockhand
+                "greenhouse" => "settler", // the hydroponics bay's gardener (#628)
                 _ => null,
             };
 

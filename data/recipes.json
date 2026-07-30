@@ -172,6 +172,11 @@
 
   { "key": "seed_plant",   "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "plant_seed", "count": 1 } ] },
   { "key": "seed_crystal", "station": "hand", "inputs": [ { "item": "crystal", "count": 1 } ],     "outputs": [ { "item": "crystal_seed", "count": 1 } ] },
+  // Berry seeds (#627): a handful of berries sown back gives two crops, so one greenhouse harvest is enough
+  // to start your own bed. Hand recipe like the other seeds — planting food must stay reachable early.
+  { "key": "seed_berry",   "station": "hand", "inputs": [ { "item": "berries", "count": 3 } ],     "outputs": [ { "item": "berry_seed", "count": 2 } ] },
+  // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
+  { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 
   { "key": "bronze_gear",   "station": "workshop", "inputs": [ { "item": "bronze", "count": 2 } ], "outputs": [ { "item": "bronze_gear", "count": 2 } ] },
   { "key": "brass_fitting", "station": "workshop", "inputs": [ { "item": "brass", "count": 2 } ],  "outputs": [ { "item": "brass_fitting", "count": 2 } ] },

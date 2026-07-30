@@ -24,7 +24,7 @@ public readonly struct StationMarker
 /// <summary>One placed module room of a station (grid cell + assigned function).</summary>
 public readonly struct StationModule
 {
-    public readonly string Type;          // hub / hangar / market / mission / medbay / quarters / corridor (+ _hall partners)
+    public readonly string Type;          // hub / hangar / market / mission / medbay / quarters / hydro / corridor (+ _hall partners)
     public readonly Vector3i Grid;        // module-grid coordinate
     public readonly Vector3i Origin;      // world (local-to-station) min corner of the room
 
@@ -383,6 +383,7 @@ public static class StationGenerator
                 case "mission": markers.Add(new StationMarker("mission_board", c)); break;
                 case "medbay": markers.Add(new StationMarker("heal_tank", c)); break;
                 case "quarters": markers.Add(new StationMarker("quarters", c)); break;
+                case "hydro": markers.Add(new StationMarker("greenhouse", c)); break; // the bay's own marker (a gardener crews it)
             }
         }
 
@@ -399,11 +400,16 @@ public static class StationGenerator
         ushort tank = content.GetBlock("ice")?.NumericId.Value ?? glass;
         ushort dark = content.GetBlock("carbon")?.NumericId.Value ?? hull;
         ushort plant = content.GetBlock("flora_plant")?.NumericId.Value ?? 0;
+        // Hydroponics (#628): the tray REPLACES the deck plate under a crop rather than standing on it, so the
+        // plant keeps solid ground directly beneath — what the server's void-enclosure test demands before it
+        // will let a plant live, or regrow, aboard a station.
+        ushort tray = content.GetBlock("hydro_tray")?.NumericId.Value ?? 0;
+        ushort crop = content.GetBlock("flora_cropberry")?.NumericId.Value ?? 0;
         ushort Get(int x, int y, int z) =>
             (x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l) ? blocks[(x * h + y) * l + z] : (ushort)0;
         foreach (var m in placed)
         {
-            FurnishModule(Set, Get, m.Origin, m.Type, rw, rh, rl, hull, light, tank, dark, plant);
+            FurnishModule(Set, Get, m.Origin, m.Type, rw, rh, rl, hull, light, tank, dark, plant, tray, crop);
         }
 
         // 9) Exterior detail on exposed module faces — solar-panel wings, antennae, docking arms, and a
@@ -437,9 +443,9 @@ public static class StationGenerator
                 continue;
             }
 
-            if (t is "hub" or "hangar" or "hangar_hall" or "market_hall")
+            if (t is "hub" or "hangar" or "hangar_hall" or "market_hall" or "hydro")
             {
-                continue; // keep the command core + other halls intact
+                continue; // keep the command core, the other halls and the food bay intact
             }
 
             bool sideways = d.X != 0; // an ±X partner keeps the pair's -Z faces aligned (hangar mouth)
@@ -460,7 +466,10 @@ public static class StationGenerator
     /// <summary>Builds the pool of non-hub, non-hangar module types (always includes market + mission).</summary>
     private static List<string> BuildTypePalette(int cellCount, System.Random rng)
     {
-        var pool = new List<string> { "market", "mission" };
+        // A station that has rooms to spare always grows its own food (#628): the hydroponics bay ranks with
+        // the market and the mission board, ahead of the optional extras. The smallest stations (hub + hangar
+        // and little else) never reach it — out there you still live off what you brought.
+        var pool = new List<string> { "market", "mission", "hydro" };
         string[] extra = { "medbay", "quarters", "corridor", "market" };
         for (int i = pool.Count; i < cellCount; i++)
         {
@@ -553,7 +562,8 @@ public static class StationGenerator
     /// (longer counters, more bunks, extra consoles, a centre ceiling light).
     /// </summary>
     private static void FurnishModule(System.Action<int, int, int, ushort> set, System.Func<int, int, int, ushort> get,
-        Vector3i o, string type, int rw, int rh, int rl, ushort hull, ushort light, ushort tank, ushort dark, ushort plant)
+        Vector3i o, string type, int rw, int rh, int rl, ushort hull, ushort light, ushort tank, ushort dark, ushort plant,
+        ushort tray = 0, ushort crop = 0)
     {
         int x0 = 1, x1 = rw - 2, z0 = 1, z1 = rl - 2; // interior bounds
         int cx = rw / 2, cz = rl / 2;                  // centre lines to keep clear
@@ -630,6 +640,34 @@ public static class StationGenerator
                 }
 
                 PlantInterior(set, get, o, rw, rl, hull, plant);
+                break;
+
+            case "hydro": // hydroponics bay (#628): rows of planted trays with a walkway down the middle
+                for (int z = z0 + 1; z <= z1 - 1; z++)
+                {
+                    if (z == cz)
+                    {
+                        continue; // the door/shaft lane stays walkable
+                    }
+
+                    foreach (int x in new[] { x0 + 1, x1 - 1 })
+                    {
+                        if (x == cx || tray == 0)
+                        {
+                            continue;
+                        }
+
+                        // Every tray sits at least two cells in from the hull, so the crop above it can never be
+                        // seen through into space nor walked past into the void — the same enclosure-by-
+                        // construction rule the decorative planters follow.
+                        set(o.X + x, o.Y, o.Z + z, tray); // the deck plate itself becomes the growing bed
+                        if (crop != 0 && ((x + z) % 5) != 0) // a few gaps so the rows read as worked, not printed
+                        {
+                            set(o.X + x, o.Y + 1, o.Z + z, crop);
+                        }
+                    }
+                }
+
                 break;
 
             case "hangar":

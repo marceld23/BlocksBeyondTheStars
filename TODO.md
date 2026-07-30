@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1257 server + 147 client passing** (2026-07-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1312 server + 147 client passing** (2026-07-30). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,40 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Greenhouses: settlements (and stations) grow berries you can pick (#626, #627, #628, 2026-07-30, branch feat/settlement-greenhouses)
+Settlements had houses, a vendor and a mission board, but nothing that read as *people living off this
+land* — and nothing renewable to eat that wasn't a machine. Now every village and city keeps a glass
+house of berry crops the player can walk into and harvest:
+
+- **Two builds, one shape** (`SettlementGenerator.StampGreenhouse`). A **village/hamlet** grows its berries
+  in soil beds under a timber frame with a pitched glass gable, lit by a torch, closed by a hinged door. A
+  **town/city** runs a two-tier hydroponics bay: iron frame, full glass shell, trays on the floor and on a
+  rack above, ceiling grow lights (so it glows at night from outside) and a sliding door. Beds are laid
+  *perpendicular to the door*, so walking in puts you in the aisle rather than in the crops. A city keeps
+  **2–3** greenhouses, a town 1–2, a village 1, a hamlet only if its layout rolled a spare plot. Ruins get
+  the empty shell and the decay pass shatters it.
+- **A cultivated crop that is never toxic** (`flora_cropberry`, new `Cultivated` flag in `FloraCatalog`).
+  Wild flora rolls `Toxic` at p = 0.3 per world, and a toxic plant's `berries` drop is swapped for
+  `toxic_berries` (−18 health) — a village greenhouse would have grown poison on a third of all worlds.
+  Cultivated species are skipped in `FloraGenerator.GenerateRoster` **and** in `EnsureCoverage` (which
+  force-activates a species for every host key it finds), and excluded from the client's per-world flora
+  hue, so the berries are edible *and* ripe-red everywhere. Wild flora keeps rolling toxic — a test guards
+  both directions.
+- **Plants are harvestable inside protected builds.** Settlement and station blocks are mining-protected by
+  bounding box, so the berries could not be picked at all — the feature would have been scenery. Flora is
+  now exempt: you may pick a plant, never dismantle a house, and the plant regrows on its bed.
+- **Stations grow food too** (`hydro` module + `hydro_tray` block). Void worlds skipped the flora registry
+  and the regrow tick outright, so nothing aboard a station could ever come back. Both now run everywhere,
+  and what keeps plants out of open space is the enclosure test — refined so a **stair shaft through a deck
+  reads as a fall onto the room below, not as the void** (it probes ~10 cells down for something to land
+  on). Without that, no multi-deck bay could have held a crop.
+- **Berry seeds** (`berry_seed`, hand recipe from 3 berries → 2 seeds) so a player can start their own bed
+  at a base, plus a craftable `hydro_tray` for soil-free growing. Both textures AI-generated.
+- 20 new tests (`GreenhouseTests`), including two end-to-end: harvest a crop in a real stamped village and
+  watch it grow back, and the same aboard a boarded station.
+
+**New worlds only** — settlements and stations are stamped when a world is created.
 
 ### ★ Italian loads: third-language plumbing + a coverage report (#99, #582, 2026-07-30, branch feat/italian-locale-plumbing)
 [@alessandroquirino-lab](https://github.com/alessandroquirino-lab) contributed `data/locales/it.json`

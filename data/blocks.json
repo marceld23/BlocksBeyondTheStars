@@ -152,5 +152,12 @@
   { "key": "titanium_block",  "nameKey": "block.titanium_block.name", "category": "building",  "hardness": 7.4, "requiredTool": "drill", "minToolTier": 2, "color": 12633548, "drops": [ { "item": "titanium_block", "count": 1 } ] },
   { "key": "obsidian",        "nameKey": "block.obsidian.name", "category": "terrain",        "hardness": 9.0, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "obsidian", "count": 1 } ] },
   { "key": "ancient_brick",   "nameKey": "block.ancient_brick.name", "category": "building",  "hardness": 6.8, "requiredTool": "drill", "minToolTier": 1, "color": 10129016, "drops": [ { "item": "ancient_brick", "count": 1 } ] },
-  { "key": "rune_stone",      "nameKey": "block.rune_stone.name", "category": "building",     "hardness": 7.2, "requiredTool": "drill", "minToolTier": 1, "color": 8028044, "drops": [ { "item": "rune_stone", "count": 1 } ] }
+  { "key": "rune_stone",      "nameKey": "block.rune_stone.name", "category": "building",     "hardness": 7.2, "requiredTool": "drill", "minToolTier": 1, "color": 8028044, "drops": [ { "item": "rune_stone", "count": 1 } ] },
+
+  // Greenhouse farming (#627). The crop is a CULTIVATED flora species (FloraCatalog): it never grows wild,
+  // never joins a world's flora roster and so never turns toxic — its berries are edible on every world.
+  // The tray is the hydroponic host block the high-tech greenhouses grow it in (dirt/grass/mud do the same
+  // job in the rustic village version).
+  { "key": "flora_cropberry", "nameKey": "block.flora_cropberry.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 3833376, "drops": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "hydro_tray",      "nameKey": "block.hydro_tray.name", "category": "machine",      "hardness": 2.4, "requiredTool": "none",  "minToolTier": 0, "emission": 0.12, "color": 4361847, "drops": [ { "item": "hydro_tray", "count": 1 } ] }
 ]

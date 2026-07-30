@@ -176,6 +176,14 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
+                // Farmed crops (#627) keep their own colour on every world. The per-world hue is what makes a
+                // world's WILD plant life its own; a greenhouse berry has to read as ripe fruit whether it grows
+                // in a village on a green world or on an alien one, or the player can't tell food from scenery.
+                if (BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.IsCultivated(def.Key))
+                {
+                    continue;
+                }
+
                 var (r, g, b) = isWood
                     ? BlocksBeyondTheStars.Shared.World.FloraTints.ForWood(_worldSeed, LocationName)
                     : BlocksBeyondTheStars.Shared.World.FloraTints.For(_worldSeed, LocationName, def.Key);

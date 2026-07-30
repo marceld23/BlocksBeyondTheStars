@@ -108,7 +108,10 @@ public sealed class FloraTests : IDisposable
         var b = FloraGenerator.GenerateRoster(planet, 4242);
 
         Assert.NotEmpty(a);
-        Assert.Equal(a.Count, FloraCatalog.All.Count); // one species per archetype
+        // One species per WILD archetype. Cultivated crops (#627) are deliberately absent: a roster entry
+        // would hand them a rolled name and toxicity, and a greenhouse berry has to stay edible everywhere.
+        Assert.Equal(a.Count, FloraCatalog.All.Count(s => !s.Cultivated));
+        Assert.DoesNotContain(a, s => FloraCatalog.IsCultivated(s.BlockKey));
         for (int i = 0; i < a.Count; i++)
         {
             Assert.False(string.IsNullOrWhiteSpace(a[i].Name), "every flora species is named");
@@ -140,7 +143,9 @@ public sealed class FloraTests : IDisposable
         Assert.Contains(roster, s => !s.Active);
 
         // Coverage: every land host surface keeps at least one active land species (no bare biome) …
-        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic).SelectMany(s => s.Hosts).Distinct();
+        // (Cultivated crops are skipped: their hosts are greenhouse beds and hydroponic trays, which are no
+        // world surface at all, so there is nothing for world gen to cover there.)
+        var landHosts = FloraCatalog.All.Where(s => !s.Aquatic && !s.Cultivated).SelectMany(s => s.Hosts).Distinct();
         foreach (var host in landHosts)
         {
             Assert.Contains(roster, s => s.Active && !s.Aquatic

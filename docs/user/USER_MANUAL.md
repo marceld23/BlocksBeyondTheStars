@@ -184,9 +184,10 @@ separate unlock; admins can still disable it through server world rules.
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations.
-  Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), craft emergency
-  rations — or build an **algae tank** (workshop, no blueprint) at a base: standing next to it grows
-  2 algae rations from 1 water (melt 2 snow or 2 ice into water by hand if there is no lake).
+  Food sources: hunt creatures (meat), harvest berry flora (replantable via seeds), raid a settlement's
+  **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
+  at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
+  hand if there is no lake).
 - **Suit energy** (max 100): powers the stealth-suit cloak and the **jetpack** (hold Space in the air to
   thrust up); both stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
@@ -204,7 +205,9 @@ separate unlock; admins can still disable it through server world rules.
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
   breaks and yields its **drops**. Powerful drills can clear a small radius.
-- Ship hull, station, settlement and other players' protected landing zones cannot be mined.
+- Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
+  plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
+  visiting), you just cannot take the building apart.
 - **Your ship is a real parked object** on its landing pad (pads are naturally flat). You can
   **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
   the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
@@ -364,6 +367,16 @@ separate unlock; admins can still disable it through server world rules.
   with an **SPS access code** (see below) and press **E**. Claiming spends one code, makes the factory
   **your base** (you and your **allies** can rebuild it freely), and persists across reloads. One code
   claims one factory.
+
+### Greenhouses
+- Every village and city keeps a **greenhouse** — a glass house full of berry bushes you can walk into and
+  harvest. A **village** grows them in soil beds under a timber-and-glass gable behind a hinged door; a
+  **city** runs a two-tier **hydroponics bay** with grow lights and a sliding door, which is easy to spot at
+  night. Space stations of any size above the smallest carry the same bay aboard.
+- The berries are a **crop**, not wild flora: they are safe to eat on every world, and each picked bush
+  **grows back on its bed** after a short while — so a greenhouse is a food source you can come back to.
+- Want your own? Craft **berry seeds** by hand from 3 berries and plant them on soil — or on a crafted
+  **hydroponic tray** (workshop), which lets crops root with no soil at all.
 
 ### Ruins & treasure chests
 - **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one

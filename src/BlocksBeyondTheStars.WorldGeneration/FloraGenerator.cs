@@ -36,6 +36,16 @@ public static class FloraGenerator
         int i = 0;
         foreach (var archetype in FloraCatalog.All)
         {
+            // Farmed crops (#627) are not part of this world's plant life: they never grow wild, and above all
+            // they must never take on a rolled species identity — a roster entry would let the toxic roll swap
+            // their edible berries for toxic ones. The index still advances so the WILD species keep their
+            // seed salt (and their "fl<i>" ids) no matter where a crop sits in the catalog.
+            if (archetype.Cultivated)
+            {
+                i++;
+                continue;
+            }
+
             long s = unchecked(planetSeed ^ ((long)i * golden));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
             list.Add(new FloraSpecies
@@ -62,6 +72,11 @@ public static class FloraGenerator
         var landHosts = new HashSet<string>();
         foreach (var sp in FloraCatalog.All)
         {
+            if (sp.Cultivated)
+            {
+                continue; // a crop's host (a greenhouse bed / hydroponic tray) is no world surface — nothing to cover
+            }
+
             if (!sp.Aquatic)
             {
                 foreach (var h in sp.Hosts)

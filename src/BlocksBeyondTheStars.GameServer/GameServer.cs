@@ -489,16 +489,23 @@ public sealed partial class GameServer
         world.VirginAtLoad = !_repo.HasAnyBlockEdits(locationId);
         world.StampReport.Clear();
 
-        // A void world (an orbital station) has no terrain, so it gets none of the planet-surface content —
-        // no fauna/flora/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives there
-        // (the caller stamps it). Weather is initialised above so the env reads its clear/space-sky settings.
+        // The flora registry is built on EVERY world, void or not (#628). A station grows nothing of its own,
+        // but its hydroponics bay holds real crops — and without the registry the server would not recognise
+        // them as flora at all, so harvesting one would not schedule a regrow and no seed could be planted
+        // aboard. What keeps plants out of open space is the enclosure test in the regrow/plant paths, not
+        // this registry. On a void world the species roster comes out empty, which is exactly right: crops
+        // are cultivated, so they carry no world identity anyway.
+        InitFlora();
+        LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
+
+        // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
+        // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
+        // there (the caller stamps it). Weather is initialised above so the env reads its space-sky settings.
         if (!planet.Void)
         {
             BuildLandingPads(); // FIRST: the pads must reach worldgen before any pad-area chunk generates
             InitFluids();
             InitFire();
-            InitFlora();
-            LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
             InitCreatures();
             LoadContainers();
 
@@ -2845,13 +2852,20 @@ public sealed partial class GameServer
             return;
         }
 
-        if (IsSettlementBlock(pos))
+        // Picking a plant is not vandalism (#626/#628). Settlement and station protection exists so nobody
+        // tears down the houses or opens the hull — but a greenhouse is FOOD, and the whole point of it is
+        // that the player walks in and harvests. Flora is never structural, and a harvested plant regrows on
+        // its bed, so this takes nothing permanent from the settlement. Everything else the greenhouse is made
+        // of — glass, beds, frame — stays protected.
+        bool harvestingPlant = IsFlora(current.Value);
+
+        if (!harvestingPlant && IsSettlementBlock(pos))
         {
             Reject(session, "mine", "This settlement is protected.");
             return;
         }
 
-        if (IsStationBlock(pos))
+        if (!harvestingPlant && IsStationBlock(pos))
         {
             Reject(session, "mine", "This station is protected.");
             return;

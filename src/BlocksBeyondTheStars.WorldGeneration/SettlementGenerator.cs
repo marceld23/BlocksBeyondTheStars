@@ -33,6 +33,10 @@ public readonly struct SettlementMarker
 /// accent band differ from house to house; the settlement also gets a <b>central feature</b> (well /
 /// plaza / monument), <b>street paths</b>, scattered <b>lamps + gardens</b>, and (sometimes) a
 /// <b>perimeter fence</b>. Alien settlements are themed with alien materials + denser growth.
+///
+/// One or more plots hold a <b>greenhouse</b> (#626) — a glass house of berry crops the player can walk into
+/// and harvest. Villages grow theirs in soil under a timber gable, cities run two-tier hydroponics under
+/// grow lights; a city keeps two or three, a hamlet rarely one.
 /// </summary>
 public sealed class SettlementStructure
 {
@@ -221,6 +225,15 @@ public static class SettlementGenerator
         ushort lamp = B("data_cache", glass);
         ushort fence = alien ? B("crystal", wall) : wall;
 
+        // Greenhouse materials (#626). A village grows its berries in soil under a timber-and-glass frame; a
+        // town/city runs hydroponic trays in an iron frame under grow lights. The crop is the CULTIVATED
+        // species (#627) — never toxic, never re-tinted per world — so a settlement's greenhouse is always
+        // food the player can safely eat, and falls back to the wild bush only if that block is missing.
+        ushort frame = town ? B("iron_wall", wall) : B("wood_log", wall);
+        ushort bed = town ? B("hydro_tray", B("dirt", wall)) : B("dirt", B("mud", wall));
+        ushort crop = B("flora_cropberry", B("flora_bush", flora));
+        ushort growLight = town ? B("strip_light_warm", lamp) : B("torch", lamp);
+
         int w = cols * Plot + 1;
         int l = rows * Plot + 1;
         int h = floors * FloorH + 1 + RoofCap;
@@ -241,6 +254,11 @@ public static class SettlementGenerator
             StampPaths(Set, w, l, cols, rows, path);
         }
 
+        // Which plots hold a greenhouse (#626). Never plot 0 or 1 — those carry the vendor and the mission
+        // board, the two services a settlement must have. Bigger places feed more mouths, so a city runs two
+        // or three glass houses while a hamlet only sometimes has room for one at all.
+        var greenhousePlots = PickGreenhousePlots(tier, cols * rows, rng);
+
         // Plot roles: building 0 = market, building 1 = mission board, rest = dwellings.
         int buildings = 0;
         int plotIndex = 0;
@@ -248,25 +266,42 @@ public static class SettlementGenerator
             for (int czp = 0; czp < rows; czp++)
             {
                 // A village occasionally leaves a plot as an open square; a town fills them densely. The
-                // first plot is always built (so it carries the vendor / a guaranteed ruin loot cache).
-                bool skip = !town && plotIndex > 0 && rng.NextDouble() < 0.18;
+                // first plot is always built (so it carries the vendor / a guaranteed ruin loot cache), and
+                // a greenhouse plot is never dropped either — it was picked as one of the few this
+                // settlement gets.
+                bool greenhouse = greenhousePlots.Contains(plotIndex);
+                bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18;
                 if (skip)
                 {
                     plotIndex++;
                     continue;
                 }
 
-                // Per-building variety: footprint, storeys, roof, door side, accent band.
+                // Per-building variety: footprint, storeys, roof, door side, accent band. (The draws stay
+                // unconditional so the rng stream reads the same whether or not this plot is a greenhouse.)
                 int fp = Building - rng.Next(0, 3);                     // 4..6
                 int storeys = town ? (plotIndex == 0 ? floors : 1 + rng.Next(0, floors)) : 1;
                 int doorSide = rng.Next(0, 4);
                 // Desert settlements favour flat (adobe) roofs; elsewhere alien + half of houses are pitched.
                 int roofStyle = (!desert && (alien || rng.NextDouble() < 0.5)) ? 1 : 0;
+                if (greenhouse)
+                {
+                    fp = Building; // a greenhouse always takes the full footprint — its beds need the width
+                }
+
                 int off = (Building - fp) / 2;
                 int ox = cxp * Plot + 1 + off;
                 int oz = czp * Plot + 1 + off;
 
-                StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined);
+                if (greenhouse)
+                {
+                    StampGreenhouse(Set, ox, oz, fp, town, frame, glass, bed, crop, growLight, doorSide, rng, ruined);
+                }
+                else
+                {
+                    StampBuilding(Set, ox, oz, fp, storeys, wall, accent, glass, ladder, doorSide, roofStyle, rng, ruined);
+                }
+
                 buildings++;
 
                 // A lamp post + a small garden beside the door, so streets feel inhabited.
@@ -283,6 +318,14 @@ public static class SettlementGenerator
                         _ => "npc",
                     };
                     markers.Add(new SettlementMarker(role, centre));
+
+                    // A greenhouse also announces itself: the resident standing in the aisle is its gardener
+                    // (the "npc" marker above), and this second marker is what lets anything else — tests, a
+                    // map POI, a future mission — find the glass house without re-scanning the voxels.
+                    if (greenhouse)
+                    {
+                        markers.Add(new SettlementMarker("greenhouse", centre));
+                    }
 
                     // A real door fills this building's doorway: a sci-fi slider for towns/cities, a hinged
                     // door for villages/hamlets. Placed on the lower door column; the server probes the gap to
@@ -382,6 +425,165 @@ public static class SettlementGenerator
         }
 
         return new SettlementStructure(w, h, l, tier, ruined, inhabitant, blocks, markers, buildings);
+    }
+
+    /// <summary>Wall height of a greenhouse (the y of its ceiling row): a village garden house is low enough
+    /// that its glass gable still fits the single-storey height budget, a town/city bay is roomy enough for a
+    /// second growing tier above the floor beds.</summary>
+    private const int GreenhouseVillageH = 4;
+    private const int GreenhouseTownH = 6;
+
+    /// <summary>The rack tier of a hydroponics bay: trays at this height, crops one above.</summary>
+    private const int GreenhouseRackY = 3;
+
+    /// <summary>Picks which plots hold a greenhouse (#626). Plots 0 and 1 are reserved for the vendor and the
+    /// mission board, so the pick starts at 2 and spreads the houses across the settlement rather than
+    /// clustering them. A hamlet is usually just a vendor and a board, so it only gets one when its layout
+    /// rolled a spare plot — and even then only half the time.</summary>
+    private static HashSet<int> PickGreenhousePlots(string tier, int totalPlots, System.Random rng)
+    {
+        int wanted = tier switch
+        {
+            "city" => 2 + rng.Next(0, 2),   // 2..3 — a city feeds a lot of people
+            "town" => 1 + rng.Next(0, 2),   // 1..2
+            "hamlet" => rng.Next(0, 2),     // 0..1, and only if there is a spare plot at all
+            _ => 1,                          // village
+        };
+
+        var plots = new HashSet<int>();
+        int free = totalPlots - 2; // plots 0 + 1 are spoken for
+        if (free <= 0 || wanted <= 0)
+        {
+            return plots;
+        }
+
+        wanted = System.Math.Min(wanted, free);
+        int stride = System.Math.Max(1, free / wanted);
+        for (int n = 0; n < wanted; n++)
+        {
+            // Walk forward from the spread position until a free plot turns up, so two greenhouses never
+            // land on the same plot however the stride rounds.
+            for (int probe = 0; probe < free; probe++)
+            {
+                int idx = 2 + ((n * stride) + probe) % free;
+                if (plots.Add(idx))
+                {
+                    break;
+                }
+            }
+        }
+
+        return plots;
+    }
+
+    /// <summary>Stamps a greenhouse: a glass house whose beds grow berry crops the player can harvest and eat.
+    /// Two builds share this shape — a village grows its berries in soil under a timber-and-glass frame with a
+    /// pitched glass gable, a town/city runs hydroponic trays on two tiers under grow lights behind a flat
+    /// glass ceiling. The beds are laid PERPENDICULAR to the door, so walking in puts the player in the aisle
+    /// rather than in the crops, and the corner posts + a sill course keep the glass box from reading as a
+    /// featureless cube. A ruin gets the empty shell — the decay pass then shatters it.</summary>
+    private static void StampGreenhouse(System.Action<int, int, int, ushort> set, int ox, int oz, int fp,
+        bool town, ushort frame, ushort glass, ushort bed, ushort crop, ushort growLight,
+        int doorSide, System.Random rng, bool ruined)
+    {
+        int height = town ? GreenhouseTownH : GreenhouseVillageH;
+
+        // Shell: a glass box on a frame. The floor is decking, the corner posts and the sill course at knee
+        // height are frame material, everything else you can see through — that is the whole point of it.
+        for (int x = 0; x < fp; x++)
+            for (int y = 0; y <= height; y++)
+                for (int z = 0; z < fp; z++)
+                {
+                    bool sideWall = x == 0 || x == fp - 1 || z == 0 || z == fp - 1;
+                    bool corner = (x == 0 || x == fp - 1) && (z == 0 || z == fp - 1);
+
+                    if (y == 0)
+                    {
+                        set(ox + x, y, oz + z, frame); // deck (bed cells overwrite this below)
+                    }
+                    else if (y == height)
+                    {
+                        set(ox + x, y, oz + z, glass); // glazed ceiling
+                    }
+                    else if (sideWall)
+                    {
+                        set(ox + x, y, oz + z, corner || y == 1 ? frame : glass);
+                    }
+                    else
+                    {
+                        set(ox + x, y, oz + z, 0); // the growing room
+                    }
+                }
+
+        // Door: the same 2-wide, 3-tall opening every settlement building uses, so the player fits through
+        // and the server's door probe finds the gap it expects.
+        int mid = fp / 2;
+        int w0 = System.Math.Max(1, mid - 1), w1 = mid;
+        int dy2 = System.Math.Min(height - 1, 3);
+        for (int w = w0; w <= w1; w++)
+            for (int y = 1; y <= dy2; y++)
+            {
+                switch (doorSide)
+                {
+                    case 0: set(ox + w, y, oz, 0); break;
+                    case 1: set(ox + w, y, oz + fp - 1, 0); break;
+                    case 2: set(ox, y, oz + w, 0); break;
+                    default: set(ox + fp - 1, y, oz + w, 0); break;
+                }
+            }
+
+        // Two bed rows hard against the side walls with an aisle between them. A door in an X wall opens along
+        // X, so the beds must run along X to leave that lane clear — and the other way round for a Z door.
+        bool bedsAlongX = doorSide == 2 || doorSide == 3;
+        int rowA = 1, rowB = fp - 2;
+        for (int i = 1; i <= fp - 2; i++)
+        {
+            foreach (int row in new[] { rowA, rowB })
+            {
+                int bx = bedsAlongX ? i : row;
+                int bz = bedsAlongX ? row : i;
+                set(ox + bx, 0, oz + bz, bed);
+
+                // Not every cell carries a plant — a few gaps read as a bed being worked rather than a
+                // wallpaper of identical bushes. The gaps follow the POSITION, not a die roll, so every
+                // greenhouse is guaranteed a proper crop of berries instead of occasionally coming out
+                // nearly bare. A ruin is left unplanted; the decay pass reclaims it instead.
+                if (!ruined && crop != 0 && (i + row) % 7 != 0)
+                {
+                    set(ox + bx, 1, oz + bz, crop);
+                }
+
+                // The hydroponics bay stacks a second growing tier on a rack above the floor bed.
+                if (town && !ruined && bed != 0)
+                {
+                    set(ox + bx, GreenhouseRackY, oz + bz, bed);
+                    if (crop != 0 && (i * 2 + row) % 5 != 0)
+                    {
+                        set(ox + bx, GreenhouseRackY + 1, oz + bz, crop);
+                    }
+                }
+            }
+        }
+
+        // Light. A city bay runs grow lights in the ceiling (they read as fixtures in the glass and give the
+        // house a glow at night); a village garden house just has a torch on a corner post.
+        if (!ruined && growLight != 0)
+        {
+            if (town)
+            {
+                set(ox + mid, height, oz + 1, growLight);
+                set(ox + mid, height, oz + fp - 2, growLight);
+            }
+            else
+            {
+                // One cell off the aisle centre — the gardener's spawn marker stands there.
+                set(ox + System.Math.Max(1, mid - 1), 1, oz + System.Math.Max(1, mid - 1), growLight);
+            }
+        }
+
+        // Roof: a pitched glass gable over a village garden house, a frame parapet around the city bay's flat
+        // glazed ceiling. Both reuse the settlement roof pass, just glazed.
+        StampRoof(set, ox, oz, fp, height, town ? 0 : 1, glass, frame, rng);
     }
 
     /// <summary>Stamps one hollow building of N storeys with a roof, a door on a chosen side, a window

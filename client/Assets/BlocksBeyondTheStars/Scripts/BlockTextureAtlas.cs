@@ -689,6 +689,35 @@ namespace BlocksBeyondTheStars.Client
                     Speckle(ox, oy + Tile / 3, rng, new Color(1f, 0.82f, 0.34f), 6);
                     break;
 
+                case "flora_cropberry":
+                    // A farmed berry bush (#627): fuller foliage than the wild bush, and the fruit is deliberately
+                    // dense + ripe-red — this tile has to read as FOOD across a greenhouse aisle. Unlike wild flora
+                    // it never takes the world hue (see GameBootstrap.RebuildFloraTints), so what is painted here
+                    // is what the player sees on every world.
+                    PaintBlades(ox, oy, rng, 16, Tile / 2 + 10,
+                        new Color(0.13f, 0.42f, 0.17f), new Color(0.36f, 0.70f, 0.32f));
+                    Speckle(ox, oy, rng, new Color(0.86f, 0.14f, 0.18f), 16);
+                    Speckle(ox, oy, rng, new Color(0.98f, 0.44f, 0.42f), 6); // highlight on the ripe side of a berry
+                    break;
+
+                case "hydro_tray":
+                {
+                    // A shallow nutrient tray: a metal rim around a pool of faintly glowing growth gel.
+                    var rim = new Color(0.34f, 0.38f, 0.42f);
+                    var gel = new Color(0.24f, 0.62f, 0.48f);
+                    for (int y = 0; y < Tile; y++)
+                    {
+                        for (int x = 0; x < Tile; x++)
+                        {
+                            bool border = x < 4 || y < 4 || x >= Tile - 4 || y >= Tile - 4;
+                            Texture.SetPixel(ox + x, oy + y, border ? rim : gel * (0.88f + 0.24f * (float)rng.NextDouble()));
+                        }
+                    }
+
+                    Speckle(ox, oy, rng, new Color(0.52f, 0.88f, 0.72f), 10); // nutrient bubbles catching the light
+                    break;
+                }
+
                 case "light_white": LightLens(ox, oy, new Color(0.95f, 0.97f, 1f)); break;
                 case "light_red": LightLens(ox, oy, new Color(1f, 0.22f, 0.22f)); break;
                 case "light_green": LightLens(ox, oy, new Color(0.24f, 1f, 0.36f)); break;
@@ -865,6 +894,8 @@ namespace BlocksBeyondTheStars.Client
             "flora_crystal" => new Color(0.60f, 0.85f, 1f),
             "flora_kelp" => new Color(0.15f, 0.45f, 0.32f),  // deep sea-green stalk
             "flora_lily" => new Color(0.30f, 0.62f, 0.34f),  // lily-pad green
+            "flora_cropberry" => new Color(0.22f, 0.58f, 0.24f), // farmed bush (#627): leafy green, berries in Decorate
+            "hydro_tray" => new Color(0.28f, 0.34f, 0.38f),      // dark tray housing; the nutrient gel glows in Decorate
             _ => new Color(0.6f, 0.6f, 0.62f),
         };
     }
