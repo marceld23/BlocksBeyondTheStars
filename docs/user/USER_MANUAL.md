@@ -80,6 +80,7 @@ Last updated: 2026-07-04.
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
 | **Enter** | Open the chat box (Esc cancels) |
+| **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
 | **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
 | **Esc** | Close the current screen; if no game screen is open, show the leave-game confirmation |
 
@@ -604,6 +605,9 @@ reminds you.
 ### Chat
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
   radio** in your inventory; messages are rate-limited and length-capped.
+- The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
+  brings the recent lines back). Prefer it always visible — or never? **Settings → Comfort → Chat
+  display** offers *Fade out / Always on / Off*, and **J** hides/shows it on the spot for the session.
 
 ### Radio reach (tiered) — text **and** voice
 Your radio determines **how far** your comms carry — text chat and voice both follow the same reach:
