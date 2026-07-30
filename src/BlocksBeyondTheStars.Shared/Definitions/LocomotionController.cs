@@ -222,7 +222,7 @@ public static class LocomotionController
 
         uint h = (uint)StableHash(sp.Id);
         float j = 0.85f + Unit(h) * 0.30f;          // ±15% per-species jitter on cadence/turn
-        float size = System.Math.Clamp(sp.Size, 0.6f, 2.2f);
+        float size = System.Math.Clamp(sp.Size, 0.6f, 6f); // titans (#638) reach 6 — was capped at 2.2
         float weight = 1f / (0.5f + size);          // bigger → slower accel + slower turns
 
         return new LocomotionProfile

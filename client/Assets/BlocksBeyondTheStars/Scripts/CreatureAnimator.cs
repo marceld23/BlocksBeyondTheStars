@@ -22,6 +22,23 @@ namespace BlocksBeyondTheStars.Client
         private Transform _body;   // the body rig — undulated for swimming
         private bool _aquatic;     // swimmers undulate + flutter instead of striding
 
+        // Medusa plan (#637): the bell pulses (scale) and the rim tentacles sway out of phase.
+        private Transform _bell;
+        private Transform[] _tentacles;
+        private Vector3 _bellBaseScale = Vector3.one;
+
+        /// <summary>Walk-cadence multiplier (#638): titans set this below 1 so a giant strides slowly —
+        /// a huge body taking sheep-paced steps is the classic scale-breaking tell. Default 1 = unchanged.</summary>
+        public float CadenceScale = 1f;
+
+        /// <summary>Registers the medusa parts (#637) — call after <see cref="Init"/> on medusa builds.</summary>
+        public void InitMedusa(Transform bell, Transform[] tentacles)
+        {
+            _bell = bell;
+            _tentacles = tentacles;
+            _bellBaseScale = bell != null ? bell.localScale : Vector3.one;
+        }
+
         private float _phase;     // per-creature offset so they don't move in lockstep
         private float _walk;      // leg-swing phase
         private Vector3 _lastPos;
@@ -79,8 +96,34 @@ namespace BlocksBeyondTheStars.Client
             _hasPrev = true;
 
             float moving = Mathf.Clamp01(speed / 3f);
-            _walk += dt * (3f + speed * 2.2f);
+            _walk += dt * (3f + speed * 2.2f) * CadenceScale; // titans stride slowly (#638)
             float t = Time.time + _phase;
+
+            // Medusa (#637): pulse the bell (squash-and-stretch around its base scale) and sway each rim
+            // tentacle on its own phase; there are no legs/head to animate, so this replaces the gait.
+            if (_bell != null)
+            {
+                float pulse = Mathf.Sin(t * (_asleep ? 0.9f : 1.8f));
+                _bell.localScale = new Vector3(
+                    _bellBaseScale.x * (1f - 0.06f * pulse),
+                    _bellBaseScale.y * (1f + 0.12f * pulse),
+                    _bellBaseScale.z * (1f - 0.06f * pulse));
+
+                if (_tentacles != null)
+                {
+                    for (int i = 0; i < _tentacles.Length; i++)
+                    {
+                        if (_tentacles[i] == null)
+                        {
+                            continue;
+                        }
+
+                        float ph = t * 1.3f + i * 0.9f;
+                        _tentacles[i].localRotation = Quaternion.Euler(
+                            Mathf.Sin(ph) * (7f + 6f * moving), 0f, Mathf.Cos(ph * 0.8f) * (7f + 6f * moving));
+                    }
+                }
+            }
 
             // Legs: alternate front/back, amplitude scales with speed (plus a tiny idle shuffle). Aquatic
             // species barely stride — their limbs read as fins paddling, so the swing stays small.

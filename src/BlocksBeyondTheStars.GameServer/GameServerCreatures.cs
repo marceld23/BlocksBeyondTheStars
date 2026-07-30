@@ -189,7 +189,7 @@ public sealed partial class GameServer
         if (_creatureSpawnTimer >= interval && WildCreatureCount < cap)
         {
             _creatureSpawnTimer = 0;
-            if (TrySpawnCreatureNear(targets[_creatures.Count % targets.Count].State))
+            if (TrySpawnCreatureNear(targets[_creatures.Count % targets.Count].State, cap))
             {
                 BroadcastCreatures();
             }
@@ -250,6 +250,12 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // A titan's bite reaches further than a sheep-sized nip: the proximity range grows with the
+            // species size past 2 (#638), so a provoked giant can't be safely poked from just outside 4
+            // blocks. Half-rate growth caps it at 6 for the size-6 giants — exactly EnemyAttackReach, so
+            // anything that can bite the player can always be hit back.
+            float prox = CreatureProximityRange + System.Math.Max(0f, (sp.Size - 2f) * 0.5f);
+
             foreach (var session in targets)
             {
                 var p = session.State;
@@ -258,7 +264,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (WrapDistSq(p.Position, creature.Position) <= CreatureProximityRange * CreatureProximityRange
+                if (WrapDistSq(p.Position, creature.Position) <= prox * prox
                     && HasLineOfSight(creature.Position, p.Position)) // no bite through a wall — break sight (cover/cave) to stop it
                 {
                     float bite = (float)(creature.DamagePerSecond * dt);
@@ -351,12 +357,16 @@ public sealed partial class GameServer
 
     /// <summary>
     /// Spawns one roster species suited to a spread-out spot around the player (habitat-gated, on the
-    /// ground). Returns true if one spawned. Two independent rotors (#470): the ring rotor walks all 20
-    /// scatter offsets (advancing even on failure), the species rotor walks the roster on success.
+    /// ground) — or a whole herd/school/flock of it when the species is social (#639). Returns true if
+    /// at least one spawned. Two independent rotors (#470): the ring rotor walks all 20 scatter offsets
+    /// (advancing even on failure), the species rotor walks the roster on success. <paramref name="cap"/>
+    /// is the world's live cap — every group member counts against it individually, so a group that no
+    /// longer fits spawns partially, never over the cap.
     /// </summary>
-    private bool TrySpawnCreatureNear(Shared.State.PlayerState player)
+    private bool TrySpawnCreatureNear(Shared.State.PlayerState player, int cap)
     {
-        if (WildCreatureCount >= CreatureHardCap)
+        cap = System.Math.Min(cap, CreatureHardCap);
+        if (WildCreatureCount >= cap)
         {
             return false;
         }
@@ -438,13 +448,106 @@ public sealed partial class GameServer
                     continue; // never spawn inside (or clipping into) a landed ship
                 }
 
+                // Titans need level ground (#638): a 3×3 clearance whose surface stays within ±1 of the
+                // centre column, so a six-block giant doesn't materialise half-buried in a cliff face —
+                // creatures have no colliders, so the spawn spot is the only terrain check they ever get.
+                if (sp.BodyPlan == CreatureBodyPlan.Titan && !TitanGroundClear(px, pz, surface))
+                {
+                    continue;
+                }
+
                 _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;
                 SpawnCreature(sp, pos);
+                SpawnGroupAround(sp, px, pz, cap); // social species (#639) bring their herd/school/flock
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>3×3 flatness gate for titan spawns (#638): every neighbouring column's surface must sit
+    /// within ±1 block of the centre's, and none may be blocked by a landed ship.</summary>
+    private bool TitanGroundClear(int x, int z, int centerSurface)
+    {
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                int s = _generator.SurfaceHeight(_world.Planet, x + dx, z + dz);
+                if (System.Math.Abs(s - centerSurface) > 1)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Places the rest of a social species' group (#639) around a just-spawned member: up to
+    /// <see cref="CreatureSpecies.SocialGroupSize"/> − 1 more individuals, 4–8 blocks out on spread
+    /// golden-angle bearings, each habitat-gated and each counting against the cap — unsuitable spots
+    /// are simply skipped, so a group spawns partially rather than forcing bad placements.</summary>
+    private void SpawnGroupAround(CreatureSpecies sp, int x, int z, int cap)
+    {
+        int group = System.Math.Clamp(sp.SocialGroupSize, 1, 5);
+        for (int k = 1; k < group && WildCreatureCount < cap; k++)
+        {
+            // Golden-angle bearings with alternating radii — spread out, not a neat ring.
+            double a = k * 2.399963;
+            float dist = 4f + (k % 3) * 2f;
+            int mx = x + (int)System.Math.Round(System.Math.Cos(a) * dist);
+            int mz = z + (int)System.Math.Round(System.Math.Sin(a) * dist);
+            int surface = _generator.SurfaceHeight(_world.Planet, mx, mz);
+
+            float y;
+            if (sp.Habitat == CreatureHabitat.Water || sp.Habitat == CreatureHabitat.Amphibian)
+            {
+                if (!_generator.TryGetWaterSurface(_world.Planet, mx, mz, out int waterTopY, out int seabedY))
+                {
+                    continue; // this member's spot is dry — the school stays smaller
+                }
+
+                y = sp.Habitat == CreatureHabitat.Water ? (seabedY + 1 + waterTopY) * 0.5f : waterTopY;
+            }
+            else if (sp.Habitat == CreatureHabitat.Lava)
+            {
+                if (!_generator.TryGetLavaSurface(_world.Planet, mx, mz, out int lavaTop, out _))
+                {
+                    continue;
+                }
+
+                y = lavaTop;
+            }
+            else if (sp.Habitat == CreatureHabitat.Cave)
+            {
+                int caveY = FindCaveFloorY(mx, mz, surface);
+                if (caveY < 0)
+                {
+                    continue;
+                }
+
+                y = caveY;
+            }
+            else
+            {
+                if (sp.BodyPlan == CreatureBodyPlan.Titan && !TitanGroundClear(mx, mz, surface))
+                {
+                    continue; // herd members need the same level ground the leader did
+                }
+
+                y = surface + (sp.Habitat == CreatureHabitat.Air ? 4f : 1f);
+            }
+
+            var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
+            if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos))
+            {
+                continue;
+            }
+
+            SpawnCreature(sp, pos);
+        }
     }
 
     /// <summary>Adds a live creature of the species at the position.</summary>
@@ -501,7 +604,7 @@ public sealed partial class GameServer
 
         for (int i = 0; i < count && WildCreatureCount < System.Math.Min(cap, CreatureHardCap); i++)
         {
-            TrySpawnCreatureNear(player);
+            TrySpawnCreatureNear(player, cap);
         }
     }
 
@@ -582,12 +685,14 @@ public sealed partial class GameServer
 
             // Give-up leash: an aggressor that has been chasing within aggro range too long backs off for a
             // while — it wanders away and won't chase/attack — so creatures never hound the player forever.
+            // Big species notice you from further away (#638): the range grows with size past 2.
             bool aggressor = temperament is CreatureTemperament.Aggressive or CreatureTemperament.PackHunter;
+            float aggro = CreatureAggroRange + System.Math.Max(0f, sp.Size - 2f);
             if (creature.GiveUpTimer > 0)
             {
                 creature.GiveUpTimer = System.Math.Max(0, creature.GiveUpTimer - dt);
             }
-            else if (aggressor && nearest is { } np && WithinAggro(creature.Position, np))
+            else if (aggressor && nearest is { } np && WrapDistSq(creature.Position, np) <= aggro * aggro)
             {
                 // While it can see the prey the chase clock ticks normally; once the player breaks line-of-sight
                 // (behind cover, into a cave) the creature tires of the hunt faster, so hiding actually shakes it
@@ -634,7 +739,7 @@ public sealed partial class GameServer
             {
                 float dx = tp.X - creature.Position.X, dz = tp.Z - creature.Position.Z;
                 float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
-                if (aggressor && dist <= CreatureAggroRange)
+                if (aggressor && dist <= aggro)
                 {
                     intent = MoveMode.Seek;
                     target = temperament == CreatureTemperament.PackHunter ? FlankPoint(creature, tp, dx, dz) : tp;
@@ -650,9 +755,18 @@ public sealed partial class GameServer
             var res = LocomotionController.Step(creature.Loco, profile, creature.Position, intent, target, moveDt, seed);
             creature.Loco = res.State;
 
+            // Group cohesion (#639): a roaming member of a social species drifts gently toward its
+            // nearby kin, so a spawned herd/school/flock stays loosely together instead of dissolving.
+            // A gentle positional pull only — fleeing/hunting always wins, and loners are unaffected.
+            var stepped = res.Position;
+            if (intent == MoveMode.Roam && sp.SocialGroupSize > 1 && res.Moving)
+            {
+                stepped = PullTowardGroup(creature, sp, stepped, moveDt, profile.CruiseSpeed);
+            }
+
             // Follow the world as they roam: land/lava walkers track the ground (hoppers pop up), fliers hover +
             // swoop, swimmers porpoise through the water column — driven by the per-creature vertical wave.
-            var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile);
+            var next = AdjustHabitatHeight(sp, stepped, res.VertWave, profile);
 
             // Creatures don't walk into the player's ship — hold position at the hull. Energy fences
             // pen them in the same way: the step is discarded and a fresh heading is rolled next tick,
@@ -666,6 +780,50 @@ public sealed partial class GameServer
                 creature.Position = next;
             }
         }
+    }
+
+    private const float GroupCohesionRange = 24f;   // kin within this count toward the group centre (#639)
+    private const float GroupCohesionMinDist = 3f;  // close enough — no pull (herds shouldn't stack up)
+
+    /// <summary>Nudges a social creature's step toward the centre of its same-species neighbours within
+    /// <see cref="GroupCohesionRange"/> (#639). Plain-coordinate scan (the odd seam-straddling herd just
+    /// loses cohesion for a moment); O(n) per social creature against a ≤64-entity list, at 15 Hz.</summary>
+    private Vector3f PullTowardGroup(CombatEntity self, CreatureSpecies sp, Vector3f stepped, double dt, float cruise)
+    {
+        float cx = 0f, cz = 0f;
+        int kin = 0;
+        foreach (var other in _creatures)
+        {
+            if (ReferenceEquals(other, self) || other.IsCompanion || other.SpeciesId != self.SpeciesId)
+            {
+                continue;
+            }
+
+            float dx = other.Position.X - stepped.X, dz = other.Position.Z - stepped.Z;
+            if (dx * dx + dz * dz <= GroupCohesionRange * GroupCohesionRange)
+            {
+                cx += other.Position.X;
+                cz += other.Position.Z;
+                kin++;
+            }
+        }
+
+        if (kin == 0)
+        {
+            return stepped; // no kin in range — roam free
+        }
+
+        float tx = cx / kin - stepped.X, tz = cz / kin - stepped.Z;
+        float dist = (float)System.Math.Sqrt(tx * tx + tz * tz);
+        if (dist <= GroupCohesionMinDist)
+        {
+            return stepped; // already with the group
+        }
+
+        // Pull a fraction of the cruise step toward the centroid — strongest when far, fading near it.
+        float k = System.Math.Min(1f, (dist - GroupCohesionMinDist) / GroupCohesionRange);
+        float pull = cruise * 0.35f * k * (float)dt / dist;
+        return new Vector3f(stepped.X + tx * pull, stepped.Y, stepped.Z + tz * pull);
     }
 
     /// <summary>Pushes any WILD creature standing inside a parked ship's hull back outside (companions are left
@@ -693,13 +851,6 @@ public sealed partial class GameServer
 
     /// <summary>Runs the placement-time eviction sweep directly (no tick) so a test can isolate it.</summary>
     public void EvictWildlifeFromShipsForTest() => EvictWildlifeFromShips();
-
-    /// <summary>2D (x,z) distance check matching <see cref="CreatureBehaviour"/>'s aggro test.</summary>
-    private static bool WithinAggro(Vector3f from, Vector3f to)
-    {
-        float dx = to.X - from.X, dz = to.Z - from.Z;
-        return dx * dx + dz * dz <= CreatureAggroRange * CreatureAggroRange;
-    }
 
     /// <summary>The movement profile for a species id (falls back to a default if somehow unknown).</summary>
     private LocomotionProfile ProfileFor(string speciesId)
@@ -733,8 +884,10 @@ public sealed partial class GameServer
         switch (sp.Habitat)
         {
             case CreatureHabitat.Air:
-                // Hover above the ground; gliders/drifters swoop up and down on their own wave (others hold steady).
-                return new Vector3f(p.X, surface + CreatureFlyAltitude + prof.VertAmp * vertWave, p.Z);
+                // Hover above the ground at the species' own altitude (#637 — 0 = the legacy default),
+                // so the sky gets layers; gliders/drifters swoop up and down on their own wave.
+                float hover = sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
+                return new Vector3f(p.X, surface + hover + prof.VertAmp * vertWave, p.Z);
             case CreatureHabitat.Water:
                 // Use the LOCAL water column (sea or upland pond) — not just the global sea level — so swimmers
                 // stay submerged in the upland lakes they were spawned in, not only the deep sea.
@@ -849,11 +1002,15 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Removes creatures farther than <see cref="CreatureDespawnRange"/> from every player.
-    /// Returns true if any were removed (so the caller re-broadcasts the list).</summary>
+    private const float TitanDespawnRange = 110f; // a landmark animal must not evaporate mid-approach (#638)
+
+    /// <summary>Removes creatures farther than <see cref="CreatureDespawnRange"/> from every player
+    /// (titans keep a wider leash — <see cref="TitanDespawnRange"/> — so the huge silhouette you are
+    /// walking toward doesn't vanish). Returns true if any were removed (caller re-broadcasts).</summary>
     private bool PruneFarCreatures(List<PlayerSession> targets)
     {
         float maxSq = CreatureDespawnRange * CreatureDespawnRange;
+        float titanSq = TitanDespawnRange * TitanDespawnRange;
         int removed = _creatures.RemoveAll(c =>
         {
             if (c.IsCompanion)
@@ -861,8 +1018,11 @@ public sealed partial class GameServer
                 return false; // companions are managed by ReconcileCompanions, never far-pruned
             }
 
+            float limitSq = _speciesById.TryGetValue(c.SpeciesId, out var sp) && sp.BodyPlan == CreatureBodyPlan.Titan
+                ? titanSq
+                : maxSq;
             var nearest = NearestPlayerPosition(targets, c.Position);
-            return nearest is not { } np || WrapDistSq(np, c.Position) > maxSq;
+            return nearest is not { } np || WrapDistSq(np, c.Position) > limitSq;
         });
         return removed > 0;
     }
@@ -927,6 +1087,9 @@ public sealed partial class GameServer
             Tentacles = sp?.Tentacles ?? 0,
             EyeStalks = sp?.EyeStalks ?? false,
             HasGasSac = sp?.HasGasSac ?? false,
+            BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
+            NeckLength = sp?.NeckLength ?? 0,
+            HasTrunk = sp?.HasTrunk ?? false,
         };
     }
 

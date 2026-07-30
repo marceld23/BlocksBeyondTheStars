@@ -102,6 +102,30 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ More creature kinds: floating medusae, huntable titans, herds & bigger rosters (#637–#640, 2026-07-30, branch feat/creature-kinds)
+Fauna was one body plan: every species — whatever its traits said — rendered as the same segment-row
+cube animal, and `Size` was capped five times over (generator 2.2, locomotion 2.2, renderer 3, three
+view clamps), so the biggest animal in the game was ~2.4 blocks tall. **Body plans (#637/#638):** a
+`CreatureBodyPlan` enum drawn **after every legacy roll** (same discipline as `LocoStyle`) so existing
+worlds keep their species identity — a known animal keeps its name/colour/stats and may only gain a
+new silhouette. **Medusa** (25 % of Air/Water species): translucent pulsing bell (Cloud shader —
+already always-included), 6–10 tentacles hanging from the bell rim in a circle, opaque nucleus,
+usually glowing, never hostile, per-species hover altitude 3–12 instead of the constant 5. **Titan**
+(18 % of Land species): size 3.5–6 past all five raised caps, pillar legs, stacked neck (≥2 reads
+giraffe) or trunk (elephant), horns worn as ivory tusks, ears; huntable — HP ×3.5, drops 3–6, a
+provoked titan genuinely bites (range grows with size but caps at the player's own 6-block reach),
+never a PackHunter; needs a 3×3 level-ground clearance to spawn, despawns at 110 blocks instead of 70
+(a landmark animal must not evaporate mid-approach), walk cadence slows with size. **Social species
+(#639):** a generic `SocialGroupSize` (titan herds 2–4, schools 3–5, flocks 2–4, grazer pairs) — the
+spawner places the whole group 4–8 blocks apart (each member habitat-gated and cap-counted, partial
+groups instead of over-cap), and roaming members drift gently toward nearby kin. **Bigger rosters
+(#640):** `few` 3→5, `many` 6→9 + a deterministic diversity guarantee (ground → flier → aquatic,
+re-drawing only the *appended* slots) — the first 3/6 indices keep their exact pre-bump rolls because
+each species draws its own sub-seed, proven by a cross-count test (`few` and `many` produce identical
+slots 0–2). Wire: additive `NetCreature`/`NetCompanion` fields (BodyPlan/NeckLength/HasTrunk), no new
+codec tag. Drive-by fix: `CloneSpecies` never copied `LocoStyle` — companions silently fell back to
+the Strider gait; now guarded by a reflection parity test that fails on any future missed field.
+
 ### ★ Greenhouses: settlements (and stations) grow berries you can pick (#626, #627, #628, 2026-07-30, branch feat/settlement-greenhouses)
 Settlements had houses, a vendor and a mission board, but nothing that read as *people living off this
 land* — and nothing renewable to eat that wasn't a machine. Now every village and city keeps a glass

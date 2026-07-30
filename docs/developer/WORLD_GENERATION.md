@@ -238,8 +238,12 @@ Derived per **body** (#478, same location-id salt as flora) by
 [`CreatureGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/CreatureGenerator.cs); spawned
 live by `GameServerCreatures.cs`.
 
-- **Species per world** from `CreatureAbundance`: `none` → 0, `few` → **3**, `many` → **6** (airless
-  bodies → 0).
+- **Species per world** from `CreatureAbundance`: `none` → 0, `few` → **5**, `many` → **9** (airless
+  bodies → 0). The first 3 / 6 indices keep their exact pre-#640 rolls (each species draws its own
+  sub-seed), so worlds created before the bump keep their known species and simply gain new ones.
+- **Diversity guarantee (#640):** after the rolls, only the *appended* slots may be re-drawn into
+  missing niches — priority ground (Land) → flier (Air) → aquatic (Water/Amphibian, water worlds
+  only) — so no living world is all-cave or all-sea.
 - **No fixed catalogue** — each species is *composed* from traits: a **habitat** (Land/Water/Lava/
   Air/Cave/Amphibian), weighted by what the planet allows (water needs `WaterAbundance > 0.15` or a
   wet biome; lava only on lava/basalt worlds; cave only if `CaveThreshold > 0`); an **activity cycle**
@@ -247,17 +251,30 @@ live by `GameServerCreatures.cs`.
   non-hostile (passive 42 / skittish 30 / territorial 16 / aggressive 9 / pack-hunter 3 — only the
   last two are hostile). Stats (size 0.6–2.2, HP, speed, damage), morphology (legs, eyes, horns,
   tentacles, bioluminescence…), locomotion style and drops are all rolled from the species seed.
+- **Body plans (#637/#638):** drawn *after* every legacy roll (the same discipline as the locomotion
+  style, so pre-plan worlds keep their species identity), a species may swap its architecture:
+  **Medusa** (25 % of Air/Water species) — translucent pulsing bell, 6–10 rim tentacles, drifting,
+  usually glowing, never hostile, per-species hover altitude 3–12; **Titan** (18 % of Land species) —
+  size 3.5–6, pillar legs, neck (≥2 segments reads giraffe) or trunk, horns worn as tusks, HP ×3.5,
+  drops 3–6, dangerous when provoked but never a pack-hunter. Everything else stays **Standard**.
+- **Social species (#639):** each species rolls a `SocialGroupSize` (1 = solitary): titan herds 2–4,
+  schooling water species 3–5, some flocks of fliers 2–4, occasional grazer pairs/trios. The spawner
+  places the whole group together (4–8 blocks apart, each member habitat-gated and cap-counted), and
+  roaming members drift gently toward nearby kin so groups stay loosely together.
 - **Per biome:** on multi-biome worlds each species gets a **biome affinity** (`rng.Next(biomeCount)`,
-  or −1 = anywhere). Spawning prefers biome natives, then falls back to any species. So with 3 species
-  across 3 biomes you get roughly **one native species per biome** plus the biome-agnostic ones.
+  or −1 = anywhere). Spawning prefers biome natives, then falls back to any species — roughly
+  **one-plus native species per biome** plus the biome-agnostic ones.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world.
 
 **Live spawning:** a dynamic world cap (scaled by circumference × abundance × √players; a lush big
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470), ring placement 18–45 blocks out
 (two rotors: the ring slot advances on every attempt, the species on success), habitat gates (water animals only in
-water columns, cave animals only in caves), despawn beyond 70 blocks. Only **awake, hostile** creatures
-deal damage — sleepers never attack — and the day/night cycle gates which species are awake.
+water columns, cave animals only in caves; titans additionally need a 3×3 level-ground clearance),
+despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mid-approach). Only
+**awake, hostile** creatures deal damage — sleepers never attack — and the day/night cycle gates
+which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
+the player's own 6-block attack reach).
 
 ---
 

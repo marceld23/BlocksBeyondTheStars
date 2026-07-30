@@ -38,6 +38,19 @@ public enum CreatureTemperament
 }
 
 /// <summary>
+/// The broad body architecture the client renders for a species (#637/#638). <see cref="Standard"/>
+/// is the classic segment-row body every species had before body plans existed; the other plans give
+/// a genuinely different silhouette built from the same parametric traits. Chosen deterministically
+/// per species — drawn AFTER every legacy roll so existing worlds keep their species identity.
+/// </summary>
+public enum CreatureBodyPlan
+{
+    Standard, // segment-row body + head + limbs (the original, and still the most common)
+    Medusa,   // jellyfish: translucent bell, long rim tentacles, drifts in air or water (#637)
+    Titan,    // elephant/giraffe-scale land megafauna: pillar legs, neck/trunk, tusks (#638)
+}
+
+/// <summary>
 /// What a defeated/harvested creature yields, mirroring the flora property tags. Rarely a
 /// creature is a building-material substitute; more often it is edible (food) or poisonous.
 /// </summary>
@@ -112,6 +125,24 @@ public sealed class CreatureSpecies
 
     /// <summary>Secondary/belly accent colour (packed RGB) for a two-tone body, for more visible variety.</summary>
     public int BellyRgb { get; set; } = 0xFFFFFF;
+
+    /// <summary>The body architecture the client renders (#637/#638) — see <see cref="CreatureBodyPlan"/>.</summary>
+    public CreatureBodyPlan BodyPlan { get; set; } = CreatureBodyPlan.Standard;
+
+    /// <summary>Titan plan only (#638): stacked neck segments between body and head (0 = none, ≥2 reads
+    /// giraffe). Ignored by the other plans.</summary>
+    public int NeckLength { get; set; }
+
+    /// <summary>Titan plan only (#638): a segmented trunk hanging from the head (elephant).</summary>
+    public bool HasTrunk { get; set; }
+
+    /// <summary>How high above the ground an <see cref="CreatureHabitat.Air"/> species hovers (#637) —
+    /// per-species instead of one global constant, so the sky gets layers. 0 = the legacy default.</summary>
+    public float HoverAltitude { get; set; }
+
+    /// <summary>How many individuals this species lives in a group of (#639): 1 = solitary, 2–5 = the
+    /// spawner places a herd/school/flock together and members drift toward their group as they roam.</summary>
+    public int SocialGroupSize { get; set; } = 1;
 
     /// <summary>Bioluminescent — glows in the dark (ties into the lighting system).</summary>
     public bool Glows { get; set; }

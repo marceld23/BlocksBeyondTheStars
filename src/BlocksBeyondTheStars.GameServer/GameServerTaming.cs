@@ -292,6 +292,11 @@ public sealed partial class GameServer
             t += 1;
         }
 
+        if (sp.Size >= 3f)
+        {
+            t += 2; // taming a titan (#638) is a late-game feat, not a stroll
+        }
+
         t += (int)(Hash(creatureId, "shy") % 3) - 1; // -1 / 0 / +1
         return System.Math.Clamp(t, 2, 7);
     }
@@ -370,6 +375,11 @@ public sealed partial class GameServer
         if (sizeScale >= 1.2f)
         {
             k += 1;
+        }
+
+        if (sp.Size >= 3f)
+        {
+            k += 2; // first-taming a titan (#638) is worth the harder ritual
         }
 
         return k;
@@ -600,6 +610,9 @@ public sealed partial class GameServer
                 Tentacles = sp.Tentacles,
                 EyeStalks = sp.EyeStalks,
                 HasGasSac = sp.HasGasSac,
+                BodyPlan = sp.BodyPlan.ToString(),
+                NeckLength = sp.NeckLength,
+                HasTrunk = sp.HasTrunk,
             };
         }).ToArray();
 
@@ -701,6 +714,12 @@ public sealed partial class GameServer
         DropItem = s.DropItem,
         DropCount = s.DropCount,
         DropKind = s.DropKind,
+        LocoStyle = s.LocoStyle, // was missing — a companion silently fell back to the Strider gait
+        BodyPlan = s.BodyPlan,
+        NeckLength = s.NeckLength,
+        HasTrunk = s.HasTrunk,
+        HoverAltitude = s.HoverAltitude,
+        SocialGroupSize = s.SocialGroupSize,
     };
 
     // ---------------------------------------------------------------------------------------------

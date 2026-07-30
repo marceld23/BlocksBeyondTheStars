@@ -227,7 +227,7 @@ namespace BlocksBeyondTheStars.Client
                 e.NameText = tm;
             }
 
-            float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 3f) + 0.4f;
+            float top = 1.5f * Mathf.Clamp(c.Size, 0.4f, 8f) + 0.4f; // 8: titans (#638) far exceed the old 3
             var platePos = e.Root.transform.position + Vector3.up * top;
 
             // Companion names only read up close, mirroring the NPC nameplates: fade between 18 m and 28 m,
@@ -275,7 +275,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float s = Mathf.Clamp(c.Size, 0.4f, 3f);
+            float s = Mathf.Clamp(c.Size, 0.4f, 8f); // 8: titans (#638)
             float breathe = Mathf.Sin(Time.time * 1.6f) * 0.03f * s;
             e.Root.transform.position += Vector3.up * (breathe - 0.12f * s); // settle low + gentle breathing
 
@@ -337,7 +337,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 e.Stasis.transform.SetParent(e.Root.transform, false);
-                float s = Mathf.Clamp(size, 0.4f, 3f);
+                float s = Mathf.Clamp(size, 0.4f, 8f); // 8: titans (#638)
                 e.Stasis.transform.localPosition = new Vector3(0f, 0.55f * s, 0f);
                 e.Stasis.transform.localScale = new Vector3(1.15f * s, 1.5f * s, 1.15f * s);
                 e.Stasis.GetComponent<Renderer>().sharedMaterial = StasisMaterial();

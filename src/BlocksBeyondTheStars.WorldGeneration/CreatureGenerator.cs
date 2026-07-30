@@ -36,8 +36,15 @@ public static class CreatureGenerator
         {
             long s = unchecked(planetSeed ^ ((long)i * golden));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount));
+            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null));
         }
+
+        // Diversity guarantee (#640): every living world should field at least one ground species and
+        // one flier (and an aquatic one where the world has water life). Only the slots ADDED by the
+        // roster bump (index ≥ legacy count) may be re-drawn — each species draws its own sub-seed, so
+        // the legacy indices keep their exact pre-bump rolls and existing worlds keep their known fauna.
+        EnsureHabitatDiversity(list, LegacyAbundanceCount(planet.CreatureAbundance), planetSeed,
+            allowWater, allowLava, allowCave, biomeCount);
 
         return list;
     }
@@ -45,13 +52,81 @@ public static class CreatureGenerator
     private static int AbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch
     {
         "none" => 0,
-        "many" => 6,
-        _ => 3, // "few" / unknown
+        "many" => 9, // was 6 before the roster bump (#640)
+        _ => 5,      // "few" / unknown — was 3 before the roster bump (#640)
     };
 
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount)
+    /// <summary>The roster sizes before the #640 bump. Indices below these keep their exact legacy
+    /// rolls (existing worlds keep their known species); only indices at/above are diversity-adjustable.</summary>
+    private static int LegacyAbundanceCount(string? abundance) => (abundance ?? "few").ToLowerInvariant() switch
     {
-        var habitat = PickHabitat(rng, allowWater, allowLava, allowCave);
+        "none" => 0,
+        "many" => 6,
+        _ => 3,
+    };
+
+    /// <summary>Re-draws appended roster slots (index ≥ <paramref name="legacyCount"/>) into missing
+    /// habitat niches, deterministically (#640). Priority: ground (Land) → flier (Air) → aquatic
+    /// (Water/Amphibian, only on water worlds). Each fix regenerates one slot from a niche-salted seed
+    /// with a forced habitat, preferring slots whose habitat is over-represented in the roster.</summary>
+    private static void EnsureHabitatDiversity(List<CreatureSpecies> list, int legacyCount, long planetSeed,
+        bool allowWater, bool allowLava, bool allowCave, int biomeCount)
+    {
+        if (list.Count <= legacyCount)
+        {
+            return; // no adjustable slots
+        }
+
+        var needed = new List<CreatureHabitat>();
+        if (!list.Exists(s => s.Habitat == CreatureHabitat.Land)) needed.Add(CreatureHabitat.Land);
+        if (!list.Exists(s => s.Habitat == CreatureHabitat.Air)) needed.Add(CreatureHabitat.Air);
+        if (allowWater && !list.Exists(s => s.Habitat is CreatureHabitat.Water or CreatureHabitat.Amphibian))
+        {
+            needed.Add(CreatureHabitat.Water);
+        }
+
+        var used = new HashSet<int>(); // adjustable slots already consumed by an earlier niche fix
+        foreach (var niche in needed)
+        {
+            // Prefer the highest adjustable slot whose habitat appears more than once in the roster
+            // (losing it can't empty another niche); fall back to any free adjustable slot.
+            int pick = -1;
+            for (int i = list.Count - 1; i >= legacyCount; i--)
+            {
+                if (used.Contains(i))
+                {
+                    continue;
+                }
+
+                var habitat = list[i].Habitat;
+                if (list.FindAll(s => s.Habitat == habitat).Count > 1)
+                {
+                    pick = i;
+                    break;
+                }
+
+                if (pick < 0)
+                {
+                    pick = i; // remember the highest free slot as the fallback
+                }
+            }
+
+            if (pick < 0)
+            {
+                return; // all adjustable slots used up — the lowest-priority niches stay unmet
+            }
+
+            used.Add(pick);
+            const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
+            long s = unchecked(planetSeed ^ ((long)pick * golden) ^ WorldGenerator.StableHash("niche:" + niche));
+            var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
+            list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche);
+        }
+    }
+
+    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat)
+    {
+        var habitat = forcedHabitat ?? PickHabitat(rng, allowWater, allowLava, allowCave);
         bool cave = habitat == CreatureHabitat.Cave;
         var temperament = (CreatureTemperament)Weighted(rng, // B18: fewer hostiles — more peaceful fauna
             (int)CreatureTemperament.Passive, 42,
@@ -134,7 +209,121 @@ public static class CreatureGenerator
         // temperament we just generated, so fauna move in recognisably different ways. Drawn LAST so the species'
         // appearance rolls (hence existing worlds' rosters) are unchanged by adding it.
         species.LocoStyle = PickLocoStyle(rng, species);
+
+        // Body plan + social rolls (#637/#638/#639) — appended AFTER every legacy roll (same discipline
+        // as LocoStyle above) so pre-existing worlds keep their species' identity; a plan then only
+        // OVERRIDES the traits it needs rather than biasing the draws that precede it.
+        ApplyBodyPlan(rng, species);
+        species.SocialGroupSize = PickSocialGroupSize(rng, species);
+        if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
+        {
+            // Per-species hover altitude (#637) so the sky gets layers instead of one uniform band.
+            species.HoverAltitude = 3f + (float)rng.NextDouble() * 9f; // 3..12
+        }
+
         return species;
+    }
+
+    /// <summary>Rolls whether this species gets a non-standard body plan (#637/#638) and, if so,
+    /// overrides the traits that plan demands. Drawn after all legacy rolls (see the call site).</summary>
+    private static void ApplyBodyPlan(System.Random rng, CreatureSpecies sp)
+    {
+        if ((sp.Habitat == CreatureHabitat.Air || sp.Habitat == CreatureHabitat.Water)
+            && rng.NextDouble() < 0.25)
+        {
+            ApplyMedusaPlan(rng, sp);
+        }
+        else if (sp.Habitat == CreatureHabitat.Land && rng.NextDouble() < 0.18)
+        {
+            ApplyTitanPlan(rng, sp);
+        }
+    }
+
+    /// <summary>The floating jellyfish (#637): translucent bell, 6–10 rim tentacles, drifting, glowing
+    /// more often than not — and never a threat (a hunting jellyfish would be miserable).</summary>
+    private static void ApplyMedusaPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Medusa;
+        sp.Legs = 0;
+        sp.HasWings = false;
+        sp.HasTail = false;
+        sp.HasCrest = false;
+        sp.EyeStalks = false;
+        sp.Horns = 0;
+        sp.BodySegments = 1;
+        sp.HasGasSac = true;
+        sp.Tentacles = 6 + rng.Next(5);                       // 6..10 long rim tentacles
+        sp.Eyes = Weighted(rng, 0, 60, 1, 15, 2, 25);          // usually eyeless
+        sp.Glows = rng.NextDouble() < 0.7;                     // drifting lanterns at night
+        sp.Temperament = rng.NextDouble() < 0.7 ? CreatureTemperament.Passive : CreatureTemperament.Skittish;
+        sp.AttackDamage = 0f;                                  // never hostile — a mood piece, not a threat
+        sp.Speed = 0.8f + (float)rng.NextDouble() * 0.8f;      // slow, lazy drift
+        sp.LocoStyle = LocomotionStyle.Drifter;
+        sp.HoverAltitude = 3f + (float)rng.NextDouble() * 9f;  // 3..12 (air variant; water uses the column)
+    }
+
+    /// <summary>The land titan (#638): elephant/giraffe-scale megafauna — pillar legs, an optional long
+    /// neck or trunk, tusks. Huntable: tanky with a matching drop pile, dangerous when provoked, but
+    /// never a roaming pack-hunter.</summary>
+    private static void ApplyTitanPlan(System.Random rng, CreatureSpecies sp)
+    {
+        sp.BodyPlan = CreatureBodyPlan.Titan;
+        sp.Size = 3.5f + (float)rng.NextDouble() * 2.5f;       // 3.5..6 — far past the old 2.2 cap
+        sp.Legs = 4;
+        sp.HasWings = false;
+        sp.HasTail = true;
+        sp.HasGasSac = false;
+        sp.EyeStalks = false;
+        sp.Tentacles = 0;
+        sp.BodySegments = 2 + rng.Next(2);                     // 2..3 — a long, heavy torso
+        sp.NeckLength = rng.Next(4);                            // 0..3 (≥2 reads giraffe)
+        sp.HasTrunk = sp.NeckLength <= 1 && rng.NextDouble() < 0.6; // short-necked titans often carry a trunk
+        sp.Temperament = (CreatureTemperament)Weighted(rng,     // never PackHunter — dangerous when provoked,
+            (int)CreatureTemperament.Passive, 60,               // not a roaming player-hunter
+            (int)CreatureTemperament.Territorial, 35,
+            (int)CreatureTemperament.Aggressive, 5);
+        sp.MaxHealth = (10f + sp.Size * 8f) * 3.5f;             // a real fight (~150–200 HP)
+        sp.AttackDamage = 4f + (float)rng.NextDouble() * 6f;    // a provoked titan genuinely hurts
+        sp.Speed = 1.0f + (float)rng.NextDouble() * 1.0f;       // ponderous
+        sp.DropCount = 3 + rng.Next(4);                         // 3..6 — a real reward for a real fight
+        sp.LocoStyle = sp.Temperament == CreatureTemperament.Passive
+            ? LocomotionStyle.Grazer
+            : LocomotionStyle.Strider;                          // no hopping/darting giants
+    }
+
+    /// <summary>How many individuals a species lives in a group of (#639): titan herds, fish schools,
+    /// flocks of fliers, small groups of peaceful grazers — predators and everything else stay solitary
+    /// (pack-hunters excepted: their pack IS a group).</summary>
+    private static int PickSocialGroupSize(System.Random rng, CreatureSpecies sp)
+    {
+        if (sp.BodyPlan == CreatureBodyPlan.Titan)
+        {
+            return 2 + rng.Next(3); // 2..4 — megafauna reads best in a small herd
+        }
+
+        if (sp.Temperament == CreatureTemperament.PackHunter)
+        {
+            return 2 + rng.Next(2); // 2..3 — the pack hunts together from the start
+        }
+
+        if (sp.Habitat == CreatureHabitat.Water && sp.LocoStyle == LocomotionStyle.Schooler)
+        {
+            return 3 + rng.Next(3); // 3..5 — an actual school
+        }
+
+        if (sp.Habitat == CreatureHabitat.Air && rng.NextDouble() < 0.4)
+        {
+            return 2 + rng.Next(3); // 2..4 — a loose flock
+        }
+
+        if (sp.Habitat == CreatureHabitat.Land
+            && sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish
+            && rng.NextDouble() < 0.25)
+        {
+            return 2 + rng.Next(2); // 2..3 — grazers sometimes come in pairs/trios
+        }
+
+        return 1;
     }
 
     /// <summary>Picks a creature's <see cref="LocomotionStyle"/> from its already-generated traits: limbless +

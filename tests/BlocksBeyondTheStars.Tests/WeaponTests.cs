@@ -79,7 +79,9 @@ public sealed class WeaponTests : IDisposable
             p.State.SuitEnergy = 100f;
 
             server.Tick(6.0);
-            var creature = server.Creatures.First();
+            // The weakest animal — this test is about weapon REACH, not time-to-kill, and the first
+            // spawn can now be a titan (#638) that outlasts both the shot budget and the suit energy.
+            var creature = server.Creatures.OrderBy(c => c.HullMax).First();
             creature.Position = new Vector3f(0, 64, 12); // 12 blocks away — out of melee range
 
             // Melee can't reach that far → no damage, creature intact.
@@ -91,7 +93,7 @@ public sealed class WeaponTests : IDisposable
 
             // Ranged reaches it; a few shots kill it and suit energy is spent.
             Equip(p.State, "laser_pistol");
-            for (int i = 0; i < 4 && server.Creatures.Any(c => c.Id == creature.Id); i++)
+            for (int i = 0; i < 8 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {
                 server.AttackEntity("Gunner", creature.Id);
             }

@@ -1397,6 +1397,13 @@ public sealed class NetCreature
     public int Tentacles { get; set; }
     public bool EyeStalks { get; set; }
     public bool HasGasSac { get; set; }
+
+    // Body plans (#637/#638): which architecture the client renders ("Standard" | "Medusa" | "Titan"),
+    // plus the titan-only neck/trunk traits. Additive fields — older clients ignore them and draw the
+    // standard body, so the wire tag is unchanged.
+    public string BodyPlan { get; set; } = "Standard";
+    public int NeckLength { get; set; }
+    public bool HasTrunk { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>
@@ -1494,6 +1501,9 @@ public sealed class NetCompanion
     public int Tentacles { get; set; }
     public bool EyeStalks { get; set; }
     public bool HasGasSac { get; set; }
+    public string BodyPlan { get; set; } = "Standard"; // #637/#638 — the portrait renders the real plan
+    public int NeckLength { get; set; }
+    public bool HasTrunk { get; set; }
 }
 
 /// <summary>Server → client: the player's full companion roster (for the Companions menu tab).</summary>

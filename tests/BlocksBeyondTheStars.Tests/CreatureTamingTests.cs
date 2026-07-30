@@ -298,6 +298,51 @@ public sealed class CreatureTamingTests : IDisposable
     }
 
     [Fact]
+    public void CloneSpecies_CopiesEveryPublicProperty_SoCompanionsNeverSilentlyLoseTraits()
+    {
+        // The companion snapshot is a hand-written field list — every time CreatureSpecies grows a
+        // trait (LocoStyle once, now BodyPlan/NeckLength/HasTrunk/… #637–#639), a missed line means a
+        // pet silently renders or behaves wrong. Reflection-fill a species with non-default values,
+        // clone it via the private helper, and require every readable+writable property to match.
+        var src = new CreatureSpecies();
+        int seed = 7;
+        foreach (var prop in typeof(CreatureSpecies).GetProperties())
+        {
+            if (!prop.CanWrite)
+            {
+                continue;
+            }
+
+            seed++;
+            object value = prop.PropertyType switch
+            {
+                var t when t == typeof(string) => "v" + seed,
+                var t when t == typeof(int) => seed,
+                var t when t == typeof(float) => seed + 0.5f,
+                var t when t == typeof(bool) => true,
+                var t when t.IsEnum => t.GetEnumValues().GetValue(seed % t.GetEnumValues().Length)!,
+                _ => throw new InvalidOperationException($"unhandled property type {prop.PropertyType} on {prop.Name}"),
+            };
+            prop.SetValue(src, value);
+        }
+
+        var clone = (CreatureSpecies)typeof(SvGameServer)
+            .GetMethod("CloneSpecies", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
+            .Invoke(null, new object[] { src })!;
+
+        foreach (var prop in typeof(CreatureSpecies).GetProperties())
+        {
+            if (!prop.CanWrite)
+            {
+                continue;
+            }
+
+            Assert.True(Equals(prop.GetValue(src), prop.GetValue(clone)),
+                $"CloneSpecies drops {prop.Name} — the companion snapshot would silently lose it");
+        }
+    }
+
+    [Fact]
     public void FollowStep_ClosesDistanceToOwner_WhenFarAway()
     {
         var pet = new Vector3f(0, 64, 0);

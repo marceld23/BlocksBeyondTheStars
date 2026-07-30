@@ -111,10 +111,10 @@ public sealed class CreatureTests : IDisposable
         Assert.Empty(CreatureGenerator.GenerateRoster(planet, 7));
 
         planet.CreatureAbundance = "few";
-        Assert.Equal(3, CreatureGenerator.GenerateRoster(planet, 7).Count);
+        Assert.Equal(5, CreatureGenerator.GenerateRoster(planet, 7).Count); // 3 → 5 (#640)
 
         planet.CreatureAbundance = "many";
-        Assert.Equal(6, CreatureGenerator.GenerateRoster(planet, 7).Count);
+        Assert.Equal(9, CreatureGenerator.GenerateRoster(planet, 7).Count); // 6 → 9 (#640)
     }
 
     [Fact]
@@ -171,6 +171,157 @@ public sealed class CreatureTests : IDisposable
         var roster = CreatureGenerator.GenerateRoster(varied, 4242);
         Assert.All(roster, s => Assert.InRange(s.BiomeAffinity, 0, biomeCount - 1)); // a real biome on a multi-biome world
         Assert.True(roster.Select(s => s.BiomeAffinity).Distinct().Count() >= 2, "fauna should spread across biomes");
+    }
+
+    // ---------------- Body plans (#637/#638), social groups (#639), diversity (#640) ----------------
+
+    [Fact]
+    public void MedusaPlan_HoldsItsInvariants_AndActuallyOccurs()
+    {
+        // Across many seeds the Medusa plan must appear (25 % of Air/Water species) and every medusa
+        // must hold the plan's shape: legless, tentacled 6–10, gas-sac'd, drifting — and never a threat.
+        var planet = _content.GetPlanet("jungle")!; // wet world → Air AND Water species roll the plan
+        int medusae = 0;
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            foreach (var sp in CreatureGenerator.GenerateRoster(planet, seed))
+            {
+                if (sp.BodyPlan != CreatureBodyPlan.Medusa)
+                {
+                    continue;
+                }
+
+                medusae++;
+                Assert.True(sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Water, "medusae drift in air or water");
+                Assert.Equal(0, sp.Legs);
+                Assert.False(sp.HasWings);
+                Assert.True(sp.HasGasSac);
+                Assert.InRange(sp.Tentacles, 6, 10);
+                Assert.InRange(sp.Eyes, 0, 2);
+                Assert.True(sp.Temperament is CreatureTemperament.Passive or CreatureTemperament.Skittish,
+                    "a medusa is a mood piece, never a hunter");
+                Assert.Equal(0f, sp.AttackDamage);
+                Assert.Equal(LocomotionStyle.Drifter, sp.LocoStyle);
+                if (sp.Habitat == CreatureHabitat.Air)
+                {
+                    Assert.InRange(sp.HoverAltitude, 3f, 12f);
+                }
+            }
+        }
+
+        Assert.True(medusae > 0, "the Medusa plan must actually occur across 40 seeds of a wet world");
+    }
+
+    [Fact]
+    public void TitanPlan_HoldsItsInvariants_AndActuallyOccurs()
+    {
+        // Across many seeds the Titan plan must appear (18 % of Land species) and every titan must hold
+        // the plan's shape: huge, four pillar legs, tanky, generous drops — and never a pack-hunter.
+        var planet = _content.GetPlanet("jungle")!;
+        int titans = 0;
+        for (long seed = 1; seed <= 40; seed++)
+        {
+            foreach (var sp in CreatureGenerator.GenerateRoster(planet, seed))
+            {
+                if (sp.BodyPlan != CreatureBodyPlan.Titan)
+                {
+                    continue;
+                }
+
+                titans++;
+                Assert.Equal(CreatureHabitat.Land, sp.Habitat);
+                Assert.InRange(sp.Size, 3.5f, 6f);
+                Assert.Equal(4, sp.Legs);
+                Assert.NotEqual(CreatureTemperament.PackHunter, sp.Temperament);
+                Assert.True(sp.MaxHealth >= 100f, "a titan hunt must be a real fight");
+                Assert.True(sp.AttackDamage > 0f, "a provoked titan must genuinely hurt");
+                Assert.InRange(sp.DropCount, 3, 6);
+                Assert.InRange(sp.NeckLength, 0, 3);
+                Assert.InRange(sp.SocialGroupSize, 2, 4); // titans always come as a small herd (#639)
+            }
+        }
+
+        Assert.True(titans > 0, "the Titan plan must actually occur across 40 seeds");
+    }
+
+    [Fact]
+    public void SocialGroupSizes_StayInRange_AndSolitaryIsTheCommonCase()
+    {
+        var planet = _content.GetPlanet("jungle")!;
+        int solitary = 0, social = 0;
+        for (long seed = 1; seed <= 30; seed++)
+        {
+            foreach (var sp in CreatureGenerator.GenerateRoster(planet, seed))
+            {
+                Assert.InRange(sp.SocialGroupSize, 1, 5);
+                if (sp.SocialGroupSize > 1) social++; else solitary++;
+
+                if (sp.Habitat == CreatureHabitat.Water && sp.LocoStyle == LocomotionStyle.Schooler
+                    && sp.BodyPlan == CreatureBodyPlan.Standard)
+                {
+                    Assert.InRange(sp.SocialGroupSize, 3, 5); // schoolers always school (#639)
+                }
+            }
+        }
+
+        Assert.True(social > 0, "some species must be social across 30 seeds");
+        Assert.True(solitary > social, "solitary must stay the common case");
+    }
+
+    [Fact]
+    public void DiversityGuarantee_EveryLivingWorldFieldsAGroundSpeciesAndAFlier()
+    {
+        // #640: whatever the rolls, the adjustable (appended) roster slots are re-drawn so no living
+        // world is all-cave or all-sea. Ground + flier are the top priorities and always fit into the
+        // ≥2 appended slots; aquatic is additionally guaranteed on water worlds when a slot remains.
+        foreach (var key in new[] { "jungle", "desert", "ocean", "ice", "varied" })
+        {
+            var planet = _content.GetPlanet(key);
+            if (planet is null || planet.IsAirless)
+            {
+                continue;
+            }
+
+            for (long seed = 1; seed <= 25; seed++)
+            {
+                var roster = CreatureGenerator.GenerateRoster(planet, seed);
+                if (roster.Count == 0)
+                {
+                    continue; // "none" worlds stay lifeless
+                }
+
+                Assert.Contains(roster, s => s.Habitat == CreatureHabitat.Land);
+                Assert.Contains(roster, s => s.Habitat == CreatureHabitat.Air);
+            }
+        }
+    }
+
+    [Fact]
+    public void RosterSlots_AreIndependentOfTheRosterSize_SoLegacySpeciesSurviveTheBump()
+    {
+        // #640: each species draws its own sub-seed (planetSeed ^ i·golden), so a slot's rolls must not
+        // depend on how many slots the roster has, and the diversity pass must only ever touch indices
+        // at/above the legacy count. Proof: the same planet at "few" (legacy prefix 3) and "many"
+        // (legacy prefix 6) must produce identical species in slots 0–2 — which is exactly why worlds
+        // created before the bump keep the animals their players know.
+        var planet = ContentLoader.LoadFromDirectory(TestPaths.DataDir()).GetPlanet("jungle")!;
+        for (long seed = 1; seed <= 10; seed++)
+        {
+            planet.CreatureAbundance = "few";
+            var few = CreatureGenerator.GenerateRoster(planet, seed);
+            planet.CreatureAbundance = "many";
+            var many = CreatureGenerator.GenerateRoster(planet, seed);
+
+            for (int i = 0; i < 3; i++) // below BOTH legacy prefixes — untouchable by the diversity pass
+            {
+                Assert.Equal(few[i].Name, many[i].Name);
+                Assert.Equal(few[i].ColorRgb, many[i].ColorRgb);
+                Assert.Equal(few[i].Temperament, many[i].Temperament);
+                Assert.Equal(few[i].Habitat, many[i].Habitat);
+                Assert.Equal(few[i].Size, many[i].Size);
+                Assert.Equal(few[i].BodyPlan, many[i].BodyPlan);
+            }
+        }
     }
 
     // ---------------- Live spawning & combat ----------------
@@ -264,14 +415,16 @@ public sealed class CreatureTests : IDisposable
             p.State.Position = new Vector3f(0, 64, 0);
 
             server.Tick(6.0);
-            var creature = server.Creatures.First();
+            // The weakest animal around — this test is about the kill → drop chain, not time-to-kill,
+            // and the first spawn can now be a titan (#638) that shrugs off six bare-handed swings.
+            var creature = server.Creatures.OrderBy(c => c.HullMax).First();
             var species = server.SpeciesRoster.First(s => s.Id == creature.SpeciesId);
             int before = p.State.Inventory.CountOf(species.DropItem);
 
             // Fauna now spawns spread around the player, so step up to it before attacking.
             p.State.Position = creature.Position;
 
-            for (int i = 0; i < 6 && server.Creatures.Any(c => c.Id == creature.Id); i++)
+            for (int i = 0; i < 12 && server.Creatures.Any(c => c.Id == creature.Id); i++)
             {
                 server.AttackEntity("Ranger", creature.Id);
             }
