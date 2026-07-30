@@ -42,6 +42,10 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
+
+        /// <summary>Set while a scope draws its own reticle (see <see cref="BinocularOptic"/>); hides the HUD
+        /// crosshair for as long as it is up.</summary>
+        public static bool SuppressCrosshair;
         private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist, _compassWpDist;
         private Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
@@ -112,6 +116,13 @@ namespace BlocksBeyondTheStars.Client
             if (_canvas.enabled != show)
             {
                 _canvas.enabled = show;
+            }
+
+            // While the binocular optic is raised its own reticle takes over — two crosshairs stacked on top of
+            // each other read as a rendering bug (BinocularOptic owns the flag and always clears it).
+            if (_crosshair != null && _crosshair.activeSelf == SuppressCrosshair)
+            {
+                _crosshair.SetActive(!SuppressCrosshair);
             }
 
             if (show)

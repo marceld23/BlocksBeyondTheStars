@@ -75,6 +75,7 @@ Last updated: 2026-07-04.
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
 | **V** | Toggle first / third-person camera |
+| **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
 | **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
@@ -432,6 +433,26 @@ separate unlock; admins can still disable it through server world rules.
 - **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
   as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.
+
+### Binoculars & thermal vision
+- Craft **Binoculars** (`binoculars`, workshop recipe + a cheap blueprint). Select them and **right-click**
+  to raise the optic; each further right-click steps the magnification (**2× · 3.3× · 6×**) and one more
+  lowers them again. **Left-click** also lowers them. They cost no suit energy.
+- While raised, the mouse gets proportionally finer and the head-bob is damped, so a 6× view stays steady.
+  The scope draws its own reticle and a magnification readout; the optic drops automatically when you open
+  a menu, mount a speeder, switch hotbar slot or go third-person.
+- **They do not extend the render distance** — the world only exists as far as your view-distance setting
+  streams it, so magnification enlarges what is already there. Seeing *past* the haze is what thermal mode
+  is for.
+- **Thermal Binoculars** (`thermal_binoculars`) are the upgrade: research the blueprint (needs the
+  `binoculars` blueprint first) and craft them at the workshop — the recipe **consumes a plain pair**.
+  Press **I** while looking through them to switch infrared on and off.
+- In thermal mode the world reads cold and every energy signature glows **through terrain and haze**:
+  hostiles hot red-orange, wild animals amber (dimmer when asleep, icy while held in stasis), tamed
+  companions green, villagers and traders cyan-white, other players white, lava deep orange, and
+  settlements, factories, ruins, your bases and your ship as tall magenta columns. Each contact is
+  labelled with its name and distance. Contacts further than 220 m are shown at that distance along their
+  true bearing — the label still gives you the real range.
 
 ### Camera & photos
 - Craft a **Camera** (`camera`, workshop recipe + the cheap `camera` blueprint). Select it and **right-click**

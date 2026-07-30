@@ -404,6 +404,15 @@ namespace BlocksBeyondTheStars.Client
             var oreScan = root.AddComponent<OreScanView>();
             oreScan.Game = boot;
 
+            // Infrared overlay for the upgraded binoculars: cold-graded frame + through-terrain contact blobs.
+            // Idle (and free) until BinocularOptic switches it on.
+            var thermal = root.AddComponent<ThermalVision>();
+            thermal.Game = boot;
+            thermal.Camera = cam;
+            thermal.Remotes = remotes;
+            thermal.ReducedEffects = shell.Settings.ReducedEffects; // keep the contacts, drop the screen grade
+            pc.Thermal = thermal;
+
             // Night auroras on cold worlds ("Welten reicher" W-R4).
             var aurora = root.AddComponent<AuroraView>();
             aurora.Game = boot;

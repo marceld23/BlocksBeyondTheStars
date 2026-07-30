@@ -60,6 +60,16 @@
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 3 }, { "item": "glass", "count": 1 } ]
   },
   {
+    "key": "binoculars", "nameKey": "blueprint.binoculars.name", "descriptionKey": "blueprint.binoculars.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 1,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
+  },
+  {
+    "key": "thermal_binoculars", "nameKey": "blueprint.thermal_binoculars.name", "descriptionKey": "blueprint.thermal_binoculars.desc",
+    "category": "Tools", "prerequisites": [ "binoculars" ], "knowledgeCost": 4,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 1 } ]
+  },
+  {
     "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
     "category": "ShipExpansion", "prerequisites": [],
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]

@@ -59,6 +59,20 @@ namespace BlocksBeyondTheStars.Client
             return result;
         }
 
+        /// <summary>Visible remote avatars as (name, scene position) — the heat signatures the thermal optic
+        /// draws for other players. Hidden remotes (stealth field, or up in space) are skipped, so the scope
+        /// cannot be used to defeat a stealth field.</summary>
+        public IEnumerable<(string Name, Vector3 Scene)> Contacts()
+        {
+            foreach (var r in _remotes.Values)
+            {
+                if (!r.Hidden && r.Go != null)
+                {
+                    yield return (r.Name, r.Go.transform.position);
+                }
+            }
+        }
+
         private void Update()
         {
             if (!_subscribed && Game?.Network != null)

@@ -6786,6 +6786,49 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-30): binoculars + a thermal upgrade that shows every energy signature (#629/#630, branch feat/binoculars-thermal)
+
+On foot there was no way to look at anything at a distance. Two new craftable tools fix that, and both are
+**entirely client-side**: no protocol change, no server validation, no suit-energy cost.
+
+- **`binoculars`** — right-click the held item to raise the optic and step the magnification
+  (2× · 3.3× · 6×); another click lowers it. A scope surround, a centre reticle and a magnification
+  readout draw on their own canvas above the HUD, and the HUD crosshair is suppressed while up so the two
+  reticles never stack. Left-click lowers the optic instead of swinging at whatever the magnified
+  crosshair covers.
+- **`thermal_binoculars`** — the upgrade (blueprint `prerequisites: ["binoculars"]`, and the workshop
+  recipe **consumes** a plain pair, the same shape as `hand_scanner → advanced_scanner`). Press the new
+  remappable **`ToggleThermal`** action (default `N`) while looking through it: the frame is graded cold
+  (new `BlocksBeyondTheStars/Thermal` full-screen pass) and every energy signature glows **through
+  terrain** via pooled additive `ThermalMarker` quads in the Overlay queue — hostiles hot red-orange,
+  fauna amber (asleep dimmer, in stasis icy), tamed companions green, NPCs cyan-white, other players
+  white, lava deep orange, settlements/factories/ruins/bases/ship as magenta columns. Every contact
+  carries a `name · 143 m` range tag on the shared `ScreenLabelLayer`.
+
+Three things worth remembering:
+
+- **`PlayerController.UpdateCameraFeel` owns `Camera.fieldOfView`** — it rewrites it every frame, so the
+  optic only *publishes* `TargetFov`/`SensitivityScale`/`MotionScale` and the controller applies them. A
+  zoom written from anywhere else is eased straight back out. Look sensitivity **and** head-bob are scaled
+  by the same factor; at 6× an unscaled mouse is unusable.
+- **The contact data was already on the client, planet-wide.** Creatures, planet enemies (bandits +
+  drones), NPCs and the POI list are all `BroadcastToWorld` with no area-of-interest filter — only remote
+  *players* are distance-limited (and hidden/stealthed ones are skipped, so the scope can't defeat a
+  stealth field). POIs carry **X/Z only, no Y**, hence the tall bearing columns at the player's altitude
+  rather than fake silhouettes over unloaded terrain.
+- **No extra render distance, on purpose.** Terrain only exists inside the streamed view-distance radius
+  and `Sky.ApplyFog` caps the haze at exactly that edge (the #388 fix); the view distance is only sent in
+  the join request. Magnification therefore enlarges what is already streamed — the *range* payoff is the
+  thermal contacts, which read straight through the haze. Contacts beyond 220 m are pinned to that
+  distance along their true bearing (their tag still reports the real range) so a marker is never clipped
+  by the far plane.
+
+Also: lava is the one contact class that lives in the terrain rather than an entity list, so it is swept
+coarsely (every 3rd block, 1 Hz), merged into 6-block cells and capped at 90 blobs — a lava sea would
+otherwise cost hundreds of additive quads. Both new shaders are registered in `m_AlwaysIncludedShaders`
+(`Shader.Find` shaders are stripped otherwise), and the reduced-effects setting drops the full-screen
+grade while keeping the contacts.
+
 ## ✅ Done (2026-07-30): the flight chart reads as a star-system chart — drawn orbital paths (#623, branch feat/flight-chart-orbits)
 
 The in-flight chart (`M`, #597) already drew the system's bodies at their real flight coordinates, but

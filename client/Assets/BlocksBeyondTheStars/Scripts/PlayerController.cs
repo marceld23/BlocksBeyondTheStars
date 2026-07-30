@@ -20,6 +20,10 @@ namespace BlocksBeyondTheStars.Client
         public GameMenu Menu;
         public WeaponFx Weapons;
 
+        /// <summary>Infrared overlay for the upgraded binoculars (wired by <see cref="WorldRig"/>); handed to
+        /// the optic when the player first raises it.</summary>
+        public ThermalVision Thermal;
+
         public float MoveSpeed = 6f;
         public float JumpSpeed = 7f;
         public float Gravity = 20f;
@@ -140,6 +144,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyCameraMode()
         {
+            if (ThirdPerson)
+            {
+                _optic?.Lower(); // the scope is a first-person instrument; UpdateCameraFeel ignores zoom in 3rd
+            }
+
             if (Camera != null)
             {
                 Camera.transform.localPosition = ThirdPerson ? ThirdPersonEye : FirstPersonEye;
@@ -168,6 +177,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _heldKey = key;
+            _optic?.SetHeldItem(key); // swapping away from the binoculars can never strand a zoomed view
             var (kind, tint, blockKey) = HeldItem.For(Game?.Content, key);
             Avatar?.SetHeldItem(kind, tint, blockKey);
             _viewmodel?.SetHeldItem(kind, tint, blockKey);
@@ -875,6 +885,22 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SendScan("block", def.Key);
                 Weapons?.Pulse(new Vector3(b.x + 0.5f, b.y + 0.5f, b.z + 0.5f), new Color(0.4f, 0.85f, 1f));
             }
+        }
+
+        private BinocularOptic _optic;
+
+        /// <summary>Lazily builds the client-side binocular optic (zoom + the thermal overlay it drives).</summary>
+        private BinocularOptic EnsureOptic()
+        {
+            if (_optic == null)
+            {
+                _optic = gameObject.AddComponent<BinocularOptic>();
+                _optic.Game = Game;
+                _optic.Thermal = Thermal;
+                _optic.SetHeldItem(Game?.ItemInSlot(Game.SelectedHotbarSlot));
+            }
+
+            return _optic;
         }
 
         private CameraTool _cameraTool;
@@ -1592,8 +1618,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void LookAround()
         {
-            float mx = InputMap.LookX() * MouseSensitivity;
-            float my = InputMap.LookY() * MouseSensitivity * (InvertY ? -1f : 1f);
+            // A magnified view multiplies every mouse movement by the same factor, so the sensitivity has to
+            // come down with the field of view — at 6× an unscaled mouse is unusable.
+            float sens = MouseSensitivity * (_optic != null && _optic.Raised ? _optic.SensitivityScale : 1f);
+            float mx = InputMap.LookX() * sens;
+            float my = InputMap.LookY() * sens * (InvertY ? -1f : 1f);
             transform.Rotate(0f, mx, 0f);
             _pitch = Mathf.Clamp(_pitch - my, -89f, 89f);
             if (Camera != null)
@@ -2124,8 +2153,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Comfort: with CameraMotion off, bob/FOV-kick/shake all flatten to a steady camera.
-            float motion = CameraMotion ? 1f : 0f;
+            // The optic's zoom is applied HERE because this method owns the field of view: it rewrites it every
+            // frame, so a zoom written from anywhere else would be eased straight back out.
+            bool zoomed = _optic != null && _optic.Raised;
+
+            // Comfort: with CameraMotion off, bob/FOV-kick/shake all flatten to a steady camera. A magnified
+            // view amplifies the bob just like it amplifies the mouse, so damp it by the same factor.
+            float motion = (CameraMotion ? 1f : 0f) * (zoomed ? _optic.MotionScale : 1f);
             float amt = (_moving ? 1f : 0f) * motion;
             _bobPhase += dt * (_moving ? 9f : 0f) * motion;
             float bobY = Mathf.Sin(_bobPhase * 2f) * 0.035f * amt;
@@ -2134,7 +2168,11 @@ namespace BlocksBeyondTheStars.Client
             Vector3 eye = Vector3.Lerp(FirstPersonEye, CrouchEye, _crouchT);
             Camera.transform.localPosition = eye + new Vector3(bobX, bobY, 0f);
 
-            Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov + (_moving ? 4f * motion : 0f), dt * 40f);
+            // A big jump (raising, stepping or dropping the optic) travels fast so it feels like a click; the
+            // small walking kick keeps its original gentle 40°/s drift.
+            float targetFov = zoomed ? _optic.TargetFov(_baseFov) : _baseFov + (_moving ? 4f * motion : 0f);
+            float fovRate = Mathf.Abs(Camera.fieldOfView - targetFov) > 6f ? 160f : 40f;
+            Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, targetFov, dt * fovRate);
 
             float s = _camShake * motion;
             float sp = Mathf.Sin(Time.time * 80f) * s * 3f;
@@ -2194,6 +2232,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Left-click with the optic raised puts it away instead of swinging at whatever the magnified
+            // crosshair happens to cover — the natural "lower the binoculars and get to work" gesture.
+            if (mine && _optic != null && _optic.Raised)
+            {
+                _optic.Lower();
+                return;
+            }
+
             // Holding a scanner turns the primary action into a scan (select it in the hotbar, then aim + click).
             if (mine && HoldingScanner())
             {
@@ -2243,6 +2289,15 @@ namespace BlocksBeyondTheStars.Client
                 if (held == "camera")
                 {
                     EnsureCameraTool().TryCapture();
+                    return;
+                }
+
+                // Right-click the binoculars → raise the optic / step the magnification. Also client-only:
+                // the zoom costs nothing and the thermal contacts are all drawn from state the client already
+                // has, so there is nothing for the server to validate.
+                if (held == "binoculars" || held == "thermal_binoculars")
+                {
+                    EnsureOptic().Step();
                     return;
                 }
 

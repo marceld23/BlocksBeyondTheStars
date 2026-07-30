@@ -137,6 +137,8 @@ ITEMS = [
     ("brass_fitting", "a small polished brass pipe fitting coupling with threads"),
     ("matter_dust", "a small heap of softly glowing violet-grey crystalline matter dust, faint sci-fi energy sparkles rising from it"),
     ("camera", "a compact retro-futuristic handheld camera, dark rounded metal body with a large glassy cyan-tinted lens, a small shutter button on top and a glowing status light"),
+    ("binoculars", "a pair of rugged sci-fi field binoculars seen from the front, dark gunmetal twin barrels with big glassy cyan-tinted lenses, a knurled focus wheel between them and a worn strap lug"),
+    ("thermal_binoculars", "a pair of advanced sci-fi thermal binoculars seen from the front, dark armoured twin barrels with deep amber-orange infrared lenses, a small glowing red sensor module on top and orange status lights"),
 ]
 
 # Ship MODULES (builder UI). Space-view laser/tractor reuse ship_laser_basic / tractor_beam.

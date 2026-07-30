@@ -23,6 +23,7 @@ namespace BlocksBeyondTheStars.Client
         RepairWreck,       // repair the nearest wreck cell (on foot) — default R
         ToggleLamp,        // toggle the suit lamp — default L
         RotateShape,       // cycle a held building shape's orientation (auto → the 6 up-faces) — default R
+        ToggleThermal,     // infrared mode while looking through the thermal binoculars — default I
 
         // Flight / EVA (cockpit + spacewalk). Interact (dock/land/board) and ToggleThirdPerson (view) are
         // reused from the on-foot set so one binding works in both contexts.
@@ -106,6 +107,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
+            InputAction.ToggleThermal,
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -142,6 +144,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RepairWreck => KeyCode.R,
             InputAction.ToggleLamp => KeyCode.L,
             InputAction.RotateShape => KeyCode.R,
+            InputAction.ToggleThermal => KeyCode.I, // "infrared"; N was taken by the VEGA dialogue advance
             InputAction.FlightEnterInterior => KeyCode.F,
             InputAction.FlightPadChooser => KeyCode.L,
             InputAction.FlightAutopilot => KeyCode.P,
