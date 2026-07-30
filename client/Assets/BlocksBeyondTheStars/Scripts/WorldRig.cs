@@ -143,6 +143,7 @@ namespace BlocksBeyondTheStars.Client
             // Player chat overlay (Enter to type; needs a comm radio).
             var chat = root.AddComponent<ChatUi>();
             chat.Game = boot;
+            chat.Settings = shell.Settings; // live read for the chat-visibility comfort setting (#636)
 
             // Live push-to-talk voice chat (opt-in: server flag + the Concentus plugin via the BBS_VOICE define).
             // Inert otherwise; shares the radio gate + tiered reach with text chat.

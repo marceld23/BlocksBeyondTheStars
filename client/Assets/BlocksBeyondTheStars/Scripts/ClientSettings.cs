@@ -83,6 +83,14 @@ namespace BlocksBeyondTheStars.Client
     public enum MusicMode { Synth, Tracks }
 
     /// <summary>
+    /// How the in-game chat overlay behaves while the player is not typing. <see cref="Auto"/> = lines fade
+    /// out a few seconds after they arrive (the default); <see cref="Always"/> = the scrollback stays up;
+    /// <see cref="Off"/> = it never shows on its own. Opening the input always brings the recent lines back,
+    /// whatever the mode — /help and /report replies would be unreadable otherwise (#636).
+    /// </summary>
+    public enum ChatVisibility { Auto, Always, Off }
+
+    /// <summary>
     /// How the standalone window is presented. <see cref="Windowed"/> = a normal resizable, draggable
     /// window (can be moved to another monitor and maximized via the OS title bar); <see cref="Borderless"/>
     /// = borderless fullscreen filling the monitor the window currently sits on; <see cref="Exclusive"/> =
@@ -295,6 +303,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Minutes of continuous session play between break reminders (also the first reminder's delay).</summary>
         public int ReminderMinutes = 60;
+
+        /// <summary>How the chat overlay behaves when you are not typing — see <see cref="Client.ChatVisibility"/>.
+        /// Auto (the default) keeps the HUD clear without hiding what other players say.</summary>
+        public ChatVisibility ChatVisibility = ChatVisibility.Auto;
 
         /// <summary>Auto-stow loose materials/components into the ship's cargo hold the moment you board (tools
         /// and weapons stay on you). Off by default so boarding never silently empties your inventory; opt in to
