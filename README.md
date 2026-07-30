@@ -129,7 +129,7 @@ Community contributions we're grateful for:
 - **Maqbool Ahmed** ([@Maqbool61](https://github.com/Maqbool61)) — German localization: removed duplicate keys and fixed awkward wording in `de.json` ([#112](https://github.com/marceld23/BlocksBeyondTheStars/pull/112))
 - **Devin Dixon** ([@ProdigyView](https://github.com/ProdigyView)) — web support: browser-playable WebGL client (WebSocket transport) and optional PostgreSQL persistence backend ([#116](https://github.com/marceld23/BlocksBeyondTheStars/pull/116))
 - **[@SpaleRuby](https://github.com/SpaleRuby)** — accessibility review of the portal website: field labels, announced status messages, real form submission and the password-reset disclosure ([#574](https://github.com/marceld23/BlocksBeyondTheStars/issues/574))
-- **Alessandro** ([@alessandroquirino-lab](https://github.com/alessandroquirino-lab)) — Italian localization: the game's third language, translated from scratch group by group, starting with all 290 block names and descriptions ([#582](https://github.com/marceld23/BlocksBeyondTheStars/pull/582))
+- **Francesco Quirino** ([@alessandroquirino-lab](https://github.com/alessandroquirino-lab)) — Italian localization: the game's third language, translated from scratch group by group, starting with all 290 block names and descriptions ([#582](https://github.com/marceld23/BlocksBeyondTheStars/pull/582))
 
 **Playtesters** — hands-on testers whose feedback shaped the game:
 
