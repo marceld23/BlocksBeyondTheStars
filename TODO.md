@@ -102,6 +102,79 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Justus playtest batch: no more losing things + 7 wishes (#607–#617, 2026-07-29, PR #618)
+One afternoon of play produced three defects and seven feature wishes; all eleven shipped in one PR.
+
+**Data loss (#607).** `HandleCraft` consumed the inputs and then ignored `MaterialPool.Add`'s leftover
+return — a full pack destroyed both output and inputs while the client toasted success. The same
+consume-then-produce order was wrong in four more places (dye, re-shape, disassemble, door pickup) and in
+mining. New `MaterialPool.CanFit` dry-runs the adds against clones of both containers (backed by
+`Inventory.Clone`), so stack top-up, empty-slot allocation and competing outputs all count; every path now
+checks for room **before** consuming and refuses with `@inventory_full`. `BreakBlockAt` returns false and
+changes nothing when the drops (including a mined crate's stored stacks) would not fit — area mining leaves
+such blocks standing. Loot from something already destroyed cannot be refused after the fact, so `BankLoot`
+warns with `@loot_lost`. **(#610)** the craft toast now names the crafted *item* localized instead of
+echoing the raw recipe key, and craft failures no longer surface raw English server text.
+
+**World-fall (#608).** Placing into your own feet cell is deliberately allowed (pillar jumping) on the
+assumption the client collider lifts you; in a fast fall Unity's depenetration instead resolved *downward*,
+through every block below, forever. `OnBlockChanged` now lifts the player onto the cell top explicitly
+(also covers another player filling the cell), plus a cause-independent guard: the last safely-stood-on spot
+is remembered and restored after ~12 frames inside solid geometry or a drop below the build band (ladders
+and swimming excluded — a climber legitimately stands inside the ladder cell).
+
+**2-block gaps (#609).** The 1.8 m capsule leaves ~0.14 m headroom under a 2-high ceiling and the 0.6 m
+auto-step sweep ate far more, wedging players in their own doorways (the earlier skin-width fix only removed
+part of the cause). Step height is now capped to the headroom actually available.
+
+**Achievements (#614).** Plain named counters (`mine:any`, `mine:<block>`, `build:any`, `craft:any`,
+`craft:<recipe>`, `visit:body`, `defeat:any`); every achievement watching a bumped counter re-checks itself,
+so adding one over an existing counter is a data-only change in `data/achievements.json` (16 to start).
+Progress is a tally, not a flag, so the panel shows "3/5" with a bar and doubles as a what-next guide. A
+reward that does not fit **defers** the unlock rather than consuming it (repeating #607 would have been
+absurd); join re-settles, so achievements added after a save was made still pay out. Only a *first* arrival
+on a body counts. Rows are absolute-offset, not in a LayoutGroup (wrapped text overflows those here).
+
+**Torches (#616).** 1 wood log + 2 plant fibre at the HAND station → 4 torches. Meshed through the
+cross-billboard path, so **no collider** and no per-world flora tint, fixed size, no lean. Requires air:
+refused on atmosphere `none` with an actionable reason *before* the item is consumed (toxic is fine).
+Shader tint/anim mode **7** modulates the emissive term with two detuned sine bands plus a gust,
+phase-offset by world position; the light *cast* stays the steady baked block light. The player controller
+now distinguishes "solid" from "has a collider" so billboard props stop counting as geometry for the
+out-of-world guard and the auto-step ceiling check.
+
+**Wooden door (#611).** `door_wood`: 4 `wood_log` at the HAND station, hand-swung with E, returned on mine.
+`DoorItemFor` maps kind → item (picking one up no longer returns whatever the hinge/slide branch guessed)
+and `IsHandOperated` covers both swinging kinds. Tile derived from `wood_log`; atlas at 147/256.
+
+**Placement yaw (#615).** Worth recording what this did *not* need: `ShapeCode.Pack` has always carried
+shape × yaw × up-face (24 orientations) in both the chunk and wire formats, so no format field and no
+migration. Missing was control over the yaw (it came solely from `round(player.Yaw / 90)`):
+`PlaceBlockIntent` gains an explicit `Yaw` override (`-1` = old facing-derived behaviour, out-of-range falls
+back rather than corrupting the descriptor) and the rotate key walks the four quarter turns about the
+current up-face first, then the next face, then Auto. HUD hint names both ("+Y · 180°").
+
+**Singleplayer pause (#612).** The dialog said "Pause" but nothing stopped. Client-side freezing was not an
+option — singleplayer runs the bundled server as a *separate process*, so halting the client would freeze
+the camera while the world ran on. Implemented as a server intent (`PauseIntent`/`PauseState`, tags
+**182/183**): while held, `Tick` still polls the transport (the unpause must get through) and still runs the
+moderation/maintenance intake, but no simulation advances. Entering the hold also saves.
+
+**Star-map colour marks (#613).** Fixed six-colour palette (red/orange/yellow/green/blue/purple), named and
+translated rather than a colour picker. One button cycles colour → next → unmarked and is tinted in the
+current colour. Marked bodies get a halo in the animated orrery (riding the same orbit params) and a
+coloured bullet + colour name in the body list. Stored in `ClientSettings` grouped by world (body ids like
+`sys0-p5` repeat across saves) and **never sent to the server** — a private notebook, not world state.
+
+**Report list double-count (#617).** Every F1 report reaches the inbox twice by design (client →
+`/api/bugreport` directly so feedback survives someone else's dedicated server, *plus* the game server's
+rich `/bump` snapshot); since singleplayer gained a crash-upload sink both paths land, so 8 reports rendered
+as 16 rows. The list now pairs halves (within 8 s, same player/build/category, one description containing
+the other) into one row — player wording as label, linked to the record carrying screenshot + snapshot, a
+"+1" chip for the other, differing statuses shown as "new/done". **Render-time only:** ingest still stores
+both (a player report must never be dropped) and the read API still returns both, so delta-sync pullers are
+unaffected.
+
 ### ★ Throw unwanted loot away — and stop losing drops in silence (#599, #600, 2026-07-29, branch feat/discard-materials)
 There was **no way to get rid of an item**. Everything the inventory offered only *moved* it: the cargo
 hold, a storage crate, a trade, or the ✕ "Remove from quick-bar" — which is a *stow* into the backpack, not

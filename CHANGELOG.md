@@ -13,6 +13,43 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.23] — 2026-07-30
+
+The milestones release: the game finally tells you what you have achieved and what to try next.
+16 achievements track live progress with real item rewards, torches and hand-crafted wooden doors
+make a first base possible without a workshop, shaped blocks take the angle you choose, and some
+planets now carry Saturn-like rings you can see from their own surface. A flight system chart with
+nav waypoints and six-colour planet marks turn space into something you can navigate, and stacks
+holding 1024 mean a mining run no longer ends with a full pack. Rounding it off, this release
+closes the whole batch of playtest reports about **losing things**: a full inventory can no longer
+destroy what you craft or mine, you cannot fall through the world anymore, and a 2-block-high
+opening is walkable again.
+
+### 🏆 Achievements with rewards and live progress (#614)
+
+- **16 achievements across mining, building, crafting, exploring and survival** — from "mine 5 iron"
+  to visiting your first other planet. Each one shows **live progress as a tally with a filled bar**
+  ("3/5"), so the list doubles as a guide to what you could do next.
+- **Earning one hands you an item** — a medpack, an energy cell, ore, a better tool. If your pack is
+  full the unlock is *deferred*, not consumed: you are told to make room and it is awarded on the next
+  step of progress, so a reward can never be dropped into nowhere.
+- Progress and earned achievements are saved per player. Existing saves start at zero and settle on
+  join — which also means achievements added later are paid out on your next login.
+
+### 🔥 Torches and cheap wooden doors (#616, #611)
+
+- **Torches: 1 wood log + 2 plant fibre at the hand station makes four.** No workshop, no metal, no
+  research — lighting a first base is no longer a grind. Aim at a wall to mount one; it is a slim prop
+  with **no collider**, so you walk past torches instead of bumping into them, and the flame flickers
+  (neighbouring torches deliberately flicker out of step).
+- **A torch needs air.** On a body with no atmosphere placing one is refused with a reason you can act
+  on instead of leaving a dud that mysteriously gives no light. A toxic atmosphere is fine — you need a
+  suit, the flame does not.
+- **A wooden door from 4 wood logs at the hand station.** Both existing doors were deep in the tech
+  tree (metal panels, a bronze gear, a workshop; the sliding one a circuit board on top). The wooden
+  door swings by hand with E, reads in warm light wood so it is clearly not the metal one, and hands
+  itself back when you mine it.
+
 ### 🪐 Planetary rings (#596)
 
 - **Some planets now carry Saturn-like ring systems** — tilted, banded discs with seeded gaps and
@@ -36,6 +73,37 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   a free waypoint. The space radar shows it as an amber marker with its own live distance readout,
   and the VEGA autopilot (P, AI Core Mk2) now flies to *your* waypoint instead of just the nearest
   station. The waypoint clears automatically when you travel — no stale markers in the next world.
+
+### 🎨 Colour-marked planets in the star map (#613)
+
+- **Mark planets in space, several at once, each in its own colour.** Until now the only marker in the
+  game was the single planet-*surface* waypoint — one at a time, one colour, gone on travel. In the
+  travel screen a body now takes a mark from a fixed **six-colour palette** (red, orange, yellow,
+  green, blue, purple) — named and translated rather than a free colour picker.
+- **One button cycles colour → next colour → off**, tinted in the current colour, so marking and
+  recolouring need no extra controls. Marked bodies get a matching halo in the animated orrery (it
+  tracks its planet along the orbit) and a coloured bullet with the colour's name in the body list.
+- Marks are stored locally per world — your private notebook, never sent to the server.
+
+### 🪜 Choose the placement angle for shaped blocks (#615)
+
+- **The rotate key now walks the quarter turns first.** Stairs, slabs and every other shaped block used
+  to derive their facing solely from the direction you were standing in, so getting the turn you wanted
+  meant shuffling around — impossible when building into a corner or against a wall. Rotate now steps
+  through the four quarter turns about the current up-face, then moves on to the next face, then back to
+  Auto, and the HUD hint names both parts ("+Y · 180°").
+- No world-format change and no save migration: the chunk and wire formats have always carried all 24
+  orientations — only the control over the yaw was missing.
+
+### ⏸️ The Esc menu really pauses a singleplayer world (#612)
+
+- **Nothing stopped before.** The dialog was already titled "Pause" with a "Resume" button, but hunger
+  drained, creatures kept hunting, night kept falling and the clock kept running while you read the
+  menu. Opening the menu in singleplayer now genuinely holds the simulation.
+- The hold is a server-side intent rather than a client freeze, because singleplayer runs the bundled
+  server as a separate process — stopping only the client would have frozen the camera while the world
+  carried on. Entering the hold also **saves**, which doubles as a safe point if the client never
+  comes back. Multiplayer is unaffected.
 
 ### 🎒 Stacks hold 1024 instead of 99 (#603)
 
@@ -61,7 +129,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   drops and craft outputs were destroyed without any message at all. You now get a warning instead — rarer
   now that stacks hold 1024, but no longer invisible when it does happen.
 
-### 🧭 Admin teleport by landmark, not by coordinates
+### 🛠️ Admin teleport by landmark, not by coordinates
 
 - **`/tp` takes a target word.** World admins can jump to a landmark on the body they are standing on —
   `/tp ship`, `/tp village2`, `/tp pad1`, `/tp factory1`, plus `ruin`, `vault`, `wreck`, `camp`,
@@ -82,6 +150,35 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   tracer shot are now cold blue — bought human tech, not alien machine.
 - **Every bandit looks like a different person.** Skin tone, hair, mask and jacket colour all vary,
   so a raider camp is a group of individuals instead of one face copied four times.
+
+### Fixed
+
+- **A full inventory no longer destroys what you make or mine (#607).** Crafting with all slots
+  occupied and no cargo hold in reach consumed the inputs, produced nothing and still showed a success
+  message. Craft, dye, re-shape, disassemble, mission turn-in and picking a placed door back up now
+  check for room *before* consuming anything and refuse with a clear message; mining leaves a block
+  standing (loot included) rather than clearing the cell and dropping its drops into nowhere, and area
+  mining skips such blocks instead of destroying the loot. Loot from something already destroyed warns
+  you instead of vanishing silently.
+- **You cannot fall through the world anymore (#608).** Placing a block into your own feet cell — which
+  the game allows on purpose so pillar jumping works — could, in a fast fall, wedge the collider inside
+  the new block and push it down through every block below, forever. You are now lifted onto the cell's
+  top explicitly, which also covers another player filling the cell. On top of that, the last safe spot
+  you stood on is remembered: being stuck inside solid geometry or dropping below the build band puts
+  you back there (ladders and swimming excluded).
+- **A 2-block-high opening can be walked through again (#609).** The 1.8 m capsule leaves ~0.14 m of
+  headroom under a 2-block ceiling, and the auto-step sweep ate far more than that, so players got
+  wedged in doorways they had built themselves. Step height is now capped to the headroom actually
+  available — slabs and stair treads are still climbed in the open.
+- **The craft toast is translated and names the item (#610).** It read "Crafted glass" in an otherwise
+  German UI, showing the raw recipe key; craft failures no longer push raw English server text at the
+  player either.
+- **The admin report list shows one row per report (#617).** Every in-game F1 report reaches the inbox
+  twice by design (client direct + the game server's richer snapshot), and the list counted both — a
+  batch of 8 player reports appeared as 16 rows. Matching halves are now paired into one row: the
+  player's own wording as the label, linked to the record that carries the screenshot and snapshot,
+  with a "+1" chip to reach the other. Ingest and the read API are unchanged — a player report is
+  never dropped.
 
 ## [2026.7.22] — 2026-07-29
 
@@ -1091,7 +1188,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...HEAD
+[2026.7.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...v2026.7.23
 [2026.7.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...v2026.7.22
 [2026.7.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...v2026.7.21
 [2026.7.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.19...v2026.7.20
