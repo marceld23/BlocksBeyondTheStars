@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,11 +13,17 @@ namespace BlocksBeyondTheStars.Client
     /// The flight system chart (#597): a top-down map of the CURRENT system opened while cruising
     /// (FlightMap action, default M) — the space sibling of the surface world map (M, #592). Drawn from
     /// the REAL flight coordinates (<see cref="SpaceView.Landables"/> + the live space entities), i.e.
-    /// exactly the positions the ship flies between, with the ship marker + heading in the middle of it.
+    /// exactly the positions the ship flies between, with the ship marker + heading on it.
     /// Clicking a body/station marker targets it; clicking empty space sets a free waypoint there. The
     /// waypoint shows on the space radar with a distance readout, and the VEGA autopilot steers to it.
     /// Opening takes menu ownership (the cursor arbiter frees the mouse and the ship holds position, as
     /// with the Tab travel screen); Esc or M closes.
+    /// <para>The chart is centred on the system's STAR and draws the orbital path of every body that
+    /// circles it (#623), so it reads as a chart of a star system rather than a scatter of discs. The
+    /// paths come from the bodies' PROJECTED positions (<see cref="SystemChartLayout"/>) — never from
+    /// their star-map orbit radii, which the render layout deliberately distorts — so every ring passes
+    /// exactly through its own marker. The markers themselves never move: the flight scene is a t=0
+    /// snapshot, so an animated body would drift away from the position the ship can actually fly to.</para>
     /// </summary>
     public sealed class SpaceMap : MonoBehaviour
     {
@@ -26,6 +34,10 @@ namespace BlocksBeyondTheStars.Client
         private const float ChartSize = 900f;     // square chart area, canvas units (1920×1080 reference)
         private const float ChartHalf = ChartSize * 0.5f - 30f; // usable radius: margin keeps rim markers inside
         private const float SnapRadius = 26f;     // click-snap distance to a marker, canvas units
+        private const float OrbitThickness = 2f;  // orbit-path line weight, canvas units (radius-independent)
+        private const float OrbitAlpha = 0.34f;   // faint enough to stay behind the markers it connects
+        private const float MaxBodyDisc = 46f;    // body discs are clamped to this diameter, however big the body
+        private const float MarkerPad = MaxBodyDisc * 0.5f + 8f; // chart room a rim body's disc + backing needs
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
@@ -38,6 +50,9 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _ship;
         private RectTransform _waypoint;
         private float _scale; // scene units → chart canvas units
+        private Vector3 _centre; // scene point the chart centres on: the star (Vector3.zero without a star map)
+        private string _systemName;
+        private readonly Dictionary<string, NetBody> _sysBodies = new(); // current system, by body id
         private readonly List<(string Id, Vector2 Chart, string Name)> _targets = new(); // snap candidates
         private readonly List<Image> _entityBlips = new();
 
@@ -128,14 +143,14 @@ namespace BlocksBeyondTheStars.Client
 
             _targets.Clear();
             _entityBlips.Clear();
+            LoadCurrentSystem();
 
             _canvas = UiKit.CreateCanvas("SpaceMapUI");
             _canvas.sortingOrder = 60; // above the flight HUD, like the surface map
             var root = _canvas.transform;
 
             UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.92f));
-            string sysName = CurrentSystemName();
-            UiKit.AddLogo(root, 40, 24, 700, 40, L("ui.spacemap.title").ToUpperInvariant() + (string.IsNullOrEmpty(sysName) ? string.Empty : "  —  " + sysName), 26);
+            UiKit.AddLogo(root, 40, 24, 700, 40, L("ui.spacemap.title").ToUpperInvariant() + (string.IsNullOrEmpty(_systemName) ? string.Empty : "  —  " + _systemName), 26);
 
             // Square chart on the left; a faint projection disc gives it the orrery look.
             const float ax = 40f, ay = 100f;
@@ -150,15 +165,25 @@ namespace BlocksBeyondTheStars.Client
             _chart = chartGo.GetComponent<RectTransform>();
             Centered(_chart, Vector2.zero, new Vector2(ChartSize - 8f, ChartSize - 8f), UiKit.DiscSprite, new Color(0.10f, 0.16f, 0.24f, 0.35f));
 
-            // Scale: fit every body (plus its rendered radius) and the ship into the chart. The star may
-            // sit far outside — it rim-pins rather than dictating the scale.
-            float extent = 60f;
+            // The chart centres on the system's STAR, so an orbit is a real circle around the middle of the
+            // chart (#623) and the star no longer has to be pinned to the rim. It costs some zoom where the
+            // launch body sits inside a far-flung asteroid's orbit — measured at up to 1.72× across real
+            // systems, bounded by a test, and absorbed by the 12-unit minimum disc size. Without a star map
+            // there is no star and nothing to orbit — fall back to the launch-body-centred chart.
             var landables = SpaceView != null ? SpaceView.Landables : null;
+            bool starCentred = SpaceView != null && SpaceView.HasStar;
+            _centre = starCentred ? SpaceView.StarPosition : Vector3.zero;
+
+            // Everything whose position has to fit: the bodies, the stations and the ship. Marker sizes are
+            // held back as a flat chart-unit margin instead of per-body scene radii — see FitScale.
+            var fitX = new List<float>();
+            var fitZ = new List<float>();
             if (landables != null)
             {
                 foreach (var b in landables)
                 {
-                    extent = Mathf.Max(extent, new Vector2(b.Pos.x, b.Pos.z).magnitude + b.Radius);
+                    fitX.Add(b.Pos.x);
+                    fitZ.Add(b.Pos.z);
                 }
             }
 
@@ -168,28 +193,55 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (e.Kind == "SpaceStation")
                     {
-                        extent = Mathf.Max(extent, new Vector2(e.X, e.Z).magnitude);
+                        fitX.Add(e.X);
+                        fitZ.Add(e.Z);
                     }
                 }
             }
 
             if (Camera != null)
             {
-                extent = Mathf.Max(extent, new Vector2(Camera.transform.localPosition.x, Camera.transform.localPosition.z).magnitude);
+                fitX.Add(Camera.transform.localPosition.x);
+                fitZ.Add(Camera.transform.localPosition.z);
             }
 
-            _scale = ChartHalf / (extent * 1.05f);
+            _scale = SystemChartLayout.FitScale(
+                ChartHalf, fitX.ToArray(), fitZ.ToArray(), _centre.x, _centre.z, MarkerPad);
 
-            // The star (rim-pinned when outside the chart).
-            if (SpaceView != null && SpaceView.HasStar)
+            // The star, at the true centre with a soft corona. Drawn before the orbit paths so the rings
+            // read on top of the glow rather than being swallowed by it.
+            if (starCentred)
             {
-                var sp = ToChart(SpaceView.StarPosition);
-                if (sp.magnitude > ChartHalf)
-                {
-                    sp = sp.normalized * ChartHalf;
-                }
+                Centered(_chart, Vector2.zero, new Vector2(64f, 64f), UiKit.DiscSprite, new Color(1f, 0.86f, 0.5f, 0.14f));
+                Centered(_chart, Vector2.zero, new Vector2(38f, 38f), UiKit.DiscSprite, new Color(1f, 0.89f, 0.58f, 0.45f));
+                Centered(_chart, Vector2.zero, new Vector2(24f, 24f), UiKit.DiscSprite, new Color(1f, 0.94f, 0.74f));
+            }
 
-                Centered(_chart, sp, new Vector2(26f, 26f), UiKit.DiscSprite, new Color(1f, 0.86f, 0.5f));
+            // Orbit paths: one ring per body that circles the star — planets and the landable asteroid
+            // bodies. Moons are deliberately left out: they are re-laddered onto clearance slots just
+            // outside their parent's drawn radius, so their rings would collapse into the planet's disc
+            // and turn the chart into noise. Each radius comes from the body's own projected position, so
+            // the ring is guaranteed to pass through its marker whatever the layout passes did to it.
+            if (starCentred && landables != null)
+            {
+                foreach (var b in landables)
+                {
+                    if (!OrbitsStar(BodyFor(b.Id)))
+                    {
+                        continue;
+                    }
+
+                    var p = ToChart(b.Pos);
+                    float r = SystemChartLayout.OrbitRadius(p.x, p.y);
+                    if (!SystemChartLayout.ShowRing(r))
+                    {
+                        continue;
+                    }
+
+                    var ringCol = BodyColor(b.Id);
+                    ringCol.a = OrbitAlpha;
+                    UiOrbitRing.Create(_chart, Vector2.zero, new Vector2(r * 2f, r * 2f), ringCol, OrbitThickness);
+                }
             }
 
             // Bodies: a coloured disc on a dark backing, radius-proportional, named — the same legibility
@@ -199,10 +251,21 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var b in landables)
                 {
                     var p = ToChart(b.Pos);
-                    float size = Mathf.Clamp(b.Radius * _scale * 2f, 12f, 46f);
+                    float size = Mathf.Clamp(b.Radius * _scale * 2f, 12f, MaxBodyDisc);
                     var col = BodyColor(b.Id);
                     Centered(_chart, p, new Vector2(size + 8f, size + 8f), UiKit.DiscSprite, DiscCol);
                     Centered(_chart, p, new Vector2(size, size), UiKit.DiscSprite, col);
+
+                    // A ringed planet (#596) wears its rings on the chart too: a flattened ellipse over the
+                    // disc, which is what a ring system looks like seen near-edge-on.
+                    var nb = BodyFor(b.Id);
+                    if (nb != null && nb.RingSeed != 0)
+                    {
+                        var glyph = Color.Lerp(col, Color.white, 0.5f);
+                        glyph.a = 0.85f;
+                        UiOrbitRing.Create(_chart, p, new Vector2(size * 2f, Mathf.Max(9f, size * 0.7f)), glyph);
+                    }
+
                     Label(_chart, p + new Vector2(0f, -size * 0.5f - 12f), b.Name);
                     _targets.Add((string.IsNullOrEmpty(b.Id) ? SpaceView.HomeWaypointId : b.Id, p, b.Name));
                 }
@@ -349,7 +412,8 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                var scene = new Vector3(lp.x / _scale, 0f, lp.y / _scale);
+                // Inverse of ToChart — the chart is centred on the star, so the centre offset comes back.
+                var scene = new Vector3(lp.x / _scale + _centre.x, 0f, lp.y / _scale + _centre.z);
                 float bounds = SpaceView != null ? SpaceView.FlightBounds : 130f;
                 if (scene.magnitude > bounds)
                 {
@@ -416,49 +480,74 @@ namespace BlocksBeyondTheStars.Client
             return null;
         }
 
-        private string CurrentSystemName()
+        /// <summary>Caches the system the player is in: its name (for the title) and its bodies by id, so
+        /// the per-body look-ups below don't re-walk the whole star map. The chart only ever shows this one
+        /// system.</summary>
+        private void LoadCurrentSystem()
         {
+            _systemName = null;
+            _sysBodies.Clear();
             var map = Game?.StarMap;
             if (map?.Systems == null)
             {
-                return null;
+                return;
             }
 
             foreach (var sys in map.Systems)
             {
+                bool mine = false;
                 foreach (var b in sys.Bodies)
                 {
                     if (b.Id == map.ActiveLocationId)
                     {
-                        return sys.Name;
+                        mine = true;
+                        break;
                     }
                 }
-            }
 
-            return null;
+                if (!mine)
+                {
+                    continue;
+                }
+
+                _systemName = sys.Name;
+                foreach (var b in sys.Bodies)
+                {
+                    if (!string.IsNullOrEmpty(b.Id))
+                    {
+                        _sysBodies[b.Id] = b;
+                    }
+                }
+
+                return;
+            }
         }
+
+        /// <summary>The star-map body behind a <see cref="SpaceView.Landables"/> entry, or null if the map
+        /// doesn't know it. The launch body's entry carries an EMPTY id (the scene is centred on it), so it
+        /// resolves through the active location — which is also why it now gets its real planet colour.</summary>
+        private NetBody BodyFor(string landableId)
+        {
+            string id = string.IsNullOrEmpty(landableId) ? Game?.StarMap?.ActiveLocationId : landableId;
+            return !string.IsNullOrEmpty(id) && _sysBodies.TryGetValue(id, out var body) ? body : null;
+        }
+
+        /// <summary>Whether this body circles the star itself and so gets an orbit path drawn: planets and
+        /// the landable asteroid bodies. A moon carries its parent's id and is deliberately excluded.</summary>
+        private static bool OrbitsStar(NetBody body)
+            => body != null
+            && string.IsNullOrEmpty(body.ParentId)
+            && (body.Kind == "Planet" || body.Kind == "AsteroidField");
 
         private Color BodyColor(string id)
         {
-            var map = Game?.StarMap;
-            if (!string.IsNullOrEmpty(id) && map?.Systems != null)
-            {
-                foreach (var sys in map.Systems)
-                {
-                    foreach (var b in sys.Bodies)
-                    {
-                        if (b.Id == id)
-                        {
-                            return SystemMapWidget.PlanetColor(b.PlanetType, b.Kind);
-                        }
-                    }
-                }
-            }
-
-            return new Color(0.6f, 0.85f, 0.7f); // the launch body (empty id) / unknown
+            var body = BodyFor(id);
+            return body != null
+                ? SystemMapWidget.PlanetColor(body.PlanetType, body.Kind)
+                : new Color(0.6f, 0.85f, 0.7f); // unknown to the star map
         }
 
-        private Vector2 ToChart(Vector3 scene) => new Vector2(scene.x, scene.z) * _scale;
+        private Vector2 ToChart(Vector3 scene) => new Vector2(scene.x - _centre.x, scene.z - _centre.z) * _scale;
 
         private static Vector2 Clamp(Vector2 p) => p.magnitude > ChartHalf ? p.normalized * ChartHalf : p;
 

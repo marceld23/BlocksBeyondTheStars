@@ -6786,6 +6786,52 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-07-30): the flight chart reads as a star-system chart — drawn orbital paths (#623, branch feat/flight-chart-orbits)
+
+The in-flight chart (`M`, #597) already drew the system's bodies at their real flight coordinates, but
+nothing showed that they *orbit* anything: the star was a dot pushed to the rim whenever it fell outside
+the framing, and the bodies read as a random scatter of discs. Client-only — every input was already on
+the client (`NetBody.SystemX/Z`, `ParentId`, `RingSeed`), so no wire/server/worldgen change and no world
+regeneration.
+
+- **Star-centred projection** — the chart now centres on the system's star (rim-pinning gone), drawn with
+  a soft three-layer corona, so an orbit is a real circle around the middle of the chart. `_centre` feeds
+  both `ToChart` and its **inverse in `HandleClick`** — the free-waypoint click would otherwise land at
+  the wrong scene position.
+- **Orbit paths for planets + landable asteroid bodies**, tinted from each body's own `PlanetColor` at
+  α 0.34. **Moons deliberately get none**: they are re-laddered onto `SystemBodyLayout.MinOrbitFor` slots
+  just outside their parent's drawn radius, so their rings would collapse into the planet's disc.
+- **`SystemChartLayout`** (new, in Shared next to `SystemBodyLayout` so it is testable) holds the two
+  invariants: the fit that keeps everything on the chart, and `OrbitRadius`, which derives a ring's radius
+  from the body's **projected** position — never from its star-map orbit radius, which the launch-body
+  pinning and `SeparateXZ` distort, so a ring drawn from the star-map value visibly misses its planet.
+- **`UiOrbitRing`** (new) — the client's first custom `MaskableGraphic`: a `VertexHelper` annulus with
+  radius-independent line weight. A stretched ring sprite scales its own thickness (fat outer orbits,
+  hairline inner ones); this is one draw element per ring instead of ~50 dot images. Default UI material,
+  so nothing to always-include. Reusable for any circle/line UI. A non-square rect gives an ellipse —
+  which is how a **`RingSeed != 0` planet now wears its #596 rings on the chart** (near-edge-on ellipse).
+- **Fit bugfix found on the way:** the old fit padded each body by its **scene** radius, while the drawn
+  discs are clamped to ≤ 46 units regardless — so the launch body, rendered 3.2× oversized, needlessly
+  zoomed the whole chart out. `FitScale` now measures positions and holds back a flat marker margin.
+- **Bonus:** the launch body finally gets its **real planet colour**. Its `Landables` entry carries an
+  empty id, so the old `BodyColor` always fell through to a pale green; it now resolves via
+  `StarMap.ActiveLocationId` through the new per-system `id → NetBody` cache (which also replaces two
+  full star-map walks per open).
+- **Measured, not assumed:** star-centring costs up to **1.72× zoom-out** on real systems (worst case:
+  the launch body sitting inside a far-flung asteroid's orbit). The 12-unit minimum disc size absorbs it,
+  and `StarCentring_CostsAtMostABoundedZoomOut` bounds it at 2× so a future layout change can't quietly
+  make the chart useless. An earlier assumption that star-centring would be *tighter* was wrong and the
+  test is what caught it.
+- Tests: `SystemChartLayoutTests` (6) over real `UniverseGenerator` systems, classic **and**
+  archetype-varied — everything fits, rings pass through their markers and stay on the chart, the
+  bounded zoom-out, plus a guard that the star-map radius is **not** interchangeable with the projection.
+- Deliberately **out**: moon rings, direction arrowheads / retrograde marking (the flight scene is a t=0
+  snapshot — the bodies never move, so an arrow would imply motion the game doesn't deliver), zoom/pan.
+  `SystemMapWidget` (the Tab travel-screen orrery) stays a decorative fake with invented orbits and now
+  visibly disagrees with the honest flight chart — worth a separate follow-up.
+
+---
+
 ## ✅ Done (2026-07-29): planetary rings + flight system chart with nav waypoint (#596/#597, branch feat/planet-rings-space-map)
 
 Two features in one pass (Marcel: "beides komplett in einem Rutsch"):
