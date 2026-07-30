@@ -6832,7 +6832,8 @@ On foot there was no way to look at anything at a distance. Two new craftable to
   crosshair covers.
 - **`thermal_binoculars`** — the upgrade (blueprint `prerequisites: ["binoculars"]`, and the workshop
   recipe **consumes** a plain pair, the same shape as `hand_scanner → advanced_scanner`). Press the new
-  remappable **`ToggleThermal`** action (default `N`) while looking through it: the frame is graded cold
+  remappable **`ToggleThermal`** action (default `I` — `N` was taken by the VEGA dialogue advance) while
+  looking through it: the frame is graded cold
   (new `BlocksBeyondTheStars/Thermal` full-screen pass) and every energy signature glows **through
   terrain** via pooled additive `ThermalMarker` quads in the Overlay queue — hostiles hot red-orange,
   fauna amber (asleep dimmer, in stasis icy), tamed companions green, NPCs cyan-white, other players

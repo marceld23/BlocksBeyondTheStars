@@ -13,6 +13,75 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.7.24] — 2026-07-30
+
+The long-view release: on foot you can finally look into the distance. Binoculars zoom up to 6×, and
+their thermal upgrade paints every energy signature — creatures, bandits, NPCs, lava, whole settlements —
+straight through terrain and haze, each with its name and range. Closer to home, villages and cities now
+keep a glass greenhouse of ripe berries you may walk into and harvest, and stations grow the same crop
+in a hydroponics bay. The in-flight system chart stops reading as a random scatter of discs — it is
+centred on its star now and draws the orbit each planet actually rides — and a click on it finally lands
+where you made it. Rounding it off, two community contributions: the game speaks a third language,
+Italian, translated from scratch by a player, and the portal website works with a keyboard and a screen
+reader after a stranger took the time to write down what was broken.
+
+### 🔭 Binoculars, and a thermal upgrade that sees through walls (#629, #630)
+
+- **Binoculars** — a workshop tool (2 iron plates, 2 glass, 1 cable; blueprint 1 data fragment, 4 iron
+  plates, 2 glass). Hold them and **right-click to raise the optic**, right-click again to step the
+  magnification (**2× · 3.3× · 6×**), once more to lower it. A scope surround, a centre reticle and the
+  magnification are drawn over the view, look sensitivity and head-bob are damped along with the zoom
+  (at 6× an undamped mouse is unusable), and the optic drops itself when you switch item, open a menu,
+  board a speeder or fly.
+- **Thermal binoculars** — the upgrade: the workshop recipe *consumes* a plain pair (plus titanium,
+  a circuit board and crystal), so you carry one optic, not two. Press **I** while looking through them
+  and the world grades cold while **every energy signature lights up through terrain**: hostiles hot
+  red-orange, wildlife amber (dimmer asleep, icy in stasis), your tamed companions green, NPCs
+  cyan-white, other players white, lava deep orange, and settlements, factories, ruins, bases and your
+  ship as magenta bearing columns. Each contact carries its **name and range** ("Bandit camp · 143 m").
+- **This does not extend your view distance** — terrain only exists as far as the world is streamed
+  around you, and that is where the haze ends. What the thermal mode buys you is *contacts*: they read
+  straight through the fog, so you can tell what is out there before you walk into it. Anything past the
+  streamed edge is drawn at that edge along its true bearing, with the real distance in its tag.
+- Stealthed players stay invisible — the scope cannot defeat a stealth field. The reduced-effects setting
+  drops the full-screen grade and keeps the contacts. The thermal key is rebindable in Settings → Controls.
+
+### 🌱 Greenhouses in settlements and stations (#626, #627, #628)
+
+- **Every village and city now keeps a greenhouse you can walk into and harvest.** A village grows berries
+  in soil beds under a timber frame with a pitched glass gable, lit by a torch behind a hinged door; a town
+  or city runs a **two-tier hydroponics bay** — iron frame, full glass shell, trays on the floor and on a
+  rack above, ceiling grow lights that make it glow at night, and a sliding door. A city keeps 2–3, a town
+  1–2, a village one. Beds run along the aisle, so walking in doesn't put you in the crops. Ruined
+  settlements get the shattered shell.
+- **Greenhouse berries are always safe to eat.** Wild plants roll toxic on about a third of all worlds —
+  a village greenhouse would have grown poison. The cultivated crop never joins a world's wild flora, never
+  turns toxic and keeps its ripe red on every planet. Wild flora keeps rolling toxic, as before.
+- **You may pick a plant, but never dismantle a house.** Settlement and station blocks are protected from
+  mining, which also made the berries unpickable — plants are now exempt, and a picked crop **regrows on
+  its bed**, so a greenhouse is a renewable food source rather than a one-time raid.
+- **Stations grow food too.** Space stations carry the same hydroponics bay, and plants aboard them now
+  actually regrow (worlds without a planet surface skipped the whole growth cycle before).
+- **Grow your own:** 3 berries make 2 **berry seeds** by hand, and a **hydro tray** (workshop: metal panel,
+  glass, plant fibre) lets you farm without soil — plant a bed at your own base.
+- **New worlds only** — settlements and stations are built when a world is created, so existing saves keep
+  their current villages.
+
+### 🧭 The flight chart reads as a star-system chart (#623)
+
+- **The system chart (M in flight) is centred on its star now** and every planet — and every landable
+  asteroid — rides a drawn **orbit ring in its own colour**. Until now the star was a dot shoved against
+  the rim whenever the framing lost it, and the bodies read as a scatter with nothing to say they orbit
+  anything at all. A planet with rings (#596) wears them here too, as an ellipse.
+- **A click now lands where you made it.** Setting a nav waypoint on the chart put it somewhere else
+  entirely, and clicking a body to target it practically never took — the chart read clicks half a chart
+  away from where the markers live. Both directions of the projection now come from one place, so they
+  cannot drift apart again. *(Present since the chart arrived in 2026.7.23.)*
+- The chart also stopped zooming out for no reason (the oversized body you launched from was padding the
+  fit), and that body finally shows its real planet colour instead of a stand-in pale green.
+- Moons deliberately get no ring — they sit on ladder slots just outside their parent, where a ring would
+  collapse into its disc. The surface planet map is untouched.
+
 ### 🇮🇹 Italian, the third language (#99, #582)
 
 - **The game speaks Italian now** — well, the block names do. All 290 block names and descriptions were
@@ -22,12 +91,6 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   instead of having to be finished before it works at all.
 - Italian is **not offered in the settings menu yet**: it appears there once enough of the interface is
   covered. Until then it loads for anyone who selects it by hand in `client_settings.json`.
-
-### 🛠️ Internal
-
-- A locale-coverage tool (`tools/locale_report.py`) reports per-language and per-key-group translation
-  progress, and CI now checks contributed locale files for invented keys, lost `{0}` placeholders and
-  blank values — so a translator gets told by the machine instead of in review.
 
 ### ♿ Portal website accessibility (#574)
 
@@ -42,6 +105,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   recovery fields, and keyboard users get a clearly visible focus ring across the whole portal.
 
 Found and reported by [@SpaleRuby](https://github.com/SpaleRuby) — thank you!
+
+### 🛠️ Internal
+
+- A locale-coverage tool (`tools/locale_report.py`) reports per-language and per-key-group translation
+  progress, and CI now checks contributed locale files for invented keys, lost `{0}` placeholders and
+  blank values — so a translator gets told by the machine instead of in review.
+- `SystemChartLayout` (Shared) holds the flight chart's projection and its inverse together, covered by
+  round-trip tests over real generated star systems.
+- Greenhouses ship with 20 new tests, two of them end to end — harvest and regrow a crop in a real stamped
+  village, and the same aboard a boarded station.
+- Both binocular tools are purely client-side: no protocol change, no server validation, no suit-energy
+  cost. The two new shaders are registered as always-included so they survive player builds.
 
 ## [2026.7.23] — 2026-07-30
 
@@ -1218,7 +1293,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...HEAD
+[2026.7.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...v2026.7.24
 [2026.7.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...v2026.7.23
 [2026.7.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...v2026.7.22
 [2026.7.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.20...v2026.7.21
