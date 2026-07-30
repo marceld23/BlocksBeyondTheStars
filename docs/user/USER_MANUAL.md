@@ -80,6 +80,7 @@ Last updated: 2026-07-04.
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
 | **Enter** | Open the chat box (Esc cancels) |
+| **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
 | **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
 | **Esc** | Close the current screen; if no game screen is open, show the leave-game confirmation |
 
@@ -604,6 +605,9 @@ reminds you.
 ### Chat
 - Press **Enter**, type, **Enter** to send (scrollback in the chat panel). Normal chat requires a **comm
   radio** in your inventory; messages are rate-limited and length-capped.
+- The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
+  brings the recent lines back). Prefer it always visible — or never? **Settings → Comfort → Chat
+  display** offers *Fade out / Always on / Off*, and **J** hides/shows it on the spot for the session.
 
 ### Radio reach (tiered) — text **and** voice
 Your radio determines **how far** your comms carry — text chat and voice both follow the same reach:
@@ -656,6 +660,12 @@ player must be an **admin** (`IsAdmin` — the world creator, or a name in the s
 the server's `CheatsAllowed` rule must be on; otherwise the command is rejected with a message. Every use
 is logged (`[CHEAT] …`). Type **`/help admin`** in chat to see the list in-game — plain `/help` is the
 short player help (`/report`, `/bump`) so a normal player is not buried under commands they cannot run.
+
+**Singleplayer & hosting from the game:** cheats are enabled out of the box (`--admin-cheats true` is
+passed by the bundled host) — as the world creator you can use all of these immediately. Friends who
+join your hosted world still cannot: they are not admins. On a **dedicated** server the rule stays off
+unless the operator starts it with `--admin-cheats true`. Command replies (target lists, results,
+rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 
 | Command | Effect |
 |---|---|

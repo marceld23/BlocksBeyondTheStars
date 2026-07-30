@@ -105,6 +105,11 @@ namespace BlocksBeyondTheStars.Client
                     ChunkStreamBudgetMs = 6.0,
                 };
 
+                // Same as the native bundled host (#642): the solo player is the WorldAdmin, so admin
+                // cheat commands (/tp, /give, /fly …) work out of the box in browser singleplayer too.
+                config.Rules.AdminCheats = true;
+                config.Rules.AllowCheatsInSurvival = true;
+
 #if UNITY_WEBGL && !UNITY_EDITOR
                 // IL2CPP/WASM cannot run MessagePack's contractless runtime formatters (the reason the
                 // WebSocket edge speaks the JSON envelope). The in-process server shares this process,

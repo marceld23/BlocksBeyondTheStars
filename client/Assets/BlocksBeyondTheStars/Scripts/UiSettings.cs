@@ -165,6 +165,10 @@ namespace BlocksBeyondTheStars.Client
             Head(ref y, L("ui.settings.comfort"));
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
+            // Chat overlay: fade out on its own (default), stay up, or never show unprompted (#636). The
+            // in-game toggle key does the same thing for one session without opening this menu.
+            Cycle(ref y, L("ui.settings.chat_visibility"), L(ChatVisibilityLabel(S.ChatVisibility)),
+                () => { S.ChatVisibility = NextChatVisibility(S.ChatVisibility); Rebuild(); });
             Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });
             // Reminder interval: 15-minute steps from 15 min up to 4 hours; greyed in effect when the toggle is off.
             Stepper(ref y, L("ui.settings.reminder_interval"), (S.ReminderMinutes - 15) / 225f, 15, 240,
@@ -328,6 +332,22 @@ namespace BlocksBeyondTheStars.Client
             y += 52f;
         }
 
+        /// <summary>Locale key for a chat-visibility mode's button caption.</summary>
+        private static string ChatVisibilityLabel(ChatVisibility mode) => mode switch
+        {
+            ChatVisibility.Always => "ui.settings.chat_visibility.always",
+            ChatVisibility.Off => "ui.settings.chat_visibility.off",
+            _ => "ui.settings.chat_visibility.auto",
+        };
+
+        /// <summary>Cycles the chat-visibility setting: auto → always → off → auto.</summary>
+        private static ChatVisibility NextChatVisibility(ChatVisibility mode) => mode switch
+        {
+            ChatVisibility.Auto => ChatVisibility.Always,
+            ChatVisibility.Always => ChatVisibility.Off,
+            _ => ChatVisibility.Auto,
+        };
+
         private static string KeyLabel(InputAction action) => action switch
         {
             InputAction.Interact => "ui.key.interact",
@@ -340,6 +360,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.ToggleLamp => "ui.key.toggle_lamp",
             InputAction.RotateShape => "ui.key.rotate_shape",
             InputAction.ToggleThermal => "ui.key.toggle_thermal",
+            InputAction.ToggleChat => "ui.key.toggle_chat",
             InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
             InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
             InputAction.FlightAutopilot => "ui.key.flight_autopilot",

@@ -250,6 +250,18 @@ public sealed partial class GameServer
             _log.Info("Free space flight enabled for this world by server launch rules.");
         }
 
+        // Same lift for admin cheats (#642): every existing singleplayer save baked AdminCheats=false
+        // (the flag predates --admin-cheats), so without this the launcher's opt-in would only ever
+        // reach freshly created worlds. Launch-config cheats are an explicit operator choice — the
+        // bundled host always passes the flag; dedicated servers only when started with it.
+        if (launchRules.AdminCheats && !_config.Rules.AdminCheats)
+        {
+            _config.Rules.AdminCheats = true;
+            _config.Rules.AllowCheatsInSurvival |= launchRules.AllowCheatsInSurvival;
+            _meta.RulesOverride = _config.Rules.Clone();
+            _log.Info("Admin cheats enabled for this world by server launch rules.");
+        }
+
         _repo.SaveMetadata(_meta);
 
         _generator = new WorldGenerator(_meta.Seed, _content);

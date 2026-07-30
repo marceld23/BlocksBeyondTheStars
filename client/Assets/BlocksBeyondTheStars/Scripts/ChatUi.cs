@@ -8,22 +8,58 @@ using UnityEngine.UI;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Player chat overlay (bottom-left), built in the modern uGUI design: a scrollback of recent lines
-    /// plus an input box opened with <b>Enter</b> (Esc cancels). Sending requires a comm radio
-    /// (server-enforced; the rejection shows as a toast). Messages broadcast to all connected players.
+    /// Player chat overlay, built in the modern uGUI design: a scrollback of recent lines plus an input box
+    /// opened with <b>Enter</b> (Esc cancels). Sending requires a comm radio (server-enforced; the rejection
+    /// shows as a toast). Messages broadcast to all connected players.
+    ///
+    /// The log gets out of the way by itself: lines age out after <see cref="FadeSeconds"/> unless the
+    /// player picked another <see cref="ChatVisibility"/>, and the toggle key (default J) mutes it for the
+    /// session. Opening the input always brings the recent lines back, whatever the mode — /help and
+    /// /report answers would be unreadable otherwise (#636).
     /// </summary>
     public sealed class ChatUi : MonoBehaviour
     {
         public GameBootstrap Game;
 
-        private readonly List<string> _lines = new();
+        /// <summary>Live client settings, for the chat visibility mode. Null-safe: unassigned behaves like
+        /// the default (auto-fade).</summary>
+        public ClientSettings Settings;
+
+        private readonly List<ChatLine> _lines = new();
         private Canvas _canvas;
         private Text _log;
         private RectTransform _inputRow;
         private InputField _input;
-        private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown;
+        private bool _typing, _subscribed, _built, _hostAnnounced, _reportTipShown, _hiddenByKey, _capturing;
         private int _openFrame = -1;
+        private float _nextRefresh = float.MaxValue;
         private const int MaxLog = 40;
+        private const int VisibleLines = 12; // the 310-px lane fits 12 rows; a /tp list is usually 8-15 lines
+        private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
+        private const float FadeOutSeconds = 0.6f; // the dim-out at the end (one Text = the block fades as one)
+
+        // The free left lane in HUD reference space (1536×864) — see EnsureBuilt.
+        private const float LaneX = 10f, LaneW = 380f;
+
+        /// <summary>A scrollback entry with the (unscaled) time it arrived, which is what the fade reads.</summary>
+        private readonly struct ChatLine
+        {
+            public ChatLine(string text, float time)
+            {
+                Text = text;
+                Time = time;
+            }
+
+            public string Text { get; }
+
+            public float Time { get; }
+        }
+
+        /// <summary>Chat visibility for THIS frame: the player's setting, unless the toggle key muted the
+        /// log for the session.</summary>
+        private ChatVisibility Mode => _hiddenByKey
+            ? ChatVisibility.Off
+            : Settings?.ChatVisibility ?? ChatVisibility.Auto;
 
         private void Update()
         {
@@ -37,6 +73,11 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed)
             {
                 Game.Network.ChatReceived += OnChat;
+                // Server replies land in the scrollback too (#642): a /tp target list arrives as a burst
+                // of ServerMessages, and the single-line HUD toast (GameBootstrap.LastMessage) shows only
+                // whichever line came last. The toast path stays — chat is the readable copy.
+                Game.Network.ServerMessageReceived += OnServerMessage;
+                Game.Network.ActionRejected += OnActionRejected;
                 _subscribed = true;
             }
 
@@ -46,8 +87,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _hostAnnounced = true;
                 string line = Game.Localizer.Get("ui.host.address_line").Replace("{addr}", Game.HostInfo);
-                _lines.Add($"<color=#80E5D2>{ChatMarkup.RichSafe(line)}</color>");
-                RefreshLog();
+                Append($"<color=#80E5D2>{ChatMarkup.RichSafe(line)}</color>");
                 Game.ShowMessage(line);
             }
 
@@ -56,7 +96,24 @@ namespace BlocksBeyondTheStars.Client
             if (!_reportTipShown && !string.IsNullOrEmpty(Game.HostedToken) && !string.IsNullOrEmpty(Game.PortalSession) && Game.Localizer != null)
             {
                 _reportTipShown = true;
-                _lines.Add($"<color=#80E5D2>{ChatMarkup.RichSafe(Game.Localizer.Get("ui.chat.report_tip"))}</color>");
+                Append($"<color=#80E5D2>{ChatMarkup.RichSafe(Game.Localizer.Get("ui.chat.report_tip"))}</color>");
+            }
+
+            // Context hiding, mirroring the HudUi rules: while piloting the ship the flight view draws its
+            // own overlay and the left lane belongs to it; EVA keeps the chat (you are still "on foot").
+            // Typing overrides — the input must never vanish mid-sentence, however the state flips. The
+            // /bump capture guard: that path blanks the canvas itself for its end-of-frame screenshot, and
+            // this toggle must not fight it within the frame.
+            bool hideForContext = Game.SpaceViewActive && !Game.InEva && !_typing;
+            if (_canvas != null && !_capturing && _canvas.enabled == hideForContext)
+            {
+                _canvas.enabled = !hideForContext;
+            }
+
+            // Fade tick: the scrollback ages out on its own, so re-render when the next line is due to go
+            // (RefreshLog parks _nextRefresh at float.MaxValue whenever nothing is pending).
+            if (Time.unscaledTime >= _nextRefresh)
+            {
                 RefreshLog();
             }
 
@@ -65,6 +122,28 @@ namespace BlocksBeyondTheStars.Client
             {
                 OpenInput();
             }
+
+            // Mute/unmute the scrollback for this session (default J). The setting picks the default
+            // behaviour; this is the in-the-moment "get it off my screen" without opening the menu.
+            if (!_typing && !Game.MenuOpen && InputMap.Down(InputAction.ToggleChat))
+            {
+                _hiddenByKey = !_hiddenByKey;
+                Game.ShowMessage(L(_hiddenByKey ? "ui.chat.hidden" : "ui.chat.shown"));
+                RefreshLog();
+            }
+        }
+
+        /// <summary>Appends a rendered line to the scrollback, stamped with the moment it arrived (the fade
+        /// reads that), trims the buffer and re-renders.</summary>
+        private void Append(string rendered)
+        {
+            _lines.Add(new ChatLine(rendered, Time.unscaledTime));
+            if (_lines.Count > MaxLog)
+            {
+                _lines.RemoveAt(0);
+            }
+
+            RefreshLog();
         }
 
         /// <summary>Opens the chat input box (the same path as pressing Enter). Public so the touch layer's
@@ -98,6 +177,8 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.ChatReceived -= OnChat;
+                Game.Network.ServerMessageReceived -= OnServerMessage;
+                Game.Network.ActionRejected -= OnActionRejected;
             }
 
             if (Game != null && _typing)
@@ -110,13 +191,28 @@ namespace BlocksBeyondTheStars.Client
         {
             // Sender and text are neutralised first — the log parses rich text, so an unescaped chat line
             // could otherwise recolour or resize everyone's scrollback.
-            _lines.Add($"<b>{ChatMarkup.RichSafe(m.Sender)}:</b> {ChatMarkup.RichSafe(m.Text)}");
-            if (_lines.Count > MaxLog)
-            {
-                _lines.RemoveAt(0);
-            }
+            Append($"<b>{ChatMarkup.RichSafe(m.Sender)}:</b> {ChatMarkup.RichSafe(m.Text)}");
+        }
 
-            RefreshLog();
+        /// <summary>Server info lines (command replies, admin broadcasts) go into the scrollback as system
+        /// lines. "@…" machine tokens are skipped — GameBootstrap localizes those into the HUD toast.</summary>
+        private void OnServerMessage(BlocksBeyondTheStars.Networking.Messages.ServerMessage m)
+        {
+            if (!string.IsNullOrEmpty(m.Text) && m.Text[0] != '@')
+            {
+                LocalLine(m.Text);
+            }
+        }
+
+        /// <summary>An admin-command rejection is the answer to something the player TYPED, so it must be
+        /// readable where they typed it — the toast alone flashes past (#642: "/tp did nothing"). Other
+        /// rejection kinds (mine/place/craft) are gameplay feedback and stay toast-only.</summary>
+        private void OnActionRejected(BlocksBeyondTheStars.Networking.Messages.ActionRejected m)
+        {
+            if (m.Action == "admin" && !string.IsNullOrEmpty(m.Reason) && m.Reason[0] != '@')
+            {
+                LocalLine(m.Reason);
+            }
         }
 
         private void OnEndEdit(string text)
@@ -213,6 +309,7 @@ namespace BlocksBeyondTheStars.Client
         private System.Collections.IEnumerator CaptureBumpAndSend(string description, string rawCommand)
         {
             byte[] jpg = null;
+            _capturing = true; // pause the Update context toggle so it can't re-enable the canvas mid-shot
             bool canvasWasOn = _canvas != null && _canvas.enabled;
             if (_canvas != null)
             {
@@ -242,6 +339,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _canvas.enabled = canvasWasOn;
             }
+
+            _capturing = false;
 
             if (Game?.Network == null)
             {
@@ -477,15 +576,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Appends a local-only system line to the chat log (command help / usage errors).</summary>
         private void LocalLine(string s)
         {
-            _lines.Add($"<color=#7fd4ff>{ChatMarkup.RichSafe(s)}</color>");
-            if (_lines.Count > MaxLog)
-            {
-                _lines.RemoveAt(0);
-            }
-
-            RefreshLog();
+            Append($"<color=#7fd4ff>{ChatMarkup.RichSafe(s)}</color>");
         }
 
+        /// <summary>
+        /// Re-renders the scrollback for the current moment: which lines are still young enough to show,
+        /// and how bright. Called when something changed or a line is due to expire — never blindly every
+        /// frame; <see cref="_nextRefresh"/> carries the next moment worth redrawing at.
+        /// </summary>
         private void RefreshLog()
         {
             if (_log == null)
@@ -493,15 +591,48 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            int from = Mathf.Max(0, _lines.Count - 10);
+            _nextRefresh = float.MaxValue;
+            var mode = Mode;
+
+            // While the input is open the recent scrollback shows in full, whatever the mode: you cannot
+            // answer what you cannot read, and "off" still has to show /help and /report replies.
+            bool keepAll = _typing || mode == ChatVisibility.Always;
+            if (!keepAll && mode == ChatVisibility.Off)
+            {
+                _log.text = string.Empty;
+                return;
+            }
+
+            float now = Time.unscaledTime;
+            int from = Mathf.Max(0, _lines.Count - VisibleLines);
+            float alpha = _typing ? 1f : 0.8f;
+            if (!keepAll)
+            {
+                // Auto: drop what has aged out, and dim the whole block over its final moment. One Text
+                // component means one colour, so the block fades as a unit rather than line by line.
+                while (from < _lines.Count && now - _lines[from].Time >= FadeSeconds)
+                {
+                    from++;
+                }
+
+                if (from < _lines.Count)
+                {
+                    float remaining = _lines[_lines.Count - 1].Time + FadeSeconds - now;
+                    alpha *= Mathf.Clamp01(remaining / FadeOutSeconds);
+                    _nextRefresh = remaining > FadeOutSeconds
+                        ? Mathf.Min(_lines[from].Time + FadeSeconds, _lines[_lines.Count - 1].Time + FadeSeconds - FadeOutSeconds)
+                        : 0f; // inside the dim-out: redraw every frame until it is gone
+                }
+            }
+
             var sb = new System.Text.StringBuilder();
             for (int i = from; i < _lines.Count; i++)
             {
-                sb.AppendLine(_lines[i]);
+                sb.AppendLine(_lines[i].Text);
             }
 
             _log.text = sb.ToString();
-            _log.color = new Color(0.86f, 0.93f, 1f, _typing ? 1f : 0.8f);
+            _log.color = new Color(0.86f, 0.93f, 1f, alpha);
         }
 
         private void OnDestroy()
@@ -520,27 +651,35 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _canvas = UiKit.CreateCanvas("ChatUI");
-            _canvas.sortingOrder = 25; // below menus (50) / map (60), above the world
+            // Same canvas reference as the HUD (1536×864, #636): chat coordinates are then directly
+            // comparable to HudUi's, the overlay follows the player's UI-scale setting instead of drifting
+            // against the HUD at every scale step, and diegetic means it rides the visor pipeline with the
+            // rest of the HUD rather than floating flat in front of the glass.
+            _canvas = UiKit.CreateDiegeticCanvas("ChatUI", UiKit.HudRefW, UiKit.HudRefH);
+            _canvas.sortingOrder = 25; // below menus (50) / map (60), above the HUD (10) and the world
             var root = _canvas.transform;
 
-            // Scrollback (bottom-left, growing upward).
-            _log = UiKit.AddText(root, 16, 1080 - 320, 620, 250, string.Empty, 18, new Color(0.86f, 0.93f, 1f, 0.8f), TextAnchor.LowerLeft);
+            // Both rows live in the free left lane between the vitals panel (ends y 260) and the scan panel
+            // (starts y 650). The old bottom-left placement covered ~85 % of the scan panel plus the left
+            // hotbar cells and the controls hint line. WIDTH IS CAPPED for the same reason the scan panel
+            // caps its own: the hotbar backplate owns x 400…1136, so this lane must not reach x 400.
+            // In the flight view the lane is clear too — its instruments sit at the very bottom (y 818+).
+            _log = UiKit.AddText(root, LaneX, 280, LaneW, 310, string.Empty, 16, new Color(0.86f, 0.93f, 1f, 0.8f), TextAnchor.LowerLeft);
             _log.horizontalOverflow = HorizontalWrapMode.Wrap;
             _log.verticalOverflow = VerticalWrapMode.Overflow;
             _log.supportRichText = true;
 
-            // Input row (hidden until typing).
-            _inputRow = UiKit.AddPanel(root, 16, 1080 - 60, 620, 44, UiKit.Panel).rectTransform;
+            // Input row (hidden until typing), directly under the scrollback and clear of the scan panel.
+            _inputRow = UiKit.AddPanel(root, LaneX, 596, LaneW, 44, UiKit.Panel).rectTransform;
             var inputGo = new GameObject("ChatInput", typeof(RectTransform));
             inputGo.transform.SetParent(_inputRow, false);
-            UiKit.Place(inputGo, 10, 6, 600, 32);
+            UiKit.Place(inputGo, 8, 6, LaneW - 16f, 32);
             var img = inputGo.AddComponent<Image>();
             img.color = new Color(0.04f, 0.09f, 0.18f, 0.95f);
             _input = inputGo.AddComponent<InputField>();
-            var txt = UiKit.AddText(inputGo.transform, 8, 0, 584, 32, string.Empty, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+            var txt = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 32f, 32, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft);
             txt.supportRichText = false;
-            var ph = UiKit.AddText(inputGo.transform, 8, 0, 584, 32, L("ui.chat.send_hint"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
+            var ph = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 32f, 32, L("ui.chat.send_hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
             _input.textComponent = txt;
             _input.placeholder = ph;
             _input.characterLimit = 200;

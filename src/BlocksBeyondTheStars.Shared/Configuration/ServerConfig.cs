@@ -422,6 +422,19 @@ public sealed class ServerConfig
                 case "admin-bind":
                     AdminBindAddress = value; applied.Add("admin-bind");
                     break;
+                case "admin-cheats":
+                    // Allow admin cheat commands (/tp, /give, /fly …) in every game mode. Passed by the
+                    // bundled singleplayer/host launcher, where the solo player is the WorldAdmin anyway;
+                    // guests on a hosted world are still blocked by the admin role. Dedicated servers keep
+                    // the off default unless the operator opts in (#642).
+                    if (bool.TryParse(value, out var ac))
+                    {
+                        Rules.AdminCheats = ac;
+                        Rules.AllowCheatsInSurvival = ac;
+                        applied.Add("admin-cheats");
+                    }
+
+                    break;
                 case "voice":
                 case "voice-chat":
                     if (bool.TryParse(value, out var vc)) { VoiceChatEnabled = vc; applied.Add("voice"); }
