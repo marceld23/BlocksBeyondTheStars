@@ -102,7 +102,7 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
-### ★ Chat overlay: fades out by itself and stops covering the HUD (#636, 2026-07-30, branch feat/chat-hide-and-hud-overlap)
+### ★ Chat overlay: fades out by itself and stops covering the HUD (#636, #642, 2026-07-30, branch feat/chat-hide-and-hud-overlap)
 Once a single chat line existed the scrollback stayed on screen for the rest of the session — no key, no
 setting, no timeout — and it was laid out in a different canvas space than the HUD (1920×1080 plain
 overlay vs the HUD's diegetic, user-scalable 1536×864), covering ~85 % of the scan panel, the left hotbar
@@ -121,6 +121,19 @@ cells and the controls hint line. On official hosted worlds the report tip made 
 - **Player control**: new comfort setting *Chat display* = fade out / always on / off
   (`ClientSettings.ChatVisibility`), plus a rebindable **J** (`InputAction.ToggleChat`) that mutes the
   scrollback for the session with a toast either way. Locale keys in en + de.
+
+Follow-up on the same branch — **"/tp finds no targets in singleplayer" (#642)**, two pre-existing bugs
+found while play-testing the rework:
+
+- **Cheats gate was unreachable in bundled singleplayer**: `AdminCheats`/`AllowCheatsInSurvival` default
+  off, no CLI flag and no world option existed, so `/tp` had *never* worked solo (the WorldAdmin role was
+  never the problem — the rules gate was). New `--admin-cheats` ServerConfig flag sets both; the bundled
+  `LocalServerLauncher` always passes it and browser singleplayer sets the same rules in-process. Guests
+  on a friend-hosted world are still blocked by the admin role; dedicated servers keep the off default.
+- **Server replies never reached the chat**: the `/tp` target list arrives as a burst of individual
+  `ServerMessage`s, and the client's only consumer was the single-line HUD toast — each line overwrote
+  the last within one tick. `ChatUi` now also appends `ServerMessage`s (except `@…` toast tokens) and
+  admin `ActionRejected` reasons to the scrollback as system lines; `VisibleLines` 10 → 12.
 
 ### ★ Greenhouses: settlements (and stations) grow berries you can pick (#626, #627, #628, 2026-07-30, branch feat/settlement-greenhouses)
 Settlements had houses, a vendor and a mission board, but nothing that read as *people living off this

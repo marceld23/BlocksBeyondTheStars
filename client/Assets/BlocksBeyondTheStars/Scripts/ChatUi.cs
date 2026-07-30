@@ -34,7 +34,7 @@ namespace BlocksBeyondTheStars.Client
         private int _openFrame = -1;
         private float _nextRefresh = float.MaxValue;
         private const int MaxLog = 40;
-        private const int VisibleLines = 10;
+        private const int VisibleLines = 12; // the 310-px lane fits 12 rows; a /tp list is usually 8-15 lines
         private const float FadeSeconds = 12f;   // how long a line stays up in the Auto mode
         private const float FadeOutSeconds = 0.6f; // the dim-out at the end (one Text = the block fades as one)
 
@@ -73,6 +73,11 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed)
             {
                 Game.Network.ChatReceived += OnChat;
+                // Server replies land in the scrollback too (#642): a /tp target list arrives as a burst
+                // of ServerMessages, and the single-line HUD toast (GameBootstrap.LastMessage) shows only
+                // whichever line came last. The toast path stays — chat is the readable copy.
+                Game.Network.ServerMessageReceived += OnServerMessage;
+                Game.Network.ActionRejected += OnActionRejected;
                 _subscribed = true;
             }
 
@@ -172,6 +177,8 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.ChatReceived -= OnChat;
+                Game.Network.ServerMessageReceived -= OnServerMessage;
+                Game.Network.ActionRejected -= OnActionRejected;
             }
 
             if (Game != null && _typing)
@@ -185,6 +192,27 @@ namespace BlocksBeyondTheStars.Client
             // Sender and text are neutralised first — the log parses rich text, so an unescaped chat line
             // could otherwise recolour or resize everyone's scrollback.
             Append($"<b>{ChatMarkup.RichSafe(m.Sender)}:</b> {ChatMarkup.RichSafe(m.Text)}");
+        }
+
+        /// <summary>Server info lines (command replies, admin broadcasts) go into the scrollback as system
+        /// lines. "@…" machine tokens are skipped — GameBootstrap localizes those into the HUD toast.</summary>
+        private void OnServerMessage(BlocksBeyondTheStars.Networking.Messages.ServerMessage m)
+        {
+            if (!string.IsNullOrEmpty(m.Text) && m.Text[0] != '@')
+            {
+                LocalLine(m.Text);
+            }
+        }
+
+        /// <summary>An admin-command rejection is the answer to something the player TYPED, so it must be
+        /// readable where they typed it — the toast alone flashes past (#642: "/tp did nothing"). Other
+        /// rejection kinds (mine/place/craft) are gameplay feedback and stay toast-only.</summary>
+        private void OnActionRejected(BlocksBeyondTheStars.Networking.Messages.ActionRejected m)
+        {
+            if (m.Action == "admin" && !string.IsNullOrEmpty(m.Reason) && m.Reason[0] != '@')
+            {
+                LocalLine(m.Reason);
+            }
         }
 
         private void OnEndEdit(string text)

@@ -51,6 +51,7 @@ Created on first run; editable directly or through the admin UI.
 | `serverPassword` | Required to join (empty = none) | `""` |
 | `whitelistEnabled` / `whitelist` | Restrict who may join | `false` / `[]` |
 | `adminPlayers` | Player names granted the Admin role on join (CLI: `--admins "a,b"`) | `[]` |
+| — | Allow admin cheat commands (`/tp`, `/give`, …) in every mode (CLI only: `--admin-cheats true`; the bundled singleplayer/host launcher always passes it) | `false` |
 | `adminPassword` | Required for admin API calls | `""` |
 | `autoSaveIntervalMinutes` | Autosave cadence | `5` |
 | `backupIntervalMinutes` | Backup cadence | `60` |

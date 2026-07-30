@@ -108,6 +108,24 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_AdminCheatsFlagEnablesCheatsInEveryMode()
+    {
+        // #642: the bundled singleplayer/host launcher passes --admin-cheats true so /tp, /give etc.
+        // work out of the box. The flag must satisfy CheatsAllowed in survival (the singleplayer
+        // default mode), which needs BOTH AdminCheats and AllowCheatsInSurvival.
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[] { "--admin-cheats", "true" });
+
+        Assert.True(config.Rules.AdminCheats);
+        Assert.True(config.Rules.AllowCheatsInSurvival);
+        Assert.True(config.Rules.CheatsAllowed);
+        Assert.Contains("admin-cheats", applied);
+
+        // Without the flag the gate stays closed — dedicated servers keep the off default.
+        Assert.False(new ServerConfig().Rules.CheatsAllowed);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesShipWeaponsAndKeepRules()
     {
         var config = new ServerConfig();

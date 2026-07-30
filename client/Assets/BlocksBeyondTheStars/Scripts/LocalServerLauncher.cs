@@ -177,6 +177,10 @@ namespace BlocksBeyondTheStars.Client
             // Solo/host convenience: guarantee a data cube next to the start landing pad (only this bundled
             // launcher sets it; dedicated/shared servers use the normal random scatter).
             const string startCubeArg = " --guarantee-start-cube true";
+            // Admin cheat commands (/tp, /give, /fly …) work out of the box on the bundled host: the solo
+            // player is the WorldAdmin, and on a friend-hosted world guests are still blocked by the admin
+            // role. Dedicated servers keep the off default (#642 — /tp never worked in singleplayer).
+            const string cheatsArg = " --admin-cheats true";
             // Ignore any config/server.json next to the bundled exe: use pure code defaults + the CLI
             // overrides here. The server writes that file on first run, and the read-only bundle folder is
             // reused across rebuilds — a leftover (e.g. an old "StartPlanet: rocky") would otherwise be read
@@ -204,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 FileName = exe,
                 Arguments = $"--port {Port} --name \"{serverName}\" --world \"{worldName}\" " +
-                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
+                            $"--max-players {Mathf.Max(1, maxPlayers)} --saves \"{saves}\" --data \"{data}\" --usercontent \"{userContent}\" --stdin-stop true" + viewArg + seedArg + spaceArgs + voiceArg + startCubeArg + cheatsArg + noConfigArg + creativeArgs + optionArgs + hostArgs,
                 WorkingDirectory = Path.GetDirectoryName(exe),
                 UseShellExecute = false,
                 CreateNoWindow = true,
