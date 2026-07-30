@@ -102,6 +102,26 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Chat overlay: fades out by itself and stops covering the HUD (#636, 2026-07-30, branch feat/chat-hide-and-hud-overlap)
+Once a single chat line existed the scrollback stayed on screen for the rest of the session — no key, no
+setting, no timeout — and it was laid out in a different canvas space than the HUD (1920×1080 plain
+overlay vs the HUD's diegetic, user-scalable 1536×864), covering ~85 % of the scan panel, the left hotbar
+cells and the controls hint line. On official hosted worlds the report tip made it visible from join.
+
+- **Auto-fade** (`ChatUi`): every line carries its arrival time; in the default mode the block ages out
+  12 s after the newest line, with a short dim-out. Opening the input (Enter / the touch CHAT button)
+  always brings the recent scrollback back at full alpha — /help and /report replies stay readable in
+  every mode.
+- **One canvas space**: the chat now builds on the diegetic HUD canvas (`UiKit.CreateDiegeticCanvas`,
+  1536×864). It follows the UI-scale setting, rides the visor pipeline like the rest of the HUD, and
+  both rows moved into the free left lane between the vitals panel and the scan panel (x 10…390,
+  log y 280…590, input y 596…640) — clear of the scan panel, hotbar and hint line by construction.
+- **Context hiding**: the overlay disables while piloting (the flight view draws its own instruments in
+  that lane); EVA keeps it. The `/bump` end-of-frame screenshot path is guarded against the toggle.
+- **Player control**: new comfort setting *Chat display* = fade out / always on / off
+  (`ClientSettings.ChatVisibility`), plus a rebindable **J** (`InputAction.ToggleChat`) that mutes the
+  scrollback for the session with a toast either way. Locale keys in en + de.
+
 ### ★ Greenhouses: settlements (and stations) grow berries you can pick (#626, #627, #628, 2026-07-30, branch feat/settlement-greenhouses)
 Settlements had houses, a vendor and a mission board, but nothing that read as *people living off this
 land* — and nothing renewable to eat that wasn't a machine. Now every village and city keeps a glass
