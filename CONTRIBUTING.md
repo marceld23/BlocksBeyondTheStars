@@ -67,12 +67,44 @@ These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please ski
   crafting, ship state, oxygen, damage, blueprints or travel.
 - **Text language.** Documentation and code comments are **English**. In-game player-facing
   text is **bilingual (German + English)** via localization keys in `data/locales/{en,de}.json`
-  — never hardcode player-facing strings.
+  — never hardcode player-facing strings. Additional community languages are welcome on top of
+  that pair (see [Translating the game](#translating-the-game)); DE and EN must stay complete.
 - **Data-driven content.** Blocks, items, recipes, ship modules, tech nodes and planets live
   in `data/*.json`; adding content should not require touching game logic.
 - **Keep `Shared`/`WorldGeneration` `netstandard2.1`-clean** so the Unity client can consume them.
 - **Update [TODO.md](TODO.md)** — it is the single Done/Open status doc — when your change
   affects it, and update any doc in `docs/` that your change makes stale.
+
+## Translating the game
+
+You don't need to be a programmer to add a language, and you don't need to finish it. Every language
+falls back to English **per missing key**, so a file with one key group in it works in the game — which is
+exactly how Italian ([`data/locales/it.json`](data/locales/it.json)) is being built: one group per PR.
+
+**How to help with an existing language**
+
+1. Pick a key group and see what's missing:
+   ```bash
+   python3 tools/locale_report.py it                    # coverage per key group
+   python3 tools/locale_report.py it --missing item      # the untranslated keys + their English text
+   ```
+2. Paste those keys into the locale file, translate the **values only**, and keep them in the same order
+   as `en.json` so future diffs stay readable.
+3. Open a PR with that one group. Small is genuinely better here.
+
+**What CI checks** (`CommunityLocaleTests`) — it will never ask you to be complete, only correct:
+
+- keys must exist in `en.json` — a typo'd key is text nothing will ever show
+- placeholders like `{0}` or `{item}` must survive; word order may move and the placeholder moves with it
+- no empty values: an empty string *shadows* the English fallback and renders as blank UI, so leave the
+  key out instead
+
+Sanity-check the whole thing locally with `python3 tools/locale_report.py --check` (stdlib only, no setup).
+
+**Adding a brand-new language** needs one small code change to go with your file — `GameLocale` in
+[`GameLocale.cs`](src/BlocksBeyondTheStars.Shared/Localization/GameLocale.cs). Open an issue first and
+we'll wire it up; the loader picks the file up from there. A language appears in the in-game settings menu
+once enough of the interface is covered — until then it loads for anyone who selects it by hand.
 
 ## Licensing & the Contributor License Agreement (CLA)
 

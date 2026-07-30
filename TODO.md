@@ -102,6 +102,43 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Italian loads: third-language plumbing + a coverage report (#99, #582, 2026-07-30, branch feat/italian-locale-plumbing)
+[@alessandroquirino-lab](https://github.com/alessandroquirino-lab) contributed `data/locales/it.json`
+(290 `block.*` keys, PR #582) — and the file did nothing, because DE/EN was baked into four layers. This
+makes Italian real without announcing it:
+
+- **`GameLocale.Italian`** plus `Code()`/`TryParse` ("it", "it-it", "italian", "italiano") and a new
+  `Parse()` helper. `ContentLoader` already enumerated the enum and skipped absent files, so the loader
+  needed **no change at all** — the enum member alone makes `it.json` load, and a world shipped without
+  the file still starts.
+- **Client no longer thinks in a bool.** `GameBootstrap.Locale` (a `GameLocale`, deliberately
+  `[NonSerialized]` so no scene-baked value can override `WorldRig` — the `Launcher.unity PlayerName`
+  trap) drives every key-based text and the join locale. `bool German` stays, but only for the two
+  surfaces that ship DE/EN *content* rather than keys: the embedded wiki and the minigames.
+- **Server keeps the locale instead of flattening it.** `NormalizeLocale` delegates to `GameLocale`, so
+  "it" survives into `PlayerSession.Locale` and reaches the existing server-side `Localize()` path. The
+  13 `bool de ? … : …` gates are untouched and fall back to English for Italian — as does everything
+  else not yet translated, per key.
+- **WebGL would never have seen the file:** `StreamingAssetsCache`'s fallback manifest listed only
+  `locales/{de,en}.json`. (The build-time generated manifest enumerates the folder, so this only bites a
+  build without `manifest.json` — added anyway.)
+- **The settings toggle stays DE/EN** and now shows the *active* code, so a hand-set "IT" doesn't read as
+  a lie. Italian joins the picker when coverage clears the bar — that turns it into a real picker.
+- **CI guards contributed locales** (`CommunityLocaleTests`): no invented keys, no changed
+  `{0}`/`{item}` placeholder sets, no blank values (a blank shadows the English fallback), no locale
+  file without an enum member — while explicitly *not* demanding completeness, which is the whole point
+  of translating group by group. Verified by injecting all three defect types.
+- **`tools/locale_report.py`** reports coverage per language and per key group, prints the missing keys
+  of a group with their English text (`--missing item`), and posts a table to the CI job summary on any
+  `data/locales/**` change (job summary, not a PR comment: contributions come from forks, where the
+  token is read-only).
+
+Coverage today: **it 290/2271 (12.8 %)**, block 290/292 — the two stragglers (`block.torch.name`,
+`block.door_wood.name`) arrived in #618 while the PR was open. Next groups agreed with the contributor:
+`item.*` (346), then the core UI (`ui.menu`/`ui.settings`/`ui.hud`/`ui.craft`, ~200) because that is what
+gates showing "Italiano" in the menu. Still open before the flip: the client `== "de"` gates in the
+DE/EN-only surfaces and a real language picker.
+
 ### ★ Portal accessibility: labelled fields, announced messages, keyboard forms (#574, 2026-07-30, branch fix/portal-accessibility)
 A community accessibility review by [@SpaleRuby](https://github.com/SpaleRuby) audited the public portal
 against the source and reported four semantic gaps, all confirmed. Fixed in `WorldHostPortalPages`:

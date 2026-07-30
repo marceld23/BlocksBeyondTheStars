@@ -78,7 +78,8 @@ These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. T
   `docs/**`, licences, issue/PR templates). If it is docs-only, the heavy `build-test` and `format` jobs are
   skipped via their `if:`. The workflow still **runs** (so the checks always report), and a *skipped* required
   job counts as a pass — so the gates stay green on a docs PR instead of stalling. Any code/content file makes
-  it build for real; `data/**` counts as code (it feeds tests, e.g. the en/de locale-parity test).
+  it build for real; `data/**` counts as code (it feeds tests, e.g. the en/de locale-parity test and the
+  `CommunityLocaleTests` guards for contributed locales such as `it.json`).
   (The detection is an explicit `case` match, not `dorny/paths-filter` — that action's `some`-glob semantics
   made a `**/*` + `!doc` list evaluate true for every diff, so docs PRs never actually skipped.)
 

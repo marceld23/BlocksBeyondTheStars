@@ -1,0 +1,41 @@
+# Translation-coverage report for community languages (data/locales/*.json).
+#
+# Community locales are translated incrementally — one key group per PR — while main keeps adding keys
+# underneath, so every long-running translation lags behind by design. This job makes that lag visible
+# instead of leaving it to be measured by hand on each incoming PR.
+#
+# Deliberately INFORMATIONAL: it never fails a build. The defects that genuinely break the game (keys
+# that exist in no other language, changed {0}/{item} placeholder sets, blank values) are already
+# enforced as hard failures by tests/BlocksBeyondTheStars.Tests/CommunityLocaleTests.cs in ci.yml.
+#
+# Output goes to the job SUMMARY rather than a PR comment on purpose: locale contributions arrive from
+# forks, where GITHUB_TOKEN is read-only. Commenting would require pull_request_target, which checks out
+# untrusted code with a writable token — not worth it for a coverage table.
+
+name: Locale report
+
+on:
+  pull_request:
+    paths:
+      - "data/locales/**"
+      - "tools/locale_report.py"
+  push:
+    branches: [main]
+    paths:
+      - "data/locales/**"
+      - "tools/locale_report.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Translation coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Stdlib only — the ubuntu-latest image ships python3, so no setup step is needed.
+      - name: Report coverage
+        run: python3 tools/locale_report.py --markdown >> "$GITHUB_STEP_SUMMARY"

@@ -18,6 +18,10 @@ namespace BlocksBeyondTheStars.Client
         private const string DataFolder = "data";
         private const string CacheFolder = "streaming-assets-cache";
 
+        /// <summary>Used only when <c>data/manifest.json</c> is missing — the real list is generated at build
+        /// time by <c>BuildScript.EnsureStreamingAssetsManifest</c>, which enumerates the folder and therefore
+        /// picks up new locale files on its own. Keep locale entries here in sync anyway: a build without the
+        /// manifest would otherwise silently ship a language the client can never fetch.</summary>
         private static readonly string[] FallbackManifest =
         {
             "blocks.json",
@@ -25,6 +29,7 @@ namespace BlocksBeyondTheStars.Client
             "items.json",
             "locales/de.json",
             "locales/en.json",
+            "locales/it.json",
             "minigames/catalog.json",
             "missions.json",
             "planets.json",

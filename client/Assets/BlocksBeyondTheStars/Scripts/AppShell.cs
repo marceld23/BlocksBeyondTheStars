@@ -412,13 +412,13 @@ namespace BlocksBeyondTheStars.Client
             Content = loaded;
             ContentLoadError = "";
             Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
-            var locale = Settings.Language == "de" ? GameLocale.German : GameLocale.English;
+            var locale = GameLocaleExtensions.Parse(Settings.Language);
             Localizer = Content.CreateLocalizer(locale);
             ContentReady = true;
 
             // A live world keeps its OWN Localizer (snapshotted at build) — push the change so the running
             // HUD/chat swap language immediately instead of after re-entering the world (Severin playtest).
-            CurrentBoot?.SetLanguage(Settings.Language == "de");
+            CurrentBoot?.SetLanguage(locale);
 
             // The pause menu caches its texts at build time — drop it so the next show rebuilds localized.
             if (_quitDialog != null)

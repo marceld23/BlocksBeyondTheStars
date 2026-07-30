@@ -57,8 +57,17 @@ namespace BlocksBeyondTheStars.Client
         /// (announced in chat + as a toast). Empty when joining a remote server or in singleplayer.</summary>
         public string HostInfo = "";
 
+        /// <summary>DE/EN-only surfaces still branch on this bool (the embedded wiki and the minigames ship
+        /// German/English content, not locale keys). Everything that goes through <see cref="Localizer"/>
+        /// uses <see cref="Locale"/> instead and therefore supports every <see cref="GameLocale"/>.</summary>
         [Header("Localization")]
         public bool German = false;
+
+        /// <summary>The active locale for all key-based text. Deliberately NOT serialized: a scene-baked value
+        /// would override whatever <c>WorldRig</c> assigns from the player's settings (the Launcher.unity
+        /// PlayerName trap). Set together with <see cref="German"/>.</summary>
+        [System.NonSerialized]
+        public GameLocale Locale = GameLocale.English;
 
         [Header("Rendering")]
         public Material ChunkMaterial;
@@ -82,17 +91,18 @@ namespace BlocksBeyondTheStars.Client
         public Localizer Localizer { get; private set; }
 
         /// <summary>Switches the LIVE world's language. The world keeps its own <see cref="Localizer"/>
-        /// (created once at bootstrap from the <see cref="German"/> snapshot), so a language change in the
+        /// (created once at bootstrap from the <see cref="Locale"/> snapshot), so a language change in the
         /// in-game pause menu's settings would otherwise only show after leaving and re-entering the world
         /// (Severin playtest follow-up). Reuses the already-loaded <see cref="Content"/> — no content reload,
         /// which also keeps this cheap on WebGL where StreamingAssets live in a remote-fetched cache. The HUD
         /// re-reads its keys every frame; windows (Tab menu, dialogs) pick the language up on their next open.</summary>
-        public void SetLanguage(bool german)
+        public void SetLanguage(GameLocale locale)
         {
-            German = german;
+            Locale = locale;
+            German = locale == GameLocale.German;
             if (Content != null)
             {
-                Localizer = Content.CreateLocalizer(german ? GameLocale.German : GameLocale.English);
+                Localizer = Content.CreateLocalizer(locale);
             }
         }
         public NetworkClient Network { get; private set; }
@@ -916,6 +926,8 @@ namespace BlocksBeyondTheStars.Client
         private void RebuildWikiState()
         {
             var sb = new System.Text.StringBuilder(512);
+            // Stays DE/EN: the embedded wiki ships German and English chapter content (HTML, not locale keys),
+            // so a third UI language reads the English wiki until those pages are translated too.
             sb.Append("{\"lang\":\"").Append(German ? "de" : "en").Append("\",\"systems\":[");
             var systems = StarMap?.Systems ?? System.Array.Empty<NetStarSystem>();
             var knownSys = new System.Collections.Generic.HashSet<string>(StarMap?.KnownSystemIds ?? System.Array.Empty<string>());
@@ -1119,7 +1131,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Localizer = Content.CreateLocalizer(German ? GameLocale.German : GameLocale.English);
+            Localizer = Content.CreateLocalizer(Locale);
             World = new ClientWorld();
             // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.
             World.SetBlockLightResolver(id => ChunkMesher.BlockLightColor(Content, new BlockId(id), 0));
@@ -1511,7 +1523,7 @@ namespace BlocksBeyondTheStars.Client
                     try
                     {
                         Debug.Log($"Sending join request to {Host}:{Port} as {PlayerName}.");
-                        Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, German ? "de" : "en",
+                        Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken);
                         Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);

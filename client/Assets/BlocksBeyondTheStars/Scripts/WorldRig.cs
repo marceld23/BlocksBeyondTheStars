@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -44,7 +45,8 @@ namespace BlocksBeyondTheStars.Client
             boot.PortalUrl = shell.Settings.PortalUrl ?? "";
             boot.PortalSession = shell.Settings.PortalSessionToken ?? "";
             boot.HostInfo = shell.HostInfo ?? "";
-            boot.German = shell.Settings.Language == "de";
+            boot.Locale = GameLocaleExtensions.Parse(shell.Settings.Language);
+            boot.German = boot.Locale == GameLocale.German;
             boot.ViewDistanceChunks = shell.Settings.ViewDistanceChunks; // forward the slider so remote hosts stream this radius
             boot.ChunkMaterial = material;
             boot.SkinRgb = Rgb(shell.Settings.SkinColor);

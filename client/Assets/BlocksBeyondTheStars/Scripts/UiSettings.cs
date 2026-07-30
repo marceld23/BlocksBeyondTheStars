@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -195,7 +196,12 @@ namespace BlocksBeyondTheStars.Client
             // Fixed footer on the panel, OUTSIDE the scroll viewport: language + back used to be the
             // last scroll rows, so leaving the screen meant scrolling the whole list first. Rebuild()
             // recreates them with everything else, so the language label stays current.
-            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {(S.Language == "de" ? "DE" : "EN")}",
+            // Still a DE/EN toggle, deliberately: a community language (it) loads and can be selected by hand in
+            // client_settings.json, but it only joins this button once its translation coverage clears the bar —
+            // at which point this becomes a real picker rather than a two-state flip. The label shows the ACTIVE
+            // code so a hand-set language doesn't read as a lie ("IT" here, next click leaves for DE/EN).
+            var activeLocale = GameLocaleExtensions.Parse(S.Language);
+            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {activeLocale.Code().ToUpperInvariant()}",
                 () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
             UiKit.AddButton(_root, _px + _pw - 280f, 922f, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings(), "btn_exit");
         }

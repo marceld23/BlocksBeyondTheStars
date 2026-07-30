@@ -38,9 +38,12 @@ public sealed partial class GameServer
     /// <summary>Per (player|npc) cooldown so a re-opened panel doesn't re-trigger the bubble. Game-thread only.</summary>
     private readonly Dictionary<string, double> _lastGreetAt = new();
 
-    /// <summary>Normalizes a client-sent locale to one we support ("en"/"de"); anything else → English.</summary>
+    /// <summary>Normalizes a client-sent locale to a supported locale code; anything unknown → English.
+    /// Delegates to <see cref="GameLocaleExtensions.Parse"/> so a language added to <see cref="GameLocale"/>
+    /// survives into <c>PlayerSession.Locale</c> and reaches the server-side <see cref="Localize"/> path
+    /// instead of being collapsed to "en" here.</summary>
     private static string NormalizeLocale(string? locale)
-        => string.Equals(locale, "de", System.StringComparison.OrdinalIgnoreCase) ? "de" : "en";
+        => GameLocaleExtensions.Parse(locale).Code();
 
     /// <summary>Client asked for an NPC's greeting on interaction: pick the nearest matching, in-reach NPC and
     /// emit its line (item 15).</summary>

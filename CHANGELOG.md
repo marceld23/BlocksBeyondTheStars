@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🇮🇹 Italian, the third language (#99, #582)
+
+- **The game speaks Italian now** — well, the block names do. All 290 block names and descriptions were
+  translated from scratch by [@alessandroquirino-lab](https://github.com/alessandroquirino-lab), the first
+  community language in the game, and more key groups are on the way.
+- **Anything not yet translated stays English**, key by key, so a language can grow one group at a time
+  instead of having to be finished before it works at all.
+- Italian is **not offered in the settings menu yet**: it appears there once enough of the interface is
+  covered. Until then it loads for anyone who selects it by hand in `client_settings.json`.
+
+### 🛠️ Internal
+
+- A locale-coverage tool (`tools/locale_report.py`) reports per-language and per-key-group translation
+  progress, and CI now checks contributed locale files for invented keys, lost `{0}` placeholders and
+  blank values — so a translator gets told by the machine instead of in review.
+
 ### ♿ Portal website accessibility (#574)
 
 - **Every form field on the portal now has a visible label** — account creation, sign-in, password

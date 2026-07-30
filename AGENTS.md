@@ -53,7 +53,7 @@ client/                         Unity project (incl. Assets/Tests EditMode/PlayM
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
-data/locales/                   localization resource files (en.json, de.json)
+data/locales/                   localization resource files (en.json, de.json + community locales, e.g. it.json)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 ARCHITECTURE.md + design/how-it-works docs + ADRs (docs/developer/adr/); see docs/developer/README.md index
 scripts/                        build-client.ps1 + publish scripts
@@ -70,6 +70,12 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
    - *In-game player-facing text → bilingual (German + English).* Never hardcode
      player-facing strings; use localization keys + `data/locales/*.json`. Default
      fallback locale is English.
+   - *Community languages beyond DE/EN* (currently `it.json`) are translated
+     incrementally and are deliberately allowed to be incomplete — English fills every
+     missing key. So: add new keys to `en.json`+`de.json` only, never "helpfully" to a
+     community locale, and never extend the DE/EN completeness tests to cover them
+     (`CommunityLocaleTests` guards those files instead). `tools/locale_report.py`
+     shows coverage; a language reaches the in-game picker only once covered enough.
 2. **Server is authoritative** — see the golden rule above.
 3. **Data-driven content** — blocks, items, recipes, ship modules, tech nodes,
    planets live in `data/*.json`, not hardcoded in logic. Adding content should not
