@@ -155,6 +155,39 @@ public sealed class WorldOptionsTests : IDisposable
         server.Stop();
     }
 
+    [Fact]
+    public void LaunchRules_EnableAdminCheatsForExistingWorlds()
+    {
+        // #642: every save from before --admin-cheats existed baked AdminCheats=false into its
+        // RulesOverride, which replaces the launch rules wholesale on Start(). The launch opt-in must
+        // lift the two cheat flags over the baked set (and persist), like the free-flight lift above —
+        // otherwise /tp would only ever work in freshly created worlds.
+        var paths = new SaveGamePaths(_root, "cheatupgrade");
+        using var repo = new SqliteWorldRepository(paths);
+        repo.Initialize();
+        repo.SaveMetadata(new WorldMetadata
+        {
+            WorldName = "cheatupgrade",
+            Seed = 11,
+            DefaultPlanetType = "rocky",
+            ActiveLocationId = "rocky",
+            RulesOverride = new GameRules { AdminCheats = false, PlanetEnemies = AlienActivity.Off },
+        });
+
+        using var serverTransport = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = "cheatupgrade", Seed = 11, AutoSaveIntervalMinutes = 9999 };
+        config.ApplyCommandLine(new[] { "--admin-cheats", "true" });
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+
+        Assert.True(config.Rules.CheatsAllowed);
+        Assert.Equal(AlienActivity.Off, config.Rules.PlanetEnemies); // other baked rules survive the lift
+        Assert.True(repo.LoadMetadata()!.RulesOverride!.AdminCheats);
+        Assert.True(repo.LoadMetadata()!.RulesOverride!.AllowCheatsInSurvival);
+
+        server.Stop();
+    }
+
     // ---- Creature abundance ---------------------------------------------------------------------
 
     [Fact]
