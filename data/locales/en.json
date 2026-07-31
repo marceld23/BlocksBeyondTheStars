@@ -2126,7 +2126,7 @@
   "block.light_green.desc": "A solid light block that glows green, free-standing and needing no power.",
   "block.strip_light_cyan.desc": "A bright cyan strip light that glows without power — clean station lighting.",
   "block.strip_light_warm.desc": "A warm strip light that glows without power — cosy interior lighting.",
-  "block.beam_block.desc": "A glowing structural beam that throws a shaft of light.",
+  "block.beam_block.desc": "A named teleporter pad. Stand on it and press E to beam to your own or allied beam blocks on this world.",
   "block.radio_beacon.desc": "A placeable, softly glowing beacon — a navigation landmark you can spot from afar.",
   "block.engine_nozzle.desc": "A decorative engine nozzle with a faint glow — the look of thrust.",
   "block.medbay_panel.desc": "A clinical wall panel for medbays.",

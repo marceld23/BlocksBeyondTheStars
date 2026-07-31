@@ -2127,7 +2127,7 @@
   "block.light_green.desc": "Ein massiver Leuchtblock, der grün leuchtet, freistehend und ohne Strombedarf.",
   "block.strip_light_cyan.desc": "Ein helles cyanfarbenes Streiflicht, das ohne Strom leuchtet — saubere Stationsbeleuchtung.",
   "block.strip_light_warm.desc": "Ein warmes Streiflicht, das ohne Strom leuchtet — behagliche Innenbeleuchtung.",
-  "block.beam_block.desc": "Ein leuchtender Strukturbalken, der einen Lichtschacht wirft.",
+  "block.beam_block.desc": "Ein benanntes Transporter-Pad. Draufstellen und E drücken, um zu eigenen oder verbündeten Beamer-Blöcken auf dieser Welt zu beamen.",
   "block.radio_beacon.desc": "Eine aufstellbare, sanft leuchtende Bake — eine Navigationsmarke, die man von Weitem sieht.",
   "block.engine_nozzle.desc": "Eine dekorative Triebwerksdüse mit schwachem Glühen — der Look von Schub.",
   "block.medbay_panel.desc": "Ein klinisches Wandpaneel für Krankenstationen.",
