@@ -102,6 +102,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Water flow no longer knocks + block sounds are positional (#655, 2026-08-01, branch feat/creature-movement-realism — LOCAL, no PR yet)
+Every server `BlockChanged` played a full-volume 2D cue — including EVERY fluid-sim spread/drain
+step, so flowing water hammered a rhythmic `place_block` knocking (and draining water played mining
+crunches). `GameBootstrap` now raises a local `BlockChangeApplied(pos, oldId, newId)` event after
+applying a change (the raw message can't tell a drained fluid from a mined block); `ClientAudio`
+skips the per-cell cue for water/lava transitions and kicks an immediate fluid-bed rescan instead —
+the existing `water_brook`/`water_fall`/`water_surf` rush IS the water sound and now reacts
+instantly instead of on the 0.5 s scan beat. Follow-up in the same wave: the mine/place cues moved
+from flat 2D to **positional 3D** at the changed cell (`At`, scene-space via `ScenePos`, 4 m
+full-volume radius → own mining feel unchanged, linear rolloff to silence at 20 m → remote players'
+edits no longer knock in your ear). Client-only, no wire/server change.
 ### ★ Creature movement realism wave: real-block awareness, steering, boids, vertical easing, herd panic, crisp motion (#650–#654, 2026-08-01, branch feat/creature-movement-realism — LOCAL, no PR yet)
 Five packages on top of the #648 terrain gates. **Real blocks (#650):** land Y-snap, terrain gates,
 titan flatness gate and land spawn placement now read the ACTUAL world via a nearest-standable-cell

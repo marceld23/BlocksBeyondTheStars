@@ -573,15 +573,22 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Positional (#655 follow-up): the cue plays AT the changed cell (scene space — the world wraps
+            // in longitude) instead of flat 2D at full volume. Your own mining target sits well inside the
+            // 4 m full-volume radius so the hand-feel is unchanged; another player's edits across the map
+            // attenuate away instead of knocking in your ear.
+            var at = Game != null
+                ? Game.ScenePos(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f)
+                : new Vector3(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
             if (newId.Value == 0)
             {
                 // Mined → a random material variant for variety (material-accurate later).
                 string[] v = { "mine_stone", "mine_metal", "mine_crystal", "mine_dirt" };
-                Cue(v[_rng.Next(v.Length)]);
+                At(v[_rng.Next(v.Length)], at);
             }
             else
             {
-                Cue("place_block");
+                At("place_block", at);
             }
         }
 
