@@ -276,13 +276,21 @@ despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mi
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
 
-**Terrain-aware roaming (#648):** creatures have no colliders — their Y is snapped to the habitat
-height every tick — so movement is gated per step instead (`CreatureBehaviour.TerrainStepBlocked`,
-the same discard-and-re-roll mechanic as the ship hull and energy fences): land walkers accept at
-most a 2-block surface step (titans 1, mirroring their spawn gate) and never enter water deeper
-than 1 cell; water species never step out of their water body; fliers, cave/lava dwellers and
-amphibians are unaffected. Cliffs thus act as soft walls rather than single-tick teleports, and
-nothing can ever get stuck (a blocked step just rolls a fresh heading).
+**Terrain-aware roaming (#648, extended by #650–#654):** creatures have no colliders — their Y is
+kept by the server — so movement is gated per step instead (`CreatureBehaviour.TerrainStepBlocked`,
+the same discard mechanic as the ship hull and energy fences): land walkers accept at most a
+2-block ground step (titans 1, mirroring their spawn gate) and never enter water deeper than
+1 cell; water species never step out of their water body; fliers, cave/lava dwellers and amphibians
+are unaffected. Ground heights come from **real blocks** (#650 — a nearest-standable-cell probe via
+`GetBlockIfLoaded`, generator fallback for unloaded columns), so fauna honours player walls, dug
+pits and built floors, and land walkers **ease** toward the ground at a capped vertical rate (#652;
+fliers ease toward hover — no contour-pen terrain tracing; hoppers keep the snap, their pop is the
+motion, and their stride pulses with it, #654). A blocked step first **probes alternative headings**
+(±35°/±70°/±110°, #651) and only re-rolls when boxed in — contour/wall following with the
+never-stuck property intact. Social species run the full boids trio (#639/#651): cohesion,
+size-scaled separation, and heading alignment for schoolers. Hurting a creature (or a skittish bolt)
+**startles** same-species kin within 12 blocks for 4 s (#653): non-retaliators flee the nearest
+player, retaliators charge, and fleeing prey jinks off the straight escape ray.
 
 ---
 

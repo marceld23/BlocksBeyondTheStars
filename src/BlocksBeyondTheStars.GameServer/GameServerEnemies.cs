@@ -514,6 +514,13 @@ public sealed partial class GameServer
             : 15f + tool.Tier * 10f;
         target.Hull -= damage;
 
+        if (isCreature)
+        {
+            // Any hit — surviving or fatal — startles the victim's nearby kin (#653): non-retaliating
+            // herd members scatter instead of grazing on beside the corpse; retaliators charge instead.
+            StartleKin(target);
+        }
+
         if (target.Hull > 0f)
         {
             // A surviving creature that retaliates (territorial / already hostile) is provoked:

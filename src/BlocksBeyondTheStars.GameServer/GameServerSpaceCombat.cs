@@ -75,6 +75,11 @@ public sealed class CombatEntity
     /// decays each tick, after which it settles back to sleep. Server-only.</summary>
     public double AwakeOverrideTimer { get; set; }
 
+    /// <summary>Seconds this creature stays startled (#653): set on itself and its nearby same-species kin when
+    /// one of them is hurt or bolts. While &gt; 0 a NON-retaliating creature flees the nearest player; retaliators
+    /// ignore it (they charge instead). Server-only, never persisted.</summary>
+    public double PanicTimer { get; set; }
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 

@@ -31,6 +31,11 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
             public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
             public Vector3 FaceDir;     // smoothed heading the body turns to face (so it doesn't moonwalk)
+            public Vector3 TargetVel;     // velocity estimated from consecutive server updates (#654)
+            public float LastTargetChange; // Time.time of the last authoritative position change (#654)
+            public float PitchDeg;         // smoothed slope pitch (#652) — nose up/down along real motion
+            public float RollDeg;          // smoothed banking roll (#652) — fliers lean into turns
+            public Vector3 PrevFaceDir;    // last frame's facing → heading rate for the banking roll
             public float AttackUntil; // a visible lunge window when attacking
             public GameObject Stasis; // icy-blue stasis shell shown while frozen (item 36)
             public bool Echo;     // cave dwellers' calls get a reverberant echo (item 21)
@@ -84,16 +89,32 @@ namespace BlocksBeyondTheStars.Client
                         Settled = pos,
                         PrevSettled = pos,
                         FaceDir = Vector3.forward,
+                        PrevFaceDir = Vector3.forward,
+                        LastTargetChange = Time.time,
                         PrevHostile = c.Hostile,
                         PrevHull = c.Hull,
                     };
                     _creatures[c.Id] = entry;
                 }
 
+                // Dead reckoning (#654): positions arrive at ~2 Hz, so chasing the newest (stale) target
+                // rounds every dart into the same soft curve. Estimate the velocity from consecutive
+                // updates and extrapolate the target briefly (clamped) — motion reads crisp between
+                // packets and degrades to plain smoothing when updates stall. Teleport-sized jumps
+                // (spawn shove, eviction) reset the estimate instead of predicting through them.
+                if ((pos - entry.Target).sqrMagnitude > 1e-6f)
+                {
+                    float gap = Mathf.Max(0.05f, Time.time - entry.LastTargetChange);
+                    var estimated = (pos - entry.Target) / gap;
+                    entry.TargetVel = estimated.sqrMagnitude > 64f ? Vector3.zero : estimated;
+                    entry.LastTargetChange = Time.time;
+                }
+
                 entry.Target = pos;
-                // Smoothly chase the authoritative position; a visible lunge toward the player is added
-                // on top during an attack so attacks read clearly.
-                entry.Settled = Vector3.Lerp(entry.Settled, entry.Target, Time.deltaTime * 8f);
+                var predicted = entry.Target + entry.TargetVel * Mathf.Min(Time.time - entry.LastTargetChange, 0.3f);
+                // Smoothly chase the (extrapolated) authoritative position; a visible lunge toward the
+                // player is added on top during an attack so attacks read clearly.
+                entry.Settled = Vector3.Lerp(entry.Settled, predicted, Time.deltaTime * 8f);
                 Vector3 lunge = Vector3.zero;
                 if (Time.time < entry.AttackUntil)
                 {
@@ -111,15 +132,38 @@ namespace BlocksBeyondTheStars.Client
                 // Turn the body to face the way it's actually moving (it used to slide/moonwalk — the server never
                 // sent a facing). Derived from the smoothed velocity; held when standing still. Direction is the
                 // same in world + scene space (the scene only offsets for longitude wrap, it doesn't rotate).
-                Vector3 vel = entry.Settled - entry.PrevSettled;
+                // On top of the yaw (#652): bodies pitch along their real vertical motion (a titan descending a
+                // slope noses down instead of levitating level), and fliers bank into turns. Medusae are a bell —
+                // no nose to pitch, no wings to bank.
+                Vector3 vel3 = entry.Settled - entry.PrevSettled;
                 entry.PrevSettled = entry.Settled;
+                Vector3 vel = vel3;
                 vel.y = 0f;
                 if (vel.sqrMagnitude > 1e-5f)
                 {
                     entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                    bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase);
+                    float targetPitch = 0f, targetRoll = 0f;
+                    if (!medusa)
+                    {
+                        float horiz = vel.magnitude;
+                        targetPitch = Mathf.Clamp(
+                            Mathf.Atan2(vel3.y, Mathf.Max(horiz, 0.01f)) * Mathf.Rad2Deg, -25f, 25f);
+                        if (string.Equals(c.Habitat, "Air", System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            float turnRate = Vector3.SignedAngle(entry.PrevFaceDir, entry.FaceDir, Vector3.up)
+                                / Mathf.Max(Time.deltaTime, 1e-4f);
+                            targetRoll = Mathf.Clamp(-turnRate * 0.25f, -20f, 20f);
+                        }
+                    }
+
+                    entry.PrevFaceDir = entry.FaceDir;
+                    entry.PitchDeg = Mathf.Lerp(entry.PitchDeg, targetPitch, 1f - Mathf.Exp(-6f * Time.deltaTime));
+                    entry.RollDeg = Mathf.Lerp(entry.RollDeg, targetRoll, 1f - Mathf.Exp(-6f * Time.deltaTime));
                     if (entry.FaceDir.sqrMagnitude > 1e-4f)
                     {
-                        entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up);
+                        entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up)
+                            * Quaternion.Euler(-entry.PitchDeg, 0f, entry.RollDeg);
                     }
                 }
 

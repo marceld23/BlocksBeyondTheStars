@@ -162,6 +162,17 @@ public static class CreatureBehaviour
         }
     }
 
+    /// <summary>Blends a heading toward a target heading by fraction <paramref name="t"/> (0..1) along the
+    /// SHORT way around the circle (#651 — school/flock alignment). Pure and wrap-safe, so ±π seams never
+    /// produce a spin the long way round.</summary>
+    public static float BlendHeading(float current, float target, float t)
+    {
+        float diff = target - current;
+        while (diff > System.Math.PI) diff -= 6.2831853f;
+        while (diff < -System.Math.PI) diff += 6.2831853f;
+        return current + diff * System.Math.Clamp(t, 0f, 1f);
+    }
+
     /// <summary>
     /// Whether a creature fights back when attacked. Already-hostile hunters do; <b>territorial</b>
     /// species turn hostile when provoked; passive grazers and skittish fleers do not retaliate.

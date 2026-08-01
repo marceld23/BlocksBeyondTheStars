@@ -527,7 +527,7 @@ public sealed partial class GameServer
         var res = LocomotionController.FollowStep(
             c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
         c.Loco = res.State;
-        var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile);
+        var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile, moveDt);
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even
         // when its owner steps out through the gate membrane (that is the point of the pen).
         if (EntityBlockedByShip(next) || BlockedByEnergyFence(c.Position, next))

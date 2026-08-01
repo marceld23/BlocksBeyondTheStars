@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1325 server + 147 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1331 server + 147 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -102,6 +102,29 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Creature movement realism wave: real-block awareness, steering, boids, vertical easing, herd panic, crisp motion (#650–#654, 2026-08-01, branch feat/creature-movement-realism — LOCAL, no PR yet)
+Five packages on top of the #648 terrain gates. **Real blocks (#650):** land Y-snap, terrain gates,
+titan flatness gate and land spawn placement now read the ACTUAL world via a nearest-standable-cell
+probe (`GetBlockIfLoaded`, ±6 window, downward-first tie-break so bridges don't grab the creature
+under them; generator-surface fallback for unloaded columns) — fauna honours player walls, dug pits,
+ramps and built floors; players can pen animals with builds. **Steering (#651):** a blocked step
+probes ±35°/±70°/±110° (per-individual side order) and adopts the first free heading — contour/wall
+following; only when all probes fail does the old heading re-roll fire (never-stuck preserved).
+**Boids completed (#651):** separation (size-scaled personal space — titans stop overlapping) and
+Schooler heading alignment (`CreatureBehaviour.BlendHeading`, wrap-safe) joined the existing
+cohesion in one O(n) scan. **Vertical easing (#652):** land walkers ease toward the ground at
+6 blocks/s (snap beyond 4 — spawns/teleports stay instant; hoppers keep the snap, their pop IS the
+motion), fliers ease at 4 blocks/s toward hover+swoop (no more contour-pen terrain tracing); client
+bodies pitch along real motion (±25°) and Air species bank into turns (±20°), medusae excluded.
+**Herd panic + jink (#653):** `CombatEntity.PanicTimer` — a hit (fatal or not) or a skittish bolt
+startles same-species kin within 12 blocks for 4 s; non-retaliators flee the nearest player (range
+24), retaliators charge instead, no chain re-triggering; fleeing gains a deterministic zig-zag jink
+in the controller (NPCs/bandits inherit a modest jink; enemies never flee). **Crisp motion (#654):**
+client dead reckoning extrapolates the 2 Hz creature stream (clamped 0.3 s, teleport-safe) and
+Hopper strides pulse with the pop wave (25 % shuffle between hops). Server-only + client-view only:
+no wire change, no save impact; companions keep all freedoms (they must follow owners through
+bases). Tests: 6 new (platform pen + real-floor easing + panic integration on stone-pad arenas;
+jink + hop-pulse + BlendHeading pure) — suite 1331 + 147 green, format clean.
 ### ★ Terrain-aware creature roaming: cliffs are soft walls, no seabed marches, no stranded medusae (#648, 2026-08-01, branch fix/creature-terrain-gates)
 Creatures have no colliders — the server snaps their Y to the habitat height every tick — so terrain
 never blocked movement: a roaming titan crossing a mesa/rift edge got the full cliff height as its

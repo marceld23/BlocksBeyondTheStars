@@ -205,6 +205,67 @@ public sealed class LocomotionControllerTests
         Assert.Equal(prof.TurnRate, prof2.TurnRate, 5);
     }
 
+    [Fact]
+    public void Flee_Jinks_InsteadOfRunningAStraightRay()
+    {
+        // #653: with a weave configured, a fleer's heading must swing to BOTH sides of the direct
+        // escape ray (zig-zag), not hold one straight line — and stay deterministic.
+        var p = Roamer(cruise: 3f, turn: 6f);
+        p.WeaveAmp = 0.3f;
+        p.WeaveFreq = 1.4f;
+
+        var s = default(LocomotionState);
+        var pos = new Vector3f(0, 0, 0);
+        var threat = new Vector3f(-30, 0, 0); // directly behind → escape ray points at +X (heading 0)
+        float minDev = 999f, maxDev = -999f;
+        for (int i = 0; i < 200; i++)
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Flee, threat, 0.05, 9u);
+            s = r.State; pos = r.Position;
+            if (i > 20) // let the turn inertia settle onto the escape ray first
+            {
+                float dev = WrapPi(r.Facing); // deviation from the +X escape heading
+                if (dev < minDev) minDev = dev;
+                if (dev > maxDev) maxDev = dev;
+            }
+        }
+
+        Assert.True(maxDev > 0.15f && minDev < -0.15f,
+            $"fleer should jink to both sides of the escape ray (got {minDev:F2}..{maxDev:F2})");
+    }
+
+    [Fact]
+    public void Hopper_Strides_PulseWithThePopWave()
+    {
+        // #654: a hopper's horizontal step is scaled by its own vertical pop — near-still between hops
+        // (25 % shuffle), full stride at the peak — instead of a constant glide.
+        var p = Roamer(cruise: 2f, accel: 99f, turn: 0.0001f); // frozen heading → distance is pure speed
+        p.Style = LocomotionStyle.Hopper;
+        p.VertAmp = 0.5f;
+        p.VertFreq = 3f;
+
+        var s = default(LocomotionState);
+        var pos = new Vector3f(0, 0, 0);
+        float minStep = 999f, maxStep = 0f;
+        for (int i = 0; i < 100; i++)
+        {
+            var r = LocomotionController.Step(s, p, pos, MoveMode.Roam, null, 0.05, 5u);
+            if (i > 10) // past the speed ease-in
+            {
+                float dx = r.Position.X - pos.X, dz = r.Position.Z - pos.Z;
+                float step = (float)System.Math.Sqrt(dx * dx + dz * dz);
+                if (step < minStep) minStep = step;
+                if (step > maxStep) maxStep = step;
+            }
+
+            s = r.State; pos = r.Position;
+        }
+
+        Assert.True(maxStep > 0f, "the hopper must actually move");
+        Assert.True(minStep < maxStep * 0.5f,
+            $"strides should pulse with the pop (min {minStep:F4} vs max {maxStep:F4})");
+    }
+
     private static float WrapPi(float a)
     {
         while (a > System.Math.PI) a -= 6.2831853f;

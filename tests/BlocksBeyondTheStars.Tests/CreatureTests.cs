@@ -718,6 +718,198 @@ public sealed class CreatureTests : IDisposable
         Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Amphibian, CreatureBodyPlan.Standard, 64, 64, 4, 0));
     }
 
+    // ---------------- Real-block terrain, panic & alignment (#650/#651/#652/#653) ----------------
+
+    /// <summary>Topmost non-air block Y in a column, read from the real world (generates the chunk).</summary>
+    private static int SurfaceTopY(SvGameServer server, int x, int z)
+    {
+        for (int y = 200; y > -200; y--)
+        {
+            if (!server.World.GetBlock(new Vector3i(x, y, z)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>Forces roster slot 0 into a plain, always-awake, solitary land walker so the terrain
+    /// probes and gates fully apply to it (traits are read live each tick; the cached locomotion
+    /// profile keeps its rolled speed, which these tests don't depend on).</summary>
+    private static CreatureSpecies ForcePlainLandWalker(SvGameServer server)
+    {
+        var sp = server.SpeciesRoster.First();
+        sp.Habitat = CreatureHabitat.Land;
+        sp.Temperament = CreatureTemperament.Passive;
+        sp.Activity = CreatureActivity.Cathemeral;
+        sp.BodyPlan = CreatureBodyPlan.Standard;
+        sp.SocialGroupSize = 1;
+        return sp;
+    }
+
+    /// <summary>Highest natural block top over a square area — used to place test arenas safely above
+    /// any terrain feature (jungle hills, tree crowns) so natural blocks can never interfere.</summary>
+    private static int MaxTopY(SvGameServer server, int cx, int cz, int r)
+    {
+        int max = int.MinValue;
+        for (int dx = -r; dx <= r; dx++)
+        {
+            for (int dz = -r; dz <= r; dz++)
+            {
+                max = System.Math.Max(max, SurfaceTopY(server, cx + dx, cz + dz));
+            }
+        }
+
+        return max;
+    }
+
+    /// <summary>Builds a flat stone pad (one solid layer) at <paramref name="padY"/> — a fully
+    /// controlled arena floating above all natural terrain, so the real-block tests are deterministic.</summary>
+    private void BuildPad(SvGameServer server, int cx, int cz, int r, int padY)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int dx = -r; dx <= r; dx++)
+        {
+            for (int dz = -r; dz <= r; dz++)
+            {
+                server.World.SetBlock(new Vector3i(cx + dx, padY, cz + dz), stone);
+            }
+        }
+    }
+
+    [Fact]
+    public void RealBlocks_ARaisedStonePlatform_CarriesAndPens_ARoamingCreature()
+    {
+        // #650: the platform floats 8+ blocks above anything natural — invisible to the old noise-based
+        // movement (the creature would have snapped down through the slabs and wandered off). With
+        // real-block ground it must stand ON the platform, and the edge is an 8-block cliff, so it
+        // must also stay on it for as long as we care to simulate.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            ForcePlainLandWalker(server);
+
+            const int cx = 40, cz = 40;
+            int baseY = MaxTopY(server, cx, cz, 6) + 8;
+            BuildPad(server, cx, cz, 4, baseY);
+
+            p.State.Position = new Vector3f(cx + 10, baseY + 1, cz);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, baseY + 1, cz + 0.5f));
+
+            for (int i = 0; i < 100; i++)
+            {
+                server.TickForTest(0.2);
+            }
+
+            var c = server.Creatures.First(x => x.Id == id);
+            Assert.True(
+                System.Math.Abs(c.Position.X - (cx + 0.5f)) <= 4.6f
+                && System.Math.Abs(c.Position.Z - (cz + 0.5f)) <= 4.6f,
+                $"the platform edge is an 8-block cliff — the creature must stay on it (ended at {c.Position.X:F1}/{c.Position.Z:F1}, centre {cx + 0.5f}/{cz + 0.5f})");
+            Assert.True(System.Math.Abs(c.Position.Y - (baseY + 1)) <= 1.6f,
+                $"it must stand on the REAL platform floor, not the noise surface far below (Y {c.Position.Y:F1}, platform feet {baseY + 1})");
+        }
+    }
+
+    [Fact]
+    public void RealBlocks_ACreature_EasesDownOntoTheRealFloor_InsteadOfHoldingItsOldHeight()
+    {
+        // #650 + #652: a creature placed above a real stone floor must settle DOWN onto it at the
+        // capped vertical rate — the old code would have held it at the generator surface forever
+        // when the actual ground differed.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Digger");
+            p.State.AboardShip = false;
+            ForcePlainLandWalker(server);
+
+            const int cx = -40, cz = -40;
+            int padY = MaxTopY(server, cx, cz, 6) + 8;
+            BuildPad(server, cx, cz, 4, padY);
+
+            p.State.Position = new Vector3f(cx + 8, padY + 1, cz);
+            // Plant it 3 blocks above the pad (inside the easing window, below the snap threshold).
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, padY + 4, cz + 0.5f));
+
+            for (int i = 0; i < 6; i++)
+            {
+                server.TickForTest(0.2);
+            }
+
+            var c = server.Creatures.First(x => x.Id == id);
+            Assert.True(System.Math.Abs(c.Position.Y - (padY + 1)) <= 1.2f,
+                $"it must settle onto the real pad floor (Y {c.Position.Y:F1}, pad feet {padY + 1})");
+        }
+    }
+
+    [Fact]
+    public void HurtingOneHerdMember_StartlesItsKin_WhoFleeThePlayer()
+    {
+        // #653: shooting one animal must panic its same-species kin nearby — they flee the player even
+        // though they are passive (non-retaliating) — and the startle wears off again. Runs on a large
+        // flat stone pad so no terrain gate can pin the fleeing kin in place.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Hunter");
+            p.State.AboardShip = false;
+            ForcePlainLandWalker(server);
+
+            const int cx = 60, cz = 60;
+            int padY = MaxTopY(server, cx, cz, 11) + 8;
+            BuildPad(server, cx, cz, 10, padY);
+
+            p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
+            string idA = server.SpawnCreatureAtForTest(new Vector3f(cx + 3.5f, padY + 1, cz + 0.5f));
+            string idB = server.SpawnCreatureAtForTest(new Vector3f(cx + 6.5f, padY + 1, cz + 0.5f));
+            var victim = server.Creatures.First(x => x.Id == idA);
+            victim.Hull = 9999f; // survives the swing — panic must not need a kill
+
+            server.AttackEntity("Hunter", idA);
+
+            var kin = server.Creatures.First(x => x.Id == idB);
+            Assert.True(kin.PanicTimer > 0, "a hit must startle same-species kin within the panic radius");
+
+            float before = kin.Position.DistanceSquared(p.State.Position);
+            for (int i = 0; i < 10; i++)
+            {
+                server.TickForTest(0.2);
+            }
+
+            float after = kin.Position.DistanceSquared(p.State.Position);
+            Assert.True(after > before, $"a startled passive must flee the player (dist² {before:F1} → {after:F1})");
+
+            for (int i = 0; i < 25 && kin.PanicTimer > 0; i++)
+            {
+                server.TickForTest(0.2);
+            }
+
+            Assert.Equal(0.0, kin.PanicTimer); // the startle wears off — the herd settles again
+        }
+    }
+
+    [Fact]
+    public void BlendHeading_TakesTheShortWayAroundTheSeam()
+    {
+        // #651 alignment helper: blending across the ±π seam must rotate the short way.
+        float full = CreatureBehaviour.BlendHeading(3.0f, -3.0f, 1f);
+        Assert.Equal(0f, WrapAngle(full - (-3.0f)), 3);
+
+        float half = CreatureBehaviour.BlendHeading(0f, 1.5707964f, 0.5f);
+        Assert.Equal(0.7853982f, half, 3);
+    }
+
+    private static float WrapAngle(float a)
+    {
+        while (a > System.Math.PI) a -= 6.2831853f;
+        while (a < -System.Math.PI) a += 6.2831853f;
+        return a;
+    }
+
     // ---------------- Territorial retaliation (provoke) ----------------
 
     [Fact]

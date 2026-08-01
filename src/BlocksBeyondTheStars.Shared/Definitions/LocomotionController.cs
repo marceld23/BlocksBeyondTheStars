@@ -121,6 +121,14 @@ public static class LocomotionController
 
             s.WeavePhase += ft * p.WeaveFreq;
             desired += (float)System.Math.Sin(s.WeavePhase) * p.WeaveAmp * 0.4f;
+            if (intent == MoveMode.Flee)
+            {
+                // Jink (#653): fleeing prey zig-zags off the direct escape ray instead of running a straight,
+                // perfectly predictable line. Rides the weave phase (faster beat) so it stays deterministic;
+                // the turn-rate clamp below keeps the flips from snapping.
+                desired += (float)System.Math.Sin(s.WeavePhase * 2.7f) * 0.6f;
+            }
+
             targetSpeed = p.BurstSpeed > 0f ? p.BurstSpeed : p.CruiseSpeed;
         }
         else
@@ -169,6 +177,13 @@ public static class LocomotionController
         s.VertPhase += ft * p.VertFreq;
 
         float move = s.Speed * ft;
+        if (p.Style == LocomotionStyle.Hopper && p.VertAmp > 0f)
+        {
+            // Real hops (#654): the horizontal stride pulses with the vertical pop — a light ground shuffle
+            // between hops, the full stride at the peak — instead of a constant glide with a cosmetic bob.
+            move *= 0.25f + 0.75f * System.Math.Max(0f, (float)System.Math.Sin(s.VertPhase));
+        }
+
         var pos = new Vector3f(
             cur.X + (float)System.Math.Cos(s.Heading) * move,
             cur.Y,
