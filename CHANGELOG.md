@@ -13,7 +13,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-## [2026.8.1] — 2026-08-01
+## [2026.8.1] — 2026-08-02
 
 The wildlife release: this one belongs to the creatures. Every world's fauna rolls from a bigger,
 more varied pool now — translucent medusae drifting over the treetops, elephant-scale titans
