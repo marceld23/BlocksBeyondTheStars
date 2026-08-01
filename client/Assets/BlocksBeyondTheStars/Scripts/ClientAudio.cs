@@ -3,6 +3,8 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -150,7 +152,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 var n = Game.Network;
-                n.BlockChanged += OnBlock;
+                Game.BlockChangeApplied += OnBlockApplied; // old→new transition, not the raw message (#655)
                 n.CraftCompleted += m =>
                 {
                     // Crafting at the algae tank bubbles (recorded cue) instead of the generic confirm beep.
@@ -555,9 +557,23 @@ namespace BlocksBeyondTheStars.Client
             _ => "wind_light", // rocky / crystal / varied / asteroid → light wind
         };
 
-        private void OnBlock(BlockChanged m)
+        private void OnBlockApplied(Vector3i pos, BlockId oldId, BlockId newId)
         {
-            if (m.Block == 0)
+            // Fluid-sim steps (#655): the server broadcasts EVERY spread/drain cell as a block change, so
+            // flowing water used to hammer the place-knock (and draining water the mining crunch) several
+            // times a second. Water/lava transitions play no per-cell cue — the looping fluid bed IS the
+            // water sound — and instead kick an immediate bed rescan so the rush reacts right away
+            // instead of on the 0.5 s scan beat.
+            string oldKey = Game?.Content?.BlockById(oldId)?.Key ?? string.Empty;
+            string newKey = Game?.Content?.BlockById(newId)?.Key ?? string.Empty;
+            if (oldKey.Contains("water") || oldKey.Contains("lava")
+                || newKey.Contains("water") || newKey.Contains("lava"))
+            {
+                _fluidScanTimer = 0f;
+                return;
+            }
+
+            if (newId.Value == 0)
             {
                 // Mined → a random material variant for variety (material-accurate later).
                 string[] v = { "mine_stone", "mine_metal", "mine_crystal", "mine_dirt" };
@@ -619,7 +635,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_subscribed && Game?.Network != null)
             {
-                Game.Network.BlockChanged -= OnBlock;
+                Game.BlockChangeApplied -= OnBlockApplied;
                 Game.Network.ShipCombatStatusChanged -= OnShip;
                 Game.Network.PlayerStateUpdated -= OnPlayerHealth;
                 Game.Network.WorldEnvironmentReceived -= OnEnvironment;

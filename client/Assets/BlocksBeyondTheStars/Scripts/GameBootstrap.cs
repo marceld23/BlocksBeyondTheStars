@@ -1927,12 +1927,20 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Raised after a server block change was applied to the local world: position, the block
+        /// that WAS in the cell and the block that is there now. The raw network message alone cannot tell
+        /// a drained fluid from a mined block — audio needs the transition (#655).</summary>
+        public event System.Action<Vector3i, BlockId, BlockId> BlockChangeApplied;
+
         private void OnBlockChanged(BlocksBeyondTheStars.Networking.Messages.BlockChanged m)
         {
+            var oldId = World.GetBlock(m.X, m.Y, m.Z);
             if (!World.ApplyBlockChange(m.X, m.Y, m.Z, m.Block, m.Tint, m.Glow, m.Shape, out var coord))
             {
                 return;
             }
+
+            BlockChangeApplied?.Invoke(new Vector3i(m.X, m.Y, m.Z), oldId, new BlockId(m.Block));
 
             // A cell that just became solid where we are standing must lift us out, not swallow us: the server
             // allows placing into your own feet cell (pillar jumping), and mid-fall that used to drop the player
