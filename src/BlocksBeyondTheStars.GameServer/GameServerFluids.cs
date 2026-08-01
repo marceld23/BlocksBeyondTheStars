@@ -22,7 +22,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// it (fluid above, or a stronger horizontal neighbour); when its feed is cut it <b>retracts</b> (dries
 /// up) instead of hanging in the air. The <c>_fallingFluid</c> set marks cells filled by a downward flow
 /// so a cell feeding a waterfall doesn't crawl sideways at its own elevation (which used to leave a sheet
-/// of water floating over the drop). Levels are in-memory (not persisted).
+/// of water floating over the drop). Levels are persisted alongside the fluid block edits (#657): the
+/// block itself survives a restart as a block edit, so without its level row every flowing tongue would
+/// reload as untracked — i.e. as a permanent full source that can never dry up.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -50,9 +52,55 @@ public sealed partial class GameServer
     /// worldgen sea. Flowing cells, by contrast, live in <c>_fluidLevel</c> and dry up when cut off.</summary>
     public void RegisterFluidSource(Vector3i pos)
     {
-        _fluidLevel.Remove(pos);
-        _fallingFluid.Remove(pos);
+        UntrackFluid(pos);
         _activeFluid.Add(pos);
+    }
+
+    /// <summary>Records a flowing cell's level (memory + save). The persisted row is what stops a restart from
+    /// promoting the cell to an untracked source (#657).</summary>
+    private void TrackFluid(Vector3i pos, byte level, bool falling)
+    {
+        _fluidLevel[pos] = level;
+        if (falling)
+        {
+            _fallingFluid.Add(pos);
+        }
+        else
+        {
+            _fallingFluid.Remove(pos); // a cell filled sideways rests on the surface it spread across
+        }
+
+        _repo.SaveFluidCell(_world.LocationId, pos, level, falling);
+    }
+
+    /// <summary>Drops a cell's flowing state (memory + save) — it dried up, became a source, or its block
+    /// was replaced. Safe to call for cells that were never tracked.</summary>
+    private void UntrackFluid(Vector3i pos)
+    {
+        if (_fluidLevel.Remove(pos))
+        {
+            _repo.DeleteFluidCell(_world.LocationId, pos);
+        }
+
+        _fallingFluid.Remove(pos);
+    }
+
+    /// <summary>Restores this world's persisted flowing-fluid cells (levels + falling flags) and wakes them,
+    /// so streams keep flowing/retracting across a restart instead of fossilising into full sources (#657).
+    /// Deliberately does not touch the world's blocks here (that would force chunk generation at load) — the
+    /// tick's own stale-cell check drops any row whose block is no longer a fluid.</summary>
+    private void LoadFluidState()
+    {
+        foreach (var cell in _repo.ListFluidCells(_world.LocationId))
+        {
+            _fluidLevel[cell.WorldPosition] = Math.Clamp(cell.Level, (byte)1, FluidFull);
+            if (cell.Falling)
+            {
+                _fallingFluid.Add(cell.WorldPosition);
+            }
+
+            _activeFluid.Add(cell.WorldPosition); // wake: orphans retract, still-fed cells settle again
+        }
     }
 
     /// <summary>Places a fluid source block and registers it (gameplay/admin/tests).</summary>
@@ -98,8 +146,7 @@ public sealed partial class GameServer
             ushort id = _world.GetBlock(pos).Value;
             if (!IsFluid(id))
             {
-                _fluidLevel.Remove(pos);
-                _fallingFluid.Remove(pos);
+                UntrackFluid(pos);
                 continue;
             }
 
@@ -131,7 +178,7 @@ public sealed partial class GameServer
                 level = (byte)supported;
                 if (level != old)
                 {
-                    _fluidLevel[pos] = level;
+                    TrackFluid(pos, level, _fallingFluid.Contains(pos));
                     changed = true;
                     WakeNeighbors(pos); // a level drop must ripple downstream so the whole tail recedes too
                 }
@@ -245,24 +292,14 @@ public sealed partial class GameServer
         if (_obsidianId != 0 && TouchesOtherFluid(pos, kind.Value))
         {
             _world.SetBlock(pos, new BlockId(_obsidianId));
-            _fluidLevel.Remove(pos);
-            _fallingFluid.Remove(pos);
+            UntrackFluid(pos);
             BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _obsidianId });
             WakeNeighbors(pos);
             return;
         }
 
         _world.SetBlock(pos, kind);
-        _fluidLevel[pos] = level;
-        if (falling)
-        {
-            _fallingFluid.Add(pos); // a cell filled from above feeds a waterfall column
-        }
-        else
-        {
-            _fallingFluid.Remove(pos); // a cell filled sideways rests on the surface it spread across
-        }
-
+        TrackFluid(pos, level, falling);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = kind.Value });
         _activeFluid.Add(pos);
     }
@@ -273,8 +310,7 @@ public sealed partial class GameServer
     private void RetractFluid(Vector3i pos)
     {
         _world.SetBlock(pos, BlockId.Air);
-        _fluidLevel.Remove(pos);
-        _fallingFluid.Remove(pos);
+        UntrackFluid(pos);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
         WakeNeighbors(pos);
     }
@@ -329,8 +365,7 @@ public sealed partial class GameServer
         var pos = new Vector3i(x, y, z);
         bool wasFluid = IsFluid(_world.GetBlock(pos).Value);
         _world.SetBlock(pos, BlockId.Air);
-        _fluidLevel.Remove(pos);
-        _fallingFluid.Remove(pos);
+        UntrackFluid(pos);
         BroadcastToWorld(new BlockChanged { X = x, Y = y, Z = z, Block = BlockId.AirValue });
         if (wasFluid || HasFluidNeighbor(pos))
         {

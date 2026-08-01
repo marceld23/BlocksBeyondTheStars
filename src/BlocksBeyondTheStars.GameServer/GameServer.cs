@@ -517,6 +517,7 @@ public sealed partial class GameServer
         {
             BuildLandingPads(); // FIRST: the pads must reach worldgen before any pad-area chunk generates
             InitFluids();
+            LoadFluidState(); // #657: restore flowing cells so a restart doesn't promote them to sources
             InitFire();
             InitCreatures();
             LoadContainers();

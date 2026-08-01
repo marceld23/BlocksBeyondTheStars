@@ -163,6 +163,25 @@ public readonly struct StoredFloraRegrow
     }
 }
 
+/// <summary>A persisted <b>flowing</b> fluid cell: its level (1..8) and whether it was filled from above (feeds
+/// a waterfall column). Sources are deliberately NOT stored — an untracked fluid block IS a source by definition.
+/// Persisted because the fluid block itself survives a restart as a block edit while the in-memory level table
+/// would not: without this row every flowing tongue reloads as untracked, i.e. as a permanent full source that
+/// can never dry up (#657).</summary>
+public readonly struct StoredFluidCell
+{
+    public readonly Vector3i WorldPosition;
+    public readonly byte Level;
+    public readonly bool Falling;
+
+    public StoredFluidCell(Vector3i worldPosition, byte level, bool falling)
+    {
+        WorldPosition = worldPosition;
+        Level = level;
+        Falling = falling;
+    }
+}
+
 /// <summary>
 /// Abstraction over savegame persistence. SQLite remains the portable default; PostgreSQL is available
 /// for hosted dedicated servers that need managed storage and easier cloud operations.
@@ -210,6 +229,17 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Removes a scheduled flora regrowth (the plant returned, or its host was lost).</summary>
     void DeleteFloraRegrow(string planet, Vector3i worldPosition);
+
+    /// <summary>Stores (inserts or replaces) a flowing fluid cell's level state, keyed by its world cell.</summary>
+    void SaveFluidCell(string planet, Vector3i worldPosition, byte level, bool falling);
+
+    /// <summary>Lists all flowing fluid cells on a planet (restored into the fluid automaton on world load,
+    /// so a restart doesn't promote them to sources).</summary>
+    IReadOnlyList<StoredFluidCell> ListFluidCells(string planet);
+
+    /// <summary>Removes a flowing fluid cell's level state (it dried up, settled into a source, or its block
+    /// was replaced).</summary>
+    void DeleteFluidCell(string planet, Vector3i worldPosition);
 
     PlayerState? LoadPlayer(string playerId);
     void SavePlayer(PlayerState player);

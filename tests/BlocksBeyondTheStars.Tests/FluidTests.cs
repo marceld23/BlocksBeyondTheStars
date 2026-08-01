@@ -258,6 +258,40 @@ public sealed class FluidTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FlowingWater_Recedes_AfterAServerRestart()
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        var water = _content.GetBlock("water")!.NumericId.Value;
+        int y = 138;
+
+        // Session 1: a source on a floor in the air spreads a thin sheet of flowing water.
+        var server1 = Started(out var repo1);
+        for (int x = -1; x <= 6; x++) server1.World.SetBlock(new Vector3i(x, y - 1, 0), stone);
+        server1.PlaceFluidSource("water", 0, y, 0);
+        for (int i = 0; i < 10; i++) server1.Tick(0.3);
+        Assert.Equal(water, server1.World.GetBlock(new Vector3i(3, y, 0)).Value); // it flowed out
+        repo1.Dispose(); // simulate a server restart on the same save
+
+        // Session 2 on the same save: the sheet's cells must come back as FLOWING (tracked), not as sources.
+        // The old bug (#657): levels were memory-only, so after a reload every flowing cell was untracked —
+        // a permanent full source — and cutting the original source no longer dried anything up.
+        var server2 = Started(out var repo2);
+        using (repo2)
+        {
+            Assert.Equal(water, server2.World.GetBlock(new Vector3i(3, y, 0)).Value); // sheet survived the reload
+
+            server2.RemoveBlockForTest(0, y, 0); // cut the source
+            for (int i = 0; i < 40; i++) server2.Tick(0.3);
+
+            for (int x = 1; x <= 6; x++)
+            {
+                Assert.True(server2.World.GetBlock(new Vector3i(x, y, 0)).IsAir,
+                    $"flowing water at x={x} should have receded after the restart + source cut");
+            }
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1331 server + 147 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1332 server + 154 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -102,6 +102,24 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Flowing water survives restarts as FLOW (not as sources) + shallow water reads as liquid (#657, #658, 2026-08-01, branch fix/fluid-flow-persistence-and-surface — LOCAL, no PR yet)
+Two fluid fixes. **Persistence (#657, server):** the automaton's per-cell levels (1..8) and falling
+flags were memory-only while every spread step's fluid BLOCK persisted as a block edit — after a
+reload every formerly-flowing cell was untracked, i.e. by definition a full, never-receding SOURCE.
+Transient tongues fossilised into permanent 1-block sheets that could even multiply on the next dig.
+New `fluid_cell` table (SQLite/PostgreSQL/Memory repos) mirrors the flora-regrow pattern:
+`TrackFluid`/`UntrackFluid` keep the row in sync at every level change, and `LoadFluidState()` (after
+`InitFluids()` in the world-load chain) restores + wakes the cells so orphaned streams retract across
+restarts; stale rows are dropped by the tick's existing not-a-fluid check (no chunk gen forced at
+load). **Surface rendering (#658, client):** the mesher built every fluid cell as a full unit cube —
+levels never reach the client — so a thin spread tongue looked identical to a full basin, flush with
+the bank ("water standing 1 block high"). Water SURFACE cells (air above) now drop their top face by
+`WaterSurfaceInset` (0.15) and shorten exposed side faces to match (bottom edges stay flush; B43
+submerged-side culling, waterfall flanks/mode-4 streaks and the non-colliding water collider are all
+unaffected). Lava deliberately stays full-height: it is opaque, so neighbours cull their faces
+against it (a lowered top would open bank seams) and the player stands on its collider. Tests: new
+`FlowingWater_Recedes_AfterAServerRestart` (spread → repo restart → cut source → sheet dries up) —
+suite 1332 + 154 green.
 ### ★ Water flow no longer knocks + block sounds are positional (#655, 2026-08-01, branch feat/creature-movement-realism — LOCAL, no PR yet)
 Every server `BlockChanged` played a full-volume 2D cue — including EVERY fluid-sim spread/drain
 step, so flowing water hammered a rhythmic `place_block` knocking (and draining water played mining

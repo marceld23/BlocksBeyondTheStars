@@ -93,6 +93,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, int Tint, int Glow, int Shape, string Owner, DateTime? EditedUtc)> _blockEdits = new();
     private readonly Dictionary<(string Planet, int Cx, int Cy, int Cz), List<(string Planet, int X, int Y, int Z)>> _blockEditsByChunk = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _flora = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), (byte Level, bool Falling)> _fluidCells = new();
     private readonly Dictionary<string, string> _players = new();       // id → PlayerSnapshot JSON
     private readonly Dictionary<string, string> _ships = new();         // id → ShipSnapshot JSON
     private readonly Dictionary<string, string> _containers = new();    // id → StoredContainer JSON
@@ -573,6 +574,35 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _flora.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    // ---------------- Flowing fluid cells (#657) ----------------
+
+    public void SaveFluidCell(string planet, Vector3i worldPosition, byte level, bool falling)
+    {
+        lock (_gate)
+        {
+            _fluidCells[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (level, falling);
+        }
+    }
+
+    public IReadOnlyList<StoredFluidCell> ListFluidCells(string planet)
+    {
+        lock (_gate)
+        {
+            return _fluidCells
+                .Where(kv => kv.Key.Planet == planet)
+                .Select(kv => new StoredFluidCell(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Level, kv.Value.Falling))
+                .ToList();
+        }
+    }
+
+    public void DeleteFluidCell(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            _fluidCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
 

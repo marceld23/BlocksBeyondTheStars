@@ -96,6 +96,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS flora_regrow (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, timer DOUBLE PRECISION NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS fluid_cell (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                level INTEGER NOT NULL, falling INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);");
         // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
@@ -713,6 +716,61 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         }
     }
 
+    // --- Flowing fluid cells (level state, so a restart doesn't promote them to sources — #657) ---
+
+    public void SaveFluidCell(string planet, Vector3i worldPosition, byte level, bool falling)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO fluid_cell (planet, x, y, z, level, falling) " +
+                              "VALUES (@p, @x, @y, @z, @l, @f) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET level=excluded.level, falling=excluded.falling;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", worldPosition.X);
+            cmd.Parameters.AddWithValue("@y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("@z", worldPosition.Z);
+            cmd.Parameters.AddWithValue("@l", (int)level);
+            cmd.Parameters.AddWithValue("@f", falling ? 1 : 0);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredFluidCell> ListFluidCells(string planet)
+    {
+        var result = new List<StoredFluidCell>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, level, falling FROM fluid_cell WHERE planet = @p;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredFluidCell(
+                    new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)),
+                    (byte)reader.GetInt32(3),
+                    reader.GetInt32(4) != 0));
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteFluidCell(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM fluid_cell WHERE planet = @p AND x = @x AND y = @y AND z = @z;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", worldPosition.X);
+            cmd.Parameters.AddWithValue("@y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("@z", worldPosition.Z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
     // --- Player-built space stations (item 20 S4) ---
 
     public void SaveSpaceStructure(StoredSpaceStructure s)
@@ -1297,7 +1355,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     {
         "world_meta", "block_edit", "player", "player_ref", "ship", "container", "door", "beacon", "beam",
         "base_claim", "alliance", "story_state", "location_status", "mission",
-        "space_structure", "structure_edit", "flora_regrow",
+        "space_structure", "structure_edit", "flora_regrow", "fluid_cell",
     };
 
     private List<Dictionary<string, object?>> ReadTableForBackup(string table)

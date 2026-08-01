@@ -34,6 +34,12 @@ namespace BlocksBeyondTheStars.Client
         /// faces are hidden, so it has no convex edges). Set to 0 to disable the whole bevel pass. Tunable.</summary>
         public const float BevelAmount = 0.06f;
 
+        /// <summary>How far a water SURFACE cell's top face sits below the block top (fraction of a block), so
+        /// standing water reads as liquid in a hollow instead of a glass cube flush with the bank (#658). Water
+        /// only: lava is opaque, so its neighbours cull their faces against it and a lowered lava top would open
+        /// a seam into the bank (and the player stands ON lava's full-height collider).</summary>
+        public const float WaterSurfaceInset = 0.15f;
+
         // Per-build scratch caches, reused across builds instead of freshly allocated each time. Thread-static
         // because desktop geometry builds run on thread-pool workers (each thread runs at most one build at a
         // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
@@ -53,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
         [System.ThreadStatic] private static Vector3[] _faceAoQuadScratch;
         [System.ThreadStatic] private static Vector3[] _addFaceQuadScratch;
         [System.ThreadStatic] private static Vector3[] _bevelQuadScratch;
+        [System.ThreadStatic] private static Vector3[] _waterQuadScratch;
         [System.ThreadStatic] private static Vector3[] _greebleQuadScratch;
         [System.ThreadStatic] private static Vector2[] _uvCornersScratch;
 
@@ -587,6 +594,17 @@ namespace BlocksBeyondTheStars.Client
                     // Bevel cubes inset each exposed convex edge of the face by BevelAmount (edges against a
                     // solid neighbour stay flush → no gap); the chamfer strips + corners are added after the loop.
                     Vector3[] bevelQuad = bevel ? BevelInsetQuad(new Vector3(x, y, z), f, openMask) : null;
+
+                    // Water SURFACE cells (#658): drop the top face by WaterSurfaceInset and shorten the exposed
+                    // side faces to match, so shallow/standing water sits visibly IN the terrain hollow instead
+                    // of ending flush with the bank like a glass cube. Bottom face stays flush; submerged cells
+                    // (water above) keep the full cube (B43 culls their sides), and a falling column is never a
+                    // surface cell (it has water above), so cascades keep their full flanks. Water never bevels,
+                    // so bevelQuad is free here.
+                    if (isWaterSurface && dir.Y >= 0)
+                    {
+                        bevelQuad = WaterSurfaceQuad(new Vector3(x, y, z), f);
+                    }
                     AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
                         c0, c1, c2, c3, uv,
                         dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation
@@ -1507,6 +1525,24 @@ namespace BlocksBeyondTheStars.Client
             var v = Vector3.zero;
             v[a0] = c0; v[a1] = c1; v[a2] = c2;
             return v;
+        }
+
+        /// <summary>The face quad for a water SURFACE cell with every top-of-cell corner pulled down by
+        /// <see cref="WaterSurfaceInset"/> (#658): the +Y face drops whole, a side face keeps its bottom edge
+        /// flush and shortens at the top. Corners on the cell floor are untouched, so the water still meets
+        /// the ground/bank exactly where the full cube would.</summary>
+        private static Vector3[] WaterSurfaceQuad(Vector3 cell, int face)
+        {
+            var q = FaceQuad(cell, face, ref _waterQuadScratch);
+            for (int i = 0; i < 4; i++)
+            {
+                if (q[i].y - cell.y > 0.5f)
+                {
+                    q[i].y = cell.y + 1f - WaterSurfaceInset;
+                }
+            }
+
+            return q;
         }
 
         /// <summary>The face quad with each corner pulled inward by <see cref="BevelAmount"/> along an in-plane
