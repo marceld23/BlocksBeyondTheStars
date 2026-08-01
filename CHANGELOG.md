@@ -13,6 +13,117 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.1] — 2026-08-01
+
+The wildlife release: this one belongs to the creatures. Every world's fauna rolls from a bigger,
+more varied pool now — translucent medusae drifting over the treetops, elephant-scale titans
+striding across the plains in small herds, fish that actually school. And everything out there
+*moves* like it lives in the world: animals respect cliffs, water and the walls you build (pens
+work now!), steer around obstacles instead of jittering against them, ease over slopes, bank into
+turns, and scatter as a herd when you startle one. Water learned two lessons of its own — a flowing
+stream no longer fossilises into permanent puddles when the server restarts, and shallow water
+finally *looks* shallow. Rounding it off: the chat overlay stays out of your HUD's way and fades
+when it has nothing to say, `/tp` finally works in singleplayer, and the Italian translation
+passed the 20 % mark.
+
+### 🦑 New creature kinds: medusae and titans (#637, #638, #640)
+
+- **Medusae** — jellyfish that drift through air and water: a translucent pulsing bell over a
+  glowing nucleus, 6–10 tapering tentacles hanging in a ring, usually bioluminescent, never
+  hostile. About a quarter of all air- and water-dwelling species roll the new body plan, and each
+  species keeps its own preferred hover altitude instead of the old fixed height.
+- **Titans** — elephant- and giraffe-scale land megafauna, far beyond the old size cap: pillar
+  legs, a stacked neck (giraffe) or a trunk (elephant), horns worn as ivory tusks. Titans are
+  **huntable** — 3.5× the health, 3–6 drops — but a provoked titan genuinely bites back, so bring
+  a plan. They need open, level ground to appear, notice you from further away, and stride with a
+  slow, weighty cadence.
+- **Bigger rosters** — species per world go from 3 to 5 (sparse worlds) and 6 to 9 (rich worlds),
+  with a guarantee that every world gets ground *and* airborne wildlife, and water worlds get
+  something swimming.
+- **Existing worlds keep their fauna.** Known species keep their names, colours, temperaments and
+  stats; some gain a new silhouette, and the new species join alongside them.
+
+### 🐾 Herds, flocks and schools (#639)
+
+- Species have a **social group size** now: titan herds of 2–4, schooling fish in 3–5, flocks of
+  fliers, the occasional grazer pair — placed together at spawn and gently held together while
+  they roam, so a herd reads as a herd instead of scattered loners.
+
+### 🏞️ Creatures respect the terrain — and your walls (#648, #650, #651)
+
+- **Cliffs are walls now.** A land animal no longer glides diagonally *through* a mesa face,
+  never marches along the seabed fully submerged, and a water creature never beaches itself and
+  roams dry land until it despawns.
+- **Fauna reads the actual built world**, not just the generated terrain: player-built walls
+  block, dug pits hold, ramps and floors carry. **You can pen animals with builds now.**
+- **They steer.** A blocked creature probes detours to either side and follows the obstacle around
+  — contour- and wall-following instead of bumping and re-rolling — and neighbours keep a
+  size-scaled personal space, so groups flow instead of stacking.
+
+### 🎞️ Motion that reads as alive (#652, #653, #654)
+
+- Land walkers **ease over terrain** instead of snapping a block per step; fliers swoop smoothly.
+  Bodies **pitch along their real motion** and airborne species **bank into turns** — hoppers
+  keep their pop, because the pop *is* their gait.
+- **Herd panic:** wound or startle one animal and its kin nearby bolt with it — or, for the
+  brave species, turn on you together. Fleeing animals **jink** in a zig-zag instead of running a
+  straight, aimable line.
+- The client now **extrapolates creature motion** between server updates, so everything above
+  moves crisply instead of stepping at the network rate.
+
+### 💬 Chat that stays out of the way — and /tp in singleplayer (#636, #642)
+
+- **The chat scrollback fades out** 12 s after the last message and comes back at full strength
+  the moment anything happens. It moved into the free lane of the HUD — it no longer covers the
+  scan panel, the left hotbar cells or the controls hint — follows the UI-scale setting, and hides
+  itself while you pilot a ship. A **Chat display** comfort setting (fade out / always on / off)
+  and a rebindable **J** key put you in charge.
+- **`/tp` works in singleplayer now.** Admin cheats were unreachable in solo play — the bundled
+  game now enables them for your own worlds (existing saves included), while guests on hosted
+  worlds and dedicated servers stay gated as before. Server replies land in the chat scrollback,
+  so `/tp` can actually show you its target list.
+
+### 💧 Water behaves (#657, #658)
+
+- **Flowing water survives a restart as flow.** The simulation's per-cell state was memory-only,
+  so every restart froze transient tongues into permanent, never-receding one-block sheets. Flow
+  state is persisted now: an orphaned stream retracts properly across restarts. (Sheets fossilised
+  before this release stay — mine them away.)
+- **Shallow water sits visibly below the bank** instead of flush with it, so a thin spread tongue
+  no longer looks like a full basin standing a block high in the landscape. Lava stays flush on
+  purpose — it is opaque and you stand on it.
+
+### 🔊 Water sounds like water (#655)
+
+- Every fluid-simulation step used to play the full block-placed knock — flowing water sounded
+  like rhythmic hammering. Fluid transitions are silent now and feed the ambient brook/waterfall
+  rush instead, which was always the intended water sound.
+- Mining and placing cues are **positional 3D** now: full volume at your own hands, fading with
+  distance, silent past 20 m — so another player building nearby no longer sounds like they are
+  inside your helmet.
+
+### 🇮🇹 Italian passes 20 % (#645, #646)
+
+- **183 new keys** from [@alessandroquirino-lab](https://github.com/alessandroquirino-lab):
+  the first half of all item names — tools, suit gear, weapons, ores, ingots and refined goods —
+  and the last six block keys, completing `block.*` at 296/296. Coverage: 12.6 % → 20.6 %.
+- The translation work keeps paying off in English too: the **beam block description** claimed to
+  be "a glowing structural beam" — leftover concept text; it is the named teleporter pad, and now
+  says so in English and German alike (caught by the translator, #646).
+- The credits now thank the translator by name.
+
+### 🛠️ Internal
+
+- New `fluid_cell` persistence table in all three world repositories (SQLite, PostgreSQL,
+  in-memory), restored on world load without forcing chunk generation.
+- Block changes raise a typed `BlockChangeApplied` event, letting fluid audio and future systems
+  distinguish simulation steps from player edits.
+- A tamed companion silently lost its species' gait on cloning — fixed, and a reflection parity
+  test now fails if a future species field misses the clone.
+- Creature wire messages gain additive body-plan fields; the codec tag is unchanged, older
+  clients simply render the standard body. No save migration anywhere in this release.
+- Test suite at 1332 server + 154 client tests, all green.
+
 ## [2026.7.24] — 2026-07-30
 
 The long-view release: on foot you can finally look into the distance. Binoculars zoom up to 6×, and
@@ -1293,7 +1404,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...HEAD
+[2026.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...v2026.8.1
 [2026.7.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...v2026.7.24
 [2026.7.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...v2026.7.23
 [2026.7.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.21...v2026.7.22
