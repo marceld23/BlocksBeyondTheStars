@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1312 server + 147 client passing** (2026-07-30). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1325 server + 147 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -102,6 +102,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Terrain-aware creature roaming: cliffs are soft walls, no seabed marches, no stranded medusae (#648, 2026-08-01, branch fix/creature-terrain-gates)
+Creatures have no colliders — the server snaps their Y to the habitat height every tick — so terrain
+never blocked movement: a roaming titan crossing a mesa/rift edge got the full cliff height as its
+new Y in one tick (the client lerp rendered that as a diagonal glide *through* the rock face), any
+land animal wandering into a sea marched along the bottom fully submerged, and a water medusa or a
+whole fish school could drift onto the beach and roam dry land until despawn (the dry-column
+fallback never steered them back). The titan flatness gate ran at spawn only. **Fix:** a pure,
+unit-tested step gate (`CreatureBehaviour.TerrainStepBlocked`) wired into the movement tick's
+existing barrier mechanic (discard the step + re-roll the heading — exactly how the ship hull and
+energy fences already work, so the "nothing can ever get stuck" property is preserved): land
+walkers accept at most a 2-block surface step (titans 1, mirroring their 3×3 spawn gate) and never
+enter water deeper than 1 cell; water species never step out of their water body (already-stranded
+individuals keep their legacy freedom); fliers, cave/lava dwellers and amphibians are unaffected.
+Server-only — no client change, no wire change, no save impact.
 ### ★ More creature kinds: floating medusae, huntable titans, herds & bigger rosters (#637–#640, 2026-07-30, branch feat/creature-kinds)
 Fauna was one body plan: every species — whatever its traits said — rendered as the same segment-row
 cube animal, and `Size` was capped five times over (generator 2.2, locomotion 2.2, renderer 3, three

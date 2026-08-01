@@ -276,6 +276,14 @@ despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mi
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
 
+**Terrain-aware roaming (#648):** creatures have no colliders — their Y is snapped to the habitat
+height every tick — so movement is gated per step instead (`CreatureBehaviour.TerrainStepBlocked`,
+the same discard-and-re-roll mechanic as the ship hull and energy fences): land walkers accept at
+most a 2-block surface step (titans 1, mirroring their spawn gate) and never enter water deeper
+than 1 cell; water species never step out of their water body; fliers, cave/lava dwellers and
+amphibians are unaffected. Cliffs thus act as soft walls rather than single-tick teleports, and
+nothing can ever get stuck (a blocked step just rolls a fresh heading).
+
 ---
 
 ## 8. Water, rivers & seas

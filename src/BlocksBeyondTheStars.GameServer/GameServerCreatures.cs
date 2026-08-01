@@ -769,9 +769,12 @@ public sealed partial class GameServer
             var next = AdjustHabitatHeight(sp, stepped, res.VertWave, profile);
 
             // Creatures don't walk into the player's ship — hold position at the hull. Energy fences
-            // pen them in the same way: the step is discarded and a fresh heading is rolled next tick,
-            // so a fenced creature keeps milling about inside instead of grinding against the wire.
-            if (EntityBlockedByShip(next) || BlockedByEnergyFence(creature.Position, next))
+            // pen them in the same way, and terrain gates (#648) reuse the exact same mechanic: cliffs
+            // are soft walls (no more single-tick teleports up a rock face), land animals stay out of
+            // deep water and water animals stay in it. The step is discarded and a fresh heading is
+            // rolled next tick, so a blocked creature keeps milling about instead of getting stuck.
+            if (EntityBlockedByShip(next) || BlockedByEnergyFence(creature.Position, next)
+                || StepBlockedByTerrain(sp, creature.Position, next))
             {
                 creature.Loco.ModeTimer = 0f;
             }
@@ -780,6 +783,33 @@ public sealed partial class GameServer
                 creature.Position = next;
             }
         }
+    }
+
+    /// <summary>Feeds the world's column data (surface heights + water depths) into the pure
+    /// <see cref="CreatureBehaviour.TerrainStepBlocked"/> gate (#648). Only consulted when the step
+    /// actually crosses a column boundary, and only for the habitats the gate cares about — so the
+    /// extra generator queries stay off the common same-column tick.</summary>
+    private bool StepBlockedByTerrain(CreatureSpecies sp, Vector3f cur, Vector3f next)
+    {
+        if (sp.Habitat != CreatureHabitat.Land && sp.Habitat != CreatureHabitat.Water)
+        {
+            return false; // fliers, cave/lava dwellers and amphibians keep their existing freedom
+        }
+
+        int cx = (int)System.Math.Floor(cur.X), cz = (int)System.Math.Floor(cur.Z);
+        int nx = (int)System.Math.Floor(next.X), nz = (int)System.Math.Floor(next.Z);
+        if (cx == nx && cz == nz)
+        {
+            return false; // same column — nothing to gate
+        }
+
+        int curSurface = _generator.SurfaceHeight(_world.Planet, cx, cz);
+        int nextSurface = _generator.SurfaceHeight(_world.Planet, nx, nz);
+        int curDepth = _generator.TryGetWaterSurface(_world.Planet, cx, cz, out int curTop, out int curBed)
+            ? curTop - curBed : 0;
+        int nextDepth = _generator.TryGetWaterSurface(_world.Planet, nx, nz, out int nextTop, out int nextBed)
+            ? nextTop - nextBed : 0;
+        return CreatureBehaviour.TerrainStepBlocked(sp.Habitat, sp.BodyPlan, curSurface, nextSurface, curDepth, nextDepth);
     }
 
     private const float GroupCohesionRange = 24f;   // kin within this count toward the group centre (#639)

@@ -123,6 +123,46 @@ public static class CreatureBehaviour
     }
 
     /// <summary>
+    /// Whether a roaming step from one terrain column into another is blocked for this creature (#648).
+    /// Creatures have no colliders — their Y is snapped to the habitat height every tick — so without
+    /// this gate cliffs are climbed in a single-tick teleport, land animals march along the seabed and
+    /// water animals strand ashore. Blocked steps are handled like the ship-hull barrier: the caller
+    /// discards the move and re-rolls a heading, so nothing can ever get stuck.
+    /// <list type="bullet">
+    /// <item><b>Land</b>: the surface may step by at most 2 blocks (1 for a <see cref="CreatureBodyPlan.Titan"/>,
+    /// matching its spawn flatness gate), and the target column's water must be wadeable (≤ 1 deep).</item>
+    /// <item><b>Water</b>: a creature that is in water never steps into a dry column (an already-stranded
+    /// individual keeps its legacy freedom so it can still wander at all).</item>
+    /// <item>Fliers, cave and lava dwellers and amphibians are unaffected.</item>
+    /// </list>
+    /// Depths are in water cells (surface − bed); pass 0 for a dry column.
+    /// </summary>
+    public static bool TerrainStepBlocked(
+        CreatureHabitat habitat,
+        CreatureBodyPlan bodyPlan,
+        int curSurfaceY,
+        int nextSurfaceY,
+        int curWaterDepth,
+        int nextWaterDepth)
+    {
+        switch (habitat)
+        {
+            case CreatureHabitat.Land:
+                int limit = bodyPlan == CreatureBodyPlan.Titan ? 1 : 2;
+                if (System.Math.Abs(nextSurfaceY - curSurfaceY) > limit)
+                {
+                    return true; // cliff — a soft wall in both directions (no climbing, no plunging)
+                }
+
+                return nextWaterDepth > 1; // wading is fine, swimming is not
+            case CreatureHabitat.Water:
+                return curWaterDepth > 0 && nextWaterDepth <= 0; // never leave the water body
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>
     /// Whether a creature fights back when attacked. Already-hostile hunters do; <b>territorial</b>
     /// species turn hostile when provoked; passive grazers and skittish fleers do not retaliate.
     /// </summary>
