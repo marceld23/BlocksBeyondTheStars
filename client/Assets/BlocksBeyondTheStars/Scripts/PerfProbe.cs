@@ -184,7 +184,7 @@ namespace BlocksBeyondTheStars.Client
                 : null;
 
             Debug.Log($"[PerfProbe] Starting world (seed {_seed}, preset {shell.Settings.Preset}, view distance {shell.Settings.ViewDistanceChunks}{(_dense ? ", dense scene" : "")}).");
-            shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false, worldOptions);
+            shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false, worldOptions: worldOptions);
 
             yield return WaitForPhase(shell, ShellPhase.InGame, WorldLoadTimeout);
             var boot = shell.CurrentBoot;

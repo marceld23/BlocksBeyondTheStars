@@ -35,15 +35,15 @@ namespace BlocksBeyondTheStars.Client
             bool host = shell.HostMode;
             int[] maxPlayers = { 12 };
             string[] hostPass = { "" };
-            void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, WorldCreationOptions options = null)
+            void Launch(string world, bool unlockAll = false, bool allShips = false, bool kit = false, bool sandbox = false, WorldCreationOptions options = null)
             {
                 if (host)
                 {
-                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], 0, unlockAll, allShips, kit, options);
+                    shell.StartHostWorld(world, maxPlayers[0], hostPass[0], 0, unlockAll, allShips, kit, sandbox, options);
                 }
                 else
                 {
-                    shell.StartSingleplayerWorld(world, 0, unlockAll, allShips, kit, options);
+                    shell.StartSingleplayerWorld(world, 0, unlockAll, allShips, kit, sandbox, options);
                 }
             }
 
@@ -90,24 +90,29 @@ namespace BlocksBeyondTheStars.Client
             string[] name = { "new_world" };
             UiKit.AddInput(right, 20f, 82f, 660f, 34f, name[0], v => name[0] = v, maxLength: 24);
 
-            // Mode: Explorer (normal) vs Creative (everything unlocked + a starter set; survival mechanics stay on).
-            bool[] creative = { false };
+            // Mode: Explorer (normal) vs Creative (everything unlocked + a starter set; survival mechanics
+            // stay on) vs Sandbox (#662: free crafting, no oxygen/hunger, peaceful, everything unlocked).
+            int[] mode = { 0 }; // 0 Explorer · 1 Creative · 2 Sandbox
             bool[] optBlueprints = { true };
             bool[] optShips = { true };
             bool[] optKit = { true };
 
             UiKit.AddText(right, 20f, 124f, 660f, 24f, shell.L("ui.save.mode"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            Button explorerBtn = null, creativeBtn = null;
+            Button explorerBtn = null, creativeBtn = null, sandboxBtn = null;
             GameObject creativePanel = null;
+            GameObject sandboxHint = null;
             void RefreshMode()
             {
-                if (explorerBtn != null) explorerBtn.image.color = creative[0] ? UiKit.PanelFill : UiKit.Cyan;
-                if (creativeBtn != null) creativeBtn.image.color = creative[0] ? UiKit.Cyan : UiKit.PanelFill;
-                if (creativePanel != null) creativePanel.SetActive(creative[0]);
+                if (explorerBtn != null) explorerBtn.image.color = mode[0] == 0 ? UiKit.Cyan : UiKit.PanelFill;
+                if (creativeBtn != null) creativeBtn.image.color = mode[0] == 1 ? UiKit.Cyan : UiKit.PanelFill;
+                if (sandboxBtn != null) sandboxBtn.image.color = mode[0] == 2 ? UiKit.Cyan : UiKit.PanelFill;
+                if (creativePanel != null) creativePanel.SetActive(mode[0] == 1);
+                if (sandboxHint != null) sandboxHint.SetActive(mode[0] == 2);
             }
 
-            explorerBtn = UiKit.AddButton(right, 20f, 152f, 320f, 46f, shell.L("ui.save.mode_explorer"), () => { creative[0] = false; RefreshMode(); });
-            creativeBtn = UiKit.AddButton(right, 360f, 152f, 320f, 46f, shell.L("ui.save.mode_creative"), () => { creative[0] = true; RefreshMode(); });
+            explorerBtn = UiKit.AddButton(right, 20f, 152f, 210f, 46f, shell.L("ui.save.mode_explorer"), () => { mode[0] = 0; RefreshMode(); });
+            creativeBtn = UiKit.AddButton(right, 245f, 152f, 210f, 46f, shell.L("ui.save.mode_creative"), () => { mode[0] = 1; RefreshMode(); });
+            sandboxBtn = UiKit.AddButton(right, 470f, 152f, 210f, 46f, shell.L("ui.save.mode_sandbox"), () => { mode[0] = 2; RefreshMode(); });
 
             // Creative sub-options (a checklist; shown only when Creative is selected).
             var cp = UiKit.AddPanel(right, 20f, 206f, 660f, 150f, new Color(0.05f, 0.10f, 0.16f, 0.55f));
@@ -127,6 +132,12 @@ namespace BlocksBeyondTheStars.Client
             Toggle(8f, shell.L("ui.save.opt_blueprints"), optBlueprints);
             Toggle(52f, shell.L("ui.save.opt_ships"), optShips);
             Toggle(96f, shell.L("ui.save.opt_kit"), optKit);
+
+            // Sandbox: no checklist — everything is on by design; a short hint says what the mode does.
+            var sh = UiKit.AddText(right, 20f, 210f, 660f, 140f, shell.L("ui.save.sandbox_hint"), 15,
+                UiKit.CyanDim, TextAnchor.UpperLeft);
+            sh.horizontalOverflow = HorizontalWrapMode.Wrap;
+            sandboxHint = sh.gameObject;
             RefreshMode(); // start on Explorer (sub-options hidden)
 
             // World options (sliders + presets): collected here, baked into the save at creation.
@@ -138,10 +149,15 @@ namespace BlocksBeyondTheStars.Client
                 optionsOverlay.SetActive(true);
             });
 
+            // Creative honours the checklist; Sandbox forces every grant on (free crafting makes blueprints
+            // moot, but owning all ships + the kit keeps testing friction-free).
+            bool UnlockAll() => mode[0] == 2 || (mode[0] == 1 && optBlueprints[0]);
+            bool AllShips() => mode[0] == 2 || (mode[0] == 1 && optShips[0]);
+            bool Kit() => mode[0] == 2 || (mode[0] == 1 && optKit[0]);
             UiKit.AddButton(right, 20f, 428f, 320f, 50f, shell.L("ui.save.create"),
-                () => Launch(name[0], creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_singleplayer");
+                () => Launch(name[0], UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions), "btn_singleplayer");
             UiKit.AddButton(right, 360f, 428f, 320f, 50f, shell.L("ui.save.random"),
-                () => Launch("world_" + Random.Range(1000, 999999), creative[0] && optBlueprints[0], creative[0] && optShips[0], creative[0] && optKit[0], worldOptions), "btn_join");
+                () => Launch("world_" + Random.Range(1000, 999999), UnlockAll(), AllShips(), Kit(), mode[0] == 2, worldOptions), "btn_join");
             UiKit.AddText(right, 20f, 486f, 660f, 50f, shell.L("ui.save.hint"), 14, UiKit.CyanDim, TextAnchor.UpperLeft).horizontalOverflow = HorizontalWrapMode.Wrap;
 
             // ── Host options (host mode only): player cap + optional join password ───────────────

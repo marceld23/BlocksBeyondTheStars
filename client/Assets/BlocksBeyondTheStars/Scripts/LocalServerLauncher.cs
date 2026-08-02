@@ -125,6 +125,7 @@ namespace BlocksBeyondTheStars.Client
         /// (passed as <c>--admins</c> so the host is admin even on a save where someone else joined first).</summary>
         public bool Prepare(int port = DefaultPort, int viewDistanceChunks = 0, string worldName = "singleplayer", long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
+            bool sandbox = false,
             string worldOptionArgs = null,
             int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null)
         {
@@ -191,7 +192,10 @@ namespace BlocksBeyondTheStars.Client
             string creativeArgs =
                 (creativeUnlockAll ? " --unlock-all-blueprints true" : string.Empty) +
                 (creativeAllShips ? " --start-all-ships true" : string.Empty) +
-                (creativeKit ? " --creative-kit true" : string.Empty);
+                (creativeKit ? " --creative-kit true" : string.Empty) +
+                // True sandbox (#662): free crafting + no oxygen/hunger + peaceful. Creation-only like the
+                // creative args — the server bakes the mode into the save's RulesOverride.
+                (sandbox ? " --game-mode Creative" : string.Empty);
             // World options (sliders at creation): non-default values only; the server bakes them into the
             // new save's rules/description, so later launches don't need to repeat them.
             string optionArgs = string.IsNullOrEmpty(worldOptionArgs) ? string.Empty : worldOptionArgs;

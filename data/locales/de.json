@@ -857,6 +857,8 @@
   "ui.save.mode": "Modus",
   "ui.save.mode_explorer": "Explorer",
   "ui.save.mode_creative": "Kreativ",
+  "ui.save.mode_sandbox": "Sandbox",
+  "ui.save.sandbox_hint": "Freies Bauen: Crafting kostet keine Materialien, kein Sauerstoff oder Hunger, keine Gegner — mit allen Blaupausen, Schiffen und dem Startset freigeschaltet. Perfekt zum Testen und Bauen.",
   "ui.save.opt_blueprints": "Alle Blaupausen freigeschaltet",
   "ui.save.opt_ships": "Alle Schiffe verfügbar",
   "ui.save.opt_kit": "Kreativ-Startset (Werkzeuge + Materialien)",

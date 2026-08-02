@@ -69,6 +69,35 @@ public sealed class GameModeTests : IDisposable
     }
 
     [Fact]
+    public void SandboxMode_PersistsAcrossRestart_WithoutTheFlag()
+    {
+        // #662: the launcher passes --game-mode Creative only at world creation. A relaunch of the same
+        // save (no flag → Survival launch default) must keep Sandbox via the baked RulesOverride.
+        {
+            var config = new ServerConfig { WorldName = "sandbox", Seed = 1, AutoSaveIntervalMinutes = 9999 };
+            config.ApplyCommandLine(new[] { "--game-mode", "Creative" });
+            using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "sandbox"));
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            Assert.Equal(GameMode.Creative, server.Metadata.RulesOverride!.GameMode);
+            repo.Flush();
+        }
+
+        {
+            var config = new ServerConfig { WorldName = "sandbox", Seed = 1, AutoSaveIntervalMinutes = 9999 };
+            using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "sandbox"));
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            // The save's baked rules win over the flag-less launch default: still Sandbox, crafting free.
+            Assert.Equal(GameMode.Creative, server.Metadata.RulesOverride!.GameMode);
+            Assert.False(server.Metadata.RulesOverride.CraftingCostsMaterials);
+        }
+    }
+
+    [Fact]
     public void ServerRules_AreSentOnJoin()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "rules"));

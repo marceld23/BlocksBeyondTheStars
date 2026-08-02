@@ -126,6 +126,25 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_GameModeFlagSelectsSandbox()
+    {
+        // #662: the launcher passes --game-mode Creative when the player picks Sandbox at world
+        // creation. Case-insensitive; an unknown value leaves the Survival default untouched.
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[] { "--game-mode", "creative" });
+
+        Assert.Equal(GameMode.Creative, config.Rules.GameMode);
+        Assert.False(config.Rules.CraftingCostsMaterials);
+        Assert.False(config.Rules.OxygenEnabled);
+        Assert.False(config.Rules.HungerEnabled);
+        Assert.Contains("game-mode", applied);
+
+        var bad = new ServerConfig();
+        bad.ApplyCommandLine(new[] { "--game-mode", "nonsense" });
+        Assert.Equal(GameMode.Survival, bad.Rules.GameMode);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesShipWeaponsAndKeepRules()
     {
         var config = new ServerConfig();

@@ -856,6 +856,8 @@
   "ui.save.mode": "Mode",
   "ui.save.mode_explorer": "Explorer",
   "ui.save.mode_creative": "Creative",
+  "ui.save.mode_sandbox": "Sandbox",
+  "ui.save.sandbox_hint": "Free building: crafting costs no materials, no oxygen or hunger, no enemies — with all blueprints, ships and the starter kit unlocked. Perfect for testing and building.",
   "ui.save.opt_blueprints": "All blueprints unlocked",
   "ui.save.opt_ships": "All ships available",
   "ui.save.opt_kit": "Creative starter kit (tools + materials)",

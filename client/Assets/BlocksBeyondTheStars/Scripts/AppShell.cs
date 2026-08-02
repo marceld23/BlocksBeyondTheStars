@@ -545,8 +545,9 @@ namespace BlocksBeyondTheStars.Client
         /// creative flags are only honoured when the world is first created (the server bakes them into the save).</summary>
         public void StartSingleplayerWorld(string worldName, long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
+            bool sandbox = false,
             WorldCreationOptions worldOptions = null)
-            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, worldOptions,
+            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions,
                 maxPlayers: 1, password: null);
 
         /// <summary>Hosts a multiplayer world in-game: launches the bundled server on a singleplayer save
@@ -555,12 +556,13 @@ namespace BlocksBeyondTheStars.Client
         /// player of a fresh world is its WorldAdmin anyway).</summary>
         public void StartHostWorld(string worldName, int maxPlayers, string password, long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
+            bool sandbox = false,
             WorldCreationOptions worldOptions = null)
-            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, worldOptions,
+            => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions,
                 Mathf.Clamp(maxPlayers, 2, 16), password);
 
         private void StartLocalWorld(string worldName, long seed,
-            bool creativeUnlockAll, bool creativeAllShips, bool creativeKit, WorldCreationOptions worldOptions,
+            bool creativeUnlockAll, bool creativeAllShips, bool creativeKit, bool sandbox, WorldCreationOptions worldOptions,
             int maxPlayers, string password)
         {
             if (ShowBrowserLocalServerBlockedNotice())
@@ -581,7 +583,7 @@ namespace BlocksBeyondTheStars.Client
             // blocking Process.Start (a Defender first-scan of the freshly-built EXE can stall it for seconds)
             // would freeze the menu so "nothing happens" before the loading screen appears.
             if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
-                    creativeUnlockAll, creativeAllShips, creativeKit, worldOptions?.ToArgs(),
+                    creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions?.ToArgs(),
                     maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName))
             {
                 Host = _localServer.Host;

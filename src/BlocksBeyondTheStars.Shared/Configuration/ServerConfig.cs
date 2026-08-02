@@ -422,6 +422,17 @@ public sealed class ServerConfig
                 case "admin-bind":
                     AdminBindAddress = value; applied.Add("admin-bind");
                     break;
+                case "game-mode":
+                    // True sandbox (issue #662): "Creative" makes crafting free, disables oxygen/hunger and
+                    // keeps planet enemies/bandits off (both gate on Survival). Passed by the launcher only
+                    // at world creation — thereafter the save's baked RulesOverride carries the mode.
+                    if (Enum.TryParse<GameMode>(value, ignoreCase: true, out var gm))
+                    {
+                        Rules.GameMode = gm;
+                        applied.Add("game-mode");
+                    }
+
+                    break;
                 case "admin-cheats":
                     // Allow admin cheat commands (/tp, /give, /fly …) in every game mode. Passed by the
                     // bundled singleplayer/host launcher, where the solo player is the WorldAdmin anyway;
