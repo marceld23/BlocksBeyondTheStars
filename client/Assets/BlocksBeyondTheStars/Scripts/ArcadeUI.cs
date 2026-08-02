@@ -146,20 +146,7 @@ namespace BlocksBeyondTheStars.Client
             content.anchorMin = new Vector2(0f, 1f); content.anchorMax = new Vector2(0f, 1f); content.pivot = new Vector2(0f, 1f);
             content.sizeDelta = new Vector2(w, h); content.anchoredPosition = Vector2.zero;
             sr.content = content; sr.viewport = (RectTransform)viewGo.transform;
-
-            // Thin vertical scrollbar on the right edge.
-            var sbGo = new GameObject("Scrollbar", typeof(RectTransform), typeof(Image), typeof(Scrollbar));
-            var sbRT = (RectTransform)sbGo.transform; sbRT.SetParent(viewGo.transform, false);
-            sbRT.anchorMin = new Vector2(1f, 0f); sbRT.anchorMax = new Vector2(1f, 1f); sbRT.pivot = new Vector2(1f, 0.5f);
-            sbRT.sizeDelta = new Vector2(7f, 0f); sbRT.anchoredPosition = Vector2.zero;
-            sbGo.GetComponent<Image>().color = new Color(0.27f, 0.55f, 0.72f, 0.12f);
-            var sb = sbGo.GetComponent<Scrollbar>(); sb.direction = Scrollbar.Direction.BottomToTop;
-            var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
-            var hRT = (RectTransform)handleGo.transform; hRT.SetParent(sbGo.transform, false);
-            hRT.anchorMin = Vector2.zero; hRT.anchorMax = Vector2.one; hRT.sizeDelta = Vector2.zero; hRT.anchoredPosition = Vector2.zero;
-            handleGo.GetComponent<Image>().color = new Color(0.27f, 0.84f, 1f, 0.55f);
-            sb.handleRect = hRT; sb.targetGraphic = handleGo.GetComponent<Image>();
-            sr.verticalScrollbar = sb; sr.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            UiKit.AddInlineScrollbar(sr, 7f);
             return content;
         }
 

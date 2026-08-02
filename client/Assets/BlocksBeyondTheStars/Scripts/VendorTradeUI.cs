@@ -115,10 +115,28 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(_root, px + 40, py + 116, 380, 22, L("ui.vendor.give"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(_root, px + 470, py + 116, 320, 22, L("ui.vendor.get"), 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
 
+            // The rows live in a masked scroll viewport — a settlement can post more trades than the
+            // fixed panel height fits (they used to clip past the panel bottom).
             var rowsGo = new GameObject("Rows", typeof(RectTransform));
             rowsGo.transform.SetParent(_root, false);
             UiKit.Place(rowsGo, px, py + RowsTop, PanelW, PanelH - RowsTop - 80);
-            _rows = rowsGo.transform;
+            var scroll = rowsGo.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            rowsGo.AddComponent<RectMask2D>();
+
+            var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
+            content.SetParent(rowsGo.transform, false);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(0f, 1f);
+            content.pivot = new Vector2(0f, 1f);
+            content.sizeDelta = new Vector2(PanelW, PanelH - RowsTop - 80);
+            content.anchoredPosition = Vector2.zero;
+            scroll.content = content;
+            scroll.viewport = (RectTransform)rowsGo.transform;
+            UiKit.AddInlineScrollbar(scroll);
+            _rows = content;
 
             UiKit.AddText(_root, px + 40, py + PanelH - 50, PanelW - 320, 26, L("ui.vendor.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddButton(_root, px + PanelW - 220, py + PanelH - 64, 180, 46, L("ui.action.close"), Close);
@@ -166,6 +184,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 UiKit.AddText(_rows, 20, 10, PanelW - 40, 30, L("ui.vendor.empty"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
             }
+
+            // Size the scroll content to the rows (floored at the viewport so short lists don't scroll) and
+            // clamp the kept scroll position — an inventory-update rebuild mid-browse must not jump to the top.
+            var rows = (RectTransform)_rows;
+            float viewportH = ((RectTransform)rows.parent).rect.height;
+            float contentH = Mathf.Max(row * RowH + 8f, viewportH);
+            rows.sizeDelta = new Vector2(rows.sizeDelta.x, contentH);
+            rows.anchoredPosition = new Vector2(rows.anchoredPosition.x,
+                Mathf.Clamp(rows.anchoredPosition.y, 0f, contentH - viewportH));
         }
 
         private void AddRow(int index, BlocksBeyondTheStars.Shared.Definitions.RecipeDefinition r)

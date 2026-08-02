@@ -544,6 +544,44 @@ namespace BlocksBeyondTheStars.Client
             return bar;
         }
 
+        /// <summary>A thin auto-hiding scrollbar hugging the ScrollRect viewport's right edge — anchor-based,
+        /// so callers need no coordinates, and AutoHide keeps it invisible whenever the page fits. Parent it
+        /// to the VIEWPORT (done here), never the content: per-tab rebuilds clear content children and would
+        /// destroy it. Visibility must stay AutoHide, not AutoHideAndExpandViewport — expanding would resize
+        /// the viewport and shift Place()-positioned children.</summary>
+        public static Scrollbar AddInlineScrollbar(ScrollRect scroll, float width = 8f)
+        {
+            var go = new GameObject("InlineScrollbar", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(scroll.viewport, false);
+            rt.anchorMin = new Vector2(1f, 0f);
+            rt.anchorMax = Vector2.one;
+            rt.pivot = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(width, 0f);
+            rt.anchoredPosition = Vector2.zero;
+            var track = go.AddComponent<Image>();
+            track.color = new Color(0.27f, 0.55f, 0.72f, 0.12f);
+
+            var bar = go.AddComponent<Scrollbar>();
+            bar.direction = Scrollbar.Direction.BottomToTop;
+
+            var handleGo = new GameObject("Handle", typeof(RectTransform));
+            var handleRt = (RectTransform)handleGo.transform;
+            handleRt.SetParent(go.transform, false);
+            handleRt.anchorMin = Vector2.zero;
+            handleRt.anchorMax = Vector2.one;
+            handleRt.sizeDelta = Vector2.zero;
+            handleRt.anchoredPosition = Vector2.zero;
+            var handle = handleGo.AddComponent<Image>();
+            handle.color = new Color(Cyan.r, Cyan.g, Cyan.b, 0.55f);
+
+            bar.handleRect = handleRt;
+            bar.targetGraphic = handle;
+            scroll.verticalScrollbar = bar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            return bar;
+        }
+
         public static Text AddText(Transform parent, float x, float y, float w, float h, string text, int size,
             Color color, TextAnchor anchor = TextAnchor.MiddleLeft, FontStyle style = FontStyle.Normal)
         {

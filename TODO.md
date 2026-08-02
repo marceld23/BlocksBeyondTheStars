@@ -102,6 +102,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ In-game menu lists show a scrollbar (#664, 2026-08-02, branch feat/ui-inline-scrollbars)
+The ship-computer menu (all 12 tabs), the Codex and the vendor dialog scrolled only via wheel/drag —
+nothing showed THAT a list continues or WHERE you are. New `UiKit.AddInlineScrollbar(scroll, width)`
+generalises ArcadeUI's thin cyan bar: anchored to the ScrollRect viewport's right edge (no per-pane
+coordinates), `AutoHide` so it vanishes when a page fits (plays with the floor-at-viewport-height
+content sizing), parented to the viewport so per-tab `ClearChildren` rebuilds can't destroy it.
+Wired in `CraftingTechShipUI.MakeScroll` (sidebar + card list + detail pane in one line),
+`WikiUI.BuildContentScroll`, and ArcadeUI now uses the shared helper instead of its private copy.
+Bonus (#664): `VendorTradeUI` rows had NO ScrollRect at all — long offer lists clipped past the
+panel; they now live in a masked scroll viewport with the same bar, keeping (clamped) scroll
+position across the inventory-update rebuild after a trade.
+
 ### ★ Flowing water survives restarts as FLOW (not as sources) + shallow water reads as liquid (#657, #658, 2026-08-01, branch fix/fluid-flow-persistence-and-surface — LOCAL, no PR yet)
 Two fluid fixes. **Persistence (#657, server):** the automaton's per-cell levels (1..8) and falling
 flags were memory-only while every spread step's fluid BLOCK persisted as a block edit — after a

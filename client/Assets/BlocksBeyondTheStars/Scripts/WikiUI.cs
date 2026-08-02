@@ -164,6 +164,7 @@ namespace BlocksBeyondTheStars.Client
 
             scroll.viewport = (RectTransform)viewGo.transform;
             scroll.content = content;
+            UiKit.AddInlineScrollbar(scroll);
             return content;
         }
 

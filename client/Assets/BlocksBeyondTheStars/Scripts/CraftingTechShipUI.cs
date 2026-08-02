@@ -3370,6 +3370,7 @@ namespace BlocksBeyondTheStars.Client
             sr.content = content;
             sr.viewport = viewGo.GetComponent<RectTransform>();
             sr.scrollSensitivity = 30f;
+            UiKit.AddInlineScrollbar(sr); // sidebar/list/detail all get a position indicator (#664)
             return content;
         }
 
