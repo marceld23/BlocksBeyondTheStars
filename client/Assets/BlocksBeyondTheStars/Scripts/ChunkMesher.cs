@@ -374,6 +374,20 @@ namespace BlocksBeyondTheStars.Client
                 bool collidable = collKey != "water" && collKey != "fire" && collKey != "energy_gate";
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
+                // Per-cell flora tint jitter (#675): a deterministic ±8 % brightness wobble on the species
+                // tint so a field stops being one flat colour. Flora species only (not tree leaves/logs —
+                // a speckled crown would read as noise) and deliberately SMALL, so species identity (incl.
+                // recognising a toxic species by its colour) stays readable.
+                if (isFlora && collKey != null && collKey.StartsWith("flora_", System.StringComparison.Ordinal)
+                    && speciesTint != Color.black)
+                {
+                    float tintJit = CrossPlantScale(wx, 0, wz, 0x9, 0.08f); // per column — stacked strands stay one shade
+                    speciesTint = new Color(
+                        Mathf.Clamp01(speciesTint.r * tintJit),
+                        Mathf.Clamp01(speciesTint.g * tintJit),
+                        Mathf.Clamp01(speciesTint.b * tintJit));
+                }
+
                 // Ground-detail scatter (T0): on planet chunks, strew a sparse deterministic set of tufts/
                 // pebbles on open-topped ground cells. Render-only decoration drawn instanced by GroundScatter
                 // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
@@ -442,27 +456,45 @@ namespace BlocksBeyondTheStars.Client
                     // Per-plant size variance (a grass field is tall + short tufts, not a uniform lawn): a
                     // deterministic bell scale from the world cell, so all clients agree. Height varies more
                     // than width; they're keyed off different salts so a plant can be tall + slender or low + bushy.
+                    // #675: the bell is blended with a coarse 8×8-cell component (FloraScale — meadows form
+                    // PATCHES of tall/short growth) and multiplied by rare runt/giant outliers (FloraOutlier) —
+                    // per-cell white noise alone averages back to a uniform carpet at viewing distance.
                     // Tall species (ferns, reeds, grass tufts…) get a taller billboard, so vegetation reads in
                     // layers — low ground cover beneath a taller upper storey — rather than one flat carpet.
                     float tallBoost = TallFlora.Contains(collKey) ? 1.85f : 1f;
-                    float plantH = CrossPlantScale(wx, wy, wz, 0x1, 0.35f) * tallBoost;
-                    float plantW = CrossPlantScale(wx, wy, wz, 0x2, 0.20f);
+                    float plantOutlier = FloraOutlier(wx, wz);
+                    float plantH = FloraScale(wx, wy, wz, 0x1, 0.35f) * tallBoost * plantOutlier;
+                    // A giant's width is left nearly alone (the cell clamp would eat it anyway); a runt shrinks fully.
+                    float plantW = FloraScale(wx, wy, wz, 0x2, 0.20f) * Mathf.Min(plantOutlier, 1.1f);
                     // Per-plant top lean (deterministic, ±~0.12) so a field reads as naturally varied rather
                     // than a grid of upright cards.
                     var plantLean = new Vector2(
                         (CrossPlantScale(wx, wy, wz, 0x4, 1f) - 1f) * 0.12f,
                         (CrossPlantScale(wx, wy, wz, 0x8, 1f) - 1f) * 0.12f);
+                    // De-grid (#675): every plant used to sit dead-centre on its cell with the same rosette
+                    // orientation, which reads as identical stamps on a grid even where heights differ. A
+                    // per-plant XZ offset (±0.13, AddCrossPlant re-clamps the width so geometry stays in the
+                    // cell) + a per-plant rosette spin (±30° covers all orientations at 60° plane spacing).
+                    // Both are keyed per COLUMN (wy = 0), so the stacked cells of a kelp/vine strand stay one
+                    // straight, consistently-rotated strand instead of zigzagging segments.
+                    var plantJitter = new Vector2(
+                        (CrossPlantScale(wx, 0, wz, 0x10, 1f) - 1f) * 0.13f,
+                        (CrossPlantScale(wx, 0, wz, 0x20, 1f) - 1f) * 0.13f);
+                    float plantSpin = (CrossPlantScale(wx, 0, wz, 0x40, 1f) - 1f) * 30f;
 
-                    // A torch is manufactured, not grown: no size variance and no lean, so a row of them along a
-                    // wall reads as deliberate lighting rather than a wonky hedge.
+                    // A torch is manufactured, not grown: no size variance, no lean, no offset and no spin, so a
+                    // row of them along a wall reads as deliberate lighting rather than a wonky hedge.
                     if (isTorchProp)
                     {
                         plantH = 0.8f;
                         plantW = 0.28f;
                         plantLean = Vector2.zero;
+                        plantJitter = Vector2.zero;
+                        plantSpin = 0f;
                     }
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean, plantH, plantW,
+                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean,
+                        plantJitter, plantSpin, plantH, plantW,
                         isTorchProp ? 7f : 1f); // 7 = flame flicker (and no flora tint); 1 = flora
                     continue;
                 }
@@ -477,9 +509,21 @@ namespace BlocksBeyondTheStars.Client
                     Vector3 flBlDir = BlockLightDirAt(wx, wy + 1, wz);
                     Color flTint = dyed ? dye : isFlora ? speciesTint : Color.black;
                     float flMode = dyed ? 3f : isFlora ? 1f : 0f;
+                    // Per-plant scale + squash (#675): solid flora used to stamp the identical full-cell shape
+                    // for every individual — the single strongest "all flora is the same size" tell. A patchy
+                    // bell (FloraScale) × rare runt/giant outliers gives ~0.45..1.0 overall size, and an
+                    // independent height-vs-radius squash makes cones read tall-thin vs short-fat. SHRINK-ONLY
+                    // (≤ the cell), anchored at the cell-floor centre; AddShapedBlock scales the collider with
+                    // the visual, so no invisible walls. Building shapes are untouched (they pass 1/1 below).
+                    // All rolls per COLUMN (wy = 0): if a solid species ever stacks, the segments agree.
+                    float flOutlier = FloraOutlier(wx, wz);
+                    float flBase = Mathf.Clamp(0.82f * FloraScale(wx, 0, wz, 0x1, 0.22f) * flOutlier, 0.45f, 1f);
+                    float flSquash = CrossPlantScale(wx, 0, wz, 0x3, 0.20f) - 1f; // ±0.2
+                    float flSizeY = Mathf.Clamp(flBase * (1f + flSquash), 0.4f, 1f);
+                    float flSizeXZ = Mathf.Clamp(flBase * (1f - flSquash * 0.6f), 0.4f, 1f);
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         SolidFloraShape(collKey), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
-                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir);
+                        matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY);
                     continue;
                 }
 
@@ -872,6 +916,38 @@ namespace BlocksBeyondTheStars.Client
             return 1f + (t - 0.5f) * 2f * amp;
         }
 
+        /// <summary>Per-plant size factor with VISIBLE structure (#675): the plain per-cell bell hides ~2/3
+        /// of plants within ±12 % and, being white noise, averages back to a uniform carpet at viewing
+        /// distance. Blend the fine per-cell bell half-and-half with a COARSE bell shared by an 8×8-cell
+        /// patch — meadows then form patches of tall and short growth, the scale the eye actually registers.
+        /// Pure function of the world cell (like <see cref="CrossPlantScale"/>), so all clients agree.</summary>
+        private static float FloraScale(int wx, int wy, int wz, int salt, float amp)
+        {
+            // The coarse hash ignores wy so a patch stays coherent on sloping terrain (and along a stacked
+            // kelp/vine strand); pass wy = 0 for the fine term too when a roll must be per-COLUMN.
+            float fine = CrossPlantScale(wx, wy, wz, salt, 1f) - 1f;                   // ±1, triangular
+            float coarse = CrossPlantScale(wx >> 3, 0, wz >> 3, salt ^ 0x35, 1f) - 1f; // shared per 8×8 patch
+            return 1f + (fine * 0.5f + coarse * 0.5f) * amp;
+        }
+
+        /// <summary>Rare size outliers (#675): ~5 % giants (×1.4–1.6) and ~8 % runts (×0.5–0.65).
+        /// Keyed per COLUMN (no wy, no axis salt) so an outlier plant is consistently outsized in every
+        /// dimension and a stacked strand (kelp/vine) is outsized as a whole, not in one odd segment.
+        /// Rare-but-strong is what makes a field read as "sizes vary" — a uniform ±12 % never does.</summary>
+        private static float FloraOutlier(int wx, int wz)
+        {
+            int h = unchecked((wx * 668265263) ^ (wz * 1013904223));
+            uint u = (uint)h;
+            float f = ((u >> 8) & 0xFF) / 255f;
+            uint roll = u % 100u;
+            if (roll < 5u)
+            {
+                return 1.4f + f * 0.2f;
+            }
+
+            return roll < 13u ? 0.5f + f * 0.15f : 1f;
+        }
+
         // The three vertical plane orientations of a plant rosette (degrees around Y): 0/60/120 give six
         // half-planes of coverage, so a plant reads as a rounded 3D tuft from every angle instead of a flat cross.
         private static readonly float[] PlantPlaneAngles = { 0f, 60f, 120f };
@@ -880,21 +956,26 @@ namespace BlocksBeyondTheStars.Client
         /// more volumetric than the old flat cross, each plane emitted with BOTH windings (the atlas shaders cull
         /// back faces). <paramref name="lean"/> tilts the top for per-plant variation so a field doesn't look
         /// like uniform flat cards. Render-only — no collider, so small plants stay walk-through.
-        /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size.</summary>
+        /// <paramref name="heightScale"/> / <paramref name="widthScale"/> give each plant its own size;
+        /// <paramref name="centerJitter"/> shifts the rosette off the cell centre and <paramref name="spinDeg"/>
+        /// rotates it (#675) so a field doesn't read as identical stamps on a grid.</summary>
         private static void AddCrossPlant(List<Vector3> verts, List<int> tris, List<Color> colors, List<Vector2> uvs,
             List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight, List<Vector3> blockLightDir, Vector3 cell, Color col, Rect uv, float sky,
-            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, float heightScale = 1f, float widthScale = 1f,
-            float tintMode = 1f)
+            Color tint, Vector3 bl, Vector3 blDir, Vector2 lean, Vector2 centerJitter, float spinDeg,
+            float heightScale = 1f, float widthScale = 1f, float tintMode = 1f)
         {
             // Each plane is a vertical quad through the cell centre, its floor line along a rosette angle; the
             // width scales about the middle and is clamped inside the cell to avoid bleeding into neighbours.
+            // An off-centre rosette gives back the room its offset takes (radial bound), so the floor line
+            // stays inside the cell — only the existing top lean ever crosses a cell border, as before.
             float half = Mathf.Clamp(0.42f * widthScale, 0.18f, 0.49f);
-            float cx = cell.x + 0.5f, cz = cell.z + 0.5f, cy = cell.y;
+            half = Mathf.Min(half, Mathf.Max(0.15f, 0.49f - centerJitter.magnitude));
+            float cx = cell.x + 0.5f + centerJitter.x, cz = cell.z + 0.5f + centerJitter.y, cy = cell.y;
             var up = new Vector3(lean.x, heightScale, lean.y); // top tilts by the per-plant lean
 
             foreach (float deg in PlantPlaneAngles)
             {
-                float rad = deg * Mathf.Deg2Rad;
+                float rad = (deg + spinDeg) * Mathf.Deg2Rad;
                 float dx = Mathf.Cos(rad) * half, dz = Mathf.Sin(rad) * half;
                 var a = new Vector3(cx - dx, cy, cz - dz);
                 var b = new Vector3(cx + dx, cy, cz + dz);
@@ -941,7 +1022,7 @@ namespace BlocksBeyondTheStars.Client
         private static void AddShapedBlock(List<Vector3> verts, List<int> tris, List<int> colliderTris, List<Vector3> colliderVerts,
             List<Color> colors, List<Vector2> uvs, List<Vector4> tangents, List<Vector2> skyUv, List<Vector4> leafUv, List<Vector3> blockLight,
             List<Vector3> blockLightDir, int shapeIndex, int orientation, int upFace, Vector3 cell, Rect uv, float matR, float matG,
-            float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir)
+            float emission, Color tint, float tintMode, float sky, Vector3 bl, Vector3 blDir, float sizeXZ = 1f, float sizeY = 1f)
         {
             var faces = BlockShapeGeometry.Build(shapeIndex, orientation, upFace);
             if (faces == null)
@@ -949,11 +1030,18 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Optional per-cell shrink (#675, solid flora only — building shapes always pass 1/1): scale the
+            // unit-cell face coords about the cell-FLOOR centre BEFORE emission, so normals/tangents derive
+            // from the final geometry and the collider (fed from the same verts) matches the visual exactly.
+            Vector3 Scaled(Vector3 v) => sizeXZ == 1f && sizeY == 1f
+                ? v
+                : new Vector3(0.5f + (v.x - 0.5f) * sizeXZ, v.y * sizeY, 0.5f + (v.z - 0.5f) * sizeXZ);
+
             var leaf = new Vector4(0f, tint.r, tint.g, tint.b); // not foliage (x=0); yzw = dye tint (mode 3) or black
             foreach (var face in faces)
             {
-                Vector3 a = cell + face.A, b = cell + face.B, c = cell + face.C;
-                Vector3 d = face.IsQuad ? cell + face.D : Vector3.zero;
+                Vector3 a = cell + Scaled(face.A), b = cell + Scaled(face.B), c = cell + Scaled(face.C);
+                Vector3 d = face.IsQuad ? cell + Scaled(face.D) : Vector3.zero;
                 Vector3 edge1 = b - a;
                 Vector3 edge2 = (face.IsQuad ? d : c) - a;
                 Vector3 nrm = Vector3.Cross(edge1, edge2).normalized;

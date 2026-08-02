@@ -75,6 +75,13 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] VariantKeys =
             { "stone", "dirt", "sand", "snow", "basalt", "deepslate", "granite", "mud" };
 
+        /// <summary>High-visibility flora whose one-tile-per-species look is broken with variant tiles too
+        /// (#675). These get the silhouette-aware <see cref="PaintFloraVariant"/> (cutout alpha respected,
+        /// no cracks/speckles — those read as stone artefacts on a plant). Kept to ~8 signature species:
+        /// each costs 2 of the 256 atlas slots, and the capacity guard skips the rest if the atlas fills.</summary>
+        private static readonly string[] FloraVariantKeys =
+            { "flora_plant", "flora_fern", "flora_flower", "flora_bush", "flora_grasstuft", "flora_dryshrub", "flora_mushroom", "flora_cactus" };
+
         private readonly System.Collections.Generic.Dictionary<ushort, ushort[]> _variants = new();
 
         /// <summary>The extra atlas slots painted as variants of this block's base tile, if any.</summary>
@@ -115,6 +122,95 @@ namespace BlocksBeyondTheStars.Client
 
                 _variants[baseId] = slots;
             }
+
+            // Flora variants (#675) fill downward AFTER the ground blocks, so the long-shipped ground
+            // variant slots keep their exact positions (saves/screenshots stay pixel-identical there).
+            foreach (var key in FloraVariantKeys)
+            {
+                var def = content.GetBlock(key);
+                if (def == null || def.NumericId.Value == 0 || def.NumericId.Value >= Cols * Rows)
+                {
+                    continue;
+                }
+
+                if (next - 2 <= maxId)
+                {
+                    break; // atlas nearly full — skip remaining variants rather than overwrite real tiles
+                }
+
+                ushort baseId = def.NumericId.Value;
+                var slots = new ushort[2];
+                for (int v = 0; v < 2; v++)
+                {
+                    slots[v] = (ushort)next--;
+                    PaintFloraVariant(baseId, slots[v], v);
+                }
+
+                _variants[baseId] = slots;
+            }
+        }
+
+        /// <summary>Variant tiles for flora (#675) — silhouette-aware, unlike <see cref="PaintVariant"/>:
+        /// only pixels inside the plant's cutout alpha are touched. Variant A reads sparser + darker (edge
+        /// pixels of the silhouette eroded away, the rest gently darkened); variant B lighter with a warm
+        /// lean (silhouette untouched). Solid flora tiles without cutout alpha (cactus/mushroom map onto 3D
+        /// shapes) skip the erosion — a zeroed pixel would render BLACK on an opaque shape, not transparent.</summary>
+        private void PaintFloraVariant(ushort baseId, ushort slot, int variant)
+        {
+            int sx = (baseId % Cols) * Tile, sy = (baseId / Cols) * Tile;
+            int dx = (slot % Cols) * Tile, dy = (slot / Cols) * Tile;
+            var px = Texture.GetPixels(sx, sy, Tile, Tile);
+            var rng = new System.Random(baseId * 31 + variant + 7777);
+
+            static Color Tint(Color c, float kr, float kg, float kb)
+                => new(Mathf.Clamp01(c.r * kr), Mathf.Clamp01(c.g * kg), Mathf.Clamp01(c.b * kb), c.a);
+
+            bool hasCutout = false;
+            for (int i = 0; i < px.Length && !hasCutout; i++)
+            {
+                hasCutout = px[i].a <= 0.5f;
+            }
+
+            if (variant == 0)
+            {
+                var src = (Color[])px.Clone();
+                for (int y = 0; y < Tile; y++)
+                {
+                    for (int x = 0; x < Tile; x++)
+                    {
+                        int i = y * Tile + x;
+                        if (src[i].a <= 0.5f)
+                        {
+                            continue;
+                        }
+
+                        // Boundary test: bounds checks FIRST so the neighbour reads never go out of range.
+                        bool edge = hasCutout
+                            && (x == 0 || y == 0 || x == Tile - 1 || y == Tile - 1
+                                || src[i - 1].a <= 0.5f || src[i + 1].a <= 0.5f
+                                || src[i - Tile].a <= 0.5f || src[i + Tile].a <= 0.5f);
+                        if (edge && rng.Next(100) < 40)
+                        {
+                            px[i] = new Color(0f, 0f, 0f, 0f);
+                            continue;
+                        }
+
+                        px[i] = Tint(px[i], 0.90f, 0.92f, 0.90f);
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < px.Length; i++)
+                {
+                    if (px[i].a > 0.5f)
+                    {
+                        px[i] = Tint(px[i], 1.10f, 1.08f, 1.00f);
+                    }
+                }
+            }
+
+            Texture.SetPixels(dx, dy, Tile, Tile, px);
         }
 
         private void PaintVariant(ushort baseId, ushort slot, int variant)

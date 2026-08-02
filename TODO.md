@@ -6971,6 +6971,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-03): flora reads varied, not stamped — per-plant size/placement/tint variation (#675)
+
+All flora of a species rendered identically: solid flora (cactus/crystal/mushroom/…) stamped the same
+full-cell shape for every individual, and cross-billboard plants — despite an existing per-cell size
+bell — sat dead-centre on the grid with one fixed rosette orientation, their triangular ±12 %-typical
+jitter averaging back to a uniform carpet at viewing distance. All client-only (`ChunkMesher`,
+`BlockTextureAtlas`), pure world-position hashes → deterministic across clients/remeshes, zero
+protocol/save changes, lands on existing worlds:
+
+- **Solid flora scale + squash** — per-column bell × outliers gives ~0.45..1.0 overall size plus a
+  height-vs-radius squash (tall-thin vs short-fat cones); shrink-only, anchored at the cell-floor
+  centre, and `AddShapedBlock` scales render + collider from the same verts (no invisible walls).
+  Player-built shapes pass 1/1 and stay exact.
+- **De-grid** — per-plant XZ offset (±0.13, width re-clamped inside the cell) + rosette spin (±30°).
+  Keyed per COLUMN so stacked kelp/vine strands stay straight instead of zigzagging.
+- **Visible distribution** — `FloraScale` blends the fine bell 50/50 with a coarse 8×8-cell patch hash
+  (meadows form patches of tall/short growth); `FloraOutlier` adds ~5 % giants (×1.4–1.6) and ~8 %
+  runts (×0.5–0.65). Torches stay exempt (manufactured object, unchanged).
+- **Tint jitter** — ±8 % per-column brightness wobble on the species tint (flora_* only — not tree
+  leaves), small enough that species/toxic-colour identity stays readable.
+- **Flora variant tiles** — the atlas variant mechanism (previously 8 ground blocks) now also paints
+  2 silhouette-aware variants for 8 signature species (sparser/darker via edge erosion of the cutout
+  alpha; lighter/warmer): 16 more of the 256 slots (~150 used), same graceful capacity guard, and the
+  flora slots fill AFTER the ground ones so long-shipped variant slot positions are unchanged.
+
 ## ✅ Done (2026-08-02): temperature survival hazard — heat/cold/vacuum drain the suit, then health (#666–#671)
 
 Temperature existed per position (planet base ± world roll, altitude lapse #476, weather, day/night) but was
