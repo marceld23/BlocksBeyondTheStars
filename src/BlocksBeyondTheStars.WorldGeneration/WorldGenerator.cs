@@ -1104,7 +1104,7 @@ public sealed class WorldGenerator
         //    danger half to the now-reachable deep ore bands. Kept below the cave-fauna scan (surface−49).
         c.LavaTableDepth = 64 + (int)((ulong)(seed ^ 0x1A7AB1EL) % 65UL); // 64..128
 
-        // 6) Altitude climate (#476, cosmetic by decision #7): a per-world temperature base + lapse. The
+        // 6) Altitude climate (#476; survival-relevant since #666): a per-world temperature base + lapse. The
         //    reference altitude is the (repaired) sea level so "warm at the coast, frozen on the peaks".
         c.TempRefY = c.SeaLevel != int.MinValue ? c.SeaLevel : planet.BaseHeight;
         c.BaseTemperature = planet.BaseTemperature + (R01(0x7E3BL) - 0.5) * 12.0; // per-world ±6 °C
@@ -1171,12 +1171,32 @@ public sealed class WorldGenerator
 
     /// <summary>Air temperature (°C) at a world Y for this planet — the per-world base minus the altitude
     /// lapse above the reference level (sea level, else BaseHeight). Worldgen-static: the server layers
-    /// weather + day/night on top (#476; temperature stays cosmetic by decision #7).</summary>
+    /// weather + day/night on top (#476). Since #666 this also feeds the survival temperature hazard
+    /// (decision #7 — "temperature stays cosmetic" — was revised by the user on 2026-08-02).</summary>
     public double AirTemperatureAt(PlanetType planet, int worldY)
     {
         var c = CalibFor(planet);
         // long math: int.MinValue is the "no position" sentinel and must not overflow into a hot reading.
         return c.BaseTemperature - c.LapsePerBlock * System.Math.Max(0L, (long)worldY - c.TempRefY);
+    }
+
+    /// <summary>Year-round mean the ground settles to a few blocks below the surface — the "dig in to
+    /// escape the weather" temperature every world shares (#667).</summary>
+    public const double GroundComfortC = 10.0;
+
+    /// <summary>Depth below the generated surface at which the ground temperature fully takes over (#667).</summary>
+    public const int GroundComfortDepthBlocks = 24;
+
+    /// <summary>How far underground a position is, 0..1: 0 at/above the generated surface, 1 at
+    /// <see cref="GroundComfortDepthBlocks"/>+ below it. The server blends the surface climate toward
+    /// <see cref="GroundComfortC"/> by this factor, so caves are milder than an ice world's surface and
+    /// cooler than a lava world's — while the deep lava table keeps real heat sources dangerous (#667).
+    /// Uses the GENERATED surface height: a player-dug pit still counts as "below the original surface",
+    /// which is the intent (their hole IS the shelter).</summary>
+    public double UndergroundFactor(PlanetType planet, int worldX, int worldY, int worldZ)
+    {
+        int depth = SurfaceHeight(planet, worldX, worldZ) - worldY;
+        return System.Math.Clamp(depth / (double)GroundComfortDepthBlocks, 0.0, 1.0);
     }
 
     /// <summary>Surface temperature (°C) of a column — its surface altitude fed through the lapse.</summary>

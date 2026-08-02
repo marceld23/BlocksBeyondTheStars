@@ -37,6 +37,10 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Color Oxygen = new Color(0.36f, 0.78f, 1f);
         private static readonly Color Energy = new Color(1f, 0.82f, 0.25f);
         private static readonly Color Hunger = new Color(1f, 0.6f, 0.25f);
+
+        /// <summary>Energy-bar tint while the suit's climate control is actively draining it (#666) —
+        /// a hot orange-red, so "why is my energy falling?" answers itself at a glance.</summary>
+        private static readonly Color EnergyStressed = new Color(1f, 0.45f, 0.2f);
         private static readonly Color HullC = new Color(0.6f, 0.66f, 0.74f);
         private static readonly Color ShieldC = new Color(0.4f, 0.7f, 1f);
 
@@ -208,6 +212,13 @@ namespace BlocksBeyondTheStars.Client
             if (Game.Content?.BlockById(id)?.Key == "lava") { return "ui.hud.dmg_lava"; }
             if (Game.Oxygen <= 0.5f) { return "ui.hud.dmg_suffocate"; }
             if (Game.Hunger <= 0.5f) { return "ui.hud.dmg_starve"; }
+            // Exposure damage (#666): the suit is out of energy and climate control lost the fight —
+            // the environment temperature says which extreme is doing the damage.
+            if (Game.SuitClimateActive && Game.SuitEnergy <= 0.5f)
+            {
+                return (Game.Environment?.Temperature ?? 15f) < 15f ? "ui.hud.dmg_freeze" : "ui.hud.dmg_overheat";
+            }
+
             return "ui.hud.dmg_hit";
         }
 
@@ -544,7 +555,9 @@ namespace BlocksBeyondTheStars.Client
             // draining because the air here is breathable — and that it will drain elsewhere (space, toxic worlds).
             string oxy = loc.Get("ui.hud.oxygen") + (Game.Environment != null && Game.Environment.Breathable ? "  (" + loc.Get("ui.hud.breathable") + ")" : string.Empty);
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / 100f, Oxygen, true);
-            SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f, Energy, true);
+            // While climate control fights heat/cold/vacuum (#666) the energy bar turns stress-orange.
+            SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f,
+                Game.SuitClimateActive ? EnergyStressed : Energy, true);
             SetVital(3, loc.Get("ui.hud.hunger"), Game.Hunger, Game.Hunger / 100f, Hunger, true);
             bool ship = Game.ShipCombat != null;
             if (ship)
@@ -869,23 +882,33 @@ namespace BlocksBeyondTheStars.Client
         private void RefreshTimeOfDay(BlocksBeyondTheStars.Shared.Localization.Localizer loc)
         {
             var env = Game.Environment;
-            // Day/night clock, temperature and gravity are planet-surface readings — meaningless in space, both
-            // while piloting and on an EVA (no day/night cycle out there), so drop the whole panel there as well
-            // as when there's no environment yet.
-            if (env == null || Game.SpaceViewActive || Game.OnFootInSpace)
+            // Day/night clock and gravity are planet-surface readings — meaningless in space, so the panel
+            // stays hidden while piloting (the cabin is climate-controlled anyway). On an EVA the suit's
+            // hull-temperature reading IS meaningful (#668: sun-dependent vacuum value from the server), so
+            // show a temperature-only readout there instead of dropping the panel.
+            if (env == null || Game.SpaceViewActive)
             {
                 _todText.transform.parent.gameObject.SetActive(false);
                 return;
             }
 
+            if (Game.OnFootInSpace)
+            {
+                _todText.transform.parent.gameObject.SetActive(true);
+                _todMarker.gameObject.SetActive(false);
+                _todText.text = ColoredTemp(env.Temperature);
+                return;
+            }
+
             _todText.transform.parent.gameObject.SetActive(true);
+            _todMarker.gameObject.SetActive(true);
             float t = Game.LocalTimeOfDay; // the player's local time (longitude-shifted), already 0..1
             bool day = Mathf.Sin((t - 0.25f) * Mathf.PI * 2f) > 0f;
             float nextEdge = day ? 0.75f : (t < 0.25f ? 0.25f : 1.25f);
             float frac = nextEdge - t; if (frac < 0f) frac += 1f;
             float secs = frac * Mathf.Max(1f, env.DayLengthSeconds);
             int mm = Mathf.FloorToInt(secs / 60f), ss = Mathf.FloorToInt(secs % 60f);
-            string tempStr = env.Temperature <= -900f || Game.OnFootInSpace ? "—" : $"{Mathf.RoundToInt(env.Temperature)}°C";
+            string tempStr = env.Temperature <= -900f ? "—" : ColoredTemp(env.Temperature);
             // Show this world's gravity (e.g. "0.6 g") only when it notably differs from Earth-like, so normal
             // worlds stay uncluttered. Hidden in space (on-foot zero-g) where gravity doesn't apply.
             string gravStr = env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
@@ -893,6 +916,16 @@ namespace BlocksBeyondTheStars.Client
                 : string.Empty;
             _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{gravStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+        }
+
+        /// <summary>Temperature readout tinted by comfort (#666): icy blue below the band, hot orange above
+        /// it, plain inside — matching where the suit actually starts spending energy (−5…40 °C ±5 grace).</summary>
+        private static string ColoredTemp(float tempC)
+        {
+            string s = $"{Mathf.RoundToInt(tempC)}°C";
+            if (tempC < -10f) { return $"<color=#6fd8ff>{s}</color>"; }
+            if (tempC > 45f) { return $"<color=#ff7439>{s}</color>"; }
+            return s;
         }
 
         /// <summary>Optional comfort readout: the current session's real-world playtime, plus this world's

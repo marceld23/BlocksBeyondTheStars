@@ -190,8 +190,21 @@ separate unlock; admins can still disable it through server world rules.
   **greenhouse** (see below), craft emergency rations — or build an **algae tank** (workshop, no blueprint)
   at a base: standing next to it grows 2 algae rations from 1 water (melt 2 snow or 2 ice into water by
   hand if there is no lake).
-- **Suit energy** (max 100): powers the stealth-suit cloak and the **jetpack** (hold Space in the air to
-  thrust up); both stop when it hits 0. Recharges aboard the ship and refills fully at a heal-tank.
+- **Suit energy** (max 100): powers the stealth-suit cloak, the **jetpack** (hold Space in the air to
+  thrust up) — and the suit's **climate control** (below); consumers stop when it hits 0. Recharges
+  aboard the ship and refills fully at a heal-tank.
+- **Temperature** (Survival only): roughly **−5…40 °C is free**. Beyond that the suit's climate control
+  drains **suit energy** — the further past the band (ice-world night, lava plain at noon, vacuum on an
+  EVA), the faster — and once the energy is empty you slowly take exposure damage (≤ 3/s, the HUD says
+  "Freezing"/"Overheating"). The HUD temperature readout turns blue/red as a warning, and the energy bar
+  glows orange while climate control is running. Defenses: **dig in** (a couple of blocks below the
+  surface every world settles near a mild ground temperature — unless lava or ice is right beside you),
+  **build a roof** (shelter halves the stress), wait out midday/midnight, stay near the ship, and craft
+  **suit liners** at the workshop (Thermo Liner 40% → Insulation Suite 65% → Climate Rig 85%; only the
+  best carried liner counts — armor pieces also carry a little insulation). In vacuum the readout shows
+  the sun-side/shadow hull temperature (about +120 °C to −150 °C). The world option **Environmental
+  hazards** (world creation, or live in the in-game Settings tab as world admin) scales this from Off to
+  Hard; Creative/Sandbox worlds are always exempt.
 - **Heal tank** (workshop, blueprint-gated): the life-support unit for your own base or station. Everyone
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between

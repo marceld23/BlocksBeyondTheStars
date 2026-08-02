@@ -6956,6 +6956,38 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-02): temperature survival hazard — heat/cold/vacuum drain the suit, then health (#666–#671)
+
+Temperature existed per position (planet base ± world roll, altitude lapse #476, weather, day/night) but was
+cosmetic by decision #7 — **revised by the user**: in Survival it now stresses the suit. The whole mechanic
+is the first real consumer of the long-dead `GameRules.EnvironmentalHazards` knob.
+
+- **Two-stage hazard** (`GameServerTemperature.cs`, in `TickEnvironment` after the burns): outside the
+  −5…40 °C band (+5° grace) the suit's climate control drains `SuitEnergy`
+  (`severity × 0.006/s × hazardTier × (1 − insulation)`, severity capped at 60°); at 0 energy → health
+  ≤ 3/s (starvation-level, never a burst kill). Tuning anchor: ice world ≈ 10 min naked, ≈ 30 min with
+  the tier-2 liner. Expensive half (probe + shelter) cached at 1 Hz per session.
+- **Underground comfort (#667):** `WorldGenerator.UndergroundFactor` blends the reading toward a constant
+  10 °C over 24 blocks of depth (generated surface — a dug pit counts); day/night + weather fade with it.
+  A r=3 `GetBlockIfLoaded` probe overrides: lava ≈ 59 °C hot zone, fire = campfire warmth capped in-band,
+  ice/snow-walled spaces hold −15 °C. Server-side roof scan (50-block column) halves severity.
+- **Vacuum (#668):** EVA / above-atmosphere = sun-tracking hull temp (−150…+120 °C via the day curve) fed
+  through the same severity math; the HUD's time panel shows a temperature-only readout on EVA instead of
+  hiding (airless surfaces now report their physical temperature too — the −999 sentinel is no longer sent).
+- **Gear (#669):** data-driven `ItemDefinition.ThermalInsulation` (best-of, cap 0.9);
+  `suit_liner_1/2/3` chain (0.40/0.65/0.85, workshop, blueprint chain mirrors the oxygen tanks, upgrade
+  consumes predecessor) + existing armor pieces carry 0.10–0.15 from day one. Icons AI-generated.
+- **Switchable (#670):** `TemperatureHazardsEnabled` gates on `GameMode != Creative` (Sandbox exempt) and
+  `EnvironmentalHazards != Off`; tier scales 0.5×/1×/1.75×. Creation slider already existed; new
+  **live admin editor row** (Off/Light/Normal/Hard stepper) via `SetWorldRulesIntent.EnvironmentalHazards`
+  — no `Start` lift needed (Normal was always the baked default).
+- **UX + docs (#671):** energy bar turns stress-orange while climate control runs
+  (`PlayerStateUpdate.SuitClimateActive`), HUD temp readout tinted blue/red beyond the band, damage causes
+  `ui.hud.dmg_freeze/overheat`, VEGA hints `vega.hint.cold/heat` + climate in the banter situation string,
+  Codex survival + hazards articles rewritten (EN/DE).
+- Tests: `TemperatureHazardTests` — band math, vacuum curve, rules gating, underground ramp, ice-world
+  drain + insulation cut, slow exposure damage, hazards-off/Creative exemption, admin live-edit persistence.
+
 ## ✅ Done (2026-08-02): true Sandbox game mode selectable at world creation (#662, PR #663)
 
 The new-world panel's "Creative" was only a head start (everything unlocked, survival still on, crafting

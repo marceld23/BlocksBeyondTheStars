@@ -317,6 +317,14 @@ public sealed partial class GameServer
                 ShipAiHintOnce(session, "energy");
             }
 
+            // Temperature hazard (#666): the first time the suit's climate control actually fights the
+            // local extreme, explain what is draining the energy and how to escape it (dig in / roof /
+            // ship / insulation). One line per extreme per save.
+            if (p.SuitClimateActive)
+            {
+                ShipAiHintOnce(session, session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
+            }
+
             if (p.Hunger < 40f)
             {
                 ShipAiHintOnce(session, "hunger"); // earlier nudge (40%) + the line now names where food comes from
@@ -480,7 +488,14 @@ public sealed partial class GameServer
         string phase = _dayFraction is < 0.15 or > 0.85 ? "night" : _dayFraction is < 0.3 or > 0.7 ? "twilight" : "day";
         int fragments = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
         string aboard = p.AboardShip ? "aboard the ship" : "on foot";
-        return $"on a {world} world, {phase}, pilot is {aboard}, {fragments}/10 of VEGA's memory restored";
+        // Temperature awareness (#671): only mentioned while the suit is actually fighting the climate,
+        // so VEGA's banter can react to a freezing night march or a scorching noon without noise otherwise.
+        string climate = p.SuitClimateActive
+            ? session.EffectiveTemperatureC < ComfortLowC
+                ? ", the suit's heater is fighting dangerous cold"
+                : ", the suit's cooler is fighting dangerous heat"
+            : string.Empty;
+        return $"on a {world} world, {phase}, pilot is {aboard}{climate}, {fragments}/10 of VEGA's memory restored";
     }
 
     /// <summary>Situation bucket for the banter cache — coarse on purpose so lines get reused.</summary>

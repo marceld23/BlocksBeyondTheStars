@@ -770,6 +770,10 @@ public sealed class PlayerStateUpdate
     /// — the client floats in zero-g and shows a space sky.</summary>
     public bool AboveAtmosphere { get; set; }
 
+    /// <summary>True while the suit's climate control is fighting extreme heat/cold/vacuum (#666) —
+    /// tells the HUD WHY suit energy (or, once empty, health) is falling.</summary>
+    public bool SuitClimateActive { get; set; }
+
     /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
     public string StationName { get; set; } = string.Empty;
 
@@ -887,6 +891,10 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Keep-ship-on-death toggle: "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string KeepShipOnDeath { get; set; } = string.Empty;
+
+    /// <summary>Environmental-hazards tier: "Off"/"Light"/"Normal"/"Hard" to set it, empty to leave
+    /// unchanged (#670) — the live switch for the temperature survival hazard.</summary>
+    public string EnvironmentalHazards { get; set; } = string.Empty;
 }
 
 // --- Missions ---

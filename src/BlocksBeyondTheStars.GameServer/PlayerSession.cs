@@ -158,6 +158,19 @@ public sealed class PlayerSession
     /// <summary>Cached result of the last heal-tank proximity scan.</summary>
     public bool NearHealTank { get; set; }
 
+    // --- Temperature hazard (#666): the effective-temperature scan is ~1 Hz, the drain applies every tick ---
+
+    /// <summary>Countdown to the next effective-temperature rescan (block probe + shelter check are the
+    /// expensive part; the cached severity is applied every tick in between).</summary>
+    public double TemperatureScanIn { get; set; }
+
+    /// <summary>Cached severity (°C beyond the comfort band, shelter applied) from the last scan.</summary>
+    public float TemperatureSeverity { get; set; }
+
+    /// <summary>Cached effective temperature (°C) from the last scan — tells VEGA (and the freeze-vs-
+    /// overheat hint pick) WHICH extreme is stressing the suit.</summary>
+    public float EffectiveTemperatureC { get; set; } = 15f;
+
     // --- Periodic vitals sync (HUD bars froze between event-driven sends before) ---
     public double VitalsSyncTimer { get; set; }
     public float LastSentHealth = 100f;

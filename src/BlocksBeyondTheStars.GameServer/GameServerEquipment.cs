@@ -50,6 +50,26 @@ public sealed partial class GameServer
         return 100f + bonus;
     }
 
+    /// <summary>Hard ceiling for thermal insulation — even the best rig never makes the suit free to run.</summary>
+    private const float MaxThermalInsulation = 0.9f;
+
+    /// <summary>Best carried thermal insulation 0..0.9 (#669): the fraction of heat/cold/vacuum suit
+    /// stress the gear absorbs. Like the oxygen tanks, only the BEST piece counts — liners are tiered,
+    /// carrying several does not stack.</summary>
+    private float ThermalInsulation(PlayerState p)
+    {
+        float best = 0f;
+        foreach (var item in _content.Items.Values)
+        {
+            if (item.ThermalInsulation > best && p.Inventory.Has(item.Key, 1))
+            {
+                best = item.ThermalInsulation;
+            }
+        }
+
+        return System.Math.Min(MaxThermalInsulation, best);
+    }
+
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
     private float ScanMultiplier(PlayerState p)
     {

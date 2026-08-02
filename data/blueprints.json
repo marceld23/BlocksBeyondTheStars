@@ -215,6 +215,21 @@
     "unlockCost": [ { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
   },
   {
+    "key": "suit_liner_1", "nameKey": "blueprint.suit_liner_1.name", "descriptionKey": "blueprint.suit_liner_1.desc",
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 3,
+    "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "polymer", "count": 2 } ]
+  },
+  {
+    "key": "suit_liner_2", "nameKey": "blueprint.suit_liner_2.name", "descriptionKey": "blueprint.suit_liner_2.desc",
+    "category": "Suit", "prerequisites": [ "suit_liner_1" ], "knowledgeCost": 6,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "carbon_composite", "count": 2 } ]
+  },
+  {
+    "key": "suit_liner_3", "nameKey": "blueprint.suit_liner_3.name", "descriptionKey": "blueprint.suit_liner_3.desc",
+    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 8,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 2 } ]
+  },
+  {
     "key": "comm_radio", "nameKey": "blueprint.comm_radio.name", "descriptionKey": "blueprint.comm_radio.desc",
     "category": "Production", "prerequisites": [], "knowledgeCost": 2,
     "unlockCost": [ { "item": "copper_wire", "count": 4 }, { "item": "data_fragment", "count": 1 } ]

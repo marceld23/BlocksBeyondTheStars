@@ -193,7 +193,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
-            string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "")
+            string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
@@ -204,6 +204,7 @@ namespace BlocksBeyondTheStars.Client
                 InstantTravel = instantTravel,
                 KeepInventoryOnDeath = keepInventory,
                 KeepShipOnDeath = keepShip,
+                EnvironmentalHazards = hazards,
             });
 
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>

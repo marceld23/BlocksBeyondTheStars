@@ -1308,6 +1308,10 @@ public sealed partial class GameServer
                 p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dt * 10)));
             }
 
+            // Extreme heat / cold / vacuum stress the suit (#666): climate control drains suit energy
+            // first (insulation gear slows it), an empty suit means slow exposure damage.
+            TickTemperature(session, dt);
+
             // Hunger (survival): aboard the ship, boarded on a station (both have life support), or when
             // disabled, sate; otherwise drain and, once empty, starve (health loss until the player eats).
             if (p.AboardShip || InStation(p.PlayerId) || !Rules.HungerEnabled)
@@ -4371,6 +4375,7 @@ public sealed partial class GameServer
             AboardShip = p.AboardShip,
             InEva = p.InEva,
             AboveAtmosphere = p.AboveAtmosphere,
+            SuitClimateActive = p.SuitClimateActive,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,
@@ -4569,6 +4574,14 @@ public sealed partial class GameServer
             Rules.KeepShipOnDeath = intent.KeepShipOnDeath.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        // Environmental hazards (#670): the live switch for the temperature hazard — Off disables it
+        // on a running world without CLI flags, Light/Hard soften/sharpen it.
+        if (!string.IsNullOrEmpty(intent.EnvironmentalHazards)
+            && System.Enum.TryParse<HazardLevel>(intent.EnvironmentalHazards, ignoreCase: true, out var hz))
+        {
+            Rules.EnvironmentalHazards = hz;
+        }
+
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
 
@@ -4582,7 +4595,7 @@ public sealed partial class GameServer
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
-                  $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}.");
+                  $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

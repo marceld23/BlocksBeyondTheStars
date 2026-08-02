@@ -115,6 +115,10 @@ namespace BlocksBeyondTheStars.Client
         public float SuitEnergy { get; private set; } = 100f;
         public float Hunger { get; private set; } = 100f;
 
+        /// <summary>True while the suit's climate control is fighting extreme heat/cold/vacuum (#666) —
+        /// the HUD colors the energy bar and names the drain; server-authoritative.</summary>
+        public bool SuitClimateActive { get; private set; }
+
         /// <summary>Our own player id (from the join handshake), used to pick our state out of broadcasts.</summary>
         public string LocalPlayerId { get; private set; }
 
@@ -1981,6 +1985,7 @@ namespace BlocksBeyondTheStars.Client
             Oxygen = m.Oxygen;
             SuitEnergy = m.SuitEnergy;
             Hunger = m.Hunger;
+            SuitClimateActive = m.SuitClimateActive;
             // Comfort: auto-stow loose materials into the cargo hold the moment you board the ship (off by
             // default — opt in via Settings). Fires only on the not-aboard → aboard edge, and reuses the same
             // server-authoritative bulk "stow all" intent the cargo tab's button sends.

@@ -77,6 +77,10 @@ public sealed class ItemDefinition
     /// <summary>Extra maximum suit oxygen this item grants (e.g. a bigger tank).</summary>
     public float OxygenBonus { get; set; }
 
+    /// <summary>Thermal insulation 0..1: fraction of heat/cold/vacuum suit stress this gear absorbs
+    /// (issue #669). Like the oxygen tanks only the BEST carried piece counts — tiers, no stacking.</summary>
+    public float ThermalInsulation { get; set; }
+
     /// <summary>Scanner: multiplies knowledge gained from a first scan (1 = no bonus).</summary>
     public float ScanKnowledgeMultiplier { get; set; } = 1f;
 }

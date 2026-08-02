@@ -116,6 +116,11 @@ public sealed class PlayerState
     /// when they descend back below the atmosphere line. Not persisted.</summary>
     public bool AboveAtmosphere { get; set; }
 
+    /// <summary>True while the suit's climate control is fighting extreme heat/cold/vacuum (#666) —
+    /// i.e. the temperature hazard is actively draining suit energy (or, once it's empty, health).
+    /// Runtime-only HUD signal (mirrored in the player-state update); not persisted.</summary>
+    public bool SuitClimateActive { get; set; }
+
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.
     /// <para>Note there is deliberately no "fleet admin" value here: this field is persisted in the save, and
     /// saves are downloadable and re-uploadable by players, so an operator-level role stored here would travel

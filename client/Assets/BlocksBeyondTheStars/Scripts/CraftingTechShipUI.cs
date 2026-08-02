@@ -1473,23 +1473,26 @@ namespace BlocksBeyondTheStars.Client
             // re-broadcast ServerRules lands.
             UiKit.AddText(_listContent, 16, y, 760, 30, L("ui.worldopt.live_title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 40f;
-            void RuleRow(string label, string current, System.Action<string> send)
+            void StepRow(string label, string[] steps, string labelPrefix, string current, System.Action<string> send)
             {
-                int idx = System.Array.IndexOf(WorldCreationOptions.Activity, current);
+                int idx = System.Array.IndexOf(steps, current);
                 if (idx < 0) idx = 2;
-                string stepName = L("ui.worldopt.aa." + idx);
+                string stepName = L(labelPrefix + idx);
                 UiKit.AddText(_listContent, 16, y, 360, 56, label, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
                 UiKit.AddText(_listContent, 380, y, 180, 56, stepName, 20, UiKit.Cyan, TextAnchor.MiddleCenter);
                 UiKit.AddButton(_listContent, 570, y + 6, 80, 44, "−", () =>
                 {
-                    if (idx > 0) { send(WorldCreationOptions.Activity[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
+                    if (idx > 0) { send(steps[idx - 1]); Invoke(nameof(RebuildList), 0.35f); }
                 });
                 UiKit.AddButton(_listContent, 660, y + 6, 80, 44, "+", () =>
                 {
-                    if (idx < WorldCreationOptions.Activity.Length - 1) { send(WorldCreationOptions.Activity[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
+                    if (idx < steps.Length - 1) { send(steps[idx + 1]); Invoke(nameof(RebuildList), 0.35f); }
                 });
                 y += 62f;
             }
+
+            void RuleRow(string label, string current, System.Action<string> send)
+                => StepRow(label, WorldCreationOptions.Activity, "ui.worldopt.aa.", current, send);
 
             var rules = Game?.Rules;
             RuleRow(L("ui.worldopt.creatures"), rules?.CreatureAbundance ?? "Normal", v => Game?.Network?.SendSetWorldRules(creatures: v));
@@ -1497,6 +1500,10 @@ namespace BlocksBeyondTheStars.Client
             RuleRow(L("ui.worldopt.space_npcs"), rules?.SpaceNpcEnemies ?? "Normal", v => Game?.Network?.SendSetWorldRules(spaceNpcs: v));
             RuleRow(L("ui.worldopt.ufos"), rules?.AlienUfos ?? "Off", v => Game?.Network?.SendSetWorldRules(ufos: v));
             RuleRow(L("ui.worldopt.bandits"), rules?.Bandits ?? "Normal", v => Game?.Network?.SendSetWorldRules(bandits: v));
+            // Environmental hazards (#670): the live switch for the temperature survival hazard — Off
+            // disables it on a running world, Light/Hard soften/sharpen the drain and exposure damage.
+            StepRow(L("ui.worldopt.hazards"), WorldCreationOptions.HazardSteps, "ui.worldopt.hz.",
+                rules?.EnvironmentalHazards ?? "Normal", v => Game?.Network?.SendSetWorldRules(hazards: v));
 
             // Instant Travel (world option): when on, the travel screen may quick-travel anywhere; when off
             // (default) it is limited to worlds you've already landed on. The server enforces the admin gate.
@@ -3277,7 +3284,7 @@ namespace BlocksBeyondTheStars.Client
         /// just armour.</summary>
         private static bool IsSuitGear(BlocksBeyondTheStars.Shared.Definitions.ItemDefinition def)
         {
-            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f)
+            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f)
             {
                 return true;
             }
@@ -3344,7 +3351,7 @@ namespace BlocksBeyondTheStars.Client
             if (def.Tool?.Kind == ToolKind.Weapon) return "cat_weapons";
             if (def.Category == ItemCategory.Tool) return "cat_tools";
             if (def.Category == ItemCategory.Consumable) return "cat_medicine";
-            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f) return "cat_suit";
+            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f) return "cat_suit";
             if (def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock)) return "cat_blocks";
             return "cat_components";
         }

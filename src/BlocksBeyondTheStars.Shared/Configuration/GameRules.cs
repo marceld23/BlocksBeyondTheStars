@@ -229,6 +229,21 @@ public sealed class GameRules
         _ => 0f,
     };
 
+    /// <summary>Whether extreme heat/cold/vacuum stress the suit (issue #666): drains suit energy first,
+    /// then slowly damages health. Off in Creative (like oxygen/hunger) and when the world's
+    /// environmental-hazard tier is <see cref="HazardLevel.Off"/> — the in-game "Environmental hazards"
+    /// world option is the switch.</summary>
+    public bool TemperatureHazardsEnabled => GameMode != GameMode.Creative && EnvironmentalHazards != HazardLevel.Off;
+
+    /// <summary>Difficulty multiplier applied to the temperature drain AND exposure damage (issue #666).
+    /// Normal is the tuning baseline (ice world ≈ 10 min suit buffer with no gear).</summary>
+    public float HazardSeverityFactor => EnvironmentalHazards switch
+    {
+        HazardLevel.Light => 0.5f,
+        HazardLevel.Hard => 1.75f,
+        _ => 1f,
+    };
+
     /// <summary>Whether admin cheats may be used at all, given mode + toggles.</summary>
     public bool CheatsAllowed => AdminCheats &&
         (GameMode == GameMode.Creative ? AllowCheatsInCreative : AllowCheatsInSurvival);

@@ -297,13 +297,17 @@ public sealed partial class GameServer
         return lo + t * (hi - lo);
     }
 
-    /// <summary>Sentinel for "no meaningful air temperature" (vacuum / above the atmosphere) — the HUD shows "—".</summary>
+    /// <summary>Sentinel for "no meaningful air temperature" — kept for client compatibility (older FX guard
+    /// against it), but since #668 the server no longer sends it: airless surfaces report their physical
+    /// temperature and EVA/space reports the sun-dependent vacuum reading.</summary>
     public const float NoAirTemperature = -999f;
 
     /// <summary>Air temperature (°C): the worldgen-static part (planet base + per-world variation + the
     /// ALTITUDE lapse above sea level, #476 — one shared formula with chunk generation, so the HUD's cold
-    /// agrees with where the snow line actually sits) + a weather cooling + a day↔night swing. Cosmetic by
-    /// decision #7 — nothing deals temperature damage.</summary>
+    /// agrees with where the snow line actually sits) + a weather cooling + a day↔night swing, blended
+    /// toward the constant ground temperature with depth underground (#667). Since #666 this value is
+    /// survival-relevant: outside the suit's comfort band it drains suit energy, then health
+    /// (decision #7 — "temperature stays cosmetic" — was revised by the user on 2026-08-02).</summary>
     private float CurrentTemperature(string weather, double timeOfDay,
         BlocksBeyondTheStars.Shared.Geometry.Vector3f pos = default)
     {
@@ -313,13 +317,10 @@ public sealed partial class GameServer
             return 22f; // a ship / station cabin is climate-controlled
         }
 
-        if (_spaceSky)
-        {
-            return NoAirTemperature; // airless vacuum world (asteroid/crystal) → no air temp, HUD shows "—"
-        }
-
         // The static part comes from the SAME per-world calibration worldgen uses (base + variation −
         // lapse·altitude). Empty position (world-level broadcasts) reads at the reference altitude.
+        // Airless space-sky bodies (asteroids) report their physical base temperature too (#668) — the
+        // old "—" sentinel hid, e.g., an icy asteroid's −95 °C from the suit systems.
         bool hasPos = pos.X != 0f || pos.Y != 0f || pos.Z != 0f;
         double baseT = planet is null
             ? 15.0
@@ -327,7 +328,22 @@ public sealed partial class GameServer
         double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "fog" => -3.0, "clouds" => -2.0, _ => 2.0 };
         double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
-        return (float)System.Math.Round(baseT + weatherDelta + dayNight);
+        double t = baseT + weatherDelta + dayNight;
+
+        // Underground the day/night swing and the weather stop reaching you: blend toward the constant
+        // ground temperature over the first blocks of depth (#667). Local heat/cold sources (lava, fire,
+        // ice) then override this via the hazard probe, not here.
+        if (hasPos && planet is not null)
+        {
+            double f = _generator.UndergroundFactor(planet,
+                (int)System.Math.Floor(pos.X), (int)System.Math.Round(pos.Y), (int)System.Math.Floor(pos.Z));
+            if (f > 0.0)
+            {
+                t += (WorldGeneration.WorldGenerator.GroundComfortC - t) * f;
+            }
+        }
+
+        return (float)System.Math.Round(t);
     }
 
     /// <summary>The precipitation form for the current weather + temperature: nothing unless it's actually
@@ -381,7 +397,19 @@ public sealed partial class GameServer
         return (int)((ulong)(h < 0 ? -h : h) % 4UL) - 1; // 0..3 → -1..+2
     }
 
-    private void SendEnvironment(PlayerSession session) => Send(session, BuildEnvironment(session.State.Position));
+    private void SendEnvironment(PlayerSession session)
+    {
+        var env = BuildEnvironment(session.State.Position);
+        // In vacuum (EVA spacewalk / on foot above the atmosphere) the air reading is meaningless — show
+        // the sun-dependent hull temperature instead (#668): scorching on the day side, brutal in shadow.
+        if (session.State.InEva || session.State.AboveAtmosphere)
+        {
+            env.Temperature = VacuumTemperature(_dayFraction);
+            env.Precipitation = "none";
+        }
+
+        Send(session, env);
+    }
 
     /// <summary>Each player in the world gets the weather of THEIR biome (per-player, not one broadcast).</summary>
     private void BroadcastEnvironment()
