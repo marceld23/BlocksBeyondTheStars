@@ -102,6 +102,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ In-game menu lists speak German: raw ids/enums/literals now localized (#672, 2026-08-02, branch fix/ingame-menu-untranslated-lists)
+On a German client several selection lists still showed English — not missing translations
+(en/de locale parity was already enforced) but strings that never reached the Localizer. Fixed:
+the Tech tab's category sidebar (raw `blueprints.json` categories like `ShipExpansion` → new
+`ui.tech.cat_*` keys), the Map tab's body kind + status (raw `NetBody.Kind`/`Status` enum names →
+`ui.map.kind_*`/`ui.map.status_*`), the mission-creation objective-type cycler (`Mine`/`Collect`/
+`Deliver` → `ui.missions.objtype_*`, wire value unchanged), story-log category tags (`[vega]` →
+`lore.cat.*` in the story pack's own locale files), the crafting "Max" button, the settings
+quality preset (`Potato`… → `ui.settings.preset.*`), the arcade "no record yet" line, and the two
+server-baked POI names (`Ruin A`/`Guardian Core` → per-session-locale `poi.ruin`/`poi.guardian_core`,
+same pattern as `poi.treasure`). New `CraftingTechShipUI.IdLabel(prefix, id)` resolves
+prefix+lowercased id with a raw-id fallback so future data/enum values degrade gracefully. Also
+fixed the dead `Desc()` guard (`s == key` never matches `[key]` misses → now `Localizer.Has`) and
+`VendorTradeUI.ItemName` now parses composite item keys (dye/glow/shape) like the crafting menu.
+
 ### ★ In-game menu lists show a scrollbar (#664, 2026-08-02, branch feat/ui-inline-scrollbars)
 The ship-computer menu (all 12 tabs), the Codex and the vendor dialog scrolled only via wheel/drag —
 nothing showed THAT a list continues or WHERE you are. New `UiKit.AddInlineScrollbar(scroll, width)`

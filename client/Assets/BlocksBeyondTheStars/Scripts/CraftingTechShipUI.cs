@@ -625,7 +625,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Tech:
                     foreach (var c in Game.Content.Blueprints.Values.Select(b => b.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct())
                     {
-                        list.Add((c, c, "cat_tech"));
+                        list.Add((c, IdLabel("ui.tech.cat_", c), "cat_tech"));
                     }
 
                     break;
@@ -1240,8 +1240,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool here = b.Id == map.ActiveLocationId;
                 bool isStation = b.Kind == "SpaceStation";
-                string kindLabel = isStation ? L("ui.map.kind_station") : b.Kind;
-                string status = here ? L("ui.map.here") : $"{kindLabel}  {b.Status}";
+                string kindLabel = isStation ? L("ui.map.kind_station") : IdLabel("ui.map.kind_", b.Kind);
+                string status = here ? L("ui.map.here") : $"{kindLabel}  {IdLabel("ui.map.status_", b.Status)}";
 
                 // A space station shows whose it is: yours, another player's, or none (procedural/NPC).
                 if (isStation && !string.IsNullOrEmpty(b.OwnerName))
@@ -1362,13 +1362,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 int idx = i;
                 var o = _pmObjectives[i];
-                UiKit.AddText(c, 12, y, 600, 32, $"{o.Type}  {o.Required}× {ItemName(o.Target)}", 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(c, 12, y, 600, 32, $"{IdLabel("ui.missions.objtype_", o.Type)}  {o.Required}× {ItemName(o.Target)}", 18, UiKit.TextCol, TextAnchor.MiddleLeft);
                 UiKit.AddButton(c, 700, y, 60, 32, "✕", () => { _pmObjectives.RemoveAt(idx); RebuildList(); });
                 y += 38f;
             }
 
             // Builder row: type / target / count / add.
-            UiKit.AddButton(c, 0, y, 150, 38, PmTypes[_pmType], () => { _pmType = (_pmType + 1) % PmTypes.Length; RebuildList(); });
+            // The cycler shows the localized label; PmTypes stays the wire value (NetMissionObjective.Type).
+            UiKit.AddButton(c, 0, y, 150, 38, IdLabel("ui.missions.objtype_", PmTypes[_pmType]), () => { _pmType = (_pmType + 1) % PmTypes.Length; RebuildList(); });
             UiKit.AddButton(c, 158, y, 210, 38, ItemName(PmTargets[_pmTarget]), () => { _pmTarget = (_pmTarget + 1) % PmTargets.Length; RebuildList(); });
             UiKit.AddButton(c, 376, y, 44, 38, "−", () => { _pmCount = Mathf.Max(1, _pmCount - 1); RebuildList(); });
             UiKit.AddText(c, 422, y, 54, 38, _pmCount.ToString(), 20, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
@@ -2156,7 +2157,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddText(_listContent, 8, y, 760, 36,
-                (L("ui.achv.summary") ?? "{done}/{total}").Replace("{done}", done.ToString()).Replace("{total}", all.Length.ToString()),
+                L("ui.achv.summary").Replace("{done}", done.ToString()).Replace("{total}", all.Length.ToString()),
                 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 46f;
 
@@ -2199,7 +2200,7 @@ namespace BlocksBeyondTheStars.Client
 
             string tally = a.Earned
                 ? L("ui.achv.done")
-                : (L("ui.achv.progress") ?? "{done}/{total}")
+                : L("ui.achv.progress")
                     .Replace("{done}", a.Progress.ToString())
                     .Replace("{total}", a.Target.ToString());
             UiKit.AddText(_listContent, RowW - 140f, y, 140f, 28, tally, 18,
@@ -2258,7 +2259,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var (cat, key) in Game.StoryLogFragments)
                 {
-                    y = StoryEntry(y, "[" + cat + "] " + L(key));
+                    y = StoryEntry(y, "[" + IdLabel("lore.cat.", cat) + "] " + L(key));
                 }
             }
 
@@ -2495,7 +2496,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(_detail, 8, y, 50, 56, "-", () => { _craftCount = Mathf.Max(1, _craftCount - 1); RebuildDetail(); });
             UiKit.AddText(_detail, 62, y, 92, 56, _craftCount.ToString(), 24, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddButton(_detail, 158, y, 50, 56, "+", () => { _craftCount = Mathf.Min(maxCraft, _craftCount + 1); RebuildDetail(); });
-            UiKit.AddButton(_detail, 214, y, 74, 56, "Max", () => { _craftCount = maxCraft; RebuildDetail(); });
+            UiKit.AddButton(_detail, 214, y, 74, 56, L("ui.craft.max"), () => { _craftCount = maxCraft; RebuildDetail(); });
             y += 66f;
 
             int n = _craftCount;
@@ -2910,7 +2911,7 @@ namespace BlocksBeyondTheStars.Client
             bool isStation = body.Kind == "SpaceStation";
             UiKit.AddText(_detail, 8, y, 620, 40, body.Name, 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 48f;
-            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? L("ui.map.kind_station") : body.Kind)}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 8, y, 620, 28, $"{L("ui.map.kind")}: {(isStation ? L("ui.map.kind_station") : IdLabel("ui.map.kind_", body.Kind))}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 32f;
             if (!string.IsNullOrEmpty(body.PlanetType))
             {
@@ -2919,7 +2920,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool here = body.Id == map.ActiveLocationId;
-            UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : body.Status, 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 8, y, 620, 28, here ? L("ui.map.here") : IdLabel("ui.map.status_", body.Status), 20, here ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
             y += 40f;
 
             // Colour-mark this body. Asked for by a player who wanted to mark planets in space in different
@@ -3443,6 +3444,15 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
+        /// <summary>Localized label for a raw data/enum identifier (blueprint category, body kind/status,
+        /// objective type, story-fragment category): resolves <paramref name="prefix"/> + the lower-cased id
+        /// and falls back to the raw id for values without a key, so new data/enum members degrade to
+        /// today's behaviour instead of showing a bracketed key.</summary>
+        private string IdLabel(string prefix, string id)
+            => string.IsNullOrEmpty(id) || Game?.Localizer?.Has(prefix + id.ToLowerInvariant()) != true
+                ? id
+                : L(prefix + id.ToLowerInvariant());
+
         // --- Coloured planet marks in the star map ---------------------------------------------------------
         // A player wanted to mark planets in space, each in its own colour — several at once, unlike the single
         // surface waypoint. Stored locally in ClientSettings (never sent to the server) and grouped by world, so
@@ -3503,8 +3513,9 @@ namespace BlocksBeyondTheStars.Client
         }
         private string Desc(string key)
         {
-            string s = L(key);
-            return s == key ? string.Empty : s;
+            // Localizer.Get returns "[key]" (never the bare key) on a miss, so comparing against the key
+            // can't detect one — ask Has() instead, like WikiUI does, and show nothing for absent texts.
+            return Game?.Localizer?.Has(key) == true ? L(key) : string.Empty;
         }
     }
 }

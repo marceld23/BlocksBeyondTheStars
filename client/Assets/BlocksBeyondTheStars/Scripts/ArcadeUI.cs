@@ -116,7 +116,7 @@ namespace BlocksBeyondTheStars.Client
                 // Two-line entry: title on top, personal best on its own line below — so long (German) titles
                 // and the highscore both fit the 270px frame instead of being crammed onto one shrunk line.
                 string title = (string.IsNullOrEmpty(e.icon) ? "" : e.icon + "  ") + e.Title(Game.German);
-                string hs = best > 0 ? "★ " + best : (Game.German ? "noch kein Rekord" : "no record yet");
+                string hs = best > 0 ? "★ " + best : L("ui.arcade.no_record");
                 var btn = UiKit.AddButton(_rail, 0, y, 270, 64, string.Empty, () => PlayGame(key));
                 UiKit.AddText(btn.transform, 18, 7, 244, 30, title, 17, UiKit.TextCol, TextAnchor.LowerLeft, FontStyle.Bold);
                 UiKit.AddText(btn.transform, 18, 37, 244, 20, hs, 13,

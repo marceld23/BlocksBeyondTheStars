@@ -126,7 +126,7 @@ public sealed partial class GameServer
             pois.Add(new NetPoi
             {
                 Type = "vault_ruin",
-                Name = "Ruin " + (char)('A' + i),
+                Name = string.Format(Localize(session.Locale, "poi.ruin"), (char)('A' + i)),
                 X = _vaultEntrances[i].X,
                 Z = _vaultEntrances[i].Z,
             });
@@ -136,7 +136,7 @@ public sealed partial class GameServer
         if (_worlds.Active.HasCoreChamber)
         {
             var c = _worlds.Active.CoreChamberCenter;
-            pois.Add(new NetPoi { Type = "guardian_core", Name = "Guardian Core", X = c.X, Z = c.Z });
+            pois.Add(new NetPoi { Type = "guardian_core", Name = Localize(session.Locale, "poi.guardian_core"), X = c.X, Z = c.Z });
         }
 
         // NPC-hint reveals: the wreck + treasure chests stay OFF the map until a villager shares them

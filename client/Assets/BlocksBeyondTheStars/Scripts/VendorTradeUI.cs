@@ -3,6 +3,8 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.State;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -91,7 +93,31 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
-        private string ItemName(string item) => L($"item.{item}.name");
+        /// <summary>Display name for a (possibly composite) item key: base name via the base key, plus
+        /// dyed/glowing and shape suffixes — so a market recipe over a modified item never renders a
+        /// bracketed key like <c>[item.stone#t3f6fb0.name]</c>. Shape names follow the
+        /// <c>ui.shape.&lt;BlockShape&gt;</c> key family (indices match <see cref="BlockShape"/>).</summary>
+        private string ItemName(string item)
+        {
+            var (baseKey, tint, glow) = ItemKey.Parse(item);
+            string name = L($"item.{baseKey}.name");
+            if (glow != 0)
+            {
+                name += " · " + L("ui.color.glowing");
+            }
+            else if (tint != 0)
+            {
+                name += " · " + L("ui.color.dyed");
+            }
+
+            int shape = ItemKey.Shape(item);
+            if (shape != 0)
+            {
+                name += " · " + L("ui.shape." + ((BlockShape)shape).ToString().ToLowerInvariant());
+            }
+
+            return name;
+        }
 
         private void Build()
         {
