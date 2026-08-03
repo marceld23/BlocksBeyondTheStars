@@ -128,6 +128,15 @@ public sealed class WorldDescription
     /// (ServerConfig's default description carries true; a loaded save keeps whatever it stored).</summary>
     public bool AsteroidBelts { get; set; }
 
+    /// <summary>Continents &amp; real oceans (#704): when true, large planets (circumference ≥ 8000) may
+    /// roll a bimodal continental-platform/ocean-basin terrain regime (~50 % of eligible bodies) — real
+    /// continents separated by real oceans, basalt continents in lava oceans on the volcanic types. MUST
+    /// default to false for the same reason as <see cref="SystemVariance"/>: terrain is re-derived from
+    /// the seed, and flipping this on an existing save would relocate the oceans wholesale — a player
+    /// base could wake up on the seabed. New worlds switch it on at creation (ServerConfig's default
+    /// description carries true; a loaded save keeps whatever it stored).</summary>
+    public bool TerrainContinents { get; set; }
+
     // --- World options (creation-time; baked into the save's metadata — they shape worldgen) ---
 
     /// <summary>Flora/tree density factor applied on top of each world's seeded variation.</summary>

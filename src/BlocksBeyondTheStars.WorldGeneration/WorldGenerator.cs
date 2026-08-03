@@ -82,6 +82,21 @@ public sealed class WorldGenerator
         _locationSalt = string.IsNullOrEmpty(locationId) ? 0L : StableHash(locationId);
     }
 
+    // Continents (#704): only worlds CREATED with the flag may roll continental terrain — the offset
+    // relocates the oceans wholesale, so existing galaxies must keep their coasts (WorldDescription
+    // gate, the SystemVariance/AsteroidBelts pattern). False is the load-safe default everywhere.
+    // Galaxy-global like the world-option factors, so it is set ONCE (server start / preview bake),
+    // not per SetWorldMode call.
+    private bool _continentsEnabled;
+
+    /// <summary>Whether this generator currently applies the continents feature gate (#704).</summary>
+    public bool ContinentsEnabled => _continentsEnabled;
+
+    /// <summary>Enables the continents feature for this generator (#704) — from the save's
+    /// <c>WorldDescription.TerrainContinents</c> on the server, from the join handshake on the client.
+    /// Call BEFORE any chunk or height query, like <see cref="SetWorldOptionFactors"/>.</summary>
+    public void SetContinentsEnabled(bool enabled) => _continentsEnabled = enabled;
+
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)
     {
@@ -226,8 +241,10 @@ public sealed class WorldGenerator
             case 0: return h * amp * 0.18; // flats
             case 1: return h * amp * 0.55; // rolling plains
             case 2: return h * amp * 1.00; // hills
-            case 3: // mountains (lightly ridged)
-                return (h * 0.88 + Ridge(h) * 0.12) * amp * 1.9;
+            case 3: // mountains (lightly ridged; #700 — a directional share so ranges chain along the grain)
+                return (h * 0.58 + Ridge(h) * 0.12
+                        + OrientedRidge(seed, GrainFor(seed), worldX, worldZ, planet.TerrainScale * 0.9) * 0.30)
+                    * amp * 1.9;
             case 4: // canyons (strongly ridged)
                 return (h * 0.35 + Ridge(h) * 0.65) * amp * 1.3;
             case 5: // plateau decks (#576): terraced mesa country as a REGION, not a whole-world style
@@ -241,7 +258,9 @@ public sealed class WorldGenerator
 
             case 6: // extreme peaks (#576): the far tail of relief, well above the mountains archetype
                 {
-                    double r = h * 0.25 + Ridge(h) * 0.75;
+                    // #700: the extreme crests follow the world's grain too — the tallest ranges chain.
+                    double or6 = OrientedRidge(seed, GrainFor(seed), worldX, worldZ, planet.TerrainScale * 0.9);
+                    double r = h * 0.25 + Ridge(h) * 0.45 + or6 * 0.30;
                     if (r > 0)
                     {
                         r = System.Math.Pow(r, 1.6); // flatter mid-slopes, prouder crests
@@ -290,6 +309,11 @@ public sealed class WorldGenerator
         int h = RawSurfaceHeight(planet, worldX, worldZ);
         long seed = PlanetSeed(planet);
         double overlay = HasVolcanoes(planet) ? VolcanoOffset(planet, seed, worldX, worldZ) : 0.0;
+        if (overlay == 0.0 && HasCalderas(planet))
+        {
+            overlay = CalderaOffset(seed, worldX, worldZ);
+        }
+
         if (overlay == 0.0 && HasMassifs(planet))
         {
             overlay = MassifOffset(planet, seed, worldX, worldZ);
@@ -300,9 +324,40 @@ public sealed class WorldGenerator
             overlay = TableMountainOffset(seed, worldX, worldZ);
         }
 
+        if (overlay == 0.0 && HasOverhangLandmarks(planet))
+        {
+            overlay = OverhangGroundOffset(planet, seed, worldX, worldZ);
+        }
+
+        if (overlay == 0.0 && HasTravertine(planet)
+            && TryGetTravertine(seed, worldX, worldZ, out double deckRise, out _))
+        {
+            overlay = deckRise;
+        }
+
+        if (overlay == 0.0 && HasPenitentes(planet))
+        {
+            overlay = PenitenteRise(planet, seed, worldX, worldZ);
+        }
+
+        if (overlay == 0.0 && HasCenotes(planet))
+        {
+            overlay = CenoteOffset(planet, seed, worldX, worldZ);
+        }
+
+        if (overlay == 0.0 && HasCrevasses(planet))
+        {
+            overlay = CrevasseOffset(seed, worldX, worldZ);
+        }
+
         if (overlay == 0.0 && HasRifts(planet))
         {
             overlay = RiftOffset(seed, worldX, worldZ);
+        }
+
+        if (overlay == 0.0 && HasMegaRift(planet, seed))
+        {
+            overlay = MegaRiftOffset(seed, worldX, worldZ);
         }
 
         if (overlay != 0.0)
@@ -323,27 +378,84 @@ public sealed class WorldGenerator
 
         // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
         // hills/mountains/canyons) pocked with round impact craters carved on top. How rolling that regolith
-        // is, and how dense/deep/sharp the craters are, is this BODY's own character (#518).
+        // is, and how dense/deep/sharp the craters are, is this BODY's own character (#518). Crater CHAINS
+        // (#699) — aligned secondary-impact strings — carve on top of the primary field.
         if (planet.Cratered || _crateredWorld)
         {
             double flat = h * CraterProfileFor(seed).Flatness * planet.Amplitude;
-            return planet.BaseHeight + (int)System.Math.Round(flat + CraterCarve(seed, worldX, worldZ, planet));
+            return planet.BaseHeight + (int)System.Math.Round(
+                flat + CraterCarve(seed, worldX, worldZ, planet) + CraterChainCarve(seed, worldX, worldZ));
         }
 
         double drama = DramaFor(seed); // W-R1: per-world relief multiplier (gentle ↔ dramatic)
 
+        // Continents (#704, new worlds only): a bimodal platform/basin offset UNDER everything else, so
+        // styles, archetypes and landmarks simply ride on the continent or drown in the ocean basin.
+        double baseline = ContinentOffset(planet, seed, worldX, worldZ);
+
+        // Whole-planet escarpment (#702): a rare two-storey world — the step is part of the baseline too.
+        if (HasEscarpment(planet, seed))
+        {
+            baseline += EscarpmentOffset(seed, worldX, worldZ);
+        }
+
+        // Salt polygons (#701): the cracked-plate ridge network of salt pans.
+        if (HasSaltPolygons(planet))
+        {
+            baseline += SaltPolygonRidge(seed, worldX, worldZ);
+        }
+
+        // Basalt column fields (#701): stepped hex prisms on volcanic-reading worlds.
+        if (HasBasaltFields(planet) && TryGetBasaltColumns(seed, worldX, worldZ, out double hexRise))
+        {
+            baseline += hexRise;
+        }
+
         // A planet may dictate an overall terrain SHAPE (item 21 V2) so worlds read structurally different —
-        // mesas, dunes, spires, etc. — instead of every world using the same mixed blend.
+        // mesas, dunes, spires, etc. — instead of every world using the same mixed blend. Since #703 a broad
+        // fade field hands 20–40 % of most styled worlds to the archetype blend, so a dunes world has gravel
+        // plains between its dune seas instead of being dunes from pole to pole.
         if (!string.IsNullOrEmpty(planet.TerrainStyle))
         {
-            return planet.BaseHeight + (int)System.Math.Round(StyledHeightOffset(planet, planet.TerrainStyle, seed, h, worldX, worldZ) * drama);
+            double styled = StyledHeightOffset(planet, planet.TerrainStyle, seed, h, worldX, worldZ);
+            if (StyleHybridEligible(planet.TerrainStyle))
+            {
+                ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
+                double a = 0.34 + (uh & 0xFF) / 255.0 * 0.08; // archetype share threshold, rolled per world
+                double b = a + 0.08;
+                double fade = FbmT(seed + 0x57FAD1, worldX, worldZ, planet.TerrainScale * 6.0, octaves: 2);
+                if (fade < b)
+                {
+                    double arch = BlendedArchetypeOffset(planet, seed, h, worldX, worldZ);
+                    if (fade <= a)
+                    {
+                        styled = arch;
+                    }
+                    else
+                    {
+                        double f = (fade - a) / (b - a);
+                        styled = arch + (styled - arch) * (f * f * (3.0 - 2.0 * f));
+                    }
+                }
+            }
+
+            return planet.BaseHeight + (int)System.Math.Round(baseline + styled * drama);
         }
 
         // Regional terrain character: a large-scale field selects how rugged this area is (a blend across
         // the world's archetype subset), so the surface varies between flat plains, hills, mountains — and,
         // where the subset drew the #576 archetypes, terraced decks, extreme crests or rift gorges.
-        return planet.BaseHeight + (int)System.Math.Round(BlendedArchetypeOffset(planet, seed, h, worldX, worldZ) * drama);
+        return planet.BaseHeight + (int)System.Math.Round(baseline + BlendedArchetypeOffset(planet, seed, h, worldX, worldZ) * drama);
     }
+
+    /// <summary>Styles that hand a rolled 20–40 % of their surface to the archetype blend (#703). The
+    /// identity styles stay pure: flats IS the world (ocean floor, salt pan, sky-world ground) and spires
+    /// is the crystal identity.</summary>
+    private static bool StyleHybridEligible(string style) => style.ToLowerInvariant() switch
+    {
+        "mountains" or "canyons" or "mesa" or "dunes" or "hills" or "tablelands" or "badlands" or "karst" => true,
+        _ => false,
+    };
 
     /// <summary>The vertical band [<paramref name="bottom"/>..<paramref name="top"/>] of a floating sky island at
     /// this column (item 21 V5), or <c>false</c> if no island covers it. The single source of truth for the
@@ -357,20 +469,9 @@ public sealed class WorldGenerator
             return false;
         }
 
-        long seed = PlanetSeed(planet);
-        double im = FbmT(seed + 0x15A4D, worldX, worldZ, planet.TerrainScale * 1.4, octaves: 3);
-        if (im <= 0.60) // matches the chunk-gen coverage threshold
-        {
-            return false;
-        }
-
-        double t = (im - 0.60) / 0.40;       // 0..1 toward an island's centre
-        double alt = FbmT(seed + 0x15A4E, worldX, worldZ, planet.TerrainScale * 3.0, octaves: 2);
-        int center = planet.BaseHeight + 28 + (int)((alt - 0.5) * 24.0);
-        int half = 2 + (int)(t * 8.0);       // 2..10 thick
-        top = center + half;
-        bottom = center - half - (int)(t * 6.0); // tapered rocky underside
-        return true;
+        // Tier 0 of the (#707) multi-tier sky: same seeds and shaping as the classic single band, so
+        // existing sky worlds keep their islands; upper tiers are GetExtraBands' business.
+        return FloatingIslandTier(planet, PlanetSeed(planet), 0, worldX, worldZ, out top, out bottom, out _);
     }
 
     /// <summary>The TOP world-Y of a floating sky island at this column, or <see cref="int.MinValue"/> if none.</summary>
@@ -699,6 +800,1131 @@ public sealed class WorldGenerator
         return -depth * wall * taper;
     }
 
+    // --- Mega-rift (#698): ONE colossal canyon girdling the entire planet — the Valles-Marineris
+    // signature scar. Not a hotspot cell: a meandering great-circle path at a rolled latitude. The meander
+    // is a torus FBM of X alone, so the canyon closes seamlessly on itself after a full circumnavigation.
+    // Very rare — a world-defining find, never the norm. ---
+    private const double MegaRiftChance = 8 / 256.0;   // ~3 % of eligible worlds
+    private const double MegaRiftMeanderFrac = 0.10;   // meander amplitude as a fraction of the latitude period
+    private const double MegaRiftMaxHalfWidth = 40.0;  // canyon up to ~80 wide
+
+    /// <summary>True when this world carries the world-girdling canyon (#698) — same solid-ground +
+    /// atmosphere gate as massifs, then a rare per-body roll.</summary>
+    private bool HasMegaRift(PlanetType planet, long seed)
+        => HasMassifs(planet) && (Noise.Hash(seed ^ 0x6E64A11F, 3, 1, 7) & 0xFF) < 256 * MegaRiftChance;
+
+    /// <summary>The mega-rift's (negative) height contribution at a column (#698): steep smoothstep walls
+    /// dropping 100–200 blocks to a broad flat floor. Wherever the floor dips under the sea percentile it
+    /// floods into a chain of fjord lakes, and rivers crossing the rim fall in as waterfalls — both for
+    /// free (the calibration samples the full <see cref="SurfaceHeight"/>).</summary>
+    private double MegaRiftOffset(long seed, int worldX, int worldZ)
+    {
+        ulong h = Noise.Hash(seed ^ 0x6E64A120, 1, 2, 3);
+        int period = LatPeriod;
+        double z0 = ((((h >> 8) & 0x3FF) / 1023.0) - 0.5) * period; // rolled central latitude
+
+        // Cheap band reject BEFORE the meander FBMs: columns far from the canyon's latitude band pay ~nothing.
+        double band = period * MegaRiftMeanderFrac + MegaRiftMaxHalfWidth * 1.5;
+        double dz0 = WorldConstants.WrapDeltaZ(worldZ - z0, _circumference);
+        if (System.Math.Abs(dz0) > band)
+        {
+            return 0.0;
+        }
+
+        double meander = (FbmT(seed + 0x6E64A121, worldX, 0.0, _circumference / 6.0, octaves: 2) - 0.5)
+            * 2.0 * (period * MegaRiftMeanderFrac);
+        double halfWidth = 15.0 + ((h >> 18) & 0x3FF) / 1023.0 * (MegaRiftMaxHalfWidth - 15.0); // 15..40
+        halfWidth *= 0.75 + FbmT(seed + 0x6E64A122, worldX, 64.0, _circumference / 12.0, octaves: 2) * 0.5;
+        double depth = 100.0 + ((h >> 28) & 0x3FF) / 1023.0 * 100.0; // 100..200
+
+        double dz = WorldConstants.WrapDeltaZ(worldZ - z0 - meander, _circumference);
+        if (System.Math.Abs(dz) > halfWidth)
+        {
+            return 0.0;
+        }
+
+        double w = 1.0 - System.Math.Abs(dz) / halfWidth;             // 0 rim .. 1 axis
+        double wall = w >= 0.45 ? 1.0 : w / 0.45 * (w / 0.45) * (3.0 - 2.0 * (w / 0.45));
+        return -depth * wall;
+    }
+
+    // --- Ring caldera (#702): a colossal circular mountain wall around a sunken interior basin. Where the
+    // basin dips under the sea percentile it floods into a ring lake (lava on dry volcanic worlds). ---
+    private const double CalderaCellSize = 3600.0;
+    private const double CalderaChance = 0.08;     // rarer than massifs — one is a destination
+    private const double CalderaMaxRadius = 400.0;
+
+    private bool HasCalderas(PlanetType planet) => HasMassifs(planet); // same solid-ground + air gate
+
+    /// <summary>The ring caldera's height contribution at a column (#702): a smooth rim wall peaking at
+    /// ~86 % of the radius, enclosing a gently dished sunken floor.</summary>
+    private double CalderaOffset(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x0CA1DE7A, CalderaCellSize, CalderaChance, CalderaMaxRadius + 30.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double radius = 200.0 + ((h >> 16) & 0x3FF) / 1023.0 * (CalderaMaxRadius - 200.0); // 200..400
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return 0.0;
+        }
+
+        double rimH = 40.0 + ((h >> 26) & 0x3FF) / 1023.0 * 30.0;   // 40..70 wall
+        double basin = 20.0 + ((h >> 56) & 0xFF) / 255.0 * 20.0;    // 20..40 sunken interior
+        double u = dist / radius;
+        if (u >= 0.72)
+        {
+            double v = (u - 0.72) / 0.28;                 // 0 basin edge .. 1 outside foot
+            double s = 1.0 - System.Math.Abs(2.0 * v - 1.0); // peak mid-band
+            return rimH * (s * s * (3.0 - 2.0 * s));
+        }
+
+        return -basin * (1.0 - 0.25 * (u / 0.72)); // near-flat sunken floor, slightly dished toward the wall
+    }
+
+    // --- Whole-planet escarpment (#702): a rare great-circle step that splits the world into an upper and
+    // a lower storey, separated by a continuous meandering cliff. Applied to the RAW height (before styles
+    // and landmarks) so every landform simply rides on its storey. ---
+    private const double EscarpmentChance = 10 / 256.0; // ~4 % of eligible worlds
+
+    private bool HasEscarpment(PlanetType planet, long seed)
+        => !planet.FloatingIslands && !planet.Void
+           && (Noise.Hash(seed ^ 0x0E5CA29F, 9, 2, 5) & 0xFF) < 256 * EscarpmentChance;
+
+    /// <summary>The escarpment's height contribution (#702): +step/2 on the upper storey, −step/2 on the
+    /// lower, blended across a cliff band whose path meanders like the mega-rift's.</summary>
+    private double EscarpmentOffset(long seed, int worldX, int worldZ)
+    {
+        ulong h = Noise.Hash(seed ^ 0x0E5CA2A0, 4, 4, 4);
+        int period = LatPeriod;
+        double z0 = ((((h >> 8) & 0x3FF) / 1023.0) - 0.5) * period;
+        double step = 60.0 + ((h >> 18) & 0x3FF) / 1023.0 * 40.0;   // 60..100 storey separation
+        double blend = 24.0 + ((h >> 28) & 0x3FF) / 1023.0 * 24.0;  // 24..48 cliff band width
+
+        double dz0 = WorldConstants.WrapDeltaZ(worldZ - z0, _circumference);
+        double reach = period * MegaRiftMeanderFrac + blend;
+        if (System.Math.Abs(dz0) > reach)
+        {
+            return dz0 > 0 ? step * 0.5 : -step * 0.5; // far from the cliff: plain storey offset
+        }
+
+        double meander = (FbmT(seed + 0x0E5CA2A1, worldX, 0.0, _circumference / 6.0, octaves: 2) - 0.5)
+            * 2.0 * (period * MegaRiftMeanderFrac);
+        double dz = WorldConstants.WrapDeltaZ(worldZ - z0 - meander, _circumference);
+        double t = System.Math.Clamp(dz / blend * 0.5 + 0.5, 0.0, 1.0);
+        return (t * t * (3.0 - 2.0 * t) - 0.5) * step;
+    }
+
+    // --- Travertine spring terraces (#701): Pamukkale — blinding-white stepped decks cascading down a
+    // gentle mound, each deck holding a shallow pool. Warm wet worlds only. ---
+    private const double TravertineCellSize = 1400.0;
+    private const double TravertineChance = 0.30;
+    private const double TravertineMaxRadius = 60.0;
+
+    private bool HasTravertine(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        return hasAir && waterAb >= 0.4 && planet.BaseTemperature >= 5.0;
+    }
+
+    /// <summary>The travertine mound's terraced height contribution (#701) plus whether this column is a
+    /// deck POOL cell (a 1-deep water pool sitting flush on the deck). White repaint is Generate's job.</summary>
+    private bool TryGetTravertine(long seed, int worldX, int worldZ, out double deckRise, out bool pool)
+    {
+        deckRise = 0.0;
+        pool = false;
+        if (!TryGetHotspot(seed ^ 0x7AA7E271, TravertineCellSize, TravertineChance, TravertineMaxRadius + 16.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        double radius = 30.0 + ((h >> 16) & 0x3FF) / 1023.0 * (TravertineMaxRadius - 30.0); // 30..60
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return false;
+        }
+
+        double height = 10.0 + ((h >> 26) & 0x3FF) / 1023.0 * 8.0; // 10..18 mound
+        double u = 1.0 - dist / radius;
+        double rise = height * System.Math.Pow(u, 1.35);
+        const double deckStep = 2.0;
+        double deck = System.Math.Floor(rise / deckStep) * deckStep;
+        deckRise = deck;
+        pool = rise - deck > 1.2 && dist < radius * 0.9; // deck interiors pond up; the outer fringe stays dry
+        return true;
+    }
+
+    // --- Penitente fields (#701): dense blade-like ice spikes in patches on cold worlds. ---
+    private const double PenitenteCellSize = 900.0;
+    private const double PenitenteChance = 0.35;
+    private const double PenitenteMaxRadius = 120.0;
+
+    private bool HasPenitentes(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        return !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase)
+            && planet.BaseTemperature <= -5.0;
+    }
+
+    /// <summary>The penitente field's spike rise at a column (#701), 0 outside any field. Spikes are a
+    /// high-frequency masked field inside sparse patch cells; Generate repaints tall spikes as ice.</summary>
+    private double PenitenteRise(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x9E217E27, PenitenteCellSize, PenitenteChance, PenitenteMaxRadius + 16.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double radius = 50.0 + ((h >> 16) & 0x3FF) / 1023.0 * (PenitenteMaxRadius - 50.0); // 50..120
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return 0.0;
+        }
+
+        double sp = FbmT(seed + 0x9E217E28, worldX, worldZ, 7.0, octaves: 2);
+        if (sp <= 0.60)
+        {
+            return 0.0;
+        }
+
+        double t = (sp - 0.60) / 0.40;
+        double edge = System.Math.Min(1.0, (1.0 - dist / radius) / 0.2);
+        return t * t * 5.0 * (edge * edge * (3.0 - 2.0 * edge)); // blades up to ~5 tall, fading at the field edge
+    }
+
+    // --- Salt polygons (#701): giant cracked plates on salt pans — a Voronoi edge network raised one
+    // block, so the flats read as tessellated crust instead of a billiard table. Trig-free arithmetic. ---
+    private const double SaltPolyCell = 26.0;   // plate pitch (blocks)
+    private const double SaltPolyEdge = 1.7;    // |d2−d1| below this ⇒ on a plate boundary ridge
+
+    private static bool HasSaltPolygons(PlanetType planet)
+        => string.Equals(planet.BeachBlock, "salt", System.StringComparison.OrdinalIgnoreCase)
+           || string.Equals(planet.Key, "salt_flats", System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>+1 on the polygon boundary ridges of a salt pan, 0 on the plate interiors (#701). Seam-safe:
+    /// the Voronoi cell grid is modular over the torus in both axes.</summary>
+    private double SaltPolygonRidge(long seed, int worldX, int worldZ)
+    {
+        int period = LatPeriod;
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / SaltPolyCell));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / SaltPolyCell));
+        double cw = _circumference / (double)nx;
+        double ch = period / (double)nz;
+        int wx = WorldConstants.WrapX(worldX, _circumference);
+        int zc = ((worldZ + period / 2) % period + period) % period;
+        int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
+        int czI = System.Math.Min(nz - 1, (int)(zc / ch));
+
+        double d1 = double.MaxValue, d2 = double.MaxValue;
+        for (int ix = -1; ix <= 1; ix++)
+            for (int iz = -1; iz <= 1; iz++)
+            {
+                int gx = ((cxI + ix) % nx + nx) % nx;
+                int gz = ((czI + iz) % nz + nz) % nz;
+                ulong ph = Noise.Hash(seed ^ 0x5A17F1A7, gx, 0, gz);
+                double px = (cxI + ix + 0.15 + ((ph >> 8) & 0x3FF) / 1023.0 * 0.7) * cw;
+                double pz = (czI + iz + 0.15 + ((ph >> 20) & 0x3FF) / 1023.0 * 0.7) * ch;
+                double ddx = WorldConstants.WrapDeltaX(wx - px, _circumference);
+                double ddz = zc - pz;
+                if (ddz > period / 2.0) { ddz -= period; }
+                if (ddz < -period / 2.0) { ddz += period; }
+                double d = System.Math.Sqrt(ddx * ddx + ddz * ddz);
+                if (d < d1) { d2 = d1; d1 = d; }
+                else if (d < d2) { d2 = d; }
+            }
+
+        return d2 - d1 < SaltPolyEdge ? 1.0 : 0.0;
+    }
+
+    // --- Hexagonal basalt column fields (#701): Giant's-Causeway patches on volcanic-reading worlds —
+    // stepped hex prisms quantised over a local axial hex grid, repainted basalt by Generate. ---
+    private const double BasaltFieldCellSize = 1000.0;
+    private const double BasaltFieldChance = 0.25;
+    private const double BasaltFieldMaxRadius = 140.0;
+    private const double Sqrt3Over3 = 0.5773502691896258; // compile-time constant — no libm at runtime
+
+    private bool HasBasaltFields(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        return string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
+            || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase)
+            || string.Equals(planet.DeepBlock, "basalt", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The basalt column field's stepped height contribution at a column (#701), and whether the
+    /// column lies inside a field at all (Generate repaints those basalt). Hex axial rounding on the
+    /// feature-LOCAL offset (dx,dz), so the grid needs no torus treatment of its own.</summary>
+    private bool TryGetBasaltColumns(long seed, int worldX, int worldZ, out double stepRise)
+    {
+        stepRise = 0.0;
+        if (!TryGetHotspot(seed ^ 0xBA5A17C0, BasaltFieldCellSize, BasaltFieldChance, BasaltFieldMaxRadius + 16.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        double radius = 60.0 + ((h >> 16) & 0x3FF) / 1023.0 * (BasaltFieldMaxRadius - 60.0); // 60..140
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist > radius)
+        {
+            return false;
+        }
+
+        double s = 4.0 + ((h >> 26) & 0x3) * 1.0; // hex pitch 4..7
+        // Pointy-top axial coordinates of the LOCAL offset, cube-rounded to the containing hex.
+        double qf = (Sqrt3Over3 * dx - dz / 3.0) / s;
+        double rf = (2.0 / 3.0 * dz) / s;
+        double xf = qf, zf = rf, yf = -xf - zf;
+        double rx = System.Math.Round(xf), ry = System.Math.Round(yf), rz = System.Math.Round(zf);
+        double ddx = System.Math.Abs(rx - xf), ddy = System.Math.Abs(ry - yf), ddz = System.Math.Abs(rz - zf);
+        if (ddx > ddy && ddx > ddz) { rx = -ry - rz; }
+        else if (ddy <= ddz) { rz = -rx - ry; }
+
+        ulong hexHash = Noise.Hash(seed ^ 0xBA5A17C1, (int)rx, 0, (int)rz);
+        double level = ((int)(hexHash & 0x7) - 3) * 1.2; // −3.6..+4.8 in ~1.2 steps
+        double edge = System.Math.Min(1.0, (1.0 - dist / radius) / 0.15);
+        stepRise = level * (edge * edge * (3.0 - 2.0 * edge));
+        return true;
+    }
+
+    // --- Terrain grain (#700): a per-world direction for dunes and mountain chains, expressed torus-safely
+    // as integer stretch + period-normalised shear of the noise input. Rotation would break the wrap
+    // periods; these two provably preserve them: X' = x·m advances the X circle a whole m laps per wrap,
+    // and the shear couples the axes in UNITS OF THE TARGET AXIS'S PERIOD — Z' = z + k·(P/C)·x shifts by
+    // exactly k·P under an X wrap (k whole Z periods) for ANY integers k, m, and any C/P ratio (the
+    // latitude period is rounded to 32-block chunks, so it is NOT exactly C/2 — a naive x-coefficient
+    // shear would tear the seam). ---
+    private readonly struct TerrainGrain
+    {
+        public readonly bool Swap;    // false: compress X, shear Z; true: compress Z, shear X
+        public readonly int Stretch;  // integer compression of the primary axis
+        public readonly int Shear;    // integer shear coefficient (any int is wrap-safe in both families)
+
+        public TerrainGrain(bool swap, int stretch, int shear)
+        {
+            Swap = swap;
+            Stretch = stretch;
+            Shear = shear;
+        }
+    }
+
+    private static TerrainGrain GrainFor(long seed)
+    {
+        ulong u = Noise.Hash(seed ^ 0x06172A17, 5, 9, 2);
+        bool swap = (u & 1UL) != 0;
+        int stretch = 3 + (int)((u >> 1) & 0x3) % 3;          // 3..5
+        int shear = (int)((u >> 3) & 0x3) - 1;                // −1..2
+        if (shear == 0 && ((u >> 5) & 1UL) != 0)
+        {
+            shear = 2; // keep a healthy share of visibly diagonal worlds
+        }
+
+        return new TerrainGrain(swap, stretch, shear);
+    }
+
+    /// <summary>Samples an FBM field in this world's grain direction (#700): the primary axis is integer-
+    /// stretched (whole extra wrap laps → seam-exact) and the cross axis sheared in units of its own
+    /// period, so the torus wrap stays seamless on both axes for any world size.</summary>
+    private double GrainFbm(long seed, in TerrainGrain g, int worldX, int worldZ, double scale, int octaves)
+    {
+        double period = LatPeriod;
+        return g.Swap
+            ? FbmT(seed, worldX + g.Shear * (_circumference / period) * worldZ, (double)worldZ * g.Stretch, scale, octaves)
+            : FbmT(seed, (double)worldX * g.Stretch, worldZ + g.Shear * (period / _circumference) * worldX, scale, octaves);
+    }
+
+    /// <summary>An oriented ridge value in [−1,1] for mountain-chain shaping (#700): crests elongate along
+    /// the world's grain instead of blobbing isotropically.</summary>
+    private double OrientedRidge(long seed, in TerrainGrain g, int worldX, int worldZ, double scale)
+    {
+        double o = GrainFbm(seed + 0x06172A18, g, worldX, worldZ, scale, octaves: 2);
+        return (1.0 - System.Math.Abs(2.0 * o - 1.0)) * 2.0 - 1.0;
+    }
+
+    // --- Continents & real oceans (#704, new worlds only): a very-low-frequency continentalness field
+    // pushes eligible large planets into a BIMODAL height regime — continental platform vs ocean basin,
+    // joined by a smoothstep shelf. Everything else (styles, archetypes, landmarks, sea percentile,
+    // rivers, beaches) simply rides on top. Domain-warped so coastlines are ragged, not blobby. ---
+    public const int ContinentMinCircumference = 8000; // the user-decided size gate (large planets only)
+
+    private readonly struct ContinentProfile
+    {
+        public readonly bool Active;
+        public readonly double Wavelength;  // continent pitch (blocks): circumference / 4..7
+        public readonly double Threshold;   // continentalness above this is land
+        public readonly double Shelf;       // half-width of the shelf smoothstep, in field units
+        public readonly double BasinDepth;  // ocean basin floor below base (35..60)
+        public readonly double Lift;        // platform lift above base (6..14)
+        public readonly double LandFrac;    // rolled target land fraction (0.25..0.55)
+
+        public ContinentProfile(bool active, double wavelength, double threshold, double shelf,
+            double basinDepth, double lift, double landFrac)
+        {
+            Active = active;
+            Wavelength = wavelength;
+            Threshold = threshold;
+            Shelf = shelf;
+            BasinDepth = basinDepth;
+            Lift = lift;
+            LandFrac = landFrac;
+        }
+    }
+
+    /// <summary>This body's continent roll (#704). Inactive unless the world was created with continents,
+    /// the body is a large planet (≥ <see cref="ContinentMinCircumference"/>), carries a sea to relocate
+    /// (water — or lava on the lava/ashen worlds: basalt continents in a lava ocean), and wins the ~50 %
+    /// per-body roll. The ocean type keeps its 78–97 %-flooded identity and never rolls continents.</summary>
+    private ContinentProfile ContinentProfileFor(PlanetType planet, long seed)
+    {
+        if (!_continentsEnabled || _circumference < ContinentMinCircumference
+            || planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return default;
+        }
+
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        if (!hasAir)
+        {
+            return default;
+        }
+
+        double waterAb = planet.WaterAbundance ?? 0.55;
+        bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
+        bool lavaOcean = (planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0)) > 0.0
+            && (string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
+                || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase));
+        if (waterAb >= 1.0 || (waterAb < 0.3 && !lavaOcean))
+        {
+            return default;
+        }
+
+        ulong u = Noise.Hash(seed ^ 0x0C047A9E, 7, 7, 7);
+        if ((u & 0xFF) >= 128)
+        {
+            return default; // ~50 % of eligible bodies stay classic noise-coast worlds
+        }
+
+        double k = 4.0 + ((u >> 8) & 0x3);                       // 4..7 → 1–2 supercontinents .. many landmasses
+        double landFrac = 0.25 + ((u >> 12) & 0x3FF) / 1023.0 * 0.30; // 25..55 % land
+        double threshold = 0.62 - landFrac * 0.35;               // rough map; the sea percentile makes it exact
+        double shelf = 0.02 + ((u >> 22) & 0xFF) / 255.0 * 0.025;
+        double basin = 35.0 + ((u >> 30) & 0x3FF) / 1023.0 * 25.0; // 35..60
+        double lift = 6.0 + ((u >> 40) & 0xFF) / 255.0 * 8.0;       // 6..14
+        return new ContinentProfile(true, _circumference / k, threshold, shelf, basin, lift, landFrac);
+    }
+
+    /// <summary>The continental platform/basin offset at a column (#704), 0 on non-continental worlds.
+    /// Domain-warped continentalness → smoothstep between −BasinDepth and +Lift across the shelf band.
+    /// Where the field hovers near the threshold the shelf yields shallow seas and island arcs.</summary>
+    private double ContinentOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        var p = ContinentProfileFor(planet, seed);
+        if (!p.Active)
+        {
+            return 0.0;
+        }
+
+        double warpAmp = p.Wavelength * 0.1;
+        double wx = worldX + (FbmT(seed + 0x0C047AA0, worldX, worldZ, p.Wavelength / 3.0, octaves: 2) - 0.5) * 2.0 * warpAmp;
+        double wz = worldZ + (FbmT(seed + 0x0C047AA1, worldX, worldZ, p.Wavelength / 3.0, octaves: 2) - 0.5) * 2.0 * warpAmp;
+        double c = FbmT(seed + 0x0C047AA2, wx, wz, p.Wavelength, octaves: 3);
+        double m = System.Math.Clamp((c - (p.Threshold - p.Shelf)) / (2.0 * p.Shelf), 0.0, 1.0);
+        m = m * m * (3.0 - 2.0 * m);
+        return -p.BasinDepth + m * (p.BasinDepth + p.Lift);
+    }
+
+    // ================= Overhang landforms (#705/#706/#707) =================
+    // The engine's terrain is a strict heightfield; the floating-island slab proved a SECOND solid band
+    // per column works end to end. #705 generalises that: a column may carry up to a few extra bands
+    // (island tiers, arch bars, pillar caps, cenote lips, island waterfalls), each filled by Generate.
+
+    /// <summary>What an extra column band is made of (#705). Island reproduces the classic sky-island
+    /// fill bit-for-bit; IslandPond is an island whose top cell is water; Cap is bare rock (arch bars,
+    /// hoodoo/sea-stack caps, cenote lips); Waterfall is a standing column of water.</summary>
+    public enum BandKind : byte
+    {
+        Island = 0,
+        IslandPond = 1,
+        Cap = 2,
+        Waterfall = 3,
+    }
+
+    /// <summary>One extra solid/fluid band of a column (#705), in inclusive world-Y coordinates.</summary>
+    public struct ColumnBand
+    {
+        public int Bottom;
+        public int Top;
+        public BandKind Kind;
+    }
+
+    /// <summary>Max extra bands a column can carry (#705): 3 island tiers + a cap + a waterfall.</summary>
+    public const int MaxColumnBands = 6;
+
+    /// <summary>Collects every extra band covering this column (#705): sky-island tiers (with ponds,
+    /// stalactites and edge waterfalls, #707), arch bars, sea-stack and hoodoo caps and cenote lips
+    /// (#706/#707). Returns the band count written into <paramref name="bands"/>. The single source of
+    /// truth — Generate, placement queries and tests all agree on what hangs where.</summary>
+    public int GetExtraBands(PlanetType planet, int worldX, int worldZ, System.Span<ColumnBand> bands)
+    {
+        int n = 0;
+        long seed = PlanetSeed(planet);
+        if (planet.FloatingIslands)
+        {
+            int tiers = SkyTiersFor(seed);
+            for (int t = 0; t < tiers && n < bands.Length; t++)
+            {
+                if (FloatingIslandTier(planet, seed, t, worldX, worldZ, out int top, out int bottom, out double it))
+                {
+                    var kind = BandKind.Island;
+                    double pond = FbmT(seed + 0x5C1A7F + t * 0x1010, worldX, worldZ, planet.TerrainScale * 0.8, octaves: 2);
+                    if (pond > 0.62 && it > 0.55)
+                    {
+                        kind = BandKind.IslandPond; // a meadow pool sunk into the island top (#707)
+                    }
+
+                    bands[n++] = new ColumnBand { Bottom = bottom, Top = top, Kind = kind };
+
+                    // Endless waterfall (#707): island ponds spill over the rim — a standing water column
+                    // from just under the island down to the ground (or the sea it plunges into).
+                    if (pond > 0.62 && it > 0.02 && it <= 0.10 && n < bands.Length)
+                    {
+                        int ground = SurfaceHeight(planet, worldX, worldZ);
+                        if (ground + 1 < bottom - 1)
+                        {
+                            bands[n++] = new ColumnBand { Bottom = ground + 1, Top = bottom - 1, Kind = BandKind.Waterfall };
+                        }
+                    }
+                }
+            }
+        }
+
+        if (n < bands.Length && HasArches(planet) && TryGetArchBar(planet, seed, worldX, worldZ, out int abLo, out int abHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = abLo, Top = abHi, Kind = BandKind.Cap };
+        }
+
+        if (n < bands.Length && HasSeaStacks(planet) && TryGetSeaStackCap(planet, seed, worldX, worldZ, out int scLo, out int scHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = scLo, Top = scHi, Kind = BandKind.Cap };
+        }
+
+        if (n < bands.Length && HasHoodoos(planet) && TryGetHoodooCap(planet, seed, worldX, worldZ, out int hcLo, out int hcHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = hcLo, Top = hcHi, Kind = BandKind.Cap };
+        }
+
+        if (n < bands.Length && HasCenotes(planet) && TryGetCenoteLip(planet, seed, worldX, worldZ, out int clLo, out int clHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = clLo, Top = clHi, Kind = BandKind.Cap };
+        }
+
+        return n;
+    }
+
+    /// <summary>True when any band-producing feature can exist on this world at all — Generate's cheap
+    /// whole-chunk gate so classic worlds pay nothing for #705.</summary>
+    public bool HasExtraBands(PlanetType planet)
+        => planet.FloatingIslands || HasArches(planet) || HasSeaStacks(planet) || HasHoodoos(planet) || HasCenotes(planet);
+
+    // --- Multi-tier skylands (#707): floating worlds roll 1–3 island tiers; tier 0 is the classic band
+    // (same seeds and shaping, so existing sky worlds keep their islands), upper tiers stack ~36 blocks
+    // apart. All tiers grow rocky stalactite tapers where a high-frequency mask spikes. ---
+    private static int SkyTiersFor(long seed) => 1 + (int)(Noise.Hash(seed ^ 0x5C1A7E, 3, 3, 3) % 3UL);
+
+    private bool FloatingIslandTier(PlanetType planet, long seed, int tier, int worldX, int worldZ,
+        out int top, out int bottom, out double t)
+    {
+        top = int.MinValue;
+        bottom = int.MaxValue;
+        t = 0.0;
+        double im = FbmT(seed + 0x15A4D + tier * 0x1010, worldX, worldZ, planet.TerrainScale * 1.4, octaves: 3);
+        if (im <= 0.60)
+        {
+            return false;
+        }
+
+        t = (im - 0.60) / 0.40;
+        double alt = FbmT(seed + 0x15A4E + tier * 0x1010, worldX, worldZ, planet.TerrainScale * 3.0, octaves: 2);
+        int center = planet.BaseHeight + 28 + tier * 36 + (int)((alt - 0.5) * 24.0);
+        int half = 2 + (int)(t * 8.0);
+        top = center + half;
+        bottom = center - half - (int)(t * 6.0);
+
+        // Stalactites (#707): rocky icicles hanging beneath the islands.
+        double sp = FbmT(seed + 0x57A1AC + tier, worldX, worldZ, 9.0, octaves: 2);
+        if (sp > 0.70)
+        {
+            bottom -= (int)((sp - 0.70) / 0.30 * 8.0);
+        }
+
+        return true;
+    }
+
+    // --- Natural arches & rock bridges (#706): two steep abutment pillars joined by a solid bar band —
+    // the first freestanding overhang landform. Dry rocky worlds (the table-mountain gate). ---
+    private const double ArchCellSize = 1900.0;
+    private const double ArchChance = 0.30;
+    private const double ArchMargin = 60.0;
+
+    private bool HasArches(PlanetType planet) => HasTableMountains(planet);
+
+    private bool TryGetArchGeometry(long seed, int worldX, int worldZ,
+        out double along, out double across, out double halfSpan, out double abutR, out double height,
+        out double barHalfW, out double barThick, out ulong hash, out double dx, out double dz)
+    {
+        along = across = halfSpan = abutR = height = barHalfW = barThick = 0.0;
+        if (!TryGetHotspot(seed ^ 0xA2C4B0, ArchCellSize, ArchChance, ArchMargin,
+                worldX, worldZ, out hash, out dx, out dz))
+        {
+            return false;
+        }
+
+        int di = (int)((hash >> 20) & 0x7);
+        double dirLen = System.Math.Sqrt((double)(ChainDirX[di] * ChainDirX[di] + ChainDirZ[di] * ChainDirZ[di]));
+        double ux = ChainDirX[di] / dirLen, uz = ChainDirZ[di] / dirLen;
+        along = dx * ux + dz * uz;
+        across = -dx * uz + dz * ux;
+        halfSpan = 8.0 + ((hash >> 24) & 0x7);         // 8..15
+        abutR = 4.0 + ((hash >> 28) & 0x3);            // 4..7
+        height = 14.0 + ((hash >> 32) & 0xF) * 0.8;    // 14..26
+        barHalfW = 2.5 + ((hash >> 36) & 0x3) * 0.7;   // 2.5..4.6
+        barThick = 2.0 + ((hash >> 38) & 0x1);         // 2..3
+        return true;
+    }
+
+    /// <summary>The arch abutments' steep ground rise at a column (#706), 0 elsewhere.</summary>
+    private double ArchGroundOffset(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetArchGeometry(seed, worldX, worldZ, out double along, out double across,
+                out double halfSpan, out double abutR, out double height, out _, out _, out _, out _, out _))
+        {
+            return 0.0;
+        }
+
+        double da = System.Math.Min(
+            System.Math.Sqrt((along + halfSpan) * (along + halfSpan) + across * across),
+            System.Math.Sqrt((along - halfSpan) * (along - halfSpan) + across * across));
+        if (da > abutR)
+        {
+            return 0.0;
+        }
+
+        return height * System.Math.Pow(1.0 - da / abutR, 0.25); // near-vertical pillar, flat-ish top
+    }
+
+    /// <summary>The arch's bridging bar band at a column (#706): a solid rock beam spanning the two
+    /// abutments at their top height, anchored to the pre-landmark ground under the feature centre.</summary>
+    private bool TryGetArchBar(PlanetType planet, long seed, int worldX, int worldZ, out int bottom, out int top)
+    {
+        bottom = 0;
+        top = -1;
+        if (!TryGetArchGeometry(seed, worldX, worldZ, out double along, out double across,
+                out double halfSpan, out _, out double height, out double barHalfW, out double barThick, out _,
+                out double dx, out double dz))
+        {
+            return false;
+        }
+
+        if (System.Math.Abs(along) > halfSpan || System.Math.Abs(across) > barHalfW)
+        {
+            return false;
+        }
+
+        // The bar sags slightly toward mid-span, like a real rock bridge; it anchors to the pre-landmark
+        // ground under the feature CENTRE so the beam is level regardless of the terrain under each end.
+        double sag = 1.5 * (1.0 - System.Math.Abs(along) / halfSpan);
+        int anchor = RawSurfaceHeight(planet, worldX - (int)System.Math.Round(dx), worldZ - (int)System.Math.Round(dz));
+        top = anchor + (int)System.Math.Round(height - sag);
+        bottom = top - (int)barThick + 1;
+        return true;
+    }
+
+    // --- Sea stacks (#706): pillars standing in the surf just off low coasts, some mushroom-capped. ---
+    private const double SeaStackCellSize = 260.0;
+    private const double SeaStackChance = 0.12;
+    private const double SeaStackMargin = 16.0;
+
+    private bool HasSeaStacks(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        return hasAir && waterAb >= 0.5;
+    }
+
+    private bool TryGetSeaStack(PlanetType planet, long seed, int worldX, int worldZ,
+        out double dist, out double stemR, out double rise, out int anchor, out ulong hash)
+    {
+        dist = stemR = rise = 0.0;
+        anchor = 0;
+        if (!TryGetHotspot(seed ^ 0x5EA57ACC, SeaStackCellSize, SeaStackChance, SeaStackMargin,
+                worldX, worldZ, out hash, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        // Stacks only rise from LOW ground (coasts + shallows): probe the base swell at the stack centre.
+        int cx = worldX - (int)System.Math.Round(dx);
+        int cz = worldZ - (int)System.Math.Round(dz);
+        double hswell = (FbmT(seed, cx, cz, planet.TerrainScale, octaves: 4) - 0.5) * 2.0;
+        if (hswell > -0.05)
+        {
+            return false;
+        }
+
+        dist = System.Math.Sqrt(dx * dx + dz * dz);
+        stemR = 2.0 + ((hash >> 16) & 0x3);        // 2..5
+        rise = 14.0 + ((hash >> 20) & 0x7);        // 14..21
+        anchor = RawSurfaceHeight(planet, cx, cz);
+        return true;
+    }
+
+    /// <summary>The sea stack's stem rise at a column (#706), 0 elsewhere.</summary>
+    private double SeaStackGroundOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (!TryGetSeaStack(planet, seed, worldX, worldZ, out double dist, out double stemR, out double rise, out _, out _)
+            || dist > stemR)
+        {
+            return 0.0;
+        }
+
+        return rise * System.Math.Pow(1.0 - dist / stemR, 0.2); // a sheer pillar
+    }
+
+    /// <summary>The sea stack's overhanging mushroom cap (#706): a rock disc two blocks wider than the
+    /// stem, sitting on the pillar top. Only ~60 % of stacks carry one — the rest stay sheer.</summary>
+    private bool TryGetSeaStackCap(PlanetType planet, long seed, int worldX, int worldZ, out int bottom, out int top)
+    {
+        bottom = 0;
+        top = -1;
+        if (!TryGetSeaStack(planet, seed, worldX, worldZ, out double dist, out double stemR, out double rise,
+                out int anchor, out ulong h)
+            || ((h >> 28) & 0xFF) >= 154 // ~60 % capped
+            || dist > stemR + 2.0)
+        {
+            return false;
+        }
+
+        top = anchor + (int)System.Math.Round(rise) + 1;
+        bottom = top - 1 - (int)((h >> 36) & 0x1);
+        return true;
+    }
+
+    // --- Hoodoos / fairy chimneys (#706): dense fields of thin spires balancing wider caprocks. ---
+    private const double HoodooCellSize = 24.0;
+    private const double HoodooChance = 0.5;
+    private const double HoodooRegionThreshold = 0.58;
+
+    private bool HasHoodoos(PlanetType planet) => (planet.TerrainStyle?.ToLowerInvariant()) switch
+    {
+        "badlands" or "tablelands" or "mesa" or "canyons" => !planet.Void && !planet.Cratered && !_crateredWorld,
+        _ => false,
+    };
+
+    private bool HoodooRegionAt(PlanetType planet, long seed, int worldX, int worldZ)
+        => FbmT(seed + 0x400D00, worldX, worldZ, planet.TerrainScale * 1.6, octaves: 2) > HoodooRegionThreshold;
+
+    private bool TryGetHoodoo(PlanetType planet, long seed, int worldX, int worldZ,
+        out double dist, out double rise, out int anchor, out ulong hash)
+    {
+        dist = rise = 0.0;
+        anchor = 0;
+        hash = 0;
+        if (!HoodooRegionAt(planet, seed, worldX, worldZ)
+            || !TryGetHotspot(seed ^ 0x400D01, HoodooCellSize, HoodooChance, 4.0,
+                worldX, worldZ, out hash, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        dist = System.Math.Sqrt(dx * dx + dz * dz);
+        rise = 6.0 + ((hash >> 16) & 0x7);  // 6..13
+        anchor = RawSurfaceHeight(planet, worldX - (int)System.Math.Round(dx), worldZ - (int)System.Math.Round(dz));
+        return true;
+    }
+
+    /// <summary>The hoodoo's thin stem rise at a column (#706), 0 elsewhere.</summary>
+    private double HoodooGroundOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHoodoo(planet, seed, worldX, worldZ, out double dist, out double rise, out _, out _)
+            || dist > 1.6)
+        {
+            return 0.0;
+        }
+
+        return rise * System.Math.Pow(1.0 - dist / 1.6, 0.2);
+    }
+
+    /// <summary>The hoodoo's caprock band (#706): a wider dark disc balanced on the stem.</summary>
+    private bool TryGetHoodooCap(PlanetType planet, long seed, int worldX, int worldZ, out int bottom, out int top)
+    {
+        bottom = 0;
+        top = -1;
+        if (!TryGetHoodoo(planet, seed, worldX, worldZ, out double dist, out double rise, out int anchor, out ulong h)
+            || dist > 2.6)
+        {
+            return false;
+        }
+
+        top = anchor + (int)System.Math.Round(rise) + 1;
+        bottom = top - (int)((h >> 20) & 0x1); // 1–2 thick
+        return true;
+    }
+
+    /// <summary>Whether any overhang landmark's GROUND geometry (abutments, stems) can exist here (#706).</summary>
+    private bool HasOverhangLandmarks(PlanetType planet)
+        => HasArches(planet) || HasSeaStacks(planet) || HasHoodoos(planet);
+
+    /// <summary>The overhang landmarks' ground rise at a column (#706): arch abutments, then sea-stack
+    /// stems, then hoodoo stems — first hit wins (they share the one-landmark-per-column rule).</summary>
+    private double OverhangGroundOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        double o = HasArches(planet) ? ArchGroundOffset(seed, worldX, worldZ) : 0.0;
+        if (o == 0.0 && HasSeaStacks(planet))
+        {
+            o = SeaStackGroundOffset(planet, seed, worldX, worldZ);
+        }
+
+        if (o == 0.0 && HasHoodoos(planet))
+        {
+            o = HoodooGroundOffset(planet, seed, worldX, worldZ);
+        }
+
+        return o;
+    }
+
+    // --- Cenotes (#707): sudden circular shafts dropping 30–80 blocks from green ground straight into
+    // the cave layer — with an overhanging ring lip, and a turquoise pool where the world is wet. ---
+    private const double CenoteCellSize = 1100.0;
+    private const double CenoteChance = 0.25;
+    private const double CenoteMaxRadius = 14.0;
+
+    private bool HasCenotes(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands
+            || planet.CaveThreshold <= 0.0)
+        {
+            return false;
+        }
+
+        bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
+        double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
+        return hasAir && waterAb > 0.3;
+    }
+
+    private bool TryGetCenote(PlanetType planet, long seed, int worldX, int worldZ,
+        out double dist, out double radius, out double depth, out int anchor, out ulong hash)
+    {
+        dist = radius = depth = 0.0;
+        anchor = 0;
+        if (!TryGetHotspot(seed ^ 0x0CE07E, CenoteCellSize, CenoteChance, CenoteMaxRadius + 6.0,
+                worldX, worldZ, out hash, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        dist = System.Math.Sqrt(dx * dx + dz * dz);
+        radius = 6.0 + ((hash >> 16) & 0x7);   // 6..13
+        depth = 30.0 + ((hash >> 20) & 0x3F) * 0.8; // 30..80
+        anchor = RawSurfaceHeight(planet, worldX - (int)System.Math.Round(dx), worldZ - (int)System.Math.Round(dz));
+        return true;
+    }
+
+    /// <summary>The cenote shaft's (negative) offset at a column (#707): near-vertical walls to a flat
+    /// floor. Caves open into the shaft walls for free — the mesher exposes every cave cell the shaft
+    /// face touches.</summary>
+    private double CenoteOffset(PlanetType planet, long seed, int worldX, int worldZ)
+    {
+        if (!TryGetCenote(planet, seed, worldX, worldZ, out double dist, out double radius, out double depth, out _, out _)
+            || dist > radius)
+        {
+            return 0.0;
+        }
+
+        double t = System.Math.Min(1.0, (1.0 - dist / radius) / 0.15);
+        return -depth * (t * t * (3.0 - 2.0 * t));
+    }
+
+    /// <summary>The cenote's overhanging ring lip (#707): a rock band at the original ground level
+    /// reaching over the shaft's outer edge.</summary>
+    private bool TryGetCenoteLip(PlanetType planet, long seed, int worldX, int worldZ, out int bottom, out int top)
+    {
+        bottom = 0;
+        top = -1;
+        if (!TryGetCenote(planet, seed, worldX, worldZ, out double dist, out double radius, out _, out int anchor, out _)
+            || dist < radius * 0.82 || dist > radius * 0.98)
+        {
+            return false;
+        }
+
+        top = anchor;
+        bottom = anchor - 1;
+        return true;
+    }
+
+    /// <summary>The cenote pool (#707): on wet worlds ~60 % of cenotes hold water over their floor.
+    /// Outputs the pool's flat top Y (anchored to the feature centre), for Generate's fluid override.</summary>
+    public bool TryGetCenotePool(PlanetType planet, int worldX, int worldZ, out int poolTopY)
+    {
+        poolTopY = 0;
+        if (!HasCenotes(planet))
+        {
+            return false;
+        }
+
+        long seed = PlanetSeed(planet);
+        if (!TryGetCenote(planet, seed, worldX, worldZ, out double dist, out double radius, out double depth,
+                out int anchor, out ulong h)
+            || dist >= radius || ((h >> 40) & 0xFF) >= 154)
+        {
+            return false;
+        }
+
+        double waterAb = planet.WaterAbundance ?? 0.55;
+        if (waterAb < 0.45)
+        {
+            return false;
+        }
+
+        poolTopY = anchor - (int)depth + 4 + (int)((h >> 48) & 0x3); // 4..7 deep pool over the floor
+        return true;
+    }
+
+    // --- Crevasse fields (#709): narrow deep slits across the ice of the coldest worlds. ---
+    private const double CrevasseCellSize = 500.0;
+    private const double CrevasseChance = 0.30;
+    private const double CrevasseMaxHalfLen = 80.0;
+
+    private bool HasCrevasses(PlanetType planet)
+    {
+        if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
+        {
+            return false;
+        }
+
+        return !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase)
+            && planet.BaseTemperature <= -8.0;
+    }
+
+    /// <summary>The crevasse's (negative) offset at a column (#709): a thin, steep slit 8–18 deep.</summary>
+    private double CrevasseOffset(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x0C2EFA55, CrevasseCellSize, CrevasseChance,
+                CrevasseMaxHalfLen + 8.0, worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        double angle = ((h >> 16) & 0x3FF) / 1023.0 * System.Math.PI;
+        double halfLen = 30.0 + ((h >> 26) & 0x3FF) / 1023.0 * (CrevasseMaxHalfLen - 30.0);
+        double halfWidth = 1.5 + ((h >> 56) & 0xFF) / 255.0 * 2.0; // 1.5..3.5
+        double cos = System.Math.Cos(angle);
+        double sin = System.Math.Sin(angle);
+        double along = dx * cos + dz * sin;
+        double across = -dx * sin + dz * cos;
+        if (System.Math.Abs(along) > halfLen || System.Math.Abs(across) > halfWidth)
+        {
+            return 0.0;
+        }
+
+        ulong h2 = h * 0x9E3779B97F4A7C15UL;
+        double depth = 8.0 + ((h2 >> 20) & 0x3FF) / 1023.0 * 10.0; // 8..18
+        double w = 1.0 - System.Math.Abs(across) / halfWidth;
+        double wall = w >= 0.35 ? 1.0 : (w / 0.35) * (w / 0.35) * (3.0 - 2.0 * (w / 0.35));
+        double endT = 1.0 - System.Math.Abs(along) / halfLen;
+        double taper = endT >= 0.2 ? 1.0 : (endT / 0.2) * (endT / 0.2) * (3.0 - 2.0 * (endT / 0.2));
+        return -depth * wall * taper;
+    }
+
+    // --- Underground mega-caverns (#707): rare ellipsoid voids 60–140 wide deep below the surface,
+    // some holding a still lake (water above the lava table, molten below). Crystal glints stud the
+    // shell so the find reads as a wonder, not a glitch. ---
+    private const double CavernCellSize = 1700.0;
+    private const double CavernChance = 0.22;
+    private const double CavernMaxRx = 70.0;
+
+    private bool HasCaverns(PlanetType planet)
+        => !planet.Void && planet.CaveThreshold > 0.0;
+
+    /// <summary>The mega-cavern's vertical air span at this column (#707), with the lake surface (or
+    /// int.MinValue when this cavern rolled dry). False when no cavern covers the column.</summary>
+    public bool TryGetCavernSpan(PlanetType planet, int worldX, int worldZ,
+        out int yLo, out int yHi, out int lakeY)
+    {
+        yLo = yHi = 0;
+        lakeY = int.MinValue;
+        if (!HasCaverns(planet))
+        {
+            return false;
+        }
+
+        long seed = PlanetSeed(planet);
+        if (!TryGetHotspot(seed ^ 0x0CAFE27A, CavernCellSize, CavernChance, CavernMaxRx + 10.0,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        double rx = 30.0 + ((h >> 16) & 0x3FF) / 1023.0 * (CavernMaxRx - 30.0); // 30..70
+        double rz = rx * (0.75 + ((h >> 26) & 0xFF) / 255.0 * 0.5);             // slightly oval
+        double ry = 14.0 + ((h >> 34) & 0x3FF) / 1023.0 * 14.0;                 // 14..28 tall
+        double q = 1.0 - (dx / rx) * (dx / rx) - (dz / rz) * (dz / rz);
+        if (q <= 0.0)
+        {
+            return false;
+        }
+
+        int cy = planet.BaseHeight - 90 - (int)((h >> 44) & 0x3F); // 90..153 below base
+        double half = ry * System.Math.Sqrt(q);
+        yLo = cy - (int)half;
+        yHi = cy + (int)half;
+        if (((h >> 50) & 0x1) != 0)
+        {
+            lakeY = cy - (int)(ry * (0.35 + ((h >> 52) & 0x3) * 0.05)); // lake fills the lower bowl
+        }
+
+        return true;
+    }
+
+    // ================= Tunnel carver (#708) =================
+    // One deterministic worm carver: each hotspot cell may host a seeded polyline whose capsule radius
+    // varies along its length. Carved during the vertical fill like the blob caves — but tunnels may
+    // reach the surface, so caves finally have MOUTHS (#709). On volcano worlds a share of the worms
+    // roll wide and smooth: lava tubes, with occasional skylight shafts where the roof thins.
+    private const double TunnelCellSize = 700.0;
+    private const double TunnelChance = 0.5;
+    private const double TunnelMargin = 320.0;
+    private const int TunnelMaxSpans = 6;
+
+    private bool HasTunnels(PlanetType planet)
+        => !planet.Void && planet.CaveThreshold > 0.0;
+
+    /// <summary>Computes this column's tunnel-carve y-spans (#708) into <paramref name="spans"/> and
+    /// returns the count. Deterministic per (seed, column); the polyline is rebuilt from the cell hash
+    /// (cheap arithmetic), so no state is shared between server, client and tests.</summary>
+    public int TunnelSpans(PlanetType planet, int worldX, int worldZ, System.Span<(int Lo, int Hi)> spans)
+    {
+        if (!HasTunnels(planet))
+        {
+            return 0;
+        }
+
+        long seed = PlanetSeed(planet);
+        if (!TryGetHotspot(seed ^ 0x7A22E1, TunnelCellSize, TunnelChance, TunnelMargin,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0;
+        }
+
+        // Rebuild the worm from its cell hash — an xorshift stream keeps the rolls cheap + portable.
+        ulong s = h | 1UL;
+        double Next()
+        {
+            s ^= s << 13;
+            s ^= s >> 7;
+            s ^= s << 17;
+            return (s & 0xFFFFF) / 1048576.0;
+        }
+
+        bool tube = HasVolcanoes(planet) && Next() < 0.3; // lava tubes: wider, smoother, shallower (#709)
+        int segs = tube ? 5 + (int)(Next() * 4) : 6 + (int)(Next() * 7);
+        double px = 0.0, pz = 0.0;
+        double py = planet.BaseHeight - (tube ? 4.0 + Next() * 10.0 : 8.0 + Next() * 26.0);
+        double vx = Next() * 2.0 - 1.0, vz = Next() * 2.0 - 1.0;
+        double vlen = System.Math.Sqrt(vx * vx + vz * vz);
+        if (vlen < 0.2) { vx = 1.0; vz = 0.0; vlen = 1.0; }
+        vx /= vlen;
+        vz /= vlen;
+
+        int n = 0;
+        for (int i = 0; i < segs && n < spans.Length; i++)
+        {
+            double len = 24.0 + Next() * 20.0;
+            double drift = tube ? 0.15 : 0.35;
+            double vy = (Next() - 0.55) * drift; // worms trend gently downward
+            double qx = px + vx * len, qz = pz + vz * len, qy = py + vy * len;
+            double lim = TunnelMargin - 24.0;
+            qx = System.Math.Clamp(qx, -lim, lim);
+            qz = System.Math.Clamp(qz, -lim, lim);
+            double radius = (tube ? 4.5 + Next() * 2.0 : 2.5 + Next() * 2.0);
+
+            AddSegmentSpan(px, py, pz, qx, qy, qz, radius, dx, dz, spans, ref n);
+
+            // Skylight shaft (#709): sometimes the roof opens to the sky — a thin vertical worm from the
+            // segment end up past the surface, so tunnels get real MOUTHS you can climb into.
+            if (Next() < 0.12 && n < spans.Length)
+            {
+                AddSegmentSpan(qx, qy, qz, qx, planet.BaseHeight + 60.0, qz, 1.7, dx, dz, spans, ref n);
+            }
+
+            px = qx; py = qy; pz = qz;
+            double turn = (Next() - 0.5) * 0.9;
+            double nvx = vx + turn * -vz, nvz = vz + turn * vx; // cheap heading drift, no trig
+            double nl = System.Math.Sqrt(nvx * nvx + nvz * nvz);
+            vx = nvx / nl;
+            vz = nvz / nl;
+        }
+
+        return n;
+    }
+
+    /// <summary>Adds the y-span where the capsule (p→q, radius r) covers the column at local offset
+    /// (dx, dz) — sampled at 8 points along the segment (the worm is organic; exactness buys nothing).</summary>
+    private static void AddSegmentSpan(double pxx, double pyy, double pzz, double qx, double qy, double qz,
+        double r, double dx, double dz, System.Span<(int Lo, int Hi)> spans, ref int n)
+    {
+        double lo = double.MaxValue, hi = double.MinValue;
+        for (int k = 0; k <= 8; k++)
+        {
+            double t = k / 8.0;
+            double sx = pxx + (qx - pxx) * t;
+            double sz = pzz + (qz - pzz) * t;
+            double d2 = (dx - sx) * (dx - sx) + (dz - sz) * (dz - sz);
+            if (d2 > r * r)
+            {
+                continue;
+            }
+
+            double sy = pyy + (qy - pyy) * t;
+            double dy = System.Math.Sqrt(r * r - d2);
+            if (sy - dy < lo) { lo = sy - dy; }
+            if (sy + dy > hi) { hi = sy + dy; }
+        }
+
+        if (hi < lo || n >= spans.Length)
+        {
+            return;
+        }
+
+        spans[n++] = ((int)System.Math.Floor(lo), (int)System.Math.Ceiling(hi));
+    }
+
     /// <summary>Height offset (blocks, added to BaseHeight) for a planet with an explicit <see cref="PlanetType.TerrainStyle"/>
     /// (item 21 V2). <paramref name="h"/> is the base FBM swell in [-1,1]. Each style reshapes it into a distinct
     /// landform so worlds look structurally different. Deterministic + seam-safe (all noise wraps on X).</summary>
@@ -717,7 +1943,10 @@ public sealed class WorldGenerator
 
             case "mountains":
                 {
-                    double r = h * 0.25 + Ridge(h) * 0.75; // sharp, rugged
+                    // #700: part of the ridging comes from an oriented field, so ranges form CHAINS along
+                    // the world's grain instead of isotropic knots.
+                    double or = OrientedRidge(seed, GrainFor(seed), worldX, worldZ, planet.TerrainScale * 0.9);
+                    double r = h * 0.25 + Ridge(h) * 0.30 + or * 0.45; // sharp, rugged, directional
                     if (r > 0)
                     {
                         r = System.Math.Pow(r, 1.35); // W-R1 crest sharpening: flatter mid-slopes, prouder peaks
@@ -751,7 +1980,10 @@ public sealed class WorldGenerator
             case "dunes":
                 {
                     // Parallel wind-blown ridges: a ridged mid-frequency field laid over a gentle base.
-                    double d = FbmT(seed + 0x0D0E, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
+                    // Since #700 the field is sampled in the world's GRAIN — every desert rolls a wind
+                    // direction and its dune crests march that way instead of blobbing isotropically.
+                    var g = GrainFor(seed);
+                    double d = GrainFbm(seed + 0x0D0E, g, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
                     double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0); // 0..1 dune crests
                     return h * amp * 0.25 + ridged * amp * 0.85;
                 }
@@ -832,9 +2064,11 @@ public sealed class WorldGenerator
         public readonly double RimHeight;  // raised ejecta lip at the crater edge (blocks)
         public readonly double RimBand;    // mask range outside the rim where the lip fades back to flat
         public readonly double Flatness;   // how much of the base swell survives between craters (× amplitude)
+        public readonly bool ComplexPeaks; // #699: big basins rebound a central peak (rock's own character)
+        public readonly bool Terraced;     // #699: bowl walls step down in ring terraces instead of one slope
 
         public CraterProfile(double threshold, double band, double maxDepth, double rimHeight, double rimBand,
-            double flatness)
+            double flatness, bool complexPeaks, bool terraced)
         {
             Threshold = threshold;
             Band = band;
@@ -842,6 +2076,8 @@ public sealed class WorldGenerator
             RimHeight = rimHeight;
             RimBand = rimBand;
             Flatness = flatness;
+            ComplexPeaks = complexPeaks;
+            Terraced = terraced;
         }
     }
 
@@ -868,7 +2104,9 @@ public sealed class WorldGenerator
                 maxDepth: 5.0 + 7.0 * R(0x0C1C),      // 5 .. 12 blocks at the centre
                 rimHeight: 0.8 + 2.4 * R(0x0C1D),     // barely-there lip .. a sharp ejecta wall
                 rimBand: 0.05 + 0.05 * R(0x0C1E),
-                flatness: 0.18 + 0.27 * R(0x0C1F));   // billiard-table regolith .. noticeably rolling ground
+                flatness: 0.18 + 0.27 * R(0x0C1F),    // billiard-table regolith .. noticeably rolling ground
+                complexPeaks: R(0x0C20) < 0.45,       // #699: ~45 % of bodies rebound central peaks
+                terraced: R(0x0C21) < 0.40);          // #699: ~40 % step their bowl walls
 
             if (_craterProfiles.Count >= 512)
             {
@@ -891,7 +2129,27 @@ public sealed class WorldGenerator
         {
             // Inside the basin: a smooth bowl down to -MaxDepth, with a rim lip right at the edge.
             double t = System.Math.Min(1.0, d / p.Band);
-            double bowl = -p.MaxDepth * (t * t * (3.0 - 2.0 * t));          // smoothstep deepening
+            double s = t * t * (3.0 - 2.0 * t); // smoothstep deepening
+            if (p.Terraced && p.MaxDepth >= 7.0)
+            {
+                // #699: quantise part of the slope into ring terraces (real complex-crater wall slumping).
+                double q = System.Math.Round(s * 3.0) / 3.0;
+                s = s * 0.45 + q * 0.55;
+            }
+
+            double bowl = -p.MaxDepth * s;
+            if (p.ComplexPeaks && p.MaxDepth >= 7.0)
+            {
+                // #699: the far interior of the BIG basins (mask well past the rim band) rebounds a central
+                // peak — small dishes never reach this zone, so simple craters stay simple.
+                double big = (d - p.Band) / p.Band;
+                if (big > 0.0)
+                {
+                    double pk = System.Math.Min(1.0, big);
+                    bowl += p.MaxDepth * 0.55 * (pk * pk * (3.0 - 2.0 * pk));
+                }
+            }
+
             double lip = p.RimHeight * System.Math.Max(0.0, 1.0 - t * 4.0); // a lip at the edge, gone a quarter in
             return bowl + lip;
         }
@@ -899,6 +2157,113 @@ public sealed class WorldGenerator
         // Just outside the rim: the raised ejecta lip, peaking at the edge and fading back to flat ground.
         double o = System.Math.Min(1.0, -d / p.RimBand);
         return p.RimHeight * (1.0 - o);
+    }
+
+    // --- Crater chains + ejecta rays (#699): a string of aligned secondary bowls marching away from a
+    // primary impact, and bright radial rays repainted around the primary. Hotspot-cell features on
+    // cratered bodies, layered ON TOP of the primary FBM crater field. Trig-free (integer direction
+    // vectors, dot-product ray tests), so golden-hash tests stay portable. ---
+    private const double ChainCellSize = 420.0;
+    private const double ChainChance = 0.30;
+    private const double ChainMargin = 200.0;
+    private static readonly int[] ChainDirX = { 1, 0, 1, 1, 2, 1, 2, 1 };
+    private static readonly int[] ChainDirZ = { 0, 1, 1, -1, 1, 2, -1, -2 };
+
+    /// <summary>The crater chain's height contribution at a column (#699): 3–6 bowls of shrinking radius
+    /// spaced along a rolled direction, each a smoothstep dish with a small rim lip.</summary>
+    private double CraterChainCarve(long seed, int worldX, int worldZ)
+    {
+        if (!TryGetHotspot(seed ^ 0x0C4A17, ChainCellSize, ChainChance, ChainMargin,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return 0.0;
+        }
+
+        int count = 3 + (int)((h >> 20) & 0x3);            // 3..6 bowls
+        double spacing = 18.0 + ((h >> 24) & 0x7);         // 18..25 apart
+        int di = (int)((h >> 28) & 0x7);
+        double dirLen = System.Math.Sqrt((double)(ChainDirX[di] * ChainDirX[di] + ChainDirZ[di] * ChainDirZ[di]));
+        double ux = ChainDirX[di] / dirLen, uz = ChainDirZ[di] / dirLen;
+        double r0 = 9.0 + ((h >> 32) & 0x7);               // primary radius 9..16
+        double depth0 = 5.0 + ((h >> 36) & 0x3);           // primary depth 5..8
+
+        double carve = 0.0;
+        double radius = r0, depth = depth0;
+        for (int i = 0; i < count; i++)
+        {
+            double cx = ux * spacing * i, cz = uz * spacing * i;
+            double bx = dx - cx, bz = dz - cz;
+            double dist = System.Math.Sqrt(bx * bx + bz * bz);
+            if (dist <= radius)
+            {
+                double t = 1.0 - dist / radius;
+                double s = t * t * (3.0 - 2.0 * t);
+                double bowl = -depth * s + 1.0 * System.Math.Max(0.0, 1.0 - t * 4.0); // dish + rim lip
+                if (bowl < carve)
+                {
+                    carve = bowl; // overlapping bowls take the deepest, not the sum
+                }
+            }
+
+            radius *= 0.82;
+            depth *= 0.85;
+        }
+
+        return carve;
+    }
+
+    /// <summary>True when this column lies on one of the primary crater's bright ejecta rays (#699) —
+    /// Generate repaints those cells with the body's deep rock for contrast. Rays are dot-product cones
+    /// around 5–8 rolled integer directions, reaching 1.3–4.5 primary radii out.</summary>
+    public bool CraterRayAt(PlanetType planet, int worldX, int worldZ)
+    {
+        if (!(planet.Cratered || _crateredWorld))
+        {
+            return false;
+        }
+
+        long seed = PlanetSeed(planet);
+        if (!TryGetHotspot(seed ^ 0x0C4A17, ChainCellSize, ChainChance, ChainMargin,
+                worldX, worldZ, out ulong h, out double dx, out double dz))
+        {
+            return false;
+        }
+
+        double r0 = 9.0 + ((h >> 32) & 0x7);
+        double dist = System.Math.Sqrt(dx * dx + dz * dz);
+        if (dist < r0 * 1.3 || dist > r0 * 4.5)
+        {
+            return false;
+        }
+
+        ulong h2 = h * 0x9E3779B97F4A7C15UL;
+        int rays = 5 + (int)(h2 & 0x3); // 5..8 rays
+        double nx = dx / dist, nz = dz / dist;
+        for (int i = 0; i < rays; i++)
+        {
+            // Each ray's direction comes from its own hash bits — normalized integer-ish vectors, no trig.
+            ulong rh = h2 >> (4 + i * 7);
+            double rx = ((rh & 0xF) / 15.0) * 2.0 - 1.0;
+            double rz = (((rh >> 4) & 0x7) / 7.0) * 2.0 - 1.0;
+            double rl = System.Math.Sqrt(rx * rx + rz * rz);
+            if (rl < 0.2)
+            {
+                continue;
+            }
+
+            double len = 0.55 + ((rh >> 7) & 0x3) / 3.0 * 0.45; // per-ray reach 55–100 % of the max
+            if (dist > r0 * 4.5 * len)
+            {
+                continue;
+            }
+
+            if (nx * (rx / rl) + nz * (rz / rl) > 0.965)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Rare metals exposed as small clumps on deep crater floors — the reward for exploring craters (item 33).
@@ -1012,12 +2377,12 @@ public sealed class WorldGenerator
     // body salt), so it is safe — and important — to share across generator instances: the client bakes a
     // fresh WorldGenerator per minimap/orbit texture and the tests spin up hundreds, each of which would
     // otherwise re-sample ~17k heights + 2×4096 field points.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), WorldCalibration> _calibs = new();
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), WorldCalibration> _calibs = new();
     private static readonly object _calibLock = new object();
 
     private WorldCalibration CalibFor(PlanetType planet)
     {
-        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled);
         lock (_calibLock)
         {
             if (_calibs.TryGetValue(key, out var cached))
@@ -1069,18 +2434,28 @@ public sealed class WorldGenerator
         bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
         double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
         double lavaAb = planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0);
+
+        // Continents (#704): on a continental world the sea's job is to FILL THE BASINS — the flood target
+        // becomes the basin share (1 − rolled land fraction), so the waterline settles at/near the shelf
+        // edge regardless of how the threshold→area mapping behaves. The percentile machinery makes it exact.
+        var continent = ContinentProfileFor(planet, seed);
         if (waterAb > 0.0 && _content.GetBlock("water") is { } water)
         {
-            double frac = waterAb >= 1.0
-                ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)
-                : System.Math.Clamp(0.06 + 0.40 * waterAb + (R01(0x5EA02) - 0.5) * 0.08, 0.02, 0.60);
+            double frac = continent.Active
+                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
+                : waterAb >= 1.0
+                    ? 0.78 + 0.19 * R01(0x5EA01)   // ocean-class band: 78–97 % water (islands guaranteed)
+                    : System.Math.Clamp(0.06 + 0.40 * waterAb + (R01(0x5EA02) - 0.5) * 0.08, 0.02, 0.60);
             c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
             c.SeaFluid = water.NumericId;
         }
         else if (lavaAb > 0.0 && _content.GetBlock("lava") is { } lava)
         {
             // Only dry volcanic/airless worlds pool a lava sea (B54: visible across low + mid terrain).
-            double frac = System.Math.Clamp(0.30 * lavaAb + (R01(0x5EA03) - 0.5) * 0.06, 0.05, 0.55);
+            // A continental lava world (#704) floods its basins the same way — basalt continents.
+            double frac = continent.Active
+                ? System.Math.Clamp((1.0 - continent.LandFrac) * 0.97, 0.35, 0.75)
+                : System.Math.Clamp(0.30 * lavaAb + (R01(0x5EA03) - 0.5) * 0.06, 0.05, 0.55);
             c.SeaLevel = QuantileLevel(c.SortedHeights, frac);
             c.SeaFluid = lava.NumericId;
         }
@@ -1499,14 +2874,14 @@ public sealed class WorldGenerator
     // STATIC like the calibration cache: the field is a pure function of (world seed, planet, size,
     // cratered, body salt), and fresh generator instances (tests, client preview bakes) would otherwise
     // re-run the ~300 ms network build per instance.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long), RiverField> _riverFields = new();
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), RiverField> _riverFields = new();
     private static readonly object _riverLock = new object();
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
     public RiverField RiverFieldFor(PlanetType planet)
     {
-        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled);
         lock (_riverLock)
         {
             if (_riverFields.TryGetValue(key, out var cached))
@@ -1861,6 +3236,18 @@ public sealed class WorldGenerator
 
         bool floatingIslands = planet.FloatingIslands; // item 21 V5: drifting sky-island slabs above the surface
 
+        // Terrain wonders (#698–#709): per-world feature gates, resolved once per chunk so classic worlds
+        // pay a handful of boolean checks and nothing else.
+        bool anyBands = HasExtraBands(planet);        // #705: sky tiers, arch bars, caps, cenote lips, falls
+        bool travertineWorld = HasTravertine(planet); // #701: white spring terraces with deck pools
+        bool penitenteWorld = HasPenitentes(planet);  // #701: blade-ice fields (repainted ice)
+        bool basaltFieldWorld = HasBasaltFields(planet); // #701: hex column fields (repainted basalt)
+        bool cenoteWorld = HasCenotes(planet);        // #707: shaft pools
+        bool cavernWorld = HasCaverns(planet);        // #707: underground mega-caverns
+        bool tunnelWorld = HasTunnels(planet);        // #708: worm tunnels + cave mouths
+        var saltBlockId = _content.GetBlock("salt")?.NumericId ?? BlockId.Air;
+        var cavernCrystalId = _content.GetBlock("crystal")?.NumericId ?? BlockId.Air;
+
         // Geysers / vents (item 21 follow-up): sparse erupting spouts — water geysers on reasonably wet worlds,
         // steam/lava vents on volcanic/ashen worlds. A marker block at the surface; the client attaches the
         // eruption VFX + hiss when the player is near. Deterministic, very sparse (landmark-rare).
@@ -1908,6 +3295,10 @@ public sealed class WorldGenerator
             && ((fluidId == seaWaterId && fluidLevel != int.MinValue) || riverField.FillFluid == seaWaterId);
 
         var origin = WorldConstants.ChunkOrigin(coord);
+
+        // Scratch spans reused by every column (#705/#708) — allocated once per chunk (CA2014).
+        System.Span<ColumnBand> bands = stackalloc ColumnBand[MaxColumnBands];
+        System.Span<(int Lo, int Hi)> tunnelSpans = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
             for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
@@ -1962,8 +3353,39 @@ public sealed class WorldGenerator
                 {
                     riverHere = true;
                     seabedY = river.BedY;
+                    if (river.WaterfallDrop > 0)
+                    {
+                        // River incision (#709): the plunge pool under a waterfall cuts a slot into the bed —
+                        // the erosion look without simulating erosion.
+                        seabedY -= System.Math.Min(6, river.WaterfallDrop);
+                    }
+
                     waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
                     columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
+                }
+
+                // Travertine deck pools (#701): shallow 1-deep water flush on the white terrace decks.
+                bool travertineHere = false;
+                if (travertineWorld && !pondHere && !craterHere && !riverHere && surfaceY > fluidLevel
+                    && TryGetTravertine(seed, worldX, worldZ, out double travDeck, out bool travPool))
+                {
+                    travertineHere = travDeck > 0.0 || travPool;
+                    if (travPool && !seaWaterId.IsAir)
+                    {
+                        seabedY = surfaceY - 1;
+                        waterTop = surfaceY;
+                        columnFluid = seaWaterId;
+                    }
+                }
+
+                // Cenote pools (#707): a turquoise pool standing over the shaft floor.
+                if (cenoteWorld && !pondHere && !craterHere && !riverHere && !seaWaterId.IsAir
+                    && TryGetCenotePool(planet, worldX, worldZ, out int cenotePoolTop)
+                    && cenotePoolTop > surfaceY)
+                {
+                    seabedY = surfaceY;
+                    waterTop = cenotePoolTop;
+                    columnFluid = seaWaterId;
                 }
 
                 // Frozen water (#494): a cold column's water freezes from the waterline down — a walkable
@@ -2031,14 +3453,55 @@ public sealed class WorldGenerator
                     subSurfaceId = basaltId;
                 }
 
-                // Floating islands (item 21 V5): a per-column sky-island slab high above the surface — a grass-topped
-                // deck on a tapered rocky underbelly, scattered by a region mask, drifting in the air. The band is
-                // resolved by the shared helper so settlement placement can query the same island tops.
-                int islandTop = int.MinValue, islandBottom = int.MaxValue;
-                if (floatingIslands)
+                // Travertine terraces read blinding white (#701) — salt is the closest shipped block.
+                if (travertineHere && !saltBlockId.IsAir)
                 {
-                    FloatingIslandBand(planet, worldX, worldZ, out islandTop, out islandBottom);
+                    surfaceId = saltBlockId;
+                    subSurfaceId = saltBlockId;
                 }
+
+                // Penitente blades freeze to solid ice (#701) where they rise meaningfully.
+                if (penitenteWorld && !iceId.IsAir && PenitenteRise(planet, seed, worldX, worldZ) > 1.5)
+                {
+                    surfaceId = iceId;
+                    subSurfaceId = iceId;
+                }
+
+                // Basalt column fields read as dark columnar rock (#701).
+                if (basaltFieldWorld && !basaltId.IsAir && TryGetBasaltColumns(seed, worldX, worldZ, out _))
+                {
+                    surfaceId = basaltId;
+                    subSurfaceId = basaltId;
+                }
+
+                // Ejecta rays (#699): bright/contrast streaks radiating from the primary chain crater —
+                // repainted with the body's deep rock so the rays pop against the regolith.
+                if ((planet.Cratered || _crateredWorld) && CraterRayAt(planet, worldX, worldZ))
+                {
+                    surfaceId = deepId;
+                    subSurfaceId = deepId;
+                }
+
+                // Extra column bands (#705): sky-island tiers (with ponds + stalactites), arch bars,
+                // sea-stack/hoodoo caps, cenote lips and island waterfalls. Tier 0 keeps the classic
+                // sky-island fill; islandTop below feeds the island flora pass like before.
+                int bandCount = anyBands ? GetExtraBands(planet, worldX, worldZ, bands) : 0;
+                int islandTop = int.MinValue;
+                for (int b = 0; b < bandCount; b++)
+                {
+                    if (bands[b].Kind == BandKind.Island && bands[b].Top > islandTop)
+                    {
+                        islandTop = bands[b].Top;
+                    }
+                }
+
+                // Underground mega-cavern (#707): this column's void span, if a cavern covers it.
+                int cavLo = 0, cavHi = -1, cavLakeY = int.MinValue;
+                bool cavernHere = cavernWorld
+                    && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
+
+                // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns).
+                int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
 
                 // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
                 // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
@@ -2060,11 +3523,43 @@ public sealed class WorldGenerator
                             // reads as solid ice instead of water (#494).
                             chunk.Set(lx, ly, lz, worldY > waterTop - iceTop ? iceId : columnFluid);
                         }
-                        else if (floatingIslands && worldY >= islandBottom && worldY <= islandTop)
+                        else
                         {
-                            // A sky island: grass-topped deck, sub-surface just under it, stone underbelly below.
-                            var ib = worldY == islandTop ? surfaceId : (worldY >= islandTop - 2 ? subSurfaceId : deepId);
-                            chunk.Set(lx, ly, lz, ib);
+                            // Extra bands (#705): sky-island tiers, arch bars, caps, lips, waterfalls.
+                            for (int b = 0; b < bandCount; b++)
+                            {
+                                if (worldY < bands[b].Bottom || worldY > bands[b].Top)
+                                {
+                                    continue;
+                                }
+
+                                switch (bands[b].Kind)
+                                {
+                                    case BandKind.Island:
+                                        // Classic sky island: grass top, sub-surface under it, stone below.
+                                        chunk.Set(lx, ly, lz, worldY == bands[b].Top ? surfaceId
+                                            : worldY >= bands[b].Top - 2 ? subSurfaceId : deepId);
+                                        break;
+                                    case BandKind.IslandPond:
+                                        // An island whose meadow top is a sunk pool (#707).
+                                        chunk.Set(lx, ly, lz, worldY == bands[b].Top && !seaWaterId.IsAir
+                                            ? seaWaterId
+                                            : worldY >= bands[b].Top - 2 ? subSurfaceId : deepId);
+                                        break;
+                                    case BandKind.Cap:
+                                        chunk.Set(lx, ly, lz, deepId); // bare rock: arch bars, caps, lips
+                                        break;
+                                    default: // BandKind.Waterfall (#707): a standing column of falling water
+                                        if (!seaWaterId.IsAir)
+                                        {
+                                            chunk.Set(lx, ly, lz, seaWaterId);
+                                        }
+
+                                        break;
+                                }
+
+                                break; // first covering band wins
+                            }
                         }
 
                         continue; // else air above the surface
@@ -2086,6 +3581,51 @@ public sealed class WorldGenerator
                     {
                         chunk.Set(lx, ly, lz, floorBandId);
                         continue;
+                    }
+
+                    // Underground mega-cavern (#707): a vast void with an optional still lake in its bowl.
+                    if (cavernHere && worldY >= cavLo && worldY <= cavHi)
+                    {
+                        if (worldY <= cavLakeY && !airlessBody)
+                        {
+                            chunk.Set(lx, ly, lz, depth > lavaTableDepth ? lavaFloorId : seaWaterId);
+                        }
+
+                        continue; // void (or the lake fill above)
+                    }
+
+                    // Cavern shell glints (#707): sparse crystal studs the cell just under the cavern floor.
+                    if (cavernHere && worldY == cavLo - 1 && !cavernCrystalId.IsAir
+                        && Noise.Value01(seed + 0x0CAFE1, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ)) < 0.10)
+                    {
+                        chunk.Set(lx, ly, lz, cavernCrystalId);
+                        continue;
+                    }
+
+                    // Tunnel carver (#708): worm tunnels may reach all the way to the surface — cave MOUTHS.
+                    if (tunnelCount > 0)
+                    {
+                        bool inTunnel = false;
+                        for (int t = 0; t < tunnelCount; t++)
+                        {
+                            if (worldY >= tunnelSpans[t].Lo && worldY <= tunnelSpans[t].Hi)
+                            {
+                                inTunnel = true;
+                                break;
+                            }
+                        }
+
+                        if (inTunnel)
+                        {
+                            // Below the lava table the same molten-pocket rule as blob caves applies (#580).
+                            if (!airlessBody && depth > lavaTableDepth
+                                && ValueT(seed + 0xDEE9, worldX, worldY, worldZ, 56.0, 40.0, 56.0) > 0.47)
+                            {
+                                chunk.Set(lx, ly, lz, lavaFloorId);
+                            }
+
+                            continue;
+                        }
                     }
 
                     // Carve caves below the surface layer (quantile-calibrated per world, #472).

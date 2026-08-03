@@ -7085,6 +7085,51 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-03): terrain wonders — signature scars, continents, overhangs & the tunnel carver (#698–#709)
+
+Three worldgen waves in one branch (⚠️ Waves 1+3 are a one-time reshape of existing worlds, accepted
+like #576–#580; **continents are NEW WORLDS ONLY** via `WorldDescription.TerrainContinents`):
+
+- **#698 mega-rift** — ~3 % of solid-air worlds carry ONE canyon girdling the whole planet (meandering
+  great-circle path, 100–200 deep, fjord-flooded floors, rim waterfalls for free).
+- **#699 complex craters** — per-body rolls add central peaks (~45 %) + terraced walls (~40 %) to big
+  basins; hotspot **crater chains** (3–6 aligned bowls) + **ejecta rays** (deep-rock repaint, trig-free
+  dot-product cones).
+- **#700 terrain grain** — per-world direction for dune seas + mountain chains via integer stretch +
+  period-normalised shear (⚠️ LatPeriod ≠ C/2 exactly — naive shear tears the seam; coefficients must
+  couple in units of the target axis's period).
+- **#701 exotic accents** — hex basalt column fields (lava/ashen/basalt worlds), travertine spring
+  terraces with 1-deep deck pools (salt-white repaint), penitente blade-ice fields (cold worlds), salt
+  polygons (Voronoi ridge network on salt pans).
+- **#702 ring calderas** (200–400 radius rim wall + sunken floor, self-flooding) + **whole-planet
+  escarpments** (~4 %: two storeys split by a meandering 60–100 cliff, applied pre-style).
+- **#703 style×archetype hybrid** — a rolled 20–40 % of most styled worlds fades into the archetype
+  blend (deserts get gravel plains between dune seas); identity styles (flats/spires) stay pure.
+- **#704 continents & real oceans** — NEW WORLDS ONLY: large planets (circ ≥ 8000, ~50 % roll, ocean
+  type excluded, lava/ashen included → basalt continents in lava oceans) get a domain-warped bimodal
+  platform/basin offset UNDER everything; the sea percentile targets the basin share so oceans settle
+  at the shelf. Plumbed: WorldDescription flag (default-true for new configs) → GameServer start →
+  `JoinAccepted.TerrainContinents` → client preview bakes (`WorldMinimap.Bake`). CLI escape:
+  `continents=off`.
+- **#705 multi-band columns** — `GetExtraBands` generalises the floating-island second band: up to 6
+  bands/column (island tiers, ponds, caps, waterfalls); classic sky-island fill is bit-preserved.
+- **#706 overhangs** — natural arches (abutment pillars + sagging rock bar), sea stacks (low-coast
+  pillars, ~60 % mushroom-capped), hoodoo fields (thin stems + wider caprocks) on badlands/tablelands/
+  mesa/canyons.
+- **#707 verticality** — multi-tier skylands (1–3 layers, stalactite tapers, meadow ponds spilling
+  ENDLESS WATERFALLS over the rim), cenotes (30–80-deep sheer shafts with overhanging lips + turquoise
+  pools, caves open into the walls for free), underground mega-caverns (ellipsoid voids with
+  water/lava lakes + crystal-studded floors).
+- **#708 tunnel carver** — deterministic hotspot worms (xorshift polylines, capsule y-spans per
+  column); **#709 consumers** — lava tubes (wider/smoother on volcano worlds), skylight shafts +
+  cave MOUTHS (tunnels may break the surface), waterfall plunge-pool incision (slot under falls),
+  crevasse fields on ≤ −8 °C worlds.
+- **Tests** — `TerrainWondersTests` (21): seam wrap on wonder worlds, mega-rift wraps + depth,
+  escarpment storeys, caldera rim/floor, crater-trait distribution, chains, salt-ridge fraction,
+  continents gating (flag/size/ocean-identity) + bimodality + basin sea, band compat (tier-0 ==
+  classic query), cenote sheerness, tunnel determinism + surface mouths, chunk smoke on all wonder
+  worlds. Status: **local branch `terrain-wonders` only — NO PR yet** (user decision).
+
 ## ✅ Done (2026-08-03): beaches along seas and larger lakes (#679)
 
 Coastlines ended abruptly — the biome surface (grass/mud/snow) ran straight into the water; sandy

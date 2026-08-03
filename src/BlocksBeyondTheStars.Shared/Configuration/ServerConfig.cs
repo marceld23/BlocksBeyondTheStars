@@ -92,7 +92,7 @@ public sealed class ServerConfig
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SystemVariance"/> and
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.AsteroidBelts"/> properties
     /// default to false, so a loaded save whose metadata predates the features stays byte-identical.</summary>
-    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true, AsteroidBelts = true };
+    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true, AsteroidBelts = true, TerrainContinents = true };
 
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
     public AiLevel AiLevel { get; set; } = AiLevel.Off;
@@ -594,6 +594,13 @@ public sealed class ServerConfig
                     if (bool.TryParse(value, out var ab)) { World.AsteroidBelts = ab; applied.Add("belts"); }
                     else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.AsteroidBelts = true; applied.Add("belts"); }
                     else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.AsteroidBelts = false; applied.Add("belts"); }
+                    break;
+                case "continents":
+                    // Continents & real oceans (#704). On for every new world by default; "off" restores
+                    // the classic noise-coast terrain (same escape-hatch role as "variance"/"belts").
+                    if (bool.TryParse(value, out var tc)) { World.TerrainContinents = tc; applied.Add("continents"); }
+                    else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.TerrainContinents = true; applied.Add("continents"); }
+                    else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.TerrainContinents = false; applied.Add("continents"); }
                     break;
                 case "danger":
                     // Global hostility multiplier (#547) — scales space-ambush odds + bandit-camp presence.

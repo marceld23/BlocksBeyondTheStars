@@ -406,3 +406,38 @@ When a chunk is generated (`WorldGenerator.Generate(planet, coord)`):
 
 Every step is a pure function of `(seed, planetKey, coordinates)` — no persistent world storage, so
 server and clients build the same chunk independently.
+
+## 11. Terrain wonders (#698–#709, 2026-08-03)
+
+Three stacked waves on top of §4's mechanisms — same determinism rules (pure functions of the seed,
+hotspot-cell landmarks, quantile-calibrated consumers):
+
+**Wave 1 — signature scars (class-B reshape).**
+- *Mega-rift* (#698): ~3 % of solid-air worlds carry one meandering canyon girdling the entire planet
+  (`MegaRiftOffset` — a great-circle path periodic in X, not a hotspot cell).
+- *Complex craters* (#699): per-body `CraterProfile` rolls central peaks + terraced walls; hotspot
+  crater chains + trig-free ejecta-ray repaint (`CraterChainCarve`, `CraterRayAt`).
+- *Terrain grain* (#700): per-world direction for dunes/mountain chains via `GrainFbm` — integer
+  stretch + period-normalised shear. ⚠ The latitude period is NOT exactly circumference/2 (chunk
+  rounding), so shear must couple in units of the target axis's period or the seam tears.
+- *Exotic accents* (#701): hex basalt column fields, travertine terraces (salt repaint + 1-deep deck
+  pools), penitente blade-ice fields, Voronoi salt polygons.
+- *Ring calderas + whole-planet escarpments* (#702); *style×archetype hybrid* (#703): a rolled
+  20–40 % of most styled worlds fades into the archetype blend (identity styles flats/spires exempt).
+
+**Continents (#704, NEW WORLDS ONLY).** `WorldDescription.TerrainContinents` (default true for new
+configs, false on load) gates a bimodal platform/basin offset under everything on large planets
+(circ ≥ 8000, ~50 % per-body roll, ocean type excluded, lava/ashen → basalt continents in lava
+oceans). The sea percentile targets the basin share, so oceans settle at the shelf. The flag reaches
+client preview bakes via `JoinAccepted.TerrainContinents`.
+
+**Wave 2 — overhangs (#705–#707).** `GetExtraBands` generalises the floating-island band: up to 6
+extra bands per column (island tiers/ponds/waterfalls, arch bars, sea-stack + hoodoo caps, cenote
+lips), filled by `Generate`'s band switch. Multi-tier skylands (1–3 layers + stalactites, endless
+rim waterfalls), cenotes (sheer shafts; caves open into the walls for free), underground
+mega-caverns (`TryGetCavernSpan`, water/lava lakes, crystal-studded floors).
+
+**Wave 3 — the tunnel carver (#708/#709).** `TunnelSpans` rebuilds a seeded worm polyline per
+hotspot cell (xorshift, capsule y-spans per column) — noodle tunnels, wider lava tubes on volcano
+worlds, skylight shafts, and real cave MOUTHS (tunnels may break the surface). River waterfall
+columns incise a plunge-pool slot; ≤ −8 °C worlds grow crevasse fields.

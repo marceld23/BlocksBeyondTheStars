@@ -266,10 +266,12 @@ public sealed partial class GameServer
 
         _generator = new WorldGenerator(_meta.Seed, _content);
         // World options: flora/ore factors are part of the save's description — set BEFORE any chunk
-        // generates so worldgen stays deterministic across reloads.
+        // generates so worldgen stays deterministic across reloads. Continents (#704) ride the same
+        // path: baked at creation, re-applied on every load, never flipped on an existing save.
         _generator.SetWorldOptionFactors(
             _meta.Description.FloraDensity.FloraFactor(),
             _meta.Description.RareResources.OreFactor());
+        _generator.SetContinentsEnabled(_meta.Description.TerrainContinents);
         _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
@@ -2422,6 +2424,7 @@ public sealed partial class GameServer
             PlanetName = planetName,
             SystemName = systemName,
             CumulativePlaytimeSeconds = _meta.CumulativePlaytimeSeconds,
+            TerrainContinents = _meta.Description.TerrainContinents,
         });
         SendInventory(session);
         SendPlayerState(session);

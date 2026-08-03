@@ -646,16 +646,19 @@ public class WorldGenerationTests
             {
                 if (gen.SurfaceRiverDepth(planet, wx, wz) <= 0) continue;
 
-                int surfaceY = gen.SurfaceHeight(planet, wx, wz);
+                // Scan around the CHANNEL's own water surface: since the terrain-wonders wave a channel
+                // may run entrenched a few blocks below its neighbouring columns, so the column surface
+                // is not a reliable anchor for where the routed fill sits.
+                Assert.True(field.TryGet(wx, wz, out var col), "SurfaceRiverDepth and the field disagree");
                 bool molten = false;
-                for (int y = surfaceY - 3; y <= surfaceY + 6 && !molten; y++)
+                for (int y = col.BedY; y <= col.WaterSurfaceY + col.WaterfallDrop + 1 && !molten; y++)
                 {
                     if (y < 0) continue;
                     var chunk = gen.Generate(planet, new ChunkCoord(wx / cs, y / cs, wz / cs));
                     if (chunk.Get(wx % cs, ((y % cs) + cs) % cs, wz % cs).Value == lavaId.Value) molten = true;
                 }
 
-                Assert.True(molten, $"routed lava column ({wx},{wz}) holds no lava near surface {surfaceY}");
+                Assert.True(molten, $"routed lava column ({wx},{wz}) holds no lava in its channel band");
                 rivers++;
             }
 

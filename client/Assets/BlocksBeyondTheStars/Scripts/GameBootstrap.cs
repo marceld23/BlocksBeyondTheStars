@@ -141,6 +141,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The world seed (from JoinAccepted) — drives the per-world flora colours, also for
         /// OTHER bodies seen from orbit (FloraTints is a pure function of seed + location + species).</summary>
         public long WorldSeed => _worldSeed;
+
+        /// <summary>Whether this save was created with continents (#704, from JoinAccepted) — the local
+        /// preview generators (minimap/orbit bakes) must apply the same gate as the server.</summary>
+        public bool TerrainContinents { get; private set; }
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
         /// <summary>Total seconds this world has been played (from JoinAccepted, server-accumulated). The live
@@ -1214,6 +1218,7 @@ namespace BlocksBeyondTheStars.Client
                 Debug.Log($"Joined as {m.PlayerId} at {LocationName} (seed {m.WorldSeed}).");
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
+                TerrainContinents = m.TerrainContinents; // #704: previews must match the server's gate
                 CumulativePlaytimeSeconds = m.CumulativePlaytimeSeconds; // saved world total; session ticks on top
                 if (_sessionStartRealtime < 0f)
                 {

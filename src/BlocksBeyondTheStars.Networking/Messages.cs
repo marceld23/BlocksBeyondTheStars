@@ -648,6 +648,10 @@ public sealed class JoinAccepted
     /// <summary>Total seconds this world has been played (server-accumulated, see
     /// <c>WorldMetadata.CumulativePlaytimeSeconds</c>); shown alongside the per-session timer in the HUD.</summary>
     public long CumulativePlaytimeSeconds { get; set; }
+
+    /// <summary>Whether this save was created with continents (#704) — the client's preview generators
+    /// must apply the same gate or orbit/minimap textures would show the wrong coastlines.</summary>
+    public bool TerrainContinents { get; set; }
 }
 
 public sealed class JoinRejected
