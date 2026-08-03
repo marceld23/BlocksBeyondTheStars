@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ✨ Star systems & planets got real names (#678)
+
+- **Several system-name registries** instead of one pattern: coined proper names ("Tharion"),
+  catalog designations ("HX-113"), two-part region names ("Ember Veil", "Korveth's Reach") and rare
+  archetype-flavored names — pirate space sounds menacing, hub space busy.
+- **Planets are designations with a hierarchy**: Roman numerals ("Tharion II"), exoplanet letters in
+  catalog systems ("HX-113 b") — while landmark worlds (ringed planets, the Lone Giant, Twin Worlds,
+  the Hub capital and your start planet) carry coined proper names flavored by their biome: ice
+  worlds sound cold, lava worlds harsh. Twin Worlds share a name stem; moons letter after their
+  planet ("Tharion II-a") or get short coined names of their own around landmarks.
+- **No more baked-in English**: asteroid fields and wrecks are coined single words paired with the
+  localized kind label on the map; a Hub's first station is a coined port ("Port Halvek").
+- Names are unique per galaxy, profanity-guarded (EN+DE), and **retroactive**: they are display-only,
+  so existing worlds keep every waypoint and simply wake up with better names — the underlying body
+  layout is pinned byte-identical by a new regression test.
+
 ## [2026.8.1] — 2026-08-02
 
 The wildlife release: this one belongs to the creatures. Every world's fauna rolls from a bigger,

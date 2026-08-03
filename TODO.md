@@ -102,6 +102,25 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Star systems & planets got real names: registries, Roman numerals, landmark proper names (#678, 2026-08-03, branch feat/system-planet-naming)
+Every system used to follow one pattern ("Veyra-42") with numbered planets ("Veyra-42 1"). Systems
+now roll one of several naming registries — coined proper names ("Tharion", ~55 %), catalog
+designations ("HX-113", ~25 %), two-part region names ("Ember Veil", ~15 %) and rare
+archetype-flavored names (pirate space sounds menacing, hubs busy). Planets carry Roman-numeral
+designations ("Tharion II"; exoplanet letters "HX-113 b" in catalog systems) — except LANDMARK
+worlds, which get coined proper names flavored by their biome (ice sounds cold, lava harsh): ringed
+planets, the Lone Giant, Twin Worlds (one stem, two endings), the Hub capital and the start planet
+(server hook `EnsureStartPlanetProperName`, mirroring the ring guarantee). Moons letter after their
+planet ("Tharion II-a") or get short coined names around landmarks. Asteroid fields and wrecks are
+single coined words; Hub first-stations become coined ports ("Port Halvek"); all other stations stay
+"<planet> Station". Baked-in English ("Asteroid", "Wreck near") is gone from generated names — the
+space map pairs wreck/asteroid names with the localized kind label instead. Names are galaxy-deduped,
+profanity-blocklisted (EN+DE substrings — the mill really coined "Rapeearr" once) and drawn from a
+naming-only rng stream (salt 700), with the legacy draws burned in place so the body layout of every
+existing universe stays byte-identical — pinned by new `GalaxyLayoutRegressionTests` (SHA-256 layout
+fingerprints captured pre-rework). Retroactive by design: names are display-only (ids key everything),
+so existing worlds simply wake up with better names.
+
 ### ★ In-game menu lists speak German: raw ids/enums/literals now localized (#672, 2026-08-02, branch fix/ingame-menu-untranslated-lists)
 On a German client several selection lists still showed English — not missing translations
 (en/de locale parity was already enforced) but strings that never reached the Localizer. Fixed:

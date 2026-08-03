@@ -393,6 +393,13 @@ public sealed partial class GameServer
             // #596: the start planet always carries rings — the sky band is the feature's shop window.
             // Deterministic from the body id, so every restart re-derives the same ring; cosmetic only.
             UniverseGenerator.EnsureStartPlanetRings(start);
+            // #678: the start planet is a landmark — it trades its designation for a coined proper name.
+            // Runs after the retype above so the name's biome flavor matches the FINAL planet type.
+            var startSystem = _galaxy.Systems.FirstOrDefault(s => s.Id == start.SystemId);
+            if (startSystem is not null)
+            {
+                UniverseGenerator.EnsureStartPlanetProperName(startSystem, start);
+            }
             if (start.Status != GenerationStatus.Visited)
             {
                 start.Status = GenerationStatus.Visited;
