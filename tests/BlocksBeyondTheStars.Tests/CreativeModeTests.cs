@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -24,7 +25,7 @@ public sealed class CreativeModeTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Start(string name, out SqliteWorldRepository repo, bool creative)
+    private SvGameServer Start(string name, out SqliteWorldRepository repo, bool creative, bool placeShip = true)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -33,7 +34,7 @@ public sealed class CreativeModeTests : IDisposable
             WorldName = name,
             Seed = 1,
             AutoSaveIntervalMinutes = 9999,
-            PlaceStarterShip = true,
+            PlaceStarterShip = placeShip,
             CreativeUnlockAllBlueprints = creative,
             CreativeStartAllShips = creative,
             CreativeStarterKit = creative,
@@ -62,8 +63,37 @@ public sealed class CreativeModeTests : IDisposable
             Assert.Contains("scout", types);
             Assert.Contains("corvette", types);
 
-            // The curated kit was granted (a generous stack of a key material reached the inventory).
-            Assert.True(p.State.Inventory.CountOf("iron_ore") > 0, "the creative kit should grant materials");
+            // The curated kit was granted: material stacks land in the ship's cargo hold, NOT the backpack —
+            // a backpack stuffed full of kit stacks refused every on-foot mine ("inventory full", #677).
+            var starter = server.OwnedShips.Values.First(s => s.ShipType == "starter");
+            Assert.True(starter.Cargo.CountOf("iron_ore") > 0, "the creative kit materials should reach the cargo hold");
+            Assert.Equal(0, p.State.Inventory.CountOf("iron_ore"));
+
+            // The kit's tools DO go to the backpack, and the backpack keeps room for mining drops.
+            Assert.Equal(1, p.State.Inventory.CountOf("titanium_drill"));
+            int freeSlots = p.State.Inventory.Slots.Count(s => s is null || s.IsEmpty);
+            Assert.True(freeSlots >= 5, $"the backpack must keep free slots for mining drops, had {freeSlots}");
+        }
+    }
+
+    [Fact]
+    public void CreativeKit_LeavesRoomToMine_FreshPlayerMinesTerrainOnFoot()
+    {
+        // Regression for #677: the forced Sandbox kit used to fill all 24 backpack slots, and a full
+        // backpack refuses every break since #600 — a fresh Sandbox player could not mine anything.
+        var server = Start("sandboxmine", out var repo, creative: true, placeShip: false);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Host");
+            p.State.AboardShip = false; // on foot: drops must fit the backpack alone (cargo doesn't count)
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f); // basic_drill is starter slot 0
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("mud")!.NumericId); // soft: one basic-drill hit
+
+            server.MineBlockOnce("Host", pos.X, pos.Y, pos.Z);
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "a fresh creative/sandbox player must be able to mine terrain (#677)");
+            Assert.True(p.State.Inventory.CountOf("mud") > 0, "the mined drop should land in the backpack");
         }
     }
 
@@ -93,7 +123,7 @@ public sealed class CreativeModeTests : IDisposable
             using (repo1)
             {
                 var p = s1.AddLocalPlayer("Host");
-                ironAfterFirst = p.State.Inventory.CountOf("iron_ore");
+                ironAfterFirst = s1.OwnedShips.Values.First(s => s.ShipType == "starter").Cargo.CountOf("iron_ore");
                 Assert.True(ironAfterFirst > 0);
                 repo1.Flush();
             }
@@ -106,7 +136,8 @@ public sealed class CreativeModeTests : IDisposable
             var p = s2.AddLocalPlayer("Host");
             Assert.Equal(_content.Blueprints.Count, p.State.UnlockedBlueprints.Count); // still all unlocked
             Assert.Contains("corvette", s2.OwnedShips.Values.Select(s => s.ShipType)); // still owns all ships
-            Assert.Equal(ironAfterFirst, p.State.Inventory.CountOf("iron_ore"));       // kit NOT granted again
+            int ironAfterReload = s2.OwnedShips.Values.First(s => s.ShipType == "starter").Cargo.CountOf("iron_ore");
+            Assert.Equal(ironAfterFirst, ironAfterReload);                             // kit NOT granted again
         }
     }
 

@@ -2543,7 +2543,8 @@ public sealed partial class GameServer
 
     /// <summary>A curated "Creative" starter set (singleplayer): a couple of better tools + generous stacks of
     /// the key materials/ores/components so you can build right away. Survival mechanics still apply, so this is a
-    /// head start, not infinite resources. Unknown keys are skipped. (Inventory + ship cargo absorb the stacks.)</summary>
+    /// head start, not infinite resources. Unknown keys are skipped. (Tools go to the backpack; the material
+    /// stacks go to the ship's cargo hold so the backpack keeps free slots for mining — #677.)</summary>
     private static readonly (string Item, int Count)[] CreativeKit =
     {
         ("titanium_drill", 1), ("advanced_scanner", 1),
@@ -2598,18 +2599,41 @@ public sealed partial class GameServer
 
         if (_meta.CreativeStarterKit && !_meta.CreativeKitGranted)
         {
-            var pool = new MaterialPool(_content, p, _ship);
+            // Only the kit's TOOLS go into the backpack; the material stacks land in the ship's cargo hold.
+            // The backpack has 24 slots and the starter gear already occupies five — stuffing the ~21 material
+            // stacks in there left it 24/24 full, and a full backpack refuses every on-foot mine since #600
+            // ("inventory full" on each swing), which players read as "mining is broken in Sandbox" (#677).
+            // The starter hold (48 slots) absorbs the whole kit; leftovers are dropped with a log rather than
+            // spilled back into the backpack, because free backpack slots ARE the fix.
+            int overflow = 0;
             foreach (var (item, count) in CreativeKit)
             {
-                if (_content.GetItem(item) is not null)
+                if (_content.GetItem(item) is not { } idef)
                 {
-                    pool.Add(item, count);
+                    continue;
                 }
+
+                int maxStack = _content.MaxStackOf(item);
+                if (idef.Category == ItemCategory.Tool)
+                {
+                    int left = p.Inventory.Add(item, count, maxStack);
+                    overflow += left > 0 ? _ship.Cargo.Add(item, left, maxStack) : 0;
+                }
+                else
+                {
+                    overflow += _ship.Cargo.Add(item, count, maxStack);
+                }
+            }
+
+            if (overflow > 0)
+            {
+                _log.Warn($"Creative kit: {overflow} item(s) did not fit the cargo hold and were dropped.");
             }
 
             _meta.CreativeKitGranted = true;
             _repo.SaveMetadata(_meta);
             _repo.SavePlayer(p); // persist the granted kit so a reload keeps it (and the one-time flag holds)
+            _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship); // the kit lives in the hold now — persist it with the flag
             SendInventory(session);
         }
     }

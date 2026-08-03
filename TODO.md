@@ -6971,6 +6971,20 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-03): Sandbox mining unblocked — creative kit materials go to the cargo hold (#677)
+
+In Sandbox (and Creative with the kit ticked) a fresh player could not mine most blocks: the forced
+creative starter kit (23 stacks) plus the protected starter gear filled all 24 backpack slots, and since
+#600 `BreakBlockAt` refuses any break whose drops don't fit (`@inventory_full`) — on foot the pool counts
+the backpack only. Neither side ever gated mining on `GameMode.Creative`; it was pure inventory pressure.
+
+- **`GameServer.ApplyCreativeGrants`**: kit *tools* (titanium_drill, advanced_scanner) go to the backpack;
+  every *material* stack goes straight to the active ship's cargo hold (starter hold: 48 slots). Leftovers
+  are logged, never spilled back into the backpack — free backpack slots ARE the fix. The ship is saved
+  with the one-time flag so the hold's kit survives a crash before autosave.
+- Tests (`CreativeModeTests`): kit lands in cargo + backpack keeps ≥5 free slots; regression "fresh
+  creative player mines mud on foot"; persistence test moved to cargo counts.
+
 ## ✅ Done (2026-08-03): flora reads varied, not stamped — per-plant size/placement/tint variation (#675)
 
 All flora of a species rendered identically: solid flora (cactus/crystal/mushroom/…) stamped the same
