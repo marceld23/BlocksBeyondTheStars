@@ -7085,6 +7085,24 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): worldgen perf pass — per-world wonder profile (#712)
+
+The #698–#709 wave made `SurfaceHeight` ~2.6× costlier (PR CI test job 6.5 → 17 min; same cost in
+live chunk gen). Pure refactor, **bit-identical terrain** (verified by an FNV height/band/tunnel hash
+sweep over every planet type × seeds × continents on/off):
+
+- **`WonderProfile`** cached per world (CalibFor pattern + lock-free instance fast path): all feature
+  gates, `PlanetSeed`, terrain grain, hybrid thresholds, continent profile, lowered style — the
+  per-column string allocations (`ToLowerInvariant`) and `Noise.Hash` world rolls are gone from the
+  hot path.
+- **Tunnel worm cache**: the polyline was rebuilt (dozens of xorshift rolls) for every column of
+  every tunnel-bearing cell (half the map) — now built once per cell; per column only capsule
+  distance checks remain, plus an XZ bounding reject before the 8-point sampling.
+- **Anchor-order fixes**: sea stacks/hoodoos/cenotes computed a full `RawSurfaceHeight` anchor (and
+  the stack's 4-octave swell probe) before checking the distance — every column of a feature-bearing
+  cell paid it. Distance rejects now go first (behaviour-preserving, conjunctive gates).
+- Measured: harness sweep 2174 → 1472 ms (−32 %); local fast tier 7m05 → **5m31** (−22 %).
+
 ## ✅ Done (2026-08-03): terrain wonders — signature scars, continents, overhangs & the tunnel carver (#698–#709)
 
 Three worldgen waves in one branch (⚠️ Waves 1+3 are a one-time reshape of existing worlds, accepted
