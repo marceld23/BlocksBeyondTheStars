@@ -1085,14 +1085,19 @@ public sealed class CreatureTests : IDisposable
             hostile.Temperament = CreatureTemperament.Aggressive;
             var creature = server.Creatures.First();
             creature.SpeciesId = hostile.Id;
-            creature.Position = new Vector3f(2, 64, 0); // right next to the player (well within aggro)
+            // Anchor the duel at the creature's own surface-snapped spot: since the terrain-wonders wave
+            // the ground at the origin is no longer a flat Y 64, and a hardcoded column can bury the prey
+            // in rock (no line of aggro → the chase never starts).
+            var duelPos = creature.Position;
+            p.State.Position = duelPos;
+            creature.Position = new Vector3f(duelPos.X + 2, duelPos.Y, duelPos.Z); // right next to the player
             creature.ChaseTimer = 0;
             creature.GiveUpTimer = 0;
 
             // Hold the prey still and let the aggressor chase past the give-up cap (~7s).
             for (int i = 0; i < 100 && creature.GiveUpTimer <= 0; i++)
             {
-                p.State.Position = new Vector3f(0, 64, 0);
+                p.State.Position = duelPos;
                 server.Tick(0.2);
             }
 
