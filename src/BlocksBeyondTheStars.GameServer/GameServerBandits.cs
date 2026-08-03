@@ -247,7 +247,8 @@ public sealed partial class GameServer
         float dist = 35f + (float)(_banditRng.NextDouble() * 15.0);
         int ex = (int)System.Math.Round(player.Position.X + System.Math.Cos(ang) * dist);
         int ez = (int)System.Math.Round(player.Position.Z + System.Math.Sin(ang) * dist);
-        int ey = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1;
+        // Real-block ground when the column is loaded (player builds/pits are honoured); noise surface otherwise.
+        int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
 
         bool gunner = _banditRng.NextDouble() < 0.4;
         var bandit = new CombatEntity
@@ -292,7 +293,9 @@ public sealed partial class GameServer
                 Hostile = true,
                 Hull = BanditHull,
                 HullMax = BanditHull,
-                Position = pos,
+                // Camp markers sit centred in the air cell above the floor (+0.5 from the cell-centre
+                // conversion); Floor() puts the guard's feet on the floor surface (#711).
+                Position = new Vector3f(pos.X, (float)System.Math.Floor(pos.Y), pos.Z),
                 DamagePerSecond = gunner ? BanditGunDps : BanditMeleeDps,
                 BanditPhase = BanditPhase.None,
                 CampKey = camp.Key,
@@ -480,8 +483,12 @@ public sealed partial class GameServer
 
         float nx = (float)WorldConstants.WrapX(res.Position.X, _world.Circumference);
         float nz = (float)WorldConstants.WrapZ(res.Position.Z, _world.Circumference);
-        int prevGround = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(bandit.Position.X), (int)System.Math.Floor(bandit.Position.Z)) + 1;
-        int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
+        // Ground from REAL blocks (like creatures, #650), not the pure noise surface — a camp carved into a
+        // hillside or terrain the player dug out would otherwise leave bandits walking on air (#711). The
+        // probe falls back to the generator surface only when the chunk isn't loaded.
+        int refY = (int)System.Math.Floor(bandit.Position.Y);
+        int prevGround = GroundFeetYAt((int)System.Math.Floor(bandit.Position.X), (int)System.Math.Floor(bandit.Position.Z), refY);
+        int groundY = GroundFeetYAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY);
         if (System.Math.Abs(groundY - prevGround) > 3)
         {
             bandit.Loco.ModeTimer = 0f; // cliff in the way — pick a new heading next tick

@@ -63,7 +63,7 @@ namespace BlocksBeyondTheStars.Client
 
         public void Build(ClientSettings s) => Build(s.SkinColor, s.TorsoColor, s.ArmColor, s.LegColor, spacesuit: true);
 
-        public void Build(Color skin, Color torso, Color arms, Color legs, bool spacesuit = false)
+        public void Build(Color skin, Color torso, Color arms, Color legs, bool spacesuit = false, int variantSeed = 0, Color? hair = null)
         {
             EnsureTextures();
             _suit = spacesuit;
@@ -73,6 +73,21 @@ namespace BlocksBeyondTheStars.Client
             _torso = Lit(torso, _suitTex);
             _arms = Lit(arms, _suitTex);
             _legs = Lit(legs, _suitTex);
+
+            // Per-NPC face variation (#711): tiny deterministic offsets from the seed so a settlement crowd
+            // isn't a row of identical clones. Seed 0 (players, previews) keeps the exact stock face.
+            float eyeDX = 0.11f, eyeY = 0.075f, browY = 0.175f, browW = 0.38f;
+            float mouthW = 0.20f, mouthY = -0.175f, pupilW = 0.085f;
+            if (variantSeed != 0)
+            {
+                eyeDX += Jit(variantSeed, 1) * 0.02f;
+                eyeY += Jit(variantSeed, 2) * 0.02f;
+                browY += Jit(variantSeed, 3) * 0.025f;
+                browW += Jit(variantSeed, 4) * 0.06f;
+                mouthW += Jit(variantSeed, 5) * 0.06f;
+                mouthY += Jit(variantSeed, 6) * 0.015f;
+                pupilW += Jit(variantSeed, 7) * 0.012f;
+            }
 
             // Torso, tapered: pelvis → abdomen → wider chest.
             AddCube("Pelvis", transform, new Vector3(0f, 0.97f, 0f), new Vector3(0.46f, 0.22f, 0.28f), _legs);
@@ -94,19 +109,29 @@ namespace BlocksBeyondTheStars.Client
             // Eyes (whites + pupils + a brow + a mouth) so the face reads clearly — bigger/clearer (B20).
             var eyeWhite = Lit(new Color(0.96f, 0.97f, 1f), null);
             var pupil = Lit(new Color(0.04f, 0.04f, 0.07f), null);
-            var brow = Lit(new Color(0.18f, 0.14f, 0.11f), null);
+            var brow = hair is { } bc ? Lit(bc, null) : Lit(new Color(0.18f, 0.14f, 0.11f), null);
             var mouth = Lit(new Color(0.32f, 0.16f, 0.14f), null);
             // Default procedural features — collected so a custom pixel face (SetFace) can hide them. The
             // visor (above) is included so a drawn face fully replaces the stock look.
             // z values are head-LOCAL and must clear the head front (0.5); the +0.255 shift over the old
             // 0.235–0.275 lifts them just proud of the surface while preserving the relief (pupils ahead of the
             // whites, etc.). See the Visor note above.
-            _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-0.11f, 0.075f, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
-            _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(0.11f, 0.075f, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
-            _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-0.11f, 0.06f, 0.53f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
-            _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(0.11f, 0.06f, 0.53f), new Vector3(0.085f, 0.10f, 0.03f), pupil));
-            _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, 0.175f, 0.50f), new Vector3(0.38f, 0.05f, 0.045f), brow));
-            _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, -0.175f, 0.49f), new Vector3(0.20f, 0.045f, 0.04f), mouth));
+            _faceFeatures.Add(AddCube("EyeL", _head, new Vector3(-eyeDX, eyeY, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("EyeR", _head, new Vector3(eyeDX, eyeY, 0.50f), new Vector3(0.17f, 0.13f, 0.05f), eyeWhite));
+            _faceFeatures.Add(AddCube("PupilL", _head, new Vector3(-eyeDX, eyeY - 0.015f, 0.53f), new Vector3(pupilW, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("PupilR", _head, new Vector3(eyeDX, eyeY - 0.015f, 0.53f), new Vector3(pupilW, 0.10f, 0.03f), pupil));
+            _faceFeatures.Add(AddCube("Brow", _head, new Vector3(0f, browY, 0.50f), new Vector3(browW, 0.05f, 0.045f), brow));
+            _faceFeatures.Add(AddCube("Mouth", _head, new Vector3(0f, mouthY, 0.49f), new Vector3(mouthW, 0.045f, 0.04f), mouth));
+
+            // Optional hair cap + back (civilian NPCs): head-LOCAL units — the head is a 0.46-scaled unit
+            // cube, so anything wrapping its ±0.5 surfaces needs a scale > 1 (see the face-feature note).
+            // NOT in _faceFeatures: a custom pixel face replaces the face, not the hair.
+            if (hair is { } hairCol)
+            {
+                var hairMat = Lit(hairCol, null);
+                AddCube("HairTop", _head, new Vector3(0f, 0.56f, -0.02f), new Vector3(1.08f, 0.14f, 1.06f), hairMat);
+                AddCube("HairBack", _head, new Vector3(0f, 0.18f, -0.53f), new Vector3(1.08f, 0.92f, 0.10f), hairMat);
+            }
 
             // Jointed arms (shoulder → elbow → hand) and legs (hip → knee → foot).
             _armL = AddArm("ArmLeft", -0.32f, out _elbowL, out _);
@@ -573,14 +598,51 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
+            // Normalise the greyscale tint texture toward white (#711): the authored bytes average ~100/255,
+            // and LitColor computes _Color * tex — so every avatar surface rendered at ~40 % of its tint's
+            // perceptual brightness and whole outfits sank to near-black. Scaling the mean to ~200/255 keeps
+            // the pixel detail (weave, panels) but stops the texture eating the colour.
+            var data = (byte[])asset.bytes.Clone();
+            long sum = 0;
+            for (int i = 0; i < data.Length; i += 4)
+            {
+                sum += data[i] + data[i + 1] + data[i + 2];
+            }
+
+            float mean = sum / (data.Length * 3f / 4f);
+            if (mean > 1f && mean < 200f)
+            {
+                float k = 200f / mean;
+                for (int i = 0; i < data.Length; i += 4)
+                {
+                    data[i] = (byte)Mathf.Min(255f, data[i] * k);
+                    data[i + 1] = (byte)Mathf.Min(255f, data[i + 1] * k);
+                    data[i + 2] = (byte)Mathf.Min(255f, data[i + 2] * k);
+                }
+            }
+
             var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Repeat,
                 filterMode = FilterMode.Point,
             };
-            tex.LoadRawTextureData(asset.bytes);
+            tex.LoadRawTextureData(data);
             tex.Apply();
             return tex;
+        }
+
+        /// <summary>Deterministic jitter in [-1, 1] from a (seed, salt) pair — stable across sessions and
+        /// machines (unlike string hash codes), so an NPC keeps the same face every visit.</summary>
+        private static float Jit(int seed, int salt)
+        {
+            unchecked
+            {
+                uint h = (uint)(seed * 73856093) ^ (uint)(salt * 19349663);
+                h ^= h >> 13;
+                h *= 0x5bd1e995;
+                h ^= h >> 15;
+                return ((h & 0xFFFF) / 32767.5f) - 1f;
+            }
         }
 
         // Ambient floor + opposite-flank fill for avatar materials, same failure mode and values as

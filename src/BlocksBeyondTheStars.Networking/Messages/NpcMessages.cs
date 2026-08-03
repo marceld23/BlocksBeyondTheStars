@@ -30,10 +30,13 @@ public sealed class NetNpc
     /// <summary>Facing yaw in radians — the avatar turns toward a nearby player, else its stroll heading.</summary>
     public float Facing { get; set; }
 
-    /// <summary>Avatar build hints: humanoid scale, skin/outfit tint, and organic-vs-android body.</summary>
+    /// <summary>Avatar build hints: humanoid scale, skin/outfit/legs tint, and organic-vs-android body.
+    /// <c>LegsRgb</c> is additive (contractless MessagePack): 0 = unset, the client derives legs from the
+    /// outfit colour as before.</summary>
     public float Size { get; set; }
     public uint SkinRgb { get; set; }
     public uint OutfitRgb { get; set; }
+    public uint LegsRgb { get; set; }
     public bool IsRobot { get; set; }
 }
 

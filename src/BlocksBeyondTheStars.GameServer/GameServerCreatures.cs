@@ -922,21 +922,30 @@ public sealed partial class GameServer
     /// first at equal distance, so a creature under a player bridge keeps the ground instead of snapping
     /// onto the deck. This is what makes fauna honour player builds: dug pits, ramps, walls, floors.</summary>
     private int GroundFeetYAt(int x, int z, int refY)
+        => TryGroundFeetYAt(x, z, refY, out int feet) ? feet : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+
+    /// <summary>Like <see cref="GroundFeetYAt"/> but reports whether a REAL standable cell was found, so
+    /// callers that must never snap to the noise surface (settlement NPCs standing on stamped floors that
+    /// the generator knows nothing about) can keep their current Y when the column is unloaded/blocked.</summary>
+    private bool TryGroundFeetYAt(int x, int z, int refY, out int feetY)
     {
         for (int r = 0; r <= 6; r++)
         {
             if (StandableAt(x, refY - r, z))
             {
-                return refY - r;
+                feetY = refY - r;
+                return true;
             }
 
             if (r > 0 && StandableAt(x, refY + r, z))
             {
-                return refY + r;
+                feetY = refY + r;
+                return true;
             }
         }
 
-        return _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+        feetY = refY;
+        return false;
     }
 
     /// <summary>Whether feet placed at <paramref name="y"/> stand on something real: solid (non-water)

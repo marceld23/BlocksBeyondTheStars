@@ -85,13 +85,18 @@ public sealed class SettlementNpcTests : IDisposable
                     _ => throw new Xunit.Sdk.XunitException($"Unexpected NPC role '{npc.Role}'."),
                 };
 
-                // The NPC stands on a matching marker's column (its feet are grounded on the floor top, so
-                // only the horizontal position must match the marker).
+                // The NPC stands on a matching marker's column with its feet ON the floor surface: markers
+                // are centred in the air cell above the floor (+0.5), so the feet must be at the marker's
+                // floored Y — an NPC hovering half a block over the floor is the #711 regression.
                 Assert.Contains(
                     server.SettlementMarkers,
                     m => m.Type == markerType
                          && System.Math.Abs(m.Pos.X - npc.Home.X) < 0.001f
-                         && System.Math.Abs(m.Pos.Z - npc.Home.Z) < 0.001f);
+                         && System.Math.Abs(m.Pos.Z - npc.Home.Z) < 0.001f
+                         && System.Math.Abs(System.Math.Floor(m.Pos.Y) - npc.Home.Y) < 0.001f);
+
+                // Feet always land on a whole block surface — never centred inside a cell.
+                Assert.Equal(System.Math.Floor(npc.Home.Y), npc.Home.Y, 3);
 
                 // Freshly spawned (no tick yet): the NPC sits at its home marker.
                 Assert.True(npc.Pos.DistanceSquared(npc.Home) < 0.001f);
@@ -157,8 +162,14 @@ public sealed class SettlementNpcTests : IDisposable
                     foreach (var n in server.NpcSnapshots)
                     {
                         if (n.Pos.DistanceSquared(n.Home) > 0.01f) { anyMoved = true; }
-                        Assert.True(n.Pos.DistanceSquared(n.Home) <= 16f, // leash ~1.6 → max ~3.6m
-                            $"NPC '{n.Role}' wandered too far from home ({n.Pos.DistanceSquared(n.Home)}).");
+
+                        // The leash is HORIZONTAL (the code checks XZ only); Y follows the real floor now
+                        // (#711) so a doorstep is allowed but the vertical drift stays tightly bounded.
+                        float dx = n.Pos.X - n.Home.X, dz = n.Pos.Z - n.Home.Z;
+                        Assert.True(dx * dx + dz * dz <= 16f, // leash ~1.6 → max ~3.6m overshoot
+                            $"NPC '{n.Role}' wandered too far from home ({dx * dx + dz * dz}).");
+                        Assert.True(System.Math.Abs(n.Pos.Y - n.Home.Y) <= 3f,
+                            $"NPC '{n.Role}' drifted vertically ({n.Pos.Y} vs home {n.Home.Y}).");
                     }
                 }
 

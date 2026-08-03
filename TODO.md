@@ -7085,6 +7085,33 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): NPCs grounded, brighter and individual (#711)
+
+Three related NPC problems fixed in one branch (issue #711):
+
+- **Floating NPCs (regression from #492)** — settlement/camp markers sit centred in the air cell
+  above the floor (+0.5 from the cell-centre conversion); the settlement spawner's
+  `Max(Min.Y+1, markerY)` clamp never fired, so every settlement NPC hovered exactly half a block
+  over the floor. Now `Floor()`ed like the station-crew spawner (template upper-floor markers keep
+  their storey). Bandit-camp guards got the same `Floor()`.
+- **Real-block grounding** — bandits + planet enemies snapped to the pure noise
+  `SurfaceHeight`, blind to stamped structures and player edits (guards floated over carved camp
+  floors). They now use the creatures' `GroundFeetYAt` probe (new `TryGroundFeetYAt` variant);
+  settlement NPCs re-ground each step (±2 blocks, doorsteps lift them, mined-out floors drop them)
+  with the home floor Y as the unloaded-chunk fallback — never the noise surface.
+- **Uniform darkness** — the tintable avatar textures averaged ~100/255 grey and LitColor computes
+  `_Color * tex`, so every avatar rendered at ~40 % of its authored brightness; the NPC outfit
+  palette was dark on top. Textures are now mean-normalised to ~200/255 at load, the outfit
+  palettes were widened 3 → 6 tones per theme and lifted, and bandit/Guardian materials get the
+  standard `_Floor 0.62 / _Fill 0.3` (they ran at the 0.35/0 shader defaults — ~2× darker than
+  every other humanoid on the shadow side).
+- **Identical clones** — per-NPC `Size` 0.92–1.08 (was hardcoded 1), independent trouser colour
+  (additive `NetNpc.LegsRgb`, 0 = old-server fallback), android chassis tone spread + only ~60 % of
+  researchers are robots now, and client-side deterministic per-NPC face jitter + hair (7 tones,
+  some bald) seeded from id+name via a stable hash (string `GetHashCode` is per-process randomised).
+- **Tests** — settlement NPC feet must land on the floored marker Y (regression guard); stroll
+  leash assert switched to horizontal (the code leash is XZ-only) + a ±3 vertical bound.
+
 ## ✅ Done (2026-08-03): terrain wonders — signature scars, continents, overhangs & the tunnel carver (#698–#709)
 
 Three worldgen waves in one branch (⚠️ Waves 1+3 are a one-time reshape of existing worlds, accepted
@@ -7128,7 +7155,7 @@ like #576–#580; **continents are NEW WORLDS ONLY** via `WorldDescription.Terra
   escarpment storeys, caldera rim/floor, crater-trait distribution, chains, salt-ridge fraction,
   continents gating (flag/size/ocean-identity) + bimodality + basin sea, band compat (tier-0 ==
   classic query), cenote sheerness, tunnel determinism + surface mouths, chunk smoke on all wonder
-  worlds. Status: **local branch `terrain-wonders` only — NO PR yet** (user decision).
+  worlds. Status: **merged to `main` via PR #710 (2026-08-04)**.
 
 ## ✅ Done (2026-08-03): beaches along seas and larger lakes (#679)
 

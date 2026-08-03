@@ -337,16 +337,20 @@ public sealed partial class GameServer
 
         float nx = (float)WorldConstants.WrapX(res.Position.X, _world.Circumference);
         float nz = (float)WorldConstants.WrapZ(res.Position.Z, _world.Circumference);
-        int prevGround = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(enemy.Position.X), (int)System.Math.Floor(enemy.Position.Z)) + 1;
-        int groundY = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(nx), (int)System.Math.Floor(nz)) + 1;
+        int hover = drone ? ScanDroneHover : 0;          // scan-drones float above the ground
+        float bob = drone ? DroneBob * res.VertWave : 0f; // ...and hover-bob; robots stay grounded
+        // Ground from REAL blocks (like creatures, #650), not the pure noise surface, so machines honour
+        // stamped structures and player edits instead of walking on air over them (#711). The reference Y
+        // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
+        int refY = (int)System.Math.Floor(enemy.Position.Y) - hover;
+        int prevGround = GroundFeetYAt((int)System.Math.Floor(enemy.Position.X), (int)System.Math.Floor(enemy.Position.Z), refY);
+        int groundY = GroundFeetYAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY);
         if (System.Math.Abs(groundY - prevGround) > 3)
         {
             enemy.Loco.ModeTimer = 0f; // cliff/spike in the way — pick a new direction next tick
             return false;
         }
 
-        int hover = drone ? ScanDroneHover : 0;          // scan-drones float above the ground
-        float bob = drone ? DroneBob * res.VertWave : 0f; // ...and hover-bob; robots stay grounded
         var candidate = new Vector3f(nx, groundY + hover + bob, nz);
         if (EntityBlockedByShip(candidate) || BlockedByEnergyFence(enemy.Position, candidate))
         {
@@ -402,7 +406,8 @@ public sealed partial class GameServer
             }
         }
 
-        int ey = _generator.SurfaceHeight(_world.Planet, ex, ez) + 1; // stand on the ground, not in it
+        // Stand on the ground, not in it — real blocks when the column is loaded, noise surface otherwise.
+        int ey = GroundFeetYAt(ex, ez, _generator.SurfaceHeight(_world.Planet, ex, ez) + 1);
         if (asDrone)
         {
             ey += ScanDroneHover; // the flying scan-drone hovers above the surface

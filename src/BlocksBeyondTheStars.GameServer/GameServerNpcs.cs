@@ -59,6 +59,7 @@ public sealed partial class GameServer
         public float Size;
         public uint SkinRgb;
         public uint OutfitRgb;
+        public uint LegsRgb;
         public bool IsRobot;
         public double WanderPhase;
         public LocomotionState Loco; // stop-and-go loiter/stroll state
@@ -119,13 +120,14 @@ public sealed partial class GameServer
                 // Vendors each get their own profession (B55) so multiple vendors at one settlement sell different
                 // goods; settlers/the quartermaster keep the settlement's own theme (its identity).
                 string npcTheme = role == "vendor" ? VendorThemeFor(settlement.Name, vendorIndex++, settlementTheme) : settlementTheme;
-                bool robotic = npcTheme == "researchers"; // research staff are service androids
+                bool robotic = npcTheme == "researchers" && rng.Next(100) < 60; // most research staff are service androids — but not all (#711)
 
-                // NPCs have no physics, so place their feet on top of the floor block. Procedural markers
-                // sit inside the ground-floor row (the clamp lifts them to Min.Y+1 as before); an authored
-                // TEMPLATE marker keeps its own Y (#480, was ST-8) — an upper-floor vendor is no longer
-                // teleported to the ground floor (possibly inside a wall).
-                var standing = new Vector3f(pos.X, System.Math.Max(settlement.Min.Y + 1f, pos.Y), pos.Z);
+                // NPCs have no physics, so place their feet on top of the floor block. Markers sit centred
+                // in the air cell above the floor (+0.5 from the cell-centre conversion), so Floor() drops
+                // the feet onto the floor surface — same fix as station crews. The Max keeps an authored
+                // TEMPLATE marker's own storey (#480, was ST-8): an upper-floor vendor is not teleported to
+                // the ground floor, but no NPC hovers half a block over it either (#711).
+                var standing = new Vector3f(pos.X, (float)System.Math.Floor(System.Math.Max(settlement.Min.Y + 1f, pos.Y)), pos.Z);
                 var npc = MakeNpc(role, npcTheme, robotic, standing, rng);
                 npc.Settlement = settlement.Name;
                 if (role == "quartermaster")
@@ -146,13 +148,20 @@ public sealed partial class GameServer
     private ServerNpc MakeNpc(string role, string theme, bool robotic, Vector3f home, System.Random rng)
     {
         uint[] skinTones = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
+        // Android chassis tones — a small spread so robots aren't one stamped grey either (#711).
+        uint[] chassisTones = { 0xBFC7CF, 0xD5DBE1, 0xA8B2BC, 0xC9CCB8 };
+        // Six outfit tones per theme (was three), lifted out of the mud: the client multiplies these by the
+        // greyscale suit texture, so anything authored dark lands near black on screen (#711).
         uint[] outfitByTheme = theme switch
         {
-            "miners" => new uint[] { 0xB5651D, 0x808080, 0x5A4632 },
-            "traders" => new uint[] { 0x2E5E8C, 0x6A4C93, 0xC9A227 },
-            "researchers" => new uint[] { 0xECECEC, 0x4FA1C9, 0xBFD7EA },
-            _ => new uint[] { 0x3F6B3F, 0x7A5C3C, 0x556B2F }, // settlers (default)
+            "miners" => new uint[] { 0xD97B29, 0xA8ADB5, 0x8A6A45, 0xE0B23C, 0x6E7B8A, 0xB5651D },
+            "traders" => new uint[] { 0x3D7EBF, 0x8A63BF, 0xD9AE33, 0x2FA48E, 0xC24B5A, 0x2E5E8C },
+            "researchers" => new uint[] { 0xECECEC, 0x5FB6E0, 0xBFD7EA, 0x9AD9C0, 0xC9C2E8, 0xE8D9A0 },
+            _ => new uint[] { 0x5C9950, 0xA37B4F, 0x7C9950, 0xB3A05C, 0x6B8FA3, 0x9C6B3C }, // settlers (default)
         };
+
+        // Trousers are picked independently of the top, so two NPCs sharing a jacket colour still differ.
+        uint[] legsTones = { 0x4A4E57, 0x5C5346, 0x3E4A5C, 0x6B5C4A, 0x777C85, 0x4E3D30 };
 
         string nameKey = role switch
         {
@@ -174,9 +183,10 @@ public sealed partial class GameServer
             Home = home,
             Pos = home,
             Facing = (float)(rng.NextDouble() * System.Math.PI * 2),
-            Size = 1f,
-            SkinRgb = robotic ? 0xBFC7CFu : skinTones[rng.Next(skinTones.Length)],
+            Size = 0.92f + (float)rng.NextDouble() * 0.16f, // people vary a little (±8 %), not like fauna (#711)
+            SkinRgb = robotic ? chassisTones[rng.Next(chassisTones.Length)] : skinTones[rng.Next(skinTones.Length)],
             OutfitRgb = outfitByTheme[rng.Next(outfitByTheme.Length)],
+            LegsRgb = legsTones[rng.Next(legsTones.Length)],
             IsRobot = robotic,
             WanderPhase = rng.NextDouble() * System.Math.PI * 2,
         };
@@ -229,7 +239,18 @@ public sealed partial class GameServer
 
             var res = LocomotionController.Step(npc.Loco, NpcProfile, npc.Pos, intent, target, moveDt, (uint)npc.Id);
             npc.Loco = res.State;
-            var next = new Vector3f(res.Position.X, npc.Home.Y, res.Position.Z); // keep the flat settlement floor Y
+
+            // Follow the REAL floor instead of freezing Y at spawn forever (#711): when the block column is
+            // loaded and has a standable cell near the NPC, use it — so a doorstep lifts them and a mined-out
+            // floor drops them instead of leaving them hanging in mid-air. Capped at ±2 blocks per step (a
+            // strolling settler doesn't climb cliffs). When the column has no answer (chunk unloaded
+            // server-side, someone walled the cell in, or only a far-off cell) fall back to the home marker's
+            // floor Y — never the noise surface, which inside a stamped settlement can be metres off.
+            int gx = (int)System.Math.Floor(res.Position.X), gz = (int)System.Math.Floor(res.Position.Z);
+            int refY = (int)System.Math.Floor(npc.Pos.Y);
+            float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && System.Math.Abs(feet - refY) <= 2
+                ? feet : npc.Home.Y;
+            var next = new Vector3f(res.Position.X, nextY, res.Position.Z);
 
             // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
             // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
@@ -356,6 +377,7 @@ public sealed partial class GameServer
         Size = n.Size,
         SkinRgb = n.SkinRgb,
         OutfitRgb = n.OutfitRgb,
+        LegsRgb = n.LegsRgb,
         IsRobot = n.IsRobot,
     };
 }

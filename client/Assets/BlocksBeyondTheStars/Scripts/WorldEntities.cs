@@ -540,17 +540,36 @@ namespace BlocksBeyondTheStars.Client
 
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
-            // Skin and cloth are TEMPLATES — every bandit gets its own tinted instance (see BuildBandit).
-            _banditSkinMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.78f, 0.6f, 0.45f)) };
-            _banditClothMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.3f, 0.25f, 0.2f)) };
-            _banditDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.14f, 0.13f, 0.14f)) };
-            _banditEyeMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.95f, 0.96f, 0.98f)) }; // eye whites — LIT, so they never glow
-            _banditEnergyMat = new Material(unlit) { color = ShaderColor.Srgb(BanditEnergyColor) };          // cold blue weapon glow (bloom picks it up)
+            // Skin and cloth are TEMPLATES — every bandit gets its own tinted instance (see BuildBandit),
+            // which copies the _Floor/_Fill lift along with the rest of the material.
+            _banditSkinMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.78f, 0.6f, 0.45f)) });
+            _banditClothMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.3f, 0.25f, 0.2f)) });
+            _banditDarkMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.14f, 0.13f, 0.14f)) });
+            _banditEyeMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.95f, 0.96f, 0.98f)) }); // eye whites — LIT, so they never glow
+            _banditEnergyMat = new Material(unlit) { color = ShaderColor.Srgb(BanditEnergyColor) };                   // cold blue weapon glow (bloom picks it up)
         }
 
         /// <summary>The bandits' weapon/tracer glow: cold blue human tech, kept clearly apart from the Guardian
         /// machines' red sensor glow (<see cref="_eyeMat"/>).</summary>
         private static readonly Color BanditEnergyColor = new(0.30f, 0.68f, 1f);
+
+        // LitColor's shader DEFAULTS are _Floor 0.35 / _Fill 0 — every other humanoid/creature material in
+        // the game runs at 0.62 / 0.3 (see PlayerAvatar.AvatarFloor); without this lift, bandits and
+        // Guardians rendered ~2× darker than everyone else on their shadow side (#711).
+        private const float EntityFloor = 0.62f;
+        private const float EntityFill = 0.3f;
+
+        /// <summary>Applies the shared ambient floor + fill to a LitColor material (no-op on the Unlit fallback).</summary>
+        private static Material WithFill(Material m)
+        {
+            if (m.HasProperty("_Floor"))
+            {
+                m.SetFloat("_Floor", EntityFloor);
+                m.SetFloat("_Fill", EntityFill);
+            }
+
+            return m;
+        }
 
         private static Transform Pivot(Transform parent, Vector3 localPos)
         {
@@ -590,16 +609,16 @@ namespace BlocksBeyondTheStars.Client
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
             var plateTex = LoadTex("enemy_robot"); // optional metal-plating tile (flat dark if absent)
-            _hideMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.13f, 0.14f, 0.16f)) };      // dark plating
-            _hideDarkMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.08f, 0.085f, 0.10f)) }; // darker joints
+            _hideMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.13f, 0.14f, 0.16f)) });      // dark plating
+            _hideDarkMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.08f, 0.085f, 0.10f)) }); // darker joints
             if (plateTex != null)
             {
                 _hideMat.mainTexture = plateTex;
                 _hideDarkMat.mainTexture = plateTex;
             }
 
-            _clawMat = new Material(lit) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) }; // metal trim / antennae / feet
-            _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.18f, 0.14f)) };   // glowing red sensors (bloom picks it up)
+            _clawMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) }); // metal trim / antennae / feet
+            _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.18f, 0.14f)) };             // glowing red sensors (bloom picks it up)
         }
 
         private static Texture2D LoadTex(string key)

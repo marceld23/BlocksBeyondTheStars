@@ -117,11 +117,18 @@ namespace BlocksBeyondTheStars.Client
                     go.transform.position = Game != null ? Game.ScenePos(nd.X, nd.Y, nd.Z) : new Vector3(nd.X, nd.Y, nd.Z);
 
                     var avatar = go.AddComponent<PlayerAvatar>();
-                    Color skin = nd.IsRobot ? new Color(0.75f, 0.78f, 0.82f) : Rgb(nd.SkinRgb);
+                    // The server owns the whole palette (#711): skin covers robot chassis tones too, and
+                    // trousers are an independent colour (LegsRgb 0 = older server → derive from the outfit).
+                    Color skin = nd.SkinRgb != 0 ? Rgb(nd.SkinRgb) : new Color(0.75f, 0.78f, 0.82f);
                     Color outfit = Rgb(nd.OutfitRgb);
-                    // Deliberately NO spacesuit: civilians stay bare-headed so suited players are
-                    // recognisable at a glance (suit = player, bare face = NPC, face mask = bandit).
-                    avatar.Build(skin, outfit, outfit * 0.85f, outfit * 0.7f);
+                    Color legs = nd.LegsRgb != 0 ? Rgb(nd.LegsRgb) : outfit * 0.7f;
+                    // Per-NPC variety (#711), deterministic from the NPC id + name so it survives rejoins:
+                    // a face-feature jitter and a hair colour (some stay bald); androids keep the uniform
+                    // manufactured look. Deliberately NO spacesuit: civilians stay bare-headed so suited
+                    // players are recognisable at a glance (suit = player, bare face = NPC, mask = bandit).
+                    int seed = unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
+                    Color? hair = !nd.IsRobot && (seed & 0x7) != 0 ? HairTones[(int)((uint)(seed >> 8) % (uint)HairTones.Length)] : (Color?)null;
+                    avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair);
                     avatar.SetVisible(true);
 
                     if (nd.Size > 0f && !Mathf.Approximately(nd.Size, 1f))
@@ -228,5 +235,30 @@ namespace BlocksBeyondTheStars.Client
 
         private static Color Rgb(uint rgb)
             => new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+
+        /// <summary>Order-dependent string hash that is stable across sessions and machines — .NET string
+        /// hash codes are randomised per process, which would re-roll every NPC's hair each login.</summary>
+        private static int StableHash(string s)
+        {
+            int h = 17;
+            foreach (char c in s ?? string.Empty)
+            {
+                h = unchecked(h * 31 + c);
+            }
+
+            return h;
+        }
+
+        /// <summary>Civilian hair tones — muted human colours (no reds: red accents belong to the Guardians).</summary>
+        private static readonly Color[] HairTones =
+        {
+            new Color(0.10f, 0.09f, 0.08f), // black
+            new Color(0.28f, 0.19f, 0.12f), // dark brown
+            new Color(0.45f, 0.32f, 0.18f), // chestnut
+            new Color(0.62f, 0.48f, 0.25f), // dark blond
+            new Color(0.75f, 0.65f, 0.40f), // blond
+            new Color(0.55f, 0.55f, 0.55f), // grey
+            new Color(0.35f, 0.20f, 0.12f), // auburn
+        };
     }
 }
