@@ -127,9 +127,28 @@ public sealed class UniverseGenerator
         var galaxy = new Galaxy();
         int systems = System.Math.Max(0, _desc.StarSystemCount);
 
+        // Galaxy-wide name registry (#678): every system and proper-named body claims its name here so
+        // no two read the same. The old scheme never deduped (two "Veyra-42"s were possible).
+        var usedNames = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+
         for (int i = 0; i < systems; i++)
         {
             var rng = new DeterministicRandom((long)Noise.Hash(_seed, i, 1, 1));
+
+            // The system's character class (#546). With SystemVariance off (every pre-variance save) this
+            // is ALWAYS Standard, and every Standard roll below is the exact draw the legacy code made —
+            // so old worlds regenerate byte-identically. Drawn from its own Hash01 salt (500), never rng.
+            // Computed before the name because the naming registries flavor by archetype (#678).
+            var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, i) : SystemArchetype.Standard;
+
+            // Naming (#678) draws from its OWN rng stream (salt 700), never the body rng — so richer
+            // names can never shift planet counts/types of existing universes. The legacy MakeName
+            // draws are burned in place to keep the body stream byte-identical (pinned by
+            // GalaxyLayoutRegressionTests); its result is intentionally discarded.
+            var nameRng = new DeterministicRandom((long)Noise.Hash(_seed, i, 7, 700));
+            _ = MakeName(rng);
+            var (systemName, catalogStyle) = MakeSystemName(nameRng, archetype, usedNames);
+
             var system = new StarSystem
             {
                 // Procedural systems live in the "sys{i}" id namespace; bodies are "sys{i}-…". The finale's
@@ -137,15 +156,11 @@ public sealed class UniverseGenerator
                 // reveal — never here — so random world/station generation can never spawn the finale area
                 // (guaranteed by UniverseTests.Procedural_generation_never_collides_with_the_reserved_finale_area).
                 Id = $"sys{i}",
-                Name = MakeName(rng),
+                Name = systemName,
                 MapX = rng.NextFloat() * 1000f,
                 MapY = rng.NextFloat() * 1000f,
             };
 
-            // The system's character class (#546). With SystemVariance off (every pre-variance save) this
-            // is ALWAYS Standard, and every Standard roll below is the exact draw the legacy code made —
-            // so old worlds regenerate byte-identically. Drawn from its own Hash01 salt (500), never rng.
-            var archetype = _desc.SystemVariance ? SystemArchetypes.ForIndex(_seed, i) : SystemArchetype.Standard;
             int planetCap = System.Math.Max(1, _desc.PlanetsPerSystemMax); // the world-size slider still caps
             int moonCap = System.Math.Max(0, _desc.MoonsPerPlanetMax);
 
@@ -161,12 +176,13 @@ public sealed class UniverseGenerator
                 _ => rng.Range(_desc.PlanetsPerSystemMin, _desc.PlanetsPerSystemMax),
             };
             float firstAngle = 0f, firstRadius = 0f; // the first twin's orbit, so the second can sit beside it
+            (string A, string B) twinNames = (string.Empty, string.Empty); // both coined at p==0 so the pair shares a stem (#678)
+            var properNamed = new HashSet<string>();  // planet ids that carry a coined proper name (not a designation)
             for (int p = 0; p < planets; p++)
             {
                 var planet = new CelestialBody
                 {
                     Id = $"{system.Id}-p{p}",
-                    Name = $"{system.Name} {p + 1}",
                     Kind = CelestialKind.Planet,
                     PlanetType = PickPlanetType(rng),
                     SystemId = system.Id,
@@ -223,6 +239,38 @@ public sealed class UniverseGenerator
                     planet.RingSeed = 1 + (int)(Hash01(i, p, 601) * 999_999f);
                 }
 
+                // Naming (#678): designations by default — Roman numerals ("Tharion II"), or exoplanet
+                // letters in a catalog system ("HX-113 b") — while LANDMARK worlds carry a coined proper
+                // name flavored by their biome: the lone giant (the system IS that planet), ringed worlds
+                // (the sky band earns a real name) and twins (one stem, two endings). Assigned after the
+                // ring roll because rings decide landmark status. The start planet is proper-named later
+                // by the server via EnsureStartPlanetProperName (only it knows the pick).
+                if (archetype == SystemArchetype.TwinWorlds && p <= 1)
+                {
+                    if (p == 0)
+                    {
+                        twinNames = NameGenerator.TwinPair(nameRng);
+                        while (!usedNames.Add(twinNames.A) || !usedNames.Add(twinNames.B))
+                        {
+                            twinNames = NameGenerator.TwinPair(nameRng);
+                        }
+                    }
+
+                    planet.Name = p == 0 ? twinNames.A : twinNames.B;
+                    properNamed.Add(planet.Id);
+                }
+                else if (archetype == SystemArchetype.LoneGiant || planet.RingSeed != 0)
+                {
+                    planet.Name = Unique(usedNames, () => NameGenerator.PlanetProper(nameRng, planet.PlanetType));
+                    properNamed.Add(planet.Id);
+                }
+                else
+                {
+                    planet.Name = catalogStyle
+                        ? $"{system.Name} {(char)('b' + p)}"
+                        : $"{system.Name} {NameGenerator.Roman(p + 1)}";
+                }
+
                 system.Bodies.Add(planet);
 
                 int moons = archetype switch
@@ -241,7 +289,11 @@ public sealed class UniverseGenerator
                     system.Bodies.Add(new CelestialBody
                     {
                         Id = $"{planet.Id}-m{m}",
-                        Name = $"{planet.Name}{(char)('a' + m)}",
+                        // Moons of a proper-named landmark world get short coined names of their own
+                        // (Mars/Phobos/Deimos feel); designation planets keep lettered satellites (#678).
+                        Name = properNamed.Contains(planet.Id)
+                            ? Unique(usedNames, () => NameGenerator.Moon(nameRng))
+                            : $"{planet.Name}-{(char)('a' + m)}",
                         Kind = CelestialKind.Moon,
                         PlanetType = PickPlanetType(rng),
                         SystemId = system.Id,
@@ -287,7 +339,9 @@ public sealed class UniverseGenerator
                 system.Bodies.Add(new CelestialBody
                 {
                     Id = $"{system.Id}-a{a}",
-                    Name = $"{system.Name} Asteroid {a + 1}",
+                    // Coined rock names (#678) — locale-neutral; the map pairs them with the localized
+                    // "Asteroid field" kind label, so no English needs to live inside the name anymore.
+                    Name = Unique(usedNames, () => NameGenerator.Asteroid(nameRng)),
                     Kind = CelestialKind.AsteroidField,
                     PlanetType = PickAsteroidType(i, a),
                     SystemId = system.Id,
@@ -339,6 +393,25 @@ public sealed class UniverseGenerator
                 for (int s = 0; s < stationCount; s++)
                 {
                     var planet = systemPlanets[order[s]];
+
+                    // Hub capital (#678): the planet under a Hub's first station is the system's trade
+                    // heart — it earns a proper name, and its station a coined port name ("Port Halvek")
+                    // instead of the attributive default. Its lettered moons follow the rename.
+                    string stationName;
+                    if (archetype == SystemArchetype.Hub && s == 0)
+                    {
+                        if (properNamed.Add(planet.Id))
+                        {
+                            RenameWithMoons(system, planet, Unique(usedNames, () => NameGenerator.PlanetProper(nameRng, planet.PlanetType)));
+                        }
+
+                        stationName = Unique(usedNames, () => NameGenerator.Port(nameRng));
+                    }
+                    else
+                    {
+                        stationName = $"{planet.Name} Station";
+                    }
+
                     float ang = Hash01(i, 322, s) * Tau;
                     float sx = planet.SystemX + StationOrbit * System.MathF.Cos(ang);
                     float sz = planet.SystemZ + StationOrbit * System.MathF.Sin(ang);
@@ -346,7 +419,7 @@ public sealed class UniverseGenerator
                     system.Bodies.Add(new CelestialBody
                     {
                         Id = s == 0 ? $"{system.Id}-st" : $"{system.Id}-st{s}", // keep legacy id for the first
-                        Name = $"{planet.Name} Station",
+                        Name = stationName,
                         Kind = CelestialKind.SpaceStation,
                         SystemId = system.Id,
                         SystemX = sx,
@@ -368,7 +441,9 @@ public sealed class UniverseGenerator
             {
                 var (wx, wz) = DiscPoint(i, planets, 303);
                 (wx, wz) = SeparateFromBodies(system, wx, wz); // a wreck shouldn't clip a body either
-                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-w", Name = $"Wreck near {system.Name}", Kind = CelestialKind.Wreck, SystemId = system.Id, SystemX = wx, SystemZ = wz });
+                // A wreck is a dead ship, so it carries a coined ship name (#678) — the old baked-in
+                // English "Wreck near …" could never be localized; the kind label is the client's job.
+                system.Bodies.Add(new CelestialBody { Id = $"{system.Id}-w", Name = Unique(usedNames, () => NameGenerator.Ship(nameRng)), Kind = CelestialKind.Wreck, SystemId = system.Id, SystemX = wx, SystemZ = wz });
             }
 
             galaxy.Systems.Add(system);
@@ -536,11 +611,119 @@ public sealed class UniverseGenerator
         return _planetWeights[0].key;
     }
 
+    /// <summary>LEGACY name pattern ("Veyra-42"). No longer displayed anywhere — but still CALLED, and
+    /// its result discarded, because its three rng draws sit in front of every planet-count/type draw:
+    /// removing them would regenerate every existing universe with different bodies (pinned by
+    /// GalaxyLayoutRegressionTests). The tables must keep their sizes for the same reason.</summary>
     private static string MakeName(DeterministicRandom rng)
     {
         string a = NamePrefixes[rng.Range(0, NamePrefixes.Length - 1)];
         string b = NameSuffixes[rng.Range(0, NameSuffixes.Length - 1)];
         int number = rng.Range(1, 99);
         return $"{a}{b}-{number}";
+    }
+
+    /// <summary>Picks the system's naming registry (#678): mostly coined proper names, a quarter
+    /// catalog designations, some two-part region names and — in archetype-varied space — the rare
+    /// name that already tells you what kind of system you are entering. Returns whether the catalog
+    /// style won, because catalog systems letter their planets ("HX-113 b") instead of Roman numerals.</summary>
+    private static (string Name, bool Catalog) MakeSystemName(DeterministicRandom nameRng, SystemArchetype archetype, HashSet<string> used)
+    {
+        double style = nameRng.NextDouble();
+        if (style < 0.25)
+        {
+            return (Unique(used, () => NameGenerator.Catalog(nameRng)), true);
+        }
+
+        if (style < 0.40)
+        {
+            return (Unique(used, () => NameGenerator.Region(nameRng)), false);
+        }
+
+        if (style < 0.45)
+        {
+            // Null for archetypes without a registry of their own (Standard & co) → coined fallback.
+            // Small curated pools — the numbered Unique fallback keeps even a pirate-heavy galaxy sane.
+            string? flavored = NameGenerator.ArchetypeRegion(nameRng, archetype);
+            if (flavored is not null)
+            {
+                return (used.Add(flavored) ? flavored : Unique(used, () => NameGenerator.ArchetypeRegion(nameRng, archetype)!), false);
+            }
+        }
+
+        return (Unique(used, () => NameGenerator.Star(nameRng)), false);
+    }
+
+    /// <summary>Draws until the name is galaxy-unique; after that (tiny curated pools, huge galaxies)
+    /// falls back to a numbered variant. Deterministic — the draw closure only pulls from the name rng.</summary>
+    private static string Unique(HashSet<string> used, System.Func<string> draw)
+    {
+        string candidate = string.Empty;
+        for (int attempt = 0; attempt < 24; attempt++)
+        {
+            candidate = draw();
+            if (used.Add(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        for (int n = 2; ; n++)
+        {
+            string numbered = $"{candidate} {n}";
+            if (used.Add(numbered))
+            {
+                return numbered;
+            }
+        }
+    }
+
+    /// <summary>Renames a planet and carries the rename into its lettered moons and any attributive
+    /// "<planet> Station" already placed over it, so the family stays consistent.</summary>
+    private static void RenameWithMoons(StarSystem system, CelestialBody planet, string newName)
+    {
+        string old = planet.Name;
+        planet.Name = newName;
+        foreach (var b in system.Bodies)
+        {
+            if (b.Kind == CelestialKind.Moon && b.ParentId == planet.Id && b.Name.StartsWith(old, System.StringComparison.Ordinal))
+            {
+                b.Name = newName + b.Name.Substring(old.Length); // keep the "-a" tail
+            }
+            else if (b.Kind == CelestialKind.SpaceStation && b.Name == $"{old} Station")
+            {
+                b.Name = $"{newName} Station";
+            }
+        }
+    }
+
+    /// <summary>Start-planet proper name (#678): the world you spawn on is a landmark — it deserves a
+    /// real name, not "Tharion II". Called by the server right after it picks (and possibly retypes)
+    /// the start body, mirroring <see cref="EnsureStartPlanetRings"/>. Deterministic from the body id
+    /// alone, so every restart re-derives the same name; a no-op for planets that are already
+    /// proper-named (rings/giant/twins/Hub capital) and for anything that isn't a planet. Lettered
+    /// moons and an attributive station follow the rename.</summary>
+    public static void EnsureStartPlanetProperName(StarSystem system, CelestialBody start)
+    {
+        if (start.Kind != CelestialKind.Planet
+            || !start.Name.StartsWith(system.Name + " ", System.StringComparison.Ordinal))
+        {
+            return; // designations are always "<system> <numeral/letter>"; anything else is already proper
+        }
+
+        int h = 17;
+        foreach (char c in start.Id)
+        {
+            h = h * 31 + c;
+        }
+
+        var rng = new DeterministicRandom(h * 2654435761L + 97);
+        string name = NameGenerator.PlanetProper(rng, start.PlanetType);
+        while (system.Bodies.Any(b => b.Name == name))
+        {
+            name = NameGenerator.PlanetProper(rng, start.PlanetType); // in-system clashes only; galaxy-wide ones are harmless
+        }
+
+        RenameWithMoons(system, start, name);
     }
 }

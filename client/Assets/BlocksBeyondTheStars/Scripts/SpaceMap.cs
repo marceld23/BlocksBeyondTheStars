@@ -266,7 +266,17 @@ namespace BlocksBeyondTheStars.Client
                         UiOrbitRing.Create(_chart, p, new Vector2(size * 2f, Mathf.Max(9f, size * 0.7f)), glyph);
                     }
 
-                    Label(_chart, p + new Vector2(0f, -size * 0.5f - 12f), b.Name);
+                    // #678: wrecks + asteroid fields carry coined proper names ("Skarrak") with no kind
+                    // word baked in — pair the name with the LOCALIZED kind here so the chart still says
+                    // what the dot is (planets/moons/stations stay name-only, their glyphs read clearly).
+                    string label = b.Name;
+                    string kind = nb?.Kind ?? string.Empty;
+                    if (kind == "Wreck" || kind == "AsteroidField")
+                    {
+                        label = $"{b.Name} · {L("ui.map.kind_" + kind.ToLowerInvariant())}";
+                    }
+
+                    Label(_chart, p + new Vector2(0f, -size * 0.5f - 12f), label);
                     _targets.Add((string.IsNullOrEmpty(b.Id) ? SpaceView.HomeWaypointId : b.Id, p, b.Name));
                 }
             }

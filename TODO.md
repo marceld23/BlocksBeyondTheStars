@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1400 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1413 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,25 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Star systems & planets got real names: registries, Roman numerals, landmark proper names (#678, 2026-08-03, branch feat/system-planet-naming)
+Every system used to follow one pattern ("Veyra-42") with numbered planets ("Veyra-42 1"). Systems
+now roll one of several naming registries — coined proper names ("Tharion", ~55 %), catalog
+designations ("HX-113", ~25 %), two-part region names ("Ember Veil", ~15 %) and rare
+archetype-flavored names (pirate space sounds menacing, hubs busy). Planets carry Roman-numeral
+designations ("Tharion II"; exoplanet letters "HX-113 b" in catalog systems) — except LANDMARK
+worlds, which get coined proper names flavored by their biome (ice sounds cold, lava harsh): ringed
+planets, the Lone Giant, Twin Worlds (one stem, two endings), the Hub capital and the start planet
+(server hook `EnsureStartPlanetProperName`, mirroring the ring guarantee). Moons letter after their
+planet ("Tharion II-a") or get short coined names around landmarks. Asteroid fields and wrecks are
+single coined words; Hub first-stations become coined ports ("Port Halvek"); all other stations stay
+"<planet> Station". Baked-in English ("Asteroid", "Wreck near") is gone from generated names — the
+space map pairs wreck/asteroid names with the localized kind label instead. Names are galaxy-deduped,
+profanity-blocklisted (EN+DE substrings — the mill really coined "Rapeearr" once) and drawn from a
+naming-only rng stream (salt 700), with the legacy draws burned in place so the body layout of every
+existing universe stays byte-identical — pinned by new `GalaxyLayoutRegressionTests` (SHA-256 layout
+fingerprints captured pre-rework). Retroactive by design: names are display-only (ids key everything),
+so existing worlds simply wake up with better names.
 
 ### ★ In-game menu lists speak German: raw ids/enums/literals now localized (#672, 2026-08-02, branch fix/ingame-menu-untranslated-lists)
 On a German client several selection lists still showed English — not missing translations
@@ -6999,7 +7018,21 @@ gain sandy shores retroactively since worldgen is seed-derived, player builds un
   sand host pool (sparse tufts, ×0.35 density).
 - **Tests** — 5 new (`BeachGenerationTests`): coast grows beaches + Generate paints them, sandy apron,
   no beaches on dry/lava/airless worlds, cross-instance determinism, synthetic-basin lake-shore ring
-  with size threshold. 1400 server tests green.
+  with size threshold. 1413 server tests green.
+
+## ✅ Done (2026-08-03): Sandbox mining unblocked — creative kit materials go to the cargo hold (#677)
+
+In Sandbox (and Creative with the kit ticked) a fresh player could not mine most blocks: the forced
+creative starter kit (23 stacks) plus the protected starter gear filled all 24 backpack slots, and since
+#600 `BreakBlockAt` refuses any break whose drops don't fit (`@inventory_full`) — on foot the pool counts
+the backpack only. Neither side ever gated mining on `GameMode.Creative`; it was pure inventory pressure.
+
+- **`GameServer.ApplyCreativeGrants`**: kit *tools* (titanium_drill, advanced_scanner) go to the backpack;
+  every *material* stack goes straight to the active ship's cargo hold (starter hold: 48 slots). Leftovers
+  are logged, never spilled back into the backpack — free backpack slots ARE the fix. The ship is saved
+  with the one-time flag so the hold's kit survives a crash before autosave.
+- Tests (`CreativeModeTests`): kit lands in cargo + backpack keeps ≥5 free slots; regression "fresh
+  creative player mines mud on foot"; persistence test moved to cargo counts.
 
 ## ✅ Done (2026-08-03): flora reads varied, not stamped — per-plant size/placement/tint variation (#675)
 

@@ -75,6 +75,32 @@ A `CelestialBody` stores only Id, Name, `Kind` (Planet/Moon/AsteroidField/SpaceS
 Each layer uses a distinct hash salt (e.g. `Noise.Hash(seed, systemIndex, 1, 1)` per system, separate
 calls for angle/radius/period) precisely so unrelated bodies don't shift when one is added.
 
+### Naming (#678)
+
+Names are **display-only** (everything keys on the body `Id`) and come from a naming-only rng stream
+(salt 700 per system) in [`NameGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/NameGenerator.cs):
+
+- **Systems** roll one of several registries: coined proper names (~55 %, "Tharion"), catalog
+  designations (~25 %, "HX-113"), two-part region names (~15 %, "Ember Veil", "Korveth's Reach") and —
+  in archetype-varied space — rare archetype-flavored names (~5 %; pirate space sounds menacing, hubs
+  busy). Names are deduped galaxy-wide.
+- **Planets** carry designations — Roman numerals ("Tharion II"), exoplanet letters in catalog systems
+  ("HX-113 b") — except **landmark worlds**, which get a coined proper name flavored by their planet
+  type (ice sounds cold, lava harsh): ringed planets, the Lone Giant, Twin Worlds (one stem, two
+  endings), the Hub capital, and the start planet (proper-named post-hoc by the server via
+  `EnsureStartPlanetProperName`, mirroring the ring guarantee).
+- **Moons** of designation planets are lettered ("Tharion II-a"); moons of landmark worlds get short
+  coined names of their own.
+- **Asteroid fields and wrecks** are single coined words ("Skarrak"); stations stay attributive
+  ("<planet> Station") except a Hub's first station, which is a coined port ("Port Halvek"). No English
+  kind words live inside generated names anymore — the client pairs names with localized kind labels.
+- A blocklist guard rejects coined words containing EN/DE profanity substrings.
+
+⚠ The legacy `MakeName` draws are still **burned in place** on the body rng: its three draws sit in
+front of every planet-count/type draw, so removing them would regenerate every existing universe.
+`GalaxyLayoutRegressionTests` pins the exact pre-rework layout for fixed seeds — it must never break.
+The retroactive rename is safe because names were never persisted or used as keys.
+
 ---
 
 ## 3. The PlanetType: the master control sheet
