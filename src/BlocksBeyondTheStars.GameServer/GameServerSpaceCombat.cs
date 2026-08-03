@@ -530,8 +530,10 @@ public sealed partial class GameServer
             float ang = i * 2.39996f;
             float rad = 18f + i * 8f; // 18 / 26 / 34
             // item 20 S3: each asteroid is a voxel ore body (entity + structure) you can shoot AND EVA-mine.
+            // #687: the ordinal seeds the family/size roll (0 = the pinned classic metallic rock).
             SpawnAsteroid(instance,
                 new Vector3f(rad * (float)System.Math.Cos(ang), (i - 1) * 9f, rad * (float)System.Math.Sin(ang)),
+                ordinal: i,
                 broadcast: false);
         }
 
@@ -1204,7 +1206,9 @@ public sealed partial class GameServer
         float rang = r * 2.39996f;
         float rrad = 22f + (r % 3) * 6f; // 22 / 28 / 34
         var pos = new Vector3f(rrad * (float)System.Math.Cos(rang), ((r % 5) - 2) * 8f, rrad * (float)System.Math.Sin(rang));
-        SpawnAsteroid(instance, pos, broadcast: true); // item 20 S3: voxel ore body (sends its mesh + state)
+        // item 20 S3: voxel ore body (sends its mesh + state). #687: respawn ordinals continue past the
+        // initial batch (3 + rotor) so replenished rocks roll fresh families/sizes deterministically.
+        SpawnAsteroid(instance, pos, ordinal: 3 + r, broadcast: true);
     }
 
     private const double SpottedCalloutCooldown = 15.0; // s between "hostile spotted you" warnings per instance

@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -777,6 +778,21 @@ public sealed partial class GameServer
             ? s.Get(new Vector3i(x, y, z)).Value
             : BlockId.AirValue;
 
+    /// <summary>Test/inspection: the block id at a cell of ANY structure (by id) across the space instances —
+    /// for asserting asteroid family compositions (#687). Air if there is no such structure/cell.</summary>
+    public ushort StructureCellForTest(string structureId, int x, int y, int z)
+    {
+        foreach (var inst in _spaceInstances.Values)
+        {
+            if (inst.Structures.TryGetValue(structureId, out var s))
+            {
+                return s.Get(new Vector3i(x, y, z)).Value;
+            }
+        }
+
+        return BlockId.AirValue;
+    }
+
     /// <summary>Test/inspection: the number of solid cells in a structure (by id) across any space instance — for
     /// asserting asteroid carving/mining (item 20 S3). 0 if no such structure.</summary>
     public int StructureBlockCountForTest(string structureId)
@@ -857,22 +873,79 @@ public sealed partial class GameServer
         });
     }
 
-    // ---------------- item 20 S3: voxel ore asteroids ----------------
+    // ---------------- item 20 S3 + #687: voxel ore asteroids ----------------
 
-    private const int AsteroidVoxelRadius = 2; // a ~5-block rough sphere of ore
+    private const int AsteroidVoxelRadius = 2; // the classic rock: a ~5-block rough sphere of ore
 
-    /// <summary>Builds a small voxel ore body (a rough sphere of iron/copper/titanium ore + stone) centred on the
-    /// origin, for an in-space asteroid (item 20 S3). The structure rides at <paramref name="worldPos"/>.</summary>
-    private SpaceStructure MakeAsteroidStructure(string id, Vector3f worldPos)
+    /// <summary>#687: the mineable space rocks roll a seeded FAMILY (which minerals they carry). Weights make
+    /// stony rocks common and crystal ones rare; icy rocks are water-ice deposits. Mirrors the landable
+    /// asteroid families (#515).</summary>
+    private static readonly (string Family, int Weight)[] AsteroidFamilies =
     {
-        var iron = _content.GetBlock("iron_ore")?.NumericId ?? BlockId.Air;
-        var copper = _content.GetBlock("copper_ore")?.NumericId ?? iron;
-        var titanium = _content.GetBlock("titanium_ore")?.NumericId ?? iron;
-        var stone = _content.GetBlock("stone")?.NumericId ?? iron;
+        ("stony", 40),
+        ("metallic", 25),
+        ("icy", 20),
+        ("carbonaceous", 10),
+        ("crystalline", 5),
+    };
+
+    /// <summary>#687: the size roll (voxel sphere radius) — pebbles are common, big boulders rare.</summary>
+    private static readonly (int Radius, int Weight)[] AsteroidSizes =
+    {
+        (1, 45),
+        (2, 40),
+        (3, 15),
+    };
+
+    /// <summary>Small deterministic xorshift (#687): the asteroid roll must be identical across restarts and
+    /// platforms, so no <c>Random</c>, no <c>string.GetHashCode</c> (randomized per process) and no
+    /// trig-derived floats (libm differs between Windows and Linux).</summary>
+    private static uint NextAsteroidRand(ref uint state)
+    {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        return state;
+    }
+
+    private static T PickWeighted<T>((T Value, int Weight)[] table, ref uint state)
+    {
+        int total = table.Sum(e => e.Weight);
+        int roll = (int)(NextAsteroidRand(ref state) % (uint)total);
+        foreach (var (value, weight) in table)
+        {
+            roll -= weight;
+            if (roll < 0)
+            {
+                return value;
+            }
+        }
+
+        return table[^1].Value;
+    }
+
+    /// <summary>Builds a small voxel ore body — a rough sphere of the family's minerals around its core — for
+    /// an in-space asteroid (item 20 S3; families + sizes #687). The structure rides at
+    /// <paramref name="worldPos"/>.</summary>
+    private SpaceStructure MakeAsteroidStructure(string id, Vector3f worldPos, string family, int r)
+    {
+        var stone = _content.GetBlock("stone")?.NumericId ?? BlockId.Air;
+        BlockId B(string key) => _content.GetBlock(key)?.NumericId ?? stone;
+
+        // Per family: the core mineral + the shell mix, indexed by the same deterministic vein pattern for
+        // every family ((x+y+z) parity). The "metallic" row is the classic pre-#687 rock, byte-identical.
+        var (core, vein, even, odd) = family switch
+        {
+            "metallic" => (B("titanium_ore"), B("copper_ore"), stone, B("iron_ore")),
+            "icy" => (stone, stone, B("ice"), B("ice")), // a rocky heart under hand-mineable water ice
+            "carbonaceous" => (B("carbon"), stone, B("carbon"), B("carbon")),
+            "crystalline" => (B("crystal"), B("crystal"), stone, stone),
+            _ => (B("iron_ore"), B("iron_ore"), stone, stone), // stony: iron veins in plain rock
+        };
 
         var s = new SpaceStructure { Id = id, Kind = "asteroid", OwnerId = string.Empty, Position = worldPos };
-        int r = AsteroidVoxelRadius;
         int rSq = r * r;
+        int coreSq = r <= 1 ? 0 : r == 2 ? 1 : 2; // the core grows a little with the rock
         for (int x = -r; x <= r; x++)
             for (int y = -r; y <= r; y++)
                 for (int z = -r; z <= r; z++)
@@ -883,12 +956,11 @@ public sealed partial class GameServer
                         continue; // carve to a rough sphere
                     }
 
-                    // A titanium core, an iron/copper shell, a little stone — a deterministic veined mix.
                     BlockId block;
-                    if (dSq <= 1) { block = titanium; }
-                    else if (((x + y + z) & 3) == 0) { block = copper; }
-                    else if (((x + y + z) & 1) == 0) { block = stone; }
-                    else { block = iron; }
+                    if (dSq <= coreSq) { block = core; }
+                    else if (((x + y + z) & 3) == 0) { block = vein; }
+                    else if (((x + y + z) & 1) == 0) { block = even; }
+                    else { block = odd; }
 
                     s.Set(new Vector3i(x, y, z), block);
                 }
@@ -897,11 +969,43 @@ public sealed partial class GameServer
         return s;
     }
 
+    /// <summary>#687: what a shot-down asteroid bursts into, by family — bigger rocks pay out more. (EVA
+    /// mining ignores this and yields per-block drops instead, #685.)</summary>
+    private static List<ItemAmount> AsteroidLoot(string family, int radius)
+    {
+        bool big = radius >= 3;
+        return family switch
+        {
+            "icy" => new() { new ItemAmount("ice", big ? 10 : 6) },
+            "carbonaceous" => new() { new ItemAmount("carbon", big ? 8 : 5) },
+            "crystalline" => new() { new ItemAmount("crystal", big ? 5 : 3) },
+            "stony" => new() { new ItemAmount("iron_ore", big ? 7 : 4) },
+            _ => new()
+            {
+                new ItemAmount("iron_ore", big ? 8 : 5),
+                new ItemAmount("titanium_ore", big ? 4 : 2),
+            },
+        };
+    }
+
     /// <summary>Spawns one asteroid: a combat entity (for ship targeting/firing + respawn accounting) paired with
     /// a voxel ore structure of the same id (for rendering + EVA mining) — item 20 S3. The entity's hull tracks
-    /// its block count so laser fire carves the rock down as it depletes.</summary>
-    private void SpawnAsteroid(SpaceInstance instance, Vector3f pos, bool broadcast)
+    /// its block count so laser fire carves the rock down as it depletes. #687: the family/size roll is seeded
+    /// from the instance id + spawn <paramref name="ordinal"/>, so the same world always grows the same rocks;
+    /// ordinal 0 is pinned to the classic metallic r=2 rock so every field guarantees one titanium core
+    /// (mirrors the start-planet ring pin).</summary>
+    private void SpawnAsteroid(SpaceInstance instance, Vector3f pos, int ordinal, bool broadcast)
     {
+        string family = "metallic";
+        int radius = AsteroidVoxelRadius;
+        if (ordinal > 0)
+        {
+            long h = WorldGenerator.StableHash(instance.Id);
+            uint state = (uint)(h ^ (h >> 32) ^ (_config.Seed * 397L) ^ (ordinal * 668265263L)) | 1u;
+            family = PickWeighted(AsteroidFamilies, ref state);
+            radius = PickWeighted(AsteroidSizes, ref state);
+        }
+
         var entity = new CombatEntity
         {
             Id = NextEntityId(),
@@ -909,10 +1013,13 @@ public sealed partial class GameServer
             Hostile = false,
             AsteroidTier = 0, // voxel asteroids don't split — they carve + deplete
             Position = pos,
-            Loot = { new ItemAmount("iron_ore", 5), new ItemAmount("titanium_ore", 2) },
         };
+        foreach (var drop in AsteroidLoot(family, radius))
+        {
+            entity.Loot.Add(drop);
+        }
 
-        var s = MakeAsteroidStructure(entity.Id, pos);
+        var s = MakeAsteroidStructure(entity.Id, pos, family, radius);
         entity.HullMax = entity.Hull = System.Math.Max(8, s.Cells.Count); // hull == blocks → carve maps to damage
         instance.Entities.Add(entity);
         instance.Structures[s.Id] = s;

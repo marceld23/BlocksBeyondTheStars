@@ -102,6 +102,22 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Space rocks come in sizes and flavors: seeded mineral families, water ice included (#687, 2026-08-03, branch feat/mini-asteroid-variety)
+Every mineable space rock was the same clone: a fixed r=2 sphere with a titanium core and an
+iron/copper/stone shell. Rocks now roll a seeded FAMILY — stony (~40 %), metallic (~25 %),
+icy (~20 %, made of hand-mineable water ice around a rocky heart), carbonaceous (~10 %) and rare
+crystalline (~5 %), mirroring the landable families from #515 — and a SIZE: common r=1 pebbles
+(7 blocks), the classic r=2 (33) and rare r=3 boulders (123) whose cores grow with the rock. The
+shoot-down loot matches the family and pays out more for boulders. Rock 0 of every field stays
+pinned to the classic metallic r=2 (a guaranteed titanium core — mirrors the start-planet ring
+pin), so progression and the mining tests keep their anchor. Rolls come from a deterministic
+xorshift seeded by instance id hash + world seed + spawn ordinal — integer state only, no
+`Random`, no `string.GetHashCode` (process-randomized), no trig floats (Win/Linux libm) — so the
+same world always grows the same rocks, restart-safe (locked by `SpaceAsteroids_RollSeededFamiliesAndSizes`).
+With #685's hardness parity the feel scales by material for free: ice pops in one bare-hand hit,
+titanium still wants the tier-2 drill. Hull tracking, laser carving and the client structure
+renderer were already size-agnostic — no client change.
+
 ### ★ EVA asteroid mining plays by the rules: drill tiers, hardness hits, no lost ore (#685, 2026-08-03, branch fix/eva-asteroid-mining-hardness)
 During a spacewalk any asteroid block popped with a SINGLE bare-hand click — no drill, no hardness,
 titanium included — while the same block on a planet takes a tier-2 drill and several timed hits. And

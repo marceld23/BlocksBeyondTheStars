@@ -271,6 +271,51 @@ public sealed class SpaceCombatTests : IDisposable
     }
 
     [Fact]
+    public void SpaceAsteroids_RollSeededFamiliesAndSizes()
+    {
+        // #687: the rocks of a field are no longer identical clones. Rock 0 is pinned to the classic
+        // metallic r=2 sphere (a guaranteed titanium core — the anchor for progression + the mining tests),
+        // the rest roll seeded families/sizes — and the same world always grows the same rocks again.
+        ushort titanium = _content.GetBlock("titanium_ore")!.NumericId.Value;
+
+        List<(int Count, ushort Core)> Snapshot(string name, long seed)
+        {
+            using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig { WorldName = name, Seed = seed, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+            config.Rules.FreeSpaceFlight = true;
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            return server.SpaceEntitiesFor("Pilot")
+                .Where(e => e.Kind == CombatEntityKind.Asteroid)
+                .Select(e => (server.StructureBlockCountForTest(e.Id), server.StructureCellForTest(e.Id, 0, 0, 0)))
+                .ToList();
+        }
+
+        var first = Snapshot("astroll", 1);
+        Assert.Equal(3, first.Count);
+        Assert.Equal(33, first[0].Count);            // the pinned classic rock: r=2 sphere …
+        Assert.Equal(titanium, first[0].Core);       // … with its titanium core
+
+        // Every rock is a legal sphere size (r = 1 / 2 / 3 → 7 / 33 / 123 cells).
+        Assert.All(first, rock => Assert.Contains(rock.Count, new[] { 7, 33, 123 }));
+
+        // The same world rolls the same rocks again (deterministic — restart-safe).
+        Assert.Equal(first, Snapshot("astroll", 1));
+
+        // And across a handful of seeds the rolled rocks are NOT all clones of the classic one.
+        var rolled = new List<(int Count, ushort Core)>();
+        for (long seed = 2; seed <= 5; seed++)
+        {
+            rolled.AddRange(Snapshot("astroll" + seed, seed).Skip(1));
+        }
+
+        Assert.Contains(rolled, rock => rock.Count != 33 || rock.Core != titanium);
+    }
+
+    [Fact]
     public void PlayerStation_Deploys_BuildsOut_AndCommissions()
     {
         // item 20 S4: deploy a station core, build a hull + airlock around it → it commissions (boardable + map).
