@@ -353,6 +353,9 @@ public static class NetCodec
         Register(185, typeof(AchievementList));          // Server -> Client (join + whenever progress moves)
         Register(186, typeof(AchievementUnlocked));      // Server -> Client (celebrate this one)
         Register(187, typeof(AchievementRewardDeferred));// Server -> Client (earned, but make room for the reward)
+
+        // #685: EVA asteroid mining obeys hardness — per-cell progress on a voxel structure.
+        Register(188, typeof(StructureMiningProgress));  // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

@@ -1287,6 +1287,19 @@ public sealed class StructureBlockChanged
     public int Shape { get; set; }
 }
 
+/// <summary>Server → client: mining progress on one cell of a voxel structure (#685) — the structure-space
+/// analogue of <see cref="MiningProgress"/>. EVA asteroid mining obeys block hardness like planet mining, so
+/// a hard ore block needs several drill hits; Fraction is 0..1 of the way to breaking. The cell stays until
+/// it breaks (<see cref="StructureBlockChanged"/>). Coordinates are structure-local cells.</summary>
+public sealed class StructureMiningProgress
+{
+    public string StructureId { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public float Fraction { get; set; }
+}
+
 /// <summary>A remote player's presence in a space instance: their ship (or floating EVA suit) position +
 /// heading, for the flight view to render. Server → client, inside <see cref="SpaceState"/>.</summary>
 public sealed class NetSpacePlayer

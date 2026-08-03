@@ -117,6 +117,12 @@ public sealed partial class GameServer
     /// a coarse anti-grief range so you can't edit a body across the flight zone.</summary>
     private const float StructureEditRange = 40f;
 
+    /// <summary>#685: per-cell EVA mining progress on voxel structures (asteroid ore), keyed by structure id +
+    /// structure-local cell — the structure-space analogue of <c>_miningProgress</c>. An entry clears when its
+    /// cell breaks or its structure is removed; a changed block id restarts from zero (same guard as the world
+    /// path, B52).</summary>
+    private readonly Dictionary<(string Id, Vector3i Cell), (ushort Block, float Progress)> _structureMiningProgress = new();
+
     /// <summary>Builds the served player's ship as a voxel <see cref="SpaceStructure"/> from its editor design
     /// (item 20, S1). Mirrors the block mapping the ground stamp uses (<see cref="StampShipLayout"/>) but writes
     /// into a standalone sparse grid instead of the planet world. Hatch/door cells render as holes. Ships with
@@ -455,6 +461,58 @@ public sealed partial class GameServer
                 return;
             }
 
+            var def = _content.BlockById(existing);
+
+            // #685: asteroid ore obeys the same rules as planet mining — tool gating + hardness accumulated
+            // over several hits (a single click used to pop ANY block bare-handed, titanium included). Own-ship
+            // and station editing stays instant by design: that is construction UX, not resource gathering.
+            if (isAsteroid)
+            {
+                if (def is null || !def.Mineable)
+                {
+                    Reject(session, "structure", "Block cannot be mined.");
+                    return;
+                }
+
+                var tool = ActiveTool(p);
+                if (!ToolCanMine(tool, def))
+                {
+                    Reject(session, "structure", "Your current tool cannot mine this block.");
+                    return;
+                }
+
+                float hardness = System.Math.Max(0.2f, def.Hardness);
+                float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
+                float prior = _structureMiningProgress.TryGetValue((s.Id, pos), out var prev) && prev.Block == existing.Value
+                    ? prev.Progress
+                    : 0f;
+                float progress = prior + power;
+                if (progress + 0.0001f < hardness)
+                {
+                    _structureMiningProgress[(s.Id, pos)] = (existing.Value, progress);
+                    Send(session, new StructureMiningProgress
+                    {
+                        StructureId = s.Id,
+                        X = pos.X,
+                        Y = pos.Y,
+                        Z = pos.Z,
+                        Fraction = progress / hardness,
+                    });
+                    return;
+                }
+            }
+
+            // #685 (mirrors #600): make sure the drops fit BEFORE clearing the cell — the cell used to be
+            // cleared first, so a full inventory silently ate the ore. Refusing the break is the lossless
+            // option; accumulated progress stays banked, so the block falls on the next hit once there is room.
+            var pool = new MaterialPool(_content, p, _ship);
+            if (def is { Drops.Count: > 0 } && !pool.CanFit(def.Drops))
+            {
+                Reject(session, "structure", "@inventory_full");
+                return;
+            }
+
+            _structureMiningProgress.Remove((s.Id, pos));
             s.Set(pos, BlockId.Air);
 
             // item 20 S4 durable save: a hull cell the owner mined out persists as a per-cell delta (only
@@ -464,11 +522,10 @@ public sealed partial class GameServer
                 _repo.SetStructureBlock(s.Id, pos, BlockId.AirValue);
             }
 
-            // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull). The cell is
-            // already cleared at this point, so a full inventory can still lose the drop — BankLoot says so.
-            if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
+            // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull) — the
+            // capacity was checked above, so nothing is lost here.
+            if (def is { Drops.Count: > 0 })
             {
-                var pool = new MaterialPool(_content, p, _ship);
                 BankLoot(session, pool, def.Drops);
                 SendInventory(session);
             }
@@ -918,6 +975,13 @@ public sealed partial class GameServer
     {
         if (instance.Structures.Remove(id))
         {
+            // #685: drop any banked mining progress with the rock, so a respawned structure that happens to
+            // reuse the id never inherits half-mined cells.
+            foreach (var key in _structureMiningProgress.Keys.Where(k => k.Id == id).ToList())
+            {
+                _structureMiningProgress.Remove(key);
+            }
+
             BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = id });
         }
     }

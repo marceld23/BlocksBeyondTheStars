@@ -152,8 +152,38 @@ public sealed class SpaceCombatTests : IDisposable
     [Fact]
     public void EvaMine_TakesOreFromAVoxelAsteroid()
     {
-        // item 20 S3: on an EVA you can mine ore blocks off an asteroid (the other half of the hybrid).
+        // item 20 S3 + #685: on an EVA you can mine ore blocks off an asteroid — under the same rules as on a
+        // planet, so the titanium core (hardness 7.2) needs a tier-2 drill and several hits.
         var server = NewServer("astmine", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            pilot.State.InEva = true;
+            pilot.State.SelectedHotbarSlot = 0;
+            pilot.State.Inventory.SetSlot(0, new Shared.State.ItemStack("titanium_drill", 1));
+
+            var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
+            int before = server.StructureBlockCountForTest(ast.Id);
+
+            // Mine the ore core (0,0,0 is solid in the generated rock): 4 power-2 hits crack hardness 7.2.
+            for (int hit = 0; hit < 4; hit++)
+            {
+                server.HandleStructureEditForTest("Pilot",
+                    new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            }
+
+            Assert.True(server.StructureBlockCountForTest(ast.Id) < before, "mining removes an ore block");
+            Assert.True(pilot.State.Inventory.CountOf("titanium_ore") >= 1, "mining the core yields titanium ore");
+        }
+    }
+
+    [Fact]
+    public void EvaAsteroidMine_NeedsSeveralHits_AndTheRightDrill()
+    {
+        // #685: a single click no longer pops an asteroid block. Bare hands and an under-tiered drill are
+        // rejected on titanium (MinToolTier 2), and even the right drill needs hardness/power hits.
+        var server = NewServer("asthard", r => r.FreeSpaceFlight = true, out var repo);
         using (repo)
         {
             var pilot = server.AddLocalPlayer("Pilot");
@@ -163,12 +193,80 @@ public sealed class SpaceCombatTests : IDisposable
             var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
             int before = server.StructureBlockCountForTest(ast.Id);
 
-            // Mine the ore core (0,0,0 is solid in the generated rock).
+            // Bare hands: rejected outright — the core block stays, nothing is banked.
             server.HandleStructureEditForTest("Pilot",
                 new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            Assert.Equal(before, server.StructureBlockCountForTest(ast.Id));
+            Assert.Equal(0, pilot.State.Inventory.CountOf("titanium_ore"));
 
-            Assert.True(server.StructureBlockCountForTest(ast.Id) < before, "mining removes an ore block");
-            Assert.True(pilot.State.Inventory.CountOf("titanium_ore") >= 1, "mining the core yields titanium ore");
+            // A tier-1 drill cannot cut titanium either.
+            pilot.State.SelectedHotbarSlot = 0;
+            pilot.State.Inventory.SetSlot(0, new Shared.State.ItemStack("basic_drill", 1));
+            server.HandleStructureEditForTest("Pilot",
+                new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            Assert.Equal(before, server.StructureBlockCountForTest(ast.Id));
+
+            // The tier-2 drill (power 2) works — titanium holds for 3 hits and falls on the 4th.
+            pilot.State.Inventory.SetSlot(0, new Shared.State.ItemStack("titanium_drill", 1));
+            for (int hit = 0; hit < 3; hit++)
+            {
+                server.HandleStructureEditForTest("Pilot",
+                    new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+                Assert.Equal(before, server.StructureBlockCountForTest(ast.Id));
+            }
+
+            server.HandleStructureEditForTest("Pilot",
+                new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            Assert.Equal(before - 1, server.StructureBlockCountForTest(ast.Id));
+            Assert.Equal(1, pilot.State.Inventory.CountOf("titanium_ore"));
+        }
+    }
+
+    [Fact]
+    public void EvaAsteroidMine_RefusedWhenTheDropsWouldNotFit()
+    {
+        // #685 (mirrors #600): while the ore has nowhere to go the break is refused — the cell must NOT be
+        // cleared and the drop must NOT vanish. Freeing a slot lets the banked progress finish the job.
+        var server = NewServer("astfull", r => r.FreeSpaceFlight = true, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.EnterSpace("Pilot");
+            pilot.State.InEva = true;
+            pilot.State.SelectedHotbarSlot = 0;
+            pilot.State.Inventory.SetSlot(0, new Shared.State.ItemStack("titanium_drill", 1));
+
+            // Stuff every personal slot + the whole cargo hold with 1-per-stack tools so nothing can fit
+            // (the EVA player still counts as aboard, so the pool would otherwise spill into cargo).
+            for (int i = 1; i < pilot.State.Inventory.SlotCount; i++)
+            {
+                pilot.State.Inventory.SetSlot(i, new Shared.State.ItemStack("basic_drill", 1));
+            }
+
+            for (int i = 0; i < server.Ship.Cargo.SlotCount; i++)
+            {
+                server.Ship.Cargo.SetSlot(i, new Shared.State.ItemStack("basic_drill", 1));
+            }
+
+            var ast = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Asteroid);
+            int before = server.StructureBlockCountForTest(ast.Id);
+
+            // Enough hits to break titanium twice over — every attempt must refuse, the rock keeps its block.
+            for (int hit = 0; hit < 8; hit++)
+            {
+                server.HandleStructureEditForTest("Pilot",
+                    new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            }
+
+            Assert.Equal(before, server.StructureBlockCountForTest(ast.Id));
+            Assert.Equal(0, pilot.State.Inventory.CountOf("titanium_ore"));
+
+            // Make room → the next hit finishes the break, losslessly.
+            pilot.State.Inventory.SetSlot(1, null);
+            server.HandleStructureEditForTest("Pilot",
+                new StructureEditIntent { StructureId = ast.Id, X = 0, Y = 0, Z = 0, Mine = true });
+            Assert.Equal(before - 1, server.StructureBlockCountForTest(ast.Id));
+            Assert.Equal(1, pilot.State.Inventory.CountOf("titanium_ore"));
         }
     }
 

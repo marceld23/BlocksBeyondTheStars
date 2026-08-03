@@ -48,6 +48,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<SpaceState>? SpaceStateReceived;
         public event Action<SpaceShipDesign>? SpaceShipDesignReceived; // item 20 S1: own ship as a voxel structure
         public event Action<StructureBlockChanged>? StructureBlockChangedReceived; // item 20 S2: a structure cell changed
+        public event Action<StructureMiningProgress>? StructureMiningProgressReceived; // #685: EVA asteroid mining progress on a structure cell
         public event Action<LandedShipState>? LandedShipReceived; // ship-as-object: a parked ship placed/replaced/removed
         public event Action<SpaceEntityDestroyed>? SpaceEntityDestroyed;
         public event Action<SpaceClosed>? SpaceClosed;
@@ -553,6 +554,7 @@ namespace BlocksBeyondTheStars.Client
                 case SpaceState m: SpaceStateReceived?.Invoke(m); break;
                 case SpaceShipDesign m: SpaceShipDesignReceived?.Invoke(m); break;
                 case StructureBlockChanged m: StructureBlockChangedReceived?.Invoke(m); break;
+                case StructureMiningProgress m: StructureMiningProgressReceived?.Invoke(m); break;
                 case LandedShipState m: LandedShipReceived?.Invoke(m); break;
                 case SpaceEntityDestroyed m: SpaceEntityDestroyed?.Invoke(m); break;
                 case SpaceClosed m: SpaceClosed?.Invoke(m); break;

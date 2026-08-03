@@ -183,6 +183,13 @@ namespace BlocksBeyondTheStars.Client
         private bool _evaHasAim;
         private string _evaAimStructId;      // id of the structure currently aimed at (ship or asteroid)
         private GameObject _aimHighlight;    // marker on the aimed cell
+        private Material _aimHighlightMat;   // marker material — tinted by mining progress (#685)
+        private string _evaMineProgressStructId; // structure of the last server mining-progress report (#685)
+        private Vector3Int _evaMineProgressCell; // its structure-local cell
+        private float _evaMineProgressFraction;  // 0..1 of the way to breaking
+        private float _evaMineProgressAt;        // Time.time of the report (stale reports are ignored)
+        private float _nextEvaMine;          // hold-to-mine cadence, matches the on-foot drill pace (#685)
+        private const float EvaMinePace = 0.28f; // seconds between mining hits while LMB is held (#685)
         private const float EvaReach = 6f;   // how far the suit can build/mine
         private const float SuitRadius = 0.45f; // suit collision radius vs the voxel hull
         private const float FarStructUnload = 95f; // S5: drop a voxel body's mesh beyond this (data kept)
@@ -324,6 +331,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game.Network != null && !_structSubscribed)
             {
                 Game.Network.StructureBlockChangedReceived += OnStructureBlockChanged;
+                Game.Network.StructureMiningProgressReceived += OnStructureMiningProgress; // #685
                 Game.Network.SpaceShipDesignReceived += OnStructureDesign;
                 Game.Network.SpaceEntityDestroyed += OnStructEntityDestroyed;
                 _structSubscribed = true;
@@ -1953,9 +1961,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (InputMap.PrimaryDown())
+            if (InputMap.PrimaryHeld())
             {
-                Game.Network?.SendStructureEdit(_evaAimStructId, _evaAimHit.x, _evaAimHit.y, _evaAimHit.z, mine: true);
+                // #685: mining is hold-to-repeat at the on-foot drill pace — the server accumulates hardness
+                // progress per hit on asteroid ore, so a single click no longer pops a block instantly.
+                if (Time.time >= _nextEvaMine)
+                {
+                    _nextEvaMine = Time.time + EvaMinePace;
+                    Game.Network?.SendStructureEdit(_evaAimStructId, _evaAimHit.x, _evaAimHit.y, _evaAimHit.z, mine: true);
+                }
             }
             else if (InputMap.SecondaryDown())
             {
@@ -1986,12 +2000,38 @@ namespace BlocksBeyondTheStars.Client
 
             if (_aimHighlight == null)
             {
-                _aimHighlight = Cube("AimMarker", _root.transform, Vector3.zero, Vector3.one * 0.22f, Unlit(new Color(0.3f, 0.95f, 1f)));
+                _aimHighlightMat = Unlit(new Color(0.3f, 0.95f, 1f));
+                _aimHighlight = Cube("AimMarker", _root.transform, Vector3.zero, Vector3.one * 0.22f, _aimHighlightMat);
+            }
+
+            // #685: warm the marker toward orange as the server reports mining progress on the aimed cell, so
+            // multi-hit ore visibly works toward breaking. A report older than a second is stale (the aim moved
+            // on, or the cell broke) and falls back to the idle cyan.
+            float frac = 0f;
+            if (_evaMineProgressStructId == _evaAimStructId && _evaMineProgressCell == _evaAimHit
+                && Time.time - _evaMineProgressAt < 1f)
+            {
+                frac = _evaMineProgressFraction;
+            }
+
+            if (_aimHighlightMat != null)
+            {
+                _aimHighlightMat.color = Color.Lerp(new Color(0.3f, 0.95f, 1f), new Color(1f, 0.55f, 0.15f), frac);
             }
 
             _aimHighlight.SetActive(true);
             var cellCentre = new Vector3(_evaAimHit.x + 0.5f, _evaAimHit.y + 0.5f, _evaAimHit.z + 0.5f);
             _aimHighlight.transform.localPosition = FromDesign(t, centre, cellCentre);
+        }
+
+        /// <summary>#685: remembers the server's mining progress on a structure cell (EVA asteroid mining), so
+        /// the aim marker can show how close the aimed ore block is to breaking.</summary>
+        private void OnStructureMiningProgress(BlocksBeyondTheStars.Networking.Messages.StructureMiningProgress m)
+        {
+            _evaMineProgressStructId = m.StructureId;
+            _evaMineProgressCell = new Vector3Int(m.X, m.Y, m.Z);
+            _evaMineProgressFraction = Mathf.Clamp01(m.Fraction);
+            _evaMineProgressAt = Time.time;
         }
 
         /// <summary>Applies a server structure edit to the local voxel grid (ship or asteroid) + re-meshes.</summary>
@@ -2361,6 +2401,7 @@ namespace BlocksBeyondTheStars.Client
             _shipCells = null;   // ship voxel grid was under the destroyed _ship
             _shipVox = null;
             _aimHighlight = null; // marker lived under _root (destroyed)
+            _aimHighlightMat = null; // its material dies with it (#685)
             _ship = null;
             _exhaust = null;
             _thruster = null; // particle thruster lived under the destroyed _ship

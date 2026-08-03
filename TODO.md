@@ -102,6 +102,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ EVA asteroid mining plays by the rules: drill tiers, hardness hits, no lost ore (#685, 2026-08-03, branch fix/eva-asteroid-mining-hardness)
+During a spacewalk any asteroid block popped with a SINGLE bare-hand click — no drill, no hardness,
+titanium included — while the same block on a planet takes a tier-2 drill and several timed hits. And
+with a full backpack the ore silently vanished (the cell was cleared before the drops were banked).
+Now the EVA path mirrors the planet pipeline for asteroids: `ToolCanMine` gates by drill kind + tier,
+hardness accumulates per hit (`progress += MiningPower`), and a new `StructureMiningProgress` message
+(NetCodec 188) lets the aim marker warm from cyan to orange as the ore works toward breaking. The
+client mines hold-to-repeat at the on-foot drill pace (0.28 s) instead of per click. Drops are
+capacity-checked BEFORE the cell clears (mirrors #600) — a full inventory refuses the break
+losslessly and the banked progress finishes the job once there is room. Own-ship and station editing
+stays instant by design (construction UX, not resource gathering; still 3 ship-hull mining tests
+lock that in). Soft materials keep the light feel by their own hardness — ice (0.8) still breaks in
+one hit, so the planned icy mini-asteroids stay easy water harvests while titanium keeps its gate.
+
 ### ★ Star systems & planets got real names: registries, Roman numerals, landmark proper names (#678, 2026-08-03, branch feat/system-planet-naming)
 Every system used to follow one pattern ("Veyra-42") with numbered planets ("Veyra-42 1"). Systems
 now roll one of several naming registries — coined proper names ("Tharion", ~55 %), catalog
