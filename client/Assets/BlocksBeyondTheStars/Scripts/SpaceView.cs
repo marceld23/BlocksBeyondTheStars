@@ -1639,7 +1639,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
             Game.Network?.SendFireWeapon(weaponKey, target.Id,
-                new BlocksBeyondTheStars.Shared.Primitives.Vector3f(fwd.x, fwd.y, fwd.z));
+                new BlocksBeyondTheStars.Shared.Geometry.Vector3f(fwd.x, fwd.y, fwd.z));
             Game.LastShotTargetId = target.Id;
             Game.LastShotTime = Time.time;
             bool mining = target.Kind == "Asteroid";

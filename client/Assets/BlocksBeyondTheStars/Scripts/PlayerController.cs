@@ -477,7 +477,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var f = ct.forward;
                 Game.Network.SendAttackEntity(targetId,
-                    new BlocksBeyondTheStars.Shared.Primitives.Vector3f(f.x, f.y, f.z));
+                    new BlocksBeyondTheStars.Shared.Geometry.Vector3f(f.x, f.y, f.z));
                 Game.LastShotTargetId = targetId;
                 Game.LastShotTime = Time.time;
             }
@@ -564,8 +564,8 @@ namespace BlocksBeyondTheStars.Client
         /// even while you look past it.</summary>
         private string BestConeTarget(float reach, float cone, out Vector3 pos)
         {
-            pos = default;
             string bestId = null;
+            Vector3 bestPos = default; // out params can't be captured by the local function below
             float bestSq = reach * reach;
             Vector3 eye = Camera != null ? Camera.transform.position : transform.position;
             Vector3 fwd = Camera != null ? Camera.transform.forward : transform.forward;
@@ -586,7 +586,7 @@ namespace BlocksBeyondTheStars.Client
 
                 bestSq = d;
                 bestId = cid;
-                pos = p;
+                bestPos = p;
             }
 
             foreach (var e in Game.PlanetEnemies)
@@ -600,6 +600,7 @@ namespace BlocksBeyondTheStars.Client
                 Consider(c.Id, Game.ScenePos(c.X, c.Y, c.Z));
             }
 
+            pos = bestPos;
             return bestId;
         }
 
