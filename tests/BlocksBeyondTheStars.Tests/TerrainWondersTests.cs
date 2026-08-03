@@ -249,10 +249,11 @@ public class TerrainWondersTests
             off.SetWorldMode(9600, cratered: false, landingPads: null, $"sys{s}-p1");
             Assert.False(Active(off), "continents rolled with the flag off");
 
-            // Flag on but small world → never.
+            // Flag on but a moon-sized world → never (the gate now sits at 6000, so the start world
+            // qualifies while moons at 2500–4000 stay out).
             var small = new WorldGenerator(s * 31, content);
             small.SetContinentsEnabled(true);
-            small.SetWorldMode(6000, cratered: false, landingPads: null, $"sys{s}-p1");
+            small.SetWorldMode(4000, cratered: false, landingPads: null, $"sys{s}-p1");
             Assert.False(Active(small), "continents rolled below the size gate");
         }
     }
@@ -406,9 +407,10 @@ public class TerrainWondersTests
                     double o = (double)Invoke(gen, "CenoteOffset", planet, seed, x, z);
                     if (o < -28.0)
                     {
-                        // Sheer: within ≤ 18 blocks in +x the offset must return to ~0 (the rim).
+                        // Sheer: walking +x from ANY floor column must cross the rim within one full
+                        // diameter (radius reaches ~20 since the visibility tuning → scan 44).
                         bool rim = false;
-                        for (int d = 2; d <= 18 && !rim; d += 2)
+                        for (int d = 2; d <= 44 && !rim; d += 2)
                         {
                             rim = (double)Invoke(gen, "CenoteOffset", planet, seed, x + d, z) > -2.0;
                         }

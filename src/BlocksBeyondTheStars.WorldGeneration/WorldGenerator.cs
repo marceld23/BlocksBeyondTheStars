@@ -676,7 +676,10 @@ public sealed class WorldGenerator
         return (planet.TerrainStyle?.ToLowerInvariant()) switch
         {
             "dunes" or "mesa" or "canyons" or "tablelands" or "badlands" => true,
-            _ => string.Equals(planet.Key, "savanna", System.StringComparison.OrdinalIgnoreCase),
+            // savanna since #577; varied added 2026-08-03 (visibility tuning): the START world is a
+            // varied world, and without a key exception it carried no big landmark family at all.
+            _ => string.Equals(planet.Key, "savanna", System.StringComparison.OrdinalIgnoreCase)
+                 || string.Equals(planet.Key, "varied", System.StringComparison.OrdinalIgnoreCase),
         };
     }
 
@@ -804,7 +807,7 @@ public sealed class WorldGenerator
     // signature scar. Not a hotspot cell: a meandering great-circle path at a rolled latitude. The meander
     // is a torus FBM of X alone, so the canyon closes seamlessly on itself after a full circumnavigation.
     // Very rare — a world-defining find, never the norm. ---
-    private const double MegaRiftChance = 8 / 256.0;   // ~3 % of eligible worlds
+    private const double MegaRiftChance = 16 / 256.0;  // ~6 % of eligible worlds (visibility tuning 2026-08-03)
     private const double MegaRiftMeanderFrac = 0.10;   // meander amplitude as a fraction of the latitude period
     private const double MegaRiftMaxHalfWidth = 40.0;  // canyon up to ~80 wide
 
@@ -850,8 +853,8 @@ public sealed class WorldGenerator
 
     // --- Ring caldera (#702): a colossal circular mountain wall around a sunken interior basin. Where the
     // basin dips under the sea percentile it floods into a ring lake (lava on dry volcanic worlds). ---
-    private const double CalderaCellSize = 3600.0;
-    private const double CalderaChance = 0.08;     // rarer than massifs — one is a destination
+    private const double CalderaCellSize = 2400.0;
+    private const double CalderaChance = 0.20;     // visibility tuning 2026-08-03: ~0.6 per start-size world
     private const double CalderaMaxRadius = 400.0;
 
     private bool HasCalderas(PlanetType planet) => HasMassifs(planet); // same solid-ground + air gate
@@ -889,7 +892,7 @@ public sealed class WorldGenerator
     // --- Whole-planet escarpment (#702): a rare great-circle step that splits the world into an upper and
     // a lower storey, separated by a continuous meandering cliff. Applied to the RAW height (before styles
     // and landmarks) so every landform simply rides on its storey. ---
-    private const double EscarpmentChance = 10 / 256.0; // ~4 % of eligible worlds
+    private const double EscarpmentChance = 14 / 256.0; // ~5.5 % of eligible worlds
 
     private bool HasEscarpment(PlanetType planet, long seed)
         => !planet.FloatingIslands && !planet.Void
@@ -921,8 +924,8 @@ public sealed class WorldGenerator
 
     // --- Travertine spring terraces (#701): Pamukkale — blinding-white stepped decks cascading down a
     // gentle mound, each deck holding a shallow pool. Warm wet worlds only. ---
-    private const double TravertineCellSize = 1400.0;
-    private const double TravertineChance = 0.30;
+    private const double TravertineCellSize = 1000.0;
+    private const double TravertineChance = 0.45;  // visibility tuning 2026-08-03
     private const double TravertineMaxRadius = 60.0;
 
     private bool HasTravertine(PlanetType planet)
@@ -968,7 +971,7 @@ public sealed class WorldGenerator
 
     // --- Penitente fields (#701): dense blade-like ice spikes in patches on cold worlds. ---
     private const double PenitenteCellSize = 900.0;
-    private const double PenitenteChance = 0.35;
+    private const double PenitenteChance = 0.50;   // visibility tuning 2026-08-03
     private const double PenitenteMaxRadius = 120.0;
 
     private bool HasPenitentes(PlanetType planet)
@@ -1057,7 +1060,7 @@ public sealed class WorldGenerator
     // --- Hexagonal basalt column fields (#701): Giant's-Causeway patches on volcanic-reading worlds —
     // stepped hex prisms quantised over a local axial hex grid, repainted basalt by Generate. ---
     private const double BasaltFieldCellSize = 1000.0;
-    private const double BasaltFieldChance = 0.25;
+    private const double BasaltFieldChance = 0.40; // visibility tuning 2026-08-03
     private const double BasaltFieldMaxRadius = 140.0;
     private const double Sqrt3Over3 = 0.5773502691896258; // compile-time constant — no libm at runtime
 
@@ -1167,7 +1170,10 @@ public sealed class WorldGenerator
     // pushes eligible large planets into a BIMODAL height regime — continental platform vs ocean basin,
     // joined by a smoothstep shelf. Everything else (styles, archetypes, landmarks, sea percentile,
     // rivers, beaches) simply rides on top. Domain-warped so coastlines are ragged, not blobby. ---
-    public const int ContinentMinCircumference = 8000; // the user-decided size gate (large planets only)
+    // The size gate: planets only (moons are 2500–4000). Lowered 8000 → 6000 (user decision 2026-08-03)
+    // so the START world (body key "varied" hashes to circumference 6064 in every save) is eligible —
+    // at 8000 no player ever saw a continent without flying to a big planet first.
+    public const int ContinentMinCircumference = 6000;
 
     private readonly struct ContinentProfile
     {
@@ -1385,7 +1391,7 @@ public sealed class WorldGenerator
     // --- Natural arches & rock bridges (#706): two steep abutment pillars joined by a solid bar band —
     // the first freestanding overhang landform. Dry rocky worlds (the table-mountain gate). ---
     private const double ArchCellSize = 1900.0;
-    private const double ArchChance = 0.30;
+    private const double ArchChance = 0.45;        // visibility tuning 2026-08-03
     private const double ArchMargin = 60.0;
 
     private bool HasArches(PlanetType planet) => HasTableMountains(planet);
@@ -1463,7 +1469,7 @@ public sealed class WorldGenerator
 
     // --- Sea stacks (#706): pillars standing in the surf just off low coasts, some mushroom-capped. ---
     private const double SeaStackCellSize = 260.0;
-    private const double SeaStackChance = 0.12;
+    private const double SeaStackChance = 0.25;    // visibility tuning 2026-08-03
     private const double SeaStackMargin = 16.0;
 
     private bool HasSeaStacks(PlanetType planet)
@@ -1539,7 +1545,7 @@ public sealed class WorldGenerator
     // --- Hoodoos / fairy chimneys (#706): dense fields of thin spires balancing wider caprocks. ---
     private const double HoodooCellSize = 24.0;
     private const double HoodooChance = 0.5;
-    private const double HoodooRegionThreshold = 0.58;
+    private const double HoodooRegionThreshold = 0.55; // visibility tuning 2026-08-03: broader fields
 
     private bool HasHoodoos(PlanetType planet) => (planet.TerrainStyle?.ToLowerInvariant()) switch
     {
@@ -1621,9 +1627,9 @@ public sealed class WorldGenerator
 
     // --- Cenotes (#707): sudden circular shafts dropping 30–80 blocks from green ground straight into
     // the cave layer — with an overhanging ring lip, and a turquoise pool where the world is wet. ---
-    private const double CenoteCellSize = 1100.0;
-    private const double CenoteChance = 0.25;
-    private const double CenoteMaxRadius = 14.0;
+    private const double CenoteCellSize = 800.0;
+    private const double CenoteChance = 0.45;      // visibility tuning 2026-08-03
+    private const double CenoteMaxRadius = 20.0;   // …and bigger, so a shaft reads as a place, not a pothole
 
     private bool HasCenotes(PlanetType planet)
     {
@@ -1650,7 +1656,7 @@ public sealed class WorldGenerator
         }
 
         dist = System.Math.Sqrt(dx * dx + dz * dz);
-        radius = 6.0 + ((hash >> 16) & 0x7);   // 6..13
+        radius = 9.0 + ((hash >> 16) & 0x7) * 1.5;  // 9..19.5
         depth = 30.0 + ((hash >> 20) & 0x3F) * 0.8; // 30..80
         anchor = RawSurfaceHeight(planet, worldX - (int)System.Math.Round(dx), worldZ - (int)System.Math.Round(dz));
         return true;
@@ -1878,7 +1884,8 @@ public sealed class WorldGenerator
 
             // Skylight shaft (#709): sometimes the roof opens to the sky — a thin vertical worm from the
             // segment end up past the surface, so tunnels get real MOUTHS you can climb into.
-            if (Next() < 0.12 && n < spans.Length)
+            // (0.12 → 0.22, visibility tuning 2026-08-03: mouths are how players FIND the tunnels.)
+            if (Next() < 0.22 && n < spans.Length)
             {
                 AddSegmentSpan(qx, qy, qz, qx, planet.BaseHeight + 60.0, qz, 1.7, dx, dz, spans, ref n);
             }
