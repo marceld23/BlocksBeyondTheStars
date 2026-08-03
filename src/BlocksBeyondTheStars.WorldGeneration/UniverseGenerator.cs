@@ -333,9 +333,17 @@ public sealed class UniverseGenerator
                 SystemArchetype.PirateHaven => rng.Range(3, 5), // cover for ambushes
                 _ => 2 + (rng.NextDouble() < 0.5 ? 1 : 0), // Standard/Hub/Twin: 2 or 3, the legacy draw
             };
+            // Belt layout (#683, worlds created with AsteroidBelts): the system's asteroids share 1–2
+            // orbit annuli — a real belt — instead of scattering across the whole disc (which regularly
+            // parked them inside a planet's orbit lane). Geometry comes from its own Hash01 salts
+            // (the 8xx series belongs to belts), NEVER from rng, and the flag defaults off — so every
+            // pre-belt save keeps the legacy DiscPoint scatter byte-identically.
+            var beltRadii = _desc.AsteroidBelts ? BeltRadii(i, system, planets, asteroidCount) : null;
             for (int a = 0; a < asteroidCount; a++)
             {
-                var (ax, az) = DiscPoint(i, planets, 310 + a);
+                var (ax, az) = beltRadii is { Count: > 0 }
+                    ? BeltPoint(i, a, asteroidCount, beltRadii)
+                    : DiscPoint(i, planets, 310 + a);
                 system.Bodies.Add(new CelestialBody
                 {
                     Id = $"{system.Id}-a{a}",
@@ -484,6 +492,73 @@ public sealed class UniverseGenerator
         }
 
         start.RingSeed = 1 + (h & 0x7fffffff) % 999_999;
+    }
+
+    // Belt geometry (#683). Radial jitter is kept well under half an orbit step so a belt member can
+    // never wander into a neighbouring lane; the angular slots guarantee the flight view's pair gap
+    // by construction (the separation pass would otherwise shove a member radially OFF the belt).
+    private const float BeltRadialJitter = 120f;   // full jitter span (±60) around the belt radius
+    private const float MinInnerBeltGap = 620f;    // an inner belt needs this much room between two planet orbits
+
+    /// <summary>The system's 1–2 belt annulus radii (#683). The outer belt always exists, one orbit
+    /// step beyond the outermost planet (the main-belt/Kuiper-belt reading). Big systems (5+ planets,
+    /// enough asteroids for two rings) may roll a second, INNER belt — but only into a gap between two
+    /// adjacent planet orbits wide enough that a belt rock can never crowd a planet even when their
+    /// angles line up.</summary>
+    private List<float> BeltRadii(int systemIndex, StarSystem system, int planets, int asteroidCount)
+    {
+        var orbitRadii = new List<float>();
+        foreach (var b in system.Bodies)
+        {
+            if (b.Kind == CelestialKind.Planet)
+            {
+                orbitRadii.Add(System.MathF.Sqrt(b.SystemX * b.SystemX + b.SystemZ * b.SystemZ));
+            }
+        }
+
+        orbitRadii.Sort();
+        float outermost = orbitRadii.Count > 0 ? orbitRadii[orbitRadii.Count - 1] : BaseOrbit;
+        var radii = new List<float>
+        {
+            outermost + OrbitStep + (Hash01(systemIndex, 800, 1) - 0.5f) * BeltRadialJitter,
+        };
+
+        if (planets >= 5 && asteroidCount >= 4 && Hash01(systemIndex, 800, 2) < 0.5f)
+        {
+            float bestGap = 0f, bestMid = 0f;
+            for (int k = 1; k < orbitRadii.Count; k++)
+            {
+                float gap = orbitRadii[k] - orbitRadii[k - 1];
+                if (gap > bestGap)
+                {
+                    bestGap = gap;
+                    bestMid = (orbitRadii[k] + orbitRadii[k - 1]) * 0.5f;
+                }
+            }
+
+            if (bestGap >= MinInnerBeltGap)
+            {
+                radii.Add(bestMid);
+            }
+        }
+
+        return radii;
+    }
+
+    /// <summary>A seeded point on one of the system's belt annuli (#683). Members go round-robin over
+    /// the belts; within one belt they occupy evenly spaced angular slots with a small seeded wobble
+    /// (≤¼ slot), so even the densest belt keeps at least half a slot of arc between neighbours —
+    /// comfortably above the flight view's required clear gap at any belt radius.</summary>
+    private (float X, float Z) BeltPoint(int systemIndex, int asteroidIndex, int asteroidCount, List<float> radii)
+    {
+        int belt = asteroidIndex % radii.Count;
+        int slot = asteroidIndex / radii.Count;
+        int slots = (asteroidCount - belt + radii.Count - 1) / radii.Count; // members on THIS belt
+        float slotArc = Tau / System.Math.Max(1, slots);
+        float angle = Hash01(systemIndex, 810 + belt, 1) * Tau
+            + (slot + (Hash01(systemIndex, 820 + asteroidIndex, 1) - 0.5f) * 0.5f) * slotArc;
+        float radius = radii[belt] + (Hash01(systemIndex, 820 + asteroidIndex, 2) - 0.5f) * BeltRadialJitter;
+        return (radius * System.MathF.Cos(angle), radius * System.MathF.Sin(angle));
     }
 
     /// <summary>A seeded point on the system disc (out to roughly the outermost planet's orbit).</summary>

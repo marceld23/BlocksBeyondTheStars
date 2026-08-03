@@ -87,10 +87,12 @@ public sealed class SystemChartLayoutTests
     private static IEnumerable<(StarSystem System, CelestialBody Home)> RealSystems(int runs = 30)
     {
         var content = ContentLoader.LoadFromDirectory(ClientTestPaths.DataDir());
-        for (long run = 1; run <= runs * 2; run++)
+        for (long run = 1; run <= runs * 3; run++)
         {
-            long seed = run <= runs ? run : run - runs;
-            var desc = new WorldDescription { SystemVariance = run > runs }; // classic AND archetype-varied
+            long seed = ((run - 1) % runs) + 1;
+            // Classic, archetype-varied, and belt-layout (#683) sweeps: belt members share an orbit
+            // annulus, so they are the bodies most likely to stress the fit/ring invariants together.
+            var desc = new WorldDescription { SystemVariance = run > runs, AsteroidBelts = run > runs * 2 };
             foreach (var system in new UniverseGenerator(seed, desc, content).Generate().Systems)
             {
                 var home = system.Bodies.FirstOrDefault(b => b.Kind == CelestialKind.Planet);
@@ -169,9 +171,10 @@ public sealed class SystemChartLayoutTests
         // Centring on the star is what makes the orbit paths possible, and it is not free: where the
         // launch body sits INSIDE a far-flung asteroid's orbit, framing on the launch body is tighter
         // than framing on the star, so the chart zooms out. Measured worst case across real systems is
-        // ~1.72×, and the 12-unit minimum disc size keeps every marker legible through it. This bounds
-        // the cost so a future layout change can't quietly make the chart useless.
-        const float Budget = 2.0f;
+        // ~1.72× classic and ~2.01× with asteroid belts (#683 — the outer belt orbits one step beyond
+        // the outermost planet by design), and the 12-unit minimum disc size keeps every marker legible
+        // through it. This bounds the cost so a future layout change can't quietly make the chart useless.
+        const float Budget = 2.1f;
 
         float worst = 1f;
         string worstId = string.Empty;

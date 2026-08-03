@@ -9,6 +9,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -66,8 +67,73 @@ public sealed class SpaceCombatTests : IDisposable
 
             Assert.True(server.InSpace("Pilot"));
             var entities = server.SpaceEntitiesFor("Pilot");
-            Assert.Equal(3, entities.Count(e => e.Kind == CombatEntityKind.Asteroid));
+            // The classic trio hugs the launch point; any further rocks belong to the belt clusters
+            // parked at the system's asteroid bodies (#683 S2), well outside the local field.
+            Assert.Equal(3, entities.Count(e => e.Kind == CombatEntityKind.Asteroid
+                && (e.Position.X * e.Position.X) + (e.Position.Z * e.Position.Z) <= 60f * 60f));
             Assert.DoesNotContain(entities, e => e.Hostile);
+        }
+    }
+
+    [Fact]
+    public void EnterSpace_ParksMineableClustersAtTheSystemsAsteroidBodies()
+    {
+        // #683 S2: flying INTO the belt means flying through mineable rocks — every landable asteroid
+        // body in the resident system carries its own cluster at its flight-view position.
+        var server = NewServer("beltrocks", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.Off;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            var system = server.Galaxy.Systems.First(s => s.Bodies.Any(b => b.Id == server.ActiveLocationId));
+            var anchor = system.Bodies.First(b => b.Id == server.ActiveLocationId);
+            var fields = system.Bodies.Where(b => b.Kind == CelestialKind.AsteroidField).ToList();
+            Assert.NotEmpty(fields); // the home system always rolls asteroid bodies (never Desolate)
+
+            server.EnterSpace("Pilot");
+            var rocks = server.SpaceEntitiesFor("Pilot")
+                .Where(e => e.Kind == CombatEntityKind.Asteroid).ToList();
+
+            foreach (var f in fields)
+            {
+                float cx = (f.SystemX - anchor.SystemX) * SystemBodyLayout.FlightViewScale;
+                float cz = (f.SystemZ - anchor.SystemZ) * SystemBodyLayout.FlightViewScale;
+                int near = rocks.Count(r =>
+                {
+                    float dx = r.Position.X - cx, dz = r.Position.Z - cz;
+                    return (dx * dx) + (dz * dz) <= 40f * 40f;
+                });
+                Assert.True(near >= 4, $"{f.Id}: only {near} mineable rocks parked at the belt body");
+            }
+        }
+    }
+
+    [Fact]
+    public void EnterSpace_AtAnAsteroidBody_SpawnsADenseLocalField()
+    {
+        // #683 S1: launching FROM an asteroid means the ship starts inside the belt — the local field
+        // is dense (9 rocks) instead of the classic trio.
+        var server = NewServer("densefield", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.SpaceCombat = SpaceCombatMode.Off;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
+            var rock = server.Galaxy.AllBodies().First(b =>
+                b.Kind == CelestialKind.AsteroidField && !string.IsNullOrEmpty(b.PlanetType));
+            server.Travel("Pilot", rock.Id);
+            Assert.Equal(rock.Id, server.ActiveLocationId);
+
+            server.EnterSpace("Pilot");
+            int local = server.SpaceEntitiesFor("Pilot").Count(e => e.Kind == CombatEntityKind.Asteroid
+                && (e.Position.X * e.Position.X) + (e.Position.Z * e.Position.Z) <= 60f * 60f);
+            Assert.True(local >= 9, $"launching inside the belt should surround the ship with rocks, got {local}");
         }
     }
 
@@ -289,7 +355,10 @@ public sealed class SpaceCombatTests : IDisposable
             server.AddLocalPlayer("Pilot");
             server.EnterSpace("Pilot");
             return server.SpaceEntitiesFor("Pilot")
-                .Where(e => e.Kind == CombatEntityKind.Asteroid)
+                .Where(e => e.Kind == CombatEntityKind.Asteroid
+                    // Launch field only — the belt rock clusters (#683 S2) park at the system's other
+                    // asteroid bodies, far outside the local field this test pins.
+                    && (e.Position.X * e.Position.X) + (e.Position.Z * e.Position.Z) <= 60f * 60f)
                 .Select(e => (server.StructureBlockCountForTest(e.Id), server.StructureCellForTest(e.Id, 0, 0, 0)))
                 .ToList();
         }

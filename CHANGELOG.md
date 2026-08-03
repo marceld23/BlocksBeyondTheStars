@@ -13,6 +13,25 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ✨ Real asteroid belts (#683)
+
+- **Asteroids now orbit in belts** (new worlds): all of a system's landable asteroids share 1–2
+  orbit annuli — the outer belt just beyond the outermost planet, big systems sometimes a second
+  inner belt — instead of scattering randomly across planet orbits. Existing worlds keep their
+  layout untouched.
+- **Belts are worth flying to**: every asteroid body carries a cluster of ship-laser-mineable rocks
+  at its position, and launching *from* an asteroid surrounds you with a dense 9-rock field instead
+  of the usual three.
+- **The flight chart shows the belt as a belt**: one translucent band with its own label
+  ("Asteroid belt" / "Asteroidengürtel") instead of a smear of stacked orbit rings.
+
+### ✨ Planetary rings in more colours (#684)
+
+- Ring systems now roll a seeded **material family** — icy white stays the norm, but dusty tan,
+  rocky grey and a rare pale violet appear too — so two ringed planets under the same star no longer
+  wear the same colour. Applies everywhere a ring is drawn (orbit view, surface sky, horizon band),
+  including in existing worlds (same seed → same tilt and band pattern, just richer tints).
+
 ### ✨ Star systems & planets got real names (#678)
 
 - **Several system-name registries** instead of one pattern: coined proper names ("Tharion"),

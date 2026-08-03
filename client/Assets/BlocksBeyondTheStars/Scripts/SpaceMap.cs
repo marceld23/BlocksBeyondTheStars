@@ -38,6 +38,8 @@ namespace BlocksBeyondTheStars.Client
         private const float OrbitAlpha = 0.34f;   // faint enough to stay behind the markers it connects
         private const float MaxBodyDisc = 46f;    // body discs are clamped to this diameter, however big the body
         private const float MarkerPad = MaxBodyDisc * 0.5f + 8f; // chart room a rim body's disc + backing needs
+        private const float BeltGroupGap = 26f;   // flight units: asteroid orbit radii this close = one belt (#683)
+        private const float BeltBandPad = 8f;     // chart units the belt band extends past its outermost member
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
@@ -217,16 +219,62 @@ namespace BlocksBeyondTheStars.Client
                 Centered(_chart, Vector2.zero, new Vector2(24f, 24f), UiKit.DiscSprite, new Color(1f, 0.94f, 0.74f));
             }
 
+            // Asteroid belts (#683): belt members share (nearly) one orbit radius, so per-member rings
+            // would stack into a smeared blob. Group the star-orbiting asteroid bodies by projected
+            // orbit radius; three or more within a belt-tight spread read as ONE belt — drawn as a
+            // single translucent band with one localized label — and their own rings are suppressed.
+            // Legacy scattered systems rarely group and simply keep their per-body rings.
+            var beltMembers = new HashSet<string>();
+            if (starCentred && landables != null)
+            {
+                var fields = new List<(string Id, float R)>();
+                foreach (var b in landables)
+                {
+                    var fnb = BodyFor(b.Id);
+                    if (fnb != null && fnb.Kind == "AsteroidField" && string.IsNullOrEmpty(fnb.ParentId))
+                    {
+                        fields.Add((b.Id, new Vector2(b.Pos.x - _centre.x, b.Pos.z - _centre.z).magnitude));
+                    }
+                }
+
+                fields.Sort((a, c) => a.R.CompareTo(c.R));
+                int start = 0;
+                for (int k = 1; k <= fields.Count; k++)
+                {
+                    if (k < fields.Count && fields[k].R - fields[k - 1].R <= BeltGroupGap)
+                    {
+                        continue; // same annulus — keep extending the group
+                    }
+
+                    if (k - start >= 3)
+                    {
+                        float rMin = fields[start].R * _scale, rMax = fields[k - 1].R * _scale;
+                        float outer = rMax + BeltBandPad;
+                        var bandCol = new Color(0.78f, 0.72f, 0.6f, 0.12f);
+                        UiOrbitRing.Create(_chart, Vector2.zero, new Vector2(outer * 2f, outer * 2f),
+                            bandCol, rMax - rMin + BeltBandPad * 2f);
+                        Label(_chart, new Vector2(0f, outer + 12f), L("ui.map.belt"));
+                        for (int m = start; m < k; m++)
+                        {
+                            beltMembers.Add(fields[m].Id);
+                        }
+                    }
+
+                    start = k;
+                }
+            }
+
             // Orbit paths: one ring per body that circles the star — planets and the landable asteroid
             // bodies. Moons are deliberately left out: they are re-laddered onto clearance slots just
             // outside their parent's drawn radius, so their rings would collapse into the planet's disc
             // and turn the chart into noise. Each radius comes from the body's own projected position, so
             // the ring is guaranteed to pass through its marker whatever the layout passes did to it.
+            // Belt members are covered by their belt's band above instead of a ring each.
             if (starCentred && landables != null)
             {
                 foreach (var b in landables)
                 {
-                    if (!OrbitsStar(BodyFor(b.Id)))
+                    if (beltMembers.Contains(b.Id) || !OrbitsStar(BodyFor(b.Id)))
                     {
                         continue;
                     }

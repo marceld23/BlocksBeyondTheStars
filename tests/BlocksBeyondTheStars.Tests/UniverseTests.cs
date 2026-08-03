@@ -346,6 +346,93 @@ public sealed class UniverseTests : IDisposable
         Assert.Equal(0, moon.RingSeed);
     }
 
+    // --- Asteroid belts (#683) ---
+
+    private static WorldDescription BeltDesc(int systems = 120) => new()
+    {
+        StarSystemCount = systems,
+        SystemVariance = true,
+        AsteroidBelts = true,
+        PlanetsPerSystemMin = 2,
+        PlanetsPerSystemMax = 6,
+        SpaceStations = Frequency.Rare,
+    };
+
+    [Fact]
+    public void Belts_AsteroidsShareOneOrTwoAnnuli_ClearOfPlanetOrbits()
+    {
+        var galaxy = new UniverseGenerator(42, BeltDesc(), _content).Generate();
+        int beltSystems = 0, twoBeltSystems = 0;
+
+        foreach (var sys in galaxy.Systems)
+        {
+            var radii = sys.Bodies.Where(b => b.Kind == CelestialKind.AsteroidField)
+                .Select(b => MathF.Sqrt(b.SystemX * b.SystemX + b.SystemZ * b.SystemZ))
+                .OrderBy(r => r).ToList();
+            if (radii.Count == 0)
+            {
+                continue;
+            }
+
+            beltSystems++;
+
+            // Cluster the orbit radii: one belt's members span at most the full radial jitter (120),
+            // so a wider gap can only be the space between two DIFFERENT belts.
+            var belts = new List<List<float>> { new() { radii[0] } };
+            for (int k = 1; k < radii.Count; k++)
+            {
+                if (radii[k] - radii[k - 1] > 130f)
+                {
+                    belts.Add(new List<float>());
+                }
+
+                belts[^1].Add(radii[k]);
+            }
+
+            Assert.InRange(belts.Count, 1, 2);
+            Assert.All(belts, belt => Assert.True(belt[^1] - belt[0] <= 130f,
+                $"{sys.Id}: belt spans {belt[^1] - belt[0]} — wider than the jitter allows"));
+            if (belts.Count == 2)
+            {
+                twoBeltSystems++;
+            }
+
+            // The whole point (#683): no asteroid ever sits in a planet's orbit lane again.
+            var planetOrbits = sys.Bodies.Where(b => b.Kind == CelestialKind.Planet)
+                .Select(b => MathF.Sqrt(b.SystemX * b.SystemX + b.SystemZ * b.SystemZ)).ToList();
+            foreach (var r in radii)
+            {
+                foreach (var p in planetOrbits)
+                {
+                    Assert.True(System.Math.Abs(r - p) >= 200f,
+                        $"{sys.Id}: asteroid at orbit {r} crowds a planet orbit at {p}");
+                }
+            }
+        }
+
+        Assert.True(beltSystems >= 80, $"only {beltSystems} systems carry asteroids — sweep too thin");
+        Assert.True(twoBeltSystems >= 1, "no big system ever rolled a second belt across 120 systems");
+    }
+
+    [Fact]
+    public void Belts_LeavePlanetsAndMoonsExactlyWhereTheLegacyLayoutPutThem()
+    {
+        // The flag may only move ASTEROID bodies (and, transitively, the free-floating stations/wrecks
+        // that separate away from them). Planets and moons are placed before the asteroid pass and must
+        // stay byte-identical — they anchor already-visited worlds' sky and travel targets.
+        var flagOff = BeltDesc();
+        flagOff.AsteroidBelts = false;
+        var off = new UniverseGenerator(42, flagOff, _content).Generate();
+        var on = new UniverseGenerator(42, BeltDesc(), _content).Generate();
+
+        Assert.Equal(BodyKey(off), BodyKey(on)); // ids/kinds/types never depend on the flag
+
+        static IEnumerable<(string, float, float)> Anchored(Galaxy g) => g.AllBodies()
+            .Where(b => b.Kind is CelestialKind.Planet or CelestialKind.Moon)
+            .Select(b => (b.Id, b.SystemX, b.SystemZ));
+        Assert.Equal(Anchored(off), Anchored(on));
+    }
+
     // --- System archetype variance (#546/#549) ---
 
     private static WorldDescription VarianceDesc(int systems = 150) => new()

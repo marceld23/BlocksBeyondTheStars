@@ -311,6 +311,14 @@ separate unlock; admins can still disable it through server world rules.
 - Fly within local space instances; asteroids + NPC drones can damage hull/shield. Whether you can lose your
   ship is set by the world's **"Keep ship on death"** rule (see *Repairing your own ship* above).
 
+### Asteroid belts
+- In worlds created with belts (the default for new worlds), a system's landable asteroids orbit
+  together in **1–2 shared belts** — the flight chart (M) draws them as one translucent band with an
+  "Asteroid belt" label instead of separate orbit rings.
+- Belts are the place to mine with the ship laser: **every asteroid body has a cluster of mineable
+  rocks floating around it**, and launching from an asteroid you landed on puts you inside a dense
+  local rock field (nine rocks instead of the usual three near planets).
+
 ### Peaceful NPC trader ships
 - Space and busy systems feel alive with **civilian trader traffic**: merchant ships **warp in** at the system
   edge, **cruise** to a station to **dock**, or head into the inner system and **land on a planet/moon** if a

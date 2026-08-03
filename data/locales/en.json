@@ -661,6 +661,7 @@
   "ui.map.kind_station": "Space Station",
   "ui.map.kind_planet": "Planet",
   "ui.map.kind_moon": "Moon",
+  "ui.map.belt": "Asteroid belt",
   "ui.map.kind_asteroidfield": "Asteroid field",
   "ui.map.kind_wreck": "Wreck",
   "ui.map.status_notgenerated": "Uncharted",

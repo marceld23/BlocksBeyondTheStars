@@ -3785,8 +3785,10 @@ namespace BlocksBeyondTheStars.Client
         private float _landTargetSq;    // squared distance to the land target (for station-vs-body priority)
         private float _nearStationSq;   // squared distance to the near station
         private float _bounds = Bounds; // flight clamp, enlarged to span the resident system
-        private const float SystemViewScale = 0.16f; // system units → flight-view units (kept compact so
-                                                     // neighbouring planets are a short cruise apart, not minutes)
+        private const float SystemViewScale = SystemBodyLayout.FlightViewScale; // system units → flight-view units
+                                                     // (kept compact so neighbouring planets are a short cruise
+                                                     // apart, not minutes; shared — the server parks belt rock
+                                                     // clusters at the same transform, #683)
         private const float KeepOutMargin = 10f;     // how far outside a body's surface the ship is held
         private const float LandBand = 40f;          // land prompt shows within (body radius + margin + band)
 

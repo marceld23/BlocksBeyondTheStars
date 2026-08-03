@@ -171,6 +171,11 @@ public sealed class SpaceInstance
     /// <summary>Spreads successive respawned asteroids so they don't stack on one spot.</summary>
     public int AsteroidSpawnRotor { get; set; }
 
+    /// <summary>Rock count the LAUNCH-POINT field replenishes toward (#683 S1): the classic 3, or the
+    /// dense-field target when this instance is anchored at an asteroid body (the ship launched inside
+    /// the belt). Belt rock clusters parked at the OTHER asteroid bodies don't count toward it.</summary>
+    public int AsteroidFieldTarget { get; set; } = 3;
+
     /// <summary>Voxel structures floating in this instance (item 20). S1: each present player's own ship,
     /// keyed by player id, seeded from its ship-editor design. Later stages add stations + voxel asteroids.</summary>
     public Dictionary<string, SpaceStructure> Structures { get; } = new();
@@ -520,22 +525,33 @@ public sealed partial class GameServer
     {
         var instance = new SpaceInstance { Id = instanceId, Kind = "orbit" };
 
+        string anchorId = instanceId.StartsWith("space:") ? instanceId.Substring("space:".Length) : instanceId;
+        // A never-launched ship still carries its creation placeholder (the default planet TYPE, not a
+        // body id) as its location, so resolve the true start body through the save's active location
+        // when the instance key doesn't name a real body.
+        var anchor = _galaxy?.FindBody(anchorId) ?? _galaxy?.FindBody(_meta.ActiveLocationId);
+
         // Asteroids are always present as scenery + mining targets; breaking them is gated at fire
-        // time. They start large and split into smaller chunks when destroyed (§8.1).
-        int asteroids = 3;
+        // time. Launching from an asteroid body means the ship starts INSIDE the belt, so the local
+        // field is dense (#683 S1); anywhere else it stays the classic sparse trio.
+        int asteroids = anchor?.Kind == CelestialKind.AsteroidField ? DenseAsteroidFieldTarget : AsteroidFieldTarget;
+        instance.AsteroidFieldTarget = asteroids;
         for (int i = 0; i < asteroids; i++)
         {
             // B10: scatter them around the body (a golden-angle ring at varied radius/height) instead of a
             // tight line — but inside weapon range (asteroid_breaker reaches ~40) so they stay shootable.
+            // The dense field stacks extra layers in height rather than radius for the same reason.
             float ang = i * 2.39996f;
-            float rad = 18f + i * 8f; // 18 / 26 / 34
+            float rad = 18f + (i % 3) * 8f; // 18 / 26 / 34
             // item 20 S3: each asteroid is a voxel ore body (entity + structure) you can shoot AND EVA-mine.
             // #687: the ordinal seeds the family/size roll (0 = the pinned classic metallic rock).
             SpawnAsteroid(instance,
-                new Vector3f(rad * (float)System.Math.Cos(ang), (i - 1) * 9f, rad * (float)System.Math.Sin(ang)),
+                new Vector3f(rad * (float)System.Math.Cos(ang), ((i % 3) - 1) * 9f + (i / 3) * 14f, rad * (float)System.Math.Sin(ang)),
                 ordinal: i,
                 broadcast: false);
         }
+
+        AddBeltRockClusters(instance, anchor); // #683 S2: mineable rocks AT the system's asteroid bodies
 
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
@@ -546,9 +562,8 @@ public sealed partial class GameServer
         if (combatEnabled && !_storyState.GuardianDefeated)
         {
             // The finale system runs its own scripted ELITE gauntlet (P6 Stage 1) instead of the ambient
-            // hostiles — strip the "space:" prefix to recover the anchor body id for the system check.
-            string bodyId = instanceId.StartsWith("space:") ? instanceId.Substring("space:".Length) : instanceId;
-            if (IsGuardianSystemLocation(bodyId))
+            // hostiles — the anchor body id (the "space:" prefix already stripped above) keys the check.
+            if (IsGuardianSystemLocation(anchorId))
             {
                 SpawnGuardianGauntlet(instance);
             }
@@ -559,7 +574,11 @@ public sealed partial class GameServer
                 // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
                 // #547: the system archetype shades the ambient hostility — Desolate space is truly empty
                 // (no drones, no UFO), a Pirate Haven runs one extra drone when NPC enemies are on at all.
-                var archetype = SystemArchetypeOf(_galaxy.FindBody(bodyId)?.SystemId);
+                // Deliberately keyed on the RAW anchor id (not the resolved start-body fallback above):
+                // a never-launched ship carries its type placeholder here, which never resolves — so the
+                // first launch has always been shaded Standard, and changing that would silently raise
+                // the fresh-start difficulty in pirate-space starts.
+                var archetype = SystemArchetypeOf(_galaxy?.FindBody(anchorId)?.SystemId);
                 int drones = ActivityCount(Rules.SpaceNpcEnemies);
                 if (archetype == SystemArchetype.Desolate)
                 {
@@ -605,6 +624,59 @@ public sealed partial class GameServer
         }
 
         return instance;
+    }
+
+    private const int DenseAsteroidFieldTarget = 9;  // launch-field rocks when anchored at an asteroid (#683 S1)
+    private const int BeltClusterRocks = 4;          // mineable rocks parked at each other asteroid body (#683 S2)
+    private const int BeltClusterCap = 24;           // belt rocks per instance, total (broadcast/entity budget)
+    private const float BeltClusterMinRadius = 18f;  // just outside an asteroid body's keep-out shell
+
+    /// <summary>#683 S2: parks a small mineable rock cluster at the flight-view position of every OTHER
+    /// landable asteroid body in the resident system, so flying INTO the belt means flying through rocks
+    /// worth mining — not just past the sized, landable bodies. Positions replicate the client's layout
+    /// transform (star-map delta to the anchor × <see cref="SystemBodyLayout.FlightViewScale"/>); the
+    /// client's overlap-relax pass can nudge a BODY slightly off that spot in a legacy scattered layout,
+    /// but the cluster still reads as "the rocks around that asteroid". Deterministic per body id, so
+    /// re-entering the instance rebuilds the same field.</summary>
+    private void AddBeltRockClusters(SpaceInstance instance, CelestialBody? anchor)
+    {
+        if (anchor is null || _galaxy?.Systems.FirstOrDefault(s => s.Id == anchor.SystemId) is not { } system)
+        {
+            return;
+        }
+
+        int spawned = 0;
+        foreach (var b in system.Bodies)
+        {
+            if (b.Kind != CelestialKind.AsteroidField || b.Id == anchor.Id || spawned >= BeltClusterCap)
+            {
+                continue;
+            }
+
+            float cx = (b.SystemX - anchor.SystemX) * SystemBodyLayout.FlightViewScale;
+            float cz = (b.SystemZ - anchor.SystemZ) * SystemBodyLayout.FlightViewScale;
+            int h = 17;
+            foreach (char c in b.Id)
+            {
+                h = h * 31 + c;
+            }
+
+            for (int r = 0; r < BeltClusterRocks && spawned < BeltClusterCap; r++, spawned++)
+            {
+                float ang = ((h & 0xff) / 255f) * 6.2831853f + r * 2.39996f; // per-body phase + golden spread
+                float rad = BeltClusterMinRadius + ((h >> (r * 3 + 8)) & 15); // 18..33
+                SpawnAsteroid(instance,
+                    new Vector3f(
+                        cx + rad * (float)System.Math.Cos(ang),
+                        ((r % 3) - 1) * 10f,
+                        cz + rad * (float)System.Math.Sin(ang)),
+                    // #687 family/size roll: belt rocks use their own ordinal series (well past any
+                    // launch-field/respawn ordinal, never the pinned 0) — deterministic per entry
+                    // because bodies iterate in stable galaxy order.
+                    ordinal: 100 + spawned,
+                    broadcast: false);
+            }
+        }
     }
 
     /// <summary>P6 Stage 1 — the Guardian system's elite gauntlet: the hardest space wave in the game, ringed
@@ -1181,13 +1253,18 @@ public sealed partial class GameServer
 
     private const int AsteroidFieldTarget = 3;            // large-equivalent asteroids the field tends toward
     private const double AsteroidRespawnInterval = 120.0; // seconds between replenishing spawns (B9: slower respawn)
+    private const float LaunchFieldRange = 60f;           // rocks this close to the launch point ARE the local field
 
     /// <summary>Slowly refills a mined-out asteroid field back toward its target so it isn't barren for the
-    /// rest of the session (a fresh field is still generated on each space entry).</summary>
+    /// rest of the session (a fresh field is still generated on each space entry). Only the LAUNCH-POINT
+    /// field counts toward the target — the belt rock clusters parked at the system's other asteroid
+    /// bodies (#683 S2) sit far outside <see cref="LaunchFieldRange"/> and must not satisfy it, or the
+    /// local field would never replenish in a belt-rich system.</summary>
     private void RespawnAsteroids(SpaceInstance instance, double dt)
     {
-        int count = instance.Entities.Count(e => e.Kind == CombatEntityKind.Asteroid);
-        if (count >= AsteroidFieldTarget)
+        int count = instance.Entities.Count(e => e.Kind == CombatEntityKind.Asteroid
+            && e.Position.X * e.Position.X + e.Position.Z * e.Position.Z <= LaunchFieldRange * LaunchFieldRange);
+        if (count >= instance.AsteroidFieldTarget)
         {
             instance.AsteroidRespawnTimer = 0;
             return;
@@ -1207,8 +1284,9 @@ public sealed partial class GameServer
         float rrad = 22f + (r % 3) * 6f; // 22 / 28 / 34
         var pos = new Vector3f(rrad * (float)System.Math.Cos(rang), ((r % 5) - 2) * 8f, rrad * (float)System.Math.Sin(rang));
         // item 20 S3: voxel ore body (sends its mesh + state). #687: respawn ordinals continue past the
-        // initial batch (3 + rotor) so replenished rocks roll fresh families/sizes deterministically.
-        SpawnAsteroid(instance, pos, ordinal: 3 + r, broadcast: true);
+        // initial batch (field target + rotor — the launch field may be the dense 9, #683 S1) so
+        // replenished rocks roll fresh families/sizes deterministically.
+        SpawnAsteroid(instance, pos, ordinal: instance.AsteroidFieldTarget + r, broadcast: true);
     }
 
     private const double SpottedCalloutCooldown = 15.0; // s between "hostile spotted you" warnings per instance

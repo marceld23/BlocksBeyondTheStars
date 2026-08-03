@@ -16,6 +16,12 @@ namespace BlocksBeyondTheStars.Shared.World;
 /// </summary>
 public static class SystemBodyLayout
 {
+    /// <summary>System (star-map) units → flight-view units. The client renders the resident system at
+    /// this scale; the server uses the SAME constant when it parks mineable rock clusters at the
+    /// flight-view positions of the system's asteroid bodies (#683) — one number, or the two sides
+    /// disagree about where "at that asteroid" is.</summary>
+    public const float FlightViewScale = 0.16f;
+
     /// <summary>Smallest clear space between two bodies' surfaces, in flight-view units. Deliberately
     /// above the ship's keep-out margin (10) so there is always a gap the ship can fly through.</summary>
     public const float MinBodyGap = 14f;

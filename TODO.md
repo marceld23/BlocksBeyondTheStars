@@ -118,6 +118,32 @@ With #685's hardness parity the feel scales by material for free: ice pops in on
 titanium still wants the tier-2 drill. Hull tracking, laser carving and the client structure
 renderer were already size-agnostic — no client change.
 
+### ★ Asteroid belts: shared orbit annuli + mineable rock density; seeded ring-colour families (#683, #684, 2026-08-03, branch feat/asteroid-belts)
+Asteroids used to scatter uniformly over the whole system disc — regularly inside a planet's orbit
+lane — and the ship-laser rocks were the same trio next to EVERY launch body, so a "belt" had no
+mining pull. New worlds (flag `WorldDescription.AsteroidBelts`, default true on creation like
+`SystemVariance`; `--belts off` escape hatch) now put all landable asteroids of a system on 1–2
+shared orbit annuli: the outer belt one orbit step beyond the outermost planet, big systems (5+
+planets, 4+ asteroids) sometimes a second inner belt in a ≥620-unit orbit gap. Members sit on evenly
+spaced angular slots (Hash01 salt series 8xx, never the body rng — old saves regenerate
+byte-identically with the flag off) so the flight-view clear-gap guarantee holds by construction.
+Mining follows the geometry: every other asteroid body in the system carries a 4-rock mineable
+cluster at its flight-view position (server + client agree via the shared
+`SystemBodyLayout.FlightViewScale`; capped at 24), and launching FROM an asteroid spawns a dense
+9-rock local field (per-instance respawn target; only rocks within 60 units of the launch point
+count, or belt clusters would starve the replenish loop). The flight chart groups belt members into
+ONE translucent band with a localized label (`ui.map.belt`, DE "Asteroidengürtel") instead of N
+stacked orbit rings; legacy scattered worlds keep per-body rings. Star-centring zoom budget in
+`SystemChartLayoutTests` raised 2.0→2.1 (measured ~2.01× with the outer belt). Also #684: planetary
+ring COLOUR was near-constant ice-grey (±0.06 drift; the hue lerp target is the star, same for the
+whole system) — `PlanetRings.TintFor` now rolls a seeded material family per ring (ice white 55 %,
+dusty tan 20 %, rocky grey 15 %, pale violet 10 %), consistent across flight view, surface sky and
+horizon band, retroactive-safe (same RingSeed → same geometry). Gotcha found on the way: a
+never-launched ship's `CurrentLocationId` is the default planet TYPE ("varied"), not a body id — the
+space-instance anchor now falls back to `_meta.ActiveLocationId` for the asteroid logic, while the
+hostile-shading lookup deliberately keeps the legacy raw-id behaviour (fixing it would silently
+raise fresh-start difficulty in pirate-space starts).
+
 ### ★ EVA asteroid mining plays by the rules: drill tiers, hardness hits, no lost ore (#685, 2026-08-03, branch fix/eva-asteroid-mining-hardness)
 During a spacewalk any asteroid block popped with a SINGLE bare-hand click — no drill, no hardness,
 titanium included — while the same block on a planet takes a tier-2 drill and several timed hits. And

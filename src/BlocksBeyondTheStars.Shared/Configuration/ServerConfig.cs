@@ -86,11 +86,13 @@ public sealed class ServerConfig
     /// <summary>Authoritative world rules (mode, PvP, hazards, death penalty, cheats, ...).</summary>
     public GameRules Rules { get; set; } = new();
 
-    /// <summary>Universe description used when first creating the world. System variance (#546) is on
-    /// here — every NEWLY created world gets archetype-varied star systems — while the
-    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SystemVariance"/> property itself
-    /// defaults to false, so a loaded save whose metadata predates the feature stays byte-identical.</summary>
-    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true };
+    /// <summary>Universe description used when first creating the world. System variance (#546) and
+    /// asteroid belts (#683) are on here — every NEWLY created world gets archetype-varied star systems
+    /// whose asteroids share real belt annuli — while the
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SystemVariance"/> and
+    /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.AsteroidBelts"/> properties
+    /// default to false, so a loaded save whose metadata predates the features stays byte-identical.</summary>
+    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true, AsteroidBelts = true };
 
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
     public AiLevel AiLevel { get; set; } = AiLevel.Off;
@@ -581,6 +583,13 @@ public sealed class ServerConfig
                     if (bool.TryParse(value, out var sv)) { World.SystemVariance = sv; applied.Add("variance"); }
                     else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.SystemVariance = true; applied.Add("variance"); }
                     else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.SystemVariance = false; applied.Add("variance"); }
+                    break;
+                case "belts":
+                    // Asteroid-belt layout (#683). On for every new world by default; "off" restores the
+                    // classic scattered-asteroid disc (same escape-hatch role as "variance").
+                    if (bool.TryParse(value, out var ab)) { World.AsteroidBelts = ab; applied.Add("belts"); }
+                    else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.AsteroidBelts = true; applied.Add("belts"); }
+                    else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.AsteroidBelts = false; applied.Add("belts"); }
                     break;
                 case "danger":
                     // Global hostility multiplier (#547) — scales space-ambush odds + bandit-camp presence.

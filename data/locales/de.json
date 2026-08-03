@@ -662,6 +662,7 @@
   "ui.map.kind_station": "Raumstation",
   "ui.map.kind_planet": "Planet",
   "ui.map.kind_moon": "Mond",
+  "ui.map.belt": "Asteroidengürtel",
   "ui.map.kind_asteroidfield": "Asteroidenfeld",
   "ui.map.kind_wreck": "Wrack",
   "ui.map.status_notgenerated": "Unerforscht",

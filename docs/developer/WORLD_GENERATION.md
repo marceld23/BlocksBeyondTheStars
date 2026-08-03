@@ -68,6 +68,20 @@ The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World
   4000–16000 instead of 5000–12000). Bias 0 is bit-identical to the classic hash — that invariant
   protects every existing save's terrain. The client receives the bias via `NetBody.SizeBias` and
   must pass it to every `CircumferenceFor` call (orbit spheres, sky bodies, pad-map bakes).
+- **Asteroid belts (#683, worlds created with `WorldDescription.AsteroidBelts`):** the system's
+  landable asteroids share 1–2 **orbit annuli** instead of scattering across the whole disc (which
+  regularly parked them inside a planet's orbit lane). The outer belt always sits one orbit step
+  beyond the outermost planet; big systems (5+ planets, 4+ asteroids) may roll a second, inner belt
+  into a ≥620-unit gap between two planet orbits. Members occupy evenly spaced angular slots with a
+  small wobble (radial jitter ±60), so the flight view's clear-gap guarantee holds by construction.
+  Geometry uses the `Hash01` **8xx salt series** and never the body rng. Like `SystemVariance`, the
+  flag **defaults to false** (old saves keep the legacy `DiscPoint` scatter byte-identically) and to
+  **true** on `ServerConfig`'s creation-time description; `--belts off` is the escape hatch
+  (mirrors `--variance`). At runtime every asteroid body also carries a **mineable rock cluster** at its flight-view
+  position (server: `AddBeltRockClusters`, shared transform `SystemBodyLayout.FlightViewScale`),
+  and launching *from* an asteroid spawns a dense 9-rock local field instead of the classic trio.
+  The flight chart draws grouped members as one translucent belt band (`ui.map.belt`) instead of
+  stacked per-body orbit rings.
 
 A `CelestialBody` stores only Id, Name, `Kind` (Planet/Moon/AsteroidField/SpaceStation/Wreck), a
 **`PlanetType` key**, and orbit data. The body's *content* is generated only when a player enters it.

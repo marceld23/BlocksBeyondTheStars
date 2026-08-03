@@ -66,11 +66,13 @@ public sealed class SystemBodyLayoutTests
 
         // Replay classic worlds AND archetype-varied ones (#546): the lone giant's 8-moon ladder and the
         // size-biased bodies must keep the same clear-gap guarantee as the uniform layout.
-        // Runs 1..40 use the classic description, 41..80 re-run the same 40 seeds with variance on.
-        for (long run = 1; run <= 80; run++)
+        // Runs 1..40 use the classic description, 41..80 re-run the same 40 seeds with variance on, and
+        // 81..120 add asteroid belts (#683) on top — belt members share an orbit annulus, so they are
+        // exactly the pairs the angular-slot spacing must keep apart.
+        for (long run = 1; run <= 120; run++)
         {
-            long seed = run <= 40 ? run : run - 40;
-            var desc = new WorldDescription { SystemVariance = run > 40 };
+            long seed = ((run - 1) % 40) + 1;
+            var desc = new WorldDescription { SystemVariance = run > 40, AsteroidBelts = run > 80 };
             var galaxy = new UniverseGenerator(seed, desc, content).Generate();
             foreach (var system in galaxy.Systems)
             {

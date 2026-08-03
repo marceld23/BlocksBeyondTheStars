@@ -40,12 +40,21 @@ namespace BlocksBeyondTheStars.Client
             return (float)rng.NextDouble() * 360f;
         }
 
-        /// <summary>The ring's base colour: mostly pale ice-grey (real rings are water ice) pulled a
-        /// little toward the given body/star hue, with a small seeded warm/cool drift per planet.</summary>
+        /// <summary>The ring's base colour (#684): a seeded MATERIAL FAMILY per ring system — mostly
+        /// pale water-ice white (real rings are water ice, so it stays the norm), sometimes dusty tan
+        /// or bare rocky grey, rarely a pale exotic violet — pulled a little toward the given body/star
+        /// hue, with a small seeded warm/cool drift on top. Before the families every ring in a system
+        /// wore virtually the same ice-grey (the drift alone is ±0.06); now two ringed planets under
+        /// the same star read as different ring systems. Same RingSeed → same family in every view
+        /// (flight orbit, surface sky, horizon band).</summary>
         public static Color TintFor(int ringSeed, Color bodyHue)
         {
             var rng = new System.Random(ringSeed * 17 + 3);
-            var pale = new Color(0.93f, 0.90f, 0.85f);
+            double family = rng.NextDouble();
+            var pale = family < 0.55 ? new Color(0.93f, 0.90f, 0.85f)  // water ice — the common look
+                : family < 0.75 ? new Color(0.86f, 0.73f, 0.55f)       // dusty tan
+                : family < 0.90 ? new Color(0.70f, 0.71f, 0.74f)       // bare rocky grey
+                : new Color(0.82f, 0.73f, 0.93f);                      // rare pale violet
             var c = Color.Lerp(pale, bodyHue, 0.28f);
             float drift = ((float)rng.NextDouble() - 0.5f) * 0.12f;
             return new Color(Mathf.Clamp01(c.r + drift), Mathf.Clamp01(c.g), Mathf.Clamp01(c.b - drift));

@@ -120,6 +120,14 @@ public sealed class WorldDescription
     /// default description carries true; a loaded save keeps whatever its metadata stored).</summary>
     public bool SystemVariance { get; set; }
 
+    /// <summary>Asteroid-belt layout (#683): when true, a system's landable asteroids share 1–2 orbit
+    /// annuli (real BELTS — big systems may roll a second, inner one) instead of scattering across the
+    /// whole disc. MUST default to false for the same reason as <see cref="SystemVariance"/>: the galaxy
+    /// is re-derived from the seed on every start, so flipping this on an existing save would move the
+    /// asteroid bodies players have visited or set waypoints to. New worlds switch it on at creation
+    /// (ServerConfig's default description carries true; a loaded save keeps whatever it stored).</summary>
+    public bool AsteroidBelts { get; set; }
+
     // --- World options (creation-time; baked into the save's metadata — they shape worldgen) ---
 
     /// <summary>Flora/tree density factor applied on top of each world's seeded variation.</summary>
