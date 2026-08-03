@@ -488,6 +488,7 @@ public sealed class GameContent
             RequireBlock($"Planet '{planet.Key}' surface", planet.SurfaceBlock);
             RequireBlock($"Planet '{planet.Key}' sub-surface", planet.SubSurfaceBlock);
             RequireBlock($"Planet '{planet.Key}' deep", planet.DeepBlock);
+            RequireBlock($"Planet '{planet.Key}' beach", planet.BeachBlock);
             foreach (var biome in planet.Biomes)
             {
                 RequireBlock($"Planet '{planet.Key}' biome surface", biome.SurfaceBlock);

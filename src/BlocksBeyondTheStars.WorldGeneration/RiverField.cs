@@ -44,10 +44,14 @@ public sealed class RiverField
     }
 
     private readonly Dictionary<(int X, int Z), RiverColumn> _cols;
+    private readonly Dictionary<(int X, int Z), int> _lakeShore;
     private readonly int _circumference;
 
     public int ColumnCount => _cols.Count;
     public int WaterfallColumnCount { get; }
+
+    /// <summary>Dry columns ringing a LARGE lake's pooled water (inspection / tests).</summary>
+    public int LakeShoreColumnCount => _lakeShore.Count;
 
     /// <summary>The fluid this field fills its channels with — water on watery worlds, lava on volcanic ones.
     /// Generate reads it so one routing path serves both (L2). Air on an empty field.</summary>
@@ -56,17 +60,26 @@ public sealed class RiverField
     /// <summary>All stamped columns (inspection / tests).</summary>
     public IReadOnlyCollection<RiverColumn> Columns => _cols.Values;
 
-    private RiverField(Dictionary<(int, int), RiverColumn> cols, int circumference, int waterfalls, BlockId fillFluid)
+    private RiverField(Dictionary<(int, int), RiverColumn> cols, Dictionary<(int, int), int> lakeShore,
+        int circumference, int waterfalls, BlockId fillFluid)
     {
-        _cols = cols; _circumference = circumference; WaterfallColumnCount = waterfalls; FillFluid = fillFluid;
+        _cols = cols; _lakeShore = lakeShore; _circumference = circumference;
+        WaterfallColumnCount = waterfalls; FillFluid = fillFluid;
     }
 
     /// <summary>An empty field (dry / no-river worlds) — every lookup misses.</summary>
-    public static RiverField Empty(int circumference) => new(new Dictionary<(int, int), RiverColumn>(), circumference, 0, default);
+    public static RiverField Empty(int circumference)
+        => new(new Dictionary<(int, int), RiverColumn>(), new Dictionary<(int, int), int>(), circumference, 0, default);
 
     /// <summary>O(1) lookup: is (worldX, worldZ) a river column, and with what surface/bed/waterfall? Wraps X.</summary>
     public bool TryGet(int worldX, int worldZ, out RiverColumn col)
         => _cols.TryGetValue((WorldConstants.WrapX(worldX, _circumference), WorldConstants.WrapZ(worldZ, _circumference)), out col);
+
+    /// <summary>O(1) lookup: is (worldX, worldZ) a dry column on the shore ring of a LARGE lake — a pooled
+    /// reach whose lake gathered at least the build's minimum of visible water columns? Returns the lake's
+    /// flat water level so the caller can band-test a beach against it (#679). Wraps X/Z like TryGet.</summary>
+    public bool TryGetLakeShore(int worldX, int worldZ, out int waterLevel)
+        => _lakeShore.TryGetValue((WorldConstants.WrapX(worldX, _circumference), WorldConstants.WrapZ(worldZ, _circumference)), out waterLevel);
 
     public static RiverField Build(
         RiverNetwork net,
@@ -78,9 +91,14 @@ public sealed class RiverField
         int fullWidthAccum = 8,
         int waterfallMinDrop = 4,
         int maxLakeDepth = 6,
-        int estuaryWiden = 3)
+        int estuaryWiden = 3,
+        int lakeShoreWidth = 3,
+        int minLakeShoreColumns = 64)
     {
         var cols = new Dictionary<(int, int), RiverColumn>();
+        // Pooled (flat-lake) columns and the coarse cell that set their level — the lake-shore pass below
+        // rings these with dry shore markers (#679). Keyed like `cols` so the two lookups agree.
+        var pooledCols = new Dictionary<(int X, int Z), int>();
         int period = net.LatitudePeriod;
         int cell = net.CellSize;
         int gridW = net.GridW, gridH = net.GridH;
@@ -175,9 +193,10 @@ public sealed class RiverField
 
                 int cellIdx = CellOf(wx, wz);
                 int poolDepth = net.FilledLevel[cellIdx] - net.Height[cellIdx];
+                bool pooled = poolDepth > 0 && poolDepth <= maxLakeDepth;
 
                 int surface, bed;
-                if (poolDepth > 0 && poolDepth <= maxLakeDepth)
+                if (pooled)
                 {
                     surface = net.FilledLevel[cellIdx]; // flat pool surface
                     bed = net.Height[cellIdx] - 1;
@@ -203,10 +222,139 @@ public sealed class RiverField
                     int sx = axis == 0 ? wx : wx + o;
                     int sz = axis == 0 ? wz + o : wz;
                     Stamp(sx, sz, surface, bed, o == 0 ? waterfallDrop : 0, axis);
+                    if (pooled)
+                    {
+                        pooledCols[(WorldConstants.WrapX(sx, circumference), WorldConstants.WrapZ(sz, circumference))] = cellIdx;
+                    }
                 }
             }
         }
 
-        return new RiverField(cols, circumference, waterfalls, fillFluid);
+        var lakeShore = BuildLakeShores(net, height, circumference, cols, pooledCols, lakeShoreWidth, minLakeShoreColumns);
+        return new RiverField(cols, lakeShore, circumference, waterfalls, fillFluid);
+    }
+
+    /// <summary>
+    /// Lake shores (#679): labels each pooled reach's lake — connected coarse cells sharing one filled
+    /// level (one basin fills to one spill level, so equality + adjacency IS the basin) — and, for lakes
+    /// whose visible pooled water gathered at least <paramref name="minLakeShoreColumns"/> columns, rings
+    /// the water with dry shore markers wherever the terrain sits just above the pool.
+    /// <see cref="WorldGenerator"/> turns those into beach columns; small pools and plain flowing reaches
+    /// get none. Only the lake's EDGE columns pay the terrain lookups, so the pass costs ~perimeter.
+    /// </summary>
+    private static Dictionary<(int, int), int> BuildLakeShores(
+        RiverNetwork net,
+        System.Func<int, int, int> height,
+        int circumference,
+        Dictionary<(int, int), RiverColumn> cols,
+        Dictionary<(int X, int Z), int> pooledCols,
+        int lakeShoreWidth,
+        int minLakeShoreColumns)
+    {
+        var lakeShore = new Dictionary<(int, int), int>();
+        if (lakeShoreWidth <= 0 || pooledCols.Count == 0)
+        {
+            return lakeShore;
+        }
+
+        int gridW = net.GridW, gridH = net.GridH;
+        var ndx = new[] { 1, -1, 0, 0 };
+        var ndz = new[] { 0, 0, 1, -1 };
+
+        // Flood-label the lake component containing `start` (memoized), returning its root cell.
+        var root = new Dictionary<int, int>();
+        int RootOf(int start)
+        {
+            if (root.TryGetValue(start, out int known))
+            {
+                return known;
+            }
+
+            int level = net.FilledLevel[start];
+            var comp = new List<int>();
+            var queue = new Queue<int>();
+            var seen = new HashSet<int> { start };
+            queue.Enqueue(start);
+            while (queue.Count > 0)
+            {
+                int c = queue.Dequeue();
+                comp.Add(c);
+                int gx = c % gridW, gz = c / gridW;
+                for (int n = 0; n < 4; n++)
+                {
+                    int nx = (gx + ndx[n] + gridW) % gridW;
+                    int nz = (gz + ndz[n] + gridH) % gridH;
+                    int nc = nz * gridW + nx;
+                    if (!seen.Contains(nc) && net.FilledLevel[nc] > net.Height[nc] && net.FilledLevel[nc] == level)
+                    {
+                        seen.Add(nc);
+                        queue.Enqueue(nc);
+                    }
+                }
+            }
+
+            foreach (int c in comp)
+            {
+                root[c] = start;
+            }
+
+            return start;
+        }
+
+        // Visible size per lake = how many pooled water columns the strokes actually stamped for it —
+        // the basin's cell count would overstate lakes the channels barely touch.
+        var visibleColumns = new Dictionary<int, int>();
+        foreach (var kv in pooledCols)
+        {
+            int r = RootOf(kv.Value);
+            visibleColumns[r] = visibleColumns.TryGetValue(r, out int n) ? n + 1 : 1;
+        }
+
+        foreach (var kv in pooledCols)
+        {
+            if (visibleColumns[RootOf(kv.Value)] < minLakeShoreColumns)
+            {
+                continue; // small pool — no beach ring
+            }
+
+            var (px, pz) = kv.Key;
+            bool edge = !cols.ContainsKey((WorldConstants.WrapX(px + 1, circumference), pz))
+                || !cols.ContainsKey((WorldConstants.WrapX(px - 1, circumference), pz))
+                || !cols.ContainsKey((px, WorldConstants.WrapZ(pz + 1, circumference)))
+                || !cols.ContainsKey((px, WorldConstants.WrapZ(pz - 1, circumference)));
+            if (!edge)
+            {
+                continue; // interior water — only the lake's rim rings shore markers
+            }
+
+            int lakeLevel = net.FilledLevel[kv.Value];
+            for (int dx = -lakeShoreWidth; dx <= lakeShoreWidth; dx++)
+                for (int dz = -lakeShoreWidth; dz <= lakeShoreWidth; dz++)
+                {
+                    if (dx == 0 && dz == 0)
+                    {
+                        continue;
+                    }
+
+                    var target = (WorldConstants.WrapX(px + dx, circumference), WorldConstants.WrapZ(pz + dz, circumference));
+                    if (cols.ContainsKey(target))
+                    {
+                        continue; // water column, not shore
+                    }
+
+                    if (lakeShore.TryGetValue(target, out int prev) && prev <= lakeLevel)
+                    {
+                        continue; // already marked against an equal/lower pool — keep the lower waterline
+                    }
+
+                    int terrain = height(px + dx, pz + dz);
+                    if (terrain >= lakeLevel && terrain <= lakeLevel + 3)
+                    {
+                        lakeShore[target] = lakeLevel;
+                    }
+                }
+        }
+
+        return lakeShore;
     }
 }

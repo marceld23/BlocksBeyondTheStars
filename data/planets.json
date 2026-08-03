@@ -330,7 +330,7 @@
   {
     "key": "salt_flats", "floraTheme": "desert", "exotic": true, "baseTemperature": 40, "nameKey": "planet.salt_flats.name", "atmosphereHeight": 200, "cloudColor": 15263962, "cloudDensity": 0.2,
     "baseHeight": 60, "amplitude": 4, "terrainScale": 70.0, "terrainStyle": "flats",
-    "surfaceBlock": "salt", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,
+    "surfaceBlock": "salt", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4, "beachBlock": "salt",
     "caveThreshold": 0.82, "dataCacheRarity": 0.0012,
     "weather": "clear", "stormChance": 0.1, "dayLengthSeconds": 660, "worldRadius": 900, "floraDensity": 0.02, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 6, "waterAbundance": 0.0,
     "biomes": [

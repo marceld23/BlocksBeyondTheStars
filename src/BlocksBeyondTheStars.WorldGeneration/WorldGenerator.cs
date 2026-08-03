@@ -1317,8 +1317,15 @@ public sealed class WorldGenerator
     /// level. Deterministic — pure noise. The caller fills the carved bowl with water up to the original
     /// surface, so a pond reads as a swimmable pool flush with the surrounding terrain (B7).</summary>
     private int PondDepthAt(PlanetType planet, long seed, int worldX, int worldZ, double threshold)
+        => PondDepthFromMask(planet, seed, worldX, worldZ, threshold, PondMaskAt(planet, seed, worldX, worldZ));
+
+    /// <summary>The raw pond placement mask at a column — split out so Generate can compute it once per
+    /// column and share it between the pond carve and the beach rim test (#679).</summary>
+    private double PondMaskAt(PlanetType planet, long seed, int worldX, int worldZ)
+        => FbmT(seed + 0x7A11, worldX, worldZ, planet.TerrainScale * 4.0, octaves: 3);
+
+    private int PondDepthFromMask(PlanetType planet, long seed, int worldX, int worldZ, double threshold, double mask)
     {
-        double mask = FbmT(seed + 0x7A11, worldX, worldZ, planet.TerrainScale * 4.0, octaves: 3);
         double strength = (mask - threshold) / PondBand;
         if (strength <= 0.0)
         {
@@ -1340,6 +1347,148 @@ public sealed class WorldGenerator
 
         return (int)System.Math.Round(System.Math.Min(1.0, strength) * PondMaxDepth);
     }
+
+    // --- Beaches (#679): sand along the waterline of the sea and of LARGE lakes/ponds ---
+    private const int BeachApronDepth = 3;      // submerged shore: seabed this close under the sea line reads sandy
+    private const int BeachMaxRise = 3;         // tallest dry beach strip above a waterline (per-column jitter 1..3)
+    private const int BeachLargePondDepth = 3;  // a pond earns a beach rim only where its bowl gets this deep nearby
+    private static readonly int[] BeachProbeRadii = { 4, 8, 12 };
+    private static readonly int[] BeachDirX = { 1, -1, 0, 0, 1, 1, -1, -1 };
+    private static readonly int[] BeachDirZ = { 0, 0, 1, -1, 1, -1, 1, -1 };
+
+    /// <summary>Coast-character mask (#679): long stretches of coast alternate between beach and bare
+    /// (rocky/cliff) shore, so sand doesn't ring every waterline uniformly (~55–60 % of coast is beach).</summary>
+    private bool CoastMaskAt(PlanetType planet, long seed, int worldX, int worldZ)
+        => FbmT(seed + 0xBEAC50, worldX, worldZ, planet.TerrainScale * 3.0, octaves: 2) > 0.46;
+
+    /// <summary>How high above its waterline this column's dry beach strip may reach (1..3) — jittered by
+    /// a small noise so the sand edge wanders instead of following a contour line.</summary>
+    private int BeachRiseAt(long seed, int worldX, int worldZ)
+        => 1 + (int)(System.Math.Clamp(FbmT(seed + 0xBEAC51, worldX, worldZ, 13.0, octaves: 1), 0.0, 0.999) * BeachMaxRise);
+
+    /// <summary>True when actual sea water lies within the probe ring of this column — the guard that keeps
+    /// inland lowland at coastal ALTITUDE from sand-coating (#679). Early-outs on the first hit, and a real
+    /// shore answers on the innermost ring, so the full 24 samples are only paid by the (rare) rejects.</summary>
+    private bool SeaWithinBeachProbe(PlanetType planet, int worldX, int worldZ, int seaLevel)
+    {
+        for (int r = 0; r < BeachProbeRadii.Length; r++)
+            for (int d = 0; d < 8; d++)
+            {
+                int radius = BeachProbeRadii[r];
+                if (SurfaceHeight(planet, worldX + BeachDirX[d] * radius, worldZ + BeachDirZ[d] * radius) < seaLevel)
+                {
+                    return true;
+                }
+            }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Dry-beach test (#679) for a column KNOWN to hold no water itself (no sea/pond/river/crater — the
+    /// caller guarantees it). Three shorelines qualify, checked in rising cost order behind cheap band
+    /// gates: the sea coast (band above the sea line + real-water probe), a large lake's shore ring
+    /// (pre-marked by <see cref="RiverField"/>), and a large pond's rim (mask edge + depth probe). All of
+    /// it is masked by <see cref="CoastMaskAt"/> and a jittered rise so the sand edge varies. Pure function
+    /// of (seed, x, z) — Generate, tree stamping, tests and the client can never disagree.
+    /// </summary>
+    private bool DryBeachAt(PlanetType planet, WorldCalibration calib, long seed, RiverField riverField,
+        BlockId waterId, int worldX, int worldZ, int surfaceY, double? pondMask = null)
+    {
+        if (waterId.IsAir)
+        {
+            return false;
+        }
+
+        bool seaIsWater = calib.SeaLevel != int.MinValue && calib.SeaFluid == waterId;
+        bool riversAreWater = riverField.FillFluid == waterId;
+        if (!seaIsWater && !riversAreWater)
+        {
+            return false; // no water shoreline anywhere on this world (dry, airless or lava-sea)
+        }
+
+        // Cheap candidacy gates first — the mask FBM and the probes only run on waterline-band columns.
+        bool? coast = null;
+        bool Coast() => coast ??= CoastMaskAt(planet, seed, worldX, worldZ);
+
+        if (seaIsWater && surfaceY >= calib.SeaLevel && surfaceY - calib.SeaLevel <= BeachMaxRise
+            && Coast()
+            && surfaceY - calib.SeaLevel <= BeachRiseAt(seed, worldX, worldZ)
+            && SeaWithinBeachProbe(planet, worldX, worldZ, calib.SeaLevel))
+        {
+            return true;
+        }
+
+        if (riversAreWater && riverField.TryGetLakeShore(worldX, worldZ, out int lakeLevel)
+            && surfaceY >= lakeLevel && surfaceY - lakeLevel <= BeachMaxRise
+            && Coast()
+            && surfaceY - lakeLevel <= BeachRiseAt(seed, worldX, worldZ))
+        {
+            return true;
+        }
+
+        // Large-pond rim: just OUTSIDE the pond mask's waterline (depth 0 there), confirmed against a
+        // nearby bowl that actually reaches lake depth — depth tracks the mask's excess, so only the big
+        // ponds qualify and puddles get no rim. Ponds share the sea's water gate (they never form otherwise).
+        if (!seaIsWater)
+        {
+            return false;
+        }
+
+        double pondAbundance = planet.WaterAbundance
+            ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
+        if (!(pondAbundance > 0.15))
+        {
+            return false;
+        }
+
+        double pondThreshold = 0.70 - pondAbundance * 0.12;
+        double mask = pondMask ?? PondMaskAt(planet, seed, worldX, worldZ);
+        if (mask <= pondThreshold - PondBand || mask > pondThreshold || !Coast())
+        {
+            return false;
+        }
+
+        for (int r = 0; r < BeachProbeRadii.Length; r++)
+            for (int d = 0; d < 8; d++)
+            {
+                int radius = BeachProbeRadii[r];
+                if (PondDepthAt(planet, seed, worldX + BeachDirX[d] * radius, worldZ + BeachDirZ[d] * radius,
+                        pondThreshold) >= BeachLargePondDepth)
+                {
+                    return true;
+                }
+            }
+
+        return false;
+    }
+
+    /// <summary>True when this dry surface column is a beach (#679): the shoreline band of the sea or of a
+    /// large lake/pond, on a beach-masked stretch of coast. Water columns (sea/pond/river/crater) are never
+    /// "beach" — the submerged sandy apron is Generate's detail, not part of this query. Deterministic;
+    /// shared by Generate, tree stamping and tests so they can never disagree about the painted ground.</summary>
+    public bool IsBeachColumn(PlanetType planet, int worldX, int worldZ)
+    {
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        var calib = CalibFor(planet);
+        if (calib.SeaLevel != int.MinValue && surfaceY < calib.SeaLevel)
+        {
+            return false; // submerged under the sea
+        }
+
+        if (SurfacePondDepth(planet, worldX, worldZ) > 0 || SurfaceRiverDepth(planet, worldX, worldZ) > 0
+            || TryGetVolcanoCrater(planet, worldX, worldZ, out _))
+        {
+            return false; // a water column is never the beach
+        }
+
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        return DryBeachAt(planet, calib, PlanetSeed(planet), RiverFieldFor(planet), waterId, worldX, worldZ, surfaceY);
+    }
+
+    /// <summary>This planet's beach surface block (#679): <see cref="PlanetType.BeachBlock"/>, sand by default.</summary>
+    private BlockId BeachBlockFor(PlanetType planet)
+        => ResolveBlock(string.IsNullOrWhiteSpace(planet.BeachBlock) ? "sand" : planet.BeachBlock);
 
     // --- Routed rivers (Phase 1): per-world memoized network + block-resolution placement field ---
     // A river is no longer a height-blind noise band. RiverNetwork traces every river downhill (steepest
@@ -1752,6 +1901,12 @@ public sealed class WorldGenerator
         // O(1) lookup per column below. Replaces the old height-blind noise band + flat-ground gate.
         var riverField = RiverFieldFor(planet);
 
+        // Beaches (#679): along a WATER shoreline (the sea, a large lake or a large pond) the ground turns
+        // to the planet's beach block — lava seas keep their volcanic coasts, dry/airless worlds none.
+        var beachId = BeachBlockFor(planet);
+        bool beachPossible = !beachId.IsAir && !seaWaterId.IsAir
+            && ((fluidId == seaWaterId && fluidLevel != int.MinValue) || riverField.FillFluid == seaWaterId);
+
         var origin = WorldConstants.ChunkOrigin(coord);
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
@@ -1768,9 +1923,11 @@ public sealed class WorldGenerator
                 int waterTop = fluidLevel;
                 var columnFluid = fluidId;
                 bool pondHere = false;
+                double? pondMask = null; // computed at most once per column; shared with the beach rim test (#679)
                 if (ponds && surfaceY > fluidLevel)
                 {
-                    int pondDepth = PondDepthAt(planet, seed, worldX, worldZ, pondThreshold);
+                    pondMask = PondMaskAt(planet, seed, worldX, worldZ);
+                    int pondDepth = PondDepthFromMask(planet, seed, worldX, worldZ, pondThreshold, pondMask.Value);
                     if (pondDepth > 0)
                     {
                         seabedY = surfaceY - pondDepth;
@@ -1800,8 +1957,10 @@ public sealed class WorldGenerator
                 // thin sheet on a flowing reach (no floating wall), the pooled level inside a capped lake, and at
                 // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond,
                 // a volcano crater or the global sea already claims the column. The river bed is carved to BedY.
+                bool riverHere = false;
                 if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
                 {
+                    riverHere = true;
                     seabedY = river.BedY;
                     waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
                     columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
@@ -1821,6 +1980,31 @@ public sealed class WorldGenerator
                 var biome = biomes[biomeIndex];
                 var surfaceId = biome.Surface;
                 var subSurfaceId = biome.Sub;
+
+                // Beaches (#679): near a water shoreline the ground turns to the beach block — surface AND
+                // sub-surface, so the varied topsoil depth yields a real sand layer, and the shallow seabed
+                // apron continues the beach under water. The coast mask alternates beach and bare shore;
+                // the snow pass below still dusts cold coasts, and volcano basalt still wins near a cone.
+                bool beachHere = false;
+                if (beachPossible)
+                {
+                    if (surfaceY < fluidLevel && fluidId == seaWaterId)
+                    {
+                        beachHere = fluidLevel - surfaceY <= BeachApronDepth
+                            && CoastMaskAt(planet, seed, worldX, worldZ);
+                    }
+                    else if (!pondHere && !craterHere && !riverHere)
+                    {
+                        beachHere = DryBeachAt(planet, calib, seed, riverField, seaWaterId,
+                            worldX, worldZ, surfaceY, pondMask);
+                    }
+
+                    if (beachHere)
+                    {
+                        surfaceId = beachId;
+                        subSurfaceId = beachId;
+                    }
+                }
 
                 // Altitude climate (#476): above the snow line the ground gets a snow cover, further up solid
                 // ice. Dithered (±1.5 °C noise) so the line wanders naturally instead of cutting a contour.
@@ -1961,7 +2145,10 @@ public sealed class WorldGenerator
                 // aquatic flora instead (kelp + lily pads); land plants don't grow underwater.
                 if (flora && seabedY + 1 > waterTop)
                 {
-                    var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ);
+                    // On a beach the painted ground is the beach block, not the biome surface — grow that
+                    // host's flora (sparse sand tufts), never grass plants standing in sand (#679).
+                    var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ,
+                        beachHere ? surfaceId : (BlockId?)null);
                     int fy = seabedY + 1;
                     int fly = fy - origin.Y;
                     // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
@@ -1970,6 +2157,10 @@ public sealed class WorldGenerator
                     // The cold factor (#476) thins growth toward the snow line and stops it at the ice.
                     double localFloraDensity = LocalFloraDensity(planet, biome, floraDensity, seed, worldX, worldZ)
                         * ColdFloraFactor(calib, surfaceY);
+                    if (beachHere)
+                    {
+                        localFloraDensity *= 0.35; // beaches read best mostly bare
+                    }
                     if (!floraId.IsAir && fly >= 0 && fly < WorldConstants.ChunkSize
                         && Noise.Value01(seed + 9001, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < localFloraDensity)
                     {
@@ -2245,6 +2436,12 @@ public sealed class WorldGenerator
                     continue; // not in water
                 }
 
+                if (DryBeachAt(planet, calib, seed, RiverFieldFor(planet),
+                        _content.GetBlock("water")?.NumericId ?? BlockId.Air, wx, wz, sy))
+                {
+                    continue; // #679: the painted ground here is beach sand — no giant fungi on the beach
+                }
+
                 // Per-mushroom size (loosely-coupled stem height + cap): a shared bell factor with independent
                 // jitter on each, so a fungal grove reads as a mix of small and towering capped fungi.
                 double sizeF = SizeFactor(seed + 0x53410, wx, wz, 0.30);  // overall size, ±30% (bell)
@@ -2323,6 +2520,8 @@ public sealed class WorldGenerator
         }
 
         var calib = CalibFor(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        var riverField = RiverFieldFor(planet); // cached — needed for the beach ground check (#679)
         for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
             for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
             {
@@ -2353,14 +2552,6 @@ public sealed class WorldGenerator
                     continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
                 }
 
-                var surf = biome.Surface;
-                bool earthy = surf == grassId || surf == dirtId || surf == mudId;
-                bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
-                if (!earthy && !sandyOk)
-                {
-                    continue;
-                }
-
                 if (sy + 1 <= fluidLevel)
                 {
                     continue; // not in the sea
@@ -2369,6 +2560,36 @@ public sealed class WorldGenerator
                 if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
                 {
                     continue; // B35: an upland pond/lake or a river here — a tree would stand in the water
+                }
+
+                // Beaches (#679): on a beach column the painted ground is the beach block, NOT the biome
+                // surface (StampTrees can't see Generate's override, so it must ask the shared helper).
+                // Only palms / dead snags belong in the sand — themes that grow either get palm-fringed
+                // shores, themes with neither leave the beach bare.
+                if (DryBeachAt(planet, calib, seed, riverField, waterId, wx, wz, sy))
+                {
+                    if (System.Array.IndexOf(biome.Theme.Trees, TreeKind.Palm) >= 0)
+                    {
+                        kind = TreeKind.Palm;
+                    }
+                    else if (System.Array.IndexOf(biome.Theme.Trees, TreeKind.Dead) >= 0)
+                    {
+                        kind = TreeKind.Dead;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    var surf = biome.Surface;
+                    bool earthy = surf == grassId || surf == dirtId || surf == mudId;
+                    bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
+                    if (!earthy && !sandyOk)
+                    {
+                        continue;
+                    }
                 }
 
                 // Per-tree size (loosely-coupled height + crown): a shared bell factor sets the overall scale,
@@ -2926,10 +3147,12 @@ public sealed class WorldGenerator
     /// meadow there — instead of a salt-and-pepper mix; and it is THEME-WEIGHTED so the biome's preferred
     /// climate species fill most of the patches while off-theme ones still turn up for variety.
     /// </summary>
-    private BlockId FloraForSurface(PlanetType planet, BiomeResolved biome, long seed, int worldX, int worldZ)
+    private BlockId FloraForSurface(PlanetType planet, BiomeResolved biome, long seed, int worldX, int worldZ,
+        BlockId? surfaceOverride = null)
     {
         ResolveFlora(planet);
-        if (!_floraBySurface.TryGetValue(biome.Surface.Value, out var pool) || pool.Length == 0)
+        var host = surfaceOverride ?? biome.Surface; // a beach column hosts the beach block's flora (#679)
+        if (!_floraBySurface.TryGetValue(host.Value, out var pool) || pool.Length == 0)
         {
             return BlockId.Air;
         }

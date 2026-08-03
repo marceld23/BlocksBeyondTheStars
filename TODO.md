@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1332 server + 154 client passing** (2026-08-01). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1400 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -6970,6 +6970,36 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-08-03): beaches along seas and larger lakes (#679)
+
+Coastlines ended abruptly — the biome surface (grass/mud/snow) ran straight into the water; sandy
+shores only happened where a sand biome region touched the waterline. Now a water shoreline grows real
+beaches (server + client preview agree — pure seed functions, no protocol/save changes; existing worlds
+gain sandy shores retroactively since worldgen is seed-derived, player builds untouched):
+
+- **Shore detection** — a column is beach when it sits in a narrow band above the waterline
+  (jittered 1..3 blocks) AND real water lies within a probe ring (8 dirs × radii 4/8/12, early-out) —
+  so inland lowland at coastal altitude never sand-coats. The submerged apron (seabed ≤3 under the sea
+  line) needs no probe. A large-scale coast-character mask (~55–60 % beach) alternates sand with bare
+  rocky shore, and the beach edge wanders instead of following a contour.
+- **Large lakes too** — `RiverField` labels each pooled reach's fill-and-spill lake (connected coarse
+  cells sharing one filled level) and pre-rings lakes with ≥64 visible water columns with dry shore
+  markers (`TryGetLakeShore`); small pools, 1-wide rivers and puddle ponds get no beach. Large PONDS
+  (bowl ≥3 deep nearby) get a mask-edge rim via the shared pond mask.
+- **Material data-driven** — new optional `beachBlock` per planet (`data/planets.json`), default sand;
+  beaches only on WATER shorelines (lava seas keep their volcanic coasts; dry/airless worlds none).
+  Surface AND sub-surface turn to the beach block, so the varied topsoil depth yields a real sand layer.
+- **Override order** — biome → beach → snow/ice → volcano basalt: cold coasts get snow-dusted shores,
+  volcano flanks still win. Painted in `Generate`'s surface chain; the shared `IsBeachColumn` query keeps
+  Generate, tree stamping and tests agreeing.
+- **Palms on the beach** — tree stamping consults the beach helper (it can't see Generate's painted
+  block): beach columns grow only palms/dead snags (themes with neither leave the beach bare), so
+  jungle-theme coasts get palm-fringed shores. Giant fungi skip beaches; beach flora comes from the
+  sand host pool (sparse tufts, ×0.35 density).
+- **Tests** — 5 new (`BeachGenerationTests`): coast grows beaches + Generate paints them, sandy apron,
+  no beaches on dry/lava/airless worlds, cross-instance determinism, synthetic-basin lake-shore ring
+  with size threshold. 1400 server tests green.
 
 ## ✅ Done (2026-08-03): flora reads varied, not stamped — per-plant size/placement/tint variation (#675)
 

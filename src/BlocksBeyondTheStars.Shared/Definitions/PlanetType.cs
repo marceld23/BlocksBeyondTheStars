@@ -125,6 +125,10 @@ public sealed class PlanetType
     /// worlds with an atmosphere get water. <c>null</c> = auto (atmosphere worlds get a moderate amount).</summary>
     public double? WaterAbundance { get; set; }
 
+    /// <summary>Beach surface block stamped along sea coasts and large-lake shores (#679). Empty = sand.
+    /// Beaches only form where the shore's fluid is water — lava seas keep their volcanic coasts.</summary>
+    public string BeachBlock { get; set; } = string.Empty;
+
     /// <summary>0..1 — how much surface lava this world has (lava seas in basins on volcanic/airless worlds).
     /// <c>null</c> = auto (volcanic worlds get a moderate amount). Watery worlds get no lava SEA — their
     /// molten side comes from volcanoes (summit crater pools + vents, #477) and the deep lava table
