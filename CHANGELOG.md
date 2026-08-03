@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.2] — 2026-08-03
+
+The prospector release: space became worth mining. Asteroids gather in real belts you can see
+on the flight chart, every mineable space rock now rolls its own size and mineral family —
+water ice included — and EVA mining finally plays by planet rules: the right drill, real
+hardness, and ore that never silently vanishes. The planets kept pace: star systems and worlds
+carry proper names now, seas and larger lakes grew sandy beaches, and temperature turned from
+a HUD number into a real survival pressure that drains your suit before it ever touches your
+health. Rounding it off: a true Sandbox mode at world creation, flora that stopped growing in
+identical rows, scrollbars you can actually see, and selection lists that finally speak your
+language.
+
 ### ✨ Real asteroid belts (#683)
 
 - **Asteroids now orbit in belts** (new worlds): all of a system's landable asteroids share 1–2
@@ -32,6 +44,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   wear the same colour. Applies everywhere a ring is drawn (orbit view, surface sky, horizon band),
   including in existing worlds (same seed → same tilt and band pattern, just richer tints).
 
+### 🪨 Every space rock is its own rock (#687)
+
+- Mineable mini-asteroids were identical clones — the same r=2 sphere, titanium core, iron/copper
+  shell. Now each rock rolls a seeded **mineral family**: stony (40 %, iron veins in rock), metallic
+  (25 %, the classic titanium core), **icy (20 %, hand-mineable water ice around a rocky heart)**,
+  carbonaceous (10 %) and rare crystalline (5 %) — mirroring the landable asteroid families.
+- **Three sizes**: common pebbles (7 blocks), the classic mid rock (33) and rare boulders
+  (123 blocks) with a core that grows with the rock. Shoot-down loot follows family *and* size —
+  boulders pay out more.
+- The **first rock of every field stays the classic metallic mid-size**, so each field still
+  guarantees one titanium core. Fully deterministic per world seed; respawned rocks keep rolling.
+
+### ⛏️ EVA asteroid mining plays fair (#685)
+
+- During a spacewalk, any asteroid block fell to a **single bare-hand click** — no drill, no
+  hardness check, titanium included — and with a full inventory the ore was silently destroyed.
+  EVA mining now runs the same rules as planetside: drill kind and tier gate the block, hardness
+  takes several timed hits, and a full inventory refuses the break (progress is kept, the block
+  drops on the next hit once there is room).
+- Client-side it feels like planet mining too: **hold-to-mine** at drill pace, and the aim marker
+  warms from cyan to orange with your progress. Editing your *own* ship or station stays instant —
+  that's construction, not prospecting.
+
 ### ✨ Star systems & planets got real names (#678)
 
 - **Several system-name registries** instead of one pattern: coined proper names ("Tharion"),
@@ -47,6 +82,67 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - Names are unique per galaxy, profanity-guarded (EN+DE), and **retroactive**: they are display-only,
   so existing worlds keep every waypoint and simply wake up with better names — the underlying body
   layout is pinned byte-identical by a new regression test.
+
+### 🏖️ Beaches along seas and larger lakes (#679)
+
+- Coastlines grew **real sandy beaches**: a 1–3-block band of sand above the waterline plus a sandy
+  shallow-water apron, with the varied topsoil giving a genuine 2–5-block deep sand layer. A
+  large-scale coast mask keeps it natural — roughly half the shore is beach, alternating with bare
+  rocky stretches, and beach width follows the slope (flat coast → wide beach, cliff → sliver).
+- **Larger lakes and deep ponds** get shore rings too; small pools, 1-wide rivers and puddles stay
+  as they are. Tropical shores grow the occasional palm.
+- Planets can override the material via a new `beachBlock` data key (default sand); dry, airless
+  and lava-sea worlds keep their coasts beach-free. Applies to newly generated terrain — coastline
+  you have already explored keeps its current shape.
+
+### 🌡️ Temperature is now a real survival hazard (#666–#671)
+
+- The temperature reading stops being cosmetic: outside the suit's comfort band (−5…40 °C, with a
+  grace margin) the suit's climate control **drains suit energy** — the further past the band, the
+  faster — and only once the suit is empty does **slow exposure damage** set in (starvation-level,
+  never a burst kill). Tuning anchor: an ice world costs you ≈ 10 minutes unprotected, ≈ 30 with
+  the tier-2 insulation liner.
+- **Shelter genuinely matters**: underground blends toward a steady cave temperature over ~24 blocks
+  of depth, a roof over your head halves the severity, an open fire warms like a campfire (capped
+  inside the comfort band), lava-adjacent spaces run hot and ice-walled rooms stay freezing.
+- **Vacuum joined in**: on EVA and above atmosphere, a sun-tracking hull temperature (−150…+120 °C
+  across the day curve) feeds the same math, and the HUD shows a temperature readout on spacewalks.
+- The mechanic is the first real consumer of the `EnvironmentalHazards` world rule — Creative and
+  Sandbox worlds stay exempt.
+
+### 🏗️ True Sandbox mode at world creation (#662, #677)
+
+- The new-world panel offers a third mode next to Explorer and Creative: **Sandbox** — free
+  crafting at every craft/build/repair site, no oxygen or hunger drain, planet enemies and bandits
+  off, cheats allowed, and all creative grants (blueprints, ships, starter kit) forced on. The mode
+  is baked into the save, so it persists without any flags.
+- Fixed the launch-week playtest bug where the creative starter kit **filled the whole backpack**
+  and mining rejected every swing with "inventory full" (#677): the kit's materials now land in
+  the starter ship's cargo hold, tools in the backpack — mining works from the first minute.
+
+### 🌿 No two plants alike (#675)
+
+- Flora of one species used to render as identical clones on a grid. Every plant now rolls
+  **individual size** (a natural bell around the norm with rare outliers), a height-vs-width
+  squash, a slight off-grid position and its own rotation — and an 8×8 patch pattern lets meadows
+  form visible stands of taller and shorter growth.
+- Purely visual and hash-deterministic from the world position: every client sees the same plants,
+  saves and protocol untouched, applies to existing worlds. Player-built shapes stay exact.
+
+### 🖱️ Scrollbars you can see (#664)
+
+- The in-game ship-computer menu (all 12 tabs), the Codex and the vendor trade dialog scrolled
+  only via mouse wheel with nothing showing that a list continues below the fold. All of them now
+  show a thin auto-hiding scrollbar that vanishes when a page fits.
+- The vendor dialog's offer list had **no scroll region at all** — long lists clipped past the
+  panel. It scrolls properly now and keeps its position across a trade.
+
+### 🌍 Selection lists speak your language (#672)
+
+- Playing in German (or Italian), several in-game lists still showed raw English ids and enum
+  names. Now localized: tech-tree categories, map body kinds and statuses, mission objective
+  types, story-log chapter tags, the crafting "Max" button, the quality presets in Settings and
+  the arcade "no record yet" line.
 
 ## [2026.8.1] — 2026-08-02
 
@@ -1439,7 +1535,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...HEAD
+[2026.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...v2026.8.2
 [2026.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...v2026.8.1
 [2026.7.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...v2026.7.24
 [2026.7.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.22...v2026.7.23
