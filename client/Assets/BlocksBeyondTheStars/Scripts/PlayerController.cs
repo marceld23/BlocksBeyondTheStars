@@ -421,6 +421,7 @@ namespace BlocksBeyondTheStars.Client
             HandleDrillAudio();
             UpdateGearPeriodically();
             SendMovement();
+            UpdateEnemyAim();
 
             // Publish local pose for the HUD minimap/compass.
             if (Game != null)
@@ -431,6 +432,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // Crosshair aiming (#693): auto-aim acquires inside a forward cone only (never behind the back);
+        // a melee swing sweeps a wider arc; with the AutoAim world rule OFF a ranged shot needs a genuine
+        // crosshair hit — nothing under the reticle means the shot misses.
+        private const float AutoAimCone = 0.819f; // cos ~35°
+        private const float MeleeCone = 0.5f;     // cos ~60°
+
         private void AttackNearestEnemy()
         {
             if (Game?.Network == null)
@@ -439,8 +446,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             PlayWeaponSound();
-            string nearest = null;
-            Vector3 nearestPos = default;
 
             // Reach follows the equipped weapon: a ranged weapon must let you hit at its full range, not the bare
             // melee reach — otherwise a "gun" only ever fires point-blank (where the enemy's own bite already
@@ -449,51 +454,50 @@ namespace BlocksBeyondTheStars.Client
             float reach = heldTool != null && heldTool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon
                 ? Mathf.Max(6f, heldTool.Range)
                 : 6f;
-            float bestSq = reach * reach;
-            foreach (var e in Game.PlanetEnemies)
+            var kind = HeldWeaponFx();
+            bool melee = kind == WeaponFxKind.Melee;
+
+            // The entity under the crosshair always wins — it is what the player is looking at.
+            string targetId = null;
+            Vector3 targetPos = default;
+            if (AimEnemy(reach, out var aimId, out var aimPos, out float terrainDist))
             {
-                var ep = Game.ScenePos(e.X, e.Y, e.Z); // seam-aware (longitude wraps)
-                float d = (ep - transform.position).sqrMagnitude;
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    nearest = e.Id;
-                    nearestPos = ep;
-                }
+                targetId = aimId;
+                targetPos = aimPos;
+            }
+            else if (melee || Game.AutoAimOn)
+            {
+                // Auto-aim (and every melee swing): nearest target inside the forward cone. The old
+                // 360° nearest-anywhere selection is gone — no more kills behind your back.
+                targetId = BestConeTarget(reach, melee ? MeleeCone : AutoAimCone, out targetPos);
             }
 
-            // Creatures (fauna) are attackable too — the server shares the hit path.
-            foreach (var c in Game.Creatures)
+            var ct = Camera != null ? Camera.transform : transform;
+            if (targetId != null)
             {
-                var cp = Game.ScenePos(c.X, c.Y, c.Z); // seam-aware (longitude wraps)
-                float d = (cp - transform.position).sqrMagnitude;
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    nearest = c.Id;
-                    nearestPos = cp;
-                }
-            }
-
-            if (nearest != null)
-            {
-                Game.Network.SendAttackEntity(nearest);
+                var f = ct.forward;
+                Game.Network.SendAttackEntity(targetId,
+                    new BlocksBeyondTheStars.Shared.Primitives.Vector3f(f.x, f.y, f.z));
+                Game.LastShotTargetId = targetId;
+                Game.LastShotTime = Time.time;
             }
 
             if (Weapons != null && Camera != null)
             {
-                var ct = Camera.transform;
                 var from = ct.position + ct.forward * 0.4f - ct.up * 0.15f;
                 var col = WeaponColor();
-                var kind = HeldWeaponFx();
                 if (kind == WeaponFxKind.Melee)
                 {
                     // A melee slash sweeps whether or not it connects (whiff still reads).
                     Weapons.MeleeArc(from, ct.forward, ct.up, col);
                 }
-                else if (nearest != null)
+                else
                 {
-                    var target = nearestPos + Vector3.up * 0.4f;
+                    // A hit flies to the body; a miss still leaves the muzzle and dies on the terrain
+                    // (or at max range) — with manual aiming, "wide" has to read as wide.
+                    var target = targetId != null
+                        ? targetPos + Vector3.up * 0.4f
+                        : ct.position + ct.forward * Mathf.Min(reach, terrainDist);
                     if (kind == WeaponFxKind.Projectile)
                     {
                         Weapons.Projectile(from, target, col); // kinetic bolt that flies + bursts
@@ -504,6 +508,172 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
             }
+        }
+
+        /// <summary>Finds the enemy/creature under the crosshair (#693): an analytic ray-vs-sphere sweep over
+        /// the replicated entities — their meshes deliberately carry no colliders — occluded by terrain via a
+        /// voxel march. Hitboxes are deliberately generous (kid-friendly forgiveness). Also reports how far
+        /// the ray flies before hitting terrain, for the miss tracer.</summary>
+        private bool AimEnemy(float maxRange, out string id, out Vector3 pos, out float terrainDist)
+        {
+            id = null;
+            pos = default;
+            terrainDist = maxRange;
+            if (Game == null || Camera == null)
+            {
+                return false;
+            }
+
+            Vector3 o = Camera.transform.position;
+            Vector3 dir = Camera.transform.forward;
+            terrainDist = TerrainDistance(o, dir, maxRange);
+
+            float best = terrainDist + 0.5f; // a body right at the wall still counts
+            foreach (var e in Game.PlanetEnemies)
+            {
+                var basePos = Game.ScenePos(e.X, e.Y, e.Z); // seam-aware (longitude wraps)
+                var center = basePos + Vector3.up * 0.9f;
+                float r = 1.1f * Mathf.Max(1f, e.Scale);
+                if (RayHitsSphere(o, dir, center, r, out float d) && d < best)
+                {
+                    best = d;
+                    id = e.Id;
+                    pos = basePos;
+                }
+            }
+
+            foreach (var c in Game.Creatures)
+            {
+                float size = Mathf.Clamp(c.Size, 0.4f, 8f);
+                var basePos = Game.ScenePos(c.X, c.Y, c.Z);
+                var center = basePos + Vector3.up * (0.6f * size);
+                float r = Mathf.Max(0.8f, 0.9f * size);
+                if (RayHitsSphere(o, dir, center, r, out float d) && d < best)
+                {
+                    best = d;
+                    id = c.Id;
+                    pos = basePos;
+                }
+            }
+
+            return id != null;
+        }
+
+        /// <summary>Nearest attackable entity inside the camera-forward cone (auto-aim / melee sweep).
+        /// Point-blank targets (&lt; 1.5 blocks) ignore the cone — something chewing on your boots is hittable
+        /// even while you look past it.</summary>
+        private string BestConeTarget(float reach, float cone, out Vector3 pos)
+        {
+            pos = default;
+            string bestId = null;
+            float bestSq = reach * reach;
+            Vector3 eye = Camera != null ? Camera.transform.position : transform.position;
+            Vector3 fwd = Camera != null ? Camera.transform.forward : transform.forward;
+
+            void Consider(string cid, Vector3 p)
+            {
+                var to = p + Vector3.up * 0.9f - eye;
+                float d = to.sqrMagnitude;
+                if (d >= bestSq || d < 0.0001f)
+                {
+                    return;
+                }
+
+                if (d > 2.25f && Vector3.Dot(to.normalized, fwd) < cone)
+                {
+                    return;
+                }
+
+                bestSq = d;
+                bestId = cid;
+                pos = p;
+            }
+
+            foreach (var e in Game.PlanetEnemies)
+            {
+                Consider(e.Id, Game.ScenePos(e.X, e.Y, e.Z));
+            }
+
+            // Creatures (fauna) are attackable too — the server shares the hit path.
+            foreach (var c in Game.Creatures)
+            {
+                Consider(c.Id, Game.ScenePos(c.X, c.Y, c.Z));
+            }
+
+            return bestId;
+        }
+
+        /// <summary>Distance the aim ray travels before hitting solid terrain (voxel DDA like
+        /// <see cref="AimBlock"/>, but with a caller-chosen range — weapon range exceeds block reach).
+        /// Fluids are passed through, matching the block-aim behaviour.</summary>
+        private float TerrainDistance(Vector3 o, Vector3 dir, float maxDist)
+        {
+            if (Game?.World == null)
+            {
+                return maxDist;
+            }
+
+            int x = Mathf.FloorToInt(o.x), y = Mathf.FloorToInt(o.y), z = Mathf.FloorToInt(o.z);
+            int sx = dir.x >= 0 ? 1 : -1, sy = dir.y >= 0 ? 1 : -1, sz = dir.z >= 0 ? 1 : -1;
+            float invx = Mathf.Abs(dir.x) > 1e-6f ? 1f / Mathf.Abs(dir.x) : float.PositiveInfinity;
+            float invy = Mathf.Abs(dir.y) > 1e-6f ? 1f / Mathf.Abs(dir.y) : float.PositiveInfinity;
+            float invz = Mathf.Abs(dir.z) > 1e-6f ? 1f / Mathf.Abs(dir.z) : float.PositiveInfinity;
+            float tMaxX = float.IsInfinity(invx) ? float.PositiveInfinity : (dir.x > 0 ? (x + 1 - o.x) : (o.x - x)) * invx;
+            float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
+            float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
+
+            float t = 0f;
+            for (int i = 0; i < 160 && t <= maxDist; i++)
+            {
+                var id = Game.World.GetBlock(x, y, z);
+                if (!id.IsAir && !IsFluidBlock(id))
+                {
+                    return t;
+                }
+
+                if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
+                else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }
+                else { z += sz; t = tMaxZ; tMaxZ += invz; }
+            }
+
+            return maxDist;
+        }
+
+        /// <summary>Ray-vs-sphere with the hit reported at the centre plane — plenty for ordering targets
+        /// against each other and the terrain at gameplay scales.</summary>
+        private static bool RayHitsSphere(Vector3 o, Vector3 dir, Vector3 center, float radius, out float dist)
+        {
+            dist = 0f;
+            Vector3 to = center - o;
+            float along = Vector3.Dot(to, dir);
+            if (along < 0f)
+            {
+                return false;
+            }
+
+            if (to.sqrMagnitude - along * along > radius * radius)
+            {
+                return false;
+            }
+
+            dist = along;
+            return true;
+        }
+
+        /// <summary>Publishes which enemy sits under the crosshair (every frame) — the HUD tints the reticle
+        /// and the health-bar layer keeps that entity's bar visible.</summary>
+        private void UpdateEnemyAim()
+        {
+            if (Game == null)
+            {
+                return;
+            }
+
+            var heldTool = Game.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool;
+            float reach = heldTool != null && heldTool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon
+                ? Mathf.Max(6f, heldTool.Range)
+                : 6f;
+            Game.AimedEnemyId = AimEnemy(reach, out var id, out _, out _) ? id : null;
         }
 
         private enum WeaponFxKind { Beam, Projectile, Melee }

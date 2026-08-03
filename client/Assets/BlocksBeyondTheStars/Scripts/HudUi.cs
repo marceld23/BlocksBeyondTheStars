@@ -47,6 +47,13 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _canvas;
         private GameObject _crosshair, _locationPanel, _vitalsPanel, _shipRows;
 
+        // Crosshair state (#693): hostile tint while an enemy is under the reticle + the hit-marker flash.
+        private static readonly Color HostileAim = new Color(1f, 0.4f, 0.35f, 0.95f);
+        private static readonly Color HitMarkerCol = new Color(1f, 0.85f, 0.4f, 0.95f);
+        private Image _crossV, _crossH;
+        private GameObject _hitMarker;
+        private float _hitMarkerTimer;
+
         /// <summary>Set while a scope draws its own reticle (see <see cref="BinocularOptic"/>); hides the HUD
         /// crosshair for as long as it is up.</summary>
         public static bool SuppressCrosshair;
@@ -131,6 +138,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (show)
             {
+                UpdateCrosshairState(Time.deltaTime); // per frame: aim tint must not lag the reticle
                 RefreshCompass(); // per frame: blips counter-rotate with the camera, throttling would judder
 
                 _refreshTimer -= Time.deltaTime;
@@ -1234,14 +1242,76 @@ namespace BlocksBeyondTheStars.Client
         private static Image Panel(Transform parent, float x, float y, float w, float h)
             => UiKit.AddPanel(parent, x, y, w, h, new Color(0.05f, 0.12f, 0.24f, 0.82f));
 
-        private static void MakeCrosshair(RectTransform parent)
+        private void MakeCrosshair(RectTransform parent)
         {
             var v = new GameObject("v", typeof(RectTransform)); v.transform.SetParent(parent, false);
             var vr = v.GetComponent<RectTransform>(); vr.anchorMin = vr.anchorMax = new Vector2(0.5f, 0.5f); vr.sizeDelta = new Vector2(2, 18);
-            v.AddComponent<Image>().color = UiKit.Cyan;
+            _crossV = v.AddComponent<Image>(); _crossV.color = UiKit.Cyan;
             var hh = new GameObject("h", typeof(RectTransform)); hh.transform.SetParent(parent, false);
             var hr = hh.GetComponent<RectTransform>(); hr.anchorMin = hr.anchorMax = new Vector2(0.5f, 0.5f); hr.sizeDelta = new Vector2(18, 2);
-            hh.AddComponent<Image>().color = UiKit.Cyan;
+            _crossH = hh.AddComponent<Image>(); _crossH.color = UiKit.Cyan;
+
+            // Hit marker (#693): four diagonal ticks around the reticle, flashed briefly when one of the
+            // local player's shots visibly lands (the entity views attribute the hull drop and call
+            // ShowHitMarker). Inactive by default.
+            _hitMarker = new GameObject("hits", typeof(RectTransform));
+            _hitMarker.transform.SetParent(parent, false);
+            var hm = _hitMarker.GetComponent<RectTransform>();
+            hm.anchorMin = hm.anchorMax = new Vector2(0.5f, 0.5f);
+            hm.sizeDelta = Vector2.zero;
+            for (int i = 0; i < 4; i++)
+            {
+                var tick = new GameObject("t" + i, typeof(RectTransform));
+                tick.transform.SetParent(_hitMarker.transform, false);
+                var tr = tick.GetComponent<RectTransform>();
+                tr.anchorMin = tr.anchorMax = new Vector2(0.5f, 0.5f);
+                tr.sizeDelta = new Vector2(2.5f, 9f);
+                float ang = 45f + i * 90f;
+                tr.localRotation = Quaternion.Euler(0f, 0f, ang);
+                tr.anchoredPosition = Quaternion.Euler(0f, 0f, ang) * new Vector2(0f, 13f);
+                tick.AddComponent<Image>().color = HitMarkerCol;
+            }
+
+            _hitMarker.SetActive(false);
+        }
+
+        /// <summary>Tints the reticle hostile-red while an enemy sits under it, and runs the hit-marker
+        /// flash timer. Called every frame from <see cref="LateUpdate"/>.</summary>
+        private void UpdateCrosshairState(float dt)
+        {
+            if (_crossV == null)
+            {
+                return;
+            }
+
+            var col = Game.AimedEnemyId != null ? HostileAim : UiKit.Cyan;
+            if (_crossV.color != col)
+            {
+                _crossV.color = col;
+                _crossH.color = col;
+            }
+
+            if (_hitMarkerTimer > 0f)
+            {
+                _hitMarkerTimer -= dt;
+                if (_hitMarkerTimer <= 0f && _hitMarker != null)
+                {
+                    _hitMarker.SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>Flashes the crosshair hit marker (#693) — called by the entity views when a hull drop is
+        /// attributable to the local player's latest shot.</summary>
+        public void ShowHitMarker()
+        {
+            if (_hitMarker == null)
+            {
+                return;
+            }
+
+            _hitMarkerTimer = 0.25f;
+            _hitMarker.SetActive(true);
         }
     }
 }

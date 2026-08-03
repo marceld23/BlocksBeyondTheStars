@@ -425,8 +425,10 @@ public sealed partial class GameServer
     private const float WreckCouplingRange = 64f; // bias spawns to a wreck within this of the player (P5)
     private const int ScanDroneHover = 4;          // blocks the flying scan-drone floats above the surface (P4)
 
-    /// <summary>Player attacks a planet enemy or creature with the held tool/weapon. Server resolves the hit.</summary>
-    public void AttackEntity(string playerId, string entityId)
+    /// <summary>Player attacks a planet enemy or creature with the held tool/weapon. Server resolves the hit.
+    /// The optional aim direction is the client's camera ray at the moment of firing (#693); a zero vector
+    /// (older client) skips the aim validation.</summary>
+    public void AttackEntity(string playerId, string entityId, float dirX = 0f, float dirY = 0f, float dirZ = 0f)
     {
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
@@ -434,21 +436,22 @@ public sealed partial class GameServer
             return;
         }
 
+        var dir = new Vector3f(dirX, dirY, dirZ);
         if (_planetEnemies.FirstOrDefault(e => e.Id == entityId) is { } enemy)
         {
-            AttackCombatEntity(session, enemy, _planetEnemies, isCreature: false);
+            AttackCombatEntity(session, enemy, _planetEnemies, isCreature: false, dir);
             return;
         }
 
         if (_creatures.FirstOrDefault(e => e.Id == entityId) is { } creature)
         {
-            AttackCombatEntity(session, creature, _creatures, isCreature: true);
+            AttackCombatEntity(session, creature, _creatures, isCreature: true, dir);
             return;
         }
 
         if (_bandits.FirstOrDefault(e => e.Id == entityId) is { } bandit)
         {
-            AttackCombatEntity(session, bandit, _bandits, isCreature: false);
+            AttackCombatEntity(session, bandit, _bandits, isCreature: false, dir);
             return;
         }
 
@@ -461,7 +464,7 @@ public sealed partial class GameServer
     private const double MeleeCooldown = 1.5;                       // melee weapons swing at most this often (B44)
     private readonly Dictionary<string, double> _meleeReadyAt = new(); // playerId → uptime the next melee swing is allowed
 
-    private void AttackCombatEntity(PlayerSession session, CombatEntity target, List<CombatEntity> list, bool isCreature)
+    private void AttackCombatEntity(PlayerSession session, CombatEntity target, List<CombatEntity> list, bool isCreature, Vector3f aimDir = default)
     {
         var p = session.State;
         var tool = ActiveTool(p);
@@ -492,6 +495,11 @@ public sealed partial class GameServer
         if (WrapDistSq(p.Position, target.Position) > reach * reach)
         {
             Reject(session, "attack", "Target is out of reach.");
+            return;
+        }
+
+        if (!ValidateAim(session, target, tool, isWeapon, aimDir))
+        {
             return;
         }
 
@@ -566,13 +574,78 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Validates the client's claimed aim against the claimed target (#693). Anti-cheat guardrail,
+    /// not a precision hitbox: latency + interpolation mean the client's view lags the server's, so every
+    /// tolerance is generous — the client already did the precise crosshair test. A zero direction (older
+    /// client, or a melee swing) skips the angle checks entirely. With AutoAim ON the target only has to sit
+    /// in a wide forward cone; with AutoAim OFF the crosshair ray must actually pass near the target's body.
+    /// Ranged weapons additionally need a clear sightline — no shooting through walls.</summary>
+    private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, bool isWeapon, Vector3f aimDir)
+    {
+        float dirLenSq = aimDir.X * aimDir.X + aimDir.Y * aimDir.Y + aimDir.Z * aimDir.Z;
+        if (dirLenSq < 0.0001f)
+        {
+            return true; // no aim data (older client) — keep the legacy range-only behaviour
+        }
+
+        bool ranged = isWeapon && tool.Range > EnemyAttackReach;
+        var p = session.State;
+
+        // Ranged shots respect walls: the same voxel sightline that gates enemy bites (glass blocks it too).
+        if (ranged && !HasLineOfSight(p.Position, target.Position))
+        {
+            Reject(session, "attack", "No clear line of fire.");
+            return false;
+        }
+
+        const float eye = 1.5f; // matches HasLineOfSight/the client camera height
+        var dst = Unwrapped(p.Position, target.Position);
+        float tx = dst.X - p.Position.X;
+        float ty = (dst.Y + 0.9f) - (p.Position.Y + eye); // aim roughly at the body, not the feet
+        float tz = dst.Z - p.Position.Z;
+        float dist = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
+        if (dist < 0.75f)
+        {
+            return true; // point-blank — any angle is honest
+        }
+
+        float dirLen = (float)System.Math.Sqrt(dirLenSq);
+        float dot = (aimDir.X * tx + aimDir.Y * ty + aimDir.Z * tz) / (dirLen * dist);
+
+        // Ray-precision only for ranged manual aiming; melee and auto-aim keep a wide forward cone.
+        if (!Rules.AutoAim && ranged)
+        {
+            // Perpendicular miss distance of the crosshair ray from the target's body centre, with a
+            // body-size + distance-scaled corridor (≈6° plus the body itself).
+            float along = System.Math.Max(0f, dot) * dist;
+            float missSq = dist * dist - along * along;
+            float scale = System.Math.Max(1f, System.Math.Max(target.Scale, target.SizeScale));
+            float allowed = 1.5f * scale + 0.1f * dist;
+            if (dot <= 0f || missSq > allowed * allowed)
+            {
+                Reject(session, "attack", "Shot went wide.");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (dot < 0.35f) // ~70° half-angle: forgiving even for a swirling melee fight, but never behind the back
+        {
+            Reject(session, "attack", "Target is not in front of you.");
+            return false;
+        }
+
+        return true;
+    }
+
     // Bandits ride the planet-enemy wire (same list message), so client targeting/health bars/defeat
     // handling work unchanged — the client tells them apart by the Kind string.
     private void BroadcastPlanetEnemies()
         => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Concat(_bandits).Select(ToNet).ToArray() });
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
-        => AttackEntity(session.State.PlayerId, intent.EntityId);
+        => AttackEntity(session.State.PlayerId, intent.EntityId, intent.DirX, intent.DirY, intent.DirZ);
 
     // ---------------- Test hooks ----------------
 

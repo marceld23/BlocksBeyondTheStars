@@ -245,7 +245,17 @@ public sealed partial class GameServer
     // weapon_class: 0 = mining tool (breaks asteroids, can't hit hostiles), 1 = combat weapon (hits
     // hostiles; breaks asteroids only where AsteroidDestruction allows weapons), 2 = dual laser (does both —
     // the starter ship laser, so one weapon mines AND fights).
-    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, bool IsCombat, bool CanMine);
+    private readonly record struct WeaponSpec(float Damage, float Range, double Cooldown, float Energy, bool IsCombat, bool CanMine);
+
+    // #694: ship weapons are rate-limited and energy-gated SERVER-side now (both stats existed in
+    // data/ship_modules.json but were never enforced — the only limit was the client's local fire timer).
+    private readonly Dictionary<string, double> _shipWeaponReadyAt = new(); // "playerId|weaponKey" → uptime next shot is allowed
+
+    // Ship energy is a lazily-regenerating pool fed by the reactor's energy_production: capacity = a few
+    // seconds of production, refill = production per second. With the stock reactor it never throttles
+    // legitimate fire (production far outpaces any weapon's draw) — it exists so weapon_energy is real
+    // and modded rapid-fire clients drain dry instead of firing forever.
+    private readonly Dictionary<string, (double Time, float Energy)> _shipEnergyByPlayer = new();
 
     /// <summary>True while the player is flying in a space instance.</summary>
     public bool InSpace(string playerId) => _playerInstance.ContainsKey(playerId);
@@ -738,7 +748,7 @@ public sealed partial class GameServer
     // ---------------- Weapons ----------------
 
     /// <summary>Fires a built ship weapon at a target entity. Server-authoritative: validates rules, range and resolves the hit.</summary>
-    public void FireWeapon(string playerId, string weaponKey, string targetId)
+    public void FireWeapon(string playerId, string weaponKey, string targetId, float dirX = 0f, float dirY = 0f, float dirZ = 0f)
     {
         var session = FindSessionByPlayerId(playerId);
 
@@ -760,6 +770,16 @@ public sealed partial class GameServer
             return;
         }
 
+        // #694: the module's fire rate is authoritative now (it was client-only before). A small slack
+        // absorbs network jitter so an honest client firing exactly on cadence never gets rejected.
+        // The cooldown is only COMMITTED once the shot actually fires (below) — a rejected shot
+        // (bad target/arc/rules) must not eat the cycle.
+        string cdKey = playerId + "|" + weaponKey;
+        if (weapon.Cooldown > 0.0 && _shipWeaponReadyAt.TryGetValue(cdKey, out var readyAt) && _uptime < readyAt)
+        {
+            return; // still cycling — swallow silently (no reject spam while the trigger is held)
+        }
+
         var target = instance.Entities.FirstOrDefault(e => e.Id == targetId);
         if (target is null)
         {
@@ -773,10 +793,27 @@ public sealed partial class GameServer
             return;
         }
 
+        if (!ValidateSpaceAim(session, instance, target, dirX, dirY, dirZ))
+        {
+            return;
+        }
+
         if (!WeaponAllowedAgainst(weapon, target, out var reason))
         {
             RejectSpace(session, reason);
             return;
+        }
+
+        // #694: weapon_energy draws from the reactor-fed pool (was defined in the module data but unused).
+        if (!TryDrawShipEnergy(playerId, weapon.Energy))
+        {
+            RejectSpace(session, "Not enough ship energy to fire.");
+            return;
+        }
+
+        if (weapon.Cooldown > 0.0)
+        {
+            _shipWeaponReadyAt[cdKey] = _uptime + weapon.Cooldown * 0.95;
         }
 
         target.Hull -= weapon.Damage;
@@ -848,6 +885,55 @@ public sealed partial class GameServer
 
         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
         BroadcastSpaceState(instance);
+    }
+
+    /// <summary>Validates the client's reported firing direction (the ship's nose) against the claimed
+    /// target (#693). Mirrors the on-foot <c>ValidateAim</c>: generous tolerances (latency, drifting
+    /// targets), zero direction = older client = skip. AutoAim ON needs the target roughly ahead;
+    /// AutoAim OFF needs a genuine boresight line — the nose ray must pass near the target's body.</summary>
+    private bool ValidateSpaceAim(PlayerSession? session, SpaceInstance instance, CombatEntity target, float dirX, float dirY, float dirZ)
+    {
+        float dirLenSq = dirX * dirX + dirY * dirY + dirZ * dirZ;
+        if (dirLenSq < 0.0001f)
+        {
+            return true; // no aim data (older client) — keep the legacy range-only behaviour
+        }
+
+        float tx = target.Position.X - instance.ShipPosition.X;
+        float ty = target.Position.Y - instance.ShipPosition.Y;
+        float tz = target.Position.Z - instance.ShipPosition.Z;
+        float dist = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
+        if (dist < 3f)
+        {
+            return true; // point-blank
+        }
+
+        float dirLen = (float)System.Math.Sqrt(dirLenSq);
+        float dot = (dirX * tx + dirY * ty + dirZ * tz) / (dirLen * dist);
+
+        if (!Rules.AutoAim)
+        {
+            // Boresight: perpendicular miss distance of the nose ray from the target's centre, allowing
+            // the body itself plus a distance-scaled corridor (space entities are big and drift fast).
+            float along = System.Math.Max(0f, dot) * dist;
+            float missSq = dist * dist - along * along;
+            float allowed = 2.5f * System.Math.Max(1f, target.Scale) + 0.1f * dist;
+            if (dot <= 0f || missSq > allowed * allowed)
+            {
+                RejectSpace(session, "Shot went wide — line up the target.");
+                return false;
+            }
+
+            return true;
+        }
+
+        if (dot < 0.5f) // ~60°: server-side guardrail above the client's ~±30° acquisition cone
+        {
+            RejectSpace(session, "Target is outside the firing arc.");
+            return false;
+        }
+
+        return true;
     }
 
     private const int LargeAsteroidTier = 2;
@@ -968,8 +1054,53 @@ public sealed partial class GameServer
             Damage: (float)def.Stats.GetValueOrDefault("weapon_damage", 10),
             Range: (float)def.Stats.GetValueOrDefault("weapon_range", 50),
             Cooldown: def.Stats.GetValueOrDefault("weapon_cooldown", 1.0),
+            Energy: (float)def.Stats.GetValueOrDefault("weapon_energy", 0),
             IsCombat: weaponClass >= 1,                  // combat weapons + dual lasers can hit hostiles
             CanMine: weaponClass == 0 || weaponClass == 2); // mining tools + dual lasers can break asteroids
+        return true;
+    }
+
+    /// <summary>Total reactor output of the current ship (energy per second) — feeds the weapon-energy pool.</summary>
+    private float ShipEnergyProduction()
+    {
+        float prod = 0f;
+        foreach (var key in _ship.Modules)
+        {
+            if (_content.GetShipModule(key) is { } m)
+            {
+                prod += (float)m.Stats.GetValueOrDefault("energy_production", 0);
+            }
+        }
+
+        return prod;
+    }
+
+    /// <summary>Tries to draw <paramref name="amount"/> from the player's lazily-regenerating ship-energy
+    /// pool (#694). Capacity is ~3 s of reactor output; refill happens on access, so no per-tick work.</summary>
+    private bool TryDrawShipEnergy(string playerId, float amount)
+    {
+        if (amount <= 0f)
+        {
+            return true;
+        }
+
+        float production = ShipEnergyProduction();
+        if (production <= 0f)
+        {
+            return true; // no reactor data on this ship — never lock the trigger over a missing stat
+        }
+
+        float capacity = System.Math.Max(amount, production * 3f);
+        var pool = _shipEnergyByPlayer.TryGetValue(playerId, out var state)
+            ? System.Math.Min(capacity, state.Energy + (float)((_uptime - state.Time) * production))
+            : capacity;
+        if (pool < amount)
+        {
+            _shipEnergyByPlayer[playerId] = (_uptime, pool);
+            return false;
+        }
+
+        _shipEnergyByPlayer[playerId] = (_uptime, pool - amount);
         return true;
     }
 
@@ -1850,5 +1981,5 @@ public sealed partial class GameServer
     }
 
     private void HandleFireWeapon(PlayerSession session, FireWeaponIntent intent)
-        => FireWeapon(session.State.PlayerId, intent.WeaponKey, intent.TargetEntityId);
+        => FireWeapon(session.State.PlayerId, intent.WeaponKey, intent.TargetEntityId, intent.DirX, intent.DirY, intent.DirZ);
 }

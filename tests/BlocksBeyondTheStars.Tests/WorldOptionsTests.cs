@@ -229,7 +229,7 @@ public sealed class WorldOptionsTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Admin"); // the first player becomes the world admin
 
-        client.Send(NetCodec.Encode(new SetWorldRulesIntent { CreatureAbundance = "Off", PlanetEnemies = "Extreme" }),
+        client.Send(NetCodec.Encode(new SetWorldRulesIntent { CreatureAbundance = "Off", PlanetEnemies = "Extreme", AutoAim = "Off" }),
             DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
@@ -238,6 +238,7 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.NotNull(meta?.RulesOverride);
         Assert.Equal(AlienActivity.Off, meta!.RulesOverride!.CreatureAbundance);
         Assert.Equal(AlienActivity.Extreme, meta.RulesOverride.PlanetEnemies);
+        Assert.False(meta.RulesOverride.AutoAim); // #693: the aim rule rides the same live-edit path
     }
 
     [Fact]

@@ -622,11 +622,13 @@ public sealed class SpaceCombatTests : IDisposable
             server.EnterSpace("Pilot");
 
             // Keep breaking the nearest asteroid: large -> medium -> small -> mineral drops.
+            // The tick lets the weapon's server-enforced cooldown cycle between shots (#694).
             for (int i = 0; i < 16 && pilot.State.Inventory.CountOf("iron_ore") == 0; i++)
             {
                 var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
                 if (a is null) break;
                 server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+                server.TickForTest(2.0);
             }
 
             Assert.True(pilot.State.Inventory.CountOf("iron_ore") >= 5, "Breaking asteroids down should eventually drop ore.");
@@ -659,8 +661,10 @@ public sealed class SpaceCombatTests : IDisposable
             Assert.True(blocksAfter < blocksBefore, "shooting should carve voxel blocks off the asteroid");
 
             // Keep firing until it's destroyed → its structure is gone and ore was banked.
+            // The tick lets the weapon's server-enforced cooldown cycle between shots (#694).
             for (int i = 0; i < 16 && server.SpaceEntitiesFor("Pilot").Any(e => e.Id == ast.Id); i++)
             {
+                server.TickForTest(2.0);
                 server.FireWeapon("Pilot", "asteroid_breaker", ast.Id);
             }
 
@@ -714,6 +718,7 @@ public sealed class SpaceCombatTests : IDisposable
             var drone = server.SpaceEntitiesFor("Pilot").First(e => e.Kind == CombatEntityKind.Drone);
             server.ShipMove("Pilot", drone.Position.X, drone.Position.Y, drone.Position.Z); // close to fire (range from ship)
             server.FireWeapon("Pilot", "ship_cannon_1", drone.Id); // 40 -> 20
+            server.TickForTest(1.1); // let the cannon's server-enforced cooldown cycle (#694)
             server.FireWeapon("Pilot", "ship_cannon_1", drone.Id); // destroyed
 
             Assert.DoesNotContain(server.SpaceEntitiesFor("Pilot"), e => e.Id == drone.Id);
@@ -1062,10 +1067,12 @@ public sealed class SpaceCombatTests : IDisposable
             server.Ship.Modules.Add("tractor_beam"); // with a tractor, the smallest chunks float as salvage
             server.EnterSpace("Pilot");
 
-            // Break asteroids down until a floating salvage drop appears.
+            // Break asteroids down until a floating salvage drop appears. The tick (BEFORE the shot, so a
+            // fresh drop is never passively swept up mid-loop) lets the server-enforced cooldown cycle (#694).
             CombatEntity? drop = null;
             for (int i = 0; i < 24 && drop == null; i++)
             {
+                server.TickForTest(2.0);
                 var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
                 if (a != null)
                 {
@@ -1102,9 +1109,11 @@ public sealed class SpaceCombatTests : IDisposable
             server.Ship.Modules.Add("tractor_beam");
             server.EnterSpace("Pilot");
 
+            // Tick BEFORE the shot (cooldown cycles, and a fresh drop is never passively swept mid-loop, #694).
             CombatEntity? drop = null;
             for (int i = 0; i < 24 && drop == null; i++)
             {
+                server.TickForTest(2.0);
                 var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
                 if (a != null)
                 {

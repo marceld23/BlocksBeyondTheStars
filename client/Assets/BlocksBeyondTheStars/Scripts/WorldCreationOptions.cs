@@ -72,6 +72,10 @@ namespace BlocksBeyondTheStars.Client
         /// combat intact to base; OFF leaves it a wreck the owner must repair before flying again.</summary>
         public bool KeepShip = true;
 
+        /// <summary>Auto-aim (world rule #693, default ON = server default): ON lets weapons acquire targets
+        /// in a forward cone by themselves; OFF means only what is under the crosshair can be hit.</summary>
+        public bool AutoAim = true;
+
         // Story (P8 world option): which story pack runs + how fast it unfolds.
         public int Story = 0;          // 0 = Default pack, 1 = None (sandbox)
         public int StoryDensity = 1;   // 0 Sparse · 1 Normal · 2 Dense
@@ -106,7 +110,7 @@ namespace BlocksBeyondTheStars.Client
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
-            SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip;
+            SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip; AutoAim = other.AutoAim;
             Story = other.Story; StoryDensity = other.StoryDensity;
             StartPlanetType = other.StartPlanetType;
             PlanetTypes.Clear();
@@ -188,6 +192,7 @@ namespace BlocksBeyondTheStars.Client
             // defaults both to Off, so we emit the overrides whenever the toggle is on (= the panel default).
             if (SpaceCombat) { Arg("space-combat", "PvE"); Arg("ship-weapons", "NpcsOnly"); }
             if (!KeepShip) Arg("keep-ship", "false");
+            if (!AutoAim) Arg("auto-aim", "false");
 
             if (Story == 1) Arg("story", "none");                              // sandbox (no story)
             if (StoryDensity != 1) Arg("story-density", StoryDensitySteps[StoryDensity]);

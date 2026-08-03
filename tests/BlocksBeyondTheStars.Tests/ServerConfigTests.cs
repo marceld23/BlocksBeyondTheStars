@@ -162,6 +162,18 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyCommandLine_OverridesAutoAim()
+    {
+        // #693: auto-aim is a world rule — ON by default, --auto-aim false mandates manual aiming.
+        Assert.True(new ServerConfig().Rules.AutoAim);
+
+        var config = new ServerConfig();
+        var applied = config.ApplyCommandLine(new[] { "--auto-aim", "false" });
+        Assert.False(config.Rules.AutoAim);
+        Assert.Contains("auto-aim", applied);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesStructureTemplateOptions()
     {
         var config = new ServerConfig();

@@ -1531,6 +1531,20 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(keepShipBtn.transform, 560, 0, 200, 78, keepShip ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 keepShip ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // Auto-aim (world option, #693): when on (default) weapons acquire targets in a forward cone by
+            // themselves; when off only what is actually under the crosshair can be hit — for everyone in
+            // this world. The server enforces the admin gate and validates shots accordingly.
+            bool autoAim = rules?.AutoAim ?? true;
+            var autoAimBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+            {
+                Game?.Network?.SendSetWorldRules(autoAim: autoAim ? "Off" : "On");
+                Invoke(nameof(RebuildList), 0.35f);
+            });
+            UiKit.AddText(autoAimBtn.transform, 16, 0, 520, 78, L("ui.worldopt.auto_aim"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(autoAimBtn.transform, 560, 0, 200, 78, autoAim ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                autoAim ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 96f;
             y += 16f;
 
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).

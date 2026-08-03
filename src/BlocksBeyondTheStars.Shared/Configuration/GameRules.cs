@@ -197,6 +197,12 @@ public sealed class GameRules
     /// world admin.</summary>
     public bool InstantTravel { get; set; }
 
+    /// <summary>Auto-aim (world option, default ON — issue #693): when ON, weapons acquire the best target in
+    /// a forward cone automatically (kid/gamepad-friendly); when OFF the shot only hits what is actually under
+    /// the crosshair, and the server validates the shot's aim direction strictly. Live-editable by the world
+    /// admin. Old saves deserialize without the field and keep the ON default — no start-up lift needed.</summary>
+    public bool AutoAim { get; set; } = true;
+
     /// <summary>Whether crafting consumes materials / needs stations (false in Creative).</summary>
     public bool CraftingCostsMaterials => GameMode != GameMode.Creative;
 

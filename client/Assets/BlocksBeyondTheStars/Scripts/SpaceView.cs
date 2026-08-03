@@ -294,8 +294,28 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _systemsBarRoot;
         private int _builtSystemCount = -1;
         private const string FlightWeapon = "ship_laser_basic";
-        private const float WeaponRange = 45f;  // matches ship_laser_basic weapon_range
-        private const float FireRate = 0.45f;   // seconds between shots
+        private const float WeaponRange = 45f;  // fallback when the module data is unavailable
+        private const float FireRate = 0.45f;   // fallback seconds between shots
+
+        // #693: with the AutoAim world rule ON the laser acquires targets in a tight forward cone; OFF
+        // requires a genuine boresight line — the nose ray must pass through the target's body.
+        private const float SpaceAutoAimCone = 0.866f; // cos ~30° (was effectively ±75°)
+
+        /// <summary>The fitted module's real range (#694 — the client used to hardcode 45, crippling the
+        /// laser_cannon_2's range advantage of 70).</summary>
+        private float WeaponRangeFor(string weaponKey)
+        {
+            var stats = Game.Content?.GetShipModule(weaponKey)?.Stats;
+            return stats != null && stats.TryGetValue("weapon_range", out var v) ? (float)v : WeaponRange;
+        }
+
+        /// <summary>The fitted module's real fire cadence — the server enforces it now (#694), so firing
+        /// faster client-side would only get shots swallowed.</summary>
+        private float WeaponCooldownFor(string weaponKey)
+        {
+            var stats = Game.Content?.GetShipModule(weaponKey)?.Stats;
+            return stats != null && stats.TryGetValue("weapon_cooldown", out var v) ? (float)v : FireRate;
+        }
 
         private struct ShipSystem { public string Label; public string Kind; public string WeaponKey; }
 
@@ -1228,11 +1248,11 @@ namespace BlocksBeyondTheStars.Client
             var sys = _systems[_selectedSystem];
             if (sys.Kind == "laser")
             {
-                var target = BestFireTarget();
+                var target = BestFireTarget(sys.WeaponKey);
                 _fireTargetId = target?.Id;
                 if (target != null && _fireCd <= 0f && InputMap.PrimaryHeld())
                 {
-                    _fireCd = FireRate;
+                    _fireCd = WeaponCooldownFor(sys.WeaponKey);
                     FireAt(target, sys.WeaponKey);
                 }
             }
@@ -1543,9 +1563,10 @@ namespace BlocksBeyondTheStars.Client
             ClientAudio.Instance?.Cue("scan_ping");
         }
 
-        /// <summary>The best entity to fire on: the nearest asteroid/hostile within weapon range that's
-        /// roughly ahead of the ship (so you aim by pointing the nose at it).</summary>
-        private BlocksBeyondTheStars.Networking.Messages.NetCombatEntity BestFireTarget()
+        /// <summary>The best entity to fire on (#693). AutoAim rule ON: the nearest asteroid/hostile within
+        /// range inside a tight forward cone (point the nose at it). AutoAim OFF: only a target the nose ray
+        /// genuinely passes through counts — line it up or the trigger stays cold.</summary>
+        private BlocksBeyondTheStars.Networking.Messages.NetCombatEntity BestFireTarget(string weaponKey)
         {
             var space = Game.Space;
             if (space == null || _ship == null)
@@ -1553,10 +1574,13 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
+            float range = WeaponRangeFor(weaponKey);
             Vector3 shipPos = _ship.transform.localPosition;
             Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
+            bool autoAim = Game.AutoAimOn;
             BlocksBeyondTheStars.Networking.Messages.NetCombatEntity best = null;
-            float bestScore = 0.25f; // require at least this much forward alignment
+            float bestScore = 0f;      // auto-aim: alignment/distance score
+            float bestDist = range;    // boresight: nearest body the ray pierces
             foreach (var e in space.Entities)
             {
                 if (e.Kind != "Asteroid" && e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip")
@@ -1566,17 +1590,43 @@ namespace BlocksBeyondTheStars.Client
 
                 Vector3 to = new Vector3(e.X, e.Y, e.Z) - shipPos;
                 float dist = to.magnitude;
-                if (dist > WeaponRange || dist < 0.001f)
+                if (dist > range || dist < 0.001f)
                 {
                     continue;
                 }
 
-                float align = Vector3.Dot(to / dist, fwd);          // 1 = dead ahead
-                float score = align - (dist / WeaponRange) * 0.25f;  // prefer aligned + close
-                if (score > bestScore)
+                float align = Vector3.Dot(to / dist, fwd); // 1 = dead ahead
+                if (autoAim)
                 {
-                    bestScore = score;
-                    best = e;
+                    if (align < SpaceAutoAimCone)
+                    {
+                        continue;
+                    }
+
+                    float score = align - (dist / range) * 0.25f; // prefer aligned + close
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = e;
+                    }
+                }
+                else
+                {
+                    // Boresight: perpendicular distance of the nose ray from the body's centre must be
+                    // inside its (generous) radius. Nearest pierced body wins.
+                    float along = align * dist;
+                    if (along <= 0f || along >= bestDist)
+                    {
+                        continue;
+                    }
+
+                    float missSq = dist * dist - along * along;
+                    float radius = 2.5f * Mathf.Max(1f, e.Scale);
+                    if (missSq <= radius * radius)
+                    {
+                        bestDist = along;
+                        best = e;
+                    }
                 }
             }
 
@@ -1587,7 +1637,11 @@ namespace BlocksBeyondTheStars.Client
         /// reads amber; combat reads cyan.</summary>
         private void FireAt(BlocksBeyondTheStars.Networking.Messages.NetCombatEntity target, string weaponKey)
         {
-            Game.Network?.SendFireWeapon(weaponKey, target.Id);
+            Vector3 fwd = _ship.transform.localRotation * Vector3.forward;
+            Game.Network?.SendFireWeapon(weaponKey, target.Id,
+                new BlocksBeyondTheStars.Shared.Primitives.Vector3f(fwd.x, fwd.y, fwd.z));
+            Game.LastShotTargetId = target.Id;
+            Game.LastShotTime = Time.time;
             bool mining = target.Kind == "Asteroid";
             Color col = mining ? new Color(1f, 0.7f, 0.25f) : new Color(0.45f, 1f, 1f);
 
@@ -3581,6 +3635,7 @@ namespace BlocksBeyondTheStars.Client
 
                     Destroy(_entities[id]);
                     _entities.Remove(id);
+                    EnemyHealthBars.Forget(id);
                 }
             }
         }
@@ -4186,6 +4241,38 @@ namespace BlocksBeyondTheStars.Client
             if (_phase == Phase.Cruise)
             {
                 DrawRemoteNameplates();
+                DrawEntityHealthBars();
+            }
+        }
+
+        /// <summary>Floating health bars over space hostiles (#692): drones, UFOs, cruisers and bandit
+        /// ships — asteroids (mining targets) and stations are excluded. The shared policy in
+        /// <see cref="EnemyHealthBars"/> shows a bar while an entity is in combat or is the current fire
+        /// lock, so a quiet field stays clean. Fade band matches the pilot nameplates.</summary>
+        private void DrawEntityHealthBars()
+        {
+            var space = Game.Space;
+            if (Camera == null || space == null)
+            {
+                return;
+            }
+
+            foreach (var e in space.Entities)
+            {
+                if (e.Kind != "Drone" && e.Kind != "Ufo" && e.Kind != "Cruiser" && e.Kind != "BanditShip")
+                {
+                    continue;
+                }
+
+                if (!_entities.TryGetValue(e.Id, out var go) || go == null)
+                {
+                    continue;
+                }
+
+                float height = 2f * Mathf.Max(1f, e.Scale);
+                EnemyHealthBars.Push(Game, Camera, e.Id, go.transform.position + Vector3.up * height,
+                    e.Hull, e.HullMax, friendly: false, fadeStart: 90f, fadeEnd: 140f,
+                    targeted: e.Id == _fireTargetId);
             }
         }
 

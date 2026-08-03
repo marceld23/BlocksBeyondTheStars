@@ -164,6 +164,7 @@ namespace BlocksBeyondTheStars.Client
 
             Head(ref y, L("ui.settings.comfort"));
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
+            Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_session_time"), S.ShowSessionTime, () => { S.ShowSessionTime = !S.ShowSessionTime; Rebuild(); });
             // Chat overlay: fade out on its own (default), stay up, or never show unprompted (#636). The
             // in-game toggle key does the same thing for one session without opening this menu.

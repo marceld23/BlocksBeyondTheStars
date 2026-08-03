@@ -65,7 +65,7 @@ Last updated: 2026-07-04.
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
-| **F** | Attack the nearest creature / swing the held tool |
+| **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
 | **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block** selected: rotate its placement orientation (see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
@@ -310,6 +310,21 @@ separate unlock; admins can still disable it through server world rules.
 ### Space flight & combat
 - Fly within local space instances; asteroids + NPC drones can damage hull/shield. Whether you can lose your
   ship is set by the world's **"Keep ship on death"** rule (see *Repairing your own ship* above).
+- **Aiming**: the ship laser acquires the best target roughly **ahead of the nose** (the centre dot lights up
+  cyan on lock). Weapon **range and fire rate come from the fitted module** — bigger cannons genuinely reach
+  further.
+
+### Aiming & enemy health bars
+- Damaged enemies (and the one under your crosshair) show a small **health bar** that ramps
+  green → amber → red; tamed companions show a friendly cyan bar. Turn bars off under
+  **Settings → Comfort → "Enemy health bars"**.
+- When one of **your** shots lands, the crosshair flashes a **hit marker**.
+- **Auto-aim** is a **world rule** (default **on**): weapons pick a target in a forward cone by
+  themselves — kid- and gamepad-friendly. The world admin can turn it **off** in the in-game
+  **world rules** panel (or create the world with `--auto-aim false`): then only what is actually
+  **under the crosshair** (on foot) or **on the ship's boresight** (in space) can be hit — misses
+  really miss. Shots are server-validated either way, including line-of-sight (no shooting through
+  walls).
 
 ### Asteroid belts
 - In worlds created with belts (the default for new worlds), a system's landable asteroids orbit

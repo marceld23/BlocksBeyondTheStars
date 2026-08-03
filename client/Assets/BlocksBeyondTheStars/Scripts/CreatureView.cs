@@ -61,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
 
             var seen = _seenScratch;
             seen.Clear();
+            var cam = Camera.main; // for the floating health bars (#692)
             foreach (var c in Game.Creatures)
             {
                 seen.Add(c.Id);
@@ -216,6 +217,14 @@ namespace BlocksBeyondTheStars.Client
 
                 entry.PrevHull = c.Hull;
                 entry.PrevHostile = c.Hostile;
+
+                // Floating health bar (#692): sits just above where a companion nameplate would hang, height
+                // scaled with the creature's size; companions read friendly cyan, wild fauna the health ramp.
+                float barHeight = 1.5f * Mathf.Clamp(c.Size, 0.4f, 8f) + 0.7f;
+                EnemyHealthBars.Push(Game, cam, c.Id,
+                    entry.Root.transform.position + Vector3.up * barHeight,
+                    c.Hull, c.HullMax, friendly: !string.IsNullOrEmpty(c.OwnerId),
+                    fadeStart: 18f, fadeEnd: 28f);
             }
 
             if (_creatures.Count > seen.Count)
@@ -238,6 +247,7 @@ namespace BlocksBeyondTheStars.Client
                     if (e.Zzz != null) Destroy(e.Zzz);             // sleep label is under the game root too
                     Destroy(e.Root);
                     _creatures.Remove(id);
+                    EnemyHealthBars.Forget(id);
                 }
             }
         }

@@ -292,6 +292,10 @@ namespace BlocksBeyondTheStars.Client
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
 
+        /// <summary>Show floating health bars over enemies and creatures in combat (#692) — planet surface
+        /// and space flight alike. Purely cosmetic (the values are replicated either way); off hides them.</summary>
+        public bool ShowEnemyHealthBars = true;
+
         // Comfort / wellbeing (playtime). Purely client-side: the session timer counts real wall-clock from
         // the moment you enter a world; the reminder is VEGA gently suggesting a break (a real-world nudge, not
         // an in-fiction event). Both default on but unobtrusive.

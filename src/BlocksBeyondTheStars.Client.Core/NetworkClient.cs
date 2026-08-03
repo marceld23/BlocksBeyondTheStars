@@ -194,7 +194,8 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
-            string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "")
+            string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
+            string autoAim = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
@@ -206,6 +207,7 @@ namespace BlocksBeyondTheStars.Client
                 KeepInventoryOnDeath = keepInventory,
                 KeepShipOnDeath = keepShip,
                 EnvironmentalHazards = hazards,
+                AutoAim = autoAim,
             });
 
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
@@ -336,10 +338,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Asks the server for a body's fixed landing pads + their live occupancy (the pad chooser).</summary>
         public void SendRequestLandingPads(string bodyId) => Send(new RequestLandingPadsIntent { BodyId = bodyId });
 
-        public void SendFireWeapon(string weaponKey, string targetEntityId)
-            => Send(new FireWeaponIntent { WeaponKey = weaponKey, TargetEntityId = targetEntityId });
+        /// <summary>Fires a ship weapon at a space entity; the direction is the ship's nose at the moment of
+        /// firing so the server can enforce the firing arc (#693). Zero = legacy no-arc behaviour.</summary>
+        public void SendFireWeapon(string weaponKey, string targetEntityId, Vector3f dir = default)
+            => Send(new FireWeaponIntent { WeaponKey = weaponKey, TargetEntityId = targetEntityId, DirX = dir.X, DirY = dir.Y, DirZ = dir.Z });
 
-        public void SendAttackEntity(string entityId) => Send(new AttackEntityIntent { EntityId = entityId });
+        /// <summary>Attacks a planet enemy/creature; the direction is the camera ray of the shot so the
+        /// server can validate the claimed target against it (#693). Zero = legacy no-aim behaviour.</summary>
+        public void SendAttackEntity(string entityId, Vector3f dir = default)
+            => Send(new AttackEntityIntent { EntityId = entityId, DirX = dir.X, DirY = dir.Y, DirZ = dir.Z });
 
         /// <summary>Asks the server to save the world + players to disk now (explicit save).</summary>
         public void SendSaveGame() => Send(new SaveGameIntent());

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1413 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1419 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,36 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Enemy health bars + real aiming: crosshair shots, AutoAim world rule, ship-weapon enforcement (#692, #693, #694, 2026-08-03, branch feat/health-bars-and-aiming — LOCAL, no PR)
+Combat never missed and never showed enemy health. **Health bars (#692):** every damageable entity
+(machines/drones/bandits, creatures incl. titans, space drones/UFOs/cruisers/bandit ships) draws a
+floating green→amber→red bar (companions: friendly cyan) while "in combat" (~6 s after a hull drop)
+or under the crosshair/fire lock — `ScreenLabelLayer` grew a pooled `WorldBar` primitive beside the
+nameplate pool, fed per-frame by `WorldEntities`/`CreatureView`/`SpaceView` through the shared policy
+in the new `EnemyHealthBars` helper (lerped fill, id cleanup on despawn). No protocol change —
+`Hull/HullMax` were already on the wire. Client toggle `ShowEnemyHealthBars` (comfort section,
+`ui.settings.show_enemy_health`). **Aiming (#693):** on foot, `AttackNearestEnemy` no longer picks
+the nearest target in a full 360° — the crosshair entity (analytic ray-vs-sphere over the replicated
+entities + a voxel terrain march; entity meshes have no colliders) always wins, auto-aim otherwise
+acquires only inside a ~±35° forward cone, and melee sweeps ~±60°. New world rule `GameRules.AutoAim`
+(default ON; `--auto-aim`, live admin row in the tech menu, `SetWorldRulesIntent.AutoAim`): OFF means
+only what's actually under the crosshair can be hit — misses fly a straight tracer into the terrain.
+In space the ±75° soft-lock tightened to ~±30° (AutoAim ON) or a true boresight ray (OFF). The
+crosshair tints hostile-red over a target and flashes a hit marker when your own shot lands (hull-drop
+attribution via `LastShotTargetId`). Server-authoritative: `AttackEntityIntent`/`FireWeaponIntent`
+carry the aim direction (contractless-additive — zero vector = old client = legacy behaviour), and the
+server validates angle (generous anti-cheat tolerances), ranged line-of-sight (`HasLineOfSight` — no
+shooting through walls) and a space firing arc. **Ship-weapon gaps (#694):** `weapon_cooldown` and
+`weapon_energy` from `data/ship_modules.json` are now enforced server-side (per-player cooldown map;
+lazily-regenerating reactor-fed energy pool — never throttles honest fire, drains modded spam), and
+the client reads range/cooldown from the fitted module instead of hardcoding 45/0.45 s — the
+`laser_cannon_2` finally uses its range 70. Existing worlds keep AutoAim ON automatically (missing
+JSON field deserializes to the default — no rules lift needed). Tests: 6 new `AimValidationTests`
+(legacy zero-dir, cone reject, manual crosshair line, wall block, space arc, server cooldown), CLI
+parse + live-edit coverage; fire-loop tests tick the cooldown. 1375 server + 147 client green.
+World-creation UI deliberately has NO AutoAim row (both columns are flush with the footer) — the
+live admin row covers it.
 
 ### ★ Space rocks come in sizes and flavors: seeded mineral families, water ice included (#687, 2026-08-03, branch feat/mini-asteroid-variety)
 Every mineable space rock was the same clone: a fixed r=2 sphere with a titanium core and an

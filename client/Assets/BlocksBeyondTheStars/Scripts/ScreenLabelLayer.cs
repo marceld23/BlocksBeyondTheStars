@@ -25,11 +25,23 @@ namespace BlocksBeyondTheStars.Client
         private int _used;
         private int _frame = -1;
 
+        // Health/progress bars (#692) share the layer's projection + pooling lifecycle, so entity health
+        // bars and nameplates stay in the same visual system (and one distance-fade convention).
+        private readonly List<BarEntry> _barPool = new List<BarEntry>();
+        private int _barUsed;
+
         private sealed class Entry
         {
             public RectTransform Rt;
             public Text Main;
             public Text Shadow;
+        }
+
+        private sealed class BarEntry
+        {
+            public RectTransform Rt;
+            public Image Track;
+            public Image Fill;
         }
 
         /// <summary>Lazily creates (or returns) the singleton layer.</summary>
@@ -101,6 +113,52 @@ namespace BlocksBeyondTheStars.Client
             e.Rt.gameObject.SetActive(true);
         }
 
+        /// <summary>Pushes a horizontal bar (track + fill) anchored to a world position — the world-space
+        /// sibling of <see cref="HudUi"/>'s vitals. Same per-frame contract and distance fade as
+        /// <see cref="World"/>; callers re-push every frame from <c>LateUpdate</c>.</summary>
+        public void WorldBar(Camera cam, Vector3 world, float frac, Color color,
+                             float width = 46f, float fadeStart = 0f, float fadeEnd = 0f)
+        {
+            if (cam == null)
+            {
+                return;
+            }
+
+            var sp = cam.WorldToScreenPoint(world);
+            if (sp.z <= 0f)
+            {
+                return; // behind the camera
+            }
+
+            float alpha = 1f;
+            if (fadeEnd > 0f)
+            {
+                float dist = Vector3.Distance(cam.transform.position, world);
+                if (dist >= fadeEnd)
+                {
+                    return;
+                }
+
+                if (dist > fadeStart && fadeEnd > fadeStart)
+                {
+                    alpha = 1f - (dist - fadeStart) / (fadeEnd - fadeStart);
+                }
+            }
+
+            BeginFrameIfNeeded();
+            var e = AcquireBar();
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_root, new Vector2(sp.x, sp.y), null, out var local);
+            e.Rt.anchoredPosition = local;
+            e.Rt.sizeDelta = new Vector2(width, 5f);
+            var track = new Color(0.03f, 0.07f, 0.13f, 0.9f * alpha); // the HUD vitals' dark track
+            e.Track.color = track;
+            var fill = color;
+            fill.a *= alpha;
+            e.Fill.color = fill;
+            e.Fill.fillAmount = Mathf.Clamp01(frac);
+            e.Rt.gameObject.SetActive(true);
+        }
+
         private void BeginFrameIfNeeded()
         {
             if (_frame == Time.frameCount)
@@ -110,6 +168,7 @@ namespace BlocksBeyondTheStars.Client
 
             _frame = Time.frameCount;
             _used = 0;
+            _barUsed = 0;
         }
 
         private Entry Acquire()
@@ -131,6 +190,43 @@ namespace BlocksBeyondTheStars.Client
             var e = new Entry { Rt = rt, Main = main, Shadow = shadow };
             _pool.Add(e);
             _used++;
+            return e;
+        }
+
+        private BarEntry AcquireBar()
+        {
+            if (_barUsed < _barPool.Count)
+            {
+                return _barPool[_barUsed++];
+            }
+
+            var go = new GameObject("WorldBar", typeof(RectTransform));
+            go.transform.SetParent(_root, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(46f, 5f);
+
+            var track = go.AddComponent<Image>();
+            track.sprite = UiKit.SolidSprite;
+            track.raycastTarget = false;
+
+            var fillGo = new GameObject("Fill", typeof(RectTransform));
+            fillGo.transform.SetParent(rt, false);
+            var fr = fillGo.GetComponent<RectTransform>();
+            fr.anchorMin = Vector2.zero;
+            fr.anchorMax = Vector2.one;
+            fr.offsetMin = new Vector2(0.5f, 0.5f);
+            fr.offsetMax = new Vector2(-0.5f, -0.5f);
+            var fill = fillGo.AddComponent<Image>();
+            fill.sprite = UiKit.SolidSprite;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.raycastTarget = false;
+
+            var e = new BarEntry { Rt = rt, Track = track, Fill = fill };
+            _barPool.Add(e);
+            _barUsed++;
             return e;
         }
 
@@ -169,7 +265,16 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
+                for (int i = _barUsed; i < _barPool.Count; i++)
+                {
+                    if (_barPool[i].Rt.gameObject.activeSelf)
+                    {
+                        _barPool[i].Rt.gameObject.SetActive(false);
+                    }
+                }
+
                 _used = 0; // next producer call starts a fresh frame
+                _barUsed = 0;
             }
         }
     }

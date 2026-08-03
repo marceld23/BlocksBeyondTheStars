@@ -499,6 +499,10 @@ public sealed class ServerConfig
                 case "keep-ship":
                     if (bool.TryParse(value, out var ks)) { Rules.KeepShipOnDeath = ks; applied.Add("keep-ship"); }
                     break;
+                case "auto-aim":
+                    // #693: manual aiming — weapons only hit what is under the crosshair when off.
+                    if (bool.TryParse(value, out var aa)) { Rules.AutoAim = aa; applied.Add("auto-aim"); }
+                    break;
                 case "story":
                     Rules.StoryId = value; applied.Add("story"); // pack id, "none" for sandbox, or "default"/empty
                     break;

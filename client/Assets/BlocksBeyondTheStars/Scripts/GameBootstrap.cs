@@ -493,6 +493,20 @@ namespace BlocksBeyondTheStars.Client
         public bool SpaceSkipLaunch { get; private set; }    // entered space already airborne (helm) → no take-off anim
         public NetCombatEntity[] PlanetEnemies { get; private set; } = System.Array.Empty<NetCombatEntity>();
 
+        // --- Crosshair enemy aiming (#693): published by PlayerController every frame ---
+
+        /// <summary>Id of the enemy/creature currently under the crosshair (null = none) — drives the
+        /// crosshair's hostile tint and keeps that entity's health bar always visible.</summary>
+        public string AimedEnemyId { get; set; }
+
+        /// <summary>Whether the active world's rules mandate auto-aim (defaults to ON before rules arrive).</summary>
+        public bool AutoAimOn => Rules == null || Rules.AutoAim;
+
+        /// <summary>The entity id of the local player's most recent shot + when it left — lets the entity
+        /// views attribute an observed hull drop to "my hit" and flash the crosshair hit marker.</summary>
+        public string LastShotTargetId { get; set; }
+        public float LastShotTime { get; set; } = -999f;
+
         /// <summary>Live procedural creatures near the player (fauna), with their species descriptor.</summary>
         public NetCreature[] Creatures { get; private set; } = System.Array.Empty<NetCreature>();
 

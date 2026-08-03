@@ -70,6 +70,7 @@ namespace BlocksBeyondTheStars.Client
 
             var seen = _seenScratch;
             seen.Clear();
+            var cam = Camera.main; // for the floating health bars (#692)
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
@@ -158,6 +159,11 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 en.PrevHull = e.Hull;
+
+                // Floating health bar over machines + bandits (#692); also attributes hull drops to the
+                // local player's latest shot for the crosshair hit marker. Same fade band as NPC nameplates.
+                EnemyHealthBars.Push(Game, cam, e.Id, en.Root.transform.position + Vector3.up * 2.1f,
+                    e.Hull, e.HullMax, friendly: false, fadeStart: 18f, fadeEnd: 28f);
             }
 
             // Remove enemies whose entity is gone (killed / out of range).
@@ -177,6 +183,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Destroy(_enemies[id].Root);
                     _enemies.Remove(id);
+                    EnemyHealthBars.Forget(id);
                 }
             }
         }

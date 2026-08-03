@@ -250,17 +250,28 @@ public sealed class TravelIntent
     public int PadIndex { get; set; } = -1;
 }
 
-/// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.</summary>
+/// <summary>Client fires a built ship weapon at a space entity. The server validates and resolves the hit.
+/// Contractless-additive aim fields (#693): the ship's forward direction at the moment of firing, so the
+/// server can enforce a firing arc. An all-zero direction (older client) skips the arc check.</summary>
 public sealed class FireWeaponIntent
 {
     public string WeaponKey { get; set; } = string.Empty;
     public string TargetEntityId { get; set; } = string.Empty;
+    public float DirX { get; set; }
+    public float DirY { get; set; }
+    public float DirZ { get; set; }
 }
 
-/// <summary>Client attacks a planet enemy with the held tool/weapon. The server resolves the hit.</summary>
+/// <summary>Client attacks a planet enemy with the held tool/weapon. The server resolves the hit.
+/// Contractless-additive aim fields (#693): the camera-ray direction of the shot, so the server can
+/// validate the claimed target against where the player was actually looking (angle + line of sight).
+/// An all-zero direction (older client) skips those checks.</summary>
 public sealed class AttackEntityIntent
 {
     public string EntityId { get; set; } = string.Empty;
+    public float DirX { get; set; }
+    public float DirY { get; set; }
+    public float DirZ { get; set; }
 }
 
 /// <summary>Client eats/uses a consumable item (food heals, poison harms). The server applies it.</summary>
@@ -867,6 +878,10 @@ public sealed class ServerRules
     /// false it is limited to bodies the player has already landed on (default).</summary>
     public bool InstantTravel { get; set; }
 
+    /// <summary>Auto-aim world option (#693): when true (default) weapons acquire targets in a forward cone
+    /// automatically; when false only the entity under the crosshair can be hit (manual aiming).</summary>
+    public bool AutoAim { get; set; } = true;
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -895,6 +910,9 @@ public sealed class SetWorldRulesIntent
     /// <summary>Environmental-hazards tier: "Off"/"Light"/"Normal"/"Hard" to set it, empty to leave
     /// unchanged (#670) — the live switch for the temperature survival hazard.</summary>
     public string EnvironmentalHazards { get; set; } = string.Empty;
+
+    /// <summary>Auto-aim toggle (#693): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string AutoAim { get; set; } = string.Empty;
 }
 
 // --- Missions ---

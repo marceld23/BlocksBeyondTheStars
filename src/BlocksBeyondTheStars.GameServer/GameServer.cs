@@ -646,6 +646,9 @@ public sealed partial class GameServer
     /// <summary>Test hook: toggle the Instant Travel world rule.</summary>
     public void SetInstantTravelForTest(bool on) => Rules.InstantTravel = on;
 
+    /// <summary>Test hook: flips the AutoAim world rule (#693) without a session/admin round-trip.</summary>
+    public void SetAutoAimForTest(bool on) => Rules.AutoAim = on;
+
     /// <summary>Test hook for the travel-screen quick-travel path (gated by the Instant Travel rule). Returns
     /// whether the player ended up at the destination (i.e. the travel was allowed).</summary>
     public bool QuickTravelForTest(string playerId, string destinationBodyId)
@@ -4562,6 +4565,7 @@ public sealed partial class GameServer
             AlienUfos = r.AlienUfos.ToString(),
             Bandits = r.Bandits.ToString(),
             InstantTravel = r.InstantTravel,
+            AutoAim = r.AutoAim,
             VoiceChatEnabled = _config.VoiceChatEnabled,
         });
     }
@@ -4613,6 +4617,11 @@ public sealed partial class GameServer
             Rules.EnvironmentalHazards = hz;
         }
 
+        if (!string.IsNullOrEmpty(intent.AutoAim))
+        {
+            Rules.AutoAim = intent.AutoAim.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
 
@@ -4626,7 +4635,8 @@ public sealed partial class GameServer
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
-                  $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}.");
+                  $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
+                  $"autoAim={Rules.AutoAim}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

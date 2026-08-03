@@ -101,6 +101,9 @@ namespace BlocksBeyondTheStars.Client
             var onOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
             Row(true, shell.L("ui.worldopt.space_combat"), onOff, () => opt.SpaceCombat ? 1 : 0, v => opt.SpaceCombat = v == 1);
             Row(true, shell.L("ui.worldopt.keep_ship"), onOff, () => opt.KeepShip ? 1 : 0, v => opt.KeepShip = v == 1);
+            // Auto-aim (#693) intentionally has NO creation row: both columns already end flush with the
+            // footer. New worlds start with the server default (ON); the world admin flips it live in the
+            // in-game world-rules panel, and scripts can pass --auto-aim false at launch.
 
             // Right column: the generated world.
             UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_world"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
