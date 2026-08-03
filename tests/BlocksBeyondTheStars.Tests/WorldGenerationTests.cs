@@ -372,6 +372,45 @@ public class WorldGenerationTests
     }
 
     [Fact]
+    public void MultiBiomeWorld_ShufflesWhichBiomesMakeTheCut()
+    {
+        // #696: the per-world biome subset must vary in MEMBERSHIP, not only in size — before the fix
+        // the first N pool entries always won, so a later entry could never appear without all earlier
+        // ones and the first entry was present on every world of the type.
+        var content = Content();
+        var planet = content.GetPlanet("varied")!; // pool: sand, grass, mud, stone
+        int pool = planet.Biomes.Count;
+        Assert.True(pool >= 3, "test needs a planet type with a multi-biome pool");
+        var firstPoolSurface = content.GetBlock(planet.Biomes[0].SurfaceBlock)!.NumericId;
+
+        bool sawWorldWithoutFirstEntry = false;
+        var seenSurfaces = new HashSet<BlockId>();
+        for (int seed = 1; seed <= 80; seed++)
+        {
+            var biomes = new WorldGenerator(seed, content).ResolveBiomes(planet);
+            Assert.InRange(biomes.Count, 2, pool);
+            var surfaces = biomes.Select(b => b.Surface).ToHashSet();
+            Assert.Equal(biomes.Count, surfaces.Count); // no biome picked twice
+            seenSurfaces.UnionWith(surfaces);
+            sawWorldWithoutFirstEntry |= !surfaces.Contains(firstPoolSurface);
+        }
+
+        Assert.True(sawWorldWithoutFirstEntry,
+            "across many seeds some world should skip the first pool entry — the subset is shuffled, not a prefix");
+        Assert.Equal(pool, seenSurfaces.Count); // every pool entry appears on some world
+    }
+
+    [Fact]
+    public void ResolveBiomes_IsDeterministic_ForSameSeed()
+    {
+        var content = Content();
+        var planet = content.GetPlanet("varied")!;
+        var a = new WorldGenerator(4242, content).ResolveBiomes(planet);
+        var b = new WorldGenerator(4242, content).ResolveBiomes(planet);
+        Assert.Equal(a.Select(x => x.Surface), b.Select(x => x.Surface));
+    }
+
+    [Fact]
     public void GeneratedOres_AreAmongPlanetDefinition()
     {
         var content = Content();

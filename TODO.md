@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1419 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1421 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
@@ -101,6 +101,15 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Multi-biome worlds shuffle WHICH biomes they get, not just how many (#696, 2026-08-03, branch fix/biome-subset-shuffle)
+`ResolveBiomes` randomised only the biome COUNT (2..pool) and then always took the first N entries of
+the type's pool in `data/planets.json` order — so e.g. a 2-biome `varied` world was always sand+grass,
+and the tail entries (`mud`, `stone`) never appeared without all earlier ones. A per-world Fisher–Yates
+shuffle (seeded from `PlanetSeed`, deterministic — server and client preview agree) now also picks
+WHICH entries make the cut. `ResolveBiomes` became `internal` (+`InternalsVisibleTo` for the test
+project); 2 new tests cover membership variety across seeds and determinism. Only newly generated
+chunks are affected; existing persisted terrain is untouched.
 
 ### ★ Enemy health bars + real aiming: crosshair shots, AutoAim world rule, ship-weapon enforcement (#692, #693, #694, 2026-08-03, branch feat/health-bars-and-aiming — LOCAL, no PR)
 Combat never missed and never showed enemy health. **Health bars (#692):** every damageable entity

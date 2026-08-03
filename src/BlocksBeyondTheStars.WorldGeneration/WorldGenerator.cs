@@ -2885,7 +2885,7 @@ public sealed class WorldGenerator
     /// <summary>A biome resolved for this world: its surface/sub-surface blocks plus the per-biome flora
     /// theme + density multipliers used when seeding plants and trees (so one region reads lush + tropical
     /// and another sparse + arid within the same world).</summary>
-    private readonly struct BiomeResolved
+    internal readonly struct BiomeResolved
     {
         public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme)
         {
@@ -2905,10 +2905,11 @@ public sealed class WorldGenerator
 
     /// <summary>
     /// Resolves the surface/sub-surface blocks (+ per-biome flora theme &amp; density) the planet actually
-    /// uses. A multi-biome planet lists a *pool* of biomes; how many of them this world uses is randomised
-    /// per world from the seed (2..pool), so each multi-biome world differs. Single-biome → one entry.
+    /// uses. A multi-biome planet lists a *pool* of biomes; how many of them this world uses (2..pool)
+    /// AND which ones make the cut are randomised per world from the seed, so each multi-biome world
+    /// differs. Single-biome → one entry.
     /// </summary>
-    private List<BiomeResolved> ResolveBiomes(PlanetType planet)
+    internal List<BiomeResolved> ResolveBiomes(PlanetType planet)
     {
         var planetTheme = FloraThemes.Resolve(planet.FloraTheme);
         var list = new List<BiomeResolved>();
@@ -2921,15 +2922,31 @@ public sealed class WorldGenerator
 
         int pool = planet.Biomes.Count;
         int count = pool;
+        var order = new int[pool];
+        for (int i = 0; i < pool; i++)
+        {
+            order[i] = i;
+        }
+
         if (pool > 1)
         {
             long s = PlanetSeed(planet) ^ 0x0B10C0;
             count = 2 + (int)((ulong)(s < 0 ? -s : s) % (ulong)(pool - 1)); // 2..pool, seed-derived
+
+            // WHICH biomes make the cut is shuffled per world too (#696): previously the first N pool
+            // entries always won, so the tail entries were missing from every world that rolled a
+            // smaller count. Fisher–Yates seeded from the world so server and client preview agree.
+            var rng = new DeterministicRandom((PlanetSeed(planet) ^ 0x0B10C7) * 2654435761L);
+            for (int i = pool - 1; i > 0; i--)
+            {
+                int j = rng.Range(0, i);
+                (order[i], order[j]) = (order[j], order[i]);
+            }
         }
 
         for (int i = 0; i < count; i++)
         {
-            var b = planet.Biomes[i];
+            var b = planet.Biomes[order[i]];
             var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
             list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
                 b.FloraDensityMul, b.TreeDensityMul, theme));
