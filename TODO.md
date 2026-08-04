@@ -7148,6 +7148,24 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-05): pickup feed + hotbar stack counts (#744/#745)
+
+You can finally SEE what you collected. Two HUD gaps closed:
+
+- **Hotbar stack counts (#744)** — every hotbar cell shows its stack size top-right (the free
+  corner: hotkey number top-left, name caption bottom). Only for stacks > 1, so tools stay clean.
+  New `UiKit.QuickSlot.Count` label (the flight ship-systems bar shares the widget and simply
+  leaves it empty) + `GameBootstrap.CountInSlot`.
+- **Pickup feed (#745)** — an unobtrusive column just above the hotbar's right end announces what
+  an inventory update ADDED: `icon  +n item name` (localized), max 4 rows, newest at the bottom,
+  each fading after ~2.5 s; repeat pickups of the same item merge and count up instead of
+  stacking rows. Fully client-side: `InventoryDiff.Gains` (Client.Core, unit-tested) diffs the
+  wholesale `InventoryUpdate` snapshots per BASE item key (dyed/shaped variants merge; slot moves
+  and losses are silent). The first update after a join is the baseline; gains while a menu is
+  open are dropped (craft/trade have their own in-menu feedback); gains while the hotbar is
+  hidden (piloting/driving/observer) are dropped, not saved up. Reduced-motion holds full alpha
+  until removal instead of fading.
+
 ## ✅ Done (2026-08-05): enemy spawn pacing — no instant machine refills, space combat is opt-in again (#740/#741)
 
 Two long-standing pacing bugs that made hostiles feel relentless:

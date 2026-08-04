@@ -714,6 +714,14 @@ namespace BlocksBeyondTheStars.Client
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
+        /// <summary>Item gains since the last HUD drain, aggregated per inventory update — the HUD
+        /// pickup feed (#745) consumes these. Base item key + amount gained.</summary>
+        public readonly Queue<(string Item, int Gained)> PickupGains = new Queue<(string, int)>();
+
+        /// <summary>False until the first InventoryUpdate after a join landed — that one is the
+        /// baseline snapshot, not a pickup (#745).</summary>
+        private bool _inventoryBaselined;
+
         /// <summary>Total slots in the ship's cargo hold (capacity), so the cargo tab can show "used/total". 0
         /// when not aboard (the cargo list is empty then).</summary>
         public int CargoSlots { get; private set; }
@@ -1028,6 +1036,20 @@ namespace BlocksBeyondTheStars.Client
             return string.Empty;
         }
 
+        /// <summary>The stack size in a personal inventory slot, or 0 if the slot is empty (#744).</summary>
+        public int CountInSlot(int slot)
+        {
+            foreach (var s in Personal)
+            {
+                if (s.Slot == slot)
+                {
+                    return s.Count;
+                }
+            }
+
+            return 0;
+        }
+
         /// <summary>A loaded chunk's GameObject plus its cached components, so the per-block-move reposition pass
         /// (RepositionChunks) never calls GetComponent on every loaded chunk — at a large view distance that loop
         /// runs over ~1700 chunks each time the player crosses a block, and GetComponent there was a real cost.
@@ -1219,6 +1241,8 @@ namespace BlocksBeyondTheStars.Client
             }
             Network.JoinAccepted += m =>
             {
+                _inventoryBaselined = false; // next InventoryUpdate is the join baseline, not a pickup (#745)
+                PickupGains.Clear();
                 LocalPlayerId = m.PlayerId;
                 LocationName = string.IsNullOrEmpty(m.SystemName)
                     ? m.PlanetName
@@ -1248,6 +1272,22 @@ namespace BlocksBeyondTheStars.Client
             Network.PlayerStateUpdated += OnPlayerState;
             Network.InventoryUpdated += m =>
             {
+                // Pickup feed (#745): surface what this update ADDED. The first update after a join is
+                // the baseline (the whole inventory is "new" then, not a pickup), and gains while a
+                // menu is open are dropped on purpose — craft/trade results have their own in-menu
+                // feedback, and re-announcing them after the menu closes would double up.
+                if (!_inventoryBaselined)
+                {
+                    _inventoryBaselined = true;
+                }
+                else if (!MenuOpen)
+                {
+                    foreach (var (item, gained) in InventoryDiff.Gains(Personal, m.Personal))
+                    {
+                        PickupGains.Enqueue((item, gained));
+                    }
+                }
+
                 Personal = m.Personal;
                 Cargo = m.Cargo;
                 CargoSlots = m.CargoSlotCount;

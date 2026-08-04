@@ -98,6 +98,25 @@ namespace BlocksBeyondTheStars.Client
 
         private int _lastSelSlot = -1; // hotbar selection tick state
 
+        // Pickup feed (#745): a short right-aligned column just above the hotbar's right end, one row per
+        // collected item ("icon  +n name"). Repeat pickups of the same item merge and count up instead of
+        // stacking rows; each row fades out after a couple of seconds. Rows live under the hotbar root so
+        // flying/driving hides the feed together with the bar.
+        private sealed class PickupRow
+        {
+            public string Item;
+            public int Count;
+            public float Ttl;
+            public GameObject Go;
+            public CanvasGroup Fade;
+            public Text Label;
+        }
+
+        private readonly System.Collections.Generic.List<PickupRow> _pickupRows = new System.Collections.Generic.List<PickupRow>();
+        private const int PickupMaxRows = 4;
+        private const float PickupRowH = 26f, PickupRowW = 300f, PickupLife = 2.5f, PickupFadeTime = 0.5f;
+        private float _pickupRightX, _pickupAnchorY; // right edge + top of the hotbar backplate
+
         // Perf: the text-heavy HUD refresh runs at ~10 Hz, not every frame — rebuilding dozens of strings
         // per frame is pure GC churn and the readouts (vitals, clock, prompts) don't change faster than
         // that anyway. Motion-coupled elements (compass blips) still update per frame, and a hotbar
@@ -128,6 +147,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 _canvas.enabled = show;
             }
+
+            // Even while a menu hides the canvas: rows must keep aging (a closed menu must not resurrect
+            // stale pickups) and gains queued during the hidden-hotbar states must keep draining away.
+            UpdatePickupFeed(Time.deltaTime);
 
             // While the binocular optic is raised its own reticle takes over — two crosshairs stacked on top of
             // each other read as a rendering bug (BinocularOptic owns the flag and always clears it).
@@ -404,6 +427,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 _hotbar[i] = UiKit.MakeQuickSlot(hbParent, x0 + i * pitch, hy, sw);
             }
+
+            // Pickup feed anchors (#745): rows sit flush with the backplate's right edge, stacking upward
+            // from just above it.
+            _pickupRightX = x0 + total + 12f;
+            _pickupAnchorY = hy - 14f;
 
             // Compass (round).
             var comp = new GameObject("Compass", typeof(RectTransform));
@@ -750,8 +778,13 @@ namespace BlocksBeyondTheStars.Client
                 {
                     s.Icon.enabled = false;
                     s.Name.text = string.Empty;
+                    s.Count.text = string.Empty;
                     continue;
                 }
+
+                // Stack size top-right (#744): only for real stacks, so tools (max stack 1) stay clean.
+                int count = Game.CountInSlot(i);
+                s.Count.text = count > 1 ? count.ToString() : string.Empty;
 
                 var blockDef = Game.Content?.GetBlock(item);
                 if (blockDef == null && Game.Content?.GetItem(item)?.PlacesBlock is string pb && pb.Length > 0)
@@ -795,6 +828,134 @@ namespace BlocksBeyondTheStars.Client
                 s.Name.text = sel ? name : (name.Length > 10 ? name.Substring(0, 9) + "…" : name);
                 s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
             }
+        }
+
+        // --- pickup feed (#745) ---
+
+        /// <summary>Drains the queued inventory gains into the feed rows and ages/fades them. While the
+        /// hotbar is hidden (piloting/driving/observer) gains are dropped, not saved up — announcing a
+        /// pile of stale pickups after landing would be noise, not feedback.</summary>
+        private void UpdatePickupFeed(float dt)
+        {
+            if (_hotbarRoot == null || !_hotbarRoot.activeSelf)
+            {
+                Game.PickupGains.Clear();
+                if (_pickupRows.Count > 0)
+                {
+                    foreach (var row in _pickupRows)
+                    {
+                        Destroy(row.Go);
+                    }
+
+                    _pickupRows.Clear();
+                }
+
+                return;
+            }
+
+            bool changed = false;
+            while (Game.PickupGains.Count > 0)
+            {
+                var (item, gained) = Game.PickupGains.Dequeue();
+                var row = _pickupRows.Find(r => r.Item == item);
+                if (row == null)
+                {
+                    if (_pickupRows.Count >= PickupMaxRows)
+                    {
+                        Destroy(_pickupRows[0].Go); // full: the oldest row yields
+                        _pickupRows.RemoveAt(0);
+                    }
+
+                    row = MakePickupRow(item);
+                    _pickupRows.Add(row);
+                }
+
+                row.Count += gained;
+                row.Ttl = PickupLife;
+                row.Label.text = $"+{row.Count} {Game.Localizer.Get($"item.{item}.name")}";
+                changed = true;
+            }
+
+            for (int i = _pickupRows.Count - 1; i >= 0; i--)
+            {
+                var row = _pickupRows[i];
+                row.Ttl -= dt;
+                if (row.Ttl <= 0f)
+                {
+                    Destroy(row.Go);
+                    _pickupRows.RemoveAt(i);
+                    changed = true;
+                    continue;
+                }
+
+                // Steady, then a short fade-out at the end; reduced motion holds full alpha until removal.
+                row.Fade.alpha = UiKit.ReducedMotion ? 1f : Mathf.Clamp01(row.Ttl / PickupFadeTime);
+            }
+
+            if (changed)
+            {
+                // Stack upward from the backplate: newest row sits closest to the hotbar.
+                for (int i = 0; i < _pickupRows.Count; i++)
+                {
+                    float y = _pickupAnchorY - (_pickupRows.Count - i) * PickupRowH;
+                    UiKit.Place(_pickupRows[i].Go, _pickupRightX - PickupRowW, y, PickupRowW, PickupRowH);
+                }
+            }
+        }
+
+        /// <summary>One feed row: right-aligned "+n name" text with the item's icon at the far right.</summary>
+        private PickupRow MakePickupRow(string item)
+        {
+            var go = new GameObject("pickup_row", typeof(RectTransform));
+            go.transform.SetParent(_hotbarRoot.transform, false);
+            var fade = go.AddComponent<CanvasGroup>();
+            fade.blocksRaycasts = false;
+            fade.interactable = false;
+
+            var iconGo = new GameObject("icon", typeof(RectTransform));
+            iconGo.transform.SetParent(go.transform, false);
+            UiKit.Place(iconGo, PickupRowW - 24f, 3f, 20f, 20f);
+            var raw = iconGo.AddComponent<RawImage>();
+            raw.raycastTarget = false;
+            SetItemIcon(raw, item);
+
+            var label = UiKit.AddText(go.transform, 0f, 3f, PickupRowW - 30f, 20f, string.Empty, 15,
+                UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
+            UiKit.AddOutline(label);
+
+            return new PickupRow { Item = item, Go = go, Fade = fade, Label = label };
+        }
+
+        /// <summary>Resolves an item key to its icon the same way the hotbar does (atlas tile for blocks
+        /// and seeds, generated PNG or procedural fallback for pure items) — minus the shaped-block special
+        /// case, since drops in the feed are plain base items.</summary>
+        private void SetItemIcon(RawImage img, string item)
+        {
+            var blockDef = Game.Content?.GetBlock(item);
+            if (blockDef == null && Game.Content?.GetItem(item)?.PlacesBlock is string pb && pb.Length > 0)
+            {
+                blockDef = Game.Content?.GetBlock(pb);
+            }
+
+            Texture2D itemTex;
+            if (blockDef != null && Game.Atlas != null)
+            {
+                img.texture = Game.Atlas.Texture;
+                img.uvRect = Game.Atlas.TileUv(blockDef.NumericId.Value);
+            }
+            else if ((itemTex = IconResolver.ItemTexture(item)) != null)
+            {
+                img.texture = itemTex;
+                img.uvRect = new Rect(0, 0, 1, 1);
+            }
+            else
+            {
+                var kind = Game.Content?.GetItem(item)?.Tool?.Kind ?? BlocksBeyondTheStars.Shared.Definitions.ToolKind.None;
+                img.texture = IconFactory.ForItem(item, kind);
+                img.uvRect = new Rect(0, 0, 1, 1);
+            }
+
+            img.color = IconResolver.Tint(item, Game);
         }
 
         // --- compass ---

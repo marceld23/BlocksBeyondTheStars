@@ -688,6 +688,7 @@ namespace BlocksBeyondTheStars.Client
             public Image Ring;           // bright selection outline (toggled on the active slot)
             public RawImage Icon;        // the block-atlas / item texture
             public Text Num, Name;
+            public Text Count;           // stack size, top-right (#744) — left empty by the ship-systems bar
         }
 
         /// <summary>Builds a quick-bar cell at a top-left anchored rect. The icon nearly fills the box (only a thin
@@ -712,8 +713,11 @@ namespace BlocksBeyondTheStars.Client
             AddOutline(num);
             var name = AddText(box.transform, 2f, size - 17f, size - 4f, 16f, string.Empty, 12, TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             AddOutline(name);
+            // Stack size in the free corner: the hotkey number owns top-left, the caption owns the bottom edge.
+            var count = AddText(box.transform, 5f, 2f, size - 10f, 18f, string.Empty, 13, TextCol, TextAnchor.UpperRight, FontStyle.Bold);
+            AddOutline(count);
 
-            return new QuickSlot { Rt = box.rectTransform, Border = box, Ring = ring, Icon = icon, Num = num, Name = name };
+            return new QuickSlot { Rt = box.rectTransform, Border = box, Ring = ring, Icon = icon, Num = num, Name = name, Count = count };
         }
 
         /// <summary>Applies the selected/idle look to a quick-bar cell: a bright fill + a cyan outline ring on the
