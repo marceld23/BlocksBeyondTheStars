@@ -1296,11 +1296,12 @@ namespace BlocksBeyondTheStars.Client
                     {
                         CancelQuit(); // Esc again dismisses the confirmation
                     }
-                    else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm))
+                    else if (boot != null && (boot.MenuOpen || boot.MenuInputHandledThisFrame || boot.AwaitingRespawnConfirm || boot.VegaPrologueActive))
                     {
                         // The in-game menu / a modal owns this Esc press — or the death prompt is up
                         // (#413: the quit dialog would open invisibly BEHIND its backdrop, sortingOrder
-                        // 60 vs 85; only its "Weiter" button proceeds).
+                        // 60 vs 85; only its "Weiter" button proceeds). The first-spawn prologue (#738)
+                        // also owns Esc as its skip key, independent of script execution order.
                     }
                     else
                     {

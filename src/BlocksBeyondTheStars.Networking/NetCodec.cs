@@ -356,6 +356,10 @@ public static class NetCodec
 
         // #685: EVA asteroid mining obeys hardness — per-cell progress on a voxel structure.
         Register(188, typeof(StructureMiningProgress));  // Server -> Client
+
+        // VEGA tips log (#737): the player's vega:* milestones on join — the client rebuilds the
+        // re-readable "VEGA tips" section of the ship terminal's Story tab from them.
+        Register(189, typeof(VegaJournal));              // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

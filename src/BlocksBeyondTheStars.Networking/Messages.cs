@@ -1883,3 +1883,16 @@ public sealed class SkipOnboardingIntent
 {
     public bool Restart { get; set; }
 }
+
+/// <summary>
+/// Server → client: the player's VEGA milestone ledger (<c>vega:*</c> entries of
+/// <see cref="Shared.State.PlayerState.Milestones"/>), sent once on join. The client reconstructs the
+/// re-readable "VEGA tips" log from it — a dismissed onboarding lesson or advisor hint was unrecoverable
+/// before, because only story lines (ShipAiLine Kind 2) were ever logged client-side.
+/// </summary>
+public sealed class VegaJournal
+{
+    /// <summary>Milestone ids exactly as stored server-side (<c>vega:intro</c>, <c>vega:stage:&lt;id&gt;</c>,
+    /// <c>vega:hint:&lt;id&gt;</c>, <c>vega:mem:&lt;n&gt;</c>).</summary>
+    public string[] Milestones { get; set; } = System.Array.Empty<string>();
+}

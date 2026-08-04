@@ -766,6 +766,14 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Story Log: the VEGA story-beat lines heard so far (locale keys, ShipAiLine kind 2 = memory/story).</summary>
         public readonly System.Collections.Generic.List<string> StoryLogBeats = new();
 
+        /// <summary>Re-readable VEGA tips (locale keys, #737): rebuilt from the server's milestone snapshot on
+        /// join (canonical order) and appended live as onboarding/advisor/system lines arrive this session.</summary>
+        public readonly System.Collections.Generic.List<string> VegaLogKeys = new();
+
+        /// <summary>True while the first-spawn prologue overlay is up (#738) — it owns Esc, so the app shell
+        /// must not treat that press as "leave game" (same contract as <see cref="MenuOpen"/>).</summary>
+        public bool VegaPrologueActive { get; set; }
+
         /// <summary>Pre-built JSON of the player's discovered systems/worlds + language for the in-game wiki's
         /// discovery-gated chapters. Built on the main thread (so the loopback content server can read this
         /// immutable string race-free) whenever the star map, language or unlocks change.</summary>
@@ -1413,6 +1421,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
                 if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) { StoryLogBeats.Add(m.LineKey); NewStoryUnseen = true; } // a story beat
+                // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
+                // moment they arrive. Kind 2 is the story log's, Kind 4 (prologue) is intro-only by design.
+                if (m.Kind is 0 or 1 or 3 && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
+                {
+                    VegaLogKeys.Add(m.LineKey);
+                }
+            };
+            Network.VegaJournalReceived += m =>
+            {
+                // The persisted snapshot replaces any live-collected keys — it is the authoritative set.
+                VegaLogKeys.Clear();
+                VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones));
             };
             Network.StoryStateReceived += m => Story = m;
             Network.NetFragmentsReceived += m => NetFragments = m.Fragments;

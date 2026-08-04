@@ -143,6 +143,9 @@ namespace BlocksBeyondTheStars.Client
         // Ship AI companion "VEGA": onboarding/advisor/story lines + the active objective chip.
         public event Action<ShipAiLine>? ShipAiLineReceived;
 
+        /// <summary>The player's vega:* milestone ledger (join snapshot) — backs the re-readable VEGA tips log.</summary>
+        public event Action<VegaJournal>? VegaJournalReceived;
+
         // Player alliances: the full roster (allies + pending requests) and a "someone proposed" toast notice.
         public event Action<AllianceList>? AllianceListReceived;
         public event Action<AllianceRequestNotice>? AllianceRequestReceived;
@@ -610,6 +613,7 @@ namespace BlocksBeyondTheStars.Client
                 case TradeClosed m: TradeClosedReceived?.Invoke(m); break;
                 case NpcGreeting m: NpcGreetingReceived?.Invoke(m); break;
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
+                case VegaJournal m: VegaJournalReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
                 case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
                 case AchievementList m: AchievementsReceived?.Invoke(m); break;

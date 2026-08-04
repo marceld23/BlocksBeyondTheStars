@@ -2245,41 +2245,71 @@ namespace BlocksBeyondTheStars.Client
         {
             float y = 8f;
             var s = Game?.Story;
+            bool storyOn = s != null && s.Active;
 
-            if (s == null || !s.Active)
+            if (storyOn)
             {
-                UiKit.AddText(_listContent, 8, y, 760, 34, L("ui.story.off"), 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
-                return y + 44f;
-            }
+                int pct = s.ProgressTarget > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * s.Progress / s.ProgressTarget), 0, 100) : 0;
+                UiKit.AddText(_listContent, 8, y, 760, 36, L("ui.story.meter") + ": " + pct + "%", 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 44f;
+                UiKit.AddText(_listContent, 8, y, 760, 28,
+                    L("ui.story.fragments") + ": " + s.FragmentsFound + "   ·   " + L("ui.story.kills") + ": " + s.MachineKills + "   ·   " + L("ui.story.beats") + ": " + s.BeatsRevealed,
+                    16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 40f;
 
-            int pct = s.ProgressTarget > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * s.Progress / s.ProgressTarget), 0, 100) : 0;
-            UiKit.AddText(_listContent, 8, y, 760, 36, L("ui.story.meter") + ": " + pct + "%", 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            y += 44f;
-            UiKit.AddText(_listContent, 8, y, 760, 28,
-                L("ui.story.fragments") + ": " + s.FragmentsFound + "   ·   " + L("ui.story.kills") + ": " + s.MachineKills + "   ·   " + L("ui.story.beats") + ": " + s.BeatsRevealed,
-                16, UiKit.CyanDim, TextAnchor.MiddleLeft);
-            y += 40f;
+                y = AllianceSection(L("ui.story.beats"), y);
+                y = StoryEntries(y, Game.StoryLogBeats);
 
-            y = AllianceSection(L("ui.story.beats"), y);
-            y = StoryEntries(y, Game.StoryLogBeats);
+                y += 10f;
+                y = AllianceSection(L("ui.story.fragments"), y);
+                if (Game.StoryLogFragments == null || Game.StoryLogFragments.Count == 0)
+                {
+                    y = StoryEmpty(y);
+                }
+                else
+                {
+                    foreach (var (cat, key) in Game.StoryLogFragments)
+                    {
+                        y = StoryEntry(y, "[" + IdLabel("lore.cat.", cat) + "] " + L(key));
+                    }
+                }
 
-            y += 10f;
-            y = AllianceSection(L("ui.story.fragments"), y);
-            if (Game.StoryLogFragments == null || Game.StoryLogFragments.Count == 0)
-            {
-                y = StoryEmpty(y);
+                y += 10f;
+                y = AllianceSection(L("ui.story.memories"), y);
+                y = StoryEntries(y, Game.StoryLogMemories);
             }
             else
             {
-                foreach (var (cat, key) in Game.StoryLogFragments)
+                UiKit.AddText(_listContent, 8, y, 760, 34, L("ui.story.off"), 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 44f;
+            }
+
+            // VEGA tips (#737): every onboarding lesson and advisor hint already received, rebuilt from the
+            // server's milestone snapshot — a dismissed tip used to be gone for good. Shown with or without
+            // an active story pack (the tutorial runs in the sandbox too).
+            y += 10f;
+            y = AllianceSection(L("ui.story.vega"), y);
+            bool anyTip = false;
+            if (Game?.VegaLogKeys != null)
+            {
+                foreach (var key in Game.VegaLogKeys)
                 {
-                    y = StoryEntry(y, "[" + IdLabel("lore.cat.", cat) + "] " + L(key));
+                    string text = L(key);
+                    if (text == key)
+                    {
+                        continue; // a future server hint this client has no translation for — no raw ids
+                    }
+
+                    y = StoryEntry(y, text);
+                    anyTip = true;
                 }
             }
 
-            y += 10f;
-            y = AllianceSection(L("ui.story.memories"), y);
-            y = StoryEntries(y, Game.StoryLogMemories);
+            if (!anyTip)
+            {
+                UiKit.AddText(_listContent, 12, y, 756, 28, L("ui.story.vega.none"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 34f;
+            }
 
             return y + 12f;
         }
@@ -2299,11 +2329,31 @@ namespace BlocksBeyondTheStars.Client
             return y;
         }
 
+        private static readonly TextGenerator StoryMeasurer = new TextGenerator();
+
         private float StoryEntry(float y, string text)
         {
-            int lines = Mathf.Max(1, Mathf.CeilToInt(text.Length / 64f));
-            float h = 8f + lines * 22f;
-            UiKit.AddText(_listContent, 12, y, 756, h, "• " + text, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            // Measured height instead of the old length/64 guess (which underestimated long German lines),
+            // and wrap actually enabled — the UiKit default (Overflow) let a long entry run past the pane.
+            string row = "• " + text;
+            var settings = new TextGenerationSettings
+            {
+                font = UiKit.Font,
+                fontSize = 17,
+                fontStyle = FontStyle.Normal,
+                richText = false,
+                scaleFactor = 1f,
+                lineSpacing = 1f,
+                horizontalOverflow = HorizontalWrapMode.Wrap,
+                verticalOverflow = VerticalWrapMode.Overflow,
+                generationExtents = new Vector2(756f, 0f),
+                textAnchor = TextAnchor.UpperLeft,
+                pivot = new Vector2(0f, 1f),
+                color = Color.white,
+            };
+            float h = 8f + StoryMeasurer.GetPreferredHeight(row, settings);
+            var t = UiKit.AddText(_listContent, 12, y, 756, h, row, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
             return y + h + 6f;
         }
 

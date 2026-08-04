@@ -135,6 +135,76 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
+    public void NewPlayer_GetsThePrologue_BeforeVegasIntro_WhenAStoryIsActive()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo); // default pack active
+        server.Start();
+        JoinAndDrain(server, client, "Dreamer");
+
+        // All three prologue pages arrive as Kind 4 (full-screen overlay), strictly before the intro.
+        var keys = lines.Where(l => !string.IsNullOrEmpty(l.LineKey)).Select(l => l.LineKey).ToList();
+        Assert.Contains(lines, l => l.LineKey == "vega.prologue.1" && l.Kind == 4);
+        Assert.Contains(lines, l => l.LineKey == "vega.prologue.2" && l.Kind == 4);
+        Assert.Contains(lines, l => l.LineKey == "vega.prologue.3" && l.Kind == 4);
+        Assert.True(keys.IndexOf("vega.prologue.3") < keys.IndexOf("vega.intro.1"),
+            "the prologue frames the premise BEFORE VEGA's first spoken line");
+    }
+
+    [Fact]
+    public void SandboxWithoutStory_SkipsThePrologue_ButStillRunsTheTutorial()
+    {
+        var config = Config();
+        config.Rules.StoryId = "none"; // the world opted out of narrative
+
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Sandboxer");
+
+        Assert.DoesNotContain(lines, l => l.Kind == 4);
+        Assert.Contains(lines, l => l.LineKey == "vega.intro.1"); // the tutorial itself is unaffected
+    }
+
+    [Fact]
+    public void Join_SendsTheVegaJournalSnapshot_AndSkipRefreshesIt()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var journals = new List<VegaJournal>();
+        client.PayloadReceived += payload =>
+        {
+            if (NetCodec.Decode(payload) is VegaJournal j)
+            {
+                journals.Add(j);
+            }
+        };
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Reader");
+
+        // The join snapshot carries the freshly-burned intro milestone — the client's tips log source.
+        Assert.NotEmpty(journals);
+        Assert.Contains("vega:intro", journals.Last().Milestones);
+        Assert.DoesNotContain(journals.Last().Milestones, m => !m.StartsWith("vega:", StringComparison.Ordinal));
+
+        // Skipping grants the whole chain — and re-sends the snapshot so the log is complete immediately.
+        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.Contains("vega:stage:mine", journals.Last().Milestones);
+        Assert.Contains("vega:stage:land", journals.Last().Milestones);
+    }
+
+    [Fact]
     public void NewPlayer_StartsWithFood_AndEatingAdvancesTheEatStage_ToScan()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));

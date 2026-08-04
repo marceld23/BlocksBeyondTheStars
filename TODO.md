@@ -103,6 +103,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ VEGA reads better: paged speech, a re-readable tips log, and a first-spawn prologue (#736, #737, #738, 2026-08-05, branch feat/vega-hints-ux)
+Three tutorial/onboarding fixes in one pass. **Paged speech (#736)** — VEGA's speech panel fits ~4
+lines (~220–240 chars) but locale lines are unclamped (only LLM banter had the 240-char server clamp),
+and German runs 12–20 % longer than English: the bandit briefing (DE 360 chars), the cold-survival hint
+(246) and the tutorial send-off (230) were silently cut off by `VerticalWrapMode.Truncate`. `VegaPanel`
+now measures wrapped lines via `TextGenerator` (scaleFactor 1, the What's-new pattern) and splits long
+lines into pages on wrap boundaries — **[N]** turns pages before dismissing, the continue hint shows
+`(1/2)`, typewriter + 25 s auto-advance apply per page; page-split logic is a pure helper
+(`Client.Core/VegaText.PageRanges`, unit-tested). The objective chip got wrap+truncate as a spill
+safety net. **Re-readable tips (#737)** — only story lines (Kind 2) were ever logged; onboarding
+lessons and advisor hints were gone once dismissed. The server already persists them all as
+`vega:*` milestones, so a new `VegaJournal` message (id 189) sends the snapshot on join (and after a
+tutorial skip) and the client rebuilds a canonical-order tips list (`VegaText.JournalKeys`, incl. the
+irregular `vega:hint:bandit_brief` → `vega.brief.bandits` mapping), appended live during the session.
+Shown as a "VEGA tips" section in the ship terminal's Story tab — now visible even with the story off;
+`StoryEntry` heights are measured instead of the old `length/64` guess (which underestimated German)
+and entries actually wrap now. **First-spawn prologue (#738)** — new-game framing ("a ship, no memory
+of who you are") as 3 full-screen text pages (`vega.prologue.1..3`, ShipAiLine **Kind 4** — reuses the
+existing message, no codec addition needed beyond the journal) before `vega.intro.1`, only for fresh
+non-veteran players **and only when a story pack is active** (sandbox "none" boots straight into the
+tutorial); replays on tutorial restart. Client renders it as a modal overlay (sortingOrder 50, below
+quit dialog/death prompt), **[N]**/click advances, **[Esc]** skips — `GameBootstrap.VegaPrologueActive`
+keeps AppShell from reading that Esc as "leave game", and `DismissSpeechForCapture` clears it so
+unattended capture runs don't hang. Tests: 14 paging/mapping (client) + 3 join-sequence (server).
+
 ### ★ Bandit hold-up dialog: the demand line stays inside the panel (#734, 2026-08-04, branch fix/bandit-dialog-overflow)
 The hold-up dialog rendered the bandit's spoken line (the "Wegzoll" hails, or an LLM-authored line) in
 a fixed 480×44 slot with uGUI's default horizontal Overflow, so any long line ran off both edges of

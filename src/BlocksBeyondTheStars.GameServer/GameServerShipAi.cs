@@ -108,8 +108,9 @@ public sealed partial class GameServer
         return i < VegaStages.Length && VegaStages[i].Id == "mine" ? session.VegaMineCount : 0;
     }
 
-    /// <summary>Join hook: boots VEGA for new players (intro + first objective), auto-grants the chain for
-    /// veteran saves, and re-shows the current objective on a mid-onboarding rejoin.</summary>
+    /// <summary>Join hook: boots VEGA for new players (prologue + intro + first objective), auto-grants the
+    /// chain for veteran saves, and re-shows the current objective on a mid-onboarding rejoin. Always ends
+    /// by sending the <see cref="VegaJournal"/> snapshot, so the client can rebuild the re-readable tips log.</summary>
     private void ShipAiOnJoin(PlayerSession session)
     {
         var p = session.State;
@@ -127,6 +128,16 @@ public sealed partial class GameServer
             }
             else
             {
+                // Narrative framing before VEGA's first words (#738): who-am-I prologue pages, shown by the
+                // client as a full-screen overlay (Kind 4). Only with an active story pack — a "none" sandbox
+                // opted out of narrative, so it boots straight into the tutorial.
+                if (StoryActive)
+                {
+                    SendVegaLine(session, "vega.prologue.1", 4);
+                    SendVegaLine(session, "vega.prologue.2", 4);
+                    SendVegaLine(session, "vega.prologue.3", 4);
+                }
+
                 SendVegaLine(session, "vega.intro.1", 0);
                 SendVegaLine(session, "vega.intro.2", 0);
                 SendVegaLine(session, "vega.s.mine.start", 0);
@@ -138,7 +149,20 @@ public sealed partial class GameServer
         {
             SendVegaLine(session, "vega.resume", 0);
         }
+
+        SendVegaJournal(session);
     }
+
+    /// <summary>The join snapshot behind the client's "VEGA tips" log (#737): every persisted vega:*
+    /// milestone. The client maps them to locale keys — a dismissed lesson or hint stays re-readable.</summary>
+    private void SendVegaJournal(PlayerSession session)
+        => Send(session, new VegaJournal
+        {
+            Milestones = session.State.Milestones
+                .Where(m => m.StartsWith("vega:", System.StringComparison.Ordinal))
+                .OrderBy(m => m, System.StringComparer.Ordinal)
+                .ToArray(),
+        });
 
     /// <summary>Marks an onboarding stage complete. If it was the ACTIVE stage, VEGA quips the completion
     /// and introduces the next one; later-stage events completed early are recorded silently.</summary>
@@ -199,6 +223,7 @@ public sealed partial class GameServer
 
         _repo.SavePlayer(p);
         SendVegaLine(session, "vega.skip", 3);
+        SendVegaJournal(session); // the granted chain becomes re-readable immediately, not on next join
     }
 
     // --- Stage hooks, called from the existing handlers (one line each at the call site). ---
