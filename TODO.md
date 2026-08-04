@@ -103,6 +103,22 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Micro-fauna 2.0: every planet gets its own bug life + 11 alien species (#725, 2026-08-04, branch feat/microfauna-variety)
+The tiny client-side critters (butterflies, beetles, fireflies…) were identical on every world of a
+biome bucket, every individual the same size, and the most alien-looking biomes (crystal / lava / ice)
+were nearly empty. Now: **per-planet identity** — a deterministic species subset (~70 % of the eligible
+roster) and a palette hue rotation, seeded via stable FNV hash from `StarMap.ActiveLocationId` and
+nudged toward the world's `FloraTint`, so planet A's moths are consistently different from planet B's;
+**per-individual variety** — size ×0.75–1.35 (2 % giants), two-colour palette blends, variable tint
+softening; **environment coupling** — rain/storms ground the flyers and bring out worms + snails, low
+gravity exaggerates flight/hop/drift bob (`GravityFactor`). **11 alien kinds** on two new motion models
+(`Hop` = parabolic hops, `Drift` = balloon float): prismwing + crystalbeetle (crystal), embermite +
+ashhopper (lava/ashen), frostmite (ice), gasbag + sporedrifter (lush), skyray, sandskimmer (desert),
+glowplankton (night water glitter), cavemoth (caves) — atlas grown 5×4 → 6×5, per-biome-key spawn
+rosters replace pure lush/cold/hot buckets, exotic-biome richness bumped. Art: 11 new tintable sprites
+via `gen_microfauna.py` + `bundle_textures.py --microfauna` (17 existing `.bytes` bit-identical).
+Entirely client-side — no server/netcode/save/test impact. NEEDS Unity build.
+
 ### ★ CI PR gate 12:40 → ~4:30: server suite sharded over a 4-runner matrix (#716, 2026-08-04, branch ci/shard-tests)
 The Test step spent 11:25 of the 12:40 PR gate running the server suite on ONE 4-vCPU runner — and it
 already scaled ~perfectly in-process (summed test time ≈ 2550 s ÷ 4 threads ≈ the observed wall;

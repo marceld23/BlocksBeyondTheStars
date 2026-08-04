@@ -51,6 +51,18 @@ TEXTURES = [
     ("waterbeetle", "a small water beetle seen from above with paddle legs"),
     ("strider", "a tiny water-strider insect with long thin splayed legs"),
     ("glowworm", "a small glowing cave glow-worm larva with a soft luminous body"),
+    # --- alien kinds (exotic biomes) ---
+    ("prismwing", "an alien butterfly with three pairs of angular crystalline faceted wings seen from above"),
+    ("crystalbeetle", "a beetle with a faceted gem-like crystal shell seen from above"),
+    ("embermite", "a tiny round mite with a brightly glowing hot ember abdomen seen from above"),
+    ("ashhopper", "a small cricket-like hopper insect with long folded jumping legs seen from the side"),
+    ("frostmite", "a tiny pale fluffy round mite with short legs and frost crystals seen from above"),
+    ("gasbag", "a tiny floating jellyfish-like alien creature with a round gas bladder and thin dangling tendrils"),
+    ("sporedrifter", "a small softly glowing drifting alien spore with a luminous halo and tiny filaments"),
+    ("skyray", "a small manta-ray-like alien creature gliding with broad swept wings seen from above"),
+    ("sandskimmer", "a slender darting alien insect with long swept-back wings seen from the side"),
+    ("glowplankton", "a tiny glowing plankton creature with a soft luminous translucent body"),
+    ("cavemoth", "a fuzzy pale cave moth with broad rounded wings seen from above"),
 ]
 
 

@@ -13,6 +13,8 @@ namespace BlocksBeyondTheStars.Client
         Crawl,  // hugs the surface, slow wander (beetles, worms, snails…)
         Swim,   // stays inside a water volume, schools/darts (small fish, tadpoles…)
         Cling,  // mostly still, clinging near a cave ceiling with a faint glow (glow-worms)
+        Hop,    // parabolic ground hops with pauses (ash-hoppers, ember-mites…)
+        Drift,  // very slow airborne float with a strong bob — balloon / spore feel (gas-bags…)
     }
 
     /// <summary>When a critter is active across the day/night cycle.</summary>
@@ -93,6 +95,29 @@ namespace BlocksBeyondTheStars.Client
             // --- cave (underground glow) ---
             new("glowworm", 16, CritterMotion.Cling, CritterTime.Night, true, 0.12f, 0.0f, true,
                 new[] { C(0x6CF2C8), C(0x8CF29A), C(0x6CC8F2) }),
+            // --- alien kinds (exotic biomes get their own signature species) ---
+            new("prismwing", 17, CritterMotion.Fly, CritterTime.Day, true, 0.24f, 1.6f, true,
+                new[] { C(0x6CE8F2), C(0xE86CF2), C(0x9A6CF2), C(0x6CF2B8) }),
+            new("crystalbeetle", 18, CritterMotion.Crawl, CritterTime.Any, false, 0.16f, 0.6f, false,
+                new[] { C(0x7AE2E8), C(0xE87AD0), C(0xA88AF0), C(0x8AF0C8) }),
+            new("embermite", 19, CritterMotion.Hop, CritterTime.Night, true, 0.10f, 1.2f, true,
+                new[] { C(0xF2914C), C(0xF25C3C), C(0xF2C44C) }),
+            new("ashhopper", 20, CritterMotion.Hop, CritterTime.Day, false, 0.14f, 1.6f, false,
+                new[] { C(0x8A8580), C(0xA89A80), C(0x6A6660) }),
+            new("frostmite", 21, CritterMotion.Crawl, CritterTime.Any, false, 0.09f, 0.5f, true,
+                new[] { C(0xCFE4F2), C(0xE8F0F6), C(0xA8C8E2) }),
+            new("gasbag", 22, CritterMotion.Drift, CritterTime.Any, false, 0.22f, 0.4f, true,
+                new[] { C(0xC8A8E8), C(0x9AD8D2), C(0xE8A8C4), C(0xB8D89A) }),
+            new("sporedrifter", 23, CritterMotion.Drift, CritterTime.Night, true, 0.13f, 0.3f, true,
+                new[] { C(0xA8F26A), C(0x6AF2C4), C(0xC4F26A) }),
+            new("skyray", 24, CritterMotion.Fly, CritterTime.Day, false, 0.40f, 1.1f, false,
+                new[] { C(0x8AA2C2), C(0xC2B08A), C(0xB08AC2) }),
+            new("sandskimmer", 25, CritterMotion.Fly, CritterTime.Day, false, 0.16f, 3.4f, true,
+                new[] { C(0xD2B27A), C(0xC29A5A), C(0xE2C48A) }),
+            new("glowplankton", 26, CritterMotion.Swim, CritterTime.Night, true, 0.09f, 0.8f, true,
+                new[] { C(0x6AE8F2), C(0x8AF2C8), C(0x6AC0F2) }),
+            new("cavemoth", 27, CritterMotion.Fly, CritterTime.Any, false, 0.20f, 1.5f, false,
+                new[] { C(0xB0A8C2), C(0x9A94A8), C(0xC2BCD0) }),
         };
 
         private static readonly Dictionary<string, int> IndexByKey = BuildIndex();
@@ -121,67 +146,103 @@ namespace BlocksBeyondTheStars.Client
                 case "plains":
                 case "savanna": return 1.0f;
                 case "ocean": return 0.7f;
-                case "desert": return 0.55f;
-                case "crystal": return 0.5f;
+                case "desert": return 0.6f;
+                case "crystal": return 0.65f;
                 case "alpine": return 0.5f;
                 case "rock":
                 case "barren": return 0.45f;
                 case "lava":
                 case "ashen":
-                case "volcanic": return 0.4f;
+                case "volcanic": return 0.5f;
                 case "ice":
                 case "frozen":
                 case "tundra":
-                case "snow": return 0.3f;
+                case "snow": return 0.4f;
                 default: return 0.8f;
             }
         }
 
-        /// <summary>Weighted surface (fly+crawl) kinds for a biome, already filtered to the active day/night
-        /// window. Repeated entries == higher spawn weight. Returns tile indices into <see cref="Kinds"/>.</summary>
-        public static void SurfaceKinds(string biome, bool night, List<int> into)
+        /// <summary>Weighted surface (fly+crawl+hop+drift) kinds for a biome, already filtered to the active
+        /// day/night window. Repeated entries == higher spawn weight. <paramref name="wet"/> (rain/storm)
+        /// grounds most flyers and brings out the worms and snails instead. Exotic biome keys (crystal, lava,
+        /// ice, desert…) add their own alien signature species on top of the coarse lush/cold/hot buckets.
+        /// Returns indices into <see cref="Kinds"/>.</summary>
+        public static void SurfaceKinds(string biome, bool night, bool wet, List<int> into)
         {
             into.Clear();
             string b = (biome ?? string.Empty).ToLowerInvariant();
             bool lush = b is "jungle" or "forest" or "tropical" or "swamp" or "wetland";
             bool cold = b is "ice" or "frozen" or "tundra" or "snow" or "alpine";
             bool hot = b is "desert" or "lava" or "ashen" or "volcanic";
+            bool crystal = b is "crystal";
+            bool ember = b is "lava" or "ashen" or "volcanic";
+            bool desert = b is "desert";
 
             void Add(string key, int w) { int i = Index(key); for (int k = 0; k < w; k++) into.Add(i); }
+            // Flyers thin out heavily while it rains; drifting gas-bags don't mind the wet.
+            void AddFly(string key, int w) { if (wet) w = w >= 3 ? 1 : 0; Add(key, w); }
 
             if (night)
             {
-                if (!cold) Add("moth", 2);
-                if (lush) Add("firefly", 4); else if (!hot && !cold) Add("firefly", 1);
+                if (!cold) AddFly("moth", 2);
+                if (lush) AddFly("firefly", 4); else if (!hot && !cold && !crystal) AddFly("firefly", 1);
+                if (lush) { Add("sporedrifter", 3); Add("gasbag", 1); }
+                if (ember) Add("embermite", 4);
+                if (crystal) Add("crystalbeetle", 2);
+                if (cold) Add("frostmite", 2);
                 // crawlers also roam at night
                 Add("beetle", cold ? 1 : 2);
                 if (!cold) Add("spider", 1);
-                if (lush) Add("worm", 1);
+                if (lush || wet) Add("worm", wet ? 3 : 1);
+                if (wet && !cold) Add("snail", 2);
             }
             else
             {
-                if (!cold) Add("butterfly", lush ? 4 : 2);
-                if (lush) { Add("dragonfly", 2); Add("bee", 2); }
-                else if (!hot && !cold) { Add("bee", 1); }
-                Add("fly", hot ? 3 : (cold ? 0 : 2));
-                Add("beetle", hot ? 2 : 2);
+                if (!cold && !crystal) AddFly("butterfly", lush ? 4 : 2);
+                if (lush) { AddFly("dragonfly", 2); AddFly("bee", 2); }
+                else if (!hot && !cold && !crystal) { AddFly("bee", 1); }
+                AddFly("fly", hot ? 3 : (cold ? 0 : 2));
+                if (lush) { AddFly("skyray", 1); Add("gasbag", 1); }
+                else if (!hot && !cold && !crystal) AddFly("skyray", 1);
+                if (crystal) { AddFly("prismwing", 4); Add("crystalbeetle", 2); }
+                if (ember) Add("ashhopper", 3);
+                if (desert) { AddFly("sandskimmer", 3); Add("ashhopper", 2); }
+                if (cold) Add("frostmite", 3);
+                Add("beetle", 2);
                 Add("ant", cold ? 1 : 3);
                 if (lush) { Add("caterpillar", 2); Add("snail", 1); }
                 if (!cold) Add("spider", 1);
-                if (lush) Add("worm", 1);
+                if (lush || wet) Add("worm", wet ? 3 : 1);
+                if (wet && !cold) Add("snail", 2);
             }
 
             if (into.Count == 0) Add("beetle", 1); // never empty — a lone beetle beats nothing
         }
 
-        /// <summary>Aquatic kinds (always available wherever a water volume is found near the player).</summary>
-        public static void WaterKinds(List<int> into)
+        /// <summary>Aquatic kinds (always available wherever a water volume is found near the player). At
+        /// night luminous plankton joins the roster, so lush shorelines glitter after dark.</summary>
+        public static void WaterKinds(bool night, List<int> into)
         {
             into.Clear();
             into.Add(Index("fish")); into.Add(Index("fish"));
             into.Add(Index("tadpole"));
             into.Add(Index("waterbeetle"));
             into.Add(Index("strider"));
+            if (night) { Add3(into, Index("glowplankton")); }
+
+            static void Add3(List<int> l, int i) { l.Add(i); l.Add(i); l.Add(i); }
+        }
+
+        /// <summary>Deterministic FNV-1a string hash for per-planet cosmetic seeds. Never use
+        /// <see cref="string.GetHashCode"/> here — it differs between runtimes/runs.</summary>
+        public static int StableHash(string s)
+        {
+            unchecked
+            {
+                int h = (int)2166136261;
+                for (int i = 0; i < (s?.Length ?? 0); i++) h = (h ^ s[i]) * 16777619;
+                return h;
+            }
         }
 
         private static Color C(int rgb)
@@ -198,8 +259,8 @@ namespace BlocksBeyondTheStars.Client
     public static class MicroFaunaAtlas
     {
         public const int Tile = 64;
-        public const int Cols = 5;
-        public const int Rows = 4; // 20 tile slots ≥ Kinds.Length
+        public const int Cols = 6;
+        public const int Rows = 5; // 30 tile slots ≥ Kinds.Length
 
         private static Texture2D _tex;
 
@@ -290,7 +351,18 @@ namespace BlocksBeyondTheStars.Client
                     float tail = ((dx + 0.55f) * (dx + 0.55f)) / 0.05f + (dy * dy) / 0.05f;
                     if (bodyShape < 1f || tail < 1f) a = 1f;
                 }
-                else // Crawl
+                else if (k.Motion == CritterMotion.Drift)
+                {
+                    // Round balloon dome up top + a few thin dangling tendrils below.
+                    float dome = (dx * dx) / 0.22f + ((dy - 0.25f) * (dy - 0.25f)) / 0.22f;
+                    if (dome < 1f && dy > 0.05f) a = 1f;
+                    else if (dy <= 0.1f && dy > -0.75f)
+                    {
+                        float t0 = Mathf.Abs(dx), t1 = Mathf.Abs(dx + 0.22f), t2 = Mathf.Abs(dx - 0.22f);
+                        if (t0 < 0.035f || t1 < 0.035f || t2 < 0.035f) a = 0.85f;
+                    }
+                }
+                else // Crawl + Hop
                 {
                     // Horizontal oval body.
                     float bodyShape = (dx * dx) / 0.4f + (dy * dy) / 0.14f;

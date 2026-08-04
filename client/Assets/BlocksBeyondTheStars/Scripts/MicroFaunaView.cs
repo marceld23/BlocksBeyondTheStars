@@ -13,10 +13,13 @@ namespace BlocksBeyondTheStars.Client
     /// <see cref="AmbientParticles"/>: each client renders its own, they never attack, and nothing is synced.
     ///
     /// A pooled set of camera-facing sprite billboards (one shared atlas material → cheap batching) is kept
-    /// populated around the player, gated by biome, day/night and habitat (surface vs in-water vs cave). Three
-    /// light-weight motion models drive them: airborne flutter, surface crawl (height-following) and in-water
-    /// schooling; cave glow-worms cling near the ceiling and pulse. Suppressed in space / stations / airless
-    /// worlds, and thinned out under reduced-effects. Wired up beside the ambient dust in <see cref="WorldRig"/>.
+    /// populated around the player, gated by biome, day/night, weather and habitat (surface vs in-water vs
+    /// cave). Light-weight motion models drive them: airborne flutter, surface crawl (height-following),
+    /// in-water schooling, ceiling cling, parabolic hops and slow balloon drift. Every individual rolls its
+    /// own size and colour, and each planet gets a deterministic species subset + palette hue cast (seeded
+    /// from the stable body id, nudged toward the world's flora tint) so worlds have their "own" bug life.
+    /// Suppressed in space / stations / airless worlds, and thinned out under reduced-effects. Wired up
+    /// beside the ambient dust in <see cref="WorldRig"/>.
     /// </summary>
     public sealed class MicroFaunaView : MonoBehaviour
     {
@@ -44,6 +47,14 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<Vector3Int> _waterCells = new(); // cached nearby water cells to spawn fish into
         private float _waterScanTimer;
         private int _groupCounter;
+
+        // Per-planet cosmetic identity (deterministic, seeded from the stable body id): a small hue rotation
+        // for all palettes and a kept-subset of the surface roster, so each world has "its" species mix and
+        // colour cast while two visits to the same planet always look the same.
+        private string _planetKey;
+        private float _planetSeedTimer;
+        private float _planetHueShift;                    // -0.12..+0.12 around the hue wheel
+        private bool[] _planetKeep;                       // per kind-index: does this planet host the species?
 
         // scratch reused each frame (no per-frame allocations)
         private readonly Dictionary<int, Vector3> _groupSum = new();
@@ -87,9 +98,35 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            RefreshPlanetSeed(dt);
             RefreshWaterCells(dt);
             MaintainPopulation(surfaceOk, enclosed);
             MoveAndRender(dt);
+        }
+
+        /// <summary>Re-derives the per-planet cosmetic seed when the active body changes. Uses the stable
+        /// FNV hash (never string.GetHashCode) so the same planet always rolls the same look.</summary>
+        private void RefreshPlanetSeed(float dt)
+        {
+            _planetSeedTimer -= dt;
+            if (_planetSeedTimer > 0f && _planetKeep != null) return;
+            _planetSeedTimer = 2f;
+
+            string key = Game.StarMap?.ActiveLocationId;
+            if (string.IsNullOrEmpty(key)) key = Game.Environment?.Biome ?? string.Empty;
+            if (key == _planetKey && _planetKeep != null) return;
+
+            _planetKey = key;
+            var rng = new System.Random(MicroFauna.StableHash(key));
+            _planetHueShift = (float)(rng.NextDouble() * 0.24 - 0.12);
+            _planetKeep = new bool[MicroFauna.Kinds.Length];
+            for (int i = 0; i < _planetKeep.Length; i++)
+            {
+                // ~70 % of species live on any given planet; water + cave kinds always stay available so
+                // ponds and caves never end up empty.
+                var m = MicroFauna.Kinds[i].Motion;
+                _planetKeep[i] = m is CritterMotion.Swim or CritterMotion.Cling || rng.NextDouble() < 0.7;
+            }
         }
 
         /// <summary>Whether micro-fauna may appear at all right now, and (out) whether surface kinds are valid
@@ -164,7 +201,17 @@ namespace BlocksBeyondTheStars.Client
                 return SpawnWater();
             }
 
-            MicroFauna.SurfaceKinds(Game.Environment?.Biome, night, _surfaceKinds);
+            var env = Game.Environment;
+            bool wet = env != null && (env.Precipitation == "rain" || env.Weather == "storm" || env.Weather == "rain");
+            MicroFauna.SurfaceKinds(env?.Biome, night, wet, _surfaceKinds);
+            // Per-planet roster subset: drop species this planet doesn't host (unless that empties the list).
+            if (_planetKeep != null && _surfaceKinds.Count > 0)
+            {
+                bool anyKept = false;
+                for (int i = 0; i < _surfaceKinds.Count && !anyKept; i++) anyKept = _planetKeep[_surfaceKinds[i]];
+                if (anyKept) _surfaceKinds.RemoveAll(i => !_planetKeep[i]);
+            }
+
             if (_surfaceKinds.Count == 0) return false;
             int kindIdx = _surfaceKinds[Random.Range(0, _surfaceKinds.Count)];
             var kind = MicroFauna.Kinds[kindIdx];
@@ -174,21 +221,23 @@ namespace BlocksBeyondTheStars.Client
             if (gy == int.MinValue) return false;
 
             float baseY = gy + 1f;
+            bool airborne = kind.Motion is CritterMotion.Fly or CritterMotion.Drift;
             if (kind.Motion == CritterMotion.Fly) baseY = gy + 1.5f + Random.Range(0.5f, 2.2f);
+            else if (kind.Motion == CritterMotion.Drift) baseY = gy + 1.2f + Random.Range(0.4f, 1.8f);
 
             int group = kind.Groups && Random.value < 0.7f ? ++_groupCounter : -1;
-            int n = group >= 0 ? Random.Range(4, kind.Motion == CritterMotion.Fly ? 9 : 6) : 1;
+            int n = group >= 0 ? Random.Range(4, airborne ? 9 : 6) : 1;
             for (int i = 0; i < n && _alive.Count < MaxAlive; i++)
             {
                 float jx = wx + Random.Range(-1.6f, 1.6f), jz = wz + Random.Range(-1.6f, 1.6f);
-                float y = baseY + (kind.Motion == CritterMotion.Fly ? Random.Range(-0.4f, 0.6f) : 0f);
-                if (kind.Motion != CritterMotion.Fly)
+                float y = baseY + (airborne ? Random.Range(-0.4f, 0.6f) : 0f);
+                if (!airborne)
                 {
                     int g2 = GroundTopY(Mathf.FloorToInt(jx), Mathf.FloorToInt(jz));
                     if (g2 != int.MinValue) y = g2 + 0.12f;
                 }
 
-                Spawn(kindIdx, new Vector3(jx, y, jz), group, gy + 1f);
+                Spawn(kindIdx, new Vector3(jx, y, jz), group, airborne ? baseY : gy + 1f);
             }
 
             return true;
@@ -197,7 +246,7 @@ namespace BlocksBeyondTheStars.Client
         private bool SpawnWater()
         {
             if (_waterCells.Count == 0) return false;
-            MicroFauna.WaterKinds(_waterKinds);
+            MicroFauna.WaterKinds(IsNight(), _waterKinds);
             int kindIdx = _waterKinds[Random.Range(0, _waterKinds.Count)];
             var kind = MicroFauna.Kinds[kindIdx];
 
@@ -218,12 +267,24 @@ namespace BlocksBeyondTheStars.Client
 
         private bool SpawnCave()
         {
-            // Glow-worms cling just under a cave ceiling; the odd cave beetle scuttles the floor.
-            bool worm = Random.value < 0.75f;
-            int kindIdx = worm ? MicroFauna.Index("glowworm") : MicroFauna.Index("beetle");
+            // Glow-worms cling just under a cave ceiling; pale cave moths flutter the passages and the odd
+            // cave beetle scuttles the floor.
+            float roll = Random.value;
+            bool worm = roll < 0.6f;
+            bool moth = !worm && roll < 0.8f;
+            int kindIdx = worm ? MicroFauna.Index("glowworm")
+                : (moth ? MicroFauna.Index("cavemoth") : MicroFauna.Index("beetle"));
 
             if (!RingPosition(out float wx, out float wz)) return false;
             int ix = Mathf.FloorToInt(wx), iz = Mathf.FloorToInt(wz);
+
+            if (moth)
+            {
+                int floorY = GroundTopY(ix, iz);
+                if (floorY == int.MinValue) return false;
+                Spawn(kindIdx, new Vector3(wx, floorY + 1.2f + Random.Range(0f, 0.8f), wz), -1, floorY + 1.5f);
+                return true;
+            }
 
             if (worm)
             {
@@ -272,11 +333,28 @@ namespace BlocksBeyondTheStars.Client
             c.PauseTimer = 0f;
             c.Group = group;
             c.FacingSign = 1f;
+            c.VertVel = 0f;
+            c.Airborne = false;
+            // No two individuals are the same size; the rare giant makes a nice "look at that one!" moment.
+            c.SizeScale = Random.Range(0.75f, 1.35f) * (Random.value < 0.02f ? 1.5f : 1f);
             // Glowing kinds keep their full saturated colour (additive). For the rest the tint is softened
             // toward white so the generated sprite's own colours dominate (a hint of variety, not a muddy
             // multiply) — while a procedural white-silhouette fallback still picks up a pastel of the palette.
-            Color pick = kind.Palette[Random.Range(0, kind.Palette.Length)];
-            c.Tint = kind.Glow ? pick : Color.Lerp(Color.white, pick, 0.5f);
+            // Variety on top: blend between two palette entries, vary the softening, then apply this planet's
+            // hue rotation and a nudge toward its flora tint so the local life shares the world's colour cast.
+            Color pick = Color.Lerp(
+                kind.Palette[Random.Range(0, kind.Palette.Length)],
+                kind.Palette[Random.Range(0, kind.Palette.Length)], Random.value);
+            pick = ShiftHue(pick, _planetHueShift);
+            if (kind.Glow)
+            {
+                c.Tint = pick;
+            }
+            else
+            {
+                Color tint = Color.Lerp(Color.white, pick, Random.Range(0.25f, 0.65f));
+                c.Tint = Color.Lerp(tint, FloraTintColor(), 0.2f);
+            }
 
             BuildQuad(c);
             c.Mr.sharedMaterial = kind.Glow ? _matGlow : _matAlpha;
@@ -302,6 +380,8 @@ namespace BlocksBeyondTheStars.Client
                     case CritterMotion.Crawl: MoveCrawl(c, dt); break;
                     case CritterMotion.Swim: MoveSwim(c, dt); break;
                     case CritterMotion.Cling: MoveCling(c, dt); break;
+                    case CritterMotion.Hop: MoveHop(c, dt); break;
+                    case CritterMotion.Drift: MoveDrift(c, dt); break;
                 }
 
                 Render(c, camPos, camUp, camRight);
@@ -318,11 +398,72 @@ namespace BlocksBeyondTheStars.Client
             c.WorldPos.x += vel.x * dt;
             c.WorldPos.z += vel.z * dt;
 
-            // Gentle altitude wave around a ground-relative cruising height.
+            // Gentle altitude wave around a ground-relative cruising height; low gravity exaggerates the
+            // bob so flight on light worlds reads floatier.
             c.BobPhase += dt * 2.2f;
             int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
             if (gy != int.MinValue) c.BaseY = Mathf.Lerp(c.BaseY, gy + 2.0f, 0.04f);
-            c.WorldPos.y = c.BaseY + Mathf.Sin(c.BobPhase) * 0.45f;
+            c.WorldPos.y = c.BaseY + Mathf.Sin(c.BobPhase) * 0.45f * LowGravityScale();
+            c.LastVelX = vel.x;
+        }
+
+        private void MoveHop(Critter c, float dt)
+        {
+            c.Phase += dt;
+            if (c.Airborne)
+            {
+                float g = 14f * Mathf.Max(0.3f, Game.Environment?.GravityFactor ?? 1f);
+                Vector3 vel = Heading(c) * (c.Speed * 2f);
+                c.WorldPos.x += vel.x * dt;
+                c.WorldPos.z += vel.z * dt;
+                c.WorldPos.y += c.VertVel * dt;
+                c.VertVel -= g * dt;
+                c.LastVelX = vel.x;
+
+                int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
+                if (gy == int.MinValue)
+                {
+                    c.Heading += Mathf.PI; // hopped off a ledge — bounce back next hop
+                    gy = Mathf.FloorToInt(c.WorldPos.y);
+                }
+
+                if (c.VertVel < 0f && c.WorldPos.y <= gy + 0.12f)
+                {
+                    c.WorldPos.y = gy + 0.12f;
+                    c.Airborne = false;
+                    c.PauseTimer = Random.Range(0.4f, 1.8f);
+                }
+
+                return;
+            }
+
+            c.LastVelX = 0f;
+            if (c.PauseTimer > 0f)
+            {
+                c.PauseTimer -= dt;
+                return; // sitting between hops
+            }
+
+            // Launch the next hop — low gravity worlds get long, floaty arcs for free.
+            c.Heading += Random.Range(-0.8f, 0.8f);
+            c.VertVel = Random.Range(2.2f, 3.4f);
+            c.Airborne = true;
+        }
+
+        private void MoveDrift(Critter c, float dt)
+        {
+            c.Phase += dt;
+            c.BobPhase += dt * 0.9f;
+            Steer(c, dt, weave: 0.5f, cohesion: 0.3f);
+
+            Vector3 vel = Heading(c) * c.Speed;
+            c.WorldPos.x += vel.x * dt;
+            c.WorldPos.z += vel.z * dt;
+
+            // A slow balloon bob around a lazily ground-following cruise height.
+            int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
+            if (gy != int.MinValue) c.BaseY = Mathf.Lerp(c.BaseY, gy + 2.2f, 0.02f);
+            c.WorldPos.y = c.BaseY + Mathf.Sin(c.BobPhase) * 0.9f * LowGravityScale();
             c.LastVelX = vel.x;
         }
 
@@ -433,10 +574,11 @@ namespace BlocksBeyondTheStars.Client
             c.Go.transform.position = sp;
             c.Go.transform.rotation = Quaternion.LookRotation(sp - camPos, camUp);
 
-            float size = c.Kind.Size * 2f;
+            float size = c.Kind.Size * 2f * c.SizeScale;
             float flap = 1f;
             if (c.Kind.Motion == CritterMotion.Fly) flap = 0.55f + 0.45f * Mathf.Abs(Mathf.Sin(c.FlapPhase));
             else if (c.Kind.Motion == CritterMotion.Swim) flap = 0.85f + 0.15f * Mathf.Sin(c.FlapPhase);
+            else if (c.Kind.Motion == CritterMotion.Drift) flap = 0.92f + 0.08f * Mathf.Sin(c.BobPhase * 2f);
 
             // Glow kinds pulse their scale so the light reads as a soft blink.
             float pulse = c.Kind.Glow ? 0.7f + 0.3f * Mathf.Sin(c.Phase * (c.Kind.Motion == CritterMotion.Cling ? 1.6f : 4f)) : 1f;
@@ -532,6 +674,28 @@ namespace BlocksBeyondTheStars.Client
         {
             float t = Game.LocalTimeOfDay;
             return t < 0.24f || t > 0.78f;
+        }
+
+        /// <summary>>1 on light worlds, <1 on heavy ones — scales bob amplitudes so low gravity reads floaty.</summary>
+        private float LowGravityScale()
+        {
+            float g = Mathf.Max(0.3f, Game.Environment?.GravityFactor ?? 1f);
+            return Mathf.Clamp(1f / Mathf.Sqrt(g), 0.7f, 1.8f);
+        }
+
+        /// <summary>The planet's flora base hue as a Color (white when the world doesn't tint its plants).</summary>
+        private Color FloraTintColor()
+        {
+            int rgb = Game.Environment?.FloraTint ?? 0xFFFFFF;
+            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f, 1f);
+        }
+
+        /// <summary>Rotates a colour's hue by <paramref name="shift"/> (fraction of the hue wheel).</summary>
+        private static Color ShiftHue(Color color, float shift)
+        {
+            if (Mathf.Abs(shift) < 0.001f) return color;
+            Color.RGBToHSV(color, out float h, out float s, out float v);
+            return Color.HSVToRGB(Mathf.Repeat(h + shift, 1f), s, v);
         }
 
         private float HorizDistance(Vector3 worldPos)
@@ -643,6 +807,9 @@ namespace BlocksBeyondTheStars.Client
             public float FacingSign;
             public float LastVelX;
             public Color Tint;
+            public float SizeScale;    // per-individual size multiplier (~0.75..1.35, rare giants)
+            public float VertVel;      // vertical velocity while a hopper is mid-arc
+            public bool Airborne;      // hopper state: mid-hop vs sitting
         }
     }
 }
