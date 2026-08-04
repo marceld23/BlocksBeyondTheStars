@@ -13,6 +13,102 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.3] — 2026-08-04
+
+The wonders release: planets stopped playing it safe. Terrain generation learned a whole
+catalogue of spectacular landforms — a canyon that girdles the globe, crater chains with ejecta
+rays, stone arches and sea stacks, tiered sky islands with endless waterfalls, cenotes, lava
+tubes and caves that finally open to the surface — and about half of all new worlds now form
+true continents with real oceans between them. Combat grew up alongside: enemies show health
+bars, the crosshair does real aiming (with auto-aim as a world rule you can switch off), and
+ship weapons finally respect their own cooldown and energy budget. Rounding it off: multi-biome
+worlds draw from their whole biome pool instead of always the same entries, and NPCs stand on
+the ground, step into the light and stopped being clones.
+
+### 🏜️ Terrain wonders — the surface gets spectacular (#698–#703)
+
+- **A world-girdling mega-rift**: a rare planet carries one canyon system that wraps the entire
+  globe — a genuine "Valles Marineris" you can follow around the world.
+- **Craters became events**: complex craters with central peaks and terraced walls, crater
+  chains, and bright ejecta rays streaking away from young impacts.
+- **Per-world terrain grain**: dune seas and mountain ranges now run in a consistent per-world
+  direction instead of isotropic noise — deserts read as wind-swept, ranges as ranges.
+- **Geological set pieces**: hexagonal basalt-column fields, travertine terrace pools,
+  penitente ice-blade fields, salt polygons, ring-mountain calderas and whole-planet
+  escarpments.
+- **Hybrid worlds**: landform styles and archetypes can mix on one planet now, so a world can
+  be canyon country on one face and dune sea on another.
+- This is a **one-time reshape**: terrain you have not yet explored regenerates with the new
+  formulas — already-built and explored chunks keep their exact shape.
+
+### 🌊 Continents and true oceans — new worlds only (#704)
+
+- Large planets (roughly half of them, the start world included) now split into **continental
+  platforms and ocean basins**: domain-warped coastlines, a shelf falling away into deep sea,
+  and the sea level flooding the basins — so beaches, rivers and landmarks react for free
+  (a massif offshore becomes a volcanic island, a rift becomes an ocean trench).
+- Lava-ocean worlds roll **basalt continents** in their magma seas.
+- **Existing worlds are untouched** — continents apply only to newly created worlds (server
+  flag `continents=off` opts a new world out).
+
+### 🪨 Real overhangs: arches, sky islands, cenotes (#705–#707)
+
+- The engine's strict one-surface heightfield learned **multi-band columns** — and the first
+  tenants are **natural arches**, **sea stacks** off rocky coasts and **hoodoo** rock spires.
+- **Multi-tier sky islands** stack floating layers with stalactite undersides and **endless rim
+  waterfalls** pouring into the landscape below.
+- **Cenotes** — sinkholes with overhanging lips and a pool at the bottom — and vast
+  **underground mega-caverns** with their own lakes.
+
+### 🕳️ The tunnel carver: caves finally reach the surface (#708, #709)
+
+- A new deterministic **tunnel carver** threads worm-like passages through the rock — until now
+  every cave was a sealed bubble; **cave mouths and skylight shafts** now genuinely open to the
+  sky, so you can walk (or fall) into the underground.
+- **Lava tubes** wind under volcanic terrain, waterfalls carve **plunge pools** where they
+  land, and glacier worlds crack into **crevasse fields**.
+
+### ⚡ …and generation stayed fast (#712)
+
+- All of the above initially made every chunk pay for every wonder — a per-world wonder
+  profile, per-cell tunnel caching and distance-first feature probes brought generation back
+  near its old speed, with **bit-identical terrain** (verified by a hash sweep over every
+  planet type).
+
+### ⚔️ Enemy health bars, real aiming, honest ship weapons (#692–#694)
+
+- **Every damageable enemy shows a health bar** — bandits, creatures, space hostiles, planet
+  machines — green fading through amber to red (companions cyan), visible while in combat or
+  under your crosshair, with distance fades matching the nameplates. A **hit marker** flashes
+  when your shot lands. Client toggle in Settings.
+- **The crosshair aims now**: whatever is genuinely under your crosshair is the target; the old
+  magnetic lock — which could kill an enemy *behind your back* — only assists within a forward
+  cone. **AutoAim is a world rule** (default on, so nothing changes unless you want it to):
+  switch it off and only real crosshair hits (on foot) or boresight shots (in space) land,
+  misses visibly striking the terrain.
+- **Ship weapons play by their stats**: the server now enforces weapon cooldown and a
+  reactor-fed energy pool — no more fire-rate cheating — and weapon range/cadence come from
+  the fitted module (the tier-2 laser finally gets its longer range).
+
+### 🌿 Multi-biome worlds use their whole biome pool (#696)
+
+- Worlds rolled how *many* biomes they get but always took the *first* entries of their type's
+  pool — so the pool's tail biomes never appeared anywhere, and the first one appeared
+  everywhere. A seeded per-world shuffle now also decides *which* biomes make the cut
+  (newly generated chunks only).
+
+### 🧑‍🚀 NPCs: feet on the ground, faces in the light (#711)
+
+- **No more hovering**: settlement folk, camp NPCs, bandits and enemies stand on the actual
+  blocks (a leftover +0.5 offset from the worldgen overhaul), and settlement NPCs re-ground
+  as they stroll — dig the floor out from under one and it drops.
+- **Brighter**: avatar tint textures rendered at ~40 % of their authored brightness — they are
+  normalised at load now, outfit palettes widened and lifted, and bandit/Guardian materials
+  get the standard lighting lift.
+- **No more clones**: per-NPC size variation, independent trouser colours, varied android
+  chassis tones (only ~60 % of researchers are robotic now), and each NPC rolls a stable
+  face and hair of their own.
+
 ## [2026.8.2] — 2026-08-03
 
 The prospector release: space became worth mining. Asteroids gather in real belts you can see
@@ -1535,7 +1631,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...HEAD
+[2026.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...v2026.8.3
 [2026.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...v2026.8.2
 [2026.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...v2026.8.1
 [2026.7.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.23...v2026.7.24
