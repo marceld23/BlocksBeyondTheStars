@@ -374,6 +374,10 @@ public sealed class SpaceCombatTests : IDisposable
         // The same world rolls the same rocks again (deterministic — restart-safe).
         Assert.Equal(first, Snapshot("astroll", 1));
 
+        // #719: the roll keys on the SAVED world seed, so reloading the same save under a different
+        // launch-config seed must not re-roll the rocks.
+        Assert.Equal(first, Snapshot("astroll", 999));
+
         // And across a handful of seeds the rolled rocks are NOT all clones of the classic one.
         var rolled = new List<(int Count, ushort Core)>();
         for (long seed = 2; seed <= 5; seed++)

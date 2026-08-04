@@ -94,6 +94,20 @@ namespace BlocksBeyondTheStars.Client
             return clip;
         }
 
+        /// <summary>Order-dependent string hash that is stable across sessions, runtimes and machines —
+        /// .NET string hash codes are randomised per process, which would re-roll the noise character of
+        /// every synthesized sound between runs (#720; same convention as NpcView/FloraTints).</summary>
+        private static int StableHash(string s)
+        {
+            int h = 17;
+            foreach (char c in s ?? string.Empty)
+            {
+                h = unchecked(h * 31 + c);
+            }
+
+            return h;
+        }
+
         /// <summary>Crossfades the tail into the head so the clip loops without a click.</summary>
         private static void LoopFade(float[] d, int fade)
         {
@@ -141,7 +155,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip NoiseHit(string name, float dur, float vol, float cutoff, float decay) => Buf(name, dur, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f, a = Mathf.Clamp01(cutoff / Rate * 6f);
             for (int i = 0; i < d.Length; i++)
             {
@@ -154,7 +168,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip Thud(string name, float dur, float vol) => Buf(name, dur, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             for (int i = 0; i < d.Length; i++)
             {
                 float t = i / (float)Rate;
@@ -182,7 +196,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip Explosion(string name, float dur, float vol) => Buf(name, dur, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f;
             for (int i = 0; i < d.Length; i++)
             {
@@ -218,7 +232,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip Thunder(string name, int variant) => Buf(name, 1.6f, d =>
         {
-            var rng = new System.Random(name.GetHashCode() + variant);
+            var rng = new System.Random(StableHash(name) + variant);
             float lp = 0f;
             for (int i = 0; i < d.Length; i++)
             {
@@ -286,7 +300,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip Roar(string name, bool rising) => Buf(name, 1.6f, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f;
             for (int i = 0; i < d.Length; i++)
             {
@@ -304,7 +318,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip WindLoop(string name, float dur, float vol, float cutoff, bool chirp = false, bool rumble = false) => Buf(name, dur, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f, a = Mathf.Clamp01(cutoff * 0.02f + 0.01f);
             for (int i = 0; i < d.Length; i++)
             {
@@ -323,7 +337,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip RainLoop(string name, float vol) => Buf(name, 3f, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f;
             for (int i = 0; i < d.Length; i++)
             {
@@ -337,7 +351,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip BubbleLoop(string name) => Buf(name, 3f, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             for (int i = 0; i < d.Length; i++)
             {
                 float t = i / (float)Rate;
@@ -351,7 +365,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip DrillLoop(string name) => Buf(name, 1f, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             for (int i = 0; i < d.Length; i++)
             {
                 float t = i / (float)Rate;
@@ -365,7 +379,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static AudioClip EngineLoop(string name) => Buf(name, 1.5f, d =>
         {
-            var rng = new System.Random(name.GetHashCode());
+            var rng = new System.Random(StableHash(name));
             float lp = 0f;
             for (int i = 0; i < d.Length; i++)
             {

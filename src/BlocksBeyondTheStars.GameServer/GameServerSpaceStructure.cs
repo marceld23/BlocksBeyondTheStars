@@ -991,7 +991,8 @@ public sealed partial class GameServer
     /// <summary>Spawns one asteroid: a combat entity (for ship targeting/firing + respawn accounting) paired with
     /// a voxel ore structure of the same id (for rendering + EVA mining) — item 20 S3. The entity's hull tracks
     /// its block count so laser fire carves the rock down as it depletes. #687: the family/size roll is seeded
-    /// from the instance id + spawn <paramref name="ordinal"/>, so the same world always grows the same rocks;
+    /// from the world's saved seed + instance id + spawn <paramref name="ordinal"/>, so the same world always
+    /// grows the same rocks (#719: the SAVED seed, not the launch config's — those differ on name-seeded worlds);
     /// ordinal 0 is pinned to the classic metallic r=2 rock so every field guarantees one titanium core
     /// (mirrors the start-planet ring pin).</summary>
     private void SpawnAsteroid(SpaceInstance instance, Vector3f pos, int ordinal, bool broadcast)
@@ -1001,7 +1002,7 @@ public sealed partial class GameServer
         if (ordinal > 0)
         {
             long h = WorldGenerator.StableHash(instance.Id);
-            uint state = (uint)(h ^ (h >> 32) ^ (_config.Seed * 397L) ^ (ordinal * 668265263L)) | 1u;
+            uint state = (uint)(h ^ (h >> 32) ^ (_meta.Seed * 397L) ^ (ordinal * 668265263L)) | 1u;
             family = PickWeighted(AsteroidFamilies, ref state);
             radius = PickWeighted(AsteroidSizes, ref state);
         }

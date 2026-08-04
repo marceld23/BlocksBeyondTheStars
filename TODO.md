@@ -7099,6 +7099,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): seed-determinism fixes — asteroid roll keys on the saved seed; stable audio hashing (#719/#720)
+
+Two findings from a worldgen-determinism audit (world = seed-recomputed baseline + persisted deltas;
+the audit confirmed the model holds except for a few runtime-random systems):
+
+- **#719 (server)** — `SpawnAsteroid`'s family/size roll mixed **`_config.Seed`** (the launch flag,
+  0 on desktop singleplayer) instead of the persisted **`_meta.Seed`**. Desktop worlds therefore all
+  shared the same per-field family patterns, and relaunching a hosted world with a different/absent
+  `--seed` silently re-rolled every rock. One-line fix + regression test: reloading the same save
+  under a different launch-config seed must yield identical rocks.
+- **#720 (client)** — `ProceduralAudio` seeded its noise synthesis from `name.GetHashCode()` at 10
+  sites; string hash codes are per-process randomised on .NET Core and differ across runtimes, which
+  would re-roll every synthesized sound's noise character under a runtime/backend change. Replaced
+  with the codebase-standard stable order-dependent hash (NpcView/FloraTints convention).
+
 ## ✅ Done (2026-08-04): server test-writing guide + de-ghosted spec citations (#571 follow-up)
 
 A contributor stepped down from #571 ("not enough business-logic context to write meaningful
