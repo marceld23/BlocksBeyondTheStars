@@ -160,6 +160,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 11 }, { "item": "cable", "count": 5 } ]
   },
   {
+    "key": "ship_hammerhead", "nameKey": "blueprint.ship_hammerhead.name", "descriptionKey": "blueprint.ship_hammerhead.desc",
+    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 18 }, { "item": "steel", "count": 4 } ]
+  },
+  {
     "key": "stealth_suit", "nameKey": "blueprint.stealth_suit.name", "descriptionKey": "blueprint.stealth_suit.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 8 } ]

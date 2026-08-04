@@ -381,21 +381,38 @@ public sealed class ShipStructureTests : IDisposable
 
             foreach (var door in layout.Cells.Where(c => c.Id == "door_slide" || c.Id == "door_hinge"))
             {
-                foreach (var gx in DoorwayGapColumns(x => solid.Contains((x, door.Y, door.Z)), door.X))
+                // Mirror the server's axis choice (RegisterDoors/MakeDoor): the rear-wall (z=0) hatch is
+                // forced across X; an interior door of a multi-room layout (hammerhead) resolves its wall
+                // axis from the jamb probe. Gap columns run along the wall axis; the walk corridor that must
+                // stay clear runs along the other. The stern hatch checks one row outside (open space) and
+                // two inside; an interior door is approached from both sides, so both get two rows.
+                bool xJamb = solid.Contains((door.X - 1, door.Y, door.Z)) || solid.Contains((door.X + 1, door.Y, door.Z));
+                bool zJamb = solid.Contains((door.X, door.Y, door.Z - 1)) || solid.Contains((door.X, door.Y, door.Z + 1));
+                bool axisX = door.Z == 0 || (xJamb && !zJamb ? true : (zJamb && !xJamb ? false : xJamb));
+                var walkOffsets = door.Z == 0 ? new[] { -1, 0, 1, 2 } : new[] { -2, -1, 0, 1, 2 };
+
+                bool SolidAtGap(int g) => axisX
+                    ? solid.Contains((g, door.Y, door.Z))
+                    : solid.Contains((door.X, door.Y, g));
+
+                foreach (var g in DoorwayGapColumns(SolidAtGap, axisX ? door.X : door.Z))
                 {
-                    foreach (int dz in new[] { -1, 0, 1, 2 })
+                    foreach (int dw in walkOffsets)
                     {
                         for (int dy = 0; dy <= 2; dy++)
                         {
-                            Assert.False(solid.Contains((gx, door.Y + dy, door.Z + dz)),
-                                $"{ship.Key}: doorway corridor blocked, x={gx} dy={dy} dz={dz}");
+                            var probe = axisX
+                                ? (g, door.Y + dy, door.Z + dw)
+                                : (door.X + dw, door.Y + dy, g);
+                            Assert.False(solid.Contains(probe),
+                                $"{ship.Key}: doorway corridor blocked, gap={g} dy={dy} dw={dw} axisX={axisX}");
                         }
                     }
                 }
             }
         }
 
-        Assert.True(layoutsChecked >= 3, "expected the scout/corvette/hauler layouts to be checked");
+        Assert.True(layoutsChecked >= 4, "expected the scout/corvette/hauler/hammerhead layouts to be checked");
     }
 
     /// <summary>The X columns of a doorway's contiguous air gap around a door marker, scanned like the

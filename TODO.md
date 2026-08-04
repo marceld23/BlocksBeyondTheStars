@@ -7099,6 +7099,27 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): Hammerhead — a heavy gunship with the game's first multi-room interior (#723)
+
+A fifth ship type above the corvette, built from a hand-drawn floor plan: a wide 12-block bridge (the
+"hammer head") up front, a central corridor running aft, and a workshop (port) + sleeping cabins
+(starboard) flanking it — each room behind its own interior door, stern airlock between the split main
+engine block. First layout with interior doors and a non-rectangular (T-shaped) hull.
+
+- **Layout** — new composite builder in `tools/gen_ship_layouts.py` (multi-room `room_box`/`doorway`
+  helpers) → `data/ship_layouts/ship_hammerhead.json` (14×4×15, 4 doors, 6 stations: cockpit/console
+  on the bridge, workshop/cargo, quarters/medbay). Existing layouts untouched (the generator drifted
+  from the committed, hand-tuned scout/corvette/hauler files — regen output for those is reverted).
+- **Server** — the layout floor-fill guarantee now fills only columns the hull encloses (floor or roof
+  cell) instead of the whole bounding rect: no floating floor tiles in the T-notches or under nav-light
+  attachments. Ship door registration forces the across-X axis only for the rear-wall (z=0) hatch
+  (B41a); interior doors resolve their axis from the jamb probe.
+- **Data** — `ships.json` (hull 220 / shield 60, speed 0.9 / handling 0.75, cargo 72, starts with
+  `ship_cannon_1`), `blueprints.json` (prereqs corvette + ship cannon), DE+EN locale strings.
+- **Tests** — `HammerheadShipTests` (T-footprint floor, 4 doors, room stations, no floor under nav
+  lights); the doorway-clearance test is now door-axis-aware and covers all four layouts.
+- NPC traders pick up the new type automatically. Doorway rule kept: 3-tall openings, clear gap columns.
+
 ## ✅ Done (2026-08-04): seed-determinism fixes — asteroid roll keys on the saved seed; stable audio hashing (#719/#720)
 
 Two findings from a worldgen-determinism audit (world = seed-recomputed baseline + persisted deltas;

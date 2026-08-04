@@ -201,12 +201,25 @@ public sealed partial class GameServer
             }
 
             // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never
-            // falls out of the walkable interior — mirrors the old stamped-ship floor guarantee.
+            // falls out of the walkable interior — mirrors the old stamped-ship floor guarantee. Only
+            // columns the hull actually encloses (a floor or roof cell) get filled: a non-rectangular plan
+            // (the hammerhead's T-shape) must not grow floating floor tiles in the notches of its bounding
+            // rect, and an exterior attachment (a nav light on a flank) must not grow one under itself.
+            var footprint = new HashSet<(int X, int Z)>();
+            foreach (var cell in layout.Cells)
+            {
+                if ((cell.Y == 0 || cell.Y == layout.Height) &&
+                    cell.X >= 0 && cell.X < layout.Width && cell.Z >= 0 && cell.Z < layout.Length)
+                {
+                    footprint.Add((cell.X, cell.Z));
+                }
+            }
+
             for (int fx = 0; fx < layout.Width; fx++)
                 for (int fz = 0; fz < layout.Length; fz++)
                 {
                     var fp = new Vector3i(fx, 0, fz);
-                    if (s.Get(fp).IsAir)
+                    if (footprint.Contains((fx, fz)) && s.Get(fp).IsAir)
                     {
                         s.Set(fp, wall);
                     }

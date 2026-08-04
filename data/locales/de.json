@@ -495,6 +495,8 @@
   "blueprint.ship_scout.desc": "Schaltet den Bau des Kundschafters frei — ein kleines, geschütztes Schiff.",
   "blueprint.ship_corvette.name": "Korvette",
   "blueprint.ship_corvette.desc": "Schaltet den Bau der Korvette frei — ein ausgewogenes Schiff der Mittelklasse.",
+  "blueprint.ship_hammerhead.name": "Hammerhai",
+  "blueprint.ship_hammerhead.desc": "Schaltet den Bau des Hammerhais frei — ein schweres Kanonenschiff mit mehreren Räumen.",
   "ship.starter.name": "Startschiff",
   "ship.starter.desc": "Dein erstes Schiff — Werkstatt, Medbay, Quartier und ein einfacher Frachtraum.",
   "ship.hauler.name": "Frachter",
@@ -503,6 +505,8 @@
   "ship.scout.desc": "Ein kleines, geschütztes Schiff für schnelle Ausflüge.",
   "ship.corvette.name": "Korvette",
   "ship.corvette.desc": "Ein ausgewogenes Schiff der Mittelklasse — solide Hülle, Schild, Tempo und Fracht.",
+  "ship.hammerhead.name": "Hammerhai",
+  "ship.hammerhead.desc": "Ein schweres Kanonenschiff mit breiter Brücke und echten Räumen — Werkbereich und Schlafkabinen an einem langen Mittelgang. Trifft hart, fühlt sich wie Zuhause an.",
 
   "ui.hud.health": "Gesundheit",
   "ui.hud.oxygen": "Sauerstoff",

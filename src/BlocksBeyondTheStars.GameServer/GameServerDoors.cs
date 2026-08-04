@@ -104,10 +104,16 @@ public sealed partial class GameServer
             {
                 // The ship's doors are energy doors (item 35): a slide door with a passable blue energy field
                 // shown in the opening while open. Auto-open like a slide door (handled above). The hatch is the
-                // wide gap in the ship's front (-Z) wall, which runs along X → force the door across X so it sits
-                // parallel to the opening, not lengthwise in the cabin (B41a).
+                // wide gap in the ship's rear (-Z) wall, which runs along X → force that door across X so it
+                // sits parallel to the opening, not lengthwise in the cabin (B41a; a ±1 jamb probe at the
+                // centre of a wide gap is ambiguous). Only the rear-wall hatch gets the forced axis: interior
+                // doors of a multi-room layout (hammerhead) can face ±X, and their narrower openings make the
+                // jamb probe unambiguous — let it decide.
                 var ship = rec;
-                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange, forceAxisX: true,
+                var local = ship.ToLocal(new Vector3i(
+                    (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z)),
+                    _world.Circumference);
+                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
                     solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir));
             }
         }

@@ -35,5 +35,15 @@
     "requiredBlueprint": "ship_corvette",
     "craftCost": [ { "item": "titanium_plate", "count": 30 }, { "item": "iron_plate", "count": 30 }, { "item": "cable", "count": 18 }, { "item": "energy_cell_1", "count": 5 }, { "item": "steel", "count": 5 }, { "item": "light_alloy", "count": 4 }, { "item": "circuit_board", "count": 3 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "medbay", "quarters", "cargo_hold_basic", "ship_laser_basic" ]
+  },
+  {
+    "key": "hammerhead", "nameKey": "ship.hammerhead.name", "descriptionKey": "ship.hammerhead.desc",
+    "baseHull": 220, "baseShield": 60,
+    "flightSpeed": 0.9, "handling": 0.75,
+    "interiorWidth": 14, "interiorLength": 15, "height": 4, "cargoSlots": 72,
+    "layout": "ship_hammerhead",
+    "requiredBlueprint": "ship_hammerhead",
+    "craftCost": [ { "item": "titanium_plate", "count": 60 }, { "item": "iron_plate", "count": 80 }, { "item": "cable", "count": 30 }, { "item": "energy_cell_1", "count": 8 }, { "item": "steel", "count": 12 }, { "item": "glass", "count": 10 }, { "item": "circuit_board", "count": 6 } ],
+    "startModules": [ "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "ship_cannon_1" ]
   }
 ]

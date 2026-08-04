@@ -27,7 +27,13 @@ def build(width, height, length, builder):
     def put(x, y, z, id_, kind="block"):
         cells[(x, y, z)] = (kind, id_)
 
-    builder(put, width, height, length)
+    def cut(x, y, z):
+        cells.pop((x, y, z), None)
+
+    if builder.__code__.co_argcount >= 5:
+        builder(put, width, height, length, cut)
+    else:
+        builder(put, width, height, length)
     ordered = sorted(cells.items())
     return {
         "width": width, "height": height, "length": length,
@@ -149,6 +155,62 @@ def hauler(put, W, H, L):   # 7 x 4 x 9 — big boxy freighter with deck cargo +
             put(cx - 1, H + 1, z, "iron_wall"); put(cx + 1, H + 1, z, "iron_wall")
 
 
+def room_box(put, x0, z0, x1, z1, H):
+    """A closed sub-room: floor + roof over the rect, perimeter walls in between (inclusive bounds).
+    Abutting rooms share wall cells (the cell dict dedupes overlapping writes)."""
+    for x in range(x0, x1 + 1):
+        for z in range(z0, z1 + 1):
+            put(x, 0, z, "iron_wall")   # floor
+            put(x, H, z, "iron_wall")   # roof
+            if x in (x0, x1) or z in (z0, z1):
+                for y in range(1, H):
+                    put(x, y, z, "iron_wall")
+
+
+def doorway(put, cut, cells_xz, door_at, H):
+    """Punch a full-height (3-tall, y=1..H-1) opening through a wall and hang one slide door in it."""
+    for (x, z) in cells_xz:
+        for y in range(1, H):
+            cut(x, y, z)
+    put(door_at[0], 1, door_at[1], "door_slide", "element")
+
+
+def hammerhead(put, W, H, L, cut):  # 14 x 4 x 15 — the first multi-room hull: a T-shaped heavy gunship
+    """Hammerhead floor plan: a wide bridge up front (the "hammer head"), a long central
+    corridor running aft, and a workshop (port) + sleeping cabins (starboard) flanking the
+    corridor behind their own doors. Three engines aft, stern airlock between them."""
+    # -- hull: four abutting closed rooms (shared walls), then door openings punched through --
+    room_box(put, 1, 10, 12, L - 1, H)   # bridge/control room, 12 wide x 5 long, full width up front
+    room_box(put, 5, 0, 8, 10, H)        # central corridor, 4 wide x 11 long (front wall = bridge rear wall)
+    room_box(put, 0, 0, 5, 5, H)         # workshop area 5x5 + shared east wall with the corridor
+    room_box(put, 8, 0, 13, 5, H)        # sleeping cabins 5x5 + shared west wall with the corridor
+    doorway(put, cut, [(6, 0), (7, 0)], (6, 0), H)      # stern airlock into the corridor
+    doorway(put, cut, [(6, 10), (7, 10)], (6, 10), H)   # corridor -> bridge
+    doorway(put, cut, [(5, 2), (5, 3)], (5, 2), H)      # corridor -> workshop
+    doorway(put, cut, [(8, 2), (8, 3)], (8, 3), H)      # corridor -> sleeping cabins
+    # -- windows: full-width bridge windscreen + side portholes on the head --
+    for x in range(2, 12):
+        put(x, 2, L - 1, "glass")
+    for z in (11, 12, 13):
+        put(1, 2, z, "glass")
+        put(12, 2, z, "glass")
+    # -- stations: each of the drawn rooms gets its jobs --
+    stations(put, [
+        (7, L - 2, "cockpit"), (4, L - 2, "console"),      # bridge: helm + systems console
+        (2, 1, "workshop"), (2, 4, "cargo"),               # workshop area
+        (11, 1, "quarters"), (11, 4, "medbay"),            # sleeping cabins (medbay = spawn/heal)
+    ])
+    # -- exterior: main engine block aft (split around the airlock: its exit corridor must stay clear,
+    # the #211 rule), plus one side engine behind each room --
+    for x in (4, 5, 8, 9):                                 # stacked main nozzles flanking the stern airlock
+        put(x, 1, -1, "engine"); put(x, 2, -1, "engine")
+    put(2, 1, -1, "engine"); put(11, 1, -1, "engine")      # side engines behind the rooms
+    put(0, 2, 12, "light_red"); put(13, 2, 12, "light_green")  # nav lights on the head flanks
+    put(4, 2, L, "light"); put(9, 2, L, "light")           # headlights off the windscreen
+    for x in (6, 7):                                       # raised glass canopy over the bridge
+        put(x, H + 1, 12, "glass"); put(x, H + 1, 13, "glass")
+
+
 # NOTE: the starter intentionally keeps the parametric box hull (its silhouette is added in the box fallback,
 # and the box interior is what the ship-interior tests + energy hatch rely on). Only the unlockable ships get
 # bespoke voxel layouts here. (The starter() builder is kept for reference / future use.)
@@ -156,6 +218,7 @@ SHIPS = {
     "ship_scout": (5, 4, 5, scout),
     "ship_corvette": (6, 4, 7, corvette),
     "ship_hauler": (7, 4, 9, hauler),
+    "ship_hammerhead": (14, 4, 15, hammerhead),
 }
 
 
