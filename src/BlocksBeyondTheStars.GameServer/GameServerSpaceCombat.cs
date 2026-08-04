@@ -599,8 +599,24 @@ public sealed partial class GameServer
                     drones = System.Math.Min(4, drones + 1);
                 }
 
+                // #741: per-location wave memory — repeat launches stop replaying the identical wave. The
+                // flight ordinal rotates every bearing (so the wave sits somewhere new each launch), every
+                // 4th flight runs quieter, and hostiles destroyed here stay dead until the sector re-arms.
+                var wave = AmbientWaveFor(instanceId);
+                int flight = wave.FlightOrdinal++;
+                if (flight % 4 == 3 && drones > 1)
+                {
+                    drones--;
+                }
+
+                drones = System.Math.Max(0, drones - wave.DronesKilled);
+
                 for (int i = 0; i < drones; i++)
                 {
+                    // Bearings fan out golden-angle-rotated per flight; the radius stays far outside the
+                    // drone's (reduced) aggro range so its patrol drift can never reach the launch point.
+                    float ang = -0.71f + flight * 2.39996f + i * 0.35f;
+                    float rad = 205f + (i % 3) * 18f;
                     instance.Entities.Add(new CombatEntity
                     {
                         Id = NextEntityId(),
@@ -608,14 +624,18 @@ public sealed partial class GameServer
                         Hostile = true,
                         Hull = 40f,
                         HullMax = 40f,
-                        Position = new Vector3f(150f + i * 16f, 10f, -130f - i * 20f),
+                        Position = new Vector3f(rad * (float)System.Math.Cos(ang),
+                            10f + ((i + flight) % 3 - 1) * 8f,
+                            rad * (float)System.Math.Sin(ang)),
                         DamagePerSecond = 5f,
                         Loot = { new ItemAmount("data_fragment", 1) },
                     });
                 }
 
-                if (Rules.AlienUfos != AlienActivity.Off && archetype != SystemArchetype.Desolate)
+                if (Rules.AlienUfos != AlienActivity.Off && archetype != SystemArchetype.Desolate
+                    && wave.UfosKilled == 0)
                 {
+                    float uang = 2.42f + flight * 2.39996f; // roughly opposite the drone fan, rotating per flight
                     instance.Entities.Add(new CombatEntity
                     {
                         Id = NextEntityId(),
@@ -625,7 +645,7 @@ public sealed partial class GameServer
                         // ~12s and took a long time to down. Now closer to a drone so UFOs read as a light threat.
                         Hull = 40f,
                         HullMax = 40f,
-                        Position = new Vector3f(-170f, 14f, 150f),
+                        Position = new Vector3f(230f * (float)System.Math.Cos(uang), 14f, 230f * (float)System.Math.Sin(uang)),
                         DamagePerSecond = 4f,
                         Loot = { new ItemAmount("data_fragment", 3) },
                     });
@@ -634,6 +654,63 @@ public sealed partial class GameServer
         }
 
         return instance;
+    }
+
+    /// <summary>#741: session-scoped ambient-wave memory for one location — how many launches happened here
+    /// (varies the wave layout per flight) and which ambient hostiles were destroyed (kept dead until the
+    /// sector re-arms). Survives the instance teardown on landing, so relaunching doesn't reset the fight.</summary>
+    private sealed class AmbientWave
+    {
+        public int FlightOrdinal;
+        public int DronesKilled;
+        public int UfosKilled;
+        public double ReplenishAt; // uptime at which the destroyed hostiles return (rolls from the last kill)
+    }
+
+    private readonly Dictionary<string, AmbientWave> _ambientWaves = new(); // instanceId → wave memory
+    private const double AmbientReplenishSeconds = 480.0; // destroyed ambient hostiles return after ~8 min
+
+    private AmbientWave AmbientWaveFor(string instanceId)
+    {
+        if (!_ambientWaves.TryGetValue(instanceId, out var wave))
+        {
+            wave = new AmbientWave();
+            _ambientWaves[instanceId] = wave;
+        }
+
+        if (wave.ReplenishAt > 0 && _uptime >= wave.ReplenishAt)
+        {
+            wave.DronesKilled = 0; // the sector re-arms — the next launch faces a full wave again
+            wave.UfosKilled = 0;
+            wave.ReplenishAt = 0;
+        }
+
+        return wave;
+    }
+
+    /// <summary>Records a destroyed ambient hostile in its location's wave memory (#741) so the next launch
+    /// doesn't replay it. Finale-gauntlet instances never rolled a wave record, so they are unaffected.</summary>
+    private void RecordAmbientHostileKill(SpaceInstance instance, CombatEntity target)
+    {
+        if (!_ambientWaves.TryGetValue(instance.Id, out var wave))
+        {
+            return;
+        }
+
+        if (target.Kind == CombatEntityKind.Drone)
+        {
+            wave.DronesKilled++;
+        }
+        else if (target.Kind == CombatEntityKind.Ufo)
+        {
+            wave.UfosKilled++;
+        }
+        else
+        {
+            return;
+        }
+
+        wave.ReplenishAt = _uptime + AmbientReplenishSeconds;
     }
 
     private const int DenseAsteroidFieldTarget = 9;  // launch-field rocks when anchored at an asteroid (#683 S1)
@@ -849,6 +926,7 @@ public sealed partial class GameServer
         else if (target.Hostile)
         {
             RecordStoryMachineKill(); // space machine (drone/UFO) destroyed → advances the story (P4)
+            RecordAmbientHostileKill(instance, target); // #741: stays dead across relaunches for a while
             if (session is not null)
             {
                 TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
@@ -1477,12 +1555,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>Per-kind movement profile for hostile space NPCs: how far they notice the ship, how close
-    /// they press in, and how fast they fly.</summary>
+    /// they press in, and how fast they fly. Aggro MUST stay well below the ambient spawn distances
+    /// (~200-230u; gauntlet ≥150u) (#741): the old radii (drone 190 / UFO 240 / cruiser 260) exceeded them,
+    /// so the UFO hunted the ship the instant it launched and every flight auto-started the same fight —
+    /// the "combat is opt-in, you fly out to them" spawn design only holds when they can't see that far.</summary>
     private static (float Aggro, float MinDist, float Speed) HostileProfile(CombatEntityKind kind) => kind switch
     {
-        CombatEntityKind.Drone => (190f, 16f, 9f),
-        CombatEntityKind.Ufo => (240f, 24f, 7f),
-        CombatEntityKind.Cruiser => (260f, 36f, 4f),
+        CombatEntityKind.Drone => (120f, 16f, 9f),
+        CombatEntityKind.Ufo => (150f, 24f, 7f),
+        CombatEntityKind.Cruiser => (170f, 36f, 4f),
         CombatEntityKind.BanditShip => (280f, 20f, 8f), // once hostile it presses in hard (it already knows you)
         _ => (0f, 0f, 0f),
     };

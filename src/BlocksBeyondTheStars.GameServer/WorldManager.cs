@@ -180,6 +180,12 @@ internal sealed class LoadedWorld
     public int CreatureSpawnRotor { get; set; }
     public int CreatureRingRotor { get; set; } // #470: ring slot counter, SEPARATE from the species rotor
     public double EnemySpawnTimer { get; set; }
+    // #740 enemy-spawn pacing: once a world has filled to its machine cap, refills switch from the quick
+    // initial cadence to a slow jittered interval — the fields carry the "seen the cap" flag, the rolled
+    // current interval and the ordinal that seeds the next roll (deterministic per world).
+    public bool EnemyCapSeen { get; set; }
+    public double EnemyNextSpawnIn { get; set; }
+    public int EnemySpawnOrdinal { get; set; }
     public double SinceBanditSync { get; set; }  // bandit movement stream throttle (per-world, like SinceEnemySync)
     public double SinceFluid { get; set; }
     public double SinceFire { get; set; }

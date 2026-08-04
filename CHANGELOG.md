@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🤖 Enemy pacing — machines stop streaming in, space combat is opt-in again (#740, #741)
+
+- **No more instant reinforcements on planets**: destroying a robot or scan-drone used to summon its
+  replacement within a fraction of a second (the spawn timer silently banked time while the population
+  was full). Refills now wait a slow, varied 20–45 s (plus a breather after each kill), so machine
+  fights are encounters with quiet in between — not an endless stream.
+- **Machines let go when you leave**: hostiles far from every player despawn instead of trailing you
+  across the planet forever.
+- **Space hostiles wait for you to come to them**: drones and UFOs could see farther than their own
+  spawn distance, so the UFO started hunting your ship the moment you launched — every single flight.
+  Their detection ranges now match the "you choose to fly out to them" design; park at the launch
+  point and nobody bothers you.
+- **Every flight stops replaying the same wave**: destroyed drones/UFOs stay gone across relaunches
+  until the sector re-arms (~8 minutes), the wave sits on a different bearing each launch, and every
+  4th flight runs quieter.
+
 ### ⚔️ Bounty missions — quest givers put a price on the bandits (#730, #731)
 
 - **Camp bounty**: a settlement mission board on a planet with an uncleared bandit camp now offers a

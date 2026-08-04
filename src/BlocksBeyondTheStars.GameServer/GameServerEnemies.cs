@@ -16,7 +16,14 @@ namespace BlocksBeyondTheStars.GameServer;
 /// </summary>
 public sealed partial class GameServer
 {
-    private const double EnemySpawnInterval = 5.0;
+    private const double EnemySpawnInterval = 5.0;      // initial fill cadence while a fresh world ramps to its cap
+    private const double EnemyRefillMinInterval = 20.0; // #740: once the cap was reached, refills come slow…
+    private const double EnemyRefillMaxInterval = 45.0; //       …and jittered, so machine encounters read as events
+    private const double EnemyKillSpawnGrace = 10.0;    // #740: extra breather added when a machine is destroyed
+    // #740: machines far from every player despawn (like creatures, which prune at 70). The leash is wide
+    // enough that ambient wander (≈0.5 b/s net with pauses) can't plausibly cross it — only a player
+    // actually LEAVING (walking 4-5 b/s) does, so the count-neutral wreck-coupling guarantee stays intact.
+    private const float EnemyFarDespawnRange = 150f;
     private const float EnemyProximityRange = 4f;
     private const float EnemyAttackReach = 6f;
 
@@ -66,10 +73,24 @@ public sealed partial class GameServer
         }
 
         int cap = ActivityCount(Rules.PlanetEnemies) * targets.Count;
-        _enemySpawnTimer += dt;
-        if (_enemySpawnTimer >= EnemySpawnInterval && _planetEnemies.Count < cap)
+        if (_planetEnemies.Count >= cap)
+        {
+            // At the cap the timer must not bank time (#740): it used to keep accumulating here, so the
+            // moment a machine died its replacement spawned on the very next tick — fighting back turned
+            // the spawner into a zero-gap stream. Holding it at zero makes every refill wait its interval,
+            // and reaching the cap for the first time switches the world to the slow jittered refill pace.
+            if (!_worlds.Active.EnemyCapSeen)
+            {
+                _worlds.Active.EnemyCapSeen = true;
+                _worlds.Active.EnemyNextSpawnIn = RollEnemyRefillInterval();
+            }
+
+            _enemySpawnTimer = 0;
+        }
+        else if ((_enemySpawnTimer += dt) >= (_worlds.Active.EnemyCapSeen ? _worlds.Active.EnemyNextSpawnIn : EnemySpawnInterval))
         {
             _enemySpawnTimer = 0;
+            _worlds.Active.EnemyNextSpawnIn = RollEnemyRefillInterval();
             // A fraction (~2 in 5) of the population spawns as the flying scan-drone variant (P4), the rest as
             // walking three-eyed ground robots — both within the same PlanetEnemies cap (count unchanged).
             // Key the mix off how many drones are ALREADY alive, not the raw spawn count: keying off the count
@@ -84,6 +105,37 @@ public sealed partial class GameServer
             }
             bool asDrone = Rules.PlanetDrones && droneCount * 5 < (_planetEnemies.Count + 1) * 2;
             SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
+            BroadcastPlanetEnemies();
+        }
+
+        // #740: machines that ended up far from every surface player despawn — walking away from a fight
+        // actually ends it instead of leaving a pack trailing you forever. Freed slots refill near the
+        // players on the normal (post-cap: slow) cadence.
+        bool pruned = false;
+        for (int i = _planetEnemies.Count - 1; i >= 0; i--)
+        {
+            var e = _planetEnemies[i];
+            bool near = false;
+            foreach (var s in targets)
+            {
+                if (WrapDistSq(s.State.Position, e.Position) <= EnemyFarDespawnRange * EnemyFarDespawnRange)
+                {
+                    near = true;
+                    break;
+                }
+            }
+
+            if (!near)
+            {
+                _planetEnemies.RemoveAt(i);
+                _enemyWander.Remove(e.Id);
+                _enemySightSeenAt.Remove(e.Id);
+                pruned = true;
+            }
+        }
+
+        if (pruned)
+        {
             BroadcastPlanetEnemies();
         }
 
@@ -148,6 +200,14 @@ public sealed partial class GameServer
             _enemySyncTimer = 0;
             BroadcastPlanetEnemies();
         }
+    }
+
+    /// <summary>Rolls the next post-cap refill interval (#740): 20–45 s, jittered deterministically from the
+    /// world id + a per-world spawn ordinal so the cadence varies without wall-clock randomness.</summary>
+    private double RollEnemyRefillInterval()
+    {
+        uint h = (uint)StableStringHash(_worlds.Active.LocationId + ":" + _worlds.Active.EnemySpawnOrdinal++);
+        return EnemyRefillMinInterval + (h % 1000) / 999.0 * (EnemyRefillMaxInterval - EnemyRefillMinInterval);
     }
 
     private const float EnemyHuntRange = 28f;   // detection radius — inside it the fiend stalks the player
@@ -574,6 +634,9 @@ public sealed partial class GameServer
             {
                 RecordStoryMachineKill(); // planet machine destroyed → advances the story (P4: combat-as-progress)
                 TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
+                // #740: a destroyed machine buys an extra breather on top of the refill interval — the
+                // negative timer delays the freed slot, so a fight is followed by quiet, not reinforcements.
+                _enemySpawnTimer = System.Math.Min(_enemySpawnTimer, -EnemyKillSpawnGrace);
             }
 
             BroadcastPlanetEnemies();

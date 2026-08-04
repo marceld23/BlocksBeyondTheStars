@@ -7148,6 +7148,30 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-05): enemy spawn pacing — no instant machine refills, space combat is opt-in again (#740/#741)
+
+Two long-standing pacing bugs that made hostiles feel relentless:
+
+- **Planet machines (#740)** — the spawn timer kept accumulating while the population sat at its cap
+  and only reset on an actual spawn, so the moment a machine died its replacement appeared on the
+  *next tick* — fighting back turned the spawner into a zero-gap stream. Now: the timer holds at zero
+  at the cap; once a world has filled to its cap, refills switch from the 5 s fill cadence to a slow
+  **jittered 20–45 s interval** (deterministic per world, `EnemySpawnOrdinal`-seeded); a kill adds a
+  further 10 s grace; and machines farther than **150 blocks** from every surface player despawn
+  (creature parity) — walking away finally ends the encounter.
+- **Space waves (#741)** — the ambient hostiles' aggro radii exceeded their spawn distances (UFO:
+  spawn ~227u < aggro 240u; drone 0's ±18u patrol ring dipped under its 190u aggro), so the UFO hunted
+  the ship the instant it launched, every flight — defeating the documented "combat is opt-in" spawn
+  design. Aggro reduced to Drone 120 / UFO 150 / Cruiser 170 (bandit ships keep 280 by design; the
+  finale gauntlet becomes genuinely opt-in too). Plus session-scoped **wave memory per location**
+  (`AmbientWave`): destroyed drones/UFOs stay dead across relaunches until the sector re-arms (~8 min),
+  bearings rotate golden-angle per flight ordinal, and every 4th flight runs one drone quieter — so
+  repeat launches stop replaying the identical hard-coded wave.
+
+Tests: `EnemySpawnPacingTests` (5) — no instant refill + eventual slow refill, far-despawn, hostiles
+hold off the launch point for a full minute, cleared drone stays cleared until re-arm, wave varies
+between flights + quiet 4th flight. Analysis first (root causes verified in code before the fix).
+
 ## ✅ Done (2026-08-04): Courier, Thunderbolt, Deathblock — three ships from hand-drawn floor plans (#727/#728/#729)
 
 Three more ship types built from Justus' pencil floor plans, following the hammerhead multi-room
