@@ -101,8 +101,9 @@ The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
 > **Required status checks on `main`** (branch protection): `Tests passed`,
-> `Format (dotnet format)`, `ruff (Python ai-backend)`, `actionlint (workflows)`
-> and `CodeQL` — all five must pass before merge. The `Detect code changes` helper and the individual
+> `Format (dotnet format)`, `ruff (Python ai-backend)` and `actionlint (workflows)` — all four must pass
+> before merge (CodeQL runs on PRs but is not a required check, contrary to what this doc used to
+> claim — verified against the live branch protection 2026-08-04). The `Detect code changes` helper and the individual
 > `Build + test (shard N/4)` matrix jobs are intentionally **not** required (only require jobs that always
 > report under a stable name; `Tests passed` fans the matrix in). `strict` is off (no forced
 > rebase) and `enforce_admins` is off (an owner can still `gh pr merge --admin` in an emergency).
