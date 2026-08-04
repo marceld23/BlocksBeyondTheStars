@@ -4,8 +4,11 @@
 namespace BlocksBeyondTheStars.Shared.Configuration;
 
 /// <summary>
-/// Predefined rule profiles (technical requirements / `anf_admin_einstellungen.md` §4 and
-/// `anf_space_flight.md` §13.2) so admins don't have to set every rule individually.
+/// Predefined rule profiles so admins don't have to set every rule individually. Contract:
+/// <see cref="Names"/> lists every available preset; <see cref="Get"/> resolves trimmed and
+/// case-insensitively and returns null for unknown (or null) names — callers fall back to
+/// default rules. (Originally the internal design specs `anf_admin_einstellungen.md` §4 /
+/// `anf_space_flight.md` §13.2 — this summary is the public authority.)
 /// </summary>
 public static class ServerPresets
 {

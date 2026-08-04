@@ -20,6 +20,9 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
   the CI job pair, the artifact execute-bit fix, and running an unsigned/un-notarized `.app`.
 - [CLIENT_TESTING.md](CLIENT_TESTING.md) — how the Unity client is tested against the **real** game server
   (the `Client.Core` split, the three test tiers, the selectable `run-tests.ps1` runner).
+- [SERVER_TESTING.md](SERVER_TESTING.md) — **writing tests** for the server/shared .NET suite: exemplar
+  tests to copy from, the content/locale fixtures, what "meaningful" assertions look like, and the CI
+  analyzer traps. Start here for a first test contribution (e.g. issue #571).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
 
 ## World & worldgen

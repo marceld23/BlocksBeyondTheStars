@@ -6,9 +6,13 @@ using BlocksBeyondTheStars.Shared.Content;
 namespace BlocksBeyondTheStars.Shared.Missions;
 
 /// <summary>
-/// Validates a mission definition against the loaded content (technical requirements /
-/// `anf_admin_blueprinf.md` §10). Shared by the in-game player editor and the admin
-/// extension editor so the same rules apply everywhere.
+/// Validates a mission definition against the loaded content. Shared by the in-game player
+/// editor and the admin extension editor so the same rules apply everywhere. The rules: a
+/// mission needs a non-empty id and at least one objective; every objective needs a supported
+/// type (Collect/Mine/Deliver), a positive required count and a target that exists in the
+/// loaded content (a block for Mine, an item otherwise); every reward must reference a known
+/// item with a positive count. (Originally the internal design spec `anf_admin_blueprinf.md`
+/// §10 — this summary is the public authority.)
 /// </summary>
 public static class MissionValidator
 {

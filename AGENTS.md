@@ -112,7 +112,16 @@ dotnet build BlocksBeyondTheStars.sln      # build everything (Linux)
 `run-tests.ps1` defaults to the fast .NET suites (`Dotnet` + `ClientCore`); the Unity Editor suites
 (`UnityEdit` EditMode, `UnityPlay` PlayMode-vs-real-server-exe) are opt-in via `-Suites`. How the client is
 tested against the real server is documented in
-[docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md).
+[docs/developer/CLIENT_TESTING.md](docs/developer/CLIENT_TESTING.md); how to write tests for the
+server/shared suite (fixtures, exemplars, conventions) is in
+[docs/developer/SERVER_TESTING.md](docs/developer/SERVER_TESTING.md).
+
+**Internal spec citations (`anf_*.md`):** some doc comments cite files like
+`anf_admin_einstellungen.md` §… as "technical requirements". These are the project's internal
+German design specs from before open-sourcing and are **not in the public repository**. The
+English summary in the doc comment is the authoritative public statement of the behaviour; a
+comment that leans on such a citation without summarising the rule is a documentation bug —
+fix or report it rather than hunting for the file.
 
 To confirm a client rebuild actually happened, check the `BlocksBeyondTheStars.Client.dll` timestamp in the
 build output (the `.exe` timestamp is not reliable). The full build guide — pipeline details,

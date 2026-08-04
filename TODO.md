@@ -7099,6 +7099,25 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): server test-writing guide + de-ghosted spec citations (#571 follow-up)
+
+A contributor stepped down from #571 ("not enough business-logic context to write meaningful
+tests"); root-cause analysis found the gaps and this closes them:
+
+- **`docs/developer/SERVER_TESTING.md`** (new) — writing tests for the server/shared suite:
+  three exemplar tests to copy from (pure → content-loading → full server), the invisible
+  fixtures (`TestPaths.DataDir()` + `ContentLoader`, `TestLocales`), an "invariants, not
+  mirrored constants" table per target kind (the tautology trap), determinism rules (incl. the
+  Win/Linux libm trig gotcha), and the CI analyzer traps. Linked from CONTRIBUTING.md,
+  AGENTS.md and the docs index.
+- **Internal spec citations de-ghosted** — 26 source files cite `anf_*.md` German design specs
+  that are gitignored (`/media/`), so fork contributors chased references into the void.
+  AGENTS.md now states the convention (doc-comment summary = public authority; a citation
+  without a summary is a doc bug); the three #571 target files leaning hardest on citations got
+  self-contained behaviour summaries (`MissionValidator` rule list, `ServerPresets` lookup
+  contract, `FrequencyExtensions` consumers + invariants incl. the `OreFactor` Off≠0 exception).
+- Comment/docs-only change — no behaviour difference; issue #571 body refreshed to match.
+
 ## ✅ Done (2026-08-04): NPCs grounded, brighter and individual (#711)
 
 Three related NPC problems fixed in one branch (issue #711):

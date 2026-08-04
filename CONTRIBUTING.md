@@ -47,7 +47,9 @@ If you are a developer, we welcome pull requests.
    dotnet test                             # run all xUnit tests (keep them green)
    ```
    The playable Windows client is built with `scripts/build-client.ps1` (requires the Unity
-   Editor). See [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md).
+   Editor). See [docs/developer/DEVELOPER.md](docs/developer/DEVELOPER.md). If you want to
+   *write* tests (a great first contribution), start with
+   [docs/developer/SERVER_TESTING.md](docs/developer/SERVER_TESTING.md).
 3. **Open a pull request** against `main` with a short description of the change and why.
    Small, focused PRs are easier to review and merge.
 

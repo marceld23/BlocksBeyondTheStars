@@ -13,9 +13,18 @@ public enum Frequency
     Frequent,
 }
 
+/// <summary>
+/// Maps a <see cref="Frequency"/> level to the numeric knobs the generators consume. The exact
+/// constants are tuning values and may be retuned; the intended invariants are: every mapping is
+/// monotone non-decreasing in enum order, <see cref="Frequency.Off"/> is exactly 0 wherever
+/// "off must mean off" (<see cref="OreFactor"/> is the documented exception), and factor-style
+/// mappings return 1.0 at the owning property's default level so existing worlds are unchanged.
+/// </summary>
 public static class FrequencyExtensions
 {
-    /// <summary>Selection weight; 0 means the feature never spawns.</summary>
+    /// <summary>Relative weight for weighted selection — consumed by the universe generator's
+    /// planet-type roll (<see cref="WorldDescription.PlanetTypeFrequencies"/>); 0 means the
+    /// feature never spawns.</summary>
     public static int Weight(this Frequency f) => f switch
     {
         Frequency.Off => 0,
@@ -26,7 +35,9 @@ public static class FrequencyExtensions
         _ => 0,
     };
 
-    /// <summary>Probability in [0,1] used for per-body chance rolls.</summary>
+    /// <summary>Probability in [0,1] for independent chance rolls — e.g. the universe
+    /// generator's space-station and wreck gates (<see cref="WorldDescription.SpaceStations"/>,
+    /// <see cref="WorldDescription.Wrecks"/>) and the settlement/station template-use rolls.</summary>
     public static double Probability(this Frequency f) => f switch
     {
         Frequency.Off => 0.0,
@@ -37,7 +48,9 @@ public static class FrequencyExtensions
         _ => 0.0,
     };
 
-    /// <summary>Flora/tree density factor (world options; Normal = unchanged, Off = barren).</summary>
+    /// <summary>Flora/tree density multiplier applied to per-planet flora generation
+    /// (world options / <see cref="WorldDescription.FloraDensity"/>; Normal = 1.0 = unchanged,
+    /// Off = barren).</summary>
     public static double FloraFactor(this Frequency f) => f switch
     {
         Frequency.Off => 0.0,
