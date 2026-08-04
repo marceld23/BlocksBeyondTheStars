@@ -14,6 +14,7 @@ public enum MissionObjectiveType
     Travel,   // reach a location (later)
     Scan,     // scan an object (later)
     Build,    // place a structure/module (later)
+    Defeat,   // drive off N foes / clear a bandit camp (event-tracked, system missions only)
 }
 
 public enum MissionStatus

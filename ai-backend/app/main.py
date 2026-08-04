@@ -73,6 +73,9 @@ class MissionTextRequest(BaseModel):
     reward_item: str = Field(default="", alias="RewardItem")
     reward_count: int = Field(default=1, alias="RewardCount")
     language: str = Field(default="en", alias="Language")
+    # "gather" (deliver goods), "bounty_camp" (drive bandits from their camp) or "bounty_ship"
+    # (drive off a raider ship) — bounty postings must not read like delivery jobs.
+    kind: str = Field(default="gather", alias="Kind")
 
 
 # Keyword -> (objective type, target, required, reward item, reward count) — the deterministic
@@ -137,6 +140,7 @@ def mission_text(req: MissionTextRequest) -> dict:
             "reward_item": req.reward_item,
             "reward_count": req.reward_count,
             "language": req.language,
+            "kind": req.kind,
         }
     )
     return text or {"Title": "", "Description": ""}

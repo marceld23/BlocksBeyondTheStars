@@ -317,22 +317,37 @@ class MissionTextInput(TypedDict, total=False):
     reward_item: str
     reward_count: int
     language: str
+    kind: str
 
 
 _TEXT_SYSTEM = (
-    "You write the posting text for ONE delivery job on a settlement mission board in a sci-fi "
-    "voxel space exploration game. Respond with ONLY a JSON object — no markdown fences:\n"
+    "You write the posting text for ONE job on a mission board in a sci-fi voxel space "
+    "exploration game played by families and kids. Respond with ONLY a JSON object — no "
+    "markdown fences:\n"
     '{{"Title": str (<= 48 chars, punchy, no quotes), "Description": str (1-2 sentences, in the '
-    "giver's voice, says WHY they need the goods)}}\n"
-    "Do not change the quantities or items — they are fixed. Write both fields in {language}."
+    "giver's voice, says WHY the job matters)}}\n"
+    "Do not change quantities, items or the job itself — they are fixed. Keep it kid-friendly: "
+    "bandits are chased away or driven off, never hurt or killed. Write both fields in {language}."
 )
 
 _TEXT_HUMAN = (
     "Job giver: {giver_name} at {place} (community of {theme})\n"
-    "They need: {required} x {need_item}\n"
+    "The job: {job}\n"
     "They pay: {reward_count} x {reward_item}\n\n"
     "Write the JSON now."
 )
+
+# The job line per mission kind — bounties must not read like delivery work.
+_JOB_LINES = {
+    "bounty_camp": (
+        "Bandits set up a camp on this world and trouble travellers; drive every bandit out of "
+        "the camp (it is marked on the hunter's map), then report back"
+    ),
+    "bounty_ship": (
+        "A raider ship is prowling this star system and shaking down pilots; drive it off, then "
+        "report back to the station"
+    ),
+}
 
 
 def _build_text_graph():
@@ -355,14 +370,20 @@ def _build_text_graph():
 
     def generate(state: GraphState) -> GraphState:
         r = state["req"]
+        job = _JOB_LINES.get(
+            r.get("kind") or "gather",
+            "They need {required} x {need_item} delivered to their mission board".format(
+                required=r.get("required") or 10,
+                need_item=(r.get("need_item") or "supplies").replace("_", " "),
+            ),
+        )
         raw = chain.invoke(
             {
                 "language": _language_name(r.get("language", "en")),
                 "giver_name": r.get("giver_name") or "the quartermaster",
                 "place": r.get("place") or "a frontier settlement",
                 "theme": r.get("theme") or "settlers",
-                "need_item": (r.get("need_item") or "supplies").replace("_", " "),
-                "required": r.get("required") or 10,
+                "job": job,
                 "reward_item": (r.get("reward_item") or "supplies").replace("_", " "),
                 "reward_count": r.get("reward_count") or 1,
             }

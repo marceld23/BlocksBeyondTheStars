@@ -392,6 +392,7 @@ namespace BlocksBeyondTheStars.Client
             "vault_ruin" => ("◆", new Color(0.8f, 0.7f, 0.95f), "map_ruin"),
             "wreck" => ("✖", new Color(1f, 0.55f, 0.3f), "map_wreck"),
             "treasure" => ("◈", new Color(1f, 0.8f, 0.25f), null), // NPC-hint reveal; no icon yet → glyph renders
+            "bandit_camp" => ("⚑", new Color(1f, 0.45f, 0.35f), null), // bounty-mission reveal (#730); glyph fallback
             "factory" => ("⚒", new Color(1f, 0.7f, 0.45f), "map_station"), // no map_factory art yet — the station icon reads industrial
             "landing" => ("⊕", new Color(0.5f, 0.85f, 1f), "map_pad"),
             _ => ("◆", new Color(0.8f, 0.8f, 0.9f), "map_station"),

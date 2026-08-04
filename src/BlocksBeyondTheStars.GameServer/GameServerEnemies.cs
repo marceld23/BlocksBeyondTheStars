@@ -568,6 +568,7 @@ public sealed partial class GameServer
             if (target.IsBandit)
             {
                 OnBanditKilled(target); // bandits are people, not machines — no story credit, but camps clear
+                OnMissionDefeat(session, DefeatTargetBandit); // #730: bounty objectives count the drive-off
             }
             else
             {

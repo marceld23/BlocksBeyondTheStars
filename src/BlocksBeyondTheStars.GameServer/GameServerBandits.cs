@@ -824,6 +824,7 @@ public sealed partial class GameServer
             {
                 camp.Cleared = true;
                 MarkFeatureStamped("banditcamp:" + camp.Key + ":cleared");
+                OnCampBountyCleared(camp); // #730: every online bounty holder gets the objective completed
             }
         }
     }

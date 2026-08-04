@@ -13,6 +13,21 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ⚔️ Bounty missions — quest givers put a price on the bandits (#730, #731)
+
+- **Camp bounty**: a settlement mission board on a planet with an uncleared bandit camp now offers a
+  bounty to drive the bandits out. Accepting it marks the camp on your planet map; clear the camp
+  (everyone holding the bounty gets credit — co-op friendly) and report back for a reward that beats
+  the usual gather jobs.
+- **Raider bounty**: station mission boards in pirate systems offer a bounty on the raider ship
+  prowling the sector. While you hold it, the raider *will* show up on your next flight — no more
+  hoping for the ambush dice. Drive it off and report back; the job is repeatable while the system
+  stays pirate country.
+- Bounties are only offered where the fight is winnable (they respect the Bandits/space-combat/ship-
+  weapon world rules) and use kid-friendly wording throughout — bandits are chased away, never killed.
+- The AI mission-text generator knows about bounty jobs now, so generated postings match the job
+  instead of reading like a delivery.
+
 ## [2026.8.3] — 2026-08-04
 
 The wonders release: planets stopped playing it safe. Terrain generation learned a whole

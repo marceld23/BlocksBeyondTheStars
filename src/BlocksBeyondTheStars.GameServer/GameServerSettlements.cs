@@ -163,6 +163,22 @@ public sealed partial class GameServer
             }
         }
 
+        // Bandit camps stay discovery content UNTIL a bounty mission is accepted (#730) — the quest
+        // giver marks the target. A cleared camp drops off the map again on its own.
+        foreach (var camp in _banditCamps)
+        {
+            if (!camp.Cleared && _meta.RevealedPois.Contains(_world.LocationId + "|banditcamp:" + camp.Key))
+            {
+                pois.Add(new NetPoi
+                {
+                    Type = "bandit_camp",
+                    Name = Localize(session.Locale, "poi.bandit_camp"),
+                    X = camp.Center.X,
+                    Z = camp.Center.Z,
+                });
+            }
+        }
+
         return pois;
     }
 

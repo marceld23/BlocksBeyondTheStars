@@ -89,6 +89,11 @@ public sealed partial class GameServer
                 // #547: the world's Danger option scales the ambush odds on top of the rule slider
                 // (Normal = ×1.0, i.e. exactly the old chance; Off disables ambushes entirely).
                 chance = System.Math.Min(0.9, chance * _meta.Description.Danger.DangerFactor());
+                if (chance > 0 && AnyPilotHoldsShipBounty(instance))
+                {
+                    chance = 1.0; // #731: an accepted raider bounty guarantees the encounter it asks for
+                }
+
                 if (_banditRng.NextDouble() < chance)
                 {
                     instance.BanditAmbushAt = _uptime + BanditAmbushDelayMin

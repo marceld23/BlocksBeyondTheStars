@@ -138,6 +138,8 @@ public sealed partial class GameServer
             RecordMissionAccepted(session.State, missionId, def.GiverName);
         }
 
+        OnBountyAccepted(session, def); // #730/#731: persist the def + reveal a camp bounty's camp on the map
+
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         SendMissionList(session);
         ShipAiOnTradeOrMission(session); // VEGA onboarding: taking a board job counts like a first trade
@@ -164,6 +166,8 @@ public sealed partial class GameServer
             MissionFail(session, missionId, "Return to the station mission board to turn this in.");
             return;
         }
+
+        SyncCampBountyProgress(session); // a camp cleared while this player was away still counts (#730)
 
         var pool = new MaterialPool(_content, session.State, _ship);
 
@@ -558,6 +562,7 @@ public sealed partial class GameServer
 
             string prefix = $"settle_{(uint)WorldGenerator.StableHash(s.Name) % 100000u}_";
             EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, CoinGiverName(s.Name), currentBoardIds);
+            EnsureCampBounties(prefix, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
         }
     }
 
@@ -571,6 +576,7 @@ public sealed partial class GameServer
 
         string prefix = $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}_";
         EnsureBoardWindow(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds);
+        EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board
     }
 
     /// <summary>A board (giver) mission id — settlement or station — vs. a system/player mission.</summary>
@@ -602,6 +608,7 @@ public sealed partial class GameServer
         var currentBoardIds = new HashSet<string>();
         EnsureSettlementWindow(player, currentBoardIds);
         EnsureStationWindow(player, currentBoardIds);
+        SyncCampBountyProgress(session); // held camp bounties whose camp fell while away complete here (#730)
 
         var available = new List<NetMission>();
         foreach (var def in _missionDefs.Values)

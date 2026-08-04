@@ -49,6 +49,11 @@ public sealed partial class GameServer
             RewardItem = reward?.Item ?? string.Empty,
             RewardCount = reward?.Count ?? 0,
             Language = locale,
+            // #730/#731: bounty postings brief the LLM on the job's real shape (drive-off, kid-friendly)
+            // instead of pretending it is a delivery.
+            Kind = TryCampBountyKey(def.Id, out _) ? "bounty_camp"
+                : IsShipBountyMissionId(def.Id) ? "bounty_ship"
+                : "gather",
         };
     }
 

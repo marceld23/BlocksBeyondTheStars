@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1421 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1430 server + 154 client passing** (2026-08-04). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -7137,6 +7137,35 @@ Data: `ships.json` + `blueprints.json` + DE/EN locale strings per ship. Tests: `
 (doors + stations register per room; thunderbolt bridge inset + deathblock notches/attachments stay
 floor-free), doorway-clearance floor raised to 7 layouts. NPC traders pick the new types up
 automatically. Doorway rule kept: 3-tall openings, clear gap columns (interior doors both sides).
+
+## ✅ Done (2026-08-04): bounty missions — quest givers put a price on the bandits around them (#730/#731)
+
+Mission boards finally react to the world's bandits. A settlement board on a planet with an uncleared
+bandit camp offers a **camp bounty** ("drive the bandits out"); a station board in pirate space offers a
+**raider bounty** ("drive off the raider ship"). Kid-friendly wording throughout — bandits are driven
+off, never killed.
+
+- **Shared** — new `MissionObjectiveType.Defeat` (targets `bandit_camp` / `bandit_ship` / `bandit`),
+  system missions only (player/admin/AI mission creation keeps its Collect/Mine/Deliver/Travel whitelist).
+- **Server** — new `GameServerBountyMissions.cs`: `OnMissionDefeat` event hook (mirrors `OnBlockMined`)
+  wired at both kill sites; camp clear completes the objective for **every online holder** (co-op) and
+  syncs for offline holders on their next list/turn-in; accepting a camp bounty **reveals the camp on the
+  planet map** (new `bandit_camp` POI via the persisted `RevealedPois` mechanism — camps stay discovery
+  content otherwise); bounty defs are coined deterministically like board missions but **persisted on
+  accept** (progress is event-driven far from the board, so the def must survive restarts); a held raider
+  bounty **guarantees the per-flight ambush roll** (a quest the board sold must be completable); raider
+  bounty offers respect `BanditShipsAllowed` + Danger ≠ Off (never sell a fight the player can't win).
+- **AI layer** — `MissionTextRequest.Kind` (`gather`/`bounty_camp`/`bounty_ship`) + backend prompt now
+  briefs the LLM on the job's real shape with a kid-friendly drive-off framing; older deployed backends
+  ignore the field (pydantic `extra="ignore"`), deterministic locale fallback unchanged.
+- **Client** — `bandit_camp` map glyph (red ⚑, glyph fallback like `treasure`).
+- **Locales** — `mission.bounty.*`, `poi.bandit_camp` DE+EN.
+- **Tests** — `BountyMissionTests` (9): offer gating while the camp stands, map reveal on accept +
+  drop on clear, clear→turn-in pays, co-op completion for holders, held bounty survives a restart,
+  ship bounty gated off when weapons are off, guaranteed ambush, raider kill completes, locale parity.
+  Note: a fresh ship still carries the planet *type* as its location until the first real flight, so
+  the seeded ambush path resolves no star system on a virgin world — pre-existing quirk, tests pin the
+  real body id (harmless in practice: accepting a station bounty implies having travelled).
 
 ## ✅ Done (2026-08-04): Hammerhead — a heavy gunship with the game's first multi-room interior (#723)
 

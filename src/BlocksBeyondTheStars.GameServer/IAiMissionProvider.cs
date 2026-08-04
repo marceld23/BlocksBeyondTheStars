@@ -66,6 +66,11 @@ public sealed class MissionTextRequest
     public string RewardItem { get; set; } = string.Empty;
     public int RewardCount { get; set; }
     public string Language { get; set; } = "en";
+
+    /// <summary>The job's shape: "gather" (deliver goods), "bounty_camp" (drive bandits from their camp)
+    /// or "bounty_ship" (drive off a raider ship). Older backends ignore the field and treat everything
+    /// as a gather job — the deterministic locale fallback still fits then.</summary>
+    public string Kind { get; set; } = "gather";
 }
 
 /// <summary>L3: the generated board-mission posting text.</summary>

@@ -841,6 +841,10 @@ public sealed partial class GameServer
         if (target.Kind == CombatEntityKind.BanditShip)
         {
             OnBanditShipKilled(instance, target); // a person, not a Guardian machine — no story credit
+            if (session is not null)
+            {
+                OnMissionDefeat(session, DefeatTargetShip); // #731: the raider bounty counts the drive-off
+            }
         }
         else if (target.Hostile)
         {
