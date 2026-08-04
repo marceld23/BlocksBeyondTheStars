@@ -103,6 +103,14 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Bandit hold-up dialog: the demand line stays inside the panel (#734, 2026-08-04, branch fix/bandit-dialog-overflow)
+The hold-up dialog rendered the bandit's spoken line (the "Wegzoll" hails, or an LLM-authored line) in
+a fixed 480×44 slot with uGUI's default horizontal Overflow, so any long line ran off both edges of
+the panel on a single line. Now the line wraps at the row width, its height is measured with a
+`TextGenerator` at `scaleFactor = 1` (the UiWhatsNew pattern) and the item/countdown/button/hint rows
+plus the panel bottom shift down by the delta — re-measured only when the line text changes. Works for
+static localized lines and arbitrary-length LLM lines. Client-only (`BanditDemandUi`). PR #735.
+
 ### ★ Micro-fauna 2.0: every planet gets its own bug life + 11 alien species (#725, 2026-08-04, branch feat/microfauna-variety)
 The tiny client-side critters (butterflies, beetles, fireflies…) were identical on every world of a
 biome bucket, every individual the same size, and the most alien-looking biomes (crystal / lava / ice)
