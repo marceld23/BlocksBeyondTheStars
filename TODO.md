@@ -7115,6 +7115,29 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-04): Courier, Thunderbolt, Deathblock — three ships from hand-drawn floor plans (#727/#728/#729)
+
+Three more ship types built from Justus' pencil floor plans, following the hammerhead multi-room
+pipeline (composite `room_box`/`doorway` builders; existing hand-tuned layouts untouched):
+
+- **Courier** (`ship_courier`, DE "Kurier", 5×4×9) — the fastest ship in the fleet (speed 1.7 /
+  handling 1.8, hull 70 / shield 50, cargo 24) and deliberately **unarmed** (basic laser only):
+  "perfect for those who report battles instead of fighting them." Bow control cabin behind its own
+  door, living quarters aft, swept wings, glass nose + raised lookout. Blueprint prereq: scout.
+- **Thunderbolt** (`ship_thunderbolt`, DE "Blitzschlag", 9×4×11) — mid-size strike gunship (hull
+  150 / shield 55, speed 1.25 / 1.25, cargo 48, starts with `ship_cannon_1`): inset bridge with
+  viewport pane + full-width workshop hall, flank cannons port/starboard and a long bow "PaK"
+  barrel front-port. Blueprint prereqs: corvette + ship cannon (hammerhead's sibling).
+- **Deathblock** (`ship_deathblock`, DE "Todesklotz", 11×4×12) — the slowest, tankiest assault
+  brick (hull 280 / shield 80, speed 0.6 / 0.5, cargo 60): stepped silhouette (aft workshop hall
+  inset, forward sleeping quarters + control room overhang both flanks), raised glass lookout,
+  one cannon per flank, quad engines. Blueprint prereq: hammerhead (top of the combat chain).
+
+Data: `ships.json` + `blueprints.json` + DE/EN locale strings per ship. Tests: `DrawnShipsTests`
+(doors + stations register per room; thunderbolt bridge inset + deathblock notches/attachments stay
+floor-free), doorway-clearance floor raised to 7 layouts. NPC traders pick the new types up
+automatically. Doorway rule kept: 3-tall openings, clear gap columns (interior doors both sides).
+
 ## ✅ Done (2026-08-04): Hammerhead — a heavy gunship with the game's first multi-room interior (#723)
 
 A fifth ship type above the corvette, built from a hand-drawn floor plan: a wide 12-block bridge (the

@@ -412,7 +412,7 @@ public sealed class ShipStructureTests : IDisposable
             }
         }
 
-        Assert.True(layoutsChecked >= 4, "expected the scout/corvette/hauler/hammerhead layouts to be checked");
+        Assert.True(layoutsChecked >= 7, "expected the scout/corvette/hauler/hammerhead/courier/thunderbolt/deathblock layouts to be checked");
     }
 
     /// <summary>The X columns of a doorway's contiguous air gap around a door marker, scanned like the

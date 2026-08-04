@@ -211,6 +211,83 @@ def hammerhead(put, W, H, L, cut):  # 14 x 4 x 15 — the first multi-room hull:
         put(x, H + 1, 12, "glass"); put(x, H + 1, 13, "glass")
 
 
+def courier(put, W, H, L, cut):  # 5 x 4 x 9 — slim unarmed messenger: bow control cabin + living room
+    """Courier floor plan (from the hand-drawn "Scout" sheet, #727): a full-width control cabin
+    in the bow behind its own door, the living quarters in the main hull, swept wings and twin
+    stacked stern engines. No cannons — built for running, not fighting."""
+    cx = W // 2
+    room_box(put, 0, 0, W - 1, 5, H)          # main hull / living quarters
+    room_box(put, 0, 5, W - 1, L - 1, H)      # control cabin (shares the z=5 partition)
+    doorway(put, cut, [(cx - 1, 0), (cx, 0), (cx + 1, 0)], (cx, 0), H)  # stern airlock
+    doorway(put, cut, [(cx, 5)], (cx, 5), H)                            # cabin door
+    for x in range(1, W - 1):
+        put(x, 2, L - 1, "glass")             # cabin windscreen
+    put(cx, 2, L, "glass")                    # pointed glass nose
+    put(cx, H + 1, L - 2, "glass")            # raised lookout over the helm
+    stations(put, [
+        (cx - 1, L - 2, "cockpit"),           # helm (kept off the cabin-door corridor column)
+        (cx - 1, 3, "quarters"), (cx + 1, 3, "cargo"), (cx + 1, 4, "medbay"),
+    ])
+    wingY = H // 2
+    put(-1, wingY, 3, "iron_wall"); put(W, wingY, 3, "iron_wall")       # swept wings
+    put(-2, wingY, 2, "light_red"); put(W + 1, wingY, 2, "light_green")
+    for y in (1, 2):                          # twin stacked engines on the hull corners
+        put(0, y, -1, "engine"); put(W - 1, y, -1, "engine")
+
+
+def thunderbolt(put, W, H, L, cut):  # 9 x 4 x 11 — mid-size strike gunship: bridge + workshop hall
+    """Thunderbolt floor plan (from the hand-drawn "Der Blitzschlag" sheet, #728): a bridge with
+    its viewport pane up front, the full-width workshop hall behind an interior door, flank
+    cannons port + starboard and a long bow "PaK" barrel on the port side."""
+    cx = W // 2
+    room_box(put, 0, 0, W - 1, 7, H)          # workshop hall (full width)
+    room_box(put, 1, 7, W - 2, L - 1, H)      # bridge, inset one column each side
+    doorway(put, cut, [(cx - 1, 0), (cx, 0), (cx + 1, 0)], (cx, 0), H)  # stern airlock
+    doorway(put, cut, [(cx, 7)], (cx, 7), H)                            # hall -> bridge
+    for x in range(2, W - 2):
+        put(x, 2, L - 1, "glass")             # bridge viewport pane
+    stations(put, [
+        (cx + 1, L - 2, "cockpit"), (cx - 1, L - 2, "console"),         # bridge (off the door column)
+        (1, 2, "workshop"), (W - 2, 2, "cargo"), (1, 5, "quarters"), (W - 2, 5, "medbay"),
+    ])
+    for z in (4, 5):                          # flank cannon barrels
+        put(-1, 2, z, "engine"); put(W, 2, z, "engine")
+    put(2, 2, L, "engine"); put(2, 2, L + 1, "engine")                  # bow "PaK", front-port
+    put(-1, 2, 3, "light_red"); put(W, 2, 3, "light_green")
+    for x in (2, W - 3):                      # twin stacked engines beside the airlock gap
+        put(x, 1, -1, "engine"); put(x, 2, -1, "engine")
+    put(cx, H + 1, L - 2, "glass"); put(cx, H + 1, L - 3, "glass")      # raised canopy
+
+
+def deathblock(put, W, H, L, cut):  # 11 x 4 x 12 — heavy three-room assault brick
+    """Deathblock floor plan (from the hand-drawn "Der Todesklotz" sheet, #729): an aft workshop
+    hall, sleeping quarters forward-port and the control room forward-starboard — the front
+    section overhangs the hall on both flanks for the stepped, brutalist silhouette. A raised
+    glass lookout tops the control room; one cannon per flank, stub wings aft, quad engines."""
+    mid = W // 2
+    room_box(put, 1, 0, W - 2, 7, H)          # aft workshop hall, inset one column each side
+    room_box(put, 0, 7, mid, L - 1, H)        # sleeping quarters, forward-port (overhangs to x=0)
+    room_box(put, mid, 7, W - 1, L - 1, H)    # control room, forward-starboard (overhangs to x=W-1)
+    doorway(put, cut, [(mid - 1, 0), (mid, 0), (mid + 1, 0)], (mid, 0), H)  # stern airlock
+    doorway(put, cut, [(2, 7), (3, 7)], (2, 7), H)                      # hall -> sleeping quarters
+    doorway(put, cut, [(7, 7), (8, 7)], (7, 7), H)                      # hall -> control room
+    for x in (1, 2, 3, 4, 6, 7, 8, 9):
+        put(x, 2, L - 1, "glass")             # front viewports in both rooms
+    stations(put, [
+        (W - 2, L - 2, "cockpit"), (mid + 1, L - 2, "console"),         # control room
+        (1, L - 2, "quarters"), (4, L - 2, "medbay"),                   # sleeping quarters
+        (2, 2, "workshop"), (W - 3, 2, "cargo"),                        # workshop hall
+    ])
+    for x in (7, 8):                          # raised glass lookout on the control-room roof
+        put(x, H + 1, L - 3, "glass"); put(x, H + 1, L - 2, "glass")
+    for z in (4, 5):                          # one cannon per flank on the hall walls
+        put(0, 2, z, "engine"); put(W - 1, 2, z, "engine")
+    put(0, 2, 1, "iron_wall"); put(W - 1, 2, 1, "iron_wall")            # stub wings aft
+    put(-1, 2, 1, "light_red"); put(W, 2, 1, "light_green")
+    for x in (2, 3, 7, 8):                    # quad stacked engines flanking the airlock gap
+        put(x, 1, -1, "engine"); put(x, 2, -1, "engine")
+
+
 # NOTE: the starter intentionally keeps the parametric box hull (its silhouette is added in the box fallback,
 # and the box interior is what the ship-interior tests + energy hatch rely on). Only the unlockable ships get
 # bespoke voxel layouts here. (The starter() builder is kept for reference / future use.)
@@ -219,6 +296,9 @@ SHIPS = {
     "ship_corvette": (6, 4, 7, corvette),
     "ship_hauler": (7, 4, 9, hauler),
     "ship_hammerhead": (14, 4, 15, hammerhead),
+    "ship_courier": (5, 4, 9, courier),
+    "ship_thunderbolt": (9, 4, 11, thunderbolt),
+    "ship_deathblock": (11, 4, 12, deathblock),
 }
 
 

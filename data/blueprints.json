@@ -165,6 +165,21 @@
     "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 18 }, { "item": "steel", "count": 4 } ]
   },
   {
+    "key": "ship_courier", "nameKey": "blueprint.ship_courier.name", "descriptionKey": "blueprint.ship_courier.desc",
+    "category": "Ship", "prerequisites": [ "ship_scout" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "light_alloy", "count": 4 } ]
+  },
+  {
+    "key": "ship_thunderbolt", "nameKey": "blueprint.ship_thunderbolt.name", "descriptionKey": "blueprint.ship_thunderbolt.desc",
+    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 14 }, { "item": "cable", "count": 6 } ]
+  },
+  {
+    "key": "ship_deathblock", "nameKey": "blueprint.ship_deathblock.name", "descriptionKey": "blueprint.ship_deathblock.desc",
+    "category": "Ship", "prerequisites": [ "ship_hammerhead" ],
+    "unlockCost": [ { "item": "data_fragment", "count": 8 }, { "item": "titanium_plate", "count": 20 }, { "item": "steel", "count": 6 } ]
+  },
+  {
     "key": "stealth_suit", "nameKey": "blueprint.stealth_suit.name", "descriptionKey": "blueprint.stealth_suit.desc",
     "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 8 } ]
