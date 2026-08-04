@@ -41,10 +41,15 @@ dotnet test                                # all .NET xUnit suites (server/share
 ./scripts/run-tests.sh --suites ClientCore  # just the headless client<->server integration tests
 ```
 
-CI runs these suites **two-tiered** (`.github/workflows/ci.yml`): pull requests skip the ~31 statistical /
-soak tests marked `[Trait("Category", "Slow")]` for a fast gate (~3 min instead of ~13), while every push to
-`main` — and `release.yml` before publishing — runs the complete suite. Reproduce the fast PR tier locally
-with `dotnet test --filter "Category!=Slow"`.
+CI runs these suites **two-tiered** (`.github/workflows/ci.yml`): pull requests skip the statistical /
+soak tests marked `[Trait("Category", "Slow")]` for a fast gate, while every push to `main` — and
+`release.yml` before publishing — runs the complete suite. Reproduce the fast PR tier locally with
+`dotnet test --filter "Category!=Slow"`. On top of the tiering, CI **shards the server suite across a
+4-runner matrix** (#716): the suite is CPU-bound and already scales ~perfectly with cores in-process
+(`xunit.runner.json` pins `maxParallelThreads: 4`, see #536), so the only way to go faster is more
+runners. `scripts/partition-tests.py` deterministically packs test classes onto shards (weights from
+`scripts/test-shard-weights.json` — refresh it occasionally from a CI `.trx` artifact when balance
+drifts) and shard 1 cross-checks `--list-tests` output so every test provably runs on exactly one shard.
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
 Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at
@@ -83,9 +88,11 @@ These are the same two suites `run-tests.ps1` / `run-tests.sh` run by default. T
   (The detection is an explicit `case` match, not `dorny/paths-filter` — that action's `some`-glob semantics
   made a `**/*` + `!doc` list evaluate true for every diff, so docs PRs never actually skipped.)
 
-It is **safe as a required status check** — and is one: because the workflow always runs and the build-test
-check always reports (green/red/skipped-as-pass), a docs-only PR is never left waiting on a missing status, the
-usual failure mode of a plain `paths-ignore` skip. (Require the `Build + test (.NET, headless)` job, **not** the
+It is **safe as a required status check** via the `Tests passed` fan-in job: the build-test shards are a
+matrix (names carry the shard index, so they can't serve as required checks themselves), and `Tests passed`
+runs `if: always()`, passing exactly when all shards succeeded or were skipped as docs-only (with the
+`changes` helper itself green) — so a docs-only PR is never left waiting on a missing status, the usual
+failure mode of a plain `paths-ignore` skip. (Require `Tests passed`, **not** the shard jobs or the
 `Detect code changes` helper.)
 
 The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need the Editor and stay local/opt-in
@@ -93,10 +100,11 @@ The **Unity** suites (`UnityEdit` / `UnityPlay`) are **not** in CI — they need
 ([`release.yml`](../../.github/workflows/release.yml)) is a **separate** workflow that triggers only on tags;
 it does not run tests, so the PR gate is where correctness is checked before merge.
 
-> **Required status checks on `main`** (branch protection): `Build + test (.NET, headless)`,
+> **Required status checks on `main`** (branch protection): `Tests passed`,
 > `Format (dotnet format)`, `ruff (Python ai-backend)`, `actionlint (workflows)`
-> and `CodeQL` — all five must pass before merge. The `Detect code changes` helper is intentionally **not**
-> required (it's an always-skippable gate; only require jobs that always report). `strict` is off (no forced
+> and `CodeQL` — all five must pass before merge. The `Detect code changes` helper and the individual
+> `Build + test (shard N/4)` matrix jobs are intentionally **not** required (only require jobs that always
+> report under a stable name; `Tests passed` fans the matrix in). `strict` is off (no forced
 > rebase) and `enforce_admins` is off (an owner can still `gh pr merge --admin` in an emergency).
 
 ### Other PR checks: format, lint, CodeQL

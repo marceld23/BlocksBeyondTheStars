@@ -10,6 +10,7 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 **Test:** `./scripts/run-tests.sh` — currently **1421 server + 154 client passing** (2026-08-03). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
+The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
@@ -101,6 +102,19 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ CI PR gate 12:40 → ~4:30: server suite sharded over a 4-runner matrix (#716, 2026-08-04, branch ci/shard-tests)
+The Test step spent 11:25 of the 12:40 PR gate running the server suite on ONE 4-vCPU runner — and it
+already scaled ~perfectly in-process (summed test time ≈ 2550 s ÷ 4 threads ≈ the observed wall;
+`maxParallelThreads` is pinned to 4 on purpose, see #536), so the only parallelization left was more
+runners. `scripts/partition-tests.py` now packs test CLASSES onto 4 shards (greedy by weight from
+`scripts/test-shard-weights.json`, real trx seconds; new classes get a default) and emits per-shard
+dot-anchored `FullyQualifiedName~.<Class>.` filters. Classes are parsed from source declarations, not
+file names, and shard 1 cross-checks `dotnet test --list-tests` so every test provably maps to exactly
+one shard — a partition miss fails the build instead of silently skipping tests. Shard 1 also carries
+the 11 s Client.Tests suite; the duration guardrail runs per shard. New `Tests passed` fan-in job is
+the single required branch-protection check (matrix names can't be; docs-only skips still pass).
+Verified locally: all 4 shard filters together run 461+376+237+324 = exactly the 1398 fast-tier tests.
 
 ### ★ Multi-biome worlds shuffle WHICH biomes they get, not just how many (#696, 2026-08-03, branch fix/biome-subset-shuffle)
 `ResolveBiomes` randomised only the biome COUNT (2..pool) and then always took the first N entries of

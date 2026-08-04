@@ -15,6 +15,17 @@
 #     its budget, so new heavies must either get the Slow trait or a real fix.
 # See the Test step below for details.
 #
+# SHARDED TEST MATRIX (#716): the server suite is CPU-bound and already scales ~perfectly with cores
+# (summed test time ≈ 2550 s fast-tier; at maxParallelThreads 4 on the 4-vCPU runner that IS the
+# ~11 min wall the PR gate used to spend). More in-process threads would gain nothing (no more cores;
+# xunit.runner.json pins 4 because of the WorldGenerator lock convoy, #536) — so the suite fans out
+# over 4 runners instead, cutting the test step to ~3 min. scripts/partition-tests.py deterministically
+# packs test CLASSES onto shards (weights: scripts/test-shard-weights.json, from real trx data) and
+# emits each shard's --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a
+# partition-completeness check (--list-tests cross-check) so a class no shard filter matches can never
+# be SILENTLY untested. Branch protection requires the `tests-passed` fan-in job, NOT the matrix jobs
+# (matrix job names carry the shard index and a skipped required matrix would not report).
+#
 # We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
 # WinForms launcher (net10.0-windows), which cannot build on the Linux runner. Building the test
 # projects pulls in exactly their dependencies (server/shared/client.core) and nothing Windows-only.
@@ -26,10 +37,12 @@
 # REQUIRED-CHECK SAFE doc/screenshot-only skip: rather than skipping the whole workflow with paths-ignore
 # (which would leave a *required* check stuck on "Expected — Waiting for status" for a docs-only PR), the
 # workflow always runs and a `changes` job decides whether the heavy `build-test`/`format` jobs run. On a
-# doc- or image-only PR they are skipped via their `if:`, and GitHub counts a skipped required job as a
-# pass — so the `Build + test (.NET, headless)` check still reports green and never blocks the PR. Any
-# code/content file in the diff makes them run for real. The doc/image skip list lives in the shared
-# reusable workflow .github/workflows/detect-doc-only.yml (also used by lint.yml and codeql.yml).
+# doc- or image-only PR the build-test shards are skipped via their `if:`, and the `tests-passed` fan-in
+# explicitly treats "changes succeeded + build-test skipped" as a pass — so the required check reports
+# green and never blocks a docs PR. Any code/content file in the diff makes them run for real. The
+# doc/image skip list lives in the shared reusable workflow .github/workflows/detect-doc-only.yml (also
+# used by lint.yml and codeql.yml). The `format` job stays a directly-required check (its name is stable
+# and GitHub counts its skip as a pass, as before).
 
 name: CI
 
@@ -54,12 +67,16 @@ jobs:
     uses: ./.github/workflows/detect-doc-only.yml
 
   build-test:
-    name: Build + test (.NET, headless)
+    name: Build + test (shard ${{ matrix.shard }}/4)
     needs: changes
     # Run for any push to main, or for a PR that touched at least one non-doc file. A docs-only PR
-    # skips this job; a skipped required check counts as passing, so docs PRs are never blocked.
+    # skips this job; the `tests-passed` fan-in treats that as passing, so docs PRs are never blocked.
     if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # one failing shard must not cancel the others' results
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
 
@@ -77,10 +94,14 @@ jobs:
             **/*.csproj
             Directory.Build.props
 
+      # Shard 1 also owns the small Client.Tests suite (~11 s), so shards 2-4 skip restoring and
+      # building it entirely.
       - name: Restore
         run: |
           dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
-          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+          fi
 
       # -warnaserror promotes every compiler/analyzer warning to a build error for the PR gate.
       # Release configuration: the suite is dominated by CPU-bound worldgen/sim tests, which run far
@@ -88,19 +109,37 @@ jobs:
       - name: Build (treat warnings as errors)
         run: |
           dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release -warnaserror
-          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release -warnaserror
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release -warnaserror
+          fi
+
+      # Partition-completeness guard (shard 1 only — needs a built assembly, any shard's would do):
+      # every test that --list-tests discovers must be matched by EXACTLY one shard's filter. A test
+      # class the partition misses (nested class, name colliding with a namespace segment, …) fails
+      # the build here instead of silently never running on any shard.
+      - name: Verify shard partition covers every test
+        if: matrix.shard == 1
+        run: |
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --list-tests > listed-tests.txt
+          python3 scripts/partition-tests.py verify --shards 4 --list-file listed-tests.txt
 
       # Two-tier test gate: PRs skip the tests marked [Trait("Category", "Slow")] — the statistical
       # worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
-      # guaranteed twice downstream: every push to main runs the COMPLETE suite here (empty filter),
-      # and release.yml runs it again on the tagged commit before anything is published.
+      # guaranteed twice downstream: every push to main runs the COMPLETE suite here (shard filter
+      # only, no tier filter), and release.yml runs it again on the tagged commit before anything is
+      # published. The shard filter (which test classes THIS runner executes) is combined with the
+      # tier filter via `&`.
       - name: Test
         env:
           # xUnit maps [Trait("Category", ...)] to the vstest Category property.
-          FILTER: ${{ github.event_name == 'pull_request' && 'Category!=Slow' || '' }}
+          TIER: ${{ github.event_name == 'pull_request' && 'Category!=Slow' || '' }}
         run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${FILTER:+--filter "$FILTER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards 4)"
+          FILTER="${TIER:+$TIER&}$SHARD_FILTER"
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          if [ "${{ matrix.shard }}" = "1" ]; then
+            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+          fi
 
       # Fast-tier duration guardrail (PRs only — the full run on main legitimately contains Slow tests):
       # fail when any non-Slow test exceeds the per-test budget, so the fast tier cannot silently decay
@@ -117,9 +156,30 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results
+          name: test-results-shard-${{ matrix.shard }}
           path: TestResults/*.trx
           if-no-files-found: ignore
+
+  # Fan-in for branch protection: the ONE required check standing in for the whole test matrix.
+  # Required checks must not point at matrix jobs directly (names carry the shard index, and a
+  # docs-only PR would leave them "Expected — Waiting for status" forever). Passing states:
+  #   * build-test == success  → all four shards green
+  #   * build-test == skipped  → docs-only PR (the `changes` job said nondocs=false) — counts as pass,
+  #     but ONLY when `changes` itself succeeded, so a cancelled/failed upstream can't sneak through.
+  tests-passed:
+    name: Tests passed
+    needs: [changes, build-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check matrix result
+        run: |
+          echo "changes: ${{ needs.changes.result }} / build-test: ${{ needs.build-test.result }}"
+          if [ "${{ needs.changes.result }}" != "success" ]; then exit 1; fi
+          case "${{ needs.build-test.result }}" in
+            success|skipped) exit 0 ;;
+            *) exit 1 ;;
+          esac
 
   # Verifies C# code style/formatting (whitespace, using-order, object-initializer line breaks, …) per
   # .editorconfig. Runs against BlocksBeyondTheStars.CI.slnf, a solution filter listing every project EXCEPT
