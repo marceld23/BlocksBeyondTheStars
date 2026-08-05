@@ -7174,9 +7174,15 @@ bars + captions + fade/flash planes) and a pure, tested `CinematicTimeline` in C
   `ApplyGrade` write so it composes with the biome mood) + chroma/grain burst. Never locks input;
   suppressed under menus/space view/other cinematics.
 
+Playtest hardening (same batch): HUD + viewmodel hidden during the prologue sequence; no VEGA line
+dequeues behind the loading veil (continuous-hold timeout); story pages take the queue front via a
+stable partition (the world-flavour hint fires on the join placement and raced ahead — the root
+cause of "must press N to start"); staging no longer requires the late Aboard flag; capture runs
+skip the intro; `[Cinematic]` diagnostics in Player.log.
+
 Tests: `CinematicTimelineTests` (leg mapping, clamping, easing, fade windows); locale parity covers
-the new `ui.intro.*`/`ui.credits.watch_intro` keys. NEEDS Unity build + playtest (intro pacing,
-prologue camera vs. terrain, chatter loudness). Local-only branch `feat/intro-cinematics` (no PR yet).
+the new `ui.intro.*`/`ui.credits.watch_intro` keys. Locally playtested (intro + staged prologue
+confirmed working); still open: broader playtest of pacing/camera vs. terrain and chatter loudness.
 
 ## ✅ Done (2026-08-05): playtest batch — collision, ruins, loot, HUD warnings, VEGA prologue, ship smoothing, micro-fauna scanning (#749–#757)
 
