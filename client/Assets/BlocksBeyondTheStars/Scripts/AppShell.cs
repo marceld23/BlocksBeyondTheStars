@@ -470,9 +470,16 @@ namespace BlocksBeyondTheStars.Client
         public void GoTo(ShellPhase phase) => Phase = phase;
 
         /// <summary>Title-splash hand-off (#759): the first launch flows through the generic intro
-        /// cinematic once; afterwards straight to the menu. Credits can replay it any time.</summary>
+        /// cinematic once; afterwards straight to the menu. Credits can replay it any time. Unattended
+        /// capture runs (ScreenshotDirector/ClipDirector) skip it — a first-run cinematic would stall
+        /// their phase waits and land in the frames.</summary>
         public void OnTitleSplashDone()
-            => GoTo(Settings != null && !Settings.IntroSeen ? ShellPhase.Intro : ShellPhase.MainMenu);
+        {
+            var args = System.Environment.GetCommandLineArgs();
+            bool captureRun = System.Array.IndexOf(args, "-captureShots") >= 0
+                              || System.Array.IndexOf(args, "-captureClip") >= 0;
+            GoTo(!captureRun && Settings != null && !Settings.IntroSeen ? ShellPhase.Intro : ShellPhase.MainMenu);
+        }
 
         /// <summary>Replays the intro cinematic from the Credits screen (never re-stamps the seen flag).</summary>
         public void PlayIntroFromCredits()
