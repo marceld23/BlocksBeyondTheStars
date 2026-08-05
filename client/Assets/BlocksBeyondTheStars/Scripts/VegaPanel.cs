@@ -354,6 +354,13 @@ namespace BlocksBeyondTheStars.Client
                         Cinematic.OnPrologueLine(_prologueLineIndex);
                     }
                 }
+                else if (_prologueStarted)
+                {
+                    // The story pages are over but the queue continues straight into the normal
+                    // onboarding lines (they arrive together on join) — the idle branch below would
+                    // never run, so wind the staging down here (#760).
+                    EndStagedPrologue();
+                }
 
                 SetPrologueChrome(prologue);
                 _pages.Clear();

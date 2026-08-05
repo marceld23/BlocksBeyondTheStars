@@ -7148,6 +7148,36 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-05): intro cinematic, staged VEGA prologue, VEGA voice chatter, memory flashbacks (#759–#762)
+
+The game gained a watchable intro plus cinematic story dressing — all real-time in-engine (no video
+files, no new packages; works on WebGL), built on a new reusable `CinematicFrame` chrome (letterbox
+bars + captions + fade/flash planes) and a pure, tested `CinematicTimeline` in Client.Core:
+
+- **Generic intro (#759)** — a ~28 s space cinematic between the title splash and the menu:
+  starfield/nebula reveal → sun pan with a voxel fighter crossing → planet approach → white-flash
+  hand-off. Rendered with the live shell systems (`Starfield`/`NebulaField`/`ShipMeshBuilder`/
+  `UrpScenePost`, the MenuBackground recipes) so it always matches current art. Plays ONCE per
+  install (`ClientSettings.IntroSeen`), Esc/any-key skippable, replayable via a new **"Watch
+  intro"** button on Credits. New `ShellPhase.Intro`; captions `ui.intro.card1..3` (EN+DE).
+- **Staged VEGA prologue (#760)** — the three Kind-4 pages keep their server trigger/keys/gate but
+  now get a stage: held until the loading veil drops, then letterbox + a slow exterior orbit of the
+  player's actual landed ship (page 1), a push-in (page 2), and a snap back to the seat with a
+  glitch flash + crackle as VEGA boots (page 3). Client-only, multiplayer-safe; camera override in
+  LateUpdate(210) while `GameBootstrap.CinematicCameraActive` freezes on-foot control; not-aboard/
+  space-view/timeout fall back to the previous dim + panel behaviour.
+- **VEGA voice chatter (#761)** — three ElevenLabs vocoder-babble variants (`vega_chatter_1..3`,
+  no real words → language-independent) chain with pitch jitter while a line types, stopping the
+  instant the reveal completes or is skipped. NOTICES.md extended.
+- **Memory flashbacks (#762)** — Kind-2 story beats pulse a ~7 s recollection look: light
+  letterbox, desaturating/cooling grade (`UrpScenePost.SetFlashback`, folded into the per-frame
+  `ApplyGrade` write so it composes with the biome mood) + chroma/grain burst. Never locks input;
+  suppressed under menus/space view/other cinematics.
+
+Tests: `CinematicTimelineTests` (leg mapping, clamping, easing, fade windows); locale parity covers
+the new `ui.intro.*`/`ui.credits.watch_intro` keys. NEEDS Unity build + playtest (intro pacing,
+prologue camera vs. terrain, chatter loudness). Local-only branch `feat/intro-cinematics` (no PR yet).
+
 ## ✅ Done (2026-08-05): playtest batch — collision, ruins, loot, HUD warnings, VEGA prologue, ship smoothing, micro-fauna scanning (#749–#757)
 
 Nine playtest findings fixed in one pass (analysis first, per-issue root causes):
