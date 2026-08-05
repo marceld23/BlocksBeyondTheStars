@@ -16,8 +16,10 @@ item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`am
 the ship-AI radio chirp `ai_blip` (VEGA companion), the water-body ambient loops
 `water_surf`/`water_brook` (coastal surf + flowing brook), the beam-block teleporter cues
 `beam_teleport` (jump whoosh) + `beam_idle` (pad idle hum loop), the algae-tank craft cue
-`algae_tank_craft` (bubbling harvest blub, via `tools/ai-assets/gen_sound.py`), and the energy-fence
-ambience `energy_fence_hum` (soft force-field hum loop, same `gen_sound.py`))
+`algae_tank_craft` (bubbling harvest blub, via `tools/ai-assets/gen_sound.py`), the energy-fence
+ambience `energy_fence_hum` (soft force-field hum loop, same `gen_sound.py`), and the VEGA
+voice chatter `vega_chatter_1..3` (non-verbal vocoder radio babble played while VEGA's lines type
+out, same `gen_sound.py`))
 are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio

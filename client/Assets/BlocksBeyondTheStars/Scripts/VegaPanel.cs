@@ -74,6 +74,11 @@ namespace BlocksBeyondTheStars.Client
         private string _objectiveKey = string.Empty;
         private int _objProgress, _objTarget;
 
+        // VEGA's non-verbal vocoder voice (#761): short ElevenLabs chatter variants chained while a
+        // page types out. No words → language-independent, nothing to re-record when texts change.
+        private AudioClip[] _chatterClips;
+        private AudioSource _chatterSource;
+
         // How many break reminders have fired this session — drives the escalating wording and the next due time.
         private int _remindersSent;
 
@@ -131,6 +136,21 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.ShipAiLineReceived += OnLine;
             }
+
+            // Load every bundled chatter variant (vega_chatter_1..n); none bundled → silent typewriter.
+            var chatter = new List<AudioClip>();
+            for (int i = 1; ; i++)
+            {
+                var clip = Resources.Load<AudioClip>("audio/vega_chatter_" + i);
+                if (clip == null)
+                {
+                    break;
+                }
+
+                chatter.Add(clip);
+            }
+
+            _chatterClips = chatter.ToArray();
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
@@ -150,6 +170,46 @@ namespace BlocksBeyondTheStars.Client
 
             SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
             EndStagedPrologue();
+        }
+
+        /// <summary>Starts/chains a chatter segment while a page is typing (#761): random variant, a
+        /// touch of pitch jitter so the babble never sounds looped, volume from the audio settings.
+        /// The existing per-line "ai_blip" stays as the radio keying transient.</summary>
+        private void UpdateChatter()
+        {
+            if (_chatterClips == null || _chatterClips.Length == 0)
+            {
+                return;
+            }
+
+            if (_chatterSource == null)
+            {
+                _chatterSource = gameObject.AddComponent<AudioSource>();
+                _chatterSource.spatialBlend = 0f;
+                _chatterSource.playOnAwake = false;
+            }
+
+            if (_chatterSource.isPlaying)
+            {
+                return;
+            }
+
+            _chatterSource.clip = _chatterClips[Random.Range(0, _chatterClips.Length)];
+            _chatterSource.pitch = Random.Range(0.94f, 1.08f);
+            float master = Settings != null ? Settings.MasterVolume : 0.8f;
+            float sfx = Settings != null ? Settings.SfxVolume : 1f;
+            _chatterSource.volume = Mathf.Clamp01(master * sfx) * 0.5f;
+            _chatterSource.Play();
+        }
+
+        /// <summary>Cuts the chatter the moment the reveal completes, is fast-forwarded or dismissed —
+        /// trailing babble under a finished page reads as a glitch.</summary>
+        private void StopChatter()
+        {
+            if (_chatterSource != null && _chatterSource.isPlaying)
+            {
+                _chatterSource.Stop();
+            }
         }
 
         /// <summary>Winds down the staged prologue (#760), if it is running, and resets the staging state
@@ -322,6 +382,7 @@ namespace BlocksBeyondTheStars.Client
                 _pages.Clear();
                 _speechText.text = string.Empty;
                 _continueHint.gameObject.SetActive(false);
+                StopChatter();
                 return;
             }
 
@@ -334,7 +395,12 @@ namespace BlocksBeyondTheStars.Client
                 _speechText.text = _current.Substring(0, (int)_shown);
                 if (_shown >= _current.Length)
                 {
+                    StopChatter();
                     ShowContinueHint();
+                }
+                else
+                {
+                    UpdateChatter();
                 }
 
                 return;
