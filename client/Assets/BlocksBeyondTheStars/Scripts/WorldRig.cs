@@ -185,6 +185,11 @@ namespace BlocksBeyondTheStars.Client
             prologueCine.Camera = cam;
             vega.Cinematic = prologueCine;
 
+            // Flashback treatment for recovered memories (#762): letterbox + desaturation + grain pulse.
+            var flashback = root.AddComponent<MemoryFlashback>();
+            flashback.Game = boot;
+            vega.Flashback = flashback;
+
             // Other players' ships landing/launching at pads, in multiplayer (item 38).
             var shipTransit = root.AddComponent<ShipTransitView>();
             shipTransit.Game = boot;

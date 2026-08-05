@@ -262,17 +262,47 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Applies the per-system/biome "mood" grade (URP path of <c>Sky.SetGrade</c>): the blended
         /// biome×sun tint becomes the colour filter (folded by the same 0.7 strength the Built-in grade used),
-        /// saturation/contrast map from the old multiplier form (1.0 = neutral) to URP's −100..100 scale.</summary>
+        /// saturation/contrast map from the old multiplier form (1.0 = neutral) to URP's −100..100 scale.
+        /// A running memory flashback (#762) folds a desaturating, cooling pulse into the same write, so it
+        /// composes with Sky's per-frame calls instead of fighting them.</summary>
         public void ApplyGrade(Color blendedTint, float saturation, float contrast)
+        {
+            _baseTint = blendedTint;
+            _baseSaturation = saturation;
+            _baseContrast = contrast;
+            ApplyGradeNow();
+        }
+
+        private Color _baseTint = Color.white;
+        private float _baseSaturation = 1f, _baseContrast = 1f;
+        private float _flashback; // 0..1 memory-flashback level (#762): desaturates + cools the grade
+
+        /// <summary>Memory-flashback level (#762): 0 = off, 1 = full desaturated/cooled recall look.
+        /// Re-applies the stored base grade immediately, so it also works where Sky isn't driving.</summary>
+        public void SetFlashback(float level01)
+        {
+            level01 = Mathf.Clamp01(level01);
+            if (Mathf.Approximately(level01, _flashback))
+            {
+                return;
+            }
+
+            _flashback = level01;
+            ApplyGradeNow();
+        }
+
+        private void ApplyGradeNow()
         {
             if (_grade == null)
             {
                 return;
             }
 
-            _grade.colorFilter.Override(Color.Lerp(Color.white, blendedTint, 0.7f));
-            _grade.saturation.Override(Mathf.Clamp((saturation - 1f) * 100f + 6f, -100f, 100f));
-            _grade.contrast.Override(Mathf.Clamp((contrast - 1f) * 100f + 6f, -100f, 100f));
+            float sat = Mathf.Lerp(_baseSaturation, 0.25f, _flashback);
+            Color tint = Color.Lerp(_baseTint, new Color(0.78f, 0.86f, 0.98f), _flashback * 0.6f);
+            _grade.colorFilter.Override(Color.Lerp(Color.white, tint, 0.7f));
+            _grade.saturation.Override(Mathf.Clamp((sat - 1f) * 100f + 6f, -100f, 100f));
+            _grade.contrast.Override(Mathf.Clamp((_baseContrast - 1f) * 100f + 6f, -100f, 100f));
         }
 
         /// <summary>Maps the 1.0-neutral brightness setting to a post-exposure stop offset. 1.0 keeps the tuned

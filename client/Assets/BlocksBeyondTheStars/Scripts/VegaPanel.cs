@@ -24,6 +24,9 @@ namespace BlocksBeyondTheStars.Client
         /// instead of the plain dim; the panel keeps showing the text, subtitle-style.</summary>
         public PrologueCinematic Cinematic;
 
+        /// <summary>Flashback treatment for Kind-2 memory beats (#762), wired by WorldRig.</summary>
+        public MemoryFlashback Flashback;
+
         private const float CharsPerSecond = 42f;
         private const float AutoAdvanceSeconds = 25f; // fallback so an unattended line never blocks forever
         private const KeyCode ContinueKey = KeyCode.N;
@@ -236,6 +239,11 @@ namespace BlocksBeyondTheStars.Client
             _objectiveKey = m.ObjectiveKey ?? string.Empty;
             _objProgress = m.ObjectiveProgress;
             _objTarget = m.ObjectiveTarget;
+
+            if (m.Kind == 2)
+            {
+                Flashback?.Trigger(); // a recovered memory gets the brief flashback treatment (#762)
+            }
 
             bool muted = m.Kind == 1 && Settings is { VegaHints: false };
             if (!string.IsNullOrEmpty(m.Text) && !muted)
