@@ -24,8 +24,11 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
-        private const float HoldTimeout = 12f;   // never gate the story on a stuck reveal
-        private const float AboardWait = 6f;     // the Aboard flag rides a later PlayerState packet
+        // Absolute safety net only: the veil's own MaxShow (25 s) always drops it first. The old 12 s
+        // give-up was SHORTER than a fresh world's generation — the whole staged prologue then played
+        // invisibly behind the curtain (chatter audible, page 1 already waiting on [N] at reveal).
+        private const float HoldTimeout = 60f;
+        private const float AboardWait = 2.5f;   // post-reveal grace for the late PlayerState packet
         private const float LetterboxSeconds = 0.5f;
         private const float OrbitDegPerSecond = 8f;
 
@@ -35,6 +38,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _cameraOverride;
         private bool _ending;
         private float _holdStart = -1f;
+        private float _veilDownAt = -1f;
         private Vector3 _center;
         private float _angle;
         private float _radius, _height, _targetRadius, _targetHeight;
@@ -68,9 +72,21 @@ namespace BlocksBeyondTheStars.Client
                     return false; // give up holding — the panel falls back to the plain dim behaviour
                 }
 
-                bool veilUp = _overlay != null && _overlay.VeilActive;
-                bool aboardPending = !Game.Aboard && waited < AboardWait;
-                return veilUp || !Game.WorldReady || aboardPending;
+                // Hold for as long as the loading veil is up (it implies WorldReady gating and caps
+                // itself at MaxShow), then give the authoritative Aboard flag a short post-reveal grace
+                // so Begin() doesn't fall back to the dim just because the PlayerState packet is late.
+                if (_overlay != null && _overlay.VeilActive)
+                {
+                    _veilDownAt = -1f;
+                    return true;
+                }
+
+                if (_veilDownAt < 0f)
+                {
+                    _veilDownAt = Time.time;
+                }
+
+                return !Game.Aboard && Time.time - _veilDownAt < AboardWait;
             }
         }
 

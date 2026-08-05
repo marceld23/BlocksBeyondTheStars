@@ -82,6 +82,7 @@ namespace BlocksBeyondTheStars.Client
         // page types out. No words → language-independent, nothing to re-record when texts change.
         private AudioClip[] _chatterClips;
         private AudioSource _chatterSource;
+        private WorldLoadingOverlay _worldVeil; // chatter never plays behind the loading curtain
 
         // How many break reminders have fired this session — drives the escalating wording and the next due time.
         private int _remindersSent;
@@ -155,6 +156,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _chatterClips = chatter.ToArray();
+            _worldVeil = FindAnyObjectByType<WorldLoadingOverlay>();
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
@@ -183,6 +185,14 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_chatterClips == null || _chatterClips.Length == 0)
             {
+                return;
+            }
+
+            // A line typing behind the loading curtain (veteran greeting, a landing transition) must not
+            // be audible before anything is visible — VEGA speaks only once the world does.
+            if (_worldVeil != null && _worldVeil.VeilActive)
+            {
+                StopChatter();
                 return;
             }
 
