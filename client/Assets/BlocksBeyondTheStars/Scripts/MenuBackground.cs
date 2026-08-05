@@ -186,8 +186,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Sets the space-sky shader globals so the block-atlas voxel ship is full-bright + directionally
-        /// lit in the shell (no live <see cref="Sky"/> here); mirrors Sky's space-view branch. Headlamp off.</summary>
-        private static void ApplySpaceLighting()
+        /// lit in the shell (no live <see cref="Sky"/> here); mirrors Sky's space-view branch. Headlamp off.
+        /// Internal: the intro cinematic (#759) renders the same kind of shell scene and shares this.</summary>
+        internal static void ApplySpaceLighting()
         {
             Shader.SetGlobalColor("_Sc_Light", Color.white);
             Shader.SetGlobalVector("_Sc_SunDir", SunDir); // light the voxel ship from the VISIBLE sun, not a third direction
@@ -373,8 +374,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Authors a compact but real fighter as a sparse voxel <c>SpaceShipDesign</c> using actual block
         /// ids (iron_wall hull, glass canopy, cyan-glowing engine nozzles), so the menu renders it through the real
-        /// atlas mesher. Returns null if the hull block is missing.</summary>
-        private static BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign BuildShipDesign(GameContent content)
+        /// atlas mesher. Returns null if the hull block is missing.
+        /// Internal: the intro cinematic (#759) flies the same fighter through its establishing shot.</summary>
+        internal static BlocksBeyondTheStars.Networking.Messages.SpaceShipDesign BuildShipDesign(GameContent content)
         {
             var hullDef = content.GetBlock("iron_wall");
             if (hullDef == null)

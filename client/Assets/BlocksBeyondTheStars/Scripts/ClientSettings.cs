@@ -232,6 +232,11 @@ namespace BlocksBeyondTheStars.Client
         /// because there is nothing "new" to catch a brand-new player up on.</summary>
         public string LastSeenVersion = "";
 
+        /// <summary>Whether the once-per-install generic intro cinematic has played (#759). Stamped when
+        /// it finishes or is skipped; replays from the Credits screen never re-stamp it. False on fresh
+        /// installs AND on existing installs that predate the feature — both see the intro exactly once.</summary>
+        public bool IntroSeen = false;
+
         /// <summary>The player's name — shown to other players and keying the server-side player state.
         /// Empty by default ON PURPOSE (#221): the main menu forces a choice before playing — a silent
         /// "Pilot" default made everyone collide as Pilot in multiplayer. Existing installs keep the

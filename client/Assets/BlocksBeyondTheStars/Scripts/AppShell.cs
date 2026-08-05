@@ -10,7 +10,7 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>The shell phases: splash, main menu, settings, credits, loading, in-game.</summary>
-    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio }
+    public enum ShellPhase { Splash, MainMenu, Settings, Credits, Loading, InGame, ShipEditor, AvatarEditor, StructureEditor, ContentEditor, MaterialEditor, Editors, SaveSelect, Studio, Intro }
 
     /// <summary>
     /// Client front-end state machine (M20 / `anf_textures.md`): drives splash → main menu →
@@ -78,6 +78,7 @@ namespace BlocksBeyondTheStars.Client
         private SplashScreen _splash;
         private StudioSplash _studio;
         private LoadingScreen _loading;
+        private IntroCinematic _intro;
 
         private readonly LocalServerLauncher _localServer = new LocalServerLauncher();
         private bool _hostLocal;
@@ -140,6 +141,7 @@ namespace BlocksBeyondTheStars.Client
             _splash = new SplashScreen(this);
             _studio = new StudioSplash(this);
             _loading = new LoadingScreen(this);
+            _intro = new IntroCinematic(this);
 
             GlitchIntegration.InstallIfConfigured();
             if (ContentReady)
@@ -466,6 +468,31 @@ namespace BlocksBeyondTheStars.Client
         public string L(string key) => Localizer != null ? Localizer.Get(key) : key;
 
         public void GoTo(ShellPhase phase) => Phase = phase;
+
+        /// <summary>Title-splash hand-off (#759): the first launch flows through the generic intro
+        /// cinematic once; afterwards straight to the menu. Credits can replay it any time.</summary>
+        public void OnTitleSplashDone()
+            => GoTo(Settings != null && !Settings.IntroSeen ? ShellPhase.Intro : ShellPhase.MainMenu);
+
+        /// <summary>Replays the intro cinematic from the Credits screen (never re-stamps the seen flag).</summary>
+        public void PlayIntroFromCredits()
+        {
+            _intro.BeginReplay();
+            GoTo(ShellPhase.Intro);
+        }
+
+        /// <summary>Intro finished or was skipped: stamp the once-per-install flag (not on replays) and
+        /// land on the main menu — the bombastic menu sting then plays on its first reveal as usual.</summary>
+        public void OnIntroFinished(bool replay)
+        {
+            if (!replay && Settings != null && !Settings.IntroSeen)
+            {
+                Settings.IntroSeen = true;
+                Settings.Save();
+            }
+
+            GoTo(ShellPhase.MainMenu);
+        }
 
         /// <summary>Forces the save-select screen to rebuild next frame (e.g. after deleting a world) — the phase
         /// stays SaveSelect, so without this the list wouldn't refresh and a delete looked like it did nothing (B59).</summary>
@@ -1050,7 +1077,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Belt-and-braces (#422 M8): should Awake ever abort before these exist, a per-frame NRE
             // storm would freeze the shell with zero explanation — skip instead.
-            if (_studio == null || _splash == null || _loading == null)
+            if (_studio == null || _splash == null || _loading == null || _intro == null)
             {
                 return;
             }
@@ -1058,6 +1085,14 @@ namespace BlocksBeyondTheStars.Client
             _studio.Update();
             _splash.Update();
             _loading.Update();
+            _intro.Update();
+
+            // The intro renders its own space scene — park the menu backdrop (and its camera) while it
+            // plays, or both scenes' objects would show up in both cameras.
+            if (_menuBackground != null && _menuBackground.activeSelf != (Phase != ShellPhase.Intro))
+            {
+                _menuBackground.SetActive(Phase != ShellPhase.Intro);
+            }
 
             // Keep the (procedural) UI click/hover volume in step with the audio settings.
             if (Settings != null)

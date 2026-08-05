@@ -65,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (_elapsed >= Duration || (_elapsed > 0.4f && Input.anyKeyDown))
             {
-                _shell.GoTo(ShellPhase.MainMenu);
+                _shell.OnTitleSplashDone(); // first launch detours through the intro cinematic (#759)
             }
         }
 

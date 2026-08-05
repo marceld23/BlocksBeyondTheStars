@@ -30,6 +30,10 @@ namespace BlocksBeyondTheStars.Client
             BuildBodyScroll(root, px + 40f, bodyY, pw - 80f, bodyH, shell.L("ui.credits.body"));
 
             UiKit.AddButton(root, px + 40, py + ph - 76, 220, 52, shell.L("ui.menu.back"), () => shell.CloseCredits());
+
+            // Replay the once-per-install intro cinematic (#759) — the phase change tears this screen down.
+            UiKit.AddButton(root, px + pw - 260, py + ph - 76, 220, 52, shell.L("ui.credits.watch_intro"),
+                () => shell.PlayIntroFromCredits());
             return canvas.gameObject;
         }
 
