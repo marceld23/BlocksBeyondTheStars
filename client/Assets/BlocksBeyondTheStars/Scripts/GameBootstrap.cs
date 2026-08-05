@@ -787,6 +787,10 @@ namespace BlocksBeyondTheStars.Client
         /// must not treat that press as "leave game" (same contract as <see cref="MenuOpen"/>).</summary>
         public bool VegaPrologueActive { get; set; }
 
+        /// <summary>True while a client-side cinematic (the staged prologue, #760) owns the camera — the
+        /// on-foot controller freezes movement/look like an open menu, but the cursor stays locked.</summary>
+        public bool CinematicCameraActive { get; set; }
+
         /// <summary>Pre-built JSON of the player's discovered systems/worlds + language for the in-game wiki's
         /// discovery-gated chapters. Built on the main thread (so the loopback content server can read this
         /// immutable string race-free) whenever the star map, language or unlocks change.</summary>

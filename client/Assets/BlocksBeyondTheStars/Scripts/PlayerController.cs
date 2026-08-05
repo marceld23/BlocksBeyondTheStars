@@ -293,8 +293,10 @@ namespace BlocksBeyondTheStars.Client
 
             // A UI panel or the chat input is open: don't steer/interact, just settle by gravity — unless
             // we're driving a speeder: on-foot gravity would drag the player out of hover under the menu
-            // and yank them back up on close (#413 N4). Hold the hover position instead.
-            if (Game != null && (Game.MenuOpen || Game.ChatTyping))
+            // and yank them back up on close (#413 N4). Hold the hover position instead. A running camera
+            // cinematic (#760) freezes control the same way — and by skipping the per-frame eye-pose
+            // re-assert below, it leaves the camera to the cinematic's LateUpdate.
+            if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive))
             {
                 UpdateJetpack(false);
                 if (string.IsNullOrEmpty(Game.InSpeeder))

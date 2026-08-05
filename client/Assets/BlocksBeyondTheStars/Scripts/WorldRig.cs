@@ -178,6 +178,13 @@ namespace BlocksBeyondTheStars.Client
             vega.Game = boot;
             vega.Settings = shell.Settings;
 
+            // Cinematic staging for the first-spawn VEGA prologue (#760): letterbox + an exterior orbit
+            // of the player's landed ship while the story pages show, then a snap back to the seat.
+            var prologueCine = root.AddComponent<PrologueCinematic>();
+            prologueCine.Game = boot;
+            prologueCine.Camera = cam;
+            vega.Cinematic = prologueCine;
+
             // Other players' ships landing/launching at pads, in multiplayer (item 38).
             var shipTransit = root.AddComponent<ShipTransitView>();
             shipTransit.Game = boot;

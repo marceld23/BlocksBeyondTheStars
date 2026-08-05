@@ -19,6 +19,11 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public ClientSettings Settings;
 
+        /// <summary>Cinematic staging for the first-spawn prologue (#760), wired by WorldRig. When it can
+        /// stage (aboard, on foot), the Kind-4 pages get letterbox + a camera orbit of the player's ship
+        /// instead of the plain dim; the panel keeps showing the text, subtitle-style.</summary>
+        public PrologueCinematic Cinematic;
+
         private const float CharsPerSecond = 42f;
         private const float AutoAdvanceSeconds = 25f; // fallback so an unattended line never blocks forever
         private const KeyCode ContinueKey = KeyCode.N;
@@ -58,6 +63,13 @@ namespace BlocksBeyondTheStars.Client
         // only prologue extras now are a dim behind the panel and Esc-to-skip.
         private Image _dim;
         private bool _currentIsPrologue;
+
+        // Staged-prologue state (#760): whether the cinematic took the stage for this prologue run, and
+        // which of the Kind-4 lines is up (drives the camera legs). Reset when the prologue ends, so a
+        // deliberately restarted onboarding stages again.
+        private bool _prologueStarted;
+        private bool _prologueStaged;
+        private int _prologueLineIndex;
 
         private string _objectiveKey = string.Empty;
         private int _objProgress, _objTarget;
@@ -137,6 +149,26 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
+            EndStagedPrologue();
+        }
+
+        /// <summary>Winds down the staged prologue (#760), if it is running, and resets the staging state
+        /// so a deliberately restarted onboarding can stage again.</summary>
+        private void EndStagedPrologue()
+        {
+            if (!_prologueStarted && !_prologueStaged)
+            {
+                return;
+            }
+
+            if (_prologueStaged)
+            {
+                Cinematic?.End();
+            }
+
+            _prologueStaged = false;
+            _prologueStarted = false;
+            _prologueLineIndex = 0;
         }
 
         private void OnLine(ShipAiLine m)
@@ -226,8 +258,35 @@ namespace BlocksBeyondTheStars.Client
 
             if (_current.Length == 0 && _queue.Count > 0)
             {
+                // Staged prologue (#760): hold the FIRST story page until the world has revealed (veil
+                // down, aboard state in), so the camera sequence opens on a visible scene — not into the
+                // loading curtain. Bounded inside HoldQueue; normal lines are never held.
+                if (_queue.Peek().Prologue && !_prologueStarted && Cinematic != null && Cinematic.HoldQueue)
+                {
+                    return;
+                }
+
                 var (text, prologue) = _queue.Dequeue();
                 _currentIsPrologue = prologue;
+                if (prologue)
+                {
+                    if (!_prologueStarted)
+                    {
+                        _prologueStarted = true;
+                        _prologueLineIndex = 0;
+                        _prologueStaged = Cinematic != null && Cinematic.Begin();
+                    }
+                    else
+                    {
+                        _prologueLineIndex++;
+                    }
+
+                    if (_prologueStaged)
+                    {
+                        Cinematic.OnPrologueLine(_prologueLineIndex);
+                    }
+                }
+
                 SetPrologueChrome(prologue);
                 _pages.Clear();
                 _pages.AddRange(SplitPages(text));
@@ -245,6 +304,7 @@ namespace BlocksBeyondTheStars.Client
 
                 SetPrologueChrome(false);
                 _currentIsPrologue = false;
+                EndStagedPrologue(); // finished or skipped — restore the camera, letterbox out (#760)
                 return;
             }
 
@@ -329,9 +389,12 @@ namespace BlocksBeyondTheStars.Client
         /// instead of opening the leave-game menu.</summary>
         private void SetPrologueChrome(bool on)
         {
-            if (_dim != null && _dim.gameObject.activeSelf != on)
+            // With the cinematic staging up (#760) the letterbox is the chrome — the dim would just
+            // darken the very scene the camera is orbiting.
+            bool dimOn = on && !_prologueStaged;
+            if (_dim != null && _dim.gameObject.activeSelf != dimOn)
             {
-                _dim.gameObject.SetActive(on);
+                _dim.gameObject.SetActive(dimOn);
             }
 
             if (Game != null)
