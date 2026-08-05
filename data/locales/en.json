@@ -842,6 +842,7 @@
   "ui.tech.locked": "Locked",
   "ui.tech.materials_missing": "Materials missing",
   "ui.tech.unlockable": "Unlockable",
+  "ui.tech.research_available": "New research available!",
   "ui.tech.tier": "Tier",
   "ui.tech.cat_production": "Production",
   "ui.tech.cat_ship": "Ship",

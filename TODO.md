@@ -7190,6 +7190,26 @@ Tests: `ScanMicroFauna_GrantsKnowledgeOnce_RejectsUnknownKind_AndListsInLedger`,
 `MicroFaunaCatalog_KeysAreDistinct_AndKnownLookupWorks` (ScanningTests). NEEDS Unity build (client
 HUD/VEGA/SpaceView/micro-fauna changes).
 
+## ✅ Done (2026-08-05): research toast — knowledge that unlocks new tech announces itself (#763)
+
+Crossing a blueprint's `knowledgeCost` used to be invisible outside the Tech tab (only its dot
+badge, visible with the menu already open). Now a HUD toast top-centre celebrates the moment:
+
+- **Trigger** — client-side diff of `KnowledgePoints` in the inventory snapshot
+  (`GameBootstrap.ResearchAvailable` queue, mirroring the pickup-feed pattern): every still-locked
+  blueprint whose threshold the gain crossed queues a toast, threshold-only on purpose
+  (prerequisites may still be missing — advertising deeper tree nodes is the point). The join
+  snapshot baselines silently; a huge jump (admin grant) is capped at 6 queued toasts. Queued keys
+  survive menus/flight and play sequentially (~3.5 s each) once the HUD is visible.
+- **Toast** (`HudUi`) — blueprint icon (item resolution like the pickup feed; module blueprints
+  fall back to their tech-category sprite) + "New research available!" + blueprint name in cyan;
+  scale-pop in with overshoot, pulsing glow disc behind the icon, one diagonal shine sweep
+  (clipped by a RectMask2D), then fade. Reduced motion: plain fade, no pop/pulse/sweep.
+- **Sound** — new `research_available` ProceduralAudio chime (two soft bell notes + shimmer),
+  deliberately calmer than the `tech_unlock` fanfare. Drive-by: `Cue("ui_success")` on the
+  achievement toast was a silent no-op (clip never existed) — achievements are audible now.
+- Locale key `ui.tech.research_available` (DE+EN).
+
 ## ✅ Done (2026-08-05): pickup feed + hotbar stack counts (#744/#745)
 
 You can finally SEE what you collected. Two HUD gaps closed:

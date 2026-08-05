@@ -843,6 +843,7 @@
   "ui.tech.locked": "Gesperrt",
   "ui.tech.materials_missing": "Material fehlt",
   "ui.tech.unlockable": "Freischaltbar",
+  "ui.tech.research_available": "Neue Forschung verfügbar!",
   "ui.tech.tier": "Stufe",
   "ui.tech.cat_production": "Produktion",
   "ui.tech.cat_ship": "Schiff",

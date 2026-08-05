@@ -27,7 +27,7 @@ namespace BlocksBeyondTheStars.Client
             "thunder_1", "thunder_2", "thunder_3",
             // ui / vitals
             "ui_hover", "ui_click", "ui_confirm", "ui_back", "o2_warning", "tech_unlock", "hull_alarm",
-            "vitals_warning",
+            "vitals_warning", "research_available", "ui_success",
             // ship / space
             "hyperspace_jump", "station_board", "scan_ping", "lamp_toggle", "teleport",
             "ship_launch", "ship_landing",
@@ -60,6 +60,8 @@ namespace BlocksBeyondTheStars.Client
             "ui_back" => Arp("ui_back", 0.20f, 0.22f, up: false),
             "o2_warning" => Alarm("o2_warning", 950f, 0.5f),
             "tech_unlock" => Arp("tech_unlock", 0.45f, 0.30f, up: true), // longer rising fanfare than ui_confirm
+            "research_available" => Chime("research_available"), // "you can research something new" ping (#763)
+            "ui_success" => Arp("ui_success", 0.30f, 0.26f, up: true), // achievement toast — was a silent no-op (#763)
             "hull_alarm" => Alarm("hull_alarm", 640f, 0.45f), // deeper than the O₂ warning
             "vitals_warning" => Alarm("vitals_warning", 780f, 0.4f), // below-10 % vitals blink (#753), between the two
             "hyperspace_jump" => Warp("hyperspace_jump"),
@@ -152,6 +154,22 @@ namespace BlocksBeyondTheStars.Client
                 int n = Mathf.Min(notes.Length - 1, i / seg);
                 float lt = (i - n * seg) / (float)Rate;
                 d[i] = Mathf.Sin(2f * Mathf.PI * notes[n] * (i / (float)Rate)) * Mathf.Exp(-lt * 16f) * vol;
+            }
+        });
+
+        /// <summary>Two soft bell notes a fifth apart plus a faint high shimmer — the "new research
+        /// available" discovery ping (#763): brighter than ui_confirm, calmer than the tech_unlock fanfare.</summary>
+        private static AudioClip Chime(string name) => Buf(name, 0.55f, d =>
+        {
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = i / (float)Rate;
+                float a = Mathf.Sin(2f * Mathf.PI * 1046.5f * t) * Mathf.Exp(-t * 7f);              // C6
+                float b = t > 0.16f
+                    ? Mathf.Sin(2f * Mathf.PI * 1568f * (t - 0.16f)) * Mathf.Exp(-(t - 0.16f) * 6f) // G6
+                    : 0f;
+                float shimmer = Mathf.Sin(2f * Mathf.PI * 3135f * t) * Mathf.Exp(-t * 12f) * 0.15f;
+                d[i] = (a * 0.55f + b * 0.6f + shimmer) * 0.3f;
             }
         });
 

@@ -718,6 +718,11 @@ namespace BlocksBeyondTheStars.Client
         /// pickup feed (#745) consumes these. Base item key + amount gained.</summary>
         public readonly Queue<(string Item, int Gained)> PickupGains = new Queue<(string, int)>();
 
+        /// <summary>Blueprint keys whose knowledge threshold a knowledge gain just crossed — the HUD
+        /// research toast (#763) consumes these. Unlike pickups they survive menus and flight: newly
+        /// being ABLE to research something is rare enough to announce a little late rather than drop.</summary>
+        public readonly Queue<string> ResearchAvailable = new Queue<string>();
+
         /// <summary>False until the first InventoryUpdate after a join landed — that one is the
         /// baseline snapshot, not a pickup (#745).</summary>
         private bool _inventoryBaselined;
@@ -1303,6 +1308,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _inventoryBaselined = false; // next InventoryUpdate is the join baseline, not a pickup (#745)
                 PickupGains.Clear();
+                ResearchAvailable.Clear();
                 LocalPlayerId = m.PlayerId;
                 LocationName = string.IsNullOrEmpty(m.SystemName)
                     ? m.PlanetName
@@ -1336,7 +1342,8 @@ namespace BlocksBeyondTheStars.Client
                 // the baseline (the whole inventory is "new" then, not a pickup), and gains while a
                 // menu is open are dropped on purpose — craft/trade results have their own in-menu
                 // feedback, and re-announcing them after the menu closes would double up.
-                if (!_inventoryBaselined)
+                bool baseline = !_inventoryBaselined;
+                if (baseline)
                 {
                     _inventoryBaselined = true;
                 }
@@ -1352,6 +1359,32 @@ namespace BlocksBeyondTheStars.Client
                 Cargo = m.Cargo;
                 CargoSlots = m.CargoSlotCount;
                 UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+
+                // Research toast (#763): a knowledge gain that crosses a still-locked blueprint's
+                // threshold makes it newly researchable — queue it for the HUD. Threshold-only on
+                // purpose (prerequisites may still be missing): "you now know enough for X" is true
+                // either way, and advertising deeper tree nodes is the point. The join snapshot
+                // baselines silently, and a huge jump (admin grant) is capped so the HUD doesn't
+                // announce toasts for minutes.
+                if (!baseline && m.KnowledgePoints > Knowledge && Content != null)
+                {
+                    var crossed = new List<Shared.Definitions.BlueprintDefinition>();
+                    foreach (var bp in Content.Blueprints.Values)
+                    {
+                        if (bp.KnowledgeCost > Knowledge && bp.KnowledgeCost <= m.KnowledgePoints
+                            && !UnlockedBlueprints.Contains(bp.Key))
+                        {
+                            crossed.Add(bp);
+                        }
+                    }
+
+                    crossed.Sort((a, b) => a.KnowledgeCost.CompareTo(b.KnowledgeCost));
+                    for (int i = 0; i < crossed.Count && ResearchAvailable.Count < 6; i++)
+                    {
+                        ResearchAvailable.Enqueue(crossed[i].Key);
+                    }
+                }
+
                 Knowledge = m.KnowledgePoints;
             };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);

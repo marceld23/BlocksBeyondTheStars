@@ -118,6 +118,19 @@ namespace BlocksBeyondTheStars.Client
         private const float PickupRowH = 26f, PickupRowW = 300f, PickupLife = 2.5f, PickupFadeTime = 0.5f;
         private float _pickupRightX, _pickupAnchorY; // right edge + top of the hotbar backplate
 
+        // Research toast (#763): "New research available!" with the blueprint's icon, top-centre under
+        // the IN SPACE/observer lines. One toast at a time; further keys wait in Game.ResearchAvailable.
+        private GameObject _researchGo;
+        private RectTransform _researchRect;
+        private CanvasGroup _researchFade;
+        private RawImage _researchIcon;
+        private Image _researchGlow;
+        private RectTransform _researchShine;
+        private Text _researchHead, _researchName;
+        private float _researchAge = -1f; // <0 = idle, no toast up
+        private const float ResearchW = 480f, ResearchH = 86f, ResearchY = 64f;
+        private const float ResearchPop = 0.25f, ResearchHold = 3.0f, ResearchFade = 0.5f;
+
         // Perf: the text-heavy HUD refresh runs at ~10 Hz, not every frame — rebuilding dozens of strings
         // per frame is pure GC churn and the readouts (vitals, clock, prompts) don't change faster than
         // that anyway. Motion-coupled elements (compass blips) still update per frame, and a hotbar
@@ -152,6 +165,7 @@ namespace BlocksBeyondTheStars.Client
             // Even while a menu hides the canvas: rows must keep aging (a closed menu must not resurrect
             // stale pickups) and gains queued during the hidden-hotbar states must keep draining away.
             UpdatePickupFeed(Time.deltaTime);
+            UpdateResearchToast(Time.deltaTime);
 
             // While the binocular optic is raised its own reticle takes over — two crosshairs stacked on top of
             // each other read as a rendering bug (BinocularOptic owns the flag and always clears it).
@@ -997,6 +1011,163 @@ namespace BlocksBeyondTheStars.Client
             }
 
             img.color = IconResolver.Tint(item, Game);
+        }
+
+        // --- research toast (#763) ---
+
+        /// <summary>Drives the "new research available" toast: pops the next queued blueprint when idle
+        /// and the HUD is visible, animates the pop/glow/shine, then fades out. Queued keys survive
+        /// menus and flight — the announcement is rare enough to arrive late rather than be dropped.</summary>
+        private void UpdateResearchToast(float dt)
+        {
+            if (_researchAge >= 0f && _researchGo == null)
+            {
+                _researchAge = -1f; // the canvas (and toast) got torn down mid-toast, e.g. on a world change
+            }
+
+            if (_researchAge < 0f)
+            {
+                if (Game.ResearchAvailable.Count == 0 || _canvas == null || !_canvas.enabled)
+                {
+                    return;
+                }
+
+                StartResearchToast(Game.ResearchAvailable.Dequeue());
+            }
+
+            _researchAge += dt;
+            if (_researchAge >= ResearchHold + ResearchFade)
+            {
+                _researchAge = -1f;
+                _researchGo.SetActive(false);
+                return;
+            }
+
+            float alpha = _researchAge >= ResearchHold
+                ? 1f - (_researchAge - ResearchHold) / ResearchFade
+                : (UiKit.ReducedMotion ? Mathf.Clamp01(_researchAge / 0.2f) : 1f);
+            _researchFade.alpha = alpha;
+
+            if (UiKit.ReducedMotion)
+            {
+                _researchRect.localScale = Vector3.one;
+                _researchGlow.color = new Color(0.4f, 0.82f, 1f, 0.22f * alpha);
+                _researchShine.gameObject.SetActive(false);
+                return;
+            }
+
+            // Pop-in: overshoot past 1.0 and settle by the end of the pop window (sin term ends at 0).
+            float p = Mathf.Clamp01(_researchAge / ResearchPop);
+            _researchRect.localScale = Vector3.one * (Mathf.Lerp(0.75f, 1f, p) + Mathf.Sin(p * Mathf.PI) * 0.08f);
+
+            // Soft glow pulsing behind the icon for the toast's whole life.
+            float pulse = Mathf.Sin(_researchAge * 4.2f) * 0.5f + 0.5f;
+            _researchGlow.color = new Color(0.4f, 0.82f, 1f, (0.14f + pulse * 0.24f) * alpha);
+            float gs = 1f + pulse * 0.18f;
+            _researchGlow.rectTransform.localScale = new Vector3(gs, gs, 1f);
+
+            // One diagonal shine sweep across the panel just after the pop (clipped by the RectMask2D).
+            float sweep = (_researchAge - 0.15f) / 0.6f;
+            bool sweeping = sweep >= 0f && sweep <= 1f;
+            _researchShine.gameObject.SetActive(sweeping);
+            if (sweeping)
+            {
+                var ap = _researchShine.anchoredPosition;
+                ap.x = Mathf.Lerp(-80f, ResearchW + 40f, sweep);
+                _researchShine.anchoredPosition = ap;
+            }
+        }
+
+        /// <summary>Fills and shows the toast for one blueprint key and plays the discovery chime.</summary>
+        private void StartResearchToast(string bpKey)
+        {
+            EnsureResearchToast();
+            var loc = Game.Localizer;
+            _researchHead.text = loc.Get("ui.tech.research_available").ToUpperInvariant();
+            _researchName.text = loc.Get($"blueprint.{bpKey}.name");
+            SetBlueprintIcon(_researchIcon, bpKey);
+            _researchGo.SetActive(true);
+            _researchAge = 0f;
+            _researchFade.alpha = UiKit.ReducedMotion ? 0f : 1f;
+            _researchRect.localScale = UiKit.ReducedMotion ? Vector3.one : Vector3.one * 0.75f;
+            ClientAudio.Instance?.Cue("research_available", 0.9f);
+        }
+
+        /// <summary>Builds the toast hierarchy once: panel + glow disc + icon + two text lines + the
+        /// shine bar. Center-pivoted (unlike the usual top-left Place) so the pop scales in place.</summary>
+        private void EnsureResearchToast()
+        {
+            if (_researchGo != null)
+            {
+                return;
+            }
+
+            _researchGo = new GameObject("research_toast", typeof(RectTransform));
+            _researchGo.transform.SetParent(_canvas.transform, false);
+            _researchRect = UiKit.Place(_researchGo, (W - ResearchW) / 2f, ResearchY, ResearchW, ResearchH);
+            _researchRect.pivot = new Vector2(0.5f, 0.5f);
+            _researchRect.anchoredPosition += new Vector2(ResearchW / 2f, -ResearchH / 2f);
+            _researchFade = _researchGo.AddComponent<CanvasGroup>();
+            _researchFade.blocksRaycasts = false;
+            _researchFade.interactable = false;
+
+            var bg = _researchGo.AddComponent<Image>();
+            bg.sprite = UiKit.PanelSprite;
+            bg.type = Image.Type.Sliced;
+            bg.color = new Color(0.05f, 0.12f, 0.24f, 0.9f);
+            bg.raycastTarget = false;
+            _researchGo.AddComponent<RectMask2D>(); // clips the shine sweep to the panel
+
+            _researchGlow = UiKit.AddImage(_researchGo.transform, 8f, 8f, 70f, 70f, UiKit.DiscSprite, new Color(0.4f, 0.82f, 1f, 0.3f));
+            var glowRt = _researchGlow.rectTransform; // centre-pivot so the pulse grows around the icon
+            glowRt.pivot = new Vector2(0.5f, 0.5f);
+            glowRt.anchoredPosition += new Vector2(35f, -35f);
+            var iconGo = new GameObject("icon", typeof(RectTransform));
+            iconGo.transform.SetParent(_researchGo.transform, false);
+            UiKit.Place(iconGo, 15f, 15f, 56f, 56f);
+            _researchIcon = iconGo.AddComponent<RawImage>();
+            _researchIcon.raycastTarget = false;
+
+            _researchHead = UiKit.AddText(_researchGo.transform, 92f, 16f, ResearchW - 104f, 22f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _researchName = UiKit.AddText(_researchGo.transform, 92f, 40f, ResearchW - 104f, 30f, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddOutline(_researchHead);
+            UiKit.AddOutline(_researchName);
+
+            var shine = UiKit.AddImage(_researchGo.transform, -80f, -20f, 46f, ResearchH + 40f, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.16f));
+            shine.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
+            _researchShine = shine.rectTransform;
+            _researchShine.gameObject.SetActive(false);
+
+            _researchGo.SetActive(false);
+        }
+
+        /// <summary>Icon for a blueprint key: most blueprint keys ARE item keys (heal_tank, binoculars…)
+        /// and reuse the item resolution; module/expansion blueprints fall back to their tech-category
+        /// sprite, tinted cyan like the tech tree's own nodes.</summary>
+        private void SetBlueprintIcon(RawImage img, string bpKey)
+        {
+            if (Game.Content?.GetItem(bpKey) != null || Game.Content?.GetBlock(bpKey) != null)
+            {
+                SetItemIcon(img, bpKey);
+                return;
+            }
+
+            string cat = Game.Content != null && Game.Content.Blueprints.TryGetValue(bpKey, out var bp) && bp.Category == "ShipExpansion"
+                ? "cat_modules"
+                : "cat_tech";
+            var sprite = UiKit.Icon(cat);
+            if (sprite != null)
+            {
+                img.texture = sprite.texture;
+                img.uvRect = new Rect(0, 0, 1, 1);
+                img.color = UiKit.Cyan;
+            }
+            else
+            {
+                img.texture = IconFactory.ForItem(bpKey, BlocksBeyondTheStars.Shared.Definitions.ToolKind.None);
+                img.uvRect = new Rect(0, 0, 1, 1);
+                img.color = Color.white;
+            }
         }
 
         // --- compass ---
