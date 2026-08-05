@@ -13,24 +13,66 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Added
-- **Micro-fauna joins the Codex** (#757): ambient critters (butterflies, fireflies, wisps, …) can now be
-  scanned with the handheld scanner — 28 localized kinds, a new **Micro-fauna** discoveries chapter and a
-  small knowledge award per first find. Thermal vision shows critters as small named contacts.
-- **Low-vitals warning** (#753): any HUD bar (health, oxygen, energy, hunger, hull, shield) below 10 %
-  blinks red and beeps until it recovers past 15 %.
-- **The wisp** (#752): the bat-like skyray was replaced by a small drifting glow orb whose colour is
-  unique per world — look for it at night.
+## [2026.8.5] — 2026-08-05
 
-### Fixed
+The premiere release: the game opens like a film now. A watchable in-engine intro cinematic
+runs before your very first menu, VEGA's prologue got a real staging — letterbox bars, a slow
+orbit around your landed ship, a glitch flash as she boots — and she found her voice: radio
+chatter crackles along while her lines type out. Story memories flash back with a cinematic
+colour grade, the HUD celebrates the moment your knowledge unlocks new research, and a
+nine-part playtest batch fixes everything from titans biting through ruin walls to jittery
+NPC ships in space.
+
+### 🎬 Curtain up — the game gets a real opening (#759–#762)
+
+- **Intro cinematic**: a ~28-second space cinematic between the title splash and the menu —
+  starfield and nebula reveal, a sun pan with a voxel fighter crossing, planet approach,
+  white-flash hand-off. Rendered live in-engine with the game's actual art, so it always
+  matches what you'll play. It runs once per install, any key skips it, and a new
+  **"Watch intro"** button on the Credits screen replays it. Captions in English and German.
+- **The prologue got a stage** (#754, #760): VEGA's three opening pages play through the normal
+  speech panel now (proper width, paging, UI scale — the full-screen black dialog is gone),
+  dressed with letterbox, a slow exterior orbit of your actually landed ship, a push-in, and a
+  snap back to the pilot seat with a glitch flash as VEGA boots. Esc skips the whole narration.
+- **VEGA has a voice** (#761): vocoder radio-babble accompanies every line she types —
+  language-independent, so German and English sound equally alive, and it stops the instant
+  the line completes or you skip.
+- **Memory flashbacks** (#762): story recollections pulse a short cinematic look — light
+  letterbox, cooler desaturated colours, a chroma/grain burst — without ever locking your
+  controls.
+- Fixed along the way: the world-flavour hint no longer jumps the queue ahead of the prologue
+  (the reason the opening sometimes only started after pressing [N]), and VEGA lines no longer
+  play out invisibly behind the loading screen.
+
+### 🔬 Research announces itself (#763)
+
+- When gathered knowledge pushes a blueprint over its research threshold, the HUD celebrates
+  it top-centre: the blueprint's icon, **"New research available!"** and the blueprint's name,
+  with a glow pulse, a shine sweep and a soft two-note chime. Respects reduced motion.
+- Fixed along the way: achievement toasts were silently mute (their sound cue never existed) —
+  they play a rising arpeggio now.
+
+### 🦋 Micro-fauna joins the Codex (#757, #752)
+
+- Ambient critters (butterflies, fireflies, wisps, …) can now be scanned with the handheld
+  scanner — 28 localized kinds, a new **Micro-fauna** discoveries chapter and a small knowledge
+  award per first find. Thermal vision shows critters as small named contacts.
+- **The wisp** (#752): the bat-like skyray was replaced by a small drifting glow orb whose
+  colour is unique per world — look for it at night.
+
+### Added
+
+- **Low-vitals warning** (#753): any HUD bar (health, oxygen, energy, hunger, hull, shield)
+  below 10 % blinks red and beeps until it recovers past 15 %.
+
+### 🔧 Fixes
+
 - Attacking animals no longer walk through the player: hunters hold at a size-scaled ring, roaming
   machines stop at bodies too, and big creatures barely lunge (#749).
 - Titans no longer spawn half inside ruins or bite through walls — spawn and movement now check the
   actual body volume (#750).
 - "G: loot" no longer shows where the key does nothing (flying/driving), a full backpack reports
   "inventory full" instead of silently no-opping, and the loot sound only plays on actual success (#751).
-- VEGA's prologue pages use the normal speech panel (constrained width, paging, UI scale) with a dim
-  behind it instead of a full-screen black dialog; Esc skips the narration (#754).
 - The controls hint finally mentions jump and crouch (Space, Ctrl/C) (#755).
 - NPC ships in space (traders, UFOs, raiders, other players) move smoothly: buffered interpolation on the
   client, bandit raiders broadcast their approach/leave movement, remote pilots refresh continuously, and
@@ -1760,7 +1802,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...HEAD
+[2026.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...v2026.8.5
 [2026.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...v2026.8.4
 [2026.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...v2026.8.3
 [2026.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...v2026.8.2
