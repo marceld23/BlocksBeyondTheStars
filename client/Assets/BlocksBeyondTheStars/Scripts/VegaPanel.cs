@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
         // only prologue extras now are a dim behind the panel and Esc-to-skip.
         private Image _dim;
         private bool _currentIsPrologue;
+        private bool _chromeOn; // edge detection for the chrome side effects (chip hide/restore)
 
         // Staged-prologue state (#760): whether the cinematic took the stage for this prologue run, and
         // which of the Kind-4 lines is up (drives the camera legs). Reset when the prologue ends, so a
@@ -481,6 +482,26 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.VegaPrologueActive = on;
+            }
+
+            // The objective chip is HUD, not story: the onboarding objective arrives with the queued
+            // lines while the prologue still shows, and would float over the letterboxed shot. Hide it
+            // for the duration; Refresh() restores it from the stored objective afterwards. Edge-gated —
+            // this runs every idle frame with on=false, and Refresh() builds strings.
+            if (on != _chromeOn)
+            {
+                _chromeOn = on;
+                if (_chip != null)
+                {
+                    if (on)
+                    {
+                        _chip.SetActive(false);
+                    }
+                    else
+                    {
+                        Refresh();
+                    }
+                }
             }
         }
 

@@ -156,7 +156,10 @@ namespace BlocksBeyondTheStars.Client
             EnsureBuilt();
             UpdateDamageFeedback(); // always, so the health baseline tracks even while a menu is open
 
-            bool show = !Game.MenuOpen;
+            // Hidden while a menu is open — and during the prologue cinematic (#760): vitals/hotbar/
+            // crosshair in the frame break the letterboxed shot. The VEGA speech panel and the
+            // CinematicFrame chrome live on their own canvases, so the story text stays visible.
+            bool show = !Game.MenuOpen && !Game.VegaPrologueActive && !Game.CinematicCameraActive;
             if (_canvas.enabled != show)
             {
                 _canvas.enabled = show;
