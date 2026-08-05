@@ -175,7 +175,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
-            EndStagedPrologue();
+            EndStagedPrologue("capture dismiss");
         }
 
         /// <summary>Starts/chains a chatter segment while a page is typing (#761): random variant, a
@@ -226,15 +226,30 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>True when any queued line still carries the prologue flag.</summary>
+        private bool QueueHasPrologue()
+        {
+            foreach (var item in _queue)
+            {
+                if (item.Prologue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Winds down the staged prologue (#760), if it is running, and resets the staging state
         /// so a deliberately restarted onboarding can stage again.</summary>
-        private void EndStagedPrologue()
+        private void EndStagedPrologue(string reason)
         {
             if (!_prologueStarted && !_prologueStaged)
             {
                 return;
             }
 
+            Debug.Log($"[Cinematic] Prologue wind-down ({reason}).");
             if (_prologueStaged)
             {
                 Cinematic?.End();
@@ -257,9 +272,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool muted = m.Kind == 1 && Settings is { VegaHints: false };
+            Debug.Log($"[Cinematic] VEGA line kind={m.Kind} key={m.LineKey} textLen={m.Text?.Length ?? 0} muted={muted}");
             if (!string.IsNullOrEmpty(m.Text) && !muted)
             {
-                _queue.Enqueue((m.Text, false)); // LLM-authored line (already in the player's language)
+                // LLM-authored line (already in the player's language). The prologue flag keys on Kind,
+                // NOT on the text source — an authored Kind-4 page must not lose its staging (#760).
+                _queue.Enqueue((m.Text, m.Kind == 4));
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
@@ -337,16 +355,43 @@ namespace BlocksBeyondTheStars.Client
 
             if (_current.Length == 0 && _queue.Count > 0)
             {
-                // Staged prologue (#760): hold the FIRST story page until the world has revealed (veil
-                // down, aboard state in), so the camera sequence opens on a visible scene — not into the
-                // loading curtain. Bounded inside HoldQueue; normal lines are never held.
-                if (_queue.Peek().Prologue && !_prologueStarted && Cinematic != null && Cinematic.HoldQueue)
+                // No line starts behind the loading curtain (#760/#761): a page typing into blackness
+                // is inaudible-invisible and burns its auto-advance window. Bounded inside HoldQueue.
+                if (Cinematic != null && Cinematic.HoldQueue)
                 {
                     return;
                 }
 
+                // Story pages open the narrative: a flavour/advisor line that raced in FRONT of the
+                // prologue on join (the world-type hint fires on the join placement) would otherwise
+                // show first and stall the cinematic behind a keypress. Stable partition — prologue
+                // pages first, everything else after, both in their original order.
+                if (!_prologueStarted && !_queue.Peek().Prologue && QueueHasPrologue())
+                {
+                    var story = new List<(string Text, bool Prologue)>();
+                    var rest = new List<(string Text, bool Prologue)>();
+                    while (_queue.Count > 0)
+                    {
+                        var item = _queue.Dequeue();
+                        (item.Prologue ? story : rest).Add(item);
+                    }
+
+                    foreach (var item in story)
+                    {
+                        _queue.Enqueue(item);
+                    }
+
+                    foreach (var item in rest)
+                    {
+                        _queue.Enqueue(item);
+                    }
+
+                    Debug.Log($"[Cinematic] Reordered queue: {story.Count} story page(s) ahead of {rest.Count} other line(s).");
+                }
+
                 var (text, prologue) = _queue.Dequeue();
                 _currentIsPrologue = prologue;
+                Debug.Log($"[Cinematic] Dequeued line (prologue={prologue}, started={_prologueStarted}, staged={_prologueStaged}, queued={_queue.Count})");
                 if (prologue)
                 {
                     if (!_prologueStarted)
@@ -365,12 +410,14 @@ namespace BlocksBeyondTheStars.Client
                         Cinematic.OnPrologueLine(_prologueLineIndex);
                     }
                 }
-                else if (_prologueStarted)
+                else if (_prologueStarted && !QueueHasPrologue())
                 {
                     // The story pages are over but the queue continues straight into the normal
                     // onboarding lines (they arrive together on join) — the idle branch below would
-                    // never run, so wind the staging down here (#760).
-                    EndStagedPrologue();
+                    // never run, so wind the staging down here (#760). Only once NO further prologue
+                    // page is queued: a stray non-prologue line interleaved between story pages must
+                    // display over the running stage, not kill it.
+                    EndStagedPrologue("non-prologue dequeue");
                 }
 
                 SetPrologueChrome(prologue);
@@ -390,7 +437,7 @@ namespace BlocksBeyondTheStars.Client
 
                 SetPrologueChrome(false);
                 _currentIsPrologue = false;
-                EndStagedPrologue(); // finished or skipped — restore the camera, letterbox out (#760)
+                EndStagedPrologue("queue idle"); // finished or skipped — camera back, letterbox out (#760)
                 return;
             }
 

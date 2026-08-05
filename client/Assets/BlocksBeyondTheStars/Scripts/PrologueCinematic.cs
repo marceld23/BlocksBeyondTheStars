@@ -48,15 +48,18 @@ namespace BlocksBeyondTheStars.Client
 
         public bool Active => _active;
 
-        /// <summary>True while <see cref="VegaPanel"/> should wait before dequeuing the FIRST prologue
-        /// page: the world is still behind the loading veil / not settled, or the authoritative Aboard
-        /// flag hasn't arrived yet. Bounded — a stuck reveal never gates the story forever.</summary>
+        /// <summary>True while <see cref="VegaPanel"/> should wait before dequeuing ANY line: the world
+        /// is behind the loading veil, so a page would type into blackness and burn its auto-advance.
+        /// The timeout measures the CONTINUOUS hold (it resets whenever the veil is down), so later
+        /// landings/boardings hold correctly too. The veil's own MaxShow (25 s) caps it in practice.</summary>
         public bool HoldQueue
         {
             get
             {
-                if (Game == null)
+                bool veilUp = Game != null && !Game.SpaceViewActive && _overlay != null && _overlay.VeilActive;
+                if (!veilUp)
                 {
+                    _holdStart = -1f;
                     return false;
                 }
 
@@ -65,15 +68,7 @@ namespace BlocksBeyondTheStars.Client
                     _holdStart = Time.time;
                 }
 
-                float waited = Time.time - _holdStart;
-                if (waited > HoldTimeout || Game.SpaceViewActive)
-                {
-                    return false; // give up holding — the panel falls back to the plain dim behaviour
-                }
-
-                // Hold exactly as long as the loading veil is up (it gates on WorldReady and caps
-                // itself at MaxShow) — the sequence then starts the frame the world is visible.
-                return _overlay != null && _overlay.VeilActive;
+                return Time.time - _holdStart <= HoldTimeout;
             }
         }
 
