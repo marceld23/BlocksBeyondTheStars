@@ -13,6 +13,84 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.4] — 2026-08-05
+
+The shipyard release: four new ships joined the fleet — and every one of them started as a
+pencil drawing on Justus' sketch pad. The Hammerhead brings the game's first true multi-room
+interior, the Courier is the fastest thing in the sky, the Thunderbolt a mid-size gunship and
+the Deathblock a slow armoured brick. There is finally a reason to hunt bandits, too: quest
+givers put bounties on camps and raider ships. VEGA stopped cutting off her own sentences and
+keeps a re-readable tips log, the HUD tells you what you just picked up, planets roll their own
+cast of critters with 11 new alien species — and the machines stopped streaming in endless
+reinforcements.
+
+### 🚀 Four new ships — drawn on paper, built in blocks (#723, #727–#729)
+
+All four new ship types were designed by Justus — with pencil and sketch pad — and translated
+plan-for-plan into the game:
+
+- **Hammerhead** (DE *Hammerhai*): a heavy gunship and the game's **first multi-room
+  interior** — a wide 12-block bridge up front, a corridor running aft, workshop and sleeping
+  cabins each behind their own interior door, stern airlock between the split engine block.
+  Unlocks after the corvette + ship cannon.
+- **Courier** (DE *Kurier*): the **fastest ship in the game** — an unarmed messenger with a
+  glass nose, swept wings and a raised lookout. "Perfect for those who report battles instead
+  of fighting them." Unlocks after the scout.
+- **Thunderbolt** (DE *Blitzschlag*): a mid-size strike gunship — inset bridge, full-width
+  workshop hall, flank cannons plus a long bow barrel.
+- **Deathblock** (DE *Todesklotz*): the slowest, tankiest assault brick in the fleet — stepped
+  brutalist silhouette, overhanging quarters, a cannon per flank and quad stacked engines.
+  Unlocks after the Hammerhead.
+- NPC traders picked the new types up automatically — you will meet them in the wild.
+
+### ⚔️ Bounty missions — quest givers put a price on the bandits (#730, #731)
+
+- **Camp bounty**: a settlement mission board on a planet with an uncleared bandit camp now offers a
+  bounty to drive the bandits out. Accepting it marks the camp on your planet map; clear the camp
+  (everyone holding the bounty gets credit — co-op friendly) and report back for a reward that beats
+  the usual gather jobs.
+- **Raider bounty**: station mission boards in pirate systems offer a bounty on the raider ship
+  prowling the sector. While you hold it, the raider *will* show up on your next flight — no more
+  hoping for the ambush dice. Drive it off and report back; the job is repeatable while the system
+  stays pirate country.
+- Bounties are only offered where the fight is winnable (they respect the Bandits/space-combat/ship-
+  weapon world rules) and use kid-friendly wording throughout — bandits are chased away, never killed.
+- The AI mission-text generator knows about bounty jobs now, so generated postings match the job
+  instead of reading like a delivery.
+
+### 🗣️ VEGA finishes her sentences — and you can re-read them (#736–#738)
+
+- **No more cut-off speech**: long VEGA lines (German especially) were silently truncated at
+  ~4 lines. The speech panel now splits long text into **pages** — [N] turns the page, a
+  `(1/2)` indicator shows where you are, and the typewriter plays per page.
+- **VEGA tips log**: every onboarding lesson and advisor hint VEGA ever told you is re-readable
+  in the ship terminal's Story tab — dismissed a hint too fast? It's all there, in order, story
+  pack or not.
+- **A proper opening**: new games with a story pack begin with a short three-page text
+  prologue — a small ship, no memory of who you are, then VEGA crackles awake. [N] advances,
+  [Esc] skips.
+
+### 🎒 You can see what you pick up now (#744, #745)
+
+- **Pickup feed**: a small column above the hotbar announces what you just collected —
+  `icon +n item name`, localized, newest at the bottom; repeat pickups merge and count up
+  ("+7 berries") instead of stacking rows.
+- **Hotbar stack counts**: every hotbar cell shows its stack size in the corner — no more
+  opening the inventory to check if you have enough wood.
+
+### 🦋 Every planet rolls its own critters — 11 alien species (#725)
+
+- Butterflies, beetles and fireflies stopped being identical everywhere: each planet rolls a
+  deterministic **species subset and colour palette** of its own — planet A's moths are
+  consistently different from planet B's, and revisits look the same.
+- **11 new alien species** on two new motion styles (parabolic hops and slow balloon drift):
+  prismwings and crystal beetles on crystal worlds, embermites and ashhoppers on lava worlds,
+  frostmites on ice, gasbags and sporedrifters in lush jungles, skyrays, sandskimmers,
+  night-glowing plankton over water and cavemoths underground — crystal, lava and ice worlds
+  stop being empty.
+- Every individual rolls its own size (rare giants included), rain grounds the flyers and brings
+  out worms and snails, and low gravity makes everything float a little floatier.
+
 ### 🤖 Enemy pacing — machines stop streaming in, space combat is opt-in again (#740, #741)
 
 - **No more instant reinforcements on planets**: destroying a robot or scan-drone used to summon its
@@ -29,20 +107,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   until the sector re-arms (~8 minutes), the wave sits on a different bearing each launch, and every
   4th flight runs quieter.
 
-### ⚔️ Bounty missions — quest givers put a price on the bandits (#730, #731)
+### 🔧 Fixes
 
-- **Camp bounty**: a settlement mission board on a planet with an uncleared bandit camp now offers a
-  bounty to drive the bandits out. Accepting it marks the camp on your planet map; clear the camp
-  (everyone holding the bounty gets credit — co-op friendly) and report back for a reward that beats
-  the usual gather jobs.
-- **Raider bounty**: station mission boards in pirate systems offer a bounty on the raider ship
-  prowling the sector. While you hold it, the raider *will* show up on your next flight — no more
-  hoping for the ambush dice. Drive it off and report back; the job is repeatable while the system
-  stays pirate country.
-- Bounties are only offered where the fight is winnable (they respect the Bandits/space-combat/ship-
-  weapon world rules) and use kid-friendly wording throughout — bandits are chased away, never killed.
-- The AI mission-text generator knows about bounty jobs now, so generated postings match the job
-  instead of reading like a delivery.
+- **Bandit hold-up dialog fits its text** (#734): long demand lines (the German "Wegzoll" lines
+  especially) stuck out past both edges of the dialog — the line wraps now and the panel grows
+  to fit.
+- **Same seed, same rocks — really** (#719): the mineral-family roll for mineable space rocks
+  keyed on the launch seed instead of the saved world seed, so desktop worlds all shared one
+  pattern and hosted worlds re-rolled their rocks on relaunch. Every world now grows its own
+  stable rock families, as promised.
+- **Ambient sounds are stable across platforms** (#720): procedural audio seeded from a
+  per-process hash could differ between runs and platforms; it uses a stable hash now.
 
 ## [2026.8.3] — 2026-08-04
 
@@ -1662,7 +1737,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...HEAD
+[2026.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...v2026.8.4
 [2026.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...v2026.8.3
 [2026.8.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.1...v2026.8.2
 [2026.8.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.7.24...v2026.8.1
