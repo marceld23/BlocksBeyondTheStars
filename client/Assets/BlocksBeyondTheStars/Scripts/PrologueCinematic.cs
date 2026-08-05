@@ -28,7 +28,6 @@ namespace BlocksBeyondTheStars.Client
         // give-up was SHORTER than a fresh world's generation — the whole staged prologue then played
         // invisibly behind the curtain (chatter audible, page 1 already waiting on [N] at reveal).
         private const float HoldTimeout = 60f;
-        private const float AboardWait = 2.5f;   // post-reveal grace for the late PlayerState packet
         private const float LetterboxSeconds = 0.5f;
         private const float OrbitDegPerSecond = 8f;
 
@@ -38,7 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _cameraOverride;
         private bool _ending;
         private float _holdStart = -1f;
-        private float _veilDownAt = -1f;
+        private Viewmodel _viewmodel; // hidden during the sequence (a floating drill breaks the shot)
         private Vector3 _center;
         private float _angle;
         private float _radius, _height, _targetRadius, _targetHeight;
@@ -72,34 +71,34 @@ namespace BlocksBeyondTheStars.Client
                     return false; // give up holding — the panel falls back to the plain dim behaviour
                 }
 
-                // Hold for as long as the loading veil is up (it implies WorldReady gating and caps
-                // itself at MaxShow), then give the authoritative Aboard flag a short post-reveal grace
-                // so Begin() doesn't fall back to the dim just because the PlayerState packet is late.
-                if (_overlay != null && _overlay.VeilActive)
-                {
-                    _veilDownAt = -1f;
-                    return true;
-                }
-
-                if (_veilDownAt < 0f)
-                {
-                    _veilDownAt = Time.time;
-                }
-
-                return !Game.Aboard && Time.time - _veilDownAt < AboardWait;
+                // Hold exactly as long as the loading veil is up (it gates on WorldReady and caps
+                // itself at MaxShow) — the sequence then starts the frame the world is visible.
+                return _overlay != null && _overlay.VeilActive;
             }
         }
 
-        /// <summary>Tries to start the staged sequence. False when the scene can't carry it (not aboard,
-        /// space view active, camera missing) — the caller then keeps today's dim + panel behaviour.</summary>
+        /// <summary>Tries to start the staged sequence. False only when the scene can't carry it at all
+        /// (space view active, camera missing) — the caller then keeps today's dim + panel behaviour.
+        /// Deliberately NOT gated on the authoritative Aboard flag: that packet can trail WorldReady by
+        /// several seconds (the ScreenshotDirector lesson) and silently downgraded the whole staging.</summary>
         public bool Begin()
         {
-            if (_active || Game == null || Camera == null || Game.SpaceViewActive || !Game.Aboard)
+            if (_active || Game == null || Camera == null || Game.SpaceViewActive)
             {
+                Debug.Log($"[Cinematic] Prologue staging fallback (active={_active}, cam={Camera != null}, space={Game?.SpaceViewActive}).");
                 return false;
             }
 
-            _center = Game.ShipPosition ?? Game.PlayerPosition;
+            // Orbit centre: the ship if its placement already arrived, else the player/camera — on a
+            // fresh story world the player wakes at the helm, so all three coincide well enough.
+            _center = Game.ShipPosition
+                      ?? (Game.PlayerPosition != Vector3.zero ? Game.PlayerPosition : Camera.transform.position);
+            Debug.Log($"[Cinematic] Prologue staged around {(Game.ShipPosition.HasValue ? "ship" : "player")} at {_center} (aboard={Game.Aboard}).");
+
+            // The first-person viewmodel rides the camera — a drill floating through an exterior orbit
+            // shot breaks it. Hidden for the whole sequence, restored per camera mode on End().
+            _viewmodel = Camera.GetComponent<Viewmodel>();
+            _viewmodel?.SetVisible(false);
             _frame = CinematicFrame.Create("PrologueFrame", 65); // above HUD/VEGA (11), below the veil (75)
             _active = true;
             _ending = false;
@@ -142,6 +141,8 @@ namespace BlocksBeyondTheStars.Client
                 _flash = 1f;
                 ClientAudio.Instance?.Cue("ai_blip"); // the boot crackle, over the glitch flash
             }
+
+            Debug.Log($"[Cinematic] Prologue line {index} (radius {_targetRadius}, override={_cameraOverride}).");
         }
 
         /// <summary>Ends the staging (prologue finished, skipped, or dismissed for a capture run):
@@ -154,7 +155,22 @@ namespace BlocksBeyondTheStars.Client
             }
 
             ReleaseCamera();
+            RestoreViewmodel();
             _ending = true;
+            Debug.Log("[Cinematic] Prologue staging ended.");
+        }
+
+        /// <summary>Restores the viewmodel per the player's camera mode (visible in first person only).</summary>
+        private void RestoreViewmodel()
+        {
+            if (_viewmodel == null)
+            {
+                return;
+            }
+
+            var pc = Camera != null ? Camera.GetComponentInParent<PlayerController>() : null;
+            _viewmodel.SetVisible(pc == null || !pc.ThirdPerson);
+            _viewmodel = null;
         }
 
         private void ReleaseCamera()
@@ -215,6 +231,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             ReleaseCamera();
+            RestoreViewmodel();
             if (_frame != null)
             {
                 Destroy(_frame.gameObject);
