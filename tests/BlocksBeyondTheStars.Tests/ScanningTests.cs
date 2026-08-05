@@ -336,7 +336,7 @@ public sealed class ScanningTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Eng");
-            // detoxifier unlockCost: data_fragment x2, iron_plate x12, cable x4; knowledgeCost 6.
+            // detoxifier unlockCost: data_fragment x2, iron_plate x12, cable x4; knowledgeCost 16.
             p.State.Inventory.Add("data_fragment", 2, 99);
             p.State.Inventory.Add("iron_plate", 12, 99);
             p.State.Inventory.Add("cable", 4, 99);
@@ -347,11 +347,41 @@ public sealed class ScanningTests : IDisposable
 
             // Research enough, then it unlocks. Knowledge is a permanent THRESHOLD (item 11): it gates the
             // unlock but is NOT spent — only the research materials are consumed.
-            p.State.KnowledgePoints = 6;
+            p.State.KnowledgePoints = 16;
             server.UnlockBlueprint("Eng", "detoxifier");
             Assert.Contains("detoxifier", p.State.UnlockedBlueprints);
-            Assert.Equal(6, p.State.KnowledgePoints);              // knowledge never goes away
+            Assert.Equal(16, p.State.KnowledgePoints);             // knowledge never goes away
             Assert.Equal(0, p.State.Inventory.CountOf("cable"));   // but the materials are spent
+        }
+    }
+
+    [Fact]
+    public void MinigameKnowledge_PaysPerStarOncePerGame()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Gamer");
+
+            // First 2-star run pays 10; replaying the same game at the same rating teaches nothing (#767).
+            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 2);
+            Assert.Equal(10, p.State.KnowledgePoints);
+            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 2);
+            Assert.Equal(10, p.State.KnowledgePoints);
+
+            // Improving the best rating pays only the newly-earned star; a worse re-run pays nothing.
+            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 3);
+            Assert.Equal(15, p.State.KnowledgePoints);
+            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 1);
+            Assert.Equal(15, p.State.KnowledgePoints);
+
+            // A different game has its own ledger; incomplete runs and missing keys never pay.
+            server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 1);
+            Assert.Equal(20, p.State.KnowledgePoints);
+            server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 3, completed: false);
+            Assert.Equal(20, p.State.KnowledgePoints);
+            server.ReportMinigameResultForTest("Gamer", "", rating: 3);
+            Assert.Equal(20, p.State.KnowledgePoints);
         }
     }
 

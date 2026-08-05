@@ -197,4 +197,43 @@ public sealed class CraftingConsistencyTests
         // Lab / MachineRoom were dead (no module, no recipe); ensure no recipe references them either.
         Assert.DoesNotContain(_c.Recipes.Values, r => r.Station.ToString() is "Lab" or "MachineRoom");
     }
+
+    [Fact]
+    public void BlueprintGraph_PrereqsResolve_NoCycles_CostsClimbAlongChains()
+    {
+        // Every prerequisite must be a real blueprint.
+        var badRefs = _c.Blueprints.Values
+            .SelectMany(bp => bp.Prerequisites.Select(pre => (bp.Key, pre)))
+            .Where(x => _c.GetBlueprint(x.pre) is null)
+            .Select(x => $"{x.Key}:{x.pre}")
+            .ToList();
+        Assert.True(badRefs.Count == 0, "blueprint prerequisites referencing non-existent blueprints: " + string.Join(", ", badRefs));
+
+        // The prerequisite graph must be acyclic, or a chain could never be researched.
+        var visiting = new HashSet<string>();
+        var done = new HashSet<string>();
+        bool HasCycle(string key)
+        {
+            if (done.Contains(key)) return false;
+            if (!visiting.Add(key)) return true;
+            bool cycle = _c.GetBlueprint(key) is { } bp && bp.Prerequisites.Any(HasCycle);
+            visiting.Remove(key);
+            done.Add(key);
+            return cycle;
+        }
+
+        Assert.DoesNotContain(_c.Blueprints.Keys, k => HasCycle(k));
+
+        // Research pacing (#767): every blueprint carries a knowledge cost, and a blueprint is never
+        // cheaper than what it builds on — the ladder must climb along every prerequisite chain.
+        var free = _c.Blueprints.Values.Where(bp => bp.KnowledgeCost <= 0).Select(bp => bp.Key).ToList();
+        Assert.True(free.Count == 0, "blueprints without a knowledge cost: " + string.Join(", ", free));
+
+        var inverted = _c.Blueprints.Values
+            .SelectMany(bp => bp.Prerequisites.Select(pre => (Child: bp, Parent: _c.GetBlueprint(pre)!)))
+            .Where(x => x.Child.KnowledgeCost < x.Parent.KnowledgeCost)
+            .Select(x => $"{x.Child.Key}({x.Child.KnowledgeCost}) < {x.Parent.Key}({x.Parent.KnowledgeCost})")
+            .ToList();
+        Assert.True(inverted.Count == 0, "blueprints cheaper than their prerequisites: " + string.Join(", ", inverted));
+    }
 }

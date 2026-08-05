@@ -7148,6 +7148,33 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-05): research pacing — blueprints no longer unlock in a rush (#767)
+
+Knowledge is a lifetime threshold (never spent), but the whole tech tree topped out at `knowledgeCost`
+24 while normal first-hour play banked ~50–70 knowledge — every blueprint was instantly researchable
+and the research toast (#763) fired in bursts. Five levers, server + data only (no client change):
+
+- **Minigame faucet capped** — `HandleMinigameResult` now pays 5 knowledge per star **newly earned on
+  that game** (per-player best-rating ledger in `PlayerState.Milestones`, `arcade:<game>:star:N`);
+  replays and worse runs pay nothing, improving 1★→3★ pays the +10 difference. Was 5/10/15 per
+  completed run, unbounded — the dominant faucet.
+- **Knowledge ladder stretched wide** (`data/blueprints.json`) — every blueprint now carries a cost:
+  early ~3–10, mid ~15–40, late 60–120 (`ship_deathblock` 100, `ai_core_mk3` 90, `matter_resynth` 80).
+  Previously ~half the tree (all ships, ship weapons/defense, refinery chain) had no knowledge cost.
+- **Prerequisites deepened** — ships sit behind `docking_module` (+ `cargo_expansion_1` for the
+  hauler), ship cannons behind `hull_plating`, heal tank behind `field_medkit`, terrain blaster behind
+  `titanium_drill`, advanced scanner behind `terrain_scanner`, tractor beam behind `docking_module`,
+  jump generator behind `radar_array`, stealth suit/jetpack behind `suit_liner_2`, station vendor
+  behind `station_container`.
+- **Story-beat knowledge trimmed** — B1–B12 pay +1 each (was +3; 36 total out-earned the old ceiling).
+- **Repeat-tame trickle removed** — first tame of a species per world still pays full research;
+  repeats pay nothing (was +1, unbounded).
+
+Existing saves keep their banked knowledge and unlocked blueprints; the higher tiers now sit above
+most veterans' totals again. Tests: minigame star-ledger, blueprint graph guard (prereqs resolve, no
+cycles, no cost inversions along chains, every blueprint costs knowledge); taming/detoxifier/heal-tank
+tests updated. Open: playtest the new pacing curve.
+
 ## ✅ Done (2026-08-05): intro cinematic, staged VEGA prologue, VEGA voice chatter, memory flashbacks (#759–#762)
 
 The game gained a watchable intro plus cinematic story dressing — all real-time in-engine (no video

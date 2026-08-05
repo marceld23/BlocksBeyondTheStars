@@ -202,18 +202,10 @@ public sealed partial class GameServer
         };
         p.TamedCreatures.Add(tc);
 
-        // First tame of this species (per world) pays full research knowledge; later ones a small trickle.
+        // First tame of this species (per world) pays research knowledge; repeats pay nothing — the old
+        // +1 trickle was an unbounded knowledge faucet that helped trivialise the research gate (#767).
         string signature = body + ":" + creature.SpeciesId;
-        int reward;
-        if (p.TamedSpecies.Add(signature))
-        {
-            reward = TameKnowledgeReward(sp, creature.SizeScale);
-        }
-        else
-        {
-            reward = 1;
-        }
-
+        int reward = p.TamedSpecies.Add(signature) ? TameKnowledgeReward(sp, creature.SizeScale) : 0;
         p.KnowledgePoints += reward;
 
         // The wild animal becomes the companion in place.

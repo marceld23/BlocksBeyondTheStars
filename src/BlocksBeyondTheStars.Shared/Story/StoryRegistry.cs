@@ -61,21 +61,23 @@ public static class StoryRegistry
         KillWeight = 1,
         MilestoneWeight = 2,
         KillContributionCap = 40,
+        // Beats pay +1 knowledge each (was +3): the arc alone used to out-earn the whole research
+        // ladder's knowledge ceiling, trivialising the blueprint gate (#767).
         Beats = new List<StoryBeat>
         {
             Beat(0,  "Systems online",        0,   0),
-            Beat(1,  "A familiar signature",  6,   3),
-            Beat(2,  "The Service",           14,  3),
-            Beat(3,  "Not scattered — erased", 24, 3),
-            Beat(4,  "Ours, once",            36,  3),
-            Beat(5,  "The Guardian",          50,  3),
-            Beat(6,  "The verdict",           66,  3),
-            Beat(7,  "Her stand",             84,  3),
-            Beat(8,  "The thought-arcs",      104, 3),
-            Beat(9,  "What you are",          126, 3),  // the clone reveal
-            Beat(10, "Many minds",            150, 3),
-            Beat(11, "It still sleeps",       176, 3),  // locates the dormant Guardian system
-            Beat(12, "The choice",            204, 3),  // finale opens
+            Beat(1,  "A familiar signature",  6,   1),
+            Beat(2,  "The Service",           14,  1),
+            Beat(3,  "Not scattered — erased", 24, 1),
+            Beat(4,  "Ours, once",            36,  1),
+            Beat(5,  "The Guardian",          50,  1),
+            Beat(6,  "The verdict",           66,  1),
+            Beat(7,  "Her stand",             84,  1),
+            Beat(8,  "The thought-arcs",      104, 1),
+            Beat(9,  "What you are",          126, 1),  // the clone reveal
+            Beat(10, "Many minds",            150, 1),
+            Beat(11, "It still sleeps",       176, 1),  // locates the dormant Guardian system
+            Beat(12, "The choice",            204, 1),  // finale opens
         },
     };
 

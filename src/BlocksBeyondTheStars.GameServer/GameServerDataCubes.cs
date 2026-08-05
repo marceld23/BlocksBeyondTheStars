@@ -191,9 +191,11 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>A minigame run finished — grant a small knowledge reward scaled by the reported rating. Repeatable
-    /// (the player can re-run a fragment for more research), but each grant is small + capped, and the rating is
-    /// clamped server-side. Knowledge feeds the tech tree; the client reads it back from the inventory sync.</summary>
+    /// <summary>A minigame run finished — grant knowledge for stars newly earned on this game. Analysing the
+    /// same fragment twice teaches nothing (#767): each star pays 5 knowledge once per player per game
+    /// (best-rating ledger in <c>PlayerState.Milestones</c>), so the first 3-star run pays 15, replays pay
+    /// nothing, and improving a 1-star best to 3 stars pays the +10 difference. The rating is clamped
+    /// server-side. Knowledge feeds the tech tree; the client reads it back from the inventory sync.</summary>
     private void HandleMinigameResult(PlayerSession session, MinigameResultIntent intent)
     {
         if (!intent.Completed)
@@ -201,11 +203,39 @@ public sealed partial class GameServer
             return; // only completed runs reward
         }
 
+        string key = (intent.GameKey ?? string.Empty).Trim();
+        if (key.Length == 0 || key.Length > 64)
+        {
+            return; // missing/implausible key — no ledger to credit against
+        }
+
         int rating = System.Math.Clamp(intent.Rating, 1, 3);
-        int reward = rating * 5; // 1/2/3 stars -> 5/10/15 knowledge
+        int reward = 0;
+        for (int star = 1; star <= rating; star++)
+        {
+            if (session.State.Milestones.Add("arcade:" + key + ":star:" + star))
+            {
+                reward += 5;
+            }
+        }
+
+        if (reward == 0)
+        {
+            return; // every star already banked — this fragment holds nothing new
+        }
+
         session.State.KnowledgePoints += reward;
         SendInventory(session); // carries KnowledgePoints to the client
         Send(session, new ServerMessage { Text = $"+{reward} knowledge — data fragment analysed." });
+    }
+
+    /// <summary>Test hook: report a finished minigame run (mirrors the client's <see cref="MinigameResultIntent"/>).</summary>
+    public void ReportMinigameResultForTest(string playerId, string gameKey, int rating, bool completed = true)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleMinigameResult(session, new MinigameResultIntent { GameKey = gameKey, Rating = rating, Completed = completed });
+        }
     }
 
     private List<string>? _minigameKeys;

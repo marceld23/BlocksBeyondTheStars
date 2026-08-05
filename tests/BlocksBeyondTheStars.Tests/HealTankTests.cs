@@ -78,13 +78,15 @@ public sealed class HealTankTests : IDisposable
             server.Craft("Builder", "heal_tank");
             Assert.Equal(0, p.State.Inventory.CountOf("heal_tank"));
 
-            // Research it (materials + knowledge threshold), then the same craft succeeds.
+            // Research it (materials + knowledge threshold), then the same craft succeeds. The heal tank
+            // sits behind the medical chain now — treat the field medkit as already researched (#767).
             var bp = _content.GetBlueprint("heal_tank")!;
             foreach (var cost in bp.UnlockCost)
             {
                 p.State.Inventory.Add(cost.Item, cost.Count, 99);
             }
 
+            p.State.UnlockedBlueprints.Add("field_medkit");
             p.State.KnowledgePoints = bp.KnowledgeCost;
             server.UnlockBlueprint(p.State.PlayerId, "heal_tank");
             Assert.Contains("heal_tank", p.State.UnlockedBlueprints);

@@ -118,7 +118,7 @@ public sealed class CreatureTamingTests : IDisposable
     }
 
     [Fact]
-    public void Taming_AwardsKnowledge_FullFirstTime_TrickleAfterPerSpecies()
+    public void Taming_AwardsKnowledge_FullFirstTime_NothingAfterPerSpecies()
     {
         var server = Started(out var repo);
         using (repo)
@@ -146,7 +146,7 @@ public sealed class CreatureTamingTests : IDisposable
             int gain2 = p.State.KnowledgePoints - k1;
 
             Assert.True(gain1 >= 2, $"first tame of a species should pay a full research bonus (got {gain1})");
-            Assert.Equal(1, gain2); // a second of the same species pays only the small trickle
+            Assert.Equal(0, gain2); // a second of the same species teaches nothing new (#767)
         }
     }
 

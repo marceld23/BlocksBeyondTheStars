@@ -46,7 +46,9 @@ Menu "Codex"/"DataQubes" button
   `<DataDir>/minigames/catalog.json`).
 - Net messages (`MinigameMessages.cs`, registered in `NetCodec` tags 118–121): `DataCubeList`,
   `UnlockGameIntent`, `GameUnlocks`, `MinigameResultIntent` (finished run → server grants knowledge points,
-  rating-scaled, repeatable, in `GameServerDataCubes.HandleMinigameResult`).
+  5 per star newly earned on that game — a per-player best-rating ledger in `PlayerState.Milestones`
+  (`arcade:<game>:star:N`) stops replays from farming research (#767), in
+  `GameServerDataCubes.HandleMinigameResult`).
 - Gated by `ServerConfig.PlaceDataCubes` (default on). A Creative world (`CreativeUnlockAllBlueprints`) also
   unlocks every minigame via `UnlockAllGames`.
 
