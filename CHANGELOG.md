@@ -19,9 +19,10 @@ The premiere release: the game opens like a film now. A watchable in-engine intr
 runs before your very first menu, VEGA's prologue got a real staging — letterbox bars, a slow
 orbit around your landed ship, a glitch flash as she boots — and she found her voice: radio
 chatter crackles along while her lines type out. Story memories flash back with a cinematic
-colour grade, the HUD celebrates the moment your knowledge unlocks new research, and a
-nine-part playtest batch fixes everything from titans biting through ruin walls to jittery
-NPC ships in space.
+colour grade, and the HUD celebrates the moment your knowledge unlocks new research — a moment
+that means something again, because the whole knowledge ladder was stretched so the tech tree
+unlocks in waves instead of all at once. A nine-part playtest batch rounds it off, fixing
+everything from titans biting through ruin walls to jittery NPC ships in space.
 
 ### 🎬 Curtain up — the game gets a real opening (#759–#762)
 
@@ -51,6 +52,21 @@ NPC ships in space.
   with a glow pulse, a shine sweep and a soft two-note chime. Respects reduced motion.
 - Fixed along the way: achievement toasts were silently mute (their sound cue never existed) —
   they play a rising arpeggio now.
+
+### 🧠 Research pacing — the tech tree unlocks in waves again (#767)
+
+- **Every blueprint costs knowledge now**: the ladder runs from ~3–10 for early tools through
+  ~15–40 mid-game up to 60–120 for the late tiers (Deathblock, AI core Mk3, matter
+  resynthesizer). Previously the whole tree topped out at 24 knowledge and about half the
+  blueprints — all ships included — were free, so everything unlocked almost at once.
+- **Deeper prerequisites**: ships sit behind the docking module, cannons behind hull plating,
+  the heal tank behind the field medkit, the jump generator behind the radar array, and more —
+  the tree reads as real progression chains now.
+- **Knowledge faucets capped**: arcade minigames pay per star *newly* earned on that game
+  (replays pay nothing, improving your rating pays the difference), story beats award less,
+  and taming a species you already tamed no longer trickles endless points.
+- Existing saves keep their banked knowledge and everything already unlocked — the new upper
+  tiers simply sit above most veterans' totals, so the research tab has surprises again.
 
 ### 🦋 Micro-fauna joins the Codex (#757, #752)
 
