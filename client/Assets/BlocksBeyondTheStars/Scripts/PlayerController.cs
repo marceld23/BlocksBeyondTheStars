@@ -730,7 +730,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (nearest != null)
             {
-                ClientAudio.Instance?.Cue("loot");
+                // Success cue moved to the container-broadcast diff (#751): playing it here, before the
+                // request even left, made a rejected/no-op loot sound exactly like a successful one.
+                Game.NoteLootRequested(nearest);
                 Game.Network.SendLootContainer(nearest);
             }
         }
@@ -1040,6 +1042,17 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.SendScan("creature", speciesId);
                 Weapons?.Pulse(scanPos, new Color(0.4f, 0.85f, 1f));
+                return;
+            }
+
+            // Micro-fauna (#757): when no real creature is in reach, the nearest ambient critter answers.
+            // Critters are client-local, so the kind is resolved here and the server only validates that it
+            // exists (same trust level as the creature scan above). Shorter reach — they're tiny.
+            if (MicroFaunaView.Instance != null
+                && MicroFaunaView.Instance.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt))
+            {
+                Game.Network.SendScan("microfauna", critterKey);
+                Weapons?.Pulse(Game.ScenePos(critterAt.x, critterAt.y, critterAt.z), new Color(0.4f, 0.85f, 1f));
                 return;
             }
 

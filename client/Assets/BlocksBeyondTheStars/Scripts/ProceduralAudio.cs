@@ -27,6 +27,7 @@ namespace BlocksBeyondTheStars.Client
             "thunder_1", "thunder_2", "thunder_3",
             // ui / vitals
             "ui_hover", "ui_click", "ui_confirm", "ui_back", "o2_warning", "tech_unlock", "hull_alarm",
+            "vitals_warning",
             // ship / space
             "hyperspace_jump", "station_board", "scan_ping", "lamp_toggle", "teleport",
             "ship_launch", "ship_landing",
@@ -60,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
             "o2_warning" => Alarm("o2_warning", 950f, 0.5f),
             "tech_unlock" => Arp("tech_unlock", 0.45f, 0.30f, up: true), // longer rising fanfare than ui_confirm
             "hull_alarm" => Alarm("hull_alarm", 640f, 0.45f), // deeper than the O₂ warning
+            "vitals_warning" => Alarm("vitals_warning", 780f, 0.4f), // below-10 % vitals blink (#753), between the two
             "hyperspace_jump" => Warp("hyperspace_jump"),
             "station_board" => Airlock("station_board"),
             "scan_ping" => Ping("scan_ping"),

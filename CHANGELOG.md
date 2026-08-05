@@ -13,6 +13,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Added
+- **Micro-fauna joins the Codex** (#757): ambient critters (butterflies, fireflies, wisps, …) can now be
+  scanned with the handheld scanner — 28 localized kinds, a new **Micro-fauna** discoveries chapter and a
+  small knowledge award per first find. Thermal vision shows critters as small named contacts.
+- **Low-vitals warning** (#753): any HUD bar (health, oxygen, energy, hunger, hull, shield) below 10 %
+  blinks red and beeps until it recovers past 15 %.
+- **The wisp** (#752): the bat-like skyray was replaced by a small drifting glow orb whose colour is
+  unique per world — look for it at night.
+
+### Fixed
+- Attacking animals no longer walk through the player: hunters hold at a size-scaled ring, roaming
+  machines stop at bodies too, and big creatures barely lunge (#749).
+- Titans no longer spawn half inside ruins or bite through walls — spawn and movement now check the
+  actual body volume (#750).
+- "G: loot" no longer shows where the key does nothing (flying/driving), a full backpack reports
+  "inventory full" instead of silently no-opping, and the loot sound only plays on actual success (#751).
+- VEGA's prologue pages use the normal speech panel (constrained width, paging, UI scale) with a dim
+  behind it instead of a full-screen black dialog; Esc skips the narration (#754).
+- The controls hint finally mentions jump and crouch (Space, Ctrl/C) (#755).
+- NPC ships in space (traders, UFOs, raiders, other players) move smoothly: buffered interpolation on the
+  client, bandit raiders broadcast their approach/leave movement, remote pilots refresh continuously, and
+  patrol stop-go easing on the server (#756).
+
 ## [2026.8.4] — 2026-08-05
 
 The shipyard release: four new ships joined the fleet — and every one of them started as a

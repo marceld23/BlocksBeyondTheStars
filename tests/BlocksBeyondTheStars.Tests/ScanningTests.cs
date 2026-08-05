@@ -112,6 +112,46 @@ public sealed class ScanningTests : IDisposable
     }
 
     [Fact]
+    public void ScanMicroFauna_GrantsKnowledgeOnce_RejectsUnknownKind_AndListsInLedger()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Scout");
+
+            // Critters are client-local (#757): the server validates only that the kind exists — the
+            // same existence-only trust level creature scans run at.
+            var first = server.ScanSubject("Scout", "microfauna", "wisp");
+            Assert.True(first.FirstTime);
+            Assert.Equal("microfauna", first.Kind);
+            Assert.Equal("wisp", first.SubjectKey);
+            Assert.True(first.KnowledgeGained > 0);
+            Assert.Equal("wisp", p.State.ScannedNames["microfauna:wisp"]);
+
+            var again = server.ScanSubject("Scout", "microfauna", "wisp");
+            Assert.False(again.FirstTime);
+            Assert.Equal(0, again.KnowledgeGained);
+
+            // A kind the catalogue doesn't know earns nothing — the ledger can't be spammed with junk.
+            var bogus = server.ScanSubject("Scout", "microfauna", "dragon");
+            Assert.Equal(0, bogus.KnowledgeGained);
+            Assert.Equal("ui.scan.unknown", bogus.InfoKey);
+            Assert.DoesNotContain("microfauna:dragon", p.State.Scanned);
+        }
+    }
+
+    [Fact]
+    public void MicroFaunaCatalog_KeysAreDistinct_AndKnownLookupWorks()
+    {
+        Assert.Equal(MicroFaunaCatalog.Keys.Length, MicroFaunaCatalog.Keys.Distinct().Count());
+        Assert.All(MicroFaunaCatalog.Keys, k => Assert.False(string.IsNullOrWhiteSpace(k)));
+        Assert.True(MicroFaunaCatalog.IsKnown("firefly"));
+        Assert.True(MicroFaunaCatalog.IsKnown("wisp"));     // the skyray's replacement (#752)
+        Assert.False(MicroFaunaCatalog.IsKnown("skyray"));  // retired key must stay retired
+        Assert.False(MicroFaunaCatalog.IsKnown(null));
+    }
+
+    [Fact]
     public void ScanAsteroid_RevealsResources_AndGrantsKnowledge()
     {
         var server = Started("rocky", out var repo, r => r.FreeSpaceFlight = true);

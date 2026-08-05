@@ -35,6 +35,7 @@ public sealed partial class GameServer
     private const double CreatureMoveDtCap = 0.25;         // cap per-step movement so big ticks can't teleport
     private const float CreatureAggroRange = 8f;           // hunters approach within this (B18: smaller → less hounding)
     private const float CreatureFleeRange = 6f;            // skittish flee within this
+    private const float CreatureStopRange = 1.6f;          // hunters hold this far from prey (#749), scaled up by Size
     private const double CreatureProvokeSeconds = 12.0;    // how long a provoked creature retaliates
     private const float CreaturePackRallyRange = 14f;      // pack-hunters rally kin within this
     private const double CreatureChaseGiveUpSeconds = 7.0;     // an aggressor gives up after chasing this long
@@ -458,6 +459,15 @@ public sealed partial class GameServer
                     continue;
                 }
 
+                // A big body must actually FIT (#750): flatness alone let titans materialise inside
+                // ruin rooms (stamped floors are perfectly flat) — the only other spatial gate was a
+                // single 1×1 column with two air cells, for bodies that render ~5×10×11 blocks.
+                if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
+                    && !LargeBodyFits(sp, px, (int)System.Math.Floor(y), pz))
+                {
+                    continue;
+                }
+
                 _creatureSpawnRotor = (_creatureSpawnRotor + n + 1) % _speciesRoster.Length;
                 SpawnCreature(sp, pos);
                 SpawnGroupAround(sp, px, pz, cap); // social species (#639) bring their herd/school/flock
@@ -542,6 +552,12 @@ public sealed partial class GameServer
                 }
 
                 y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650)
+
+                if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
+                    && !LargeBodyFits(sp, mx, (int)System.Math.Floor(y), mz))
+                {
+                    continue; // herd members get the leader's body-volume check too (#750)
+                }
             }
 
             var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
@@ -751,6 +767,16 @@ public sealed partial class GameServer
                 float dist = (float)System.Math.Sqrt(dx * dx + dz * dz);
                 if (aggressor && dist <= aggro)
                 {
+                    // Hold at a size-scaled ring around the prey instead of steering into its exact
+                    // position (#749) — without this a hunter overshoots the player's coordinates and
+                    // oscillates back and forth through the body. The proximity damage aura reaches
+                    // well past the ring, so combat is unaffected; only the overlap goes away.
+                    if (dist <= System.Math.Max(CreatureStopRange, sp.Size * 0.9f))
+                    {
+                        creature.Position = AdjustHabitatHeight(sp, creature.Position, 0f, profile, moveDt);
+                        continue;
+                    }
+
                     intent = MoveMode.Seek;
                     target = temperament == CreatureTemperament.PackHunter ? FlankPoint(creature, tp, dx, dz) : tp;
                 }
@@ -909,11 +935,62 @@ public sealed partial class GameServer
         int refY = (int)System.Math.Floor(cur.Y);
         int curFeet = GroundFeetYAt(cx, cz, refY);
         int nextFeet = GroundFeetYAt(nx, nz, refY);
+
+        // A large body treats a filled column as a wall (#750): ground-height deltas alone made ruin
+        // walls invisible to fauna (NPCs have PathBlockedByWorld; creatures had nothing), so titans
+        // pathed straight through masonry and bit the player from inside rooms. Titan-scale only, so
+        // the extra block reads stay off the common path.
+        if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
+            && !LargeBodyColumnOpen(sp, nx, nextFeet, nz))
+        {
+            return true;
+        }
+
         int curDepth = _generator.TryGetWaterSurface(_world.Planet, cx, cz, out int curTop, out int curBed)
             ? curTop - curBed : 0;
         int nextDepth = _generator.TryGetWaterSurface(_world.Planet, nx, nz, out int nextTop, out int nextBed)
             ? nextTop - nextBed : 0;
         return CreatureBehaviour.TerrainStepBlocked(sp.Habitat, sp.BodyPlan, curFeet, nextFeet, curDepth, nextDepth);
+    }
+
+    private const float LargeBodySize = 3f; // species at/above this Size get the body-volume checks (#750)
+
+    /// <summary>Whether a large creature's body volume fits at the spot (#750): every column in the
+    /// footprint radius must be open from just above the feet through the body height. The scan starts
+    /// two cells up so the ±1 ground tolerance <see cref="TitanGroundClear"/> allows isn't misread as a
+    /// wall. Unloaded chunks read as air (permissive, matching <see cref="StandableAt"/>).</summary>
+    private bool LargeBodyFits(CreatureSpecies sp, int x, int feetY, int z)
+    {
+        int radius = (int)System.Math.Ceiling(sp.Size * 0.5f);
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            for (int dz = -radius; dz <= radius; dz++)
+            {
+                if (!LargeBodyColumnOpen(sp, x + dx, feetY, z + dz))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Single-column variant of the body-volume check for the per-step gate (#750): the
+    /// destination column must be open from just above the feet through the body height, so a titan
+    /// treats a ruin wall as a barrier instead of a ground-height quirk.</summary>
+    private bool LargeBodyColumnOpen(CreatureSpecies sp, int x, int feetY, int z)
+    {
+        int height = (int)System.Math.Ceiling(sp.Size * 1.8f);
+        for (int dy = 2; dy < height; dy++)
+        {
+            if (!_world.GetBlockIfLoaded(new Vector3i(x, feetY + dy, z)).IsAir)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>The standable feet cell in a column nearest to <paramref name="refY"/> (#650), read from

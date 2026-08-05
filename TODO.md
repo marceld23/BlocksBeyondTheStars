@@ -7148,6 +7148,48 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-05): playtest batch — collision, ruins, loot, HUD warnings, VEGA prologue, ship smoothing, micro-fauna scanning (#749–#757)
+
+Nine playtest findings fixed in one pass (analysis first, per-issue root causes):
+
+- **Creature stop ring (#749)** — hunting fauna held at `max(1.6, Size·0.9)` from the prey instead of
+  seeking the player's exact coordinates (they oscillated through the body); machines never step into a
+  player's stop ring even while roaming/blind; the client attack lunge scales down for big bodies.
+- **Titans vs ruins (#750)** — size-scaled body-volume checks: spawn (and herd spawn) require the
+  footprint × body height to be open (`LargeBodyFits`, Size ≥ 3), and the per-step terrain gate rejects
+  a filled destination column (`LargeBodyColumnOpen`) — titans no longer materialise inside ruin rooms
+  or path through masonry.
+- **Loot prompt (#751)** — "G: loot" hidden while flying/driving (the key was never polled there);
+  a full backpack now gets a real `@inventory_full` rejection instead of a silent server no-op; the
+  success cue plays only once the container broadcast confirms items moved (it used to pre-play);
+  out-of-reach is localized (`ui.loot.out_of_reach`).
+- **Wisp (#752)** — the skyray (bat-like glider) is retired; its replacement "wisp" is a small drifting
+  glow orb on the procedural radial tile (atlas slot 28, additive shader) whose colour is a FULL-circle
+  per-world hue — every world gets its own light. Night + day roster slots; sprite asset deleted.
+- **Low-vitals warning (#753)** — any vitals row below 10 % blinks toward warn-red (hysteresis: in
+  <10 %, out >15 %) with a shared `vitals_warning` beep every 2.5 s; oxygen keeps its dedicated 25 %
+  alarm and doesn't double-beep; dead players don't blink; reduced-motion shows a steady tint.
+- **VEGA prologue (#754)** — Kind-4 story pages now run through the normal speech panel (same measure,
+  paging, typewriter, user UI scale) with a dim behind the panel and Esc-to-skip; the bespoke
+  full-screen near-black dialog (which read as "text across the whole screen") is gone.
+- **Controls hint (#755)** — `ui.hud.hint` finally mentions jump + crouch (`Space` / `Strg/C`), the
+  gamepad hint gains `(B) crouch`; the redundant `Esc quit` entry made room (Tab menu covers it).
+- **NPC ship smoothing (#756)** — the flight view was the only entity family with NO interpolation:
+  hostiles/traders/remote pilots now render through `RemoteEntityInterpolator` (0.15 s buffer, yaw
+  slerped); bandit raiders get a 0.2 s movement broadcast in Approach/Leaving (they broadcast at 0 Hz
+  before — freeze-then-teleport); remote-pilot poses re-broadcast at 0.2 s in shared instances; the
+  patrol dead-zone eases (speed ∝ distance) instead of hard-stopping, and the stand-off ring got a
+  15 % hold band so chase/hold stops flip-flopping per tick.
+- **Micro-fauna integration (#757)** — critters join the thermal-vision contact pass (named, tinted,
+  glow kinds green) and the handheld scanner: `microfauna` scan subject (server validates against the
+  new shared `MicroFaunaCatalog` — existence-only, the same trust as creature scans; 2 knowledge),
+  Codex "Discoveries" gains a Micro-fauna chapter, 28 localized kind names (`ui.scan.subject.*`).
+  The client asserts its kind list matches the shared catalogue at startup.
+
+Tests: `ScanMicroFauna_GrantsKnowledgeOnce_RejectsUnknownKind_AndListsInLedger`,
+`MicroFaunaCatalog_KeysAreDistinct_AndKnownLookupWorks` (ScanningTests). NEEDS Unity build (client
+HUD/VEGA/SpaceView/micro-fauna changes).
+
 ## ✅ Done (2026-08-05): pickup feed + hotbar stack counts (#744/#745)
 
 You can finally SEE what you collected. Two HUD gaps closed:

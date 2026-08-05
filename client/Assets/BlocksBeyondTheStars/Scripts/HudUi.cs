@@ -66,8 +66,9 @@ namespace BlocksBeyondTheStars.Client
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
 
-        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; }
+        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; }
         private VitalRow[] _vitals;
+        private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
 
         private UiKit.QuickSlot[] _hotbar;
         private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
@@ -163,6 +164,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 UpdateCrosshairState(Time.deltaTime); // per frame: aim tint must not lag the reticle
                 RefreshCompass(); // per frame: blips counter-rotate with the camera, throttling would judder
+                UpdateLowVitalWarnings(Time.deltaTime); // per frame: the below-10 % blink (#753) must not step
 
                 _refreshTimer -= Time.deltaTime;
                 bool force = Game.SelectedHotbarSlot != _lastSelSlot;
@@ -646,7 +648,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _prompt.text = prompt;
-            _loot.text = LootText(loc);
+            // Only actionable on foot (#751): PlayerController never polls the loot key while the
+            // flight view is up or a speeder is driven, so showing the prompt there was a dead key.
+            _loot.text = Game.SpaceViewActive || !string.IsNullOrEmpty(Game.InSpeeder) ? string.Empty : LootText(loc);
 
             RefreshScan(loc);
             RefreshWreck(loc);
@@ -727,10 +731,47 @@ namespace BlocksBeyondTheStars.Client
         {
             var v = _vitals[i];
             if (v.Go.activeSelf != active) v.Go.SetActive(active);
+            // Low-value warning state with hysteresis (#753): trips below 10 %, clears above 15 %, so a
+            // value hovering at the threshold doesn't flicker the alarm on and off. Suppressed while dead
+            // (every bar bottoms out on the respawn screen — blinking them all helps nobody).
+            v.Warn = active && Game.Health > 0f && (frac < 0.10f || (v.Warn && frac < 0.15f));
+            v.BaseColor = color;
+            _vitals[i] = v;
             if (!active) return;
             v.Fill.color = color;
             v.Fill.fillAmount = Mathf.Clamp01(frac);
             v.Label.text = $"{label}  {Mathf.RoundToInt(value)}";
+        }
+
+        private static readonly Color VitalWarnRed = new(1f, 0.25f, 0.2f);
+
+        /// <summary>Blinks any vital row below its warning threshold toward red and drives the shared
+        /// low-vitals beep (#753). Runs per frame — the 10 Hz Refresh would step the blink. Oxygen keeps
+        /// its own dedicated 25 % alarm (vignette + beeps), so its row blinks but doesn't double-beep.</summary>
+        private void UpdateLowVitalWarnings(float dt)
+        {
+            bool beepWorthy = false;
+            for (int i = 0; i < _vitals.Length; i++)
+            {
+                var v = _vitals[i];
+                if (v.Fill == null || !v.Warn || !v.Go.activeSelf) continue;
+                float k = UiKit.ReducedMotion ? 1f : Mathf.PingPong(Time.time * 2.4f, 1f);
+                v.Fill.color = Color.Lerp(v.BaseColor, VitalWarnRed, 0.35f + 0.65f * k);
+                if (i != 1) beepWorthy = true; // 1 = oxygen — covered by UpdateOxygenAlarm
+            }
+
+            if (!beepWorthy)
+            {
+                _lowVitalBeepTimer = 0f; // first beep fires immediately when a bar next runs low
+                return;
+            }
+
+            _lowVitalBeepTimer -= dt;
+            if (_lowVitalBeepTimer <= 0f)
+            {
+                _lowVitalBeepTimer = 2.5f;
+                ClientAudio.Instance?.Cue("vitals_warning", 0.5f);
+            }
         }
 
         // --- hotbar ---

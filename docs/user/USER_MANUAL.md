@@ -61,6 +61,7 @@ Last updated: 2026-07-04.
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if equipped); **in water: swim up / surface** |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off; climb **down** ladders; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -480,6 +481,10 @@ separate unlock; admins can still disable it through server world rules.
 - **Plants and trees scan as named species.** A scanned plant (flora) or tree reads as this world's coined
   species name with an **edible/toxic** classification, not just a block. A tree's trunk and its leaves are
   the same species, so scanning either one counts as a single discovery.
+- **Micro-fauna scans too.** Stand near a butterfly, firefly, wisp or any other ambient critter with the
+  scanner selected and left-click (when no larger creature is in reach): the kind enters the Codex's
+  **Micro-fauna** discoveries chapter and awards a little knowledge. Thermal vision (see §5 → Binoculars)
+  also picks critters up as small named contacts.
 - **Terrain scanner** (`terrain_scanner`, workshop recipe + blueprint): a **right-click** gadget that
   pulses once (10 suit energy, 10 s cooldown) and reveals ores, crystal and data caches within 20 blocks
   as through-wall glow markers for 8 s, tinted by ore type. An `ai_core_mk2` extends the radius.

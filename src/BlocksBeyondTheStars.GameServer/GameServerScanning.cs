@@ -21,6 +21,7 @@ public sealed partial class GameServer
     private const int KnowledgeBlock = 1;
     private const int KnowledgeAsteroid = 4;
     private const int KnowledgeMonument = 8; // the richest find: a whole culture's writing, not one material
+    private const int KnowledgeMicroFauna = 2; // small per find, but 28 kinds add up across worlds (#757)
 
     /// <summary>Block keys whose inscriptions the scanner can read. Scanning one AT a monument identifies the
     /// relic (worth <see cref="KnowledgeMonument"/>); scanning one the player mined and carried home is just
@@ -108,6 +109,18 @@ public sealed partial class GameServer
             }
 
             value = KnowledgeBlock;
+        }
+        else if (subjectType == "microfauna" && Shared.Content.MicroFaunaCatalog.IsKnown(subjectKey))
+        {
+            // Micro-fauna live purely client-side (#757) — the server can't verify a critter was at the
+            // crosshair, only that the kind exists. That is exactly the trust level creature scans already
+            // run at (no position check either), and the knowledge value is deliberately small.
+            readout.ThreatKey = "ui.scan.threat.safe";
+            readout.InfoKey = "ui.scan.microfauna";
+            readout.LegacyInfo = "Ambient micro-fauna.";
+            readout.LegacyThreat = "Safe";
+            value = KnowledgeMicroFauna;
+            // Display stays the raw kind key — the client localizes it via ui.scan.subject.<key>.
         }
         else
         {

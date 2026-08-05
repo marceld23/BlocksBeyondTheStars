@@ -944,7 +944,67 @@ namespace BlocksBeyondTheStars.Client
                     ?? "There is no air here — a torch only burns on worlds with an atmosphere.";
             }
 
+            if (reason == "@out_of_reach")
+            {
+                return Localizer?.Get("ui.loot.out_of_reach") ?? "The cache is out of reach — move closer.";
+            }
+
             return $"{action}: {reason}";
+        }
+
+        private string _pendingLootId;
+        private int _pendingLootCount;
+        private float _pendingLootDeadline;
+
+        /// <summary>Remembers a just-sent loot intent (#751) so the success cue plays only once the server
+        /// actually moved items — the cue used to play unconditionally before the request even left, which
+        /// made a rejected/no-op loot indistinguishable from a dead key.</summary>
+        public void NoteLootRequested(string containerId)
+        {
+            _pendingLootId = containerId;
+            _pendingLootCount = 0;
+            if (Containers != null)
+            {
+                foreach (var c in Containers)
+                {
+                    if (c.Id == containerId)
+                    {
+                        _pendingLootCount = c.ItemCount;
+                        break;
+                    }
+                }
+            }
+
+            _pendingLootDeadline = Time.time + 2f;
+        }
+
+        /// <summary>Applies a container broadcast and confirms a pending loot (#751): the looted container
+        /// vanishing (emptied) or shrinking (partial take) is the server's implicit success signal.</summary>
+        private void OnContainers(BlocksBeyondTheStars.Networking.Messages.ContainerList m)
+        {
+            if (_pendingLootId != null && Time.time <= _pendingLootDeadline)
+            {
+                int count = -1;
+                if (m.Containers != null)
+                {
+                    foreach (var c in m.Containers)
+                    {
+                        if (c.Id == _pendingLootId)
+                        {
+                            count = c.ItemCount;
+                            break;
+                        }
+                    }
+                }
+
+                if (count < _pendingLootCount)
+                {
+                    ClientAudio.Instance?.Cue("loot");
+                    _pendingLootId = null;
+                }
+            }
+
+            Containers = m.Containers;
         }
 
         /// <summary>The "you made something" toast. Names the crafted ITEM in the player's language — this used to
@@ -1444,7 +1504,7 @@ namespace BlocksBeyondTheStars.Client
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
             Network.NpcsReceived += m => Npcs = m.Npcs;
-            Network.ContainersReceived += m => Containers = m.Containers;
+            Network.ContainersReceived += m => OnContainers(m);
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m =>
             {

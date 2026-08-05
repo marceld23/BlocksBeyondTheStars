@@ -187,6 +187,20 @@ public sealed partial class GameServer
                     break;
                 }
         }
+
+        // Stream the raider's own movement (#756): Approach/Leaving run OUTSIDE MoveSpaceHostiles (the
+        // raider isn't hostile in those phases), so its motion never triggered the hostile sync — clients
+        // saw it frozen at the warp-in point, then teleporting to the hail distance. Same cadence as the
+        // hostile/trader throttles. The warp-out above clears BanditShipId, which also stops this.
+        if (instance.BanditShipId.Length > 0 && raider.BanditPhase is BanditPhase.Approach or BanditPhase.Leaving)
+        {
+            instance.BanditSyncTimer += dt;
+            if (instance.BanditSyncTimer >= 0.2)
+            {
+                instance.BanditSyncTimer = 0;
+                BroadcastSpaceState(instance);
+            }
+        }
     }
 
     private PlayerSession? FirstPilotIn(SpaceInstance instance)

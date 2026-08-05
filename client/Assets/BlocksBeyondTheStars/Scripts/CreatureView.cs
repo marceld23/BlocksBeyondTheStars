@@ -123,7 +123,10 @@ namespace BlocksBeyondTheStars.Client
                     var to = Game.PlayerPosition - Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z); to.y = 0f;
                     if (to.sqrMagnitude > 0.04f)
                     {
-                        lunge = to.normalized * (Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI) * 0.6f);
+                        // Big bodies barely lunge (#749): the server now holds hunters at a size-scaled ring,
+                        // and a full 0.6 lunge would shove a titan's bulk back through the player.
+                        float amp = 0.6f * Mathf.Clamp01(2f / Mathf.Max(1f, c.Size));
+                        lunge = to.normalized * (Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI) * amp);
                     }
                 }
 

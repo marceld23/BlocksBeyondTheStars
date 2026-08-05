@@ -59,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly List<Marker> _pool = new List<Marker>();
         private int _used;
         private readonly List<Contact> _contacts = new List<Contact>();
+        private readonly List<(Vector3 World, string Key, bool Glow)> _critterScratch = new(); // #757
         private readonly List<Vector3> _lavaBlobs = new List<Vector3>();
         private float _lavaTimer;
 
@@ -198,6 +199,21 @@ namespace BlocksBeyondTheStars.Client
                     : !string.IsNullOrEmpty(c.Name) ? c.Name
                     : loc?.Get(c.NameKey) ?? string.Empty;
                 Add(new Vector3(c.X, c.Y, c.Z), new Vector2(s, s), tint, name);
+            }
+
+            // Micro-fauna (#757): the ambient critters are client-local (no server list exists), so they
+            // enter the contact pass straight from the live view. Tiny marks in their own tints — visible
+            // and identified by name, but never competing with real fauna silhouettes. They cull at 32
+            // blocks, so the count stays small.
+            if (MicroFaunaView.Instance != null)
+            {
+                _critterScratch.Clear();
+                MicroFaunaView.Instance.CollectCritters(_critterScratch);
+                foreach (var (world, key, glow) in _critterScratch)
+                {
+                    var tint = glow ? new Color(0.55f, 1f, 0.75f) : new Color(0.85f, 0.75f, 0.35f);
+                    Add(world, new Vector2(0.45f, 0.45f), tint, loc?.Get("ui.scan.subject." + key) ?? key);
+                }
             }
 
             // Bandits, raiders and scan drones — the things you actually want to see before they see you.

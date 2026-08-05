@@ -225,6 +225,16 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, RemoteAvatar> _remotePlayers = new Dictionary<string, RemoteAvatar>();
         private readonly HashSet<string> _remoteSeen = new HashSet<string>();
         private readonly List<string> _remoteRemove = new List<string>();
+
+        // Buffered snapshot interpolation for everything the server moves in space (#756): SpaceState
+        // arrives at ~5 Hz and used to be applied as a raw per-frame snap — the only entity family in the
+        // game without smoothing, right next to the buttery locally-simulated own ship. Same interpolator
+        // the surface RemotePlayers pass uses. Space instances don't wrap, so the seam-aware lerp runs
+        // with an effectively infinite circumference.
+        private readonly Dictionary<string, RemoteEntityInterpolator> _entityLerp = new Dictionary<string, RemoteEntityInterpolator>();
+        private readonly Dictionary<string, RemoteEntityInterpolator> _remoteLerp = new Dictionary<string, RemoteEntityInterpolator>();
+        private object _lastEntitySnapshot, _lastPlayersSnapshot;
+        private const int SpaceNoWrap = int.MaxValue;
         private readonly List<Transform> _cloudShells = new List<Transform>();
 
         private Transform _camPrevParent;
@@ -2471,6 +2481,10 @@ namespace BlocksBeyondTheStars.Client
             _enteringInterior = false;
             _shipDestroyed = false;
             _remotePlayers.Clear(); // their GameObjects are children of _root, destroyed with the scene
+            _remoteLerp.Clear();
+            _entityLerp.Clear();
+            _lastEntitySnapshot = null;
+            _lastPlayersSnapshot = null;
             _shake = 0f;
             _hitFlash = 0f;
             _cargoFlash = 0f;
@@ -3473,6 +3487,15 @@ namespace BlocksBeyondTheStars.Client
         {
             _remoteSeen.Clear();
             var players = Game.Space?.Players;
+            // A fresh SpaceState reference == a new snapshot arrived — push one interpolation sample per
+            // pose (#756); every frame in between renders from the buffer instead of snapping.
+            bool fresh = players != null && !ReferenceEquals(Game.Space, _lastPlayersSnapshot);
+            if (fresh)
+            {
+                _lastPlayersSnapshot = Game.Space;
+            }
+
+            double now = Time.timeAsDouble;
             if (players != null && _root != null)
             {
                 foreach (var rp in players)
@@ -3490,8 +3513,26 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     av.Name = rp.Name ?? string.Empty; // shown as a floating nameplate (item 385); NPC traders arrive with an empty name and get no plate
-                    av.Root.transform.localPosition = new Vector3(rp.X, rp.Y, rp.Z);
-                    av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
+                    if (fresh)
+                    {
+                        if (!_remoteLerp.TryGetValue(rp.PlayerId, out var push))
+                        {
+                            _remoteLerp[rp.PlayerId] = push = new RemoteEntityInterpolator();
+                        }
+
+                        push.Push(now, new Vector3f(rp.X, rp.Y, rp.Z), rp.Yaw);
+                    }
+
+                    if (_remoteLerp.TryGetValue(rp.PlayerId, out var lerp) && lerp.Sample(now, SpaceNoWrap, out var lp, out float lyaw))
+                    {
+                        av.Root.transform.localPosition = new Vector3(lp.X, lp.Y, lp.Z);
+                        av.Root.transform.localRotation = Quaternion.Euler(0f, lyaw, 0f);
+                    }
+                    else
+                    {
+                        av.Root.transform.localPosition = new Vector3(rp.X, rp.Y, rp.Z);
+                        av.Root.transform.localRotation = Quaternion.Euler(0f, rp.Yaw, 0f);
+                    }
 
                     // Upgrade the generic hull to the pilot's REAL voxel ship once its design arrived
                     // (the server cross-sends every instance member's design as "ship_remote"), and re-mesh
@@ -3540,6 +3581,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     _remotePlayers.Remove(id);
+                    _remoteLerp.Remove(id);
                 }
             }
         }
@@ -3567,6 +3609,13 @@ namespace BlocksBeyondTheStars.Client
             var space = Game.Space;
             var seen = _entitySeen;
             seen.Clear();
+            bool fresh = space != null && !ReferenceEquals(space, _lastEntitySnapshot);
+            if (fresh)
+            {
+                _lastEntitySnapshot = space;
+            }
+
+            double now = Time.timeAsDouble;
             if (space != null)
             {
                 foreach (var e in space.Entities)
@@ -3602,7 +3651,34 @@ namespace BlocksBeyondTheStars.Client
                         _entities[e.Id] = go;
                     }
 
-                    go.transform.localPosition = new Vector3(e.X, e.Y, e.Z); // rotation is driven by Spin
+                    // Stations are static scenery — everything else the server moves gets the snapshot
+                    // buffer (#756). Rotation stays driven by Spin (no yaw on the entity wire).
+                    if (e.Kind != "SpaceStation")
+                    {
+                        if (fresh)
+                        {
+                            if (!_entityLerp.TryGetValue(e.Id, out var push))
+                            {
+                                _entityLerp[e.Id] = push = new RemoteEntityInterpolator();
+                            }
+
+                            push.Push(now, new Vector3f(e.X, e.Y, e.Z), 0f);
+                        }
+
+                        if (_entityLerp.TryGetValue(e.Id, out var lerp) && lerp.Sample(now, SpaceNoWrap, out var lp, out _))
+                        {
+                            go.transform.localPosition = new Vector3(lp.X, lp.Y, lp.Z);
+                        }
+                        else
+                        {
+                            go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
+                        }
+                    }
+                    else
+                    {
+                        go.transform.localPosition = new Vector3(e.X, e.Y, e.Z);
+                    }
+
                     if (e.Kind == "ResourceDrop")
                     {
                         _dropIds.Add(e.Id);
@@ -3637,6 +3713,7 @@ namespace BlocksBeyondTheStars.Client
 
                     Destroy(_entities[id]);
                     _entities.Remove(id);
+                    _entityLerp.Remove(id);
                     EnemyHealthBars.Forget(id);
                 }
             }

@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client
         private string _planetKey;
         private float _planetSeedTimer;
         private float _planetHueShift;                    // -0.12..+0.12 around the hue wheel
+        private Color _planetOrbColor = Color.white;      // the wisp's full-circle per-world hue (#752)
         private bool[] _planetKeep;                       // per kind-index: does this planet host the species?
 
         // scratch reused each frame (no per-frame allocations)
@@ -62,8 +63,64 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<int, Vector3> _groupCentroid = new();
         private readonly List<Critter> _despawn = new();
 
+        /// <summary>Set while a view exists so the handheld scanner and thermal vision (#757) can query the
+        /// live critters — they are client-local, so no other system knows they exist.</summary>
+        public static MicroFaunaView Instance { get; private set; }
+
+        /// <summary>Nearest live critter within <paramref name="reach"/> of a WORLD position (#757), for the
+        /// handheld scanner. Critter positions are canonical world coordinates (same frame as
+        /// <see cref="GameBootstrap.PlayerPosition"/>).</summary>
+        public bool NearestCritter(Vector3 worldPos, float reach, out string kindKey, out Vector3 worldAt)
+        {
+            kindKey = null;
+            worldAt = default;
+            float bestSq = reach * reach;
+            foreach (var c in _alive)
+            {
+                float d = (c.WorldPos - worldPos).sqrMagnitude;
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    kindKey = c.Kind.Key;
+                    worldAt = c.WorldPos;
+                }
+            }
+
+            return kindKey != null;
+        }
+
+        /// <summary>Streams every live critter (world position, kind key, glow flag) into the thermal-vision
+        /// contact pass (#757) without exposing the internal pool.</summary>
+        public void CollectCritters(List<(Vector3 World, string Key, bool Glow)> into)
+        {
+            foreach (var c in _alive)
+            {
+                into.Add((c.WorldPos, c.Kind.Key, c.Kind.Glow));
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
         private void Awake()
         {
+            Instance = this; // even when the shaders are stripped: an empty view just reports no critters
+
+            // The kind keys must match the shared catalogue the server validates scan intents against
+            // (#757) — a drifted key would render fine but be rejected by every scan, silently.
+            foreach (var k in MicroFauna.Kinds)
+            {
+                if (!BlocksBeyondTheStars.Shared.Content.MicroFaunaCatalog.IsKnown(k.Key))
+                {
+                    Debug.LogWarning($"MicroFauna kind '{k.Key}' is missing from MicroFaunaCatalog — scans of it will be rejected.");
+                }
+            }
+
             var alpha = Shader.Find("BlocksBeyondTheStars/ParticleAlpha");
             var add = Shader.Find("BlocksBeyondTheStars/Particle");
             if (alpha == null || add == null)
@@ -127,6 +184,11 @@ namespace BlocksBeyondTheStars.Client
                 var m = MicroFauna.Kinds[i].Motion;
                 _planetKeep[i] = m is CritterMotion.Swim or CritterMotion.Cling || rng.NextDouble() < 0.7;
             }
+
+            // The wisp's signature colour (#752): a FULL-circle hue per world (drawn after the loop above so
+            // the established rolls don't shift), bright + saturated because the additive shader multiplies
+            // the tint into a white radial tile — a dull colour would just dim the orb.
+            _planetOrbColor = Color.HSVToRGB((float)rng.NextDouble(), 0.75f, 1f);
         }
 
         /// <summary>Whether micro-fauna may appear at all right now, and (out) whether surface kinds are valid
@@ -346,7 +408,14 @@ namespace BlocksBeyondTheStars.Client
                 kind.Palette[Random.Range(0, kind.Palette.Length)],
                 kind.Palette[Random.Range(0, kind.Palette.Length)], Random.value);
             pick = ShiftHue(pick, _planetHueShift);
-            if (kind.Glow)
+            if (kind.Key == "wisp")
+            {
+                // The wisp IS the world's colour (#752): every world rolls its own full-circle hue
+                // (RefreshPlanetSeed), unlike the deliberately narrow ±0.12 shift other species get so
+                // they stay recognisable. Slight per-individual value wobble keeps a swarm from being flat.
+                c.Tint = _planetOrbColor * Random.Range(0.85f, 1.05f);
+            }
+            else if (kind.Glow)
             {
                 c.Tint = pick;
             }

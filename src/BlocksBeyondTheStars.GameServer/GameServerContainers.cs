@@ -59,7 +59,7 @@ public sealed partial class GameServer
         var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
         if (WrapDistSq(session.State.Position, center) > LootReach * LootReach)
         {
-            Reject(session, "loot", "Container is out of reach.");
+            Reject(session, "loot", "@out_of_reach"); // localized client-side (#751)
             return;
         }
 
@@ -84,6 +84,14 @@ public sealed partial class GameServer
             {
                 leftover.Add(new ItemStack(stack.Item, notPlaced)); // inventory full → leave the rest
             }
+        }
+
+        // A full backpack used to no-op silently (#751): nothing moved, nothing was sent, and the
+        // prompt kept showing the same count — indistinguishable from a dead key. Tell the player.
+        if (!took && leftover.Count > 0)
+        {
+            Reject(session, "loot", "@inventory_full");
+            return;
         }
 
         container.Items = leftover;

@@ -206,6 +206,15 @@ public sealed class SpaceInstance
 
     /// <summary>Entity id of the live bandit ship in this instance (empty = none yet/anymore).</summary>
     public string BanditShipId { get; set; } = string.Empty;
+
+    /// <summary>Throttle for streaming the raider's approach/leave movement (#756) — those phases run outside
+    /// <c>MoveSpaceHostiles</c> (the raider isn't hostile yet), so without this the ship froze between the
+    /// warp-in point and the hail and clients saw teleports instead of an approach.</summary>
+    public double BanditSyncTimer { get; set; }
+
+    /// <summary>Throttle for re-broadcasting remote-pilot poses (#756): <c>HandleShipMove</c> stores a pose but
+    /// never broadcast, so other players' ships only refreshed when a hostile or trader happened to move.</summary>
+    public double PilotSyncTimer { get; set; }
 }
 
 /// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
@@ -1428,6 +1437,16 @@ public sealed partial class GameServer
             // comply and it leaves, refuse and it fights (see GameServerBanditShips).
             TickBanditShips(instance, dt);
 
+            // Remote pilots (#756): HandleShipMove only STORES poses — without a periodic re-broadcast the
+            // other players' ships only refreshed when a hostile or trader happened to move (0 Hz in a
+            // quiet instance). Solo instances skip it; the pose data is theirs alone.
+            instance.PilotSyncTimer += dt;
+            if (instance.Players.Count > 1 && instance.PilotSyncTimer >= 0.2)
+            {
+                instance.PilotSyncTimer = 0;
+                BroadcastSpaceState(instance);
+            }
+
             float incoming = instance.Entities
                 .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
                 .Sum(e => e.DamagePerSecond);
@@ -1603,7 +1622,11 @@ public sealed partial class GameServer
             float tx, ty, tz;
             float moveSpeed;
             float maxStep = float.MaxValue;
-            if (distSq <= aggro * aggro && distSq > minDist * minDist)
+            // The hold band reaches 15 % past the stand-off ring (#756): chase vs hold used to flip at the
+            // exact ring every tick while the player's ship drifted, and each flip gated the movement
+            // broadcast — irregular update spacing the client rendered as stutter.
+            float holdSq = minDist * 1.15f * (minDist * 1.15f);
+            if (distSq <= aggro * aggro && distSq > holdSq)
             {
                 // Chase: head for the ship with a sideways weave (perpendicular sway) so the approach arcs.
                 float dist = (float)System.Math.Sqrt(distSq);
@@ -1614,9 +1637,9 @@ public sealed partial class GameServer
                 moveSpeed = speed;
                 maxStep = dist - minDist * 0.9f; // never overshoot past the stand-off ring (big-dt safe)
             }
-            else if (distSq <= minDist * minDist)
+            else if (distSq <= holdSq)
             {
-                continue; // at stand-off range — hold and let the weapon aura work
+                continue; // inside the stand-off hold band — hold and let the weapon aura work
             }
             else
             {
@@ -1629,15 +1652,18 @@ public sealed partial class GameServer
                 ty = py - e.Position.Y;
                 tz = pz - e.Position.Z;
                 float len = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
-                if (len < 0.5f)
+                if (len < 0.05f)
                 {
-                    continue; // already on the patrol ring
+                    continue; // exactly on the ring point — nothing to do this tick
                 }
 
                 tx /= len;
                 ty /= len;
                 tz /= len;
-                moveSpeed = speed * 0.45f;
+                // Ease toward the (moving) ring point instead of the old hard 0.5-block dead-zone (#756):
+                // catch-freeze-catch made every patroller stop-go by construction, 2–3 ticks at a time.
+                moveSpeed = speed * 0.45f * System.Math.Clamp(len / 3f, 0.15f, 1f);
+                maxStep = len; // never overshoot the ring point in one big-dt step
             }
 
             float norm = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);

@@ -59,7 +59,7 @@ TEXTURES = [
     ("frostmite", "a tiny pale fluffy round mite with short legs and frost crystals seen from above"),
     ("gasbag", "a tiny floating jellyfish-like alien creature with a round gas bladder and thin dangling tendrils"),
     ("sporedrifter", "a small softly glowing drifting alien spore with a luminous halo and tiny filaments"),
-    ("skyray", "a small manta-ray-like alien creature gliding with broad swept wings seen from above"),
+    # skyray retired (#752): replaced by the "wisp", which is painted procedurally (radial glow tile).
     ("sandskimmer", "a slender darting alien insect with long swept-back wings seen from the side"),
     ("glowplankton", "a tiny glowing plankton creature with a soft luminous translucent body"),
     ("cavemoth", "a fuzzy pale cave moth with broad rounded wings seen from above"),

@@ -40,7 +40,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _chip;
         private Text _chipText;
 
-        private readonly Queue<string> _queue = new Queue<string>();
+        private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
         private float _shown;     // characters revealed so far
         private float _holdLeft;  // auto-advance fallback once fully revealed
@@ -52,15 +52,12 @@ namespace BlocksBeyondTheStars.Client
         private int _page;
         private static readonly TextGenerator Measurer = new TextGenerator();
 
-        // First-spawn narrative prologue (#738): Kind-4 lines route into a full-screen overlay instead of
-        // the small panel; the normal speech queue waits until it closes.
-        private readonly Queue<string> _prologue = new Queue<string>();
-        private Canvas _prologueCanvas;
-        private GameObject _prologueOverlay;
-        private Text _prologueText;
-        private Text _prologueHint;
-        private string _prologueCurrent = string.Empty;
-        private float _prologueShown;
+        // First-spawn narrative prologue (#738, reworked in #754): Kind-4 lines run through the SAME speech
+        // panel as every other VEGA line (same measure, same paging, same user UI scale) — they used to get
+        // a bespoke full-screen dialog whose near-black plate read as "text across the whole screen". The
+        // only prologue extras now are a dim behind the panel and Esc-to-skip.
+        private Image _dim;
+        private bool _currentIsPrologue;
 
         private string _objectiveKey = string.Empty;
         private int _objProgress, _objTarget;
@@ -75,6 +72,12 @@ namespace BlocksBeyondTheStars.Client
             // every resolution. Subtitle-class text has to read while the eye is on the crosshair.
             _canvas = UiKit.CreateDiegeticCanvas("VegaPanel", UiKit.HudRefW, UiKit.HudRefH);
             _canvas.sortingOrder = 11; // just above HudUi (10) — a story line must never be occluded
+
+            // Prologue dim (#754): a soft full-screen shade BEHIND the speech panel while a Kind-4 story
+            // page is up, so the moment reads cinematic without a separate dialog stealing the layout.
+            _dim = UiKit.AddImage(_canvas.transform, 0, 0, UiKit.HudRefW, UiKit.HudRefH, UiKit.SolidSprite,
+                new Color(0f, 0f, 0f, 0.55f));
+            _dim.gameObject.SetActive(false);
 
             // Speech panel: left side above the vitals, out of the crosshair's way. VEGA gets a small
             // generated avatar chip beside her name (uGUI icon pass). Coordinates are in HUD reference
@@ -133,11 +136,7 @@ namespace BlocksBeyondTheStars.Client
                 _speech.SetActive(false);
             }
 
-            // The prologue overlay (#738) would otherwise hold every unattended capture run hostage on
-            // its first page — dismiss it exactly like the speech.
-            _prologue.Clear();
-            _prologueCurrent = string.Empty;
-            ClosePrologue();
+            SetPrologueChrome(false); // never hold an unattended capture run hostage on a story page
         }
 
         private void OnLine(ShipAiLine m)
@@ -149,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
             bool muted = m.Kind == 1 && Settings is { VegaHints: false };
             if (!string.IsNullOrEmpty(m.Text) && !muted)
             {
-                _queue.Enqueue(m.Text); // LLM-authored line (already in the player's language)
+                _queue.Enqueue((m.Text, false)); // LLM-authored line (already in the player's language)
             }
             else if (!string.IsNullOrEmpty(m.LineKey) && !muted)
             {
@@ -159,14 +158,9 @@ namespace BlocksBeyondTheStars.Client
                     text = string.Format(text, m.LineArg);
                 }
 
-                if (m.Kind == 4)
-                {
-                    _prologue.Enqueue(text); // first-spawn prologue page → full-screen overlay (#738)
-                }
-                else
-                {
-                    _queue.Enqueue(text);
-                }
+                // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
+                // paging, plus the dim + Esc-to-skip while one is showing.
+                _queue.Enqueue((text, m.Kind == 4));
             }
 
             Refresh();
@@ -212,7 +206,7 @@ namespace BlocksBeyondTheStars.Client
                 2 => "ui.reminder.break.again",
                 _ => "ui.reminder.break.long",
             };
-            _queue.Enqueue(L(key)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
+            _queue.Enqueue((L(key), false)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
         }
 
         /// <summary>True when the continue key should be ignored: the in-game menu is open, or a text
@@ -230,17 +224,13 @@ namespace BlocksBeyondTheStars.Client
 
             CheckPlaytimeReminder();
 
-            // The prologue overlay owns the screen (and the continue key) until it is done — the normal
-            // speech queue holds, so VEGA's intro lines follow seamlessly after the last prologue page.
-            if (UpdatePrologue())
-            {
-                return;
-            }
-
             if (_current.Length == 0 && _queue.Count > 0)
             {
+                var (text, prologue) = _queue.Dequeue();
+                _currentIsPrologue = prologue;
+                SetPrologueChrome(prologue);
                 _pages.Clear();
-                _pages.AddRange(SplitPages(_queue.Dequeue()));
+                _pages.AddRange(SplitPages(text));
                 _speech.SetActive(true);
                 ClientAudio.Instance?.Cue("ai_blip"); // VEGA's radio chirp
                 ShowPage(0);
@@ -253,6 +243,25 @@ namespace BlocksBeyondTheStars.Client
                     _speech.SetActive(false);
                 }
 
+                SetPrologueChrome(false);
+                _currentIsPrologue = false;
+                return;
+            }
+
+            // Esc skips the whole prologue (#754): drop the current story page and every queued one, so
+            // a returning player isn't forced through the narration again. Normal lines keep Esc for the menu.
+            if (_currentIsPrologue && Input.GetKeyDown(KeyCode.Escape) && !InputCaptured())
+            {
+                Game?.MarkMenuInputHandled(); // this Esc is spent here, whatever runs later this frame
+                while (_queue.Count > 0 && _queue.Peek().Prologue)
+                {
+                    _queue.Dequeue();
+                }
+
+                _current = string.Empty;
+                _pages.Clear();
+                _speechText.text = string.Empty;
+                _continueHint.gameObject.SetActive(false);
                 return;
             }
 
@@ -303,10 +312,32 @@ namespace BlocksBeyondTheStars.Client
         private void ShowContinueHint()
         {
             // Multi-page lines get a page indicator so "Continue" visibly means "next page", not "dismiss".
-            _continueHint.text = _pages.Count > 1
+            string hint = _pages.Count > 1
                 ? L("ui.vega.next") + "  " + string.Format(L("ui.vega.page"), _page + 1, _pages.Count)
                 : L("ui.vega.next");
+            if (_currentIsPrologue)
+            {
+                hint += "      " + L("ui.vega.prologue.skip"); // Esc skips the narration (#754)
+            }
+
+            _continueHint.text = hint;
             _continueHint.gameObject.SetActive(true);
+        }
+
+        /// <summary>Shows/hides the story-page chrome (#754): the dim behind the speech panel, and the
+        /// <see cref="GameBootstrap.VegaPrologueActive"/> flag AppShell checks so Esc skips the story
+        /// instead of opening the leave-game menu.</summary>
+        private void SetPrologueChrome(bool on)
+        {
+            if (_dim != null && _dim.gameObject.activeSelf != on)
+            {
+                _dim.gameObject.SetActive(on);
+            }
+
+            if (Game != null)
+            {
+                Game.VegaPrologueActive = on;
+            }
         }
 
         /// <summary>Splits a line into pages that fit the speech box, cutting only on wrap-line boundaries.
@@ -345,97 +376,6 @@ namespace BlocksBeyondTheStars.Client
             return pages;
         }
 
-        /// <summary>Drives the full-screen prologue overlay (#738). Returns true while it owns the screen.</summary>
-        private bool UpdatePrologue()
-        {
-            if (_prologueCurrent.Length == 0 && _prologue.Count > 0)
-            {
-                _prologueCurrent = _prologue.Dequeue();
-                _prologueShown = 0f;
-                EnsurePrologue();
-                _prologueOverlay.SetActive(true);
-                _prologueText.text = string.Empty;
-                _prologueHint.gameObject.SetActive(false);
-                if (Game != null)
-                {
-                    Game.VegaPrologueActive = true; // AppShell: this screen owns Esc, not "leave game"
-                }
-
-                ClientAudio.Instance?.Cue("ai_blip");
-            }
-
-            if (_prologueCurrent.Length == 0)
-            {
-                if (_prologueOverlay != null && _prologueOverlay.activeSelf)
-                {
-                    ClosePrologue();
-                }
-
-                return false;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Escape) && !InputCaptured())
-            {
-                Game?.MarkMenuInputHandled(); // this Esc is spent here, whatever runs later this frame
-                _prologue.Clear();
-                _prologueCurrent = string.Empty;
-                ClosePrologue();
-                return false;
-            }
-
-            bool pressed = Input.GetKeyDown(ContinueKey) && !InputCaptured();
-            if (_prologueShown < _prologueCurrent.Length)
-            {
-                _prologueShown = pressed
-                    ? _prologueCurrent.Length
-                    : Mathf.Min(_prologueCurrent.Length, _prologueShown + Time.deltaTime * CharsPerSecond);
-                _prologueText.text = _prologueCurrent.Substring(0, (int)_prologueShown);
-                if (_prologueShown >= _prologueCurrent.Length)
-                {
-                    _prologueHint.gameObject.SetActive(true);
-                }
-            }
-            else if (pressed)
-            {
-                _prologueCurrent = string.Empty; // next page — or the close on the next frame
-            }
-
-            return true;
-        }
-
-        private void EnsurePrologue()
-        {
-            if (_prologueCanvas != null)
-            {
-                return;
-            }
-
-            // Own full-screen canvas above the HUD/menu chrome but below the quit dialog (60) and the
-            // death prompt (85) — those must stay escapable on top of everything.
-            _prologueCanvas = UiKit.CreateCanvas("VegaPrologue", 1920f, 1080f);
-            _prologueCanvas.sortingOrder = 50;
-            var (overlay, panel) = UiKit.AddModalOverlay(_prologueCanvas.transform, 460f, 300f, 1000f, 480f);
-            _prologueOverlay = overlay;
-            _prologueText = UiKit.AddText(panel, 60f, 80f, 880f, 300f, string.Empty, 26, UiKit.TextCol, TextAnchor.UpperLeft);
-            _prologueText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _prologueHint = UiKit.AddText(panel, 60f, 410f, 880f, 30f,
-                L("ui.vega.next") + "      " + L("ui.vega.prologue.skip"), 18, UiKit.CyanDim, TextAnchor.MiddleRight);
-            _prologueOverlay.SetActive(false);
-        }
-
-        private void ClosePrologue()
-        {
-            if (_prologueOverlay != null)
-            {
-                _prologueOverlay.SetActive(false);
-            }
-
-            if (Game != null)
-            {
-                Game.VegaPrologueActive = false;
-            }
-        }
-
         private void OnDestroy()
         {
             if (Game?.Network != null)
@@ -443,17 +383,13 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.ShipAiLineReceived -= OnLine;
             }
 
+            SetPrologueChrome(false); // clears GameBootstrap.VegaPrologueActive with the rig teardown
+
             // The panel canvas is a root-level object (CreateDiegeticCanvas) — destroy it with the rig,
             // or the objective chip would keep floating over the main menu after leaving the world.
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
-            }
-
-            ClosePrologue(); // clears GameBootstrap.VegaPrologueActive with the rig teardown
-            if (_prologueCanvas != null)
-            {
-                Destroy(_prologueCanvas.gameObject);
             }
         }
     }

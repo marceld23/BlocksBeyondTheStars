@@ -53,7 +53,9 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class MicroFauna
     {
-        // Atlas tile indices == position in this array. Keep in sync with MicroFaunaAtlas (Cols×Rows must cover).
+        // Atlas tile indices == position in this array (exception: the wisp uses free tile 28 so its
+        // procedural glow never collides with bundled art). Keep in sync with MicroFaunaAtlas (Cols×Rows
+        // must cover) AND with the shared MicroFaunaCatalog key list the server validates scans against (#757).
         public static readonly CritterKind[] Kinds =
         {
             // --- flying (surface, by day) ---
@@ -110,8 +112,12 @@ namespace BlocksBeyondTheStars.Client
                 new[] { C(0xC8A8E8), C(0x9AD8D2), C(0xE8A8C4), C(0xB8D89A) }),
             new("sporedrifter", 23, CritterMotion.Drift, CritterTime.Night, true, 0.13f, 0.3f, true,
                 new[] { C(0xA8F26A), C(0x6AF2C4), C(0xC4F26A) }),
-            new("skyray", 24, CritterMotion.Fly, CritterTime.Day, false, 0.40f, 1.1f, false,
-                new[] { C(0x8AA2C2), C(0xC2B08A), C(0xB08AC2) }),
+            // The skyray's bat-like glider silhouette read poorly (#752) — replaced by the wisp, a small
+            // drifting light. Tile 28 has no bundled sprite on purpose: the atlas falls back to the
+            // procedural radial-glow tile, and the near-white palette lets the per-world hue
+            // (MicroFaunaView.RefreshPlanetSeed) own the colour.
+            new("wisp", 28, CritterMotion.Drift, CritterTime.Any, true, 0.14f, 0.6f, false,
+                new[] { C(0xF2F0E4) }),
             new("sandskimmer", 25, CritterMotion.Fly, CritterTime.Day, false, 0.16f, 3.4f, true,
                 new[] { C(0xD2B27A), C(0xC29A5A), C(0xE2C48A) }),
             new("glowplankton", 26, CritterMotion.Swim, CritterTime.Night, true, 0.09f, 0.8f, true,
@@ -186,6 +192,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!cold) AddFly("moth", 2);
                 if (lush) AddFly("firefly", 4); else if (!hot && !cold && !crystal) AddFly("firefly", 1);
+                if (!hot && !crystal) Add("wisp", lush ? 2 : 1); // the drifting light reads best after dark (#752)
                 if (lush) { Add("sporedrifter", 3); Add("gasbag", 1); }
                 if (ember) Add("embermite", 4);
                 if (crystal) Add("crystalbeetle", 2);
@@ -202,8 +209,8 @@ namespace BlocksBeyondTheStars.Client
                 if (lush) { AddFly("dragonfly", 2); AddFly("bee", 2); }
                 else if (!hot && !cold && !crystal) { AddFly("bee", 1); }
                 AddFly("fly", hot ? 3 : (cold ? 0 : 2));
-                if (lush) { AddFly("skyray", 1); Add("gasbag", 1); }
-                else if (!hot && !cold && !crystal) AddFly("skyray", 1);
+                if (lush) { Add("wisp", 1); Add("gasbag", 1); }
+                else if (!hot && !cold && !crystal) Add("wisp", 1); // a drifting light doesn't mind rain
                 if (crystal) { AddFly("prismwing", 4); Add("crystalbeetle", 2); }
                 if (ember) Add("ashhopper", 3);
                 if (desert) { AddFly("sandskimmer", 3); Add("ashhopper", 2); }

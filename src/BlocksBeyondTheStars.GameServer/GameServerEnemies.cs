@@ -418,6 +418,22 @@ public sealed partial class GameServer
             return false;
         }
 
+        // A machine never steps into a player's body (#749): the chase hold above only covers a live
+        // lock, so a roaming cruiser — or one whose target is cloaked/warded — would otherwise walk
+        // straight through the player. Chasers just wait at the ring; roamers re-roll their heading.
+        foreach (var s in targets)
+        {
+            if (WrapDistSq(s.State.Position, candidate) <= EnemyStopRange * EnemyStopRange)
+            {
+                if (intent == MoveMode.Roam)
+                {
+                    enemy.Loco.ModeTimer = 0f;
+                }
+
+                return false;
+            }
+        }
+
         enemy.Position = candidate;
         return res.Moving;
     }
