@@ -85,6 +85,35 @@ namespace BlocksBeyondTheStars.Client
             return ship;
         }
 
+        /// <summary>Every light-emitting cell of a sparse ship/structure grid, as the mesher's light-source
+        /// list. Ship hulls are meshed one 16³ chunk at a time, and without this list <see cref="ChunkMesher"/>
+        /// falls back to scanning only the chunk it is currently meshing — so a lamp stopped dead at whatever
+        /// chunk seam it happened to sit next to, cutting a big hull's lighting along arbitrary planes (#776).
+        /// The planet path solves the same problem with ClientWorld.LightSourcesNear. Shared by every ship
+        /// voxel-build path. Range culling happens inside the mesher, so the whole hull's list is fine.</summary>
+        public static List<(Vector3i Pos, int Rgb)> LightSources(GameContent content,
+            IEnumerable<KeyValuePair<Vector3i, BlockId>> cells,
+            Dictionary<Vector3i, (int Tint, int Glow)> mods = null)
+        {
+            var lights = new List<(Vector3i Pos, int Rgb)>();
+            if (content == null || cells == null)
+            {
+                return lights;
+            }
+
+            foreach (var kv in cells)
+            {
+                int glow = mods != null && mods.TryGetValue(kv.Key, out var m) ? m.Glow : 0;
+                int rgb = ChunkMesher.BlockLightColor(content, kv.Value, glow);
+                if (rgb != 0)
+                {
+                    lights.Add((kv.Key, rgb));
+                }
+            }
+
+            return lights;
+        }
+
         /// <summary>Writes a cell's authored dye/glow + shape into a chunk so the shared mesher renders them
         /// (no-op for cells without modifiers). Shared by every ship/structure voxel-build path.</summary>
         public static void ApplyMods(ChunkData chunk, int lx, int ly, int lz, Vector3i worldCell,
@@ -123,6 +152,7 @@ namespace BlocksBeyondTheStars.Client
             System.Func<int, int, int, int> WorldShape = shapes == null ? null
                 : (x, y, z) => shapes.TryGetValue(new Vector3i(x, y, z), out var s) ? s : 0;
 
+            var lights = LightSources(content, cells, mods);
             int cs = WorldConstants.ChunkSize;
             int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
             var mats = chunkMatTransparent != null
@@ -149,7 +179,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, collider) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint, worldShape: WorldShape);
+                var (mesh, collider) = ChunkMesher.Build(chunk, content, WorldBlock, atlas, paintTint: paint, lights: lights, worldShape: WorldShape);
                 if (collider != null)
                 {
                     Object.Destroy(collider); // display-only build — the cooked collider mesh is never used (#423)

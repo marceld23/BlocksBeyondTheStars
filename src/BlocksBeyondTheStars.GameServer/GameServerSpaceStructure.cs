@@ -343,13 +343,15 @@ public sealed partial class GameServer
         return s;
     }
 
-    /// <summary>Common ship-structure finish: paints the per-room floor accents, snapshots the protected
-    /// design baseline (hull + modules — never minable on foot), then (for a player's own ship) applies the
-    /// player's persisted edits on top (added blocks; in-space EVA hull repairs/removals). NPC trader ships
-    /// pass <paramref name="persistEdits"/> = false: they have no owner and no per-cell deltas to load.</summary>
+    /// <summary>Common ship-structure finish: paints the per-room floor accents, hangs the per-room ceiling
+    /// lamps, snapshots the protected design baseline (hull + modules — never minable on foot), then (for a
+    /// player's own ship) applies the player's persisted edits on top (added blocks; in-space EVA hull
+    /// repairs/removals). NPC trader ships pass <paramref name="persistEdits"/> = false: they have no owner
+    /// and no per-cell deltas to load.</summary>
     private void FinishShipStructure(SpaceStructure s, bool persistEdits = true)
     {
         PaintStructureAccents(s);
+        PlaceInteriorLights(s);
         s.Baseline.Clear();
         s.Baseline.UnionWith(s.Cells.Keys);
         if (persistEdits)
@@ -389,6 +391,45 @@ public sealed partial class GameServer
                         s.Set(p, accent.NumericId);
                     }
                 }
+        }
+    }
+
+    /// <summary>Interior lighting pass: hangs a ceiling lamp over every station marker, so each room of a
+    /// multi-room ship carries its own light source. Before this, NO authored layout held a single interior
+    /// light — every light cell in the layouts is an exterior nav light — and a room only looked lit where
+    /// that nav-light glow happened to bleed in through a window (glass passes the mesher's propagated block
+    /// light), which is why the Hammerhead's bridge was lit and its rear compartments were not (#776).
+    /// Station cells are the ship's room anchors (the accent pass above keys off the same list), so this
+    /// covers every authored layout, the code-box starter hull and any ship a player builds in the editor,
+    /// without touching the hand-tuned layout JSON. Only ever fills AIR: hull, cargo and stations stay put.</summary>
+    private void PlaceInteriorLights(SpaceStructure s)
+    {
+        if (_content.GetBlock("light_white") is not { } lamp)
+        {
+            return;
+        }
+
+        const int MaxRoomHeight = 8; // bounds the ceiling scan on an open-topped or malformed hull
+
+        foreach (var (_, cell) in s.StationCells)
+        {
+            // Scan up to this room's ceiling and hang the lamp in the air cell right below it. Scanning beats
+            // using the structure height: it stays correct under a low wing, a raised canopy or a second deck.
+            int y = cell.Y;
+            while (y < cell.Y + MaxRoomHeight && s.Get(new Vector3i(cell.X, y + 1, cell.Z)).IsAir)
+            {
+                y++;
+            }
+
+            // Needs real headroom: the player capsule is 1.88 m, so a lamp at the station's own head height
+            // would sit in the walkway. A room that low simply keeps the flat indoor fill instead.
+            var lampCell = new Vector3i(cell.X, y, cell.Z);
+            if (y <= cell.Y + 1 || !s.Get(lampCell).IsAir)
+            {
+                continue;
+            }
+
+            s.Set(lampCell, lamp.NumericId);
         }
     }
 

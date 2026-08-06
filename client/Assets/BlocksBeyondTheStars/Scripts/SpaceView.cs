@@ -3146,6 +3146,8 @@ namespace BlocksBeyondTheStars.Client
             System.Func<int, int, int, int> WorldShape = shapes == null ? null
                 : (x, y, z) => shapes.TryGetValue(new Vector3i(x, y, z), out var s) ? s : 0;
 
+            // The whole hull's lamps, so lighting carries across this hull's chunk seams (#776).
+            var lights = ShipMeshBuilder.LightSources(Game.Content, cells, mods);
             int cs = WorldConstants.ChunkSize;
             int FloorDiv(int a, int b) => (a >= 0 ? a : a - (b - 1)) / b;
             var mats = Game.ChunkMaterialTransparent != null
@@ -3172,7 +3174,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint, worldShape: WorldShape);
+                var (mesh, collider) = ChunkMesher.Build(chunk, Game.Content, WorldBlock, Game.Atlas, paintTint: paint, lights: lights, worldShape: WorldShape);
                 if (mesh.vertexCount == 0)
                 {
                     continue;

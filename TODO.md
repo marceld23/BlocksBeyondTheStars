@@ -7148,6 +7148,44 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-06): every room of every ship is lit (#776)
+
+Ships with more than one room were only lit in some of their rooms — on the Hammerhead the bridge was
+lit while the rear and side compartments stayed dark, and the Courier, Thunderbolt, Deathblock and
+Hauler interiors got no block light at all.
+
+**Root cause was the data, not the renderer.** Not one of the seven authored layouts held a single
+interior light: every `light*` cell in `data/ship_layouts/*.json` sits *outside* the hull as a
+navigation light. Real interior lighting existed only on the starter ship, which has no layout and is
+built as a code box. What made *some* rooms look lit was an accident — the mesher's light flood-fill
+is stopped by opaque blocks but passes through glass, so exterior nav lights bled inside wherever a
+window happened to be near one. Simulating that fill over each layout put eye-level interior coverage
+at 83 % (corvette) and 59 % (scout), 43 % on the hammerhead (bow only) and **0 %** on the courier,
+thunderbolt, deathblock and hauler. Everything else the interior got was the flat, directionless
+`_Sc_Indoor` shader fill, and windows never helped: `ChunkMesher.Top()` counts glass as blocking, so
+interior skylight is ~0 by construction.
+
+**Ceiling lamps per room, procedurally.** `FinishShipStructure` now runs `PlaceInteriorLights`
+alongside the existing `PaintStructureAccents` room pass: it hangs a `light_white` in the air cell
+below each station's ceiling. Station cells are the ship's room anchors — the accent pass keys off the
+same list — so this lights every authored layout, the code-box starter hull and any ship a player
+builds in the editor, without touching the hand-tuned layout JSON. It scans up to the ceiling rather
+than trusting the structure height (correct under a low wing or a raised canopy), only ever fills AIR,
+and skips a room too low to keep the 1.88 m walkway clear.
+
+**Second, independent defect: light did not cross ship chunk seams.** Ship hulls mesh one 16³ chunk at
+a time and called `ChunkMesher.Build` *without* a light-source list, so the mesher fell back to
+scanning only the chunk it was meshing — a lamp stopped dead at whatever seam it sat next to, cutting a
+14×15 hull's lighting along arbitrary planes. New shared `ShipMeshBuilder.LightSources` collects the
+whole hull's emitters, and the landed/walkable ship, the flight-view hull and the preview/transit build
+all pass it (range culling already happens inside the mesher). The planet path solved this long ago via
+`ClientWorld.LightSourcesNear`; the ship paths never did. The speeder is deliberately left alone — it is
+a single-chunk open hull with no interior.
+
+New `ShipInteriorLightingTests` guards both halves: a theory over all seven layouts plus the code box
+asserts every station's room carries a lamp, and a hammerhead fact asserts the walkway above each
+station stays clear and the formerly dark flanking rooms are lit.
+
 ## ✅ Done (2026-08-06): glitch.fun can be redeployed without cutting a release
 
 Until now the store build could only be refreshed by tagging a version: the upload lives in
