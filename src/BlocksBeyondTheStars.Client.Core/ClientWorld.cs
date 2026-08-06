@@ -112,15 +112,26 @@ namespace BlocksBeyondTheStars.Client
 
         public BlockId GetBlock(int wx, int wy, int wz)
         {
+            TryGetBlock(wx, wy, wz, out var block);
+            return block;
+        }
+
+        /// <summary>Like <see cref="GetBlock"/> but reports whether the cell's chunk has actually been
+        /// streamed: false = unknown (chunk not loaded), with <paramref name="block"/> = air. For callers
+        /// that must not mistake not-yet-streamed terrain for open space (the prologue stage scan).</summary>
+        public bool TryGetBlock(int wx, int wy, int wz, out BlockId block)
+        {
             var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), _circumference);
             var coord = WorldConstants.WorldToChunk(pos);
             if (!_chunks.TryGetValue(coord, out var chunk))
             {
-                return BlockId.Air;
+                block = BlockId.Air;
+                return false;
             }
 
             var local = WorldConstants.WorldToLocal(pos);
-            return chunk.Get(local.X, local.Y, local.Z);
+            block = chunk.Get(local.X, local.Y, local.Z);
+            return true;
         }
 
         /// <summary>The packed shape descriptor (non-cube building form + orientation; 0 = plain cube) at a

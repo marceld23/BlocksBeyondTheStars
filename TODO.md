@@ -7148,6 +7148,26 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-06): prologue orbit camera no longer clips through terrain (#777)
+
+The first-spawn VEGA prologue orbited the camera around the landed ship on a blind parametric
+circle (radius 24→16, height 7–9, start angle `PlayerYaw + 160°`). A ship parked against a
+mountainside put part of that ring — sometimes the very first frame — inside the slope; voxel
+backfaces aren't rendered, so the player looked straight through the hill.
+
+**Terrain-aware staging** — new Unity-free `CinematicStageScan` (Client.Core, plain .NET tests):
+half-block line marches, camera spot clearance (cell + horizontal neighbours + above; ground below
+is fine) and a widest-clear-arc search over a 72-sample orbit ring. `PrologueCinematic.Begin()` now
+scans the ring first and picks the shot the terrain can carry: the classic orbit at height 7, else
+raised (12/18), restricted to the widest open arc when the full circle is blocked — the orbit then
+**ping-pongs across the open side** instead of passing through the mountain. Ships in craters get a
+high crane shot; no clear staging at all falls back to the pre-existing dim + panel prologue.
+A per-frame line-of-sight net (pull levels trading radius for height, smoothed so corrections read
+as camera moves) guards against late-streamed chunks and the page-2 push-in. Unloaded chunks count
+as **blocked** — `ClientWorld` grew `TryGetBlock` so the scan can tell "not streamed" from "air"
+(`GetBlock` still reads air, unchanged for existing callers). The landed ship's own hull is not part
+of the world grid, so the ship never occludes its own shot.
+
 ## ✅ Done (2026-08-06): glitch.fun can be redeployed without cutting a release
 
 Until now the store build could only be refreshed by tagging a version: the upload lives in
