@@ -1393,6 +1393,21 @@ public sealed partial class GameServer
     public IReadOnlyCollection<string> SettlementMissionIds
         => _settlements.SelectMany(s => s.MissionIds).ToHashSet();
 
+    /// <summary>Test hook: a cell inside the protected volume of the first intact settlement (null when this
+    /// world has none) — so protection can be asserted against a known-protected position.</summary>
+    public Vector3i? ProtectedSettlementCellForTest()
+    {
+        foreach (var s in _settlements)
+        {
+            if (!s.Ruined)
+            {
+                return new Vector3i((s.Min.X + s.Max.X) / 2, (s.Min.Y + s.Max.Y) / 2, (s.Min.Z + s.Max.Z) / 2);
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>
     public bool IsSettlementBlock(Vector3i pos)
     {

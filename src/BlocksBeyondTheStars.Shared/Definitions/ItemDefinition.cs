@@ -31,6 +31,11 @@ public sealed class ToolProperties
     /// <summary>Minimum seconds between uses/swings of this tool/weapon (e.g. a machete swings at most once per
     /// 1.5s). 0 = no time cooldown (energy-free melee weapons fall back to the server's default melee cooldown).</summary>
     public float CooldownSeconds { get; set; }
+
+    /// <summary>Whether a shot from this weapon sets flammable terrain alight (#788) — the energy weapons
+    /// (laser/plasma) do; kinetic ones (scrap/gauss) don't. A shot that hits no entity then carries its
+    /// impact cell to the server, which ignites it if the block burns and isn't protected.</summary>
+    public bool Ignites { get; set; }
 }
 
 /// <summary>

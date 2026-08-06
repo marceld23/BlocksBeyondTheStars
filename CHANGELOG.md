@@ -13,6 +13,27 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🔥 Fire you can start — and put out (#784–#791)
+
+- **Light it.** Swing a **torch** at a plant, a log or leaves and it catches. So does a shot from a
+  **laser pistol or plasma blaster** — energy weapons set flammable terrain alight, kinetic ones
+  (scrap/gauss pistol) don't. Until now the only fire in the game came from flowing lava.
+- **Put it out.** Hit a flame and you stamp it out; you no longer need a bucket of water to fight a
+  fire. **Rain and storms** douse fires under open sky — but a fire under a roof or in a cave keeps
+  burning, and the ash-rain of a lava world won't help you at all. While rain falls on it, wet
+  vegetation refuses to catch in the first place.
+- **Fires stay fires, not wildfires.** Flames now creep and fray instead of advancing as a perfect
+  wave, and a single fire only spreads so far from where it started — a forest burns, a continent
+  doesn't.
+- **Nothing you built can burn.** Ships, settlements, stations, factories and claimed bases never
+  catch fire. Village greenhouses — wooden frames full of crops — could previously be burned down by
+  a splash of lava.
+- **The right things burn now.** Pine needles, palm fronds and mushrooms went up in smoke before…
+  except they didn't: a burning pine kept its canopy, while kelp and coral burned underwater.
+  Flammability is data-driven now, and it matches what you'd expect.
+- **Fires survive a save.** Reloading a world mid-fire used to leave flames that burned forever
+  without ever turning to ash. They now burn down exactly where they left off.
+
 ## [2026.8.6] — 2026-08-06
 
 The lights-on release: a focused round of fixes. Every ship room is actually lit now — the

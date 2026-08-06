@@ -958,6 +958,13 @@ namespace BlocksBeyondTheStars.Client
                 return Localizer?.Get("ui.loot.out_of_reach") ?? "The cache is out of reach — move closer.";
             }
 
+            if (reason == "@fire_protected")
+            {
+                // A torch against a settlement / station / ship / claimed base: those never catch fire.
+                return Localizer?.Get("ui.fire.protected")
+                    ?? "This is protected — it will not catch fire.";
+            }
+
             return $"{action}: {reason}";
         }
 

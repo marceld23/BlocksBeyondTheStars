@@ -274,6 +274,18 @@ public sealed class AttackEntityIntent
     public float DirZ { get; set; }
 }
 
+/// <summary>Client's shot hit terrain instead of an entity, with a weapon that sets things alight (#788).
+/// Carries the impact cell so the server can ignite it — a normal attack intent has no block coordinate, so
+/// without this a shot at a tree was a purely cosmetic client-side particle. The server re-validates the
+/// weapon, the range and the suit-energy cost, and ignition itself still runs the flammable + protection
+/// guards, so a spoofed cell can at worst light a plant the player could have torched by hand.</summary>
+public sealed class ShootBlockIntent
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+}
+
 /// <summary>Client eats/uses a consumable item (food heals, poison harms). The server applies it.</summary>
 public sealed class ConsumeItemIntent
 {

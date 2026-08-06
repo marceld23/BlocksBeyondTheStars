@@ -801,6 +801,7 @@
   "ui.craft.inventory_full": "No room for the result — make space in your inventory first.",
   "ui.mine.inventory_full": "Inventory full — make space before you mine more.",
   "ui.place.no_air": "There is no air here — a torch only burns on worlds with an atmosphere.",
+  "ui.fire.protected": "This is protected — it will not catch fire.",
   "ui.spawn.set": "Spawn point set — you'll respawn here from now on.",
   "ui.craft.go_to_workshop": "Go to the workshop to craft.",
   "ui.craft.go_to_factory": "Use a factory terminal that makes this.",

@@ -94,6 +94,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int Cx, int Cy, int Cz), List<(string Planet, int X, int Y, int Z)>> _blockEditsByChunk = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _flora = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (byte Level, bool Falling)> _fluidCells = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), (double Remaining, int Generation)> _fireCells = new();
     private readonly Dictionary<string, string> _players = new();       // id → PlayerSnapshot JSON
     private readonly Dictionary<string, string> _ships = new();         // id → ShipSnapshot JSON
     private readonly Dictionary<string, string> _containers = new();    // id → StoredContainer JSON
@@ -603,6 +604,35 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _fluidCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    // ---------------- Burning cells (#784) ----------------
+
+    public void SaveFireCell(string planet, Vector3i worldPosition, double remaining, int generation)
+    {
+        lock (_gate)
+        {
+            _fireCells[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (remaining, generation);
+        }
+    }
+
+    public IReadOnlyList<StoredFireCell> ListFireCells(string planet)
+    {
+        lock (_gate)
+        {
+            return _fireCells
+                .Where(kv => kv.Key.Planet == planet)
+                .Select(kv => new StoredFireCell(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Remaining, kv.Value.Generation))
+                .ToList();
+        }
+    }
+
+    public void DeleteFireCell(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            _fireCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
 

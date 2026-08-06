@@ -116,6 +116,8 @@ internal sealed class LoadedWorld
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)
     public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)
     public HashSet<Vector3i> ActiveFire { get; } = new();
+    public Dictionary<Vector3i, int> FireGeneration { get; } = new(); // burning cells → hops from the ignition point (#791)
+    public System.Random FireRng { get; set; } = new(1); // seeded per world: spread rolls + rain dousing (#791/#789)
     public List<GameServer.LandingPad> LandingPads { get; } = new(); // fixed, map-planned landing pads (item 38)
     public List<StoredContainer> Containers { get; } = new();
 

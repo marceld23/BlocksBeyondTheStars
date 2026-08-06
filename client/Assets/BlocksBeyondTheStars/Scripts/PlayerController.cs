@@ -499,6 +499,13 @@ namespace BlocksBeyondTheStars.Client
                 Game.LastShotTargetId = targetId;
                 Game.LastShotTime = Time.time;
             }
+            else if (!melee && heldTool != null && heldTool.Ignites
+                     && TerrainHit(ct.position, ct.forward, reach, out var burnCell, out _))
+            {
+                // A laser/plasma bolt that hits terrain instead of a creature can set it alight (#788). Only
+                // the impact cell travels; the server decides whether anything actually burns there.
+                Game.Network.SendShootBlock(burnCell.x, burnCell.y, burnCell.z);
+            }
 
             if (Weapons != null && Camera != null)
             {
@@ -626,10 +633,18 @@ namespace BlocksBeyondTheStars.Client
         /// <see cref="AimBlock"/>, but with a caller-chosen range — weapon range exceeds block reach).
         /// Fluids are passed through, matching the block-aim behaviour.</summary>
         private float TerrainDistance(Vector3 o, Vector3 dir, float maxDist)
+            => TerrainHit(o, dir, maxDist, out _, out float dist) ? dist : maxDist;
+
+        /// <summary>The first solid terrain cell along the aim ray within <paramref name="maxDist"/>, and how
+        /// far along the ray it sits. Used for the miss tracer's endpoint and, for an igniting weapon, as the
+        /// cell a missed shot sets alight (#788).</summary>
+        private bool TerrainHit(Vector3 o, Vector3 dir, float maxDist, out Vector3Int cell, out float distance)
         {
+            cell = default;
+            distance = maxDist;
             if (Game?.World == null)
             {
-                return maxDist;
+                return false;
             }
 
             int x = Mathf.FloorToInt(o.x), y = Mathf.FloorToInt(o.y), z = Mathf.FloorToInt(o.z);
@@ -647,7 +662,9 @@ namespace BlocksBeyondTheStars.Client
                 var id = Game.World.GetBlock(x, y, z);
                 if (!id.IsAir && !IsFluidBlock(id))
                 {
-                    return t;
+                    cell = new Vector3Int(x, y, z);
+                    distance = t;
+                    return true;
                 }
 
                 if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
@@ -655,7 +672,7 @@ namespace BlocksBeyondTheStars.Client
                 else { z += sz; t = tMaxZ; tMaxZ += invz; }
             }
 
-            return maxDist;
+            return false;
         }
 
         /// <summary>Ray-vs-sphere with the hit reported at the centre plane — plenty for ordering targets

@@ -802,6 +802,7 @@
   "ui.craft.inventory_full": "Kein Platz für das Ergebnis — mach erst Platz im Inventar.",
   "ui.mine.inventory_full": "Inventar voll — mach Platz, bevor du weiter abbaust.",
   "ui.place.no_air": "Hier gibt es keine Luft — eine Fackel brennt nur auf Welten mit Atmosphäre.",
+  "ui.fire.protected": "Das ist geschützt — es fängt kein Feuer.",
   "ui.spawn.set": "Spawnpunkt gesetzt — ab jetzt erwachst du hier.",
   "ui.craft.go_to_workshop": "Geh zur Werkstatt zum Herstellen.",
   "ui.craft.go_to_factory": "Nutze ein Fabrikterminal, das dies herstellt.",

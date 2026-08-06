@@ -182,6 +182,24 @@ public readonly struct StoredFluidCell
     }
 }
 
+/// <summary>A persisted <b>burning</b> cell: how much burn time it has left and how many hops of spread it is
+/// from the fire's origin. Persisted for the same reason fluid levels are (#784): the <c>fire</c> block itself
+/// survives a restart as a block edit, so without this row a burning cell reloads untracked — a permanent,
+/// inert flame that never turns to ash yet still burns whoever stands in it.</summary>
+public readonly struct StoredFireCell
+{
+    public readonly Vector3i WorldPosition;
+    public readonly double Remaining;
+    public readonly int Generation;
+
+    public StoredFireCell(Vector3i worldPosition, double remaining, int generation)
+    {
+        WorldPosition = worldPosition;
+        Remaining = remaining;
+        Generation = generation;
+    }
+}
+
 /// <summary>
 /// Abstraction over savegame persistence. SQLite remains the portable default; PostgreSQL is available
 /// for hosted dedicated servers that need managed storage and easier cloud operations.
@@ -240,6 +258,16 @@ public interface IWorldRepository : IDisposable
     /// <summary>Removes a flowing fluid cell's level state (it dried up, settled into a source, or its block
     /// was replaced).</summary>
     void DeleteFluidCell(string planet, Vector3i worldPosition);
+
+    /// <summary>Stores (inserts or replaces) a burning cell's remaining burn time + spread generation.</summary>
+    void SaveFireCell(string planet, Vector3i worldPosition, double remaining, int generation);
+
+    /// <summary>Lists all burning cells on a planet (restored into the fire automaton on world load, so a
+    /// restart doesn't strand them as permanent flames).</summary>
+    IReadOnlyList<StoredFireCell> ListFireCells(string planet);
+
+    /// <summary>Removes a burning cell's state (it burned out, was doused, or its block was replaced).</summary>
+    void DeleteFireCell(string planet, Vector3i worldPosition);
 
     PlayerState? LoadPlayer(string playerId);
     void SavePlayer(PlayerState player);

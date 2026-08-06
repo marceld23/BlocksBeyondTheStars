@@ -351,6 +351,12 @@ namespace BlocksBeyondTheStars.Client
         public void SendAttackEntity(string entityId, Vector3f dir = default)
             => Send(new AttackEntityIntent { EntityId = entityId, DirX = dir.X, DirY = dir.Y, DirZ = dir.Z });
 
+        /// <summary>Reports a shot that hit terrain instead of an entity (#788), so an igniting weapon
+        /// (laser/plasma) can set the block alight. Only sent for weapons that ignite — every other miss
+        /// stays a purely cosmetic tracer.</summary>
+        public void SendShootBlock(int x, int y, int z)
+            => Send(new ShootBlockIntent { X = x, Y = y, Z = z });
+
         /// <summary>Asks the server to save the world + players to disk now (explicit save).</summary>
         public void SendSaveGame() => Send(new SaveGameIntent());
 

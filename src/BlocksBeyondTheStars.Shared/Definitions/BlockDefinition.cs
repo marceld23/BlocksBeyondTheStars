@@ -65,6 +65,15 @@ public sealed class BlockDefinition
     public bool Tintable { get; set; }
 
     /// <summary>
+    /// Whether this block catches fire (#785). Set in <c>data/blocks.json</c> for plants, wood and leaves.
+    /// Ground cover (grass, alien grass, mycelium) is deliberately NOT flammable, so a brush fire can't run
+    /// away across a whole biome, and neither are aquatic plants (kelp, seagrass, coral, water lilies).
+    /// Replaces the old key-prefix rule, which missed pine needles, palm fronds and mushrooms — a burning
+    /// pine kept its canopy — while setting underwater kelp alight.
+    /// </summary>
+    public bool Flammable { get; set; }
+
+    /// <summary>
     /// Whether the player may re-form this block into another shape (the always-available "Shape" crafting
     /// action — spheres, ramps, pyramids, …). Restricted to the same plain building/terrain materials as
     /// <see cref="Tintable"/>; machines, doors, glass, flora, fluids and light blocks are excluded because a

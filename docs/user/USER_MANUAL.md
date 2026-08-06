@@ -183,7 +183,8 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Survival
 - **Health** (max 100): regenerates aboard ship / in breathable air; drained by suffocation (−5/s at 0
-  oxygen), lava (−15/s, reduced by armor), and starvation (−3/s at 0 hunger). At 0 → death (see below).
+  oxygen), lava (−15/s, reduced by armor), fire (−10/s, reduced by armor), and starvation (−3/s at 0
+  hunger). At 0 → death (see below).
 - **Oxygen** (max 100 + tank bonuses): refills aboard ship / on breathable worlds; drains outside on
   toxic/airless worlds. An `oxygen_extractor` cuts the drain on extractable atmospheres.
 - **Hunger** (max 100): drains off-ship; below ~15 the suit auto-eats stored/loose rations.
@@ -211,6 +212,23 @@ separate unlock; admins can still disable it through server world rules.
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
   waking at your ship's medbay or at that home (ship is always the fallback if the home is gone).
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
+
+### Fire
+- **What burns:** plants, wood and leaves. Grass and the ground itself never catch, so a fire stays in
+  the vegetation it started in — and aquatic plants (kelp, seagrass, coral, water lilies) don't burn at
+  all. A burnt block leaves **ash** (collect 64 of it to compact into matter dust).
+- **Starting one:** hit something flammable with a lit **torch**, shoot it with a **laser pistol** or
+  **plasma blaster** (kinetic guns like the scrap or gauss pistol won't ignite anything), or let flowing
+  **lava** touch it. Standing in fire hurts (−10/s), so light it and step back.
+- **Putting it out:** **hit the flame** to stamp it out, or place **water** next to it. **Rain and
+  storms** put out fires under open sky by themselves — but not one burning under a roof or in a cave,
+  and the ash-rain of a hot lava world does nothing. While rain is falling on it, wet vegetation won't
+  catch at all.
+- **It won't burn down the world:** fire creeps rather than sweeping, and stops spreading a limited
+  distance from where it was lit. Nothing built is at risk — ships, settlements, stations, factories and
+  claimed bases never catch fire, including a village's wooden greenhouse.
+- **Warmth:** an open fire is a heat source on a cold world (see the temperature rules above) — a
+  deliberate campfire is a real survival tool, not just a hazard.
 
 ### Swimming & diving
 - Water is not solid: you sink in with gentle buoyancy and **dive**; hold **Space** to swim up and

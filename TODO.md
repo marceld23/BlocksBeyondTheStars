@@ -103,6 +103,35 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Fire you can start and put out: torch + laser ignition, rain dousing, protected structures (#784–#791, 2026-08-06, branch feat/fire-ignition-extinguishing)
+Fire existed since item 30 but had exactly one ignition source (flowing lava) and one counter-play
+(place water). It is now a full loop, and the three bugs underneath it are fixed.
+**Ignition:** swinging a **torch** at a flammable block lights it (hook in `HandleMine` before the
+mineability/tool rejects, since a torch must light what it cannot mine; the torch is not consumed), and a
+shot from an **igniting energy weapon** (`laser_pistol`, `plasma_blaster` — new `ToolProperties.Ignites`
+flag in data) does too. The latter needed a protocol addition: a weapon shot that hits terrain never
+reached the server at all (`AttackEntityIntent` carries an entity id, nothing else), so a missed shot was
+a pure client particle. New `ShootBlockIntent` (NetCodec tag 48) carries the impact cell the client already
+ray-marches for its tracer; the server re-validates weapon, range, cooldown and suit-energy exactly like a
+shot at a creature. **Extinguishing:** hitting a flame stamps it out (fire is `mineable:false`, so the swing
+used to be rejected outright), and rain/storms douse **sky-exposed** cells (server-side column scan with
+`GetBlockIfLoaded`, so a campfire under a roof or in a cave keeps burning; ash-rain on lava worlds and
+sandstorms deliberately don't count as water). While it rains on an open cell, fresh ignition is suppressed
+— soaked fuel, cheaper than modelling wetness. ⚠ Design catch found by a failing test: `BiomeWeatherAt`
+shifts world weather by up to +2 per biome, so keying off it alone made ~25 % of biomes permanently "rain"
+and fire impossible there; the world-level state is now the gate and the biome offset only decides who
+escapes a passing storm. **Spread limits** (#791): spread is a per-step roll (0.5) instead of a
+deterministic wave, each cell carries its hop count from the ignition point and stops propagating past 16,
+and a 2000-cell per-world cap backstops the frontier. **Bugs fixed:** burn timers are now persisted
+(`fire_cell` table in all three repositories + `LoadFireState`) — a restart mid-fire used to strand
+permanent, inert flames that never became ash yet still burned anyone standing in them (the #657 failure
+mode); flammability moved from a `flora_` key-prefix test to a data flag (`BlockDefinition.Flammable`,
+43 blocks), which fixes pine needles / palm fronds / mushrooms never burning while underwater kelp, coral
+and lilies did; and `Ignite` now runs the terrain blaster's protection chain, so ships, settlements,
+stations, factories and claimed bases never catch fire — village greenhouses are wood frames full of crops
+and were burnable by a splash of lava, which player-triggered ignition would have turned into trivial
+griefing. New key `ui.fire.protected` (DE+EN). Tests: 15 new in `FireTests` (20 total).
+
 ### ★ A base always has air: the Grundstein projects a life-support field over its zone (#782, 2026-08-06, branch feat/base-oxygen)
 Founded bases now breathe. The oxygen loop's life-support boolean (ship cabin / boarded station /
 `OxygenEnabled` off) gains a fourth source: standing inside ANY founded base's protection cube

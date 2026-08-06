@@ -390,6 +390,15 @@ public sealed partial class GameServer
         return (state, IntensityOf(state));
     }
 
+    /// <summary>Test hook: forces this world's weather (and unlocks dynamic mode so the per-biome shift
+    /// applies), for asserting weather-driven behaviour like rain dousing fire (#789).</summary>
+    public void SetWeatherForTest(string state)
+    {
+        _planetWeatherMode = "dynamic";
+        _weatherState = state;
+        _weatherIntensity = IntensityOf(state);
+    }
+
     /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world.</summary>
     private int BiomeWeatherOffset(int biomeIdx)
     {

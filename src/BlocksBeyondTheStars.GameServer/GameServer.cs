@@ -528,6 +528,7 @@ public sealed partial class GameServer
             InitFluids();
             LoadFluidState(); // #657: restore flowing cells so a restart doesn't promote them to sources
             InitFire();
+            LoadFireState(); // #784: restore burn timers so a restart doesn't strand permanent, inert flames
             InitCreatures();
             LoadContainers();
 
@@ -2200,6 +2201,7 @@ public sealed partial class GameServer
             case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;
             case FireWeaponIntent fire: HandleFireWeapon(session, fire); break;
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
+            case ShootBlockIntent shot: HandleShootBlock(session, shot); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
@@ -2904,6 +2906,14 @@ public sealed partial class GameServer
             // reports (a SetBlock somewhere that skipped its broadcast).
             ResyncStaleChunk(session, pos);
             _log.Warn($"Ghost block healed at {pos.X},{pos.Y},{pos.Z} for '{session.State.Name}' (client saw a block, server has air).");
+            return;
+        }
+
+        // Hitting a flame stamps it out (#790), and swinging a torch at something flammable sets it alight
+        // (#786). Both come BEFORE the protection and mineability checks: fire is not a mineable block, and a
+        // torch must be able to light plants it could never mine. Ignition runs its own protection chain.
+        if (TryStampOutFire(session, pos, current.Value) || TryTorchIgnite(session, pos, current.Value))
+        {
             return;
         }
 

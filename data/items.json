@@ -93,8 +93,8 @@
   { "key": "vibro_knife",    "nameKey": "item.vibro_knife.name",    "category": "tool", "maxStack": 1,    "descriptionKey": "item.vibro_knife.desc",    "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 0.3, "damage": 45, "range": 3.5, "cooldownSeconds": 1.0 } },
   { "key": "plasma_sword",   "nameKey": "item.plasma_sword.name",   "category": "tool", "maxStack": 1,    "descriptionKey": "item.plasma_sword.desc",   "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 0.6, "damage": 70, "range": 4.0, "cooldownSeconds": 0.8 } },
   { "key": "gauss_pistol",   "nameKey": "item.gauss_pistol.name",   "category": "tool", "maxStack": 1,    "descriptionKey": "item.gauss_pistol.desc",   "tool": { "kind": "weapon", "tier": 1, "energyPerUse": 0.0, "damage": 25, "range": 26 } },
-  { "key": "laser_pistol",   "nameKey": "item.laser_pistol.name",   "category": "tool", "maxStack": 1,    "descriptionKey": "item.laser_pistol.desc",   "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 1.0, "damage": 35, "range": 30 } },
-  { "key": "plasma_blaster", "nameKey": "item.plasma_blaster.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.plasma_blaster.desc", "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 2.0, "damage": 55, "range": 32 } },
+  { "key": "laser_pistol",   "nameKey": "item.laser_pistol.name",   "category": "tool", "maxStack": 1,    "descriptionKey": "item.laser_pistol.desc",   "tool": { "kind": "weapon", "tier": 2, "energyPerUse": 1.0, "damage": 35, "range": 30, "ignites": true } },
+  { "key": "plasma_blaster", "nameKey": "item.plasma_blaster.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.plasma_blaster.desc", "tool": { "kind": "weapon", "tier": 3, "energyPerUse": 2.0, "damage": 55, "range": 32, "ignites": true } },
 
   { "key": "gold_ore",      "nameKey": "item.gold_ore.name",      "category": "material", "maxStack": 1024 },
   { "key": "silver_ore",    "nameKey": "item.silver_ore.name",    "category": "material", "maxStack": 1024 },

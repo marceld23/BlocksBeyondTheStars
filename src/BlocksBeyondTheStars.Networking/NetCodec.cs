@@ -106,6 +106,7 @@ public static class NetCodec
         Register(45, typeof(SetJetpackIntent));
         Register(46, typeof(DoorInteractIntent));
         Register(47, typeof(FallDamageIntent));
+        Register(48, typeof(ShootBlockIntent));
 
         // Server -> Client
         Register(50, typeof(JoinAccepted));
