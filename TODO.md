@@ -7148,6 +7148,25 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-06): glitch.fun can be redeployed without cutting a release
+
+Until now the store build could only be refreshed by tagging a version: the upload lives in
+release.yml's `publish-glitch` job, gated on `refs/tags/*`, and `webgl-only.yml` neither bakes the
+Glitch portal origin nor uploads anywhere. A browser-facing fix therefore had to wait for the next
+release even when nothing else was ready to ship.
+
+**New `.github/workflows/glitch-only.yml`** — a manual `workflow_dispatch` (inputs: `version`,
+`dry_run`) that builds WebGL from the dispatched ref and publishes it to the store: no tag, no GitHub
+Release, no desktop installers, no Docker image. It mirrors the release path where it matters — the
+full .NET suite gates the upload (running in parallel with the ~15 min Unity build), the same pinned
+`glitch-deploy-basic` CLI performs the upload, and the same WebGL Library cache key is shared, so a
+dispatch on main also re-warms the cache the release critical path uses. Two differences on purpose:
+`GLITCH_PORTAL_URL` is **required** (a store build without it has no arcade sessions and no cloud
+saves, so failing loudly beats publishing a player whose multiplayer button does nothing), and the
+version comes from the input rather than a tag.
+
+The regular release path is unchanged and stays the default — this is the out-of-band lever.
+
 ## ✅ Done (2026-08-06): joining players no longer fall through terrain that hasn't streamed yet (#773)
 
 A player joining a hosted world from the browser dropped into the void ~8 s after entering, was

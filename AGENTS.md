@@ -207,7 +207,12 @@ also be run on its own from the Actions tab to build/push the image ad-hoc. The 
 **(experimental) WebGL browser player**; if only that asset needs (re)building after a fix — without
 rebuilding the desktop installers or touching the release notes — dispatch
 [.github/workflows/webgl-only.yml](.github/workflows/webgl-only.yml) (input `release_tag`), which builds
-WebGL alone and attaches the zip to the existing release.
+WebGL alone and attaches the zip to the existing release. To refresh the **glitch.fun store build** out of
+band — a browser-facing fix has landed but the next version is not ready — dispatch
+[.github/workflows/glitch-only.yml](.github/workflows/glitch-only.yml) (inputs `version`, `dry_run`): it
+rebuilds WebGL from the dispatched ref and uploads it to the store, gated on the full test suite, with no
+tag and no Release. The normal path stays release.yml's `publish-glitch` job, which mirrors the same
+artifact to the store on every tag.
 
 **The git tag is the single source of truth for the version.** It flows into GameCI `versioning: Custom` →
 `PlayerSettings.bundleVersion`, so the in-game UI (`AppShell.Version` is a property `=> Application.version`,

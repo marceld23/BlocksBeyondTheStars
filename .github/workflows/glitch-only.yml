@@ -1,0 +1,261 @@
+# Rebuilds the WebGL player and publishes it to the glitch.fun store — WITHOUT cutting a release.
+#
+# Use this when a browser-facing fix has landed on main and the store build should pick it up before
+# the next version ships: no tag, no GitHub Release, no desktop installers, no Docker image. The
+# regular path stays release.yml's `publish-glitch` job, which mirrors the SAME artifact to the store
+# on every real tag; this workflow exists purely so glitch.fun can be refreshed out of band.
+#
+# It builds from the ref it is dispatched on (default: the default branch). The version input is what
+# gets baked into the player and reported to the store — pick something that identifies the build
+# (e.g. `2026.8.5-hotfix1` between releases), since the store shows it to players.
+#
+# Structure mirrors release.yml: the .NET suite gates the upload (nothing reaches the public store
+# unless the tests passed on this commit), and it runs in parallel with the ~15 min Unity build.
+#
+# Requires the same secrets as the release path: UNITY_*, GLITCH_PORTAL_URL (baked into the player so
+# arcade sessions + cloud saves work), and GLITCH_DEPLOY_TOKEN / GLITCH_TITLE_ID for the upload.
+# Unlike release.yml these are NOT optional here — a build missing them would either break the store
+# page or silently publish a player with the glitch.fun wiring switched off.
+
+name: glitch.fun only (build + deploy WebGL)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to bake into the player and report to the store (e.g. 2026.8.5-hotfix1)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Build and validate only — do not upload to glitch.fun'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# Serialize store deploys: two overlapping uploads of the same title would race each other. Like
+# release.yml, an in-flight run is allowed to finish rather than being cancelled half-published.
+concurrency:
+  group: glitch-deploy
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve + validate version
+        shell: bash
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          v="${INPUT_VERSION#v}"
+          if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "::error::version '$INPUT_VERSION' is not SemVer — expected X.Y.Z or X.Y.Z-suffix."
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building glitch.fun player version: $v"
+
+  # Same gate as release.yml: nothing reaches the public store unless the suite passed on this commit.
+  test:
+    name: Full test suite (store gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore + build test projects
+        run: |
+          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
+          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
+          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release
+          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release
+
+      - name: Test (full suite, Slow tier included)
+        run: |
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --logger "trx;LogFileName=server.trx" --results-directory TestResults
+          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: glitch-test-results
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+
+  build:
+    name: Build Unity player (WebGL)
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
+      # Shared libs + content only: the WebGL build strips the bundled native-server StreamingAssets, so no
+      # publish-local-server / Velopack steps. sync-client-libs makes data/ present so the build writes the
+      # StreamingAssets manifest the browser fetches at runtime.
+      - name: Sync shared libs + content (bash)
+        run: ./scripts/sync-client-libs.sh
+
+      # Shares the WebGL Library cache with release.yml (same key), so a store hotfix usually starts warm:
+      # ~85 s asset import instead of ~257 s cold (#528). This workflow runs on a branch ref, so unlike the
+      # tag-scoped release run it can also WRITE the cache back — see the paired save step below.
+      - name: Restore Unity Library cache
+        id: unity-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: client/Library
+          key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+          restore-keys: |
+            Library-WebGL-
+
+      - name: Free disk space for the Unity image
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android /opt/ghc /usr/share/dotnet \
+                      /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/local/.ghcup
+          echo "After:"; df -h /
+
+      - name: Inject player-feedback API key
+        env:
+          BBS_BUGREPORT_API_KEY: ${{ secrets.BBS_BUGREPORT_API_KEY }}
+        run: |
+          if [ -z "$BBS_BUGREPORT_API_KEY" ]; then
+            echo "BBS_BUGREPORT_API_KEY not set — player feedback will be disabled in this build."
+            exit 0
+          fi
+          {
+            echo '// CI-generated from the BBS_BUGREPORT_API_KEY secret — not committed.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class BugReportBuildSecrets'
+            echo '    {'
+            echo "        static partial void ApplyApiKey(ref string key) => key = \"$BBS_BUGREPORT_API_KEY\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/BugReportBuildSecrets.Generated.cs
+          echo "Injected feedback API key into the build."
+
+      # Same bake as release.yml, but REQUIRED here: this artifact is destined for glitch.fun, where a
+      # player without the portal origin cannot open an arcade session or sync a cloud save. Failing loudly
+      # beats shipping a store build whose multiplayer button silently does nothing. No title token is baked
+      # either way — heartbeats and cloud saves go through the WorldHost relay.
+      - name: Inject Glitch portal config
+        env:
+          GLITCH_PORTAL_URL: ${{ secrets.GLITCH_PORTAL_URL }}
+        run: |
+          if [ -z "$GLITCH_PORTAL_URL" ]; then
+            echo "::error::GLITCH_PORTAL_URL is not set — a glitch.fun build without it has no arcade or cloud saves."
+            exit 1
+          fi
+          {
+            echo '// CI-generated from the GLITCH_PORTAL_URL secret — not committed. No title token here:'
+            echo '// the client talks to the WorldHost relay; the token stays server-side.'
+            echo 'namespace BlocksBeyondTheStars.Build'
+            echo '{'
+            echo '    public static partial class GlitchIntegrationSecrets'
+            echo '    {'
+            echo '        static partial void ApplyEnabled(ref bool enabled) => enabled = true;'
+            echo "        static partial void ApplyPortalUrl(ref string value) => value = \"$GLITCH_PORTAL_URL\";"
+            echo '    }'
+            echo '}'
+          } > client/Assets/BlocksBeyondTheStars/Scripts/GlitchIntegrationSecrets.Generated.cs
+          echo "Injected Glitch portal origin into the build."
+
+      - name: Build WebGL player
+        uses: game-ci/unity-builder@d829bfc901f2347c8fe18898f06712b66916ef42 # v5
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: client
+          unityVersion: 6000.4.9f1
+          targetPlatform: WebGL
+          buildMethod: BlocksBeyondTheStars.Client.EditorTools.BuildScript.BuildWebGL
+          versioning: Custom
+          version: ${{ needs.version.outputs.version }}
+          customParameters: -buildOut /github/workspace/player-webgl
+          allowDirtyBuild: true
+
+      - name: Fix output permissions
+        run: sudo chmod -R a+rwX player-webgl
+
+      # Paired with the restore above; skipped when the exact key already exists (re-uploading it would only
+      # reset its LRU position). Running this workflow on main therefore also re-warms release.yml's cache.
+      - name: Save Unity Library cache
+        if: steps.unity-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: client/Library
+          key: Library-WebGL-${{ hashFiles('client/Assets/**', 'client/Packages/**', 'client/ProjectSettings/**') }}
+
+      - name: Verify baked version matches the input
+        shell: bash
+        run: |
+          baked="$(cat player-webgl/version.txt)"
+          echo "Baked into player: '$baked' — expected: '${{ needs.version.outputs.version }}'"
+          test "$baked" = "${{ needs.version.outputs.version }}"
+
+      - name: Upload WebGL player artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: player-webgl
+          path: player-webgl
+          # Intermediate hand-off to the deploy job below — not a release asset.
+          retention-days: 7
+
+  # Publishes via the OFFICIAL Glitch deploy CLI (the no-Node `glitch-deploy-basic` shell variant: plain
+  # curl/awk, no npm dependency tree near the secret; the clone is pinned to the same reviewed commit
+  # release.yml uses). Skipped entirely on a dry run.
+  deploy:
+    name: Publish to glitch.fun
+    needs: [version, build, test]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download WebGL player artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: player-webgl
+          path: player-webgl
+
+      - name: Get the Glitch deploy CLI (pinned)
+        run: |
+          git clone --no-checkout https://github.com/Glitch-Gaming-Platform/Glitch-Cli-Deploy.git glitch-cli
+          git -C glitch-cli checkout 71e6e7c6b2e159502c43cae62f9cbc4b332009d3
+          chmod +x glitch-cli/bin/glitch-deploy-basic
+
+      - name: Upload to glitch.fun
+        env:
+          GLITCH_TITLE_TOKEN: ${{ secrets.GLITCH_DEPLOY_TOKEN }}
+          GLITCH_TITLE_ID_SECRET: ${{ secrets.GLITCH_TITLE_ID }}
+        run: |
+          if [ -z "$GLITCH_TITLE_TOKEN" ]; then
+            echo "::error::GLITCH_DEPLOY_TOKEN is not set — this workflow exists only to deploy, so there is nothing to do."
+            exit 1
+          fi
+          export GLITCH_TITLE_ID="${GLITCH_TITLE_ID_SECRET:-80f5dc18-dc0f-45de-9a57-8599e08669ed}"
+          ./glitch-cli/bin/glitch-deploy-basic deploy ./player-webgl \
+            --title "$GLITCH_TITLE_ID" \
+            --token "$GLITCH_TITLE_TOKEN" \
+            --version "${{ needs.version.outputs.version }}" \
+            --entry index.html \
+            --type wasm \
+            --build-type production \
+            --wait
