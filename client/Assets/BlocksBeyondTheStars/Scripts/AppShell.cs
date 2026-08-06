@@ -86,6 +86,16 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The in-process singleplayer host (browser builds; usable in the editor for testing).
         /// Null until the first browser-singleplayer start; survives returns to the menu stopped.</summary>
         public BrowserLocalServer BrowserServer { get; private set; }
+
+        /// <summary>Placeholder host for the in-process browser world: it is never resolved or dialed —
+        /// the rig recognises it and takes the in-memory wire instead. Nothing listens on this name.</summary>
+        public const string BrowserLoopbackHost = "loopback";
+
+        /// <summary>True while <see cref="BootBrowserSingleplayer"/> is still bringing the in-process world
+        /// up. The loading screen must not hand off to <see cref="LaunchGame"/> before this clears: the rig
+        /// captures the loopback wire once, and a launch that beats the boot ends up with no wire at all,
+        /// dialing the "loopback" placeholder host over WebSocket until it gives up (#771).</summary>
+        public bool BrowserWorldBooting { get; private set; }
         private bool _serverPending;                          // prepared, waiting to spawn once the screen is up
         private System.Threading.Tasks.Task<bool> _serverLaunch; // the off-thread spawn (so Process.Start can't freeze us)
         private GameObject _gameRoot;
@@ -652,8 +662,9 @@ namespace BlocksBeyondTheStars.Client
             HostInfo = "";
             _hostLocal = false;
             _serverPending = false;
-            Host = "loopback"; // GameBootstrap picks the loopback transport off shell.BrowserServer.Link
+            Host = BrowserLoopbackHost; // GameBootstrap picks the loopback transport off shell.BrowserServer.Link
             _loading.MinShow = 1.2f;
+            BrowserWorldBooting = true; // MinShow is a minimum, not a deadline — the boot gates the launch
             Phase = ShellPhase.Loading;
             StartCoroutine(BootBrowserSingleplayer());
         }
@@ -694,12 +705,14 @@ namespace BlocksBeyondTheStars.Client
             long freshSeed = (long)UnityEngine.Random.Range(1, int.MaxValue) << 16 ^ System.DateTime.UtcNow.Ticks;
             if (!BrowserServer.StartServer(Content, blob, freshSeed))
             {
+                BrowserWorldBooting = false;
                 ReturnToMenu();
                 MenuNotice = L("ui.sp.browser_failed");
                 yield break;
             }
 
             GlitchCloudSaves.Attach(this, BrowserServer); // upload each durable save (no-op off glitch.fun)
+            BrowserWorldBooting = false; // the wire exists — the loading screen may hand off now
         }
 
         /// <summary>The machine's LAN IPv4 (the address friends on the same network join), or loopback.</summary>

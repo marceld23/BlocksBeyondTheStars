@@ -70,7 +70,10 @@ namespace BlocksBeyondTheStars.Client
             using (var request = UnityWebRequest.Get(
                 $"{GlitchIntegration.PortalUrl}/api/glitch/save?installId={UnityWebRequest.EscapeURL(GlitchIntegration.ArcadeInstallId)}"))
             {
-                request.timeout = 20;
+                // This blocks the world boot (the loading screen waits for it since #771), so bound it
+                // tighter than the upload: the locally persisted blob is a complete world on its own,
+                // and a relay this slow is better skipped than waited out.
+                request.timeout = 10;
                 yield return request.SendWebRequest();
 
                 if (request.responseCode == 403)

@@ -7148,6 +7148,28 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-06): browser singleplayer entered the world before its server existed (#771)
+
+Clicking **Singleplayer** in the browser build (glitch.fun) showed the loading screen and then bounced
+back to the menu with "Could not connect to the server" after ~13 s — the in-browser world never
+started for the player. The loading screen handed off to `AppShell.LaunchGame` on a 1.2 s timer while
+`BootBrowserSingleplayer` was still awaiting the cloud-save lookup (a relay round trip measured at
+2.1–2.9 s live), so `WorldRig.Build` captured **no** loopback wire, the client fell back to the
+WebSocket transport, and it dialed the `"loopback"` placeholder host until its six retries ran out.
+
+- **The boot gates the launch** — `AppShell.BrowserWorldBooting` is set when the browser world starts
+  booting and cleared when the in-process server is up (or failed); `LoadingScreen` treats `MinShow`
+  as a minimum display time again instead of a deadline the world start has to beat.
+- **Fail fast instead of dialing a placeholder** — `GameBootstrap` recognises the loopback host without
+  a wire and reports `ui.sp.browser_failed` immediately, rather than spending ~12 s of retries and then
+  blaming the player's server address.
+- **Bounded cloud lookup** — the boot-blocking cloud-save GET times out after 10 s instead of 20; the
+  locally persisted world blob is a complete world on its own.
+
+Browser/WebGL only — desktop singleplayer launches the bundled child-process server on a different
+path and was unaffected. Verified alongside: glitch.fun arcade multiplayer and the hosted official
+worlds were both healthy.
+
 ## ✅ Done (2026-08-05): research pacing — blueprints no longer unlock in a rush (#767)
 
 Knowledge is a lifetime threshold (never spent), but the whole tech tree topped out at `knowledgeCost`

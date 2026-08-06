@@ -1300,6 +1300,20 @@ namespace BlocksBeyondTheStars.Client
                 // in-memory loopback pair replaces every socket, on WebGL and in the editor alike.
                 Network = new NetworkClient(new BlocksBeyondTheStars.Networking.Transport.LoopbackClientTransport(Loopback));
             }
+            else if (string.Equals(Host, AppShell.BrowserLoopbackHost, System.StringComparison.OrdinalIgnoreCase))
+            {
+                // The shell asked for the in-process world but handed over no wire — the browser host
+                // failed to start (or was torn down mid-boot). "loopback" is a placeholder, not a
+                // reachable address, so dialing it would burn ~12 s of retries and then blame the
+                // player's server address; say what actually happened instead (#771).
+                Debug.LogError("Browser singleplayer was requested without a running in-process server — aborting the world entry.");
+                var shell = FindAnyObjectByType<AppShell>();
+                ConnectFailedReason = shell != null && shell.Localizer != null
+                    ? shell.L("ui.sp.browser_failed")
+                    : "The world could not be started in this browser.";
+                enabled = false;
+                return;
+            }
             else
             {
 #if UNITY_WEBGL && !UNITY_EDITOR

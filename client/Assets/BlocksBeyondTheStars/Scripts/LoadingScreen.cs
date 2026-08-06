@@ -36,8 +36,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // The browser singleplayer host boots asynchronously (cloud-save lookup, then worldgen) and
+            // hands its in-memory wire to the rig at launch. Launching on the timer alone raced that boot
+            // and left the rig without a wire, so the browser world "could not connect" (#771) — MinShow
+            // is the minimum time the screen shows, never a deadline the world start has to beat.
             _elapsed += Time.deltaTime;
-            if (_elapsed >= MinShow)
+            if (_elapsed >= MinShow && !_shell.BrowserWorldBooting)
             {
                 _elapsed = 0f;
                 _shell.LaunchGame();
