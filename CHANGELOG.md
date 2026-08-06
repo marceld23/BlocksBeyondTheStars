@@ -13,6 +13,50 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.6] — 2026-08-06
+
+The lights-on release: a focused round of fixes. Every ship room is actually lit now — the
+Hammerhead's dark aft compartments were the tip of an iceberg where no authored ship layout
+contained a single interior lamp — the prologue's opening shot stopped flying the camera
+through mountainsides, and two browser bugs that hit glitch.fun players on their very first
+minute (singleplayer refusing to connect, joiners falling through unstreamed terrain) are gone.
+
+### 💡 Lights on in every ship room (#776, #779)
+
+- **Every room gets a ceiling lamp.** Multi-room ships were only lit where navigation-light
+  glow happened to bleed in through a window: the Hammerhead's bridge was bright while its
+  workshop and cabins stayed pitch black, and the Courier, Thunderbolt, Deathblock and Hauler
+  interiors got no light at all — no authored layout contained a single interior lamp. Ship
+  finishing now hangs a lamp below the ceiling of every station room; this covers all authored
+  layouts, the starter ship and player-built ships, without touching the hand-tuned layout files.
+- **Light crosses chunk seams now.** Ship hulls mesh in 16-block chunks and a lamp's light
+  stopped dead at the seam, so even a lit room could go dark halfway. The whole hull's light
+  sources now feed every chunk — in the landed ship, the flight view and the build preview alike.
+
+### 🎥 The prologue camera respects the terrain (#777, #778)
+
+- The first-spawn orbit around your landed ship flew a blind circle — on a mountainside part of
+  the ring sat inside the slope and you looked straight through the terrain. The cinematic now
+  scans the orbit ring before it starts: it raises the shot if the classic height is blocked,
+  sweeps back and forth along the widest open arc instead of forcing a full circle, switches to
+  a high crane shot in craters, and falls back to the dim+panel opening when nothing clears.
+  A per-frame line-of-sight guard also catches terrain that streams in mid-shot.
+
+### 🌐 Browser fixes — glitch.fun first minutes (#771–#774)
+
+- **Singleplayer connects reliably** (#771, #772): clicking Singleplayer in the browser could
+  bounce back to the menu with "Could not connect to the server" — the loading screen handed
+  off while the in-process server was still booting. It now waits for the server to be up, and
+  the boot-blocking cloud-save lookup times out sooner.
+- **No more falling through the world on join** (#773, #774): joining a hosted world from the
+  browser dropped you into the void once an 8-second spawn grace ran out, void rescue and all.
+  Joiners now hover in place until the floor below has actually streamed in, then land.
+
+### 🛠️ Internal
+
+- New glitch.fun-only build + deploy workflow: a browser-facing fix can now ship to the store
+  build on demand, without cutting a full release (#775).
+
 ## [2026.8.5] — 2026-08-05
 
 The premiere release: the game opens like a film now. A watchable in-engine intro cinematic
@@ -1818,7 +1862,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...HEAD
+[2026.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...v2026.8.6
 [2026.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...v2026.8.5
 [2026.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...v2026.8.4
 [2026.8.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.2...v2026.8.3
