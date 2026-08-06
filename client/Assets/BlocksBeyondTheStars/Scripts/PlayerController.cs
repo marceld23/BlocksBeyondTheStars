@@ -101,13 +101,22 @@ namespace BlocksBeyondTheStars.Client
         private bool _settling;
         private float _settleTimer; // how long we've been frozen at spawn waiting for the floor to stream
         private bool _worldRevealed; // settle: has the loading overlay been dismissed for this spawn yet
+        private bool _awaitingFloor;   // released on the grace timer with no floor yet — hover instead of falling
+        private float _awaitFloorTimer;
 
         // View-settle gate (#390): hold the reveal until the streamed view has finished arriving AND meshing, so
         // the world doesn't visibly assemble after the veil lifts. "No new chunk for this long" is the reliable
         // "server finished the frozen spawn view" signal (streaming keeps chunks arriving every tick); the backlog
-        // check confirms those last arrivals are meshed. The 8 s spawn grace below still hard-caps the wait.
+        // check confirms those last arrivals are meshed. The spawn grace below still hard-caps the wait.
         private const float ViewSettleQuietSeconds = 0.6f;
         private const int ViewSettleBacklog = 6; // ~a frame's worth of the mesh budget (MeshChunksPerFrame)
+
+        /// <summary>How long the spawn freeze may hold the veil up before the world is revealed regardless.</summary>
+        private const float SettleGraceSeconds = 8f;
+
+        /// <summary>Upper bound on hovering while waiting for a floor that never arrives (#773). Only reached
+        /// when the spawn chunk truly never streams; the server's void rescue then takes over as before.</summary>
+        private const float AwaitFloorMaxSeconds = 30f;
         private bool _wasGrounded = true;
         private bool _jetpackActive; // last reported jetpack thrust state (server drains energy on this)
         private float _stepTimer;
@@ -193,6 +202,7 @@ namespace BlocksBeyondTheStars.Client
                 _lastWorldEpoch = Game.WorldEpoch;
                 _spawned = false;
                 _settling = false;
+                _awaitingFloor = false;
             }
 
             // Snap to the server's authoritative spawn once it is known, then take over.
@@ -204,6 +214,7 @@ namespace BlocksBeyondTheStars.Client
                 _settling = true; // hold at spawn until the ground/ship chunk streams in
                 _settleTimer = 0f;
                 _worldRevealed = false;
+                _awaitingFloor = false; // the freeze owns us again; the release below re-decides
             }
 
             // On death the server respawns us at the ship's heal-tank — teleport the body there.
@@ -215,6 +226,7 @@ namespace BlocksBeyondTheStars.Client
                 _settling = true; // hold at the heal-tank until its chunk is streamed
                 _settleTimer = 0f;
                 _worldRevealed = false;
+                _awaitingFloor = false;
             }
 
             // Hold the player frozen at the spawn (no gravity, no control, no movement sent) until the
@@ -256,11 +268,13 @@ namespace BlocksBeyondTheStars.Client
                 bool viewSettled = Game.TimeSinceLastChunk >= ViewSettleQuietSeconds
                                    && Game.PendingMeshCount <= ViewSettleBacklog;
 
-                // Reveal the world + release control TOGETHER — once there is real ground under the spawn AND the
-                // view has settled, or after a short grace (then the server's void-rescue recovers a still-streaming
-                // spawn chunk by teleporting onto the ship). Tying reveal to release means you never see a "loaded"
-                // world you can't move in; the grace hard-caps the wait so the veil never lingers or feels stuck.
-                if (!awaitingConfirm && ((groundBelow && viewSettled) || _settleTimer > 8f))
+                // Reveal the world + release control once there is real ground under the spawn AND the view has
+                // settled, or after a short grace so the veil never lingers or feels stuck. Releasing on that
+                // grace alone used to hand the player straight into free fall through terrain that had not
+                // streamed yet — an 8-second drop into the void followed by the server's rescue teleports, which
+                // is what a slow (browser) client got on every first join (#773). Gravity is therefore held off
+                // separately until a floor actually exists: the veil lifts on time, the player just doesn't fall.
+                if (!awaitingConfirm && ((groundBelow && viewSettled) || _settleTimer > SettleGraceSeconds))
                 {
                     if (!_worldRevealed)
                     {
@@ -268,6 +282,8 @@ namespace BlocksBeyondTheStars.Client
                         Game.NotifyWorldReady();
                     }
 
+                    _awaitingFloor = !groundBelow;
+                    _awaitFloorTimer = 0f;
                     _settling = false;
                     _settleTimer = 0f;
                 }
@@ -1790,9 +1806,15 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyGravityOnly()
         {
-            if (_controller.isGrounded)
+            bool grounded = _controller.isGrounded;
+            UpdateFloorWait(grounded);
+            if (grounded)
             {
                 _verticalVelocity = -1f;
+            }
+            else if (_awaitingFloor)
+            {
+                _verticalVelocity = 0f; // no floor streamed yet — a menu open at spawn must not drop us either
             }
             else
             {
@@ -1801,6 +1823,28 @@ namespace BlocksBeyondTheStars.Client
 
             _controller.Move(new Vector3(0f, _verticalVelocity, 0f) * Time.deltaTime);
         }
+
+        /// <summary>Ends the post-spawn hover (#773) as soon as there is something to stand on — the collider
+        /// under our feet, or one streaming in below us — and hard-caps it so a spawn chunk that never arrives
+        /// falls back to the old behaviour (drop, then the server's void rescue) instead of hovering forever.</summary>
+        private void UpdateFloorWait(bool grounded)
+        {
+            if (!_awaitingFloor)
+            {
+                return;
+            }
+
+            _awaitFloorTimer += Time.deltaTime;
+            if (grounded || _awaitFloorTimer > AwaitFloorMaxSeconds || ColliderBelow())
+            {
+                _awaitingFloor = false;
+            }
+        }
+
+        /// <summary>True when a streamed collider (terrain, ship deck, pad) sits within a short drop below us.</summary>
+        private bool ColliderBelow()
+            => Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out var hit, 10f)
+               && hit.collider != _controller;
 
         private void LookAround()
         {
@@ -2057,6 +2101,7 @@ namespace BlocksBeyondTheStars.Client
             bool grounded = _controller.isGrounded;
             bool inWater = IsSubmerged();
             bool onLadder = !inWater && OnLadder();
+            UpdateFloorWait(grounded);
             _moving = (inWater || grounded || onLadder) && (Mathf.Abs(h) + Mathf.Abs(v) > 0.1f);
 
             // Crouch/sneak: shrink the capsule + slow the walk while held on the ground.
@@ -2114,6 +2159,10 @@ namespace BlocksBeyondTheStars.Client
                 float lift = (InputMap.JumpHeld() ? SpaceFloatSpeed : 0f)
                            - ((InputMap.CrouchHeld()) ? SpaceFloatSpeed : 0f);
                 _verticalVelocity = Mathf.MoveTowards(_verticalVelocity, lift, SpaceFloatAccel * Time.deltaTime);
+            }
+            else if (_awaitingFloor)
+            {
+                _verticalVelocity = 0f; // the spawn floor hasn't streamed in yet — hold altitude, don't drop (#773)
             }
             else
             {

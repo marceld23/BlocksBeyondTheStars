@@ -7148,6 +7148,26 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-06): joining players no longer fall through terrain that hasn't streamed yet (#773)
+
+A player joining a hosted world from the browser dropped into the void ~8 s after entering, was
+teleported by the server's void rescue, and fell again — the first ten seconds of a new player's
+session. `PlayerController` freezes the player at the spawn until the floor chunk's collider streams
+in, but that freeze had a hard 8 s cap that released control **even with no ground below**, trading
+the freeze for a free fall and leaving the server's rescue to clean up. Fast desktop clients win that
+race; browser clients over a slower link do not, so the safety net became the normal first join.
+
+- **Reveal and physics are decoupled** — the veil still lifts on the grace timer (`SettleGraceSeconds`),
+  but if there is no collider under the spawn the player enters a hover (`_awaitingFloor`) instead of
+  falling. They can look around and walk; they just don't drop through a world that isn't there yet.
+- **The hover ends by itself** — as soon as the controller is grounded or a collider streams in below
+  (`ColliderBelow`), gravity resumes normally. `AwaitFloorMaxSeconds` (30 s) hard-caps it, so a spawn
+  chunk that never arrives falls back to the old behaviour rather than hovering forever.
+- **Menus included** — the gravity-only path used while a panel or chat is open honours the same wait.
+
+Observed live on an arcade world: join at 22:51:53, first void rescue at 22:52:01 — exactly the 8 s
+cap. Browser-facing, but the fix applies to every platform (a slow desktop join behaves the same).
+
 ## ✅ Done (2026-08-06): browser singleplayer entered the world before its server existed (#771)
 
 Clicking **Singleplayer** in the browser build (glitch.fun) showed the loading screen and then bounced
