@@ -32,6 +32,11 @@ public static class WorldConstants
     /// finite instead of an infinite N–S strip. ≈ a sphere's pole-to-pole span (half the equator).</summary>
     public const int LatitudeLimit = Circumference / 4;
 
+    /// <summary>Half-extent (in blocks) of a founded base's zone: the cube around the base_core block that is
+    /// both the build-protection zone and the base's life-support field (air). Shared so the client's HUD
+    /// hint and the server's authoritative checks can never disagree about the zone size.</summary>
+    public const int BaseZoneRadius = 8;
+
     // --- Longitude wrap helpers ---
     // Each takes an explicit circumference so a world can be any size; the no-arg overloads use the default
     // Circumference (6000) so existing callers/tests are unaffected. ChunksAround/LatitudeLimit have per-circ

@@ -1964,6 +1964,8 @@
   "ui.base.placeholder": "e.g. Home Base, Outpost 1",
   "ui.base.rename_hint": "[E] Rename base",
   "ui.base.default": "Base",
+  "ui.base.life_support": "Life support: {name}",
+  "ui.hud.base_air": "base life support",
   "ui.hud.stash": "Stash",
   "ui.hud.stash_keys": "G take · H store",
   "vega.prologue.1": "You wake in the pilot seat of a small ship, parked on a world you don't recognize. Your helmet rests in your lap. Stars glitter beyond the canopy. You have no idea how you got here.",

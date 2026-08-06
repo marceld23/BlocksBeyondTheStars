@@ -1265,13 +1265,20 @@ public sealed partial class GameServer
             // Standing physically inside the landed ship's cabin counts as life support too — a sealed cabin
             // gives air even on an airless planet, so you never suffocate inside your own ship (B41b).
             bool insideShip = !p.InEva && ShipInteriorContains(p.Position);
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || InStation(p.PlayerId) || !Rules.OxygenEnabled);
+            // A founded base's zone is a life-support field (issue #782): the Grundstein projects air over
+            // its whole protection cube — the same hand-wave station interiors already use. Any base counts,
+            // not just your own: visitors breathe too, the protection rules still keep them from editing.
+            bool atBase = !p.InEva && InAnyBaseZone(new Vector3i(
+                (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z)));
+            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || InStation(p.PlayerId) || !Rules.OxygenEnabled);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
+            // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
             bool submerged = !lifeSupport && !p.InEva && HeadUnderwater(p);
             // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
-            // world — the suit tank drains until the player descends back below the line.
-            if (!submerged && !p.AboveAtmosphere && (lifeSupport || (!p.InEva && AtmosphereBreathable)))
+            // world — the suit tank drains until the player descends back below the line. Life support wins
+            // over the altitude line as well, so a base founded on a peak above it still breathes.
+            if (!submerged && (lifeSupport || (!p.AboveAtmosphere && !p.InEva && AtmosphereBreathable)))
             {
                 // Aboard the ship (life support), boarded on a station (its life support), oxygen disabled
                 // by rules, or a breathable atmosphere: regenerate, no drain (up to the tank capacity).

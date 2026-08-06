@@ -47,8 +47,9 @@ public sealed partial class GameServer
         => _bases.Any(b => b.OwnerId == ownerId && b.Planet == body);
 
     /// <summary>Half-extent (in blocks) of a base's protected build zone: a cube centred on the base_core. Owner +
-    /// allies build/mine freely inside it; everyone else is blocked (place + mine + area tools). Tunable.</summary>
-    private const int BaseProtectionRadius = 8;
+    /// allies build/mine freely inside it; everyone else is blocked (place + mine + area tools). The same cube is
+    /// the base's life-support field (see <see cref="InAnyBaseZone"/>); shared with the client's HUD hint.</summary>
+    private const int BaseProtectionRadius = WorldConstants.BaseZoneRadius;
 
     /// <summary>True if the cell falls inside some player base's protected zone on the current world AND the actor
     /// may not edit it there. Owner + allies + admins build freely; for anyone else the whole zone is read-only.
@@ -92,6 +93,24 @@ public sealed partial class GameServer
         => System.Math.Abs(pos.X - core.X) <= BaseProtectionRadius
            && System.Math.Abs(pos.Y - core.Y) <= BaseProtectionRadius
            && System.Math.Abs(pos.Z - core.Z) <= BaseProtectionRadius;
+
+    /// <summary>True if the cell lies inside ANY founded base's zone on the current world (serve the session
+    /// first). Ownership is deliberately ignored: the base's life-support field breathes for visitors too —
+    /// the protection rules still keep them from editing anything. Same cube as the build protection, so the
+    /// one rule to teach is "where you can build is where you can breathe".</summary>
+    private bool InAnyBaseZone(Vector3i cell)
+    {
+        string body = _world.LocationId;
+        foreach (var b in _bases)
+        {
+            if (b.Planet == body && WithinBaseZone(b.Cell, cell))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>Loads every founded base from persistence at server start (the base_core blocks themselves return via
     /// the block-edit store). Idempotent — clears first.</summary>

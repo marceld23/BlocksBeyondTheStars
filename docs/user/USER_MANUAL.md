@@ -362,6 +362,12 @@ separate unlock; admins can still disable it through server world rules.
   stone is the base's **position marker on the planet map** (key **M**), shown as a teal **⌂** with its name.
 - **One base per world** per player. **Mining** the base core removes the base. Walk up and press **E** on the
   stone to **name or rename** it (only the owner can).
+- **A base always has air**: the base core projects a **life-support field** over its whole zone (the same
+  cube where the base protects your blocks — about 8 blocks in every direction from the stone). Inside it your
+  **oxygen refills** even on toxic or airless worlds — the HUD marks the O2 bar with *(base life support)* and
+  greets you with *"Life support: <base name>"* when you step in. **Anyone** may breathe at a base (guests
+  still can't build or mine there), and the field disappears with the base if the core is mined. It even works
+  under water — sink the zone and you've built a diving dome.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 

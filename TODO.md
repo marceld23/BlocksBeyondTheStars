@@ -103,6 +103,26 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ A base always has air: the Grundstein projects a life-support field over its zone (#782, 2026-08-06, branch feat/base-oxygen)
+Founded bases now breathe. The oxygen loop's life-support boolean (ship cabin / boarded station /
+`OxygenEnabled` off) gains a fourth source: standing inside ANY founded base's protection cube
+(`InAnyBaseZone`, the same radius-8 Chebyshev zone as the build protection — one teachable rule: *where
+you can build is where you can breathe*). Ownership is deliberately ignored — visitors breathe too, the
+protection rules still keep them from editing. Life support now also wins over the `AboveAtmosphere`
+altitude line (a base founded on a peak past it still breathes; same for ship cabins, which previously
+drained up there despite B41b) and over the diving drain (an underwater base zone is a dome — consistent
+with diving inside the ship's cabin). Suit-ENERGY recharge intentionally stays ship/heal-tank-only. The
+radius constant moved to `WorldConstants.BaseZoneRadius` so the client's HUD mirror can never diverge:
+HudUi computes the zone from the already-streamed `BaseList` (no protocol change), fires a one-shot
+"Life support: <base>" toast on entry and suffixes the O2 bar with "(base life support)" — both only on
+worlds whose own air is NOT breathable (under a breathable sky the field adds nothing and the hint would
+be noise). New keys `ui.base.life_support` + `ui.hud.base_air` (DE+EN). No new game rule (avoids the
+save-baked RulesOverride lift); gated by the existing `OxygenEnabled`. Makes airless-world colonization
+actually playable: craft the base core aboard the ship (workshop), land, place — the pad is your air
+pocket (the `oxygen_extractor` is useless on airless worlds). Tests: 4 new (`BaseOxygenTests` — zone
+regen + outside drain on toxic rocky, unallied visitor breathes, mining the core kills the field same
+tick, submerged-in-zone dome). Manual: base section documents the air field.
+
 ### ★ VEGA reads better: paged speech, a re-readable tips log, and a first-spawn prologue (#736, #737, #738, 2026-08-05, branch feat/vega-hints-ux)
 Three tutorial/onboarding fixes in one pass. **Paged speech (#736)** — VEGA's speech panel fits ~4
 lines (~220–240 chars) but locale lines are unclamped (only LLM banter had the 240-char server clamp),

@@ -1965,6 +1965,8 @@
   "ui.base.placeholder": "z. B. Heimatbasis, Außenposten 1",
   "ui.base.rename_hint": "[E] Basis umbenennen",
   "ui.base.default": "Basis",
+  "ui.base.life_support": "Lebenserhaltung: {name}",
+  "ui.hud.base_air": "Basis-Lebenserhaltung",
   "ui.hud.stash": "Lager",
   "ui.hud.stash_keys": "G nehmen · H einlagern",
   "vega.prologue.1": "Du erwachst im Pilotensitz eines kleinen Raumschiffs, gelandet auf einer Welt, die du nicht kennst. Dein Helm liegt in deinem Schoß. Hinter der Scheibe glitzern Sterne. Du hast keine Ahnung, wie du hierhergekommen bist.",

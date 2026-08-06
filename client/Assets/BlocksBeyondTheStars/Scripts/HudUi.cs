@@ -1,6 +1,8 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -140,6 +142,10 @@ namespace BlocksBeyondTheStars.Client
         private int _lastCompassDist = int.MinValue;
         private int _lastCompassWpDist = int.MinValue;
 
+        /// <summary>Edge detector for the base life-support field (#782): true while the last HUD refresh saw
+        /// the player inside some founded base's zone, so the "Life support: …" toast fires once on entry.</summary>
+        private bool _wasInBaseZone;
+
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
         private Canvas _flyCanvas; // own overlay canvas so the visor distortion can't bend the fly-ins
@@ -191,6 +197,34 @@ namespace BlocksBeyondTheStars.Client
                     Refresh();
                 }
             }
+        }
+
+        /// <summary>The founded base whose zone contains the player right now, or null. Mirrors the server's
+        /// authoritative life-support check (same <see cref="WorldConstants.BaseZoneRadius"/> cube around the
+        /// base_core) against the already-streamed <see cref="GameBootstrap.Bases"/> — HUD feedback only.</summary>
+        private NetBase FindBaseZone()
+        {
+            var bases = Game.Bases;
+            if (bases == null || bases.Length == 0)
+            {
+                return null;
+            }
+
+            int px = Mathf.FloorToInt(Game.PlayerPosition.x);
+            int py = Mathf.FloorToInt(Game.PlayerPosition.y);
+            int pz = Mathf.FloorToInt(Game.PlayerPosition.z);
+            foreach (var b in bases)
+            {
+                // NetBase carries the core's block centre (X/Z at +0.5) — floor back to the cell.
+                if (Mathf.Abs(px - Mathf.FloorToInt(b.X)) <= WorldConstants.BaseZoneRadius
+                    && Mathf.Abs(py - Mathf.FloorToInt(b.Y)) <= WorldConstants.BaseZoneRadius
+                    && Mathf.Abs(pz - Mathf.FloorToInt(b.Z)) <= WorldConstants.BaseZoneRadius)
+                {
+                    return b;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>Flashes the screen red + names the cause whenever the player's health drops (B21), so
@@ -606,9 +640,25 @@ namespace BlocksBeyondTheStars.Client
 
             // Vitals.
             SetVital(0, loc.Get("ui.hud.health"), Game.Health, Game.Health / 100f, Health, true);
+            // Base life-support field (#782): a founded base's zone (the shared radius cube around its
+            // base_core) always breathes. Client-side mirror of the server's check, HUD feedback only —
+            // announced once on entry and spelled out on the O2 bar, but only where it matters (worlds
+            // whose own air is NOT breathable; under a breathable sky the base adds nothing).
+            bool breathable = Game.Environment != null && Game.Environment.Breathable;
+            var zoneBase = FindBaseZone();
+            if (zoneBase != null && !_wasInBaseZone && !breathable)
+            {
+                string baseName = string.IsNullOrEmpty(zoneBase.Name) ? loc.Get("ui.base.default") : zoneBase.Name;
+                Game.ShowMessage(loc.Get("ui.base.life_support").Replace("{name}", baseName));
+            }
+            _wasInBaseZone = zoneBase != null;
+
             // Spell out "(breathable)" rather than a bare "*", so new players understand the full O2 bar isn't
             // draining because the air here is breathable — and that it will drain elsewhere (space, toxic worlds).
-            string oxy = loc.Get("ui.hud.oxygen") + (Game.Environment != null && Game.Environment.Breathable ? "  (" + loc.Get("ui.hud.breathable") + ")" : string.Empty);
+            string oxySuffix = breathable ? "  (" + loc.Get("ui.hud.breathable") + ")"
+                : zoneBase != null ? "  (" + loc.Get("ui.hud.base_air") + ")"
+                : string.Empty;
+            string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / 100f, Oxygen, true);
             // While climate control fights heat/cold/vacuum (#666) the energy bar turns stress-orange.
             SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f,
