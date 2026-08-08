@@ -29,10 +29,28 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The shape-masked icon texture for a block tile + shape, or null for cube / when the atlas
         /// is not ready or not CPU-readable.</summary>
         public static Texture2D ForBlock(BlockTextureAtlas atlas, ushort tileId, int shape)
+            => ForBlock(atlas, tileId, shape, null);
+
+        /// <summary>As above, plus the player-designed forms (#844): their silhouette is projected out of the
+        /// form's own micro-voxel grid instead of a hand-written curve, so a self-made form is as recognisable
+        /// in the hotbar as a built-in one. <paramref name="registry"/> may be null (built-in forms only).</summary>
+        public static Texture2D ForBlock(BlockTextureAtlas atlas, ushort tileId, int shape, CustomShapeRegistry registry)
         {
-            if (atlas?.Texture == null || shape <= 0 || shape >= ShapeCode.Count)
+            if (atlas?.Texture == null || shape <= 0)
             {
                 return null;
+            }
+
+            bool custom = ShapeCode.IsCustomShape(shape);
+            if (!custom && shape >= ShapeCode.Count)
+            {
+                return null;
+            }
+
+            string voxels = null;
+            if (custom && (registry == null || !registry.TryGetVoxels(shape, out voxels)))
+            {
+                return null; // unknown form — the caller keeps its plain-cube fallback
             }
 
             int cacheKey = (tileId << 8) | (shape & 0xFF);
@@ -41,12 +59,38 @@ namespace BlocksBeyondTheStars.Client
                 return cached;
             }
 
-            var tex = Build(atlas.Texture, tileId, (BlockShape)shape);
+            var tex = custom
+                ? BuildFromVoxels(atlas.Texture, tileId, voxels)
+                : Build(atlas.Texture, tileId, (BlockShape)shape);
             _cache[cacheKey] = tex; // cache null too, so a non-readable atlas isn't probed every frame
             return tex;
         }
 
+        /// <summary>Builds the icon for a player-designed form: the silhouette is the form's own front
+        /// projection, point-scaled up to the tile resolution.</summary>
+        private static Texture2D BuildFromVoxels(Texture2D atlasTex, ushort tileId, string voxels)
+        {
+            var mask = CustomShape.Silhouette(voxels, out int grid);
+            if (grid == 0)
+            {
+                return null;
+            }
+
+            // The voxel grid has y UP; the icon mask is sampled with v up as well, so rows map straight across.
+            return BuildMasked(atlasTex, tileId, (u, v) =>
+            {
+                int gx = Mathf.Clamp((int)(u * grid), 0, grid - 1);
+                int gy = Mathf.Clamp((int)(v * grid), 0, grid - 1);
+                return mask[gy * grid + gx];
+            });
+        }
+
         private static Texture2D Build(Texture2D atlasTex, ushort tileId, BlockShape shape)
+            => BuildMasked(atlasTex, tileId, (u, v) => Inside(shape, u, v));
+
+        /// <summary>Masks a block's atlas tile with a silhouette test — shared by the built-in forms (analytic
+        /// curves) and the player-designed ones (their own voxel projection).</summary>
+        private static Texture2D BuildMasked(Texture2D atlasTex, ushort tileId, System.Func<float, float, bool> inside)
         {
             const int n = BlockTextureAtlas.Tile; // tiles are square (64px); icon matches the tile resolution
             int ox = (tileId % BlockTextureAtlas.Cols) * BlockTextureAtlas.Tile;
@@ -69,7 +113,7 @@ namespace BlocksBeyondTheStars.Client
                 for (int x = 0; x < n; x++)
                 {
                     float u = (x + 0.5f) / n;
-                    mask[y * n + x] = Inside(shape, u, v);
+                    mask[y * n + x] = inside(u, v);
                 }
             }
 

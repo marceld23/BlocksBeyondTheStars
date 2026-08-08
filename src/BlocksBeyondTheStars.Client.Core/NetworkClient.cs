@@ -91,6 +91,10 @@ namespace BlocksBeyondTheStars.Client
         // Player-painted block designs (#817): the save-global registry (join list + live additions/wipes).
         public event Action<PaintDesignData>? PaintDesignReceived;
         public event Action<PaintDesignList>? PaintDesignListReceived;
+
+        // Player-designed block forms (#843): the same pair for the form registry.
+        public event Action<CustomShapeData>? CustomShapeReceived;
+        public event Action<CustomShapeList>? CustomShapeListReceived;
         public event Action<OwnedShips>? OwnedShipsReceived;
         public event Action<WorldEnvironment>? WorldEnvironmentReceived;
         public event Action<WorldReset>? WorldResetReceived;
@@ -627,6 +631,8 @@ namespace BlocksBeyondTheStars.Client
                 case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
                 case PaintDesignData m: PaintDesignReceived?.Invoke(m); break;
                 case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
+                case CustomShapeData m: CustomShapeReceived?.Invoke(m); break;
+                case CustomShapeList m: CustomShapeListReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m: WorldResetReceived?.Invoke(m); break;

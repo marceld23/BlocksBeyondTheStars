@@ -108,6 +108,9 @@ namespace BlocksBeyondTheStars.Client
         /// registry (join list + live additions/wipes); the mesher samples it via a thread-safe snapshot.</summary>
         public PaintDesignAtlas PaintAtlas { get; private set; }
 
+        /// <summary>This save's player-designed forms (#844) — the geometry counterpart of the paint atlas.</summary>
+        public CustomShapeRegistry CustomShapes { get; } = new CustomShapeRegistry();
+
         // Latest authoritative player vitals for the HUD.
         public float Health { get; private set; } = 100f;
         public float Oxygen { get; private set; } = 100f;
@@ -1443,6 +1446,28 @@ namespace BlocksBeyondTheStars.Client
                     PaintAtlas.Register(m.Ids[i], m.Pixels[i]);
                 }
             };
+            // Player-designed forms (#844): the same contract as the paint registry — the full list lands
+            // before the first chunk, single forms before anything can reference them. A wipe (empty voxels)
+            // is the one case that invalidates already-built chunks, so those fall back to plain cubes.
+            Network.CustomShapeListReceived += m =>
+            {
+                CustomShapes?.RegisterAll(m.Ids, m.Voxels, m.Names, m.Owners);
+            };
+            Network.CustomShapeReceived += m =>
+            {
+                if (CustomShapes == null)
+                {
+                    return;
+                }
+
+                CustomShapes.Register(m.Id, m.Voxels, m.Name, m.Owner);
+                foreach (var c in _chunkObjects.Keys)
+                {
+                    _dirty.Add(c); // a new or wiped form changes geometry, so loaded chunks must re-mesh
+                }
+
+                ShapeIconFactory.ClearCache(); // icons are keyed by (tile, form) — a reused id must not serve stale art
+            };
             Network.PaintDesignReceived += m =>
             {
                 if (PaintAtlas == null)
@@ -2716,6 +2741,7 @@ namespace BlocksBeyondTheStars.Client
 
             Atlas?.Destroy();
             PaintAtlas?.Destroy();
+            CustomShapes?.Clear(); // the next world registers its own forms under the same indices (#423)
         }
     }
 }

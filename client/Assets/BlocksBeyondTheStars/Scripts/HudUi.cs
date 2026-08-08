@@ -920,7 +920,7 @@ namespace BlocksBeyondTheStars.Client
                 // A shaped block (sphere/pyramid/…) shows a form-specific icon instead of a plain cube tile (#125).
                 int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(item);
                 Texture2D shapeTex = (blockDef != null && Game.Atlas != null && shape > 0)
-                    ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape)
+                    ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape, Game.CustomShapes)
                     : null;
 
                 Texture2D itemTex;

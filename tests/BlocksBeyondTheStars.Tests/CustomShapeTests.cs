@@ -206,6 +206,39 @@ public sealed class CustomShapeTests
     }
 
     [Fact]
+    public void BoxBudget_BoundsTheGeometryAndColliderCostPerCell()
+    {
+        // What the budget actually buys, in the numbers the mesher will emit: every merged box contributes
+        // 6 quads = 24 vertices = 12 collider triangles, so the worst legal form costs a bounded multiple of
+        // a plain cube (2 collider triangles per visible face). This is the arithmetic the 48 is chosen
+        // against; the frame-time half is a playtest measurement, not something a unit test can claim.
+        const int quadsPerBox = 6, vertsPerBox = 24, colliderTrisPerBox = 12;
+        Assert.Equal(288, CustomShape.MaxBoxes * quadsPerBox);
+        Assert.Equal(1152, CustomShape.MaxBoxes * vertsPerBox);
+        Assert.Equal(576, CustomShape.MaxBoxes * colliderTrisPerBox);
+
+        // And a form that a player is likely to build — a blobby arch — stays far below the ceiling.
+        var arch = new List<(int, int, int)>();
+        for (int y = 0; y < CustomShape.GridLarge; y++)
+        {
+            for (int z = 2; z < 6; z++)
+            {
+                for (int x = 0; x < CustomShape.GridLarge; x++)
+                {
+                    bool leg = x < 2 || x >= CustomShape.GridLarge - 2;
+                    if (leg || y >= CustomShape.GridLarge - 2)
+                    {
+                        arch.Add((x, y, z));
+                    }
+                }
+            }
+        }
+
+        int boxes = CustomShape.Merge(With(CustomShape.GridLarge, arch.ToArray())).Count;
+        Assert.True(boxes <= 8, $"a plain arch should merge to a handful of boxes, got {boxes}");
+    }
+
+    [Fact]
     public void Silhouette_ProjectsAlongZ()
     {
         string voxels = With(CustomShape.GridSmall, (1, 2, 0), (1, 2, 3), (0, 0, 2));

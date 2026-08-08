@@ -23,15 +23,39 @@ namespace BlocksBeyondTheStars.Client
             public readonly Vector3 A, B, C, D;
             public readonly bool IsQuad;
 
+            /// <summary>Per-vertex texture coordinates as FRACTIONS of the block's atlas tile (0..1), used by
+            /// player-designed forms: a micro box must show the slice of the material it actually covers, or an
+            /// 8³ form renders as dozens of shrunken copies of the whole tile. <see cref="HasUv"/> = false keeps
+            /// the built-in forms on their original whole-tile mapping.</summary>
+            public readonly Vector2 UvA, UvB, UvC, UvD;
+            public readonly bool HasUv;
+
             public Face(Vector3 a, Vector3 b, Vector3 c)
             {
                 A = a; B = b; C = c; D = default; IsQuad = false;
+                UvA = UvB = UvC = UvD = default; HasUv = false;
             }
 
             public Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
             {
                 A = a; B = b; C = c; D = d; IsQuad = true;
+                UvA = UvB = UvC = UvD = default; HasUv = false;
             }
+
+            public Face(Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector2 ua, Vector2 ub, Vector2 uc, Vector2 ud)
+            {
+                A = a; B = b; C = c; D = d; IsQuad = true;
+                UvA = ua; UvB = ub; UvC = uc; UvD = ud; HasUv = true;
+            }
+
+            /// <summary>The same face with every corner moved through <paramref name="move"/> — the texture
+            /// coordinates ride along, so a rotated form keeps its surface mapping.</summary>
+            public Face Map(System.Func<Vector3, Vector3> move)
+                => IsQuad
+                    ? (HasUv
+                        ? new Face(move(A), move(B), move(C), move(D), UvA, UvB, UvC, UvD)
+                        : new Face(move(A), move(B), move(C), move(D)))
+                    : new Face(move(A), move(B), move(C));
         }
 
         /// <summary>Builds the polygons for a shape index (see <see cref="BlockShape"/>), oriented by a yaw
@@ -40,9 +64,42 @@ namespace BlocksBeyondTheStars.Client
         /// the full 24 cube orientations. Returns null for cube/unknown.</summary>
         public static List<Face> Build(int shapeIndex, int orientation, int upFace = 0)
         {
-            var faces = new List<Face>();
-            switch ((BlockShape)shapeIndex)
+            // Built once per (form, yaw, up-face) and then shared: the mesher asks for this on every shaped
+            // cell of every remesh, and a player-designed form can be dozens of boxes. Callers must treat the
+            // returned list as read-only (nothing has ever mutated it).
+            int cacheKey = (shapeIndex << 5) | ((upFace & 7) << 2) | (orientation & 3);
+            if (_faceCache.TryGetValue(cacheKey, out var cached))
             {
+                return cached;
+            }
+
+            var built = BuildUncached(shapeIndex, orientation, upFace);
+            _faceCache[cacheKey] = built;
+            return built;
+        }
+
+        private static List<Face> BuildUncached(int shapeIndex, int orientation, int upFace)
+        {
+            var faces = new List<Face>();
+            if (ShapeCode.IsCustomShape(shapeIndex))
+            {
+                // A player-designed form (#844): merged boxes from the registry snapshot. An id this client
+                // has not received (or one that was wiped) has no geometry — the cell renders as a plain cube,
+                // which is exactly what the server does when placing an unknown form.
+                if (!_customVoxels.TryGetValue(shapeIndex, out string voxels))
+                {
+                    return null;
+                }
+
+                foreach (var box in CustomShape.Merge(voxels))
+                {
+                    MicroBox(faces, box);
+                }
+            }
+            else
+            {
+                switch ((BlockShape)shapeIndex)
+                {
                 case BlockShape.Slab: Box(faces, 0f, 0f, 0f, 1f, 0.5f, 1f); break;
                 case BlockShape.Pyramid: Pyramid(faces); break;
                 case BlockShape.Dome: Dome(faces); break;
@@ -62,16 +119,14 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Sheet: Box(faces, 0f, 0f, 0f, 1f, 0.0625f, 1f); break;             // 1/16 rug/veneer plate
                 case BlockShape.Pot: Pot(faces); break;                                            // small centred planter
                 default: return null; // Cube / unknown → no custom geometry
+                }
             }
 
             if ((orientation & 3) != 0)
             {
                 for (int i = 0; i < faces.Count; i++)
                 {
-                    var f = faces[i];
-                    faces[i] = f.IsQuad
-                        ? new Face(Yaw(f.A, orientation), Yaw(f.B, orientation), Yaw(f.C, orientation), Yaw(f.D, orientation))
-                        : new Face(Yaw(f.A, orientation), Yaw(f.B, orientation), Yaw(f.C, orientation));
+                    faces[i] = faces[i].Map(p => Yaw(p, orientation));
                 }
             }
 
@@ -82,14 +137,62 @@ namespace BlocksBeyondTheStars.Client
             {
                 for (int i = 0; i < faces.Count; i++)
                 {
-                    var f = faces[i];
-                    faces[i] = f.IsQuad
-                        ? new Face(Tilt(f.A, upFace), Tilt(f.B, upFace), Tilt(f.C, upFace), Tilt(f.D, upFace))
-                        : new Face(Tilt(f.A, upFace), Tilt(f.B, upFace), Tilt(f.C, upFace));
+                    faces[i] = faces[i].Map(p => Tilt(p, upFace));
                 }
             }
 
             return faces;
+        }
+
+        // --- Player-designed forms (#844) ---
+        //
+        // The registry lives here as an IMMUTABLE snapshot published wholesale from the main thread, because
+        // the chunk mesher reads it from worker threads — the same copy-on-write discipline PaintDesignAtlas
+        // uses for its UV map. A builder thread only ever sees a complete, never-mutated dictionary.
+
+        private static volatile Dictionary<int, string> _customVoxels = new Dictionary<int, string>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, List<Face>> _faceCache = new();
+
+        /// <summary>Publishes a new form snapshot (main thread) and drops the geometry cache, so a form that
+        /// was just registered — or wiped — is picked up by the next remesh.</summary>
+        public static void PublishCustomShapes(Dictionary<int, string> snapshot)
+        {
+            _customVoxels = snapshot ?? new Dictionary<int, string>();
+            _faceCache.Clear();
+        }
+
+        /// <summary>Drops every cached face list (session teardown — the next world may register different
+        /// forms under the same indices).</summary>
+        public static void ClearCache()
+        {
+            _customVoxels = new Dictionary<int, string>();
+            _faceCache.Clear();
+        }
+
+        /// <summary>One merged micro box of a player-designed form, with REAL per-vertex UVs: each face shows
+        /// the slice of the block's tile it actually covers, so a form reads as carved material instead of
+        /// dozens of shrunken copies of the whole texture (and a degenerate UV would render white on the
+        /// mipmapped atlas anyway).</summary>
+        private static void MicroBox(List<Face> f, CustomShape.Box box)
+        {
+            float g = box.Grid;
+            float x0 = box.X0 / g, y0 = box.Y0 / g, z0 = box.Z0 / g;
+            float x1 = box.X1 / g, y1 = box.Y1 / g, z1 = box.Z1 / g;
+
+            // Planar projection per axis: horizontal faces map (x,z), the ±X sides (z,y), the ±Z sides (x,y) —
+            // the same convention the cube faces use, so a custom form's surface lines up with its neighbours.
+            f.Add(new Face(new(x0, y1, z0), new(x0, y1, z1), new(x1, y1, z1), new(x1, y1, z0),
+                new(x0, z0), new(x0, z1), new(x1, z1), new(x1, z0)));                                     // +Y top
+            f.Add(new Face(new(x0, y0, z1), new(x0, y0, z0), new(x1, y0, z0), new(x1, y0, z1),
+                new(x0, z1), new(x0, z0), new(x1, z0), new(x1, z1)));                                     // -Y bottom
+            f.Add(new Face(new(x1, y0, z0), new(x1, y1, z0), new(x1, y1, z1), new(x1, y0, z1),
+                new(z0, y0), new(z0, y1), new(z1, y1), new(z1, y0)));                                     // +X
+            f.Add(new Face(new(x0, y0, z1), new(x0, y1, z1), new(x0, y1, z0), new(x0, y0, z0),
+                new(z1, y0), new(z1, y1), new(z0, y1), new(z0, y0)));                                     // -X
+            f.Add(new Face(new(x1, y0, z1), new(x1, y1, z1), new(x0, y1, z1), new(x0, y0, z1),
+                new(x1, y0), new(x1, y1), new(x0, y1), new(x0, y0)));                                     // +Z
+            f.Add(new Face(new(x0, y0, z0), new(x0, y1, z0), new(x1, y1, z0), new(x1, y0, z0),
+                new(x0, y0), new(x0, y1), new(x1, y1), new(x1, y0)));                                     // -Z
         }
 
         // Quaternion per up-face that maps local +Y onto that world face (indices match the mesher's face order:

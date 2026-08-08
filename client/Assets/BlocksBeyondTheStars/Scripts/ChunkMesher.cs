@@ -1139,8 +1139,18 @@ namespace BlocksBeyondTheStars.Client
                 {
                     verts.Add(d);
                     colliderVerts.Add(d);
-                    uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMin, uv.yMax));
-                    uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.xMax, uv.yMin));
+                    if (face.HasUv)
+                    {
+                        // Player-designed forms carry their own tile FRACTIONS (a micro box shows the slice of
+                        // the material it covers); map them into this block's atlas rect.
+                        uvs.Add(InTile(uv, face.UvA)); uvs.Add(InTile(uv, face.UvB));
+                        uvs.Add(InTile(uv, face.UvC)); uvs.Add(InTile(uv, face.UvD));
+                    }
+                    else
+                    {
+                        uvs.Add(new Vector2(uv.xMin, uv.yMin)); uvs.Add(new Vector2(uv.xMin, uv.yMax));
+                        uvs.Add(new Vector2(uv.xMax, uv.yMax)); uvs.Add(new Vector2(uv.xMax, uv.yMin));
+                    }
                 }
                 else
                 {
@@ -1166,6 +1176,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
         }
+
+        /// <summary>Maps a 0..1 tile fraction into a block's atlas rect (player-designed form UVs).</summary>
+        private static Vector2 InTile(Rect uv, Vector2 fraction)
+            => new Vector2(uv.xMin + fraction.x * uv.width, uv.yMin + fraction.y * uv.height);
 
         /// <summary>Deterministic "does this hull face carry a greeble panel" test (~1/3 of faces), stable per
         /// world cell + face so a ship looks the same on every client and across rebuilds.</summary>
