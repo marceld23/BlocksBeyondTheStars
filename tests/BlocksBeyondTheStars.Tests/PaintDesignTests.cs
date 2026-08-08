@@ -106,7 +106,14 @@ public sealed class PaintDesignTests : IDisposable
 
         repo.SavePaintReport(new StoredPaintReport
         {
-            ReporterId = "p3", OwnerId = "p2", DesignId = 2, Planet = "sys0-p1", X = 1, Y = 2, Z = 3, CreatedUnix = 42,
+            ReporterId = "p3",
+            OwnerId = "p2",
+            DesignId = 2,
+            Planet = "sys0-p1",
+            X = 1,
+            Y = 2,
+            Z = 3,
+            CreatedUnix = 42,
         });
         var reports = repo.ListPaintReports();
         Assert.Single(reports);

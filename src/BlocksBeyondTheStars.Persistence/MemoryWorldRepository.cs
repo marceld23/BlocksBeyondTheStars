@@ -749,8 +749,14 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private static StoredPaintReport ClonePaintReport(StoredPaintReport r)
         => new()
         {
-            ReporterId = r.ReporterId, OwnerId = r.OwnerId, DesignId = r.DesignId,
-            Planet = r.Planet, X = r.X, Y = r.Y, Z = r.Z, CreatedUnix = r.CreatedUnix,
+            ReporterId = r.ReporterId,
+            OwnerId = r.OwnerId,
+            DesignId = r.DesignId,
+            Planet = r.Planet,
+            X = r.X,
+            Y = r.Y,
+            Z = r.Z,
+            CreatedUnix = r.CreatedUnix,
         };
 
     public void SaveDoor(StoredDoor door)
