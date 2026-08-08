@@ -135,6 +135,39 @@ Character tab and the Avatar Designer both gain them. **#841 NPC skin tones** sp
 **Tests**: `PlaytestFixes20260808Tests` (3) — drone damage from its standoff ring, entombed-on-join rescue,
 wall blocks the sightline.
 
+### ★ Eigene Formen: player-designed block forms, a form registry, sharing (#842–#847, 2026-08-08, branch feat/custom-shapes)
+Players craft a **shaping tool** (workshop: iron_plate + crystal + plant_fiber ×2; blueprint 2 KP) and
+right-click to open a **form editor**: a micro-voxel grid filled in **one layer at a time** (8³ default, 4³
+toggle that re-samples), the layer below ghosted through, copy-layer/mirror/clear helpers, a live 3-D preview
+built from the same geometry the world mesher emits, and a detail counter. Named and saved, a form lives in
+`persistentDataPath/custom_shapes/` and crafts from **any material** under "Eigene Formen" in the Forms tab —
+free 1:1 like every built-in form. **No migration was needed**: the form already travels as a number, and of
+the 64 values the 6-bit shape field can hold only 19 were built-in, so a player form is simply one of the **45
+free indices**, registered per save. Crafting, the item key, placing, chunk storage, persistence, the wire and
+mining are untouched; descriptor bits 27–31 stay reserved as the documented widening hatch.
+**Registry** (`GameServerCustomShapes`, the `GameServerPaint` twin): content-hash dedup, persisted in
+`custom_shape` (all three repos), broadcast live and pushed in full before the first chunk. Two deliberate
+differences from paint, both forced by the narrow id space: a wipe **frees the id** (never-reuse is
+unaffordable at 45 slots — an old block then adopts the next form, documented for operators), and the cap IS
+the id space. The craft is gated on carrying the tool, **checked server-side**.
+**Budget**: `CustomShape.Merge` greedy-merges the grid into boxes (integer-only + deterministic, so the
+server's check and the client's mesh cannot disagree) and refuses forms over **48 boxes** — the collider cook
+is the expensive half of a remesh, so over-budget geometry never reaches a client. **Rendering**: an immutable
+COW snapshot for the off-thread mesher, a face cache per (form, yaw, up-face) that also speeds up the built-in
+forms, real per-vertex sub-tile UVs (a whole-tile mapping would show dozens of shrunken texture copies), and
+silhouette icons projected from the voxel grid. Unknown/wiped indices render, collide and place as plain cubes.
+**Sharing (#846)**: copy a form off someone's block with the tool (pre-loads the editor, credited), stamp one
+onto a **stencil** (`shape_stencil#s<id>` — the item key carries the index for a stencil exactly as for a
+block, so drop/trade/store work unchanged), or copy a **share code** (`BBTS1-F-…`, decoded through the same
+validation the server applies). The paint library gained the same treatment: **names**, owner attribution when
+a design is copied off a block, and export/import codes. **Moderation**: `/reportshape` + `/shapewipe`
+mirroring the paint pair (`paint_report` gained a `kind` column; every pre-existing row is `"paint"`).
+**Limits** (in the manual): custom forms are decorative — sitting/beds key on built-in forms; airtightness
+follows the block, not the shape. **Tests**: `CustomShapeTests` (24: format, merge determinism + coverage,
+budget arithmetic, share codes) + `CustomShapeRegistryTests` (13: dedup, tool gate, over-budget refusal, 1:1
+craft with colour, restart survival, wipe-frees-the-id, stencil stamping, unknown-form-places-a-cube).
+⚠ Playtest pending — the frame-time half of the box budget is a measurement no unit test can make.
+
 ### ★ Paintable blocks: 32×32 designs, a design registry, save & reuse, report/wipe moderation (#817–#821, 2026-08-08, branch feat/block-painting)
 Players craft a **paint tool** (workshop: iron_plate + berries ×4 + plant_fiber ×2; blueprint 2 KP) and
 right-click any placed **solid** block — panels, slabs, every shape, plain cubes — to open the shared pixel

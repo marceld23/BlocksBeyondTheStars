@@ -187,6 +187,17 @@
     }
   },
   {
+    "id": "own-forms",
+    "title": {
+      "en": "Your Own Forms",
+      "de": "Eigene Formen"
+    },
+    "body": {
+      "en": "<p>Blocks come in ready-made forms — slabs, ramps, stairs, pillars — but you can also <b>design your own</b>. Craft the <b>shaping tool</b> at the workshop, right-click with it, and you get a grid to fill in: one layer at a time, from the floor of the block up to its ceiling, with the layer below showing through dimly so you can stack a shape without losing your place. A little preview turns beside the canvas so you can see what you are building. Give it a <b>name</b> and it is yours.</p><p>A saved form lives in <i>My forms</i> in the crafting menu's Forms tab, and you can build it out of <b>any material</b> — the same arch in wood, in stone, in metal. It behaves like every other form after that: place it, turn it, mine it back.</p><p><b>Sharing:</b> point the shaping tool at a block somebody else shaped and their form opens in your editor, ready to save (with their name on it). You can also stamp a form onto a <b>stencil</b> and give that away, or copy a form as a <b>code</b> to send to a friend.</p><p>Two things to know: a form can only be so fine — the editor shows how much detail is left — and forms are decoration, so you cannot sit on a chair you designed yourself.</p>",
+      "de": "<p>Blöcke gibt es in fertigen Formen — Platten, Rampen, Treppen, Säulen — aber du kannst auch <b>eigene entwerfen</b>. Bau dir in der Werkstatt das <b>Formwerkzeug</b>, mach einen Rechtsklick damit, und du bekommst ein Raster zum Ausfüllen: Ebene für Ebene, vom Boden des Blocks bis zur Decke, wobei die Ebene darunter schwach durchscheint, damit du beim Stapeln nicht die Orientierung verlierst. Neben der Zeichenfläche dreht sich eine kleine Vorschau. Gib der Form einen <b>Namen</b>, und sie gehört dir.</p><p>Eine gespeicherte Form steht unter <i>Eigene Formen</i> im Formen-Tab des Baumenüs, und du kannst sie aus <b>jedem Material</b> bauen — denselben Torbogen in Holz, in Stein, in Metall. Danach verhält sie sich wie jede andere Form: setzen, drehen, wieder abbauen.</p><p><b>Teilen:</b> Ziel mit dem Formwerkzeug auf einen Block, den jemand anders geformt hat, und seine Form öffnet sich in deinem Editor, bereit zum Speichern (mit seinem Namen dran). Du kannst eine Form auch auf eine <b>Schablone</b> stempeln und verschenken oder als <b>Code</b> kopieren und einem Freund schicken.</p><p>Zwei Dinge solltest du wissen: eine Form kann nur so fein werden — der Editor zeigt, wie viel Detail noch übrig ist — und Formen sind Deko, auf einem selbst entworfenen Stuhl kannst du also nicht sitzen.</p>"
+    }
+  },
+  {
     "id": "farming",
     "title": {
       "en": "Farming & Foraging",

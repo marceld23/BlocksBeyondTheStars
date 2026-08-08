@@ -689,6 +689,28 @@ separate unlock; admins can still disable it through server world rules.
   set of 24 placements. Symmetric forms (sphere, dome, cylinder, …) ignore orientation. Mining returns the
   shaped item; orientation is re-derived each time you place it again.
 
+### Designing your own forms
+- Craft the **Shaping Tool** (`shape_tool`, workshop recipe + the cheap `shape_tool` blueprint) and
+  **right-click** with it to open the **form editor**: a grid you fill in **one layer at a time**, from the
+  block's floor up to its ceiling, with the layer below showing through dimly so a stacked shape stays
+  readable. A small **3-D preview** turns beside the canvas, and helpers cover the fiddly parts — copy the
+  layer below, mirror, clear, and a **4 / 8 grid toggle** (the finer grid is 8×8×8 micro cubes per block).
+- Give the form a **name** and save it. Saved forms live under **"Eigene Formen" / "My forms"** in the
+  Crafting menu's Forms tab, where they craft out of **any material** — the same arch in wood, stone or
+  metal — free 1:1 like every built-in form. Carrying the tool is what unlocks that section.
+- **Detail budget:** the editor shows how many boxes your form needs (e.g. "12 / 48"). Beyond the limit the
+  form is refused — it keeps a wall of self-made forms affordable to draw and to walk into.
+- **Sharing:** aim the shaping tool at a block **somebody else shaped** and their form opens in your editor,
+  ready to save with their name on it. You can also stamp a form onto a **Form Stencil** (`shape_stencil`)
+  and hand that over — right-clicking a stamped stencil adds the form to the receiver's library — or copy a
+  form as a **code** (the Copy/Paste code buttons) to send outside the game.
+- **Limits worth knowing:** self-made forms are decoration, so behaviour tied to specific built-in forms
+  (sitting on a chair, sleeping in a bed) does not apply to them; airtightness follows the block, not its
+  form, so a hollow form still seals a room; and a world holds a limited number of forms. Painting works on
+  them normally. If a form is ever wiped by an operator, blocks still holding it fall back to plain cubes.
+- **Reporting:** `/reportshape` flags the nearest self-made form for the server operator, the same way
+  `/reportpaint` flags a painted block.
+
 ### Character & the pixel-face editor
 - The **Character** menu tab shows your avatar (colours/gear preview). It also hosts a **pixel-face editor**:
   open it to **draw a 32×32 pixel face** on a paint canvas (a 16-colour palette plus an eraser), then **Apply**.
