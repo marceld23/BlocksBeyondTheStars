@@ -451,6 +451,11 @@ public sealed partial class GameServer
                     continue; // never spawn inside (or clipping into) a landed ship
                 }
 
+                if (CreatureBodyBlocked(sp, pos))
+                {
+                    continue; // its body would materialise inside a wall / ruin masonry (#855)
+                }
+
                 // Titans need level ground (#638): a 3×3 clearance whose surface stays within ±1 of the
                 // centre column, so a six-block giant doesn't materialise half-buried in a cliff face —
                 // creatures have no colliders, so the spawn spot is the only terrain check they ever get.
@@ -561,9 +566,9 @@ public sealed partial class GameServer
             }
 
             var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
-            if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos))
+            if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos) || CreatureBodyBlocked(sp, pos))
             {
-                continue;
+                continue; // the herd stays smaller rather than planting a member inside a wall (#855)
             }
 
             SpawnCreature(sp, pos);
@@ -826,7 +831,8 @@ public sealed partial class GameServer
             // skirting an obstacle. Only when every probe is blocked too does it fall back to the re-roll,
             // which preserves the "nothing can ever get stuck" property.
             if (EntityBlockedByShip(next) || BlockedByEnergyFence(creature.Position, next)
-                || StepBlockedByTerrain(sp, creature.Position, next))
+                || StepBlockedByTerrain(sp, creature.Position, next)
+                || CreaturePathBlocked(sp, creature.Position, next))
             {
                 if (TrySteerAround(creature, sp, res.Position, res.VertWave, profile, moveDt,
                         out var detour, out float detourHeading))
@@ -901,7 +907,8 @@ public sealed partial class GameServer
                     c.Position.Z + (float)System.Math.Sin(h) * len);
                 var adjusted = AdjustHabitatHeight(sp, cand, vertWave, prof, dt);
                 if (!EntityBlockedByShip(adjusted) && !BlockedByEnergyFence(c.Position, adjusted)
-                    && !StepBlockedByTerrain(sp, c.Position, adjusted))
+                    && !StepBlockedByTerrain(sp, c.Position, adjusted)
+                    && !CreaturePathBlocked(sp, c.Position, adjusted))
                 {
                     detour = adjusted;
                     heading = h;
@@ -951,6 +958,59 @@ public sealed partial class GameServer
         int nextDepth = _generator.TryGetWaterSurface(_world.Planet, nx, nz, out int nextTop, out int nextBed)
             ? nextTop - nextBed : 0;
         return CreatureBehaviour.TerrainStepBlocked(sp.Habitat, sp.BodyPlan, curFeet, nextFeet, curDepth, nextDepth);
+    }
+
+    private const float CreatureSweepStep = 0.25f; // swept-step sampling distance (same as the NPC path check)
+    private const int CreatureBodyMinHeight = 2;   // even a mouse-sized animal occupies feet + head
+    private const int CreatureBodyMaxHeight = 8;   // ...and a titan is gated by its shoulders, not its full crown
+
+    /// <summary>How many cells tall a creature's body is for collision purposes (its render height is
+    /// <c>Size × 1.8</c>), clamped so tiny fauna still gets a head cell and a titan can still duck under an
+    /// overhang instead of being walled in by its own crown.</summary>
+    private static int CreatureBodyHeight(CreatureSpecies sp) => System.Math.Clamp(
+        (int)System.Math.Ceiling(sp.Size * 1.8f), CreatureBodyMinHeight, CreatureBodyMaxHeight);
+
+    /// <summary>Whether a creature's BODY would sit inside colliding blocks at a spot (#855). Creatures have no
+    /// colliders and the server tracks a single point, so before this gate a wall was only ever seen indirectly —
+    /// as a ground-height delta (<see cref="StepBlockedByTerrain"/>), which reads a 1–2 block player wall as a
+    /// walkable step and lets the rendered body clip into it. Checks the creature's own column from the feet cell
+    /// up through its body height; flying species pass through tree canopies (they hover inside them).</summary>
+    private bool CreatureBodyBlocked(CreatureSpecies sp, Vector3f pos)
+    {
+        int x = (int)System.Math.Floor(pos.X);
+        int y = (int)System.Math.Floor(pos.Y);
+        int z = (int)System.Math.Floor(pos.Z);
+        bool flier = sp.Habitat == CreatureHabitat.Air;
+        int height = CreatureBodyHeight(sp);
+        for (int dy = 0; dy < height; dy++)
+        {
+            if (IsCollidingCellIfLoaded(x, y + dy, z, foliagePasses: flier))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The swept version of <see cref="CreatureBodyBlocked"/> (#855): samples the whole step every
+    /// <see cref="CreatureSweepStep"/> of a block, so a fast animal can't tunnel through a one-block-thin wall
+    /// between two ticks. Mirrors <c>PathBlockedByWorld</c>, which fixed exactly this for NPCs.</summary>
+    private bool CreaturePathBlocked(CreatureSpecies sp, Vector3f from, Vector3f to)
+    {
+        float dx = to.X - from.X, dy = to.Y - from.Y, dz = to.Z - from.Z;
+        float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / CreatureSweepStep));
+        for (int s = 1; s <= steps; s++)
+        {
+            float f = s / (float)steps;
+            if (CreatureBodyBlocked(sp, new Vector3f(from.X + dx * f, from.Y + dy * f, from.Z + dz * f)))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private const float LargeBodySize = 3f; // species at/above this Size get the body-volume checks (#750)

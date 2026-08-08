@@ -91,6 +91,20 @@ public sealed class CreatureTamingTests : IDisposable
 
     private readonly record struct CombatEntityRef(string Id, Vector3f Position);
 
+    /// <summary>Y of the topmost non-air block in a column (the local ground), or 0 if the column is empty.</summary>
+    private static int SurfaceTopY(SvGameServer server, int x, int z)
+    {
+        for (int y = 200; y > -200; y--)
+        {
+            if (!server.World.GetBlock(new Vector3i(x, y, z)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        return 0;
+    }
+
     [Fact]
     public void Taming_APassiveCreature_CreatesANamedCompanionInPlace()
     {
@@ -219,6 +233,62 @@ public sealed class CreatureTamingTests : IDisposable
             tc.HomeBodyId = home;
             server.ReconcileCompanionsForTest();
             Assert.Single(server.CompanionEntitiesForTest("Ranger"));
+        }
+    }
+
+    [Fact]
+    public void Companion_DoesNotWalkThroughAWall_AndIsLeashedBackWhenLeftBehind()
+    {
+        // #855: MoveCompanion only ever checked the ship hull and energy fences, so a pet strolled straight
+        // through its owner's base walls. With the wall gate in place it can genuinely fall behind — the
+        // leash is what keeps "it follows you anywhere" true.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = Ranger(server);
+            server.Tick(6.0);
+            var target = FirstWild(server, CreatureTemperament.Passive);
+            Assert.True(TameNearest(server, p, target));
+            var pet = Assert.Single(server.CompanionEntitiesForTest("Ranger"));
+            server.SpeciesRoster.First(s => s.Id == pet.SpeciesId).Habitat = CreatureHabitat.Land; // a walker, not a flier
+
+            // Wall the owner off: a stone slab at x = wallX, pet on one side, owner on the other. The slab
+            // spans one continuous vertical band — from below the pet's feet to above the tallest column —
+            // because a per-column top would sit at a floating jungle CANOPY block and leave a ground-level gap.
+            var stone = _content.GetBlock("stone")!.NumericId;
+            int wallX = (int)System.Math.Floor(pet.Position.X) + 3;
+            int petZ = (int)System.Math.Floor(pet.Position.Z);
+            int lo = (int)System.Math.Floor(pet.Position.Y) - 4;
+            int hi = lo;
+            for (int dz = -40; dz <= 40; dz++)
+            {
+                hi = System.Math.Max(hi, SurfaceTopY(server, wallX, petZ + dz) + 4);
+            }
+
+            for (int dz = -40; dz <= 40; dz++) // long enough that it cannot simply walk around an end
+            {
+                for (int y = lo; y <= hi; y++)
+                {
+                    server.World.SetBlock(new Vector3i(wallX, y, petZ + dz), stone);
+                }
+            }
+
+            p.State.Position = new Vector3f(wallX + 4.5f, pet.Position.Y, pet.Position.Z);
+            for (int i = 0; i < 40; i++)
+            {
+                server.Tick(0.1);
+                var live = server.CompanionEntitiesForTest("Ranger").Single();
+                Assert.True(live.Position.X < wallX,
+                    $"the companion walked through the wall at x={wallX} (tick {i}, at {live.Position.X:F2}/{live.Position.Y:F2}/{live.Position.Z:F2}, owner {p.State.Position.X:F2})");
+            }
+
+            // Owner walks far away → the pet is re-placed beside them instead of being stuck at the wall forever.
+            p.State.Position = new Vector3f(pet.Position.X + 200f, pet.Position.Y, pet.Position.Z);
+            server.Tick(0.2);
+            var caughtUp = server.CompanionEntitiesForTest("Ranger").Single();
+            float dx = caughtUp.Position.X - p.State.Position.X, dz2 = caughtUp.Position.Z - p.State.Position.Z;
+            Assert.True(dx * dx + dz2 * dz2 <= 9f * 9f,
+                $"a companion left far behind must catch up to its owner (still {System.Math.Sqrt(dx * dx + dz2 * dz2):F1} away)");
         }
     }
 

@@ -846,6 +846,100 @@ public sealed class CreatureTests : IDisposable
         }
     }
 
+    /// <summary>Raises a solid stone wall along the z axis at column <paramref name="wallX"/>.</summary>
+    private void BuildWall(SvGameServer server, int wallX, int cz, int r, int padY, int height)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int dz = -r; dz <= r; dz++)
+        {
+            for (int dy = 1; dy <= height; dy++)
+            {
+                server.World.SetBlock(new Vector3i(wallX, padY + dy, cz + dz), stone);
+            }
+        }
+    }
+
+    [Fact]
+    public void AWall_StopsAHuntingCreature_InsteadOfLettingItWalkThrough()
+    {
+        // #855: the terrain gate only compared GROUND HEIGHTS with a ±2 tolerance, so a two-block player
+        // wall read as a walkable step — a hunter strolled through the masonry and bit the player inside
+        // their own base. The body-cell + swept-path gate must hold it on its own side.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Walled");
+            p.State.AboardShip = false;
+            var sp = ForcePlainLandWalker(server);
+            sp.Temperament = CreatureTemperament.Aggressive; // hunts the player → steers straight at the wall
+
+            const int cx = 100, cz = 100;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            BuildPad(server, cx, cz, 11, padY);
+            BuildWall(server, cx, cz, 11, padY, height: 2);
+
+            p.State.Position = new Vector3f(cx + 3.5f, padY + 1, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 3.5f, padY + 1, cz + 0.5f));
+
+            for (int i = 0; i < 120; i++)
+            {
+                server.TickForTest(0.1);
+                var live = server.Creatures.First(x => x.Id == id);
+                Assert.True(live.Position.X < cx,
+                    $"the creature crossed the wall at x={cx} (reached {live.Position.X:F2}/{live.Position.Z:F2})");
+            }
+        }
+    }
+
+    [Fact]
+    public void ARoamingCreature_StaysOutOfASealedRoom_ItCannotEnter()
+    {
+        // The same gate from the other side: a room with a closed wall ring must stay creature-free, and
+        // the animal outside must not end up standing inside the masonry either.
+        var server = Started("jungle", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            ForcePlainLandWalker(server);
+
+            const int cx = -100, cz = -100;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            BuildPad(server, cx, cz, 11, padY);
+
+            // A 5×5 room ring (3 tall) around the pad centre; the creature starts outside it.
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dx = -2; dx <= 2; dx++)
+            {
+                for (int dz = -2; dz <= 2; dz++)
+                {
+                    if (System.Math.Abs(dx) != 2 && System.Math.Abs(dz) != 2)
+                    {
+                        continue; // interior stays open
+                    }
+
+                    for (int dy = 1; dy <= 3; dy++)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, padY + dy, cz + dz), stone);
+                    }
+                }
+            }
+
+            p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f); // inside the room
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 6.5f, padY + 1, cz + 0.5f));
+
+            for (int i = 0; i < 150; i++)
+            {
+                server.TickForTest(0.1);
+                var live = server.Creatures.First(x => x.Id == id);
+                bool insideRing = System.Math.Abs(live.Position.X - cx) <= 2.5f
+                    && System.Math.Abs(live.Position.Z - cz) <= 2.5f;
+                Assert.False(insideRing,
+                    $"the creature got into the sealed room ({live.Position.X:F2}/{live.Position.Z:F2})");
+            }
+        }
+    }
+
     [Fact]
     public void HurtingOneHerdMember_StartlesItsKin_WhoFleeThePlayer()
     {

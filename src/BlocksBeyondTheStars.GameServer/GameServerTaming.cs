@@ -480,9 +480,7 @@ public sealed partial class GameServer
         }
 
         var sp = _speciesById[tc.SpeciesId];
-        float ang = (Hash(tc.Id, "spawn") % 360) * (float)(System.Math.PI / 180.0);
-        var pos = new Vector3f(near.X + (float)System.Math.Cos(ang) * 3f, near.Y, near.Z + (float)System.Math.Sin(ang) * 3f);
-        pos = AdjustHabitatHeight(sp, pos);
+        var pos = CompanionSpotNear(sp, tc.Id, near);
 
         _creatures.Add(new CombatEntity
         {
@@ -501,6 +499,28 @@ public sealed partial class GameServer
         });
     }
 
+    private const float CompanionLeashRange = 24f; // beyond this a companion is re-placed beside its owner (#855)
+
+    /// <summary>A free spot beside a player for a companion to (re-)appear on: bearings fanned out from a
+    /// per-pet stable angle, first one whose body isn't inside a wall wins. Falls back to the owner's own
+    /// position (they are standing in open space by definition) when the pet is boxed in on every side.</summary>
+    private Vector3f CompanionSpotNear(CreatureSpecies sp, string companionId, Vector3f near)
+    {
+        float baseAngle = (Hash(companionId, "spawn") % 360) * (float)(System.Math.PI / 180.0);
+        for (int i = 0; i < 8; i++)
+        {
+            float ang = baseAngle + i * 0.7853982f; // 45° apart
+            var spot = AdjustHabitatHeight(sp, new Vector3f(
+                near.X + (float)System.Math.Cos(ang) * 3f, near.Y, near.Z + (float)System.Math.Sin(ang) * 3f));
+            if (!CreatureBodyBlocked(sp, spot) && !EntityBlockedByShip(spot))
+            {
+                return spot;
+            }
+        }
+
+        return AdjustHabitatHeight(sp, near);
+    }
+
     /// <summary>Advances one companion: it follows its owner (or holds position if the owner isn't here).</summary>
     private void MoveCompanion(CombatEntity c, double moveDt)
     {
@@ -515,14 +535,25 @@ public sealed partial class GameServer
             return; // owner not on this world — hold (reconciliation will despawn it)
         }
 
+        // Leash (#855): now that walls actually stop a companion it can fall behind for good — an owner who
+        // walks around a building leaves the pet probing the masonry. Past this range it simply catches up by
+        // being re-placed beside its owner, which is what players expect of a pet that "follows you anywhere".
+        if (WrapDistSq(c.Position, owner.State.Position) > CompanionLeashRange * CompanionLeashRange)
+        {
+            c.Position = CompanionSpotNear(sp, c.Id, owner.State.Position);
+            return;
+        }
+
         var profile = ProfileFor(c.SpeciesId);
         var res = LocomotionController.FollowStep(
             c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
         c.Loco = res.State;
         var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile, moveDt);
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even
-        // when its owner steps out through the gate membrane (that is the point of the pen).
-        if (EntityBlockedByShip(next) || BlockedByEnergyFence(c.Position, next))
+        // when its owner steps out through the gate membrane (that is the point of the pen). Walls stop them
+        // like they stop wild fauna (#855) — a pet used to walk straight through the player's own base.
+        if (EntityBlockedByShip(next) || BlockedByEnergyFence(c.Position, next)
+            || CreaturePathBlocked(sp, c.Position, next))
         {
             c.Loco.ModeTimer = 0f;
         }

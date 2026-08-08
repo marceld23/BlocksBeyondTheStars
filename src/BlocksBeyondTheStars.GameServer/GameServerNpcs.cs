@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 
 namespace BlocksBeyondTheStars.GameServer;
 
@@ -342,23 +343,24 @@ public sealed partial class GameServer
     /// without fighting the enemy/creature ground-snapping that would move a hand-placed combatant.</summary>
     public bool HasLineOfSightForTest(Vector3f from, Vector3f to) => HasLineOfSight(from, to);
 
-    /// <summary>True if an NPC's body (feet + head) would sit inside a solid block at this position — a wall,
+    /// <summary>True if an NPC's body (feet + head) would sit inside a colliding block at this position — a wall,
     /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.</summary>
     private bool BlockedByWorld(Vector3f pos)
     {
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        return IsSolidCell(x, y, z)       // feet
-            || IsSolidCell(x, y + 1, z);  // head
+        return IsCollidingCell(x, y, z)       // feet
+            || IsCollidingCell(x, y + 1, z);  // head
     }
 
     /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
     /// just "non-air", so the two are kept distinct: <b>glass</b> is solid-but-transparent (blocks NPCs, you see
     /// through it), while a non-solid transparent block like <b>water</b> is passable. Air is never solid.</summary>
-    private bool IsSolidCell(int x, int y, int z)
+    private bool IsSolidCell(int x, int y, int z) => IsSolidBlock(_world.GetBlock(new Vector3i(x, y, z)));
+
+    private bool IsSolidBlock(BlockId id)
     {
-        var id = _world.GetBlock(new Vector3i(x, y, z));
         if (id.IsAir)
         {
             return false;
@@ -367,6 +369,46 @@ public sealed partial class GameServer
         var def = _content.BlockById(id);
         return def == null || def.Solid; // unknown id → treat as solid (safe default)
     }
+
+    /// <summary>Whether a cell actually <b>collides</b> with a walking body. <see cref="IsSolidCell"/> keys on
+    /// the <c>Solid</c> flag alone, which defaults to <c>true</c> — so every cross-billboard prop (small flora,
+    /// the torch/lantern, the walk-through ladder) counts as solid there even though the mesher gives it no
+    /// collider and the player strolls straight through it. Movement must use this predicate instead, or a
+    /// meadow would be an impassable wall for anything that isn't a player. Sight (<see cref="HasLineOfSight"/>)
+    /// keeps the plain solid test.</summary>
+    private bool IsCollidingCell(int x, int y, int z)
+        => IsCollidingBlock(_world.GetBlock(new Vector3i(x, y, z)), fluidsPass: false, foliagePasses: false);
+
+    /// <summary>The no-load sibling of <see cref="IsCollidingCell"/> used by the creature gates: an unloaded chunk
+    /// reads as air (permissive, matching <c>StandableAt</c>), so a per-tick movement check never generates chunks
+    /// as a side effect. Fluids never block an animal — swimmers live in them — and flying species additionally
+    /// pass through tree canopies (their hover altitude sits right inside the crown on forest worlds).</summary>
+    private bool IsCollidingCellIfLoaded(int x, int y, int z, bool foliagePasses)
+        => IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(x, y, z)), fluidsPass: true, foliagePasses);
+
+    private bool IsCollidingBlock(BlockId id, bool fluidsPass, bool foliagePasses)
+    {
+        if (!IsSolidBlock(id))
+        {
+            return false;
+        }
+
+        if (fluidsPass && IsFluid(id.Value))
+        {
+            return false; // water/lava are `Solid` in the content DB but are wadeable/swimmable, not walls
+        }
+
+        var def = _content.BlockById(id);
+        return def != null && !IsWalkThroughProp(def.Key, foliagePasses);
+    }
+
+    /// <summary>Blocks that are solid on paper but have <b>no collider</b> in the mesher, so bodies pass through
+    /// them (mirrors the client's <c>PlayerController.IsCollidingKey</c>). <paramref name="foliagePasses"/> adds
+    /// tree canopies for FLYING creatures — a winged animal weaves through a crown rather than bouncing off it.</summary>
+    private static bool IsWalkThroughProp(string key, bool foliagePasses)
+        => key.StartsWith("flora_", System.StringComparison.Ordinal)
+            || key is "torch" or "lantern" or "ladder"
+            || (foliagePasses && key == "tree_leaves");
 
     private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
 

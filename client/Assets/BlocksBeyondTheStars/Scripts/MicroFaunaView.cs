@@ -296,7 +296,12 @@ namespace BlocksBeyondTheStars.Client
                 if (!airborne)
                 {
                     int g2 = GroundTopY(Mathf.FloorToInt(jx), Mathf.FloorToInt(jz));
-                    if (g2 != int.MinValue) y = g2 + 0.12f;
+                    if (g2 != int.MinValue) y = g2 + CrawlSurfaceY;
+                }
+
+                if (IsBlockingAt(jx, y, jz))
+                {
+                    continue; // never seed a critter inside a block (#855) — the swarm just comes out smaller
                 }
 
                 Spawn(kindIdx, new Vector3(jx, y, jz), group, airborne ? baseY : gy + 1f);
@@ -365,7 +370,7 @@ namespace BlocksBeyondTheStars.Client
 
             int gy = GroundTopY(ix, iz);
             if (gy == int.MinValue) return false;
-            Spawn(kindIdx, new Vector3(wx, gy + 0.12f, wz), -1, gy + 1f);
+            Spawn(kindIdx, new Vector3(wx, gy + CrawlSurfaceY, wz), -1, gy + 1f);
             return true;
         }
 
@@ -464,15 +469,24 @@ namespace BlocksBeyondTheStars.Client
             Steer(c, dt, weave: 1.4f, cohesion: 0.6f);
 
             Vector3 vel = Heading(c) * c.Speed;
-            c.WorldPos.x += vel.x * dt;
-            c.WorldPos.z += vel.z * dt;
+            float nx = c.WorldPos.x + vel.x * dt, nz = c.WorldPos.z + vel.z * dt;
+            if (IsBlockingAt(nx, c.WorldPos.y, nz))
+            {
+                c.Heading += Mathf.PI * (0.6f + Random.value * 0.5f); // a wall — veer off (#855)
+                c.LastVelX = 0f;
+                return;
+            }
+
+            c.WorldPos.x = nx;
+            c.WorldPos.z = nz;
 
             // Gentle altitude wave around a ground-relative cruising height; low gravity exaggerates the
             // bob so flight on light worlds reads floatier.
             c.BobPhase += dt * 2.2f;
             int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
             if (gy != int.MinValue) c.BaseY = Mathf.Lerp(c.BaseY, gy + 2.0f, 0.04f);
-            c.WorldPos.y = c.BaseY + Mathf.Sin(c.BobPhase) * 0.45f * LowGravityScale();
+            float ny = c.BaseY + Mathf.Sin(c.BobPhase) * 0.45f * LowGravityScale();
+            if (!IsBlockingAt(c.WorldPos.x, ny, c.WorldPos.z)) c.WorldPos.y = ny; // don't bob into a ceiling
             c.LastVelX = vel.x;
         }
 
@@ -483,9 +497,21 @@ namespace BlocksBeyondTheStars.Client
             {
                 float g = 14f * Mathf.Max(0.3f, Game.Environment?.GravityFactor ?? 1f);
                 Vector3 vel = Heading(c) * (c.Speed * 2f);
-                c.WorldPos.x += vel.x * dt;
-                c.WorldPos.z += vel.z * dt;
-                c.WorldPos.y += c.VertVel * dt;
+                float hx = c.WorldPos.x + vel.x * dt, hz = c.WorldPos.z + vel.z * dt;
+                float hy = c.WorldPos.y + c.VertVel * dt;
+                if (IsBlockingAt(hx, hy, hz))
+                {
+                    // Hopped into a wall (#855): drop straight down here and turn around for the next hop.
+                    c.Heading += Mathf.PI;
+                    hx = c.WorldPos.x;
+                    hz = c.WorldPos.z;
+                    c.VertVel = Mathf.Min(c.VertVel, 0f);
+                    hy = c.WorldPos.y;
+                }
+
+                c.WorldPos.x = hx;
+                c.WorldPos.z = hz;
+                c.WorldPos.y = hy;
                 c.VertVel -= g * dt;
                 c.LastVelX = vel.x;
 
@@ -496,9 +522,9 @@ namespace BlocksBeyondTheStars.Client
                     gy = Mathf.FloorToInt(c.WorldPos.y);
                 }
 
-                if (c.VertVel < 0f && c.WorldPos.y <= gy + 0.12f)
+                if (c.VertVel < 0f && c.WorldPos.y <= gy + CrawlSurfaceY)
                 {
-                    c.WorldPos.y = gy + 0.12f;
+                    c.WorldPos.y = gy + CrawlSurfaceY;
                     c.Airborne = false;
                     c.PauseTimer = Random.Range(0.4f, 1.8f);
                 }
@@ -526,13 +552,22 @@ namespace BlocksBeyondTheStars.Client
             Steer(c, dt, weave: 0.5f, cohesion: 0.3f);
 
             Vector3 vel = Heading(c) * c.Speed;
-            c.WorldPos.x += vel.x * dt;
-            c.WorldPos.z += vel.z * dt;
+            float nx = c.WorldPos.x + vel.x * dt, nz = c.WorldPos.z + vel.z * dt;
+            if (IsBlockingAt(nx, c.WorldPos.y, nz))
+            {
+                c.Heading += Mathf.PI * (0.6f + Random.value * 0.5f); // drifted into a wall — bounce off (#855)
+                c.LastVelX = 0f;
+                return;
+            }
+
+            c.WorldPos.x = nx;
+            c.WorldPos.z = nz;
 
             // A slow balloon bob around a lazily ground-following cruise height.
             int gy = GroundTopY(Mathf.FloorToInt(c.WorldPos.x), Mathf.FloorToInt(c.WorldPos.z));
             if (gy != int.MinValue) c.BaseY = Mathf.Lerp(c.BaseY, gy + 2.2f, 0.02f);
-            c.WorldPos.y = c.BaseY + Mathf.Sin(c.BobPhase) * 0.9f * LowGravityScale();
+            float ny = c.BaseY + Mathf.Sin(c.BobPhase) * 0.9f * LowGravityScale();
+            if (!IsBlockingAt(c.WorldPos.x, ny, c.WorldPos.z)) c.WorldPos.y = ny; // don't bob into a ceiling
             c.LastVelX = vel.x;
         }
 
@@ -550,7 +585,10 @@ namespace BlocksBeyondTheStars.Client
             Vector3 vel = Heading(c) * c.Speed;
             float nx = c.WorldPos.x + vel.x * dt, nz = c.WorldPos.z + vel.z * dt;
             int gy = GroundTopY(Mathf.FloorToInt(nx), Mathf.FloorToInt(nz));
-            if (gy == int.MinValue || Mathf.Abs((gy + 0.12f) - c.WorldPos.y) > 1.6f)
+            // The height delta alone let a crawler walk into anything a block tall (#855) — and inside a room
+            // GroundTopY reports the ROOF, not the floor. So the cell it would occupy has to be free as well.
+            if (gy == int.MinValue || Mathf.Abs((gy + CrawlSurfaceY) - c.WorldPos.y) > 1.6f
+                || IsBlockingAt(nx, c.WorldPos.y, nz) || IsBlockingAt(nx, c.WorldPos.y + 0.5f, nz))
             {
                 c.Heading += Mathf.PI * 0.6f; // a ledge / wall — turn away
                 c.LastVelX = 0f;
@@ -558,7 +596,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             c.WorldPos.x = nx; c.WorldPos.z = nz;
-            c.WorldPos.y = Mathf.Lerp(c.WorldPos.y, gy + 0.12f, 0.3f);
+            c.WorldPos.y = Mathf.Lerp(c.WorldPos.y, gy + CrawlSurfaceY, 0.3f);
             c.LastVelX = vel.x;
 
             c.RepathTimer -= dt;
@@ -706,6 +744,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Where a crawling/hopping critter's belly sits relative to the ground cell <see cref="GroundTopY"/>
+        /// reports (#855). That cell is the last SOLID one, spanning world Y <c>gy..gy+1</c> — so the walkable
+        /// surface is <c>gy + 1</c> and the old bare <c>gy + 0.12</c> parked beetles, ants and hoppers almost a
+        /// full block INSIDE the ground (the flyers' <c>gy + 2</c> cruise height always used the right frame).</summary>
+        private const float CrawlSurfaceY = 1.12f;
+
         /// <summary>Top solid surface Y near the player's vertical band at a column, or int.MinValue if none.</summary>
         private int GroundTopY(int wx, int wz)
         {
@@ -738,6 +782,30 @@ namespace BlocksBeyondTheStars.Client
 
         private bool IsWater(int wx, int wy, int wz)
             => Game.Content.BlockById(Game.World.GetBlock(wx, wy, wz))?.Key == "water";
+
+        /// <summary>Whether a cell stops a critter (#855). Critters are cosmetic billboards with no colliders, so
+        /// before this every motion model except <see cref="MoveSwim"/> integrated straight through walls — a
+        /// butterfly crossed a base like it wasn't there. Keyed on the same idea as the player's
+        /// <c>IsCollidingKey</c>: `Solid` alone won't do (it defaults to true, so grass would be a wall), and a
+        /// critter is small enough to slip through foliage and past a torch, so canopies stay passable too.</summary>
+        private bool IsBlocking(int wx, int wy, int wz)
+        {
+            var def = Game.Content?.BlockById(Game.World.GetBlock(wx, wy, wz));
+            if (def == null || !def.Solid)
+            {
+                return false; // air, water, lava, or a block the content DB marks as non-solid
+            }
+
+            string key = def.Key;
+            return key != "water" && key != "lava" && key != "tree_leaves"
+                && key != "torch" && key != "lantern" && key != "ladder"
+                && !key.StartsWith("flora_", System.StringComparison.Ordinal);
+        }
+
+        /// <summary>Whether the cell a critter is about to occupy is free — the world-space variant of
+        /// <see cref="IsBlocking"/>.</summary>
+        private bool IsBlockingAt(float x, float y, float z)
+            => IsBlocking(Mathf.FloorToInt(x), Mathf.FloorToInt(y), Mathf.FloorToInt(z));
 
         private bool IsNight()
         {

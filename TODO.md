@@ -7409,6 +7409,40 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-09): fauna stops walking through walls; insects respect blocks (#855)
+
+Playtest report: insects fly straight through walls, and creatures sometimes stand half inside one.
+Two root causes, both fixed:
+
+- **Server — creatures were a POINT, and the terrain gate only compared ground heights.** A 1–2 block
+  player wall read as a walkable step (`TerrainStepBlocked` tolerance ±2), only `Land`/`Water` habitats
+  were gated at all, only titans (`Size ≥ 3`) had any body-volume check, and nothing swept the step —
+  so animals tunnelled thin walls and rendered half inside masonry. New `CreatureBodyBlocked`
+  (feet→`ceil(Size×1.8)` body column, clamped 2..8) + `CreaturePathBlocked` (¼-block swept segment,
+  the same recipe `PathBlockedByWorld` used to fix NPCs) now gate **every habitat** in `MoveCreatures`,
+  the steer-around probes, spawn (`TrySpawnCreatureNear` + herd members) and **companions**
+  (`MoveCompanion` previously checked only ship + fence — pets walked through their owner's base).
+  Since walls now genuinely stop a pet, a companion left > 24 blocks behind is re-placed beside its
+  owner (`CompanionSpotNear`) so "follows you anywhere" stays true.
+- **Collision predicate ≠ `Solid`.** `Solid` defaults to `true`, so every cross-billboard `flora_*`
+  prop (plus torch/lantern/ladder) counts as solid despite having no collider — gating on it would
+  wall fauna out of meadows. New `IsCollidingCell*` (server counterpart of the client's
+  `IsCollidingKey`, fluids passable, `tree_leaves` passable for fliers) — and `BlockedByWorld` for
+  **NPCs** now uses it too, fixing the pre-existing "a grass tuft blocks an NPC" quirk. Movement reads
+  use `GetBlockIfLoaded`, so the 15 Hz tick never generates chunks.
+- **Client — micro-fauna had no cell test at all.** `MoveFly`/`MoveDrift` integrated x/z unchecked
+  (butterflies crossed bases like they weren't there), `MoveHop` only checked landing, `MoveCrawl`
+  compared ground heights (and `GroundTopY` returns the ROOF indoors), and spawns never checked the
+  cell. All motion models now veer off/bounce at a blocking cell (`IsBlocking`, same key exceptions),
+  bobbing won't enter ceilings, blocked spawn cells are skipped — and crawlers/hoppers sit at
+  `gy + 1.12` (the walkable surface) instead of `gy + 0.12`, which had parked beetles a block INSIDE
+  the ground.
+
+Tests: a hunting creature is held by a 2-block wall; a sealed room stays creature-free; a companion
+neither crosses a wall slab nor is lost behind it (leash catches it up). Playtest pending.
+
+---
+
 ## ✅ Done (2026-08-08): the ship is still there after leaving and reloading a world (#848)
 
 "I start a world, leave the game, load it again — and my ship is gone." Two save-game gaps, both
