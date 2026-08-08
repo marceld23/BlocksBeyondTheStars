@@ -392,7 +392,8 @@ it is always bound to whoever serves its page.
 
 Blocks, items, recipes, blueprints, ship modules and planets are JSON in `data/`; no code
 changes are needed to add content. Player-facing names use localization keys resolved from
-`data/locales/{en,de}.json`. Validate with `BlocksBeyondTheStars.Tools validate`.
+`data/locales/{en,de,fr,es}.json` (plus the in-progress community `it.json`). Validate with
+`BlocksBeyondTheStars.Tools validate`.
 
 ## Status
 
