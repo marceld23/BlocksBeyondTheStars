@@ -79,8 +79,38 @@ public static class ShapeCode
     /// <summary>True when the descriptor is an ordinary full cube (no custom geometry).</summary>
     public static bool IsCube(int descriptor) => ShapeOf(descriptor) == 0;
 
-    /// <summary>True when <paramref name="shapeIndex"/> names a real (non-cube) shape we can build.</summary>
+    /// <summary>True when <paramref name="shapeIndex"/> names a real (non-cube) BUILT-IN shape we can build.
+    /// Player-designed forms live above this range — see <see cref="IsCustomShape"/>.</summary>
     public static bool IsValidShape(int shapeIndex) => shapeIndex > 0 && shapeIndex < Count;
+
+    // --- Player-designed forms (#842) ---
+    // The shape field is 6 bits (0..63) and only 19 values are built-in, so the free indices ABOVE the enum
+    // are handed out to player-designed forms registered per save (see CustomShape + the server registry).
+    // A custom form therefore rides through crafting, the item key, placing, persistence and mining with no
+    // format change whatsoever: it is just another shape index. Descriptor bits 27..31 stay reserved zero as
+    // the escape hatch if 45 slots per save ever prove too few (widening them is additive, not a migration).
+
+    /// <summary>First shape index handed out to player-designed forms (one past the built-in enum).</summary>
+    public const int FirstCustom = Count;
+
+    /// <summary>Last shape index the 6-bit descriptor field can hold.</summary>
+    public const int LastCustom = 63;
+
+    /// <summary>How many player-designed forms one save can hold at a time.</summary>
+    public const int MaxCustomShapes = LastCustom - FirstCustom + 1;
+
+    /// <summary>True when the index names a player-designed form rather than a built-in one. Says nothing
+    /// about whether that form is actually REGISTERED in this save — ask the registry for that.</summary>
+    public static bool IsCustomShape(int shapeIndex) => shapeIndex >= FirstCustom && shapeIndex <= LastCustom;
+
+    /// <summary>True when the packed descriptor carries a player-designed form.</summary>
+    public static bool IsCustomDescriptor(int descriptor) => IsCustomShape(ShapeOf(descriptor));
+
+    /// <summary>True when <paramref name="shapeIndex"/> can be placed/crafted right now: either a built-in
+    /// form, or a custom form that <paramref name="registered"/> confirms exists in this save. Passing a
+    /// null predicate rejects every custom id (callers with no registry at hand see built-ins only).</summary>
+    public static bool IsPlaceableShape(int shapeIndex, System.Func<int, bool>? registered)
+        => IsValidShape(shapeIndex) || (IsCustomShape(shapeIndex) && registered is not null && registered(shapeIndex));
 
     /// <summary>True when <paramref name="upFace"/> is a valid up-face index (0..5).</summary>
     public static bool IsValidUpFace(int upFace) => upFace is >= 0 and <= 5;
