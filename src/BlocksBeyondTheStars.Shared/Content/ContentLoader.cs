@@ -167,11 +167,15 @@ public static class ContentLoader
     }
 
     private static Dictionary<string, string> LoadObject(string path)
-    {
-        var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions)
-               ?? new Dictionary<string, string>();
-    }
+        => ParseLocaleTable(File.ReadAllText(path));
+
+    /// <summary>Parses one locale table (a flat key→text JSON object) from an in-memory string. Public
+    /// because the browser client fetches <c>locales/*.json</c> over HTTP before its content cache is
+    /// complete — the shell screens must localize without waiting for the full load — and has to use the
+    /// exact same parser/options as the filesystem path.</summary>
+    public static Dictionary<string, string> ParseLocaleTable(string json)
+        => JsonSerializer.Deserialize<Dictionary<string, string>>(json, JsonOptions)
+           ?? new Dictionary<string, string>();
 
     /// <summary>Loads pluggable story packs from <c>data/stories/&lt;id&gt;/story.json</c> and merges each
     /// pack's optional <c>locales/&lt;code&gt;.json</c> into the shared locale tables. An absent directory

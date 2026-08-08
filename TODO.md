@@ -7287,6 +7287,35 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-08): the browser's splash and intro are localized from the first frame (#831)
+
+In the WebGL build the studio splash, the title splash and the intro cinematic showed raw locale
+keys (`ui.splash.tagline`, `ui.intro.card1`, …) for as long as they were on screen; the main menu
+afterwards was fine. Cause: native builds load content synchronously in `AppShell.Awake`, the
+browser streams it — and the localizer was only built after the *last* of 30+ data files had
+arrived, fetched strictly one at a time (~1.6 MB) and re-downloaded from scratch on every single
+start. Meanwhile the shell screens run on fixed timers (studio 5 s → splash 3.2 s → intro 28 s) and
+start on frame one. Four changes:
+
+- **Locale-first bootstrap** — the startup coroutine now fetches `locales/en.json` plus the active
+  language *first* and publishes a localizer built from just those two tables; the full content load
+  swaps in the content-backed one when it lands. Two requests instead of thirty before the shell can
+  speak. `ContentLoader.ParseLocaleTable` is the shared parser both paths use.
+- **Parallel downloads** — the cache fetches up to 6 files at once (what a browser allows per host)
+  instead of paying a full round-trip per file.
+- **Cache versioning** — the cache is stamped with the build version plus a fingerprint of the
+  manifest and reused when it still matches (verifying every file is present), instead of being
+  deleted and re-downloaded on every start.
+- **The intro ship shows up in the browser** — `IntroCinematic` gave up on the voxel ship when the
+  content wasn't loaded yet and never retried, so the cinematic played without its centrepiece; it
+  now builds the ship the moment the content arrives.
+
+Also: the hard-coded `FallbackManifest` (used only when a deployment has no `manifest.json`) had
+drifted — it was missing `achievements.json` and four ship layouts, which such a build would have
+silently omitted. It is current again, and the WebGL build now warns when it drifts from `data/`.
+
+---
+
 ## ✅ Done (2026-08-08): craft & ship-module lists sorted by reachability (#826)
 
 The crafting list and the ship-module list used to show entries in `data/recipes.json` /

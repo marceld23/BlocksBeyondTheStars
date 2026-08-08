@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- **Browser: the splash screens and the intro speak again (#831).** In the WebGL build the studio
+  splash, the title splash and the intro cinematic showed raw localization keys instead of their
+  texts, because the localizer waited for the entire content download (30+ files, fetched one at a
+  time, re-downloaded on every start) while those screens run on fixed timers. The locale files are
+  now fetched first and the localizer is published immediately, the remaining files download in
+  parallel, and an already-current cache is reused instead of refetched. The intro's voxel ship,
+  which the browser build silently skipped when content hadn't arrived yet, is now built as soon as
+  the content lands.
+
 ## [2026.8.7] — 2026-08-08
 
 The homestead release: the update that makes your base a home. Blocks take painted 32×32

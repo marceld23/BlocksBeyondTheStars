@@ -187,4 +187,23 @@ public class ContentTests
 
         Assert.Contains(ex.Problems, p => p.Contains("nonexistent_item"));
     }
+
+    /// <summary>The browser client parses locale files it fetched over HTTP with this entry point, before
+    /// its content cache exists, so the splash/intro screens can localize (#831). It must read a real
+    /// shipped locale file exactly like the filesystem path does.</summary>
+    [Fact]
+    public void ParseLocaleTable_ReadsAShippedLocaleFile()
+    {
+        var path = Path.Combine(TestPaths.DataDir(), "locales", "en.json");
+        var table = ContentLoader.ParseLocaleTable(File.ReadAllText(path));
+
+        Assert.NotEmpty(table);
+        Assert.Equal(Load().CreateLocalizer(GameLocale.English).Get("ui.splash.tagline"), table["ui.splash.tagline"]);
+    }
+
+    [Fact]
+    public void ParseLocaleTable_EmptyObjectYieldsEmptyTable()
+    {
+        Assert.Empty(ContentLoader.ParseLocaleTable("{}"));
+    }
 }

@@ -242,6 +242,53 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             File.WriteAllText(manifestPath, json.ToString());
             AssetDatabase.ImportAsset("Assets/StreamingAssets/data/manifest.json", ImportAssetOptions.ForceUpdate);
             Debug.Log($"WebGL StreamingAssets manifest written with {files.Count} files.");
+            WarnOnStaleFallbackManifest(files);
+        }
+
+        /// <summary>Compares the generated manifest with <c>StreamingAssetsCache.FallbackManifest</c>, the
+        /// hard-coded list used when a deployment has no <c>manifest.json</c>. Drift there is invisible at
+        /// runtime — such a build simply never fetches the missing files (a language, a ship, the
+        /// achievements) and reports no error — so the build says it out loud instead.</summary>
+        private static void WarnOnStaleFallbackManifest(List<string> files)
+        {
+            var generated = new HashSet<string>(files, StringComparer.Ordinal);
+            var fallback = new HashSet<string>(StreamingAssetsCache.FallbackManifestFiles, StringComparer.Ordinal);
+
+            var missing = new List<string>(files.Count);
+            foreach (string file in files)
+            {
+                if (!fallback.Contains(file))
+                {
+                    missing.Add(file);
+                }
+            }
+
+            var stale = new List<string>();
+            foreach (string file in StreamingAssetsCache.FallbackManifestFiles)
+            {
+                if (!generated.Contains(file))
+                {
+                    stale.Add(file);
+                }
+            }
+
+            if (missing.Count == 0 && stale.Count == 0)
+            {
+                return;
+            }
+
+            var message = new StringBuilder("StreamingAssetsCache.FallbackManifest is out of sync with data/.");
+            if (missing.Count > 0)
+            {
+                message.Append(" Missing: ").Append(string.Join(", ", missing.ToArray())).Append('.');
+            }
+
+            if (stale.Count > 0)
+            {
+                message.Append(" No longer present: ").Append(string.Join(", ", stale.ToArray())).Append('.');
+            }
+
+            Debug.LogWarning(message.ToString());
         }
 
         private static void RemoveAutoFullscreen(string outDir)

@@ -37,6 +37,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly AppShell _shell;
         private bool _replay;
         private float _elapsed;
+        private bool _shipBuildAttempted;
 
         private GameObject _root;
         private Camera _cam;
@@ -67,6 +68,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             EnsureBuilt();
+
+            // The browser streams its content in, so the rig is usually built before the ship design
+            // exists — pick it up as soon as it lands instead of playing the cinematic without its
+            // centrepiece (#831). One attempt per rig: content is either there by then or never.
+            if (!_shipBuildAttempted && _shell.Content != null)
+            {
+                _shipBuildAttempted = true;
+                BuildShip();
+            }
+
             _elapsed += Time.deltaTime;
             Animate(_elapsed);
 
@@ -217,6 +228,7 @@ namespace BlocksBeyondTheStars.Client
 
             BuildSun();
             BuildPlanet();
+            _shipBuildAttempted = _shell.Content != null; // else Update retries once the content lands
             BuildShip();
 
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
@@ -307,7 +319,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The voxel fighter through the real atlas mesher (menu recipe), with a simple engine
-        /// glow; hidden until its leg. Content not ready (early WebGL) → no ship, the sky carries the shot.</summary>
+        /// glow; hidden until its leg. Content not ready yet (the browser streams it) → no ship for now;
+        /// <see cref="Update"/> calls this again the moment the content lands.</summary>
         private void BuildShip()
         {
             var content = _shell.Content;
@@ -418,6 +431,7 @@ namespace BlocksBeyondTheStars.Client
             _root = null;
             _cam = null;
             _ship = null;
+            _shipBuildAttempted = false;
             _planet = null;
             _clouds = null;
 

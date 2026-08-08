@@ -250,6 +250,13 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator LoadContentForStartup()
         {
+            // Locale files first (#831): the shell screens run on fixed timers — studio splash 5 s, title
+            // splash 3.2 s, intro cinematic 28 s — and start on the first frame, while the full content
+            // cache is 30+ files / ~1.6 MB of HTTP. Waiting for all of it means they render raw "ui.*"
+            // keys for their whole visible window. Two locale files are all they need, so fetch those and
+            // publish a bootstrap localizer immediately; LoadLocalizer swaps in the content-backed one.
+            yield return BootstrapLocalizer();
+
             System.Exception failure = null;
             yield return StreamingAssetsCache.EnsureReady(ex => failure = ex);
             if (failure != null)
@@ -264,6 +271,42 @@ namespace BlocksBeyondTheStars.Client
 
             LoadLocalizer();
             EnsureMenuBackground();
+        }
+
+        /// <summary>Builds a localizer from just the locale tables (active language + the English fallback),
+        /// so the browser's shell screens are localized seconds before the content cache is complete. Purely
+        /// best-effort — a failed fetch leaves <see cref="Localizer"/> null and the normal load takes over.</summary>
+        private IEnumerator BootstrapLocalizer()
+        {
+            var locale = GameLocaleExtensions.Parse(Settings.Language);
+            System.Collections.Generic.Dictionary<string, string> english = null, active = null;
+
+            yield return StreamingAssetsCache.FetchDataText("locales/en.json", text => english = ParseLocaleTable(text));
+            if (locale != GameLocale.English)
+            {
+                yield return StreamingAssetsCache.FetchDataText($"locales/{locale.Code()}.json", text => active = ParseLocaleTable(text));
+            }
+
+            if (english == null && active == null)
+            {
+                yield break; // offline/404 — the keys stay visible until the full load succeeds or errors out
+            }
+
+            Localizer = new Localizer(locale, active ?? english, english ?? active);
+            Debug.Log($"Bootstrap localizer ready for '{locale.Code()}' before the content cache.");
+        }
+
+        private static System.Collections.Generic.Dictionary<string, string> ParseLocaleTable(string json)
+        {
+            try
+            {
+                return ContentLoader.ParseLocaleTable(json);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"Bootstrap locale parse failed: {e.Message}");
+                return null;
+            }
         }
 
         /// <summary>
