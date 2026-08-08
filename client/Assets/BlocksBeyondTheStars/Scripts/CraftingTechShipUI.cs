@@ -794,6 +794,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float y = 0f;
+            var entries = new List<(RecipeDefinition r, string outItem, bool can)>();
             foreach (var r in Game.Content.Recipes.Values)
             {
                 var outItem = r.Outputs.FirstOrDefault();
@@ -822,8 +823,28 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                AddCard(y, ItemName(outItem.Item), IconFor(outItem.Item), can ? L("ui.craft.ready") : L("ui.craft.blocked"),
-                    can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), r.Key, () => { _selected = r.Key; RebuildDetail(); }, contentKey: outItem.Item);
+                entries.Add((r, outItem.Item, can));
+            }
+
+            // Reachability ordering (#826): craftable first, blueprint-unlocked-but-missing-materials in the
+            // middle, blueprint-locked last; within a tier simpler recipes first. The within-tier key is
+            // static (inventory-independent), so cards only move when they change tier. Market keeps the
+            // authored order — barter offers are a vendor's stall, not a progression list.
+            if (_category != "market")
+            {
+                entries = entries
+                    .OrderBy(e => ReachTier(e.r.RequiredBlueprint, e.r.Inputs))
+                    .ThenBy(e => e.r.Inputs.Count)
+                    .ThenBy(e => Game.Content.MaxInputDepth(e.r.Inputs))
+                    .ThenBy(e => e.r.Inputs.Sum(i => i.Count))
+                    .ToList();
+            }
+
+            foreach (var e in entries)
+            {
+                string key = e.r.Key;
+                AddCard(y, ItemName(e.outItem), IconFor(e.outItem), e.can ? L("ui.craft.ready") : L("ui.craft.blocked"),
+                    e.can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), key, () => { _selected = key; RebuildDetail(); }, contentKey: e.outItem);
                 y += 88f;
             }
 
@@ -1110,7 +1131,14 @@ namespace BlocksBeyondTheStars.Client
 
             if (_category == "all" || _category == "modules")
             {
-                foreach (var m in Game.Content.ShipModules.Values.Where(m => !m.Mandatory))
+                // Same reachability ordering as the craft list (#826): buildable → materials missing →
+                // blueprint locked, simpler modules first inside each tier.
+                var modules = Game.Content.ShipModules.Values.Where(m => !m.Mandatory)
+                    .OrderBy(m => ReachTier(m.RequiredBlueprint, m.BuildCost))
+                    .ThenBy(m => m.BuildCost.Count)
+                    .ThenBy(m => Game.Content.MaxInputDepth(m.BuildCost))
+                    .ThenBy(m => m.BuildCost.Sum(c => c.Count));
+                foreach (var m in modules)
                 {
                     if (!MatchesSearch(L($"module.{m.Key}.name")))
                     {
@@ -3300,6 +3328,20 @@ namespace BlocksBeyondTheStars.Client
 
             reason = string.Empty;
             return true;
+        }
+
+        /// <summary>Reachability tier for the list ordering (#826): 0 = craftable now (blueprint unlocked +
+        /// materials owned), 1 = blueprint unlocked but materials missing, 2 = blueprint locked. Station
+        /// proximity is deliberately NOT part of the tier — the order must not reshuffle while walking
+        /// around; the station only keeps gating the status colour and the craft button.</summary>
+        private int ReachTier(string requiredBlueprint, List<BlocksBeyondTheStars.Shared.Definitions.ItemAmount> cost)
+        {
+            if (!BlueprintOk(requiredBlueprint))
+            {
+                return 2;
+            }
+
+            return HasAll(cost) ? 0 : 1;
         }
 
         private bool BlueprintOk(string bp) => string.IsNullOrEmpty(bp) || Game.UnlockedBlueprints.Contains(bp);

@@ -7287,6 +7287,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-08): craft & ship-module lists sorted by reachability (#826)
+
+The crafting list and the ship-module list used to show entries in `data/recipes.json` /
+`data/ship_modules.json` authoring order — locked entries buried the next thing a player could
+actually build. Both lists now sort into three tiers: **craftable now** → **blueprint unlocked but
+materials missing** → **blueprint locked**. Within a tier, simpler things come first: fewest distinct
+input materials, then lowest *craft depth* of the inputs (raw resource = 0, each crafting step +1 —
+computed once in `GameContent`, market barter excluded), then total unit count, then authored order
+(stable sort). The within-tier key is inventory-independent, so cards only move when they change tier
+(e.g. an item becomes craftable and jumps to the top). Station proximity deliberately stays out of the
+tier — the list must not reshuffle while walking around; it still gates the status colour and the
+craft button. Market, tech tree, colour and shape lists keep their existing order.
+
+---
+
 ## ✅ Done (2026-08-08): docs refresh — README, USER_MANUAL, DEVELOPER + doc index brought current
 
 An accuracy pass over the four top-level docs after the v2026.8.x feature wave:

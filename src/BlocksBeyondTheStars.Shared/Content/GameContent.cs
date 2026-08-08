@@ -32,6 +32,7 @@ public sealed class GameContent
     private readonly Dictionary<string, MissionDefinition> _missions;
     private readonly BlockDefinition?[] _blocksById;
     private readonly Dictionary<GameLocale, Dictionary<string, string>> _locales;
+    private readonly Dictionary<string, int> _craftDepth = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, BlockDefinition> Blocks => _blocks;
     public IReadOnlyDictionary<string, ItemDefinition> Items => _items;
@@ -246,6 +247,7 @@ public sealed class GameContent
         MarkShapeableDefaults();
         MarkFloraHostDefaults();
         MarkAirtightDefaults();
+        ComputeCraftDepths();
 
         // Palette lookup: index by numeric id (air at 0).
         ushort max = 0;
@@ -368,6 +370,86 @@ public sealed class GameContent
                     block.FloraHost = true;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// How many crafting steps deep an item sits: 0 = raw resource (nothing produces it), otherwise
+    /// 1 + the deepest input of its shallowest producing recipe. Market (barter) trades are excluded —
+    /// they are exchanges, not production, and could form cycles. Computed once at load so the client's
+    /// craft-list ordering (#826) is deterministic across sessions.
+    /// </summary>
+    public int CraftDepth(string itemKey) => _craftDepth.TryGetValue(itemKey, out var d) ? d : 0;
+
+    /// <summary>The deepest <see cref="CraftDepth"/> across a recipe/build cost (0 for an empty cost).</summary>
+    public int MaxInputDepth(IEnumerable<ItemAmount> cost)
+    {
+        int max = 0;
+        foreach (var c in cost)
+        {
+            max = Math.Max(max, CraftDepth(c.Item));
+        }
+
+        return max;
+    }
+
+    private void ComputeCraftDepths()
+    {
+        var byOutput = new Dictionary<string, List<RecipeDefinition>>(StringComparer.Ordinal);
+        foreach (var r in _recipes.Values)
+        {
+            if (r.Station == CraftingStation.Market)
+            {
+                continue;
+            }
+
+            foreach (var o in r.Outputs)
+            {
+                if (!byOutput.TryGetValue(o.Item, out var list))
+                {
+                    byOutput[o.Item] = list = new List<RecipeDefinition>();
+                }
+
+                list.Add(r);
+            }
+        }
+
+        // Depth-first with a visiting set as cycle guard: an input currently being resolved counts as
+        // raw (depth 0), which keeps the result finite and deterministic even if recipes ever loop.
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+
+        int Depth(string item)
+        {
+            if (_craftDepth.TryGetValue(item, out var known))
+            {
+                return known;
+            }
+
+            if (!byOutput.TryGetValue(item, out var producers) || !visiting.Add(item))
+            {
+                return 0;
+            }
+
+            int best = int.MaxValue;
+            foreach (var r in producers)
+            {
+                int deepest = 0;
+                foreach (var input in r.Inputs)
+                {
+                    deepest = Math.Max(deepest, Depth(input.Item));
+                }
+
+                best = Math.Min(best, 1 + deepest);
+            }
+
+            visiting.Remove(item);
+            _craftDepth[item] = best;
+            return best;
+        }
+
+        foreach (var item in byOutput.Keys)
+        {
+            Depth(item);
         }
     }
 
