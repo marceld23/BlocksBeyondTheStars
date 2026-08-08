@@ -13,6 +13,59 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.7] — 2026-08-08
+
+The homestead release: the update that makes your base a home. Blocks take painted 32×32
+pixel art now, the hand-tier gets a bed, a campfire, chairs you can actually sit on and
+ladders you can actually climb, and a founded base finally has air — the whole base zone is
+a life-support field, and sealed rooms of airtight materials extend it as far as you care
+to build. Fire became something you start and fight, not just something lava does to you.
+And the game now speaks French and Spanish — every toast, minigame and server message
+included.
+
+### 🎨 Paint your blocks — your art on your walls (#817–#821)
+
+- **The paint tool** (workshop, cheap blueprint): use it on any placed solid block and a
+  **32×32 pixel editor** opens — the same editor the ship faces use, just finer. Paint,
+  confirm, done: the design sits on the block, on plain cubes and every shape alike, and
+  other players see it too.
+- **A design library that travels with you.** Save designs locally and reuse them in any
+  world and on any server — your gallery sign, your warning stripes, your kitchen tiles.
+- **Designs are shared per world, Minecraft-map style**: identical art is stored once
+  (up to 256 designs per save). Mining a painted block returns the plain block — paint is
+  decoration on the world, not an item variant.
+- **Moderation from day one**: `/reportpaint` files the nearest painted design for review,
+  and admins can `/paintwipe` a player's designs — wiped art blanks everywhere, live and
+  across restarts.
+
+### 🛏️ Make yourself at home — bed, campfire, furniture (#803–#809)
+
+- **The bed** (hand recipe: logs + fibre, no blueprint) — **E** sets your home spawn, and
+  resting near it heals you. The researched heal tank stays the clear upgrade: it heals
+  faster and also feeds and recharges.
+- **The campfire** cooks: **cooked meat** fills you far better than raw and even heals.
+  It also warms — cold nights near the fire read as comfortable — and it never spreads.
+- **Sit on chairs.** **E** on any chair seats you, camera at seat height, look around
+  freely; other players see you sitting. Every shapeable material now forms **tables,
+  chairs, fences, sheets and pots** through the normal Shape action.
+- **Ladders finally climb.** A placed ladder was a full solid cube — you could never reach
+  it from the side, and settlement deck holes were plugged by their own ladder. Ladders now
+  mesh as a thin wall plate you step into and climb; settlement upper storeys just work.
+- **Storage & decor**: a hand-tier **wood box** (small: 8 stacks — the workshop crate stays
+  unlimited), a **lantern**, a tintable **rug** and a **flower pot** with a world-tinted
+  flower.
+
+### 🫁 A founded base always has air (#782)
+
+- The base protection zone is now a **life-support field**: stand anywhere inside it and
+  your oxygen regenerates, even on toxic or airless worlds — *where you can build is where
+  you can breathe.* Visitors breathe too; build protection still only binds to owners and
+  allies.
+- Works above the atmosphere line and under water (an underwater base zone is a dome), and
+  ship cabins no longer drain past the atmosphere line either.
+- On worlds without breathable air the HUD says so: a "Life support" toast on zone entry
+  and the O2 bar names your base as the air source.
+
 ### 🚪 Sealed base rooms breathe — and the energy door holds the air in (#793, #794, #795)
 
 - **Build rooms with air.** A room built at your base out of **airtight materials** — stone, metal,
@@ -49,6 +102,60 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   Flammability is data-driven now, and it matches what you'd expect.
 - **Fires survive a save.** Reloading a world mid-fire used to leave flames that burned forever
   without ever turning to ash. They now burn down exactly where they left off.
+
+### 🌍 The game speaks French and Spanish now (#810–#816)
+
+- **Français y Español**: complete translations of every one of the game's ~2,900 text keys,
+  plus the story pack. The settings language control is a **real picker** now (with native
+  names — "Français", not "French"), and community languages appear in it automatically once
+  their translation passes 45% — Italian, you're next.
+- **Every text surface is localizable now.** Server messages — join screens, trade, docking,
+  repair, admin output, all of it — used to be hardcoded English; German players saw English
+  toasts all over. 334 server messages and all 8 minigames now speak the player's language.
+- **VEGA and the NPCs follow along**: AI-generated dialogue, banter and mission flavour answer
+  in French and Spanish too.
+- Wiki articles and What's new entries can carry French/Spanish text and fall back to English
+  until translated; the web portal now greets browsers that ask for neither German nor English
+  in English.
+- For contributors: a new [translation guide](docs/developer/TRANSLATION_GUIDE.md) plus a
+  machine-first-pass pipeline (`tools/translate_locale.py`) make the next language a much
+  smaller mountain.
+
+### ⬆️ Upgrades are real upgrades now (#798, #799)
+
+- **Tier upgrades consume their predecessor** — the oxygen tank II is built *from* your
+  oxygen tank I (and III from II), the advanced scanner from the hand scanner, vibro knife →
+  plasma sword from machete → vibro knife, laser pistol → plasma blaster from gauss → laser.
+  Upgrade recipes are re-priced as a discount against building from scratch, and every
+  consumed item can always be re-crafted (the hand scanner got a cheap rebuild recipe).
+- **The Mk3 AI core replaces the Mk2** when built into your ship, salvaging half the Mk2's
+  build cost back into your pools — no more dead module hoarding.
+- The starter drill and scrap pistol deliberately stay out of any chain: they are your
+  zero-energy fallbacks and can never be consumed.
+
+### ⛏️ Powered drills draw suit energy (#796, #797)
+
+- The titanium drill and the mining beam always *declared* an energy cost — and never drew
+  it. They now charge suit energy per swing, exactly as their descriptions promise; an empty
+  suit rejects the swing with a clear message. The **basic and diamond drills stay
+  energy-free** — the diamond drill's "needs no power" niche is real now, and a drained
+  player is never locked out of mining.
+- The mining beam's area sweep now respects tool tier per block — it can no longer sweep up
+  ore the tool couldn't mine directly. Yields are untouched: upgrades buy speed, access and
+  area, never more items per block.
+
+### 🧰 The craft list puts buildable things first (#826)
+
+- Crafting and ship-module lists used to show entries in data-file order — locked entries
+  buried the next thing you could actually make. Both lists now sort **craftable now** →
+  **blueprint unlocked, materials missing** → **blueprint locked**, with simpler recipes
+  first within each group. The order doesn't reshuffle as you walk around a station, and
+  when something becomes craftable it jumps to the top.
+
+### 🛠️ Internal
+
+- README, USER_MANUAL, DEVELOPER guide and the docs index caught up with everything the
+  last month shipped (#825).
 
 ## [2026.8.6] — 2026-08-06
 
@@ -1899,7 +2006,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...HEAD
+[2026.8.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...v2026.8.7
 [2026.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...v2026.8.6
 [2026.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...v2026.8.5
 [2026.8.4]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.3...v2026.8.4
