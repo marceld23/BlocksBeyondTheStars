@@ -13,8 +13,9 @@ namespace BlocksBeyondTheStars.GameServer;
 /// craft new ship types, owns multiple ships, and switches which one is **active** (the active
 /// ship is the one flown and stamped into the world). Server-authoritative.
 ///
-/// Slice scope: owned ships beyond the starter live in-memory for the session; the active ship
-/// persists as today. Full per-ship persistence is a follow-up.
+/// The whole fleet is persisted (#848): each ship has its own save row and the player record carries the
+/// fleet index plus the active ship id, so a crafted ship or a claimed wreck survives a reload. See
+/// <c>GameServer.RestoreFleet</c>/<c>SaveFleet</c>.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -32,14 +33,6 @@ public sealed partial class GameServer
 
     public IReadOnlyDictionary<string, ShipState> OwnedShips => _ships;
     public string ActiveShipId => _activeShipId;
-
-    /// <summary>Installs a player's starter/loaded ship as their initial active ship (called on join).</summary>
-    private void RegisterActiveShip(PlayerSession session, ShipState ship)
-    {
-        session.Ships.Clear();
-        session.Ships[ShipId] = ship;
-        session.ActiveShipId = ShipId;
-    }
 
     private ShipState BuildShipFromDefinition(ShipDefinition def)
     {
@@ -69,6 +62,11 @@ public sealed partial class GameServer
         string safePrefix = string.IsNullOrWhiteSpace(idPrefix) ? def.Key : idPrefix;
         string id = $"{safePrefix}_{def.Key}_{_ships.Count}";
         _ships[id] = BuildShipFromDefinition(def);
+        if (CurrentOrFirst() is { } owner)
+        {
+            PersistFleet(owner); // a ship that was paid for is saved now, not on the next autosave (#848)
+        }
+
         BroadcastOwnedShips();
         return id;
     }
@@ -158,6 +156,11 @@ public sealed partial class GameServer
                     SendShipDesign(s, rebuilt);
                 }
             }
+        }
+
+        if (CurrentOrFirst() is { } owner)
+        {
+            PersistFleet(owner); // remember which ship they fly, so a reload hands back the same one (#848)
         }
 
         BroadcastOwnedShips();

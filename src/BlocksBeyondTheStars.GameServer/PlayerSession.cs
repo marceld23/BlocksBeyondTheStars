@@ -33,8 +33,14 @@ public sealed class PlayerSession
 
     /// <summary>The fixed landing pad this player currently holds on their body (item 38), or -1 if none. Pads
     /// are communal + occupancy is live: a pad counts as taken only while its holder is on the body (not in
-    /// space). Set when landing; superseded on the next landing; ignored once the player is in space/elsewhere.</summary>
-    public int AssignedPadIndex { get; set; } = -1;
+    /// space). Set when landing; superseded on the next landing; ignored once the player is in space/elsewhere.
+    /// Mirrors <see cref="State"/>.<c>LandingPadIndex</c> so it is persisted (#848) — the pad is where the ship
+    /// is parked, so a reload that forgot it left the ship on the far side of the planet.</summary>
+    public int AssignedPadIndex
+    {
+        get => State.LandingPadIndex;
+        set => State.LandingPadIndex = value;
+    }
 
     /// <summary>Fleet admin: the operator of this hosting installation, as opposed to the owner of one world
     /// (issue #487). Granted on join from <see cref="Shared.Configuration.ServerConfig.FleetAdminPlayers"/> and
@@ -87,8 +93,13 @@ public sealed class PlayerSession
     /// <summary>This player's owned ships, keyed by ship id.</summary>
     public Dictionary<string, ShipState> Ships { get; } = new();
 
-    /// <summary>The id of this player's active ship (the one flown + stamped).</summary>
-    public string ActiveShipId { get; set; } = string.Empty;
+    /// <summary>The id of this player's active ship (the one flown + stamped). Mirrors
+    /// <see cref="State"/>.<c>ActiveShipId</c> so a reload hands back the ship they were flying (#848).</summary>
+    public string ActiveShipId
+    {
+        get => State.ActiveShipId;
+        set => State.ActiveShipId = value;
+    }
 
     // Avatar colours (packed 0xRRGGBB) relayed to other players. Sensible defaults until set.
     public int SkinColor { get; set; } = 0xD9AE8C;

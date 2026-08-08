@@ -7287,6 +7287,32 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-08): the ship is still there after leaving and reloading a world (#848)
+
+"I start a world, leave the game, load it again — and my ship is gone." Two save-game gaps, both
+data loss:
+
+- **The landing pad a player holds was session-only.** `AssignedPadIndex` lived on the session and
+  had no counterpart in the save, so a reload re-parked the ship on the *first free* pad — pad 0 in
+  singleplayer — while the player was restored at their persisted position on the pad they actually
+  landed on. Pads are spread across the whole globe, so the ship ended up thousands of blocks away.
+  The pad is now part of `PlayerState` (the session mirrors it, like `CurrentLocationId`), and the
+  join revalidates it: an out-of-range pad, or one another player is standing on, is released and
+  the first free pad handed out as before — pads stay communal and finite.
+- **Only the ACTIVE ship was persisted.** The join cleared the fleet and installed a single ship
+  under the fixed id `default`, and the saves wrote only `session.Ships[ActiveShipId]`, so every
+  ship a player crafted or claimed from a wreck was silently deleted by the next load — materials
+  included. Each ship now has its own save row (`ship_<playerId>#<shipId>`; the `ship` table is a
+  generic key→JSON store, so no schema migration), the player record carries the fleet index plus
+  the active ship id, and craft / wreck-claim / ship-switch persist immediately instead of riding on
+  the next autosave. The active ship is still mirrored to the legacy `ship_<playerId>` key, and a
+  save without a fleet index migrates through that key — an existing ship is never lost.
+
+Follow-up, deliberately out of scope: ship hull edits are keyed `ship:<playerId>`, i.e. per *player*
+rather than per *ship*, so edits bleed between ships of one fleet (pre-existing, now more visible).
+
+---
+
 ## ✅ Done (2026-08-08): the browser's splash and intro are localized from the first frame (#831)
 
 In the WebGL build the studio splash, the title splash and the intro cinematic showed raw locale

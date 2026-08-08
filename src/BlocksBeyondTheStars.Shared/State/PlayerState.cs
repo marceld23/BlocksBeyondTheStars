@@ -33,6 +33,13 @@ public sealed class PlayerState
     /// there — not always the home world. The session mirrors this via <c>PlayerSession.CurrentLocationId</c>.</summary>
     public string CurrentLocationId { get; set; } = string.Empty;
 
+    /// <summary>The landing pad this player holds on <see cref="CurrentLocationId"/>, or -1 for none. Persisted
+    /// (#848): the pad is where the ship is parked, and pads are scattered across the whole globe — without it a
+    /// reload re-parked the ship on the first free pad (pad 0 in singleplayer) while the player was restored at
+    /// their saved position on the pad they actually landed on, i.e. "my ship is gone". The session mirrors this
+    /// via <c>PlayerSession.AssignedPadIndex</c>; the join revalidates it against live occupancy.</summary>
+    public int LandingPadIndex { get; set; } = -1;
+
     /// <summary>Where the player respawns — the heal-tank in their ship's Medbay.</summary>
     public Vector3f RespawnPoint { get; set; } = Vector3f.Zero;
 
@@ -207,6 +214,16 @@ public sealed class PlayerState
     /// <summary>Runtime only: the id of the speeder this player is currently piloting (empty = on foot). Cleared
     /// on (re)join so a reload never starts the player "inside" a speeder; never meaningfully persisted.</summary>
     public string InSpeeder { get; set; } = string.Empty;
+
+    /// <summary>The ids of every ship in this player's fleet, in order — the index over the per-ship save rows
+    /// (#848). Before this, only the ACTIVE ship was saved and the fleet was rebuilt from scratch on every join,
+    /// so a crafted ship or a claimed wreck was silently deleted by the next load. Empty in pre-#848 saves,
+    /// which then migrate through the legacy single-ship key. Server-authoritative, persisted.</summary>
+    public List<string> FleetShipIds { get; set; } = new();
+
+    /// <summary>Which ship of <see cref="FleetShipIds"/> the player was flying, so a reload hands back the ship
+    /// they chose rather than always the first one. Empty (or unknown) falls back to the first ship in the fleet.</summary>
+    public string ActiveShipId { get; set; } = string.Empty;
 
     /// <summary>The player's custom pixel face, drawn in the in-game face editor and shown on this player's
     /// avatar to everyone (cosmetic). Encoded as a compact string of 16×16 palette indices (one hex char per

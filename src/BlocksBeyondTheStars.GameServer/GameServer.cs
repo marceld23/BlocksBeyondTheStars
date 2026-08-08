@@ -821,20 +821,25 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Persistence key for a player's saved ship (one persisted ship per player; extra owned
-    /// ships in the fleet live in-memory per session for now).</summary>
+    /// <summary>Persistence key for a player's ACTIVE ship. Kept as the legacy single-ship key (#848): every
+    /// save still mirrors the active ship here, so a save written by this build stays loadable by an older one
+    /// and the pre-fleet write sites need no change. The other ships use <see cref="FleetShipSaveKey"/>.</summary>
     private static string ShipSaveKey(string playerId) => "ship_" + playerId;
 
-    /// <summary>Sets up a freshly-joined player's ship: points the cursor at them, loads or creates their
-    /// own ship, registers it as their active ship, and parks it on their (active) world. A player owns
-    /// their own fleet (multiple ships possible via crafting/wreck-claim) with exactly one active ship.</summary>
+    /// <summary>Persistence key for one ship of a player's fleet (#848). The `ship` table is a generic
+    /// key→JSON store, so per-ship rows need no schema change; <c>PlayerState.FleetShipIds</c> is the index.</summary>
+    private static string FleetShipSaveKey(string playerId, string shipId) => "ship_" + playerId + "#" + shipId;
+
+    /// <summary>Sets up a freshly-joined player's ship: points the cursor at them, restores their whole fleet
+    /// and the ship they were flying, and parks it on their (active) world. A player owns their own fleet
+    /// (multiple ships via crafting/wreck-claim) with exactly one active ship.</summary>
     private void SetupPlayerShip(PlayerSession session)
     {
         SetActiveWorld(session.CurrentLocationId);
         SetCurrent(session);
         MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
-        var ship = _repo.LoadShip(ShipSaveKey(session.State.PlayerId)) ?? CreateStarterShip();
-        RegisterActiveShip(session, ship);
+        RestoreFleet(session);
+        RestoreLandingPad(session);
         RecomputeShipCombatStats();
         if (_config.PlaceStarterShip)
         {
@@ -842,7 +847,84 @@ public sealed partial class GameServer
             session.State.RespawnPoint = _healTank;
         }
 
-        _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship);
+        PersistFleet(session);
+    }
+
+    /// <summary>Restores a joining player's fleet from the save (#848). Every owned ship is loaded from its own
+    /// row and the active ship is the one they were last flying. A save from before per-ship persistence has no
+    /// fleet index — it migrates through the legacy single-ship key, so an existing ship is never lost — and a
+    /// brand-new player gets a starter ship.</summary>
+    private void RestoreFleet(PlayerSession session)
+    {
+        var p = session.State;
+        session.Ships.Clear();
+        foreach (var id in p.FleetShipIds)
+        {
+            if (!string.IsNullOrEmpty(id) && !session.Ships.ContainsKey(id)
+                && _repo.LoadShip(FleetShipSaveKey(p.PlayerId, id)) is { } stored)
+            {
+                session.Ships[id] = stored;
+            }
+        }
+
+        if (session.Ships.Count == 0)
+        {
+            // Pre-#848 save (or a first join): the single persisted ship becomes the fleet's starter entry.
+            session.Ships[ShipId] = _repo.LoadShip(ShipSaveKey(p.PlayerId)) ?? CreateStarterShip();
+        }
+
+        if (!session.Ships.ContainsKey(session.ActiveShipId))
+        {
+            session.ActiveShipId = session.Ships.Keys.First(); // a dropped/unknown active id falls back to ship one
+        }
+    }
+
+    /// <summary>Revalidates the landing pad restored from the save (#848). Pads are communal and finite, so a
+    /// persisted pad that is out of range for this body, or already held by another player standing on it, is
+    /// released — the next <c>PlayerPad</c> call then hands out the first free one, as before this existed.</summary>
+    private void RestoreLandingPad(PlayerSession session)
+    {
+        int idx = session.AssignedPadIndex;
+        if (idx < 0)
+        {
+            return;
+        }
+
+        if (_landingPads.Count == 0)
+        {
+            BuildLandingPads(); // the pad set is recomputed per world load; make sure it's there to validate against
+        }
+
+        if (idx >= _landingPads.Count || PadOccupiedByOther(session.CurrentLocationId, idx, session.State.PlayerId))
+        {
+            session.AssignedPadIndex = -1;
+        }
+    }
+
+    /// <summary>Writes a player's whole fleet to the save (#848): every owned ship under its own key, the
+    /// active one additionally under the legacy key, and the fleet index onto the player record. The caller
+    /// persists the player state itself (or calls <see cref="PersistFleet"/>, which does both).</summary>
+    private void SaveFleet(PlayerSession session)
+    {
+        var p = session.State;
+        p.FleetShipIds = session.Ships.Keys.ToList();
+        foreach (var (id, ship) in session.Ships)
+        {
+            _repo.SaveShip(FleetShipSaveKey(p.PlayerId, id), ship);
+        }
+
+        if (session.Ships.TryGetValue(session.ActiveShipId, out var active))
+        {
+            _repo.SaveShip(ShipSaveKey(p.PlayerId), active); // legacy key: still the active ship
+        }
+    }
+
+    /// <summary>Persists a fleet change (craft, wreck claim, ship switch) immediately, rather than leaving a
+    /// bought-and-paid-for ship riding on the next autosave.</summary>
+    private void PersistFleet(PlayerSession session)
+    {
+        SaveFleet(session);
+        _repo.SavePlayer(session.State); // carries the fleet index + active ship id
     }
 
     private ShipState CreateStarterShip()
@@ -2005,12 +2087,9 @@ public sealed partial class GameServer
             LeaveSpace(session.State.PlayerId);
             LeaveStation(session.State.PlayerId);
             CancelTradesFor(session.State.PlayerId);
-            _repo.SavePlayer(session.State);
             SetCurrent(session);
-            if (session.Ships.TryGetValue(session.ActiveShipId, out var theirShip))
-            {
-                _repo.SaveShip(ShipSaveKey(session.State.PlayerId), theirShip);
-            }
+            SaveFleet(session); // the whole fleet + the fleet index on the state, before it is written below
+            _repo.SavePlayer(session.State);
 
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
@@ -2525,7 +2604,9 @@ public sealed partial class GameServer
         int spawnX = 0, spawnZ = 0;
         if (Rules.PersonalLandingZones && _landingPads.Count > 0)
         {
-            // First spawn: drop the new player on the first free landing pad of the home body (item 38).
+            // First spawn: drop the new player on the first free landing pad of the home body (item 38). The pad
+            // is NOT claimed here — occupancy is live, and a pad is only held once the player's ship is parked
+            // on it (PlayerPad), which is also where the claim starts being persisted (#848).
             int idx = FirstFreePadIndex(_world.LocationId, _landingPads.Count, name);
             var pad = _landingPads[idx >= 0 ? idx : 0];
             spawnX = pad.CenterX;
@@ -2660,7 +2741,7 @@ public sealed partial class GameServer
             _meta.CreativeKitGranted = true;
             _repo.SaveMetadata(_meta);
             _repo.SavePlayer(p); // persist the granted kit so a reload keeps it (and the one-time flag holds)
-            _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship); // the kit lives in the hold now — persist it with the flag
+            SaveFleet(session); // the kit lives in the hold now — persist the fleet with the flag
             SendInventory(session);
         }
     }
@@ -4097,7 +4178,7 @@ public sealed partial class GameServer
                         _ship.Modules.Add(key);
                         ResizeCargo(_ship);
                         RecomputeShipCombatStats();
-                        _repo.SaveShip(ShipSaveKey(p.PlayerId), _ship);
+                        SaveFleet(session); // through the fleet, so the per-ship row and the legacy key agree (#848)
                         SendShipCombatStatus(session);
                         SendPlayerState(session);
                     }
@@ -4320,11 +4401,8 @@ public sealed partial class GameServer
                     continue;
                 }
 
+                SaveFleet(session); // each player's own ships; also refreshes the fleet index on their state
                 _repo.SavePlayer(session.State);
-                if (session.Ships.TryGetValue(session.ActiveShipId, out var ship))
-                {
-                    _repo.SaveShip(ShipSaveKey(session.State.PlayerId), ship); // each player's own ship
-                }
             }
 
             _repo.SaveMetadata(_meta);

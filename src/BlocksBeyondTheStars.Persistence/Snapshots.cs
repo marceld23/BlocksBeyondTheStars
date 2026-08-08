@@ -91,6 +91,16 @@ public sealed class PlayerSnapshot
 
     /// <summary>Deployed hover speeders (packable surface vehicles) — bound to their home body, restored on reload.</summary>
     public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
+
+    /// <summary>The landing pad held on <see cref="CurrentLocationId"/> (#848), or -1 for none. Absent in
+    /// pre-#848 saves, which then fall back to the first free pad exactly as before.</summary>
+    public int LandingPadIndex { get; set; } = -1;
+
+    /// <summary>The fleet index (#848): the ids of every owned ship, each stored under its own
+    /// <c>ship_&lt;playerId&gt;#&lt;shipId&gt;</c> row, plus which one was active. Empty in pre-#848 saves,
+    /// which migrate through the legacy single-ship key.</summary>
+    public List<string> FleetShipIds { get; set; } = new();
+    public string ActiveShipId { get; set; } = string.Empty;
 }
 
 public sealed class ShipSnapshot
@@ -186,6 +196,9 @@ public static class StateMapper
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
+        LandingPadIndex = p.LandingPadIndex,
+        FleetShipIds = new List<string>(p.FleetShipIds),
+        ActiveShipId = p.ActiveShipId,
         FacePixels = p.FacePixels,
     };
 
@@ -289,6 +302,9 @@ public static class StateMapper
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
+        LandingPadIndex = s.LandingPadIndex,
+        FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),
+        ActiveShipId = s.ActiveShipId ?? string.Empty,
         FacePixels = s.FacePixels ?? string.Empty,
     };
 
