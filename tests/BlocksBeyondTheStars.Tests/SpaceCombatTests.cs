@@ -990,6 +990,51 @@ public sealed class SpaceCombatTests : IDisposable
         Assert.Equal(before + 170f, server.ShipRadarRange); // radar_bonus stat
     }
 
+    /// <summary>#799: the Mk3 AI core REPLACES an installed Mk2 — the old core leaves the module list
+    /// and half its build cost (floor per item) comes back as salvage.</summary>
+    [Fact]
+    public void BuildShipModule_AiCoreMk3_ReplacesMk2_AndSalvagesHalfItsCost()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "aicore"));
+        var link = new LoopbackLink();
+        using var st = new LoopbackServerTransport(link);
+        using var client = new LoopbackClientTransport(link);
+        var config = new ServerConfig { WorldName = "aicore", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        client.Connect("loopback", 0);
+        client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Builder" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        // Exactly both build costs: mk2 (4 df, 12 cable, 2 ec, 4 glass) + mk3 (8 df, 12 ti, 6 ec, 20 cable).
+        var state = server.Sessions[1].State;
+        state.UnlockedBlueprints.Add("ai_core_mk2");
+        state.UnlockedBlueprints.Add("ai_core_mk3");
+        state.Inventory.Add("data_fragment", 12, 99);
+        state.Inventory.Add("cable", 32, 99);
+        state.Inventory.Add("energy_cell_1", 8, 99);
+        state.Inventory.Add("glass", 4, 99);
+        state.Inventory.Add("titanium_plate", 12, 99);
+
+        client.Send(NetCodec.Encode(new BuildShipModuleIntent { ModuleKey = "ai_core_mk2" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.True(server.Ship.HasModule("ai_core_mk2"));
+
+        client.Send(NetCodec.Encode(new BuildShipModuleIntent { ModuleKey = "ai_core_mk3" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.True(server.Ship.HasModule("ai_core_mk3"));
+        Assert.False(server.Ship.HasModule("ai_core_mk2")); // the Mk2 came out of the rack
+
+        // Everything was spent; what's left is exactly the Mk2 salvage at DisassemblyRecoveryRate 0.5.
+        Assert.Equal(2, state.Inventory.CountOf("data_fragment"));
+        Assert.Equal(6, state.Inventory.CountOf("cable"));
+        Assert.Equal(1, state.Inventory.CountOf("energy_cell_1"));
+        Assert.Equal(2, state.Inventory.CountOf("glass"));
+        Assert.Equal(0, state.Inventory.CountOf("titanium_plate"));
+    }
+
     // ---------------- Collision ----------------
 
     [Fact]

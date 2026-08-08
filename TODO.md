@@ -7197,6 +7197,22 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-08): tiered gear upgrades consume their predecessor; Mk3 AI core replaces the Mk2 (#798/#799)
+
+Two upgrade patterns had drifted apart: five recipes already consumed the previous tier
+(thermal binoculars, suit liners, radios, power cell) while every other tier upgrade was crafted from
+scratch and left the obsolete item behind as dead weight — passive gear is "best carried piece wins",
+so an old tank or scanner contributed exactly nothing. Now the oxygen tanks (II←I, III←II), the
+advanced scanner (←hand scanner) and both weapon lines (machete→vibro knife→plasma sword,
+gauss→laser→plasma pistol) consume their predecessor, each re-priced as a discount vs. from-scratch.
+The hand scanner gained a cheap blueprint-free rebuild recipe so the chain can never strand
+(starter-kit items have no recipe otherwise); `basic_drill` and `scrap_pistol` deliberately stay out of
+any chain — both are the zero-energy fallbacks. Ship-side, building the Mk3 AI core now pulls an
+installed Mk2 out of `ship.Modules` and salvages half its build cost (the old core used to sit there
+forever, fully paid, while `VegaCoreTier` just picked the max). DE/EN descriptions now name the
+predecessor each upgrade is built from. New guards: `UpgradeRecipes_ConsumePredecessor_AndPredecessorIsCraftable`
+(also proves every consumed predecessor is craftable) and an AI-core replace/salvage server test.
+
 ## ✅ Done (2026-08-06): every room of every ship is lit (#776)
 
 Ships with more than one room were only lit in some of their rooms — on the Hammerhead the bridge was
