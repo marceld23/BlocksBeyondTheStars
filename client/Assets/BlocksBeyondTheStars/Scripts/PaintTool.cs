@@ -49,17 +49,26 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string current = string.Empty;
+            string current = string.Empty, currentName = string.Empty;
             int designId = ShapeCode.DesignOf(Game.World?.GetShape(cell.x, cell.y, cell.z) ?? 0);
             if (designId != 0 && Game.PaintAtlas != null && Game.PaintAtlas.TryGetPixels(designId, out var pixels))
             {
                 current = pixels;
+                // Copying someone else's design keeps their name on it (#846) — the same attribution a
+                // copied FORM carries.
+                string owner = Game.PaintAtlas.OwnerOf(designId);
+                if (!string.IsNullOrEmpty(owner))
+                {
+                    currentName = string.Format(Game.Localizer?.Get("ui.paint.copied_from") ?? "{0} (by {1})",
+                        Game.Localizer?.Get("ui.paint.title") ?? "Design", owner);
+                }
             }
 
             var go = new GameObject("PaintEditor");
             _editor = go.AddComponent<FaceEditor>();
             _editor.GridSize = PaintDesignAtlas.Size;
             _editor.InitialFace = current;
+            _editor.InitialName = currentName;
             // The shared editor asks for the face keys; remap title/hint to the paint texts, everything
             // else (palette/apply/clear/back) reads the same in both hosts.
             _editor.Localizer = key => Game.Localizer?.Get(key switch
@@ -76,6 +85,24 @@ namespace BlocksBeyondTheStars.Client
             };
             _editor.OnSaveDesign = PaintLibrary.Save;
             _editor.LibraryProvider = PaintLibrary.List;
+            _editor.OnShare = (px, nm) =>
+            {
+                GUIUtility.systemCopyBuffer = ShareCode.EncodeDesign(px, nm);
+                Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.exported") ?? "Code copied.");
+            };
+            _editor.OnImport = () =>
+            {
+                if (!ShareCode.TryDecodeDesign(GUIUtility.systemCopyBuffer, PaintDesignAtlas.PixelChars,
+                        out string px, out string nm))
+                {
+                    Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.import_failed") ?? "Not a valid code.");
+                    return null;
+                }
+
+                PaintLibrary.Save(px, nm);
+                Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.imported") ?? "Added to your library.");
+                return (px, nm);
+            };
             _editor.OnClosed = () => { _editor = null; Game?.SetMenuOwner(this, false); };
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
         }
@@ -98,8 +125,10 @@ namespace BlocksBeyondTheStars.Client
 
         private static string Dir => Path.Combine(Application.persistentDataPath, "paint_designs");
 
-        /// <summary>Saves the canvas as the next free "Design N" slot. Silently ignores empty canvases.</summary>
-        public static void Save(string pixels)
+        /// <summary>Saves the canvas under the player's name for it (#846); an unnamed save still falls back
+        /// to the old "Design NN" numbering. Saving the same NAME again overwrites that entry, so refining a
+        /// design does not leave a trail of near-duplicates. Empty canvases are ignored.</summary>
+        public static void Save(string pixels, string name)
         {
             if (FacePalette.IsEmpty(pixels))
             {
@@ -109,14 +138,31 @@ namespace BlocksBeyondTheStars.Client
             try
             {
                 Directory.CreateDirectory(Dir);
-                int n = 1;
-                while (File.Exists(Path.Combine(Dir, $"design-{n:00}.json")))
+                string clean = (name ?? string.Empty).Trim();
+                if (clean.Length > 16)
                 {
-                    n++;
+                    clean = clean.Substring(0, 16).Trim();
                 }
 
-                var entry = new Entry { name = $"Design {n:00}", pixels = pixels };
-                File.WriteAllText(Path.Combine(Dir, $"design-{n:00}.json"), JsonUtility.ToJson(entry));
+                string file;
+                if (clean.Length == 0)
+                {
+                    int n = 1;
+                    while (File.Exists(Path.Combine(Dir, $"design-{n:00}.json")))
+                    {
+                        n++;
+                    }
+
+                    clean = $"Design {n:00}";
+                    file = Path.Combine(Dir, $"design-{n:00}.json");
+                }
+                else
+                {
+                    var safe = new string(clean.Select(c => char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : '-').ToArray());
+                    file = Path.Combine(Dir, safe + ".json");
+                }
+
+                File.WriteAllText(file, JsonUtility.ToJson(new Entry { name = clean, pixels = pixels }));
             }
             catch (System.Exception ex)
             {

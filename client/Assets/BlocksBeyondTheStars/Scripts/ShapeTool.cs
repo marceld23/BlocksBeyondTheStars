@@ -101,5 +101,29 @@ namespace BlocksBeyondTheStars.Client
             CustomShapeLibrary.Save(voxels, name);
             Game?.ShowMessage(Game.Localizer?.Get("ui.shape.custom.saved") ?? "Form saved — craft it under \"My forms\".");
         }
+
+        /// <summary>Right-clicking a stencil that carries a form (#846): the form goes into the receiver's
+        /// library, which is the whole point of handing one over. A blank stencil opens the editor instead,
+        /// so the item is never a dead end in the hand.</summary>
+        public void UseStencil(string itemKey)
+        {
+            int shapeIndex = ItemKey.Shape(itemKey);
+            if (!ShapeCode.IsCustomShape(shapeIndex) || Game?.CustomShapes == null
+                || !Game.CustomShapes.TryGetVoxels(shapeIndex, out string voxels))
+            {
+                OpenNew();
+                return;
+            }
+
+            string owner = Game.CustomShapes.OwnerOf(shapeIndex);
+            string name = Game.CustomShapes.NameOf(shapeIndex);
+            if (!string.IsNullOrEmpty(owner))
+            {
+                name = string.Format(Game.Localizer?.Get("ui.shape.custom.copied_from") ?? "{0} (by {1})", name, owner);
+            }
+
+            CustomShapeLibrary.Save(voxels, name);
+            Game.ShowMessage(Game.Localizer?.Get("ui.shape.custom.imported") ?? "Form added to your library.");
+        }
     }
 }

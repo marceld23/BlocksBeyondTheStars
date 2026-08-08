@@ -315,6 +315,38 @@ public sealed class CustomShapeRegistryTests : IDisposable
     }
 
     [Fact]
+    public void Stencil_TakesAFormStamp_SoItCanBeGivenAway()
+    {
+        // A blank stencil is not a building material, but stamping a form onto it is the SAME 1:1 exchange —
+        // the item key carries the form index for a stencil exactly as it does for a block (#846).
+        var (server, client, repo) = Start("form12");
+        var inv = server.Sessions[1].State.Inventory;
+        inv.Add("shape_tool", 1, 1);
+        inv.Add("shape_stencil", 2, 16);
+
+        client.Send(NetCodec.Encode(new CustomShapeCraftIntent
+        {
+            SourceItemKey = "shape_stencil",
+            Voxels = Voxels(2),
+            Name = "Geschenk",
+        }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        var stored = Assert.Single(repo.ListCustomShapes());
+        bool stamped = false;
+        foreach (var slot in inv.Slots)
+        {
+            if (slot is { IsEmpty: false } stack && ItemKey.Base(stack.Item) == "shape_stencil"
+                && ItemKey.Shape(stack.Item) == stored.Id)
+            {
+                stamped = true;
+            }
+        }
+
+        Assert.True(stamped, "the stencil should carry the registered form index");
+    }
+
+    [Fact]
     public void Networking_RoundTripsTheFormMessages()
     {
         var intent = new CustomShapeCraftIntent { SourceItemKey = "stone", Voxels = Voxels(2), Name = "Bogen", Count = 3 };

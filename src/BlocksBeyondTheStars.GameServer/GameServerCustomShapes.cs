@@ -81,7 +81,11 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!IsShapeableSource(session, intent.SourceItemKey, "shape"))
+        // Normally the source is a building material. The one exception is a blank STENCIL (#846): stamping a
+        // form onto it produces a giftable "shape_stencil#s<id>" through the very same 1:1 exchange — the item
+        // key carries the form index for a stencil exactly as it does for a block.
+        bool stencil = ItemKey.Base(intent.SourceItemKey) == "shape_stencil";
+        if (!stencil && !IsShapeableSource(session, intent.SourceItemKey, "shape"))
         {
             return;
         }

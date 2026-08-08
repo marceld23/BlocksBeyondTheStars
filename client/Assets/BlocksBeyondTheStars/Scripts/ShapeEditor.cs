@@ -308,9 +308,14 @@ namespace BlocksBeyondTheStars.Client
                 });
             }
 
+            // Sharing (#846): a form travels as a short code the player can paste anywhere — the library
+            // files are local, this is what crosses machines.
+            UiKit.AddButton(panel, 930f, 158f, 110f, 40f, L("ui.shape.custom.export"), ExportCode);
+            UiKit.AddButton(panel, 1046f, 158f, 110f, 40f, L("ui.shape.custom.import"), ImportCode);
+
             var listGo = new GameObject("FormLibraryList", typeof(RectTransform));
             listGo.transform.SetParent(panel, false);
-            _libList = UiKit.Place(listGo, 930f, 168f, 226f, 700f);
+            _libList = UiKit.Place(listGo, 930f, 210f, 226f, 660f);
             RebuildLibraryList();
 
             UiKit.AddText(panel, 24f, 952f, panelW - 48f, 24f, L("ui.shape.custom.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -457,6 +462,37 @@ namespace BlocksBeyondTheStars.Client
                 var entry = entries[i];
                 UiKit.AddButton(_libList, 0f, y, 226f, 42f, entry.Name, () => LoadFrom(entry.Voxels, entry.Name));
                 y += 50f;
+            }
+        }
+
+        /// <summary>Puts the current form on the clipboard as a share code (#846).</summary>
+        private void ExportCode()
+        {
+            string voxels = Encode();
+            if (!CustomShape.IsValidVoxels(voxels))
+            {
+                return;
+            }
+
+            GUIUtility.systemCopyBuffer = ShareCode.EncodeForm(voxels, _name);
+            Game?.ShowMessage(L("ui.shape.custom.exported"));
+        }
+
+        /// <summary>Loads a share code off the clipboard onto the canvas — validated exactly like the server
+        /// validates a form, so a mistyped or hostile string can never reach the registry.</summary>
+        private void ImportCode()
+        {
+            if (ShareCode.TryDecodeForm(GUIUtility.systemCopyBuffer, out string voxels, out string name))
+            {
+                LoadFrom(voxels, name);
+                CustomShapeLibrary.Save(voxels, name);
+                Game?.ShowMessage(L("ui.shape.custom.imported"));
+                RebuildLibraryList();
+                UpdateLabels();
+            }
+            else
+            {
+                Game?.ShowMessage(L("ui.shape.custom.import_failed"));
             }
         }
 

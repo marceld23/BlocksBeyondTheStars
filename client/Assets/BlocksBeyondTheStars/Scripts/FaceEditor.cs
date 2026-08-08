@@ -30,11 +30,15 @@ namespace BlocksBeyondTheStars.Client
         public Action<string> OnApply;          // receives the encoded grid when the player hits Apply
         public int GridSize = FacePalette.Size; // pixels per side: faces and block paint are both 32 now
         public Action OnClosed;                 // fires when the editor goes away (any path) — hosts release input here
-        public Action<string> OnSaveDesign;     // paint host: save the current canvas to the local design library
+        public Action<string, string> OnSaveDesign; // paint host: save the canvas (pixels, name) to the local library
         public Func<List<(string Name, string Pixels)>> LibraryProvider; // paint host: saved designs to load
+        public string InitialName;              // paint host: the design's name, when one is being re-opened/copied
+        public Action<string, string> OnShare;  // paint host: put (pixels, name) on the clipboard as a share code
+        public Func<(string Pixels, string Name)?> OnImport; // paint host: read a share code off the clipboard
 
         private int _size;
         private int[] _grid;
+        private string _name = string.Empty;
         private int _brush = 1; // current palette index (0 = eraser/transparent)
 
         private Texture2D _tex;
@@ -61,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
                 filterMode = FilterMode.Point,
             };
 
+            _name = InitialName ?? string.Empty;
             LoadFrom(InitialFace);
             BuildUi();
         }
@@ -190,22 +195,39 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddText(panel, 24f, 904f, panelW - 48f, 24f, L("ui.face.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
-            // Design library column (paint host only): save the current canvas + reload saved designs.
+            // Design library column (paint host only): name + save the current canvas, reload saved designs,
+            // and share one as a code (#846) — the same set of moves the form library offers.
             if (hasLibrary)
             {
                 UiKit.AddText(panel, 700f, 64f, 226f, 24f, L("ui.paint.library"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddInput(panel, 700f, 92f, 226f, 42f, _name, v => _name = v, L("ui.paint.name"), 24, 16);
                 if (OnSaveDesign != null)
                 {
-                    UiKit.AddButton(panel, 700f, 96f, 226f, 48f, L("ui.paint.save"), () =>
+                    UiKit.AddButton(panel, 700f, 140f, 226f, 44f, L("ui.paint.save"), () =>
                     {
-                        OnSaveDesign(FacePalette.Encode(_grid, _grid.Length));
+                        OnSaveDesign(FacePalette.Encode(_grid, _grid.Length), _name);
                         RebuildLibraryList();
+                    });
+                }
+
+                if (OnShare != null)
+                {
+                    UiKit.AddButton(panel, 700f, 190f, 110f, 40f, L("ui.shape.custom.export"),
+                        () => OnShare(FacePalette.Encode(_grid, _grid.Length), _name));
+                    UiKit.AddButton(panel, 816f, 190f, 110f, 40f, L("ui.shape.custom.import"), () =>
+                    {
+                        if (OnImport?.Invoke() is { } imported)
+                        {
+                            _name = imported.Name;
+                            LoadFrom(imported.Pixels);
+                            RebuildLibraryList();
+                        }
                     });
                 }
 
                 var listGo = new GameObject("PaintLibraryList", typeof(RectTransform));
                 listGo.transform.SetParent(panel, false);
-                _libList = UiKit.Place(listGo, 700f, 160f, 226f, 660f);
+                _libList = UiKit.Place(listGo, 700f, 240f, 226f, 580f);
                 RebuildLibraryList();
             }
 

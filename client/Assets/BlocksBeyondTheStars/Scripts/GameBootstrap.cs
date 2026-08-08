@@ -1443,7 +1443,8 @@ namespace BlocksBeyondTheStars.Client
 
                 for (int i = 0; i < m.Ids.Length && i < m.Pixels.Length; i++)
                 {
-                    PaintAtlas.Register(m.Ids[i], m.Pixels[i]);
+                    PaintAtlas.Register(m.Ids[i], m.Pixels[i],
+                        m.Owners != null && i < m.Owners.Length ? m.Owners[i] : string.Empty);
                 }
             };
             // Player-designed forms (#844): the same contract as the paint registry — the full list lands
@@ -1475,7 +1476,7 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                PaintAtlas.Register(m.Id, m.Pixels);
+                PaintAtlas.Register(m.Id, m.Pixels, m.Owner);
                 if (string.IsNullOrEmpty(m.Pixels))
                 {
                     foreach (var c in _chunkObjects.Keys)

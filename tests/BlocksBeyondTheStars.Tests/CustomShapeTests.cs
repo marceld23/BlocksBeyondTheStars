@@ -286,6 +286,73 @@ public sealed class CustomShapeTests
         Assert.False(ShapeCode.IsPlaceableShape(ShapeCode.LastCustom + 1, _ => true));
     }
 
+    // ── share codes (#846) ───────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void ShareCode_RoundTripsAFormWithItsName()
+    {
+        string voxels = With(CustomShape.GridLarge, (1, 1, 1), (2, 1, 1));
+        string code = ShareCode.EncodeForm(voxels, "Justus' Bogen");
+
+        Assert.True(ShareCode.TryDecodeForm(code, out string back, out string name));
+        Assert.Equal(voxels, back);
+        Assert.Equal("Justus' Bogen", name);
+    }
+
+    [Fact]
+    public void ShareCode_SurvivesWhitespaceAroundIt()
+    {
+        // Codes travel through chat windows and forum posts, so they arrive with stray spaces or newlines.
+        string code = ShareCode.EncodeForm(With(CustomShape.GridSmall, (0, 0, 0)), "A");
+        Assert.True(ShareCode.TryDecodeForm("  " + code + "\n", out _, out _));
+    }
+
+    [Fact]
+    public void ShareCode_RejectsGarbageAndTheWrongKind()
+    {
+        Assert.False(ShareCode.TryDecodeForm(null, out _, out _));
+        Assert.False(ShareCode.TryDecodeForm(string.Empty, out _, out _));
+        Assert.False(ShareCode.TryDecodeForm("hello", out _, out _));
+        Assert.False(ShareCode.TryDecodeForm("BBTS1-F-not-base64!!", out _, out _));
+
+        // A design code must not decode as a form and vice versa.
+        string design = ShareCode.EncodeDesign(new string('3', 1024), "Muster");
+        Assert.False(ShareCode.TryDecodeForm(design, out _, out _));
+        Assert.True(ShareCode.TryDecodeDesign(design, 1024, out string pixels, out string name));
+        Assert.Equal(1024, pixels.Length);
+        Assert.Equal("Muster", name);
+    }
+
+    [Fact]
+    public void ShareCode_AppliesTheSameValidationTheServerWould()
+    {
+        // An imported form must be one the game can actually render: over-budget and malformed payloads are
+        // refused at the door, so the registry never sees them.
+        var chars = Empty(CustomShape.GridLarge).ToCharArray();
+        for (int y = 0; y < CustomShape.GridLarge; y++)
+        {
+            for (int z = 0; z < CustomShape.GridLarge; z++)
+            {
+                for (int x = 0; x < CustomShape.GridLarge; x++)
+                {
+                    if ((x + y + z) % 2 == 0)
+                    {
+                        chars[CustomShape.IndexOf(x, y, z, CustomShape.GridLarge)] = '1';
+                    }
+                }
+            }
+        }
+
+        string overBudget = ShareCode.Encode(ShareCode.KindForm, new string(chars), "Zu fein");
+        Assert.False(ShareCode.TryDecodeForm(overBudget, out _, out _));
+
+        string malformed = ShareCode.Encode(ShareCode.KindForm, "zzzz", "Kaputt");
+        Assert.False(ShareCode.TryDecodeForm(malformed, out _, out _));
+
+        // …and a design code with the wrong bitmap length is refused too.
+        Assert.False(ShareCode.TryDecodeDesign(ShareCode.EncodeDesign(new string('3', 64), "x"), 1024, out _, out _));
+    }
+
     [Fact]
     public void ItemKey_CarriesACustomFormLikeAnyOtherShape()
     {

@@ -87,7 +87,26 @@ namespace BlocksBeyondTheStars.Client
         /// republishes the UV snapshot. EMPTY pixels are a moderation wipe — the slot goes blank and the id
         /// drops out of the lookup, so referencing faces fall back to the plain block texture on remesh.
         /// Ignores malformed bitmaps and (silently) designs beyond the slot capacity, mirroring the server cap.</summary>
-        public void Register(int id, string pixels)
+        public void Register(int id, string pixels) => Register(id, pixels, string.Empty);
+
+        /// <summary>As above, recording who designed it so a player copying it off a block can credit
+        /// them (#846). An empty owner leaves whatever was known before.</summary>
+        public void Register(int id, string pixels, string owner)
+        {
+            if (!string.IsNullOrEmpty(owner))
+            {
+                _ownerById[id] = owner;
+            }
+
+            RegisterPixels(id, pixels);
+        }
+
+        /// <summary>Display name of whoever registered a design (empty when unknown).</summary>
+        public string OwnerOf(int id) => _ownerById.TryGetValue(id, out var owner) ? owner : string.Empty;
+
+        private readonly Dictionary<int, string> _ownerById = new();
+
+        private void RegisterPixels(int id, string pixels)
         {
             pixels ??= string.Empty;
             if (id <= 0 || (pixels.Length != 0 && pixels.Length != PixelChars))

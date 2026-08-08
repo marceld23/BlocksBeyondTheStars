@@ -1090,9 +1090,11 @@ namespace BlocksBeyondTheStars.Client
                 float bx = 8 + (i % 2) * (bw + gap);
                 float by = y + (i / 2) * (bh + gap);
                 // Craft it straight from the material; the editor is only needed to CHANGE a form.
-                var b = UiKit.AddButton(_detail, bx, by, bw - 56f, bh, form.Name,
+                var b = UiKit.AddButton(_detail, bx, by, bw - 108f, bh, form.Name,
                     () => Game.Network.SendCustomShapeCraft(src, form.Voxels, form.Name));
-                UiKit.AddButton(_detail, bx + bw - 48f, by, 48f, bh, "✎", () => OpenFormEditor(src, form.Voxels, form.Name));
+                UiKit.AddButton(_detail, bx + bw - 100f, by, 48f, bh, "✎", () => OpenFormEditor(src, form.Voxels, form.Name));
+                // Stamp it onto a blank stencil to give it away (#846) — the same craft, a different source.
+                UiKit.AddButton(_detail, bx + bw - 48f, by, 48f, bh, "▤", () => StampStencil(form.Voxels, form.Name));
 
                 // A form the material already carries cannot be re-crafted into itself.
                 if (current != 0 && Game.CustomShapes != null
@@ -1119,6 +1121,31 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return false;
+        }
+
+        /// <summary>Stamps a form onto a blank stencil so it can be handed to another player (#846). The
+        /// server runs the same 1:1 exchange it runs for a material — the stencil's item key just carries a
+        /// form index instead of a block doing so.</summary>
+        private void StampStencil(string voxels, string name)
+        {
+            bool hasBlank = false;
+            foreach (var stack in Game.Personal)
+            {
+                if (stack != null && stack.Item == "shape_stencil")
+                {
+                    hasBlank = true;
+                    break;
+                }
+            }
+
+            if (!hasBlank)
+            {
+                Game.ShowMessage(L("ui.shape.custom.stencil_none"));
+                return;
+            }
+
+            Game.Network.SendCustomShapeCraft("shape_stencil", voxels, name);
+            Game.ShowMessage(L("ui.shape.custom.stencil_done"));
         }
 
         /// <summary>Opens the form editor from the crafting menu, where a material IS selected — so Apply

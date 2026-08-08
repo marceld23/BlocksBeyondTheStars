@@ -2723,6 +2723,13 @@ namespace BlocksBeyondTheStars.Client
                 // Right-click the shaping tool → the form editor (#845). Aimed at a block that already
                 // carries a player-designed form it opens pre-loaded with THAT form, which is how forms are
                 // copied off other people's builds; anywhere else it starts on an empty grid.
+                // A stencil hands a form to whoever holds it: right-click puts it in their own library (#846).
+                if (BlocksBeyondTheStars.Shared.State.ItemKey.Base(held) == "shape_stencil")
+                {
+                    ShapeToolUi.Instance?.UseStencil(held);
+                    return;
+                }
+
                 if (held == "shape_tool")
                 {
                     bool copied = AimTarget(out var formCell, out _, out var formShip)
