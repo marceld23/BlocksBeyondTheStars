@@ -27,15 +27,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly char[] Letters = { 'O', 'T', 'B', 'E' };
 
         public string Key => "cargo_sorter";
-        public LocText Title => new LocText("Cargo Sorter", "Frachtsortierer");
-        public LocText Desc => new LocText(
-            "Route each incoming crate to the matching cargo bay. Keep up as the belt speeds up — five mistakes ends the shift.",
-            "Leite jede ankommende Kiste in die passende Frachtbucht. Bleib dran, wenn das Band schneller wird — fünf Fehler beenden die Schicht.");
-        public LocText Hint => new LocText("← → choose bay · Enter confirm · or click a bay", "← → Bucht wählen · Enter bestätigen · oder Bucht anklicken");
+        public LocText Title => new LocText("minigame.cargo_sorter.title");
+        public LocText Desc => new LocText("minigame.cargo_sorter.desc");
+        public LocText Hint => new LocText("minigame.cargo_sorter.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Match the crate's symbol to a cargo bay", "Symbol der Kiste einer Frachtbucht zuordnen"),
-            new LocText("← → select, Enter confirm, or click the bay", "← → wählen, Enter bestätigen, oder Bucht klicken"),
+            new LocText("minigame.cargo_sorter.help1"),
+            new LocText("minigame.cargo_sorter.help2"),
         };
         public int Difficulty => 2;
 
@@ -44,8 +42,8 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
             var canvas = api.Canvas(W, H);
             LocText[] names =
             {
-                new LocText("Ore", "Erz"), new LocText("Tech", "Technik"),
-                new LocText("Bio", "Bio"), new LocText("Energy", "Energie"),
+                new LocText("minigame.cargo_sorter.bay_ore"), new LocText("minigame.cargo_sorter.bay_tech"),
+                new LocText("minigame.cargo_sorter.bay_bio"), new LocText("minigame.cargo_sorter.bay_energy"),
             };
 
             int cur = 0, sel = 0, score = 0, mistakes = 0;
@@ -67,7 +65,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                     canvas.FillRect(x, BinY, BinW, BinH, BinBg);
                     canvas.DrawRect(x, BinY, BinW, BinH, i == sel ? BinSel : BinEdge);
                     canvas.DrawTextCentered(x + BinW / 2, BinY + 22, Letters[i].ToString(), i == sel ? BinSel : Ink, 5);
-                    canvas.DrawTextCentered(x + BinW / 2, BinY + BinH - 22, names[i].Get(api.German).ToUpperInvariant(), Dim, 2);
+                    canvas.DrawTextCentered(x + BinW / 2, BinY + BinH - 22, names[i].Get(api.Localize).ToUpperInvariant(), Dim, 2);
                 }
             }
 

@@ -57,15 +57,10 @@ namespace BlocksBeyondTheStars.Client
         /// (announced in chat + as a toast). Empty when joining a remote server or in singleplayer.</summary>
         public string HostInfo = "";
 
-        /// <summary>DE/EN-only surfaces still branch on this bool (the embedded wiki and the minigames ship
-        /// German/English content, not locale keys). Everything that goes through <see cref="Localizer"/>
-        /// uses <see cref="Locale"/> instead and therefore supports every <see cref="GameLocale"/>.</summary>
-        [Header("Localization")]
-        public bool German = false;
-
         /// <summary>The active locale for all key-based text. Deliberately NOT serialized: a scene-baked value
         /// would override whatever <c>WorldRig</c> assigns from the player's settings (the Launcher.unity
-        /// PlayerName trap). Set together with <see cref="German"/>.</summary>
+        /// PlayerName trap). Every text surface resolves through <see cref="Localizer"/> / locale-code maps,
+        /// so all of <see cref="GameLocale"/> is supported — the old DE/EN <c>German</c> bool is gone.</summary>
         [System.NonSerialized]
         public GameLocale Locale = GameLocale.English;
 
@@ -99,7 +94,6 @@ namespace BlocksBeyondTheStars.Client
         public void SetLanguage(GameLocale locale)
         {
             Locale = locale;
-            German = locale == GameLocale.German;
             if (Content != null)
             {
                 Localizer = Content.CreateLocalizer(locale);
@@ -894,10 +888,44 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
 
+        /// <summary>Generic resolution for "@srv.*" tokens: the token (minus '@') IS the locale key, an
+        /// optional ":arg" tail fills the template's {name} placeholder. New server messages use this
+        /// instead of growing the hand-written token maps below; returns null for anything else.</summary>
+        private string ResolveServerToken(string text)
+        {
+            if (string.IsNullOrEmpty(text) || !text.StartsWith("@srv.", System.StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            string key = text.Substring(1);
+            string arg = null;
+            int colon = key.IndexOf(':');
+            if (colon >= 0)
+            {
+                arg = key.Substring(colon + 1);
+                key = key.Substring(0, colon);
+            }
+
+            string template = Localizer?.Get(key);
+            if (string.IsNullOrEmpty(template))
+            {
+                return text;
+            }
+
+            return arg != null ? template.Replace("{name}", arg) : template;
+        }
+
         /// <summary>Machine-readable server-message tokens → localized player text (same idea as
         /// <see cref="CraftFailMessage"/>; plain text passes through unchanged).</summary>
         private string ServerMessageText(string text)
         {
+            string generic = ResolveServerToken(text);
+            if (generic != null)
+            {
+                return generic;
+            }
+
             if (text == "@spawn_set")
             {
                 return Localizer?.Get("ui.spawn.set") ?? "Spawn point set — you'll respawn here from now on.";
@@ -951,6 +979,12 @@ namespace BlocksBeyondTheStars.Client
         /// string that stays in the log rather than being pushed at the player as raw English.</summary>
         private string RejectionMessage(string action, string reason)
         {
+            string generic = ResolveServerToken(reason);
+            if (generic != null)
+            {
+                return generic;
+            }
+
             if (reason == "@inventory_full")
             {
                 // Mining says "make space"; picking a door back up is the same situation.
@@ -1067,9 +1101,7 @@ namespace BlocksBeyondTheStars.Client
         private void RebuildWikiState()
         {
             var sb = new System.Text.StringBuilder(512);
-            // Stays DE/EN: the embedded wiki ships German and English chapter content (HTML, not locale keys),
-            // so a third UI language reads the English wiki until those pages are translated too.
-            sb.Append("{\"lang\":\"").Append(German ? "de" : "en").Append("\",\"systems\":[");
+            sb.Append("{\"lang\":\"").Append(Localizer?.Locale.Code() ?? "en").Append("\",\"systems\":[");
             var systems = StarMap?.Systems ?? System.Array.Empty<NetStarSystem>();
             var knownSys = new System.Collections.Generic.HashSet<string>(StarMap?.KnownSystemIds ?? System.Array.Empty<string>());
             var landed = new System.Collections.Generic.HashSet<string>(StarMap?.LandedBodyIds ?? System.Array.Empty<string>());

@@ -43,7 +43,7 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
             !_spaceInstances.TryGetValue(instanceId, out var instance))
         {
-            Reject(session, "ship", "You must be out in space to step inside the ship.");
+            Reject(session, "ship", "@srv.misc.interior_space_only");
             return;
         }
 
@@ -72,7 +72,7 @@ public sealed partial class GameServer
         session.State.InEva = false;     // entering from an EVA ends the spacewalk
         session.SentChunks.Clear();
 
-        Send(session, new SpaceClosed { Reason = "Stepped inside the ship.", ShipDisabled = false });
+        Send(session, new SpaceClosed { Reason = "@srv.misc.stepped_inside", ShipDisabled = false });
         Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false });
         SendPlayerState(session);
         SendEnvironment(session);

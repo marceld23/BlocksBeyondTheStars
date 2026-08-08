@@ -100,13 +100,13 @@ public sealed partial class GameServer
         var p = session.State;
         if (!p.Inventory.Has(StealthItem, 1))
         {
-            Reject(session, "stealth", "You have no stealth suit.");
+            Reject(session, "stealth", "@srv.equip.no_stealth");
             return;
         }
 
         if (!p.Stealthed && p.SuitEnergy <= 0f)
         {
-            Reject(session, "stealth", "Not enough suit energy to cloak.");
+            Reject(session, "stealth", "@srv.equip.no_energy_cloak");
             return;
         }
 
@@ -149,14 +149,14 @@ public sealed partial class GameServer
         if (!p.Inventory.Has(JetpackItem, 1))
         {
             p.Jetpacking = false;
-            Reject(session, "jetpack", "You have no jetpack.");
+            Reject(session, "jetpack", "@srv.equip.no_jetpack");
             return;
         }
 
         if (p.SuitEnergy <= 0f)
         {
             p.Jetpacking = false;
-            Reject(session, "jetpack", "Not enough suit energy to fire the jetpack.");
+            Reject(session, "jetpack", "@srv.equip.no_energy_jetpack");
             return;
         }
 

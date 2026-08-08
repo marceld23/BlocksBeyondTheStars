@@ -226,7 +226,7 @@ public sealed partial class GameServer
 
         session.State.KnowledgePoints += reward;
         SendInventory(session); // carries KnowledgePoints to the client
-        Send(session, new ServerMessage { Text = $"+{reward} knowledge — data fragment analysed." });
+        Send(session, new ServerMessage { Text = "@srv.misc.data_analysed:" + reward });
     }
 
     /// <summary>Test hook: report a finished minigame run (mirrors the client's <see cref="MinigameResultIntent"/>).</summary>

@@ -25,24 +25,26 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba LabelDim = Rgba.Rgb(120, 150, 170);
 
         public string Key => "reactor_balance";
-        public LocText Title => new LocText("Reactor Balance", "Reaktor-Balance");
-        public LocText Desc => new LocText(
-            "Hold every reactor gauge inside its green zone as it drifts. Keep it stable for 60 seconds without a meltdown.",
-            "Halte jede Reaktoranzeige in ihrer grünen Zone, während sie driftet. Bleib 60 Sekunden stabil ohne Kernschmelze.");
-        public LocText Hint => new LocText("← → select gauge · ↑ ↓ adjust", "← → Anzeige wählen · ↑ ↓ justieren");
+        public LocText Title => new LocText("minigame.reactor_balance.title");
+        public LocText Desc => new LocText("minigame.reactor_balance.desc");
+        public LocText Hint => new LocText("minigame.reactor_balance.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("← → choose a gauge, ↑ ↓ raise/lower it", "← → Anzeige wählen, ↑ ↓ erhöhen/senken"),
-            new LocText("Keep all gauges in their green zones; too long in the red trips a meltdown", "Halte alle in den grünen Zonen; zu lange im Roten löst eine Kernschmelze aus"),
+            new LocText("minigame.reactor_balance.help1"),
+            new LocText("minigame.reactor_balance.help2"),
         };
         public int Difficulty => 3;
 
         public MinigameController Create(MinigameApi api)
         {
             var canvas = api.Canvas(W, H);
-            string[] labels = api.German
-                ? new[] { "TEMPERATUR", "LEISTUNG", "KUEHLUNG", "STABILITAET" }
-                : new[] { "TEMPERATURE", "POWER", "COOLANT", "STABILITY" };
+            string[] labels =
+            {
+                api.Localize("minigame.reactor_balance.label_temperature"),
+                api.Localize("minigame.reactor_balance.label_power"),
+                api.Localize("minigame.reactor_balance.label_coolant"),
+                api.Localize("minigame.reactor_balance.label_stability"),
+            };
 
             var val = new[] { 0.5f, 0.5f, 0.5f };
             var lo = new float[3];

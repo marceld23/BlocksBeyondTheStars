@@ -52,7 +52,7 @@ public sealed partial class GameServer
         var container = _containers.FirstOrDefault(c => c.Id == containerId);
         if (container is null)
         {
-            Reject(session, "loot", "No such container.");
+            Reject(session, "loot", "@srv.loot.no_container");
             return;
         }
 
@@ -129,14 +129,14 @@ public sealed partial class GameServer
         var container = _containers.FirstOrDefault(c => c.Id == containerId && c.Kind == "crate");
         if (container is null)
         {
-            Reject(session, "stash", "No such crate.");
+            Reject(session, "stash", "@srv.loot.no_crate");
             return;
         }
 
         var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
         if (WrapDistSq(session.State.Position, center) > LootReach * LootReach)
         {
-            Reject(session, "stash", "Crate is out of reach.");
+            Reject(session, "stash", "@out_of_reach");
             return;
         }
 
@@ -153,7 +153,7 @@ public sealed partial class GameServer
 
         if (toStash.Count == 0)
         {
-            Reject(session, "stash", "No loose materials to store.");
+            Reject(session, "stash", "@srv.loot.nothing_to_stash");
             return;
         }
 

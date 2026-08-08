@@ -28,10 +28,10 @@ public sealed class MinigameHostTests
         private MinigameApi _api = null!;
 
         public string Key => "probe";
-        public LocText Title => new LocText("Probe", "Probe");
-        public LocText Desc => new LocText("d", "d");
-        public LocText Hint => new LocText("h", "h");
-        public IReadOnlyList<LocText> Help { get; } = new[] { new LocText("a", "a") };
+        public LocText Title => new LocText("minigame.probe.title");
+        public LocText Desc => new LocText("minigame.probe.desc");
+        public LocText Hint => new LocText("minigame.probe.hint");
+        public IReadOnlyList<LocText> Help { get; } = new[] { new LocText("minigame.probe.help1") };
         public int Difficulty => 1;
 
         public MinigameController Create(MinigameApi api)
@@ -267,9 +267,9 @@ public sealed class MinigameHostTests
         private readonly System.Action<MinigameApi> _setup;
         public IMinigameStub(System.Action<MinigameApi> setup) => _setup = setup;
         public string Key => "stub";
-        public LocText Title => new LocText("s", "s");
-        public LocText Desc => new LocText("s", "s");
-        public LocText Hint => new LocText("s", "s");
+        public LocText Title => new LocText("minigame.stub.title");
+        public LocText Desc => new LocText("minigame.stub.desc");
+        public LocText Hint => new LocText("minigame.stub.hint");
         public IReadOnlyList<LocText> Help { get; } = System.Array.Empty<LocText>();
         public int Difficulty => 1;
         public MinigameController Create(MinigameApi api) { _setup(api); return new MinigameController(); }

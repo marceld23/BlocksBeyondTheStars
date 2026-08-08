@@ -377,7 +377,7 @@ public sealed partial class GameServer
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "mine", "Out of reach.");
+            Reject(session, "mine", "@out_of_reach");
             return true;
         }
 
@@ -402,7 +402,7 @@ public sealed partial class GameServer
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "mine", "Out of reach.");
+            Reject(session, "mine", "@out_of_reach");
             return true;
         }
 
@@ -434,7 +434,7 @@ public sealed partial class GameServer
         float range = Math.Max(tool.Range, EnemyAttackReach);
         if (WrapDistSq(p.Position, pos) > range * range)
         {
-            Reject(session, "attack", "Target is out of reach.");
+            Reject(session, "attack", "@srv.attack.out_of_reach");
             return;
         }
 
@@ -452,7 +452,7 @@ public sealed partial class GameServer
         {
             if (p.SuitEnergy < tool.EnergyPerUse)
             {
-                Reject(session, "attack", "Not enough suit energy to fire.");
+                Reject(session, "attack", "@srv.attack.no_energy");
                 return;
             }
 

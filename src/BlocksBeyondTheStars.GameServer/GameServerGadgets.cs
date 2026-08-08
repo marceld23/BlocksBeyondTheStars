@@ -51,13 +51,13 @@ public sealed partial class GameServer
         var item = _content.GetItem(intent.GadgetKey);
         if (item?.Tool is null || item.Tool.Kind != ToolKind.Gadget)
         {
-            Reject(session, "gadget", "Not a usable gadget.");
+            Reject(session, "gadget", "@srv.gadget.not_usable");
             return;
         }
 
         if (!p.Inventory.Has(intent.GadgetKey, 1))
         {
-            Reject(session, "gadget", "You don't have that gadget.");
+            Reject(session, "gadget", "@srv.gadget.missing");
             return;
         }
 
@@ -69,7 +69,7 @@ public sealed partial class GameServer
 
         if (p.SuitEnergy < item.Tool.EnergyPerUse)
         {
-            Reject(session, "gadget", "Not enough suit energy.");
+            Reject(session, "gadget", "@no_energy");
             return;
         }
 
@@ -102,7 +102,7 @@ public sealed partial class GameServer
                 cooldown = SpeederDeployCooldown;
                 break;
             default:
-                Reject(session, "gadget", "Unknown gadget.");
+                Reject(session, "gadget", "@srv.gadget.unknown");
                 return;
         }
 

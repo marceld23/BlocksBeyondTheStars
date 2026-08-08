@@ -22,15 +22,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Found = Rgba.Rgb(124, 255, 176);
 
         public string Key => "planet_scanner";
-        public LocText Title => new LocText("Planet Scanner", "Planeten-Scanner");
-        public LocText Desc => new LocText(
-            "Pulse-scan the planet to locate hidden signatures. Each scan reveals how close you are — find them all before the scan energy is gone.",
-            "Scanne den Planeten, um verborgene Signaturen zu orten. Jeder Scan zeigt, wie nah du bist — finde alle, bevor die Scan-Energie aus ist.");
-        public LocText Hint => new LocText("Click the planet to scan — warmer = closer", "Planet anklicken zum Scannen — wärmer = näher");
+        public LocText Title => new LocText("minigame.planet_scanner.title");
+        public LocText Desc => new LocText("minigame.planet_scanner.desc");
+        public LocText Hint => new LocText("minigame.planet_scanner.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click to pulse-scan; a hit marks a signature", "Klicken zum Scannen; ein Treffer markiert eine Signatur"),
-            new LocText("A miss shows a warmth ring — orange is close, blue is far", "Ein Fehlschlag zeigt einen Wärmering — orange ist nah, blau ist fern"),
+            new LocText("minigame.planet_scanner.help1"),
+            new LocText("minigame.planet_scanner.help2"),
         };
         public int Difficulty => 2;
 

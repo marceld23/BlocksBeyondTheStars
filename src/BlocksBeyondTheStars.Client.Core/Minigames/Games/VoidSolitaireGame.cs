@@ -23,15 +23,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Sym = Rgba.Rgb(70, 214, 255);
 
         public string Key => "void_solitaire";
-        public LocText Title => new LocText("Void Solitaire", "Void-Solitär");
-        public LocText Desc => new LocText(
-            "A quiet card sweep for the long haul. Clear the board by tapping matching pairs of symbols.",
-            "Ein ruhiges Kartenspiel für die lange Reise. Räume das Feld, indem du gleiche Symbol-Paare antippst.");
-        public LocText Hint => new LocText("Click two matching cards to clear them", "Zwei gleiche Karten anklicken zum Entfernen");
+        public LocText Title => new LocText("minigame.void_solitaire.title");
+        public LocText Desc => new LocText("minigame.void_solitaire.desc");
+        public LocText Hint => new LocText("minigame.void_solitaire.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click a card, then another with the same symbol — both clear", "Karte anklicken, dann eine mit gleichem Symbol — beide verschwinden"),
-            new LocText("Clear the whole board; fewer mismatches scores higher", "Räume das ganze Feld; weniger Fehlversuche geben mehr Punkte"),
+            new LocText("minigame.void_solitaire.help1"),
+            new LocText("minigame.void_solitaire.help2"),
         };
         public int Difficulty => 1;
 

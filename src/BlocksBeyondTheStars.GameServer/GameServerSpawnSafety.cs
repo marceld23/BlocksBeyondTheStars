@@ -142,7 +142,7 @@ public sealed partial class GameServer
             var safe = SafeSpawnPoint(p.PlayerId);
             p.Position = safe;
             _log.Warn($"Player '{p.Name}' fell into the void; recovered to {safe}.");
-            Send(s, new RespawnNotice { X = safe.X, Y = safe.Y, Z = safe.Z, Reason = "Recovered from a fall." });
+            Send(s, new RespawnNotice { X = safe.X, Y = safe.Y, Z = safe.Z, Reason = "@srv.misc.fall_recovered" });
             SendPlayerState(s);
         }
     }

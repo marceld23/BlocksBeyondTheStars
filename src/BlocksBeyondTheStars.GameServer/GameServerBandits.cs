@@ -157,7 +157,7 @@ public sealed partial class GameServer
                     SendPlayerState(session);
                     if (p.Health <= 0f)
                     {
-                        RespawnPlayer(session, "Beaten by a bandit — recovery to the Medbay heal-tank.");
+                        RespawnPlayer(session, "@srv.death.bandit");
                     }
                 }
             }

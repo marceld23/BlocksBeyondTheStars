@@ -183,39 +183,40 @@ public sealed partial class GameServer
 
         if (!_wreckStamped || _wreck is null)
         {
-            Reject(session, "wreck_repair", "There is no repairable wreck on this world.");
+            Reject(session, "wreck_repair", "@srv.wreck.none");
             return false;
         }
 
         if (_wreckClaimed)
         {
-            Reject(session, "wreck_repair", "This wreck has already been claimed.");
+            Reject(session, "wreck_repair", "@srv.wreck.claimed");
             return false;
         }
 
         var pos = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference); // wraps at THIS world's seam
         if (!TryGetWreckRepairTarget(pos, out var required))
         {
-            Reject(session, "wreck_repair", "That cell is not part of the wreck's repair mask.");
+            Reject(session, "wreck_repair", "@srv.wreck.not_mask");
             return false;
         }
 
         if (_world.GetBlock(pos) == required.NumericId)
         {
-            Reject(session, "wreck_repair", "That hull cell is already repaired.");
+            Reject(session, "wreck_repair", "@srv.wreck.cell_done");
             return false;
         }
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "wreck_repair", "Out of reach.");
+            Reject(session, "wreck_repair", "@out_of_reach");
             return false;
         }
 
         var item = _content.GetItem(itemKey);
         if (item is null || item.PlacesBlock != required.Key)
         {
-            Reject(session, "wreck_repair", $"Repair requires a {required.Key} block item.");
+            Reject(session, "wreck_repair", Localize(session.Locale, "srv.wreck.need_block")
+                .Replace("{name}", LocalizedName(session.Locale, required.NameKey, required.Key)));
             return false;
         }
 
@@ -225,7 +226,7 @@ public sealed partial class GameServer
         {
             if (pool.Count(itemKey) < 1)
             {
-                Reject(session, "wreck_repair", "You do not have the required repair block.");
+                Reject(session, "wreck_repair", "@srv.wreck.no_block");
                 return false;
             }
 
@@ -250,19 +251,19 @@ public sealed partial class GameServer
 
         if (!_wreckStamped || _wreck is null)
         {
-            Reject(session, "wreck_claim", "There is no wreck to claim.");
+            Reject(session, "wreck_claim", "@srv.wreck.nothing_claim");
             return (false, string.Empty);
         }
 
         if (_wreckClaimed)
         {
-            Reject(session, "wreck_claim", "This wreck has already been claimed.");
+            Reject(session, "wreck_claim", "@srv.wreck.claimed");
             return (false, string.Empty);
         }
 
         if (CountWreckRepairRemaining() > 0)
         {
-            Reject(session, "wreck_claim", "The wreck hull is not fully repaired.");
+            Reject(session, "wreck_claim", "@srv.wreck.incomplete");
             SendWreckRepairStatus(session);
             return (false, string.Empty);
         }
@@ -270,7 +271,7 @@ public sealed partial class GameServer
         var def = _content.GetShip(_wreck.ShipType);
         if (def is null)
         {
-            Reject(session, "wreck_claim", "The wreck's ship design is unknown.");
+            Reject(session, "wreck_claim", "@srv.wreck.unknown_design");
             return (false, string.Empty);
         }
 
@@ -285,7 +286,11 @@ public sealed partial class GameServer
             Name = _wreckName,
         });
         _repo.SaveMetadata(_meta);
-        Send(session, new ServerMessage { Text = $"Claimed repaired wreck: {def.Key}" });
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.wreck.claim_done")
+                .Replace("{name}", LocalizedName(session.Locale, def.NameKey, def.Key)),
+        });
         SendWreckRepairStatus(session);
         return (true, id);
     }

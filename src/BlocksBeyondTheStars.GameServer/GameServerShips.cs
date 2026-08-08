@@ -111,7 +111,11 @@ public sealed partial class GameServer
         string id = AddOwnedShipFromDefinition(def, shipType);
 
         SendInventory(session);
-        Send(session, new ServerMessage { Text = $"Crafted ship: {shipType}" });
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.misc.ship_crafted")
+                .Replace("{name}", LocalizedName(session.Locale, def.NameKey, shipType)),
+        });
         return (true, id);
     }
 
@@ -189,7 +193,7 @@ public sealed partial class GameServer
     {
         if (!SwitchShip(intent.ShipId))
         {
-            Reject(session, "switch_ship", "You don't own that ship.");
+            Reject(session, "switch_ship", "@srv.misc.not_your_ship");
         }
     }
 }

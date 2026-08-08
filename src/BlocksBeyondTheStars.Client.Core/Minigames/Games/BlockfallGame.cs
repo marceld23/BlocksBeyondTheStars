@@ -34,17 +34,15 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         };
 
         public string Key => "blockfall";
-        public LocText Title => new LocText("Blockfall", "Blockfall");
-        public LocText Desc => new LocText(
-            "Slot the falling blocks to clear full rows. Survive as long as you can.",
-            "Setze die fallenden Blöcke so, dass volle Reihen verschwinden. Überlebe so lange wie möglich.");
-        public LocText Hint => new LocText("← → move · ↑ rotate · ↓ soft drop · Space hard drop", "← → bewegen · ↑ drehen · ↓ sanft · Leertaste fallen");
+        public LocText Title => new LocText("minigame.blockfall.title");
+        public LocText Desc => new LocText("minigame.blockfall.desc");
+        public LocText Hint => new LocText("minigame.blockfall.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("← → : move the piece", "← → : Stein bewegen"),
-            new LocText("↑ : rotate", "↑ : drehen"),
-            new LocText("↓ : soft drop", "↓ : schneller"),
-            new LocText("Space : hard drop", "Leertaste : sofort fallen"),
+            new LocText("minigame.blockfall.help1"),
+            new LocText("minigame.blockfall.help2"),
+            new LocText("minigame.blockfall.help3"),
+            new LocText("minigame.blockfall.help4"),
         };
         public int Difficulty => 2;
 

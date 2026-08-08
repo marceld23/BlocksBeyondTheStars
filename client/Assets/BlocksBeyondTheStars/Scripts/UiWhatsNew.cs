@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
@@ -24,6 +25,36 @@ namespace BlocksBeyondTheStars.Client
         public string title_en = "";
         public string body_de = "";
         public string body_en = "";
+        // Optional community-language fields; entries without them fall back to English per entry
+        // (JsonUtility leaves absent fields at "" — the backlog is not retro-translated).
+        public string title_fr = "";
+        public string body_fr = "";
+        public string title_es = "";
+        public string body_es = "";
+
+        /// <summary>Title for a locale code, falling back to English when the entry has no text
+        /// in that language (and to German for the odd entry authored DE-only).</summary>
+        public string Title(string code) => Pick(code, title_en, title_de, title_fr, title_es);
+
+        /// <summary>Body for a locale code, same fallback rule as <see cref="Title"/>.</summary>
+        public string Body(string code) => Pick(code, body_en, body_de, body_fr, body_es);
+
+        private static string Pick(string code, string en, string de, string fr, string es)
+        {
+            string chosen = code switch
+            {
+                "de" => de,
+                "fr" => fr,
+                "es" => es,
+                _ => en,
+            };
+            if (!string.IsNullOrEmpty(chosen))
+            {
+                return chosen;
+            }
+
+            return !string.IsNullOrEmpty(en) ? en : de;
+        }
     }
 
     /// <summary>JsonUtility wrapper for the whatsnew.json root object.</summary>
@@ -216,12 +247,11 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 hint.text = WhatsNew.FromBundled ? shell.L("ui.whatsnew.offline") : "";
-                bool de = shell.Settings.Language == "de";
+                string code = GameLocaleExtensions.Parse(shell.Settings.Language).Code();
                 foreach (var e in entries)
                 {
-                    string title = de ? e.title_de : e.title_en;
-                    AddRow(content, ref y, $"Version {e.version} — {title}", 22, UiKit.Cyan, FontStyle.Bold);
-                    AddRow(content, ref y, MarkdownToRich(de ? e.body_de : e.body_en), 17, UiKit.TextCol, FontStyle.Normal);
+                    AddRow(content, ref y, $"Version {e.version} — {e.Title(code)}", 22, UiKit.Cyan, FontStyle.Bold);
+                    AddRow(content, ref y, MarkdownToRich(e.Body(code)), 17, UiKit.TextCol, FontStyle.Normal);
                     y += 18f; // breathing room between releases
                 }
             }

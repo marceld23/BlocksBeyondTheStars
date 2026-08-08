@@ -20,7 +20,7 @@ namespace BlocksBeyondTheStars.Client
     ///   <item>space_flight_1..3 — three in-flight vantage points in space (HUD + ship + a planet behind)</item>
     /// </list>
     /// ONE language per run (set with <c>-lang de|en</c>): the in-game HUD language is fixed when the world
-    /// starts (WorldRig sets <c>boot.German</c> from <c>Settings.Language</c>), so a clean DE/EN set is two runs.
+    /// starts (WorldRig sets <c>boot.Locale</c> from <c>Settings.Language</c>), so a clean DE/EN set is two runs.
     ///
     /// Poses are reached with ordinary gameplay intents (SendExitShip / SendEnterShip / SendEnterSpace /
     /// SendShipMove) — no admin/cheat commands. Capture reuses the proven full-frame recipe

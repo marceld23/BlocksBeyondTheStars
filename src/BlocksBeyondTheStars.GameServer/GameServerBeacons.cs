@@ -92,7 +92,7 @@ public sealed partial class GameServer
 
         if (!session.State.IsAdmin && beacon.OwnerId != session.State.PlayerId)
         {
-            Reject(session, "beacon", "Only the owner can rename this beacon.");
+            Reject(session, "beacon", "@srv.misc.beacon_owner");
             return;
         }
 
@@ -102,7 +102,7 @@ public sealed partial class GameServer
             (int)System.Math.Floor(beacon.Pos.Z));
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "beacon", "Out of reach.");
+            Reject(session, "beacon", "@out_of_reach");
             return;
         }
 

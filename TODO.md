@@ -11,7 +11,8 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
-**Conventions:** English docs/comments; in-game text bilingual DE+EN; commit to `main` with the
+**Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
+FR/ES machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -7230,6 +7231,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-08-08): French + Spanish, and every text surface localizable (#810–#816)
+
+The game now ships **five languages**: EN/DE (complete, mandatory), FR/ES (machine first pass over
+the full key set, spot-reviewed), IT (community, in progress). One PR closed the whole audit:
+
+- **Real language picker** — the settings DE↔EN toggle became a cycle through
+  `GameContent.SelectableLocales`: EN/DE always, community languages once their locale coverage
+  clears 45 %. Labels show native names ("Français"). First-run default now maps French/Spanish
+  system languages too.
+- **Server messages localized** — the `@token` convention became generic (`@srv.<key>` = locale key,
+  optional `:arg` fills `{name}`) and ALL raw-English `ServerMessage`/reject/join-reason sites moved
+  onto it or onto server-side `Localize(...)`; German players no longer see English station/speeder/
+  repair/bounty toasts. New `srv.*` key group.
+- **Minigames localized** — `LocText(en,de)` + `api.German` replaced by locale keys
+  (`minigame.*`, `ui.minigame.*`, 168 keys); catalog.json now carries `titleKey`/`descKey`.
+- **Wiki/What's New per-language** — articles and entries take optional `fr`/`es` fields with
+  per-entry EN fallback; selection is locale-code based (no more `bool German` text choices
+  anywhere in the client).
+- **AI backend** — `Language` now maps fr/es/it to the LLM instruction, so NPC lines/VEGA banter/
+  mission flavour follow the player's language; portal Accept-Language detection sends
+  non-DE/EN browsers to English instead of German.
+- **Tooling + guide** — `tools/translate_locale.py` (incremental, resumable, placeholder-validating
+  machine first pass) and `docs/developer/TRANSLATION_GUIDE.md` (the end-to-end map of every text
+  surface + per-language wiring steps), linked from CONTRIBUTING.
 
 ## ✅ Done (2026-08-08): powered drills actually draw suit energy; area mining respects tool tier (#796/#797)
 

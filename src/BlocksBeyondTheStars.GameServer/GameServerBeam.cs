@@ -95,13 +95,13 @@ public sealed partial class GameServer
 
         if (!session.State.IsAdmin && beam.OwnerId != session.State.PlayerId)
         {
-            Reject(session, "beam", "Only the owner can rename this beam block.");
+            Reject(session, "beam", "@srv.beam.owner_only");
             return;
         }
 
         if (!WithinReach(session.State, beam.Cell))
         {
-            Reject(session, "beam", "Out of reach.");
+            Reject(session, "beam", "@out_of_reach");
             return;
         }
 
@@ -128,32 +128,32 @@ public sealed partial class GameServer
         var target = _beams.FirstOrDefault(b => b.Id == intent.TargetId);
         if (source is null || target is null || source.Id == target.Id)
         {
-            Reject(session, "beam", "That beam block is gone.");
+            Reject(session, "beam", "@srv.beam.gone");
             return;
         }
 
         string me = session.State.PlayerId;
         if (!CanUseBeam(source, me) || !CanUseBeam(target, me))
         {
-            Reject(session, "beam", "You can only beam between your own and allied beam blocks.");
+            Reject(session, "beam", "@srv.beam.not_allied");
             return;
         }
 
         if (!WithinReach(session.State, source.Cell))
         {
-            Reject(session, "beam", "Step onto the beam block first.");
+            Reject(session, "beam", "@srv.beam.step_on");
             return;
         }
 
         if (_beamCooldown.GetValueOrDefault(me) > 0)
         {
-            Reject(session, "beam", "The beam emitter is still recharging.");
+            Reject(session, "beam", "@srv.beam.recharging");
             return;
         }
 
         if (session.State.SuitEnergy < BeamEnergyCost)
         {
-            Reject(session, "beam", "Not enough suit energy to beam.");
+            Reject(session, "beam", "@srv.beam.no_energy");
             return;
         }
 
@@ -177,7 +177,7 @@ public sealed partial class GameServer
         });
 
         string label = string.IsNullOrEmpty(target.Name) ? "beam block" : target.Name;
-        Send(session, new ServerMessage { Text = $"Beamed to {label}." });
+        Send(session, new ServerMessage { Text = "@srv.beam.done:" + label });
     }
 
     /// <summary>True if the player may use this beam block as a source/destination: they own it, are allied with

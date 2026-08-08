@@ -19,6 +19,8 @@ public enum GameLocale
     English,
     German,
     Italian,
+    French,
+    Spanish,
 }
 
 public static class GameLocaleExtensions
@@ -31,7 +33,21 @@ public static class GameLocaleExtensions
         GameLocale.English => "en",
         GameLocale.German => "de",
         GameLocale.Italian => "it",
+        GameLocale.French => "fr",
+        GameLocale.Spanish => "es",
         _ => "en",
+    };
+
+    /// <summary>The language's name in itself, for the settings picker — a French player should
+    /// find "Français" without having to read the current language first.</summary>
+    public static string NativeName(this GameLocale locale) => locale switch
+    {
+        GameLocale.English => "English",
+        GameLocale.German => "Deutsch",
+        GameLocale.Italian => "Italiano",
+        GameLocale.French => "Français",
+        GameLocale.Spanish => "Español",
+        _ => locale.ToString(),
     };
 
     /// <summary>Parses a locale code (or language name) as sent by clients and written to
@@ -57,6 +73,20 @@ public static class GameLocaleExtensions
             case "italian":
             case "italiano":
                 locale = GameLocale.Italian;
+                return true;
+            case "fr":
+            case "fr-fr":
+            case "french":
+            case "francais":
+            case "français":
+                locale = GameLocale.French;
+                return true;
+            case "es":
+            case "es-es":
+            case "spanish":
+            case "espanol":
+            case "español":
+                locale = GameLocale.Spanish;
                 return true;
             default:
                 locale = GameLocale.English;

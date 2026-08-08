@@ -25,25 +25,28 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba LabelDim = Rgba.Rgb(120, 150, 170);
 
         public string Key => "signal_tuner";
-        public LocText Title => new LocText("Signal Tuner", "Signal-Tuner");
-        public LocText Desc => new LocText(
-            "Adjust the parameters to lock onto the hidden signal, then hold the quality high until it decodes.",
-            "Justiere die Parameter auf das verborgene Signal und halte die Qualität hoch, bis es dekodiert ist.");
-        public LocText Hint => new LocText("← → select · ↑ ↓ adjust", "← → wählen · ↑ ↓ justieren");
+        public LocText Title => new LocText("minigame.signal_tuner.title");
+        public LocText Desc => new LocText("minigame.signal_tuner.desc");
+        public LocText Hint => new LocText("minigame.signal_tuner.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("← → : choose a parameter", "← → : Parameter wählen"),
-            new LocText("↑ ↓ : raise / lower it", "↑ ↓ : erhöhen / senken"),
-            new LocText("Keep quality above the line until the decode bar fills", "Halte die Qualität über der Linie, bis der Dekodierbalken voll ist"),
+            new LocText("minigame.signal_tuner.help1"),
+            new LocText("minigame.signal_tuner.help2"),
+            new LocText("minigame.signal_tuner.help3"),
         };
         public int Difficulty => 3;
 
         public MinigameController Create(MinigameApi api)
         {
             var canvas = api.Canvas(W, H);
-            string[] labels = api.German
-                ? new[] { "FREQUENZ", "AMPLITUDE", "FILTER", "QUALITAET", "DEKODIERUNG" }
-                : new[] { "FREQUENCY", "AMPLITUDE", "FILTER", "QUALITY", "DECODE" };
+            string[] labels =
+            {
+                api.Localize("minigame.signal_tuner.label_frequency"),
+                api.Localize("minigame.signal_tuner.label_amplitude"),
+                api.Localize("minigame.signal_tuner.label_filter"),
+                api.Localize("minigame.signal_tuner.label_quality"),
+                api.Localize("minigame.signal_tuner.label_decode"),
+            };
 
             var val = new[] { 0.5f, 0.5f, 0.5f };
             var target = new float[3];

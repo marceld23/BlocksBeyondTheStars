@@ -201,13 +201,13 @@ namespace BlocksBeyondTheStars.Client
             // Fixed footer on the panel, OUTSIDE the scroll viewport: language + back used to be the
             // last scroll rows, so leaving the screen meant scrolling the whole list first. Rebuild()
             // recreates them with everything else, so the language label stays current.
-            // Still a DE/EN toggle, deliberately: a community language (it) loads and can be selected by hand in
-            // client_settings.json, but it only joins this button once its translation coverage clears the bar —
-            // at which point this becomes a real picker rather than a two-state flip. The label shows the ACTIVE
-            // code so a hand-set language doesn't read as a lie ("IT" here, next click leaves for DE/EN).
+            // A real picker: each click advances through every selectable language. EN/DE are always
+            // offered; community languages join the cycle once their locale coverage clears the bar
+            // (GameContent.SelectableLocales). A hand-set language below the bar still shows its own
+            // name here — the next click just leaves for the official cycle.
             var activeLocale = GameLocaleExtensions.Parse(S.Language);
-            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {activeLocale.Code().ToUpperInvariant()}",
-                () => { S.Language = S.Language == "de" ? "en" : "de"; _shell.LoadLocalizer(); Rebuild(); });
+            UiKit.AddButton(_root, _px + 30f, 922f, 250, 50, $"{L("ui.settings.language")}: {activeLocale.NativeName()}",
+                () => { S.Language = NextLocale(activeLocale).Code(); _shell.LoadLocalizer(); Rebuild(); });
             UiKit.AddButton(_root, _px + _pw - 280f, 922f, 250, 50, L("ui.menu.back"), () => _shell.CloseSettings(), "btn_exit");
         }
 
@@ -331,6 +331,31 @@ namespace BlocksBeyondTheStars.Client
             }
 
             y += 52f;
+        }
+
+        /// <summary>The next language in the picker cycle after <paramref name="current"/>. The cycle is
+        /// <see cref="BlocksBeyondTheStars.Shared.Content.GameContent.SelectableLocales"/> (EN/DE always,
+        /// community languages once their coverage clears the bar). A hand-set language outside the cycle
+        /// advances to its first entry.</summary>
+        private GameLocale NextLocale(GameLocale current)
+        {
+            var cycle = _shell.Content?.SelectableLocales();
+            if (cycle == null || cycle.Count == 0)
+            {
+                return current == GameLocale.German ? GameLocale.English : GameLocale.German;
+            }
+
+            int index = -1;
+            for (int i = 0; i < cycle.Count; i++)
+            {
+                if (cycle[i] == current)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            return cycle[index < 0 ? 0 : (index + 1) % cycle.Count];
         }
 
         /// <summary>Locale key for a chat-visibility mode's button caption.</summary>

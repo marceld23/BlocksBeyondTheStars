@@ -54,19 +54,22 @@ namespace BlocksBeyondTheStars.Client.Minigames
             public Action Fn;
         }
 
-        public MinigameHost(IMinigame game, int best = 0, bool german = false, int? seed = null)
+        public MinigameHost(IMinigame game, int best = 0, Func<string, string>? localize = null, int? seed = null)
         {
             _game = game ?? throw new ArgumentNullException(nameof(game));
             _rng = seed.HasValue ? new Random(seed.Value) : new Random();
             Best = best;
-            German = german;
+            Localize = localize ?? (key => key);
             Api = new MinigameApi(this);
         }
 
         public MinigameApi Api { get; }
         public MinigameState State => _state;
         public int Best { get; private set; }
-        public bool German { get; }
+
+        /// <summary>Resolves a locale key to display text (the shared <c>Localizer.Get</c>, supplied by the
+        /// caller). Never null: defaults to identity, so headless tests see the raw keys.</summary>
+        public Func<string, string> Localize { get; }
         public IMinigame Game => _game;
 
         /// <summary>The result of the most recent finished run (valid once <see cref="State"/> is Result).</summary>
@@ -383,7 +386,9 @@ namespace BlocksBeyondTheStars.Client.Minigames
 
         internal MinigameApi(MinigameHost host) => _host = host;
 
-        public bool German => _host.German;
+        /// <summary>Resolves a locale key to display text (never null; identity when the host has no localizer).</summary>
+        public Func<string, string> Localize => _host.Localize;
+
         public int Best => _host.Best;
 
         /// <summary>Create (and store) the drawing surface for this round. Returns the same <see cref="Canvas2D"/>

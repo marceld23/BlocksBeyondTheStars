@@ -31,25 +31,25 @@ public sealed partial class GameServer
         var p = session.State;
         if (!p.Inventory.Has(TeleporterItem, 1))
         {
-            Reject(session, "teleport", "You have no suit teleporter.");
+            Reject(session, "teleport", "@srv.tp.no_teleporter");
             return;
         }
 
         if (InSpace(playerId))
         {
-            Reject(session, "teleport", "The teleporter can't be used while flying in space.");
+            Reject(session, "teleport", "@srv.tp.not_in_space");
             return;
         }
 
         if (_teleportCooldown.GetValueOrDefault(playerId) > 0)
         {
-            Reject(session, "teleport", "The teleporter is still recharging.");
+            Reject(session, "teleport", "@srv.tp.recharging");
             return;
         }
 
         if (p.SuitEnergy < TeleportEnergyCost)
         {
-            Reject(session, "teleport", "Not enough suit energy to teleport.");
+            Reject(session, "teleport", "@srv.tp.no_energy");
             return;
         }
 
@@ -67,7 +67,7 @@ public sealed partial class GameServer
             X = p.RespawnPoint.X,
             Y = p.RespawnPoint.Y,
             Z = p.RespawnPoint.Z,
-            Reason = "Teleported back to your ship.",
+            Reason = "@srv.tp.to_ship",
         });
         SendPlayerState(session);
     }

@@ -188,26 +188,26 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
             !_spaceInstances.TryGetValue(instanceId, out var instance))
         {
-            Reject(session, "station", "You are not in space.");
+            Reject(session, "station", "@srv.station.not_in_space");
             return;
         }
 
         var contact = instance.Entities.FirstOrDefault(e => e.Id == stationId && e.Kind == CombatEntityKind.SpaceStation);
         if (contact is null || !_stationsById.TryGetValue(stationId, out var station))
         {
-            Reject(session, "station", "No such station contact.");
+            Reject(session, "station", "@srv.station.no_contact");
             return;
         }
 
         if (contact.Position.DistanceSquared(instance.ShipPosition) > StationBoardRange * StationBoardRange)
         {
-            Reject(session, "station", "Move closer to dock with the station.");
+            Reject(session, "station", "@srv.station.closer");
             return;
         }
 
         if (!CanBoardStation(session, stationId))
         {
-            Reject(session, "station", "This station is private — ally with its owner to board.");
+            Reject(session, "station", "@srv.station.private");
             return;
         }
 
@@ -263,7 +263,7 @@ public sealed partial class GameServer
         session.SentChunks.Clear();
         MarkArrivedOnBody(session, station.Id); // boarding marks the station visited → a travel-screen target
 
-        Send(session, new SpaceClosed { Reason = "Docked with station.", ShipDisabled = false });
+        Send(session, new SpaceClosed { Reason = "@srv.station.docked", ShipDisabled = false });
         Send(session, new WorldReset { PlanetType = StationPlanetType, PlanetName = station.Name, SystemName = string.Empty, Hyperjump = false });
         SendPlayerState(session);
         SendEnvironment(session);
@@ -293,25 +293,25 @@ public sealed partial class GameServer
         var body = _galaxy?.FindBody(stationId);
         if (body is null || body.Kind != CelestialKind.SpaceStation)
         {
-            Reject(session, "travel", "No such station.");
+            Reject(session, "travel", "@srv.station.none");
             return;
         }
 
         if (quickTravel && !Rules.InstantTravel && !session.State.LandedBodies.Contains(stationId) && session.CurrentLocationId != stationId)
         {
-            Reject(session, "travel", "You haven't been to that station yet — dock with it once first (or enable Instant Travel).");
+            Reject(session, "travel", "@srv.station.not_visited");
             return;
         }
 
         if (session.CurrentLocationId == stationId)
         {
-            Reject(session, "travel", "You are already there.");
+            Reject(session, "travel", "@srv.travel.already_there");
             return;
         }
 
         if (!CanBoardStation(session, stationId))
         {
-            Reject(session, "travel", "This station is private — ally with its owner to board.");
+            Reject(session, "travel", "@srv.station.private");
             return;
         }
 
@@ -416,7 +416,7 @@ public sealed partial class GameServer
             SendPlayerState(session);
         }
 
-        Send(session, new ServerMessage { Text = fromEva ? "Back outside — your ship waited in space." : "Undocked into space." });
+        Send(session, new ServerMessage { Text = fromEva ? "@srv.station.back_outside" : "@srv.station.undocked" });
     }
 
     private void StampStation(BoardableStation station)

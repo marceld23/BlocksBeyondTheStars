@@ -68,20 +68,20 @@ public sealed partial class GameServer
 
         if (fromPlayer == toPlayer || ActiveTrade(fromPlayer) is not null || ActiveTrade(toPlayer) is not null)
         {
-            Reject(from, "trade", "Can't start a trade right now.");
+            Reject(from, "trade", "@srv.trade.busy");
             return;
         }
 
         if (!CanTradeTogether(fromPlayer, toPlayer))
         {
-            Reject(from, "trade", "The other player must be next to you.");
+            Reject(from, "trade", "@srv.trade.too_far");
             return;
         }
 
         _tradeRequests[toPlayer] = fromPlayer;
         if (FindSessionByPlayerId(toPlayer) is { } to)
         {
-            Send(to, new ServerMessage { Text = $"{fromPlayer} wants to trade." });
+            Send(to, new ServerMessage { Text = "@srv.trade.request:" + fromPlayer });
         }
     }
 
@@ -97,7 +97,7 @@ public sealed partial class GameServer
         {
             if (FindSessionByPlayerId(requester) is { } r)
             {
-                Send(r, new TradeClosed { Completed = false, Reason = "Trade declined." });
+                Send(r, new TradeClosed { Completed = false, Reason = "@srv.trade.declined" });
             }
 
             return;
@@ -132,7 +132,7 @@ public sealed partial class GameServer
         var pool = new MaterialPool(_content, s.State, ownShip);
         if (!pool.Has(offer))
         {
-            Reject(s, "trade", "You don't have those items to offer.");
+            Reject(s, "trade", "@srv.trade.missing_items");
             return;
         }
 
@@ -201,7 +201,7 @@ public sealed partial class GameServer
         if (ActiveTrade(player) is { } session)
         {
             _trades.Remove(session);
-            CloseTrade(session, completed: false, "Trade cancelled.");
+            CloseTrade(session, completed: false, "@srv.trade.cancelled");
         }
     }
 
@@ -213,7 +213,7 @@ public sealed partial class GameServer
         if (sa is null || sb is null || !CanTradeTogether(session.A, session.B))
         {
             _trades.Remove(session);
-            CloseTrade(session, completed: false, "Trade partner is no longer in range.");
+            CloseTrade(session, completed: false, "@srv.trade.out_of_range");
             return;
         }
 
@@ -230,7 +230,7 @@ public sealed partial class GameServer
         if (!poolA.Has(session.OfferA) || !poolB.Has(session.OfferB))
         {
             _trades.Remove(session);
-            CloseTrade(session, completed: false, "Offered items are no longer available.");
+            CloseTrade(session, completed: false, "@srv.trade.items_gone");
             return;
         }
 
@@ -269,7 +269,7 @@ public sealed partial class GameServer
         _trades.Remove(session);
         SendInventory(sa); // carries the (possibly updated) knowledge total to each client
         SendInventory(sb);
-        CloseTrade(session, completed: true, "Trade complete.");
+        CloseTrade(session, completed: true, "@srv.trade.complete");
     }
 
     /// <summary>Cancels any pending request or open trade involving a player (e.g. on disconnect).</summary>
@@ -284,7 +284,7 @@ public sealed partial class GameServer
         if (_trades.FirstOrDefault(t => t.Involves(playerId)) is { } session)
         {
             _trades.Remove(session);
-            CloseTrade(session, completed: false, "Trade partner left.");
+            CloseTrade(session, completed: false, "@srv.trade.partner_left");
         }
     }
 

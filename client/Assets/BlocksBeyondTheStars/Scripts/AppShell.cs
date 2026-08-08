@@ -919,10 +919,36 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _uiContentError;
 
         /// <summary>Blocking "content failed to load" overlay with a Retry button (#422 M8/M9). Texts are
-        /// hardcoded DE/EN pairs — the locale files themselves are part of the content that failed.</summary>
+        /// hardcoded per-language here — the locale files themselves are part of the content that failed,
+        /// so the localizer cannot help. Keep the switch in sync with the shipped languages.</summary>
         private GameObject BuildContentErrorUi()
         {
-            bool de = Settings?.Language == "de";
+            string code = GameLocaleExtensions.Parse(Settings?.Language).Code();
+            string titleText, bodyText, retryText;
+            switch (code)
+            {
+                case "de":
+                    titleText = "Inhalte konnten nicht geladen werden";
+                    bodyText = "Das Laden der Spieldaten ist fehlgeschlagen. Prüfe deine Internetverbindung bzw. die Installation und versuche es dann erneut.";
+                    retryText = "Erneut versuchen";
+                    break;
+                case "fr":
+                    titleText = "Échec du chargement du contenu";
+                    bodyText = "Le chargement des données du jeu a échoué. Vérifie ta connexion Internet ou l'installation, puis réessaie.";
+                    retryText = "Réessayer";
+                    break;
+                case "es":
+                    titleText = "No se pudo cargar el contenido";
+                    bodyText = "No se pudieron cargar los datos del juego. Comprueba tu conexión a Internet o la instalación y vuelve a intentarlo.";
+                    retryText = "Reintentar";
+                    break;
+                default:
+                    titleText = "Content failed to load";
+                    bodyText = "Loading the game data failed. Check your internet connection or the install, then try again.";
+                    retryText = "Retry";
+                    break;
+            }
+
             var canvas = UiKit.CreateCanvas("ContentErrorUI");
             canvas.sortingOrder = 90; // above every shell screen — the shell is unusable without content
             var root = canvas.transform;
@@ -932,21 +958,17 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddModalOverlay(root, x, y, w, h); // shared scrim + opaque panel (#588)
 
             var title = UiKit.AddText(root, x + 32, y + 28, w - 64, 34,
-                de ? "Inhalte konnten nicht geladen werden" : "Content failed to load",
-                26, UiKit.TextCol, TextAnchor.MiddleLeft);
+                titleText, 26, UiKit.TextCol, TextAnchor.MiddleLeft);
             title.fontStyle = FontStyle.Bold;
 
-            UiKit.AddText(root, x + 32, y + 80, w - 64, 84,
-                de
-                    ? "Das Laden der Spieldaten ist fehlgeschlagen. Prüfe deine Internetverbindung bzw. die Installation und versuche es dann erneut."
-                    : "Loading the game data failed. Check your internet connection or the install, then try again.",
+            UiKit.AddText(root, x + 32, y + 80, w - 64, 84, bodyText,
                 18, UiKit.TextCol, TextAnchor.UpperLeft);
 
             UiKit.AddText(root, x + 32, y + 168, w - 64, 60, ContentLoadError ?? string.Empty,
                 14, UiKit.CyanDim, TextAnchor.UpperLeft);
 
             UiKit.AddButton(root, x + (w - 280f) * 0.5f, y + h - 82, 280, 56,
-                de ? "Erneut versuchen" : "Retry", RetryContentLoad);
+                retryText, RetryContentLoad);
 
             return canvas.gameObject;
         }
@@ -1443,17 +1465,16 @@ namespace BlocksBeyondTheStars.Client
         // just to turn the sound down (Severin playtest). Resume/Settings/Quit, laid out top to bottom.
         private void BuildQuitDialog()
         {
-            bool de = Settings != null && Settings.Language == "de";
             var canvas = UiKit.CreateCanvas("Pause Menu");
             canvas.sortingOrder = 60; // above the in-game HUD/menu
             _quitDialog = canvas.gameObject;
 
             var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, 370f, 480f, 340f);
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,
-                de ? "Pause" : "Paused", 26, UiKit.TextCol, TextAnchor.MiddleCenter);
-            UiKit.AddButton(panel.transform, 90f, 88f, 300f, 56f, de ? "Weiterspielen" : "Resume", CancelQuit);
-            UiKit.AddButton(panel.transform, 90f, 152f, 300f, 56f, de ? "Einstellungen" : "Settings", OpenSettings);
-            UiKit.AddButton(panel.transform, 90f, 216f, 300f, 56f, de ? "Zum Hauptmenü" : "Quit to main menu", ReturnToMenu);
+                L("ui.pause.title"), 26, UiKit.TextCol, TextAnchor.MiddleCenter);
+            UiKit.AddButton(panel.transform, 90f, 88f, 300f, 56f, L("ui.pause.resume"), CancelQuit);
+            UiKit.AddButton(panel.transform, 90f, 152f, 300f, 56f, L("ui.menu.settings"), OpenSettings);
+            UiKit.AddButton(panel.transform, 90f, 216f, 300f, 56f, L("ui.pause.quit"), ReturnToMenu);
         }
     }
 }

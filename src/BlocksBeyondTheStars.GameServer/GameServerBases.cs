@@ -159,7 +159,7 @@ public sealed partial class GameServer
         _repo.SaveBase(ToStored(basePoint));
         BroadcastBasesOn(body);
         SendStarMap(session); // the player's travel-screen badge for this body lights up
-        Send(session, new ServerMessage { Text = $"Base founded: {basePoint.Name}. Press E on the stone to rename it." });
+        Send(session, new ServerMessage { Text = "@srv.base.founded:" + basePoint.Name });
     }
 
     /// <summary>If a base entity sits at this cell (its base_core was just mined or blasted), drop + forget it.
@@ -191,7 +191,7 @@ public sealed partial class GameServer
         var basePoint = _bases.FirstOrDefault(b => b.OwnerId == session.State.PlayerId && b.Planet == body);
         if (basePoint is null)
         {
-            Reject(session, "base", "You have no base on this body.");
+            Reject(session, "base", "@srv.base.none_here");
             return;
         }
 

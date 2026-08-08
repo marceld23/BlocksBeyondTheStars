@@ -333,32 +333,32 @@ public sealed partial class GameServer
         var module = _content.GetShipModule(intent.ModuleKey);
         if (module is null)
         {
-            Reject(session, "build_module", "Unknown ship module.");
+            Reject(session, "build_module", "@srv.module.unknown");
             return;
         }
 
         if (_ship.HasModule(module.Key))
         {
-            Reject(session, "build_module", "That module is already built.");
+            Reject(session, "build_module", "@srv.module.already");
             return;
         }
 
         if (!p.AboardShip)
         {
-            Reject(session, "build_module", "You must be aboard your ship to build modules.");
+            Reject(session, "build_module", "@srv.module.aboard");
             return;
         }
 
         if (!_ship.HasModule("workshop"))
         {
-            Reject(session, "build_module", "A workshop module is required to build ship modules.");
+            Reject(session, "build_module", "@srv.module.workshop");
             return;
         }
 
         if (!string.IsNullOrEmpty(module.RequiredBlueprint) &&
             !p.UnlockedBlueprints.Contains(module.RequiredBlueprint!))
         {
-            Reject(session, "build_module", "Blueprint not unlocked.");
+            Reject(session, "build_module", "@srv.craft.blueprint_locked");
             return;
         }
 
@@ -368,7 +368,7 @@ public sealed partial class GameServer
         {
             if (!pool.Has(module.BuildCost))
             {
-                Reject(session, "build_module", "Missing materials.");
+                Reject(session, "build_module", "@srv.craft.missing_materials");
                 return;
             }
 
@@ -398,7 +398,11 @@ public sealed partial class GameServer
         ResizeCargo(_ship);
         RecomputeShipCombatStats();
 
-        Send(session, new ServerMessage { Text = $"Ship module built: {module.Key}" });
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.module.built")
+                .Replace("{name}", LocalizedName(session.Locale, module.NameKey, module.Key)),
+        });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: salvaged Mk2 parts that found no room are gone — say so
         SendShipCombatStatus(session);
@@ -415,13 +419,13 @@ public sealed partial class GameServer
 
         if (!Rules.FreeSpaceFlight)
         {
-            RejectSpace(session, "Free space flight is disabled on this server.");
+            RejectSpace(session, "@srv.space.flight_disabled");
             return;
         }
 
         if (session is not null && !session.State.AboardShip)
         {
-            RejectSpace(session, "Board your ship before launching into space.");
+            RejectSpace(session, "@srv.space.board_first");
             return;
         }
 
@@ -432,7 +436,7 @@ public sealed partial class GameServer
 
         if (_ship.Downed)
         {
-            RejectSpace(session, "Your ship is wrecked — repair it on the landing pad before launching.");
+            RejectSpace(session, "@srv.space.wrecked");
             return;
         }
 
@@ -556,7 +560,7 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is not null)
         {
-            Send(session, new SpaceClosed { Reason = "Returned from space.", ShipDisabled = false });
+            Send(session, new SpaceClosed { Reason = "@srv.space.returned", ShipDisabled = false });
         }
     }
 
@@ -861,7 +865,7 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId) ||
             !_spaceInstances.TryGetValue(instanceId, out var instance))
         {
-            RejectSpace(session, "You are not flying in space.");
+            RejectSpace(session, "@srv.space.not_flying");
             return;
         }
 
@@ -872,7 +876,7 @@ public sealed partial class GameServer
 
         if (!TryGetWeapon(weaponKey, out var weapon))
         {
-            RejectSpace(session, "That weapon is not built on your ship.");
+            RejectSpace(session, "@srv.space.no_weapon");
             return;
         }
 
@@ -889,13 +893,13 @@ public sealed partial class GameServer
         var target = instance.Entities.FirstOrDefault(e => e.Id == targetId);
         if (target is null)
         {
-            RejectSpace(session, "No such target.");
+            RejectSpace(session, "@srv.attack.no_target");
             return;
         }
 
         if (target.Position.DistanceSquared(instance.ShipPosition) > weapon.Range * weapon.Range)
         {
-            RejectSpace(session, "Target is out of weapon range.");
+            RejectSpace(session, "@srv.space.out_of_range");
             return;
         }
 
@@ -913,7 +917,7 @@ public sealed partial class GameServer
         // #694: weapon_energy draws from the reactor-fed pool (was defined in the module data but unused).
         if (!TryDrawShipEnergy(playerId, weapon.Energy))
         {
-            RejectSpace(session, "Not enough ship energy to fire.");
+            RejectSpace(session, "@srv.space.no_energy");
             return;
         }
 
@@ -1031,7 +1035,7 @@ public sealed partial class GameServer
             float allowed = 2.5f * System.Math.Max(1f, target.Scale) + 0.1f * dist;
             if (dot <= 0f || missSq > allowed * allowed)
             {
-                RejectSpace(session, "Shot went wide — line up the target.");
+                RejectSpace(session, "@srv.space.missed");
                 return false;
             }
 
@@ -1040,7 +1044,7 @@ public sealed partial class GameServer
 
         if (dot < 0.5f) // ~60°: server-side guardrail above the client's ~±30° acquisition cone
         {
-            RejectSpace(session, "Target is outside the firing arc.");
+            RejectSpace(session, "@srv.space.arc");
             return false;
         }
 
@@ -1096,7 +1100,7 @@ public sealed partial class GameServer
             // Asteroid mining/breaking is governed by AsteroidDestruction, independent of combat.
             if (Rules.AsteroidDestruction == AsteroidDestructionMode.Off)
             {
-                reason = "Breaking asteroids is disabled on this server.";
+                reason = "@srv.space.asteroids_off";
                 return false;
             }
 
@@ -1104,7 +1108,7 @@ public sealed partial class GameServer
             // server allows weapons against rocks.
             if (!weapon.CanMine && Rules.AsteroidDestruction != AsteroidDestructionMode.WeaponsAllowed)
             {
-                reason = "Only mining tools may break asteroids on this server.";
+                reason = "@srv.space.asteroids_mining_only";
                 return false;
             }
 
@@ -1113,7 +1117,7 @@ public sealed partial class GameServer
 
         if (target.Kind == CombatEntityKind.SpaceStation)
         {
-            reason = "Dock with the station instead of firing on it.";
+            reason = "@srv.space.no_fire_station";
             return false;
         }
 
@@ -1121,26 +1125,26 @@ public sealed partial class GameServer
         {
             // Non-hostiles can't be shot — EXCEPT a hailing bandit ship: opening fire on the extortionist
             // is a legitimate answer (it turns the hold-up into a fight).
-            reason = "That is not a valid target.";
+            reason = "@srv.space.invalid_target";
             return false;
         }
 
         // Hostile NPC target: needs an actual combat weapon and combat-enabling rules.
         if (!weapon.IsCombat)
         {
-            reason = "A mining tool cannot damage that target.";
+            reason = "@srv.space.mining_tool";
             return false;
         }
 
         if (Rules.SpaceCombat is not (SpaceCombatMode.PvE or SpaceCombatMode.Both))
         {
-            reason = "Space combat is disabled on this server.";
+            reason = "@srv.space.combat_off";
             return false;
         }
 
         if (Rules.ShipWeapons is ShipWeaponMode.Off or ShipWeaponMode.MiningOnly)
         {
-            reason = "Ship weapons are not permitted on this server.";
+            reason = "@srv.space.weapons_off";
             return false;
         }
 
@@ -1787,8 +1791,8 @@ public sealed partial class GameServer
             Send(session, new SpaceClosed
             {
                 Reason = keepShip
-                    ? "Ship disabled — recovered to base."
-                    : "Ship destroyed — its wreck sits on your landing pad. Repair it before flying again.",
+                    ? "@srv.space.ship_disabled"
+                    : "@srv.space.ship_destroyed",
                 ShipDisabled = true,
             });
             SendShipCombatStatus(session);
@@ -1993,7 +1997,7 @@ public sealed partial class GameServer
 
         if (!Rules.FreeSpaceFlight)
         {
-            RejectSpace(session, "Free space flight is disabled on this server.");
+            RejectSpace(session, "@srv.space.flight_disabled");
             return;
         }
 
@@ -2002,20 +2006,20 @@ public sealed partial class GameServer
         var system = _galaxy?.Systems.FirstOrDefault(s => s.Id == systemId);
         if (system is null || system.Bodies.Count == 0)
         {
-            RejectSpace(session, "Unknown star system.");
+            RejectSpace(session, "@srv.space.unknown_system");
             return;
         }
 
         var origin = _galaxy?.FindBody(session.CurrentLocationId);
         if (origin is not null && origin.SystemId == system.Id)
         {
-            RejectSpace(session, "You are already in that system.");
+            RejectSpace(session, "@srv.space.same_system");
             return;
         }
 
         if (_ship is null || !_ship.HasModule("jump_generator"))
         {
-            RejectSpace(session, "Your ship has no jump generator — fit one to jump between star systems.");
+            RejectSpace(session, "@srv.travel.no_jump_generator");
             return;
         }
 
@@ -2084,7 +2088,7 @@ public sealed partial class GameServer
             string landBody = string.IsNullOrEmpty(dest) ? session.CurrentLocationId : dest;
             if (!EvaLandingAllowed(landBody))
             {
-                Reject(session, "land", "On a spacewalk you can only land on an asteroid — board the ship to reach a planet or moon.");
+                Reject(session, "land", "@srv.space.eva_asteroid_only");
                 return;
             }
         }

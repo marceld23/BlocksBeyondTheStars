@@ -70,14 +70,13 @@ public sealed partial class GameServer
     private List<TeleportTarget> TeleportTargets(PlayerSession session)
     {
         var list = new List<TeleportTarget>();
-        bool de = De(session);
 
         // The player's own parked ship. Per-player, not per-world: everyone has their own ship at their own
         // pad, so this resolves against the session rather than the world's structure lists.
         var landed = _worlds.Active.LandedFor(session.State.PlayerId);
         if (landed.Placed)
         {
-            list.Add(new TeleportTarget("ship", 1, de ? "dein Schiff" : "your ship", landed.HealTank));
+            list.Add(new TeleportTarget("ship", 1, Localize(session.Locale, "srv.tp.your_ship"), landed.HealTank));
         }
 
         for (int i = 0; i < _landingPads.Count; i++)
@@ -189,7 +188,6 @@ public sealed partial class GameServer
     /// resolvable here; anything else is a kind, optionally suffixed or followed by a 1-based number.</summary>
     private void AdminTeleportNamed(PlayerSession session, string? argument)
     {
-        bool de = De(session);
         var p = session.State;
 
         // Every list below reads the world + ship cursors, so point them at this player. The network dispatch
@@ -200,9 +198,7 @@ public sealed partial class GameServer
         // resolve against (and the snap channel would fight the flight scene).
         if (InSpace(p.PlayerId))
         {
-            Reject(session, "admin", de
-                ? "Im Raumflug gibt es keine Ziele auf der Oberfläche — erst landen."
-                : "No surface targets while flying in space — land first.");
+            Reject(session, "admin", "@srv.tp.no_surface_targets");
             return;
         }
 
@@ -217,31 +213,27 @@ public sealed partial class GameServer
         var (kind, number) = ParseTeleportTarget(arg);
         if (!TeleportKinds.Contains(kind))
         {
-            Reject(session, "admin", de
-                ? $"Unbekanntes Ziel '{kind}'. Mögliche Ziele mit /tp auflisten."
-                : $"Unknown target '{kind}'. List what is here with /tp.");
+            Reject(session, "admin", "@srv.tp.unknown_kind:" + kind);
             return;
         }
 
         int available = targets.Count(t => t.Kind == kind);
         if (available == 0)
         {
-            Reject(session, "admin", de
-                ? $"Auf diesem Himmelskörper gibt es kein '{kind}'."
-                : $"There is no '{kind}' on this body.");
+            Reject(session, "admin", "@srv.tp.none_of_kind:" + kind);
             return;
         }
 
         if (number < 1 || number > available)
         {
-            Reject(session, "admin", de
-                ? $"Nur {available}× '{kind}' hier — {kind}1 bis {kind}{available}."
-                : $"Only {available} '{kind}' here — {kind}1 to {kind}{available}.");
+            Reject(session, "admin", Localize(session.Locale, "srv.tp.out_of_range")
+                .Replace("{count}", available.ToString())
+                .Replace("{kind}", kind));
             return;
         }
 
         var hit = targets.First(t => t.Kind == kind && t.Number == number);
-        SnapPlayerTo(session, hit.Position, de ? $"Teleportiert zu {hit.Label}." : $"Teleported to {hit.Label}.");
+        SnapPlayerTo(session, hit.Position, "@srv.tp.to:" + hit.Label);
         UpdateAboard(session); // landing inside the ship must flip the aboard state now, not on the next move
         CheatLog(p, $"teleported to {hit.Label}");
     }
@@ -279,21 +271,15 @@ public sealed partial class GameServer
     /// the numbering is discoverable instead of guessed at.</summary>
     private void ListTeleportTargets(PlayerSession session, List<TeleportTarget> targets)
     {
-        bool de = De(session);
         if (targets.Count == 0)
         {
-            Send(session, new ServerMessage
-            {
-                Text = de
-                    ? "Hier gibt es keine benannten Ziele — /tp X Y Z benutzen."
-                    : "No named targets on this body — use /tp X Y Z.",
-            });
+            Send(session, new ServerMessage { Text = "@srv.tp.no_targets" });
             return;
         }
 
         Send(session, new ServerMessage
         {
-            Text = de ? $"— Teleportziele ({targets.Count}) —" : $"— Teleport targets ({targets.Count}) —",
+            Text = Localize(session.Locale, "srv.tp.list_header").Replace("{count}", targets.Count.ToString()),
         });
 
         var here = session.State.Position;
@@ -310,9 +296,8 @@ public sealed partial class GameServer
         {
             Send(session, new ServerMessage
             {
-                Text = de
-                    ? $"… {targets.Count - TeleportListMaxLines} weitere."
-                    : $"… {targets.Count - TeleportListMaxLines} more.",
+                Text = Localize(session.Locale, "srv.tp.list_more")
+                    .Replace("{count}", (targets.Count - TeleportListMaxLines).ToString()),
             });
         }
     }

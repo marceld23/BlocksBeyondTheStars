@@ -24,15 +24,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Bot = Rgba.White;
 
         public string Key => "nanobot_repair";
-        public LocText Title => new LocText("Nanobot Repair", "Nanobot-Reparatur");
-        public LocText Desc => new LocText(
-            "Route the nanobot across the circuit graph to repair every damaged node before its energy runs out. Plan the shortest path.",
-            "Leite den Nanobot über den Schaltungsgraphen, um jeden beschädigten Knoten zu reparieren, bevor die Energie ausgeht. Plane den kürzesten Weg.");
-        public LocText Hint => new LocText("Click a connected node to move there (costs energy)", "Verbundenen Knoten anklicken zum Hinbewegen (kostet Energie)");
+        public LocText Title => new LocText("minigame.nanobot_repair.title");
+        public LocText Desc => new LocText("minigame.nanobot_repair.desc");
+        public LocText Hint => new LocText("minigame.nanobot_repair.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click a node linked to the bot to move there; moving costs energy by distance", "Mit dem Bot verbundenen Knoten anklicken; Bewegung kostet Energie je Distanz"),
-            new LocText("Reach every orange damaged node to repair it", "Erreiche jeden orangen beschädigten Knoten zur Reparatur"),
+            new LocText("minigame.nanobot_repair.help1"),
+            new LocText("minigame.nanobot_repair.help2"),
         };
         public int Difficulty => 3;
 

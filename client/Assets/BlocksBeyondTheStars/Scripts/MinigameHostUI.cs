@@ -120,13 +120,14 @@ namespace BlocksBeyondTheStars.Client
             gameObject.SetActive(false);
         }
 
-        /// <summary>Start playing <paramref name="game"/> (shows its start screen).</summary>
-        public void Play(IMinigame game, int best, bool german)
+        /// <summary>Start playing <paramref name="game"/> (shows its start screen). <paramref name="localize"/>
+        /// resolves the game's locale keys (typically the shared <c>Localizer.Get</c>).</summary>
+        public void Play(IMinigame game, int best, System.Func<string, string> localize)
         {
             EnsureBuilt();
             gameObject.SetActive(true);
             _key = game.Key;
-            _host = new MinigameHost(game, best, german);
+            _host = new MinigameHost(game, best, localize);
             _host.OnResult += HandleResult;
 
             int cw = 640, ch = 440; // a default until the game creates its canvas on StartGame
@@ -300,7 +301,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.Append(De("Punkte", "Score")).Append(' ').Append(_host.Score);
+            sb.Append(L("ui.minigame.score", "Score")).Append(' ').Append(_host.Score);
             foreach (var f in _host.HudFields)
             {
                 if (f.key == "score")
@@ -311,10 +312,10 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append("    ").Append(f.key).Append(' ').Append(f.value);
             }
 
-            sb.Append("    ").Append(De("Zeit", "Time")).Append(' ').Append(FmtTime(_host.NowSeconds));
+            sb.Append("    ").Append(L("ui.minigame.time", "Time")).Append(' ').Append(FmtTime(_host.NowSeconds));
             if (_host.Best > 0)
             {
-                sb.Append("    ").Append(De("Beste", "Best")).Append(' ').Append(_host.Best);
+                sb.Append("    ").Append(L("ui.minigame.best", "Best")).Append(' ').Append(_host.Best);
             }
 
             _hud.text = sb.ToString();
@@ -370,21 +371,22 @@ namespace BlocksBeyondTheStars.Client
             return UiKit.AddPanel(_overlayRoot, px, py, pw, ph, new Color(0.05f, 0.10f, 0.18f, 0.98f));
         }
 
-        private bool German => Game != null && Game.German;
-        private string De(string de, string en) => German ? de : en;
+        /// <summary>Localizes a shared host-chrome key, falling back to the English string when no world (and thus
+        /// no <see cref="Localizer"/>) is live.</summary>
+        private string L(string key, string english) => Game?.Localizer?.Get(key) ?? english;
 
         private void BuildStart()
         {
             var g = _host.Game;
             var panel = Panel().transform;
             float pw = ((RectTransform)panel).rect.width;
-            UiKit.AddText(panel, 0, 40, pw, 44, g.Title.Get(German), 30, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddText(panel, 0, 92, pw, 26, De("Schwierigkeit", "Difficulty") + ": " + g.Difficulty + "/5", 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
-            UiKit.AddText(panel, 40, 140, pw - 80, 140, g.Desc.Get(German), 18, UiKit.TextCol, TextAnchor.UpperCenter);
-            UiKit.AddText(panel, 40, 300, pw - 80, 40, De("Schlage deinen Rekord für Wissen (+5/+10/+15)", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
+            UiKit.AddText(panel, 0, 40, pw, 44, g.Title.Get(_host.Localize), 30, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddText(panel, 0, 92, pw, 26, L("ui.minigame.difficulty", "Difficulty") + ": " + g.Difficulty + "/5", 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
+            UiKit.AddText(panel, 40, 140, pw - 80, 140, g.Desc.Get(_host.Localize), 18, UiKit.TextCol, TextAnchor.UpperCenter);
+            UiKit.AddText(panel, 40, 300, pw - 80, 40, L("ui.minigame.beat_best", "Beat your best for knowledge (+5/+10/+15)"), 14, UiKit.Ok, TextAnchor.MiddleCenter);
             float bw = 200f, by = ((RectTransform)panel).rect.height - 90f;
-            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, De("Starten", "Start"), () => _host.StartGame());
-            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, De("Hilfe", "Help"), () => _host.ShowHelp());
+            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.start", "Start"), () => _host.StartGame());
+            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.help", "Help"), () => _host.ShowHelp());
         }
 
         private void BuildHelp()
@@ -392,16 +394,16 @@ namespace BlocksBeyondTheStars.Client
             var g = _host.Game;
             var panel = Panel().transform;
             float pw = ((RectTransform)panel).rect.width;
-            UiKit.AddText(panel, 0, 36, pw, 40, De("Hilfe", "Help"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddText(panel, 0, 36, pw, 40, L("ui.minigame.help", "Help"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             var sb = new System.Text.StringBuilder();
-            sb.Append(g.Desc.Get(German)).Append("\n\n");
+            sb.Append(g.Desc.Get(_host.Localize)).Append("\n\n");
             foreach (var line in g.Help)
             {
-                sb.Append("• ").Append(line.Get(German)).Append('\n');
+                sb.Append("• ").Append(line.Get(_host.Localize)).Append('\n');
             }
 
             UiKit.AddText(panel, 44, 100, pw - 88, 300, sb.ToString(), 18, UiKit.TextCol, TextAnchor.UpperLeft);
-            UiKit.AddButton(panel, pw / 2 - 100, ((RectTransform)panel).rect.height - 84f, 200, 54, De("Zurück", "Back"), () => _host.CloseHelp());
+            UiKit.AddButton(panel, pw / 2 - 100, ((RectTransform)panel).rect.height - 84f, 200, 54, L("ui.minigame.back", "Back"), () => _host.CloseHelp());
         }
 
         private void BuildPaused()
@@ -409,11 +411,11 @@ namespace BlocksBeyondTheStars.Client
             var panel = Panel().transform;
             float pw = ((RectTransform)panel).rect.width;
             float ph = ((RectTransform)panel).rect.height;
-            UiKit.AddText(panel, 0, ph / 2 - 120, pw, 44, De("Pausiert", "Paused"), 28, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddText(panel, 0, ph / 2 - 120, pw, 44, L("ui.minigame.paused", "Paused"), 28, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             float bw = 220f, bx = pw / 2 - bw / 2;
-            UiKit.AddButton(panel, bx, ph / 2 - 50, bw, 50, De("Fortsetzen", "Resume"), () => _host.Resume());
-            UiKit.AddButton(panel, bx, ph / 2 + 8, bw, 50, De("Neu starten", "Restart"), () => _host.StartGame());
-            UiKit.AddButton(panel, bx, ph / 2 + 66, bw, 50, De("Verlassen", "Quit"), () => _host.Quit());
+            UiKit.AddButton(panel, bx, ph / 2 - 50, bw, 50, L("ui.minigame.resume", "Resume"), () => _host.Resume());
+            UiKit.AddButton(panel, bx, ph / 2 + 8, bw, 50, L("ui.minigame.restart", "Restart"), () => _host.StartGame());
+            UiKit.AddButton(panel, bx, ph / 2 + 66, bw, 50, L("ui.minigame.quit", "Quit"), () => _host.Quit());
         }
 
         private void BuildResult()
@@ -422,17 +424,17 @@ namespace BlocksBeyondTheStars.Client
             var panel = Panel().transform;
             float pw = ((RectTransform)panel).rect.width;
             float ph = ((RectTransform)panel).rect.height;
-            UiKit.AddText(panel, 0, 44, pw, 44, r.Completed ? De("Abgeschlossen", "Complete") : De("Fehlgeschlagen", "Failed"),
+            UiKit.AddText(panel, 0, 44, pw, 44, r.Completed ? L("ui.minigame.complete", "Complete") : L("ui.minigame.failed", "Failed"),
                 30, r.Completed ? UiKit.Ok : UiKit.Warn, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddText(panel, 0, 110, pw, 30, De("Bewertung", "Rating") + ": " + r.Rating + "/3", 20, UiKit.Cyan, TextAnchor.MiddleCenter);
-            UiKit.AddText(panel, 0, 156, pw, 30, De("Punkte", "Score") + ": " + r.Score, 22, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddText(panel, 0, 110, pw, 30, L("ui.minigame.rating", "Rating") + ": " + r.Rating + "/3", 20, UiKit.Cyan, TextAnchor.MiddleCenter);
+            UiKit.AddText(panel, 0, 156, pw, 30, L("ui.minigame.score", "Score") + ": " + r.Score, 22, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
             string reward = r.IsNewBest
-                ? "★ " + De("Neuer Rekord!", "New best!") + "   +" + r.Knowledge + " " + De("Wissen", "knowledge")
-                : (r.Completed ? De("Kein neuer Rekord — schlag ihn für Wissen", "No new best — beat it for knowledge") : string.Empty);
+                ? "★ " + L("ui.minigame.new_best", "New best!") + "   +" + r.Knowledge + " " + L("ui.minigame.knowledge", "knowledge")
+                : (r.Completed ? L("ui.minigame.no_new_best", "No new best — beat it for knowledge") : string.Empty);
             UiKit.AddText(panel, 40, 200, pw - 80, 30, reward, 16, r.IsNewBest ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleCenter);
             float bw = 200f, by = ph - 90f;
-            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, De("Erneut", "Play again"), () => _host.StartGame());
-            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, De("Schließen", "Close"), () => _host.Quit()); // back to this game's start screen
+            UiKit.AddButton(panel, pw / 2 - bw - 12, by, bw, 56, L("ui.minigame.play_again", "Play again"), () => _host.StartGame());
+            UiKit.AddButton(panel, pw / 2 + 12, by, bw, 56, L("ui.minigame.close", "Close"), () => _host.Quit()); // back to this game's start screen
         }
 
         private void OnDestroy()

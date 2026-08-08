@@ -464,13 +464,13 @@ public sealed partial class GameServer
 
         if (!p.InEva)
         {
-            Reject(session, "structure", "Step outside (EVA) to build in space.");
+            Reject(session, "structure", "@srv.structure.eva_only");
             return;
         }
 
         if (!instance.Structures.TryGetValue(intent.StructureId, out var s))
         {
-            Reject(session, "structure", "No such structure.");
+            Reject(session, "structure", "@srv.structure.none");
             return;
         }
 
@@ -483,7 +483,7 @@ public sealed partial class GameServer
         bool isAlliedStation = !isOwn && s.Kind == "station" && AreAllied(s.OwnerId, p.PlayerId);
         if (!isAsteroid && !isOwn && !isAlliedStation)
         {
-            Reject(session, "structure", "You can only modify your own ship or station.");
+            Reject(session, "structure", "@srv.structure.own_only");
             return;
         }
 
@@ -495,7 +495,7 @@ public sealed partial class GameServer
             float ex = suit.X - s.Position.X, ey = suit.Y - s.Position.Y, ez = suit.Z - s.Position.Z;
             if (ex * ex + ey * ey + ez * ez > StructureEditRange * StructureEditRange)
             {
-                Reject(session, "structure", "Too far from the structure.");
+                Reject(session, "structure", "@srv.structure.too_far");
                 return;
             }
         }
@@ -506,14 +506,14 @@ public sealed partial class GameServer
             // Ship MODULES (station markers) are never removable — not even on an EVA hull pass.
             if (s.Kind == "ship" && s.StationCells.Any(sc => sc.Cell == pos))
             {
-                Reject(session, "structure", "Ship modules cannot be removed.");
+                Reject(session, "structure", "@srv.structure.module_fixed");
                 return;
             }
 
             var existing = s.Get(pos);
             if (existing.IsAir)
             {
-                Reject(session, "structure", "Nothing to mine there.");
+                Reject(session, "structure", "@srv.structure.nothing");
                 return;
             }
 
@@ -526,14 +526,14 @@ public sealed partial class GameServer
             {
                 if (def is null || !def.Mineable)
                 {
-                    Reject(session, "structure", "Block cannot be mined.");
+                    Reject(session, "structure", "@srv.mine.not_mineable");
                     return;
                 }
 
                 var tool = ActiveTool(p);
                 if (!ToolCanMine(tool, def))
                 {
-                    Reject(session, "structure", "Your current tool cannot mine this block.");
+                    Reject(session, "structure", "@srv.mine.wrong_tool");
                     return;
                 }
 
@@ -626,27 +626,27 @@ public sealed partial class GameServer
 
         if (isAsteroid)
         {
-            Reject(session, "structure", "You can't build on an asteroid.");
+            Reject(session, "structure", "@srv.structure.no_asteroid");
             return;
         }
 
         var item = _content.GetItem(intent.ItemKey);
         if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            Reject(session, "structure", "Item cannot be placed.");
+            Reject(session, "structure", "@srv.place.not_placeable");
             return;
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
         if (blockDef is null)
         {
-            Reject(session, "structure", "Unknown block for item.");
+            Reject(session, "structure", "@srv.place.unknown_block");
             return;
         }
 
         if (!s.Get(pos).IsAir)
         {
-            Reject(session, "structure", "Target is not empty.");
+            Reject(session, "structure", "@srv.place.not_empty");
             return;
         }
 
@@ -656,7 +656,7 @@ public sealed partial class GameServer
         {
             if (buildPool.Count(intent.ItemKey) < 1)
             {
-                Reject(session, "structure", "You do not have that block.");
+                Reject(session, "structure", "@srv.place.no_block");
                 return;
             }
 
@@ -708,7 +708,7 @@ public sealed partial class GameServer
         var rec = _worlds.Active.LandedFor(p.PlayerId);
         if (!rec.Placed || rec.Structure.Id != intent.StructureId)
         {
-            Reject(session, "structure", "No such structure here.");
+            Reject(session, "structure", "@srv.structure.none_here");
             return;
         }
 
@@ -721,7 +721,7 @@ public sealed partial class GameServer
             rec.Origin.X + pos.X + 0.5f, rec.Origin.Y + pos.Y + 0.5f, rec.Origin.Z + pos.Z + 0.5f);
         if (WrapDistSq(p.Position, cellCentre) > 10f * 10f)
         {
-            Reject(session, "structure", "Too far away.");
+            Reject(session, "structure", "@srv.structure.far");
             return;
         }
 
@@ -730,15 +730,15 @@ public sealed partial class GameServer
             if (s.Baseline.Contains(pos))
             {
                 Reject(session, "structure", s.StationCells.Any(sc => sc.Cell == pos)
-                    ? "Ship modules cannot be removed."
-                    : "The ship hull cannot be damaged.");
+                    ? "@srv.structure.module_fixed"
+                    : "@srv.structure.hull_protected");
                 return;
             }
 
             var existing = s.Get(pos);
             if (existing.IsAir)
             {
-                Reject(session, "structure", "Nothing to mine there.");
+                Reject(session, "structure", "@srv.structure.nothing");
                 return;
             }
 
@@ -766,13 +766,13 @@ public sealed partial class GameServer
         // Place: only into free space INSIDE the ship bounds, attached to something (no floating junk).
         if (pos.X < 0 || pos.X >= s.Width || pos.Y < 0 || pos.Y > s.Height || pos.Z < 0 || pos.Z >= s.Length)
         {
-            Reject(session, "structure", "Only inside the ship.");
+            Reject(session, "structure", "@srv.structure.inside_only");
             return;
         }
 
         if (!s.Get(pos).IsAir)
         {
-            Reject(session, "structure", "Target is not empty.");
+            Reject(session, "structure", "@srv.place.not_empty");
             return;
         }
 
@@ -784,21 +784,21 @@ public sealed partial class GameServer
             || !s.Get(new Vector3i(pos.X, pos.Y, pos.Z - 1)).IsAir;
         if (!attached)
         {
-            Reject(session, "structure", "Nothing to attach the block to.");
+            Reject(session, "structure", "@srv.structure.no_anchor");
             return;
         }
 
         var item = _content.GetItem(intent.ItemKey);
         if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            Reject(session, "structure", "Item cannot be placed.");
+            Reject(session, "structure", "@srv.place.not_placeable");
             return;
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
         if (blockDef is null)
         {
-            Reject(session, "structure", "Unknown block for item.");
+            Reject(session, "structure", "@srv.place.unknown_block");
             return;
         }
 
@@ -808,7 +808,7 @@ public sealed partial class GameServer
         {
             if (buildPool.Count(intent.ItemKey) < 1)
             {
-                Reject(session, "structure", "You do not have that block.");
+                Reject(session, "structure", "@srv.place.no_block");
                 return;
             }
 

@@ -118,9 +118,9 @@ public sealed class WorldHostPortalPagesTests
     [InlineData("EN-us", "en")] // header tags are case-insensitive, unlike our own ?lang= values
     [InlineData("de-DE,de;q=0.9,en;q=0.8", "de")]
     [InlineData("fr-FR,fr;q=0.9,en;q=0.8", "en")] // first SUPPORTED tag wins, not just the first tag
-    [InlineData("fr-FR,fr", "de")] // nothing supported → German default
-    [InlineData("*", "de")]
-    [InlineData("eng-US", "de")] // only the exact de/en primary tags count
+    [InlineData("fr-FR,fr", "en")] // nothing supported → English, the game's fallback language
+    [InlineData("*", "en")]
+    [InlineData("eng-US", "en")] // only the exact de/en primary tags count
     public void LangFromAcceptHeader_PicksTheFirstSupportedLanguage(string? header, string expected)
         => Assert.Equal(expected, WorldHostPortalPages.LangFromAcceptHeader(header));
 

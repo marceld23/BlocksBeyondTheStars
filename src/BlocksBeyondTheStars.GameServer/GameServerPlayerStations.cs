@@ -49,20 +49,20 @@ public sealed partial class GameServer
 
         if (!_playerInstance.TryGetValue(playerId, out var iid) || !_spaceInstances.TryGetValue(iid, out var instance))
         {
-            Reject(session, "station", "You are not in space.");
+            Reject(session, "station", "@srv.station.not_in_space");
             return;
         }
 
         if (!session.State.InEva)
         {
-            Reject(session, "station", "Step outside (EVA) to deploy a station core.");
+            Reject(session, "station", "@srv.station.eva_deploy");
             return;
         }
 
         var core = _content.GetBlock(StationCoreBlock)?.NumericId ?? BlockId.Air;
         if (core.IsAir)
         {
-            Reject(session, "station", "Station core block is missing from content.");
+            Reject(session, "station", "@srv.station.core_missing");
             return;
         }
 
@@ -72,7 +72,7 @@ public sealed partial class GameServer
         {
             if (pool.Count(StationCoreBlock) < 1)
             {
-                Reject(session, "station", "You need a station core (craft one at a workshop).");
+                Reject(session, "station", "@srv.station.need_core");
                 return;
             }
 
@@ -105,7 +105,7 @@ public sealed partial class GameServer
             }
         }
 
-        Send(session, new ServerMessage { Text = "Station core deployed — build a hull + an airlock door around it." });
+        Send(session, new ServerMessage { Text = "@srv.station.core_deployed" });
     }
 
     private void HandleDeployStationCore(PlayerSession session) => DeployStationCore(session.State.PlayerId);
@@ -176,7 +176,7 @@ public sealed partial class GameServer
 
         if (owner is not null)
         {
-            Send(owner, new ServerMessage { Text = $"Station commissioned: {s.Name} — now on the star map + boardable." });
+            Send(owner, new ServerMessage { Text = "@srv.station.commissioned:" + s.Name });
         }
 
         _log.Info($"Player station '{s.Name}' ({s.Id}) commissioned with {s.Cells.Count} blocks.");
@@ -478,13 +478,13 @@ public sealed partial class GameServer
     {
         if (!_playerStationCells.TryGetValue(intent.StationId, out var s))
         {
-            Reject(session, "station", "No such station — only stations you built can be renamed.");
+            Reject(session, "station", "@srv.station.rename_own");
             return;
         }
 
         if (!session.State.IsAdmin && s.OwnerId != session.State.PlayerId)
         {
-            Reject(session, "station", "Only the owner can rename this station.");
+            Reject(session, "station", "@srv.station.rename_owner");
             return;
         }
 
@@ -531,7 +531,7 @@ public sealed partial class GameServer
         }
 
         BroadcastStarMap(); // the renamed station updates for everyone (the star map is shared)
-        Send(session, new ServerMessage { Text = $"Station renamed to {name}." });
+        Send(session, new ServerMessage { Text = "@srv.station.renamed:" + name });
     }
 
     /// <summary>Host bodies (planet/moon/asteroid) where the given player has a commissioned station orbiting —

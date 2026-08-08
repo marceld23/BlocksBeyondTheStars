@@ -294,7 +294,12 @@ public sealed partial class GameServer
             }
 
             _log.Info($"Bump #{_bumpCount} captured for {p.Name}: \"{description}\"{(hasImage ? " (+screenshot)" : string.Empty)} -> {file}");
-            Send(session, new ServerMessage { Text = $"Debug snapshot #{_bumpCount} saved: {Path.GetFileName(file)}" });
+            Send(session, new ServerMessage
+            {
+                Text = Localize(session.Locale, "srv.misc.bump_saved")
+                    .Replace("{number}", _bumpCount.ToString())
+                    .Replace("{file}", Path.GetFileName(file)),
+            });
 
             // Forward the snapshot to the report inbox when a crash-upload sink is configured: singleplayer
             // gets the key from the bundled launcher, fleet worlds from the WorldHost. The image rides along
@@ -307,7 +312,10 @@ public sealed partial class GameServer
         catch (Exception e)
         {
             _log.Info($"Bump capture failed: {e.Message}");
-            Send(session, new ServerMessage { Text = "Bump failed: " + e.Message });
+            Send(session, new ServerMessage
+            {
+                Text = Localize(session.Locale, "srv.misc.bump_failed").Replace("{error}", e.Message),
+            });
         }
     }
 

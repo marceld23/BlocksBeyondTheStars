@@ -676,14 +676,14 @@ public sealed partial class GameServer
 
         if (!Rules.FreeSpaceFlight)
         {
-            Reject(session, "travel", "Space flight is disabled on this server.");
+            Reject(session, "travel", "@srv.travel.flight_disabled");
             return;
         }
 
         var body = _galaxy?.FindBody(intent.DestinationBodyId);
         if (body is null)
         {
-            Reject(session, "travel", "No such destination.");
+            Reject(session, "travel", "@srv.travel.no_destination");
             return;
         }
 
@@ -700,13 +700,13 @@ public sealed partial class GameServer
         {
             // Planets, moons AND landable asteroids are surfaces you land on (B45); belts/wrecks are not
             // "travel" destinations (you visit those differently).
-            Reject(session, "travel", "You can only land on a planet, moon or asteroid.");
+            Reject(session, "travel", "@srv.travel.surface_only");
             return;
         }
 
         if (body.Id == session.CurrentLocationId)
         {
-            Reject(session, "travel", "You are already there.");
+            Reject(session, "travel", "@srv.travel.already_there");
             return;
         }
 
@@ -715,7 +715,7 @@ public sealed partial class GameServer
         // manual flight landing (quickTravel=false) bypasses this — you physically flew there.
         if (quickTravel && !Rules.InstantTravel && !session.State.LandedBodies.Contains(body.Id))
         {
-            Reject(session, "travel", "You haven't been there yet — fly there and land manually first (or enable Instant Travel).");
+            Reject(session, "travel", "@srv.travel.not_visited");
             return;
         }
 
@@ -724,7 +724,7 @@ public sealed partial class GameServer
         bool hyperjump = origin is null || origin.SystemId != body.SystemId;
         if (hyperjump && !adminBypass && (_ship is null || !_ship.HasModule("jump_generator")))
         {
-            Reject(session, "travel", "Your ship has no jump generator — fit one to jump between star systems.");
+            Reject(session, "travel", "@srv.travel.no_jump_generator");
             return;
         }
 
@@ -805,7 +805,12 @@ public sealed partial class GameServer
         SendLandingPads(session);
         SendContainers(session);
         SendStarMap(session);
-        Send(session, new ServerMessage { Text = hyperjump ? $"Hyperjumped to {systemName} — {planetName}." : $"Arrived at {planetName}." });
+        Send(session, new ServerMessage
+        {
+            Text = hyperjump
+                ? Localize(session.Locale, "srv.travel.hyperjumped").Replace("{system}", systemName).Replace("{planet}", planetName)
+                : Localize(session.Locale, "srv.travel.arrived").Replace("{planet}", planetName),
+        });
         CheckpointSave($"landed on {planetName}"); // auto-save when landing on a body
 
         // Drop the old world from memory if this was the last player there (edits are already persisted).
@@ -1364,7 +1369,7 @@ public sealed partial class GameServer
 
             if (p.Health <= 0f)
             {
-                RespawnPlayer(session, "Critical condition — emergency recovery to the Medbay heal-tank.");
+                RespawnPlayer(session, "@srv.death.critical");
                 continue;
             }
 
@@ -1479,7 +1484,7 @@ public sealed partial class GameServer
         var def = _content.GetItem(itemKey);
         if (def is not { Category: ItemCategory.Consumable } || def.ConsumeHunger <= 0f)
         {
-            Reject(session, "ration", "Only food can go in the ration dispenser.");
+            Reject(session, "ration", "@srv.ration.food_only");
             return;
         }
 
@@ -1487,7 +1492,7 @@ public sealed partial class GameServer
         int want = System.Math.Min(System.Math.Max(1, count), p.Inventory.CountOf(itemKey));
         if (want <= 0)
         {
-            Reject(session, "ration", "You don't have that food.");
+            Reject(session, "ration", "@srv.ration.no_food");
             return;
         }
 
@@ -1500,7 +1505,7 @@ public sealed partial class GameServer
         }
         else
         {
-            Reject(session, "ration", "The ration dispenser is full.");
+            Reject(session, "ration", "@srv.ration.full");
         }
     }
 
@@ -2295,14 +2300,19 @@ public sealed partial class GameServer
     {
         if (join.ProtocolVersion != Protocol.Version)
         {
-            SendTo(connectionId, new JoinRejected { Reason = $"Protocol mismatch (server {Protocol.Version}, client {join.ProtocolVersion})." });
+            SendTo(connectionId, new JoinRejected
+            {
+                Reason = Localize(join.Locale, "srv.join.protocol_mismatch")
+                    .Replace("{server}", Protocol.Version.ToString())
+                    .Replace("{client}", join.ProtocolVersion.ToString()),
+            });
             return;
         }
 
         if (!string.IsNullOrEmpty(_config.ServerPassword)
             && !Shared.Security.SecretCompare.FixedTimeEquals(join.Password, _config.ServerPassword))
         {
-            SendTo(connectionId, new JoinRejected { Reason = "Invalid server password." });
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.bad_password" });
             return;
         }
 
@@ -2316,7 +2326,6 @@ public sealed partial class GameServer
         // (a valid HMAC token, bound to THIS world and THIS name) get in. Validated offline — no network
         // dependency on the control plane. Local sessions (AddLocalPlayer) never pass through here, so the
         // bundled singleplayer host is unaffected even if a secret were set.
-        bool de = NormalizeLocale(join.Locale) == "de";
         string hostedAccountId = string.Empty;
         if (!string.IsNullOrEmpty(_config.JoinTokenSecret))
         {
@@ -2327,19 +2336,14 @@ public sealed partial class GameServer
                 || !string.Equals(tokenName, name, StringComparison.OrdinalIgnoreCase))
             {
                 _log.Warn($"Join of '{name}' rejected: hosted token check failed ({(tokenError.Length > 0 ? tokenError : "name mismatch")}).");
-                SendTo(connectionId, new JoinRejected
-                {
-                    Reason = de
-                        ? "Dieser Server verlangt ein gültiges Join-Token. Bitte über das Weltenportal beitreten."
-                        : "This server requires a valid join token. Please join through the worlds portal.",
-                });
+                SendTo(connectionId, new JoinRejected { Reason = "@srv.join.token_required" });
                 return;
             }
         }
 
         if (_config.WhitelistEnabled && !_config.Whitelist.Contains(name))
         {
-            SendTo(connectionId, new JoinRejected { Reason = "You are not on the whitelist." });
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.not_whitelisted" });
             return;
         }
 
@@ -2355,7 +2359,7 @@ public sealed partial class GameServer
         int joinedCount = JoinedPlayerCount();
         if (joinedCount >= _config.MaxPlayers && !fleetAdmin)
         {
-            SendTo(connectionId, new JoinRejected { Reason = "Server is full." });
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.server_full" });
             return;
         }
 
@@ -2363,12 +2367,7 @@ public sealed partial class GameServer
         // the same name would alias (and corrupt) the same player state.
         if (_sessions.Values.Any(s => s.Joined && string.Equals(s.State.Name, name, StringComparison.OrdinalIgnoreCase)))
         {
-            SendTo(connectionId, new JoinRejected
-            {
-                Reason = de
-                    ? $"Der Name '{name}' ist auf diesem Server gerade online."
-                    : $"The name '{name}' is already online on this server.",
-            });
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.name_online:" + name });
             return;
         }
 
@@ -2380,12 +2379,7 @@ public sealed partial class GameServer
         string tokenHash = HashNameToken(join.Token);
         if (!string.IsNullOrEmpty(state.NameTokenHash) && state.NameTokenHash != tokenHash)
         {
-            SendTo(connectionId, new JoinRejected
-            {
-                Reason = de
-                    ? $"Der Name '{name}' gehört einem anderen Spieler (Namens-Verifikation)."
-                    : $"The name '{name}' belongs to another player (name verification).",
-            });
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.name_taken:" + name });
             return;
         }
 
@@ -2486,12 +2480,8 @@ public sealed partial class GameServer
         // Keyed on the join-token gate (only official hosted instances run with a secret).
         if (!string.IsNullOrEmpty(_config.JoinTokenSecret) && !state.HostedWelcomeShown)
         {
-            Send(session, new ServerMessage
-            {
-                Text = de
-                    ? "Willkommen! Diese Welt ist Teil eines Familien-Projekts — sei nett zu anderen. Keine Hetze, kein Mobbing, kein Rassismus (führt zum Bann). Beta: Welten können verloren gehen — lade im Portal Sicherungen herunter!"
-                    : "Welcome! This world is part of a family project — be kind to others. No hate, bullying or racism (leads to a ban). Beta: worlds can be lost — download backups on the portal!",
-            });
+            // Server-side localized (not a token): the copy is long-form prose, and join.Locale is at hand.
+            Send(session, new ServerMessage { Text = Localize(session.Locale, "srv.join.welcome") });
             state.HostedWelcomeShown = true; // persists with the next save cycle
         }
 
@@ -2876,7 +2866,7 @@ public sealed partial class GameServer
         p.Health = System.Math.Max(0f, p.Health - damage);
         if (p.Health <= 0f)
         {
-            RespawnPlayer(session, "You did not survive the fall.");
+            RespawnPlayer(session, "@srv.death.fall");
         }
         else
         {
@@ -2929,7 +2919,7 @@ public sealed partial class GameServer
 
         if (IsShipBlock(pos))
         {
-            Reject(session, "mine", "The ship hull cannot be mined.");
+            Reject(session, "mine", "@srv.mine.ship_hull");
             return;
         }
 
@@ -2942,45 +2932,45 @@ public sealed partial class GameServer
 
         if (!harvestingPlant && IsSettlementBlock(pos))
         {
-            Reject(session, "mine", "This settlement is protected.");
+            Reject(session, "mine", "@srv.protect.settlement");
             return;
         }
 
         if (!harvestingPlant && IsStationBlock(pos))
         {
-            Reject(session, "mine", "This station is protected.");
+            Reject(session, "mine", "@srv.protect.station");
             return;
         }
 
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
-            Reject(session, "mine", "This factory is protected — claim it with an access code to rebuild it.");
+            Reject(session, "mine", "@srv.protect.factory");
             return;
         }
 
         if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
-            Reject(session, "mine", "This base is protected — ally with its owner to build here.");
+            Reject(session, "mine", "@srv.protect.base");
             return;
         }
 
         var def = _world.Definition(current);
         if (def is null || !def.Mineable)
         {
-            Reject(session, "mine", "Block cannot be mined.");
+            Reject(session, "mine", "@srv.mine.not_mineable");
             return;
         }
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "mine", "Out of reach.");
+            Reject(session, "mine", "@out_of_reach");
             return;
         }
 
         var tool = ActiveTool(session.State);
         if (!ToolCanMine(tool, def))
         {
-            Reject(session, "mine", "Your current tool cannot mine this block.");
+            Reject(session, "mine", "@srv.mine.wrong_tool");
             return;
         }
 
@@ -3196,14 +3186,14 @@ public sealed partial class GameServer
         var item = _content.GetItem(place.ItemKey);
         if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            Reject(session, "place", "Item cannot be placed.");
+            Reject(session, "place", "@srv.place.not_placeable");
             return;
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
         if (blockDef is null)
         {
-            Reject(session, "place", "Unknown block for item.");
+            Reject(session, "place", "@srv.place.unknown_block");
             return;
         }
 
@@ -3213,7 +3203,7 @@ public sealed partial class GameServer
         // chunk at an arbitrary height (unbounded RAM/disk DoS from a spoofed-position place spam). See MinBuildY.
         if (!WithinBuildHeight(pos.Y))
         {
-            Reject(session, "place", "Out of the buildable height range.");
+            Reject(session, "place", "@srv.place.height_limit");
             return;
         }
 
@@ -3230,7 +3220,7 @@ public sealed partial class GameServer
 
         if (!_world.GetBlock(pos).IsAir)
         {
-            Reject(session, "place", "Target is not empty.");
+            Reject(session, "place", "@srv.place.not_empty");
             return;
         }
 
@@ -3241,44 +3231,44 @@ public sealed partial class GameServer
         int fx = (int)System.Math.Floor(feet.X), fy = (int)System.Math.Floor(feet.Y), fz = (int)System.Math.Floor(feet.Z);
         if (pos.X == fx && pos.Z == fz && pos.Y == fy + 1)
         {
-            Reject(session, "place", "You can't place a block right above your head.");
+            Reject(session, "place", "@srv.place.above_head");
             return;
         }
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "place", "Out of reach.");
+            Reject(session, "place", "@out_of_reach");
             return;
         }
 
         if (!session.State.IsAdmin && IsOnLandingPad(pos))
         {
-            Reject(session, "place", "Landing pads are reserved — you can't build on one.");
+            Reject(session, "place", "@srv.place.pad_reserved");
             return;
         }
 
         if (IsStationBlock(pos))
         {
-            Reject(session, "place", "This station is protected.");
+            Reject(session, "place", "@srv.protect.station");
             return;
         }
 
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
-            Reject(session, "place", "This factory is protected — claim it with an access code to rebuild it.");
+            Reject(session, "place", "@srv.protect.factory");
             return;
         }
 
         if (IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
-            Reject(session, "place", "This base is protected — ally with its owner to build here.");
+            Reject(session, "place", "@srv.protect.base");
             return;
         }
 
         // No building inside the ship — the cabin is a fixed structure.
         if (ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)))
         {
-            Reject(session, "place", "You can't build inside the ship.");
+            Reject(session, "place", "@srv.place.no_ship_interior");
             return;
         }
 
@@ -3287,7 +3277,7 @@ public sealed partial class GameServer
         {
             if (!IsValidFloraHost(blockDef.NumericId.Value, pos))
             {
-                Reject(session, "place", "This plant needs suitable ground beneath it.");
+                Reject(session, "place", "@srv.place.plant_ground");
                 return;
             }
 
@@ -3295,7 +3285,7 @@ public sealed partial class GameServer
             // side open to space — so it can't be seen or walked through into the void.
             if (!IsFloraEnclosedForVoidWorld(pos))
             {
-                Reject(session, "place", "Plants can only be placed inside a station, never against open space.");
+                Reject(session, "place", "@srv.place.plant_enclosed");
                 return;
             }
         }
@@ -3308,13 +3298,13 @@ public sealed partial class GameServer
             if (hereBody is null
                 || (hereBody.Kind != CelestialKind.Planet && hereBody.Kind != CelestialKind.Moon && hereBody.Kind != CelestialKind.AsteroidField))
             {
-                Reject(session, "place", "You can only found a base on a planet, moon or asteroid.");
+                Reject(session, "place", "@srv.base.surface_only");
                 return;
             }
 
             if (PlayerHasBaseOn(session.State.PlayerId, _world.LocationId))
             {
-                Reject(session, "place", "You already have a base on this body — mine its core to move it.");
+                Reject(session, "place", "@srv.base.already_here");
                 return;
             }
         }
@@ -3326,7 +3316,7 @@ public sealed partial class GameServer
         {
             if (pool.Count(place.ItemKey) < 1)
             {
-                Reject(session, "place", "You do not have that block.");
+                Reject(session, "place", "@srv.place.no_block");
                 return;
             }
 
@@ -3414,7 +3404,7 @@ public sealed partial class GameServer
         var recipe = _content.GetRecipe(craft.RecipeKey);
         if (recipe is null)
         {
-            Reject(session, "craft", "Unknown recipe.");
+            Reject(session, "craft", "@srv.craft.unknown_recipe");
             return;
         }
 
@@ -3438,7 +3428,7 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(recipe.RequiredBlueprint) &&
             !session.State.UnlockedBlueprints.Contains(recipe.RequiredBlueprint!))
         {
-            CraftFail(session, recipe.Key, "Blueprint not unlocked.");
+            CraftFail(session, recipe.Key, "@srv.craft.blueprint_locked");
             return;
         }
 
@@ -3459,7 +3449,7 @@ public sealed partial class GameServer
             var factory = FactoryTerminalNear(session.State);
             if (factory is null || !factory.Roster.Contains(recipe.Key))
             {
-                CraftFail(session, recipe.Key, "This factory cannot produce that.");
+                CraftFail(session, recipe.Key, "@srv.craft.factory_roster");
                 return;
             }
         }
@@ -3472,7 +3462,7 @@ public sealed partial class GameServer
             string vendorTheme = VendorThemeAt(session.State);
             if (!string.Equals(vendorTheme, recipe.MarketTheme, System.StringComparison.OrdinalIgnoreCase))
             {
-                CraftFail(session, recipe.Key, "This trade isn't offered here.");
+                CraftFail(session, recipe.Key, "@srv.craft.wrong_vendor");
                 return;
             }
         }
@@ -3481,7 +3471,7 @@ public sealed partial class GameServer
         var scaledInputs = recipe.Inputs.Select(i => new ItemAmount(i.Item, i.Count * count)).ToList();
         if (!pool.Has(scaledInputs))
         {
-            CraftFail(session, recipe.Key, "Missing materials.");
+            CraftFail(session, recipe.Key, "@srv.craft.missing_materials");
             return;
         }
 
@@ -3531,14 +3521,14 @@ public sealed partial class GameServer
         var item = _content.GetItem(baseKey);
         if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            CraftFail(session, "tint", "That item can't be coloured.");
+            CraftFail(session, "tint", "@srv.craft.tint_item");
             return;
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
         if (blockDef is null || !blockDef.Tintable)
         {
-            CraftFail(session, "tint", "That material can't be coloured.");
+            CraftFail(session, "tint", "@srv.craft.tint_material");
             return;
         }
 
@@ -3546,7 +3536,7 @@ public sealed partial class GameServer
         int glow = intent.Glow & 0xFFFFFF;
         if (tint == 0 && glow == 0)
         {
-            CraftFail(session, "tint", "No colour chosen.");
+            CraftFail(session, "tint", "@srv.craft.no_colour");
             return;
         }
 
@@ -3576,7 +3566,7 @@ public sealed partial class GameServer
 
         if (!pool.Has(inputs))
         {
-            CraftFail(session, "tint", glow != 0 ? "Need the material and a crystal." : "Missing material.");
+            CraftFail(session, "tint", glow != 0 ? "@srv.craft.need_crystal" : "@srv.craft.missing_material");
             return;
         }
 
@@ -3611,28 +3601,28 @@ public sealed partial class GameServer
         var item = _content.GetItem(baseKey);
         if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            CraftFail(session, "shape", "That item can't be shaped.");
+            CraftFail(session, "shape", "@srv.craft.shape_item");
             return;
         }
 
         var blockDef = _content.GetBlock(item.PlacesBlock!);
         if (blockDef is null || !blockDef.Shapeable)
         {
-            CraftFail(session, "shape", "That material can't be shaped.");
+            CraftFail(session, "shape", "@srv.craft.shape_material");
             return;
         }
 
         int shape = intent.Shape;
         if (shape != 0 && !ShapeCode.IsValidShape(shape))
         {
-            CraftFail(session, "shape", "Unknown shape.");
+            CraftFail(session, "shape", "@srv.craft.unknown_shape");
             return;
         }
 
         // Re-forming to the shape the source already has (incl. "cube" on a plain block) is a no-op.
         if (shape == ItemKey.Shape(intent.SourceItemKey))
         {
-            CraftFail(session, "shape", "Already that shape.");
+            CraftFail(session, "shape", "@srv.craft.same_shape");
             return;
         }
 
@@ -3657,7 +3647,7 @@ public sealed partial class GameServer
         var inputs = new List<ItemAmount> { new ItemAmount(intent.SourceItemKey, count) };
         if (!pool.Has(inputs))
         {
-            CraftFail(session, "shape", "Missing material.");
+            CraftFail(session, "shape", "@srv.craft.missing_material");
             return;
         }
 
@@ -3716,20 +3706,20 @@ public sealed partial class GameServer
 
         if (recipe is null)
         {
-            Reject(session, "disassemble", "This item cannot be disassembled.");
+            Reject(session, "disassemble", "@srv.craft.no_disassemble");
             return;
         }
 
         if (!StationAvailable(session.State, CraftingStation.Workshop))
         {
-            Reject(session, "disassemble", "A workshop is required to disassemble.");
+            Reject(session, "disassemble", "@srv.craft.need_workshop");
             return;
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
         if (pool.Count(itemKey) < 1)
         {
-            Reject(session, "disassemble", "You don't have that item.");
+            Reject(session, "disassemble", "@srv.misc.no_item");
             return;
         }
 
@@ -3769,13 +3759,13 @@ public sealed partial class GameServer
         var bp = _content.GetBlueprint(unlock.BlueprintKey);
         if (bp is null)
         {
-            Reject(session, "unlock", "Unknown blueprint.");
+            Reject(session, "unlock", "@srv.unlock.unknown");
             return;
         }
 
         if (session.State.UnlockedBlueprints.Contains(bp.Key))
         {
-            Reject(session, "unlock", "Already unlocked.");
+            Reject(session, "unlock", "@srv.unlock.already");
             return;
         }
 
@@ -3783,7 +3773,7 @@ public sealed partial class GameServer
         {
             if (!session.State.UnlockedBlueprints.Contains(pre))
             {
-                Reject(session, "unlock", "Prerequisite blueprint missing.");
+                Reject(session, "unlock", "@srv.unlock.prerequisite");
                 return;
             }
         }
@@ -3791,13 +3781,13 @@ public sealed partial class GameServer
         var pool = new MaterialPool(_content, session.State, _ship);
         if (!pool.Has(bp.UnlockCost))
         {
-            Reject(session, "unlock", "Missing research materials.");
+            Reject(session, "unlock", "@srv.unlock.materials");
             return;
         }
 
         if (session.State.KnowledgePoints < bp.KnowledgeCost)
         {
-            Reject(session, "unlock", "Not enough knowledge — scan more to research this.");
+            Reject(session, "unlock", "@srv.unlock.knowledge");
             return;
         }
 
@@ -3806,7 +3796,12 @@ public sealed partial class GameServer
         pool.Remove(bp.UnlockCost);
         session.State.UnlockedBlueprints.Add(bp.Key);
 
-        Send(session, new ServerMessage { Text = $"Blueprint unlocked: {bp.Key}" });
+        // Localized frame + the blueprint's own localized display name (falls back to the raw key).
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.unlock.done")
+                .Replace("{name}", LocalizedName(session.Locale, bp.NameKey, bp.Key)),
+        });
         SendInventory(session);
         ShipAiOnBlueprint(session); // VEGA onboarding: first blueprint researched
     }
@@ -3820,7 +3815,7 @@ public sealed partial class GameServer
         // the save, so the elevation never travels with an exported world (see ServerConfig.FleetAdminPlayers).
         if (!p.IsAdmin && !session.IsFleetAdmin)
         {
-            Reject(session, "admin", "Only the world admin or admins may use cheats.");
+            Reject(session, "admin", "@srv.admin.not_admin");
             return;
         }
 
@@ -3841,7 +3836,7 @@ public sealed partial class GameServer
         {
             if (!EnqueueMaintenance(MaintenanceNotice.KindInfo, cmd.StringArg, -1))
             {
-                Reject(session, "admin", "Usage: /announce Message");
+                Reject(session, "admin", "@srv.admin.usage_announce");
                 return;
             }
 
@@ -3857,17 +3852,17 @@ public sealed partial class GameServer
             string target = (cmd.StringArg ?? string.Empty).Trim();
             if (string.Equals(target, p.Name, StringComparison.OrdinalIgnoreCase))
             {
-                Reject(session, "admin", "You cannot kick yourself.");
+                Reject(session, "admin", "@srv.admin.kick_self");
                 return;
             }
 
             if (!EnqueueKick(target, "@ui.kick.by_admin"))
             {
-                Reject(session, "admin", "Usage: /kick Player");
+                Reject(session, "admin", "@srv.admin.usage_kick");
                 return;
             }
 
-            Send(session, new ServerMessage { Text = $"Kick sent for '{target}'." });
+            Send(session, new ServerMessage { Text = "@srv.admin.kick_sent:" + target });
             CheatLog(p, $"kicked {target}");
             return;
         }
@@ -3877,7 +3872,8 @@ public sealed partial class GameServer
             int minutes = cmd.IntArg;
             if (!EnqueueMaintenance(MaintenanceNotice.KindRestartCountdown, cmd.StringArg, minutes * 60))
             {
-                Reject(session, "admin", $"Usage: /schedule_restart <minutes 1-{MaxMaintenanceRestartMinutes}> [message]");
+                Reject(session, "admin", Localize(session.Locale, "srv.admin.usage_restart")
+                    .Replace("{max}", MaxMaintenanceRestartMinutes.ToString()));
                 return;
             }
 
@@ -3915,7 +3911,7 @@ public sealed partial class GameServer
             case "goto":
                 if (!session.IsFleetAdmin)
                 {
-                    Reject(session, "admin", "Observer mode is reserved for the fleet admin.");
+                    Reject(session, "admin", "@srv.admin.observer_reserved");
                     return;
                 }
 
@@ -3933,7 +3929,7 @@ public sealed partial class GameServer
 
         if (!Rules.CheatsAllowed)
         {
-            Reject(session, "admin", "Admin cheats are disabled on this server.");
+            Reject(session, "admin", "@srv.admin.cheats_disabled");
             return;
         }
 
@@ -3943,7 +3939,7 @@ public sealed partial class GameServer
                 {
                     if (_content.GetItem(cmd.StringArg ?? string.Empty) is null)
                     {
-                        Reject(session, "admin", "Unknown item.");
+                        Reject(session, "admin", "@srv.admin.unknown_item");
                         return;
                     }
 
@@ -3963,7 +3959,7 @@ public sealed partial class GameServer
                 // A plain PlayerStateUpdate position is ignored by the client and then reverted by its
                 // client-authoritative move stream — every server-side teleport must go through the
                 // RespawnNotice snap channel or it silently does nothing (#414 M7).
-                Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "Teleported." });
+                Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "@srv.tp.done" });
                 SendPlayerState(session);
                 CheatLog(p, $"teleported to ({cmd.X:0.#}, {cmd.Y:0.#}, {cmd.Z:0.#})");
                 break;
@@ -3979,13 +3975,13 @@ public sealed partial class GameServer
                     var target = FindSessionByName(cmd.TargetPlayer);
                     if (target is null)
                     {
-                        Reject(session, "admin", "Target player not found.");
+                        Reject(session, "admin", "@srv.admin.no_target");
                         return;
                     }
 
                     p.Position = target.State.Position;
                     // Same snap-channel rule as teleport_to_location (#414 M7).
-                    Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = $"Teleported to {target.State.Name}." });
+                    Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "@srv.tp.to:" + target.State.Name });
                     SendPlayerState(session);
                     CheatLog(p, $"teleported to player {target.State.Name}");
                     break;
@@ -3993,31 +3989,31 @@ public sealed partial class GameServer
 
             case "set_time":
                 _timeOfDay = cmd.StringArg ?? _timeOfDay;
-                Broadcast(new ServerMessage { Text = $"The world admin set the time to {_timeOfDay}." });
+                Broadcast(new ServerMessage { Text = "@srv.admin.time_set:" + _timeOfDay });
                 CheatLog(p, $"set time to {_timeOfDay}");
                 break;
 
             case "set_weather":
                 _weather = cmd.StringArg ?? _weather;
-                Broadcast(new ServerMessage { Text = $"The world admin set the weather to {_weather}." });
+                Broadcast(new ServerMessage { Text = "@srv.admin.weather_set:" + _weather });
                 CheatLog(p, $"set weather to {_weather}");
                 break;
 
             case "fly":
                 p.Fly = !p.Fly;
-                Send(session, new ServerMessage { Text = $"Fly mode: {(p.Fly ? "on" : "off")}" });
+                Send(session, new ServerMessage { Text = p.Fly ? "@srv.admin.fly_on" : "@srv.admin.fly_off" });
                 CheatLog(p, $"toggled fly to {p.Fly}");
                 break;
 
             case "godmode":
                 p.GodMode = !p.GodMode;
-                Send(session, new ServerMessage { Text = $"God mode: {(p.GodMode ? "on" : "off")}" });
+                Send(session, new ServerMessage { Text = p.GodMode ? "@srv.admin.god_on" : "@srv.admin.god_off" });
                 CheatLog(p, $"toggled god mode to {p.GodMode}");
                 break;
 
             case "instant_build":
                 p.InstantBuild = !p.InstantBuild;
-                Send(session, new ServerMessage { Text = $"Instant build: {(p.InstantBuild ? "on" : "off")}" });
+                Send(session, new ServerMessage { Text = p.InstantBuild ? "@srv.admin.build_on" : "@srv.admin.build_off" });
                 CheatLog(p, $"toggled instant build to {p.InstantBuild}");
                 break;
 
@@ -4025,7 +4021,7 @@ public sealed partial class GameServer
             case "advance_story":
                 {
                     int beats = AdminAdvanceStory(cmd.IntArg);
-                    Send(session, new ServerMessage { Text = $"Story advanced — beats revealed: {beats}." });
+                    Send(session, new ServerMessage { Text = "@srv.admin.story_advanced:" + beats });
                     CheatLog(p, $"advanced story by {System.Math.Max(1, cmd.IntArg)} (beats {beats})");
                     break;
                 }
@@ -4035,8 +4031,8 @@ public sealed partial class GameServer
                 Send(session, new ServerMessage
                 {
                     Text = _storyState.GuardianSystemRevealed
-                        ? "Guardian finale system revealed on the star map."
-                        : "No active story to reveal a finale for.",
+                        ? "@srv.admin.finale_revealed"
+                        : "@srv.admin.no_story_finale",
                 });
                 CheatLog(p, "revealed the Guardian finale system");
                 break;
@@ -4059,13 +4055,13 @@ public sealed partial class GameServer
                     var key = cmd.StringArg ?? string.Empty;
                     if (_ship is null)
                     {
-                        Reject(session, "admin", "You have no active ship to fit a module to.");
+                        Reject(session, "admin", "@srv.admin.no_ship");
                         return;
                     }
 
                     if (_content.GetShipModule(key) is null)
                     {
-                        Reject(session, "admin", "Unknown ship module.");
+                        Reject(session, "admin", "@srv.module.unknown");
                         return;
                     }
 
@@ -4079,7 +4075,7 @@ public sealed partial class GameServer
                         SendPlayerState(session);
                     }
 
-                    Send(session, new ServerMessage { Text = $"Ship module fitted: {key}" });
+                    Send(session, new ServerMessage { Text = "@srv.admin.module_fitted:" + key });
                     CheatLog(p, $"fitted ship module {key}");
                     break;
                 }
@@ -4087,7 +4083,7 @@ public sealed partial class GameServer
             case "reveal_lore":
                 {
                     int n = AdminRevealAllLore(session);
-                    Send(session, new ServerMessage { Text = $"Revealed all story lore ({n} fragments + every memory)." });
+                    Send(session, new ServerMessage { Text = "@srv.admin.lore_revealed:" + n });
                     CheatLog(p, "revealed all story lore");
                     break;
                 }
@@ -4097,14 +4093,14 @@ public sealed partial class GameServer
                 Send(session, new ServerMessage
                 {
                     Text = _storyState.GuardianSystemRevealed
-                        ? "Dropped into the Guardian core chamber."
-                        : "No active story to drop into a finale for.",
+                        ? "@srv.admin.core_dropped"
+                        : "@srv.admin.no_story_core",
                 });
                 CheatLog(p, "teleported to the Guardian core chamber");
                 break;
 
             default:
-                Reject(session, "admin", "Unknown admin command.");
+                Reject(session, "admin", "@srv.admin.unknown_cmd");
                 break;
         }
     }
@@ -4347,12 +4343,7 @@ public sealed partial class GameServer
             const string sayPrefix = "/say ";
             if (!text.StartsWith(sayPrefix, System.StringComparison.OrdinalIgnoreCase))
             {
-                Send(session, new ServerMessage
-                {
-                    Text = De(session)
-                        ? "Im Beobachter-Modus stumm — mit /say Text bewusst sprechen."
-                        : "Muted while observing — use /say Text to speak deliberately.",
-                });
+                Send(session, new ServerMessage { Text = "@srv.obs.muted" });
                 return;
             }
 
@@ -4365,7 +4356,7 @@ public sealed partial class GameServer
 
         if (!HasAnyRadio(session) && !session.Spectating)
         {
-            Reject(session, "chat", "You need a comm radio to use comms.");
+            Reject(session, "chat", "@srv.misc.need_radio");
             return;
         }
 
@@ -4627,7 +4618,7 @@ public sealed partial class GameServer
     {
         if (!session.State.IsAdmin)
         {
-            Reject(session, "world_rules", "Only the world admin may change world rules.");
+            Reject(session, "world_rules", "@srv.admin.rules_admin_only");
             return;
         }
 
@@ -4746,7 +4737,7 @@ public sealed partial class GameServer
     {
         if (intent.FromCargo && !session.State.AboardShip)
         {
-            Reject(session, "discard", "Step aboard the ship to use the cargo hold.");
+            Reject(session, "discard", "@srv.misc.aboard_for_cargo");
             return;
         }
 
@@ -4759,7 +4750,7 @@ public sealed partial class GameServer
 
         if (StarterKit.IsProtected(stack.Item))
         {
-            Reject(session, "discard", "Starter equipment can't be thrown away.");
+            Reject(session, "discard", "@srv.misc.starter_protected");
             return;
         }
 

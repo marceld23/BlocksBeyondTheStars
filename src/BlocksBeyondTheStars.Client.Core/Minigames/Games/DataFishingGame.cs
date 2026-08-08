@@ -21,15 +21,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Cat = Rgba.Rgb(124, 255, 176);
 
         public string Key => "data_fishing";
-        public LocText Title => new LocText("Data Fishing", "Daten-Fang");
-        public LocText Desc => new LocText(
-            "Catch the clean data packets streaming down and let the corrupted ones pass — recover enough before the integrity is lost.",
-            "Fang die sauberen Datenpakete und lass die beschädigten durch — berge genug, bevor die Integrität verloren ist.");
-        public LocText Hint => new LocText("← → / mouse move the collector · catch cyan, avoid red", "← → / Maus bewegen · cyan fangen, rot meiden");
+        public LocText Title => new LocText("minigame.data_fishing.title");
+        public LocText Desc => new LocText("minigame.data_fishing.desc");
+        public LocText Hint => new LocText("minigame.data_fishing.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Move the collector to catch cyan packets (gold = bonus)", "Sammler bewegen, um cyan Pakete zu fangen (gold = Bonus)"),
-            new LocText("Catching a red packet costs integrity — three losses ends it", "Ein rotes Paket kostet Integrität — drei Verluste beenden es"),
+            new LocText("minigame.data_fishing.help1"),
+            new LocText("minigame.data_fishing.help2"),
         };
         public int Difficulty => 2;
 

@@ -46,8 +46,19 @@ _TEMPERATURE = float(os.getenv("BBTS_AI_TEMPERATURE", "0.8"))
 _TIMEOUT = float(os.getenv("BBTS_AI_TIMEOUT", "30"))
 
 
+_LANGUAGE_NAMES = {
+    "de": "German",
+    "fr": "French",
+    "es": "Spanish",
+    "it": "Italian",
+}
+
+
 def _language_name(code: str) -> str:
-    return "German" if (code or "en").lower().startswith("de") else "English"
+    """Maps a client locale code to the language name the LLM is instructed with. Unknown codes
+    fall back to English — mirroring the game's per-key English fallback. The deterministic
+    offline templates stay EN/DE only; other languages get the English template."""
+    return _LANGUAGE_NAMES.get((code or "en").lower()[:2], "English")
 
 
 def _tier(relationship: int, past: int) -> str:

@@ -91,12 +91,13 @@ public sealed class MinigamePortTests
     }
 
     [Fact]
-    public void Game_Metadata_IsBilingual()
+    public void Game_Metadata_HasLocaleKeys()
     {
         var g = new DataFishingGame();
         Assert.Equal("data_fishing", g.Key);
-        Assert.NotEqual(g.Title.Get(false), string.Empty);
-        Assert.NotEqual(g.Title.Get(true), string.Empty);
+        Assert.False(g.Title.IsEmpty);
+        Assert.NotEqual(g.Title.Get(key => key), string.Empty);
+        Assert.StartsWith("minigame.data_fishing.", g.Title.Key);
         Assert.NotEmpty(g.Help);
     }
 

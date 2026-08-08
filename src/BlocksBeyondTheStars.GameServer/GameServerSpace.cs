@@ -386,13 +386,13 @@ public sealed partial class GameServer
         {
             if (requestedIndex >= total)
             {
-                reason = "That landing pad doesn't exist.";
+                reason = "@srv.land.no_pad";
                 return -1;
             }
 
             if (PadOccupiedByOther(locationId, requestedIndex, session.State.PlayerId))
             {
-                reason = "That landing pad is already taken.";
+                reason = "@srv.land.pad_taken";
                 return -1;
             }
 
@@ -402,7 +402,7 @@ public sealed partial class GameServer
         int free = FirstFreePadIndex(locationId, total, session.State.PlayerId);
         if (free < 0)
         {
-            reason = "All landing zones are taken.";
+            reason = "@srv.land.full";
         }
 
         return free;

@@ -26,7 +26,7 @@ public sealed partial class GameServer
     {
         if (!session.State.AboardShip)
         {
-            Reject(session, "cargo", "Step aboard the ship to use the cargo hold.");
+            Reject(session, "cargo", "@srv.misc.aboard_for_cargo");
             return false;
         }
 

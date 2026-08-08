@@ -96,13 +96,13 @@ public sealed partial class GameServer
         var p = session.State;
         if (InSpace(p.PlayerId))
         {
-            Reject(session, "speeder", "You can only deploy a speeder on a planet surface.");
+            Reject(session, "speeder", "@srv.speeder.surface_only");
             return;
         }
 
         if (!p.Inventory.Has("speeder", 1))
         {
-            Reject(session, "speeder", "You don't have a speeder to deploy.");
+            Reject(session, "speeder", "@srv.speeder.none");
             return;
         }
 
@@ -136,7 +136,7 @@ public sealed partial class GameServer
         SendInventory(session);
         BroadcastSpeeders();
         BroadcastToWorld(new SpeederFx { X = x, Y = p.Position.Y, Z = z, Kind = "deploy" });
-        Send(session, new ServerMessage { Text = "Speeder deployed." });
+        Send(session, new ServerMessage { Text = "@srv.speeder.deployed" });
     }
 
     /// <summary>Packs a deployed speeder back into the item (owner only, within reach, not being driven by anyone
@@ -147,13 +147,13 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "That isn't your speeder.");
+            Reject(session, "speeder", "@srv.speeder.not_yours");
             return;
         }
 
         if (!string.IsNullOrEmpty(s.DriverId) && s.DriverId != p.PlayerId)
         {
-            Reject(session, "speeder", "Someone is driving it.");
+            Reject(session, "speeder", "@srv.speeder.driven");
             return;
         }
 
@@ -164,7 +164,7 @@ public sealed partial class GameServer
 
         if (WrapDistSq(p.Position, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z)) > SpeederStowRange * SpeederStowRange)
         {
-            Reject(session, "speeder", "Walk up to the speeder to pack it up.");
+            Reject(session, "speeder", "@srv.speeder.closer_pack");
             return;
         }
 
@@ -175,7 +175,7 @@ public sealed partial class GameServer
 
         SendInventory(session);
         BroadcastSpeeders();
-        Send(session, new ServerMessage { Text = "Speeder packed up." });
+        Send(session, new ServerMessage { Text = "@srv.speeder.packed" });
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -188,19 +188,19 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "That isn't your speeder.");
+            Reject(session, "speeder", "@srv.speeder.not_yours");
             return;
         }
 
         if (!string.IsNullOrEmpty(s.DriverId))
         {
-            Reject(session, "speeder", "The speeder is occupied.");
+            Reject(session, "speeder", "@srv.speeder.occupied");
             return;
         }
 
         if (WrapDistSq(p.Position, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z)) > SpeederBoardRange * SpeederBoardRange)
         {
-            Reject(session, "speeder", "Walk closer to board the speeder.");
+            Reject(session, "speeder", "@srv.speeder.closer_board");
             return;
         }
 
@@ -285,20 +285,20 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "That isn't your speeder.");
+            Reject(session, "speeder", "@srv.speeder.not_yours");
             return;
         }
 
         bool seated = p.InSpeeder == s.Id;
         if (!seated && WrapDistSq(p.Position, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z)) > SpeederStowRange * SpeederStowRange)
         {
-            Reject(session, "speeder", "Walk up to the speeder to refuel it.");
+            Reject(session, "speeder", "@srv.speeder.closer_refuel");
             return;
         }
 
         if (s.Rec.Fuel >= s.Rec.FuelMax)
         {
-            Send(session, new ServerMessage { Text = "The speeder's energy cell is already full." });
+            Send(session, new ServerMessage { Text = "@srv.speeder.cell_full" });
             return;
         }
 
@@ -307,7 +307,7 @@ public sealed partial class GameServer
         {
             if (!p.Inventory.Has(SpeederRefuelItem, 1))
             {
-                Reject(session, "speeder", "Refuelling needs an energy cell.");
+                Reject(session, "speeder", "@srv.speeder.need_cell");
                 return;
             }
 
@@ -318,7 +318,7 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         SendInventory(session);
         SendSpeeders(session);
-        Send(session, new ServerMessage { Text = "Speeder refueled." });
+        Send(session, new ServerMessage { Text = "@srv.speeder.refueled" });
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -362,7 +362,7 @@ public sealed partial class GameServer
             p.Health = Math.Max(0f, p.Health - jolt);
             if (p.Health <= 0f)
             {
-                RespawnPlayer(session, "You did not survive the crash.");
+                RespawnPlayer(session, "@srv.death.crash");
             }
             else
             {
@@ -411,7 +411,7 @@ public sealed partial class GameServer
 
             if (driver.State.Health <= 0f)
             {
-                RespawnPlayer(driver, "Your speeder was destroyed under you.");
+                RespawnPlayer(driver, "@srv.death.speeder");
             }
             else
             {
@@ -425,7 +425,7 @@ public sealed partial class GameServer
         if (owner != null)
         {
             _repo.SavePlayer(owner.State);
-            Send(owner, new ServerMessage { Text = "Your speeder was destroyed!" });
+            Send(owner, new ServerMessage { Text = "@srv.speeder.destroyed" });
         }
 
         BroadcastToWorld(new SpeederFx { X = pos.X, Y = pos.Y, Z = pos.Z, Kind = "explode" });

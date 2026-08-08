@@ -51,26 +51,26 @@ public sealed partial class GameServer
 
         if (Rules.ShipDocking == DockingMode.Off)
         {
-            RejectDock(fromSession, "Ship docking is disabled on this server.");
+            RejectDock(fromSession, "@srv.dock.disabled");
             return;
         }
 
         if (string.IsNullOrEmpty(toId) || fromId == toId)
         {
-            RejectDock(fromSession, "Invalid docking target.");
+            RejectDock(fromSession, "@srv.dock.bad_target");
             return;
         }
 
         var toSession = FindSessionByPlayerId(toId);
         if (toSession is null)
         {
-            RejectDock(fromSession, "Target player is not online.");
+            RejectDock(fromSession, "@srv.dock.offline");
             return;
         }
 
         if (!CanDockTogether(fromId, toId))
         {
-            RejectDock(fromSession, "The other player must be nearby to dock.");
+            RejectDock(fromSession, "@srv.dock.too_far");
             return;
         }
 
@@ -81,25 +81,25 @@ public sealed partial class GameServer
 
         if (!_ship.HasModule(DockingModule))
         {
-            RejectDock(fromSession, "Your ship has no docking module.");
+            RejectDock(fromSession, "@srv.dock.no_module");
             return;
         }
 
         if (AreDocked(fromId, toId))
         {
-            RejectDock(fromSession, "Already docked with that player.");
+            RejectDock(fromSession, "@srv.dock.already");
             return;
         }
 
         if (_docked.ContainsKey(fromId))
         {
-            RejectDock(fromSession, "Undock first: your docking port is in use.");
+            RejectDock(fromSession, "@srv.dock.port_busy");
             return;
         }
 
         if (_docked.ContainsKey(toId))
         {
-            RejectDock(fromSession, "The target's docking port is already in use.");
+            RejectDock(fromSession, "@srv.dock.target_port_busy");
             return;
         }
 
@@ -133,7 +133,7 @@ public sealed partial class GameServer
             var requester = FindSessionByPlayerId(fromId);
             if (requester is not null)
             {
-                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "Docking request declined." });
+                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.declined" });
             }
 
             return;
@@ -146,7 +146,7 @@ public sealed partial class GameServer
             var requester = FindSessionByPlayerId(fromId);
             if (requester is not null)
             {
-                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "Too far apart to dock." });
+                Send(requester, new DockStatus { Partner = toId, Docked = false, Reason = "@srv.dock.apart" });
             }
 
             return;
@@ -182,16 +182,16 @@ public sealed partial class GameServer
         _docked.Remove(id);
         _docked.Remove(partner);
 
-        NotifyDock(id, partner, docked: false, "Undocked.");
-        NotifyDock(partner, id, docked: false, "Undocked.");
+        NotifyDock(id, partner, docked: false, "@srv.dock.undocked");
+        NotifyDock(partner, id, docked: false, "@srv.dock.undocked");
     }
 
     private void EstablishDock(string a, string b)
     {
         _docked[a] = b;
         _docked[b] = a;
-        NotifyDock(a, b, docked: true, "Docked.");
-        NotifyDock(b, a, docked: true, "Docked.");
+        NotifyDock(a, b, docked: true, "@srv.dock.docked");
+        NotifyDock(b, a, docked: true, "@srv.dock.docked");
     }
 
     /// <summary>Clears any docking and pending requests involving the player (on disconnect).</summary>

@@ -23,15 +23,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba ProbeCol = Rgba.Rgb(124, 255, 176);
 
         public string Key => "orbit_slingshot";
-        public LocText Title => new LocText("Orbit Slingshot", "Orbit-Schleuder");
-        public LocText Desc => new LocText(
-            "Drag from the probe to aim, then release. Use the planets' gravity to curve the probe into the target zone.",
-            "Ziehe von der Sonde, um zu zielen, dann loslassen. Nutze die Gravitation der Planeten, um die Sonde ins Ziel zu lenken.");
-        public LocText Hint => new LocText("Drag from the probe & release to launch", "Von der Sonde ziehen & loslassen zum Start");
+        public LocText Title => new LocText("minigame.orbit_slingshot.title");
+        public LocText Desc => new LocText("minigame.orbit_slingshot.desc");
+        public LocText Hint => new LocText("minigame.orbit_slingshot.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click-drag from the probe to set direction and power", "Von der Sonde ziehen, um Richtung und Kraft zu setzen"),
-            new LocText("Release to launch; gravity bends the path. Reach the green target.", "Loslassen zum Start; Gravitation krümmt die Bahn. Erreiche das grüne Ziel."),
+            new LocText("minigame.orbit_slingshot.help1"),
+            new LocText("minigame.orbit_slingshot.help2"),
         };
         public int Difficulty => 3;
 

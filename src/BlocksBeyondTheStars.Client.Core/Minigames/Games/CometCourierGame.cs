@@ -19,15 +19,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Ship = Rgba.Rgb(124, 255, 176);
 
         public string Key => "comet_courier";
-        public LocText Title => new LocText("Comet Courier", "Kometen-Kurier");
-        public LocText Desc => new LocText(
-            "Fly the courier through the debris field, scoop up data packets and dodge asteroids. Reach the end of the run.",
-            "Flieg den Kurier durch das Trümmerfeld, sammle Datenpakete und weiche Asteroiden aus. Erreiche das Ende der Strecke.");
-        public LocText Hint => new LocText("↑ ↓ / mouse steer · avoid asteroids · grab packets", "↑ ↓ / Maus steuern · Asteroiden meiden · Pakete sammeln");
+        public LocText Title => new LocText("minigame.comet_courier.title");
+        public LocText Desc => new LocText("minigame.comet_courier.desc");
+        public LocText Hint => new LocText("minigame.comet_courier.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("↑ ↓ or the mouse move the ship vertically", "↑ ↓ oder die Maus bewegen das Schiff senkrecht"),
-            new LocText("Collect cyan data packets; asteroids cost shield. Survive the distance.", "Sammle cyanfarbene Datenpakete; Asteroiden kosten Schild. Überstehe die Strecke."),
+            new LocText("minigame.comet_courier.help1"),
+            new LocText("minigame.comet_courier.help2"),
         };
         public int Difficulty => 2;
 

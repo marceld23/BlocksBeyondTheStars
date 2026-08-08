@@ -29,6 +29,8 @@ namespace BlocksBeyondTheStars.Client
             "items.json",
             "locales/de.json",
             "locales/en.json",
+            "locales/es.json",
+            "locales/fr.json",
             "locales/it.json",
             "minigames/catalog.json",
             "missions.json",
@@ -44,6 +46,8 @@ namespace BlocksBeyondTheStars.Client
             "whatsnew.json",
             "stories/vega_protocol/locales/de.json",
             "stories/vega_protocol/locales/en.json",
+            "stories/vega_protocol/locales/es.json",
+            "stories/vega_protocol/locales/fr.json",
             "stories/vega_protocol/story.json",
             "wiki/articles.json",
         };

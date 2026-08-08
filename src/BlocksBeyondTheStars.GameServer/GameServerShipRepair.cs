@@ -162,7 +162,7 @@ public sealed partial class GameServer
         if (_ship.Downed && missing == 0 && _ship.Hull >= _shipHullMax)
         {
             _ship.Downed = false;
-            Send(session, new ServerMessage { Text = "Ship fully repaired — ready to launch." });
+            Send(session, new ServerMessage { Text = "@srv.repair.done" });
         }
 
         Send(session, new ShipRepairStatus
@@ -180,7 +180,7 @@ public sealed partial class GameServer
     {
         if (!TryGetOwnShipStructure(session.State.PlayerId, out var live, out var instance))
         {
-            Reject(session, "ship_repair", "Your ship isn't here to repair.");
+            Reject(session, "ship_repair", "@srv.repair.not_here");
             return;
         }
 
@@ -203,7 +203,7 @@ public sealed partial class GameServer
 
         if (missingBefore == 0 && _ship.Hull >= _shipHullMax)
         {
-            Send(session, new ServerMessage { Text = "Ship is fully intact — nothing to repair." });
+            Send(session, new ServerMessage { Text = "@srv.repair.intact" });
             SendShipRepairStatus(session);
             return;
         }
@@ -250,7 +250,7 @@ public sealed partial class GameServer
         float hullGained = _ship.Hull - hullBefore;
         if (hullGained <= 0f && cellsRepaired == 0)
         {
-            Send(session, new ServerMessage { Text = "Not enough materials to repair the ship." });
+            Send(session, new ServerMessage { Text = "@srv.repair.materials" });
             SendShipRepairStatus(session);
             return;
         }
@@ -259,13 +259,16 @@ public sealed partial class GameServer
         SendShipCombatStatus(session);
 
         var (missingAfter, _) = ComputeShipRepairCost(live, design);
-        string note = $"Repaired ship: +{(int)System.Math.Round(hullGained)} hull";
+        string note = Localize(session.Locale, "srv.repair.result")
+            .Replace("{hull}", ((int)System.Math.Round(hullGained)).ToString());
         if (cellsRepaired > 0)
         {
-            note += $", {cellsRepaired} hull cell{(cellsRepaired == 1 ? "" : "s")}";
+            note += cellsRepaired == 1
+                ? Localize(session.Locale, "srv.repair.result_cell")
+                : Localize(session.Locale, "srv.repair.result_cells").Replace("{count}", cellsRepaired.ToString());
         }
 
-        note += missingAfter == 0 && _ship.Hull >= _shipHullMax ? "." : " — more materials needed to finish.";
+        note += missingAfter == 0 && _ship.Hull >= _shipHullMax ? "." : Localize(session.Locale, "srv.repair.result_more");
         Send(session, new ServerMessage { Text = note });
         SendShipRepairStatus(session);
     }
@@ -276,13 +279,13 @@ public sealed partial class GameServer
         var p = session.State;
         if (!live.Baseline.Contains(cell))
         {
-            Reject(session, "ship_repair", "That cell is not part of the ship hull.");
+            Reject(session, "ship_repair", "@srv.repair.not_hull");
             return;
         }
 
         if (!live.Get(cell).IsAir)
         {
-            Reject(session, "ship_repair", "That hull cell is already intact.");
+            Reject(session, "ship_repair", "@srv.repair.cell_intact");
             return;
         }
 
@@ -290,7 +293,7 @@ public sealed partial class GameServer
         var want = design.Get(cell);
         if (want.IsAir || _content.BlockById(want) is not { } def)
         {
-            Reject(session, "ship_repair", "Nothing to rebuild there.");
+            Reject(session, "ship_repair", "@srv.repair.nothing");
             return;
         }
 
@@ -301,7 +304,8 @@ public sealed partial class GameServer
         {
             if (pool.Count(item) < 1)
             {
-                Reject(session, "ship_repair", $"Repair needs a {item} block.");
+                Reject(session, "ship_repair", Localize(session.Locale, "srv.repair.need_block")
+                    .Replace("{name}", LocalizedName(session.Locale, _content.GetItem(item)?.NameKey, item)));
                 return;
             }
 

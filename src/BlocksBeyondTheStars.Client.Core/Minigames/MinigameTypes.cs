@@ -57,23 +57,22 @@ namespace BlocksBeyondTheStars.Client.Minigames
         Result,
     }
 
-    /// <summary>A bilingual string carried by a game's own metadata so each game stays one self-contained class
-    /// (the web games declared <c>{en,de}</c> inline). The logic core never localizes; the Unity host calls
-    /// <see cref="Get"/> when it draws the title/help.</summary>
+    /// <summary>A locale KEY carried by a game's own metadata so each game stays one self-contained class.
+    /// The logic core never localizes; the caller passes a localize delegate (the shared
+    /// <c>Localizer.Get</c>) into <see cref="Get"/> when it draws the title/help.</summary>
     public readonly struct LocText
     {
-        public readonly string En;
-        public readonly string De;
+        public readonly string Key;
 
-        public LocText(string en, string de)
+        public LocText(string key)
         {
-            En = en;
-            De = de;
+            Key = key;
         }
 
-        public string Get(bool german) => german && !string.IsNullOrEmpty(De) ? De : (En ?? string.Empty);
+        public string Get(System.Func<string, string> localize) =>
+            string.IsNullOrEmpty(Key) ? string.Empty : (localize?.Invoke(Key) ?? Key);
 
-        public bool IsEmpty => string.IsNullOrEmpty(En) && string.IsNullOrEmpty(De);
+        public bool IsEmpty => string.IsNullOrEmpty(Key);
     }
 
     /// <summary>The outcome of a finished run, computed by the host the moment a game calls
@@ -108,7 +107,7 @@ namespace BlocksBeyondTheStars.Client.Minigames
         public System.Action? Resume;
     }
 
-    /// <summary>One minigame. A game declares its own (bilingual) presentation and difficulty, and in
+    /// <summary>One minigame. A game declares its own (locale-keyed) presentation and difficulty, and in
     /// <see cref="Create"/> wires its mechanic onto the supplied <see cref="MinigameApi"/> (canvas, input, loop,
     /// timers) — the C# equivalent of the web <c>create(api)</c>. <see cref="Create"/> is re-invoked on every
     /// (re)start so a fresh closure of game state is the natural pattern, just like the web games.</summary>

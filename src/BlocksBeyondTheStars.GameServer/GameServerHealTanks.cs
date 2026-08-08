@@ -112,7 +112,7 @@ public sealed partial class GameServer
             || _world.GetBlock(cell).Value != _healTankBlockId
             || WrapDistSq(p.Position, cell) > HealTankInteractReach * HealTankInteractReach)
         {
-            Reject(session, "spawn_point", "No heal tank in reach.");
+            Reject(session, "spawn_point", "@srv.misc.no_heal_tank");
             return;
         }
 

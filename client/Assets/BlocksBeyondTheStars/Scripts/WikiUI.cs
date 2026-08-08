@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using BlocksBeyondTheStars.Shared.Localization;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -38,7 +39,9 @@ namespace BlocksBeyondTheStars.Client
         private string _chapter = "guide";
 
         // Guide articles, loaded once from the bundled wiki content (StreamingAssets/data/wiki/articles.json).
-        [Serializable] private sealed class LocText { public string en = ""; public string de = ""; }
+        // Optional community-language fields fall back to English per article, so a partially
+        // translated wiki is a supported state (same rule as the locale tables).
+        [Serializable] private sealed class LocText { public string en = ""; public string de = ""; public string fr = ""; public string es = ""; }
         [Serializable] private sealed class Article { public string id = ""; public LocText title; public LocText body; }
         [Serializable] private sealed class ArticleList { public Article[] items; }
         private Article[] _articles;
@@ -96,7 +99,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
-        private bool De => Game != null && Game.German;
+        private string LocaleCode => Game?.Localizer?.Locale.Code() ?? "en";
 
         private void Rebuild()
         {
@@ -358,7 +361,14 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
-            return De && !string.IsNullOrEmpty(t.de) ? t.de : (t.en ?? string.Empty);
+            string chosen = LocaleCode switch
+            {
+                "de" => t.de,
+                "fr" => t.fr,
+                "es" => t.es,
+                _ => t.en,
+            };
+            return !string.IsNullOrEmpty(chosen) ? chosen : (t.en ?? string.Empty);
         }
 
         private void LoadArticles()

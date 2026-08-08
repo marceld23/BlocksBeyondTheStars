@@ -570,7 +570,7 @@ namespace BlocksBeyondTheStars.Client
             // Wreck panel (right).
             _wreckPanel = Panel(root, W - 260f, 140, 250, 150).gameObject;
             _wreckName = UiKit.AddText(_wreckPanel.transform, 10, 26, 230, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddText(_wreckPanel.transform, 10, 6, 230, 18, "WRECK", 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(_wreckPanel.transform, 10, 6, 230, 18, Game?.Localizer?.Get("ui.hud.wreck") ?? "WRECK", 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(_wreckPanel.transform, 10, 48, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
             _wreckBar = UiKit.AddImage(_wreckPanel.transform, 10, 48, 230, 14, UiKit.SolidSprite, UiKit.Cyan);
             _wreckBar.type = Image.Type.Filled;

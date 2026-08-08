@@ -321,25 +321,25 @@ public sealed partial class GameServer
         var f = _factories.FirstOrDefault(x => x.Id == factoryId);
         if (f is null || !f.Claimable)
         {
-            Reject(session, "claim", "This structure cannot be claimed.");
+            Reject(session, "claim", "@srv.factory.not_claimable");
             return;
         }
 
         if (!string.IsNullOrEmpty(f.OwnerId))
         {
-            Reject(session, "claim", "This structure is already claimed.");
+            Reject(session, "claim", "@srv.factory.claimed");
             return;
         }
 
         if (WrapDistSq(session.State.Position, f.TerminalPos) > (FactoryTerminalReach + 1.5f) * (FactoryTerminalReach + 1.5f))
         {
-            Reject(session, "claim", "Stand at the factory terminal to claim it.");
+            Reject(session, "claim", "@srv.factory.at_terminal");
             return;
         }
 
         if (session.State.Inventory.CountOf("access_code") < 1)
         {
-            Reject(session, "claim", "You need an access code to claim this.");
+            Reject(session, "claim", "@srv.factory.need_code");
             return;
         }
 
@@ -351,7 +351,7 @@ public sealed partial class GameServer
 
         SendInventory(session);
         BroadcastFactories();
-        Send(session, new ServerMessage { Text = $"Claimed {f.Name}. It is now your base." });
+        Send(session, new ServerMessage { Text = "@srv.factory.claim_done:" + f.Name });
     }
 
     private void HandleClaimStructure(PlayerSession session, ClaimStructureIntent intent)

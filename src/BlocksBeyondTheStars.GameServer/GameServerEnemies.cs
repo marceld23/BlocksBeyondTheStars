@@ -187,7 +187,7 @@ public sealed partial class GameServer
                     SendPlayerState(session);
                     if (p.Health <= 0f)
                     {
-                        RespawnPlayer(session, "Overwhelmed by a hostile creature — recovery to the Medbay heal-tank.");
+                        RespawnPlayer(session, "@srv.death.creature");
                     }
                 }
             }
@@ -539,7 +539,7 @@ public sealed partial class GameServer
         // Player-vs-player combat is not implemented yet: only creatures/NPCs are valid targets. When players do
         // become targetable (on foot here, or ship-vs-ship in FireWeapon), gate the damage on the alliance —
         // allies must never harm one another, even on a PVP server: `if (AreAllied(playerId, targetId)) reject`.
-        Reject(session, "attack", "No such target.");
+        Reject(session, "attack", "@srv.attack.no_target");
     }
 
     private const double MeleeCooldown = 1.5;                       // melee weapons swing at most this often (B44)
@@ -575,7 +575,7 @@ public sealed partial class GameServer
         float reach = isWeapon ? System.Math.Max(tool.Range, EnemyAttackReach) : EnemyAttackReach;
         if (WrapDistSq(p.Position, target.Position) > reach * reach)
         {
-            Reject(session, "attack", "Target is out of reach.");
+            Reject(session, "attack", "@srv.attack.out_of_reach");
             return;
         }
 
@@ -589,7 +589,7 @@ public sealed partial class GameServer
         {
             if (p.SuitEnergy < tool.EnergyPerUse)
             {
-                Reject(session, "attack", "Not enough suit energy to fire.");
+                Reject(session, "attack", "@srv.attack.no_energy");
                 return;
             }
 
@@ -679,7 +679,7 @@ public sealed partial class GameServer
         // Ranged shots respect walls: the same voxel sightline that gates enemy bites (glass blocks it too).
         if (ranged && !HasLineOfSight(p.Position, target.Position))
         {
-            Reject(session, "attack", "No clear line of fire.");
+            Reject(session, "attack", "@srv.attack.no_line");
             return false;
         }
 
@@ -708,7 +708,7 @@ public sealed partial class GameServer
             float allowed = 1.5f * scale + 0.1f * dist;
             if (dot <= 0f || missSq > allowed * allowed)
             {
-                Reject(session, "attack", "Shot went wide.");
+                Reject(session, "attack", "@srv.attack.missed");
                 return false;
             }
 
@@ -717,7 +717,7 @@ public sealed partial class GameServer
 
         if (dot < 0.35f) // ~70° half-angle: forgiving even for a swirling melee fight, but never behind the back
         {
-            Reject(session, "attack", "Target is not in front of you.");
+            Reject(session, "attack", "@srv.attack.not_ahead");
             return false;
         }
 

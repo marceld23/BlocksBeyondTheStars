@@ -20,15 +20,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Drone = Rgba.Rgb(70, 214, 255);
 
         public string Key => "micro_miner";
-        public LocText Title => new LocText("Micro Miner", "Mikro-Miner");
-        public LocText Desc => new LocText(
-            "Dig for ore and haul it back to the surface to bank it. Fill the quota before your energy runs dry — you'll need several trips and a tight route.",
-            "Grab nach Erz und bring es zur Oberfläche, um es einzuzahlen. Erfülle die Quote, bevor die Energie leer ist — du brauchst mehrere Fahrten und eine sparsame Route.");
-        public LocText Hint => new LocText("← ↑ ↓ → dig / move · surface (top row) to bank · fill the DEPOT quota", "← ↑ ↓ → graben / bewegen · Oberfläche (oben) zahlt ein · DEPOT-Quote füllen");
+        public LocText Title => new LocText("minigame.micro_miner.title");
+        public LocText Desc => new LocText("minigame.micro_miner.desc");
+        public LocText Hint => new LocText("minigame.micro_miner.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Move into rock to dig it (costs energy); bright cells are ore.", "In Gestein hineinbewegen, um zu graben (kostet Energie); helle Zellen sind Erz."),
-            new LocText("Return to the top surface to bank your carried ore. Reach the DEPOT quota to win — energy is limited, so plan short trips.", "Kehre zur Oberfläche zurück, um getragenes Erz einzuzahlen. Erreiche die DEPOT-Quote zum Sieg — Energie ist begrenzt, plane kurze Wege."),
+            new LocText("minigame.micro_miner.help1"),
+            new LocText("minigame.micro_miner.help2"),
         };
         public int Difficulty => 2;
 

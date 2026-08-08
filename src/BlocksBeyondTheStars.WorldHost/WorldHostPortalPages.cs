@@ -56,9 +56,12 @@ public static class WorldHostPortalPages
 
     /// <summary>First-visit language from the browser's <c>Accept-Language</c> header: the first
     /// supported primary tag wins (browsers list tags in preference order, so full q-value parsing
-    /// would only complicate this), anything else stays German. Only consulted when neither
-    /// <c>?lang=</c> nor the <c>bbs_lang</c> cookie carries an explicit choice — auto-detection never
-    /// persists, so a deliberate switch always outranks it.</summary>
+    /// would only complicate this). A browser that asks for NEITHER de nor en (French, Spanish, …)
+    /// gets English — the portal has no pages in those languages yet, and English is the game's
+    /// fallback language everywhere else too. Only a missing header keeps the German default (the
+    /// service's primary audience). Only consulted when neither <c>?lang=</c> nor the
+    /// <c>bbs_lang</c> cookie carries an explicit choice — auto-detection never persists, so a
+    /// deliberate switch always outranks it.</summary>
     public static string LangFromAcceptHeader(string? acceptLanguage)
     {
         if (string.IsNullOrWhiteSpace(acceptLanguage))
@@ -81,7 +84,7 @@ public static class WorldHostPortalPages
             }
         }
 
-        return "de";
+        return "en";
     }
 
     public static string Landing(WorldHostConfig config, string lang = "de")

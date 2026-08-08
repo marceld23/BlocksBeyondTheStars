@@ -21,15 +21,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba ShipCol = Rgba.Rgb(70, 214, 255);
 
         public string Key => "docking_sim";
-        public LocText Title => new LocText("Docking Simulator", "Andock-Simulator");
-        public LocText Desc => new LocText(
-            "Nudge the ship onto the docking ring — slowly. Too much speed on contact and you bounce off. You have three attempts.",
-            "Manövriere das Schiff sachte in den Andockring. Zu viel Tempo beim Kontakt und du prallst ab. Du hast drei Versuche.");
-        public LocText Hint => new LocText("↑ thrust · ← → rotate · drift like in space", "↑ Schub · ← → drehen · Trägheit wie im All");
+        public LocText Title => new LocText("minigame.docking_sim.title");
+        public LocText Desc => new LocText("minigame.docking_sim.desc");
+        public LocText Hint => new LocText("minigame.docking_sim.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("↑ thrust in the facing direction; ← → rotate", "↑ Schub in Blickrichtung; ← → drehen"),
-            new LocText("Glide into the green ring slowly — a hard hit costs an attempt", "Gleite langsam in den grünen Ring — ein harter Treffer kostet einen Versuch"),
+            new LocText("minigame.docking_sim.help1"),
+            new LocText("minigame.docking_sim.help2"),
         };
         public int Difficulty => 4;
 

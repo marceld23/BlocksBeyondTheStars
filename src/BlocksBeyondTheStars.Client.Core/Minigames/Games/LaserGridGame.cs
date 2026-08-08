@@ -22,15 +22,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba TargetOff = Rgba.Rgb(119, 144, 160);
 
         public string Key => "laser_grid";
-        public LocText Title => new LocText("Laser Mirror Grid", "Laser-Spiegelgitter");
-        public LocText Desc => new LocText(
-            "Toggle the mirrors so the beam from the emitter reaches the target node.",
-            "Schalte die Spiegel um, damit der Strahl des Emitters den Zielknoten erreicht.");
-        public LocText Hint => new LocText("Click a mirror to flip it ( / ↔ \\ )", "Spiegel anklicken zum Umschalten ( / ↔ \\ )");
+        public LocText Title => new LocText("minigame.laser_grid.title");
+        public LocText Desc => new LocText("minigame.laser_grid.desc");
+        public LocText Hint => new LocText("minigame.laser_grid.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click a mirror to switch between / and \\", "Spiegel anklicken: zwischen / und \\ wechseln"),
-            new LocText("Route the beam from the emitter to the green target", "Leite den Strahl vom Emitter zum grünen Ziel"),
+            new LocText("minigame.laser_grid.help1"),
+            new LocText("minigame.laser_grid.help2"),
         };
         public int Difficulty => 3;
 

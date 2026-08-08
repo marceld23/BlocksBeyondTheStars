@@ -328,7 +328,7 @@ public sealed partial class GameServer
 
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "mine", "Out of reach.");
+            Reject(session, "mine", "@out_of_reach");
             return true;
         }
 

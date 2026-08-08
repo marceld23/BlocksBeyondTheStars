@@ -402,6 +402,52 @@ public sealed class GameContent
 
     public int MaxStackOf(string itemKey) => _items.TryGetValue(ItemKey.Base(itemKey), out var i) ? i.MaxStack : 1;
 
+    /// <summary>Fraction of the English key set the given locale covers (1.0 for English itself,
+    /// 0.0 when the locale has no table). The settings language picker uses this to decide which
+    /// community languages are complete enough to offer.</summary>
+    public double LocaleCoverage(GameLocale locale)
+    {
+        if (locale == GameLocale.English)
+        {
+            return 1.0;
+        }
+
+        if (!_locales.TryGetValue(GameLocale.English, out var en) || en.Count == 0
+            || !_locales.TryGetValue(locale, out var table))
+        {
+            return 0.0;
+        }
+
+        int covered = 0;
+        foreach (var key in en.Keys)
+        {
+            if (table.TryGetValue(key, out var text) && !string.IsNullOrWhiteSpace(text))
+            {
+                covered++;
+            }
+        }
+
+        return (double)covered / en.Count;
+    }
+
+    /// <summary>The locales the settings picker should offer: English and German always (the two
+    /// mandatory languages), community languages once their coverage clears
+    /// <paramref name="minCoverage"/>. Order follows the enum, so the picker cycle is stable.</summary>
+    public IReadOnlyList<GameLocale> SelectableLocales(double minCoverage = 0.45)
+    {
+        var result = new List<GameLocale>();
+        foreach (GameLocale locale in Enum.GetValues(typeof(GameLocale)))
+        {
+            if (locale == GameLocale.English || locale == GameLocale.German
+                || LocaleCoverage(locale) >= minCoverage)
+            {
+                result.Add(locale);
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>Builds a localizer for the given locale, with English as the fallback table.</summary>
     public Localizer CreateLocalizer(GameLocale locale)
     {

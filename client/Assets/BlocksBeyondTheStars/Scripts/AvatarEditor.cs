@@ -254,7 +254,7 @@ namespace BlocksBeyondTheStars.Client
             }
             catch (Exception e)
             {
-                SetStatus("Export failed: " + e.Message);
+                SetStatus(L("ui.editor.export_failed") + " " + e.Message);
             }
         }
 

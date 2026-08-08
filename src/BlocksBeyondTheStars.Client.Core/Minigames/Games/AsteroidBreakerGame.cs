@@ -21,15 +21,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba HintCol = Rgba.Rgb(207, 233, 245);
 
         public string Key => "asteroid_breaker";
-        public LocText Title => new LocText("Asteroid Breaker", "Asteroid Breaker");
-        public LocText Desc => new LocText(
-            "Bounce the core off your platform to shatter every asteroid. Clear the field before your cores run out.",
-            "Lenke den Kern mit der Plattform und zertrümmere jeden Asteroiden. Räume das Feld, bevor die Kerne ausgehen.");
-        public LocText Hint => new LocText("Mouse / ← → move the platform · Space / click to serve", "Maus / ← → bewegen · Leertaste / Klick zum Abschuss");
+        public LocText Title => new LocText("minigame.asteroid_breaker.title");
+        public LocText Desc => new LocText("minigame.asteroid_breaker.desc");
+        public LocText Hint => new LocText("minigame.asteroid_breaker.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Move the platform with the mouse or ← →", "Plattform mit Maus oder ← → bewegen"),
-            new LocText("The core serves itself after a moment — or press Space / click to launch it immediately", "Der Kern startet nach kurzem von selbst — oder Leertaste / Klick für sofortigen Abschuss"),
+            new LocText("minigame.asteroid_breaker.help1"),
+            new LocText("minigame.asteroid_breaker.help2"),
         };
         public int Difficulty => 2;
 
@@ -213,7 +211,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
                 canvas.FillCircle((int)bx, (int)by, (int)br, Ball);
                 if (stuck)
                 {
-                    canvas.DrawTextCentered(W / 2, H - 64, api.German ? "AUTOSTART  ODER LEERTASTE" : "AUTOLAUNCH  OR SPACE TO SERVE", HintCol);
+                    canvas.DrawTextCentered(W / 2, H - 64, api.Localize("minigame.asteroid_breaker.serve_hint"), HintCol);
                 }
             }
 

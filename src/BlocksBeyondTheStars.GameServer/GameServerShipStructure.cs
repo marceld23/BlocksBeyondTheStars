@@ -277,13 +277,13 @@ public sealed partial class GameServer
         var pos = StationPosition(station);
         if (pos is null)
         {
-            Reject(session, "station", "No such station.");
+            Reject(session, "station", "@srv.station.none");
             return;
         }
 
         if (!p.AboardShip || WrapDistSq(p.Position, pos.Value) > ShipStationReach * ShipStationReach)
         {
-            Reject(session, "station", "Too far from the station.");
+            Reject(session, "station", "@srv.station.too_far");
             return;
         }
 
@@ -292,7 +292,7 @@ public sealed partial class GameServer
             case "medbay":
                 if (!_ship.HasModule("medbay"))
                 {
-                    Send(session, new ServerMessage { Text = "No medbay module aboard." });
+                    Send(session, new ServerMessage { Text = "@srv.station.no_medbay" });
                     return;
                 }
 
@@ -300,20 +300,20 @@ public sealed partial class GameServer
                 p.Oxygen = 100f;
                 p.SuitEnergy = 100f;
                 SendPlayerState(session);
-                Send(session, new ServerMessage { Text = "Healed at the medbay heal-tank." });
+                Send(session, new ServerMessage { Text = "@srv.station.healed" });
                 break;
 
             case "quarters":
                 p.RespawnPoint = pos.Value;
-                Send(session, new ServerMessage { Text = "Respawn point set to your quarters." });
+                Send(session, new ServerMessage { Text = "@srv.station.quarters_set" });
                 break;
 
             case "workshop":
-                Send(session, new ServerMessage { Text = "Workshop ready — open the menu (Tab) to craft." });
+                Send(session, new ServerMessage { Text = "@srv.station.workshop" });
                 break;
 
             case "cargo":
-                Send(session, new ServerMessage { Text = "Cargo hold — open the menu (Tab) to manage it." });
+                Send(session, new ServerMessage { Text = "@srv.station.cargo" });
                 break;
 
             case "cockpit":
@@ -329,7 +329,7 @@ public sealed partial class GameServer
                 }
                 else
                 {
-                    Send(session, new ServerMessage { Text = "Cockpit — open the menu (Tab) → Map to travel to another planet." });
+                    Send(session, new ServerMessage { Text = "@srv.station.cockpit" });
                     SendStarMap(session);
                 }
 
@@ -339,19 +339,19 @@ public sealed partial class GameServer
                 // The command console (issue #463; used to be a silent no-op): the ship-status counterpart of the
                 // cockpit WITHOUT the helm arm — no launch, just the repair readout. The client opens the Ship tab.
                 SendShipRepairStatus(session);
-                Send(session, new ServerMessage { Text = "Ship console — open the menu (Tab) → Ship for status and repairs." });
+                Send(session, new ServerMessage { Text = "@srv.station.console" });
                 break;
 
             case "lab":
                 // The lab gates the Tech tab (research) exactly like workshop gates crafting; E opens it client-side.
-                Send(session, new ServerMessage { Text = "Lab ready — open the menu (Tab) → Tech to research blueprints." });
+                Send(session, new ServerMessage { Text = "@srv.station.lab" });
                 break;
 
             default:
                 // Never let an unknown station id fail silently again (that's how the console no-op shipped):
                 // log it and tell the player something instead of swallowing the press.
                 _log.Info($"UseStation: unhandled station id '{station}' (player '{p.Name}').");
-                Send(session, new ServerMessage { Text = $"Nothing to operate at '{station}' yet." });
+                Send(session, new ServerMessage { Text = "@srv.station.nothing:" + station });
                 break;
         }
     }

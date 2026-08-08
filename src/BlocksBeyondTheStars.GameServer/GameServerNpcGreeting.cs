@@ -318,6 +318,11 @@ public sealed partial class GameServer
         return loc.Get(key);
     }
 
+    /// <summary>Server-side localized display name for a content definition: resolves its name key in the
+    /// player's locale, falling back to the raw content key when no name key is defined.</summary>
+    private string LocalizedName(string localeCode, string? nameKey, string fallbackKey)
+        => string.IsNullOrEmpty(nameKey) ? fallbackKey : Localize(localeCode, nameKey);
+
     /// <summary>Drains LLM greetings produced off-thread and sends each to its (still-connected) player. Called
     /// once per server tick from <c>Tick</c>.</summary>
     private void TickGreetings()

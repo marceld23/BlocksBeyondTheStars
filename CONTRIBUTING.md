@@ -83,6 +83,10 @@ You don't need to be a programmer to add a language, and you don't need to finis
 falls back to English **per missing key**, so a file with one key group in it works in the game — which is
 exactly how Italian ([`data/locales/it.json`](data/locales/it.json)) is being built: one group per PR.
 
+The full end-to-end guide — every text surface (locale tables, story packs, wiki, What's New, AI
+backend, portal), the style rules, in-game testing, and the maintainer wiring for a brand-new
+language — lives in [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md).
+
 **How to help with an existing language**
 
 1. Pick a key group and see what's missing:

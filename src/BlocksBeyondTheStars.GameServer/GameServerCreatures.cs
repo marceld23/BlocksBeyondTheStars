@@ -281,7 +281,7 @@ public sealed partial class GameServer
                     SendPlayerState(session);
                     if (p.Health <= 0f)
                     {
-                        RespawnPlayer(session, "Killed by hostile wildlife — recovery to the Medbay heal-tank.");
+                        RespawnPlayer(session, "@srv.death.wildlife");
                     }
                 }
             }
@@ -1425,13 +1425,13 @@ public sealed partial class GameServer
         var item = _content.GetItem(itemKey);
         if (item is null || item.Category != ItemCategory.Consumable)
         {
-            Reject(session, "consume", "This item cannot be consumed.");
+            Reject(session, "consume", "@srv.misc.not_consumable");
             return;
         }
 
         if (!p.Inventory.Has(itemKey, 1))
         {
-            Reject(session, "consume", "You don't have that item.");
+            Reject(session, "consume", "@srv.misc.no_item");
             return;
         }
 
@@ -1455,7 +1455,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         if (p.Health <= 0f)
         {
-            RespawnPlayer(session, "Poisoned — recovery to the Medbay heal-tank.");
+            RespawnPlayer(session, "@srv.death.poison");
         }
     }
 

@@ -103,25 +103,25 @@ public sealed partial class GameServer
         var def = GetMissionDef(missionId);
         if (def is null || !def.Active)
         {
-            MissionFail(session, missionId, "Unknown or inactive mission.");
+            MissionFail(session, missionId, "@srv.mission.unknown");
             return;
         }
 
         if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
         {
-            MissionFail(session, missionId, "Visit the settlement's mission board to take this mission.");
+            MissionFail(session, missionId, "@srv.mission.board_settlement");
             return;
         }
 
         if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
         {
-            MissionFail(session, missionId, "Visit the station mission board to take this mission.");
+            MissionFail(session, missionId, "@srv.mission.board_station");
             return;
         }
 
         if (session.State.Missions.Any(m => m.MissionId == missionId))
         {
-            MissionFail(session, missionId, "Mission already accepted.");
+            MissionFail(session, missionId, "@srv.mission.accepted");
             return;
         }
 
@@ -151,19 +151,19 @@ public sealed partial class GameServer
         var def = GetMissionDef(missionId);
         if (pr is null || def is null)
         {
-            MissionFail(session, missionId, "Mission is not active.");
+            MissionFail(session, missionId, "@srv.mission.not_active");
             return;
         }
 
         if (IsSettlementMission(missionId) && !NearSettlementMissionBoard(session.State))
         {
-            MissionFail(session, missionId, "Return to the settlement's mission board to turn this in.");
+            MissionFail(session, missionId, "@srv.mission.return_settlement");
             return;
         }
 
         if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
         {
-            MissionFail(session, missionId, "Return to the station mission board to turn this in.");
+            MissionFail(session, missionId, "@srv.mission.return_station");
             return;
         }
 
@@ -182,7 +182,7 @@ public sealed partial class GameServer
 
             if (have < obj.Required)
             {
-                MissionFail(session, missionId, "Objectives are not complete yet.");
+                MissionFail(session, missionId, "@srv.mission.incomplete");
                 return;
             }
         }
@@ -302,13 +302,13 @@ public sealed partial class GameServer
 
         if (mine >= MaxPlayerMissions)
         {
-            MissionFail(session, "", $"You already have {MaxPlayerMissions} active missions posted.");
+            MissionFail(session, "", "@srv.mission.too_many:" + MaxPlayerMissions);
             return;
         }
 
         if (intent.Objectives.Length > MaxMissionParts || intent.Rewards.Length > MaxMissionParts)
         {
-            MissionFail(session, "", $"A mission may have at most {MaxMissionParts} objectives and rewards.");
+            MissionFail(session, "", "@srv.mission.too_many_parts:" + MaxMissionParts);
             return;
         }
 
@@ -319,7 +319,7 @@ public sealed partial class GameServer
                 type is not (MissionObjectiveType.Collect or MissionObjectiveType.Mine
                     or MissionObjectiveType.Deliver or MissionObjectiveType.Travel))
             {
-                MissionFail(session, "", $"Unsupported objective type '{o.Type}'.");
+                MissionFail(session, "", "@srv.mission.bad_objective:" + o.Type);
                 return;
             }
 
@@ -331,7 +331,7 @@ public sealed partial class GameServer
             };
             if (!valid || o.Required < 1)
             {
-                MissionFail(session, "", $"Invalid objective target '{o.Target}'.");
+                MissionFail(session, "", "@srv.mission.bad_target:" + o.Target);
                 return;
             }
 
@@ -340,7 +340,7 @@ public sealed partial class GameServer
 
         if (objectives.Count == 0)
         {
-            MissionFail(session, "", "A mission needs at least one objective.");
+            MissionFail(session, "", "@srv.mission.need_objective");
             return;
         }
 
@@ -349,7 +349,7 @@ public sealed partial class GameServer
         {
             if (_content.GetItem(r.Item) is null || r.Count < 1)
             {
-                MissionFail(session, "", $"Invalid reward item '{r.Item}'.");
+                MissionFail(session, "", "@srv.mission.bad_reward:" + r.Item);
                 return;
             }
 
@@ -360,7 +360,7 @@ public sealed partial class GameServer
         var pool = new MaterialPool(_content, session.State, _ship);
         if (!pool.Has(rewards))
         {
-            MissionFail(session, "", "You do not have the reward items to deposit.");
+            MissionFail(session, "", "@srv.mission.no_rewards");
             return;
         }
 
@@ -423,7 +423,7 @@ public sealed partial class GameServer
             if (back > 0)
             {
                 posterPool.Add(r.Item, back);
-                parts.Add($"{back}× {r.Item}");
+                parts.Add($"{back}× {LocalizedName(poster.Locale, _content.GetItem(r.Item)?.NameKey, r.Item)}");
             }
         }
 
@@ -431,7 +431,10 @@ public sealed partial class GameServer
         SendInventory(poster);
         Send(poster, new ServerMessage
         {
-            Text = $"Mission '{def.Title}' completed by {completer.State.Name} — you got back {string.Join(", ", parts)}.",
+            Text = Localize(poster.Locale, "srv.mission.poster_paid")
+                .Replace("{title}", def.Title)
+                .Replace("{player}", completer.State.Name)
+                .Replace("{items}", string.Join(", ", parts)),
         });
     }
 

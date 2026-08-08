@@ -24,15 +24,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Green = Rgba.Rgb(124, 255, 176);
 
         public string Key => "star_memory";
-        public LocText Title => new LocText("Star Map Memory", "Sternkarten-Gedächtnis");
-        public LocText Desc => new LocText(
-            "Navigator training: flip the chart tiles two at a time and find every matching pair.",
-            "Navigatoren-Training: drehe die Karten paarweise um und finde alle Paare.");
-        public LocText Hint => new LocText("Click two cards to find a pair", "Zwei Karten anklicken, um ein Paar zu finden");
+        public LocText Title => new LocText("minigame.star_memory.title");
+        public LocText Desc => new LocText("minigame.star_memory.desc");
+        public LocText Hint => new LocText("minigame.star_memory.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click a card to reveal it, then a second to find its match", "Karte aufdecken, dann zweite suchen"),
-            new LocText("Fewer moves = a higher rating", "Weniger Züge = bessere Bewertung"),
+            new LocText("minigame.star_memory.help1"),
+            new LocText("minigame.star_memory.help2"),
         };
         public int Difficulty => 1;
 

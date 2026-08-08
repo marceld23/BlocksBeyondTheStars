@@ -69,7 +69,7 @@ public sealed partial class GameServer
         int connId = admin.ConnectionId;
         if (!_aiMissionInFlight.TryAdd(connId, 1))
         {
-            return "An AI mission is already being generated — please wait.";
+            return "@srv.ai.busy";
         }
 
         string enriched = EnrichMissionContext(context);
@@ -88,7 +88,7 @@ public sealed partial class GameServer
             _aiMissionOutbox.Enqueue((connId, plan));
         });
 
-        return "Generating an AI mission…";
+        return "@srv.ai.generating";
     }
 
     /// <summary>Drains finished AI mission generations: validates, publishes/drafts, and reports the result
@@ -111,8 +111,8 @@ public sealed partial class GameServer
     /// isn't available at this level, or null when it is.</summary>
     private (bool Ok, string Message)? AiMissionGate() => _config.AiLevel switch
     {
-        AiLevel.Off => (false, "AI is disabled on this server."),
-        AiLevel.TextOnly => (false, "AI level is text-only; full mission generation is disabled."),
+        AiLevel.Off => (false, "@srv.ai.disabled"),
+        AiLevel.TextOnly => (false, "@srv.ai.text_only"),
         _ => null,
     };
 
@@ -123,7 +123,7 @@ public sealed partial class GameServer
         if (plan is null)
         {
             _log.Warn("AI backend returned no mission (unavailable or disabled) — falling back to none.");
-            return (false, "AI backend unavailable — no mission generated (fallback).");
+            return (false, "@srv.ai.unavailable");
         }
 
         var id = "ai_" + System.Guid.NewGuid().ToString("N");
@@ -143,7 +143,8 @@ public sealed partial class GameServer
 
         string verb = def.Active ? "published" : "drafted";
         _log.Info($"AI mission {verb}: '{def.Title}' ({id}).");
-        return (true, $"AI mission {verb}: {def.Title} ({id}).");
+        // Token + verbatim parameter: the title is LLM/admin-authored free text, so only the frame localizes.
+        return (true, (def.Active ? "@srv.ai.published:" : "@srv.ai.drafted:") + $"{def.Title} ({id})");
     }
 
     /// <summary>L0: appends the allowed objective targets and reward items (real content keys) to the

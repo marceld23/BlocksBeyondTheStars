@@ -27,23 +27,21 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Bad = Rgba.Rgb(255, 107, 107);
 
         public string Key => "glyph_decoder";
-        public LocText Title => new LocText("Alien Glyph Decoder", "Alien-Glyphen-Entschlüssler");
-        public LocText Desc => new LocText(
-            "Study the glyph translations, then decode them from memory before the signal fades.",
-            "Präge dir die Glyphen-Übersetzungen ein und entschlüssle sie dann aus dem Gedächtnis.");
-        public LocText Hint => new LocText("Memorise the pairs, then pick the meaning for each glyph", "Paare merken, dann Bedeutung pro Glyphe wählen");
+        public LocText Title => new LocText("minigame.glyph_decoder.title");
+        public LocText Desc => new LocText("minigame.glyph_decoder.desc");
+        public LocText Hint => new LocText("minigame.glyph_decoder.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("First a study phase shows each glyph's meaning", "Zuerst zeigt eine Lernphase die Bedeutung jeder Glyphe"),
-            new LocText("Then choose the right meaning for each glyph", "Dann die richtige Bedeutung pro Glyphe wählen"),
+            new LocText("minigame.glyph_decoder.help1"),
+            new LocText("minigame.glyph_decoder.help2"),
         };
         public int Difficulty => 2;
 
         private static readonly LocText[] Meanings =
         {
-            new LocText("Star", "Stern"), new LocText("Home", "Heimat"), new LocText("Danger", "Gefahr"),
-            new LocText("Water", "Wasser"), new LocText("Energy", "Energie"), new LocText("Void", "Leere"),
-            new LocText("Ally", "Verbündeter"), new LocText("Path", "Pfad"),
+            new LocText("minigame.glyph_decoder.meaning_star"), new LocText("minigame.glyph_decoder.meaning_home"), new LocText("minigame.glyph_decoder.meaning_danger"),
+            new LocText("minigame.glyph_decoder.meaning_water"), new LocText("minigame.glyph_decoder.meaning_energy"), new LocText("minigame.glyph_decoder.meaning_void"),
+            new LocText("minigame.glyph_decoder.meaning_ally"), new LocText("minigame.glyph_decoder.meaning_path"),
         };
 
         public MinigameController Create(MinigameApi api)
@@ -58,26 +56,24 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
             int feedbackOpt = -1;
             bool feedbackOk = false;
 
-            string T(string en, string de) => api.German ? de : en;
-
             (int x, int y) OptPos(int i) => (OptStartX + (i % 2) * (OptW + OptGapX), OptTop + (i / 2) * (OptH + OptGapY));
 
             void DrawStudy()
             {
                 canvas.Clear(Bg);
-                canvas.DrawText(20, 20, (T("DECODING IN ", "ENTSCHLUESSELUNG IN ") + studyCount).ToUpperInvariant(), Info, 2);
+                canvas.DrawText(20, 20, (api.Localize("minigame.glyph_decoder.decoding_in") + studyCount).ToUpperInvariant(), Info, 2);
                 for (int k = 0; k < 4; k++)
                 {
                     int y = 80 + k * 60;
                     canvas.DrawText(120, y, pairGlyph[k].ToString(), GlyphCol, 4);
-                    canvas.DrawText(210, y + 7, Meanings[pairMeaning[k]].Get(api.German).ToUpperInvariant(), Ink, 2);
+                    canvas.DrawText(210, y + 7, Meanings[pairMeaning[k]].Get(api.Localize).ToUpperInvariant(), Ink, 2);
                 }
             }
 
             void DrawAsk()
             {
                 canvas.Clear(Bg);
-                canvas.DrawText(20, 20, T("WHAT DOES THIS GLYPH MEAN?", "WAS BEDEUTET DIESE GLYPHE?"), Info, 2);
+                canvas.DrawText(20, 20, api.Localize("minigame.glyph_decoder.question"), Info, 2);
                 canvas.DrawTextCentered(W / 2, 80, pairGlyph[qi].ToString(), GlyphCol, 9);
                 for (int i = 0; i < options.Count; i++)
                 {
@@ -90,7 +86,7 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
 
                     canvas.FillRect(x, y, OptW, OptH, BtnBg);
                     canvas.DrawRect(x, y, OptW, OptH, edge);
-                    canvas.DrawTextCentered(x + OptW / 2, y + OptH / 2 - 7, Meanings[options[i]].Get(api.German).ToUpperInvariant(), feedbackOpt == i ? edge : Ink, 2);
+                    canvas.DrawTextCentered(x + OptW / 2, y + OptH / 2 - 7, Meanings[options[i]].Get(api.Localize).ToUpperInvariant(), feedbackOpt == i ? edge : Ink, 2);
                 }
             }
 

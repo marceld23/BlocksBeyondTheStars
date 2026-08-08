@@ -48,10 +48,6 @@ public sealed partial class GameServer
     private bool IsFleetAdminName(string name)
         => _config.FleetAdminPlayers.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>True when this session's client is German — server-authored text is written in the player's
-    /// language (the game is bilingual DE/EN).</summary>
-    private static bool De(PlayerSession session) => session.Locale == "de";
-
     /// <summary>Which client intents an observer may still act on. Movement and pure read/query traffic pass;
     /// mining passes because removing an offensive build is the one in-world moderation lever we have (bans are
     /// account-level and world stop/delete is a sledgehammer). Everything else is dropped.</summary>
@@ -107,12 +103,7 @@ public sealed partial class GameServer
         p.InSpeeder = string.Empty;
 
         SendPlayerState(session);
-        Send(session, new ServerMessage
-        {
-            Text = De(session)
-                ? "Beobachter-Modus AN — du bist unsichtbar, unverwundbar und hinterlässt keine Spuren."
-                : "Observer mode ON — you are invisible, invulnerable and leave no trace.",
-        });
+        Send(session, new ServerMessage { Text = "@srv.obs.on" });
         CheatLog(p, "entered observer mode");
     }
 
@@ -140,10 +131,7 @@ public sealed partial class GameServer
         // otherwise stay missing until the admin edits it.
         BroadcastFace(session);
         SendPlayerState(session);
-        Send(session, new ServerMessage
-        {
-            Text = De(session) ? "Beobachter-Modus AUS." : "Observer mode OFF.",
-        });
+        Send(session, new ServerMessage { Text = "@srv.obs.off" });
         CheatLog(p, "left observer mode");
     }
 
@@ -156,12 +144,7 @@ public sealed partial class GameServer
 
         if (on == session.Spectating)
         {
-            Send(session, new ServerMessage
-            {
-                Text = De(session)
-                    ? $"Beobachter-Modus ist bereits {(on ? "an" : "aus")}."
-                    : $"Observer mode is already {(on ? "on" : "off")}.",
-            });
+            Send(session, new ServerMessage { Text = on ? "@srv.obs.already_on" : "@srv.obs.already_off" });
             return;
         }
 
@@ -232,23 +215,22 @@ public sealed partial class GameServer
     /// <summary><c>/players</c> — who is on this world, and where everyone was last seen.</summary>
     private void AdminListPlayers(PlayerSession session)
     {
-        bool de = De(session);
         var all = AllKnownPlayers();
         if (all.Count == 0)
         {
-            Send(session, new ServerMessage { Text = de ? "Keine Spieler bekannt." : "No players known." });
+            Send(session, new ServerMessage { Text = "@srv.obs.no_players" });
             return;
         }
 
         Send(session, new ServerMessage
         {
-            Text = de ? $"— Spieler ({all.Count}) —" : $"— Players ({all.Count}) —",
+            Text = Localize(session.Locale, "srv.obs.players_header").Replace("{count}", all.Count.ToString()),
         });
 
         foreach (var (state, online, observing) in all)
         {
             string status = observing
-                ? (de ? "beobachtet" : "observing")
+                ? Localize(session.Locale, "srv.obs.observing")
                 : online ? "online" : ShortTime(state.LastSeenUtc); // "online" reads the same in both languages
 
             Send(session, new ServerMessage
@@ -263,10 +245,9 @@ public sealed partial class GameServer
     /// players: the position is persisted per player, so the save already knows where they stopped.</summary>
     private void AdminWhere(PlayerSession session, string? name)
     {
-        bool de = De(session);
         if (string.IsNullOrWhiteSpace(name))
         {
-            Reject(session, "admin", de ? "Benutzung: /where Name" : "Usage: /where Name");
+            Reject(session, "admin", "@srv.obs.usage_where");
             return;
         }
 
@@ -274,7 +255,7 @@ public sealed partial class GameServer
             .FirstOrDefault(e => string.Equals(e.State.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match.State is null)
         {
-            Reject(session, "admin", de ? "Unbekannter Spieler." : "Unknown player.");
+            Reject(session, "admin", "@srv.obs.unknown_player");
             return;
         }
 
@@ -284,7 +265,7 @@ public sealed partial class GameServer
             Text = $"{s.Name}: {BodyLabel(s.CurrentLocationId)} · {Coords(s.Position)} · "
                    + (match.Online
                        ? "online"
-                       : (de ? "zuletzt " : "last seen ") + ShortTime(s.LastSeenUtc)),
+                       : Localize(session.Locale, "srv.obs.last_seen").Replace("{time}", ShortTime(s.LastSeenUtc))),
         });
         Send(session, new ServerMessage { Text = $"/goto {s.CurrentLocationId} {Coords(s.Position).Replace('/', ' ')}" });
     }
@@ -328,7 +309,6 @@ public sealed partial class GameServer
     /// block-edit hotspots on the fleet admin panel instead (issue #489).</summary>
     private void AdminListBuilds(PlayerSession session, string? ownerFilter)
     {
-        bool de = De(session);
         var builds = AllBuilds();
         if (!string.IsNullOrWhiteSpace(ownerFilter))
         {
@@ -338,16 +318,13 @@ public sealed partial class GameServer
 
         if (builds.Count == 0)
         {
-            Send(session, new ServerMessage
-            {
-                Text = de ? "Keine benannten Bauten gefunden." : "No named structures found.",
-            });
+            Send(session, new ServerMessage { Text = "@srv.obs.no_builds" });
             return;
         }
 
         Send(session, new ServerMessage
         {
-            Text = de ? $"— Bauten ({builds.Count}) —" : $"— Structures ({builds.Count}) —",
+            Text = Localize(session.Locale, "srv.obs.builds_header").Replace("{count}", builds.Count.ToString()),
         });
 
         // The console is a chat log, so cap the burst: a world with hundreds of beacons would otherwise
@@ -355,7 +332,7 @@ public sealed partial class GameServer
         const int maxLines = 40;
         foreach (var b in builds.Take(maxLines))
         {
-            string label = string.IsNullOrWhiteSpace(b.Name) ? "(unnamed)" : b.Name;
+            string label = string.IsNullOrWhiteSpace(b.Name) ? Localize(session.Locale, "srv.obs.unnamed") : b.Name;
             Send(session, new ServerMessage
             {
                 Text = $"{b.Kind}: {label} · {b.Owner} · {BodyLabel(b.Body)} · /goto {b.Body} {b.Cell.X} {b.Cell.Y} {b.Cell.Z}",
@@ -366,9 +343,8 @@ public sealed partial class GameServer
         {
             Send(session, new ServerMessage
             {
-                Text = de
-                    ? $"… {builds.Count - maxLines} weitere — mit /builds Name eingrenzen."
-                    : $"… {builds.Count - maxLines} more — narrow it down with /builds Name.",
+                Text = Localize(session.Locale, "srv.obs.builds_more")
+                    .Replace("{count}", (builds.Count - maxLines).ToString()),
             });
         }
     }
@@ -381,7 +357,6 @@ public sealed partial class GameServer
     /// <c>/goto &lt;bodyId&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt;</c>.</summary>
     private void AdminGoto(PlayerSession session, string? argument)
     {
-        bool de = De(session);
         // No StringSplitOptions.TrimEntries here: this assembly also targets netstandard2.1 for the in-browser
         // singleplayer server, where that overload does not exist.
         var parts = (argument ?? string.Empty)
@@ -391,9 +366,7 @@ public sealed partial class GameServer
             .ToArray();
         if (parts.Length == 0)
         {
-            Reject(session, "admin", de
-                ? "Benutzung: /goto Spieler · /goto base|beacon|beam|station Name · /goto Körper X Y Z"
-                : "Usage: /goto Player · /goto base|beacon|beam|station Name · /goto Body X Y Z");
+            Reject(session, "admin", "@srv.obs.usage_goto");
             return;
         }
 
@@ -416,7 +389,9 @@ public sealed partial class GameServer
                 b.Kind == kind && string.Equals(b.Name, wanted, StringComparison.OrdinalIgnoreCase));
             if (string.IsNullOrEmpty(hit.Body))
             {
-                Reject(session, "admin", de ? $"Kein {kind} mit dem Namen '{wanted}'." : $"No {kind} named '{wanted}'.");
+                Reject(session, "admin", Localize(session.Locale, "srv.obs.no_build_named")
+                    .Replace("{kind}", kind)
+                    .Replace("{name}", wanted));
                 return;
             }
 
@@ -433,7 +408,7 @@ public sealed partial class GameServer
             .FirstOrDefault(e => string.Equals(e.State.Name, playerName, StringComparison.OrdinalIgnoreCase));
         if (match.State is null)
         {
-            Reject(session, "admin", de ? "Unbekannter Spieler." : "Unknown player.");
+            Reject(session, "admin", "@srv.obs.unknown_player");
             return;
         }
 
@@ -444,10 +419,9 @@ public sealed partial class GameServer
     /// them to <paramref name="target"/>.</summary>
     private void GotoPosition(PlayerSession session, string bodyId, Vector3f target, string what)
     {
-        bool de = De(session);
         if (string.IsNullOrEmpty(bodyId))
         {
-            Reject(session, "admin", de ? "Unbekannter Zielort." : "Unknown destination.");
+            Reject(session, "admin", "@srv.obs.unknown_destination");
             return;
         }
 
@@ -455,7 +429,7 @@ public sealed partial class GameServer
         {
             if (_galaxy?.FindBody(bodyId) is null)
             {
-                Reject(session, "admin", de ? "Unbekannter Himmelskörper." : "Unknown celestial body.");
+                Reject(session, "admin", "@srv.obs.unknown_body");
                 return;
             }
 
@@ -470,7 +444,7 @@ public sealed partial class GameServer
 
         // The snap has to ride the RespawnNotice channel or the client discards it (#414 M7) — shared with
         // the named teleport in GameServerAdminTeleport.
-        SnapPlayerTo(session, target, de ? $"Gesprungen zu {what}." : $"Jumped to {what}.");
+        SnapPlayerTo(session, target, "@srv.obs.jumped:" + what);
         CheatLog(session.State, $"jumped to {what} on {bodyId}");
     }
 }

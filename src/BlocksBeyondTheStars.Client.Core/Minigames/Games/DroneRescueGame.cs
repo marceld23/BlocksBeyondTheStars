@@ -21,16 +21,14 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba Drone = Rgba.Rgb(124, 255, 176);
 
         public string Key => "drone_rescue";
-        public LocText Title => new LocText("Drone Rescue", "Drohnen-Rettung");
-        public LocText Desc => new LocText(
-            "Pilot the repair drone to every damaged node, then reach the extraction zone — before energy runs out.",
-            "Steuere die Reparaturdrohne zu allen beschädigten Knoten und erreiche dann die Extraktionszone — bevor die Energie ausgeht.");
-        public LocText Hint => new LocText("← ↑ ↓ → move (collect energy cells, repair nodes, reach exit)", "← ↑ ↓ → bewegen (Energie sammeln, Knoten reparieren, Ausgang erreichen)");
+        public LocText Title => new LocText("minigame.drone_rescue.title");
+        public LocText Desc => new LocText("minigame.drone_rescue.desc");
+        public LocText Hint => new LocText("minigame.drone_rescue.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Arrow keys / WASD move the drone (costs energy)", "Pfeile / WASD bewegen die Drohne (kostet Energie)"),
-            new LocText("Step on blue energy cells to refuel, orange nodes to repair", "Auf blaue Energiezellen treten zum Tanken, orange Knoten zum Reparieren"),
-            new LocText("Repair all nodes, then reach the green exit", "Alle Knoten reparieren, dann zum grünen Ausgang"),
+            new LocText("minigame.drone_rescue.help1"),
+            new LocText("minigame.drone_rescue.help2"),
+            new LocText("minigame.drone_rescue.help3"),
         };
         public int Difficulty => 3;
 

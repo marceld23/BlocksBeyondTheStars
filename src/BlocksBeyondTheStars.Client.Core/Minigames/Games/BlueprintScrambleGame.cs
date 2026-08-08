@@ -20,15 +20,13 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         private static readonly Rgba CellEdge = new Rgba(70, 214, 255, 64);
 
         public string Key => "blueprint_scramble";
-        public LocText Title => new LocText("Blueprint Scramble", "Blaupausen-Puzzle");
-        public LocText Desc => new LocText(
-            "A salvaged blueprint came in scrambled. Rotate each fragment until the schematic is whole again.",
-            "Eine geborgene Blaupause ist verdreht. Drehe jedes Fragment, bis das Schema wieder stimmt.");
-        public LocText Hint => new LocText("Click a fragment to rotate it (corner marker belongs top-left)", "Fragment anklicken zum Drehen (Eck-Marke gehört oben links)");
+        public LocText Title => new LocText("minigame.blueprint_scramble.title");
+        public LocText Desc => new LocText("minigame.blueprint_scramble.desc");
+        public LocText Hint => new LocText("minigame.blueprint_scramble.hint");
         public IReadOnlyList<LocText> Help { get; } = new[]
         {
-            new LocText("Click a fragment to rotate it 90°", "Fragment anklicken, um es um 90° zu drehen"),
-            new LocText("When every fragment's bright corner marker sits top-left, the blueprint is solved", "Wenn die helle Eck-Marke jedes Fragments oben links sitzt, ist die Blaupause gelöst"),
+            new LocText("minigame.blueprint_scramble.help1"),
+            new LocText("minigame.blueprint_scramble.help2"),
         };
         public int Difficulty => 2;
 

@@ -247,7 +247,7 @@ public sealed partial class GameServer
     {
         if (!session.State.IsAdmin)
         {
-            Reject(session, "story", "Only an admin can change the active story.");
+            Reject(session, "story", "@srv.admin.story_admin_only");
             return;
         }
 

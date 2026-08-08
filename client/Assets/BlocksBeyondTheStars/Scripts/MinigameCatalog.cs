@@ -11,30 +11,21 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The client-side catalogue of bundled arcade minigames, loaded from
     /// <c>StreamingAssets/data/minigames/catalog.json</c>. It is the single source of truth for which games exist,
-    /// their bilingual titles/descriptions, and — crucially — how a data cube's opaque <see cref="long"/> seed
-    /// maps to a concrete game (<see cref="GameForSeed"/>). The server never reads this; it only places cubes
-    /// with seeds, so the same build resolves every cube to the same game on every client.
+    /// their title/description locale keys (resolved through the shared <c>Localizer</c>), and — crucially — how a
+    /// data cube's opaque <see cref="long"/> seed maps to a concrete game (<see cref="GameForSeed"/>). The server
+    /// never reads this; it only places cubes with seeds, so the same build resolves every cube to the same game on
+    /// every client.
     /// </summary>
     public sealed class MinigameCatalog
     {
-        [Serializable] public sealed class Loc { public string en = ""; public string de = ""; }
-
         [Serializable]
         public sealed class Entry
         {
             public string key = "";
             public string entry = "";   // path under minigames/, e.g. "snake/index.html"
             public string icon = "";
-            public Loc title = new Loc();
-            public Loc desc = new Loc();
-
-            public string Title(bool german) => Pick(title, german);
-            public string Desc(bool german) => Pick(desc, german);
-            private static string Pick(Loc l, bool german)
-            {
-                if (l == null) return "";
-                return german ? (string.IsNullOrEmpty(l.de) ? l.en : l.de) : (string.IsNullOrEmpty(l.en) ? l.de : l.en);
-            }
+            public string titleKey = "";   // locale key, e.g. "minigame.blockfall.title"
+            public string descKey = "";    // locale key, e.g. "minigame.blockfall.card_desc"
         }
 
         [Serializable] private sealed class File_ { public Entry[] games; }

@@ -37,12 +37,12 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
         public LocText Title { get; }
         public LocText Desc { get; }
         public int Difficulty { get; }
-        public LocText Hint => new LocText("Click a tile to rotate its lines · light up the path to the receiver", "Kachel anklicken zum Drehen · Pfad zum Empfänger erleuchten");
+        public LocText Hint => new LocText("minigame." + Key + ".hint");
         public IReadOnlyList<LocText> Help => new[]
         {
             Desc,
-            new LocText("Click any tile to rotate its lines 90°", "Beliebige Kachel anklicken, dreht ihre Leitungen um 90°"),
-            new LocText("When a connected path glows from source to receiver, it's solved — fewer rotations score higher", "Wenn ein verbundener Pfad von der Quelle zum Empfänger leuchtet, ist es gelöst — weniger Drehungen geben mehr Punkte"),
+            new LocText("minigame." + Key + ".help1"),
+            new LocText("minigame." + Key + ".help2"),
         };
 
         private static int Opp(int d) => d switch { N => S, S => N, E => Wd, _ => E };
@@ -231,9 +231,8 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
     public sealed class CircuitWeaverGame : FlowPuzzleGame
     {
         public CircuitWeaverGame()
-            : base("circuit_weaver", new LocText("Circuit Weaver", "Circuit Weaver"),
-                new LocText("Rotate the conduit tiles so energy flows from the generator to the receiver.",
-                    "Drehe die Leitungskacheln, bis Energie vom Generator zum Empfänger fließt."),
+            : base("circuit_weaver", new LocText("minigame.circuit_weaver.title"),
+                new LocText("minigame.circuit_weaver.desc"),
                 2, 6, Rgba.Rgb(124, 255, 176))
         {
         }
@@ -243,9 +242,8 @@ namespace BlocksBeyondTheStars.Client.Minigames.Games
     public sealed class OxygenLoopGame : FlowPuzzleGame
     {
         public OxygenLoopGame()
-            : base("oxygen_loop", new LocText("Oxygen Loop", "Sauerstoff-Kreislauf"),
-                new LocText("Rotate the pipe tiles so oxygen flows from the life-support core to the habitat.",
-                    "Drehe die Rohrkacheln, bis Sauerstoff vom Lebenserhaltungskern zum Habitat fließt."),
+            : base("oxygen_loop", new LocText("minigame.oxygen_loop.title"),
+                new LocText("minigame.oxygen_loop.desc"),
                 3, 7, Rgba.Rgb(124, 255, 176))
         {
         }

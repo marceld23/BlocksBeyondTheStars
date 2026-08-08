@@ -105,10 +105,12 @@ so it stays headless-testable.
   {
     "key": "mygame",
     "icon": "🎲",
-    "title": { "en": "My Game", "de": "Mein Spiel" },
-    "desc":  { "en": "One-line description.", "de": "Einzeilige Beschreibung." }
+    "titleKey": "minigame.mygame.title",
+    "descKey": "minigame.mygame.card_desc"
   }
   ```
+  `titleKey`/`descKey` are locale keys — add the strings for every language to `data/locales/*.json`
+  (the game's own `Title`/`Desc`/`Hint`/`Help` are `minigame.mygame.*` keys too).
 - `key` must be unique and match the registry key. It's what gets stored in the player's collection.
 - **Order is authoritative and must match the registry order:** a data cube maps its seed to a game by index
   (`seed mod games.length`). Appending is safe; **reordering/removing changes which cube grants which game**
@@ -123,4 +125,4 @@ so it stays headless-testable.
 Scoring note: "higher is better" (rating 1–3 drives the knowledge reward). For move/time-based games convert
 to a higher-is-better score + rating before reporting completion.
 
-Bilingual ({en,de}) everywhere; sound WAV/OGG/Opus only.
+All player-facing text goes through `minigame.*` locale keys in `data/locales/*.json`; sound WAV/OGG/Opus only.
