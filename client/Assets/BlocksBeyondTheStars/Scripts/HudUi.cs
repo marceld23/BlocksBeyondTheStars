@@ -645,18 +645,28 @@ namespace BlocksBeyondTheStars.Client
             // announced once on entry and spelled out on the O2 bar, but only where it matters (worlds
             // whose own air is NOT breathable; under a breathable sky the base adds nothing).
             bool breathable = Game.Environment != null && Game.Environment.Breathable;
+            // Base air (#782/#794): the local cube mirror still names the base; SEALED rooms beyond the
+            // cube only the server can judge (the fill needs the airtight table), so the server-sent
+            // LifeSupportSource (3 = base) extends the same feedback into them — and doubles as a "life
+            // support lost" cue the moment a mined wall drops the source while the sky stays unbreathable.
             var zoneBase = FindBaseZone();
-            if (zoneBase != null && !_wasInBaseZone && !breathable)
+            bool baseAir = zoneBase != null || Game.LifeSupportSource == 3;
+            if (baseAir && !_wasInBaseZone && !breathable)
             {
-                string baseName = string.IsNullOrEmpty(zoneBase.Name) ? loc.Get("ui.base.default") : zoneBase.Name;
+                string baseName = zoneBase == null || string.IsNullOrEmpty(zoneBase.Name)
+                    ? loc.Get("ui.base.default") : zoneBase.Name;
                 Game.ShowMessage(loc.Get("ui.base.life_support").Replace("{name}", baseName));
             }
-            _wasInBaseZone = zoneBase != null;
+            else if (!baseAir && _wasInBaseZone && !breathable && Game.LifeSupportSource == 0 && !Game.Aboard)
+            {
+                Game.ShowMessage(loc.Get("ui.base.air_left")); // stepped (or un-sealed) out of base air
+            }
+            _wasInBaseZone = baseAir;
 
             // Spell out "(breathable)" rather than a bare "*", so new players understand the full O2 bar isn't
             // draining because the air here is breathable — and that it will drain elsewhere (space, toxic worlds).
             string oxySuffix = breathable ? "  (" + loc.Get("ui.hud.breathable") + ")"
-                : zoneBase != null ? "  (" + loc.Get("ui.hud.base_air") + ")"
+                : baseAir ? "  (" + loc.Get("ui.hud.base_air") + ")"
                 : string.Empty;
             string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;
             SetVital(1, oxy, Game.Oxygen, Game.Oxygen / 100f, Oxygen, true);

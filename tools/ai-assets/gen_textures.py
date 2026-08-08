@@ -139,6 +139,8 @@ TEXTURES = [
     ("crate", "a sci-fi metal storage crate container box with a hinged lid and corner latches, top-down"),
     ("door_hinge", "a closed metal hinged door panel set in a frame, with a round handle and visible hinges, front view"),
     ("door_slide", "a closed sci-fi sliding blast door with a centre seam and glowing status light, front view"),
+    # Energy door — the walk-through air curtain that seals a base room (#793).
+    ("door_energy", "a sci-fi doorway, a dark metal frame filled with a softly glowing translucent blue energy field with faint horizontal shimmer lines, front view"),
     ("asteroid_rock", "a rough grey pitted space asteroid rock surface, cratered stony texture with mineral flecks, seamless"),
     ("radio_beacon", "a sci-fi radio beacon transmitter tower, a slim metal pole on a base with a glowing cyan antenna ring and blinking status light, front view"),
     ("base_core", "a sci-fi base foundation cornerstone block, a carved grey stone slab with a glowing teal-cyan claim emblem and faint engraved energy lines, top-down"),

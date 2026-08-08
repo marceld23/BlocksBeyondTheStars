@@ -74,6 +74,17 @@ public sealed class BlockDefinition
     public bool Flammable { get; set; }
 
     /// <summary>
+    /// Whether this block holds air as a wall of a sealed base room (#794). Airtight blocks are what the
+    /// base's sealed-room life-support fill stops against; everything else leaks. Defaults are derived by
+    /// the content registry from the category — terrain/building/ore/machine/light seal (natural rock
+    /// included, so a dug-out cave can become a habitat), flora and doors don't — minus a curated
+    /// loose-material list (dirt, sand, snow, …). A block may also opt in explicitly via <c>airtight</c>
+    /// in <c>data/blocks.json</c> (the force field and the energy gate's membrane do). Only a full-cube
+    /// cell seals — shaped cells are treated as leaky at fill time.
+    /// </summary>
+    public bool Airtight { get; set; }
+
+    /// <summary>
     /// Whether the player may re-form this block into another shape (the always-available "Shape" crafting
     /// action — spheres, ramps, pyramids, …). Restricted to the same plain building/terrain materials as
     /// <see cref="Tintable"/>; machines, doors, glass, flora, fluids and light blocks are excluded because a

@@ -119,6 +119,7 @@ namespace BlocksBeyondTheStars.Client
             M("heal_tank", new Color(0.4f, 0.9f, 0.6f)),
             M("quarters", new Color(0.6f, 0.45f, 0.8f)),
             M("console", new Color(0.3f, 0.6f, 0.95f)),
+            M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
         };
 
         private EditorPaletteKit.Entry[] SettlementMarkers() => new[]
@@ -128,6 +129,7 @@ namespace BlocksBeyondTheStars.Client
             M("npc", new Color(0.85f, 0.6f, 0.5f)),
             M("door_slide", new Color(0.40f, 0.85f, 0.95f)),
             M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
+            M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
             M("loot", new Color(0.8f, 0.7f, 0.3f)),
         };
 

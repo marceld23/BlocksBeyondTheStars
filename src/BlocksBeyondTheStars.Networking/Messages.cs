@@ -801,6 +801,12 @@ public sealed class PlayerStateUpdate
     /// tells the HUD WHY suit energy (or, once empty, health) is falling.</summary>
     public bool SuitClimateActive { get; set; }
 
+    /// <summary>Which life support keeps this player breathing (#794): 0 none (own tank / the world's own
+    /// air), 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Lets the HUD name the source —
+    /// the client cannot mirror the sealed-room fill locally. New field on an existing contractless
+    /// MessagePack message: an older client simply ignores it, an older server leaves it 0.</summary>
+    public byte LifeSupportSource { get; set; }
+
     /// <summary>Name of the space station the player is currently boarded on (empty when not on one).</summary>
     public string StationName { get; set; } = string.Empty;
 

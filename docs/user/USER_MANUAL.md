@@ -385,7 +385,16 @@ separate unlock; admins can still disable it through server world rules.
   **oxygen refills** even on toxic or airless worlds — the HUD marks the O2 bar with *(base life support)* and
   greets you with *"Life support: <base name>"* when you step in. **Anyone** may breathe at a base (guests
   still can't build or mine there), and the field disappears with the base if the core is mined. It even works
-  under water — sink the zone and you've built a diving dome.
+  under water — sink the zone and you've built a diving dome. On worlds without breathable air the zone shows
+  as a soft **blue shield dome** so you can see where the air ends.
+- **Sealed rooms extend the air**: rooms built at the base out of **airtight materials** — stone, metals,
+  concrete, bricks, glass (natural rock counts too: dig a cave!) — get life support **beyond the zone cube**,
+  as long as they are **sealed** and **connected to the base**. Loose stuff (dirt, sand, snow, plants) and
+  shaped blocks (ramps, spheres) leak. Doorways need the **Energy Door** (workshop, blueprint-gated): its blue
+  field is an **air curtain** — you walk right through, the air stays in. Ordinary doors (wood, hinged,
+  sliding) do NOT hold air. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
+  burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
+  oxygen until the hole is closed.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 

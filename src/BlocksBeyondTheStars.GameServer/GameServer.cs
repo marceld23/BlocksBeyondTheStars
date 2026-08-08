@@ -1269,9 +1269,19 @@ public sealed partial class GameServer
             // A founded base's zone is a life-support field (issue #782): the Grundstein projects air over
             // its whole protection cube — the same hand-wave station interiors already use. Any base counts,
             // not just your own: visitors breathe too, the protection rules still keep them from editing.
-            bool atBase = !p.InEva && InAnyBaseZone(new Vector3i(
-                (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z)));
+            // Beyond the cube, SEALED rooms connected to the core breathe too (issue #794): walls of
+            // airtight full-cube blocks, energy doors in the doorways (#793) — mechanical doors leak.
+            var playerCell = new Vector3i(
+                (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
+            bool atBase = !p.InEva && (InAnyBaseZone(playerCell) || InSealedBaseRoom(playerCell));
             bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || InStation(p.PlayerId) || !Rules.OxygenEnabled);
+            // Which source keeps this player breathing — sent to the client so the HUD can name it
+            // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room). Base ranks last so
+            // the label only claims the base when nothing closer (ship/station) already covers you.
+            p.LifeSupportSource = (byte)(!lifeSupport ? 0
+                : p.AboardShip || insideShip ? 1
+                : InStation(p.PlayerId) ? 2
+                : atBase ? 3 : 0);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
@@ -3307,12 +3317,14 @@ public sealed partial class GameServer
         }
 
         // A door isn't a voxel block — it fills the (air) cell as a server door entity (Task 5 Stage 3c).
-        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide" || blockDef.Key == "door_wood")
+        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide" || blockDef.Key == "door_wood"
+            || blockDef.Key == "door_energy")
         {
             PlaceDoor(session, pos, blockDef.Key switch
             {
                 "door_slide" => "slide",
                 "door_wood" => "wood", // cheap early-game hinge door, swings by hand like the metal one
+                "door_energy" => "energy", // walk-through air curtain — the door that seals a base room (#793)
                 _ => "hinge",
             });
             SendInventory(session);
@@ -4430,6 +4442,7 @@ public sealed partial class GameServer
             InEva = p.InEva,
             AboveAtmosphere = p.AboveAtmosphere,
             SuitClimateActive = p.SuitClimateActive,
+            LifeSupportSource = p.LifeSupportSource,
             StationName = CurrentStationName(p.PlayerId),
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,

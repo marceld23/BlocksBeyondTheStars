@@ -185,6 +185,7 @@ public sealed partial class GameServer
                         continue; // an open entry renders as a hole
                     case "door_slide":
                     case "door_hinge":
+                    case "door_energy": // ship doors all register as energy doors anyway (item 35)
                         s.DoorCells.Add(p); // a server-authoritative slide door fills this opening
                         continue;
                     case "glass": s.Set(p, glass); continue;
