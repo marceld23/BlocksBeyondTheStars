@@ -2449,11 +2449,13 @@ namespace BlocksBeyondTheStars.Client
         /// player standing in a grass tuft (or next to a wall torch) was embedded in geometry, and would make a
         /// torch overhead cancel the auto-step.
         /// </summary>
-        private static bool IsCollidingKey(string key)
+        internal static bool IsCollidingKey(string key)
             => IsSolidKey(key)
                && key != "torch"
                && key != "lantern" // slim prop like the torch (#809)
                && key != "ladder"  // walk-through since #803 — a climber stands INSIDE the ladder cell
+               && key != "fire"        // burns, doesn't block — meshed without a collider
+               && key != "energy_gate" // walk-through membrane — meshed without a collider
                && !key.StartsWith("flora_", System.StringComparison.Ordinal);
 
         /// <summary>Whether there is solid footing just past the player's edge in a horizontal direction — used by

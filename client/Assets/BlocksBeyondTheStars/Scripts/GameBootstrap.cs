@@ -2279,8 +2279,11 @@ namespace BlocksBeyondTheStars.Client
             // A cell that just became solid where we are standing must lift us out, not swallow us: the server
             // allows placing into your own feet cell (pillar jumping), and mid-fall that used to drop the player
             // straight through the world. Every block change funnels through here, so another player filling the
-            // cell is covered too.
-            if (m.Block != BlockId.AirValue && Player != null)
+            // cell is covered too. ONLY blocks that actually collide count: the fluid simulation writes water
+            // cells into the swimmer's column (mining/placing near a body wakes it), and lifting on those
+            // teleported the diver out of the water onto the surface.
+            if (m.Block != BlockId.AirValue && Player != null
+                && PlayerController.IsCollidingKey(Content?.BlockById(new BlockId(m.Block))?.Key))
             {
                 Player.LiftOutOfBlockAt(m.X, m.Y, m.Z);
             }

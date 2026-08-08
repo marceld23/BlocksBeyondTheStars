@@ -157,7 +157,10 @@ public sealed partial class GameServer
         bool Solid(Vector3i p)
         {
             ushort id = get(p);
-            return id != 0 && (_content.BlockById(new BlockId(id))?.Solid ?? false);
+            // Fluids count as ground here: a fall into water/lava lands, it doesn't leave the world — and
+            // water lily / kelp hosts must keep passing this check now that water's Solid flag is false
+            // (dropped so the entombed rescue stops teleporting swimmers to the surface).
+            return id != 0 && (IsFluid(id) || (_content.BlockById(new BlockId(id))?.Solid ?? false));
         }
 
         // True when a cell has nothing to land on: no solid block within probe range below it.

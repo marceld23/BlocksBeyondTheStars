@@ -43,6 +43,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### Fixed
 
+- **You can actually dive now (#858).** Swimming down in deep water instantly bounced you back onto
+  the surface, once per second, with "You were stuck in the rock — dug out." The rescue that frees
+  players sealed inside blocks mistook every submerged swimmer (and every ladder climber, and anyone
+  in a kelp forest) for a player entombed in rock, because water counted as a solid block in the game
+  data. Water, ladders, torches and lanterns are now correctly non-solid, the rescue only triggers on
+  blocks that can really trap a body, and it still frees players genuinely buried in stone. NPCs keep
+  treating water as a wall — nothing wanders into ponds or spots you through a lake.
 - **You can build under water (#851).** Every placement while swimming was refused with "Target is
   not empty" — the cell you aim at under water holds water, and the server only accepted air. A block
   now displaces water or lava, so underwater walls, pillars out of a lake and a dry room on the

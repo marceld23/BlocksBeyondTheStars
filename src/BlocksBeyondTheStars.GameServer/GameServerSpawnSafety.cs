@@ -71,8 +71,8 @@ public sealed partial class GameServer
     /// spawned at the world-origin column 85 blocks down, motionless for the whole session, 7550 stone
     /// blocks around him and no air anywhere. Full health, so nothing ever killed him out of it either.
     /// </para>
-    /// Keyed on the <c>Solid</c> flag rather than "non-air" so a swimmer (water is non-solid) or someone in
-    /// a torch/flora cell is never mistaken for entombed.
+    /// Keyed on <see cref="IsBodyBlockingCell"/> rather than "non-air" so a swimmer (water is non-solid), a
+    /// ladder climber, or someone in a torch/flora cell is never mistaken for entombed.
     /// </summary>
     private bool IsEntombed(Vector3f pos)
     {
@@ -84,7 +84,32 @@ public sealed partial class GameServer
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        return IsSolidCell(x, y, z) && IsSolidCell(x, y + 1, z);
+        return IsBodyBlockingCell(x, y, z) && IsBodyBlockingCell(x, y + 1, z);
+    }
+
+    /// <summary>
+    /// A cell the player's body genuinely cannot occupy — the ONLY kind that counts for the entombed rescue.
+    /// Deliberately stricter than <see cref="IsSolidCell"/>: fluids are excluded (a submerged swimmer is not
+    /// stuck — the 1 Hz rescue used to "dig out" every diver onto the surface the moment the water was two
+    /// deep), and so is the flora category (kelp/vine strands stack into columns, have no client collider,
+    /// and would re-open the same loop for anyone swimming through a kelp forest). Belt-and-braces on the
+    /// fluid check: even a fluid whose data ever regains <c>solid: true</c> must not re-trap swimmers.
+    /// </summary>
+    private bool IsBodyBlockingCell(int x, int y, int z)
+    {
+        var id = _world.GetBlock(new Vector3i(x, y, z));
+        if (id.IsAir || IsFluid(id.Value))
+        {
+            return false;
+        }
+
+        var def = _content.BlockById(id);
+        if (def == null)
+        {
+            return true; // unknown id → treat as blocking (safe default, matches IsSolidCell)
+        }
+
+        return def.Solid && def.Category != "flora";
     }
 
     /// <summary>
@@ -111,8 +136,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Lifts an entombed position straight up to the first cell with standing room (feet + head
-    /// clear) resting on something solid. Returns null when the column has no such gap within
-    /// <see cref="EntombedProbeHeight"/> — the caller then falls back to the ship/landing pad.</summary>
+    /// clear) resting on something the body actually stands on. Returns null when the column has no such gap
+    /// within <see cref="EntombedProbeHeight"/> — the caller then falls back to the ship/landing pad.
+    /// Same predicate as <see cref="IsEntombed"/>, so water or a kelp cell is never offered as a floor.</summary>
     private Vector3f? DigOutUpwards(Vector3f pos)
     {
         int x = (int)System.Math.Floor(pos.X);
@@ -120,7 +146,7 @@ public sealed partial class GameServer
         int y0 = (int)System.Math.Floor(pos.Y);
         for (int y = y0 + 1; y <= y0 + EntombedProbeHeight; y++)
         {
-            if (!IsSolidCell(x, y, z) && !IsSolidCell(x, y + 1, z) && IsSolidCell(x, y - 1, z))
+            if (!IsBodyBlockingCell(x, y, z) && !IsBodyBlockingCell(x, y + 1, z) && IsBodyBlockingCell(x, y - 1, z))
             {
                 return new Vector3f(x + 0.5f, y, z + 0.5f);
             }

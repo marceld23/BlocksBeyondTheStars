@@ -104,6 +104,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Diving made possible: the entombed rescue no longer fishes swimmers out (#858, 2026-08-09, branch fix/swim-void-rescue)
+Wading into 2+ blocks of water, you sank in and **instantly popped back onto the surface** — once per second,
+with *"You were stuck in the rock — dug out."* The swim code was never at fault: `water` carries no
+`"solid": false` in `data/blocks.json` and `BlockDefinition.Solid` defaults to **true**, so the server's
+entombed guard (`IsEntombed`: feet + head cells solid) saw every submerged player as sealed inside rock, and
+the 1 Hz `TickVoidRescue`/`DigOutUpwards` "dug them out" to the first cell above the water — exactly the
+surface. The guard's own doc comment promised the opposite ("a swimmer (water is non-solid) … is never
+mistaken for entombed"); the data just never matched it.
+
+**Fix, four layers.** (1) *Data:* `"solid": false` for `water`, `ladder`, `torch`, `lantern` — everything the
+client meshes without a collider (a climber stands INSIDE the ladder cell, #803; the props are walk-through).
+(2) *Spawn safety gets its own predicate:* `IsBodyBlockingCell` (solid AND not flora, fluids never count) for
+`IsEntombed` + `DigOutUpwards` — kelp/vine strands stack into columns and would have re-opened the loop for
+anyone swimming through a kelp forest, but flora keeps `Solid=true` for the NPC/flora systems. (3) *NPC
+behaviour preserved:* `IsNpcBlockingCell` (solid OR fluid) keeps `BlockedByWorld` + `HasLineOfSight` exactly
+as before — settlement NPCs still don't stroll into ponds, nothing aggros through a lake. The flora void-check
+counts fluids as ground too (a water lily host still passes). (4) *Client:* `LiftOutOfBlockAt` — the
+pillar-jump guard — only fires for blocks that actually collide (`IsCollidingKey`, now also excluding
+`fire`/`energy_gate` to match the mesher's collidable set): the fluid simulation writes water cells into the
+swimmer's column when refilling a mined hole, and that lift teleported divers to the top of the column too.
+
+Tests: `SwimVoidRescueTests` (10) — passable blocks carry no Solid flag; a submerged player is not entombed
+and the rescue leaves them alone (tick + join); ladder climber and kelp swimmer are not entombed; a player
+genuinely sealed in stone is STILL freed (#834 pinned); a wall of water still breaks NPC line-of-sight.
+
 ### ★ Keep digging with a full pack: mined blocks fall as stacking ground packets (#853, 2026-08-09, branch feat/ground-drop-packets)
 Mining **stopped** once the backpack (and the cargo hold, when aboard) was full: `BreakBlockAt` priced the
 whole yield, asked `MaterialPool.CanFit` and left the block standing with an `@inventory_full` rejection. That

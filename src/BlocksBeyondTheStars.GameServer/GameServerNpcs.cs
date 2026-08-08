@@ -330,7 +330,7 @@ public sealed partial class GameServer
             int x = (int)System.Math.Floor(ax + dx * f);
             int y = (int)System.Math.Floor(ay + dy * f);
             int z = (int)System.Math.Floor(az + dz * f);
-            if (IsSolidCell(x, y, z))
+            if (IsSightBlockingCell(x, y, z)) // fluids occlude like before water lost its Solid flag
             {
                 return false;
             }
@@ -344,7 +344,9 @@ public sealed partial class GameServer
     public bool HasLineOfSightForTest(Vector3f from, Vector3f to) => HasLineOfSight(from, to);
 
     /// <summary>True if an NPC's body (feet + head) would sit inside a colliding block at this position — a wall,
-    /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.</summary>
+    /// so it can't stroll there. A doorway opening stays air, so NPCs pass through doorways but not walls.
+    /// Fluids block too (<c>fluidsPass: false</c>): settlement NPCs have no swim logic, so a pond must stay a
+    /// wall to them even though a player swims straight in.</summary>
     private bool BlockedByWorld(Vector3f pos)
     {
         int x = (int)System.Math.Floor(pos.X);
@@ -353,6 +355,13 @@ public sealed partial class GameServer
         return IsCollidingCell(x, y, z)       // feet
             || IsCollidingCell(x, y + 1, z);  // head
     }
+
+    /// <summary>A cell that blocks an NPC's SIGHT: solid (the plain flag — hiding in tall grass works, a
+    /// meadow occludes), or a fluid. Water/lava lost their <c>Solid</c> flag (a submerged player must not
+    /// count as entombed — see GameServerSpawnSafety), but a body of water must keep breaking the sightline
+    /// exactly as before: no aggro through a lake.</summary>
+    private bool IsSightBlockingCell(int x, int y, int z)
+        => IsSolidCell(x, y, z) || IsFluid(_world.GetBlock(new Vector3i(x, y, z)).Value);
 
     /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
     /// just "non-air", so the two are kept distinct: <b>glass</b> is solid-but-transparent (blocks NPCs, you see
@@ -388,14 +397,17 @@ public sealed partial class GameServer
 
     private bool IsCollidingBlock(BlockId id, bool fluidsPass, bool foliagePasses)
     {
+        // Fluids are decided EXPLICITLY, not via the Solid flag: water is Solid=false in the content DB
+        // (a submerged player must not read as entombed — see GameServerSpawnSafety), yet a pond must stay
+        // a wall to a walking NPC (fluidsPass: false) while swimmers wade right through (fluidsPass: true).
+        if (IsFluid(id.Value))
+        {
+            return !fluidsPass;
+        }
+
         if (!IsSolidBlock(id))
         {
             return false;
-        }
-
-        if (fluidsPass && IsFluid(id.Value))
-        {
-            return false; // water/lava are `Solid` in the content DB but are wadeable/swimmable, not walls
         }
 
         var def = _content.BlockById(id);
