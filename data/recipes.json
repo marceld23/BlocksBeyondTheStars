@@ -246,5 +246,13 @@
   { "key": "lead_block_unpack",      "station": "workshop", "inputs": [ { "item": "lead_block", "count": 1 } ],      "outputs": [ { "item": "lead_ingot", "count": 9 } ] },
   { "key": "zinc_block_unpack",      "station": "workshop", "inputs": [ { "item": "zinc_block", "count": 1 } ],      "outputs": [ { "item": "zinc_ingot", "count": 9 } ] },
   { "key": "tungsten_block_unpack",  "station": "workshop", "inputs": [ { "item": "tungsten_block", "count": 1 } ],  "outputs": [ { "item": "tungsten_ingot", "count": 9 } ] },
-  { "key": "titanium_block_unpack",  "station": "workshop", "inputs": [ { "item": "titanium_block", "count": 1 } ],  "outputs": [ { "item": "titanium_plate", "count": 9 } ] }
+  { "key": "titanium_block_unpack",  "station": "workshop", "inputs": [ { "item": "titanium_block", "count": 1 } ],  "outputs": [ { "item": "titanium_plate", "count": 9 } ] },
+
+  { "key": "bed",         "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 }, { "item": "plant_fiber", "count": 8 } ], "outputs": [ { "item": "bed", "count": 1 } ] },
+  { "key": "campfire",    "station": "hand",     "inputs": [ { "item": "wood_log", "count": 4 }, { "item": "stone", "count": 2 } ],       "outputs": [ { "item": "campfire", "count": 1 } ] },
+  { "key": "wood_crate",  "station": "hand",     "inputs": [ { "item": "wood_log", "count": 6 } ],                                          "outputs": [ { "item": "wood_crate", "count": 1 } ] },
+  { "key": "lantern",     "station": "hand",     "inputs": [ { "item": "wood_log", "count": 2 }, { "item": "glass", "count": 1 } ],       "outputs": [ { "item": "lantern", "count": 2 } ] },
+  { "key": "rug",         "station": "hand",     "inputs": [ { "item": "plant_fiber", "count": 6 } ],                                       "outputs": [ { "item": "rug", "count": 2 } ] },
+  { "key": "flower_pot",  "station": "hand",     "inputs": [ { "item": "mud", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],      "outputs": [ { "item": "flower_pot", "count": 1 } ] },
+  { "key": "cooked_meat", "station": "campfire", "inputs": [ { "item": "creature_meat", "count": 1 } ],                                     "outputs": [ { "item": "cooked_meat", "count": 1 } ] }
 ]

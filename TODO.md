@@ -104,6 +104,35 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Low-tech furniture & survival batch: bed, campfire, furniture shapes, ladder fix, sit-on-chairs (#803–#809, 2026-08-08, branch feat/lowtech-furniture)
+The whole hand-tier homeliness package in one sweep. **Bed (#804)** — new block/item, hand recipe
+(6 logs + 8 fibre), deliberately no blueprint: E sets the home spawn (the heal-tank spawn plumbing
+generalized to an anchor set in `GameServerHealTanks`), and resting nearby heals 1.5 HP/s — heal ONLY,
+no feeding/suit energy, so the researched heal tank (4 HP/s + both) stays the clear upgrade. Respawn
+validation accepts tank OR bed (`HomeAnchorNear`). **Campfire (#807)** — hand-tier block, warm light,
+joins `ApplyLocalSources` as an open-fire warmth source (lifts cold readings into the comfort band),
+and is a new `CraftingStation.Campfire`: `cooked_meat` (station campfire) strictly dominates raw meat.
+**Wood box (#808)** — hand-tier container from 6 logs sharing the crate plumbing (kind "crate"), but
+capped at 8 distinct stacks (`WoodCrateStackSlots`, enforced in `DepositToContainer`); the workshop
+crate stays unbounded. **Furniture shapes (#805)** — `BlockShape` grows Table/Chair/Fence/Sheet/Pot
+(Count 14→19): every shapeable material forms wooden/iron/gold/granite furniture via the existing
+always-available Shape action — zero new atlas tiles. Geometry as box unions in `BlockShapeGeometry`,
+2-D silhouettes in `ShapeIconFactory`, grid entries + `ui.shape.*` locales. **Ladder fix (#803)** —
+the mesher never special-cased ladders: a placed ladder was a full collidable cube, so `OnLadder()`
+(which samples the player's own axis) was unreachable from the side, and the settlement deck hole was
+plugged by its own ladder column. Now the ladder meshes as a thin wall plate (auto-oriented against
+the first solid neighbour; slim pole when free-standing) with NO collider — step in and climb.
+**Sit on chairs (#806)** — E on a Chair-shaped cell seats the player: controller off, capsule parked
+on the cell, camera eased to seat height, look free; stand with E/jump/crouch/move (or death/chair
+gone). New `SetSeatedIntent` (codec 190) mirrors a `Seated` flag into `PlayerPresence`; remote
+avatars pose seated (`PlayerAvatar.SetSeated`, lowered 0.45 onto the seat). **Decor (#809)** —
+lantern (torch-style walk-through prop, warm light), rug (tintable, default `Sheet` form), flower pot
+(default `Pot` form + a world-tinted cross-billboard flower on top). Furniture blocks stamp default
+forms on placement (`DefaultPlaceShapeOf`) and strip them again on mining so drops stack with crafted
+items. All six new blocks got AI-generated 64px tiles (`gen_textures.py` batch + NOTICES), DE+EN
+locales throughout, and `LowTechFurnitureTests` (8 tests: wiring, bed heal/spawn, cooking gate,
+campfire warmth, wood-box cap, shape round-trip, default-form stamp/strip).
+
 ### ★ Sealed base rooms breathe: airtight materials + the energy door, shield dome, leak warning (#793, #794, #795, 2026-08-08, branch feat/base-sealed-rooms-air)
 The #782 base air field ends hard at the radius-8 cube; rooms built right next to it stayed airless.
 Now a room that is **sealed** (walls of airtight full-cube blocks) and **connected to the base** breathes too.

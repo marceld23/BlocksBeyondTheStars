@@ -377,6 +377,8 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSetJetpack(bool active) => Send(new SetJetpackIntent { Active = active });
 
+        public void SendSetSeated(bool active) => Send(new SetSeatedIntent { Active = active });
+
         public void SendSetEva(bool active) => Send(new SetEvaIntent { Active = active });
 
         public void SendDisassemble(string itemKey) => Send(new DisassembleIntent { ItemKey = itemKey });

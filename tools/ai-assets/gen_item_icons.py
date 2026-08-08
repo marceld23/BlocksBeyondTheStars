@@ -58,6 +58,7 @@ ITEMS = [
     ("plant_fiber", "a small bundle of dried green plant fibres"),
     # Consumables (toxic ones are tinted green at runtime; base art stays natural)
     ("creature_meat", "a juicy grilled steak of meat on a small bone"),
+    ("cooked_meat", "a golden-brown roasted meat joint on a small bone with rising steam wisps, freshly cooked over a campfire"),
     ("berries", "a small cluster of round red berries with a leaf"),
     ("toxic_gland", "a glistening wet alien organ gland"),
     ("toxic_berries", "a small cluster of round berries with a leaf"),

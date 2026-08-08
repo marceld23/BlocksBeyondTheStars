@@ -936,6 +936,8 @@ namespace BlocksBeyondTheStars.Client
             (4, "ui.shape.sphere"), (5, "ui.shape.ramp"), (6, "ui.shape.stairs"), (7, "ui.shape.cone"),
             (8, "ui.shape.cylinder"), (9, "ui.shape.panel"), (10, "ui.shape.post"), (11, "ui.shape.beam"),
             (12, "ui.shape.lowramp"), (13, "ui.shape.quartercube"),
+            (14, "ui.shape.table"), (15, "ui.shape.chair"), (16, "ui.shape.fence"),
+            (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
         };
 
         private string ShapeLabel(int shape)

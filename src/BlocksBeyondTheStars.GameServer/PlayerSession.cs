@@ -158,6 +158,9 @@ public sealed class PlayerSession
     /// <summary>Cached result of the last heal-tank proximity scan.</summary>
     public bool NearHealTank { get; set; }
 
+    /// <summary>Cached result of the last bed proximity scan (#804) — same cadence as the tank scan.</summary>
+    public bool NearBed { get; set; }
+
     // --- Temperature hazard (#666): the effective-temperature scan is ~1 Hz, the drain applies every tick ---
 
     /// <summary>Countdown to the next effective-temperature rescan (block probe + shelter check are the

@@ -153,6 +153,10 @@ public sealed class PlayerState
     /// <summary>Jetpack firing (client-driven) — the server drains suit energy while true. Not persisted.</summary>
     public bool Jetpacking { get; set; }
 
+    /// <summary>Sitting on a chair-shaped cell (#806, client-driven) — pure pose state mirrored into the
+    /// presence broadcast so other players see a seated avatar. Not persisted.</summary>
+    public bool Seated { get; set; }
+
     // Session cheat toggles (admin only, server-authoritative; not persisted).
     public bool GodMode { get; set; }
     public bool Fly { get; set; }

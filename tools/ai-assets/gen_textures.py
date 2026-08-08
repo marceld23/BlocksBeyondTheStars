@@ -172,6 +172,13 @@ TEXTURES = [
     # Monuments — the masonry of a vanished civilisation (arcade arches, gates, stone circles).
     ("ancient_brick", "weathered pale sandy-grey ancient stone masonry blocks with mortar joints, chipped and lichen-stained, seamless"),
     ("rune_stone", "a carved grey slate stone slab with deep chiselled glowing angular alien runes, mysterious inscriptions, seamless"),
+    # Low-tech furniture & survival batch (#803-#809).
+    ("bed", "a simple rustic cot bed seen from above, a wooden log frame with a woven pale-green blanket and a small white pillow, top-down"),
+    ("campfire", "a small stone-ringed campfire seen from above, charred crossed logs with bright glowing orange embers and small flames, top-down"),
+    ("wood_crate", "a rustic wooden storage box of rough-hewn planks with a simple lid seam and wooden pegs, front view"),
+    ("lantern", "a warm rustic lantern, a small wooden frame with glowing amber glass panes and a little flame inside, front view"),
+    ("rug", "a hand-woven flat fibre rug with a simple geometric border pattern in muted warm tones, top-down"),
+    ("flower_pot", "a small round terracotta clay flower pot filled with dark soil, front view"),
 ]
 
 

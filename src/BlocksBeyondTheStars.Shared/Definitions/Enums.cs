@@ -50,4 +50,8 @@ public enum CraftingStation
     /// <summary>A placed algae-tank block: a base food machine that grows rations from water. On-foot
     /// only (no ship-module counterpart) — aboard the ship, life support already sates hunger.</summary>
     AlgaeTank,
+
+    /// <summary>A placed campfire block: the hand-tier cooking spot (#807). On-foot only, like the
+    /// algae tank — aboard the ship the galley is the life support, not an open flame.</summary>
+    Campfire,
 }

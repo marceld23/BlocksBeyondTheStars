@@ -361,6 +361,9 @@ public static class NetCodec
         // VEGA tips log (#737): the player's vega:* milestones on join — the client rebuilds the
         // re-readable "VEGA tips" section of the ship terminal's Story tab from them.
         Register(189, typeof(VegaJournal));              // Server -> Client
+
+        // Sit on chairs (#806): pose flag mirrored into the presence broadcast.
+        Register(190, typeof(SetSeatedIntent));          // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

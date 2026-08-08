@@ -157,6 +157,19 @@ namespace BlocksBeyondTheStars.Client
                     return v <= 0.5f * u;
                 case BlockShape.QuarterCube: // small square in the lower-left quadrant
                     return u <= 0.5f && v <= 0.5f;
+                case BlockShape.Table: // top plate on two visible legs
+                    return v >= 0.8f || ((u >= 0.08f && u <= 0.24f) || (u >= 0.76f && u <= 0.92f));
+                case BlockShape.Chair: // side view: seat bar, backrest on the right, two legs
+                    return (v >= 0.35f && v <= 0.5f && u <= 0.9f)
+                        || (u >= 0.72f && u <= 0.9f && v >= 0.35f)
+                        || (v <= 0.35f && ((u >= 0.12f && u <= 0.26f) || (u >= 0.74f && u <= 0.88f)));
+                case BlockShape.Fence: // two posts + two rails
+                    return (u >= 0.08f && u <= 0.24f && v <= 0.85f) || (u >= 0.76f && u <= 0.92f && v <= 0.85f)
+                        || (v >= 0.55f && v <= 0.7f) || (v >= 0.2f && v <= 0.35f);
+                case BlockShape.Sheet: // hairline plate across the bottom
+                    return v <= 0.1f;
+                case BlockShape.Pot: // small centred planter with a wider rim
+                    return (u >= 0.28f && u <= 0.72f && v <= 0.42f) || (u >= 0.22f && u <= 0.78f && v >= 0.34f && v <= 0.5f);
                 default:
                     return true; // cube — full tile (callers never ask us for this)
             }

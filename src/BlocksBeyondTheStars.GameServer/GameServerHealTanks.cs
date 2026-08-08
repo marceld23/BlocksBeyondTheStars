@@ -26,6 +26,7 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     internal const string HealTankBlock = "heal_tank";
+    internal const string BedBlock = "bed";
 
     /// <summary>Radius (blocks, per axis — a box, matching the crafting-station scans) around a placed
     /// heal tank within which players regenerate. Vertical reach is smaller: one room, not a tower.</summary>
@@ -36,14 +37,23 @@ public sealed partial class GameServer
     private const float HealTankFeedPerSecond = 6f;   // slower than ship life support (10/s), still generous
     private const float HealTankEnergyPerSecond = 10f; // half the aboard-ship suit recharge (20/s)
 
+    /// <summary>The bed's weak heal (#804): HEAL ONLY — no feeding, no suit recharge. Deliberately well
+    /// under the tank's 4/s so the researched heal tank stays the clear upgrade; the hand-tier bed is
+    /// the survival crutch that keeps an early base from being a death trap.</summary>
+    private const float BedHealPerSecond = 1.5f;
+
     /// <summary>Seconds between proximity rescans per player (the regen itself applies every tick).</summary>
     private const double HealTankScanInterval = 1.0;
 
     private ushort _healTankBlockId;
+    private ushort _bedBlockId;
 
-    /// <summary>Resolves the heal-tank block id once per content load (0 = block missing).</summary>
+    /// <summary>Resolves the heal-tank + bed block ids once per content load (0 = block missing).</summary>
     private void InitHealTanks()
-        => _healTankBlockId = _content.GetBlock(HealTankBlock)?.NumericId.Value ?? 0;
+    {
+        _healTankBlockId = _content.GetBlock(HealTankBlock)?.NumericId.Value ?? 0;
+        _bedBlockId = _content.GetBlock(BedBlock)?.NumericId.Value ?? 0;
+    }
 
     /// <summary>Per-world regen field: heal + feed + suit recharge for every on-foot player near a placed
     /// heal tank. Runs under its own <c>Guard</c> in the per-world tick roster.</summary>
@@ -67,22 +77,33 @@ public sealed partial class GameServer
             {
                 session.HealTankScanIn = HealTankScanInterval;
                 session.NearHealTank = NearHealTankBlock(p);
+                session.NearBed = !session.NearHealTank && _bedBlockId != 0
+                    && AnchorNear(p.Position, loadedOnly: true, _bedBlockId);
             }
 
-            if (!session.NearHealTank || p.GodMode || p.Health <= 0f)
+            if (p.GodMode || p.Health <= 0f)
             {
                 // God mode is already pinned to full vitals; a downed player (0 HP, e.g. awaiting the
                 // respawn choice) gets nothing — the tank never outruns the death flow.
                 continue;
             }
 
-            p.Health = System.Math.Min(100f, p.Health + (float)(dt * HealTankHealPerSecond));
-            p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * HealTankFeedPerSecond));
-
-            if (!p.Stealthed && !p.Jetpacking)
+            if (session.NearHealTank)
             {
-                // The one place the suit recharges off-ship. Don't recharge while actively spending it.
-                p.SuitEnergy = System.Math.Min(100f, p.SuitEnergy + (float)(dt * HealTankEnergyPerSecond));
+                p.Health = System.Math.Min(100f, p.Health + (float)(dt * HealTankHealPerSecond));
+                p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * HealTankFeedPerSecond));
+
+                if (!p.Stealthed && !p.Jetpacking)
+                {
+                    // The one place the suit recharges off-ship. Don't recharge while actively spending it.
+                    p.SuitEnergy = System.Math.Min(100f, p.SuitEnergy + (float)(dt * HealTankEnergyPerSecond));
+                }
+            }
+            else if (session.NearBed)
+            {
+                // The bed (#804): a slow heal and nothing else — no feeding, no suit energy. Resting at
+                // a lived-in camp mends wounds; the machines still do everything beyond that.
+                p.Health = System.Math.Min(100f, p.Health + (float)(dt * BedHealPerSecond));
             }
         }
     }
@@ -100,19 +121,22 @@ public sealed partial class GameServer
     /// <summary>Reach for the E interaction on a placed tank (arm's length plus a step, like ship stations).</summary>
     private const float HealTankInteractReach = 5f;
 
-    /// <summary>E on a placed heal tank: store a body-qualified home spawn. Only STORES the point — the
-    /// death flow consuming it (respawn choice, ship fallback) is issue #462. The spawn position is the
-    /// player's own standing spot, not the tank cell, so respawning never puts anyone inside the block.</summary>
+    /// <summary>E on a placed heal tank OR bed (#804): store a body-qualified home spawn. Only STORES the
+    /// point — the death flow consuming it (respawn choice, ship fallback) is issue #462. The spawn position
+    /// is the player's own standing spot, not the tank cell, so respawning never puts anyone inside the block.</summary>
     private void HandleSetSpawnPoint(PlayerSession session, SetSpawnPointIntent intent)
     {
         var p = session.State;
         var cell = new Vector3i(intent.X, intent.Y, intent.Z);
-        if (_healTankBlockId == 0
+        ushort cellBlock = _world.GetBlock(cell).Value;
+        bool isAnchor = (cellBlock != 0)
+            && ((cellBlock == _healTankBlockId && _healTankBlockId != 0)
+                || (cellBlock == _bedBlockId && _bedBlockId != 0));
+        if (!isAnchor
             || InSpace(p.PlayerId)
-            || _world.GetBlock(cell).Value != _healTankBlockId
             || WrapDistSq(p.Position, cell) > HealTankInteractReach * HealTankInteractReach)
         {
-            Reject(session, "spawn_point", "@srv.misc.no_heal_tank");
+            Reject(session, "spawn_point", "@srv.misc.no_heal_tank"); // locale text covers tank AND bed (#804)
             return;
         }
 
@@ -191,11 +215,11 @@ public sealed partial class GameServer
             return false;
         }
 
-        // Died on foot on the home body itself → a plain snap, no reload. The tank must still stand —
-        // a razed home falls back to the ship rather than dropping the player at a ruin.
+        // Died on foot on the home body itself → a plain snap, no reload. The tank (or bed, #804) must
+        // still stand — a razed home falls back to the ship rather than dropping the player at a ruin.
         if (sameWorld && session.CurrentLocationId == p.CustomSpawnBodyId)
         {
-            if (!HealTankNear(p.CustomSpawnPoint, loadedOnly: false))
+            if (!HomeAnchorNear(p.CustomSpawnPoint, loadedOnly: false))
             {
                 return false;
             }
@@ -222,9 +246,9 @@ public sealed partial class GameServer
         LeaveSpace(p.PlayerId); // exit any flight view (sends SpaceClosed if in one)
         LoadWorld(body.PlanetType, p.CustomSpawnBodyId);
         SetCurrent(session);
-        if (!HealTankNear(p.CustomSpawnPoint, loadedOnly: false))
+        if (!HomeAnchorNear(p.CustomSpawnPoint, loadedOnly: false))
         {
-            return false; // home tank gone → the caller's ship path reloads the ship's world
+            return false; // home tank/bed gone → the caller's ship path reloads the ship's world
         }
 
         if (_ship is not null)
@@ -338,8 +362,18 @@ public sealed partial class GameServer
     /// validation at respawn time reads THROUGH the cache — the home chunks are usually not resident when
     /// the player died elsewhere, and loading the few cells there is exactly what the check is for.</summary>
     private bool HealTankNear(Vector3f pos, bool loadedOnly)
+        => AnchorNear(pos, loadedOnly, _healTankBlockId);
+
+    /// <summary>True if a home-spawn ANCHOR — a heal tank or a bed (#804) — stands near <paramref name="pos"/>.
+    /// The respawn flow validates against this: a razed home (tank mined AND bed gone) falls back to the ship.</summary>
+    private bool HomeAnchorNear(Vector3f pos, bool loadedOnly)
+        => AnchorNear(pos, loadedOnly, _healTankBlockId, _bedBlockId);
+
+    /// <summary>Shared box scan for the regen/home checks: true when a block matching <paramref name="a"/>
+    /// (or optional <paramref name="b"/>) stands within the field box around <paramref name="pos"/>.</summary>
+    private bool AnchorNear(Vector3f pos, bool loadedOnly, ushort a, ushort b = 0)
     {
-        if (_healTankBlockId == 0)
+        if (a == 0 && b == 0)
         {
             return false;
         }
@@ -354,8 +388,8 @@ public sealed partial class GameServer
                 for (int dz = -HealTankRadius; dz <= HealTankRadius; dz++)
                 {
                     var cell = new Vector3i(px + dx, py + dy, pz + dz);
-                    var block = loadedOnly ? _world.GetBlockIfLoaded(cell) : _world.GetBlock(cell);
-                    if (block.Value == _healTankBlockId)
+                    ushort v = (loadedOnly ? _world.GetBlockIfLoaded(cell) : _world.GetBlock(cell)).Value;
+                    if (v != 0 && ((a != 0 && v == a) || (b != 0 && v == b)))
                     {
                         return true;
                     }

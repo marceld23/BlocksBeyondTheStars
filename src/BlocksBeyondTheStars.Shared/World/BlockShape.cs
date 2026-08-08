@@ -27,6 +27,14 @@ public enum BlockShape : byte
     Beam = 11,    // horizontal square bar spanning the cell (structural frames), yaw-oriented
     LowRamp = 12, // half-height wedge — a gentle incline (yaw-oriented like Ramp)
     QuarterCube = 13, // small 0.5³ cube in a cell corner (micro-detail; full orientation reaches all 8 corners)
+
+    // Furniture forms (#805): every shapeable material can be formed into these, so a wooden and an
+    // iron table are the SAME shape on different materials — no per-material block ids needed.
+    Table = 14,   // full-cell top plate on four corner legs
+    Chair = 15,   // seat + backrest (backrest toward +Z, yaw-oriented like Ramp/Stairs)
+    Fence = 16,   // two posts + two full-width rails along X (yaw-oriented like Beam); rails meet across cells
+    Sheet = 17,   // ultra-thin 1/16 plate (rugs, veneers) — the Panel's little sibling
+    Pot = 18,     // small centred planter box with a rim (bowls, pots)
 }
 
 /// <summary>
@@ -41,7 +49,7 @@ public enum BlockShape : byte
 public static class ShapeCode
 {
     /// <summary>Number of distinct <see cref="BlockShape"/> forms (including <see cref="BlockShape.Cube"/>).</summary>
-    public const int Count = 14;
+    public const int Count = 19;
 
     /// <summary>The default up-face (local +Y points to world +Y): the original, pre-orientation behaviour.</summary>
     public const int UpPlusY = 0;

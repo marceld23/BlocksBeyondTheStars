@@ -325,6 +325,9 @@ public sealed class GameContent
     {
         "dirt", "grass", "sand", "mud", "snow", "salt", "ash", "mycelium", "alien_grass",
         "fire", "geyser_vent", "torch", "ladder", "stairs",
+        // Low-tech furniture (#803-#809): props with gaps (or an open flame) — never an airtight wall.
+        // The wood crate is deliberately absent: a closed box seals like the iron crate does.
+        "bed", "campfire", "lantern", "rug", "flower_pot",
     };
 
     /// <summary>

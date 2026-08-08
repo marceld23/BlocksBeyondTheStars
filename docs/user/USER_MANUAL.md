@@ -211,6 +211,15 @@ separate unlock; admins can still disable it through server world rules.
   within a few blocks of a placed tank is slowly healed and fed and the suit recharges — the only off-ship
   suit recharge. Press **E** on the tank to make it your **home spawn**: on death you then choose between
   waking at your ship's medbay or at that home (ship is always the fallback if the home is gone).
+- **Bed** (hand-crafted from logs + plant fibre, no research needed): the low-tech forerunner of the heal
+  tank. Press **E** on a placed bed to make it your **home spawn** (same death choice as the tank), and
+  resting near it slowly mends your health — but a bed never feeds you and never recharges the suit;
+  those stay the heal tank's job.
+- **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp,
+  counters the cold while you stand near it, and is a **cooking station** — with creature meat in your
+  pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals).
+- **Wood box** (hand-crafted from logs): early-game storage sharing the crate's stash/loot keys, but it
+  only holds a few kinds of material (8 stacks) — the workshop's iron crate stores everything.
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
 
 ### Fire
@@ -623,9 +632,14 @@ separate unlock; admins can still disable it through server world rules.
 ### Craftable block shapes
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),
   sphere, ramp, stairs, cone, cylinder, panel** (thin plate), **post** (slim pillar), **beam** (horizontal bar),
-  **low ramp** (gentle half-height wedge), **quarter cube** (small corner block) — that still places, mines and
+  **low ramp** (gentle half-height wedge), **quarter cube** (small corner block), plus the **furniture forms**:
+  **table, chair, fence** (posts + rails that connect across cells), **sheet** (an ultra-thin 1/16 plate for
+  veneers) and **pot** (a small planter) — so a *wooden* table and an *iron* table are the same form on
+  different materials. Every shape still places, mines and
   stacks like a block (form and dye colour combine freely). Shaped forms are **player-craft only**: world-gen,
   settlements, stations and ships stay plain cubes.
+- **Sitting:** press **E** on any **chair**-shaped cell to sit down — the camera settles to seat height and
+  other players see you sitting. Stand up with **E**, jump, crouch or any movement key.
 - Do it in the **Crafting** menu under the **"Formen" / "Shape"** category: pick a building block, choose a form
   button (it's a free 1:1 reshape that keeps the block's colour), and **cube** reverts to a plain block.
 - **Orientation:** by default a shape **auto-orients** — it follows the way you're facing, and building against a

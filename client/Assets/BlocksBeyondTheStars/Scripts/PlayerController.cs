@@ -86,6 +86,14 @@ namespace BlocksBeyondTheStars.Client
         private bool _crouched;
         private float _crouchT; // 0 = standing, 1 = fully crouched (eases the camera; the collider snaps)
 
+        // Sit on a chair-shaped cell (#806): E on a chair seats the player — control freezes (the look
+        // stays free), the eye eases to seat height, and the Seated flag rides the presence broadcast so
+        // other players see the pose. The CharacterController is disabled while seated: the capsule sits
+        // INSIDE the chair cell and must not fight the seat's own collider boxes.
+        private static readonly Vector3 SeatedEye = new Vector3(0f, 1.05f, 0f);
+        private Vector3Int? _seatCell;
+        private int _satFrame; // debounce: the E that sat us down must not also stand us up
+
         private CharacterController _controller;
         private float _pitch;
         // Placement orientation override for shaped building blocks: -1 = auto (the server orients from the
@@ -315,9 +323,9 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive))
             {
                 UpdateJetpack(false);
-                if (string.IsNullOrEmpty(Game.InSpeeder))
+                if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null)
                 {
-                    ApplyGravityOnly();
+                    ApplyGravityOnly(); // seated: the controller is disabled and the chair holds us anyway
                 }
 
                 return;
@@ -328,6 +336,34 @@ namespace BlocksBeyondTheStars.Client
             {
                 UpdateJetpack(false);
                 DriveSpeeder();
+                SendMovement();
+                Game.PlayerPosition = transform.position;
+                Game.PlayerYaw = transform.eulerAngles.y;
+                return;
+            }
+
+            // Sitting on a chair (#806): control frozen, look free. Stand with E/jump/crouch/movement —
+            // or when the chair vanishes under us (mined, reshaped, chunk unloaded).
+            if (_seatCell is { } seat)
+            {
+                UpdateJetpack(false);
+                LookAround();
+                if (Camera != null && !ThirdPerson)
+                {
+                    Camera.transform.localPosition = Vector3.Lerp(Camera.transform.localPosition, SeatedEye, Time.deltaTime * 8f);
+                }
+
+                bool chairGone = Game?.World == null
+                    || Game.Health <= 0f // dying stands you up so the respawn teleport gets a live controller
+                    || ShapeCode.ShapeOf(Game.World.GetShape(seat.x, seat.y, seat.z)) != (int)BlockShape.Chair;
+                bool wantsUp = Time.frameCount != _satFrame
+                    && (InputMap.JumpDown() || InputMap.CrouchHeld() || InputMap.Down(InputAction.Interact)
+                        || Mathf.Abs(InputMap.MoveX()) > 0.3f || Mathf.Abs(InputMap.MoveY()) > 0.3f);
+                if (chairGone || wantsUp)
+                {
+                    StandUp();
+                }
+
                 SendMovement();
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
@@ -1254,12 +1290,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // A heal tank you're aiming at → make it your home spawn point (base/station, issue #461).
+            // A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your
+            // home spawn point (base/station, issue #461).
             if (AimBlock(out var tankHit, out _)
-                && Game.Content?.BlockById(Game.World.GetBlock(tankHit.x, tankHit.y, tankHit.z))?.Key == "heal_tank")
+                && Game.Content?.BlockById(Game.World.GetBlock(tankHit.x, tankHit.y, tankHit.z))?.Key is "heal_tank" or "bed")
             {
                 Game.Network?.SendSetSpawnPoint(tankHit.x, tankHit.y, tankHit.z);
                 ClientAudio.Instance?.Cue("heal");
+                return;
+            }
+
+            // A chair-shaped cell in any material seats the player (#806).
+            if (_seatCell is null && AimBlock(out var chairHit, out _)
+                && ShapeCode.ShapeOf(Game.World.GetShape(chairHit.x, chairHit.y, chairHit.z)) == (int)BlockShape.Chair)
+            {
+                SitDown(chairHit);
                 return;
             }
 
@@ -1878,6 +1923,31 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Seats the player on a chair-shaped cell (#806): parks the capsule centred on the cell
+        /// (controller off — the seat's own collider boxes must not fight the snap) and reports the pose.</summary>
+        private void SitDown(Vector3Int cell)
+        {
+            _seatCell = cell;
+            _satFrame = Time.frameCount;
+            _verticalVelocity = 0f;
+            UpdateJetpack(false);
+            _controller.enabled = false;
+            transform.position = Game != null
+                ? Game.ScenePos(cell.x + 0.5f, cell.y, cell.z + 0.5f)
+                : new Vector3(cell.x + 0.5f, cell.y, cell.z + 0.5f);
+            Avatar?.SetSeated(true);
+            Game?.Network?.SendSetSeated(true);
+        }
+
+        /// <summary>Stands the player back up from a chair (#806) and re-enables normal movement.</summary>
+        private void StandUp()
+        {
+            _seatCell = null;
+            _controller.enabled = true;
+            Avatar?.SetSeated(false);
+            Game?.Network?.SendSetSeated(false);
+        }
+
         /// <summary>True when the player can fire the jetpack: carries one and has suit energy left.</summary>
         private bool CanJetpack() => Game != null && Game.SuitEnergy > 0f && HasItem("jetpack");
 
@@ -2345,6 +2415,8 @@ namespace BlocksBeyondTheStars.Client
         private static bool IsCollidingKey(string key)
             => IsSolidKey(key)
                && key != "torch"
+               && key != "lantern" // slim prop like the torch (#809)
+               && key != "ladder"  // walk-through since #803 — a climber stands INSIDE the ladder cell
                && !key.StartsWith("flora_", System.StringComparison.Ordinal);
 
         /// <summary>Whether there is solid footing just past the player's edge in a horizontal direction — used by

@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             public string Name;
             public RemoteEntityInterpolator Interp; // buffered snapshot interpolation of the reported pose (B Tier1b)
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
+            public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
             public string Held = "\0";     // cached held item key
@@ -93,7 +94,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (r.Interp.Sample(now, circ, out var pos, out var yaw))
                 {
-                    r.Go.transform.position = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
+                    var scene = Game != null ? Game.ScenePos(pos.X, pos.Y, pos.Z) : new Vector3(pos.X, pos.Y, pos.Z);
+                    if (r.Seated)
+                    {
+                        scene.y -= 0.45f; // drop the pelvis onto the chair seat (#806) — the pose bends the legs
+                    }
+
+                    r.Go.transform.position = scene;
                     r.Go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
                 }
 
@@ -131,6 +138,11 @@ namespace BlocksBeyondTheStars.Client
             r.Name = m.Name;
             r.Interp.Push(Time.timeAsDouble, new Vector3f(m.X, m.Y, m.Z), m.Yaw);
             r.Jetpacking = m.Jetpacking;
+            if (m.Seated != r.Seated)
+            {
+                r.Seated = m.Seated;
+                r.Avatar.SetSeated(m.Seated);
+            }
 
             // Stealth field active, or the player is up in SPACE (the server stealth-marks orbiters so
             // no frozen ghost avatar keeps standing at the pad they launched from): hide avatar + plate.

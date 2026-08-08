@@ -21,7 +21,16 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     private const float LootReach = 6f;
+
+    /// <summary>Distinct item stacks a hand-tier wood box holds (#808). The workshop crate stays
+    /// unbounded — capacity is the wood box's price for being craftable from nothing but logs.</summary>
+    private const int WoodCrateStackSlots = 8;
+
     private List<StoredContainer> _containers => _worlds.Active.Containers;
+
+    /// <summary>Blocks that become a storage container when placed (share the "crate" container kind,
+    /// so loot/stash/HUD treat them identically — the block key only decides capacity).</summary>
+    private static bool IsContainerBlock(string key) => key is "crate" or "wood_crate";
 
     /// <summary>Lootable containers on the current planet (salvage capsules / corpses).</summary>
     public IReadOnlyList<StoredContainer> Containers => _containers;
@@ -157,11 +166,28 @@ public sealed partial class GameServer
             return;
         }
 
+        // A wood box (#808) holds only a few distinct stacks; the workshop crate is unbounded. Existing
+        // stacks always merge (no per-stack count cap) — only NEW item types are refused once full.
+        bool woodBox = _world.GetBlock(container.Position).Value == (_content.GetBlock("wood_crate")?.NumericId.Value ?? 0);
+
         var merged = container.Items.Where(s => !s.IsEmpty).ToDictionary(s => s.Item, s => s.Count);
+        bool stashed = false;
         foreach (var (item, count) in toStash)
         {
+            if (woodBox && !merged.ContainsKey(item) && merged.Count >= WoodCrateStackSlots)
+            {
+                continue; // box full for new item types — this stack stays with the player
+            }
+
             inv.Remove(item, count);
             merged[item] = (merged.TryGetValue(item, out var have) ? have : 0) + count;
+            stashed = true;
+        }
+
+        if (!stashed)
+        {
+            Reject(session, "stash", "@srv.loot.wood_box_full");
+            return;
         }
 
         container.Items = merged.Select(kv => new ItemStack(kv.Key, kv.Value)).ToList();

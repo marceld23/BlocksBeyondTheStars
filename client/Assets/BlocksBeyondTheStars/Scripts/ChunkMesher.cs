@@ -70,6 +70,11 @@ namespace BlocksBeyondTheStars.Client
         [System.ThreadStatic] private static byte[] _colliderFaceScratch;
         [System.ThreadStatic] private static bool[] _colliderMaskScratch;
 
+        // Throwaway collider sinks for the ladder (#803): its shaped visual must NOT collide — climbing
+        // requires standing inside the cell — so AddShapedBlock writes its collider tris into these.
+        [System.ThreadStatic] private static List<int> _ladderColliderTrisDump;
+        [System.ThreadStatic] private static List<Vector3> _ladderColliderVertsDump;
+
         /// <summary>Builds the render mesh (opaque + see-through submeshes) and a separate collision mesh that
         /// excludes fluids (water/lava), so the player falls into water/lava instead of standing on it while
         /// glass/force-fields still block. The collider carries its own greedy-merged vertices (no normals/uvs).
@@ -445,7 +450,7 @@ namespace BlocksBeyondTheStars.Client
                 // A TORCH rides the same cross-billboard path: it must be a slim prop you can walk past, not a
                 // full glowing cube — and it deliberately does NOT take the flora tint (isFlora is false for it,
                 // so speciesTint stays black), because a torch is not a plant to be recoloured per world.
-                bool isTorchProp = collKey == "torch";
+                bool isTorchProp = collKey == "torch" || collKey == "lantern"; // the lantern (#809) rides the same slim-prop path
                 if (atlas != null && collKey != null
                     && (isTorchProp || (foliage && collKey.StartsWith("flora_", System.StringComparison.Ordinal))))
                 {
@@ -482,12 +487,14 @@ namespace BlocksBeyondTheStars.Client
                         (CrossPlantScale(wx, 0, wz, 0x20, 1f) - 1f) * 0.13f);
                     float plantSpin = (CrossPlantScale(wx, 0, wz, 0x40, 1f) - 1f) * 30f;
 
-                    // A torch is manufactured, not grown: no size variance, no lean, no offset and no spin, so a
-                    // row of them along a wall reads as deliberate lighting rather than a wonky hedge.
+                    // A torch/lantern is manufactured, not grown: no size variance, no lean, no offset and no
+                    // spin, so a row of them along a wall reads as deliberate lighting rather than a wonky hedge.
+                    // The lantern is squatter and wider than the slim torch stick.
                     if (isTorchProp)
                     {
-                        plantH = 0.8f;
-                        plantW = 0.28f;
+                        bool lanternProp = collKey == "lantern";
+                        plantH = lanternProp ? 0.55f : 0.8f;
+                        plantW = lanternProp ? 0.42f : 0.28f;
                         plantLean = Vector2.zero;
                         plantJitter = Vector2.zero;
                         plantSpin = 0f;
@@ -496,6 +503,28 @@ namespace BlocksBeyondTheStars.Client
                         new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean,
                         plantJitter, plantSpin, plantH, plantW,
                         isTorchProp ? 7f : 1f); // 7 = flame flicker (and no flora tint); 1 = flora
+                    continue;
+                }
+
+                // Ladder (#803): a thin wall plate WITHOUT a collider, so the player can step into the cell
+                // and the climb detection (PlayerController.OnLadder) can actually engage — the old full
+                // collidable cube made the climb state unreachable from the side. The plate leans against
+                // the first solid horizontal neighbour (settlement ladders hug walls); a free-standing
+                // ladder renders as a slim pole instead. Collider tris go to a throwaway list on purpose.
+                if (atlas != null && collKey == "ladder")
+                {
+                    var dumpTris = _ladderColliderTrisDump ??= new List<int>();
+                    var dumpVerts = _ladderColliderVertsDump ??= new List<Vector3>();
+                    dumpTris.Clear();
+                    dumpVerts.Clear();
+                    float ladSky = Skylight(wx, wy + 1, wz);
+                    Vector3 ladBl = BlockLightAt(wx, wy, wz);
+                    Vector3 ladBlDir = BlockLightDirAt(wx, wy, wz);
+                    int ladUp = LadderMountUpFace(content, worldBlock, wx, wy, wz);
+                    AddShapedBlock(verts, tris, dumpTris, dumpVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        ladUp >= 0 ? (int)BlockShape.Panel : (int)BlockShape.Post,
+                        0, ladUp >= 0 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
+                        matR, matG, emission, Color.black, 0f, ladSky, ladBl, ladBlDir);
                     continue;
                 }
 
@@ -542,6 +571,19 @@ namespace BlocksBeyondTheStars.Client
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
                         ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z), uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
+
+                    // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
+                    // like wild flora on this world (per-world species hue). Purely visual — no collider.
+                    if (collKey == "flower_pot" && content.GetBlock("flora_flower") is { } potFlower
+                        && potFlower.NumericId.Value != 0)
+                    {
+                        var flowerUv = atlas.TileUv(potFlower.NumericId.Value);
+                        Color flowerTint = floraTint != null ? floraTint(potFlower.NumericId) : Color.black;
+                        AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                            new Vector3(x, y + 0.4f, z), new Color(0.05f, 0f, 0.9f, 0f), flowerUv, shSky, flowerTint,
+                            shBl, shBlDir, Vector2.zero, Vector2.zero, 0f, 0.5f, 0.45f, 1f);
+                    }
+
                     continue;
                 }
 
@@ -1227,6 +1269,40 @@ namespace BlocksBeyondTheStars.Client
             var key = content.BlockById(id)?.Key;
             return key is "water" or "lava";
         }
+
+        /// <summary>The up-face that leans the ladder's wall plate against the first solid horizontal
+        /// neighbour (#803), or -1 when the ladder stands free (→ slim pole instead). The Panel's body sits
+        /// at LOW local Y, so up-face +X (2) rests the plate against the -X wall, and so on.</summary>
+        private static int LadderMountUpFace(GameContent content, System.Func<int, int, int, BlockId> worldBlock, int wx, int wy, int wz)
+        {
+            if (IsLadderMountWall(content, worldBlock(wx - 1, wy, wz)))
+            {
+                return 2; // wall at -X → plate body toward -X (local +Y points +X)
+            }
+
+            if (IsLadderMountWall(content, worldBlock(wx + 1, wy, wz)))
+            {
+                return 3;
+            }
+
+            if (IsLadderMountWall(content, worldBlock(wx, wy, wz - 1)))
+            {
+                return 4; // wall at -Z → plate body toward -Z (local +Y points +Z)
+            }
+
+            if (IsLadderMountWall(content, worldBlock(wx, wy, wz + 1)))
+            {
+                return 5;
+            }
+
+            return -1;
+        }
+
+        /// <summary>A neighbour the ladder plate can visually hang on: an opaque solid — not air, glass,
+        /// flora, foliage or another ladder.</summary>
+        private static bool IsLadderMountWall(GameContent content, BlockId nb)
+            => !nb.IsAir && !IsTransparent(content, nb) && !IsFloraBlock(content, nb) && !IsFoliageBlock(content, nb)
+               && content.BlockById(nb)?.Key != "ladder";
 
         /// <summary>Ground-detail scatter host classification: 0 = grass tuft (soft ground), 1 = pebble (dry/
         /// rocky ground), -1 = no scatter. Only open-topped ground blocks get decoration; ores, machines,

@@ -56,6 +56,11 @@ namespace BlocksBeyondTheStars.Client
                 case BlockShape.Beam: Box(faces, 0f, 0.35f, 0.35f, 1f, 0.65f, 0.65f); break;      // bar along X (yaw → Z)
                 case BlockShape.LowRamp: LowRamp(faces); break;                                    // half-height incline
                 case BlockShape.QuarterCube: Box(faces, 0f, 0f, 0f, 0.5f, 0.5f, 0.5f); break;       // 0.5³ corner micro-cube
+                case BlockShape.Table: Table(faces); break;                                        // top plate on corner legs
+                case BlockShape.Chair: Chair(faces); break;                                        // seat + backrest toward +Z
+                case BlockShape.Fence: Fence(faces); break;                                        // posts + rails along X
+                case BlockShape.Sheet: Box(faces, 0f, 0f, 0f, 1f, 0.0625f, 1f); break;             // 1/16 rug/veneer plate
+                case BlockShape.Pot: Pot(faces); break;                                            // small centred planter
                 default: return null; // Cube / unknown → no custom geometry
             }
 
@@ -165,6 +170,43 @@ namespace BlocksBeyondTheStars.Client
             // +X side
             f.Add(new Face(new(1, 0, 0), new(1, 0.5f, 0), new(1, 0.5f, 0.5f), new(1, 0, 0.5f)));
             f.Add(new Face(new(1, 0, 0.5f), new(1, 1, 0.5f), new(1, 1, 1), new(1, 0, 1)));
+        }
+
+        // Furniture forms (#805). Built from box unions; faces buried inside a sibling box are enclosed
+        // (never coplanar with a visible face), so there is no z-fighting — legs deliberately poke INTO
+        // the plate above them instead of ending flush with it.
+
+        private static void Table(List<Face> f)
+        {
+            Box(f, 0f, 0.85f, 0f, 1f, 1f, 1f); // top plate, full cell so adjacent tables join seamlessly
+            Box(f, 0.06f, 0f, 0.06f, 0.20f, 0.9f, 0.20f);
+            Box(f, 0.80f, 0f, 0.06f, 0.94f, 0.9f, 0.20f);
+            Box(f, 0.06f, 0f, 0.80f, 0.20f, 0.9f, 0.94f);
+            Box(f, 0.80f, 0f, 0.80f, 0.94f, 0.9f, 0.94f);
+        }
+
+        private static void Chair(List<Face> f)
+        {
+            Box(f, 0.1f, 0.35f, 0.1f, 0.9f, 0.5f, 0.9f);   // seat
+            Box(f, 0.1f, 0.4f, 0.72f, 0.9f, 1f, 0.9f);     // backrest (toward +Z; yaw turns it)
+            Box(f, 0.12f, 0f, 0.12f, 0.24f, 0.4f, 0.24f);  // four legs, embedded into the seat
+            Box(f, 0.76f, 0f, 0.12f, 0.88f, 0.4f, 0.24f);
+            Box(f, 0.12f, 0f, 0.76f, 0.24f, 0.4f, 0.88f);
+            Box(f, 0.76f, 0f, 0.76f, 0.88f, 0.4f, 0.88f);
+        }
+
+        private static void Fence(List<Face> f)
+        {
+            Box(f, 0.05f, 0f, 0.4f, 0.2f, 0.85f, 0.6f);    // two posts
+            Box(f, 0.8f, 0f, 0.4f, 0.95f, 0.85f, 0.6f);
+            Box(f, 0f, 0.55f, 0.44f, 1f, 0.7f, 0.56f);     // rails span the full cell → neighbours connect
+            Box(f, 0f, 0.2f, 0.44f, 1f, 0.35f, 0.56f);
+        }
+
+        private static void Pot(List<Face> f)
+        {
+            Box(f, 0.28f, 0f, 0.28f, 0.72f, 0.42f, 0.72f); // body
+            Box(f, 0.24f, 0.36f, 0.24f, 0.76f, 0.5f, 0.76f); // slightly wider rim
         }
 
         private const float Cx = 0.5f, Cz = 0.5f, R = 0.5f;

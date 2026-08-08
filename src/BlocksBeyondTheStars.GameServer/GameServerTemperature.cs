@@ -50,7 +50,7 @@ public sealed partial class GameServer
 
     private const double TemperatureScanInterval = 1.0;
 
-    private ushort _tempIceId, _tempSnowId;
+    private ushort _tempIceId, _tempSnowId, _tempCampfireId;
     private bool _tempIdsResolved;
 
     /// <summary>Sun-dependent vacuum reading (#668): ≈ +120 °C in full sunlight down to ≈ −150 °C in
@@ -145,6 +145,9 @@ public sealed partial class GameServer
         return severity;
     }
 
+    /// <summary>Test/util: expose the local-source override (mirrors <see cref="NearHealTankForTest"/>).</summary>
+    public float ApplyLocalSourcesForTest(Shared.Geometry.Vector3f pos, float ambientC) => ApplyLocalSources(pos, ambientC);
+
     /// <summary>Local heat/cold sources override the ambient reading (#667): lava keeps its surroundings
     /// dangerous (the deep lava table stays hot), open fire is a gentle campfire warmth capped inside
     /// the comfort band, and ice/snow-walled spaces (an ice world's caves) hold the cold. Reads only
@@ -156,6 +159,7 @@ public sealed partial class GameServer
             _tempIdsResolved = true;
             _tempIceId = _content.GetBlock("ice")?.NumericId.Value ?? 0;
             _tempSnowId = _content.GetBlock("snow")?.NumericId.Value ?? 0;
+            _tempCampfireId = _content.GetBlock("campfire")?.NumericId.Value ?? 0;
         }
 
         var center = new Vector3i(
@@ -178,8 +182,10 @@ public sealed partial class GameServer
                     {
                         lavaDist = System.Math.Min(lavaDist, System.Math.Max(1, dist));
                     }
-                    else if (_fireId != 0 && id == _fireId)
+                    else if ((_fireId != 0 && id == _fireId) || (_tempCampfireId != 0 && id == _tempCampfireId))
                     {
+                        // The placed campfire block (#807) warms exactly like open fire — a controlled
+                        // flame with the same gentle, comfort-band-capped radius.
                         fireDist = System.Math.Min(fireDist, System.Math.Max(1, dist));
                     }
                     else if (id == _tempIceId || id == _tempSnowId)

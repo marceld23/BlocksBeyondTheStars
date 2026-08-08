@@ -193,5 +193,13 @@
   { "key": "obsidian",        "nameKey": "item.obsidian.name",        "category": "block", "maxStack": 1024, "placesBlock": "obsidian" },
   { "key": "ancient_brick",   "nameKey": "item.ancient_brick.name",   "category": "block", "maxStack": 1024, "placesBlock": "ancient_brick", "descriptionKey": "item.ancient_brick.desc" },
   { "key": "rune_stone",      "nameKey": "item.rune_stone.name",      "category": "block", "maxStack": 1024, "placesBlock": "rune_stone", "descriptionKey": "item.rune_stone.desc" },
-  { "key": "hydro_tray",      "nameKey": "item.hydro_tray.name",      "category": "block", "maxStack": 1024, "placesBlock": "hydro_tray", "descriptionKey": "item.hydro_tray.desc" }
+  { "key": "hydro_tray",      "nameKey": "item.hydro_tray.name",      "category": "block", "maxStack": 1024, "placesBlock": "hydro_tray", "descriptionKey": "item.hydro_tray.desc" },
+
+  { "key": "bed",         "nameKey": "item.bed.name",         "category": "block", "maxStack": 16,   "placesBlock": "bed",         "descriptionKey": "item.bed.desc" },
+  { "key": "campfire",    "nameKey": "item.campfire.name",    "category": "block", "maxStack": 16,   "placesBlock": "campfire",    "descriptionKey": "item.campfire.desc" },
+  { "key": "wood_crate",  "nameKey": "item.wood_crate.name",  "category": "block", "maxStack": 64,   "placesBlock": "wood_crate",  "descriptionKey": "item.wood_crate.desc" },
+  { "key": "lantern",     "nameKey": "item.lantern.name",     "category": "block", "maxStack": 64,   "placesBlock": "lantern",     "descriptionKey": "item.lantern.desc" },
+  { "key": "rug",         "nameKey": "item.rug.name",         "category": "block", "maxStack": 64,   "placesBlock": "rug",         "descriptionKey": "item.rug.desc" },
+  { "key": "flower_pot",  "nameKey": "item.flower_pot.name",  "category": "block", "maxStack": 64,   "placesBlock": "flower_pot",  "descriptionKey": "item.flower_pot.desc" },
+  { "key": "cooked_meat", "nameKey": "item.cooked_meat.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.cooked_meat.desc", "consumeHealth": 25, "consumeHunger": 60 }
 ]

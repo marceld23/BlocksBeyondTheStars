@@ -173,6 +173,7 @@ public sealed partial class GameServer
             // as a frozen ghost — mark them stealthed (clients hide stealthed avatars + nameplates).
             Stealthed = p.Stealthed || InSpace(p.PlayerId),
             Jetpacking = p.Jetpacking,
+            Seated = p.Seated,
             Gear = GearMask(p),
             Held = HeldItemKey(p),
         };

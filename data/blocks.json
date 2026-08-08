@@ -160,5 +160,15 @@
   // The tray is the hydroponic host block the high-tech greenhouses grow it in (dirt/grass/mud do the same
   // job in the rustic village version).
   { "key": "flora_cropberry", "nameKey": "block.flora_cropberry.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 3833376, "flammable": true, "drops": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
-  { "key": "hydro_tray",      "nameKey": "block.hydro_tray.name", "category": "machine",      "hardness": 2.4, "requiredTool": "none",  "minToolTier": 0, "emission": 0.12, "color": 4361847, "drops": [ { "item": "hydro_tray", "count": 1 } ] }
+  { "key": "hydro_tray",      "nameKey": "block.hydro_tray.name", "category": "machine",      "hardness": 2.4, "requiredTool": "none",  "minToolTier": 0, "emission": 0.12, "color": 4361847, "drops": [ { "item": "hydro_tray", "count": 1 } ] },
+
+  // Low-tech furniture & survival batch (#803-#809). The bed is the pre-tech heal-tank precursor
+  // (home spawn + weak heal), the campfire a warmth/light/cooking station, the wood crate the
+  // hand-tier container. All hand-craftable long before the blueprint economy kicks in.
+  { "key": "bed",        "nameKey": "block.bed.name",        "category": "machine",  "hardness": 1.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "color": 10967111, "drops": [ { "item": "bed", "count": 1 } ] },
+  { "key": "campfire",   "nameKey": "block.campfire.name",   "category": "machine",  "hardness": 0.8, "requiredTool": "none", "minToolTier": 0, "emission": 0.8, "color": 16734488, "drops": [ { "item": "campfire", "count": 1 } ] },
+  { "key": "wood_crate", "nameKey": "block.wood_crate.name", "category": "building", "hardness": 1.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "color": 9127187, "drops": [ { "item": "wood_crate", "count": 1 } ] },
+  { "key": "lantern",    "nameKey": "block.lantern.name",    "category": "light",    "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "emission": 0.8, "color": 16758855, "drops": [ { "item": "lantern", "count": 1 } ] },
+  { "key": "rug",        "nameKey": "block.rug.name",        "category": "building", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "tintable": true, "color": 11553354, "drops": [ { "item": "rug", "count": 1 } ] },
+  { "key": "flower_pot", "nameKey": "block.flower_pot.name", "category": "building", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 10841676, "drops": [ { "item": "flower_pot", "count": 1 } ] }
 ]

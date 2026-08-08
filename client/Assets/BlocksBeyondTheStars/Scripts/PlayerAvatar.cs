@@ -54,6 +54,8 @@ namespace BlocksBeyondTheStars.Client
         private string _faceString = string.Empty;
         private Color _skinColor = new Color(0.85f, 0.68f, 0.55f); // original (pre-sRGB) skin tone, for face compositing
 
+        private bool _seated;     // sit pose (#806): thighs forward, knees bent — set from the presence flag
+
         private float _phase;     // per-instance offset so avatars don't move in lockstep
         private Vector3 _lastPos;
         private float _prevY;
@@ -271,7 +273,17 @@ namespace BlocksBeyondTheStars.Client
             bool airborne = Mathf.Abs(vy) > 2.6f;
             bool idle = moving < 0.03f && !airborne;
 
-            if (airborne)
+            if (_seated)
+            {
+                // Sitting on a chair (#806): thighs forward, knees bent, hands resting toward the lap,
+                // with the idle look-around kept so the sitter doesn't freeze into a statue.
+                legL = legR = -85f;
+                kneeL = kneeR = 80f;
+                armL = armR = -25f;
+                elbowL = elbowR = 40f;
+                headYaw = Mathf.Sin(t * 0.5f) * 9f;
+            }
+            else if (airborne)
             {
                 // Jump/fall tuck: legs up + bent, arms raised a little.
                 legL = legR = -38f;
@@ -313,6 +325,10 @@ namespace BlocksBeyondTheStars.Client
             if (_kneeR != null) _kneeR.localRotation = Quaternion.Euler(-kneeR, 0f, 0f);
             if (_head != null) _head.localRotation = Quaternion.Euler(0f, headYaw, 0f);
         }
+
+        /// <summary>Poses the avatar seated (#806) — thighs forward, knees bent. Driven from the presence
+        /// broadcast for remotes; the caller also lowers the avatar so the pelvis meets the seat.</summary>
+        public void SetSeated(bool seated) => _seated = seated;
 
         /// <summary>Plays a tool/weapon swing of the right arm (mining, attacking, placing). Re-calling
         /// while a swing is in progress is ignored, so holding to drill produces a continuous chop.</summary>

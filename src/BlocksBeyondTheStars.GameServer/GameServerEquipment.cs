@@ -163,6 +163,11 @@ public sealed partial class GameServer
         p.Jetpacking = true;
     }
 
+    /// <summary>Mirrors the client's sit-on-chair pose (#806). Pure cosmetics — no validation beyond
+    /// "on foot": movement stays client-authoritative and the flag only feeds the presence broadcast.</summary>
+    private void HandleSetSeated(PlayerSession session, SetSeatedIntent intent)
+        => session.State.Seated = intent.Active && !InSpace(session.State.PlayerId);
+
     /// <summary>Drains suit energy while the jetpack fires; cuts thrust when the energy runs out.</summary>
     private void TickJetpack(PlayerSession session, double dt)
     {

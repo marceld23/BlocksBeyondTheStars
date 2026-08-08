@@ -392,6 +392,14 @@ public sealed class SetJetpackIntent
     public bool Active { get; set; }
 }
 
+/// <summary>Client → server: the player sat down on (or stood up from) a chair-shaped cell (#806).
+/// Pure pose state — no buffs; it rides the presence broadcast so other players see a seated avatar.
+/// The client owns the camera/movement lock; the server only mirrors and sanity-checks the flag.</summary>
+public sealed class SetSeatedIntent
+{
+    public bool Active { get; set; }
+}
+
 /// <summary>Client → server: the player starts (Active = true) or ends (Active = false) an EVA spacewalk —
 /// floating outside the ship in space on foot. The server honours a start only while the player is actually
 /// in a space instance; on EVA the suit's life support is off, so oxygen drains until they board again.</summary>
@@ -1698,6 +1706,9 @@ public sealed class PlayerPresence
 
     /// <summary>Jetpack firing — other clients show the thrust flame under the avatar.</summary>
     public bool Jetpacking { get; set; }
+
+    /// <summary>Sitting on a chair-shaped cell (#806) — other clients pose the avatar seated.</summary>
+    public bool Seated { get; set; }
 
     /// <summary>Equipped-gear bitmask shown on the avatar: 1=helmet, 2=chest, 4=legs, 8=pack, 16=lamp.</summary>
     public int Gear { get; set; }

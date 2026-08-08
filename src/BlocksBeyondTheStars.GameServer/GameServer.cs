@@ -1605,6 +1605,7 @@ public sealed partial class GameServer
         p.SuitEnergy = 100f;
         p.Hunger = 100f;
         p.Stealthed = false;
+        p.Seated = false; // death stands you up (#806)
         p.InEva = false; // a death ends any spacewalk
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
@@ -2258,6 +2259,7 @@ public sealed partial class GameServer
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
+            case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
             case SetEvaIntent eva: HandleSetEva(session, eva); break;
             case StructureEditIntent structureEdit: HandleStructureEdit(session, structureEdit); break;
             case DeployStationCoreIntent: HandleDeployStationCore(session); break;
@@ -3036,6 +3038,12 @@ public sealed partial class GameServer
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
+        if (dropShape != 0 && dropShape == DefaultPlaceShapeOf(def.Key))
+        {
+            // A furniture block's server-stamped default form is not player data — dropping it plain keeps
+            // the mined item stacking with crafted ones (a "bed#s01" would never merge with a "bed").
+            dropShape = 0;
+        }
 
         // Work out exactly what this break would yield, then make sure it all fits before touching the world.
         var yield = new List<ItemAmount>();
@@ -3052,9 +3060,9 @@ public sealed partial class GameServer
             yield.Add(new ItemAmount(item, drop.Count));
         }
 
-        if (def.Key == "crate")
+        if (IsContainerBlock(def.Key))
         {
-            yield.AddRange(CrateContentsAt(pos)); // a mined crate hands its stored stacks back too
+            yield.AddRange(CrateContentsAt(pos)); // a mined crate/wood box hands its stored stacks back too
         }
 
         if (!pool.CanFit(yield))
@@ -3067,9 +3075,9 @@ public sealed partial class GameServer
         _world.SetBlock(pos, BlockId.Air, owner: session.State.PlayerId);
         _miningProgress.Remove(pos);
 
-        if (def.Key == "crate")
+        if (IsContainerBlock(def.Key))
         {
-            RemoveCrateContainer(pos, pool); // mining a crate returns its stored contents (Task 5 Stage 3b)
+            RemoveCrateContainer(pos, pool); // mining a crate/wood box returns its stored contents (Task 5 Stage 3b)
         }
         else if (def.Key == "radio_beacon")
         {
@@ -3370,11 +3378,22 @@ public sealed partial class GameServer
             }
         }
 
+        // Furniture blocks (#804/#807/#809) read as their real silhouette out of the box: stamp their
+        // default form on placement — the same per-voxel shape channel the Shape action writes, so the
+        // mesher, save and wire all treat it like any player-shaped cell. Yaw follows the player's facing
+        // (a chairless bed still has a direction it "points"). BreakBlockAt strips this default again so
+        // the drop stacks with freshly crafted items.
+        if (placeShape == 0 && DefaultPlaceShapeOf(blockDef.Key) is int defShape && defShape != 0)
+        {
+            int facing = ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+            placeShape = ShapeCode.Pack(defShape, facing, ShapeCode.UpPlusY);
+        }
+
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
 
-        if (blockDef.Key == "crate")
+        if (IsContainerBlock(blockDef.Key))
         {
-            PlaceCrate(pos); // a placed storage crate becomes a lootable/stash-able container (Task 5 Stage 3b)
+            PlaceCrate(pos); // a placed storage crate/wood box becomes a lootable/stash-able container (Task 5 Stage 3b)
         }
         else if (blockDef.Key == "radio_beacon")
         {
@@ -4186,6 +4205,19 @@ public sealed partial class GameServer
         return tool.Tier >= block.MinToolTier;
     }
 
+    /// <summary>The default FORM a furniture block is stamped with on placement (#804/#807/#809), so it
+    /// reads as its silhouette without the player using the Shape action. 0 = plain cube (no default).
+    /// Used symmetrically by the place handler (stamp) and <see cref="BreakBlockAt"/> (strip from the
+    /// drop key so mined furniture stacks with crafted).</summary>
+    private static int DefaultPlaceShapeOf(string blockKey) => blockKey switch
+    {
+        "bed" => (int)BlockShape.Slab,
+        "campfire" => (int)BlockShape.Slab,
+        "rug" => (int)BlockShape.Sheet,
+        "flower_pot" => (int)BlockShape.Pot,
+        _ => 0,
+    };
+
     private bool StationAvailable(PlayerState player, CraftingStation station)
     {
         if (station == CraftingStation.Hand)
@@ -4208,6 +4240,7 @@ public sealed partial class GameServer
                 CraftingStation.Detoxifier => NearStationBlock(player, "detoxifier"),
                 CraftingStation.Transmuter => NearStationBlock(player, "matter_forge"),
                 CraftingStation.AlgaeTank => NearStationBlock(player, "algae_tank"),
+                CraftingStation.Campfire => NearStationBlock(player, "campfire"),
                 // A factory's production terminal — only present inside spawned factory structures
                 // (players don't craft/place it), so factory recipes are only available at a factory.
                 CraftingStation.Factory => NearStationBlock(player, "factory_terminal"),
