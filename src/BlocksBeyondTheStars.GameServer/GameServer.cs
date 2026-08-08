@@ -2974,6 +2974,21 @@ public sealed partial class GameServer
             return;
         }
 
+        // Powered drills draw suit energy per swing (#796) — the same rule energy weapons follow per shot.
+        // An empty suit rejects the swing BEFORE any progress accrues; the basic and diamond drills declare
+        // no cost and keep working, so a drained player is never locked out of mining entirely.
+        if (tool.EnergyPerUse > 0f)
+        {
+            if (session.State.SuitEnergy < tool.EnergyPerUse)
+            {
+                Reject(session, "mine", "@no_energy");
+                return;
+            }
+
+            session.State.SuitEnergy -= tool.EnergyPerUse;
+            SendPlayerState(session);
+        }
+
         // Harder blocks need more drill effort; stronger drills apply more per hit. Soft blocks
         // (mud/dirt) break in one hit; hard ones (stone/metal/ore) take several. Accumulate until break.
         float hardness = System.Math.Max(0.2f, def.Hardness);
@@ -3001,7 +3016,7 @@ public sealed partial class GameServer
         // Powerful drills clear a small area at once.
         if (tool.MiningRadius > 0)
         {
-            BreakArea(session, pos, tool.MiningRadius, pool);
+            BreakArea(session, pos, tool.MiningRadius, tool, pool);
         }
 
         SendInventory(session);
@@ -3094,8 +3109,10 @@ public sealed partial class GameServer
         return true;
     }
 
-    /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.</summary>
-    private void BreakArea(PlayerSession session, Vector3i center, int radius, MaterialPool pool)
+    /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.
+    /// Neighbours the tool could not mine directly (kind/tier — #797) are left standing, so a future
+    /// low-tier area drill cannot sweep up ore above its own tier.</summary>
+    private void BreakArea(PlayerSession session, Vector3i center, int radius, ToolProperties tool, MaterialPool pool)
     {
         for (int dx = -radius; dx <= radius; dx++)
             for (int dy = -radius; dy <= radius; dy++)
@@ -3115,7 +3132,7 @@ public sealed partial class GameServer
                     }
 
                     var d = _world.Definition(b);
-                    if (d is null || !d.Mineable)
+                    if (d is null || !d.Mineable || !ToolCanMine(tool, d))
                     {
                         continue;
                     }

@@ -958,6 +958,13 @@ namespace BlocksBeyondTheStars.Client
                 return Localizer?.Get("ui.loot.out_of_reach") ?? "The cache is out of reach — move closer.";
             }
 
+            if (reason == "@no_energy")
+            {
+                // A powered drill with an empty suit: the swing costs energy the player does not have.
+                return Localizer?.Get("ui.mine.no_energy")
+                    ?? "Not enough suit energy — recharge, or switch to a drill that needs none.";
+            }
+
             if (reason == "@fire_protected")
             {
                 // A torch against a settlement / station / ship / claimed base: those never catch fire.

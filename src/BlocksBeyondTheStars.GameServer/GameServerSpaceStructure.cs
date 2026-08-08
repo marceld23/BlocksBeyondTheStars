@@ -536,6 +536,20 @@ public sealed partial class GameServer
                     return;
                 }
 
+                // Powered drills draw suit energy per swing on asteroid ore too (#796) — same rule as
+                // planet mining. Own-ship and station editing below stays free: construction, not mining.
+                if (tool.EnergyPerUse > 0f)
+                {
+                    if (p.SuitEnergy < tool.EnergyPerUse)
+                    {
+                        Reject(session, "structure", "@no_energy");
+                        return;
+                    }
+
+                    p.SuitEnergy -= tool.EnergyPerUse;
+                    SendPlayerState(session);
+                }
+
                 float hardness = System.Math.Max(0.2f, def.Hardness);
                 float power = tool.MiningPower > 0f ? tool.MiningPower : 1f;
                 float prior = _structureMiningProgress.TryGetValue((s.Id, pos), out var prev) && prev.Block == existing.Value

@@ -172,6 +172,98 @@ public sealed class MiningTests : IDisposable
         }
     }
 
+    [Fact]
+    public void PoweredDrill_DrainsSuitEnergy_PerSwing()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            p.State.Inventory.SetSlot(6, new ItemStack("titanium_drill", 1)); // energyPerUse 0.5, power 2
+            p.State.SelectedHotbarSlot = 6;
+            p.State.SuitEnergy = 100f;
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("iron_ore")!.NumericId); // hardness 4.0 → 2 swings at power 2
+
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "Iron ore should break in two titanium-drill swings.");
+            Assert.Equal(99f, p.State.SuitEnergy, 3); // 2 swings × 0.5 energy (#796)
+        }
+    }
+
+    [Fact]
+    public void PoweredDrill_RejectsSwing_WhenSuitEnergyEmpty()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            p.State.Inventory.SetSlot(6, new ItemStack("titanium_drill", 1)); // energyPerUse 0.5
+            p.State.SelectedHotbarSlot = 6;
+            p.State.SuitEnergy = 0.2f; // below the per-swing cost
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("mud")!.NumericId); // soft — would break in one paid swing
+
+            server.MineBlockOnce("Miner", pos.X, pos.Y, pos.Z);
+
+            Assert.False(server.World.GetBlock(pos).IsAir, "An empty suit must reject the swing — no progress for free.");
+            Assert.Equal(0.2f, p.State.SuitEnergy, 3);
+        }
+    }
+
+    [Fact]
+    public void EnergyFreeDrills_KeepMining_AtZeroSuitEnergy()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f);
+            p.State.Inventory.SetSlot(6, new ItemStack("diamond_drill", 1)); // tier 3, power 3.2, no energy cost
+            p.State.SelectedHotbarSlot = 6;
+            p.State.SuitEnergy = 0f;
+            var pos = new Vector3i(0, 64, 0);
+            server.World.SetBlock(pos, _content.GetBlock("stone")!.NumericId); // hardness 6.1 → 2 swings at power 3.2
+
+            server.MineBlock("Miner", pos.X, pos.Y, pos.Z);
+
+            Assert.True(server.World.GetBlock(pos).IsAir, "The diamond drill needs no energy — its whole niche (#796).");
+            Assert.Equal(0f, p.State.SuitEnergy, 3);
+        }
+    }
+
+    [Fact]
+    public void AreaMining_LeavesBlocks_AboveTheToolsTier()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // No tier-1 area drill exists in the shipped data (the mining_beam is max-tier), so give this
+            // test's private content copy one: the starter drill with a 3×3×3 sweep (#797).
+            _content.GetItem("basic_drill")!.Tool!.MiningRadius = 1;
+
+            var p = server.AddLocalPlayer("Miner");
+            p.State.Position = new Vector3f(0.5f, 66f, 0.5f); // starter basic_drill is slot 0
+            var center = new Vector3i(0, 64, 0);
+            var tier1Side = new Vector3i(1, 64, 0);
+            var tier2Side = new Vector3i(-1, 64, 0);
+            server.World.SetBlock(center, _content.GetBlock("stone")!.NumericId);
+            server.World.SetBlock(tier1Side, _content.GetBlock("iron_ore")!.NumericId);      // tier 1 — swept
+            server.World.SetBlock(tier2Side, _content.GetBlock("titanium_ore")!.NumericId);  // tier 2 — beyond the drill
+
+            server.MineBlock("Miner", center.X, center.Y, center.Z);
+
+            Assert.True(server.World.GetBlock(center).IsAir, "The centre block should break normally.");
+            Assert.True(server.World.GetBlock(tier1Side).IsAir, "A same-tier neighbour is swept by area mining.");
+            Assert.False(server.World.GetBlock(tier2Side).IsAir,
+                "Area mining must not break ore above the tool's own tier (#797).");
+        }
+    }
+
     public void Dispose()
     {
         try

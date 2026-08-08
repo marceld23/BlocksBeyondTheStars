@@ -238,7 +238,10 @@ separate unlock; admins can still disable it through server world rules.
 ### Mining & tools
 - Tools have a **kind** (drill/scanner/…) and **tier** (1–5). A block has a **hardness** and may require a
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
-  breaks and yields its **drops**. Powerful drills can clear a small radius.
+  breaks and yields its **drops**. Powerful drills can clear a small radius — the sweep only takes blocks
+  the drill could mine directly (same tier rules).
+- Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
+  suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
   plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
   visiting), you just cannot take the building apart.

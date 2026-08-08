@@ -7197,6 +7197,29 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-08): powered drills actually draw suit energy; area mining respects tool tier (#796/#797)
+
+A drill-upgrade analysis showed `energyPerUse` on the titanium drill (0.5) and mining beam (1.0) was
+dead data: `HandleMine` never touched `SuitEnergy` — only weapons, fire ignition and gadgets charged
+energy. That made the diamond drill's whole designed niche ("needs no energy", its description sells
+exactly that) fiction, and left the mining beam strictly better at half the knowledge cost.
+
+**Energy per swing (#796).** Planet mining and asteroid EVA mining now charge `tool.EnergyPerUse` per
+swing, mirroring the energy-weapon pattern: an empty suit rejects the swing (new localized `@no_energy`
+toast, `ui.mine.no_energy` EN+DE) before any progress accrues. The basic and diamond drills stay free,
+so a drained player is never locked out of mining. Own-ship/station hull editing stays free by design
+(construction UX, not resource gathering). Drill descriptions now state the energy cost (and the mining
+beam's area sweep).
+
+**Area mining tier gate (#797).** `BreakArea` (the mining beam's 3×3×3 sweep) checked protection and
+`Mineable` per neighbour but never `ToolCanMine` — latent today (the beam is max-tier) but a future
+lower-tier area drill would have swept up ore above its own tier. The sweep now skips blocks the tool
+could not mine directly.
+
+Yield stays untouched and block-defined: 1 block → its `drops` list, for every drill; upgrades buy
+speed, access and area — never more items per block. Four new `MiningTests` guard the drain, the
+empty-suit reject, the energy-free drills and the sweep's tier gate.
+
 ## ✅ Done (2026-08-06): every room of every ship is lit (#776)
 
 Ships with more than one room were only lit in some of their rooms — on the Hammerhead the bridge was
