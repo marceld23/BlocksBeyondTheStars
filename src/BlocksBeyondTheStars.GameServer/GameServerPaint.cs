@@ -165,12 +165,18 @@ public sealed partial class GameServer
         }
 
         designId = _nextPaintDesignId++;
-        var design = new StoredPaintDesign { Id = designId, OwnerId = session.State.PlayerId, Pixels = pixels };
+        var design = new StoredPaintDesign
+        {
+            Id = designId,
+            OwnerId = session.State.PlayerId,
+            OwnerName = session.State.Name,
+            Pixels = pixels,
+        };
         _paintDesigns[designId] = design;
         _paintDesignIdByPixels[pixels] = designId;
         _repo.SavePaintDesign(design);
 
-        var msg = new PaintDesignData { Id = designId, Pixels = pixels };
+        var msg = new PaintDesignData { Id = designId, Pixels = pixels, Owner = design.OwnerName };
         foreach (var viewer in _sessions.Values)
         {
             if (viewer.Joined)
@@ -197,6 +203,7 @@ public sealed partial class GameServer
         {
             Ids = live.Select(d => d.Id).ToArray(),
             Pixels = live.Select(d => d.Pixels).ToArray(),
+            Owners = live.Select(d => d.OwnerName).ToArray(),
         });
     }
 

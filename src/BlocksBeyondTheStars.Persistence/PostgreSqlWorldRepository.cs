@@ -103,11 +103,16 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 remaining DOUBLE PRECISION NOT NULL, gen INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS paint_design (id INTEGER PRIMARY KEY, owner TEXT NOT NULL, pixels TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS paint_design (
+                id INTEGER PRIMARY KEY, owner TEXT NOT NULL, pixels TEXT NOT NULL,
+                owner_name TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS paint_report (
                 reporter TEXT NOT NULL, owner TEXT NOT NULL, design_id INTEGER NOT NULL,
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
-                created_unix BIGINT NOT NULL);");
+                created_unix BIGINT NOT NULL, kind TEXT NOT NULL DEFAULT 'paint');
+            CREATE TABLE IF NOT EXISTS custom_shape (
+                id INTEGER PRIMARY KEY, owner TEXT NOT NULL, owner_name TEXT NOT NULL,
+                name TEXT NOT NULL, voxels TEXT NOT NULL);");
         // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
         // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -122,6 +127,11 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         // every row written before this shipped (no back-fill is possible).
         TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS owner_id INTEGER NOT NULL DEFAULT 0;");
         TryExecute("ALTER TABLE block_edit ADD COLUMN IF NOT EXISTS edited_unix BIGINT NOT NULL DEFAULT 0;");
+        // Player-designed forms (#843) share the report table with paint — every pre-existing row is a paint
+        // report, which is exactly what the column default says.
+        TryExecute("ALTER TABLE paint_report ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'paint';");
+        // Attribution for copied designs (#846): pre-existing designs simply have no designer name on record.
+        TryExecute("ALTER TABLE paint_design ADD COLUMN IF NOT EXISTS owner_name TEXT NOT NULL DEFAULT '';");
     }
 
     // --- Block-id palette (content-shift migration) ---
@@ -1062,11 +1072,13 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO paint_design (id, owner, pixels) VALUES (@i, @o, @x) " +
-                              "ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, pixels=excluded.pixels;";
+            cmd.CommandText = "INSERT INTO paint_design (id, owner, pixels, owner_name) VALUES (@i, @o, @x, @n) " +
+                              "ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, pixels=excluded.pixels, " +
+                              "owner_name=excluded.owner_name;";
             cmd.Parameters.AddWithValue("@i", design.Id);
             cmd.Parameters.AddWithValue("@o", design.OwnerId);
             cmd.Parameters.AddWithValue("@x", design.Pixels);
+            cmd.Parameters.AddWithValue("@n", design.OwnerName);
             cmd.ExecuteNonQuery();
         }
     }
@@ -1077,7 +1089,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT id, owner, pixels FROM paint_design;";
+            cmd.CommandText = "SELECT id, owner, pixels, owner_name FROM paint_design;";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -1086,6 +1098,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                     Id = reader.GetInt32(0),
                     OwnerId = reader.GetString(1),
                     Pixels = reader.GetString(2),
+                    OwnerName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
                 });
             }
         }
@@ -1109,8 +1122,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO paint_report (reporter, owner, design_id, planet, x, y, z, created_unix) " +
-                              "VALUES (@r, @o, @d, @p, @x, @y, @z, @c);";
+            cmd.CommandText = "INSERT INTO paint_report (reporter, owner, design_id, planet, x, y, z, created_unix, kind) " +
+                              "VALUES (@r, @o, @d, @p, @x, @y, @z, @c, @k);";
+            cmd.Parameters.AddWithValue("@k", string.IsNullOrEmpty(report.Kind) ? "paint" : report.Kind);
             cmd.Parameters.AddWithValue("@r", report.ReporterId);
             cmd.Parameters.AddWithValue("@o", report.OwnerId);
             cmd.Parameters.AddWithValue("@d", report.DesignId);
@@ -1129,7 +1143,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT reporter, owner, design_id, planet, x, y, z, created_unix FROM paint_report;";
+            cmd.CommandText = "SELECT reporter, owner, design_id, planet, x, y, z, created_unix, kind FROM paint_report;";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -1143,11 +1157,66 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                     Y = reader.GetInt32(5),
                     Z = reader.GetInt32(6),
                     CreatedUnix = reader.GetInt64(7),
+                    Kind = reader.IsDBNull(8) ? "paint" : reader.GetString(8),
                 });
             }
         }
 
         return result;
+    }
+
+    // --- Player-designed block forms (#843) ---
+
+    public void SaveCustomShape(StoredCustomShape shape)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO custom_shape (id, owner, owner_name, name, voxels) VALUES (@i, @o, @n, @m, @v) " +
+                              "ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, owner_name=excluded.owner_name, " +
+                              "name=excluded.name, voxels=excluded.voxels;";
+            cmd.Parameters.AddWithValue("@i", shape.Id);
+            cmd.Parameters.AddWithValue("@o", shape.OwnerId);
+            cmd.Parameters.AddWithValue("@n", shape.OwnerName);
+            cmd.Parameters.AddWithValue("@m", shape.Name);
+            cmd.Parameters.AddWithValue("@v", shape.Voxels);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredCustomShape> ListCustomShapes()
+    {
+        var result = new List<StoredCustomShape>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, owner, owner_name, name, voxels FROM custom_shape;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredCustomShape
+                {
+                    Id = reader.GetInt32(0),
+                    OwnerId = reader.GetString(1),
+                    OwnerName = reader.GetString(2),
+                    Name = reader.GetString(3),
+                    Voxels = reader.GetString(4),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteCustomShape(int id)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM custom_shape WHERE id = @i;";
+            cmd.Parameters.AddWithValue("@i", id);
+            cmd.ExecuteNonQuery();
+        }
     }
 
     // --- Beam blocks (placed teleporter pads) ---

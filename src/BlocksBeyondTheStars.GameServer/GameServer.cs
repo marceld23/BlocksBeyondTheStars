@@ -288,6 +288,7 @@ public sealed partial class GameServer
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
+        LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
         LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
         LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
 
@@ -2313,6 +2314,7 @@ public sealed partial class GameServer
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
             case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
+            case CustomShapeCraftIntent form: HandleCustomShapeCraft(session, form); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
@@ -2568,6 +2570,7 @@ public sealed partial class GameServer
         SendExistingPresences(session); // show already-online players to the newcomer
         SendExistingFaces(session);     // custom pixel faces of already-online players
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
+        SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of
@@ -3457,7 +3460,10 @@ public sealed partial class GameServer
         if (blockDef.Shapeable)
         {
             int shapeIndex = ItemKey.Shape(place.ItemKey);
-            if (ShapeCode.IsValidShape(shapeIndex))
+            // Built-in forms are always placeable; a player-designed form (#843) only if this save actually
+            // has it registered — an item carrying a wiped index falls back to a plain cube rather than
+            // stamping geometry nobody can mesh.
+            if (ShapeCode.IsPlaceableShape(shapeIndex, HasCustomShape))
             {
                 // Yaw: the client may send an explicit quarter-turn (rotate key); otherwise it follows where the
                 // player is looking. An explicit turn is what lets you build stairs into a corner without having
@@ -3711,18 +3717,8 @@ public sealed partial class GameServer
     /// </summary>
     private void HandleShapeCraft(PlayerSession session, ShapeCraftIntent intent)
     {
-        string baseKey = ItemKey.Base(intent.SourceItemKey);
-        var item = _content.GetItem(baseKey);
-        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        if (!IsShapeableSource(session, intent.SourceItemKey, "shape"))
         {
-            CraftFail(session, "shape", "@srv.craft.shape_item");
-            return;
-        }
-
-        var blockDef = _content.GetBlock(item.PlacesBlock!);
-        if (blockDef is null || !blockDef.Shapeable)
-        {
-            CraftFail(session, "shape", "@srv.craft.shape_material");
             return;
         }
 
@@ -3733,23 +3729,57 @@ public sealed partial class GameServer
             return;
         }
 
-        // Re-forming to the shape the source already has (incl. "cube" on a plain block) is a no-op.
-        if (shape == ItemKey.Shape(intent.SourceItemKey))
+        ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shape, "shape");
+    }
+
+    /// <summary>Validates that a craft source is a building material that can be re-formed at all — the
+    /// shared head of the built-in Shape action and the player-designed form craft (#843).</summary>
+    private bool IsShapeableSource(PlayerSession session, string sourceItemKey, string tag)
+    {
+        var item = _content.GetItem(ItemKey.Base(sourceItemKey));
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
         {
-            CraftFail(session, "shape", "@srv.craft.same_shape");
+            CraftFail(session, tag, "@srv.craft.shape_item");
+            return false;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null || !blockDef.Shapeable)
+        {
+            CraftFail(session, tag, "@srv.craft.shape_material");
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// The free 1:1 exchange behind every form craft: consume the source stack, hand back the same material
+    /// carrying <paramref name="shape"/> in its key, colour preserved. Shared by the built-in Shape action and
+    /// the player-designed form craft so the two can never drift apart (inventory-full guard, creative path,
+    /// overflow warning, VEGA hooks all live here once).
+    /// </summary>
+    private void ApplyShapeExchange(PlayerSession session, string sourceItemKey, int intentCount, int shape, string tag)
+    {
+        string baseKey = ItemKey.Base(sourceItemKey);
+
+        // Re-forming to the shape the source already has (incl. "cube" on a plain block) is a no-op.
+        if (shape == ItemKey.Shape(sourceItemKey))
+        {
+            CraftFail(session, tag, "@srv.craft.same_shape");
             return;
         }
 
-        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
+        int count = System.Math.Clamp(intentCount, 1, ItemDefinition.DefaultMaxStack);
         // Only the form changes — keep whatever colour the source carried.
-        string output = ItemKey.Compose(baseKey, ItemKey.Tint(intent.SourceItemKey), ItemKey.Glow(intent.SourceItemKey), shape);
+        string output = ItemKey.Compose(baseKey, ItemKey.Tint(sourceItemKey), ItemKey.Glow(sourceItemKey), shape);
 
         // Creative mode: no material cost — just produce the shaped material.
         if (!Rules.CraftingCostsMaterials)
         {
             var freeShapePool = new MaterialPool(_content, session.State, _ship);
             freeShapePool.Add(output, count);
-            Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
+            Send(session, new CraftResult { Success = true, RecipeKey = tag });
             SendInventory(session);
             WarnIfPoolOverflowed(session, freeShapePool); // #600
             if (shape != 0) RevealShapeAnomalyMemory(session); // forming a non-cube → VEGA's "why we built blocky" memory
@@ -3758,10 +3788,10 @@ public sealed partial class GameServer
 
         // Free 1:1: consume the exact source stack (re-shaping an already coloured/shaped item works too).
         var pool = new MaterialPool(_content, session.State, _ship);
-        var inputs = new List<ItemAmount> { new ItemAmount(intent.SourceItemKey, count) };
+        var inputs = new List<ItemAmount> { new ItemAmount(sourceItemKey, count) };
         if (!pool.Has(inputs))
         {
-            CraftFail(session, "shape", "@srv.craft.missing_material");
+            CraftFail(session, tag, "@srv.craft.missing_material");
             return;
         }
 
@@ -3769,13 +3799,13 @@ public sealed partial class GameServer
         // own. Check first — a 1:1 transform must never be able to destroy the material.
         if (!pool.CanFit(new[] { new ItemAmount(output, count) }))
         {
-            CraftFail(session, "shape", "@inventory_full");
+            CraftFail(session, tag, "@inventory_full");
             return;
         }
 
         pool.Remove(inputs);
         pool.Add(output, count);
-        Send(session, new CraftResult { Success = true, RecipeKey = "shape" });
+        Send(session, new CraftResult { Success = true, RecipeKey = tag });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: same partial-stack trap as dyeing
         ShipAiOnCraft(session);
@@ -4016,6 +4046,10 @@ public sealed partial class GameServer
                 return;
 
             // Paint moderation (#821) — like kick/announce, moderation is not a cheat: the role is the gate.
+            case "shapewipe":
+                AdminCustomShapeWipe(session, cmd.StringArg);
+                break;
+
             case "paintwipe":
                 AdminPaintWipe(session, cmd.StringArg);
                 return;
@@ -4466,6 +4500,20 @@ public sealed partial class GameServer
 
             session.LastChatTick = reportNow;
             HandlePaintReport(session);
+            return;
+        }
+
+        // The same for player-designed forms (#843) — geometry can be just as rude as a painting.
+        if (text.Equals("/reportshape", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int reportNow = System.Environment.TickCount;
+            if (reportNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = reportNow;
+            HandleCustomShapeReport(session);
             return;
         }
 

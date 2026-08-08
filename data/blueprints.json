@@ -70,6 +70,11 @@
     "unlockCost": [ { "item": "berries", "count": 4 }, { "item": "iron_plate", "count": 1 } ]
   },
   {
+    "key": "shape_tool", "nameKey": "blueprint.shape_tool.name", "descriptionKey": "blueprint.shape_tool.desc",
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 2,
+    "unlockCost": [ { "item": "crystal", "count": 1 }, { "item": "iron_plate", "count": 1 } ]
+  },
+  {
     "key": "thermal_binoculars", "nameKey": "blueprint.thermal_binoculars.name", "descriptionKey": "blueprint.thermal_binoculars.desc",
     "category": "Tools", "prerequisites": [ "binoculars" ], "knowledgeCost": 15,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 1 } ]

@@ -64,6 +64,7 @@ public sealed class MemoryWorldSnapshot
     public List<StoredBeam> Beams { get; set; } = new();
     public List<StoredBase> Bases { get; set; } = new();
     public List<StoredPaintDesign> PaintDesigns { get; set; } = new();
+    public List<StoredCustomShape> CustomShapes { get; set; } = new();
     public List<StoredPaintReport> PaintReports { get; set; } = new();
     public List<StoredAlliance> Alliances { get; set; } = new();
     public List<StoredStoryState> StoryStates { get; set; } = new();
@@ -105,6 +106,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeam> _beams = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBase> _bases = new();
     private readonly Dictionary<int, StoredPaintDesign> _paintDesigns = new();
+    private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
     private readonly List<StoredPaintReport> _paintReports = new();
     private readonly Dictionary<(string A, string B), StoredAlliance> _alliances = new();
     private readonly Dictionary<string, string> _storyStates = new();   // storyId → JSON
@@ -175,6 +177,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Beams = _beams.Values.Select(CloneBeam).ToList(),
             Bases = _bases.Values.Select(CloneBase).ToList(),
             PaintDesigns = _paintDesigns.Values.Select(ClonePaintDesign).ToList(),
+            CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
             PaintReports = _paintReports.Select(ClonePaintReport).ToList(),
             Alliances = _alliances.Values.Select(a => new StoredAlliance { PlayerA = a.PlayerA, PlayerB = a.PlayerB, FormedUtc = a.FormedUtc }).ToList(),
             StoryStates = _storyStates.Values.Select(json => JsonSerializer.Deserialize<StoredStoryState>(json, JsonOptions)!).ToList(),
@@ -302,6 +305,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var design in snapshot.PaintDesigns)
         {
             _paintDesigns[design.Id] = ClonePaintDesign(design);
+        }
+
+        foreach (var shape in snapshot.CustomShapes)
+        {
+            _customShapes[shape.Id] = CloneCustomShape(shape);
         }
 
         foreach (var report in snapshot.PaintReports)
@@ -744,7 +752,10 @@ public sealed class MemoryWorldRepository : IWorldRepository
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Name = b.Name, OwnerId = b.OwnerId };
 
     private static StoredPaintDesign ClonePaintDesign(StoredPaintDesign d)
-        => new() { Id = d.Id, OwnerId = d.OwnerId, Pixels = d.Pixels };
+        => new() { Id = d.Id, OwnerId = d.OwnerId, OwnerName = d.OwnerName, Pixels = d.Pixels };
+
+    private static StoredCustomShape CloneCustomShape(StoredCustomShape s)
+        => new() { Id = s.Id, OwnerId = s.OwnerId, OwnerName = s.OwnerName, Name = s.Name, Voxels = s.Voxels };
 
     private static StoredPaintReport ClonePaintReport(StoredPaintReport r)
         => new()
@@ -757,6 +768,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Y = r.Y,
             Z = r.Z,
             CreatedUnix = r.CreatedUnix,
+            Kind = r.Kind,
         };
 
     public void SaveDoor(StoredDoor door)
@@ -836,6 +848,30 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _paintDesigns.Remove(id);
+        }
+    }
+
+    public void SaveCustomShape(StoredCustomShape shape)
+    {
+        lock (_gate)
+        {
+            _customShapes[shape.Id] = CloneCustomShape(shape);
+        }
+    }
+
+    public IReadOnlyList<StoredCustomShape> ListCustomShapes()
+    {
+        lock (_gate)
+        {
+            return _customShapes.Values.Select(CloneCustomShape).ToList();
+        }
+    }
+
+    public void DeleteCustomShape(int id)
+    {
+        lock (_gate)
+        {
+            _customShapes.Remove(id);
         }
     }
 

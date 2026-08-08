@@ -370,6 +370,11 @@ public static class NetCodec
         Register(191, typeof(PaintBlockIntent));         // Client -> Server (paint/clear a block)
         Register(192, typeof(PaintDesignData));          // Server -> Client (one design; empty = wiped)
         Register(193, typeof(PaintDesignList));          // Server -> Client (all designs, on join)
+
+        // Player-designed block forms (#843): craft intent + the registry push, mirroring the paint trio.
+        Register(194, typeof(CustomShapeCraftIntent));   // Client -> Server (craft a form from a material)
+        Register(195, typeof(CustomShapeData));          // Server -> Client (one form; empty = wiped)
+        Register(196, typeof(CustomShapeList));          // Server -> Client (all forms, on join)
     }
 
     private static void Register(byte tag, Type type)

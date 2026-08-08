@@ -269,6 +269,17 @@ namespace BlocksBeyondTheStars.Client
         /// shape 0 reverts it to a plain cube.</summary>
         public void SendShapeCraft(string sourceItemKey, int shape, int count = 1)
             => Send(new ShapeCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Shape = shape, Count = count });
+
+        /// <summary>Crafts a player-designed form (#843): the micro-voxel bitmap rides along so the server can
+        /// register/dedup it, then hands back the material carrying the registered shape index.</summary>
+        public void SendCustomShapeCraft(string sourceItemKey, string voxels, string name, int count = 1)
+            => Send(new CustomShapeCraftIntent
+            {
+                SourceItemKey = sourceItemKey ?? string.Empty,
+                Voxels = voxels ?? string.Empty,
+                Name = name ?? string.Empty,
+                Count = count,
+            });
         public void SendFallDamage(float impactSpeed) => Send(new FallDamageIntent { ImpactSpeed = impactSpeed });
 
         public void SendUnlock(string blueprintKey) => Send(new UnlockBlueprintIntent { BlueprintKey = blueprintKey });

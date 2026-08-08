@@ -36,16 +36,38 @@ public sealed class StoredPaintDesign
 {
     public int Id { get; set; }
     public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>Display name of the designer, kept so a player copying the design off a block into their own
+    /// library can credit it (#846). Empty for designs registered before that shipped.</summary>
+    public string OwnerName { get; set; } = string.Empty;
     public string Pixels { get; set; } = string.Empty;
 }
 
-/// <summary>A player report against a painted block (paint moderation v1): who reported what where, kept
-/// for operator review. Deliberately append-only; wiping the design does not delete its reports.</summary>
+/// <summary>A player-designed block form (#843): a micro-voxel bitmap registered once per save and referenced
+/// from blocks + items by an ordinary shape index. Save-global for the same reason a paint design is — the
+/// index must resolve wherever the item or the shape descriptor travels. Unlike a design, a form carries a
+/// player-chosen NAME: it is offered by name in the crafting menu, so the name is part of the record.</summary>
+public sealed class StoredCustomShape
+{
+    public int Id { get; set; }
+    public string OwnerId { get; set; } = string.Empty;
+    public string OwnerName { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Voxels { get; set; } = string.Empty;
+}
+
+/// <summary>A player report against a painted block or a player-designed form (moderation v1): who reported
+/// what where, kept for operator review. Deliberately append-only; wiping the design does not delete its
+/// reports. <see cref="Kind"/> tells the two apart ("paint" — the original rows — or "shape").</summary>
 public sealed class StoredPaintReport
 {
     public string ReporterId { get; set; } = string.Empty;
     public string OwnerId { get; set; } = string.Empty;
     public int DesignId { get; set; }
+
+    /// <summary>"paint" (default, and what every pre-existing row is) or "shape".</summary>
+    public string Kind { get; set; } = "paint";
+
     public string Planet { get; set; } = string.Empty;
     public int X { get; set; }
     public int Y { get; set; }
@@ -336,6 +358,16 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Removes a paint design (moderation wipe — every referencing block goes blank).</summary>
     void DeletePaintDesign(int id);
+
+    /// <summary>Stores (inserts or replaces) a player-designed form, keyed by its save-global shape id.</summary>
+    void SaveCustomShape(StoredCustomShape shape);
+
+    /// <summary>Lists every registered player-designed form (restored once at server start).</summary>
+    IReadOnlyList<StoredCustomShape> ListCustomShapes();
+
+    /// <summary>Removes a player-designed form (moderation wipe — the id is freed and every referencing
+    /// block falls back to a plain cube).</summary>
+    void DeleteCustomShape(int id);
 
     /// <summary>Appends a paint report row (moderation v1) for operator review.</summary>
     void SavePaintReport(StoredPaintReport report);

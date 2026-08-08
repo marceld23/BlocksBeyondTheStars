@@ -64,6 +64,7 @@ public sealed class PlayerSession
     /// <summary>Server uptime (seconds) before which the next accepted block paint is throttled (#817) —
     /// same 2 s pacing as the face: each accepted paint can mean a disk save + world-wide rebroadcast.</summary>
     public double NextPaintAt { get; set; }
+    public double NextCustomShapeAt { get; set; }
 
     /// <summary>Server uptime (seconds) before which the "backpack full" toast is suppressed (#600). Area
     /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
