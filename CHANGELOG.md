@@ -33,6 +33,12 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### Fixed
 
+- **You can build under water (#851).** Every placement while swimming was refused with "Target is
+  not empty" — the cell you aim at under water holds water, and the server only accepted air. A block
+  now displaces water or lava, so underwater walls, pillars out of a lake and a dry room on the
+  seabed are possible at all; water only yields to a tier-3 mining beam, so before this there was no
+  way around it either. Doors and torches keep their refusal: a door lives in an air cell the water
+  would flow straight back into, and a torch is an open flame.
 - **Hovering scan-drones actually hurt now (#833).** A drone's own AI holds a 4–10 block standoff
   ring and floats 4 blocks up, so it never came within the server's 4-block damage aura — it circled
   you firing a laser and was mechanically harmless, exactly as a player reported. Ranged machines now

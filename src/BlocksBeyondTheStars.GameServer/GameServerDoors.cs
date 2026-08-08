@@ -63,6 +63,12 @@ public sealed partial class GameServer
         _ => "slide",
     };
 
+    /// <summary>True for the placeable block keys that become a door ENTITY instead of a voxel block. Placement
+    /// treats them apart: they need a genuinely empty (air) cell — a door can't displace a fluid the way a solid
+    /// block does, the water would simply flow back around it (#851).</summary>
+    private static bool IsDoorBlock(string blockKey)
+        => blockKey is "door_hinge" or "door_slide" or "door_wood" or "door_energy";
+
     /// <summary>The item a door of this kind hands back when it is picked up again.</summary>
     private static string DoorItemFor(string kind) => kind switch
     {

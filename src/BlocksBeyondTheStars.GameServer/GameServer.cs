@@ -3275,7 +3275,8 @@ public sealed partial class GameServer
         bool Solid(int dx, int dy, int dz)
         {
             var p = WorldConstants.CanonicalBlock(new Vector3i(pos.X + dx, pos.Y + dy, pos.Z + dz), _world.Circumference);
-            return !_world.GetBlock(p).IsAir;
+            var b = _world.GetBlock(p);
+            return !b.IsAir && !IsFluid(b.Value); // water/lava is no surface to build against (#851)
         }
 
         if (Solid(0, -1, 0)) return 0; // floor → +Y up (unchanged for ground placement)
@@ -3324,10 +3325,36 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!_world.GetBlock(pos).IsAir)
+        // Building under water (#851): the target cell is free when it is air OR holds a fluid — a placed block
+        // DISPLACES water/lava, exactly like in every other voxel builder. Without this you can't build under
+        // water at all: the client's aim march passes THROUGH fluids (they have no collider — you swim into
+        // them), so the cell it offers while you're swimming always holds water, and water only yields to a
+        // tier-3 mining beam, so there was no way to clear it first either.
+        var existing = _world.GetBlock(pos);
+        bool intoFluid = IsFluid(existing.Value);
+        if (!existing.IsAir && !intoFluid)
         {
             Reject(session, "place", "@srv.place.not_empty");
             return;
+        }
+
+        if (intoFluid)
+        {
+            // Two placeables genuinely can't take a fluid cell, and both are refused before anything is
+            // consumed: a door is an ENTITY living in an air cell (the fluid would just flow back around it,
+            // leaving a door that holds nothing back), and a torch is an open flame — a submerged one would be
+            // the same mysterious dud the airless-body check above exists to prevent.
+            if (IsDoorBlock(blockDef.Key))
+            {
+                Reject(session, "place", "@srv.place.not_empty");
+                return;
+            }
+
+            if (blockDef.Key == "torch" && existing.Value == _waterId)
+            {
+                Reject(session, "place", "@no_air");
+                return;
+            }
         }
 
         // Don't let the player wall themselves in: refuse a block at HEAD height in their own column. The FEET
@@ -3430,8 +3457,7 @@ public sealed partial class GameServer
         }
 
         // A door isn't a voxel block — it fills the (air) cell as a server door entity (Task 5 Stage 3c).
-        if (blockDef.Key == "door_hinge" || blockDef.Key == "door_slide" || blockDef.Key == "door_wood"
-            || blockDef.Key == "door_energy")
+        if (IsDoorBlock(blockDef.Key))
         {
             PlaceDoor(session, pos, blockDef.Key switch
             {
@@ -3513,6 +3539,14 @@ public sealed partial class GameServer
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
+        }
+        else if (intoFluid)
+        {
+            // The block displaced a fluid (#851): drop the cell's flowing state — memory AND the persisted level
+            // row — or a reload would resurrect the tongue on top of the new block, and wake the neighbours so a
+            // stream cut off here recedes (and the body around a new underwater wall settles again).
+            UntrackFluid(pos);
+            OnFluidRemoved(pos);
         }
 
         SendInventory(session);

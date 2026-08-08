@@ -104,6 +104,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Building under water (#851, 2026-08-08, branch fix/underwater-block-placement)
+Under water **no** block could be placed: `HandlePlace` accepted an air target cell only, and the cell the
+client offers while you swim always holds water — the aim march deliberately passes *through* fluids (they
+have no collider), so the place cell in front of the seabed you aimed at is a water cell. With water mineable
+only by a tier-3 mining beam there was no way to clear it first either, so underwater building was simply
+impossible. A target cell is now free when it is air **or** a fluid: the placed block displaces water/lava.
+After `SetBlock` the cell's flowing state is dropped (`UntrackFluid` — the level row is *persisted*, so a stale
+one would reload as a fluid on top of the new block) and the neighbours are woken, so a cut-off tongue recedes
+and the body settles around a new wall. Two placeables keep their refusal, both *before* anything is consumed:
+a **door** (an entity in an air cell — water would just flow back around it; the four door keys moved into
+`IsDoorBlock`) and a **torch** in water (open flame, reusing the existing `@no_air` reason — no new locale
+keys anywhere). `DeriveShapeUpFace` no longer counts a fluid as a surface, so a stair placed against an
+underwater wall auto-orients the same way it does in air. Tests: `UnderwaterPlacementTests` (7).
+
 ### ★ Justus playtest batch: drone damage, entombed spawns, wall shots, creative flight, log end grain, finer face editor (#833–#841, 2026-08-08, branch fix/playtest-2026-08-08)
 Eleven F1 reports from one evening, triaged from the ReportHost inbox into nine issues and fixed in one
 sweep. **#833 scan-drones dealt zero damage, always** — the measured cause, not a guess: the drone AI holds a
