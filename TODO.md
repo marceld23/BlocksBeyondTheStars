@@ -103,6 +103,40 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Sealed base rooms breathe: airtight materials + the energy door, shield dome, leak warning (#793, #794, #795, 2026-08-08, branch feat/base-sealed-rooms-air)
+The #782 base air field ends hard at the radius-8 cube; rooms built right next to it stayed airless.
+Now a room that is **sealed** (walls of airtight full-cube blocks) and **connected to the base** breathes too.
+**Airtight (`BlockDefinition.Airtight`)**: derived in `GameContent.MarkAirtightDefaults` — categories
+terrain/building/ore/machine/light seal (natural rock included: dig a cave, it's a habitat), flora/doors
+don't, minus a curated loose list (dirt, sand, snow, ash, torch, ladder, stairs, …); JSON `airtight` opt-in
+kept for the force field + energy gate membranes. Shaped cells (ShapeCode ≠ 0) always leak.
+**Pocket model (`GameServerBaseAir.cs`)**: bounded 6-connected flood fills — a pocket is a region of
+non-airtight cells bounded by airtight blocks and **energy-door cells**; sealed = fill terminates under the
+16k-cell budget inside a ±48 box (open air explodes the frontier = the leak detector); supplied = sealed AND
+touches the radius-8 cube OR chains through an energy door to a supplied pocket (airlocked room chains).
+Volumes are derived state: recomputed lazily (≥1.5 s apart per base) straight from the blocks — every
+mutation path (mining, fire, fluids, admin) is covered without dirty hooks; nothing persisted; reads via
+`GetBlockIfLoaded` so idle bases never drag chunk generation. Gated by `OxygenEnabled` only (no new rule —
+no RulesOverride lift needed).
+**The energy door is the ONE airtight door (#793)**: new craftable `door_energy` (workshop:
+metal_panel ×3 + circuit_board + crystal; blueprint 10 KP + unlock cost) — the ship-hatch kind `"energy"`
+(passable blue field, auto-open) made player-buildable. Mechanical doors (wood/hinge/slide) leak on purpose:
+one teachable rule, and auto-opening can never depressurise a room because the curtain always counts sealed.
+Placement/mining/persistence ride the existing door-entity path (`DoorItemFor`, `PlaceDoor`); markers
+`door_energy` work in settlement/station templates + all three editors (ShipEditor "element", StructureEditor
+station+settlement markers); `StationHasAirlock` accepts it; AI texture generated (`door_energy.bytes`).
+**Feedback**: new `PlayerStateUpdate.LifeSupportSource` byte (0 none / 1 ship / 2 station / 3 base —
+contractless MessagePack, old clients just ignore it) drives the HUD: the O2 bar's *(base life support)*
+suffix + entry toast now cover sealed rooms (server-authoritative, the client cannot mirror the fill), plus
+a "life support lost" toast on the way out. Breaking the seal (mined wall, pulled door, burnt plank) sends
+`@base_air_lost` to everyone within the base's reach box — localized client-side, only on worlds whose own
+air is not breathable (Marcel's mid-build ask). **Shield dome (#795)**: `BaseShieldView` draws a faint
+cyan sphere (r 9.5, energy-door material — always-included Cloud shader, no new shader) over every base
+core on non-breathable worlds only.
+**Tests**: `BaseSealedRoomTests` (5) — sealed room beyond the cube breathes then dies by ceiling hole;
+dirt never seals; a slide door leaks where the energy door seals; mining the core kills room air;
+breaking the seal sends the warning. `ShipStructureTests` corridor checks know `door_energy`.
+
 ### ★ Fire you can start and put out: torch + laser ignition, rain dousing, protected structures (#784–#791, 2026-08-06, branch feat/fire-ignition-extinguishing)
 Fire existed since item 30 but had exactly one ignition source (flowing lava) and one counter-play
 (place water). It is now a full loop, and the three bugs underneath it are fixed.
@@ -7219,6 +7253,22 @@ could not mine directly.
 Yield stays untouched and block-defined: 1 block → its `drops` list, for every drill; upgrades buy
 speed, access and area — never more items per block. Four new `MiningTests` guard the drain, the
 empty-suit reject, the energy-free drills and the sweep's tier gate.
+
+## ✅ Done (2026-08-08): tiered gear upgrades consume their predecessor; Mk3 AI core replaces the Mk2 (#798/#799)
+
+Two upgrade patterns had drifted apart: five recipes already consumed the previous tier
+(thermal binoculars, suit liners, radios, power cell) while every other tier upgrade was crafted from
+scratch and left the obsolete item behind as dead weight — passive gear is "best carried piece wins",
+so an old tank or scanner contributed exactly nothing. Now the oxygen tanks (II←I, III←II), the
+advanced scanner (←hand scanner) and both weapon lines (machete→vibro knife→plasma sword,
+gauss→laser→plasma pistol) consume their predecessor, each re-priced as a discount vs. from-scratch.
+The hand scanner gained a cheap blueprint-free rebuild recipe so the chain can never strand
+(starter-kit items have no recipe otherwise); `basic_drill` and `scrap_pistol` deliberately stay out of
+any chain — both are the zero-energy fallbacks. Ship-side, building the Mk3 AI core now pulls an
+installed Mk2 out of `ship.Modules` and salvages half its build cost (the old core used to sit there
+forever, fully paid, while `VegaCoreTier` just picked the max). DE/EN descriptions now name the
+predecessor each upgrade is built from. New guards: `UpgradeRecipes_ConsumePredecessor_AndPredecessorIsCraftable`
+(also proves every consumed predecessor is craftable) and an AI-core replace/salvage server test.
 
 ## ✅ Done (2026-08-06): every room of every ship is lit (#776)
 

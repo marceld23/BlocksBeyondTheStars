@@ -19,8 +19,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// player is within range and auto-closes them a short moment after the last player leaves.</item>
 /// <item><b>hinge</b> — manual village/hamlet doors: a player toggles one by pressing E while standing at it.</item>
 /// </list>
-/// Doors are built from <c>door_slide</c>/<c>door_hinge</c> markers when a structure is stamped; their wall
-/// axis + gap width are inferred by probing the surrounding blocks, so they work regardless of facing.
+/// Doors are built from <c>door_slide</c>/<c>door_hinge</c>/<c>door_energy</c> markers when a structure is
+/// stamped; their wall axis + gap width are inferred by probing the surrounding blocks, so they work
+/// regardless of facing. The <b>energy</b> kind (auto-open like slide, a passable blue field) is the one
+/// door that keeps air inside a sealed base room (#793/#794).
 /// </summary>
 public sealed partial class GameServer
 {
@@ -52,11 +54,21 @@ public sealed partial class GameServer
     /// on proximity). The wooden door is a cheap early-game hinge door — same behaviour, wood instead of metal.</summary>
     private static bool IsHandOperated(string kind) => kind == "hinge" || kind == "wood";
 
+    /// <summary>Door kind for a structure door MARKER id (settlement/station templates + editors). The
+    /// energy door is the airtight one (#793) — village/city/station authors can place it explicitly.</summary>
+    private static string DoorKindForMarker(string markerType) => markerType switch
+    {
+        "door_hinge" => "hinge",
+        "door_energy" => "energy",
+        _ => "slide",
+    };
+
     /// <summary>The item a door of this kind hands back when it is picked up again.</summary>
     private static string DoorItemFor(string kind) => kind switch
     {
         "slide" => "door_slide",
         "wood" => "door_wood",
+        "energy" => "door_energy",
         _ => "door_hinge",
     };
 
@@ -83,9 +95,9 @@ public sealed partial class GameServer
         // Settlement doorways.
         foreach (var (type, pos) in _settlementMarkers)
         {
-            if (type == "door_slide" || type == "door_hinge")
+            if (type == "door_slide" || type == "door_hinge" || type == "door_energy")
             {
-                _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
+                _doors.Add(MakeDoor(DoorKindForMarker(type), pos));
             }
         }
 
@@ -140,9 +152,9 @@ public sealed partial class GameServer
         _nextDoorId = 1;
         foreach (var (type, pos) in markers)
         {
-            if (type == "door_slide" || type == "door_hinge")
+            if (type == "door_slide" || type == "door_hinge" || type == "door_energy")
             {
-                _doors.Add(MakeDoor(type == "door_hinge" ? "hinge" : "slide", pos));
+                _doors.Add(MakeDoor(DoorKindForMarker(type), pos));
             }
         }
 

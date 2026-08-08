@@ -174,6 +174,7 @@ public sealed partial class GameServer
         }
 
         _bases.Remove(basePoint);
+        ForgetBaseAir(basePoint.Id); // the life-support field (cube + sealed rooms) dies with the core
         _repo.DeleteBase(body, pos.X, pos.Y, pos.Z);
         BroadcastBasesOn(body);
         if (FindSessionByPlayerId(basePoint.OwnerId) is { } owner)

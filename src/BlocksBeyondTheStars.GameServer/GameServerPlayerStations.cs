@@ -114,14 +114,16 @@ public sealed partial class GameServer
     {
         ushort slide = _content.GetBlock("door_slide")?.NumericId.Value ?? 0;
         ushort hinge = _content.GetBlock("door_hinge")?.NumericId.Value ?? 0;
-        if (slide == 0 && hinge == 0)
+        ushort energy = _content.GetBlock("door_energy")?.NumericId.Value ?? 0; // the airtight one (#793)
+        if (slide == 0 && hinge == 0 && energy == 0)
         {
             return false;
         }
 
         foreach (var b in s.Cells.Values)
         {
-            if (b.Value == slide || b.Value == hinge)
+            if ((b.Value == slide && slide != 0) || (b.Value == hinge && hinge != 0)
+                || (b.Value == energy && energy != 0))
             {
                 return true;
             }

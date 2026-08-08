@@ -242,6 +242,11 @@ namespace BlocksBeyondTheStars.Client
             var doors = root.AddComponent<DoorView>();
             doors.Game = boot;
 
+            // Base life-support shield domes (#795): a soft bubble over every founded base's core on
+            // worlds without breathable air, so the #782 air zone reads at a glance.
+            var baseShields = root.AddComponent<BaseShieldView>();
+            baseShields.Game = boot;
+
             // Render glowing minigame "data cubes" scattered on the surface; press E to download (item: arcade).
             var dataCubes = root.AddComponent<DataCubeView>();
             dataCubes.Game = boot;

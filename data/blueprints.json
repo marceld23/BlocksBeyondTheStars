@@ -333,5 +333,10 @@
     "key": "station_container", "nameKey": "blueprint.station_container.name", "descriptionKey": "blueprint.station_container.desc",
     "category": "Station", "prerequisites": [], "knowledgeCost": 5,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]
+  },
+  {
+    "key": "door_energy", "nameKey": "blueprint.door_energy.name", "descriptionKey": "blueprint.door_energy.desc",
+    "category": "Production", "prerequisites": [], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "metal_panel", "count": 4 }, { "item": "crystal", "count": 1 } ]
   }
 ]

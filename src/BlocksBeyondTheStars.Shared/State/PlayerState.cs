@@ -121,6 +121,11 @@ public sealed class PlayerState
     /// Runtime-only HUD signal (mirrored in the player-state update); not persisted.</summary>
     public bool SuitClimateActive { get; set; }
 
+    /// <summary>Which life support keeps this player breathing right now (#794): 0 none (own suit tank /
+    /// the world's own air), 1 ship cabin, 2 station, 3 base (zone cube or sealed room). Runtime-only HUD
+    /// signal (mirrored in the player-state update, computed by the oxygen tick); not persisted.</summary>
+    public byte LifeSupportSource { get; set; }
+
     /// <summary>Permission level; the world creator becomes <see cref="PlayerRole.WorldAdmin"/>.
     /// <para>Note there is deliberately no "fleet admin" value here: this field is persisted in the save, and
     /// saves are downloadable and re-uploadable by players, so an operator-level role stored here would travel

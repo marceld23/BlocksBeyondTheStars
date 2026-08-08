@@ -375,11 +375,11 @@ public sealed class ShipStructureTests : IDisposable
             // Everything except door/hatch markers stamps as a solid, colliding cell (blocks, stations,
             // glass, lights, engines — see BuildShipStructureFrom).
             var solid = layout.Cells
-                .Where(c => c.Id != "door_slide" && c.Id != "door_hinge" && c.Id != "hatch")
+                .Where(c => c.Id != "door_slide" && c.Id != "door_hinge" && c.Id != "door_energy" && c.Id != "hatch")
                 .Select(c => (c.X, c.Y, c.Z))
                 .ToHashSet();
 
-            foreach (var door in layout.Cells.Where(c => c.Id == "door_slide" || c.Id == "door_hinge"))
+            foreach (var door in layout.Cells.Where(c => c.Id == "door_slide" || c.Id == "door_hinge" || c.Id == "door_energy"))
             {
                 // Mirror the server's axis choice (RegisterDoors/MakeDoor): the rear-wall (z=0) hatch is
                 // forced across X; an interior door of a multi-room layout (hammerhead) resolves its wall

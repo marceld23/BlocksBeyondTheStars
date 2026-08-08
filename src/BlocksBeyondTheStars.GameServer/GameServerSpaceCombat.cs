@@ -375,12 +375,32 @@ public sealed partial class GameServer
             pool.Remove(module.BuildCost);
         }
 
+        // The Mk3 core REPLACES the Mk2 (#799): the old core comes out of the rack and is salvaged at the
+        // disassembly rate. Without this the obsolete module sat in ship.Modules forever, fully paid, while
+        // VegaCoreTier just picked the max. Salvage is skipped in free mode — nothing was paid for the Mk2
+        // build either, and creative refunds would mint materials.
+        if (module.Key == "ai_core_mk3" && _ship.Modules.Remove("ai_core_mk2"))
+        {
+            if (!free && _content.GetShipModule("ai_core_mk2") is { } mk2)
+            {
+                foreach (var part in mk2.BuildCost)
+                {
+                    int recovered = (int)System.Math.Floor(part.Count * DisassemblyRecoveryRate);
+                    if (recovered > 0)
+                    {
+                        pool.Add(part.Item, recovered);
+                    }
+                }
+            }
+        }
+
         _ship.Modules.Add(module.Key);
         ResizeCargo(_ship);
         RecomputeShipCombatStats();
 
         Send(session, new ServerMessage { Text = $"Ship module built: {module.Key}" });
         SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: salvaged Mk2 parts that found no room are gone — say so
         SendShipCombatStatus(session);
         SendPlayerState(session); // AiCoreTier may have changed (gates the client autopilot)
         ShipAiOnModuleBuilt(session, module.Key); // VEGA welcomes her new core

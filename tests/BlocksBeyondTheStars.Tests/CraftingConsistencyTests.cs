@@ -163,12 +163,14 @@ public sealed class CraftingConsistencyTests
     [Fact]
     public void EveryItem_IsObtainable_OrIntentionallyGranted()
     {
-        // Items handed out by code rather than a recipe/drop (so legitimately not in Obtainable()):
+        // Items handed out by code rather than a recipe/drop (so legitimately not in Obtainable()).
+        // hand_scanner left this list with #798: it gained a rebuild recipe because the advanced
+        // scanner consumes it as an upgrade input.
         var granted = new HashSet<string>
         {
-            "basic_drill", "hand_scanner", "scrap_pistol", // starter hotbar kit
-            "ai_memory_fragment",                          // VEGA data-terminal structure loot
-            "toxic_berries",                               // runtime poison variant of a toxic flora's berries
+            "basic_drill", "scrap_pistol", // starter hotbar kit
+            "ai_memory_fragment",          // VEGA data-terminal structure loot
+            "toxic_berries",               // runtime poison variant of a toxic flora's berries
         };
 
         var obtainable = Obtainable();
@@ -188,6 +190,46 @@ public sealed class CraftingConsistencyTests
         foreach (var seed in new[] { "plant_seed", "crystal_seed", "berry_seed" })
         {
             Assert.Contains(_c.Recipes.Values, r => r.Outputs.Any(o => o.Item == seed));
+        }
+    }
+
+    /// <summary>
+    /// #798: tiered devices are UPGRADES — the recipe consumes the previous tier, so the obsolete
+    /// item never piles up as dead weight. Each consumed predecessor must itself be craftable
+    /// (never a starter-kit-only item like basic_drill/scrap_pistol), or losing the upgraded item
+    /// would strand the whole chain forever.
+    /// </summary>
+    [Fact]
+    public void UpgradeRecipes_ConsumePredecessor_AndPredecessorIsCraftable()
+    {
+        var chains = new (string Upgrade, string Predecessor)[]
+        {
+            ("thermal_binoculars", "binoculars"),
+            ("suit_liner_2", "suit_liner_1"),
+            ("suit_liner_3", "suit_liner_2"),
+            ("system_radio", "comm_radio"),
+            ("galaxy_radio", "system_radio"),
+            ("advanced_scanner", "hand_scanner"),
+            ("oxygen_tank_2", "oxygen_tank_1"),
+            ("oxygen_tank_3", "oxygen_tank_2"),
+            ("vibro_knife", "machete"),
+            ("plasma_sword", "vibro_knife"),
+            ("laser_pistol", "gauss_pistol"),
+            ("plasma_blaster", "laser_pistol"),
+        };
+
+        foreach (var (upgrade, predecessor) in chains)
+        {
+            var recipes = _c.Recipes.Values.Where(r => r.Outputs.Any(o => o.Item == upgrade)).ToList();
+            Assert.True(recipes.Count > 0, $"{upgrade} has no recipe");
+            foreach (var r in recipes)
+            {
+                Assert.True(r.Inputs.Any(i => i.Item == predecessor && i.Count == 1),
+                    $"upgrade recipe {r.Key} must consume 1x {predecessor}");
+            }
+
+            Assert.True(_c.Recipes.Values.Any(r => r.Outputs.Any(o => o.Item == predecessor)),
+                $"{predecessor} is consumed by an upgrade but has no recipe of its own");
         }
     }
 

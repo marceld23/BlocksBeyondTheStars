@@ -118,6 +118,8 @@ namespace BlocksBeyondTheStars.Client
                 P("hatch", "element", new Color(0.7f, 0.5f, 0.3f)),
                 P("door_slide", "element", new Color(0.4f, 0.85f, 0.95f)),
                 P("door_hinge", "element", new Color(0.55f, 0.8f, 0.7f)),
+                P("door_energy", "element", new Color(0.35f, 0.80f, 1f)), // air-curtain door (#793); ship doors all register as energy anyway
+
                 P("cockpit", "station", new Color(0.3f, 0.6f, 0.95f)),
                 P("reactor", "station", new Color(0.9f, 0.35f, 0.3f)),
                 P("life_support", "station", new Color(0.4f, 0.85f, 0.55f)),

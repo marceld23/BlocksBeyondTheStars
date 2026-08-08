@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🚪 Sealed base rooms breathe — and the energy door holds the air in (#793, #794, #795)
+
+- **Build rooms with air.** A room built at your base out of **airtight materials** — stone, metal,
+  concrete, brick, glass, and yes, natural rock (dig a cave!) — now gets life support **beyond** the
+  base's radius-8 air zone, as long as it is sealed and connected to the base. Dirt, sand, snow and
+  plants leak, and so do shaped blocks — a ramp is not a wall.
+- **The energy door is THE airtight door.** New craftable **Energy Door** (workshop, blueprint): the
+  same walk-through blue field as the ship's hatch. You stroll right through it, the air stays in —
+  and because the curtain always seals, an auto-opening door can never depressurise your room. Wooden,
+  hinged and sliding doors deliberately don't hold air. Chain room after room, door by door, into a
+  whole airtight outpost. The energy door is also placeable in the ship, station and settlement editors.
+- **You can SEE the air now.** On worlds without breathable air every founded base shows a soft **blue
+  shield dome** over its core, and the O2 bar names what keeps you breathing.
+- **Breaking the seal warns you.** Mine a wall (or let a fire eat one) and everyone at the base gets a
+  **"no longer airtight"** warning the moment the rooms fall back to suit oxygen — no more silent leaks.
+
 ### 🔥 Fire you can start — and put out (#784–#791)
 
 - **Light it.** Swing a **torch** at a plant, a log or leaves and it catches. So does a shot from a

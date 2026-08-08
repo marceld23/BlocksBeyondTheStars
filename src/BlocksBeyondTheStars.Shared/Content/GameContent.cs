@@ -245,6 +245,7 @@ public sealed class GameContent
         MarkTintableDefaults();
         MarkShapeableDefaults();
         MarkFloraHostDefaults();
+        MarkAirtightDefaults();
 
         // Palette lookup: index by numeric id (air at 0).
         ushort max = 0;
@@ -312,6 +313,38 @@ public sealed class GameContent
             {
                 block.Shapeable = true;
             }
+        }
+    }
+
+    /// <summary>
+    /// Loose, granular or organic materials — plus pass-through props — that never hold air, even though
+    /// their category would seal by default (#794). Dug dirt or piled sand is not an airtight wall; the
+    /// torch/ladder/stairs are props with gaps; a geyser vent is literally a hole; fire is burning air.
+    /// </summary>
+    private static readonly HashSet<string> AirtightExceptions = new(StringComparer.Ordinal)
+    {
+        "dirt", "grass", "sand", "mud", "snow", "salt", "ash", "mycelium", "alien_grass",
+        "fire", "geyser_vent", "torch", "ladder", "stairs",
+    };
+
+    /// <summary>
+    /// Derives which blocks hold air inside a sealed base room (#794): terrain/building/ore/machine/light
+    /// categories seal (natural rock included — a dug-out cave can become a habitat), flora and doors leak,
+    /// minus the curated loose-material exceptions. An explicit <c>airtight</c> opt-in from
+    /// <c>data/blocks.json</c> is never overridden (the force field and energy gate membranes seal despite
+    /// their door category). Applied here so client and server derive the identical set.
+    /// </summary>
+    private void MarkAirtightDefaults()
+    {
+        foreach (var block in _blocks.Values)
+        {
+            if (block.Airtight)
+            {
+                continue; // explicit JSON opt-in stays
+            }
+
+            bool categorySeals = block.Category is "terrain" or "building" or "ore" or "machine" or "light";
+            block.Airtight = categorySeals && block.Key != "air" && !AirtightExceptions.Contains(block.Key);
         }
     }
 
