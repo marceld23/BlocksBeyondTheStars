@@ -375,6 +375,10 @@ public static class NetCodec
         Register(194, typeof(CustomShapeCraftIntent));   // Client -> Server (craft a form from a material)
         Register(195, typeof(CustomShapeData));          // Server -> Client (one form; empty = wiped)
         Register(196, typeof(CustomShapeList));          // Server -> Client (all forms, on join)
+
+        // Ground drop packets (#853): what a full inventory leaves lying on the ground. Pickup is automatic
+        // (server-side proximity), so there is no client intent — only the world list.
+        Register(197, typeof(DropPacketList));           // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

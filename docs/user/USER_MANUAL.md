@@ -260,6 +260,12 @@ separate unlock; admins can still disable it through server world rules.
   the drill could mine directly (same tier rules).
 - Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
   suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
+- **A full backpack does not stop you.** When neither your inventory nor (while aboard) the cargo hold has
+  room, the block still breaks and the drop lands at your feet as a small **block packet**. Packets stack —
+  everything you dig nearby joins the same bundle — and once you have space again, walking near one pours it
+  back into your inventory automatically. Packets stay where they are until collected, saving and reloading
+  included. Out in space (EVA, ship hulls) there is no ground to drop onto, so a full pack still refuses the
+  break there and the block stays where it is.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
   plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
   visiting), you just cannot take the building apart.

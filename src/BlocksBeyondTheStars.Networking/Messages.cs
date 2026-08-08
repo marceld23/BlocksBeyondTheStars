@@ -1630,10 +1630,34 @@ public sealed class NetContainer
     public int ItemCount { get; set; }
 }
 
-/// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.</summary>
+/// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.
+/// Ground drop packets are deliberately NOT in here — they ride <see cref="DropPacketList"/> so they cannot
+/// hijack the crate/capsule loot prompt (#853).</summary>
 public sealed class ContainerList
 {
     public NetContainer[] Containers { get; set; } = System.Array.Empty<NetContainer>();
+}
+
+/// <summary>One ground drop packet: the block bundle a full inventory left lying in the world (#853). The
+/// client renders a small tumbling mini-block for it; picking it up is automatic (server-side proximity),
+/// so there is no matching intent. <see cref="TopItem"/> is the biggest stack in the bundle and decides the
+/// icon; <see cref="StackCount"/>/<see cref="TotalCount"/> label it.</summary>
+public sealed class NetDropPacket
+{
+    public string Id { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public string TopItem { get; set; } = string.Empty;
+    public int StackCount { get; set; }
+    public int TotalCount { get; set; }
+}
+
+/// <summary>All ground drop packets on the player's current body (server → client), sent on join and
+/// whenever one is spilled, topped up or collected.</summary>
+public sealed class DropPacketList
+{
+    public NetDropPacket[] Packets { get; set; } = System.Array.Empty<NetDropPacket>();
 }
 
 /// <summary>Where the player's ship hull stands in the world (for the HUD minimap / compass).</summary>

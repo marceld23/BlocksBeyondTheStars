@@ -58,6 +58,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlanetEnemyDefeated>? PlanetEnemyDefeated;
         public event Action<CreatureList>? CreaturesReceived;
         public event Action<ContainerList>? ContainersReceived;
+
+        /// <summary>Ground drop packets on this body (#853) — the bundles a full inventory left lying around.
+        /// Rendered by <c>DropPacketView</c>; collected automatically by the server, so there is no intent.</summary>
+        public event Action<DropPacketList>? DropPacketsReceived;
         public event Action<ShipPlacement>? ShipPlacementReceived;
         public event Action<ShipStations>? ShipStationsReceived;
         public event Action<PlanetPoiList>? PlanetPoisReceived;
@@ -607,6 +611,7 @@ namespace BlocksBeyondTheStars.Client
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
+                case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;

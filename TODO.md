@@ -104,6 +104,50 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Keep digging with a full pack: mined blocks fall as stacking ground packets (#853, 2026-08-09, branch feat/ground-drop-packets)
+Mining **stopped** once the backpack (and the cargo hold, when aboard) was full: `BreakBlockAt` priced the
+whole yield, asked `MaterialPool.CanFit` and left the block standing with an `@inventory_full` rejection. That
+was the right call in #600/#607 — a full inventory used to *destroy* drops silently, and refusing the break was
+the only lossless option while the world had nowhere to put the overflow. This adds the missing place, so the
+drill never stops again.
+
+**The packet.** A `StoredContainer` with the new kind `"drop"`. The container store is already generic over
+its kind in all three repositories (`id, planet, kind, x, y, z, json`), so packets persist across a reload with
+**no schema change and no save migration** — the same trick the salvage capsule and the storage crate use.
+They are filtered out of `ContainerList` (they would otherwise steal the crate/capsule loot prompt, and they
+collect themselves anyway) and travel on their own `DropPacketList`, NetCodec tag **194**.
+
+**Stacking, not littering.** `SpillToGround` merges into the nearest existing packet within 3.5 m by **exact
+item key**, so a dyed/glowing/shaped variant keeps its own stack instead of dissolving into the plain material
+(the composite `ItemKey` is what makes a mined blue wall come back blue). A packet holds 12 distinct keys —
+counts inside a stack are unbounded, which *is* the stacking requirement — and a body holds 64 packets; at that
+cap a spill pours into the nearest packet at any distance, so the count is bounded and **nothing is ever
+destroyed**. An area drill's whole burst spills once, at the end, from the shared pool: one bundle, not one per
+cell. `MaterialPool` grew `TakeLeftovers()` (merged per key, and cleared, so the same overflow cannot be
+spilled twice) next to the existing `Overflow` counter that feeds the warning path.
+
+**Automatic pickup.** `TickDropPackets` sweeps at 4 Hz per world: packets within 2.5 m of a joined player pour
+into their inventory, personal slots first and the cargo hold when aboard; the packet keeps whatever still does
+not fit and despawns once empty. A full pack standing on a packet is a deliberate no-op — no inventory push, no
+broadcast — so mining on with no room costs nothing. The collected items surface in the existing HUD pickup
+feed through the client's inventory diff, so no new UI was needed for the *taking*; the packet itself is a new
+`DropPacketView`, a small tumbling mini-block wearing its biggest stack's atlas tile (world containers have no
+3-D representation at all, so the capsule/crate path had nothing to reuse).
+
+**Also covered:** creature and bandit kills (`BankLoot` takes an optional spill cell — the kill already
+happened, so the loot could previously only be *reported* lost). **Deliberately not covered:** EVA and ship-hull
+mining in space, where containers have no body to belong to and there is no ground to spill onto — those keep
+the existing refusal, which is lossless because the block simply stays. Player-door pickup keeps its refusal
+too (the door stays standing; nothing is lost).
+
+Scope decisions with the owner: **no despawn timer** (a packet is not a countdown — the cap plus merging is the
+save-size guard), and **first player in range collects**, with no ownership tag. Tests: `DropPacketTests` (9) —
+digging four blocks on a full pack leaves one packet with all four stones, distant spills stay separate, dyed
+variants keep their own stack, the world cap merges without loss, pickup collects / partially collects / leaves
+out-of-reach packets alone, a full pack changes nothing, and packets survive a restart.
+`InventoryFullSafetyTests.Mining_WithNoRoomForTheDrop_LeavesTheBlockStanding` pinned the old refusal and was
+rewritten (same guarantee, new mechanism): the block breaks *and* the stone is on the ground.
+
 ### ★ Building under water (#851, 2026-08-08, branch fix/underwater-block-placement)
 Under water **no** block could be placed: `HandlePlace` accepted an air target cell only, and the cell the
 client offers while you swim always holds water — the aim march deliberately passes *through* fluids (they

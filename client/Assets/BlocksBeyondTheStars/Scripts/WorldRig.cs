@@ -263,6 +263,11 @@ namespace BlocksBeyondTheStars.Client
             var factories = root.AddComponent<FactoryView>();
             factories.Game = boot;
 
+            // Render ground drop packets (#853): what a full backpack left lying around while mining.
+            // Collected automatically by the server when the player walks near with room — no prompt.
+            var dropPackets = root.AddComponent<DropPacketView>();
+            dropPackets.Game = boot;
+
             // Render story "net fragments" scattered on the surface; press E to recover (text-only story finds).
             var netFragments = root.AddComponent<NetFragmentView>();
             netFragments.Game = boot;

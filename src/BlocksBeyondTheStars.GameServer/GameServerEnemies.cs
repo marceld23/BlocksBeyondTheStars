@@ -654,7 +654,9 @@ public sealed partial class GameServer
         list.Remove(target);
         _enemyWander.Remove(target.Id); // drop the dead enemy's wander state
         var pool = new MaterialPool(_content, p, _ship);
-        BankLoot(session, pool, target.Loot); // the kill already happened — warn if a full inventory loses the drop
+        // The kill already happened, so the loot cannot be refused — a full inventory drops it at the fallen
+        // enemy's feet instead of losing it (#853).
+        BankLoot(session, pool, target.Loot, spillAt: target.Position.ToBlock());
         SendInventory(session);
         OnAchievementDefeat(session);
         if (isCreature)

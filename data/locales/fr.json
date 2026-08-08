@@ -894,6 +894,7 @@
   "ui.inventory.discard_confirm": "Vraiment jeter ?",
   "ui.inventory.discard_warn": "Chaque exemplaire est détruit définitivement. Tu ne pourras pas les récupérer.",
   "ui.hint.inventory_full": "Ton sac à dos et la soute sont pleins — tout ce que tu ramasses ensuite est perdu.",
+  "ui.hint.dropped_on_ground": "Plus de place — le reste est par terre. Repasse dessus quand tu auras de la place.",
   "ui.cargo.title": "Soute",
   "ui.cargo.capacity": "Capacité",
   "ui.cargo.stow_all": "Ranger tous les matériaux dans la soute",

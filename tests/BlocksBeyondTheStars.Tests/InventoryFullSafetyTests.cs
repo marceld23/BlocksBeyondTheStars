@@ -161,8 +161,11 @@ public sealed class InventoryFullSafetyTests : IDisposable
         }
     }
 
+    /// <summary>Since #853 a full inventory no longer stops the drill: the block breaks and its drop lands on
+    /// the ground as a packet. What must never happen — and what this test still guards — is the drop being
+    /// destroyed. (It used to be guarded by refusing the break; the block stayed standing.)</summary>
     [Fact]
-    public void Mining_WithNoRoomForTheDrop_LeavesTheBlockStanding()
+    public void Mining_WithNoRoomForTheDrop_BreaksTheBlockAndDropsItOnTheGround()
     {
         var server = Started(out var repo);
         using (repo)
@@ -179,9 +182,9 @@ public sealed class InventoryFullSafetyTests : IDisposable
 
             server.MineBlock("Justus", pos.X, pos.Y, pos.Z);
 
-            // The drop had nowhere to go, so the block must still be there — mining used to clear the cell
-            // and silently destroy the stone.
-            Assert.False(server.World.GetBlock(pos).IsAir);
+            Assert.True(server.World.GetBlock(pos).IsAir); // digging on is the whole point of #853 …
+            var packet = Assert.Single(server.DropPackets);
+            Assert.Equal(1, packet.Items.Count(s => s.Item == "stone" && s.Count > 0)); // … and the stone is not lost
         }
     }
 

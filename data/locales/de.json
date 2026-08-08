@@ -894,6 +894,7 @@
   "ui.inventory.discard_confirm": "Wirklich wegwerfen?",
   "ui.inventory.discard_warn": "Alle davon sind endgültig weg. Du bekommst sie nicht zurück.",
   "ui.hint.inventory_full": "Rucksack und Frachtraum sind voll — alles Weitere geht verloren.",
+  "ui.hint.dropped_on_ground": "Kein Platz mehr — der Rest liegt auf dem Boden. Lauf noch mal drüber, wenn du Platz hast.",
   "ui.cargo.title": "Frachtraum",
   "ui.cargo.capacity": "Kapazität",
   "ui.cargo.stow_all": "Alle Materialien einlagern",

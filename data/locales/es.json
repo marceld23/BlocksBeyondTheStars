@@ -894,6 +894,7 @@
   "ui.inventory.discard_confirm": "¿Seguro que quieres tirar?",
   "ui.inventory.discard_warn": "Se destruyen para siempre. No podrás recuperarlos.",
   "ui.hint.inventory_full": "La mochila y la bodega están llenas — todo lo que recojas se perderá.",
+  "ui.hint.dropped_on_ground": "No queda sitio — el resto está en el suelo. Vuelve a pasar por encima cuando tengas espacio.",
   "ui.cargo.title": "Bodega",
   "ui.cargo.capacity": "Capacidad",
   "ui.cargo.stow_all": "Guardar todos los materiales en la bodega",

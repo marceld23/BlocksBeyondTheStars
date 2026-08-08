@@ -191,6 +191,7 @@ internal sealed class LoadedWorld
     public double SinceBanditSync { get; set; }  // bandit movement stream throttle (per-world, like SinceEnemySync)
     public double SinceFluid { get; set; }
     public double SinceFire { get; set; }
+    public double SinceDropSweep { get; set; } // ground drop-packet auto-pickup throttle (#853)
     // These three run once per occupied world each tick, so their accumulate-and-reset throttles MUST be
     // per-world — a single shared field lets whichever world is iterated first reset it before the others
     // reach their interval, starving every world but one of presence/enemy syncs and the void rescue.

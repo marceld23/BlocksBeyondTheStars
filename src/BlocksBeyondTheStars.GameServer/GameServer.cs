@@ -1228,6 +1228,7 @@ public sealed partial class GameServer
             Guard("TickNpcs", deltaSeconds, TickNpcs);
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
+            Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
@@ -3105,13 +3106,7 @@ public sealed partial class GameServer
         }
 
         var pool = new MaterialPool(_content, session.State, _ship);
-        if (!BreakBlockAt(session, pos, def, pool))
-        {
-            // Nothing was mined — say so instead of eating the drop. The accumulated progress is kept so the
-            // block breaks on the next swing once the player has made room.
-            Reject(session, "mine", "@inventory_full");
-            return;
-        }
+        BreakBlockAt(session, pos, def, pool);
 
         // Powerful drills clear a small area at once.
         if (tool.MiningRadius > 0)
@@ -3120,18 +3115,21 @@ public sealed partial class GameServer
         }
 
         SendInventory(session);
-        WarnIfPoolOverflowed(session, pool); // #600: a full backpack + hold used to eat the drops in silence
+
+        // #853: whatever found no room is now lying on the ground as a drop packet instead of blocking the
+        // swing. One spill call for the whole burst, so an area drill leaves one bundle, not one per cell.
+        SpillPoolOverflow(session, pool, pos);
     }
 
     /// <summary>Breaks one block: clears it, banks its drops in the pool, broadcasts the change,
     /// schedules flora regrowth and advances mining missions. Clears any accumulated mining progress.
     /// <para>
-    /// Returns <c>false</c> — changing nothing at all — when the drops would not fit in the player's
-    /// inventory (or cargo when aboard). Mining used to clear the cell and then silently destroy whatever
-    /// did not fit, so a full inventory quietly ate every drop; refusing the break is the only lossless
-    /// option while there are no ground items to spill onto.
+    /// Nothing is ever destroyed here, but nothing is refused either: what the player's inventory (and the
+    /// cargo hold, when aboard) cannot take stays in the pool's leftovers, and the caller spills it onto the
+    /// ground as a drop packet (#853). Mining used to be refused outright in that situation — correct while
+    /// there was no world container to spill into (#600/#607), and pure frustration once there is one.
     /// </para></summary>
-    private bool BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
+    private void BreakBlockAt(PlayerSession session, Vector3i pos, BlockDefinition def, MaterialPool pool)
     {
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
@@ -3143,7 +3141,8 @@ public sealed partial class GameServer
             dropShape = 0;
         }
 
-        // Work out exactly what this break would yield, then make sure it all fits before touching the world.
+        // Work out exactly what this break yields. Nothing here can fail any more: what the player cannot
+        // carry ends up on the ground (see SpillPoolOverflow at the call sites), so the block always falls.
         var yield = new List<ItemAmount>();
         bool toxicFloraDrop = IsFlora(current.Value)
             && _floraSpeciesByBlock.TryGetValue(current.Value, out var toxSp) && toxSp.Toxic;
@@ -3161,11 +3160,6 @@ public sealed partial class GameServer
         if (IsContainerBlock(def.Key))
         {
             yield.AddRange(CrateContentsAt(pos)); // a mined crate/wood box hands its stored stacks back too
-        }
-
-        if (!pool.CanFit(yield))
-        {
-            return false;
         }
 
         // Attribution (issue #490): removing a block is an edit like any other, and it is the one that grief
@@ -3190,8 +3184,8 @@ public sealed partial class GameServer
             RemoveBeamAt(pos); // mining a beam block forgets its name/owner + map marker (teleporter pad)
         }
 
-        // Bank the yield computed (and capacity-checked) above. The crate case already handed its own stacks
-        // over in RemoveCrateContainer, so only the block's own drops are added here.
+        // Bank the yield computed above. The crate case already handed its own stacks over in
+        // RemoveCrateContainer, so only the block's own drops are added here.
         foreach (var drop in yield.Take(def.Drops.Count))
         {
             pool.Add(drop.Item, drop.Count);
@@ -3212,7 +3206,6 @@ public sealed partial class GameServer
 
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
-        return true;
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.
@@ -3243,23 +3236,34 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    // A block whose drops no longer fit is simply left standing (BreakBlockAt returns false
-                    // without changing anything) — the area sweep stops yielding rather than destroying loot.
+                    // A full inventory no longer stops the sweep: every block falls and the pool's leftovers
+                    // are spilled ONCE by the caller, so a burst leaves one ground packet, not one per cell.
                     BreakBlockAt(session, p, d, pool);
                 }
     }
 
     /// <summary>
     /// Banks loot from an event that cannot be refused after the fact — a creature is already dead, a wreck
-    /// already burst. Anything that does not fit is genuinely lost, so the player is TOLD instead of the drop
-    /// vanishing in silence (the complaint that started this: "Items futsch"). Prefer a capacity check up
-    /// front (<see cref="MaterialPool.CanFit"/>) wherever the action can still be refused.
+    /// already burst.
+    /// <para>
+    /// With a <paramref name="spillAt"/> cell the overflow lands on the ground as a drop packet (#853) and
+    /// nothing is lost. Without one — in space, where there is no ground to spill onto — what does not fit is
+    /// genuinely gone, so the player is at least TOLD instead of the drop vanishing in silence (the complaint
+    /// that started this: "Items futsch"). Prefer a capacity check up front
+    /// (<see cref="MaterialPool.CanFit"/>) wherever the action can still be refused.
+    /// </para>
     /// </summary>
-    private void BankLoot(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> drops)
+    private void BankLoot(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> drops, Vector3i? spillAt = null)
     {
         foreach (var drop in drops)
         {
             pool.Add(drop.Item, drop.Count);
+        }
+
+        if (spillAt is { } cell)
+        {
+            SpillPoolOverflow(session, pool, cell);
+            return;
         }
 
         // Reuses the same rate-limited "your pockets are full" hint as every other overflow site (#600), rather

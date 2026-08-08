@@ -950,6 +950,13 @@ namespace BlocksBeyondTheStars.Client
                     ?? "Backpack and cargo hold are full — anything else you pick up is lost.";
             }
 
+            // #853: mining with a full pack no longer stops — the overflow is lying on the ground.
+            if (text == "@dropped_on_ground")
+            {
+                return Localizer?.Get("ui.hint.dropped_on_ground")
+                    ?? "Backpack full — the rest is lying on the ground. Walk over it once you have room.";
+            }
+
             // #794: a base's sealed rooms just lost their air seal (a wall was mined, a door pulled …).
             if (text == "@base_air_lost")
             {

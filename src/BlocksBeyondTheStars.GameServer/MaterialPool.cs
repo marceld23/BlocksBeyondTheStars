@@ -67,10 +67,25 @@ public sealed class MaterialPool
     /// player, so a full backpack + full hold stops eating items unannounced.
     /// <para>
     /// This is the *after the fact* half of the story. Where the action can still be refused, prefer
-    /// <see cref="CanFit"/> and never consume anything in the first place.
+    /// <see cref="CanFit"/> and never consume anything in the first place — or hand the leftovers to the
+    /// ground via <see cref="TakeLeftovers"/> (#853), which loses nothing at all.
     /// </para>
     /// </summary>
     public int Overflow { get; private set; }
+
+    private readonly List<ItemAmount> _leftovers = new();
+
+    /// <summary>
+    /// The item amounts <see cref="Add"/> could not store, merged per key — and clears them, so a caller that
+    /// spills them onto the ground (#853) cannot spill the same overflow twice. <see cref="Overflow"/> keeps
+    /// its running total for the warning path.
+    /// </summary>
+    public List<ItemAmount> TakeLeftovers()
+    {
+        var taken = new List<ItemAmount>(_leftovers);
+        _leftovers.Clear();
+        return taken;
+    }
 
     /// <summary>
     /// True when every listed amount would fit (personal inventory first, then cargo when aboard).
@@ -113,9 +128,10 @@ public sealed class MaterialPool
 
     /// <summary>
     /// Adds items, personal inventory first then cargo. Returns the amount that did not fit anywhere
-    /// (0 = fully stored) and accumulates it into <see cref="Overflow"/>. <b>A non-zero return means those
-    /// items were destroyed</b> — check <see cref="CanFit"/> up front where the action can still be refused,
-    /// or handle the leftover (throw it away deliberately, warn via <see cref="Overflow"/>).
+    /// (0 = fully stored) and accumulates it into <see cref="Overflow"/> and <see cref="TakeLeftovers"/>.
+    /// <b>A non-zero return means those items are not stored anywhere</b> — check <see cref="CanFit"/> up
+    /// front where the action can still be refused, or take the leftovers and put them somewhere real (the
+    /// ground, #853); ignoring the return destroys them.
     /// </summary>
     public int Add(string item, int count)
     {
@@ -126,7 +142,20 @@ public sealed class MaterialPool
             leftover = _cargo.Add(item, leftover, maxStack);
         }
 
-        Overflow += leftover;
+        if (leftover > 0)
+        {
+            Overflow += leftover;
+            var known = _leftovers.Find(l => l.Item == item);
+            if (known is null)
+            {
+                _leftovers.Add(new ItemAmount(item, leftover));
+            }
+            else
+            {
+                known.Count += leftover;
+            }
+        }
+
         return leftover;
     }
 }

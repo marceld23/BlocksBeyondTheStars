@@ -15,6 +15,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### Added
 
+- **A full backpack no longer stops the drill (#853).** Mining used to be refused outright once your
+  backpack and cargo hold were full — the block just would not break. Now it always breaks, and
+  whatever does not fit lands on the ground as a small block packet. Packets **stack**: further
+  overflow joins the bundle already lying there instead of littering one per block, and an area
+  drill's whole burst leaves a single packet. Walk near one with room to spare and it flows back into
+  your inventory by itself — no key, no prompt. Packets survive saving and reloading, and a dyed or
+  shaped block keeps its own stack inside the bundle. Defeated creatures drop their loot on the ground
+  the same way instead of it being lost. (Mining out in space keeps the old refusal: there is no ground
+  to drop onto, and the block simply stays put.)
+
 - **Creative and Sandbox worlds fly (#836).** Double-tap **Space** to lift off, Space to rise,
   Ctrl/C to sink; collision stays on, so you can still land on things and build against them.
   Flight was there all along as the admin command `/fly`, which nobody ever found — a young

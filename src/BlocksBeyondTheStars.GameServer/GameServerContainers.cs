@@ -32,8 +32,10 @@ public sealed partial class GameServer
     /// so loot/stash/HUD treat them identically — the block key only decides capacity).</summary>
     private static bool IsContainerBlock(string key) => key is "crate" or "wood_crate";
 
-    /// <summary>Lootable containers on the current planet (salvage capsules / corpses).</summary>
-    public IReadOnlyList<StoredContainer> Containers => _containers;
+    /// <summary>Lootable containers on the current planet (salvage capsules / corpses / crates). Ground drop
+    /// packets share the same store but are not containers to the player — see <see cref="DropPackets"/>.</summary>
+    public IReadOnlyList<StoredContainer> Containers
+        => _containers.Where(c => c.Kind != DropPacketKind).ToList();
 
     private void LoadContainers()
     {
@@ -251,9 +253,21 @@ public sealed partial class GameServer
         ItemCount = c.Items.Count,
     };
 
-    private void BroadcastContainers()
-        => BroadcastToWorld(new ContainerList { Containers = _containers.Select(ToNetContainer).ToArray() });
+    /// <summary>The containers a client renders + loots. Ground drop packets share this store (and its free
+    /// persistence) but are NOT containers to the player: they collect themselves and would otherwise steal
+    /// the crate/capsule loot prompt, so they are filtered out here and travel on their own list (#853).</summary>
+    private ContainerList ContainerMessage() => new()
+    {
+        Containers = _containers.Where(c => c.Kind != DropPacketKind).Select(ToNetContainer).ToArray(),
+    };
 
+    private void BroadcastContainers() => BroadcastToWorld(ContainerMessage());
+
+    /// <summary>Sends this world's containers AND its ground drop packets — the two lists always travel
+    /// together, so every join/respawn/travel path stays in sync with one call.</summary>
     private void SendContainers(PlayerSession session)
-        => Send(session, new ContainerList { Containers = _containers.Select(ToNetContainer).ToArray() });
+    {
+        Send(session, ContainerMessage());
+        SendDropPackets(session);
+    }
 }

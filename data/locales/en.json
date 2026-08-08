@@ -894,6 +894,7 @@
   "ui.inventory.discard_confirm": "Really throw away?",
   "ui.inventory.discard_warn": "Every one of these is destroyed for good. You can't get them back.",
   "ui.hint.inventory_full": "Backpack and cargo hold are full — anything else you pick up is lost.",
+  "ui.hint.dropped_on_ground": "No room left — the rest is lying on the ground. Walk over it again once you have space.",
   "ui.cargo.title": "Cargo Hold",
   "ui.cargo.capacity": "Capacity",
   "ui.cargo.stow_all": "Stow all materials in cargo",
