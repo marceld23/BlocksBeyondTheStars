@@ -46,11 +46,16 @@ public sealed partial class GameServer
     /// <summary>Stores a player's custom pixel face (persisted, since it follows the player to any server they
     /// set it on) and relays it to the other players on the same world. Out of band from the 10 Hz presence
     /// stream — the bitmap is heavier and changes rarely.</summary>
-    // The custom face is a 16×16 grid of palette indices, one hex char per pixel = exactly 256 chars
-    // (client FacePalette). The server treats it as opaque, but MUST bound and charset-check it: it is
-    // persisted to disk and rebroadcast to every player, so an unvalidated blob is a memory/disk/bandwidth
-    // vector (audit 2026-07-05). An empty string is allowed and means "no custom face".
-    private const int FacePixelCount = 256;
+    // The custom face is a square grid of palette indices, one hex char per pixel (client FacePalette).
+    // The server treats it as opaque, but MUST bound and charset-check it: it is persisted to disk and
+    // rebroadcast to every player, so an unvalidated blob is a memory/disk/bandwidth vector (audit
+    // 2026-07-05). An empty string is allowed and means "no custom face".
+    //
+    // Two sizes are legal, not one: the editor moved from 16×16 to 32×32 (#840 — a player asked for finer
+    // pixels), and faces drawn before that still arrive at 256 chars from older clients and older saves.
+    // Accepting exactly these two keeps the bound tight while nobody's existing face is rejected.
+    private const int FacePixelCountLegacy = 16 * 16;
+    private const int FacePixelCount = 32 * 32;
 
     private static bool IsValidFace(string face)
     {
@@ -59,7 +64,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        if (face.Length != FacePixelCount)
+        if (face.Length != FacePixelCount && face.Length != FacePixelCountLegacy)
         {
             return false;
         }

@@ -127,7 +127,8 @@ namespace BlocksBeyondTheStars.Client
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
             bool sandbox = false,
             string worldOptionArgs = null,
-            int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null)
+            int maxPlayers = 1, string password = null, string serverName = "Singleplayer", string adminName = null,
+            bool creativeFlight = false)
         {
 #if UNITY_WEBGL && !UNITY_EDITOR
             Debug.LogWarning("Local world hosting is unavailable in WebGL; browsers cannot launch the bundled server process.");
@@ -195,7 +196,11 @@ namespace BlocksBeyondTheStars.Client
                 (creativeKit ? " --creative-kit true" : string.Empty) +
                 // True sandbox (#662): free crafting + no oxygen/hunger + peaceful. Creation-only like the
                 // creative args — the server bakes the mode into the save's RulesOverride.
-                (sandbox ? " --game-mode Creative" : string.Empty);
+                (sandbox ? " --game-mode Creative" : string.Empty) +
+                // Free flight. Sandbox gets it from --game-mode above; the "Creative" head-start mode stays
+                // Survival, so it needs saying explicitly — and it is the mode a Minecraft player picks when
+                // they want to fly.
+                (creativeFlight ? " --creative-flight true" : string.Empty);
             // World options (sliders at creation): non-default values only; the server bakes them into the
             // new save's rules/description, so later launches don't need to repeat them.
             string optionArgs = string.IsNullOrEmpty(worldOptionArgs) ? string.Empty : worldOptionArgs;

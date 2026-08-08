@@ -262,6 +262,17 @@ public sealed partial class GameServer
             _log.Info("Admin cheats enabled for this world by server launch rules.");
         }
 
+        // Creative/Sandbox worlds fly. The rule is new, so every existing Creative save baked the `false`
+        // default — without this lift the fix would only ever reach worlds created after the update, and the
+        // player who asked for it would still be walking in the world he already has. A Creative world that
+        // deliberately turned flight OFF keeps that choice, because the launch rules carry it explicitly.
+        if (_config.Rules.GameMode == GameMode.Creative && !_config.Rules.CreativeFlight && launchRules.CreativeFlight)
+        {
+            _config.Rules.CreativeFlight = true;
+            _meta.RulesOverride = _config.Rules.Clone();
+            _log.Info("Free flight enabled for this creative world.");
+        }
+
         _repo.SaveMetadata(_meta);
 
         _generator = new WorldGenerator(_meta.Seed, _content);
@@ -4590,6 +4601,8 @@ public sealed partial class GameServer
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,
             Spectating = session.Spectating,
+            // A creative world lets everybody fly; /fly keeps working as the per-player admin cheat.
+            CanFly = Rules.CreativeFlight || p.Fly,
         });
     }
 

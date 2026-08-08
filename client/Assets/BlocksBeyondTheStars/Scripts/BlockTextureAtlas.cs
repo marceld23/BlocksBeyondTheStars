@@ -66,6 +66,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             BuildVariants(content);
+            BuildCapTiles(content);
             Texture.Apply(updateMipmaps: true);
             BuildNormalAtlas(); // derives from the final atlas, so variants get normals automatically
         }
@@ -148,6 +149,114 @@ namespace BlocksBeyondTheStars.Client
 
                 _variants[baseId] = slots;
             }
+        }
+
+        /// <summary>
+        /// Blocks that get their own TOP/BOTTOM tile — the first per-face textures in the atlas.
+        /// <para>
+        /// Until now every block wore one tile on all six sides, so a felled trunk showed bark on its cut
+        /// ends. A player noticed immediately and filed it as "Keine Rille :(" — no growth rings in the logs,
+        /// the way Minecraft does them. Cheap to fix once the mesher can pick a UV per face, and the same
+        /// mechanism is what grass-on-top, crate lids and machine fronts will want next.
+        /// </para>
+        /// </summary>
+        private static readonly string[] CapTileKeys = { "wood_log" };
+
+        private readonly System.Collections.Generic.Dictionary<ushort, ushort> _capTiles = new();
+
+        /// <summary>The atlas slot to use on this block's top and bottom faces, if it has a distinct one.</summary>
+        public bool TryGetCapTile(ushort id, out ushort slot) => _capTiles.TryGetValue(id, out slot);
+
+        /// <summary>Paints one end-grain tile per <see cref="CapTileKeys"/> block into the spare slots left
+        /// after the variants, continuing the same top-down fill so real block ids are never overwritten.</summary>
+        private void BuildCapTiles(GameContent content)
+        {
+            int maxId = 0;
+            foreach (var b in content.Blocks.Values)
+            {
+                maxId = Mathf.Max(maxId, b.NumericId.Value);
+            }
+
+            // Continue below whatever BuildVariants consumed rather than guessing: count the slots it took.
+            int used = 0;
+            foreach (var kv in _variants)
+            {
+                used += kv.Value.Length;
+            }
+
+            int next = Cols * Rows - 1 - used;
+            foreach (var key in CapTileKeys)
+            {
+                var def = content.GetBlock(key);
+                if (def == null || def.NumericId.Value == 0 || def.NumericId.Value >= Cols * Rows)
+                {
+                    continue;
+                }
+
+                if (next <= maxId)
+                {
+                    break; // atlas full — the block keeps its single all-faces tile rather than eating a real id
+                }
+
+                ushort slot = (ushort)next--;
+                PaintEndGrain(def.NumericId.Value, slot);
+                _capTiles[def.NumericId.Value] = slot;
+            }
+        }
+
+        /// <summary>Derives an end-grain tile from a log's bark tile: concentric growth rings around a slightly
+        /// off-centre heart, over the bark's own colours so the per-world bark tint keeps matching, with the
+        /// bark left as a rim so a stack of logs still reads as round.</summary>
+        private void PaintEndGrain(ushort baseId, ushort slot)
+        {
+            int sx = (baseId % Cols) * Tile, sy = (baseId / Cols) * Tile;
+            int dx = (slot % Cols) * Tile, dy = (slot / Cols) * Tile;
+            var px = Texture.GetPixels(sx, sy, Tile, Tile);
+
+            // Average the bark as the base wood colour, then lighten it: cut wood is paler than bark.
+            float ar = 0f, ag = 0f, ab = 0f;
+            for (int i = 0; i < px.Length; i++)
+            {
+                ar += px[i].r; ag += px[i].g; ab += px[i].b;
+            }
+
+            var wood = new Color(
+                Mathf.Clamp01(ar / px.Length * 1.45f),
+                Mathf.Clamp01(ag / px.Length * 1.38f),
+                Mathf.Clamp01(ab / px.Length * 1.25f));
+
+            const float centre = (Tile - 1) / 2f;
+            float hx = centre + Tile * 0.06f, hy = centre - Tile * 0.05f; // heart slightly off-centre — trees are not lathes
+            float rim = Tile * 0.46f;   // bark rim starts here
+            float ringWidth = Tile / 14f;
+
+            for (int y = 0; y < Tile; y++)
+            {
+                for (int x = 0; x < Tile; x++)
+                {
+                    int i = y * Tile + x;
+                    float ddx = x - hx, ddy = y - hy;
+                    float r = Mathf.Sqrt(ddx * ddx + ddy * ddy);
+                    if (r >= rim)
+                    {
+                        continue; // keep the original bark around the edge
+                    }
+
+                    // Rings: a slow sine on the radius, wobbled by angle so they aren't perfect circles.
+                    float wobble = Mathf.Sin(Mathf.Atan2(ddy, ddx) * 3f) * (Tile * 0.03f);
+                    float band = Mathf.Sin((r + wobble) / ringWidth * Mathf.PI);
+                    float k = 0.86f + 0.14f * (band * 0.5f + 0.5f);
+                    if (r < Tile * 0.05f)
+                    {
+                        k *= 0.82f; // the darker heart at the very centre
+                    }
+
+                    px[i] = new Color(
+                        Mathf.Clamp01(wood.r * k), Mathf.Clamp01(wood.g * k), Mathf.Clamp01(wood.b * k), px[i].a);
+                }
+            }
+
+            Texture.SetPixels(dx, dy, Tile, Tile, px);
         }
 
         /// <summary>Variant tiles for flora (#675) — silhouette-aware, unlike <see cref="PaintVariant"/>:

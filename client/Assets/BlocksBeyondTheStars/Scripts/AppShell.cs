@@ -633,9 +633,9 @@ namespace BlocksBeyondTheStars.Client
         public void StartSingleplayerWorld(string worldName, long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
             bool sandbox = false,
-            WorldCreationOptions worldOptions = null)
+            WorldCreationOptions worldOptions = null, bool creativeFlight = false)
             => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions,
-                maxPlayers: 1, password: null);
+                maxPlayers: 1, password: null, creativeFlight);
 
         /// <summary>Hosts a multiplayer world in-game: launches the bundled server on a singleplayer save
         /// with the chosen player cap (+ optional join password) and joins it immediately. The host's
@@ -644,13 +644,13 @@ namespace BlocksBeyondTheStars.Client
         public void StartHostWorld(string worldName, int maxPlayers, string password, long seed = 0,
             bool creativeUnlockAll = false, bool creativeAllShips = false, bool creativeKit = false,
             bool sandbox = false,
-            WorldCreationOptions worldOptions = null)
+            WorldCreationOptions worldOptions = null, bool creativeFlight = false)
             => StartLocalWorld(worldName, seed, creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions,
-                Mathf.Clamp(maxPlayers, 2, 16), password);
+                Mathf.Clamp(maxPlayers, 2, 16), password, creativeFlight);
 
         private void StartLocalWorld(string worldName, long seed,
             bool creativeUnlockAll, bool creativeAllShips, bool creativeKit, bool sandbox, WorldCreationOptions worldOptions,
-            int maxPlayers, string password)
+            int maxPlayers, string password, bool creativeFlight = false)
         {
             if (ShowBrowserLocalServerBlockedNotice())
             {
@@ -671,7 +671,7 @@ namespace BlocksBeyondTheStars.Client
             // would freeze the menu so "nothing happens" before the loading screen appears.
             if (_localServer.Prepare(LocalServerLauncher.DefaultPort, Settings.ViewDistanceChunks, worldName, seed,
                     creativeUnlockAll, creativeAllShips, creativeKit, sandbox, worldOptions?.ToArgs(),
-                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName))
+                    maxPlayers, password, hosting ? worldName : "Singleplayer", PlayerName, creativeFlight))
             {
                 Host = _localServer.Host;
                 Port = _localServer.Port.ToString();

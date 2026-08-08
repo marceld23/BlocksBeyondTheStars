@@ -119,7 +119,11 @@ namespace BlocksBeyondTheStars.Client
                     var avatar = go.AddComponent<PlayerAvatar>();
                     // The server owns the whole palette (#711): skin covers robot chassis tones too, and
                     // trousers are an independent colour (LegsRgb 0 = older server → derive from the outfit).
-                    Color skin = nd.SkinRgb != 0 ? Rgb(nd.SkinRgb) : new Color(0.75f, 0.78f, 0.82f);
+                    // The fallback only fires for a server too old to send a palette; a HUMAN painted in the
+                    // robot-chassis grey read as "not a person at all", so people fall back to a mid skin tone
+                    // and only androids keep the grey.
+                    Color skin = nd.SkinRgb != 0 ? Rgb(nd.SkinRgb)
+                        : nd.IsRobot ? new Color(0.75f, 0.78f, 0.82f) : Rgb(0xC68642);
                     Color outfit = Rgb(nd.OutfitRgb);
                     Color legs = nd.LegsRgb != 0 ? Rgb(nd.LegsRgb) : outfit * 0.7f;
                     // Per-NPC variety (#711), deterministic from the NPC id + name so it survives rejoins:

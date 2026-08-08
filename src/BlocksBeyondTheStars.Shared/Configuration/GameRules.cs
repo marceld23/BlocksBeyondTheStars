@@ -142,6 +142,19 @@ public sealed class GameRules
     public bool AllowCheatsInSurvival { get; set; }
     public bool AllowCheatsInCreative { get; set; } = true;
 
+    /// <summary>
+    /// Free flight for everyone in this world — on by default in Creative/Sandbox worlds, off in Explorer.
+    /// <para>
+    /// Flight existed only as the admin cheat <c>/fly</c>, which no player ever found: a young tester asked
+    /// for it in capitals ("FLIEEEEEEEEEEGEN — ich möchte das man wie in Minecraft Fliegen im Kreativ kann")
+    /// while sitting in a Creative world with <c>Fly=false</c>. Anyone arriving from Minecraft expects the
+    /// mode named "Creative" to fly, so the mode grants it rather than a chat command.
+    /// </para>
+    /// Independent of <see cref="AdminCheats"/> on purpose: this is a property of the WORLD, not a
+    /// permission handed to one admin, so guests on a hosted creative world fly too.
+    /// </summary>
+    public bool CreativeFlight { get; set; }
+
     // --- Space flight / combat / enemies / docking / landing zones ---
 
     public bool FreeSpaceFlight { get; set; } = true;

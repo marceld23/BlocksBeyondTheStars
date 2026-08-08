@@ -13,7 +13,53 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Added
+
+- **Creative and Sandbox worlds fly (#836).** Double-tap **Space** to lift off, Space to rise,
+  Ctrl/C to sink; collision stays on, so you can still land on things and build against them.
+  Flight was there all along as the admin command `/fly`, which nobody ever found — a young
+  playtester asked for it in capitals while sitting in a Creative world that technically had it.
+  Both non-Explorer modes now say so, in the creation panel and in the on-screen controls hint.
+  Existing Creative saves get it too, not just newly created ones.
+- **Logs have growth rings (#837).** Blocks can carry a separate top/bottom texture, and the first
+  one to use it is `wood_log`: cut ends show end grain instead of bark, tinted with the same
+  per-world bark hue as the sides. The mechanism is what grass-on-top and crate lids will want next.
+- **A finer face editor with real tools (#840).** Faces are drawn at **32×32** instead of 16×16 —
+  four times the pixels, enough for an eye that isn't two dots. Every face drawn at the old size
+  still works and is scaled up automatically. New **Pick colour** eyedropper takes the colour under
+  the cursor, and a **colour wheel** lets you choose by dragging a point around a hue ring (it snaps
+  to the palette — a face stores one hex digit per pixel, so 16 colours is the format's ceiling).
+  Both the main-menu Avatar Designer and the in-game Character tab share the editor, so both gain it.
+
 ### Fixed
+
+- **Hovering scan-drones actually hurt now (#833).** A drone's own AI holds a 4–10 block standoff
+  ring and floats 4 blocks up, so it never came within the server's 4-block damage aura — it circled
+  you firing a laser and was mechanically harmless, exactly as a player reported. Ranged machines now
+  damage out to their firing range (16 blocks, matching the laser you can see), still blocked by
+  cover, with the drone's damage lowered to 2/s to suit the longer reach.
+- **No more hitting through walls, in either direction.** The wall check on player attacks only
+  applied to weapons reaching over 6 blocks, so every melee weapon swung straight through cover — and
+  a client that sent no aim data skipped the check entirely. Every attack is now sightline-gated, the
+  same way enemy attacks already were.
+- **Players are no longer sealed inside rock (#834).** A player restored inside solid blocks is dug
+  straight up to the first gap with standing room, or moved to the ship/landing pad if the column has
+  none. The void guards never caught this: they ask whether there is ground below you, and someone
+  entombed at the world origin has stone in every direction. One report showed a player motionless at
+  (0.5, −85.5, 0.5) for a whole session with 7550 stone blocks around him.
+- **Sneaking holds at corners too (#839).** The sneak edge-stop tested the two axes separately, so
+  walking diagonally off an outside corner passed both checks and dropped you anyway. "In Minecraft
+  fällt man nicht runter wenn man sneakt aber hir schon."
+- **World names are checked as you type them (#835).** Characters that cannot go in a save name are
+  refused in the box instead of being silently rewritten three layers down, and Create now says
+  plainly when the name is empty or already taken. A player typed `Minecraft Wo bin ich?:(` and could
+  not tell whether his world had been created, or what it ended up being called.
+- **NPCs read as different people (#841).** Five skin tones existed, but four of them sat in the same
+  light tan band, so a settlement looked like one face repeated. The palette is spread across the
+  range now — and a human NPC from an older server no longer falls back to robot grey.
+- **Bug reports describe the right planet (#838).** A `/bump` snapshot read the world the server
+  happened to be ticking rather than the reporter's own, so biome, weather, gravity and the
+  surrounding blocks could all belong to somewhere else entirely.
 
 - **Browser: the splash screens and the intro speak again (#831).** In the WebGL build the studio
   splash, the title splash and the intro cinematic showed raw localization keys instead of their

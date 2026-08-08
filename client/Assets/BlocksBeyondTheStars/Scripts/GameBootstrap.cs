@@ -226,6 +226,10 @@ namespace BlocksBeyondTheStars.Client
         /// Never set locally: invisibility is the server's decision, and the client only reflects it.</summary>
         public bool Spectating { get; private set; }
 
+        /// <summary>This world allows free flight (Creative/Sandbox, or the <c>/fly</c> cheat) —
+        /// server-authoritative. Only while this is set does double-tapping jump toggle flight.</summary>
+        public bool CanFly { get; private set; }
+
         /// <summary>World position of the player's ship (for the HUD minimap / compass), once known.</summary>
         public Vector3? ShipPosition { get; private set; }
 
@@ -2300,6 +2304,8 @@ namespace BlocksBeyondTheStars.Client
                 Spectating = m.Spectating;
                 LastMessage = Localizer?.Get(m.Spectating ? "hud.observer.on" : "hud.observer.off") ?? LastMessage;
             }
+
+            CanFly = m.CanFly;
 
             // Built/climbed above the atmosphere → zero-g float on foot + space sky (item 10).
             if (m.AboveAtmosphere != OnFootInSpace)

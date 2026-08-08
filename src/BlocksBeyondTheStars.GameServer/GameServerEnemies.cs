@@ -27,6 +27,25 @@ public sealed partial class GameServer
     private const float EnemyProximityRange = 4f;
     private const float EnemyAttackReach = 6f;
 
+    /// <summary>
+    /// How far a RANGED machine can hurt the player. The scan-drone shoots; it does not bite, and its own
+    /// AI deliberately keeps its distance — <see cref="DroneStandoff"/> ± <see cref="DroneStrafe"/>
+    /// horizontally plus <see cref="ScanDroneHover"/> of hover — so the closest it ever gets is
+    /// <c>sqrt(4² + 4²) ≈ 5.7</c> blocks. Against the 4-block melee aura that meant its
+    /// <see cref="CombatEntity.DamagePerSecond"/> could never once be applied: it circled the player firing
+    /// its laser (the client draws that out to 16 blocks) and was mechanically harmless. A player found it
+    /// in minutes — "Diese Drohne macht mir keinen Schaden."
+    /// <para>Matches the client's <c>DroneFireRange</c>, so what you SEE hitting you is what hurts.</para>
+    /// </summary>
+    private const float EnemyRangedRange = 16f;
+
+    /// <summary>True for machines that attack at range rather than by touching the player.</summary>
+    private static bool IsRangedEnemy(CombatEntityKind kind) => kind == CombatEntityKind.ScanDrone;
+
+    /// <summary>Reach of a machine's damage aura: melee for walkers, the full firing range for shooters.</summary>
+    private static float EnemyDamageRange(CombatEntityKind kind)
+        => IsRangedEnemy(kind) ? EnemyRangedRange : EnemyProximityRange;
+
     private List<CombatEntity> _planetEnemies => _worlds.Active.PlanetEnemies;
     private double _enemySpawnTimer { get => _worlds.Active.EnemySpawnTimer; set => _worlds.Active.EnemySpawnTimer = value; }
     private readonly List<PlayerSession> _enemyTargets = new(); // reused per tick (no per-tick LINQ alloc)
@@ -180,7 +199,8 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (WrapDistSq(p.Position, enemy.Position) <= EnemyProximityRange * EnemyProximityRange
+                float reach = EnemyDamageRange(enemy.Kind); // shooters reach as far as they fire; walkers bite
+                if (WrapDistSq(p.Position, enemy.Position) <= reach * reach
                     && HasLineOfSight(enemy.Position, p.Position)) // can't bite a target it can't see — duck behind cover/into a cave to break it
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
@@ -498,7 +518,10 @@ public sealed partial class GameServer
             Hull = hull,
             HullMax = hull,
             Position = new Vector3f(ex, ey, ez),
-            DamagePerSecond = (asDrone ? 3f : (tougher ? 6f : 4f)) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
+            // The drone's 3/s was written for an aura it could never enter; now that it really does hurt from
+            // its firing range it is in reach for most of an encounter, so it drops to 2/s — roughly 50 s of
+            // being ignored before it kills you, which is pressure without being a young player's ambush.
+            DamagePerSecond = (asDrone ? 2f : (tougher ? 6f : 4f)) * (atWreck ? 1.5f : 1f), // wreck machines are angrier
             Loot = { new ItemAmount("carbon", 2) }, // all Guardian machines drop salvage carbon
         });
     }
@@ -662,26 +685,38 @@ public sealed partial class GameServer
     /// <summary>Validates the client's claimed aim against the claimed target (#693). Anti-cheat guardrail,
     /// not a precision hitbox: latency + interpolation mean the client's view lags the server's, so every
     /// tolerance is generous — the client already did the precise crosshair test. A zero direction (older
-    /// client, or a melee swing) skips the angle checks entirely. With AutoAim ON the target only has to sit
+    /// client, or a melee swing) skips the angle checks. With AutoAim ON the target only has to sit
     /// in a wide forward cone; with AutoAim OFF the crosshair ray must actually pass near the target's body.
-    /// Ranged weapons additionally need a clear sightline — no shooting through walls.</summary>
+    /// Every attack, at any range, needs a clear sightline — no hitting through walls.</summary>
     private bool ValidateAim(PlayerSession session, CombatEntity target, ToolProperties tool, bool isWeapon, Vector3f aimDir)
     {
-        float dirLenSq = aimDir.X * aimDir.X + aimDir.Y * aimDir.Y + aimDir.Z * aimDir.Z;
-        if (dirLenSq < 0.0001f)
-        {
-            return true; // no aim data (older client) — keep the legacy range-only behaviour
-        }
-
-        bool ranged = isWeapon && tool.Range > EnemyAttackReach;
         var p = session.State;
 
-        // Ranged shots respect walls: the same voxel sightline that gates enemy bites (glass blocks it too).
-        if (ranged && !HasLineOfSight(p.Position, target.Position))
+        // Walls stop attacks — ALL of them, and BEFORE the aim-data check.
+        //
+        // This used to be gated on `ranged` (a weapon with Range > 6), which left every melee weapon free to
+        // swing straight through a wall: the machete and vibro-knife reach 3.5 blocks, the plasma sword 4, and
+        // the swing reach is 6 regardless — comfortably enough to hit somebody on the other side of a
+        // one-block wall. Worse, the aim-data early-return above it meant a client that simply sent a zero aim
+        // vector skipped the wall check too, ranged shots included. A player reported hitting through walls in
+        // both directions; the enemy→player half was already sightline-gated everywhere
+        // (see the proximity damage above, GameServerCreatures and GameServerBandits), so this side was it.
+        //
+        // Same voxel sightline the machines use, so cover behaves identically whoever is shooting; glass
+        // blocks it too, being Solid.
+        if (!HasLineOfSight(p.Position, target.Position))
         {
             Reject(session, "attack", "@srv.attack.no_line");
             return false;
         }
+
+        float dirLenSq = aimDir.X * aimDir.X + aimDir.Y * aimDir.Y + aimDir.Z * aimDir.Z;
+        if (dirLenSq < 0.0001f)
+        {
+            return true; // no aim data (older client) — keep the legacy range-only behaviour for the ANGLE
+        }
+
+        bool ranged = isWeapon && tool.Range > EnemyAttackReach;
 
         const float eye = 1.5f; // matches HasLineOfSight/the client camera height
         var dst = Unwrapped(p.Position, target.Position);
@@ -742,14 +777,22 @@ public sealed partial class GameServer
     /// <summary>Test/util: spawn a hostile planet enemy at a position so combat can be tested deterministically
     /// without waiting on the random surface spawner (which appears 35–50 blocks out).</summary>
     public void SpawnPlanetEnemyAtForTest(Vector3f at, float damagePerSecond = 20f)
+        => SpawnPlanetEnemyAtForTest(at, CombatEntityKind.Creature, damagePerSecond);
+
+    /// <summary>Test/util: as above, but choosing the KIND — the scan-drone damages at its firing range
+    /// rather than by touch, so its regression needs to spawn that specific machine.</summary>
+    public void SpawnPlanetEnemyAtForTest(Vector3f at, CombatEntityKind kind, float damagePerSecond = 20f)
         => _planetEnemies.Add(new CombatEntity
         {
             Id = NextEntityId(),
-            Kind = CombatEntityKind.Creature,
+            Kind = kind,
             Hostile = true,
             Hull = 30f,
             HullMax = 30f,
             Position = at,
             DamagePerSecond = damagePerSecond,
         });
+
+    /// <summary>Test/util: run one enemy tick for the active world without the rest of the simulation.</summary>
+    public void TickEnemiesForTest(double dt) => TickEnemies(dt);
 }

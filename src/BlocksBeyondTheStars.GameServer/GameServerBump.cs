@@ -126,6 +126,34 @@ public sealed partial class GameServer
 
     private void HandleBump(PlayerSession session, string description, byte[]? image = null, string clientVersion = "")
     {
+        // Everything below reads through the ACTIVE world cursor — _world, _meta, _creatures, _npcs,
+        // _generator. A bump can arrive while that cursor points at somebody else's planet (the tick loop
+        // moves it per occupied world), and then the whole snapshot describes the wrong place: biome,
+        // weather, gravity, the surrounding blocks, the "nearby" lists. Reports from a 2026-08-08 playtest
+        // showed exactly that — every snapshot from one player carried location sys1-p6 while his own
+        // currentLocation was sys1-p1. Point the cursor at the REPORTER's world for the capture and put it
+        // back afterwards, so a report always describes where its author actually stood.
+        string? restoreLocation = _worlds.Active?.LocationId;
+        if (!string.IsNullOrEmpty(session.CurrentLocationId))
+        {
+            SetActiveWorld(session.CurrentLocationId);
+        }
+
+        try
+        {
+            CaptureBump(session, description, image, clientVersion);
+        }
+        finally
+        {
+            if (!string.IsNullOrEmpty(restoreLocation))
+            {
+                SetActiveWorld(restoreLocation);
+            }
+        }
+    }
+
+    private void CaptureBump(PlayerSession session, string description, byte[]? image, string clientVersion)
+    {
         var p = session.State;
         var (systemName, planetName) = ActiveLocationNames();
         float r2 = 24f * 24f;
@@ -249,7 +277,16 @@ public sealed partial class GameServer
                 description,
                 screenshot = imageName, // null when the client could not capture one
                 world = _meta.WorldName,
-                location = new { system = systemName, planet = planetName, activeLocationId = _meta.ActiveLocationId, planetType = _meta.DefaultPlanetType },
+                // locationId is the body this whole snapshot describes — the reporter's own, and the same
+                // value as player.currentLocation. activeLocationId stays for continuity with older reports.
+                location = new
+                {
+                    system = systemName,
+                    planet = planetName,
+                    locationId = p.CurrentLocationId,
+                    activeLocationId = _meta.ActiveLocationId,
+                    planetType = _meta.DefaultPlanetType,
+                },
                 player = new
                 {
                     p.PlayerId,

@@ -431,9 +431,17 @@ public sealed class ServerConfig
                     if (Enum.TryParse<GameMode>(value, ignoreCase: true, out var gm))
                     {
                         Rules.GameMode = gm;
+                        // A Creative/Sandbox world flies — that is what the mode name promises to anyone
+                        // arriving from Minecraft. An explicit --creative-flight after this still wins.
+                        Rules.CreativeFlight = gm == GameMode.Creative;
                         applied.Add("game-mode");
                     }
 
+                    break;
+                case "creative-flight":
+                    // Free flight for everyone in this world, independent of the game mode — the launcher
+                    // passes it for the "Creative" head-start mode too, which stays Survival otherwise.
+                    if (bool.TryParse(value, out var cf)) { Rules.CreativeFlight = cf; applied.Add("creative-flight"); }
                     break;
                 case "admin-cheats":
                     // Allow admin cheat commands (/tp, /give, /fly …) in every game mode. Passed by the

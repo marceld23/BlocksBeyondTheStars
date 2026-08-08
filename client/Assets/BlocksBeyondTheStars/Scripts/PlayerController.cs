@@ -86,6 +86,18 @@ namespace BlocksBeyondTheStars.Client
         private bool _crouched;
         private float _crouchT; // 0 = standing, 1 = fully crouched (eases the camera; the collider snaps)
 
+        // Creative flight (#836). Only offered when the SERVER says this world allows it (GameBootstrap.CanFly:
+        // Creative/Sandbox worlds, or the /fly cheat) — the client never grants itself flight.
+        //
+        // Double-tapping jump toggles it, because that is the gesture every Minecraft player already has in
+        // their fingers, and the command it replaces (/fly) was so undiscoverable that a tester asked for the
+        // feature in capitals while sitting in a Creative world that technically had it.
+        private const float FlySpeed = 9f;          // vertical blocks/s while holding jump / crouch
+        private const float FlyHorizontalMul = 1.8f; // flying is a way to COVER ground, so it outruns walking
+        private const float FlyDoubleTapWindow = 0.35f;
+        private bool _flying;
+        private float _lastJumpTapTime = -1f;
+
         // Sit on a chair-shaped cell (#806): E on a chair seats the player — control freezes (the look
         // stays free), the eye eases to seat height, and the Seated flag rides the presence broadcast so
         // other players see the pose. The CharacterController is disabled while seated: the capsule sits
@@ -2198,6 +2210,12 @@ namespace BlocksBeyondTheStars.Client
                 move *= CrouchSpeedMul;
             }
 
+            UpdateFlight(grounded, inWater, onLadder);
+            if (_flying)
+            {
+                move *= FlyHorizontalMul;
+            }
+
             bool jetpacking = false;
             if (inWater)
             {
@@ -2229,6 +2247,13 @@ namespace BlocksBeyondTheStars.Client
                 bool up = InputMap.JumpHeld() || v > 0.1f;
                 bool down = InputMap.CrouchHeld() || v < -0.1f;
                 _verticalVelocity = up ? ClimbSpeed : (down ? -ClimbSpeed : -1f);
+            }
+            else if (_flying)
+            {
+                // Creative flight: no gravity at all. Jump rises, crouch (Ctrl/C) sinks, and letting go holds
+                // altitude — the same feel as Minecraft's creative flight. Collision stays ON (this is flight,
+                // not the observer mode's noclip), so you can still land on and build against things.
+                _verticalVelocity = (InputMap.JumpHeld() ? FlySpeed : 0f) - (InputMap.CrouchHeld() ? FlySpeed : 0f);
             }
             else if (grounded)
             {
@@ -2287,6 +2312,17 @@ namespace BlocksBeyondTheStars.Client
                 {
                     move.z = 0f;
                 }
+
+                // …and then the DIAGONAL, which the per-axis pass alone lets through. Walking off an outside
+                // corner, each single axis still finds floor along its own edge, so neither test fires — while
+                // the combined step lands over the void and the player falls anyway. A player found it and put
+                // it plainly: "In Minecraft fällt man nicht runter wenn man sneakt aber hir schon."
+                if (Mathf.Abs(move.x) > 0.01f && Mathf.Abs(move.z) > 0.01f
+                    && !GroundAhead(new Vector3(move.x, 0f, move.z)))
+                {
+                    move.x = 0f;
+                    move.z = 0f;
+                }
             }
 
             // Cap the auto-step to the headroom above the head before moving, so a 2-block-high opening stays
@@ -2327,7 +2363,8 @@ namespace BlocksBeyondTheStars.Client
                 // fall damage. Small drops/jumps stay below the safe threshold and do nothing. Deep water breaks
                 // the fall via the swim branch — but landing in even ONE block of water should cushion it too,
                 // like Minecraft (Severin playtest: shallow water still hurt because the chest wasn't submerged).
-                if (-prevVy > _effSafeFallSpeed && !FeetInWater())
+                // Flying down onto the ground is a landing, not a fall — the descent is powered, not a drop.
+                if (-prevVy > _effSafeFallSpeed && !FeetInWater() && !_flying)
                 {
                     Game?.Network?.SendFallDamage(-prevVy);
                 }
@@ -2433,6 +2470,51 @@ namespace BlocksBeyondTheStars.Client
             return IsSolidKey(BlockKeyAt(ahead - Vector3.up * 0.5f))
                 || IsSolidKey(BlockKeyAt(ahead - Vector3.up * 1.2f));
         }
+
+        /// <summary>
+        /// Drives creative flight (#836): a double-tap of jump toggles it, and it ends when the world stops
+        /// allowing it, when the player touches down, or in water / on a ladder, which have their own vertical
+        /// rules and would fight it.
+        /// <para>
+        /// Landing turns it off deliberately: without that, walking around a base means constantly holding
+        /// crouch to stay down. Toggling back on is one double-tap away.
+        /// </para>
+        /// </summary>
+        private void UpdateFlight(bool grounded, bool inWater, bool onLadder)
+        {
+            bool allowed = Game != null && Game.CanFly;
+            if (!allowed || inWater || onLadder)
+            {
+                _flying = false;
+                return;
+            }
+
+            if (InputMap.JumpDown())
+            {
+                // A tap within the window of the previous one = the toggle. Taking OFF from the ground needs the
+                // first tap's jump to have happened, which is why this reads the tap times rather than grounded.
+                if (_lastJumpTapTime > 0f && Time.time - _lastJumpTapTime <= FlyDoubleTapWindow)
+                {
+                    _flying = !_flying;
+                    _lastJumpTapTime = -1f; // consumed: a third tap starts a fresh pair, not another toggle
+                    _verticalVelocity = 0f;
+                    ClientAudio.Instance?.Cue("jump", 0.5f);
+                }
+                else
+                {
+                    _lastJumpTapTime = Time.time;
+                }
+            }
+
+            if (_flying && grounded && _verticalVelocity <= 0f && !InputMap.JumpHeld())
+            {
+                _flying = false; // touched down under our own weight — walk from here
+            }
+        }
+
+        /// <summary>True while the player is in creative flight — the HUD shows the mode, and fall damage
+        /// never applies.</summary>
+        public bool Flying => _flying;
 
         /// <summary>Drives the crouch/sneak state each frame: sets it from the input while grounded, keeps it on if a
         /// ceiling would block standing back up, snaps the collider to the crouched capsule, and eases the camera.</summary>

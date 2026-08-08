@@ -470,7 +470,11 @@ silently misbehaves*. Check them in this order:
    the name first and falling back to the index.
 5. **Block id beyond the texture atlas.** `BlockTextureAtlas` (client) has `Cols × Rows`
    tile slots (currently 16×16 = 256). A block id beyond that renders as an untextured grey
-   tile with no error. When adding many blocks, raise `Cols`/`Rows`.
+   tile with no error. When adding many blocks, raise `Cols`/`Rows`. The slots above the real
+   block ids are handed out **downward** — first the ground/flora variants (`BuildVariants`),
+   then the per-face cap tiles (`BuildCapTiles`, e.g. the log's end grain). Each of those
+   passes stops rather than overwriting a real id, so a full atlas degrades to "no variants /
+   one tile on all faces", never to a corrupted block.
 6. **Duplicate `System.*` assemblies.** If Unity complains about a duplicate assembly after
    a lib sync, delete that DLL from `client/Assets/Plugins/` — Unity already ships its own
    copy.

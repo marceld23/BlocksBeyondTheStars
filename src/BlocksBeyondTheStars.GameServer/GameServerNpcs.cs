@@ -147,7 +147,17 @@ public sealed partial class GameServer
 
     private ServerNpc MakeNpc(string role, string theme, bool robotic, Vector3f home, System.Random rng)
     {
-        uint[] skinTones = { 0xF2C9A0, 0xD9A066, 0x8D5524, 0xC68642, 0xFFDBAC };
+        // Human skin tones, deliberately SPREAD across the range rather than sampled from one tan band.
+        // The old five (F2C9A0, D9A066, 8D5524, C68642, FFDBAC) had four neighbours in the same light-to-mid
+        // tan, so a settlement full of NPCs read as one skin tone — a player reported exactly that ("sie
+        // sollten wie Menschen 2 verschiedene Hautfarben haben") while the variety technically existed.
+        // Ordered light → dark with visible gaps between steps so adjacent rolls are told apart at
+        // gameplay distance, not just in a colour picker.
+        uint[] skinTones =
+        {
+            0xFFE0C4, 0xF2C9A0, 0xE8B98A, 0xD9A066, 0xC68642,
+            0xA9713A, 0x8D5524, 0x6B3F1E, 0x4A2A15,
+        };
         // Android chassis tones — a small spread so robots aren't one stamped grey either (#711).
         uint[] chassisTones = { 0xBFC7CF, 0xD5DBE1, 0xA8B2BC, 0xC9CCB8 };
         // Six outfit tones per theme (was three), lifted out of the mud: the client multiplies these by the

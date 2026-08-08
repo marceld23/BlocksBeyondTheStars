@@ -14,8 +14,19 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class FacePalette
     {
-        /// <summary>Face grid edge length in pixels (16×16, matching the blocky/voxel art).</summary>
-        public const int Size = 16;
+        /// <summary>
+        /// Face grid edge length in pixels. Raised from 16 to <b>32</b> (#840): a player who spent his whole
+        /// session in the editor asked for it to "be more precise, more pixel resolution" — at 16×16 an eye is
+        /// two pixels and there is no room for anything but a symbol of a face.
+        /// <para>
+        /// Faces drawn at 16×16 are NOT lost: <see cref="Decode(string, int)"/> upscales any smaller square
+        /// payload, so old saves, old servers and older clients' faces all still render — just blockier.
+        /// </para>
+        /// </summary>
+        public const int Size = 32;
+
+        /// <summary>The original face size. Payloads this big are legacy and get upscaled on decode.</summary>
+        public const int LegacySize = 16;
 
         /// <summary>Total pixels (and the length of a full face string).</summary>
         public const int Pixels = Size * Size;
@@ -99,6 +110,27 @@ namespace BlocksBeyondTheStars.Client
                 return grid;
             }
 
+            // A payload from a SMALLER square grid is upscaled nearest-neighbour instead of being pasted into
+            // the top-left corner. This is the single point every reader goes through — the editor, the avatar
+            // texture, other players' faces off the wire — so one check here is what keeps every 16×16 face
+            // ever drawn (in a save, on an older server, on a friend's older client) showing up correctly
+            // after the move to 32×32.
+            int srcSide = SquareSide(face.Length);
+            int dstSide = SquareSide(pixels);
+            if (srcSide > 0 && dstSide > srcSide && dstSide % srcSide == 0)
+            {
+                int scale = dstSide / srcSide;
+                for (int y = 0; y < dstSide; y++)
+                {
+                    for (int x = 0; x < dstSide; x++)
+                    {
+                        grid[y * dstSide + x] = HexValue(face[(y / scale) * srcSide + (x / scale)]);
+                    }
+                }
+
+                return grid;
+            }
+
             int n = Mathf.Min(face.Length, pixels);
             for (int i = 0; i < n; i++)
             {
@@ -108,11 +140,23 @@ namespace BlocksBeyondTheStars.Client
             return grid;
         }
 
+        /// <summary>The edge length if <paramref name="count"/> is a perfect square, else 0.</summary>
+        private static int SquareSide(int count)
+        {
+            if (count <= 0)
+            {
+                return 0;
+            }
+
+            int side = Mathf.RoundToInt(Mathf.Sqrt(count));
+            return side * side == count ? side : 0;
+        }
+
         /// <summary>The palette colour for an index, clamped to range (index 0 = transparent).</summary>
         public static Color32 ColorOf(int index)
             => index >= 0 && index < Colors.Length ? Colors[index] : Colors[0];
 
-        /// <summary>Builds a 16×16 point-filtered texture of the face for an avatar head, compositing
+        /// <summary>Builds a <see cref="Size"/>×<see cref="Size"/> point-filtered texture of the face for an avatar head, compositing
         /// transparent pixels onto <paramref name="skin"/> (so empty areas blend into the head without
         /// needing a transparent shader). Returns null if the face is empty.</summary>
         public static Texture2D BuildAvatarTexture(string face, Color skin)

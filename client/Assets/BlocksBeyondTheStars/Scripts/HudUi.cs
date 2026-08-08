@@ -704,6 +704,13 @@ namespace BlocksBeyondTheStars.Client
                 _ => loc.Get("ui.hud.hint").Replace("{feedback_key}", FeedbackUi.HotkeyName),
             };
 
+            // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has
+            // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
+            if (Game.CanFly && _hint.text.Length > 0)
+            {
+                _hint.text += " · " + loc.Get("ui.hud.hint_fly");
+            }
+
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
             // foot inside the ship; from the flight view you press F to step inside).

@@ -428,6 +428,17 @@ namespace BlocksBeyondTheStars.Client
                     uvRot = (hash >> 8) & 3;
                 }
 
+                // Per-face tiles (#837): a block may carry a distinct TOP/BOTTOM tile — the log's end grain,
+                // so a cut trunk shows rings instead of bark on its ends. Resolved once per cell; the face
+                // loop below swaps it in for dir.Y != 0. A painted design still wins over both.
+                Rect capUv = default;
+                bool hasCap = false;
+                if (atlas != null && atlas.TryGetCapTile(id.Value, out ushort capSlot))
+                {
+                    capUv = atlas.TileUv(capSlot);
+                    hasCap = true;
+                }
+
                 // Water SURFACE cells (air above) get a body classification — open water with gentle
                 // waves + coastal foam, calm lake, or flowing river — packed into the top face's
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
@@ -711,8 +722,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         bevelQuad = WaterSurfaceQuad(new Vector3(x, y, z), f);
                     }
+                    // Top/bottom faces take the block's cap tile when it has one (log end grain, #837).
+                    Rect faceUv = hasCap && dir.Y != 0 ? capUv : uv;
                     AddFace(verts, designId != 0 ? trisP : transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
-                        c0, c1, c2, c3, designId != 0 ? designRect : uv,
+                        c0, c1, c2, c3, designId != 0 ? designRect : faceUv,
                         designId != 0 ? 0 : dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
                     if (collidable)
                     {

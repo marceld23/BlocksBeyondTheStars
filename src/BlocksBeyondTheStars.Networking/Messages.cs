@@ -846,6 +846,11 @@ public sealed class PlayerStateUpdate
     /// — the client never decides this for itself, and every other player's server never sends this player's
     /// presence at all while it is set.</summary>
     public bool Spectating { get; set; }
+
+    /// <summary>This world lets the player fly freely (Creative/Sandbox worlds, or the <c>/fly</c> cheat).
+    /// The client offers the double-tap-jump toggle only while this is set. New field on an existing
+    /// contractless MessagePack message: an older client ignores it, an older server leaves it false.</summary>
+    public bool CanFly { get; set; }
 }
 
 public sealed class CraftResult

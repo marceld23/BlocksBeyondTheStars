@@ -10,11 +10,16 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// In-game pixel editor over the shared <see cref="FacePalette"/>: originally the 16×16 face editor
-    /// (Character tab + main-menu Avatar Designer), generalized to serve the 32×32 block-paint host too
-    /// (#818) — the grid size and an optional design-library column are host-supplied, everything else
-    /// (palette, eraser, drag painting, Apply/Clear/Back) is identical in every host. <b>Apply</b> hands the
-    /// encoded grid to the host; the face hosts store/send it as the avatar face, the paint host sends it as
-    /// a <c>PaintBlockIntent</c>. Modern uGUI, mirroring <see cref="MaterialEditor"/>.
+    /// (Character tab + main-menu Avatar Designer), generalized to serve the block-paint host too (#818) —
+    /// the grid size and an optional design-library column are host-supplied, everything else (palette,
+    /// eraser, eyedropper, colour wheel, drag painting, Apply/Clear/Back) is identical in every host. Faces
+    /// are 32×32 as of #840, the same as block designs. <b>Apply</b> hands the encoded grid to the host; the
+    /// face hosts store/send it as the avatar face, the paint host sends it as a <c>PaintBlockIntent</c>.
+    /// <para>
+    /// Because all three hosts share this component, a tool added here appears in the main-menu Avatar
+    /// Designer, the in-game Character tab and the paint tool at once.
+    /// </para>
+    /// Modern uGUI, mirroring <see cref="MaterialEditor"/>.
     /// </summary>
     public sealed class FaceEditor : MonoBehaviour
     {
@@ -23,7 +28,7 @@ namespace BlocksBeyondTheStars.Client
         public string InitialFace;              // encoded grid to preload onto the canvas
         public Func<string, string> Localizer;  // localization lookup (key → text)
         public Action<string> OnApply;          // receives the encoded grid when the player hits Apply
-        public int GridSize = FacePalette.Size; // pixels per side: 16 for faces, 32 for block paint
+        public int GridSize = FacePalette.Size; // pixels per side: faces and block paint are both 32 now
         public Action OnClosed;                 // fires when the editor goes away (any path) — hosts release input here
         public Action<string> OnSaveDesign;     // paint host: save the current canvas to the local design library
         public Func<List<(string Name, string Pixels)>> LibraryProvider; // paint host: saved designs to load
@@ -40,6 +45,11 @@ namespace BlocksBeyondTheStars.Client
         private Image _activeSwatch;
         private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 reused as eraser
         private RectTransform _libList; // library column entries (rebuilt after a save)
+
+        private bool _picking;          // eyedropper armed: the next canvas click takes a colour, not paints one
+        private Image _pickButton;      // so the armed state is visible
+        private RectTransform _wheelRt; // hue/brightness ring
+        private RectTransform _wheelDot; // the draggable marker on it
 
         private void Start()
         {
@@ -68,6 +78,8 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_canvasRt == null) return;
 
+            UpdateColorWheel();
+
             bool left = Input.GetMouseButton(0), right = Input.GetMouseButton(1);
             if (!left && !right) return;
             if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
@@ -79,6 +91,17 @@ namespace BlocksBeyondTheStars.Client
             float fromTop = Mathf.Clamp01(-lp.y / h);
             int gx = Mathf.Clamp(Mathf.RoundToInt(u * (_size - 1)), 0, _size - 1);
             int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_size - 1)), 0, _size - 1); // top row = gy 0
+
+            // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
+            // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
+            // the one you used for the left eye by eye in the palette is guesswork.
+            if (_picking && left)
+            {
+                int picked = _grid[gy * _size + gx];
+                SetBrush(picked, _swatches[picked]);
+                SetPicking(false); // one-shot, like every paint program: pick, then carry on drawing
+                return;
+            }
 
             Paint(gx, gy, right ? 0 : _brush);
         }
@@ -156,6 +179,10 @@ namespace BlocksBeyondTheStars.Client
             _swatches[0] = eraser;
             UiKit.AddText(eraser.transform, 0f, 0f, 44f, 44f, "E", 18, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
 
+            // Eyedropper + colour wheel — the two tools asked for by name.
+            _pickButton = UiKit.AddButton(panel, 24f, 736f, 220f, 48f, L("ui.face.pick"), () => SetPicking(!_picking)).image;
+            BuildColorWheel(panel);
+
             // Buttons.
             UiKit.AddButton(panel, 24f, 832f, 220f, 56f, L("ui.face.apply"), Apply);
             UiKit.AddButton(panel, 260f, 832f, 180f, 56f, L("ui.face.clear"), () => { Array.Clear(_grid, 0, _grid.Length); RenderAll(); });
@@ -207,6 +234,131 @@ namespace BlocksBeyondTheStars.Client
                 string pixels = entries[i].Pixels;
                 UiKit.AddButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () => LoadFrom(pixels));
                 y += 50f;
+            }
+        }
+
+        /// <summary>
+        /// A hue/brightness ring you pick a colour on by moving a point around it — the "Kreis" the player
+        /// asked for, rather than hunting through a strip of squares.
+        /// <para>
+        /// It SNAPS to the nearest palette entry, and that is a deliberate limit, not an oversight: a face is
+        /// stored as one hex character per pixel, so the format holds 16 colours and cannot carry a free RGB
+        /// value. The wheel gives the gesture and makes the palette legible by hue; widening the palette
+        /// itself would mean changing the wire/save format for faces and block designs alike.
+        /// </para>
+        /// </summary>
+        private void BuildColorWheel(Transform panel)
+        {
+            // Right of the palette (which ends at x≈418) and below the paint canvas (which ends at y=576),
+            // so it overlaps neither — a wheel sitting on the canvas would eat paint clicks.
+            const int texSize = 128;
+            const float wheelPx = 170f;
+            const float wheelX = 470f, wheelY = 600f;
+
+            var tex = new Texture2D(texSize, texSize, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            float mid = (texSize - 1) / 2f;
+            for (int y = 0; y < texSize; y++)
+            {
+                for (int x = 0; x < texSize; x++)
+                {
+                    float dx = (x - mid) / mid, dy = (y - mid) / mid;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (r > 1f)
+                    {
+                        tex.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
+                        continue;
+                    }
+
+                    // Angle = hue all the way round; radius = saturation, so the middle is the greys the face
+                    // palette is full of (outlines, eye whites) and the rim is the accents.
+                    float hue = (Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 1f) % 1f;
+                    tex.SetPixel(x, y, Color.HSVToRGB(hue, Mathf.Clamp01(r), 1f));
+                }
+            }
+
+            tex.Apply();
+
+            var go = new GameObject("ColorWheel", typeof(RectTransform));
+            go.transform.SetParent(panel, false);
+            _wheelRt = UiKit.Place(go, wheelX, wheelY, wheelPx, wheelPx);
+            var img = go.AddComponent<RawImage>();
+            img.texture = tex;
+            UiKit.AddText(panel, wheelX, wheelY + wheelPx + 4f, wheelPx, 22f, L("ui.face.wheel"), 13,
+                UiKit.CyanDim, TextAnchor.MiddleCenter);
+
+            var dot = new GameObject("WheelDot", typeof(RectTransform));
+            dot.transform.SetParent(go.transform, false);
+            _wheelDot = UiKit.Place(dot, wheelPx / 2f - 7f, wheelPx / 2f - 7f, 14f, 14f);
+            var dotImg = dot.AddComponent<Image>();
+            dotImg.sprite = UiKit.SolidSprite;
+            dotImg.color = Color.white;
+            dotImg.raycastTarget = false;
+        }
+
+        /// <summary>Drag handling for the wheel: the point follows the cursor and the brush becomes whichever
+        /// palette entry is closest to the colour under it.</summary>
+        private void UpdateColorWheel()
+        {
+            if (_wheelRt == null || !Input.GetMouseButton(0))
+            {
+                return;
+            }
+
+            if (!RectTransformUtility.RectangleContainsScreenPoint(_wheelRt, Input.mousePosition, null)) return;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_wheelRt, Input.mousePosition, null, out var lp)) return;
+
+            float w = _wheelRt.rect.width, h = _wheelRt.rect.height;
+            float cx = w / 2f, cy = -h / 2f;               // Place() pivots top-left: local y runs 0 → -h
+            float dx = (lp.x - cx) / cx, dy = (lp.y - cy) / (h / 2f);
+            float r = Mathf.Sqrt(dx * dx + dy * dy);
+            if (r > 1f)
+            {
+                dx /= r; dy /= r; r = 1f; // clamp onto the rim instead of ignoring the drag
+            }
+
+            float hue = (Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 1f) % 1f;
+            int index = NearestPaletteIndex(Color.HSVToRGB(hue, Mathf.Clamp01(r), 1f));
+            SetBrush(index, _swatches[index]);
+
+            if (_wheelDot != null)
+            {
+                _wheelDot.anchoredPosition = new Vector2(cx + dx * cx - 7f, cy + dy * (h / 2f) + 7f);
+            }
+        }
+
+        /// <summary>The palette entry closest to a colour in plain RGB distance. Index 0 (transparent) is
+        /// never a match — the wheel picks paint, and the eraser has its own swatch.</summary>
+        private static int NearestPaletteIndex(Color target)
+        {
+            int best = 1;
+            float bestD = float.MaxValue;
+            for (int i = 1; i < FacePalette.Colors.Length; i++)
+            {
+                Color c = FacePalette.Colors[i];
+                float d = (c.r - target.r) * (c.r - target.r)
+                        + (c.g - target.g) * (c.g - target.g)
+                        + (c.b - target.b) * (c.b - target.b);
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = i;
+                }
+            }
+
+            return best;
+        }
+
+        private void SetPicking(bool on)
+        {
+            _picking = on;
+            if (_pickButton != null)
+            {
+                _pickButton.color = on ? UiKit.Cyan : UiKit.PanelFill;
             }
         }
 

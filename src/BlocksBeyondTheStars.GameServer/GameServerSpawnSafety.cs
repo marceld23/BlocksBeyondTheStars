@@ -61,6 +61,77 @@ public sealed partial class GameServer
         return !HasGroundWithin(pos, VoidProbeDepth);
     }
 
+    /// <summary>
+    /// True when a position is sealed inside solid blocks — both the feet cell and the head cell above it
+    /// block movement, so there is no standing room and no way to walk out.
+    /// <para>
+    /// The void guards below deliberately do NOT catch this: <see cref="HasGroundWithin"/> answers "is there
+    /// something under me", and someone buried in bedrock has stone under them in abundance, so
+    /// <see cref="IsInVoid"/> reports a perfectly safe position. A player reported the resulting lockout —
+    /// spawned at the world-origin column 85 blocks down, motionless for the whole session, 7550 stone
+    /// blocks around him and no air anywhere. Full health, so nothing ever killed him out of it either.
+    /// </para>
+    /// Keyed on the <c>Solid</c> flag rather than "non-air" so a swimmer (water is non-solid) or someone in
+    /// a torch/flora cell is never mistaken for entombed.
+    /// </summary>
+    private bool IsEntombed(Vector3f pos)
+    {
+        if (!float.IsFinite(pos.X) || !float.IsFinite(pos.Y) || !float.IsFinite(pos.Z))
+        {
+            return false; // non-finite is the void guard's business, not ours
+        }
+
+        int x = (int)System.Math.Floor(pos.X);
+        int y = (int)System.Math.Floor(pos.Y);
+        int z = (int)System.Math.Floor(pos.Z);
+        return IsSolidCell(x, y, z) && IsSolidCell(x, y + 1, z);
+    }
+
+    /// <summary>
+    /// The join-time form of <see cref="IsEntombed"/>, gated on the position being BELOW the terrain surface.
+    /// <para>
+    /// The gate is about cost, not correctness: <see cref="IsEntombed"/> reads blocks, and a block read
+    /// generates and caches the column. Probing unconditionally on every join would load the spawn chunk
+    /// before the streaming pass ever runs — which is exactly what a chunk-streaming test caught. The
+    /// surface height comes from the generator's noise and touches no chunk, so a normal above-ground spawn
+    /// now costs nothing again. Someone sealed in by PLACED blocks above ground is left to
+    /// <see cref="TickVoidRescue"/>, which frees them a second later on a world that is loaded anyway.
+    /// </para>
+    /// </summary>
+    private bool IsEntombedOnLoad(Vector3f pos)
+    {
+        if (!float.IsFinite(pos.X) || !float.IsFinite(pos.Y) || !float.IsFinite(pos.Z))
+        {
+            return false;
+        }
+
+        int surface = _generator.SurfaceHeight(_world.Planet,
+            (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z));
+        return pos.Y < surface && IsEntombed(pos);
+    }
+
+    /// <summary>Lifts an entombed position straight up to the first cell with standing room (feet + head
+    /// clear) resting on something solid. Returns null when the column has no such gap within
+    /// <see cref="EntombedProbeHeight"/> — the caller then falls back to the ship/landing pad.</summary>
+    private Vector3f? DigOutUpwards(Vector3f pos)
+    {
+        int x = (int)System.Math.Floor(pos.X);
+        int z = (int)System.Math.Floor(pos.Z);
+        int y0 = (int)System.Math.Floor(pos.Y);
+        for (int y = y0 + 1; y <= y0 + EntombedProbeHeight; y++)
+        {
+            if (!IsSolidCell(x, y, z) && !IsSolidCell(x, y + 1, z) && IsSolidCell(x, y - 1, z))
+            {
+                return new Vector3f(x + 0.5f, y, z + 0.5f);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>How far up we look for standing room before giving up and using the ship/landing pad.</summary>
+    private const int EntombedProbeHeight = 256;
+
     /// <summary>A safe place to stand in the active world: the ship's heal-tank if a ship is parked, else
     /// the landing-zone surface.</summary>
     private Vector3f SafeSpawnPoint(string playerId)
@@ -88,6 +159,17 @@ public sealed partial class GameServer
             return; // floating in a space instance / aboard a station — "ground below" doesn't apply
         }
 
+        // Buried in solid rock: try the cheap, local rescue first — walk straight up the column to the first
+        // gap with standing room. That keeps a player who merely clipped into terrain near where they were,
+        // instead of yanking them across the map. Only a column with no gap at all falls through to the pad.
+        if (IsEntombedOnLoad(p.Position))
+        {
+            var dugOut = DigOutUpwards(p.Position);
+            var to = dugOut ?? SafeSpawnPoint(p.PlayerId);
+            _log.Warn($"Player '{p.Name}' loaded sealed inside blocks at {p.Position}; moved to {to}.");
+            p.Position = to;
+        }
+
         if (IsUnsafeSurfaceSpawn(p.Position))
         {
             var safe = SafeSpawnPoint(p.PlayerId);
@@ -108,7 +190,7 @@ public sealed partial class GameServer
     /// join is just above the surface, so a wildly high position is rescued to the ship/pad too.</summary>
     private bool IsUnsafeSurfaceSpawn(Vector3f pos)
     {
-        if (IsInVoid(pos))
+        if (IsInVoid(pos) || IsEntombedOnLoad(pos))
         {
             return true;
         }
@@ -134,7 +216,25 @@ public sealed partial class GameServer
         foreach (var s in JoinedInActiveWorld())
         {
             var p = s.State;
-            if (InSpace(p.PlayerId) || InStation(p.PlayerId) || !IsInVoid(p.Position))
+            if (InSpace(p.PlayerId) || InStation(p.PlayerId))
+            {
+                continue;
+            }
+
+            // Sealed inside blocks at runtime — terrain stamped over someone, or a spawn that landed in rock.
+            // Lift them straight up out of the column; only a column with no gap at all resorts to the pad,
+            // because a full teleport across the map for what may be a moment of clipping would be worse.
+            if (IsEntombed(p.Position))
+            {
+                var freed = DigOutUpwards(p.Position) ?? SafeSpawnPoint(p.PlayerId);
+                p.Position = freed;
+                _log.Warn($"Player '{p.Name}' was sealed inside blocks; moved to {freed}.");
+                Send(s, new RespawnNotice { X = freed.X, Y = freed.Y, Z = freed.Z, Reason = "@srv.misc.dug_out" });
+                SendPlayerState(s);
+                continue;
+            }
+
+            if (!IsInVoid(p.Position))
             {
                 continue;
             }
@@ -156,6 +256,9 @@ public sealed partial class GameServer
 
     /// <summary>Test entrypoint: whether a position is in the bottomless void of the active world.</summary>
     public bool IsInVoidForTest(Vector3f pos) => IsInVoid(pos);
+
+    /// <summary>Test entrypoint: whether a position is sealed inside solid blocks.</summary>
+    public bool IsEntombedForTest(Vector3f pos) => IsEntombed(pos);
 
     /// <summary>Test entrypoint: run the join-time spawn-safety guard for a player session.</summary>
     public void EnsureSafeSpawnForTest(PlayerSession session) => EnsureSafeSpawn(session);

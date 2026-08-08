@@ -104,6 +104,37 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Justus playtest batch: drone damage, entombed spawns, wall shots, creative flight, log end grain, finer face editor (#833–#841, 2026-08-08, branch fix/playtest-2026-08-08)
+Eleven F1 reports from one evening, triaged from the ReportHost inbox into nine issues and fixed in one
+sweep. **#833 scan-drones dealt zero damage, always** — the measured cause, not a guess: the drone AI holds a
+`DroneStandoff 7 ± DroneStrafe 3` ring *plus* `ScanDroneHover 4`, so its closest 3D approach is ≈5.7 blocks
+against a 4-block `EnemyProximityRange`; meanwhile the client drew its laser out to `DroneFireRange 16`. Added
+`EnemyRangedRange`/`IsRangedEnemy` so shooters damage at their firing range (LOS still gates it) and dropped
+the drone to 2 DPS to suit the longer reach. Bandit gunners were already consistent (`BanditGunRange 8` both
+sides). **Shooting through walls (reported verbally, both directions)** — the enemy→player half was
+sightline-gated everywhere already; `ValidateAim` only checked walls for `tool.Range > 6`, so machete/knife/
+plasma-sword swung through cover, and the zero-aim-vector early-return skipped the check for ranged shots too.
+The sightline test moved above that early-return and now covers every attack. **#834 entombed spawns** — the
+void guards ask "is there ground below me", which is emphatically true when you are sealed in bedrock (the
+report: (0.5, −85.5, 0.5), motionless 40 s, 7550 stone, full health). `IsEntombed` + `DigOutUpwards` lift the
+player to the first standing gap; ⚠ the join-time form is gated on *below the terrain surface* on purpose —
+probing blocks unconditionally loads the spawn chunk before the streaming pass and broke
+`ChunkStreamingTests.StreamTimeBudget…`; above-ground entombment is left to `TickVoidRescue`. **#836 creative
+flight** — new `GameRules.CreativeFlight` (baked + explicitly lifted in `Start`, so *existing* creative saves
+gain it), `--creative-flight`, `PlayerStateUpdate.CanFly`, and a real client flight mode (double-tap jump,
+gravity off, collision ON, no fall damage) — `PlayerState.Fly` was previously read by nothing on the client at
+all. **#839 sneak diagonal** — the per-axis edge-stop passes both tests at an outside corner; added the
+combined-direction test. **#835 world names** — sanitized in the input box (fixed Windows illegal set on every
+platform, not `Path.GetInvalidFileNameChars()`, which on Linux is just `/`), plus empty/duplicate rejection.
+**#837 per-face tiles** — `BlockTextureAtlas` cap-tile slots (continuing the variants' top-down fill) +
+`PaintEndGrain`; the mesher picks the cap UV for `dir.Y != 0`. **#840 face editor** — `FacePalette.Size`
+16 → 32 with nearest-neighbour upscale inside `Decode` (one place, so old saves/servers/clients all keep
+working) and the server accepting both lengths; eyedropper + hue wheel in the shared `FaceEditor`, so the
+Character tab and the Avatar Designer both gain them. **#841 NPC skin tones** spread across the range.
+**#838 bump snapshots** now point the world cursor at the reporter's own location for the capture.
+**Tests**: `PlaytestFixes20260808Tests` (3) — drone damage from its standoff ring, entombed-on-join rescue,
+wall blocks the sightline.
+
 ### ★ Paintable blocks: 32×32 designs, a design registry, save & reuse, report/wipe moderation (#817–#821, 2026-08-08, branch feat/block-painting)
 Players craft a **paint tool** (workshop: iron_plate + berries ×4 + plant_fiber ×2; blueprint 2 KP) and
 right-click any placed **solid** block — panels, slabs, every shape, plain cubes — to open the shared pixel

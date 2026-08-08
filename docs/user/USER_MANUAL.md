@@ -69,7 +69,8 @@ Last updated: 2026-08-08.
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
 | **Space** | Jump — **hold in the air to fire the jetpack** (if equipped); **in water: swim up / surface** |
-| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off; climb **down** ladders; descend in zero-g |
+| **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
+| **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
 | **Mouse wheel** | Cycle hotbar slot |
@@ -690,7 +691,11 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Character & the pixel-face editor
 - The **Character** menu tab shows your avatar (colours/gear preview). It also hosts a **pixel-face editor**:
-  open it to **draw a 16×16 pixel face** on a paint canvas (a 16-colour palette plus an eraser), then **Apply**.
+  open it to **draw a 32×32 pixel face** on a paint canvas (a 16-colour palette plus an eraser), then **Apply**.
+  **Pick colour** turns the cursor into an eyedropper for one click — it takes the colour already under it,
+  which beats hunting for the shade you used earlier. The **colour wheel** picks by hue: drag the point around
+  the ring (outward = more saturated) and the brush snaps to the closest palette entry. Faces drawn at the old
+  16×16 size still work — they are scaled up automatically the first time you open them.
 - Your drawn face appears on **your figure**, in the live Character-tab preview, and **on your avatar for every
   other player** (it's server-persistent, so the face follows you). The same editor is also available before you
   start, in the main-menu **Avatar Designer** (a **Pixel face** button there).
@@ -807,7 +812,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/tpp Player` | Teleport to a player |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
-| `/fly` | Toggle creative flight (no gravity) |
+| `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |
 | `/god` | Toggle invulnerability |
 | `/instant` | Toggle free/instant crafting |
 | `/ai Prompt` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
