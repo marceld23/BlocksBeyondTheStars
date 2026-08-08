@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -44,6 +45,72 @@ namespace BlocksBeyondTheStars.Client
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        /// <summary>Builds a unit-cell mesh for a form BITMAP that is not registered anywhere yet — what the
+        /// form editor shows while the player is still drawing (#845). Same greedy boxes the world mesher
+        /// would emit, so the preview cannot promise a shape the game then renders differently.</summary>
+        public static Mesh CustomShapeMesh(string voxels)
+        {
+            if (!CustomShape.IsValidVoxels(voxels))
+            {
+                return null;
+            }
+
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+            foreach (var box in CustomShape.Merge(voxels))
+            {
+                float g = box.Grid;
+                AddBox(verts, tris,
+                    new Vector3(box.X0 / g, box.Y0 / g, box.Z0 / g),
+                    new Vector3(box.X1 / g, box.Y1 / g, box.Z1 / g));
+            }
+
+            if (verts.Count == 0)
+            {
+                return null;
+            }
+
+            var mesh = new Mesh { name = "CustomFormPreview" };
+            mesh.SetVertices(verts);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        /// <summary>A plain lit material for the form preview, created once per session.</summary>
+        public static Material PreviewMaterial()
+        {
+            if (_previewMaterial == null)
+            {
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                _previewMaterial = new Material(shader) { color = new Color(0.55f, 0.78f, 0.92f) };
+            }
+
+            return _previewMaterial;
+        }
+
+        private static Material _previewMaterial;
+
+        /// <summary>Six outward-wound quads of an axis-aligned box (as triangles).</summary>
+        private static void AddBox(List<Vector3> verts, List<int> tris, Vector3 lo, Vector3 hi)
+        {
+            void Quad(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+            {
+                int i = verts.Count;
+                verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+                tris.Add(i); tris.Add(i + 1); tris.Add(i + 2);
+                tris.Add(i); tris.Add(i + 2); tris.Add(i + 3);
+            }
+
+            Quad(new(lo.x, hi.y, lo.z), new(lo.x, hi.y, hi.z), new(hi.x, hi.y, hi.z), new(hi.x, hi.y, lo.z)); // +Y
+            Quad(new(lo.x, lo.y, hi.z), new(lo.x, lo.y, lo.z), new(hi.x, lo.y, lo.z), new(hi.x, lo.y, hi.z)); // -Y
+            Quad(new(hi.x, lo.y, lo.z), new(hi.x, hi.y, lo.z), new(hi.x, hi.y, hi.z), new(hi.x, lo.y, hi.z)); // +X
+            Quad(new(lo.x, lo.y, hi.z), new(lo.x, hi.y, hi.z), new(lo.x, hi.y, lo.z), new(lo.x, lo.y, lo.z)); // -X
+            Quad(new(hi.x, lo.y, hi.z), new(hi.x, hi.y, hi.z), new(lo.x, hi.y, hi.z), new(lo.x, lo.y, hi.z)); // +Z
+            Quad(new(lo.x, lo.y, lo.z), new(lo.x, hi.y, lo.z), new(hi.x, hi.y, lo.z), new(hi.x, lo.y, lo.z)); // -Z
         }
 
         /// <summary>RGB 0xRRGGBB → Unity colour (alpha 1). 0 stays black, callers treat 0 as "no tint".</summary>

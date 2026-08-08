@@ -2720,6 +2720,22 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // Right-click the shaping tool → the form editor (#845). Aimed at a block that already
+                // carries a player-designed form it opens pre-loaded with THAT form, which is how forms are
+                // copied off other people's builds; anywhere else it starts on an empty grid.
+                if (held == "shape_tool")
+                {
+                    bool copied = AimTarget(out var formCell, out _, out var formShip)
+                        && formShip == null
+                        && (ShapeToolUi.Instance?.OpenForCell(formCell) ?? false);
+                    if (!copied)
+                    {
+                        ShapeToolUi.Instance?.OpenNew();
+                    }
+
+                    return;
+                }
+
                 // Right-click a held gadget (item 36) → use it: the medkit heals around you, the stasis
                 // projector + terrain blaster act at the aim point. The server validates energy + cooldown.
                 if (hdef?.Tool != null && hdef.Tool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Gadget)

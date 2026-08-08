@@ -45,7 +45,8 @@ non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/elec
 VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`, the creature-taming
 set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`, and the
 material-variety tier `item_diamond`/`item_diamond_drill`/`item_polymer`/`item_biofuel`/`item_bronze_gear`/`item_brass_fitting`,
-and the algae-tank food `item_algae_ration`) are
+the algae-tank food `item_algae_ration`, and the player-designed-form pair
+`item_shape_tool`/`item_shape_stencil`) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.

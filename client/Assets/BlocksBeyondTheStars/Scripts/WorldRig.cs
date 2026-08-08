@@ -164,6 +164,11 @@ namespace BlocksBeyondTheStars.Client
             var paintTool = root.AddComponent<PaintToolUi>();
             paintTool.Game = boot;
 
+            // Form editor host (#845): opens when using the shaping tool — on a block to copy its form,
+            // anywhere else to design a new one.
+            var shapeTool = root.AddComponent<ShapeToolUi>();
+            shapeTool.Game = boot;
+
             // Floating beacon labels above their blocks in the world (item 37).
             var beaconView = root.AddComponent<BeaconView>();
             beaconView.Game = boot;

@@ -1053,7 +1053,92 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int rows = (ShapeOptions.Length + cols - 1) / cols;
-            return y + rows * (bh + gap) + 8f;
+            y += rows * (bh + gap) + 16f;
+            return AddCustomFormSection(y, src, current);
+        }
+
+        /// <summary>"My forms" (#845): the player's own saved forms, craftable out of the selected material
+        /// exactly like a built-in one. Only shown once the shaping tool is in the inventory — that tool is
+        /// what unlocks designing; the built-in forms above stay free for everyone.</summary>
+        private float AddCustomFormSection(float y, string src, int current)
+        {
+            UiKit.AddText(_detail, 8, y, 620, 30, L("ui.shape.custom.section"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+            y += 36f;
+
+            if (!HasShapeTool())
+            {
+                UiKit.AddText(_detail, 8, y, 620, 44, L("ui.shape.custom.locked"), 16, UiKit.CyanDim, TextAnchor.UpperLeft)
+                    .horizontalOverflow = HorizontalWrapMode.Wrap;
+                return y + 50f;
+            }
+
+            const float bw = 300f, bh = 50f, gap = 10f;
+            UiKit.AddButton(_detail, 8, y, bw, bh, L("ui.shape.custom.design_new"), () => OpenFormEditor(src, string.Empty, string.Empty));
+            y += bh + gap;
+
+            var forms = CustomShapeLibrary.List();
+            if (forms.Count == 0)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 44, L("ui.shape.custom.empty"), 16, UiKit.CyanDim, TextAnchor.UpperLeft)
+                    .horizontalOverflow = HorizontalWrapMode.Wrap;
+                return y + 50f;
+            }
+
+            for (int i = 0; i < forms.Count; i++)
+            {
+                var form = forms[i];
+                float bx = 8 + (i % 2) * (bw + gap);
+                float by = y + (i / 2) * (bh + gap);
+                // Craft it straight from the material; the editor is only needed to CHANGE a form.
+                var b = UiKit.AddButton(_detail, bx, by, bw - 56f, bh, form.Name,
+                    () => Game.Network.SendCustomShapeCraft(src, form.Voxels, form.Name));
+                UiKit.AddButton(_detail, bx + bw - 48f, by, 48f, bh, "✎", () => OpenFormEditor(src, form.Voxels, form.Name));
+
+                // A form the material already carries cannot be re-crafted into itself.
+                if (current != 0 && Game.CustomShapes != null
+                    && Game.CustomShapes.TryGetVoxels(current, out string currentVoxels) && currentVoxels == form.Voxels)
+                {
+                    SetInteractable(b, false);
+                }
+            }
+
+            int formRows = (forms.Count + 1) / 2;
+            return y + formRows * (bh + gap) + 8f;
+        }
+
+        /// <summary>True when the shaping tool is anywhere in the player's inventory (holding it is only
+        /// needed for the in-world actions). The server re-checks this — the button is a courtesy, not a gate.</summary>
+        private bool HasShapeTool()
+        {
+            foreach (var stack in Game.Personal)
+            {
+                if (stack != null && ItemKey.Base(stack.Item) == "shape_tool")
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Opens the form editor from the crafting menu, where a material IS selected — so Apply
+        /// crafts the form out of it (and keeps it in the library).</summary>
+        private void OpenFormEditor(string src, string voxels, string name)
+        {
+            var go = new GameObject("ShapeEditor");
+            var editor = go.AddComponent<ShapeEditor>();
+            editor.Game = Game;
+            editor.InitialVoxels = voxels;
+            editor.InitialName = name;
+            editor.Localizer = key => Game.Localizer?.Get(key) ?? key;
+            editor.OnSaveDesign = CustomShapeLibrary.Save;
+            editor.LibraryProvider = CustomShapeLibrary.List;
+            editor.OnApply = (v, n) =>
+            {
+                CustomShapeLibrary.Save(v, n);
+                Game.Network.SendCustomShapeCraft(src, v, n);
+            };
+            editor.OnClosed = RebuildList; // the new form should show up in the list behind it
         }
 
         private float BuildTechList()
