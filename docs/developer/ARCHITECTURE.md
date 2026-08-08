@@ -155,8 +155,9 @@ content should not require touching game logic. User-authored structure template
 a `usercontent/` dir by the in-game editors are merged into the pools automatically.
 
 In-game text is **never hardcoded**: it uses localization keys resolved against
-`data/locales/en.json` + `de.json` (`Shared/Localization`, English fallback). All docs/code
-comments are English; player-facing text is bilingual.
+`data/locales/*.json` (`Shared/Localization`, English fallback per missing key). `en.json` +
+`de.json` are the mandatory pair every new key must land in; `fr`/`es` are complete on top of
+them and `it` is in progress. All docs/code comments are English.
 
 ## Networking protocol (intents → state)
 
@@ -218,7 +219,7 @@ by the server. See [AI_MISSION_BACKEND.md](AI_MISSION_BACKEND.md) and
 5. **Atomic saves** (temp-then-swap), autosave + rotating backups, low CPU/RAM/disk for Pi.
 6. **Single-threaded, tick-driven server**; handlers must not crash the tick.
 7. **Append-only `NetCodec` ids**; new message classes must be `Register()`'d.
-8. **Docs/comments English; in-game text bilingual** via locale keys.
+8. **Docs/comments English; in-game text localized** via locale keys (`en`+`de` mandatory).
 
 ## Where to find what
 

@@ -68,9 +68,11 @@ These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please ski
   is the truth of the game world. Never make the client decide resources, inventory,
   crafting, ship state, oxygen, damage, blueprints or travel.
 - **Text language.** Documentation and code comments are **English**. In-game player-facing
-  text is **bilingual (German + English)** via localization keys in `data/locales/{en,de}.json`
-  — never hardcode player-facing strings. Additional community languages are welcome on top of
-  that pair (see [Translating the game](#translating-the-game)); DE and EN must stay complete.
+  text is **localized** via localization keys in `data/locales/*.json` — never hardcode
+  player-facing strings. New keys go into `en.json` **and** `de.json`: that pair is mandatory
+  and must stay complete. Every other language sits on top of it and falls back to English per
+  missing key — French and Spanish are complete too, Italian is in progress
+  (see [Translating the game](#translating-the-game)).
 - **Data-driven content.** Blocks, items, recipes, ship modules, tech nodes and planets live
   in `data/*.json`; adding content should not require touching game logic.
 - **Keep `Shared`/`WorldGeneration` `netstandard2.1`-clean** so the Unity client can consume them.

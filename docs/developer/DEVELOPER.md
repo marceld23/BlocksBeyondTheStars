@@ -507,7 +507,7 @@ in [SELF_HOSTING.md](SELF_HOSTING.md).
 
 ## Related documents
 
-- [AGENTS.md](../../AGENTS.md) — contributor rules (English-only docs, bilingual in-game text,
+- [AGENTS.md](../../AGENTS.md) — contributor rules (English-only docs, localized in-game text,
   server-authoritative architecture, data-driven content)
 - [TODO.md](../../TODO.md) — single Done/Open status doc
 - [USER_MANUAL.md](../user/USER_MANUAL.md) — player-facing controls, mechanics and commands

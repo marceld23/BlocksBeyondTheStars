@@ -53,7 +53,7 @@ client/                         Unity project (incl. Assets/Tests EditMode/PlayM
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)
-data/locales/                   localization resource files (en.json, de.json + community locales, e.g. it.json)
+data/locales/                   localization resource files (mandatory en.json + de.json, community locales fr/es/it)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 ARCHITECTURE.md + design/how-it-works docs + ADRs (docs/developer/adr/); see docs/developer/README.md index
 scripts/                        build-client.ps1 + publish scripts
@@ -67,10 +67,11 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
 1. **Language of text:**
    - *Documentation and code comments → English only.* Even though the spec docs
      and chat are German.
-   - *In-game player-facing text → bilingual (German + English).* Never hardcode
-     player-facing strings; use localization keys + `data/locales/*.json`. Default
-     fallback locale is English.
-   - *Community languages beyond DE/EN* (currently `it.json`) are translated
+   - *In-game player-facing text → localized, with German + English mandatory.* Never
+     hardcode player-facing strings; use localization keys + `data/locales/*.json`.
+     Default fallback locale is English.
+   - *Community languages beyond DE/EN* (`fr.json` and `es.json`, both complete since
+     the FR/ES pass; `it.json` still in progress) are translated
      incrementally and are deliberately allowed to be incomplete — English fills every
      missing key. So: add new keys to `en.json`+`de.json` only, never "helpfully" to a
      community locale, and never extend the DE/EN completeness tests to cover them
