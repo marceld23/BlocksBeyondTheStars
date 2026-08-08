@@ -8,8 +8,8 @@ built player. Contributor rules (language, architecture, conventions) live in
 ## Prerequisites
 
 | Tool | Version | Notes |
-|---|---|---|---|
-| .NET SDK | 8.x | builds the server, shared libs, tests and tools |
+|---|---|---|
+| .NET SDK | 10.x | builds the server, shared libs, tests and tools (all projects target `net10.0` / `netstandard2.1`) |
 | Unity Editor | 6 LTS (6000.4.x) | required only for the client build; default paths: `C:\Program Files\Unity\Hub\Editor\6000.4.9f1\Editor\Unity.exe` (Windows) or `/opt/Unity/Hub/Editor/6000.4.9f1/Editor/Unity` (Linux) |
 | Windows | 10/11 | for the Windows client build; the dedicated server also publishes for Linux |
 | Linux | any modern distro | for the Linux client build and/or server hosting |

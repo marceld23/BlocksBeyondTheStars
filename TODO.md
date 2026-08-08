@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1466 server + 154 client passing** (2026-08-04). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1545 server + 194 client passing** (2026-08-08). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -7284,6 +7284,23 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-08): docs refresh — README, USER_MANUAL, DEVELOPER + doc index brought current
+
+An accuracy pass over the four top-level docs after the v2026.8.x feature wave:
+
+- **README.md** — "bilingual DE/EN" → localized EN/DE/FR/ES (+ community IT), locales listing, planet-type
+  count 18 → 21, Admin-UI ".NET 8" → .NET 10, refreshed test count, and the Status paragraph now covers
+  temperature, fire, base life support/sealed rooms, bounty missions, intro cinematic, furniture,
+  paintable blocks, tiered upgrades and the four languages; new "Play in your language" feature bullet.
+- **USER_MANUAL.md** — fixed the stale "Last updated" line and DE/EN claims; documented the Settings
+  language picker (45 % gate), the intro cinematic + staged prologue, tiered upgrades consuming their
+  predecessor (#798/#799), and a new "Missions & bounties" section (#730/#731).
+- **DEVELOPER.md** — prerequisites said ".NET SDK 8.x"; the repo targets net10.0 (README already said 10).
+- **docs/developer/README.md** — indexed six previously missing docs (HOSTED_WORLDS, TRANSLATION_GUIDE,
+  FACTORIES_RUINS_AND_CLAIMING, VOICE_CHAT, PLAYER_FEEDBACK, REPORT_HOST) and ADR 0012 (CalVer).
 
 ---
 

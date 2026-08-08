@@ -49,6 +49,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
 *   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
 *   **Keyboard, mouse & controller:** Play with keyboard + mouse or an Xbox/XInput gamepad — both work at once, and menus are pad-navigable (controller support is experimental).
+*   **Play in your language:** the whole game is localized in **English, German, French and Spanish** — and community translations are welcome (Italian is underway; see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
 
 ## 🕹️ Ways to Play
 
@@ -144,7 +145,9 @@ Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 > [docs/developer/ARCHITECTURE.md](docs/developer/ARCHITECTURE.md) and every developer doc is indexed in
 > [docs/developer/README.md](docs/developer/README.md). (The original German requirement specs under `plans/`
 > were consolidated and removed.)
-> Docs and code comments are **English**. In-game text is **bilingual (German + English)**.
+> Docs and code comments are **English**. In-game text is **localized — English, German, French and
+> Spanish are complete; Italian is a community translation in progress**
+> (see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
 
 ## Project Status
 
@@ -251,7 +254,7 @@ oxygen, damage, blueprints or travel.
 |---|---|
 | Client | Unity 6 LTS (6000.4.x), URP + C# (Windows, Linux, experimental macOS) — see [`client/`](client/) |
 | Server | .NET 10, standalone console host (no Unity runtime) |
-| Admin UI | ASP.NET Core 8 minimal API + HTML dashboard |
+| Admin UI | ASP.NET Core (.NET 10) minimal API + HTML dashboard |
 | Database | SQLite (default, portable); optional PostgreSQL for hosted realms |
 | Realtime net | LiteNetLib UDP + MessagePack for native clients; WebSocket + JSON envelope for WebGL |
 | Shared logic | `netstandard2.1` so the same code runs in Unity *and* the server |
@@ -275,7 +278,7 @@ client/                         Unity project (scripts + scaffold + Assets/Tests
 ai-backend/                     optional Python LLM service (mission/NPC/ship-AI text) — game runs without it
 tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)
-data/locales/                   localization (en.json, de.json)
+data/locales/                   localization (en, de, fr, es + community it)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 architecture, design/how-it-works docs, ADRs (docs/developer/adr/) — see its README.md index
 scripts/                        build-client.ps1 (Windows) + build-client.sh (Linux) + publish scripts
@@ -394,24 +397,31 @@ changes are needed to add content. Player-facing names use localization keys res
 ## Status
 
 A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
-moons and asteroid fields), procedurally generated worlds that wrap east–west (walk around the
-planet, seam-free), 18 planet types including exotic ones (skylands, fungal, corrupted, ocean,
-salt flats, …) with their own flora and fauna, swimming/diving, creature taming, a craftable hover
-speeder, mining → crafting → blueprints →
-ship building, real system-scale space flight (with jumps between systems) with stations,
-settlements and NPCs, peaceful NPC trader traffic, rare **factories** with roster-limited
+moons and **asteroid belts** you can mine from the ship or on an EVA), procedurally generated
+worlds that wrap east–west (walk around the planet, seam-free), 21 planet types including exotic
+ones (skylands, fungal, corrupted, ocean, salt flats, …) with their own flora and fauna,
+swimming/diving, a survival **temperature/climate system**, **fire** you can start and put out
+(vegetation-only — nothing built ever burns), creature taming, a craftable hover
+speeder, mining → crafting → blueprints (with **tiered gear upgrades** that consume their
+predecessor) → ship building, real system-scale space flight (with jumps between systems) with
+stations, settlements and NPCs, peaceful NPC trader traffic, **bounty missions** on bandit camps
+and raider ships, rare **factories** with roster-limited
 production terminals, fallen **ruins** and **treasure chests**, **access-code claiming** that
 turns a factory into your own editable base, the
 **"VEGA Protocol" story campaign** (a swappable, story-agnostic engine with lore fragments, three
-Guardian machine types and a two-route finale), multiplayer with per-player ships, **player
-alliances**, shared bases and trading, planet **bases + teleporter pads**, material dyeing and
-colored-light building, in-game customization (avatar pixel-face editor, content/ship/station
-editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**,
-the VEGA ship-AI onboarding/advisor companion, world-creation options, and an optional LLM backend
-for dynamic dialogue/mission text. Self-hostable dedicated server. **Native Windows and Linux**
+Guardian machine types and a two-route finale) opened by a watchable **intro cinematic** and a
+staged prologue, multiplayer with per-player ships, **player
+alliances**, shared bases and trading, planet **bases + teleporter pads** with a life-support
+field and **airtight sealed rooms** (energy door, shield dome, leak warnings), material dyeing and
+colored-light building, **low-tech furniture** (bed, campfire, chairs you can actually sit on) and
+**player-paintable 32×32 block designs**, in-game customization (avatar pixel-face editor,
+content/ship/station editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in
+**music library**, the VEGA ship-AI onboarding/advisor companion, world-creation options, and an
+optional LLM backend for dynamic dialogue/mission text — all of it playable in **English, German,
+French and Spanish**. Self-hostable dedicated server. **Native Windows and Linux**
 clients (no Wine/Proton; an experimental macOS build exists), and **opt-in automatic crash reporting**
 so problems get fixed faster.
-Currently **1364 xUnit tests pass** (1219 server/shared + 145 headless client<->server).
+Currently **1739 xUnit tests pass** (1545 server/shared + 194 headless client<->server).
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)

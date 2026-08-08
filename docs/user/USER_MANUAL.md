@@ -6,9 +6,10 @@ chat/admin commands. This is a living document.
 > **Maintainers:** keep this file current. Whenever a control changes, a feature is added, or a command
 > is introduced, update the relevant section here in the same change. This manual is the single source of
 > truth for player-facing operation. (Written in English per project doc policy; in-game text itself is
-> bilingual DE/EN.)
+> localized — English, German, French and Spanish are complete, further community translations such as
+> Italian are in progress.)
 
-Last updated: 2026-07-04.
+Last updated: 2026-08-08.
 
 ---
 
@@ -49,8 +50,15 @@ Last updated: 2026-07-04.
 - **Window mode** (Settings tab): the **"Window mode" / "Fenstermodus"** option cycles **Windowed → Borderless →
   Exclusive** and applies immediately. The default is **Windowed** (a normal movable, maximizable window);
   Borderless fills whichever monitor the window currently sits on; Exclusive is classic full-screen.
+- **Language** (Settings tab): switch the whole game between **English, German, French and Spanish**.
+  Further languages appear in the picker automatically once their community translation clears **45 %
+  coverage** (Italian is underway — want to help? See `docs/developer/TRANSLATION_GUIDE.md` in the
+  repository).
+- On the **very first start** a short (~28 s) **intro cinematic** plays between the title splash and the
+  menu — any key skips it, and the Credits screen's **"Watch intro"** button replays it any time.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
-  VEGA). Veteran saves get a one-line "systems online" instead.
+  VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship);
+  **Esc** skips it. Veteran saves get a one-line "systems online" instead.
 
 ---
 
@@ -295,6 +303,11 @@ separate unlock; admins can still disable it through server world rules.
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
 - **Blueprints** gate advanced recipes — unlock them with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
+- **Tiered upgrades consume their predecessor:** where an item is a straight upgrade of another —
+  oxygen tanks II/III, the terrain scanner, weapon upgrade chains, the AI cores — the recipe **requires
+  and consumes the previous tier**, so you never end up carrying a redundant Mk1 after building the Mk2.
+  Fitting the `ai_core_mk3` module **replaces** the fitted Mk2 and returns half its materials as salvage.
+  (Your starter gear — basic drill, scrap pistol — is deliberately chain-free.)
 - **Disassemble** (at a workshop): break a crafted item back into ~50 % of its recipe inputs. In the
   Inventory detail pane, select the item and press **Disassemble** (shows what it recovers). Raw resources
   and refinery/transmuter-synthesised ore can't be disassembled.
@@ -333,7 +346,7 @@ separate unlock; admins can still disable it through server world rules.
   your past visits), **mission-board flavour text** (title/description written around the fixed job),
   occasional extra **VEGA banter**, and admin-generated missions (`/ai <prompt>`, see §7).
 - It is **off by default**, and the game is fully playable without it — every AI line has a localized
-  scripted fallback (DE+EN), so you simply see the standard text instead. AI text is flavour only;
+  scripted fallback in every supported language, so you simply see the standard text instead. AI text is flavour only;
   it never decides gameplay (the server validates everything).
 - Enabling it is a server-side setup: run the `ai-backend/` service and set `aiLevel` in the server
   config — see [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8.
@@ -510,6 +523,18 @@ separate unlock; admins can still disable it through server world rules.
   refuse or open fire and it fights. Raiders only appear where the rules let you shoot back.
 - The **"Bandits"** world option (world options / at creation) scales all three — Off disables them
   entirely (peaceful/family presets default to Off).
+
+### Missions & bounties
+- **Mission boards** stand in settlements and aboard space stations; vendors and board givers hand out
+  gather/delivery jobs. Accepted missions are tracked in the **Tab → Missions** tab; report back to the
+  giver for the reward.
+- **Camp bounty:** a settlement mission board on a planet with an uncleared **bandit camp** offers a
+  bounty to drive the bandits out. Accepting it marks the camp on your planet map (key **M**); clear the
+  camp — everyone holding the bounty gets credit, so it's co-op friendly — and report back for a reward
+  that beats the usual gather jobs.
+- **Raider bounty:** station mission boards in **pirate systems** put a price on the raider ship prowling
+  the sector. While you hold the bounty, the raider *will* show up on your next flight — destroy it and
+  report back. Bounties follow the world's **Bandits** option: no bandits, no bounty missions.
 
 ### Trade
 - **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and

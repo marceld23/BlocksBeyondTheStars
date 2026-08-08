@@ -6,7 +6,8 @@ the hard contributor rules are in [../../AGENTS.md](../../AGENTS.md); the projec
 (vision · mission · roadmap) is in [../strategy/](../strategy/vision.md).
 
 These are *how it works* / *why it is built this way* references — not pre-implementation checklists (status
-belongs in TODO.md). Each doc states its own status near the top. Last reorganised 2026-06-19.
+belongs in TODO.md). Each doc states its own status near the top. Last reorganised 2026-06-19; index
+refreshed 2026-08-08.
 
 ## Start here
 
@@ -24,6 +25,10 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
   tests to copy from, the content/locale fixtures, what "meaningful" assertions look like, and the CI
   analyzer traps. Start here for a first test contribution (e.g. issue #571).
 - [SELF_HOSTING.md](SELF_HOSTING.md) — run and host a dedicated server, config keys, the web portal & updates.
+- [HOSTED_WORLDS.md](HOSTED_WORLDS.md) — the hosted-worlds ("Official Worlds") service: control plane
+  (WorldHost), one container per world, routing, portal and operations.
+- [TRANSLATION_GUIDE.md](TRANSLATION_GUIDE.md) — contributing a translation: locale files, coverage
+  tooling, the 45 % settings-picker gate, and the machine-first-pass workflow.
 
 ## World & worldgen
 
@@ -60,6 +65,9 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare
   terrain (lossy `matter_dust` intermediate, no Tier-3 output).
+- [FACTORIES_RUINS_AND_CLAIMING.md](FACTORIES_RUINS_AND_CLAIMING.md) — factories with roster-limited
+  production terminals, ruins/treasure chests, and access-code claiming.
+- [VOICE_CHAT.md](VOICE_CHAT.md) — push-to-talk voice chat + the tiered radio reach (planet/system/galaxy).
 
 ## Story & content
 
@@ -76,6 +84,8 @@ belongs in TODO.md). Each doc states its own status near the top. Last reorganis
 - [STATION_SETTLEMENT_EDITOR.md](STATION_SETTLEMENT_EDITOR.md) — the station/settlement structure editor.
 - [EDITORS_WORLDGEN_AND_DEV_LABELLING_ANALYSIS.md](EDITORS_WORLDGEN_AND_DEV_LABELLING_ANALYSIS.md) —
   editor output → worldgen integration + dev/test labelling.
+- [PLAYER_FEEDBACK.md](PLAYER_FEEDBACK.md) — the in-game F1/F2 feedback + crash-report pipeline.
+- [REPORT_HOST.md](REPORT_HOST.md) — ReportHost, the bug-report inbox the feedback pipeline uploads to.
 
 ## Forward-looking
 
@@ -99,3 +109,4 @@ ones are marked, not deleted.
 - [0009 — Embedded browser for the in-game Wiki + Arcade](adr/0009-embedded-browser-wiki-arcade.md) — *superseded (now native UI)*
 - [0010 — Velopack distribution + self-host portal](adr/0010-velopack-distribution-and-self-host-portal.md)
 - [0011 — CodeQL code scanning strategy](adr/0011-codeql-security-scanning-strategy.md)
+- [0012 — CalVer date-based versioning](adr/0012-calver-date-based-versioning.md)
