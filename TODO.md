@@ -104,6 +104,32 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Paintable blocks: 32×32 designs, a design registry, save & reuse, report/wipe moderation (#817–#821, 2026-08-08, branch feat/block-painting)
+Players craft a **paint tool** (workshop: iron_plate + berries ×4 + plant_fiber ×2; blueprint 2 KP) and
+right-click any placed **solid** block — panels, slabs, every shape, plain cubes — to open the shared pixel
+editor at **32×32** (FaceEditor generalized: host-supplied `GridSize` + design-library column; the 16×16 face
+hosts are unchanged). **Design registry (the Minecraft-map model)**: the server dedups each bitmap
+(1024-hex-char string, FacePalette encoding) into a save-global `paint_design` table (cap 256) and stamps only
+the **design id into the shape descriptor's free bits 11–26** (`ShapeCode.DesignOf/WithDesign` — the up-face
+precedent: zero migration, zero per-block cost; rides ChunkData → `ChunkDataMessage`/`BlockChanged` →
+`block_edit.shape` untouched). Validation mirrors the face hardening (exact length + hex, 2 s throttle,
+reach + solidity + base/factory protection); painting the same motif on 100 blocks stores/syncs it once.
+**Rendering**: second runtime atlas (`PaintDesignAtlas`, 1024², 64 px slots = the 256 cap, ×2 point-upscale)
++ **third chunk submesh/material** (same BlockAtlas shader, flat normal map); the mesher swaps the UV rect and
+routes painted faces to submesh 2 — cubes keep face culling (bevel off on painted cells), shapes paint all
+faces; the id → UV map crosses to the worker thread as a copy-on-write snapshot. Design data always precedes
+the block referencing it (join list before chunks; `PaintDesignData` before the `BlockChanged`), so nothing
+ever flashes unresolved. **Library (#820)**: save/load under `persistentDataPath/paint_designs/` (the
+ship/avatar-exports pattern) — works across worlds, reapplying just resends pixels. **Paint is LOST on
+mining** (documented in the editor hint + item text): `BreakBlockAt` already re-encodes only `ShapeOf`, and an
+ItemKey design suffix would explode item variants. **Moderation v1 (#821)**: `/reportpaint` (plain chat intercept
+like /bump — no radio, no role needed; NOT `/report`, which stays the portal player report) files the nearest
+painted block within 6 blocks as a persisted `paint_report` row + server log line; admin `/paintwipe <Player|#id>` **tombstones** designs (empty pixels —
+ids are never reused) so every placed instance blanks live + persistently; `GameServerBaseAir` airtight check
+fixed to `ShapeCode.IsCube` (paint bits must not make a wall leak). **Tests**: `PaintDesignTests` (14) — bit
+round-trip incl. old-descriptor compat + painted-cube-is-still-a-cube, SQLite + memory-snapshot persistence,
+dedup, clear-keeps-shape, malformed/air rejects, save/reload survival.
+
 ### ★ Low-tech furniture & survival batch: bed, campfire, furniture shapes, ladder fix, sit-on-chairs (#803–#809, 2026-08-08, branch feat/lowtech-furniture)
 The whole hand-tier homeliness package in one sweep. **Bed (#804)** — new block/item, hand recipe
 (6 logs + 8 fibre), deliberately no blueprint: E sets the home spawn (the heal-tank spawn plumbing

@@ -2625,6 +2625,19 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
+                // Right-click the paint tool on a block → open the 32×32 paint editor for that cell (#818).
+                // World blocks only for now — parked-ship cells keep their hull paint (structure designs are
+                // a follow-up); the server enforces solidity, reach and protection on Apply anyway.
+                if (held == "paint_tool")
+                {
+                    if (AimTarget(out var paintCell, out _, out var paintShip) && paintShip == null)
+                    {
+                        PaintToolUi.Instance?.OpenFor(paintCell);
+                    }
+
+                    return;
+                }
+
                 // Right-click a held gadget (item 36) → use it: the medkit heals around you, the stasis
                 // projector + terrain blaster act at the aim point. The server validates energy + cooldown.
                 if (hdef?.Tool != null && hdef.Tool.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Gadget)

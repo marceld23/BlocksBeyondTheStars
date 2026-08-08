@@ -67,6 +67,7 @@ namespace BlocksBeyondTheStars.Client
         [Header("Rendering")]
         public Material ChunkMaterial;
         public Material ChunkMaterialTransparent; // submesh 1: see-through glass + energy fields
+        public Material ChunkMaterialPaint;       // submesh 2: player-painted design faces (paint atlas, #819)
 
         // Our avatar colours (packed 0xRRGGBB), set by WorldRig; sent to the server on join.
         public int SkinRgb = 0xD9AE8C;
@@ -102,6 +103,10 @@ namespace BlocksBeyondTheStars.Client
         public NetworkClient Network { get; private set; }
         public ClientWorld World { get; private set; }
         public BlockTextureAtlas Atlas { get; private set; }
+
+        /// <summary>Runtime atlas of player-painted block designs (#819) — fed from the server's design
+        /// registry (join list + live additions/wipes); the mesher samples it via a thread-safe snapshot.</summary>
+        public PaintDesignAtlas PaintAtlas { get; private set; }
 
         // Latest authoritative player vitals for the HUD.
         public float Health { get; private set; } = 100f;
@@ -945,6 +950,7 @@ namespace BlocksBeyondTheStars.Client
                     ?? "Warning: the base is no longer airtight — air only reaches the core zone!";
             }
 
+            // (#817/#821 block painting uses the generic "@srv.paint.*" tokens resolved above.)
             return text;
         }
 
@@ -1338,6 +1344,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     ChunkMaterialTransparent = new Material(transparentShader) { mainTexture = Atlas.Texture };
                 }
+
+                // Paint material (#819): the SAME opaque atlas shader over the paint-design atlas, with a
+                // flat normal map (the Sobel normals of the block atlas would map garbage onto design slots).
+                PaintAtlas = new PaintDesignAtlas();
+                ChunkMaterialPaint = new Material(atlasShader) { mainTexture = PaintAtlas.Texture };
+                ChunkMaterialPaint.SetTexture("_NormalTex", PaintAtlas.FlatNormal);
             }
             else
             {
@@ -1410,6 +1422,39 @@ namespace BlocksBeyondTheStars.Client
                 JoinRejectedReason = string.IsNullOrEmpty(m.Reason) ? "Join rejected." : m.Reason;
             };
             Network.ChunkReceived += OnChunk;
+
+            // Player-painted block designs (#819): the server pushes the full registry before any chunk on
+            // join and every new design BEFORE the BlockChanged referencing it (ordered stream), so a normal
+            // remesh always finds the bitmap. Only a WIPE (empty pixels, moderation) invalidates already-built
+            // chunks — rare enough that re-meshing every loaded chunk is fine.
+            Network.PaintDesignListReceived += m =>
+            {
+                if (PaintAtlas == null || m.Ids == null || m.Pixels == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < m.Ids.Length && i < m.Pixels.Length; i++)
+                {
+                    PaintAtlas.Register(m.Ids[i], m.Pixels[i]);
+                }
+            };
+            Network.PaintDesignReceived += m =>
+            {
+                if (PaintAtlas == null)
+                {
+                    return;
+                }
+
+                PaintAtlas.Register(m.Id, m.Pixels);
+                if (string.IsNullOrEmpty(m.Pixels))
+                {
+                    foreach (var c in _chunkObjects.Keys)
+                    {
+                        _dirty.Add(c); // wiped design: rebuild loaded chunks so its faces fall back to the block texture
+                    }
+                }
+            };
             Network.BlockChanged += OnBlockChanged;
             Network.PlayerStateUpdated += OnPlayerState;
             Network.InventoryUpdated += m =>
@@ -2375,6 +2420,8 @@ namespace BlocksBeyondTheStars.Client
             int epoch = WorldEpoch;
             var content = Content;
             var atlas = Atlas;
+            // Paint-design lookup snapshot (#819): captures an immutable id → UV map, safe on the worker thread.
+            var designUv = PaintAtlas?.Snapshot();
             var capturedCoord = coord;
 
             void Build()
@@ -2383,7 +2430,7 @@ namespace BlocksBeyondTheStars.Client
                 string error = null;
                 try
                 {
-                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape);
+                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape, designUv);
                 }
                 catch (System.Exception ex)
                 {
@@ -2500,11 +2547,13 @@ namespace BlocksBeyondTheStars.Client
                 go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z)); // seam-aware on both ground axes (torus)
                 var filter = go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
-                // Submesh 0 → opaque atlas, submesh 1 → see-through atlas (glass/fields). Fall back to a
-                // single material if the transparent shader is missing (the spare submesh just won't draw).
-                mr.sharedMaterials = ChunkMaterialTransparent != null
-                    ? new[] { ChunkMaterial, ChunkMaterialTransparent }
-                    : new[] { ChunkMaterial };
+                // Submesh 0 → opaque atlas, submesh 1 → see-through atlas (glass/fields), submesh 2 → paint
+                // designs. Fall back to fewer materials if a shader is missing (a spare submesh just won't draw).
+                mr.sharedMaterials = ChunkMaterialTransparent != null && ChunkMaterialPaint != null
+                    ? new[] { ChunkMaterial, ChunkMaterialTransparent, ChunkMaterialPaint }
+                    : ChunkMaterialTransparent != null
+                        ? new[] { ChunkMaterial, ChunkMaterialTransparent }
+                        : new[] { ChunkMaterial };
                 var mc = go.AddComponent<MeshCollider>();
                 view = new ChunkView { Go = go, Filter = filter, Renderer = mr, Collider = mc };
                 _chunkObjects[coord] = view;
@@ -2654,7 +2703,13 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(ChunkMaterialTransparent);
             }
 
+            if (ChunkMaterialPaint != null)
+            {
+                Destroy(ChunkMaterialPaint);
+            }
+
             Atlas?.Destroy();
+            PaintAtlas?.Destroy();
         }
     }
 }

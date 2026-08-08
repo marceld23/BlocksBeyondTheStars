@@ -83,9 +83,10 @@ namespace BlocksBeyondTheStars.Client
         public static (Mesh Render, Mesh Collider) Build(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
-            System.Func<int, int, int, int> worldShape = null)
+            System.Func<int, int, int, int> worldShape = null,
+            System.Func<int, Rect?> designUv = null)
         {
-            var data = BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape);
+            var data = BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape, designUv);
             var meshes = data.ToMeshes();
             data.Release();
             return meshes;
@@ -102,7 +103,8 @@ namespace BlocksBeyondTheStars.Client
         public static ChunkMeshData BuildGeometry(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
-            System.Func<int, int, int, int> worldShape = null)
+            System.Func<int, int, int, int> worldShape = null,
+            System.Func<int, Rect?> designUv = null)
         {
             // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
             // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
@@ -113,6 +115,7 @@ namespace BlocksBeyondTheStars.Client
             var verts = data.Verts;
             var tris = data.OpaqueTris;           // submesh 0: opaque blocks
             var trisT = data.TransparentTris;     // submesh 1: see-through blocks (glass / force fields)
+            var trisP = data.PaintTris;           // submesh 2: player-painted design faces (paint atlas)
             var colliderTris = data.ColliderTris;   // solid faces only (no fluids) → the collision mesh
             var colliderVerts = data.ColliderVerts; // the collision mesh's OWN vertices (greedy-merged rects + shaped blocks)
             var colors = data.Colors;
@@ -561,15 +564,31 @@ namespace BlocksBeyondTheStars.Client
                 // (+ a matching collider) and bows out of neighbour face-culling (see below), so a cube beside
                 // it still draws the face between them. Carries the dye colour through.
                 int shapeDesc = atlas != null ? chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z)) : 0;
+
+                // Player-painted design (#819): the shape descriptor's design bits reference a paint-atlas
+                // tile. Painted faces take their UVs from that atlas and render in submesh 2 (the paint
+                // material) — every face of the block carries the design, cubes and shapes alike. Dye/flora
+                // tint modes are suppressed on painted faces: the design IS the surface. An unresolved id
+                // (design not yet arrived / wiped) renders as the plain block, so nothing ever flashes pink.
+                int designId = 0;
+                Rect designRect = default;
+                if (designUv != null && !transparent && ShapeCode.DesignOf(shapeDesc) is var did && did != 0
+                    && designUv(did) is { } dRect)
+                {
+                    designId = did;
+                    designRect = dRect;
+                }
+
                 if (!ShapeCode.IsCube(shapeDesc))
                 {
                     float shSky = Skylight(wx, wy + 1, wz);          // open sky above the shaped block
                     Vector3 shBl = BlockLightAt(wx, wy + 1, wz);     // coloured block-light reaching it
                     Vector3 shBlDir = BlockLightDirAt(wx, wy + 1, wz);
-                    Color shTint = dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
-                    float shTintMode = dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
-                    AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z), uv,
+                    Color shTint = designId != 0 ? Color.black : dyed ? dye : (isWood || isFlora) ? speciesTint : Color.black;
+                    float shTintMode = designId != 0 ? 0f : dyed ? 3f : isWood ? 4f : isFlora ? 1f : 0f; // 3 dye, 4 bark, 1 flora (matches cubes)
+                    AddShapedBlock(verts, designId != 0 ? trisP : tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
+                        ShapeCode.ShapeOf(shapeDesc), ShapeCode.OrientationOf(shapeDesc), ShapeCode.UpFaceOf(shapeDesc), new Vector3(x, y, z),
+                        designId != 0 ? designRect : uv,
                         matR, matG, emission, shTint, shTintMode, shSky, shBl, shBlDir);
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
@@ -591,7 +610,8 @@ namespace BlocksBeyondTheStars.Client
                 // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
                 // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
                 bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage
-                    && collKey != "water" && collKey != "lava" && collKey != "fire";
+                    && collKey != "water" && collKey != "lava" && collKey != "fire"
+                    && designId == 0; // painted cubes keep hard edges — the bevel strips would sample the design edge texels
                 int openMask = 0;
                 if (bevel)
                 {
@@ -691,9 +711,9 @@ namespace BlocksBeyondTheStars.Client
                     {
                         bevelQuad = WaterSurfaceQuad(new Vector3(x, y, z), f);
                     }
-                    AddFace(verts, transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
-                        c0, c1, c2, c3, uv,
-                        dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation
+                    AddFace(verts, designId != 0 ? trisP : transparent ? trisT : tris, colors, uvs, tangents, new Vector3(x, y, z), f,
+                        c0, c1, c2, c3, designId != 0 ? designRect : uv,
+                        designId != 0 ? 0 : dir.Y != 0 ? uvRot : 0, bevelQuad); // rotate only top/bottom faces — sides keep their up-orientation (painted faces never rotate)
                     if (collidable)
                     {
                         // Recorded as a direction bit; the greedy pass after the loop merges these into big
@@ -704,7 +724,8 @@ namespace BlocksBeyondTheStars.Client
 
                     float sky = Skylight(nx, ny, nz); // soft sky-occlusion (cave mouths feather, deep stays dark)
                     // mode 5 = animated molten lava surface; mode 6 = falling-lava flank (vertical hot streak).
-                    float faceMode = isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
+                    // Painted faces force mode 0 — a dye tint (mode 3) would luminance-recolour the design.
+                    float faceMode = designId != 0 ? 0f : isLavaSurface ? 5f : (isFallingLava && dir.Y == 0) ? 6f : floraFlag;
                     skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
                     skyUv.Add(new Vector2(sky, faceMode)); skyUv.Add(new Vector2(sky, faceMode));
                     // Coloured block-light reaching the air cell this face looks into (same cell the skylight
@@ -737,7 +758,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        var tint = dyed ? dye : painted ? paint : speciesTint;
+                        var tint = designId != 0 ? Color.black : dyed ? dye : painted ? paint : speciesTint;
                         var leaf = new Vector4(leafFlag, tint.r, tint.g, tint.b);
                         leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf); leafUv.Add(leaf);
                     }
@@ -786,6 +807,7 @@ namespace BlocksBeyondTheStars.Client
 
             AccumulateFlatNormals(verts, tris, normals);
             AccumulateFlatNormals(verts, trisT, normals);
+            AccumulateFlatNormals(verts, trisP, normals);
             data.Bounds = ComputeBounds(verts, n);
             data.ColliderBounds = ComputeBounds(colliderVerts, n);
 
@@ -1858,6 +1880,7 @@ namespace BlocksBeyondTheStars.Client
         public readonly List<Vector3> Verts = new List<Vector3>();
         public readonly List<int> OpaqueTris = new List<int>();       // submesh 0 (BlockAtlas)
         public readonly List<int> TransparentTris = new List<int>();  // submesh 1 (BlockAtlasTransparent — glass / force fields)
+        public readonly List<int> PaintTris = new List<int>();        // submesh 2 (paint atlas — player-painted design faces)
         public readonly List<int> ColliderTris = new List<int>();     // solid faces only (fluids excluded) → the collision mesh
         public readonly List<Color> Colors = new List<Color>();
         public readonly List<Vector2> Uvs = new List<Vector2>();
@@ -1908,7 +1931,7 @@ namespace BlocksBeyondTheStars.Client
                     return; // double-release, or the pool is full — let the GC take it
                 }
 
-                Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
+                Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); PaintTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
                 Bounds = default;
@@ -1932,12 +1955,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             mesh.SetVertices(Verts);
-            // Two submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
-            // (BlockAtlasTransparent). The renderer is given both materials in the same order. Submesh 1
-            // is empty for chunks with no glass/fields — an empty submesh just draws nothing.
-            mesh.subMeshCount = 2;
+            // Three submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
+            // (BlockAtlasTransparent), 2 = player-painted design faces (paint atlas). The renderer is given
+            // the materials in the same order. An empty submesh just draws nothing — chunks without glass or
+            // paint pay no extra draw call.
+            mesh.subMeshCount = 3;
             mesh.SetTriangles(OpaqueTris, 0);
             mesh.SetTriangles(TransparentTris, 1);
+            mesh.SetTriangles(PaintTris, 2);
             mesh.SetColors(Colors);
             mesh.SetUVs(0, Uvs);
             mesh.SetUVs(1, SkyUv);

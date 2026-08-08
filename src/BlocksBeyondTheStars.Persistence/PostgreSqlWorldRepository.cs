@@ -102,7 +102,12 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS fire_cell (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 remaining DOUBLE PRECISION NOT NULL, gen INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
-            CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);");
+            CREATE TABLE IF NOT EXISTS block_palette (numeric_id INTEGER PRIMARY KEY, key TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS paint_design (id INTEGER PRIMARY KEY, owner TEXT NOT NULL, pixels TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS paint_report (
+                reporter TEXT NOT NULL, owner TEXT NOT NULL, design_id INTEGER NOT NULL,
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                created_unix BIGINT NOT NULL);");
         // (Landing pads are deterministic + live-occupancy now — no per-player landing_zone table; item 38.)
 
         // Migrate older saves to carry per-voxel colour modifiers (dyed blocks / coloured lights). The
@@ -1048,6 +1053,101 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("@z", z);
             cmd.ExecuteNonQuery();
         }
+    }
+
+    // --- Paint designs (player-painted block bitmaps, referenced by shape-descriptor design bits) ---
+
+    public void SavePaintDesign(StoredPaintDesign design)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO paint_design (id, owner, pixels) VALUES (@i, @o, @x) " +
+                              "ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, pixels=excluded.pixels;";
+            cmd.Parameters.AddWithValue("@i", design.Id);
+            cmd.Parameters.AddWithValue("@o", design.OwnerId);
+            cmd.Parameters.AddWithValue("@x", design.Pixels);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredPaintDesign> ListPaintDesigns()
+    {
+        var result = new List<StoredPaintDesign>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, owner, pixels FROM paint_design;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredPaintDesign
+                {
+                    Id = reader.GetInt32(0),
+                    OwnerId = reader.GetString(1),
+                    Pixels = reader.GetString(2),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void DeletePaintDesign(int id)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM paint_design WHERE id = @i;";
+            cmd.Parameters.AddWithValue("@i", id);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public void SavePaintReport(StoredPaintReport report)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO paint_report (reporter, owner, design_id, planet, x, y, z, created_unix) " +
+                              "VALUES (@r, @o, @d, @p, @x, @y, @z, @c);";
+            cmd.Parameters.AddWithValue("@r", report.ReporterId);
+            cmd.Parameters.AddWithValue("@o", report.OwnerId);
+            cmd.Parameters.AddWithValue("@d", report.DesignId);
+            cmd.Parameters.AddWithValue("@p", report.Planet);
+            cmd.Parameters.AddWithValue("@x", report.X);
+            cmd.Parameters.AddWithValue("@y", report.Y);
+            cmd.Parameters.AddWithValue("@z", report.Z);
+            cmd.Parameters.AddWithValue("@c", report.CreatedUnix);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredPaintReport> ListPaintReports()
+    {
+        var result = new List<StoredPaintReport>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT reporter, owner, design_id, planet, x, y, z, created_unix FROM paint_report;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredPaintReport
+                {
+                    ReporterId = reader.GetString(0),
+                    OwnerId = reader.GetString(1),
+                    DesignId = reader.GetInt32(2),
+                    Planet = reader.GetString(3),
+                    X = reader.GetInt32(4),
+                    Y = reader.GetInt32(5),
+                    Z = reader.GetInt32(6),
+                    CreatedUnix = reader.GetInt64(7),
+                });
+            }
+        }
+
+        return result;
     }
 
     // --- Beam blocks (placed teleporter pads) ---

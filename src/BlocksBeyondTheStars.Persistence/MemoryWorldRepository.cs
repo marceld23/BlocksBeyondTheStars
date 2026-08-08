@@ -63,6 +63,8 @@ public sealed class MemoryWorldSnapshot
     public List<StoredBeacon> Beacons { get; set; } = new();
     public List<StoredBeam> Beams { get; set; } = new();
     public List<StoredBase> Bases { get; set; } = new();
+    public List<StoredPaintDesign> PaintDesigns { get; set; } = new();
+    public List<StoredPaintReport> PaintReports { get; set; } = new();
     public List<StoredAlliance> Alliances { get; set; } = new();
     public List<StoredStoryState> StoryStates { get; set; } = new();
     public List<StoredSpaceStructure> SpaceStructures { get; set; } = new();
@@ -102,6 +104,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeacon> _beacons = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBeam> _beams = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), StoredBase> _bases = new();
+    private readonly Dictionary<int, StoredPaintDesign> _paintDesigns = new();
+    private readonly List<StoredPaintReport> _paintReports = new();
     private readonly Dictionary<(string A, string B), StoredAlliance> _alliances = new();
     private readonly Dictionary<string, string> _storyStates = new();   // storyId → JSON
     private readonly Dictionary<string, string> _spaceStructures = new(); // id → JSON
@@ -170,6 +174,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
             Beacons = _beacons.Values.Select(CloneBeacon).ToList(),
             Beams = _beams.Values.Select(CloneBeam).ToList(),
             Bases = _bases.Values.Select(CloneBase).ToList(),
+            PaintDesigns = _paintDesigns.Values.Select(ClonePaintDesign).ToList(),
+            PaintReports = _paintReports.Select(ClonePaintReport).ToList(),
             Alliances = _alliances.Values.Select(a => new StoredAlliance { PlayerA = a.PlayerA, PlayerB = a.PlayerB, FormedUtc = a.FormedUtc }).ToList(),
             StoryStates = _storyStates.Values.Select(json => JsonSerializer.Deserialize<StoredStoryState>(json, JsonOptions)!).ToList(),
             SpaceStructures = _spaceStructures.Values.Select(json => JsonSerializer.Deserialize<StoredSpaceStructure>(json, JsonOptions)!).ToList(),
@@ -233,6 +239,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _beacons.Clear();
         _beams.Clear();
         _bases.Clear();
+        _paintDesigns.Clear();
+        _paintReports.Clear();
         _alliances.Clear();
         _storyStates.Clear();
         _spaceStructures.Clear();
@@ -289,6 +297,16 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var basePoint in snapshot.Bases)
         {
             _bases[(basePoint.Planet, basePoint.X, basePoint.Y, basePoint.Z)] = CloneBase(basePoint);
+        }
+
+        foreach (var design in snapshot.PaintDesigns)
+        {
+            _paintDesigns[design.Id] = ClonePaintDesign(design);
+        }
+
+        foreach (var report in snapshot.PaintReports)
+        {
+            _paintReports.Add(ClonePaintReport(report));
         }
 
         foreach (var alliance in snapshot.Alliances)
@@ -725,6 +743,16 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private static StoredBase CloneBase(StoredBase b)
         => new() { Planet = b.Planet, X = b.X, Y = b.Y, Z = b.Z, Name = b.Name, OwnerId = b.OwnerId };
 
+    private static StoredPaintDesign ClonePaintDesign(StoredPaintDesign d)
+        => new() { Id = d.Id, OwnerId = d.OwnerId, Pixels = d.Pixels };
+
+    private static StoredPaintReport ClonePaintReport(StoredPaintReport r)
+        => new()
+        {
+            ReporterId = r.ReporterId, OwnerId = r.OwnerId, DesignId = r.DesignId,
+            Planet = r.Planet, X = r.X, Y = r.Y, Z = r.Z, CreatedUnix = r.CreatedUnix,
+        };
+
     public void SaveDoor(StoredDoor door)
     {
         lock (_gate)
@@ -778,6 +806,46 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _beacons.Remove((planet, x, y, z));
+        }
+    }
+
+    public void SavePaintDesign(StoredPaintDesign design)
+    {
+        lock (_gate)
+        {
+            _paintDesigns[design.Id] = ClonePaintDesign(design);
+        }
+    }
+
+    public IReadOnlyList<StoredPaintDesign> ListPaintDesigns()
+    {
+        lock (_gate)
+        {
+            return _paintDesigns.Values.Select(ClonePaintDesign).ToList();
+        }
+    }
+
+    public void DeletePaintDesign(int id)
+    {
+        lock (_gate)
+        {
+            _paintDesigns.Remove(id);
+        }
+    }
+
+    public void SavePaintReport(StoredPaintReport report)
+    {
+        lock (_gate)
+        {
+            _paintReports.Add(ClonePaintReport(report));
+        }
+    }
+
+    public IReadOnlyList<StoredPaintReport> ListPaintReports()
+    {
+        lock (_gate)
+        {
+            return _paintReports.Select(ClonePaintReport).ToList();
         }
     }
 

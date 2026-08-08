@@ -87,6 +87,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlayerPresence>? PlayerPresenceReceived;
         public event Action<PlayerLeft>? PlayerLeftReceived;
         public event Action<PlayerFace>? PlayerFaceReceived; // another player's custom pixel face
+
+        // Player-painted block designs (#817): the save-global registry (join list + live additions/wipes).
+        public event Action<PaintDesignData>? PaintDesignReceived;
+        public event Action<PaintDesignList>? PaintDesignListReceived;
         public event Action<OwnedShips>? OwnedShipsReceived;
         public event Action<WorldEnvironment>? WorldEnvironmentReceived;
         public event Action<WorldReset>? WorldResetReceived;
@@ -487,6 +491,12 @@ namespace BlocksBeyondTheStars.Client
         /// out of band from the presence stream.</summary>
         public void SendFace(string pixels) => Send(new SetFaceIntent { Pixels = pixels ?? string.Empty });
 
+        /// <summary>Paints a 32×32 design onto a placed world block (empty pixels clears the paint). The
+        /// server dedups the bitmap into the save-global design registry and answers via the ordinary
+        /// <see cref="BlockChanged"/> path (+ a <see cref="PaintDesignData"/> when the design is new).</summary>
+        public void SendPaintBlock(int x, int y, int z, string pixels)
+            => Send(new PaintBlockIntent { X = x, Y = y, Z = z, Pixels = pixels ?? string.Empty });
+
         public void SendCraftShip(string shipType) => Send(new CraftShipIntent { ShipType = shipType });
 
         public void SendSwitchShip(string shipId) => Send(new SwitchShipIntent { ShipId = shipId });
@@ -604,6 +614,8 @@ namespace BlocksBeyondTheStars.Client
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
+                case PaintDesignData m: PaintDesignReceived?.Invoke(m); break;
+                case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
                 case WorldReset m: WorldResetReceived?.Invoke(m); break;

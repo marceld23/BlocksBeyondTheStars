@@ -29,6 +29,30 @@ public sealed class StoredDoor
     public bool AxisX { get; set; }
 }
 
+/// <summary>A player-painted block design: a 32×32 pixel bitmap (palette indices as a hex string) registered
+/// once per save and referenced from painted blocks by id (packed into the shape descriptor's design bits).
+/// Save-global, not per planet — the id must resolve wherever the shape descriptor travels.</summary>
+public sealed class StoredPaintDesign
+{
+    public int Id { get; set; }
+    public string OwnerId { get; set; } = string.Empty;
+    public string Pixels { get; set; } = string.Empty;
+}
+
+/// <summary>A player report against a painted block (paint moderation v1): who reported what where, kept
+/// for operator review. Deliberately append-only; wiping the design does not delete its reports.</summary>
+public sealed class StoredPaintReport
+{
+    public string ReporterId { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+    public int DesignId { get; set; }
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public long CreatedUnix { get; set; }
+}
+
 /// <summary>A placed radio beacon, persisted by its world cell with its player-typed label + owner (item 37).</summary>
 public sealed class StoredBeacon
 {
@@ -303,6 +327,21 @@ public interface IWorldRepository : IDisposable
     IReadOnlyList<StoredBeacon> ListAllBeacons();
 
     void DeleteBeacon(string planet, int x, int y, int z);
+
+    /// <summary>Stores (inserts or replaces) a paint design, keyed by its save-global id.</summary>
+    void SavePaintDesign(StoredPaintDesign design);
+
+    /// <summary>Lists every registered paint design (restored once at server start).</summary>
+    IReadOnlyList<StoredPaintDesign> ListPaintDesigns();
+
+    /// <summary>Removes a paint design (moderation wipe — every referencing block goes blank).</summary>
+    void DeletePaintDesign(int id);
+
+    /// <summary>Appends a paint report row (moderation v1) for operator review.</summary>
+    void SavePaintReport(StoredPaintReport report);
+
+    /// <summary>Lists every stored paint report.</summary>
+    IReadOnlyList<StoredPaintReport> ListPaintReports();
 
     /// <summary>Stores (inserts or replaces) a placed beam block, keyed by its world cell.</summary>
     void SaveBeam(StoredBeam beam);

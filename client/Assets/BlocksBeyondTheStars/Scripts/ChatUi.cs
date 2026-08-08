@@ -551,6 +551,22 @@ namespace BlocksBeyondTheStars.Client
                         return true;
                     }
 
+                // ---- Paint moderation (#821): wipe a player's painted designs (or one by "#id") everywhere ----
+                // ("/reportpaint" is NOT handled here on purpose: like /bump it travels as chat and the server
+                // intercepts it, so reporting needs no admin role and no client plumbing. Plain "/report"
+                // stays the portal player report, parsed above by ReportChatCommand.)
+                case "/paintwipe":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine(L("ui.cmd.usage_paintwipe"));
+                            return true;
+                        }
+
+                        net.SendAdminCommand("paintwipe", stringArg: p[1].TrimStart('@'));
+                        return true;
+                    }
+
                 default:
                     return false; // not an admin command (e.g. /bump) → send as normal chat
             }

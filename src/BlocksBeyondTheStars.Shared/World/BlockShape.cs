@@ -84,4 +84,23 @@ public static class ShapeCode
 
     /// <summary>True when <paramref name="upFace"/> is a valid up-face index (0..5).</summary>
     public static bool IsValidUpFace(int upFace) => upFace is >= 0 and <= 5;
+
+    // --- Paint design reference (bits 11..26) ---
+    // Like the up-face field, the design id was added on top of the existing descriptor: bits 11+ were
+    // always written as 0, so old saves/wire values read design 0 = "unpainted" → no migration. The id
+    // references a world-level paint design (a 32×32 pixel bitmap in the paint_design registry); the
+    // bitmap itself never travels per block.
+
+    /// <summary>Largest paint design id that fits the descriptor field (16 bits).</summary>
+    public const int MaxDesignId = 0xFFFF;
+
+    /// <summary>The paint design id (0 = unpainted) encoded in a packed descriptor.</summary>
+    public static int DesignOf(int descriptor) => (descriptor >> 11) & 0xFFFF;
+
+    /// <summary>Returns the descriptor with its paint design id replaced (0 clears the paint).</summary>
+    public static int WithDesign(int descriptor, int designId)
+        => (descriptor & ~(0xFFFF << 11)) | ((designId & 0xFFFF) << 11);
+
+    /// <summary>The descriptor with any paint design stripped (what a mined block's drop keeps).</summary>
+    public static int WithoutDesign(int descriptor) => WithDesign(descriptor, 0);
 }

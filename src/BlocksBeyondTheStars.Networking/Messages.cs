@@ -652,6 +652,21 @@ public sealed class SetFaceIntent
     public string Pixels { get; set; } = string.Empty;
 }
 
+/// <summary>Client paints (or clears) a pixel design onto a placed world block. The server dedups the
+/// bitmap into the save-global paint-design registry and stamps the resulting design id into the block's
+/// shape descriptor (bits 11+), which travels through the ordinary <see cref="BlockChanged"/> path — the
+/// bitmap itself never repeats per block. Mirrors <see cref="SetFaceIntent"/>: the payload is a palette-index
+/// hex string (32×32 = 1024 chars) the client owns, validated + throttled server-side.</summary>
+public sealed class PaintBlockIntent
+{
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+
+    /// <summary>The design as a 32×32 palette-index hex string; empty clears the paint from the block.</summary>
+    public string Pixels { get; set; } = string.Empty;
+}
+
 // ---------------- Server -> Client (state) ----------------
 
 public sealed class JoinAccepted
@@ -1732,6 +1747,26 @@ public sealed class PlayerFace
 
     /// <summary>The face as a 16×16 palette-index hex string; empty = no custom face (default features).</summary>
     public string Pixels { get; set; } = string.Empty;
+}
+
+/// <summary>One paint design's bitmap, keyed by its save-global id (see <see cref="PaintBlockIntent"/>).
+/// Sent to everyone when a design is first registered — before the <see cref="BlockChanged"/> that
+/// references it, so the mesher never sees an unknown id from the live path. An EMPTY <c>Pixels</c> is a
+/// moderation wipe: the client blanks the design everywhere it is placed.</summary>
+public sealed class PaintDesignData
+{
+    public int Id { get; set; }
+
+    /// <summary>The design as a 32×32 palette-index hex string; empty = wiped (render nothing).</summary>
+    public string Pixels { get; set; } = string.Empty;
+}
+
+/// <summary>Every registered paint design, pushed once on join BEFORE chunk streaming starts so painted
+/// blocks in the first chunks resolve immediately. Parallel arrays, one entry per design.</summary>
+public sealed class PaintDesignList
+{
+    public int[] Ids { get; set; } = System.Array.Empty<int>();
+    public string[] Pixels { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>One ship the player owns.</summary>

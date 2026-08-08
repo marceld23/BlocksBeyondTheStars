@@ -2,30 +2,34 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// In-game pixel-face editor (opened from the Character menu tab). The player paints a
-    /// <see cref="FacePalette.Size"/>×<see cref="FacePalette.Size"/> face on a live canvas with a palette +
-    /// eraser; <b>Apply</b> stores it in <see cref="ClientSettings.FacePixels"/>, shows it on their own figure
-    /// and sends it to the server, which persists it and relays it so other players see the face on this
-    /// player's avatar. The large painted canvas is the face preview; the rotating figure in the Character tab
-    /// updates once the editor is closed. Modern uGUI, mirroring <see cref="MaterialEditor"/>.
+    /// In-game pixel editor over the shared <see cref="FacePalette"/>: originally the 16×16 face editor
+    /// (Character tab + main-menu Avatar Designer), generalized to serve the 32×32 block-paint host too
+    /// (#818) — the grid size and an optional design-library column are host-supplied, everything else
+    /// (palette, eraser, drag painting, Apply/Clear/Back) is identical in every host. <b>Apply</b> hands the
+    /// encoded grid to the host; the face hosts store/send it as the avatar face, the paint host sends it as
+    /// a <c>PaintBlockIntent</c>. Modern uGUI, mirroring <see cref="MaterialEditor"/>.
     /// </summary>
     public sealed class FaceEditor : MonoBehaviour
     {
-        // Host-supplied hooks so one editor serves both the in-game Character tab and the main-menu Avatar
-        // Designer. Set these right after AddComponent (before Start runs, which is the next frame).
-        public string InitialFace;              // encoded face to preload onto the canvas
+        // Host-supplied hooks so one editor serves the Character tab, the Avatar Designer and the block-paint
+        // tool. Set these right after AddComponent (before Start runs, which is the next frame).
+        public string InitialFace;              // encoded grid to preload onto the canvas
         public Func<string, string> Localizer;  // localization lookup (key → text)
-        public Action<string> OnApply;          // receives the encoded face when the player hits Apply
+        public Action<string> OnApply;          // receives the encoded grid when the player hits Apply
+        public int GridSize = FacePalette.Size; // pixels per side: 16 for faces, 32 for block paint
+        public Action OnClosed;                 // fires when the editor goes away (any path) — hosts release input here
+        public Action<string> OnSaveDesign;     // paint host: save the current canvas to the local design library
+        public Func<List<(string Name, string Pixels)>> LibraryProvider; // paint host: saved designs to load
 
-        private const int Size = FacePalette.Size;
-
-        private readonly int[] _grid = new int[FacePalette.Pixels];
+        private int _size;
+        private int[] _grid;
         private int _brush = 1; // current palette index (0 = eraser/transparent)
 
         private Texture2D _tex;
@@ -35,10 +39,13 @@ namespace BlocksBeyondTheStars.Client
         private Canvas _ui;
         private Image _activeSwatch;
         private readonly Image[] _swatches = new Image[FacePalette.Colors.Length]; // index 0 reused as eraser
+        private RectTransform _libList; // library column entries (rebuilt after a save)
 
         private void Start()
         {
-            _tex = new Texture2D(Size, Size, TextureFormat.RGBA32, false)
+            _size = Mathf.Clamp(GridSize, 8, 64);
+            _grid = new int[_size * _size];
+            _tex = new Texture2D(_size, _size, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Point,
@@ -52,6 +59,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_ui != null) Destroy(_ui.gameObject);
             if (_tex != null) Destroy(_tex);
+            OnClosed?.Invoke();
         }
 
         // ── live painting ────────────────────────────────────────────────────────────────────────
@@ -69,8 +77,8 @@ namespace BlocksBeyondTheStars.Client
             float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
             float u = Mathf.Clamp01(lp.x / w);
             float fromTop = Mathf.Clamp01(-lp.y / h);
-            int gx = Mathf.Clamp(Mathf.RoundToInt(u * (Size - 1)), 0, Size - 1);
-            int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (Size - 1)), 0, Size - 1); // top row = gy 0
+            int gx = Mathf.Clamp(Mathf.RoundToInt(u * (_size - 1)), 0, _size - 1);
+            int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_size - 1)), 0, _size - 1); // top row = gy 0
 
             Paint(gx, gy, right ? 0 : _brush);
         }
@@ -79,11 +87,11 @@ namespace BlocksBeyondTheStars.Client
         /// row 0 is the BOTTOM, so the display flips vertically.</summary>
         private void Paint(int gx, int gy, int index)
         {
-            int cell = gy * Size + gx;
+            int cell = gy * _size + gx;
             if (_grid[cell] == index) return;
 
             _grid[cell] = index;
-            _tex.SetPixel(gx, Size - 1 - gy, DisplayColor(index));
+            _tex.SetPixel(gx, _size - 1 - gy, DisplayColor(index));
             _tex.Apply();
         }
 
@@ -92,10 +100,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void RenderAll()
         {
-            for (int gy = 0; gy < Size; gy++)
-            for (int gx = 0; gx < Size; gx++)
+            for (int gy = 0; gy < _size; gy++)
+            for (int gx = 0; gx < _size; gx++)
             {
-                _tex.SetPixel(gx, Size - 1 - gy, DisplayColor(_grid[gy * Size + gx]));
+                _tex.SetPixel(gx, _size - 1 - gy, DisplayColor(_grid[gy * _size + gx]));
             }
 
             _tex.Apply();
@@ -103,8 +111,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void LoadFrom(string face)
         {
-            var grid = FacePalette.Decode(face);
-            Array.Copy(grid, _grid, FacePalette.Pixels);
+            var grid = FacePalette.Decode(face, _size * _size);
+            Array.Copy(grid, _grid, _grid.Length);
             RenderAll();
         }
 
@@ -112,14 +120,18 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildUi()
         {
+            bool hasLibrary = OnSaveDesign != null || LibraryProvider != null;
+
             _ui = UiKit.CreateCanvas("Face Editor UI");
             _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
             var root = _ui.transform;
 
             // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
             // false, so it never actually blocked clicks reaching the menu behind — AddModalDim does.
-            var (_, panel) = UiKit.AddModalOverlay(root, 610f, 60f, 700f, 960f);
-            UiKit.AddText(panel, 24f, 18f, 652f, 30f, L("ui.face.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // The paint host gets a wider panel: the design-library column sits right of the canvas.
+            float panelW = hasLibrary ? 950f : 700f;
+            var (_, panel) = UiKit.AddModalOverlay(root, hasLibrary ? 485f : 610f, 60f, panelW, 960f);
+            UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L("ui.face.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
             // Paint surface (point-filtered → crisp big pixels).
             var canvasGo = new GameObject("FaceCanvas", typeof(RectTransform));
@@ -149,9 +161,53 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(panel, 260f, 832f, 180f, 56f, L("ui.face.clear"), () => { Array.Clear(_grid, 0, _grid.Length); RenderAll(); });
             UiKit.AddButton(panel, 456f, 832f, 220f, 56f, L("ui.menu.back"), Close);
 
-            UiKit.AddText(panel, 24f, 904f, 652f, 24f, L("ui.face.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 24f, 904f, panelW - 48f, 24f, L("ui.face.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+
+            // Design library column (paint host only): save the current canvas + reload saved designs.
+            if (hasLibrary)
+            {
+                UiKit.AddText(panel, 700f, 64f, 226f, 24f, L("ui.paint.library"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                if (OnSaveDesign != null)
+                {
+                    UiKit.AddButton(panel, 700f, 96f, 226f, 48f, L("ui.paint.save"), () =>
+                    {
+                        OnSaveDesign(FacePalette.Encode(_grid, _grid.Length));
+                        RebuildLibraryList();
+                    });
+                }
+
+                var listGo = new GameObject("PaintLibraryList", typeof(RectTransform));
+                listGo.transform.SetParent(panel, false);
+                _libList = UiKit.Place(listGo, 700f, 160f, 226f, 660f);
+                RebuildLibraryList();
+            }
 
             SetBrush(_brush, _swatches[_brush]);
+        }
+
+        /// <summary>(Re)fills the library column with one load-button per saved design (newest saves appear
+        /// as the provider returns them; capped to what fits the column).</summary>
+        private void RebuildLibraryList()
+        {
+            if (_libList == null || LibraryProvider == null)
+            {
+                return;
+            }
+
+            for (int i = _libList.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_libList.GetChild(i).gameObject);
+            }
+
+            var entries = LibraryProvider() ?? new List<(string, string)>();
+            const int maxShown = 13;
+            float y = 0f;
+            for (int i = 0; i < entries.Count && i < maxShown; i++)
+            {
+                string pixels = entries[i].Pixels;
+                UiKit.AddButton(_libList, 0f, y, 226f, 42f, entries[i].Name, () => LoadFrom(pixels));
+                y += 50f;
+            }
         }
 
         private Image MakeSwatch(Transform parent, float x, float y, Color color, Action onClick)
@@ -179,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void Apply()
         {
-            OnApply?.Invoke(FacePalette.Encode(_grid));
+            OnApply?.Invoke(FacePalette.Encode(_grid, _grid.Length));
             Close();
         }
 

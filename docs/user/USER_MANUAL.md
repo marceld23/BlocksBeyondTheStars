@@ -563,6 +563,21 @@ separate unlock; admins can still disable it through server world rules.
 - Browse them in **Tab → Photos**: pick a photo to see it full-size, **add or edit a note** (saved with the
   photo) and **delete** ones you don't want. The list shows the newest first with the capture time and your note.
 
+### Paint tool & block designs
+- Craft a **Paint Tool** (`paint_tool`, workshop recipe + the cheap `paint_tool` blueprint). Select it and
+  **right-click a placed solid block** — a **32×32 pixel editor** opens (same palette and controls as the
+  avatar face editor: left-click paints, right-click erases, **E** is the eraser swatch). **Apply** paints the
+  design onto the block for everyone; **Clear + Apply** removes it. Works on every block form — panels/plates
+  on a wall are the natural canvas, but slabs, ramps and plain cubes take a design too (all faces show it).
+- **Save & reuse**: the *My designs* column in the editor stores designs **locally** ("Save design") and loads
+  them back with one click — across blocks, worlds and servers. Applying a saved design in a new world just
+  works; the server keeps one shared copy per world (up to 256 distinct designs).
+- **Mining a painted block loses the paint** (the drop keeps its shape and colour, not the artwork) — reapply
+  it from your library.
+- **Multiplayer**: designs are visible to everyone. If you see something inappropriate, stand next to it and
+  type **`/reportpaint`** in chat — the world operator gets the details (`/report Player` stays the separate
+  player report). Operators can remove a player's designs everywhere at once with `/paintwipe` (see §Commands).
+
 ### Travel & the star map
 - Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus
   the **Launch into space / Leave space** button), then **Hyperspace** for the other systems. Selecting a
@@ -811,6 +826,7 @@ and that option is off by default on hosted worlds.
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
+| `/paintwipe Player` (or `#designId`) | Removes that player's painted block designs **everywhere at once** (or a single design by id, taken from the report log). Wiped designs stay wiped across restarts |
 
 #### Blocking players from your own hosted world
 

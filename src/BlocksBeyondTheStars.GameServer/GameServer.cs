@@ -276,6 +276,7 @@ public sealed partial class GameServer
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
+        LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
         LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
 
@@ -2221,6 +2222,7 @@ public sealed partial class GameServer
             case UseStationIntent use: HandleUseStation(session, use); break;
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
+            case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
             case ConsumeItemIntent consume: HandleConsume(session, consume); break;
@@ -2475,6 +2477,7 @@ public sealed partial class GameServer
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
         SendExistingFaces(session);     // custom pixel faces of already-online players
+        SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective
 
         // Hosted worlds: one-time welcome (community rules + beta notice) on the player's FIRST join of
@@ -3920,6 +3923,11 @@ public sealed partial class GameServer
                 AdminListBuilds(session, cmd.StringArg);
                 return;
 
+            // Paint moderation (#821) — like kick/announce, moderation is not a cheat: the role is the gate.
+            case "paintwipe":
+                AdminPaintWipe(session, cmd.StringArg);
+                return;
+
             case "where":
                 AdminWhere(session, cmd.StringArg ?? cmd.TargetPlayer);
                 return;
@@ -4353,6 +4361,22 @@ public sealed partial class GameServer
 
             session.LastChatTick = bumpNow;
             HandleBump(session, text.Length > 5 ? text.Substring(5).Trim() : string.Empty);
+            return;
+        }
+
+        // Paint moderation v1 (#821): "/reportpaint" flags the nearest painted block for operator review.
+        // Like /bump it is intercepted before the radio gate — reporting must not require any equipment.
+        // NOT "/report": that is the client-side PLAYER report to the worlds portal (ReportChatCommand).
+        if (text.Equals("/reportpaint", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int reportNow = System.Environment.TickCount;
+            if (reportNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = reportNow;
+            HandlePaintReport(session);
             return;
         }
 

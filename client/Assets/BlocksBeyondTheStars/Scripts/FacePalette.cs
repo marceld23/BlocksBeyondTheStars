@@ -66,15 +66,19 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Encodes a palette-index grid (length <see cref="Pixels"/>, row-major from the top) to a hex string.</summary>
-        public static string Encode(int[] grid)
+        public static string Encode(int[] grid) => Encode(grid, Pixels);
+
+        /// <summary>Encodes a palette-index grid of an arbitrary pixel count (the 32×32 block-paint designs
+        /// share the face's palette + hex encoding, just bigger — see <see cref="PaintDesignAtlas"/>).</summary>
+        public static string Encode(int[] grid, int pixels)
         {
-            if (grid == null || grid.Length != Pixels)
+            if (grid == null || grid.Length != pixels)
             {
                 return string.Empty;
             }
 
-            var chars = new char[Pixels];
-            for (int i = 0; i < Pixels; i++)
+            var chars = new char[pixels];
+            for (int i = 0; i < pixels; i++)
             {
                 chars[i] = HexChar(grid[i]);
             }
@@ -84,15 +88,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Decodes a hex string back to a palette-index grid (always length <see cref="Pixels"/>;
         /// unknown/short input yields all-transparent so callers never crash on bad data).</summary>
-        public static int[] Decode(string face)
+        public static int[] Decode(string face) => Decode(face, Pixels);
+
+        /// <summary>Decodes a hex string to a grid of an arbitrary pixel count (see the Encode overload).</summary>
+        public static int[] Decode(string face, int pixels)
         {
-            var grid = new int[Pixels];
+            var grid = new int[pixels];
             if (string.IsNullOrEmpty(face))
             {
                 return grid;
             }
 
-            int n = Mathf.Min(face.Length, Pixels);
+            int n = Mathf.Min(face.Length, pixels);
             for (int i = 0; i < n; i++)
             {
                 grid[i] = HexValue(face[i]);

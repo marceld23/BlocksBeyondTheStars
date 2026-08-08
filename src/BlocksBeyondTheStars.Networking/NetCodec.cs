@@ -364,6 +364,12 @@ public static class NetCodec
 
         // Sit on chairs (#806): pose flag mirrored into the presence broadcast.
         Register(190, typeof(SetSeatedIntent));          // Client -> Server
+
+        // Player-painted block designs (#817): the bitmap travels once per design; painted blocks
+        // reference it via the shape descriptor's design bits through the normal BlockChanged path.
+        Register(191, typeof(PaintBlockIntent));         // Client -> Server (paint/clear a block)
+        Register(192, typeof(PaintDesignData));          // Server -> Client (one design; empty = wiped)
+        Register(193, typeof(PaintDesignList));          // Server -> Client (all designs, on join)
     }
 
     private static void Register(byte tag, Type type)

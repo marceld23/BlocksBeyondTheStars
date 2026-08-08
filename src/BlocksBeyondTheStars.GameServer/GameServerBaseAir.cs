@@ -244,7 +244,7 @@ public sealed partial class GameServer
             }
 
             var def = _content.BlockById(id);
-            return def is { Airtight: true } && _world.GetShape(c) == 0; // shaped cells leak
+            return def is { Airtight: true } && ShapeCode.IsCube(_world.GetShape(c)); // shaped cells leak (paint bits don't)
         }
 
         void FillPocket(Vector3i start)

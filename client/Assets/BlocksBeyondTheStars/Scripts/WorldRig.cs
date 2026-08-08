@@ -160,6 +160,10 @@ namespace BlocksBeyondTheStars.Client
             var beaconLabel = root.AddComponent<BeaconLabelUi>();
             beaconLabel.Game = boot;
 
+            // Block-paint editor host (#818): opens when using the paint tool on a placed block.
+            var paintTool = root.AddComponent<PaintToolUi>();
+            paintTool.Game = boot;
+
             // Floating beacon labels above their blocks in the world (item 37).
             var beaconView = root.AddComponent<BeaconView>();
             beaconView.Game = boot;
