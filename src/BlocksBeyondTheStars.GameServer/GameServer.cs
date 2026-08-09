@@ -326,6 +326,9 @@ public sealed partial class GameServer
             CreativeStarterKit = _config.CreativeStarterKit,
             // World options: the rules chosen at creation become the world's own (live admin edits update them).
             RulesOverride = _config.Rules.Clone(),
+            // Born after ship-as-object: no stamped hulls can exist in this save, so the legacy
+            // stamp-residue cleanup (#870) must never touch it.
+            CreatedWithShipObjects = true,
         };
     }
 

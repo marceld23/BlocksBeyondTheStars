@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1545 server + 194 client passing** (2026-08-08). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **1547 server + 194 client passing** (2026-08-09). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -7445,6 +7445,27 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-09): builds beside the landing pad survive rejoins — "singleplayer doesn't save" (#870)
+
+Playtest repro on a fresh world: place blocks beside the starter ship, quit, reload — gone. The save
+pipeline itself was fine (stdin-stop drain, write-through `block_edit` rows); the data was **deleted on
+the next join**: `CleanLegacyStampResidue`, the pre-ship-as-object migration that erases the old stamped
+hull from a save, ran on **every** `PlaceLandedShip()` (join, respawn, landing, ship switch, interior
+enter) and deleted ALL block edits in a box around the parked ship — footprint +4 on each side, 8 below
+to hull +3 above. That box is exactly where a new player builds first; on the bundled solo host the
+player is `--admins`, so even the pad-reservation build block didn't apply. Save-file forensics matched
+perfectly: every ghost-heal cell inside the box had its DB row deleted, every one outside survived.
+
+Fix, following the `StampedFeatures` one-shot pattern: new worlds are stamped `CreatedWithShipObjects`
+at creation (the cleanup never runs — they can't carry legacy hulls); old saves clean **once per
+location+pad**, recorded in `WorldMetadata.ShipResidueCleaned`, then never again. Also fixed the
+cleanup's chunk re-stream loop, which strode world coordinates and skipped chunks on the max faces —
+the source of the lingering client-side ghost blocks. Tests: build in the margin ring survives a real
+server restart on the same save; a simulated legacy save still cleans its stamped hull exactly once and
+keeps later builds. Playtest pending.
 
 ---
 

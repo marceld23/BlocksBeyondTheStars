@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -177,6 +178,88 @@ public sealed class ShipReloadPersistenceTests : IDisposable
             Assert.Equal(2, a.AssignedPadIndex);          // first in keeps the pad
             Assert.NotEqual(a.AssignedPadIndex, b.AssignedPadIndex); // the other is moved to a free one
             Assert.NotEqual(reloaded.ShipAnchorOf("Ann"), reloaded.ShipAnchorOf("Ben"));
+        }
+    }
+
+    [Fact]
+    public void BuildBesideTheShip_SurvivesAReload()
+    {
+        // #870 — the legacy stamp-residue cleanup ran on EVERY ship placement and deleted all block edits
+        // in a box around the parked ship (footprint + 4, 8 below to hull + 3 above). Anything built beside
+        // the starter ship was wiped on the next join — "singleplayer doesn't save my game".
+        var stone = _content.GetBlock("stone")!.NumericId;
+        Vector3i cell;
+
+        var first = Start("residue", out var repo1, placeShip: true);
+        using (repo1)
+        {
+            first.AddLocalPlayer("Pilot"); // join parks the ship (and runs the one-shot cleanup on the fresh save)
+            var (origin, size) = first.LandedShipBoundsForTest("Pilot");
+
+            // In the margin ring: beyond the hull but inside the old cleanup box — legally buildable ground.
+            cell = new Vector3i(origin.X + size.X + 3, origin.Y + 2, origin.Z + 1);
+            first.World.SetBlock(cell, stone, owner: "Pilot");
+            first.Stop();
+        }
+
+        var reloaded = Start("residue", out var repo2, placeShip: true);
+        using (repo2)
+        {
+            reloaded.AddLocalPlayer("Pilot"); // re-parks the ship — this used to wipe the box again
+
+            Assert.Equal(stone.Value, reloaded.World.GetBlock(cell).Value);
+        }
+    }
+
+    [Fact]
+    public void LegacyStampResidue_IsCleanedOnce_ThenBuildsAreSafe()
+    {
+        // Where the ship will park is deterministic from the seed — probe it on a throwaway save.
+        Vector3i origin, size;
+        string location;
+        var probe = Start("residue_probe", out var probeRepo, placeShip: true);
+        using (probeRepo)
+        {
+            probe.AddLocalPlayer("Pilot");
+            (origin, size) = probe.LandedShipBoundsForTest("Pilot");
+            location = probe.World.LocationId;
+        }
+
+        // Turn a freshly created save into a pre-ship-as-object one: drop the born-clean flag and persist
+        // the stamped hull as a world block edit inside the ship volume, like the old stamp did.
+        var setup = Start("residue_legacy", out var setupRepo, placeShip: true);
+        setup.Stop();
+        var ironWall = _content.GetBlock("iron_wall")!.NumericId;
+        var inside = new Vector3i(origin.X + 2, origin.Y + 1, origin.Z + 2);
+        using (setupRepo)
+        {
+            var meta = setupRepo.LoadMetadata()!;
+            meta.CreatedWithShipObjects = false;
+            setupRepo.SaveMetadata(meta);
+            setupRepo.SetBlock(location, inside, ironWall.Value);
+        }
+
+        var stone = _content.GetBlock("stone")!.NumericId;
+        Vector3i cell;
+        var first = Start("residue_legacy", out var repo1, placeShip: true);
+        using (repo1)
+        {
+            first.AddLocalPlayer("Pilot");
+
+            // The migration still runs (once): the old stamped hull block is gone from inside the ship volume.
+            Assert.True(first.World.GetBlock(inside).IsAir, "the legacy stamped hull must be cleaned on first placement");
+
+            cell = new Vector3i(origin.X + size.X + 3, origin.Y + 2, origin.Z + 1);
+            first.World.SetBlock(cell, stone, owner: "Pilot");
+            first.Stop();
+        }
+
+        var reloaded = Start("residue_legacy", out var repo2, placeShip: true);
+        using (repo2)
+        {
+            reloaded.AddLocalPlayer("Pilot");
+
+            Assert.Equal(stone.Value, reloaded.World.GetBlock(cell).Value); // the gate is closed — no second wipe
         }
     }
 

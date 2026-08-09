@@ -81,6 +81,24 @@ public sealed class WorldMetadata
     /// </summary>
     public System.Collections.Generic.Dictionary<string, string> BodyPlanetTypes { get; set; } = new();
 
+    /// <summary>
+    /// True for worlds created after ships became placed objects (#870): such a save never persisted a
+    /// stamped hull, so the legacy stamp-residue cleanup must never run on it (it would delete the player's
+    /// own builds beside a pad on their first landing there). False (missing) on older saves — they migrate
+    /// via <see cref="ShipResidueCleaned"/>.
+    /// </summary>
+    public bool CreatedWithShipObjects { get; set; }
+
+    /// <summary>
+    /// One-time ship-stamp residue cleanups already performed on pre-object saves (#870):
+    /// "{locationId}|shipresidue:{padX}:{padZ}" once the legacy stamped-hull migration ran for that pad.
+    /// The cleanup used to run on EVERY ship placement (join, respawn, landing, ship switch), deleting all
+    /// persisted block edits in a box around the parked ship — wiping the player's own builds beside their
+    /// pad on each rejoin ("singleplayer doesn't save"). A missing entry means "clean once more", so
+    /// pre-object saves migrate by cleaning one final time (the <see cref="StampedFeatures"/> pattern).
+    /// </summary>
+    public System.Collections.Generic.List<string> ShipResidueCleaned { get; set; } = new();
+
     // --- Singleplayer "Creative" world options (chosen at creation; persisted so they reapply on every load).
     // A head-start sandbox: everything available + a starter set, while survival mechanics stay on. All false =
     // the normal "Explorer" world. Blueprints + ships are re-applied per join (idempotent); the kit is one-time. ---

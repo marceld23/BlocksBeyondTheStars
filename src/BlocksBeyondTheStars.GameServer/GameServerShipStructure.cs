@@ -83,7 +83,7 @@ public sealed partial class GameServer
             ? new Vector3f(rec.Origin.X + mb.X + 0.5f, rec.Origin.Y + mb.Y + 1f, rec.Origin.Z + mb.Z + 0.5f)
             : new Vector3f(rec.Origin.X + s.Width / 2 + 0.5f, rec.Origin.Y + 1f, rec.Origin.Z + s.Length / 2 + 0.5f);
 
-        CleanLegacyStampResidue(rec); // pre-object saves carry the old stamped hull as world block edits
+        CleanLegacyStampResidueOnce(rec, pad); // pre-object saves carry the old stamped hull as world block edits
 
         rec.Placed = true;
         _log.Info($"Ship parked at ({rec.Origin.X}, {rec.Origin.Y}, {rec.Origin.Z}) — {s.Cells.Count} cells, {rec.Stations.Count} stations.");
@@ -170,12 +170,28 @@ public sealed partial class GameServer
         return msg;
     }
 
-    /// <summary>One-shot migration per placement: pre-object saves persisted the STAMPED hull as world
+    /// <summary>One-shot migration per pad (#870): pre-object saves persisted the STAMPED hull as world
     /// block edits — delete any edits inside the parked ship's volume (incl. the old silhouette margin and
     /// foundation) and regenerate the affected chunks, so the old block hull doesn't stand inside the new
-    /// object. Pad volumes are reserved (no building there), so no legitimate player edits are lost.</summary>
-    private void CleanLegacyStampResidue(LandedShip rec)
+    /// object. The cleanup box also covers legally buildable ground (the margin ring beyond the pad
+    /// reservation, and 8 blocks below it), and it used to run on EVERY placement — join, respawn, landing,
+    /// ship switch — deleting the player's own builds beside their pad on each rejoin. Hence the persisted
+    /// once-per-pad gate: a save that was already cleaned here never loses edits to this box again.</summary>
+    private void CleanLegacyStampResidueOnce(LandedShip rec, LandingPad pad)
     {
+        if (_meta.CreatedWithShipObjects)
+        {
+            return; // born after ship-as-object — this save never persisted a stamped hull anywhere
+        }
+
+        string key = $"{_world.LocationId}|shipresidue:{pad.CenterX}:{pad.CenterZ}";
+        if (_meta.ShipResidueCleaned.Contains(key))
+        {
+            return;
+        }
+
+        _meta.ShipResidueCleaned.Add(key); // persisted by the next SaveAll (checkpoint/autosave/shutdown)
+
         var s = rec.Structure;
         var min = new Vector3i(rec.Origin.X - 4, rec.Origin.Y - 8, rec.Origin.Z - 4);
         var max = new Vector3i(rec.Origin.X + s.Width + 4, rec.Origin.Y + s.Height + 3, rec.Origin.Z + s.Length + 4);
@@ -183,15 +199,18 @@ public sealed partial class GameServer
         _world.ForgetChunksIn(min, max);
 
         // Re-stream the affected chunks to everyone on this world so stale hull blocks vanish client-side.
+        // Iterate in CHUNK coordinates: the old world-coordinate stride skipped chunks on the max faces
+        // (only the single max corner was patched in), leaving clients with stale ghost blocks there.
+        var minChunk = WorldConstants.WorldToChunk(min);
+        var maxChunk = WorldConstants.WorldToChunk(max);
         var seen = new HashSet<ChunkCoord>();
-        for (int x = min.X; x <= max.X; x += WorldConstants.ChunkSize)
-            for (int y = min.Y; y <= max.Y; y += WorldConstants.ChunkSize)
-                for (int z = min.Z; z <= max.Z; z += WorldConstants.ChunkSize)
+        for (int cx = minChunk.X; cx <= maxChunk.X; cx++)
+            for (int cy = minChunk.Y; cy <= maxChunk.Y; cy++)
+                for (int cz = minChunk.Z; cz <= maxChunk.Z; cz++)
                 {
-                    seen.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(new Vector3i(x, y, z)), _world.Circumference));
+                    seen.Add(WorldConstants.CanonicalChunk(new ChunkCoord(cx, cy, cz), _world.Circumference));
                 }
 
-        seen.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(max), _world.Circumference));
         foreach (var session in JoinedInActiveWorld())
         {
             foreach (var coord in seen)
@@ -397,6 +416,13 @@ public sealed partial class GameServer
     private static Vector3i AnchorOf(LandedShip rec) => rec.Placed
         ? new Vector3i(rec.Origin.X + rec.Structure.Width / 2, rec.Origin.Y - 1, rec.Origin.Z + rec.Structure.Length / 2)
         : default;
+
+    /// <summary>Test/diagnostic: a player's parked-ship origin and structure size (W,H,L) in the active world.</summary>
+    public (Vector3i Origin, Vector3i Size) LandedShipBoundsForTest(string playerId)
+    {
+        var rec = _worlds.Active.LandedFor(playerId);
+        return (rec.Origin, new Vector3i(rec.Structure.Width, rec.Structure.Height, rec.Structure.Length));
+    }
 
     /// <summary>Test/diagnostic: whether a block cell lies inside a ship interior (cell-centre probe).</summary>
     public bool ShipInteriorContainsCellForTest(int x, int y, int z)
