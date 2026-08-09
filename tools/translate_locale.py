@@ -53,6 +53,7 @@ LANGUAGES = {
     "pt": "Brazilian Portuguese",
     "pl": "Polish",
     "tr": "Turkish",
+    "nl": "Dutch",
 }
 
 SYSTEM_PROMPT = """You translate UI strings for "Blocks Beyond the Stars", a kid-friendly sci-fi \
@@ -64,7 +65,7 @@ translated values. No commentary, no markdown fence.
 - Keep every placeholder like {{name}}, {{item}}, {{count}} EXACTLY as-is (position may move).
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
-Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen").
+Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij").
 - Keep proper names untranslated: VEGA, Blocks Beyond the Stars. Game terms translate naturally \
 and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.

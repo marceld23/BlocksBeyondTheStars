@@ -24,6 +24,7 @@ public enum GameLocale
     Portuguese,
     Polish,
     Turkish,
+    Dutch,
 }
 
 public static class GameLocaleExtensions
@@ -41,6 +42,7 @@ public static class GameLocaleExtensions
         GameLocale.Portuguese => "pt",
         GameLocale.Polish => "pl",
         GameLocale.Turkish => "tr",
+        GameLocale.Dutch => "nl",
         _ => "en",
     };
 
@@ -56,6 +58,7 @@ public static class GameLocaleExtensions
         GameLocale.Portuguese => "Português",
         GameLocale.Polish => "Polski",
         GameLocale.Turkish => "Türkçe",
+        GameLocale.Dutch => "Nederlands",
         _ => locale.ToString(),
     };
 
@@ -117,6 +120,12 @@ public static class GameLocaleExtensions
             case "türkçe":
             case "turkce":
                 locale = GameLocale.Turkish;
+                return true;
+            case "nl":
+            case "nl-nl":
+            case "dutch":
+            case "nederlands":
+                locale = GameLocale.Dutch;
                 return true;
             default:
                 locale = GameLocale.English;

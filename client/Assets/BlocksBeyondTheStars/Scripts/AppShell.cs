@@ -1000,6 +1000,11 @@ namespace BlocksBeyondTheStars.Client
                     bodyText = "Oyun verileri yüklenemedi. İnternet bağlantını veya kurulumu kontrol edip tekrar dene.";
                     retryText = "Tekrar dene";
                     break;
+                case "nl":
+                    titleText = "Inhoud kon niet worden geladen";
+                    bodyText = "Het laden van de spelgegevens is mislukt. Controleer je internetverbinding of de installatie en probeer het daarna opnieuw.";
+                    retryText = "Opnieuw proberen";
+                    break;
                 default:
                     titleText = "Content failed to load";
                     bodyText = "Loading the game data failed. Check your internet connection or the install, then try again.";
