@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: f44f5eb54102768488bc9ad26c19cc0d
+guid: cc689c3036da30b71edc9c4e68c0abed
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,12 +9,8 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Rajdhani
-  fallbackFontReferences:
-  - {fileID: 12800000, guid: cc689c3036da30b71edc9c4e68c0abed, type: 3}
-  - {fileID: 12800000, guid: 44961b9690acb0fef299449646608b51, type: 3}
-  - {fileID: 12800000, guid: f27e525f3bc083ad326f82eb8461a805, type: 3}
-  - {fileID: 12800000, guid: 58b20119af834e3834dd35ad3239fce3, type: 3}
+  - Noto Sans Medium
+  fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0
   ascentCalculationMode: 1

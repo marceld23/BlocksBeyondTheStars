@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
-FR/ES/PT/PL/TR/NL machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
+FR/ES/PT/PL/TR/NL/RU/UK/ZH/JA/KO machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -7536,6 +7536,23 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-10): Russian, Ukrainian, Chinese, Japanese, Korean + the non-Latin font pipeline (#886–#889, #891)
+
+The last five languages from the localization push, and the font work that unblocks them: Rajdhani
+covers Latin (+ Devanagari) only, so Cyrillic/CJK strings had no glyphs at all — the blocker recorded
+in all five issues. Now `UiKit.Font`'s Rajdhani carries a `fallbackFontReferences` chain (legacy
+TrueTypeFontImporter): **Noto Sans Medium** (full Latin/Greek/Cyrillic, 620 KB — covers ru/uk incl.
+ґ/є/і/ї) → **Noto Sans CJK SC/JP/KR Medium subsets** built with pyftsubset from exactly the glyphs the
+translations use (+ CJK punctuation U+3000-303F and fullwidth forms; 794/812/196 KB instead of ~16 MB
+each — the WebGL bundle grows ~2.4 MB, not ~50 MB). OFL license files ship next to the fonts like
+Rajdhani's. Locale files: 3048/3048 keys + story packs (68/68) each, `locale_report.py --check` clean;
+prompt carries per-language register hints (ru/uk informal, ja です/ます, ko 해요체). Full Step-4 wiring.
+⚠ Known limits, tracked in the issues at close: CHAT INPUT of CJK characters outside the subset shows
+tofu on WebGL (desktop falls back to OS fonts); native review + on-screen overflow spot-check pending —
+CJK/Cyrillic strings run long and the machine register needs a native ear before marketing the locales.
 
 ---
 

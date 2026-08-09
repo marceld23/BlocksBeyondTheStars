@@ -1010,6 +1010,31 @@ namespace BlocksBeyondTheStars.Client
                     bodyText = "Het laden van de spelgegevens is mislukt. Controleer je internetverbinding of de installatie en probeer het daarna opnieuw.";
                     retryText = "Opnieuw proberen";
                     break;
+                case "ru":
+                    titleText = "Не удалось загрузить контент";
+                    bodyText = "Не удалось загрузить данные игры. Проверь подключение к интернету или установку и попробуй ещё раз.";
+                    retryText = "Повторить";
+                    break;
+                case "uk":
+                    titleText = "Не вдалося завантажити вміст";
+                    bodyText = "Не вдалося завантажити дані гри. Перевір з'єднання з інтернетом або встановлення і спробуй ще раз.";
+                    retryText = "Спробувати ще раз";
+                    break;
+                case "zh":
+                    titleText = "内容加载失败";
+                    bodyText = "游戏数据加载失败。请检查网络连接或安装情况，然后重试。";
+                    retryText = "重试";
+                    break;
+                case "ja":
+                    titleText = "コンテンツを読み込めませんでした";
+                    bodyText = "ゲームデータの読み込みに失敗しました。インターネット接続またはインストールを確認して、もう一度試してください。";
+                    retryText = "再試行";
+                    break;
+                case "ko":
+                    titleText = "콘텐츠를 불러오지 못했습니다";
+                    bodyText = "게임 데이터를 불러오지 못했습니다. 인터넷 연결이나 설치 상태를 확인한 뒤 다시 시도해 주세요.";
+                    retryText = "다시 시도";
+                    break;
                 default:
                     titleText = "Content failed to load";
                     bodyText = "Loading the game data failed. Check your internet connection or the install, then try again.";

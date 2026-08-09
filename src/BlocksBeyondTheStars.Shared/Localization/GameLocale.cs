@@ -25,6 +25,11 @@ public enum GameLocale
     Polish,
     Turkish,
     Dutch,
+    Russian,
+    Ukrainian,
+    ChineseSimplified,
+    Japanese,
+    Korean,
 }
 
 public static class GameLocaleExtensions
@@ -43,6 +48,11 @@ public static class GameLocaleExtensions
         GameLocale.Polish => "pl",
         GameLocale.Turkish => "tr",
         GameLocale.Dutch => "nl",
+        GameLocale.Russian => "ru",
+        GameLocale.Ukrainian => "uk",
+        GameLocale.ChineseSimplified => "zh",
+        GameLocale.Japanese => "ja",
+        GameLocale.Korean => "ko",
         _ => "en",
     };
 
@@ -59,6 +69,11 @@ public static class GameLocaleExtensions
         GameLocale.Polish => "Polski",
         GameLocale.Turkish => "Türkçe",
         GameLocale.Dutch => "Nederlands",
+        GameLocale.Russian => "Русский",
+        GameLocale.Ukrainian => "Українська",
+        GameLocale.ChineseSimplified => "简体中文",
+        GameLocale.Japanese => "日本語",
+        GameLocale.Korean => "한국어",
         _ => locale.ToString(),
     };
 
@@ -126,6 +141,38 @@ public static class GameLocaleExtensions
             case "dutch":
             case "nederlands":
                 locale = GameLocale.Dutch;
+                return true;
+            case "ru":
+            case "ru-ru":
+            case "russian":
+            case "русский":
+                locale = GameLocale.Russian;
+                return true;
+            case "uk":
+            case "uk-ua":
+            case "ukrainian":
+            case "українська":
+                locale = GameLocale.Ukrainian;
+                return true;
+            case "zh":
+            case "zh-cn":
+            case "zh-hans":
+            case "chinese":
+            case "中文":
+            case "简体中文":
+                locale = GameLocale.ChineseSimplified;
+                return true;
+            case "ja":
+            case "ja-jp":
+            case "japanese":
+            case "日本語":
+                locale = GameLocale.Japanese;
+                return true;
+            case "ko":
+            case "ko-kr":
+            case "korean":
+            case "한국어":
+                locale = GameLocale.Korean;
                 return true;
             default:
                 locale = GameLocale.English;

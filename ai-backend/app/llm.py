@@ -55,6 +55,11 @@ _LANGUAGE_NAMES = {
     "pl": "Polish",
     "tr": "Turkish",
     "nl": "Dutch",
+    "ru": "Russian",
+    "uk": "Ukrainian",
+    "zh": "Simplified Chinese",
+    "ja": "Japanese",
+    "ko": "Korean",
 }
 
 
