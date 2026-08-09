@@ -13,6 +13,80 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.9] — 2026-08-09
+
+A small, sharp follow-up to the shaper release. The headline is pure building comfort: rotate
+**any** block before you place it — furniture included — with a ghost preview hovering in the
+world so you see exactly what a right-click will give you. Behind the scenes it closes two
+long-hunted save/spawn bugs — the base you built beside your ship no longer vanishes on
+reload, and fresh spawns stop waking up entombed at the world origin — and stretches the
+research tree so knowledge stays worth hunting past the first evening.
+
+### 🔄 Rotate any block before placing (#863, #866)
+
+- **Furniture obeys the rotate key.** Beds, campfires, rugs and flower pots turn with **R**
+  before placing, cycling Auto → four quarter turns → Auto. Yaw-only by design: the up-face
+  stays pinned, so furniture turns but never tips — sitting, healing, warmth and home-spawn
+  keep working exactly as before.
+- **A ghost shows what you'll get.** A translucent hologram-blue preview of the held form
+  hovers in the exact cell and orientation a right-click would place. It is built from the
+  same geometry the world mesher uses, so built-in shapes AND your own custom forms preview
+  true. Auto mode mirrors the server's derivation exactly; parked-ship cells get no ghost
+  (structure edits have their own rules).
+- **Rotation speaks human now.** The HUD toast says "Upright / Upside down / On its side ·
+  90°" instead of axis-speak ("+X · 90°"), localized in EN/DE/FR/ES. And while a rotatable
+  block is held, the controls hint appends "R rotate · Shift+R back" — the rotate key existed
+  before but was undiscoverable in-game.
+- **Shift+R cycles backwards.** One overshoot no longer costs a full lap through all 24
+  orientations.
+
+### 💾 The base beside your ship survives a reload now (#870, #871)
+
+- "Singleplayer doesn't save my game" — build beside the starter ship, quit, reload: the
+  build was gone. The save itself was written correctly and then **deleted on the next
+  join**: a one-time migration meant to erase legacy stamped ship hulls ran on **every**
+  placement of the landed ship (join, landing, respawn, ship switch …) and wiped all
+  persisted block edits in a box around the parked ship — footprint plus a margin ring,
+  and 8 blocks underground, exactly where a new player builds first (mined tunnels
+  refilled too). Now new worlds never run that cleanup at all (they can't carry legacy
+  hulls), and old saves clean **once per pad**, recorded in the world metadata — builds
+  placed afterwards are safe forever. Also fixed on the way: the chunk re-stream after a
+  cleanup skipped the box's max faces, the source of the lingering client-side ghost
+  blocks.
+
+### 🛬 Fresh spawns no longer wake up entombed at the world origin (#865, #867)
+
+- On every join, the client streamed position reports **before** it had processed the
+  server's spawn — from the scene-default transform near the world origin, falling through
+  unloaded terrain. The server trusted them and overwrote the freshly computed ship spawn
+  within ~100 ms; the buried-player rescue then found the player sealed in the origin column
+  and dug them out into a random cave, up to 10,000 blocks from their ship. This was the
+  root cause behind the void-fall reports on fresh worlds (#834). Fixed on both ends: the
+  client now freezes entirely (no gravity, no input, no movement reports) until it has
+  adopted its spawn, and the server arms a spawn-adoption gate after every authoritative
+  placement — join, travel landing, respawns, rescues — dropping far-away ghost reports
+  until the client proves it took the spawn. The server gate protects old clients too.
+
+### 🔬 Research pacing: the tree unlocks like a journey again (#862, #864)
+
+- The blueprint tree still unlocked too fast: knowledge thresholds were compressed (64 % of
+  blueprints at 20 or less), so a normal first session on the starter planet knowledge-satisfied
+  ~60 of 70 blueprints within 1–2 hours, leaving materials as the only brake. Thresholds are
+  now stretched nonlinearly: starter blueprints (≤ 10) stay exactly where they are, the
+  mid-tier moves ~×2.5 (15 → 40, 40 → 100), the top end ~×2.2 (100 → 220) — endgame now lands
+  around 200+ knowledge, matching the story-beat thresholds that already assumed the larger
+  scale. Data-only: prerequisite chains stay strictly monotonic, scan/tame/minigame income and
+  story pacing are untouched, and banked knowledge plus everything already unlocked stays
+  yours.
+
+### 🎨 Six blocks got their real faces (#868, #869)
+
+- Ladder, stairs, station core, trading post, mission board and storage container never had
+  a real texture — the atlas painted a flat procedural colour tile, and the inventory,
+  hotbar and crafting icons showed the same blank tile. All six now ship proper generated
+  textures, fixing the item icons and the in-world block faces in one pass — the same
+  treatment every other machine and furniture block already gets.
+
 ## [2026.8.8] — 2026-08-09
 
 The shaper release: design your own block shapes in a 3-D editor and build with forms nobody
@@ -2146,7 +2220,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...HEAD
+[2026.8.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...v2026.8.9
 [2026.8.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...v2026.8.8
 [2026.8.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...v2026.8.7
 [2026.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...v2026.8.6
