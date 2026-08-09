@@ -104,6 +104,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Website i18n tooling: Wix translation audit + import (2026-08-10, branch feat/wix-i18n-audit)
+`tools/wix-i18n/` — manage the website's translations via the Wix Multilingual REST APIs, bypassing
+Wix's machine translation. `audit_translations.py` (read-only) dumps schemas + per-locale contents and
+reports missing / partially translated / copied-not-translated / stale items per secondary locale;
+`import_translations.py` writes reviewed translations back (dry-run by default, `--apply` to write,
+large HTML via `textFile` refs); `extract_texts.py` prints source texts for translating. Content dumps
+and translations live in the gitignored `out/`. Findings 2026-08-10: the hidden `it` locale was missing
+the Mitmachen/Schul-AG/Datenschutz pages (translations prepared, pending review); most of the raw gap
+count is untranslated template leftovers (fake team/jobs/portfolio) that should be cleaned up, not
+translated. Page SEO meta + slugs are per-language but editor-only (not exposed via API).
+
 ### ★ Dutch (Nederlands) locale (#881, 2026-08-09, branch feat/nl-locale)
 Machine first pass per TRANSLATION_GUIDE Step 6: `data/locales/nl.json` (full main table) +
 `data/stories/vega_protocol/locales/nl.json`, generated with `tools/translate_locale.py nl`
