@@ -468,13 +468,29 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>True when a clip with this id exists (bundled recording or procedural fallback).</summary>
+        public bool Has(string id) => _clips.ContainsKey(id);
+
         /// <summary>Plays a 3D positional one-shot by clip name, with an optional pitch (creatures). When
-        /// <paramref name="echo"/> is set the source gets a cave reverb tail (item 21 — cave dwellers).</summary>
+        /// <paramref name="echo"/> is set the clip gets a cave reverb tail (item 21 — cave dwellers).
+        /// Cave reverb + underwater muffle are baked into the clip via <see cref="SampleKit"/> instead of
+        /// filter components — Unity Web silently ignores AudioReverbFilter/AudioLowPassFilter (#878), the
+        /// baked variant sounds the same on every platform.</summary>
         public void At(string id, Vector3 pos, float pitch = 1f, float vol = 1f, bool echo = false)
         {
             if (!_clips.TryGetValue(id, out var clip) || clip == null)
             {
                 return;
+            }
+
+            if (echo)
+            {
+                clip = SampleKit.CaveReverb(clip);
+            }
+
+            if (_submerged)
+            {
+                clip = SampleKit.Muffle(clip);
             }
 
             var go = new GameObject("sfx_" + id);
@@ -487,17 +503,6 @@ namespace BlocksBeyondTheStars.Client
             src.rolloffMode = AudioRolloffMode.Linear;   // B1: linear → truly silent past maxDistance
             src.pitch = pitch;
             src.volume = Mathf.Clamp01(vol * SfxVol());
-            if (echo)
-            {
-                var rev = go.AddComponent<AudioReverbFilter>();
-                rev.reverbPreset = AudioReverbPreset.Cave; // a dripping-cavern reverberant tail
-            }
-
-            if (_submerged)
-            {
-                go.AddComponent<AudioLowPassFilter>().cutoffFrequency = UnderwaterCutoff; // muffle 3D one-shots too
-            }
-
             src.Play();
             Destroy(go, clip.length / Mathf.Max(0.1f, pitch) + 0.2f);
         }
