@@ -711,6 +711,15 @@ namespace BlocksBeyondTheStars.Client
                 _hint.text += " · " + loc.Get("ui.hud.hint_fly");
             }
 
+            // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
+            // nothing else in the game ever said the key exists. Appended only while it applies, like the
+            // fly hint, so the always-on line stays short.
+            if (Game.HoldingRotatableBlock && _hint.text.Length > 0)
+            {
+                _hint.text += " · " + loc.Get("ui.hud.hint_rotate")
+                    .Replace("{key}", InputMap.Glyph(InputAction.RotateShape));
+            }
+
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on
             // foot inside the ship; from the flight view you press F to step inside).
