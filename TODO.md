@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
-FR/ES/NL machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
+FR/ES/PT/NL machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -104,7 +104,7 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
-### ★ Dutch (Nederlands) is the game's sixth language (#881, 2026-08-09, branch feat/nl-locale)
+### ★ Dutch (Nederlands) is the game's seventh language (#881, 2026-08-09, branch feat/nl-locale)
 Machine first pass per TRANSLATION_GUIDE Step 6: `data/locales/nl.json` (full main table) +
 `data/stories/vega_protocol/locales/nl.json`, generated with `tools/translate_locale.py nl`
 (the tool learned the `nl` code + "je/jij" tone rule). Wiring per Step 4: `GameLocale.Dutch`
@@ -112,6 +112,35 @@ Machine first pass per TRANSLATION_GUIDE Step 6: `data/locales/nl.json` (full ma
 default (`SystemLanguage.Dutch => "nl"`), AI-backend `_LANGUAGE_NAMES`, and a Dutch branch in the
 hardcoded content-error dialog. README language mentions updated. Above the 45 % picker bar, so
 Nederlands appears in the settings automatically.
+
+### ★ Body-paint follow-up: full-size per-face painting + inverted-mesh fix (2026-08-09, branch fix/avatar-body-paint-editor-and-winding)
+First playtest of #874 found two problems, both fixed:
+- **Editor was unusably small**: the whole strip on one 512-wide canvas = 4 px cells. Reworked to
+  paint **one 32×32 face at a time at the full 512×512** (16 px cells, same as the face editor), with
+  the part's faces STACKED as live click-to-select tiles right of the canvas (one tile column per limb
+  for arms/legs, headed Links/Rechts; active face named above the canvas and framed cyan). Tiles crop
+  the shared canvas texture via `RawImage.uvRect`, so they repaint live while drawing. **Clear** now
+  wipes only the active face in this mode.
+- **Painted parts rendered inside-out** ("hollow form", near face culled): the generated meshes'
+  triangle winding was inverted — with the BL/TL/TR/BR corner layout Unity needs (0,2,1)/(0,3,2),
+  not (0,1,2)/(0,2,3). Flipped in `PlayerAvatar.BuildPaintedMesh` (comment documents it).
+
+### ★ Creature voices enriched: per-call jitter, second takes, baked cave reverb (Web-safe) (#876/#877/#878/#879, 2026-08-09, branch feat/creature-sound-variants)
+Sampler-style variety for the fauna without touching the species-deterministic voice model:
+- **Per-utterance jitter** (`CreatureView`, `WorldEntities`): every idle/alert/attack/hurt/die cue
+  multiplies the species pitch by ±7 % (machines ±5 %) and the volume by ±15 % — no two utterances
+  are bit-identical any more. ~20 % of idle calls schedule a quieter offset "answer" call 0.4–0.9 s
+  later, reading as a second animal.
+- **26 new ElevenLabs assets** (#879): a `_2` second take for all 22 signature calls (picked 50/50
+  at call time via `ClientAudio.Has`) + 4 new habitat calls — `burble` (water/amphibian), `sizzle`
+  (lava), `keen` (air), `thrum` (cave). Pool growth re-rolls some species voices once (cosmetic).
+- **`SampleKit` baked DSP** (#877): cave reverb (small Schroeder, 4 combs + 2 allpasses, 0.9 s tail)
+  and the 680 Hz underwater muffle are rendered into cached runtime AudioClips (GetData → C# DSP →
+  Create/SetData) instead of filter components — fixing that **Unity Web silently ignores
+  AudioReverbFilter/AudioLowPassFilter** (#878): web players never heard the cave echo or the
+  underwater muffle on positional one-shots. One identical sound on every platform now; the global
+  2D bus low-pass (whole-mix underwater duck) remains desktop-only by design.
+>>>>>>> origin/main
 
 ### ★ Avatar body paint: torso, arms, legs and helmet are paintable like the face (#874, 2026-08-09, branch feature/avatar-body-paint)
 The pixel-face idea extended to the whole figure. Each part opens its own editor showing the part
@@ -7508,6 +7537,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-09): Brazilian Portuguese — full machine first pass + faster translate pipeline (#883)
+
+Portuguese joins FR/ES as a machine-first-pass language: `data/locales/pt.json` (3048/3048 keys, 100 %)
+and the VEGA-prologue story pack (68/68), generated with `tools/translate_locale.py` and clean under
+`locale_report.py --check`. Wiring per TRANSLATION_GUIDE Step 4: `GameLocale.Portuguese`
+(code/native name/parse), WebGL `StreamingAssetsCache` fallback manifest, first-run OS-language
+default (`SystemLanguage.Portuguese`), content-error dialog, and the AI backend's `_LANGUAGE_NAMES`
+so NPC lines answer in Portuguese. The picker offers it automatically (coverage ≥ 45 %). The
+translate tool itself got the speed pass that made this cheap: chunks now go out concurrently
+(`--workers`, default 4) and reasoning models are asked for `reasoning_effort: minimal`
+(`--effort`) — the 61-request full pass finishes in minutes instead of an hour. Native-speaker
+review still open (tracked in #883's checklist); wiki/What's-New/portal stay EN-fallback for now.
 
 ---
 
