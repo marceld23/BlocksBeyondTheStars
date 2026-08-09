@@ -733,12 +733,13 @@ separate unlock; admins can still disable it through server world rules.
   other player** (it's server-persistent, so the face follows you). The same editor is also available before you
   start, in the main-menu **Avatar Designer** (a **Pixel face** button there).
 - **Body paint**: the Character tab (and the Avatar Designer) also has **Paint torso / Paint arms / Paint legs /
-  Paint helmet** — the same pixel editor, but the canvas shows the part **unfolded into its side faces** with
-  separator lines and labels (Front | Right | Back | Left), so you can see exactly where each edge of the box
-  is. Arms and legs are painted **per limb**: two labelled rows, top = left, bottom = right (Front | Outer |
-  Back | Inner). The helmet's front stays open — your face always shows — and unpainted pixels keep the part's
-  chosen colour, so the colour buttons still work underneath a painting. Paintings are server-persistent and
-  visible to everyone, exactly like the face.
+  Paint helmet** — the same pixel editor, painting **one face of the part at a time at full size**. The part's
+  faces are stacked as small labelled **live tiles** beside the canvas (Front / Right / Back / Left; arms and
+  legs get one tile column per limb, headed Left/Right) — click a tile to paint that face, and the tiles update
+  while you draw so you always see the whole part. **Clear** wipes only the face you are on. The helmet's front
+  stays open — your face always shows — and unpainted pixels keep the part's chosen colour, so the colour
+  buttons still work underneath a painting. Paintings are server-persistent and visible to everyone, exactly
+  like the face.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop

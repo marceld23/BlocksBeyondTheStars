@@ -770,9 +770,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // Per cube face (order +x, −x, +y, −y, +z, −z): outward normal, the direction canvas-u grows in
-        // (r), and the direction canvas-v grows in (w). r×w = normal, which with the BL,TL,TR,BR corner
-        // order below yields Unity's clockwise front-face winding; the (r, w) choices make every face
+        // (r), and the direction canvas-v grows in (w). r×w = normal; the (r, w) choices make every face
         // appear as an outside viewer sees it (u to the viewer's right), matching the editor labels.
+        // The triangle winding for these corners is set in BuildPaintedMesh — see the note there.
         private static readonly Vector3[] FaceN = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
         private static readonly Vector3[] FaceR = { Vector3.back, Vector3.forward, Vector3.right, Vector3.right, Vector3.right, Vector3.left };
         private static readonly Vector3[] FaceW = { Vector3.up, Vector3.up, Vector3.back, Vector3.forward, Vector3.up, Vector3.up };
@@ -837,9 +837,12 @@ namespace BlocksBeyondTheStars.Client
                     uvs[v] = new Vector2(rect.xMin + Mathf.Clamp01(u) * rect.width, rect.yMin + Mathf.Clamp01(vv) * rect.height);
                 }
 
+                // Winding: BL→TR→TL / BL→BR→TR. The intuitive BL→TL→TR order renders BACK-facing in
+                // Unity here (playtest 2026-08-09: every painted part showed as a hollow shell with the
+                // near face culled) — with these corners the front face needs the reversed order.
                 int t = f * 6, b0 = f * 4;
-                tris[t] = b0; tris[t + 1] = b0 + 1; tris[t + 2] = b0 + 2;
-                tris[t + 3] = b0; tris[t + 4] = b0 + 2; tris[t + 5] = b0 + 3;
+                tris[t] = b0; tris[t + 1] = b0 + 2; tris[t + 2] = b0 + 1;
+                tris[t + 3] = b0; tris[t + 4] = b0 + 3; tris[t + 5] = b0 + 2;
             }
 
             var mesh = new Mesh { vertices = verts, normals = normals, uv = uvs, triangles = tris };

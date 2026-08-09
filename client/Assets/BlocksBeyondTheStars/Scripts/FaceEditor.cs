@@ -36,28 +36,38 @@ namespace BlocksBeyondTheStars.Client
         public Action<string, string> OnShare;  // paint host: put (pixels, name) on the clipboard as a share code
         public Func<(string Pixels, string Name)?> OnImport; // paint host: read a share code off the clipboard
 
-        // Body-paint hosts (#874): a NON-square canvas showing a part unfolded into a strip of 32×32 face
-        // regions with separator lines + labels ("Vorne | Rechts | Hinten | Links"), and custom payload
-        // codecs (the wire format is concatenated face chunks, not the canvas's row-major order). All
-        // default to the classic square face behaviour, so the three existing hosts are untouched.
-        public int GridW;                       // canvas cells wide (0 = square GridSize)
-        public int GridH;                       // canvas cells high (0 = square GridSize)
+        // Body-paint hosts (#874): a NON-square grid holding a part's unfolded 32×32 face regions, and
+        // custom payload codecs (the wire format is concatenated face chunks, not the grid's row-major
+        // order). The editor paints ONE region at a time at full canvas size (16 px cells, same as the
+        // face) and shows all regions STACKED as live click-to-select tiles beside the canvas — a whole
+        // strip squeezed onto one canvas gave 4 px cells, far too small to draw on (playtest 2026-08-09).
+        // All of this defaults off, so the three classic square hosts are untouched.
+        public int GridW;                       // grid cells wide (0 = square GridSize)
+        public int GridH;                       // grid cells high (0 = square GridSize)
         public string TitleKey = "ui.face.title";
         public string HintKey = "ui.face.hint";
-        public Func<string, int[]> DecodeGrid;  // payload → canvas grid (length GridW×GridH)
-        public Func<int[], string> EncodeGrid;  // canvas grid → payload
-        public string[] ColumnLabelKeys;        // one label per 32-cell column block (strip face names)
+        public Func<string, int[]> DecodeGrid;  // payload → grid (length GridW×GridH)
+        public Func<int[], string> EncodeGrid;  // grid → payload
+        public string[] ColumnLabelKeys;        // one label per 32-cell column block (region face names)
         public string[] RowLabelKeys;           // one label per 32-cell row block (Links/Rechts), or null
 
         private int _size;
         private int _w, _h;
-        private float _cell; // display pixels per canvas cell (512 / width)
         private int[] _grid;
         private string _name = string.Empty;
         private int _brush = 1; // current palette index (0 = eraser/transparent)
 
+        // Region mode (body-paint hosts): the grid is a row-major arrangement of 32×32 face regions;
+        // the main canvas crops the shared texture to the ACTIVE region via RawImage.uvRect, so tiles
+        // and canvas both update live from the same SetPixel.
+        private const int RegionCells = 32;
+        private bool RegionMode => ColumnLabelKeys != null && ColumnLabelKeys.Length > 0;
+        private int _regionCols, _regionRows;
+        private int _activeRegion;
+        private Text _activeRegionLabel;
+        private Image[] _regionFrames; // tile highlight frames, indexed by region
+
         private Texture2D _tex;
-        private Texture2D _templateTex; // separator-line overlay (body-paint hosts)
         private RectTransform _canvasRt;
         private RawImage _canvas;
 
@@ -76,6 +86,8 @@ namespace BlocksBeyondTheStars.Client
             _size = Mathf.Clamp(GridSize, 8, 64);
             _w = GridW > 0 ? Mathf.Clamp(GridW, 8, 256) : _size;
             _h = GridH > 0 ? Mathf.Clamp(GridH, 8, 256) : _size;
+            _regionCols = Mathf.Max(1, _w / RegionCells);
+            _regionRows = Mathf.Max(1, _h / RegionCells);
             _grid = new int[_w * _h];
             _tex = new Texture2D(_w, _h, TextureFormat.RGBA32, false)
             {
@@ -92,7 +104,6 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_ui != null) Destroy(_ui.gameObject);
             if (_tex != null) Destroy(_tex);
-            if (_templateTex != null) Destroy(_templateTex);
             OnClosed?.Invoke();
         }
 
@@ -113,8 +124,20 @@ namespace BlocksBeyondTheStars.Client
             float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
             float u = Mathf.Clamp01(lp.x / w);
             float fromTop = Mathf.Clamp01(-lp.y / h);
-            int gx = Mathf.Clamp(Mathf.RoundToInt(u * (_w - 1)), 0, _w - 1);
-            int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_h - 1)), 0, _h - 1); // top row = gy 0
+            int gx, gy;
+            if (RegionMode)
+            {
+                // The canvas shows only the active 32×32 region — map into its cell block.
+                gx = (_activeRegion % _regionCols) * RegionCells
+                    + Mathf.Clamp(Mathf.RoundToInt(u * (RegionCells - 1)), 0, RegionCells - 1);
+                gy = (_activeRegion / _regionCols) * RegionCells
+                    + Mathf.Clamp(Mathf.RoundToInt(fromTop * (RegionCells - 1)), 0, RegionCells - 1);
+            }
+            else
+            {
+                gx = Mathf.Clamp(Mathf.RoundToInt(u * (_w - 1)), 0, _w - 1);
+                gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_h - 1)), 0, _h - 1); // top row = gy 0
+            }
 
             // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
             // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
@@ -180,22 +203,29 @@ namespace BlocksBeyondTheStars.Client
 
             // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
             // false, so it never actually blocked clicks reaching the menu behind — AddModalDim does.
-            // The paint host gets a wider panel: the design-library column sits right of the canvas.
-            float panelW = hasLibrary ? 950f : 700f;
-            var (_, panel) = UiKit.AddModalOverlay(root, hasLibrary ? 485f : 610f, 60f, panelW, 960f);
+            // Paint + body-paint hosts get a wider panel: a column sits right of the canvas (the design
+            // library, or the stacked face-region tiles).
+            bool wide = hasLibrary || RegionMode;
+            float panelW = wide ? 950f : 700f;
+            var (_, panel) = UiKit.AddModalOverlay(root, wide ? 485f : 610f, 60f, panelW, 960f);
             UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L(TitleKey), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            // Paint surface (point-filtered → crisp big pixels). Non-square strip layouts keep square
-            // CELLS: the width stays 512, the height follows the aspect (a 128×32 strip is 512×128).
-            _cell = 512f / _w;
-            float canvasH = _cell * _h;
+            // Paint surface (point-filtered → crisp big pixels), always the full 512×512 — in region mode
+            // it crops the shared texture to the active 32×32 face via uvRect, so every face paints at the
+            // same 16 px cell size as the classic face editor.
             var canvasGo = new GameObject("FaceCanvas", typeof(RectTransform));
             canvasGo.transform.SetParent(panel, false);
-            _canvasRt = UiKit.Place(canvasGo, 94f, 64f, 512f, canvasH);
+            _canvasRt = UiKit.Place(canvasGo, 94f, 64f, 512f, 512f);
             _canvas = canvasGo.AddComponent<RawImage>();
             _canvas.texture = _tex;
 
-            BuildTemplateOverlay(panel, canvasH);
+            if (RegionMode)
+            {
+                _activeRegionLabel = UiKit.AddText(panel, 94f, 40f, 512f, 22f, string.Empty, 15,
+                    UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Bold);
+                BuildRegionColumn(panel);
+                SetActiveRegion(0);
+            }
 
             // Palette: colours 1..N then an eraser (index 0).
             UiKit.AddText(panel, 24f, 592f, 400f, 24f, L("ui.face.palette"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -219,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Buttons.
             UiKit.AddButton(panel, 24f, 832f, 220f, 56f, L("ui.face.apply"), Apply);
-            UiKit.AddButton(panel, 260f, 832f, 180f, 56f, L("ui.face.clear"), () => { Array.Clear(_grid, 0, _grid.Length); RenderAll(); });
+            UiKit.AddButton(panel, 260f, 832f, 180f, 56f, L("ui.face.clear"), ClearCanvas);
             UiKit.AddButton(panel, 456f, 832f, 220f, 56f, L("ui.menu.back"), Close);
 
             UiKit.AddText(panel, 24f, 904f, panelW - 48f, 24f, L(HintKey), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -436,96 +466,131 @@ namespace BlocksBeyondTheStars.Client
             if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one * 1.18f;
         }
 
-        /// <summary>
-        /// The unfold template for the body-paint hosts (#874): separator lines every 32 cells (the fold
-        /// edges between the box faces the player asked to "see where the side edges are"), a face label
-        /// above each column block, and a limb label (Links/Rechts) left of each row block. Drawn as an
-        /// overlay RawImage so the lines sit ON the canvas without being paintable pixels.
-        /// </summary>
-        private void BuildTemplateOverlay(Transform panel, float canvasH)
+        // ── region mode (body-paint hosts, #874) ─────────────────────────────────────────────────
+
+        /// <summary>Texture-space UV rect of one 32×32 region (grid row 0 = top → high v).</summary>
+        private Rect RegionUvRect(int region)
         {
-            if (ColumnLabelKeys == null || ColumnLabelKeys.Length == 0)
+            int col = region % _regionCols, row = region / _regionCols;
+            return new Rect(
+                col * (float)RegionCells / _w,
+                (_h - (row + 1) * RegionCells) / (float)_h,
+                (float)RegionCells / _w,
+                (float)RegionCells / _h);
+        }
+
+        /// <summary>Human label of a region: the face name, prefixed with the limb ("Links · Vorne").</summary>
+        private string RegionLabel(int region)
+        {
+            int col = region % _regionCols, row = region / _regionCols;
+            string label = L(ColumnLabelKeys[Mathf.Min(col, ColumnLabelKeys.Length - 1)]);
+            if (RowLabelKeys != null && _regionRows > 1)
             {
-                return; // square face / block-paint hosts: no template
+                label = L(RowLabelKeys[Mathf.Min(row, RowLabelKeys.Length - 1)]) + " · " + label;
             }
 
-            const int block = 32; // cells per face region (BodyPaintKit.Face)
-            int texW = 512, texH = Mathf.RoundToInt(canvasH);
-            var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, false)
-            {
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
+            return label;
+        }
 
-            var clear = new Color(0f, 0f, 0f, 0f);
-            var line = new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.85f);
-            var pixels = new Color[texW * texH];
-            for (int i = 0; i < pixels.Length; i++)
+        /// <summary>Selects the face region the main canvas paints: crops the canvas onto it, names it in
+        /// the header, and highlights its tile in the column.</summary>
+        private void SetActiveRegion(int region)
+        {
+            _activeRegion = Mathf.Clamp(region, 0, _regionCols * _regionRows - 1);
+            if (_canvas != null)
             {
-                pixels[i] = clear;
+                _canvas.uvRect = RegionUvRect(_activeRegion);
             }
 
-            void VLine(int x)
+            if (_activeRegionLabel != null)
             {
-                for (int y = 0; y < texH; y++)
+                _activeRegionLabel.text = RegionLabel(_activeRegion);
+            }
+
+            if (_regionFrames != null)
+            {
+                for (int i = 0; i < _regionFrames.Length; i++)
                 {
-                    for (int dx = 0; dx < 2 && x + dx < texW; dx++)
+                    if (_regionFrames[i] != null)
                     {
-                        pixels[y * texW + x + dx] = line;
+                        _regionFrames[i].color = i == _activeRegion ? UiKit.Cyan : UiKit.PanelFill;
                     }
                 }
             }
+        }
 
-            void HLine(int y)
+        /// <summary>
+        /// The unfolded part as a column of live tiles right of the canvas — the faces STACKED under each
+        /// other (one column per limb for arms/legs, headed Links/Rechts), each tile a labelled button that
+        /// makes its face the active paint target. The tiles share the canvas texture (cropped via uvRect),
+        /// so they repaint live while drawing — the whole-part overview the strip canvas used to give,
+        /// without shrinking the paint surface.
+        /// </summary>
+        private void BuildRegionColumn(Transform panel)
+        {
+            const float tile = 112f, labelH = 16f, gap = 8f, colGap = 24f;
+            float baseX = 660f;
+            float baseY = _regionRows > 1 ? 88f : 64f; // leave room for the limb headers
+            _regionFrames = new Image[_regionCols * _regionRows];
+
+            for (int row = 0; row < _regionRows; row++)
             {
-                for (int x = 0; x < texW; x++)
+                float x = baseX + row * (tile + colGap);
+                if (_regionRows > 1 && RowLabelKeys != null && row < RowLabelKeys.Length)
                 {
-                    for (int dy = 0; dy < 2 && y + dy < texH; dy++)
-                    {
-                        pixels[(y + dy) * texW + x] = line;
-                    }
+                    UiKit.AddText(panel, x, 64f, tile, 20f, L(RowLabelKeys[row]), 14, UiKit.CyanDim,
+                        TextAnchor.MiddleCenter, FontStyle.Bold);
+                }
+
+                for (int col = 0; col < _regionCols; col++)
+                {
+                    int region = row * _regionCols + col;
+                    float y = baseY + col * (labelH + tile + gap);
+                    UiKit.AddText(panel, x, y, tile, labelH, L(ColumnLabelKeys[Mathf.Min(col, ColumnLabelKeys.Length - 1)]),
+                        12, UiKit.CyanDim, TextAnchor.MiddleCenter);
+
+                    // Highlight frame behind the tile; the tile itself is a click-to-select RawImage button.
+                    var frameGo = new GameObject("RegionFrame", typeof(RectTransform));
+                    frameGo.transform.SetParent(panel, false);
+                    UiKit.Place(frameGo, x - 3f, y + labelH - 3f, tile + 6f, tile + 6f);
+                    var frame = frameGo.AddComponent<Image>();
+                    frame.sprite = UiKit.SolidSprite;
+                    frame.raycastTarget = false;
+                    _regionFrames[region] = frame;
+
+                    var tileGo = new GameObject("RegionTile", typeof(RectTransform));
+                    tileGo.transform.SetParent(panel, false);
+                    UiKit.Place(tileGo, x, y + labelH, tile, tile);
+                    var img = tileGo.AddComponent<RawImage>();
+                    img.texture = _tex;
+                    img.uvRect = RegionUvRect(region);
+                    var btn = tileGo.AddComponent<Button>();
+                    btn.transition = Selectable.Transition.None;
+                    btn.targetGraphic = img;
+                    int captured = region;
+                    btn.onClick.AddListener(() => SetActiveRegion(captured));
                 }
             }
+        }
 
-            for (int cx = 0; cx <= _w; cx += block)
+        /// <summary>Clear = what you see: the whole canvas for the classic hosts, but only the ACTIVE face
+        /// region in region mode — wiping all faces of a part because you wanted to redo one would hurt.</summary>
+        private void ClearCanvas()
+        {
+            if (RegionMode)
             {
-                VLine(Mathf.Min(Mathf.RoundToInt(cx * _cell), texW - 2));
-            }
-
-            for (int cy = 0; cy <= _h; cy += block)
-            {
-                HLine(Mathf.Min(Mathf.RoundToInt(cy * _cell), texH - 2));
-            }
-
-            tex.SetPixels(pixels);
-            tex.Apply();
-            _templateTex = tex;
-
-            var go = new GameObject("PaintTemplate", typeof(RectTransform));
-            go.transform.SetParent(panel, false);
-            UiKit.Place(go, 94f, 64f, 512f, canvasH);
-            var img = go.AddComponent<RawImage>();
-            img.texture = tex;
-            img.raycastTarget = false; // clicks must reach the canvas below
-
-            // Face labels above each column block (both limb rows share the same face order).
-            float blockW = block * _cell;
-            for (int i = 0; i < ColumnLabelKeys.Length && i * block < _w; i++)
-            {
-                UiKit.AddText(panel, 94f + i * blockW, 40f, blockW, 22f, L(ColumnLabelKeys[i]), 13,
-                    UiKit.CyanDim, TextAnchor.MiddleCenter);
-            }
-
-            // Limb labels (Links/Rechts) left of each row block.
-            if (RowLabelKeys != null)
-            {
-                float blockH = block * _cell;
-                for (int i = 0; i < RowLabelKeys.Length && i * block < _h; i++)
+                int col = (_activeRegion % _regionCols) * RegionCells, row = (_activeRegion / _regionCols) * RegionCells;
+                for (int gy = row; gy < row + RegionCells; gy++)
                 {
-                    UiKit.AddText(panel, 8f, 64f + i * blockH, 82f, blockH, L(RowLabelKeys[i]), 13,
-                        UiKit.CyanDim, TextAnchor.MiddleRight);
+                    Array.Clear(_grid, gy * _w + col, RegionCells);
                 }
             }
+            else
+            {
+                Array.Clear(_grid, 0, _grid.Length);
+            }
+
+            RenderAll();
         }
 
         private void Apply()
