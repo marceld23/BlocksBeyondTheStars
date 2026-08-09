@@ -104,6 +104,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Research pacing: blueprint knowledge thresholds stretched nonlinearly (#862, 2026-08-09, branch fix/blueprint-knowledge-pacing)
+Playtests kept showing the tech tree emptying too fast. Knowledge is a permanent **threshold** (never
+spent — "item 11"), and the thresholds were compressed: median `knowledgeCost` 15, 64% ≤ 20, while a
+normal first session on the starter planet pays ~40–80 knowledge from first-time scans alone and a single
+3-star data-cube minigame pays 15. Result: ~60 of 70 blueprints were knowledge-satisfied within 1–2 hours,
+leaving materials as the only brake.
+
+**Fix (data-only, `data/blueprints.json`):** stretch the curve nonlinearly — ≤ 10 unchanged (starter tools
+stay snappy), the 12–40 band ~×2.5 (15→40, 25→65, 40→100), the 60–100 top tier ~×2.2 (60→140, 100→220).
+44 of 70 entries rewritten; prerequisite chains stay strictly monotonic (enforced by
+`CraftingConsistencyTests`); endgame now lands around 200+, matching the story-beat knowledge thresholds
+(up to 204) that already assumed a larger scale. Income rates, story pacing and trade-teaching rules are
+untouched. `ScanningTests` now reads the detoxifier cost from content instead of hardcoding 16.
+
 ### ★ Diving made possible: the entombed rescue no longer fishes swimmers out (#858, 2026-08-09, branch fix/swim-void-rescue)
 Wading into 2+ blocks of water, you sank in and **instantly popped back onto the surface** — once per second,
 with *"You were stuck in the rock — dug out."* The swim code was never at fault: `water` carries no

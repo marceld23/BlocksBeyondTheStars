@@ -336,7 +336,7 @@ public sealed class ScanningTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Eng");
-            // detoxifier unlockCost: data_fragment x2, iron_plate x12, cable x4; knowledgeCost 16.
+            // detoxifier unlockCost: data_fragment x2, iron_plate x12, cable x4.
             p.State.Inventory.Add("data_fragment", 2, 99);
             p.State.Inventory.Add("iron_plate", 12, 99);
             p.State.Inventory.Add("cable", 4, 99);
@@ -347,10 +347,11 @@ public sealed class ScanningTests : IDisposable
 
             // Research enough, then it unlocks. Knowledge is a permanent THRESHOLD (item 11): it gates the
             // unlock but is NOT spent — only the research materials are consumed.
-            p.State.KnowledgePoints = 16;
+            int cost = _content.GetBlueprint("detoxifier")!.KnowledgeCost;
+            p.State.KnowledgePoints = cost;
             server.UnlockBlueprint("Eng", "detoxifier");
             Assert.Contains("detoxifier", p.State.UnlockedBlueprints);
-            Assert.Equal(16, p.State.KnowledgePoints);             // knowledge never goes away
+            Assert.Equal(cost, p.State.KnowledgePoints);           // knowledge never goes away
             Assert.Equal(0, p.State.Inventory.CountOf("cable"));   // but the materials are spent
         }
     }

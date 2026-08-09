@@ -16,17 +16,17 @@
   },
   {
     "key": "heal_tank", "nameKey": "blueprint.heal_tank.name", "descriptionKey": "blueprint.heal_tank.desc",
-    "category": "Tools", "prerequisites": [ "field_medkit" ], "knowledgeCost": 12,
+    "category": "Tools", "prerequisites": [ "field_medkit" ], "knowledgeCost": 30,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "glass", "count": 4 } ]
   },
   {
     "key": "stasis_projector", "nameKey": "blueprint.stasis_projector.name", "descriptionKey": "blueprint.stasis_projector.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 14,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 35,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 } ]
   },
   {
     "key": "terrain_blaster", "nameKey": "blueprint.terrain_blaster.name", "descriptionKey": "blueprint.terrain_blaster.desc",
-    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 20,
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 6 }, { "item": "carbide", "count": 2 } ]
   },
   {
@@ -36,7 +36,7 @@
   },
   {
     "key": "creature_translator", "nameKey": "blueprint.creature_translator.name", "descriptionKey": "blueprint.creature_translator.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 12,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 30,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 2 } ]
   },
   {
@@ -46,12 +46,12 @@
   },
   {
     "key": "beam_block", "nameKey": "blueprint.beam_block.name", "descriptionKey": "blueprint.beam_block.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 18,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 } ]
   },
   {
     "key": "speeder", "nameKey": "blueprint.speeder.name", "descriptionKey": "blueprint.speeder.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 30,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 80,
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 } ]
   },
   {
@@ -76,7 +76,7 @@
   },
   {
     "key": "thermal_binoculars", "nameKey": "blueprint.thermal_binoculars.name", "descriptionKey": "blueprint.thermal_binoculars.desc",
-    "category": "Tools", "prerequisites": [ "binoculars" ], "knowledgeCost": 15,
+    "category": "Tools", "prerequisites": [ "binoculars" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 1 } ]
   },
   {
@@ -86,27 +86,27 @@
   },
   {
     "key": "refinery", "nameKey": "blueprint.refinery.name", "descriptionKey": "blueprint.refinery.desc",
-    "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_1" ], "knowledgeCost": 15,
+    "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_1" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "detoxifier", "nameKey": "blueprint.detoxifier.name", "descriptionKey": "blueprint.detoxifier.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 16,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 12 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "matter_forge", "nameKey": "blueprint.matter_forge.name", "descriptionKey": "blueprint.matter_forge.desc",
-    "category": "ShipExpansion", "prerequisites": [ "refinery" ], "knowledgeCost": 35,
+    "category": "ShipExpansion", "prerequisites": [ "refinery" ], "knowledgeCost": 90,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "circuit_board", "count": 3 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "matter_resynth", "nameKey": "blueprint.matter_resynth.name", "descriptionKey": "blueprint.matter_resynth.desc",
-    "category": "ShipExpansion", "prerequisites": [ "matter_forge" ], "knowledgeCost": 80,
+    "category": "ShipExpansion", "prerequisites": [ "matter_forge" ], "knowledgeCost": 180,
     "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "circuit_board", "count": 4 }, { "item": "power_cell", "count": 2 } ]
   },
   {
     "key": "tractor_beam", "nameKey": "blueprint.tractor_beam.name", "descriptionKey": "blueprint.tractor_beam.desc",
-    "category": "ShipExpansion", "prerequisites": [ "docking_module" ], "knowledgeCost": 25,
+    "category": "ShipExpansion", "prerequisites": [ "docking_module" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
@@ -121,12 +121,12 @@
   },
   {
     "key": "jump_generator", "nameKey": "blueprint.jump_generator.name", "descriptionKey": "blueprint.jump_generator.desc",
-    "category": "ShipExpansion", "prerequisites": [ "radar_array" ], "knowledgeCost": 35,
+    "category": "ShipExpansion", "prerequisites": [ "radar_array" ], "knowledgeCost": 90,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "energy_cell_1", "count": 6 } ]
   },
   {
     "key": "radar_array", "nameKey": "blueprint.radar_array.name", "descriptionKey": "blueprint.radar_array.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 18,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 } ]
   },
   {
@@ -136,82 +136,82 @@
   },
   {
     "key": "shield_generator", "nameKey": "blueprint.shield_generator.name", "descriptionKey": "blueprint.shield_generator.desc",
-    "category": "ShipDefense", "prerequisites": [ "hull_plating" ], "knowledgeCost": 20,
+    "category": "ShipDefense", "prerequisites": [ "hull_plating" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "asteroid_breaker", "nameKey": "blueprint.asteroid_breaker.name", "descriptionKey": "blueprint.asteroid_breaker.desc",
-    "category": "ShipWeapon", "prerequisites": [], "knowledgeCost": 12,
+    "category": "ShipWeapon", "prerequisites": [], "knowledgeCost": 30,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 6 } ]
   },
   {
     "key": "ship_cannon_1", "nameKey": "blueprint.ship_cannon_1.name", "descriptionKey": "blueprint.ship_cannon_1.desc",
-    "category": "ShipWeapon", "prerequisites": [ "hull_plating" ], "knowledgeCost": 15,
+    "category": "ShipWeapon", "prerequisites": [ "hull_plating" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "laser_cannon_2", "nameKey": "blueprint.laser_cannon_2.name", "descriptionKey": "blueprint.laser_cannon_2.desc",
-    "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1" ], "knowledgeCost": 30,
+    "category": "ShipWeapon", "prerequisites": [ "ship_cannon_1" ], "knowledgeCost": 80,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 15 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "ship_hauler", "nameKey": "blueprint.ship_hauler.name", "descriptionKey": "blueprint.ship_hauler.desc",
-    "category": "Ship", "prerequisites": [ "cargo_expansion_1", "docking_module" ], "knowledgeCost": 25,
+    "category": "Ship", "prerequisites": [ "cargo_expansion_1", "docking_module" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 } ]
   },
   {
     "key": "ship_scout", "nameKey": "blueprint.ship_scout.name", "descriptionKey": "blueprint.ship_scout.desc",
-    "category": "Ship", "prerequisites": [ "docking_module" ], "knowledgeCost": 20,
+    "category": "Ship", "prerequisites": [ "docking_module" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "ship_corvette", "nameKey": "blueprint.ship_corvette.name", "descriptionKey": "blueprint.ship_corvette.desc",
-    "category": "Ship", "prerequisites": [ "docking_module" ], "knowledgeCost": 25,
+    "category": "Ship", "prerequisites": [ "docking_module" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 11 }, { "item": "cable", "count": 5 } ]
   },
   {
     "key": "ship_hammerhead", "nameKey": "blueprint.ship_hammerhead.name", "descriptionKey": "blueprint.ship_hammerhead.desc",
-    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ], "knowledgeCost": 60,
+    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ], "knowledgeCost": 140,
     "unlockCost": [ { "item": "data_fragment", "count": 6 }, { "item": "titanium_plate", "count": 18 }, { "item": "steel", "count": 4 } ]
   },
   {
     "key": "ship_courier", "nameKey": "blueprint.ship_courier.name", "descriptionKey": "blueprint.ship_courier.desc",
-    "category": "Ship", "prerequisites": [ "ship_scout" ], "knowledgeCost": 35,
+    "category": "Ship", "prerequisites": [ "ship_scout" ], "knowledgeCost": 90,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "light_alloy", "count": 4 } ]
   },
   {
     "key": "ship_thunderbolt", "nameKey": "blueprint.ship_thunderbolt.name", "descriptionKey": "blueprint.ship_thunderbolt.desc",
-    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ], "knowledgeCost": 70,
+    "category": "Ship", "prerequisites": [ "ship_corvette", "ship_cannon_1" ], "knowledgeCost": 160,
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 14 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "ship_deathblock", "nameKey": "blueprint.ship_deathblock.name", "descriptionKey": "blueprint.ship_deathblock.desc",
-    "category": "Ship", "prerequisites": [ "ship_hammerhead" ], "knowledgeCost": 100,
+    "category": "Ship", "prerequisites": [ "ship_hammerhead" ], "knowledgeCost": 220,
     "unlockCost": [ { "item": "data_fragment", "count": 8 }, { "item": "titanium_plate", "count": 20 }, { "item": "steel", "count": 6 } ]
   },
   {
     "key": "stealth_suit", "nameKey": "blueprint.stealth_suit.name", "descriptionKey": "blueprint.stealth_suit.desc",
-    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 40,
+    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 100,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "jetpack", "nameKey": "blueprint.jetpack.name", "descriptionKey": "blueprint.jetpack.desc",
-    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 60,
+    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 140,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "energy_cell_1", "count": 2 } ]
   },
   {
     "key": "advanced_scanner", "nameKey": "blueprint.advanced_scanner.name", "descriptionKey": "blueprint.advanced_scanner.desc",
-    "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 25,
+    "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "mining_beam", "nameKey": "blueprint.mining_beam.name", "descriptionKey": "blueprint.mining_beam.desc",
-    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 35,
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 90,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "diamond_drill", "nameKey": "blueprint.diamond_drill.name", "descriptionKey": "blueprint.diamond_drill.desc",
-    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 70,
+    "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 160,
     "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 8 }, { "item": "diamond", "count": 1 } ]
   },
   {
@@ -236,7 +236,7 @@
   },
   {
     "key": "oxygen_tank_3", "nameKey": "blueprint.oxygen_tank_3.name", "descriptionKey": "blueprint.oxygen_tank_3.desc",
-    "category": "Suit", "prerequisites": [ "oxygen_tank_2" ], "knowledgeCost": 20,
+    "category": "Suit", "prerequisites": [ "oxygen_tank_2" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "glass", "count": 5 } ]
   },
   {
@@ -251,12 +251,12 @@
   },
   {
     "key": "suit_liner_2", "nameKey": "blueprint.suit_liner_2.name", "descriptionKey": "blueprint.suit_liner_2.desc",
-    "category": "Suit", "prerequisites": [ "suit_liner_1" ], "knowledgeCost": 15,
+    "category": "Suit", "prerequisites": [ "suit_liner_1" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "carbon_composite", "count": 2 } ]
   },
   {
     "key": "suit_liner_3", "nameKey": "blueprint.suit_liner_3.name", "descriptionKey": "blueprint.suit_liner_3.desc",
-    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 25,
+    "category": "Suit", "prerequisites": [ "suit_liner_2" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 2 } ]
   },
   {
@@ -266,27 +266,27 @@
   },
   {
     "key": "system_radio", "nameKey": "blueprint.system_radio.name", "descriptionKey": "blueprint.system_radio.desc",
-    "category": "Production", "prerequisites": [ "comm_radio" ], "knowledgeCost": 15,
+    "category": "Production", "prerequisites": [ "comm_radio" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "titanium_plate", "count": 4 }, { "item": "data_fragment", "count": 2 } ]
   },
   {
     "key": "galaxy_radio", "nameKey": "blueprint.galaxy_radio.name", "descriptionKey": "blueprint.galaxy_radio.desc",
-    "category": "Production", "prerequisites": [ "system_radio" ], "knowledgeCost": 40,
+    "category": "Production", "prerequisites": [ "system_radio" ], "knowledgeCost": 100,
     "unlockCost": [ { "item": "titanium_plate", "count": 8 }, { "item": "data_fragment", "count": 5 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "radar_scanner", "nameKey": "blueprint.radar_scanner.name", "descriptionKey": "blueprint.radar_scanner.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 20,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "suit_teleporter", "nameKey": "blueprint.suit_teleporter.name", "descriptionKey": "blueprint.suit_teleporter.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 40,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 100,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "oxygen_extractor", "nameKey": "blueprint.oxygen_extractor.name", "descriptionKey": "blueprint.oxygen_extractor.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 18,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 10 }, { "item": "cable", "count": 5 } ]
   },
   {
@@ -301,7 +301,7 @@
   },
   {
     "key": "plasma_sword", "nameKey": "blueprint.plasma_sword.name", "descriptionKey": "blueprint.plasma_sword.desc",
-    "category": "Weapon", "prerequisites": [ "vibro_knife" ], "knowledgeCost": 25,
+    "category": "Weapon", "prerequisites": [ "vibro_knife" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
@@ -311,27 +311,27 @@
   },
   {
     "key": "laser_pistol", "nameKey": "blueprint.laser_pistol.name", "descriptionKey": "blueprint.laser_pistol.desc",
-    "category": "Weapon", "prerequisites": [ "gauss_pistol" ], "knowledgeCost": 25,
+    "category": "Weapon", "prerequisites": [ "gauss_pistol" ], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 5 } ]
   },
   {
     "key": "plasma_blaster", "nameKey": "blueprint.plasma_blaster.name", "descriptionKey": "blueprint.plasma_blaster.desc",
-    "category": "Weapon", "prerequisites": [ "laser_pistol" ], "knowledgeCost": 60,
+    "category": "Weapon", "prerequisites": [ "laser_pistol" ], "knowledgeCost": 140,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 }, { "item": "cable", "count": 8 } ]
   },
   {
     "key": "ai_core_mk2", "nameKey": "blueprint.ai_core_mk2.name", "descriptionKey": "blueprint.ai_core_mk2.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 25,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 65,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "ai_core_mk3", "nameKey": "blueprint.ai_core_mk3.name", "descriptionKey": "blueprint.ai_core_mk3.desc",
-    "category": "ShipExpansion", "prerequisites": [ "ai_core_mk2" ], "knowledgeCost": 90,
+    "category": "ShipExpansion", "prerequisites": [ "ai_core_mk2" ], "knowledgeCost": 200,
     "unlockCost": [ { "item": "data_fragment", "count": 10 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 12 } ]
   },
   {
     "key": "station_vendor", "nameKey": "blueprint.station_vendor.name", "descriptionKey": "blueprint.station_vendor.desc",
-    "category": "Station", "prerequisites": [ "station_container" ], "knowledgeCost": 15,
+    "category": "Station", "prerequisites": [ "station_container" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 2 }, { "item": "metal_panel", "count": 6 } ]
   },
   {
