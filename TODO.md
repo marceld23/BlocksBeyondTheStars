@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
-FR/ES machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
+FR/ES/PT machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -7527,6 +7527,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-09): Brazilian Portuguese — full machine first pass + faster translate pipeline (#883)
+
+Portuguese joins FR/ES as a machine-first-pass language: `data/locales/pt.json` (3048/3048 keys, 100 %)
+and the VEGA-prologue story pack (68/68), generated with `tools/translate_locale.py` and clean under
+`locale_report.py --check`. Wiring per TRANSLATION_GUIDE Step 4: `GameLocale.Portuguese`
+(code/native name/parse), WebGL `StreamingAssetsCache` fallback manifest, first-run OS-language
+default (`SystemLanguage.Portuguese`), content-error dialog, and the AI backend's `_LANGUAGE_NAMES`
+so NPC lines answer in Portuguese. The picker offers it automatically (coverage ≥ 45 %). The
+translate tool itself got the speed pass that made this cheap: chunks now go out concurrently
+(`--workers`, default 4) and reasoning models are asked for `reasoning_effort: minimal`
+(`--effort`) — the 61-request full pass finishes in minutes instead of an hour. Native-speaker
+review still open (tracked in #883's checklist); wiki/What's-New/portal stay EN-fallback for now.
 
 ---
 

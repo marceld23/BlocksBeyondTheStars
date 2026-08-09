@@ -51,6 +51,7 @@ _LANGUAGE_NAMES = {
     "fr": "French",
     "es": "Spanish",
     "it": "Italian",
+    "pt": "Brazilian Portuguese",
 }
 
 

@@ -14,6 +14,10 @@ output is written after every chunk, and a re-run only translates what is still 
 Placeholders like {name} are validated per key — a mismatch discards the chunk and retries
 once, then leaves those keys untranslated (locale_report.py will list them).
 
+Chunks are translated concurrently (--workers, default 4) and each request asks the model for
+minimal reasoning effort (--effort; pass --effort "" for models that reject the parameter) —
+together roughly an order of magnitude faster than the old one-request-at-a-time loop.
+
 Usage (stdlib only — no venv needed):
     uv run --no-project python tools/translate_locale.py fr
     uv run --no-project python tools/translate_locale.py es --file data/stories/vega_protocol/locales/es.json \
@@ -32,6 +36,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -45,6 +50,7 @@ LANGUAGES = {
     "fr": "French",
     "es": "Spanish",
     "it": "Italian",
+    "pt": "Brazilian Portuguese",
 }
 
 SYSTEM_PROMPT = """You translate UI strings for "Blocks Beyond the Stars", a kid-friendly sci-fi \
@@ -56,7 +62,7 @@ translated values. No commentary, no markdown fence.
 - Keep every placeholder like {{name}}, {{item}}, {{count}} EXACTLY as-is (position may move).
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
-Spanish "tú").
+Spanish "tú", Portuguese "você").
 - Keep proper names untranslated: VEGA, Blocks Beyond the Stars. Game terms translate naturally \
 and CONSISTENTLY across keys (e.g. blueprint, knowledge, suit energy, airlock).
 - UI strings must stay short: if the English is one or two words, the translation should be too.
@@ -75,15 +81,18 @@ def load_env_key() -> str:
     return ""
 
 
-def chat(api_key: str, model: str, system: str, user: str, timeout: float) -> str:
-    body = json.dumps({
+def chat(api_key: str, model: str, system: str, user: str, timeout: float, effort: str) -> str:
+    payload: dict = {
         "model": model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         "response_format": {"type": "json_object"},
-    }).encode("utf-8")
+    }
+    if effort:  # reasoning models only — translation needs no chain of thought, so "minimal" is much faster
+        payload["reasoning_effort"] = effort
+    body = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/") + "/chat/completions",
         data=body,
@@ -95,11 +104,11 @@ def chat(api_key: str, model: str, system: str, user: str, timeout: float) -> st
 
 
 def translate_chunk(api_key: str, model: str, language: str, chunk: dict[str, str],
-                    timeout: float) -> dict[str, str]:
+                    timeout: float, effort: str) -> dict[str, str]:
     """One API call for one chunk; returns only entries that pass validation."""
     system = SYSTEM_PROMPT.format(language=language)
     user = json.dumps(chunk, ensure_ascii=False, indent=0)
-    raw = chat(api_key, model, system, user, timeout)
+    raw = chat(api_key, model, system, user, timeout, effort)
     try:
         result = json.loads(raw)
     except json.JSONDecodeError:
@@ -123,6 +132,9 @@ def main() -> int:
     ap.add_argument("--file", default=None, help="target file (default: data/locales/<lang>.json)")
     ap.add_argument("--model", default="gpt-5-mini", help="chat model (any OpenAI-compatible id)")
     ap.add_argument("--chunk", type=int, default=50, help="keys per request")
+    ap.add_argument("--workers", type=int, default=4, help="concurrent requests")
+    ap.add_argument("--effort", default="minimal",
+                    help='reasoning_effort for reasoning models (gpt-5*); "" omits the parameter')
     ap.add_argument("--timeout", type=float, default=180.0, help="per-request timeout seconds")
     ap.add_argument("--dry-run", action="store_true", help="only report what would be translated")
     args = ap.parse_args()
@@ -159,29 +171,40 @@ def main() -> int:
 
     keys = list(missing)
     language = LANGUAGES[args.lang]
-    done = 0
-    for start in range(0, len(keys), args.chunk):
-        chunk = {k: missing[k] for k in keys[start:start + args.chunk]}
+
+    def translate_batch(batch: list[str]) -> dict[str, str]:
+        """Translate one batch of keys, retrying once for request errors and validation failures."""
+        chunk = {k: missing[k] for k in batch}
         got: dict[str, str] = {}
         for attempt in (1, 2):
             try:
-                got = translate_chunk(api_key, args.model, language, chunk, args.timeout)
+                got.update(translate_chunk(api_key, args.model, language, chunk,
+                                           args.timeout, args.effort))
             except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as ex:
                 detail = getattr(ex, "read", None)
                 print(f"  request failed (attempt {attempt}): {ex}"
                       + (f" — {detail()[:300]}" if callable(detail) else ""), file=sys.stderr)
                 time.sleep(2 * attempt)
                 continue
-            retry = {k: v for k, v in chunk.items() if k not in got}
-            if not retry:
-                break
-            chunk = retry  # second pass only for the keys that failed validation
-        target.update(got)
-        done += len(got)
-        write_target()
-        print(f"  {done}/{len(missing)} translated "
-              f"({len(chunk) - len(got)} skipped in last chunk)" if len(got) < len(chunk)
-              else f"  {done}/{len(missing)} translated")
+            chunk = {k: v for k, v in chunk.items() if k not in got}
+            if not chunk:
+                break  # second pass only for the keys that failed validation
+        return got
+
+    batches = [keys[start:start + args.chunk] for start in range(0, len(keys), args.chunk)]
+    done = 0
+    # Requests run concurrently; the target file is only touched from this thread, after each
+    # completed batch, so the tool stays resumable even when interrupted mid-run.
+    with ThreadPoolExecutor(max_workers=max(1, args.workers)) as pool:
+        futures = {pool.submit(translate_batch, batch): len(batch) for batch in batches}
+        for future in as_completed(futures):
+            got = future.result()
+            target.update(got)
+            done += len(got)
+            write_target()
+            skipped = futures[future] - len(got)
+            print(f"  {done}/{len(missing)} translated"
+                  + (f" ({skipped} skipped in batch)" if skipped else ""))
 
     still = [k for k in missing if k not in target]
     if still:
