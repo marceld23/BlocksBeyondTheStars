@@ -13,17 +13,86 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Added
+## [2026.8.8] — 2026-08-09
 
-- **A full backpack no longer stops the drill (#853).** Mining used to be refused outright once your
-  backpack and cargo hold were full — the block just would not break. Now it always breaks, and
-  whatever does not fit lands on the ground as a small block packet. Packets **stack**: further
-  overflow joins the bundle already lying there instead of littering one per block, and an area
-  drill's whole burst leaves a single packet. Walk near one with room to spare and it flows back into
-  your inventory by itself — no key, no prompt. Packets survive saving and reloading, and a dyed or
-  shaped block keeps its own stack inside the bundle. Defeated creatures drop their loot on the ground
-  the same way instead of it being lost. (Mining out in space keeps the old refusal: there is no ground
-  to drop onto, and the block simply stays put.)
+The shaper release: design your own block shapes in a 3-D editor and build with forms nobody
+else has — then pass them on as stencils or share codes. Around that headline the update
+clears a whole evening of playtest walls: you can finally dive (and build!) under water, a
+full backpack no longer stops the drill, your ships survive leaving and reloading a world,
+and creatures stopped walking through walls.
+
+### 🧊 Eigene Formen — design your own block shapes (#842–#847)
+
+- **The shaping tool** (workshop, cheap blueprint — the paint tool's twin): right-click and a
+  **3-D form editor** opens. You draw one horizontal layer at a time with the layer below
+  ghosting through, mirroring and copy-layer-below at hand, a **4³/8³ grid toggle**, a live 3-D
+  preview built from exactly the geometry the world will render, and a detail counter that keeps
+  a form inside the collision budget.
+- **A form is a real shape.** Craft it onto any material through the normal 1:1 shape exchange —
+  it places, mines, stacks and persists like any built-in ramp or panel, **collides exactly as
+  it looks**, and its hotbar icon is its own silhouette. Up to 45 custom forms live per world,
+  registered once and shared by everyone playing in it.
+- **A "My forms" library that travels.** Saved forms live on your machine, world-independent —
+  just like the paint library. Saving under the same name replaces, so refining a form doesn't
+  leave a trail of near-duplicates.
+- **Three ways to share.** Aim the tool at a block someone else shaped and the editor opens
+  pre-loaded with their form, credited to its designer. Stamp a **stencil** and trade it as a
+  normal item — right-clicking it files the form into your library. Or export a **share code**,
+  a text snippet you can post anywhere; codes are fully validated on import.
+- The **paint library** caught up on the same comforts: designs carry player-chosen names and a
+  designer credit when copied off a block, and paint got the same export/import share codes.
+
+### ⛏️ A full backpack no longer stops the drill (#853)
+
+- Mining used to be refused outright once your backpack and cargo hold were full — the block just
+  would not break. Now it always breaks, and whatever does not fit lands on the ground as a small
+  block packet. Packets **stack**: further overflow joins the bundle already lying there instead
+  of littering one per block, and an area drill's whole burst leaves a single packet. Walk near
+  one with room to spare and it flows back into your inventory by itself — no key, no prompt.
+  Packets survive saving and reloading, and a dyed or shaped block keeps its own stack inside the
+  bundle. Defeated creatures drop their loot on the ground the same way instead of it being lost.
+  (Mining out in space keeps the old refusal: there is no ground to drop onto, and the block
+  simply stays put.)
+
+### 🌊 Under water at last: dive down, build up (#858, #851)
+
+- **You can actually dive now (#858).** Swimming down in deep water instantly bounced you back onto
+  the surface, once per second, with "You were stuck in the rock — dug out." The rescue that frees
+  players sealed inside blocks mistook every submerged swimmer (and every ladder climber, and anyone
+  in a kelp forest) for a player entombed in rock, because water counted as a solid block in the game
+  data. Water, ladders, torches and lanterns are now correctly non-solid, the rescue only triggers on
+  blocks that can really trap a body, and it still frees players genuinely buried in stone. NPCs keep
+  treating water as a wall — nothing wanders into ponds or spots you through a lake.
+- **You can build under water (#851).** Every placement while swimming was refused with "Target is
+  not empty" — the cell you aim at under water holds water, and the server only accepted air. A block
+  now displaces water or lava, so underwater walls, pillars out of a lake and a dry room on the
+  seabed are possible at all; water only yields to a tier-3 mining beam, so before this there was no
+  way around it either. Doors and torches keep their refusal: a door lives in an air cell the water
+  would flow straight back into, and a torch is an open flame.
+
+### 🚀 Your ships survive a reload (#848)
+
+- "I start a world, leave the game, load it again — and my ship is gone." Two save gaps, both
+  data loss, both closed. The **landing pad** you parked on was never saved: a reload re-parked
+  the ship on the first free pad — pads are spread across the whole globe, so the ship could end
+  up thousands of blocks from where you stood. And only the **active** ship was saved at all:
+  every other ship you crafted or claimed from a wreck was silently deleted by the next load,
+  cargo included. Now the pad and the **whole fleet** persist, each ship with its own cargo, and
+  crafting, claiming a wreck or switching ships saves immediately instead of waiting for the next
+  autosave. Existing saves migrate automatically — the ship you had is still there.
+
+### 🐾 Creatures respect walls now (#855)
+
+- Creatures and insects could pass through walls and closed doors — a drone circling your base
+  would drift straight through the wall, and butterflies fluttered through ceilings. Creature
+  movement is now blocked by the world for **every habitat** (walkers, swimmers, fliers): body
+  and path are checked the same way NPC movement already was, herds spawn outside walls instead
+  of inside them, and a companion stopped by a wall catches up through a 24-block leash instead
+  of clipping after you. The small ambient fauna got the same treatment: flies, hoppers and
+  crawlers veer off at walls, stay out of ceilings, and crawlers sit on the surface instead of
+  half inside the ground. Grass no longer counts as a wall for NPCs.
+
+### 🎮 One evening's playtest, nine fixes (#833–#841)
 
 - **Creative and Sandbox worlds fly (#836).** Double-tap **Space** to lift off, Space to rise,
   Ctrl/C to sink; collision stays on, so you can still land on things and build against them.
@@ -40,22 +109,6 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   the cursor, and a **colour wheel** lets you choose by dragging a point around a hue ring (it snaps
   to the palette — a face stores one hex digit per pixel, so 16 colours is the format's ceiling).
   Both the main-menu Avatar Designer and the in-game Character tab share the editor, so both gain it.
-
-### Fixed
-
-- **You can actually dive now (#858).** Swimming down in deep water instantly bounced you back onto
-  the surface, once per second, with "You were stuck in the rock — dug out." The rescue that frees
-  players sealed inside blocks mistook every submerged swimmer (and every ladder climber, and anyone
-  in a kelp forest) for a player entombed in rock, because water counted as a solid block in the game
-  data. Water, ladders, torches and lanterns are now correctly non-solid, the rescue only triggers on
-  blocks that can really trap a body, and it still frees players genuinely buried in stone. NPCs keep
-  treating water as a wall — nothing wanders into ponds or spots you through a lake.
-- **You can build under water (#851).** Every placement while swimming was refused with "Target is
-  not empty" — the cell you aim at under water holds water, and the server only accepted air. A block
-  now displaces water or lava, so underwater walls, pillars out of a lake and a dry room on the
-  seabed are possible at all; water only yields to a tier-3 mining beam, so before this there was no
-  way around it either. Doors and torches keep their refusal: a door lives in an air cell the water
-  would flow straight back into, and a torch is an open flame.
 - **Hovering scan-drones actually hurt now (#833).** A drone's own AI holds a 4–10 block standoff
   ring and floats 4 blocks up, so it never came within the server's 4-block damage aura — it circled
   you firing a laser and was mechanically harmless, exactly as a player reported. Ranged machines now
@@ -84,14 +137,21 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   happened to be ticking rather than the reporter's own, so biome, weather, gravity and the
   surrounding blocks could all belong to somewhere else entirely.
 
-- **Browser: the splash screens and the intro speak again (#831).** In the WebGL build the studio
-  splash, the title splash and the intro cinematic showed raw localization keys instead of their
-  texts, because the localizer waited for the entire content download (30+ files, fetched one at a
-  time, re-downloaded on every start) while those screens run on fixed timers. The locale files are
-  now fetched first and the localizer is published immediately, the remaining files download in
-  parallel, and an already-current cache is reused instead of refetched. The intro's voxel ship,
-  which the browser build silently skipped when content hadn't arrived yet, is now built as soon as
-  the content lands.
+### 🌐 Browser: the splash screens and the intro speak again (#831)
+
+- In the WebGL build the studio splash, the title splash and the intro cinematic showed raw
+  localization keys instead of their texts, because the localizer waited for the entire content
+  download (30+ files, fetched one at a time, re-downloaded on every start) while those screens run
+  on fixed timers. The locale files are now fetched first and the localizer is published
+  immediately, the remaining files download in parallel, and an already-current cache is reused
+  instead of refetched. The intro's voxel ship, which the browser build silently skipped when
+  content hadn't arrived yet, is now built as soon as the content lands.
+
+### 🛠️ Internal
+
+- README and the contributor rules stopped calling the game bilingual: EN/DE/FR/ES ship complete,
+  `en.json` + `de.json` are the mandatory pair every new key must land in, and everything else
+  falls back to English per missing key (#830).
 
 ## [2026.8.7] — 2026-08-08
 
@@ -2086,7 +2146,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...HEAD
+[2026.8.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...v2026.8.8
 [2026.8.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...v2026.8.7
 [2026.8.6]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.5...v2026.8.6
 [2026.8.5]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.4...v2026.8.5
