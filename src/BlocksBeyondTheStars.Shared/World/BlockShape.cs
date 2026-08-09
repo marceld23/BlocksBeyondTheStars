@@ -38,6 +38,25 @@ public enum BlockShape : byte
 }
 
 /// <summary>
+/// The default FORM a furniture block is stamped with on placement (#804/#807/#809), so it reads as its
+/// silhouette without the player using the Shape action. Shared between the server (stamp on place, strip
+/// from the mined drop) and the client (the rotate key + placement ghost must treat these items as
+/// rotatable even though their item key carries no shape suffix).
+/// </summary>
+public static class FurnitureShapes
+{
+    /// <summary>The default shape index for a furniture block key, or 0 (plain cube) for everything else.</summary>
+    public static int DefaultPlaceShape(string blockKey) => blockKey switch
+    {
+        "bed" => (int)BlockShape.Slab,
+        "campfire" => (int)BlockShape.Slab,
+        "rug" => (int)BlockShape.Sheet,
+        "flower_pot" => (int)BlockShape.Pot,
+        _ => 0,
+    };
+}
+
+/// <summary>
 /// Packs/unpacks the per-voxel SHAPE DESCRIPTOR: a single int carrying the yaw orientation in bits 0..1,
 /// the shape index in bits 2..7, and the "up-face" (which cube face the shape's local +Y points to, 0..5) in
 /// bits 8..10. Stored in the chunk modifier store, persisted, and sent over the wire as one value, mirroring

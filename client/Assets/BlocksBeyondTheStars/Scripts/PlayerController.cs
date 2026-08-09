@@ -114,6 +114,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Explicit quarter-turn (0..3) for the next shaped placement; -1 = derive it from facing.</summary>
         private int _placeYaw = -1;
+
+        // The translucent placement preview (#863) + the frame it was last refreshed. The on-foot update
+        // stamps the frame; LateUpdate hides the ghost whenever a frame went by without a stamp (menu open,
+        // space view, driving, seated, …) so no stale hologram lingers over the world.
+        private PlacementGhost _placementGhost;
+        private int _ghostFrame = -1;
         private float _verticalVelocity;
         private float _moveSendTimer;
         private bool _spawned;
@@ -411,41 +417,26 @@ namespace BlocksBeyondTheStars.Client
             // Rotate the held building shape's placement orientation. The key walks the orientations in the order
             // a builder actually wants them: first the four QUARTER TURNS about the current up-face (turning a
             // staircase to face another way — what a player asked for: "Ich will das Treppen in verschiedenen
-            // Winkeln platzierbar sind"), then on to the next up-face, and finally back to Auto.
+            // Winkeln platzierbar sind"), then on to the next up-face, and finally back to Auto. Shift+R walks
+            // the same cycle backwards (#863) — one overshoot no longer costs a full lap through 24 states.
             //
             // Yaw used to be taken solely from where the player was looking, so getting the turn you wanted meant
             // standing in a particular direction — which does not work when you are building into a corner. The
             // shape descriptor has always stored yaw × up-face (24 orientations); this just hands the player the
-            // controls. Only cycles for a shaped block, so it never clashes with RepairWreck on the same key.
+            // controls. Furniture (bed/campfire/rug/pot) cycles too, but yaw-only: the server pins its up-face
+            // to +Y so sit/heal/warmth keep working — the cycle mirrors that instead of promising a tip that
+            // the place would ignore. Only cycles for a rotatable block, so it never clashes with RepairWreck
+            // on the same key.
             if (InputMap.Down(InputAction.RotateShape))
             {
                 string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
-                if (!string.IsNullOrEmpty(held) && BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held) > 0)
+                if (HeldPlaceShape(held, out bool furnitureHeld) > 0)
                 {
-                    if (_placeUpFace < 0)
-                    {
-                        _placeUpFace = 0; // leaving Auto: start at +Y up, no turn
-                        _placeYaw = 0;
-                    }
-                    else if (_placeYaw < 3)
-                    {
-                        _placeYaw++; // another quarter turn about the same up-face
-                    }
-                    else if (_placeUpFace < 5)
-                    {
-                        _placeUpFace++; // tipped onto the next face, turns start over
-                        _placeYaw = 0;
-                    }
-                    else
-                    {
-                        _placeUpFace = -1; // back to Auto (orient from the surface built against)
-                        _placeYaw = -1;
-                    }
-
-                    string label = _placeUpFace < 0
-                        ? (Game.Localizer?.Get("hud.shape.auto") ?? "Auto")
-                        : $"{UpFaceLabel(_placeUpFace)} · {_placeYaw * 90}°";
-                    Game.ShowMessage(string.Format(Game.Localizer?.Get("hud.shape.orient") ?? "Shape orientation: {0}", label));
+                    bool backwards = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+                    StepPlaceOrientation(backwards, furnitureHeld);
+                    Game.ShowMessage(string.Format(
+                        Game.Localizer?.Get("hud.shape.orient") ?? "Shape orientation: {0}",
+                        OrientationLabel(furnitureHeld)));
                 }
             }
 
@@ -484,6 +475,7 @@ namespace BlocksBeyondTheStars.Client
             Move();
             UpdateCameraFeel();
             HandleInteract();
+            UpdatePlacementGhost();
             HandleDrillAudio();
             UpdateGearPeriodically();
             SendMovement();
@@ -2936,11 +2928,162 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
-        /// <summary>Short symbolic label for a shape up-face (language-neutral), shown when cycling with RotateShape.</summary>
-        private static string UpFaceLabel(int upFace) => upFace switch
+        /// <summary>The shape index the held item would place: the crafted form carried in the item key
+        /// (slabs, stairs, player-designed forms, …), or a furniture block's server-stamped default form
+        /// (bed/campfire/rug/pot — <paramref name="furniture"/> is true for those). 0 = places a plain cube
+        /// or no block at all, i.e. nothing the rotate key or the placement ghost should react to.</summary>
+        private int HeldPlaceShape(string held, out bool furniture)
         {
-            0 => "+Y", 1 => "-Y", 2 => "+X", 3 => "-X", 4 => "+Z", 5 => "-Z", _ => "Auto",
-        };
+            furniture = false;
+            if (string.IsNullOrEmpty(held))
+            {
+                return 0;
+            }
+
+            int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held);
+            if (shape > 0)
+            {
+                return shape;
+            }
+
+            var def = Game?.Content?.GetItem(held);
+            if (def == null || string.IsNullOrEmpty(def.PlacesBlock))
+            {
+                return 0;
+            }
+
+            shape = BlocksBeyondTheStars.Shared.World.FurnitureShapes.DefaultPlaceShape(def.PlacesBlock);
+            furniture = shape != 0;
+            return shape;
+        }
+
+        /// <summary>One step of the rotate-key cycle. Shaped blocks walk Auto → the 24 up-face × quarter-turn
+        /// orientations → Auto; furniture walks Auto → the four quarter turns → Auto (its up-face is pinned
+        /// to +Y server-side, see the rotate-key comment). <paramref name="backwards"/> reverses the walk.</summary>
+        private void StepPlaceOrientation(bool backwards, bool furniture)
+        {
+            int lastUpFace = furniture ? 0 : 5;
+            if (_placeUpFace < 0)
+            {
+                // Leaving Auto: forwards starts at the first orientation, backwards at the last.
+                _placeUpFace = backwards ? lastUpFace : 0;
+                _placeYaw = backwards ? 3 : 0;
+                return;
+            }
+
+            if (furniture)
+            {
+                _placeUpFace = 0; // a stale up-face from a previously held shaped block never sticks to furniture
+            }
+
+            if (!backwards)
+            {
+                if (_placeYaw < 3) { _placeYaw++; }
+                else if (_placeUpFace < lastUpFace) { _placeUpFace++; _placeYaw = 0; }
+                else { _placeUpFace = -1; _placeYaw = -1; } // back to Auto
+            }
+            else
+            {
+                if (_placeYaw > 0) { _placeYaw--; }
+                else if (_placeUpFace > 0) { _placeUpFace--; _placeYaw = 3; }
+                else { _placeUpFace = -1; _placeYaw = -1; } // back to Auto
+            }
+        }
+
+        /// <summary>Refreshes the placement ghost (#863): while a rotatable block is held and the aim ray
+        /// has a place cell, the exact form + pending orientation hovers there translucently. Runs only on
+        /// the on-foot path — every other state (menus, space view, driving, seated) is caught by the
+        /// frame-stamp check in <see cref="LateUpdate"/>, which hides the ghost after any frame that never
+        /// reached this method. Parked-ship cells get no ghost: placing there routes through a structure
+        /// edit whose own rules (hull protection) this preview cannot promise.</summary>
+        private void UpdatePlacementGhost()
+        {
+            _ghostFrame = Time.frameCount;
+            string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
+            int shape = HeldPlaceShape(held, out bool furniture);
+            if (Game != null)
+            {
+                Game.HoldingRotatableBlock = shape > 0; // drives the HUD's "R — rotate" control hint
+            }
+
+            if (shape <= 0 || !AimTarget(out _, out var placeCell, out var aimedShip) || aimedShip != null)
+            {
+                _placementGhost?.Hide();
+                return;
+            }
+
+            // Mirror the server's orientation choice exactly (HandlePlace): an explicit rotate-key override
+            // wins; Auto derives yaw from the facing and the up-face from the surface built against.
+            int yaw = _placeYaw >= 0 ? _placeYaw : ((int)Mathf.Round(transform.eulerAngles.y / 90f)) & 3;
+            int upFace = furniture
+                ? ShapeCode.UpPlusY
+                : (_placeUpFace >= 0 ? _placeUpFace : DeriveGhostUpFace(placeCell));
+            _placementGhost ??= new PlacementGhost();
+            _placementGhost.Show(placeCell, shape, yaw, upFace);
+        }
+
+        /// <summary>Client mirror of the server's DeriveShapeUpFace: the shape's base rests on the first
+        /// solid neighbour — floor first (→ +Y up), then the four walls, then the ceiling. Fluids are no
+        /// surface to build against, same as the server. Only feeds the ghost preview; the server still
+        /// derives its own answer on the actual place.</summary>
+        private int DeriveGhostUpFace(Vector3Int cell)
+        {
+            bool Solid(int dx, int dy, int dz)
+            {
+                var id = Game.World.GetBlock(cell.x + dx, cell.y + dy, cell.z + dz);
+                return !id.IsAir && !IsFluidBlock(id);
+            }
+
+            if (Solid(0, -1, 0)) return 0; // floor → +Y up
+            if (Solid(-1, 0, 0)) return 2; // wall → +X up
+            if (Solid(1, 0, 0)) return 3;  // wall → -X up
+            if (Solid(0, 0, -1)) return 4; // wall → +Z up
+            if (Solid(0, 0, 1)) return 5;  // wall → -Z up
+            if (Solid(0, 1, 0)) return 1;  // ceiling → -Y up
+            return 0;
+        }
+
+        private void LateUpdate()
+        {
+            // The on-foot update never ran this frame (menu, space view, speeder, seat, veil, …): whatever
+            // the ghost was showing is stale — hide it and drop the HUD rotate hint with it.
+            if (_ghostFrame != Time.frameCount)
+            {
+                _placementGhost?.Hide();
+                if (Game != null)
+                {
+                    Game.HoldingRotatableBlock = false;
+                }
+            }
+        }
+
+        private void OnDestroy()
+        {
+            _placementGhost?.Destroy();
+            _placementGhost = null;
+        }
+
+        /// <summary>Localized, kid-readable label for the pending orientation: "Auto", or an up-face word
+        /// (upright / upside down / on its side) plus the quarter-turn in degrees — instead of the old
+        /// axis-speak ("+X · 90°") nobody without a maths degree could predict (#863). The placement ghost
+        /// shows the exact result; this label just needs to say roughly what changed.</summary>
+        private string OrientationLabel(bool furniture)
+        {
+            var loc = Game?.Localizer;
+            if (_placeUpFace < 0)
+            {
+                return loc?.Get("hud.shape.auto") ?? "Auto";
+            }
+
+            int upFace = furniture ? 0 : _placeUpFace;
+            string word = upFace switch
+            {
+                0 => loc?.Get("hud.shape.upright") ?? "Upright",
+                1 => loc?.Get("hud.shape.upside_down") ?? "Upside down",
+                _ => loc?.Get("hud.shape.sideways") ?? "On its side",
+            };
+            return _placeYaw > 0 ? $"{word} · {_placeYaw * 90}°" : word;
+        }
 
         /// <summary>Water/lava are passed through when aiming (they have no collider — you swim/sink into them).</summary>
         private bool IsFluidBlock(BlocksBeyondTheStars.Shared.Primitives.BlockId id)

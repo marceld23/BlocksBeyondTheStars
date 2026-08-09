@@ -76,7 +76,7 @@ Last updated: 2026-08-08.
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
-| **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block** selected: rotate its placement orientation (see §5 → Craftable block shapes) |
+| **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block or furniture** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on |
@@ -691,9 +691,14 @@ separate unlock; admins can still disable it through server world rules.
   button (it's a free 1:1 reshape that keeps the block's colour), and **cube** reverts to a plain block.
 - **Orientation:** by default a shape **auto-orients** — it follows the way you're facing, and building against a
   wall or ceiling tilts it onto that surface. Press **R** while the shaped block is selected to override this:
-  it cycles **Auto → each of the six up-faces → Auto** (a HUD message shows the current pick), giving the full
-  set of 24 placements. Symmetric forms (sphere, dome, cylinder, …) ignore orientation. Mining returns the
-  shaped item; orientation is re-derived each time you place it again.
+  it cycles **Auto → each of the six up-faces → Auto** (a HUD message shows the current pick — "Upright",
+  "Upside down", "On its side" plus the quarter-turn), giving the full set of 24 placements; **Shift+R**
+  cycles backwards. While a rotatable block is held, a **translucent preview** of the form hovers in the
+  target cell showing exactly how it will land — this works for the built-in shapes, **your own designed
+  forms**, and furniture alike. **Furniture** (bed, campfire, rug, flower pot) rotates too, but only around
+  the vertical axis — it always stays upright so beds and campfires keep working. Symmetric forms (sphere,
+  dome, cylinder, …) ignore orientation. Mining returns the shaped item; orientation is re-derived each
+  time you place it again.
 
 ### Designing your own forms
 - Craft the **Shaping Tool** (`shape_tool`, workshop recipe + the cheap `shape_tool` blueprint) and

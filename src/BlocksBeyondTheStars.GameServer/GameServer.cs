@@ -3134,7 +3134,7 @@ public sealed partial class GameServer
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
-        if (dropShape != 0 && dropShape == DefaultPlaceShapeOf(def.Key))
+        if (dropShape != 0 && dropShape == FurnitureShapes.DefaultPlaceShape(def.Key))
         {
             // A furniture block's server-stamped default form is not player data — dropping it plain keeps
             // the mined item stacking with crafted ones (a "bed#s01" would never merge with a "bed").
@@ -3511,12 +3511,16 @@ public sealed partial class GameServer
 
         // Furniture blocks (#804/#807/#809) read as their real silhouette out of the box: stamp their
         // default form on placement — the same per-voxel shape channel the Shape action writes, so the
-        // mesher, save and wire all treat it like any player-shaped cell. Yaw follows the player's facing
-        // (a chairless bed still has a direction it "points"). BreakBlockAt strips this default again so
-        // the drop stacks with freshly crafted items.
-        if (placeShape == 0 && DefaultPlaceShapeOf(blockDef.Key) is int defShape && defShape != 0)
+        // mesher, save and wire all treat it like any player-shaped cell. The quarter-turn honours the
+        // rotate key like any shaped block (#863); without one it follows the player's facing. The up-face
+        // stays +Y on purpose: a bed/campfire tipped onto a wall would break their sit/heal/warmth checks,
+        // so furniture rotates but never tips. BreakBlockAt strips this default again so the drop stacks
+        // with freshly crafted items.
+        if (placeShape == 0 && FurnitureShapes.DefaultPlaceShape(blockDef.Key) is int defShape && defShape != 0)
         {
-            int facing = ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+            int facing = place.Yaw >= 0 && place.Yaw <= 3
+                ? place.Yaw
+                : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
             placeShape = ShapeCode.Pack(defShape, facing, ShapeCode.UpPlusY);
         }
 
@@ -4376,19 +4380,6 @@ public sealed partial class GameServer
 
         return tool.Tier >= block.MinToolTier;
     }
-
-    /// <summary>The default FORM a furniture block is stamped with on placement (#804/#807/#809), so it
-    /// reads as its silhouette without the player using the Shape action. 0 = plain cube (no default).
-    /// Used symmetrically by the place handler (stamp) and <see cref="BreakBlockAt"/> (strip from the
-    /// drop key so mined furniture stacks with crafted).</summary>
-    private static int DefaultPlaceShapeOf(string blockKey) => blockKey switch
-    {
-        "bed" => (int)BlockShape.Slab,
-        "campfire" => (int)BlockShape.Slab,
-        "rug" => (int)BlockShape.Sheet,
-        "flower_pot" => (int)BlockShape.Pot,
-        _ => 0,
-    };
 
     private bool StationAvailable(PlayerState player, CraftingStation station)
     {

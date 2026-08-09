@@ -230,6 +230,34 @@ public sealed class LowTechFurnitureTests : IDisposable
     }
 
     [Fact]
+    public void FurnitureDefaults_HonourTheRotateKey_ButStayUpright()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Turner");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0.5f, 64, 0.5f);
+            p.State.Inventory.Add("bed", 2, 64);
+
+            // An explicit rotate-key orientation turns the bed (#863) — but the up-face is pinned to +Y
+            // even when the client asks for a tip: a bed on the wall would break sit/heal/home-spawn.
+            server.PlaceBlock(p.State.PlayerId, 1, 64, 0, "bed", upFace: 4, yaw: 3);
+            int turned = server.World.GetShape(new Vector3i(1, 64, 0));
+            Assert.Equal((int)BlockShape.Slab, ShapeCode.ShapeOf(turned));
+            Assert.Equal(3, ShapeCode.OrientationOf(turned));
+            Assert.Equal(ShapeCode.UpPlusY, ShapeCode.UpFaceOf(turned));
+
+            // Without an override the quarter-turn still follows the player's facing (Auto).
+            p.State.Yaw = 180f;
+            server.PlaceBlock(p.State.PlayerId, 2, 64, 0, "bed");
+            int facing = server.World.GetShape(new Vector3i(2, 64, 0));
+            Assert.Equal(2, ShapeCode.OrientationOf(facing));
+            Assert.Equal(ShapeCode.UpPlusY, ShapeCode.UpFaceOf(facing));
+        }
+    }
+
+    [Fact]
     public void FurnitureDefaults_StampOnPlace_AndDropThePlainItem()
     {
         var server = Started(out var repo);

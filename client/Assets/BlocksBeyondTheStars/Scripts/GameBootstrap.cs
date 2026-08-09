@@ -240,6 +240,10 @@ namespace BlocksBeyondTheStars.Client
         public Vector3 PlayerPosition;
         public float PlayerYaw;
 
+        /// <summary>The held hotbar item places a rotatable block (a crafted shape or furniture) — written by
+        /// the controller each on-foot frame; the HUD appends its "R — rotate" control hint while set (#863).</summary>
+        public bool HoldingRotatableBlock;
+
         /// <summary>An optional world-map waypoint (XZ); the HUD compass points to it when set.</summary>
         public Vector3? Waypoint;
 

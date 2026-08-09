@@ -7448,6 +7448,32 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-09): rotate any block before placing — furniture too, with a ghost preview (#863)
+
+"How do I turn a chair or a slab before I place it?" — the rotate key existed (R, since 2026-07-30)
+but was half-invisible and skipped furniture entirely. Four changes, no format/protocol change (the
+24-orientation descriptor + `PlaceBlockIntent.UpFace`/`Yaw` already carried everything):
+
+- **Furniture honours the rotate key.** `DefaultPlaceShapeOf` moved to Shared as
+  `FurnitureShapes.DefaultPlaceShape` (bed/campfire/rug/flower_pot); the server's furniture stamp now
+  takes an explicit `place.Yaw`, and the client's rotate-key gate accepts furniture items. Yaw-only by
+  design: the up-face stays pinned +Y so sit/heal/warmth checks keep working — furniture turns, never
+  tips. Crafted shapes and player-designed forms (ids 19..63) keep the full 24-orientation cycle.
+- **Placement ghost preview.** New `PlacementGhost`: a translucent hologram-blue mesh of the held
+  form in the exact cell + orientation a right-click would place — built from the same
+  `BlockShapeGeometry` the mesher uses, so built-in AND custom forms preview true (an unknown custom
+  id previews as the cube the server would place). Auto mode mirrors the server's derivation
+  (yaw from facing, up-face from the surface built against). Cloud-shader material (Always-Included),
+  frame-stamp hide in `LateUpdate` so no stale ghost survives menus/space/driving.
+- **Kid-readable labels + a control hint.** The toast now says "Upright / Upside down / On its side
+  · 90°" (localized EN/DE/FR/ES) instead of "+X · 90°", and the HUD hint line appends
+  "R rotate · Shift+R back" while a rotatable block is held.
+- **Shift+R cycles backwards** — one overshoot no longer costs a full lap through 24 states.
+
+Tests: furniture honours explicit yaw but stays upright; Auto still follows facing. Playtest pending.
+
+---
+
 ## ✅ Done (2026-08-09): fauna stops walking through walls; insects respect blocks (#855)
 
 Playtest report: insects fly straight through walls, and creatures sometimes stand half inside one.
