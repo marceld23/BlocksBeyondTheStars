@@ -25,6 +25,7 @@ namespace BlocksBeyondTheStars.Client
             public string Call;   // this species' signature idle call (creature_call_*)
             public float Pitch;   // per-species voice pitch (size + a per-species offset)
             public float NextCall; // Time.time of the next idle vocalisation
+            public float AnswerAt; // pending call-answer time (#876) — 0 while none is scheduled
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
             public float PrevHull;   // to detect a hull drop (hurt)
@@ -176,18 +177,39 @@ namespace BlocksBeyondTheStars.Client
                 UpdateSleep(entry, c);              // breathing bob + "z z z" while the creature is asleep (off-phase)
 
                 // Periodic idle vocalisation, spatialised at the creature, pitched by its size. A sleeper is
-                // quiet — only an occasional soft, low snore rather than its full waking call.
+                // quiet — only an occasional soft, low snore rather than its full waking call. Every utterance
+                // gets a small pitch/volume jitter and a random take of the species call (#876/#879) — the
+                // species voice stays deterministic, only the individual utterance varies.
                 if (Time.time >= entry.NextCall)
                 {
                     if (c.Asleep)
                     {
                         entry.NextCall = Time.time + Random.Range(9f, 18f);
-                        ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch * 0.7f, 0.3f, entry.Echo);
+                        ClientAudio.Instance?.At(TakeOf(entry.Call), entry.Root.transform.position,
+                            entry.Pitch * 0.7f * PitchJitter(), 0.3f * VolJitter(), entry.Echo);
                     }
                     else
                     {
                         entry.NextCall = Time.time + Random.Range(5f, 12f);
-                        ClientAudio.Instance?.At(entry.Call, entry.Root.transform.position, entry.Pitch, 0.8f, entry.Echo);
+                        ClientAudio.Instance?.At(TakeOf(entry.Call), entry.Root.transform.position,
+                            entry.Pitch * PitchJitter(), 0.8f * VolJitter(), entry.Echo);
+                        if (Random.value < 0.2f)
+                        {
+                            entry.AnswerAt = Time.time + Random.Range(0.4f, 0.9f); // a second animal "answers"
+                        }
+                    }
+                }
+
+                // The scheduled answer call (#876): the same species voice from a slightly different spot at a
+                // slightly different pitch — reads as a second animal answering the first.
+                if (entry.AnswerAt > 0f && Time.time >= entry.AnswerAt)
+                {
+                    entry.AnswerAt = 0f;
+                    if (!c.Asleep)
+                    {
+                        var off = new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(-3f, 3f));
+                        ClientAudio.Instance?.At(TakeOf(entry.Call), entry.Root.transform.position + off,
+                            entry.Pitch * PitchJitter(), 0.55f * VolJitter(), entry.Echo);
                     }
                 }
 
@@ -198,12 +220,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (c.Hull < entry.PrevHull - 0.5f)
                     {
-                        audio.At(entry.Bank + "_hurt", entry.Root.transform.position, entry.Pitch, 0.9f, entry.Echo);
+                        audio.At(entry.Bank + "_hurt", entry.Root.transform.position, entry.Pitch * PitchJitter(), 0.9f * VolJitter(), entry.Echo);
                     }
 
                     if (c.Hostile && !entry.PrevHostile)
                     {
-                        audio.At(entry.Bank + "_alert", entry.Root.transform.position, entry.Pitch, 0.9f, entry.Echo);
+                        audio.At(entry.Bank + "_alert", entry.Root.transform.position, entry.Pitch * PitchJitter(), 0.9f * VolJitter(), entry.Echo);
                     }
 
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
@@ -212,7 +234,7 @@ namespace BlocksBeyondTheStars.Client
                         && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
                     {
                         entry.NextAttack = Time.time + Random.Range(1.5f, 3.5f);
-                        audio.At(entry.Bank + "_attack", entry.Root.transform.position, entry.Pitch, 1f, entry.Echo);
+                        audio.At(entry.Bank + "_attack", entry.Root.transform.position, entry.Pitch * PitchJitter(), 1f * VolJitter(), entry.Echo);
                         entry.AttackUntil = Time.time + 0.22f;            // lunge
                         SpawnAttackFx(Vector3.Lerp(Game.PlayerPosition, entry.Settled, 0.35f) + Vector3.up * 0.9f);
                     }
@@ -245,7 +267,7 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var id in stale)
                 {
                     var e = _creatures[id];
-                    ClientAudio.Instance?.At(e.Bank + "_die", e.Root.transform.position, e.Pitch, 0.9f);
+                    ClientAudio.Instance?.At(e.Bank + "_die", e.Root.transform.position, e.Pitch * PitchJitter(), 0.9f * VolJitter());
                     if (e.Nameplate != null) Destroy(e.Nameplate); // parented to the game root, not e.Root → free it too
                     if (e.Zzz != null) Destroy(e.Zzz);             // sleep label is under the game root too
                     Destroy(e.Root);
@@ -446,29 +468,31 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] CaveCalls =
         {
             "creature_call_moan", "creature_call_drone", "creature_call_wail", "creature_call_hoot",
-            "creature_call_whistle", "creature_call_click",
+            "creature_call_whistle", "creature_call_click", "creature_call_thrum",
         };
 
         private static readonly string[] AmphibianCalls =
         {
             "creature_call_croak", "creature_call_gurgle", "creature_call_warble", "creature_call_trill",
-            "creature_call_cluck",
+            "creature_call_cluck", "creature_call_burble",
         };
 
         private static readonly string[] WaterCalls =
         {
             "creature_call_gurgle", "creature_call_warble", "creature_call_click", "creature_call_whistle",
+            "creature_call_burble",
         };
 
         private static readonly string[] LavaCalls =
         {
             "creature_call_hiss", "creature_call_rumble", "creature_call_growl", "creature_call_snarl",
+            "creature_call_sizzle",
         };
 
         private static readonly string[] AirCalls =
         {
             "creature_call_screech", "creature_call_whistle", "creature_call_trill", "creature_call_chirp",
-            "creature_call_warble",
+            "creature_call_warble", "creature_call_keen",
         };
 
         /// <summary>The species' signature idle call, chosen deterministically (by species id) from its
@@ -485,6 +509,23 @@ namespace BlocksBeyondTheStars.Client
                 _ => Calls,
             };
             return pool[(idh & 0x7fffffff) % pool.Length];
+        }
+
+        /// <summary>Per-utterance pitch jitter (#876): small enough to keep the species voice recognisable,
+        /// large enough that two calls never sound bit-identical. Web only allows positive pitch.</summary>
+        private static float PitchJitter() => Random.Range(0.93f, 1.07f);
+
+        /// <summary>Per-utterance volume jitter (#876).</summary>
+        private static float VolJitter() => Random.Range(0.85f, 1.15f);
+
+        /// <summary>Picks a random take of the species call (#879): the second ElevenLabs take
+        /// (<c>*_2</c>), when bundled, plays half the time — the species keeps its call TYPE but no
+        /// longer repeats one identical file.</summary>
+        private static string TakeOf(string call)
+        {
+            var audio = ClientAudio.Instance;
+            string alt = call + "_2";
+            return audio != null && audio.Has(alt) && Random.value < 0.5f ? alt : call;
         }
 
         private static int SpeciesHash(string id)

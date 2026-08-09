@@ -104,7 +104,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
-### ★ Avatar body paint: torso, arms, legs and helmet are paintable like the face (#874, 2026-08-09, branch feature/avatar-body-paint)
+### ★ Creature voices enriched: per-call jitter, second takes, baked cave reverb (Web-safe) (#876/#877/#878/#879, 2026-08-09, branch feat/creature-sound-variants)
+Sampler-style variety for the fauna without touching the species-deterministic voice model:
+- **Per-utterance jitter** (`CreatureView`, `WorldEntities`): every idle/alert/attack/hurt/die cue
+  multiplies the species pitch by ±7 % (machines ±5 %) and the volume by ±15 % — no two utterances
+  are bit-identical any more. ~20 % of idle calls schedule a quieter offset "answer" call 0.4–0.9 s
+  later, reading as a second animal.
+- **26 new ElevenLabs assets** (#879): a `_2` second take for all 22 signature calls (picked 50/50
+  at call time via `ClientAudio.Has`) + 4 new habitat calls — `burble` (water/amphibian), `sizzle`
+  (lava), `keen` (air), `thrum` (cave). Pool growth re-rolls some species voices once (cosmetic).
+- **`SampleKit` baked DSP** (#877): cave reverb (small Schroeder, 4 combs + 2 allpasses, 0.9 s tail)
+  and the 680 Hz underwater muffle are rendered into cached runtime AudioClips (GetData → C# DSP →
+  Create/SetData) instead of filter components — fixing that **Unity Web silently ignores
+  AudioReverbFilter/AudioLowPassFilter** (#878): web players never heard the cave echo or the
+  underwater muffle on positional one-shots. One identical sound on every platform now; the global
+  2D bus low-pass (whole-mix underwater duck) remains desktop-only by design.
 The pixel-face idea extended to the whole figure. Each part opens its own editor showing the part
 **unfolded into a strip of 32×32 side faces** with separator lines and labels (walk once around the box:
 Vorne | Rechts | Hinten | Links); arms/legs are NOT mirrored — two labelled canvas rows, top = left limb,

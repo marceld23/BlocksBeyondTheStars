@@ -115,14 +115,14 @@ namespace BlocksBeyondTheStars.Client
                     if (!en.IsBandit && Time.time >= en.NextGrowl)
                     {
                         en.NextGrowl = Time.time + Random.Range(6f, 14f);
-                        audio.At("enemy_growl", en.Root.transform.position, en.Pitch, 0.9f);
+                        audio.At("enemy_growl", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
                     // Hurt flinch + bark on a hull drop (the player's hit landed).
                     if (en.PrevHull >= 0f && e.Hull < en.PrevHull - 0.25f)
                     {
                         en.FlinchUntil = Time.time + 0.25f;
-                        audio.At("enemy_hurt", en.Root.transform.position, en.Pitch, 0.9f);
+                        audio.At("enemy_hurt", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
                     // Hostile attack (throttled). Hovering drones snipe with a red laser from afar; ground
@@ -153,7 +153,7 @@ namespace BlocksBeyondTheStars.Client
                         {
                             en.NextAttack = Time.time + Random.Range(1.4f, 2.8f);
                             en.AttackUntil = Time.time + 0.35f;
-                            audio.At("enemy_attack", en.Root.transform.position, en.Pitch);
+                            audio.At("enemy_attack", en.Root.transform.position, en.Pitch * MachineJitter());
                         }
                     }
                 }
@@ -193,7 +193,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_enemies.TryGetValue(m.Id, out var en))
             {
-                ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch);
+                ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch * MachineJitter());
             }
         }
 
@@ -203,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
         /// is a render-side mirror of the space <c>UpdateHostileFire</c> tracers.</summary>
         private void FireDroneLaser(Entry en, ClientAudio audio)
         {
-            audio?.At("enemy_attack", en.Root.transform.position, en.Pitch);
+            audio?.At("enemy_attack", en.Root.transform.position, en.Pitch * MachineJitter());
 
             _weapons ??= FindAnyObjectByType<WeaponFx>();
             if (_weapons == null || Game == null)
@@ -649,6 +649,10 @@ namespace BlocksBeyondTheStars.Client
 
             return h & 0x7fffffff;
         }
+
+        /// <summary>Per-utterance pitch jitter (#876) — subtler than the fauna's (machines are more
+        /// uniform), but enough that repeated growls/zaps stop sounding bit-identical.</summary>
+        private static float MachineJitter() => Random.Range(0.95f, 1.05f);
 
         private void OnDestroy()
         {
