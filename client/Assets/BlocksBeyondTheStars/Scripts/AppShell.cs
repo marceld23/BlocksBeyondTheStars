@@ -990,6 +990,16 @@ namespace BlocksBeyondTheStars.Client
                     bodyText = "Não foi possível carregar os dados do jogo. Verifique sua conexão com a internet ou a instalação e tente novamente.";
                     retryText = "Tentar novamente";
                     break;
+                case "pl":
+                    titleText = "Nie udało się wczytać zawartości";
+                    bodyText = "Wczytywanie danych gry nie powiodło się. Sprawdź połączenie z internetem lub instalację i spróbuj ponownie.";
+                    retryText = "Spróbuj ponownie";
+                    break;
+                case "tr":
+                    titleText = "İçerik yüklenemedi";
+                    bodyText = "Oyun verileri yüklenemedi. İnternet bağlantını veya kurulumu kontrol edip tekrar dene.";
+                    retryText = "Tekrar dene";
+                    break;
                 default:
                     titleText = "Content failed to load";
                     bodyText = "Loading the game data failed. Check your internet connection or the install, then try again.";

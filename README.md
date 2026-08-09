@@ -49,7 +49,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 *   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
 *   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
 *   **Keyboard, mouse & controller:** Play with keyboard + mouse or an Xbox/XInput gamepad — both work at once, and menus are pad-navigable (controller support is experimental).
-*   **Play in your language:** the whole game is localized in **English, German, French and Spanish** — and community translations are welcome (Italian is underway; see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
+*   **Play in your language:** the whole game is localized in **English, German, French, Spanish, Portuguese, Polish and Turkish** — and community translations are welcome (Italian is underway; see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
 
 ## 🕹️ Ways to Play
 
@@ -145,8 +145,8 @@ Want to see your name here? See **[CONTRIBUTING.md](CONTRIBUTING.md)**.
 > [docs/developer/ARCHITECTURE.md](docs/developer/ARCHITECTURE.md) and every developer doc is indexed in
 > [docs/developer/README.md](docs/developer/README.md). (The original German requirement specs under `plans/`
 > were consolidated and removed.)
-> Docs and code comments are **English**. In-game text is **localized — English, German, French and
-> Spanish are complete; Italian is a community translation in progress**
+> Docs and code comments are **English**. In-game text is **localized — English, German, French,
+> Spanish, Portuguese, Polish and Turkish are complete; Italian is a community translation in progress**
 > (see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
 
 ## Project Status
@@ -419,7 +419,7 @@ colored-light building, **low-tech furniture** (bed, campfire, chairs you can ac
 content/ship/station editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in
 **music library**, the VEGA ship-AI onboarding/advisor companion, world-creation options, and an
 optional LLM backend for dynamic dialogue/mission text — all of it playable in **English, German,
-French and Spanish**. Self-hostable dedicated server. **Native Windows and Linux**
+French, Spanish, Portuguese, Polish and Turkish**. Self-hostable dedicated server. **Native Windows and Linux**
 clients (no Wine/Proton; an experimental macOS build exists), and **opt-in automatic crash reporting**
 so problems get fixed faster.
 Currently **1739 xUnit tests pass** (1545 server/shared + 194 headless client<->server).

@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
-FR/ES/PT machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
+FR/ES/PT/PL/TR machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -7527,6 +7527,18 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-09): Polish + Turkish — full machine first pass (#884, #885)
+
+Same drill as Portuguese (#883), now cheap thanks to the parallel translate pipeline: `pl.json` and
+`tr.json` at 3048/3048 keys each plus the VEGA-prologue story packs (68/68), clean under
+`locale_report.py --check`. Full Step-4 wiring (GameLocale, WebGL fallback manifest, OS-language
+first-run default, content-error dialog, AI-backend language map); informal address "ty"/"sen".
+Both are Latin-script (ą/ł/ż, ı/İ/ş/ğ sit in Latin Extended-A, which the bundled Rajdhani font
+covers) — on-screen glyph/overflow spot-check still pending playtest. Native-speaker review open
+(issue checklists). Cyrillic/CJK languages (#886–#889, #891) need the font-pipeline work first.
 
 ---
 
