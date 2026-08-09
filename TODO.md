@@ -104,6 +104,19 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Website translated into all 13 game languages (2026-08-10, branch feat/wix-i18n-locale-tools)
+The full website (all pages, menu, forms, image alt texts) now has complete translations in every
+game language: en/it plus newly created es, fr, nl, pl, pt, tr, ru, uk, ja, ko, zh — the 11 new Wix
+locales were created **HIDDEN** and stay invisible until reviewed and flipped visible. Translations
+were produced locally (one Claude subagent per language, game locale files as terminology glossary,
+EN as meaning reference, link-/markup-preserving checks + dry-run before every import); Wix machine
+translation and its word credits were not used. Tooling added: `create_locales.py` (create HIDDEN
+secondary locales), `curate_todo.py` (filter template leftovers out of audit todos),
+`import_translations.py` now copies the required `parentEntityId` from the primary-language record
+on create. Remaining editor-only tasks: per-language SEO meta/slugs, and the EN school-club page
+additions (dataquery links are numbered per language, so link-bearing sections can't be appended via
+API into an existing translation).
+
 ### ★ Website i18n tooling: Wix translation audit + import (2026-08-10, branch feat/wix-i18n-audit)
 `tools/wix-i18n/` — manage the website's translations via the Wix Multilingual REST APIs, bypassing
 Wix's machine translation. `audit_translations.py` (read-only) dumps schemas + per-locale contents and

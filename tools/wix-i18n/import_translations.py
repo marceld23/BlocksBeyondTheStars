@@ -31,8 +31,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 from audit_translations import API, load_env, make_session, text_preview
 
 
-def fetch_existing_keys(s: requests.Session, locale: str) -> set[tuple[str, str]]:
-    keys: set[tuple[str, str]] = set()
+def fetch_contents_map(s: requests.Session, locale: str) -> dict[tuple[str, str], dict]:
+    contents: dict[tuple[str, str], dict] = {}
     cursor = None
     while True:
         paging: dict = {"limit": 100}
@@ -44,11 +44,11 @@ def fetch_existing_keys(s: requests.Session, locale: str) -> set[tuple[str, str]
         r = s.post(f"{API}/translation-content/v1/contents/search", json=body)
         r.raise_for_status()
         d = r.json()
-        keys |= {(c["schemaId"], c["entityId"]) for c in d.get("contents", [])}
+        contents.update({(c["schemaId"], c["entityId"]): c for c in d.get("contents", [])})
         pm = d.get("pagingMetadata", {})
         cursor = pm.get("cursors", {}).get("next")
         if not pm.get("hasNext"):
-            return keys
+            return contents
 
 
 def field_text(f: dict, base_dir: Path) -> str:
@@ -58,14 +58,18 @@ def field_text(f: dict, base_dir: Path) -> str:
     return f["text"]
 
 
-def content_payload(item: dict, locale: str, base_dir: Path) -> dict:
-    return {
+def content_payload(item: dict, locale: str, base_dir: Path,
+                    parent_entity_id: str | None = None) -> dict:
+    payload = {
         "schemaId": item["schemaId"],
         "entityId": item["entityId"],
         "locale": locale,
         "fields": {key: {"textValue": field_text(f, base_dir), "published": True}
                    for key, f in item["fields"].items()},
     }
+    if parent_entity_id:
+        payload["parentEntityId"] = parent_entity_id
+    return payload
 
 
 def main() -> None:
@@ -85,7 +89,10 @@ def main() -> None:
 
     env = load_env()
     s = make_session(env)
-    existing = fetch_existing_keys(s, locale)
+    existing = set(fetch_contents_map(s, locale))
+    # Some schemas (editor components) require the parent entity (page) on create;
+    # copy it from the primary-language record.
+    primary = fetch_contents_map(s, "de")
 
     creates = [i for i in items if (i["schemaId"], i["entityId"]) not in existing]
     updates = [i for i in items if (i["schemaId"], i["entityId"]) in existing]
@@ -103,8 +110,10 @@ def main() -> None:
 
     failures = 0
     for item in creates:
+        de_record = primary.get((item["schemaId"], item["entityId"]), {})
         r = s.post(f"{API}/translation-content/v1/contents",
-                   json={"content": content_payload(item, locale, base_dir)})
+                   json={"content": content_payload(item, locale, base_dir,
+                                                    de_record.get("parentEntityId"))})
         if r.status_code != 200:
             failures += 1
             print(f"FAILED create {item['schema']} {item['entityId']}: "
