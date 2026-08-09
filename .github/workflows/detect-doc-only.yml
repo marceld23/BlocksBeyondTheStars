@@ -1,8 +1,9 @@
 # Reusable doc/asset-only change detector, shared by ci.yml, lint.yml and codeql.yml.
 #
-# Output `nondocs` is "true" when the PR diff contains ANY file that is not documentation or an
-# image (marketing screenshot, texture, icon, …). Callers gate their heavy jobs on it, so a PR that
-# only touches Markdown/docs/licences or image files skips build, tests, format, lint and CodeQL.
+# Output `nondocs` is "true" when the PR diff contains ANY file that is not documentation, an
+# image (marketing screenshot, texture, icon, …) or standalone external-service tooling. Callers
+# gate their heavy jobs on it, so a PR that only touches Markdown/docs/licences, image files or
+# the website tooling under tools/ skips build, tests, format, lint and CodeQL.
 # Because each of those is a job-name required check, a *skipped* required job still counts as a pass,
 # so doc/screenshot-only PRs stay green and are never blocked. (CodeQL is handled separately: its
 # required check is posted by the code-scanning service, not the job, so it is gated here AND removed
@@ -52,6 +53,11 @@ jobs:
               # Images (screenshots, textures, icons) — none affect the .NET tests, ruff,
               # actionlint or CodeQL analysis, so an image-only change is safe to skip everywhere.
               *.png|*.jpg|*.jpeg|*.gif|*.webp|*.bmp|*.svg|*.ico) ;;
+              # Standalone external-service tooling (website devblog, Wix i18n, glitch.fun store
+              # media) — pure Python scripts talking to external APIs, not part of the game build
+              # and not imported by any test. Push-to-main runs (ruff, CodeQL) still cover them
+              # because detection only applies to pull_request events.
+              tools/devblog/*|tools/wix-i18n/*|tools/glitch-media/*) ;;
               *) nondocs=true; break ;;
             esac
           done <<< "$files"
