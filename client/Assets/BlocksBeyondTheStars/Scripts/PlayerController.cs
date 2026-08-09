@@ -243,10 +243,22 @@ namespace BlocksBeyondTheStars.Client
                 _spawnPos = Game.RespawnTarget.Value;
                 SnapTo(_spawnPos);
                 Game.RespawnTarget = null;
+                _spawned = true; // a server snap is an authoritative position — never wait for ServerSpawn past it
                 _settling = true; // hold at the heal-tank until its chunk is streamed
                 _settleTimer = 0f;
                 _worldRevealed = false;
                 _awaitingFloor = false;
+            }
+
+            // Until the server has told us where we are, the controller must not exist as far as the
+            // simulation is concerned: the scene-default transform sits near the world origin, and letting
+            // gravity + SendMovement run from there streamed that bogus position to the server at 10 Hz —
+            // which trusted it, overwrote the freshly computed ship spawn, and left new players entombed in
+            // the origin column for the void rescue to dig into a random cave (#865, the root cause of #834).
+            if (!_spawned && Game != null)
+            {
+                UpdateJetpack(false);
+                return;
             }
 
             // Hold the player frozen at the spawn (no gravity, no control, no movement sent) until the

@@ -782,6 +782,7 @@ public sealed partial class GameServer
         int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
+        session.AwaitingSpawnAdopt = true; // #865: the client still streams its pre-landing pose for a beat
         session.SentChunks.Clear();
         if (!session.Spectating)
         {
@@ -1729,6 +1730,7 @@ public sealed partial class GameServer
         {
             // Died on the ship's own world on foot — snap to the heal-tank, no loading screen.
             p.Position = p.RespawnPoint;
+            session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
             p.AboardShip = true;
             Send(session, new RespawnNotice
             {
@@ -1802,6 +1804,7 @@ public sealed partial class GameServer
         MarkArrivedOnBody(session, homeLoc); // respawned onto this body → keep it a quick-travel target
         p.Position = _shipPlaced ? _healTank : p.RespawnPoint;
         p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
+        session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
         p.AboardShip = true;
         session.SentChunks.Clear();
 
@@ -2523,6 +2526,7 @@ public sealed partial class GameServer
         state.LastSeenUtc = UtcNowIso(); // "last seen" for the admin player list (issue #488)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
+        session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
 
         var (systemName, planetName) = ActiveLocationNames();
@@ -2793,6 +2797,7 @@ public sealed partial class GameServer
         state.LastSeenUtc = UtcNowIso();
         SetupPlayerShip(session); // local/test players get their own ship too
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
+        session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
         return session;
     }
@@ -2904,6 +2909,12 @@ public sealed partial class GameServer
 
     // ---------------- Authoritative validators ----------------
 
+    /// <summary>How far (blocks) a position report may sit from a just-placed spawn and still count as the
+    /// client adopting it. A snapped client reports from the spawn itself; the pre-snap ghost pose is the
+    /// world origin or the pre-teleport spot — typically thousands of blocks out. Generous, so a slow first
+    /// settle (falling a few blocks onto the pad) can never wedge the gate shut.</summary>
+    private const float SpawnAdoptRadius = 64f;
+
     private void HandleMove(PlayerSession session, MoveIntent move)
     {
         if (session.RespawnChoiceDeadline > 0)
@@ -2920,12 +2931,33 @@ public sealed partial class GameServer
             // like east–west. Stations/space keep their own small coordinate space (no wrap there).
             int circ = _world.Circumference; // this world's size (asteroids small, planets large)
             float z = move.Z;
-            if (!InStation(session.State.PlayerId) && !InSpace(session.State.PlayerId))
+            bool onSurface = !InStation(session.State.PlayerId) && !InSpace(session.State.PlayerId);
+            if (onSurface)
             {
                 z = (float)WorldConstants.WrapZ((double)move.Z, circ);
             }
 
-            session.State.Position = new Vector3f((float)WorldConstants.WrapX(move.X, circ), move.Y, z);
+            var reported = new Vector3f((float)WorldConstants.WrapX(move.X, circ), move.Y, z);
+
+            // Spawn-adoption gate (#865): right after the server places this player (join, travel landing,
+            // respawn), the client may still be streaming a stale pose from before it processed the snap —
+            // most damagingly the scene-default transform near the world origin during the very first join.
+            // Drop reports far from the placed position until one arrives close to it; that first nearby
+            // report proves the client has adopted the spawn and normal trust resumes. Wrap-aware, so a
+            // spawn next to a world seam never reads as "far". Stations/space keep their own small
+            // coordinate spaces where a fresh join cannot occur — the gate only guards surface play.
+            if (session.AwaitingSpawnAdopt && onSurface)
+            {
+                if (WorldConstants.WrapDistanceSquared(reported, session.State.Position, circ)
+                    > SpawnAdoptRadius * SpawnAdoptRadius)
+                {
+                    return; // pre-snap ghost pose — the authoritative spawn stands
+                }
+
+                session.AwaitingSpawnAdopt = false;
+            }
+
+            session.State.Position = reported;
             session.State.Yaw = move.Yaw;
             session.State.Pitch = move.Pitch;
             UpdateDrivingSpeeder(session); // if driving a speeder, slave it to this pose + drain its energy cell

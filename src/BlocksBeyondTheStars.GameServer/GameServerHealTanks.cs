@@ -225,6 +225,7 @@ public sealed partial class GameServer
             }
 
             p.Position = p.CustomSpawnPoint;
+            session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
             p.AboardShip = false;
             Send(session, new RespawnNotice
             {
@@ -265,6 +266,7 @@ public sealed partial class GameServer
         MarkArrivedOnBody(session, p.CustomSpawnBodyId);
         p.Position = p.CustomSpawnPoint;
         p.RespawnPoint = _shipPlaced ? _healTank : p.RespawnPoint;
+        session.AwaitingSpawnAdopt = true; // #865: ignore death-spot reports until the client snaps
         p.AboardShip = false;
         session.SentChunks.Clear();
 

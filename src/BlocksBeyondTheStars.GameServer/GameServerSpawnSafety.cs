@@ -254,6 +254,7 @@ public sealed partial class GameServer
             {
                 var freed = DigOutUpwards(p.Position) ?? SafeSpawnPoint(p.PlayerId);
                 p.Position = freed;
+                s.AwaitingSpawnAdopt = true; // #865: the client's stale stream must not drag them back in
                 _log.Warn($"Player '{p.Name}' was sealed inside blocks; moved to {freed}.");
                 Send(s, new RespawnNotice { X = freed.X, Y = freed.Y, Z = freed.Z, Reason = "@srv.misc.dug_out" });
                 SendPlayerState(s);
@@ -267,6 +268,7 @@ public sealed partial class GameServer
 
             var safe = SafeSpawnPoint(p.PlayerId);
             p.Position = safe;
+            s.AwaitingSpawnAdopt = true; // #865: the client's stale stream must not drag them back down
             _log.Warn($"Player '{p.Name}' fell into the void; recovered to {safe}.");
             Send(s, new RespawnNotice { X = safe.X, Y = safe.Y, Z = safe.Z, Reason = "@srv.misc.fall_recovered" });
             SendPlayerState(s);

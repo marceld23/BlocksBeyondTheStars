@@ -45,6 +45,16 @@ public sealed class GameServerIntegrationTests : IDisposable
         client.Poll();    // drain server replies
     }
 
+    /// <summary>Clears the spawn-adoption gate (#865) the way a real client does: by reporting a position
+    /// at the authoritative spawn itself. Tests that then walk far in a single MoveIntent (a lap around
+    /// the world) would otherwise have that report dropped as a pre-snap ghost pose.</summary>
+    private static void AdoptSpawn(SvGameServer server, LoopbackClientTransport client, PlayerSession session)
+    {
+        var p = session.State.Position;
+        client.Send(NetCodec.Encode(new MoveIntent { X = p.X, Y = p.Y, Z = p.Z }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.05);
+    }
+
 
     [Fact]
     public void Join_Mine_InventoryGrows_AndPersistsAcrossReload()
@@ -224,6 +234,7 @@ public sealed class GameServerIntegrationTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Walker");
         var session = server.Sessions[1];
+        AdoptSpawn(server, client, session);
 
         int C = server.World.Circumference; // this world's size (varies per body)
 
@@ -318,6 +329,7 @@ public sealed class GameServerIntegrationTests : IDisposable
         server.Start();
         JoinAndDrain(server, client, "Wanderer");
         var session = server.Sessions[1];
+        AdoptSpawn(server, client, session);
 
         // Round worlds: latitude wraps at the period (≈ circumference/2) instead of clamping at a barrier.
         int P = BlocksBeyondTheStars.Shared.World.WorldConstants.LatitudePeriodFor(server.World.Circumference);

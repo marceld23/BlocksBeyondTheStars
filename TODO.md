@@ -7448,6 +7448,35 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-09): fresh joins no longer spawn entombed at the world origin (#865)
+
+Local-build repro: a brand-new singleplayer world parked the ship correctly, yet the player woke up
+sealed in rock at the world-origin column and was dug out into a cave 10,000 blocks from the ship —
+the same `(0.5, y, 0.5)` signature as #834, whose "which path produces the fallback?" question was
+still open. Root cause is a **join-time position race**, fixed on both ends:
+
+- **Client — the controller ran before it knew where it was.** `PlayerController.Update` used
+  `_spawned` only to trigger the one-time `ServerSpawn` snap; until the first `PlayerState` was
+  processed, gravity ran from the scene-default transform near the origin and `SendMovement()`
+  streamed that pose at 10 Hz. Now the controller freezes entirely (no gravity, no input, no
+  position reports) while `!_spawned`, mirroring the `_settling` freeze — and a `RespawnTarget`
+  snap counts as spawned too, so a pre-spawn rescue notice can never wedge the wait.
+- **Server — `HandleMove` trusted any finite position.** The pad/heal-tank spawn computed at join
+  was overwritten by the client's origin free-fall within ~100 ms; the entombed rescue then dug the
+  player out of the WRONG column (the #850 rescue made the lockout survivable, not correct). New
+  spawn-adoption gate: whenever the server authoritatively places a player (join, travel landing,
+  respawn — ship, home tank/bed — and the void/entombed rescues), `AwaitingSpawnAdopt` arms and
+  `MoveIntent`s farther than 64 blocks (wrap-aware, `WrapDistanceSquared`) from the placed position
+  are dropped until one arrives near it — that first nearby report proves the client adopted the
+  snap, then normal client-authoritative movement resumes. Old clients are protected server-side.
+
+Tests: the race replayed through the real intent path (join → far ghost `MoveIntent` dropped, spawn
+stands → nearby report adopts → far moves trusted again); a settling report near the spawn passes
+immediately; the two world-wrap walk tests now adopt the spawn first, like a real client. Playtest
+pending.
+
+---
+
 ## ✅ Done (2026-08-09): fauna stops walking through walls; insects respect blocks (#855)
 
 Playtest report: insects fly straight through walls, and creatures sometimes stand half inside one.

@@ -17,6 +17,14 @@ public sealed class PlayerSession
     /// <summary>True once the player has completed the join handshake.</summary>
     public bool Joined { get; set; }
 
+    /// <summary>Armed whenever the server authoritatively places this player on a surface (join, travel
+    /// landing, respawn). While armed, position reports far away from the placed position are dropped —
+    /// the client keeps streaming its pre-snap pose (the scene-default transform near the world origin,
+    /// or the pre-respawn spot) until it processes the snap, and trusting those reports overwrote the
+    /// fresh spawn and entombed new players in the origin column (#865, the root cause of #834).
+    /// Cleared by the first report that lands near the authoritative position.</summary>
+    public bool AwaitingSpawnAdopt { get; set; }
+
     /// <summary>The player's UI language ("en"/"de") sent on join (item 15). Server-authored dynamic text — LLM
     /// NPC greetings — is generated in this language. Connection-scoped (not persisted); defaults to English.</summary>
     public string Locale { get; set; } = "en";
