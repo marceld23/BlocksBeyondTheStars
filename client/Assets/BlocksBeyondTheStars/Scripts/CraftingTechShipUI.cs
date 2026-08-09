@@ -202,9 +202,11 @@ namespace BlocksBeyondTheStars.Client
                     // Companions tab: roster length + present-count + the "new companion" badge flag.
                     + (Game.Companions?.Companions.Length ?? 0) * 907 + (Game.NewCompanionUnseen ? 1409 : 0)
                     + (Game.Companions?.Companions.Count(c => c.Present) ?? 0) * 67
-                    // The local custom pixel face: applying it in the editor must rebuild the Character tab so the
-                    // live preview re-applies the new face (its SetFace runs on rebuild, not via a direct callback).
-                    + (Game.FacePixels?.GetHashCode() ?? 0);
+                    // The local custom pixel face + body paintings: applying one in the editor must rebuild the
+                    // Character tab so the live preview re-applies it (SetFace/SetBodyPaint run on rebuild).
+                    + (Game.FacePixels?.GetHashCode() ?? 0)
+                    + (Game.BodyPaintPixels[0]?.GetHashCode() ?? 0) * 3 + (Game.BodyPaintPixels[1]?.GetHashCode() ?? 0) * 5
+                    + (Game.BodyPaintPixels[2]?.GetHashCode() ?? 0) * 7 + (Game.BodyPaintPixels[3]?.GetHashCode() ?? 0) * 11;
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -1570,6 +1572,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 _avatarPreview.SetColors(cols[0], cols[1], cols[2], cols[3]);
                 _avatarPreview.SetFace(Menu.Settings.FacePixels);
+                for (int part = 0; part < BodyPaintKit.PartCount; part++)
+                {
+                    _avatarPreview.SetBodyPaint(part, Menu.Settings.GetBodyPaint(part)); // body paintings (#874)
+                }
             }
 
             for (int i = 0; i < 4; i++)
@@ -1586,7 +1592,19 @@ namespace BlocksBeyondTheStars.Client
             var faceCard = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenFaceEditor());
             UiKit.AddText(faceCard.transform, 16, 0, 520, 78, L("ui.face.edit"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddText(faceCard.transform, 560, 0, 200, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
-            y += 96f;
+            y += 88f;
+
+            // Body paintings (#874): one card per part, each opening its unfolded-strip pixel editor.
+            for (int part = 0; part < BodyPaintKit.PartCount; part++)
+            {
+                int which = part;
+                var paintCard = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenBodyPaintEditor(which));
+                UiKit.AddText(paintCard.transform, 16, 0, 520, 78, L(BodyPaintKit.PartKey(part)), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(paintCard.transform, 560, 0, 200, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+                y += 88f;
+            }
+
+            y += 8f;
 
             // Master volume — − / + adjust the audio bus live (and persist).
             int pct = Mathf.RoundToInt((Menu?.Settings?.MasterVolume ?? 0.8f) * 100f);

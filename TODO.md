@@ -104,6 +104,29 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Avatar body paint: torso, arms, legs and helmet are paintable like the face (#874, 2026-08-09, branch feature/avatar-body-paint)
+The pixel-face idea extended to the whole figure. Each part opens its own editor showing the part
+**unfolded into a strip of 32×32 side faces** with separator lines and labels (walk once around the box:
+Vorne | Rechts | Hinten | Links); arms/legs are NOT mirrored — two labelled canvas rows, top = left limb,
+bottom = right limb (Vorne | Außen | Hinten | Innen per limb). No torso top / no soles; the helmet keeps
+its top and has **no front** (open helmet — the drawn face stays visible; hatched in the hint).
+- **Format**: wire/persist payload = concatenation of 32×32 hex chunks (`BodyPaint` shared helper:
+  torso 4, arms 2×4, legs 2×4, helmet 5; FacePalette palette, 0 = transparent, empty = unpainted).
+- **Rendering** (`PlayerAvatar.SetBodyPaint` + `BodyPaintKit`): one atlas texture per painted part;
+  segment cubes swap onto generated meshes whose UVs project the atlas planar per axis within the
+  part's rest-pose bbox — the motif runs continuously across chest/abdomen/pelvis and across the
+  elbow/knee segments, shoulders sample the chest edges; unpainted cube faces hit a solid-tint pad,
+  transparent pixels composite onto the part colour (colour pickers keep working under a painting).
+- **Editor**: the shared `FaceEditor` grew non-square canvases (`GridW/GridH`), a separator-line
+  template overlay with localized face/limb labels, and pluggable payload codecs — the three existing
+  hosts (face, Avatar Designer, block paint) are untouched.
+- **Wire/server**: `SetBodyPaintIntent`/`PlayerBodyPaint` (NetCodec 198/199), exact-length + hex
+  validation per part, the face's 2 s appearance rate limit shared across all parts, persisted in the
+  player snapshot, sent per painted part to newcomers on join; observer-allowlisted as cosmetic.
+- **Hosts**: 4 new cards on the in-game Character tab + 4 buttons in the menu Avatar Designer, live
+  on both previews; DE+EN locale keys. 5 new server tests (codec registration, validation, shared
+  rate limit, snapshot round-trip).
+
 ### ★ Marketing screenshots regenerated on the continents worldgen — sandbox capture, clean frames, planet in the space shot (2026-08-09)
 Full DE+EN re-capture (26 PNGs) with all `MarketingShots*` saves deleted first, so every planet shot
 shows the current continents/wonders worldgen. Pipeline fixes on the way (all capture-only except the

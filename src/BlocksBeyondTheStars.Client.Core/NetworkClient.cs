@@ -91,6 +91,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlayerPresence>? PlayerPresenceReceived;
         public event Action<PlayerLeft>? PlayerLeftReceived;
         public event Action<PlayerFace>? PlayerFaceReceived; // another player's custom pixel face
+        public event Action<PlayerBodyPaint>? PlayerBodyPaintReceived; // another player's body painting (#874)
 
         // Player-painted block designs (#817): the save-global registry (join list + live additions/wipes).
         public event Action<PaintDesignData>? PaintDesignReceived;
@@ -510,6 +511,11 @@ namespace BlocksBeyondTheStars.Client
         /// out of band from the presence stream.</summary>
         public void SendFace(string pixels) => Send(new SetFaceIntent { Pixels = pixels ?? string.Empty });
 
+        /// <summary>Sends one of the player's avatar body-paint paintings (torso/arms/legs/helmet; empty
+        /// clears it). Sent per painted part on join and on each edit — out of band from presence (#874).</summary>
+        public void SendBodyPaint(int part, string pixels)
+            => Send(new SetBodyPaintIntent { Part = part, Pixels = pixels ?? string.Empty });
+
         /// <summary>Paints a 32×32 design onto a placed world block (empty pixels clears the paint). The
         /// server dedups the bitmap into the save-global design registry and answers via the ordinary
         /// <see cref="BlockChanged"/> path (+ a <see cref="PaintDesignData"/> when the design is new).</summary>
@@ -634,6 +640,7 @@ namespace BlocksBeyondTheStars.Client
                 case PlayerPresence m: PlayerPresenceReceived?.Invoke(m); break;
                 case PlayerLeft m: PlayerLeftReceived?.Invoke(m); break;
                 case PlayerFace m: PlayerFaceReceived?.Invoke(m); break;
+                case PlayerBodyPaint m: PlayerBodyPaintReceived?.Invoke(m); break;
                 case PaintDesignData m: PaintDesignReceived?.Invoke(m); break;
                 case PaintDesignList m: PaintDesignListReceived?.Invoke(m); break;
                 case CustomShapeData m: CustomShapeReceived?.Invoke(m); break;

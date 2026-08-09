@@ -42,6 +42,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Custom pixel faces by player id. Kept separately so a face that arrives before the player's
         /// first presence (or after their avatar is rebuilt) is still applied.</summary>
         private readonly Dictionary<string, string> _faces = new Dictionary<string, string>();
+
+        /// <summary>Body paintings by player id (#874), one slot per BodyPaint part — same cache pattern
+        /// (and the same keep-across-world-reset rule) as the faces.</summary>
+        private readonly Dictionary<string, string[]> _bodyPaints = new Dictionary<string, string[]>();
         private bool _subscribed;
 
         /// <summary>Names of other players within <paramref name="range"/> of <paramref name="from"/> (for dock/trade targeting).</summary>
@@ -81,6 +85,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerPresenceReceived += OnPresence;
                 Game.Network.PlayerLeftReceived += OnLeft;
                 Game.Network.PlayerFaceReceived += OnFace;
+                Game.Network.PlayerBodyPaintReceived += OnBodyPaint;
                 Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
@@ -128,6 +133,17 @@ namespace BlocksBeyondTheStars.Client
                 if (_faces.TryGetValue(m.PlayerId, out var face))
                 {
                     avatar.SetFace(face); // a face we already received before this first presence
+                }
+
+                if (_bodyPaints.TryGetValue(m.PlayerId, out var paints))
+                {
+                    for (int part = 0; part < paints.Length; part++)
+                    {
+                        if (!string.IsNullOrEmpty(paints[part]))
+                        {
+                            avatar.SetBodyPaint(part, paints[part]); // body paintings received before the presence
+                        }
+                    }
                 }
 
                 avatar.SetVisible(true);
@@ -182,6 +198,31 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private void OnBodyPaint(PlayerBodyPaint m)
+        {
+            if (Game != null && m.PlayerId == Game.LocalPlayerId)
+            {
+                return; // our own paintings are applied locally
+            }
+
+            if (m.Part < 0 || m.Part >= BodyPaintKit.PartCount)
+            {
+                return;
+            }
+
+            if (!_bodyPaints.TryGetValue(m.PlayerId, out var paints))
+            {
+                paints = new string[BodyPaintKit.PartCount];
+                _bodyPaints[m.PlayerId] = paints;
+            }
+
+            paints[m.Part] = m.Pixels ?? string.Empty;
+            if (_remotes.TryGetValue(m.PlayerId, out var r) && r.Avatar != null)
+            {
+                r.Avatar.SetBodyPaint(m.Part, paints[m.Part]);
+            }
+        }
+
         /// <summary>Changing world (planet ↔ station ↔ ship interior) wipes the remote avatars: presence is
         /// per-world, so the previous world's players would linger as frozen ghosts — still offering trade/dock
         /// prompts — at their old-world coordinates (issue #412 M6, mirrors <see cref="NpcView"/>). The new
@@ -207,6 +248,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _faces.Remove(m.PlayerId);
+            _bodyPaints.Remove(m.PlayerId);
         }
 
         private void LateUpdate()
@@ -236,6 +278,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.PlayerPresenceReceived -= OnPresence;
                 Game.Network.PlayerLeftReceived -= OnLeft;
                 Game.Network.PlayerFaceReceived -= OnFace;
+                Game.Network.PlayerBodyPaintReceived -= OnBodyPaint;
                 Game.Network.WorldResetReceived -= OnWorldReset;
             }
         }

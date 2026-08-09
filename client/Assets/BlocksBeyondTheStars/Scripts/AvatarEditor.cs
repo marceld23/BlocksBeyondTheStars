@@ -39,6 +39,7 @@ namespace BlocksBeyondTheStars.Client
         private string _name = "My Skin";
         private Text _status;
         private string _face = string.Empty; // encoded pixel face (same format as the in-game editor)
+        private readonly string[] _bodyPaint = new string[BodyPaintKit.PartCount]; // body paintings (#874)
         private FaceEditor _faceEditor;
 
         private void Start()
@@ -49,6 +50,10 @@ namespace BlocksBeyondTheStars.Client
             _col[2] = s?.ArmColor ?? Palette[4];
             _col[3] = s?.LegColor ?? Palette[8];
             _face = s?.FacePixels ?? string.Empty;
+            for (int part = 0; part < _bodyPaint.Length; part++)
+            {
+                _bodyPaint[part] = s?.GetBodyPaint(part) ?? string.Empty;
+            }
 
             BuildScene();
             BuildUi();
@@ -78,6 +83,10 @@ namespace BlocksBeyondTheStars.Client
             _avatar.Build(_col[0], _col[1], _col[2], _col[3], spacesuit: true); // preview the player's suited look
             _avatar.SetVisible(true);
             _avatar.SetFace(_face); // show the player's current custom face on the preview figure
+            for (int part = 0; part < _bodyPaint.Length; part++)
+            {
+                _avatar.SetBodyPaint(part, _bodyPaint[part]); // and the current body paintings (#874)
+            }
         }
 
         private void Update()
@@ -121,6 +130,19 @@ namespace BlocksBeyondTheStars.Client
             y += 30f;
             UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.face.edit"), OpenFaceEditor);
             y += 42f;
+
+            // Body paintings (#874): one editor button per part, packed 2×2 so the panel height holds.
+            float half = (w - 48f) / 2f;
+            for (int part = 0; part < BodyPaintKit.PartCount; part++)
+            {
+                int which = part;
+                UiKit.AddButton(panel, 20f + (part % 2) * (half + 8f), y, half, 34f,
+                    L(BodyPaintKit.PartKey(part)), () => OpenBodyPaintEditor(which));
+                if (part % 2 == 1)
+                {
+                    y += 38f;
+                }
+            }
 
             y += 10f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
@@ -206,6 +228,26 @@ namespace BlocksBeyondTheStars.Client
             };
         }
 
+        /// <summary>Opens the unfolded-strip editor for one body-paint part over the designer; applying
+        /// updates the live preview, and the panel's Apply persists it (same flow as the face, #874).</summary>
+        private void OpenBodyPaintEditor(int part)
+        {
+            if (_faceEditor != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("BodyPaintEditor");
+            go.transform.SetParent(transform, false);
+            _faceEditor = go.AddComponent<FaceEditor>();
+            BodyPaintKit.ConfigureEditor(_faceEditor, part, _bodyPaint[part], L);
+            _faceEditor.OnApply = pixels =>
+            {
+                _bodyPaint[part] = pixels ?? string.Empty;
+                _avatar?.SetBodyPaint(part, _bodyPaint[part]); // live preview; persisted by the panel's Apply
+            };
+        }
+
         private void Apply()
         {
             if (Shell?.Settings is { } s)
@@ -215,6 +257,11 @@ namespace BlocksBeyondTheStars.Client
                 s.ArmColor = _col[2];
                 s.LegColor = _col[3];
                 s.FacePixels = _face;
+                for (int part = 0; part < _bodyPaint.Length; part++)
+                {
+                    s.SetBodyPaint(part, _bodyPaint[part]);
+                }
+
                 s.Save();
                 SetStatus(L("ui.avatar.applied"));
             }

@@ -231,4 +231,34 @@ public sealed class PlayerState
     /// string is opaque to the server — the client owns the palette + rendering. Server-authoritative,
     /// persisted; relayed to other players via the <c>PlayerFace</c> message (not the 10 Hz presence stream).</summary>
     public string FacePixels { get; set; } = string.Empty;
+
+    // Avatar body paint (#874): the pixel paintings for torso, arms, legs and the suit helmet — the face's
+    // siblings. Same lifecycle as FacePixels: opaque hex strings (concatenated 32×32 palette-index chunks,
+    // see BodyPaint), empty = not painted, server-authoritative, persisted, relayed via PlayerBodyPaint.
+    public string TorsoPixels { get; set; } = string.Empty;
+    public string ArmPixels { get; set; } = string.Empty;
+    public string LegPixels { get; set; } = string.Empty;
+    public string HelmetPixels { get; set; } = string.Empty;
+
+    /// <summary>The body-paint painting for a <see cref="BodyPaint"/> part index (empty for unknown parts).</summary>
+    public string GetBodyPaint(int part) => part switch
+    {
+        BodyPaint.Torso => TorsoPixels,
+        BodyPaint.Arms => ArmPixels,
+        BodyPaint.Legs => LegPixels,
+        BodyPaint.Helmet => HelmetPixels,
+        _ => string.Empty,
+    };
+
+    /// <summary>Stores the body-paint painting for a <see cref="BodyPaint"/> part index (unknown parts ignored).</summary>
+    public void SetBodyPaint(int part, string pixels)
+    {
+        switch (part)
+        {
+            case BodyPaint.Torso: TorsoPixels = pixels; break;
+            case BodyPaint.Arms: ArmPixels = pixels; break;
+            case BodyPaint.Legs: LegPixels = pixels; break;
+            case BodyPaint.Helmet: HelmetPixels = pixels; break;
+        }
+    }
 }

@@ -74,6 +74,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Shows the player's custom pixel face on the preview figure (empty restores the default).</summary>
         public void SetFace(string face) => _avatar?.SetFace(face);
 
+        /// <summary>Shows one of the player's body paintings on the preview figure (#874).</summary>
+        public void SetBodyPaint(int part, string pixels) => _avatar?.SetBodyPaint(part, pixels);
+
         /// <summary>Enables/disables rendering. Toggles the MODEL too (not just the camera) so an inactive rig's
         /// avatar isn't left in the scene where the other preview's camera would pick it up (B53).</summary>
         public void SetActive(bool on)

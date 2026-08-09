@@ -36,12 +36,28 @@ namespace BlocksBeyondTheStars.Client
         public Action<string, string> OnShare;  // paint host: put (pixels, name) on the clipboard as a share code
         public Func<(string Pixels, string Name)?> OnImport; // paint host: read a share code off the clipboard
 
+        // Body-paint hosts (#874): a NON-square canvas showing a part unfolded into a strip of 32×32 face
+        // regions with separator lines + labels ("Vorne | Rechts | Hinten | Links"), and custom payload
+        // codecs (the wire format is concatenated face chunks, not the canvas's row-major order). All
+        // default to the classic square face behaviour, so the three existing hosts are untouched.
+        public int GridW;                       // canvas cells wide (0 = square GridSize)
+        public int GridH;                       // canvas cells high (0 = square GridSize)
+        public string TitleKey = "ui.face.title";
+        public string HintKey = "ui.face.hint";
+        public Func<string, int[]> DecodeGrid;  // payload → canvas grid (length GridW×GridH)
+        public Func<int[], string> EncodeGrid;  // canvas grid → payload
+        public string[] ColumnLabelKeys;        // one label per 32-cell column block (strip face names)
+        public string[] RowLabelKeys;           // one label per 32-cell row block (Links/Rechts), or null
+
         private int _size;
+        private int _w, _h;
+        private float _cell; // display pixels per canvas cell (512 / width)
         private int[] _grid;
         private string _name = string.Empty;
         private int _brush = 1; // current palette index (0 = eraser/transparent)
 
         private Texture2D _tex;
+        private Texture2D _templateTex; // separator-line overlay (body-paint hosts)
         private RectTransform _canvasRt;
         private RawImage _canvas;
 
@@ -58,8 +74,10 @@ namespace BlocksBeyondTheStars.Client
         private void Start()
         {
             _size = Mathf.Clamp(GridSize, 8, 64);
-            _grid = new int[_size * _size];
-            _tex = new Texture2D(_size, _size, TextureFormat.RGBA32, false)
+            _w = GridW > 0 ? Mathf.Clamp(GridW, 8, 256) : _size;
+            _h = GridH > 0 ? Mathf.Clamp(GridH, 8, 256) : _size;
+            _grid = new int[_w * _h];
+            _tex = new Texture2D(_w, _h, TextureFormat.RGBA32, false)
             {
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Point,
@@ -74,6 +92,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_ui != null) Destroy(_ui.gameObject);
             if (_tex != null) Destroy(_tex);
+            if (_templateTex != null) Destroy(_templateTex);
             OnClosed?.Invoke();
         }
 
@@ -94,15 +113,15 @@ namespace BlocksBeyondTheStars.Client
             float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
             float u = Mathf.Clamp01(lp.x / w);
             float fromTop = Mathf.Clamp01(-lp.y / h);
-            int gx = Mathf.Clamp(Mathf.RoundToInt(u * (_size - 1)), 0, _size - 1);
-            int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_size - 1)), 0, _size - 1); // top row = gy 0
+            int gx = Mathf.Clamp(Mathf.RoundToInt(u * (_w - 1)), 0, _w - 1);
+            int gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_h - 1)), 0, _h - 1); // top row = gy 0
 
             // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
             // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
             // the one you used for the left eye by eye in the palette is guesswork.
             if (_picking && left)
             {
-                int picked = _grid[gy * _size + gx];
+                int picked = _grid[gy * _w + gx];
                 SetBrush(picked, _swatches[picked]);
                 SetPicking(false); // one-shot, like every paint program: pick, then carry on drawing
                 return;
@@ -115,11 +134,11 @@ namespace BlocksBeyondTheStars.Client
         /// row 0 is the BOTTOM, so the display flips vertically.</summary>
         private void Paint(int gx, int gy, int index)
         {
-            int cell = gy * _size + gx;
+            int cell = gy * _w + gx;
             if (_grid[cell] == index) return;
 
             _grid[cell] = index;
-            _tex.SetPixel(gx, _size - 1 - gy, DisplayColor(index));
+            _tex.SetPixel(gx, _h - 1 - gy, DisplayColor(index));
             _tex.Apply();
         }
 
@@ -128,10 +147,10 @@ namespace BlocksBeyondTheStars.Client
 
         private void RenderAll()
         {
-            for (int gy = 0; gy < _size; gy++)
-            for (int gx = 0; gx < _size; gx++)
+            for (int gy = 0; gy < _h; gy++)
+            for (int gx = 0; gx < _w; gx++)
             {
-                _tex.SetPixel(gx, _size - 1 - gy, DisplayColor(_grid[gy * _size + gx]));
+                _tex.SetPixel(gx, _h - 1 - gy, DisplayColor(_grid[gy * _w + gx]));
             }
 
             _tex.Apply();
@@ -139,7 +158,12 @@ namespace BlocksBeyondTheStars.Client
 
         private void LoadFrom(string face)
         {
-            var grid = FacePalette.Decode(face, _size * _size);
+            var grid = DecodeGrid != null ? DecodeGrid(face) : FacePalette.Decode(face, _w * _h);
+            if (grid == null || grid.Length != _grid.Length)
+            {
+                grid = new int[_grid.Length];
+            }
+
             Array.Copy(grid, _grid, _grid.Length);
             RenderAll();
         }
@@ -159,14 +183,19 @@ namespace BlocksBeyondTheStars.Client
             // The paint host gets a wider panel: the design-library column sits right of the canvas.
             float panelW = hasLibrary ? 950f : 700f;
             var (_, panel) = UiKit.AddModalOverlay(root, hasLibrary ? 485f : 610f, 60f, panelW, 960f);
-            UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L("ui.face.title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L(TitleKey), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            // Paint surface (point-filtered → crisp big pixels).
+            // Paint surface (point-filtered → crisp big pixels). Non-square strip layouts keep square
+            // CELLS: the width stays 512, the height follows the aspect (a 128×32 strip is 512×128).
+            _cell = 512f / _w;
+            float canvasH = _cell * _h;
             var canvasGo = new GameObject("FaceCanvas", typeof(RectTransform));
             canvasGo.transform.SetParent(panel, false);
-            _canvasRt = UiKit.Place(canvasGo, 94f, 64f, 512f, 512f);
+            _canvasRt = UiKit.Place(canvasGo, 94f, 64f, 512f, canvasH);
             _canvas = canvasGo.AddComponent<RawImage>();
             _canvas.texture = _tex;
+
+            BuildTemplateOverlay(panel, canvasH);
 
             // Palette: colours 1..N then an eraser (index 0).
             UiKit.AddText(panel, 24f, 592f, 400f, 24f, L("ui.face.palette"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -193,7 +222,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(panel, 260f, 832f, 180f, 56f, L("ui.face.clear"), () => { Array.Clear(_grid, 0, _grid.Length); RenderAll(); });
             UiKit.AddButton(panel, 456f, 832f, 220f, 56f, L("ui.menu.back"), Close);
 
-            UiKit.AddText(panel, 24f, 904f, panelW - 48f, 24f, L("ui.face.hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            UiKit.AddText(panel, 24f, 904f, panelW - 48f, 24f, L(HintKey), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
             // Design library column (paint host only): name + save the current canvas, reload saved designs,
             // and share one as a code (#846) — the same set of moves the form library offers.
@@ -407,9 +436,101 @@ namespace BlocksBeyondTheStars.Client
             if (_activeSwatch != null) _activeSwatch.transform.localScale = Vector3.one * 1.18f;
         }
 
+        /// <summary>
+        /// The unfold template for the body-paint hosts (#874): separator lines every 32 cells (the fold
+        /// edges between the box faces the player asked to "see where the side edges are"), a face label
+        /// above each column block, and a limb label (Links/Rechts) left of each row block. Drawn as an
+        /// overlay RawImage so the lines sit ON the canvas without being paintable pixels.
+        /// </summary>
+        private void BuildTemplateOverlay(Transform panel, float canvasH)
+        {
+            if (ColumnLabelKeys == null || ColumnLabelKeys.Length == 0)
+            {
+                return; // square face / block-paint hosts: no template
+            }
+
+            const int block = 32; // cells per face region (BodyPaintKit.Face)
+            int texW = 512, texH = Mathf.RoundToInt(canvasH);
+            var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+
+            var clear = new Color(0f, 0f, 0f, 0f);
+            var line = new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.85f);
+            var pixels = new Color[texW * texH];
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = clear;
+            }
+
+            void VLine(int x)
+            {
+                for (int y = 0; y < texH; y++)
+                {
+                    for (int dx = 0; dx < 2 && x + dx < texW; dx++)
+                    {
+                        pixels[y * texW + x + dx] = line;
+                    }
+                }
+            }
+
+            void HLine(int y)
+            {
+                for (int x = 0; x < texW; x++)
+                {
+                    for (int dy = 0; dy < 2 && y + dy < texH; dy++)
+                    {
+                        pixels[(y + dy) * texW + x] = line;
+                    }
+                }
+            }
+
+            for (int cx = 0; cx <= _w; cx += block)
+            {
+                VLine(Mathf.Min(Mathf.RoundToInt(cx * _cell), texW - 2));
+            }
+
+            for (int cy = 0; cy <= _h; cy += block)
+            {
+                HLine(Mathf.Min(Mathf.RoundToInt(cy * _cell), texH - 2));
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            _templateTex = tex;
+
+            var go = new GameObject("PaintTemplate", typeof(RectTransform));
+            go.transform.SetParent(panel, false);
+            UiKit.Place(go, 94f, 64f, 512f, canvasH);
+            var img = go.AddComponent<RawImage>();
+            img.texture = tex;
+            img.raycastTarget = false; // clicks must reach the canvas below
+
+            // Face labels above each column block (both limb rows share the same face order).
+            float blockW = block * _cell;
+            for (int i = 0; i < ColumnLabelKeys.Length && i * block < _w; i++)
+            {
+                UiKit.AddText(panel, 94f + i * blockW, 40f, blockW, 22f, L(ColumnLabelKeys[i]), 13,
+                    UiKit.CyanDim, TextAnchor.MiddleCenter);
+            }
+
+            // Limb labels (Links/Rechts) left of each row block.
+            if (RowLabelKeys != null)
+            {
+                float blockH = block * _cell;
+                for (int i = 0; i < RowLabelKeys.Length && i * block < _h; i++)
+                {
+                    UiKit.AddText(panel, 8f, 64f + i * blockH, 82f, blockH, L(RowLabelKeys[i]), 13,
+                        UiKit.CyanDim, TextAnchor.MiddleRight);
+                }
+            }
+        }
+
         private void Apply()
         {
-            OnApply?.Invoke(FacePalette.Encode(_grid, _grid.Length));
+            OnApply?.Invoke(EncodeGrid != null ? EncodeGrid(_grid) : FacePalette.Encode(_grid, _grid.Length));
             Close();
         }
 

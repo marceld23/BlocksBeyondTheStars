@@ -79,6 +79,10 @@ namespace BlocksBeyondTheStars.Client
         /// sent to the server on join so other players see it. Kept here so the edit path can re-send it.</summary>
         public string FacePixels = "";
 
+        /// <summary>Our avatar body paintings (#874), indexed by BodyPaint part (torso/arms/legs/helmet);
+        /// empty = unpainted. Set by WorldRig, sent per painted part on join, updated by the edit path.</summary>
+        public string[] BodyPaintPixels = { "", "", "", "" };
+
         // Our ship hull colour (packed 0xRRGGBB), set by WorldRig; sent on join and read by the flight view
         // to tint the ship (item 32). Default = the steel tint the hull used before hull colours existed.
         public int HullRgb = 0xD1D6E0;
@@ -1876,6 +1880,14 @@ namespace BlocksBeyondTheStars.Client
                         if (!string.IsNullOrEmpty(FacePixels))
                         {
                             Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)
+                        }
+
+                        for (int part = 0; part < BodyPaintPixels.Length; part++)
+                        {
+                            if (!string.IsNullOrEmpty(BodyPaintPixels[part]))
+                            {
+                                Network.SendBodyPaint(part, BodyPaintPixels[part]); // body paintings, same path (#874)
+                            }
                         }
 
                         _joinSent = true;

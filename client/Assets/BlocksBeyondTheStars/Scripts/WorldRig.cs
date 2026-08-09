@@ -54,6 +54,10 @@ namespace BlocksBeyondTheStars.Client
             boot.LegRgb = Rgb(shell.Settings.LegColor);
             boot.HullRgb = Rgb(shell.Settings.HullColor); // ship hull tint (item 32)
             boot.FacePixels = shell.Settings.FacePixels ?? ""; // custom pixel face, sent on join
+            for (int part = 0; part < BodyPaintKit.PartCount; part++)
+            {
+                boot.BodyPaintPixels[part] = shell.Settings.GetBodyPaint(part); // body paintings, ditto (#874)
+            }
             boot.Settings = shell.Settings; // live read for the auto-stow comfort option
 
             // Only our camera should render in-game; disable any pre-existing scene cameras.
@@ -120,6 +124,10 @@ namespace BlocksBeyondTheStars.Client
             var avatar = avatarGo.AddComponent<PlayerAvatar>();
             avatar.Build(shell.Settings);
             avatar.SetFace(shell.Settings.FacePixels); // custom pixel face on our own figure (third person)
+            for (int part = 0; part < BodyPaintKit.PartCount; part++)
+            {
+                avatar.SetBodyPaint(part, shell.Settings.GetBodyPaint(part)); // body paintings too (#874)
+            }
 
             var pc = player.AddComponent<PlayerController>();
             pc.Game = boot;

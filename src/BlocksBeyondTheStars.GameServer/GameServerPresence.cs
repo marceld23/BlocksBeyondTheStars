@@ -107,6 +107,89 @@ public sealed partial class GameServer
         BroadcastFace(session);
     }
 
+    // Avatar body paint (#874): the face's siblings for torso/arms/legs/helmet. Same treatment — opaque
+    // hex payload, but bounded to the part's EXACT expected length (concatenated 32×32 chunks; no legacy
+    // size exists for paints) and charset-checked before it is persisted or relayed. The 2 s face rate
+    // limit is shared across all appearance edits, so alternating face/torso spam can't dodge it.
+    private static bool IsValidBodyPaint(int part, string pixels)
+    {
+        if (!BodyPaint.IsValidPart(part))
+        {
+            return false;
+        }
+
+        if (pixels.Length == 0)
+        {
+            return true;
+        }
+
+        if (pixels.Length != BodyPaint.ExpectedLength(part))
+        {
+            return false;
+        }
+
+        foreach (char c in pixels)
+        {
+            bool hex = c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
+            if (!hex)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void HandleSetBodyPaint(PlayerSession session, SetBodyPaintIntent intent)
+    {
+        var pixels = intent.Pixels ?? string.Empty;
+        if (!IsValidBodyPaint(intent.Part, pixels))
+        {
+            return; // malformed (unknown part, wrong length or non-hex) — drop it, never persist or relay
+        }
+
+        if (pixels == session.State.GetBodyPaint(intent.Part))
+        {
+            return; // unchanged (e.g. the redundant on-join send) — no save, no broadcast
+        }
+
+        if (_uptime < session.NextFaceChangeAt)
+        {
+            return; // shared appearance anti-spam (see HandleSetFace)
+        }
+
+        session.NextFaceChangeAt = _uptime + 2.0;
+        session.State.SetBodyPaint(intent.Part, pixels);
+        _repo.SavePlayer(session.State);
+        BroadcastBodyPaint(session, intent.Part);
+    }
+
+    /// <summary>Sends one of a player's body paintings to every other joined player on the same world.</summary>
+    private void BroadcastBodyPaint(PlayerSession subject, int part)
+    {
+        if (subject.Spectating)
+        {
+            return; // observers are invisible — nothing about them goes out (issue #487)
+        }
+
+        var msg = BodyPaintOf(subject, part);
+        foreach (var viewer in _sessions.Values)
+        {
+            if (viewer.Joined && viewer.ConnectionId != subject.ConnectionId
+                && viewer.CurrentLocationId == subject.CurrentLocationId)
+            {
+                Send(viewer, msg);
+            }
+        }
+    }
+
+    private static PlayerBodyPaint BodyPaintOf(PlayerSession s, int part)
+        => new() { PlayerId = s.State.PlayerId, Part = part, Pixels = s.State.GetBodyPaint(part) ?? string.Empty };
+
+    /// <summary>Test seam: runs the body-paint handler without a socket.</summary>
+    public void SetBodyPaintForTest(PlayerSession session, int part, string pixels)
+        => HandleSetBodyPaint(session, new SetBodyPaintIntent { Part = part, Pixels = pixels });
+
     /// <summary>Sends a player's face to every other joined player on the same world.</summary>
     private void BroadcastFace(PlayerSession subject)
     {
@@ -129,16 +212,27 @@ public sealed partial class GameServer
     private static PlayerFace FaceOf(PlayerSession s)
         => new() { PlayerId = s.State.PlayerId, Pixels = s.State.FacePixels ?? string.Empty };
 
-    /// <summary>Sends the new player the custom faces of everyone already online on their world.</summary>
+    /// <summary>Sends the new player the custom faces AND body paintings of everyone already online on
+    /// their world (one message per painted part — most parts are unpainted and cost nothing).</summary>
     private void SendExistingFaces(PlayerSession newcomer)
     {
         foreach (var other in _sessions.Values)
         {
             if (other.Joined && !other.Spectating && other.ConnectionId != newcomer.ConnectionId
-                && other.CurrentLocationId == newcomer.CurrentLocationId
-                && !string.IsNullOrEmpty(other.State.FacePixels))
+                && other.CurrentLocationId == newcomer.CurrentLocationId)
             {
-                Send(newcomer, FaceOf(other));
+                if (!string.IsNullOrEmpty(other.State.FacePixels))
+                {
+                    Send(newcomer, FaceOf(other));
+                }
+
+                for (int part = 0; part < BodyPaint.PartCount; part++)
+                {
+                    if (!string.IsNullOrEmpty(other.State.GetBodyPaint(part)))
+                    {
+                        Send(newcomer, BodyPaintOf(other, part));
+                    }
+                }
             }
         }
     }

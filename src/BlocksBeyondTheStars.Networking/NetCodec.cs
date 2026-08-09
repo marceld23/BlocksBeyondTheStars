@@ -379,6 +379,10 @@ public static class NetCodec
         // Ground drop packets (#853): what a full inventory leaves lying on the ground. Pickup is automatic
         // (server-side proximity), so there is no client intent — only the world list.
         Register(197, typeof(DropPacketList));           // Server -> Client
+
+        // Avatar body paint (#874): per-part pixel paintings (torso/arms/legs/helmet), sibling of the face.
+        Register(198, typeof(SetBodyPaintIntent));       // Client -> Server (set/clear one part's painting)
+        Register(199, typeof(PlayerBodyPaint));          // Server -> Client (another player's painting)
     }
 
     private static void Register(byte tag, Type type)

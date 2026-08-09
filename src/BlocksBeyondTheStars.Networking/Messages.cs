@@ -652,6 +652,21 @@ public sealed class SetFaceIntent
     public string Pixels { get; set; } = string.Empty;
 }
 
+/// <summary>Client tells the server one of its avatar body-paint paintings (torso/arms/legs/helmet,
+/// drawn in the per-part unfolded pixel editors, #874) so other players can see it. Mirrors
+/// <see cref="SetFaceIntent"/>: the payload is opaque to the server (a concatenation of 32×32
+/// palette-index face chunks, one hex char per pixel — see the shared <c>BodyPaint</c> helper for the
+/// per-part chunk counts) — sent once per painted part on join and again on each edit, NOT in the
+/// 10 Hz presence stream.</summary>
+public sealed class SetBodyPaintIntent
+{
+    /// <summary>Which part: 0 torso, 1 arms, 2 legs, 3 helmet (<c>BodyPaint</c> constants).</summary>
+    public int Part { get; set; }
+
+    /// <summary>The painting as concatenated 32×32 palette-index hex chunks; empty clears the part.</summary>
+    public string Pixels { get; set; } = string.Empty;
+}
+
 /// <summary>Client paints (or clears) a pixel design onto a placed world block. The server dedups the
 /// bitmap into the save-global paint-design registry and stamps the resulting design id into the block's
 /// shape descriptor (bits 11+), which travels through the ordinary <see cref="BlockChanged"/> path — the
@@ -1793,6 +1808,21 @@ public sealed class PlayerFace
     public string PlayerId { get; set; } = string.Empty;
 
     /// <summary>The face as a 16×16 palette-index hex string; empty = no custom face (default features).</summary>
+    public string Pixels { get; set; } = string.Empty;
+}
+
+/// <summary>Another player's avatar body-paint painting for one part, relayed so the client can show it on
+/// their avatar (#874). Mirrors <see cref="PlayerFace"/>: sent on join (for everyone already online, one
+/// message per painted part) and whenever a player edits a painting — out of band from the frequent
+/// <see cref="PlayerPresence"/> stream, since the bitmaps are heavy and change rarely.</summary>
+public sealed class PlayerBodyPaint
+{
+    public string PlayerId { get; set; } = string.Empty;
+
+    /// <summary>Which part: 0 torso, 1 arms, 2 legs, 3 helmet (<c>BodyPaint</c> constants).</summary>
+    public int Part { get; set; }
+
+    /// <summary>The painting as concatenated 32×32 palette-index hex chunks; empty = part not painted.</summary>
     public string Pixels { get; set; } = string.Empty;
 }
 

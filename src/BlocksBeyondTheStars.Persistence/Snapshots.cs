@@ -75,6 +75,13 @@ public sealed class PlayerSnapshot
     /// to the server; the client owns the palette + rendering. Persisted so the face follows the player.</summary>
     public string FacePixels { get; set; } = string.Empty;
 
+    // Avatar body paint (#874): per-part pixel paintings, same opaque-hex-string treatment as the face.
+    // Absent in saves written before the feature — those parts are simply not painted.
+    public string TorsoPixels { get; set; } = string.Empty;
+    public string ArmPixels { get; set; } = string.Empty;
+    public string LegPixels { get; set; } = string.Empty;
+    public string HelmetPixels { get; set; } = string.Empty;
+
     /// <summary>Celestial bodies this player has physically landed on (gates travel-screen quick-travel). Persisted
     /// so the "only travel where you've been" rule survives a reload.</summary>
     public List<string> LandedBodies { get; set; } = new();
@@ -200,6 +207,10 @@ public static class StateMapper
         FleetShipIds = new List<string>(p.FleetShipIds),
         ActiveShipId = p.ActiveShipId,
         FacePixels = p.FacePixels,
+        TorsoPixels = p.TorsoPixels,
+        ArmPixels = p.ArmPixels,
+        LegPixels = p.LegPixels,
+        HelmetPixels = p.HelmetPixels,
     };
 
     /// <summary>Copies a deployed speeder record so a snapshot doesn't alias the live list.</summary>
@@ -306,6 +317,10 @@ public static class StateMapper
         FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),
         ActiveShipId = s.ActiveShipId ?? string.Empty,
         FacePixels = s.FacePixels ?? string.Empty,
+        TorsoPixels = s.TorsoPixels ?? string.Empty,
+        ArmPixels = s.ArmPixels ?? string.Empty,
+        LegPixels = s.LegPixels ?? string.Empty,
+        HelmetPixels = s.HelmetPixels ?? string.Empty,
     };
 
     public static ShipSnapshot ToSnapshot(ShipState ship) => new()

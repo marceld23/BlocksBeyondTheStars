@@ -290,6 +290,39 @@ namespace BlocksBeyondTheStars.Client
         /// the player), but this local copy is the source re-sent on each join/edit.</summary>
         public string FacePixels = "";
 
+        // Avatar body paint (#874): the face's siblings for torso, arms, legs and the suit helmet, drawn
+        // in the per-part unfolded strip editors (BodyPaintKit format). Same lifecycle as FacePixels:
+        // local source of truth, re-sent per painted part on each join/edit; the server persists + relays.
+        public string TorsoPixels = "";
+        public string ArmPixels = "";
+        public string LegPixels = "";
+        public string HelmetPixels = "";
+
+        /// <summary>The body painting for a BodyPaint part index (empty for unknown parts).</summary>
+        public string GetBodyPaint(int part)
+        {
+            switch (part)
+            {
+                case 0: return TorsoPixels ?? "";
+                case 1: return ArmPixels ?? "";
+                case 2: return LegPixels ?? "";
+                case 3: return HelmetPixels ?? "";
+                default: return "";
+            }
+        }
+
+        /// <summary>Stores the body painting for a BodyPaint part index (unknown parts ignored).</summary>
+        public void SetBodyPaint(int part, string pixels)
+        {
+            switch (part)
+            {
+                case 0: TorsoPixels = pixels ?? ""; break;
+                case 1: ArmPixels = pixels ?? ""; break;
+                case 2: LegPixels = pixels ?? ""; break;
+                case 3: HelmetPixels = pixels ?? ""; break;
+            }
+        }
+
         /// <summary>Start in third-person (showing your own figure) instead of first-person.</summary>
         public bool ThirdPerson = false;
 

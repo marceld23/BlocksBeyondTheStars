@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using UnityEngine;
+using BodyPaint = BlocksBeyondTheStars.Shared.State.BodyPaint;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -54,6 +55,39 @@ namespace BlocksBeyondTheStars.Client
         private string _faceString = string.Empty;
         private Color _skinColor = new Color(0.85f, 0.68f, 0.55f); // original (pre-sRGB) skin tone, for face compositing
 
+        // Body paint (#874): per-part pixel paintings (torso/arms/legs/helmet) drawn in the unfolded strip
+        // editors. A painted part swaps its segment cubes onto generated meshes whose UVs project the
+        // part's atlas texture (BodyPaintKit) planar per axis: front faces sample the front chunk by the
+        // corner's (x, y) within the part's rest-pose bounding box, side faces by (z, y) — so the motif
+        // runs continuously across chest/abdomen/pelvis and upper/lower limb, and the taper just samples a
+        // narrower slice instead of mis-tiling. Unpainted cube faces (tops, soles, the helmet's open
+        // front) UV into the atlas's solid-tint pad. Empty string = restore the plain tinted primitive.
+        private sealed class PaintSeg
+        {
+            public GameObject Go;      // the cube primitive
+            public Vector3 Center;     // rest-pose centre in the part's frame (root, or shoulder/hip pivot, or head)
+            public Vector3 Size;       // the cube's localScale
+            public int Row;            // limb row: 0 = single-row part / left limb, 1 = right limb
+            public Material OrigMat;   // to restore when the painting is cleared
+            public Mesh OrigMesh;      // the shared primitive cube mesh, ditto
+        }
+
+        private readonly List<PaintSeg>[] _paintSegs =
+        {
+            new List<PaintSeg>(), new List<PaintSeg>(), new List<PaintSeg>(), new List<PaintSeg>(),
+        };
+
+        private readonly string[] _bodyPaint = { string.Empty, string.Empty, string.Empty, string.Empty };
+        private readonly Material[] _paintMats = new Material[BodyPaint.PartCount];
+        private readonly Texture2D[] _paintTexs = new Texture2D[BodyPaint.PartCount];
+        private readonly List<Mesh>[] _paintMeshes =
+        {
+            new List<Mesh>(), new List<Mesh>(), new List<Mesh>(), new List<Mesh>(),
+        };
+
+        // Original (pre-sRGB) part tints, for compositing a painting's transparent pixels (like _skinColor).
+        private Color _torsoColor, _armsColor, _legsColor;
+
         private bool _seated;     // sit pose (#806): thighs forward, knees bent — set from the presence flag
 
         private float _phase;     // per-instance offset so avatars don't move in lockstep
@@ -71,6 +105,9 @@ namespace BlocksBeyondTheStars.Client
             _suit = spacesuit;
             _phase = (GetEntityId().GetHashCode() & 0x3ff) * 0.11f;
             _skinColor = skin;
+            _torsoColor = torso;
+            _armsColor = arms;
+            _legsColor = legs;
             _skin = Lit(skin, _skinTex);
             _torso = Lit(torso, _suitTex);
             _arms = Lit(arms, _suitTex);
@@ -91,12 +128,18 @@ namespace BlocksBeyondTheStars.Client
                 pupilW += Jit(variantSeed, 7) * 0.012f;
             }
 
-            // Torso, tapered: pelvis → abdomen → wider chest.
-            AddCube("Pelvis", transform, new Vector3(0f, 0.97f, 0f), new Vector3(0.46f, 0.22f, 0.28f), _legs);
-            AddCube("Abdomen", transform, new Vector3(0f, 1.18f, 0f), new Vector3(0.46f, 0.26f, 0.30f), _torso);
-            AddCube("Chest", transform, new Vector3(0f, 1.45f, 0.0f), new Vector3(0.58f, 0.40f, 0.34f), _torso);
-            AddCube("ShoulderL", transform, new Vector3(-0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso);
-            AddCube("ShoulderR", transform, new Vector3(0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso);
+            // Torso, tapered: pelvis → abdomen → wider chest. All five cubes are one paintable part: the
+            // torso painting projects onto them as one box, shoulders sampling its outer edges (#874).
+            RegisterPaint(BodyPaint.Torso, 0,
+                AddCube("Pelvis", transform, new Vector3(0f, 0.97f, 0f), new Vector3(0.46f, 0.22f, 0.28f), _legs));
+            RegisterPaint(BodyPaint.Torso, 0,
+                AddCube("Abdomen", transform, new Vector3(0f, 1.18f, 0f), new Vector3(0.46f, 0.26f, 0.30f), _torso));
+            RegisterPaint(BodyPaint.Torso, 0,
+                AddCube("Chest", transform, new Vector3(0f, 1.45f, 0.0f), new Vector3(0.58f, 0.40f, 0.34f), _torso));
+            RegisterPaint(BodyPaint.Torso, 0,
+                AddCube("ShoulderL", transform, new Vector3(-0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso));
+            RegisterPaint(BodyPaint.Torso, 0,
+                AddCube("ShoulderR", transform, new Vector3(0.30f, 1.55f, 0f), new Vector3(0.18f, 0.18f, 0.30f), _torso));
 
             // Neck + head + a dark visor strip on the front. Suited players get a suit-coloured neck seal
             // (no bare skin between collar and helmet); NPCs keep the skin neck.
@@ -159,12 +202,19 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void BuildSuit()
         {
-            // Helmet shell in the torso material: tints with the player's suit colour.
-            AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso);
-            AddCube("SuitHelmetBack", _head, new Vector3(0f, 0.04f, -0.55f), new Vector3(1.16f, 1.2f, 0.14f), _torso);
-            AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso);
-            AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso);
-            AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso);
+            // Helmet shell in the torso material: tints with the player's suit colour. The five shell cubes
+            // are the paintable "helmet" part (#874) — the front stays open (the face must show), so the
+            // painting covers right/back/left/chin/top only; the visor band stays procedural.
+            RegisterPaint(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetTop", _head, new Vector3(0f, 0.56f, 0f), new Vector3(1.16f, 0.16f, 1.16f), _torso));
+            RegisterPaint(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetBack", _head, new Vector3(0f, 0.04f, -0.55f), new Vector3(1.16f, 1.2f, 0.14f), _torso));
+            RegisterPaint(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetL", _head, new Vector3(-0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso));
+            RegisterPaint(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetR", _head, new Vector3(0.55f, 0.04f, 0.03f), new Vector3(0.14f, 1.2f, 1.1f), _torso));
+            RegisterPaint(BodyPaint.Helmet, 0,
+                AddCube("SuitHelmetChin", _head, new Vector3(0f, -0.56f, 0.03f), new Vector3(1.16f, 0.14f, 1.1f), _torso));
 
             // Raised visor band across the forehead — dark glossy glass, clear of the brow (brow top ≈ 0.20).
             AddCube("SuitVisorBand", _head, new Vector3(0f, 0.36f, 0.52f), new Vector3(1.0f, 0.3f, 0.12f),
@@ -189,23 +239,39 @@ namespace BlocksBeyondTheStars.Client
 
         private Transform AddArm(string name, float x, out Transform elbow, out Transform hand)
         {
+            // Paint frame = the shoulder pivot at rest; registered centres are the segment centres in that
+            // frame (upper hangs at -0.21, the elbow pivot sits at -0.42, the hand pivot -0.44 below that).
+            int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
             var shoulder = NewPivot(name, transform, new Vector3(x, 1.5f, 0f));
-            AddCube(name + "Upper", shoulder, new Vector3(0f, -0.21f, 0f), new Vector3(0.16f, 0.42f, 0.16f), _arms);
+            RegisterPaint(BodyPaint.Arms, row,
+                AddCube(name + "Upper", shoulder, new Vector3(0f, -0.21f, 0f), new Vector3(0.16f, 0.42f, 0.16f), _arms),
+                new Vector3(0f, -0.21f, 0f));
             elbow = NewPivot(name + "Elbow", shoulder, new Vector3(0f, -0.42f, 0f));
-            AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), new Vector3(0.15f, 0.42f, 0.15f), _arms);
+            RegisterPaint(BodyPaint.Arms, row,
+                AddCube(name + "Lower", elbow, new Vector3(0f, -0.21f, 0f), new Vector3(0.15f, 0.42f, 0.15f), _arms),
+                new Vector3(0f, -0.63f, 0f));
             hand = NewPivot(name + "Hand", elbow, new Vector3(0f, -0.44f, 0f));
             // Suited players wear gloves (arm colour); NPCs keep bare hands.
-            AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), new Vector3(0.2f, 0.16f, 0.2f), _suit ? _arms : _skin);
+            RegisterPaint(BodyPaint.Arms, row,
+                AddCube(name + "HandMesh", hand, new Vector3(0f, -0.06f, 0f), new Vector3(0.2f, 0.16f, 0.2f), _suit ? _arms : _skin),
+                new Vector3(0f, -0.92f, 0f));
             return shoulder;
         }
 
         private Transform AddLeg(string name, float x, out Transform knee)
         {
+            int row = x < 0f ? 0 : 1; // editor rows: top = left limb, bottom = right limb
             var hip = NewPivot(name, transform, new Vector3(x, 0.92f, 0f));
-            AddCube(name + "Upper", hip, new Vector3(0f, -0.23f, 0f), new Vector3(0.22f, 0.46f, 0.22f), _legs);
+            RegisterPaint(BodyPaint.Legs, row,
+                AddCube(name + "Upper", hip, new Vector3(0f, -0.23f, 0f), new Vector3(0.22f, 0.46f, 0.22f), _legs),
+                new Vector3(0f, -0.23f, 0f));
             knee = NewPivot(name + "Knee", hip, new Vector3(0f, -0.46f, 0f));
-            AddCube(name + "Lower", knee, new Vector3(0f, -0.21f, 0f), new Vector3(0.2f, 0.42f, 0.2f), _legs);
-            AddCube(name + "Foot", knee, new Vector3(0f, -0.44f, 0.06f), new Vector3(0.24f, 0.12f, 0.32f), _legs);
+            RegisterPaint(BodyPaint.Legs, row,
+                AddCube(name + "Lower", knee, new Vector3(0f, -0.21f, 0f), new Vector3(0.2f, 0.42f, 0.2f), _legs),
+                new Vector3(0f, -0.67f, 0f));
+            RegisterPaint(BodyPaint.Legs, row,
+                AddCube(name + "Foot", knee, new Vector3(0f, -0.44f, 0.06f), new Vector3(0.24f, 0.12f, 0.32f), _legs),
+                new Vector3(0f, -0.90f, 0.06f));
             return hip;
         }
 
@@ -457,6 +523,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _skinColor = skin;
+            _torsoColor = torso;
+            _armsColor = arms;
+            _legsColor = legs;
             _skin.color = skin;
             _torso.color = torso;
             _arms.color = arms;
@@ -466,6 +535,15 @@ namespace BlocksBeyondTheStars.Client
             if (!FacePalette.IsEmpty(_faceString))
             {
                 SetFace(_faceString);
+            }
+
+            // Body paintings composite their transparent pixels onto the part tints — re-bake those too.
+            for (int part = 0; part < BodyPaint.PartCount; part++)
+            {
+                if (!string.IsNullOrEmpty(_bodyPaint[part]))
+                {
+                    ApplyBodyPaint(part);
+                }
             }
         }
 
@@ -547,11 +625,255 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // ── body paint (#874) ────────────────────────────────────────────────────────────────────
+
+        /// <summary>Registers a cube as a paintable segment of a body-paint part. The part frame is the
+        /// cube's PARENT (root for the torso, the head for the helmet), so the local position is the centre.</summary>
+        private void RegisterPaint(int part, int row, GameObject go)
+            => RegisterPaint(part, row, go, go.transform.localPosition);
+
+        /// <summary>Registers a cube whose part frame is NOT its direct parent (limb segments hang from
+        /// elbow/knee/hand pivots) — the caller passes the rest-pose centre in the part frame explicitly.</summary>
+        private void RegisterPaint(int part, int row, GameObject go, Vector3 partFrameCenter)
+        {
+            _paintSegs[part].Add(new PaintSeg
+            {
+                Go = go,
+                Center = partFrameCenter,
+                Size = go.transform.localScale,
+                Row = row,
+                OrigMat = go.GetComponent<Renderer>().sharedMaterial,
+                OrigMesh = go.GetComponent<MeshFilter>().sharedMesh,
+            });
+        }
+
+        /// <summary>Applies a body painting (drawn in the strip editors, encoded per <c>BodyPaint</c> /
+        /// <see cref="BodyPaintKit"/>) to one part. Empty restores the plain tinted look. Safe to call for
+        /// parts that don't exist on this figure (helmet on a suitless NPC) — it just stores the string.</summary>
+        public void SetBodyPaint(int part, string pixels)
+        {
+            if (part < 0 || part >= BodyPaint.PartCount)
+            {
+                return;
+            }
+
+            _bodyPaint[part] = pixels ?? string.Empty;
+            ApplyBodyPaint(part);
+        }
+
+        /// <summary>Re-applies the stored painting of one part to its segments (bake atlas + swap meshes,
+        /// or restore the primitives when the painting is empty). Idempotent.</summary>
+        private void ApplyBodyPaint(int part)
+        {
+            var segs = _paintSegs[part];
+            if (segs.Count == 0)
+            {
+                return; // not built yet, or the part doesn't exist here (helmet without a suit)
+            }
+
+            // Tear down any previous bake and restore the primitives first — also the "cleared" end state.
+            foreach (var seg in segs)
+            {
+                if (seg.Go == null)
+                {
+                    continue;
+                }
+
+                seg.Go.GetComponent<MeshFilter>().sharedMesh = seg.OrigMesh;
+                seg.Go.GetComponent<Renderer>().sharedMaterial = seg.OrigMat;
+            }
+
+            foreach (var mesh in _paintMeshes[part])
+            {
+                Destroy(mesh);
+            }
+
+            _paintMeshes[part].Clear();
+            if (_paintMats[part] != null)
+            {
+                Destroy(_paintMats[part]);
+                _paintMats[part] = null;
+            }
+
+            if (_paintTexs[part] != null)
+            {
+                Destroy(_paintTexs[part]);
+                _paintTexs[part] = null;
+            }
+
+            string pixels = _bodyPaint[part];
+            if (string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(part))
+            {
+                return; // unpainted (or malformed off the wire) → the plain tinted look stays restored
+            }
+
+            Color baseColor = part switch
+            {
+                BodyPaint.Arms => _armsColor,
+                BodyPaint.Legs => _legsColor,
+                _ => _torsoColor, // torso AND helmet: the helmet shell is suit-coloured
+            };
+
+            _paintTexs[part] = BodyPaintKit.BuildAtlas(part, pixels, baseColor);
+            _paintMats[part] = Lit(Color.white, _paintTexs[part]); // white tint → the painting's true colours
+
+            for (int row = 0; row < BodyPaintKit.Rows(part); row++)
+            {
+                // Rest-pose bounding box of this row's segments in the part frame — the projection target.
+                Vector3 min = Vector3.positiveInfinity, max = Vector3.negativeInfinity;
+                foreach (var seg in segs)
+                {
+                    if (seg.Row != row)
+                    {
+                        continue;
+                    }
+
+                    min = Vector3.Min(min, seg.Center - seg.Size * 0.5f);
+                    max = Vector3.Max(max, seg.Center + seg.Size * 0.5f);
+                }
+
+                foreach (var seg in segs)
+                {
+                    if (seg.Row != row || seg.Go == null)
+                    {
+                        continue;
+                    }
+
+                    var mesh = BuildPaintedMesh(seg.Center, seg.Size, min, max, part, row);
+                    _paintMeshes[part].Add(mesh);
+                    seg.Go.GetComponent<MeshFilter>().sharedMesh = mesh;
+                    seg.Go.GetComponent<Renderer>().sharedMaterial = _paintMats[part];
+                }
+            }
+        }
+
+        /// <summary>Which atlas chunk each cube-face direction samples (index: +x, −x, +y, −y, +z, −z;
+        /// −1 = no chunk → the solid-tint pad). Chunk indices are canvas-global (right limb = row 1 → +4).</summary>
+        private static int[] FaceChunks(int part, int row)
+        {
+            if (part == BodyPaint.Helmet)
+            {
+                // Strip: right | back | left | chin | top. No front — the helmet is open there.
+                return new[] { 0, 2, 4, 3, -1, 1 };
+            }
+
+            int b = row * 4; // arms/legs: right limb chunks live in canvas row 1
+            if (part == BodyPaint.Torso || row == 1)
+            {
+                // Front | Right(+x) | Back | Left(−x) — a counterclockwise walk around the box, so the
+                // strip regions stay edge-continuous. The right limb's "outer" side is +x, matching.
+                return new[] { b + 1, b + 3, -1, -1, b + 0, b + 2 };
+            }
+
+            // Left limb: outer is −x, inner +x — same labels, mirrored sides.
+            return new[] { b + 3, b + 1, -1, -1, b + 0, b + 2 };
+        }
+
+        // Per cube face (order +x, −x, +y, −y, +z, −z): outward normal, the direction canvas-u grows in
+        // (r), and the direction canvas-v grows in (w). r×w = normal, which with the BL,TL,TR,BR corner
+        // order below yields Unity's clockwise front-face winding; the (r, w) choices make every face
+        // appear as an outside viewer sees it (u to the viewer's right), matching the editor labels.
+        private static readonly Vector3[] FaceN = { Vector3.right, Vector3.left, Vector3.up, Vector3.down, Vector3.forward, Vector3.back };
+        private static readonly Vector3[] FaceR = { Vector3.back, Vector3.forward, Vector3.right, Vector3.right, Vector3.right, Vector3.left };
+        private static readonly Vector3[] FaceW = { Vector3.up, Vector3.up, Vector3.back, Vector3.forward, Vector3.up, Vector3.up };
+
+        /// <summary>Builds a unit-cube mesh for one segment whose UVs project the part's atlas planar per
+        /// axis: painted faces map the corner's position within the row's bounding box into their chunk's
+        /// UV rect; unpainted faces (tops/soles/open front) sit on the solid-tint pad.</summary>
+        private static Mesh BuildPaintedMesh(Vector3 center, Vector3 size, Vector3 bbMin, Vector3 bbMax, int part, int row)
+        {
+            var chunks = FaceChunks(part, row);
+            var solid = BodyPaintKit.SolidRect(part);
+            var ext = bbMax - bbMin;
+
+            var verts = new Vector3[24];
+            var normals = new Vector3[24];
+            var uvs = new Vector2[24];
+            var tris = new int[36];
+
+            for (int f = 0; f < 6; f++)
+            {
+                Vector3 n = FaceN[f], r = FaceR[f], w = FaceW[f];
+                Vector3 c = n * 0.5f;
+                // BL, TL, TR, BR in the face's canvas orientation (u right, v up).
+                var corners = new[]
+                {
+                    c - r * 0.5f - w * 0.5f,
+                    c - r * 0.5f + w * 0.5f,
+                    c + r * 0.5f + w * 0.5f,
+                    c + r * 0.5f - w * 0.5f,
+                };
+
+                int chunk = chunks[f];
+                Rect rect = chunk >= 0 ? BodyPaintKit.ChunkRect(part, chunk) : solid;
+                for (int i = 0; i < 4; i++)
+                {
+                    int v = f * 4 + i;
+                    verts[v] = corners[i];
+                    normals[v] = n;
+                    if (chunk < 0)
+                    {
+                        // Solid pad: map the quad onto the small pad rect (non-degenerate, mipmap-safe).
+                        uvs[v] = new Vector2(
+                            i <= 1 ? rect.xMin : rect.xMax,
+                            (i == 0 || i == 3) ? rect.yMin : rect.yMax);
+                        continue;
+                    }
+
+                    // Planar projection: the corner's rest-pose position in the part frame, normalised
+                    // within the row's bounding box along the two axes this face spreads over.
+                    Vector3 p = center + Vector3.Scale(corners[i], size);
+                    float u, vv;
+                    switch (f)
+                    {
+                        case 0: u = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); vv = YFrac(p, bbMin, ext); break; // +x
+                        case 1: u = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); vv = YFrac(p, bbMin, ext); break; // −x
+                        case 2: u = XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMax.z, bbMin.z, p.z); break;  // +y
+                        case 3: u = XFrac(p, bbMin, ext); vv = Mathf.InverseLerp(bbMin.z, bbMax.z, p.z); break;  // −y
+                        case 4: u = XFrac(p, bbMin, ext); vv = YFrac(p, bbMin, ext); break;                      // +z
+                        default: u = Mathf.InverseLerp(bbMax.x, bbMin.x, p.x); vv = YFrac(p, bbMin, ext); break; // −z
+                    }
+
+                    uvs[v] = new Vector2(rect.xMin + Mathf.Clamp01(u) * rect.width, rect.yMin + Mathf.Clamp01(vv) * rect.height);
+                }
+
+                int t = f * 6, b0 = f * 4;
+                tris[t] = b0; tris[t + 1] = b0 + 1; tris[t + 2] = b0 + 2;
+                tris[t + 3] = b0; tris[t + 4] = b0 + 2; tris[t + 5] = b0 + 3;
+            }
+
+            var mesh = new Mesh { vertices = verts, normals = normals, uv = uvs, triangles = tris };
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static float XFrac(Vector3 p, Vector3 bbMin, Vector3 ext) => ext.x > 0f ? (p.x - bbMin.x) / ext.x : 0.5f;
+
+        private static float YFrac(Vector3 p, Vector3 bbMin, Vector3 ext) => ext.y > 0f ? (p.y - bbMin.y) / ext.y : 0.5f;
+
         private void OnDestroy()
         {
             if (_faceTex != null)
             {
                 Destroy(_faceTex);
+            }
+
+            for (int part = 0; part < BodyPaint.PartCount; part++)
+            {
+                foreach (var mesh in _paintMeshes[part])
+                {
+                    Destroy(mesh);
+                }
+
+                if (_paintMats[part] != null)
+                {
+                    Destroy(_paintMats[part]);
+                }
+
+                if (_paintTexs[part] != null)
+                {
+                    Destroy(_paintTexs[part]);
+                }
             }
         }
 

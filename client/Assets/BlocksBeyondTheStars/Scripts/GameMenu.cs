@@ -369,6 +369,42 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Opens the unfolded-strip pixel editor for one body-paint part (#874) — Torso/Arme/
+        /// Beine/Helm cards on the Character tab. Shares the single-editor slot with the face editor.</summary>
+        public void OpenBodyPaintEditor(int part)
+        {
+            if (_faceEditor != null)
+            {
+                return;
+            }
+
+            var go = new GameObject("BodyPaintEditor");
+            go.transform.SetParent(transform, false);
+            _faceEditor = go.AddComponent<FaceEditor>();
+            BodyPaintKit.ConfigureEditor(_faceEditor, part, Settings?.GetBodyPaint(part),
+                key => Game?.Localizer?.Get(key) ?? key);
+            _faceEditor.OnApply = pixels => ApplyBodyPaint(part, pixels);
+        }
+
+        /// <summary>Applies an edited body painting: persists it locally, shows it on the local figure, and
+        /// tells the server (which persists + relays). The face's sibling path (#874).</summary>
+        public void ApplyBodyPaint(int part, string pixels)
+        {
+            if (Settings == null)
+            {
+                return;
+            }
+
+            Settings.SetBodyPaint(part, pixels ?? string.Empty);
+            Settings.Save();
+            Avatar?.SetBodyPaint(part, Settings.GetBodyPaint(part));
+            if (Game != null)
+            {
+                Game.BodyPaintPixels[part] = Settings.GetBodyPaint(part);
+                Game.Network?.SendBodyPaint(part, Settings.GetBodyPaint(part));
+            }
+        }
+
         /// <summary>Applies an edited pixel face: persists it locally, shows it on the local figure, and tells
         /// the server (which persists + relays it to other players). Called by the <see cref="FaceEditor"/>.</summary>
         public void ApplyFace(string pixels)
