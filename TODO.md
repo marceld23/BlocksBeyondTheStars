@@ -104,6 +104,15 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Missing block-item images: ladder, stairs, station core, trading post, mission board, storage container (#868, 2026-08-09, branch fix/missing-block-item-textures-868)
+Six placeable block items had no real image anywhere: their blocks had no generated texture bundled
+under `client/Assets/Resources/textures/`, so the atlas painted a flat procedural colour tile — which is
+also what the inventory/hotbar/crafting icons showed via the block-tile fallback (`IconResolver`).
+**Fix (assets-only):** added the six keys to the `tools/ai-assets/gen_textures.py` manifest, generated
+the 64px tiles (`gpt-image-1-mini`) and bundled them as raw RGBA32 `.bytes`
+(`ladder`, `stairs`, `station_core`, `station_vendor`, `mission_board`, `station_container`); NOTICES.md
+counts updated. Fixes both the item icons and the in-world block faces in one pass.
+
 ### ★ Research pacing: blueprint knowledge thresholds stretched nonlinearly (#862, 2026-08-09, branch fix/blueprint-knowledge-pacing)
 Playtests kept showing the tech tree emptying too fast. Knowledge is a permanent **threshold** (never
 spent — "item 11"), and the thresholds were compressed: median `knowledgeCost` 15, 64% ≤ 20, while a

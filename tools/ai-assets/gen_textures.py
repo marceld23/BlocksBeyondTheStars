@@ -179,6 +179,14 @@ TEXTURES = [
     ("lantern", "a warm rustic lantern, a small wooden frame with glowing amber glass panes and a little flame inside, front view"),
     ("rug", "a hand-woven flat fibre rug with a simple geometric border pattern in muted warm tones, top-down"),
     ("flower_pot", "a small round terracotta clay flower pot filled with dark soil, front view"),
+    # Missing block-item images (#868): these placeable blocks only had the procedural flat-colour
+    # tile, so their inventory icons (block-tile fallback) and in-world faces looked blank.
+    ("ladder", "a sturdy metal ladder with two vertical side rails and evenly spaced horizontal rungs, mounted on a dark metal wall panel, front view"),
+    ("stairs", "an industrial metal staircase of layered step treads with grip ridges, front view"),
+    ("station_core", "a sci-fi space station core block, a dark armoured metal cube with a glowing teal reactor heart window and engraved energy conduits, front view"),
+    ("station_vendor", "a sci-fi trading post kiosk counter, a dark metal booth with a warm amber-lit display shelf of goods and a small price screen, front view"),
+    ("mission_board", "a sci-fi mission notice board, a dark metal panel covered in small glowing blue holographic job postings and status lights, front view"),
+    ("station_container", "a sci-fi station storage container, an orange ribbed metal cargo locker with a hinged front hatch and a small status light, front view"),
 ]
 
 
