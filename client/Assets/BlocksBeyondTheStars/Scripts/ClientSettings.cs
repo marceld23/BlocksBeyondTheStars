@@ -585,14 +585,14 @@ namespace BlocksBeyondTheStars.Client
             if (freshInstall)
             {
                 // Match the OS language when we ship it (near-)complete; everything else falls back to
-                // English. Italian stays opt-in until its community translation clears the picker gate.
-                // The chosen value is persisted by the Save below, so the pre-engine launcher splash
-                // picks it up next launch.
+                // English. The chosen value is persisted by the Save below, so the pre-engine launcher
+                // splash picks it up next launch.
                 settings.Language = Application.systemLanguage switch
                 {
                     SystemLanguage.German => "de",
                     SystemLanguage.French => "fr",
                     SystemLanguage.Spanish => "es",
+                    SystemLanguage.Italian => "it",
                     SystemLanguage.Portuguese => "pt",
                     SystemLanguage.Polish => "pl",
                     SystemLanguage.Turkish => "tr",

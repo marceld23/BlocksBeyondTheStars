@@ -65,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
             "stories/vega_protocol/locales/en.json",
             "stories/vega_protocol/locales/es.json",
             "stories/vega_protocol/locales/fr.json",
+            "stories/vega_protocol/locales/it.json",
             "stories/vega_protocol/locales/nl.json",
             "stories/vega_protocol/locales/pl.json",
             "stories/vega_protocol/locales/pt.json",

@@ -12,7 +12,7 @@ CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; push
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
-FR/ES/PT/PL/TR/NL machine-first-pass, IT community (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
+FR/ES/PT/PL/TR/NL machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
 (no per-batch gate).
 
@@ -7539,7 +7539,7 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
-## ✅ Done (2026-08-09): Polish + Turkish — full machine first pass (#884, #885)
+## ✅ Done (2026-08-09): Polish + Turkish full machine first pass; Italian machine-topped-up (#884, #885, #625)
 
 Same drill as Portuguese (#883), now cheap thanks to the parallel translate pipeline: `pl.json` and
 `tr.json` at 3048/3048 keys each plus the VEGA-prologue story packs (68/68), clean under
@@ -7548,6 +7548,14 @@ first-run default, content-error dialog, AI-backend language map); informal addr
 Both are Latin-script (ą/ł/ż, ı/İ/ş/ğ sit in Latin Extended-A, which the bundled Rajdhani font
 covers) — on-screen glyph/overflow spot-check still pending playtest. Native-speaker review open
 (issue checklists). Cyrillic/CJK languages (#886–#889, #891) need the font-pipeline work first.
+
+**Italian (#625)** went from 15.5 % to complete the same way — a machine top-up of only the MISSING
+keys: the 473 keys hand-translated by Francesco Quirino (@alessandroquirino-lab) are untouched and
+remain the quality reference; his credit stays. Now above the 45 % picker gate, so Italiano finally
+shows in the settings; also wired the pieces Italian never had (story pack + fallback-manifest entry,
+OS-language first-run default, content-error dialog case). Community review continues in #625.
+
+Landed in the same PR: the Dutch branch (#881/#892) merged in — see the ★ Dutch entry below.
 
 ---
 
