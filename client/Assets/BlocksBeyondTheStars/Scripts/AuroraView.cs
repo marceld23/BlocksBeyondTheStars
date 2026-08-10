@@ -76,7 +76,7 @@ namespace BlocksBeyondTheStars.Client
                     continue;
                 }
 
-                float t = Time.time * 0.06f + i * 2.1f;
+                float t = (Game != null ? Game.WorldTime : Time.time) * 0.06f + i * 2.1f; // world time (#908)
 
                 // Hang high over the player, each band at its own bearing, slowly drifting + undulating.
                 var p = Game.PlayerPosition;

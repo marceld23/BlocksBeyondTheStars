@@ -63,8 +63,9 @@ namespace BlocksBeyondTheStars.Client
                 Rescan();
             }
 
-            Emit(Time.deltaTime);
-            Step(Time.deltaTime);
+            // World time (#908): the mist holds with the rest of the world behind the pause menu.
+            Emit(Game.WorldDeltaTime);
+            Step(Game.WorldDeltaTime);
         }
 
         private void Rescan()

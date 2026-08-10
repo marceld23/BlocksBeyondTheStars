@@ -194,7 +194,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _time = Mathf.Repeat(_time + Time.deltaTime / _dayLength, 1f);
+            // World time, not frame time (#908): this local advance is what kept the sun crawling — and night
+            // falling — behind the pause menu, long after the server had stopped sending a new TimeOfDay.
+            _time = Mathf.Repeat(_time + (Game != null ? Game.WorldDeltaTime : Time.deltaTime) / _dayLength, 1f);
 
             float intensity = env?.Intensity ?? 0f;
             Color sun = env != null ? Rgb(env.SunColor) : new Color(1f, 0.96f, 0.88f); // match Space/Station fallback
