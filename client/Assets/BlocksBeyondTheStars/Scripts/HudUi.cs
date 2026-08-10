@@ -30,6 +30,19 @@ namespace BlocksBeyondTheStars.Client
         // objective chip 594…642 — see VegaPanel), so this panel starts at 650 (#482).
         private const float ScanPanelY = 650f, ScanPanelW = 390f, ScanPanelH = 182f;
 
+        // Vitals panel (top-left, under the location panel), in HUD reference units. Its HEIGHT VARIES:
+        // the ship rows (hull/shield) are appended only in the states that have them, so anything parked
+        // below it must read VitalsBottomY rather than assume a fixed edge (#915).
+        private const float VitalsPanelY = 64f;
+
+        /// <summary>Bottom edge of the vitals panel in HUD reference coordinates (y down from the top),
+        /// republished on every refresh. The space-flight overlay is a SEPARATE canvas drawn above this
+        /// one, but at the same reference resolution — it parks its cargo/oxygen readout below this edge
+        /// so the two can't overprint each other whichever rows the panel is currently showing (#915).
+        /// The initial value is the tallest the panel ever gets, so a reader that runs before the first
+        /// refresh still clears it.</summary>
+        public static float VitalsBottomY { get; private set; } = VitalsPanelY + 196f;
+
         /// <summary>How long a scan readout lingers once the scanner is put away. Was 12 s — long enough to
         /// read the old one-liner, not the fuller readout (#482). While the scanner is still the held item
         /// the panel stays pinned regardless (see <see cref="RefreshScan"/>).</summary>
@@ -456,7 +469,7 @@ namespace BlocksBeyondTheStars.Client
             _locPlace = UiKit.AddText(_locationPanel.transform, 10, 22, 260, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
             // Vitals panel (6 rows; ship rows toggled).
-            _vitalsPanel = Panel(root, 10, 64, 226, 196).gameObject;
+            _vitalsPanel = Panel(root, 10, VitalsPanelY, 226, 196).gameObject;
             _vitals = new VitalRow[6];
             string[] order = { "health", "oxygen", "energy", "hunger", "hull", "shield" };
             for (int i = 0; i < 6; i++)
@@ -674,7 +687,13 @@ namespace BlocksBeyondTheStars.Client
             SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f,
                 Game.SuitClimateActive ? EnergyStressed : Energy, true);
             SetVital(3, loc.Get("ui.hud.hunger"), Game.Hunger, Game.Hunger / 100f, Hunger, true);
-            bool ship = Game.ShipCombat != null;
+            // Ship rows (hull/shield) exist whenever the player owns a ship in combat range — but while
+            // PILOTING they repeat the flight instrument line (SPD/THR/HDG + HULL/SHD, bottom-left), so
+            // hide them there, exactly as the compass and the time-of-day panel already do (#915). On an
+            // EVA the instrument line is hidden (it needs !_eva), so these bars are the only hull readout
+            // and must stay.
+            bool piloting = Game.SpaceViewActive && !Game.InEva;
+            bool ship = Game.ShipCombat != null && !piloting;
             if (ship)
             {
                 var c = Game.ShipCombat;
@@ -687,7 +706,9 @@ namespace BlocksBeyondTheStars.Client
                 SetVital(5, null, 0, 0, ShieldC, false);
             }
 
-            _vitalsPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(226, ship ? 196 : 116);
+            float vitalsHeight = ship ? 196f : 116f;
+            _vitalsPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(226, vitalsHeight);
+            VitalsBottomY = VitalsPanelY + vitalsHeight;
 
             RefreshHotbar(loc);
             RefreshTimeOfDay(loc);

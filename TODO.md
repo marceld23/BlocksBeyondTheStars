@@ -104,6 +104,25 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Space HUD: the cargo readout stopped overprinting the hull bar (#915, 2026-08-10, branch fix/space-hud-cargo-overlap)
+The flight view's top-left `Cargo: N` label was drawn straight across the on-foot HUD's **Hull** bar (and
+`O₂: n%` did the same on an EVA). The two live on **different canvases** — `SpaceView`'s overlay at
+`sortingOrder 12` over `HudUi` at `10` — but both are built at the same 1536×864 reference with the same
+`Expand` mode and UI-scale divisor, so they share one coordinate space and the overlay's text wins the
+depth test. The label sat at a hard-coded `y = -160`, which is exactly where the vitals panel's content ends
+**on foot**; `RefreshVitals` appends the hull + shield rows and grows the panel from 116 to 196 px whenever
+`ShipCombat != null` — precisely the space-flight state — so the first appended row landed in the reserved
+slot. Guaranteed in flight, impossible on foot, which is why it survived so long.
+**Fix, two parts.** `HudUi` now publishes its live panel edge as `VitalsBottomY` and `SpaceView` parks the
+readout below it every frame, so the label follows whatever rows the panel is showing instead of assuming a
+fixed edge — the bug class is gone, not just this instance. And the hull/shield bars now **hide while
+piloting**, where they merely repeat the bottom-left instrument line, matching what the compass and the
+time-of-day panel already do. Because those bars also carried the low-vitals blink and beep, the instrument
+line took over the alarm: `HULL`/`SHD` blink red below 10 % (clearing at 15 %, the panel's own hysteresis)
+and drive the same 2.5 s `vitals_warning` cue — now skipping a system the ship doesn't have, so a
+shield-less hull no longer alarms forever. Clears the "known pre-existing wart" noted under the screenshot
+work below.
+
 ### ★ Every species gets its own voice: phrase, cadence, timbre — and the combat cues too (#901–#907, 2026-08-10, branch feat/creature-voice-genome)
 Generated species differed enormously by sight and barely at all by ear, because **the voice was not a
 generated trait**: the client picked `pool[hash(speciesId) % poolLength]` plus a pitch multiplier — and
@@ -320,7 +339,8 @@ locale fix):
 - **Space shot aims at the home planet**: new `SpaceView.CaptureAimAtNearestBody()` snaps flight
   yaw+pitch toward the nearest landable body, so `space_flight.png` shows ship + ringed planet instead
   of empty starfield (fixed `FlightHeading` stays as the no-bodies fallback).
-- Known pre-existing wart (unchanged): the space HUD "Cargo: N" label overlaps the Hull bar.
+- Known pre-existing wart (noted here, since **fixed** — see the #915 entry above): the space HUD
+  "Cargo: N" label overlapped the Hull bar.
 docs/screenshots/README.md documents the sandbox mode, the lava seed and the single-language-reshoot
 gotcha (reused save resumes on foot; a wandered creature can block the frame — delete the save).
 

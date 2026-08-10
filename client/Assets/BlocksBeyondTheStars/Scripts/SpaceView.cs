@@ -3865,6 +3865,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _hint;
         private Text _board;
         private Text _cargo;
+        private RectTransform _cargoRect;  // repositioned each frame — the HUD panel above it changes height
         private Text _instruments;         // flight readout: speed / throttle / heading (+ hull/shield)
         private Vector3 _instLastCamPos;
         private float _instSpeed;          // smoothed speed for a steady readout
@@ -3962,6 +3963,7 @@ namespace BlocksBeyondTheStars.Client
                                                      // clusters at the same transform, #683)
         private const float KeepOutMargin = 10f;     // how far outside a body's surface the ship is held
         private const float LandBand = 40f;          // land prompt shows within (body radius + margin + band)
+        private const float ReadoutGap = 10f;        // breathing room between the vitals panel and the cargo readout
 
         private void EnsureUi()
         {
@@ -4031,14 +4033,17 @@ namespace BlocksBeyondTheStars.Client
             _board.raycastTarget = false;
             _board.gameObject.SetActive(false);
 
-            // Cargo readout (top-left), pulses when salvage is tractored in.
+            // Cargo readout (top-left), pulses when salvage is tractored in. Its y is NOT fixed: it trails
+            // the on-foot HUD's vitals panel, which lives on a lower canvas at the same reference
+            // resolution and changes height with the rows it shows (see PositionCargoReadout, #915).
             var cargoGo = new GameObject("Cargo", typeof(RectTransform));
             cargoGo.transform.SetParent(_ui.transform, false);
             var crt = cargoGo.GetComponent<RectTransform>();
             crt.anchorMin = crt.anchorMax = new Vector2(0f, 1f);
             crt.pivot = new Vector2(0f, 1f);
             crt.sizeDelta = new Vector2(320f, 26f);
-            crt.anchoredPosition = new Vector2(20f, -160f);
+            _cargoRect = crt;
+            PositionCargoReadout();
             _cargo = cargoGo.AddComponent<Text>();
             _cargo.font = UiKit.Font;
             _cargo.fontSize = 18;
@@ -4186,6 +4191,10 @@ namespace BlocksBeyondTheStars.Client
             _hitFlash = Mathf.Max(0f, _hitFlash - Time.deltaTime * 2f);
             _cargoFlash = Mathf.Max(0f, _cargoFlash - Time.deltaTime * 1.5f);
             _hit.color = new Color(1f, 0.2f, 0.2f, _hitFlash * 0.35f);
+
+            // The vitals panel under us sheds its ship rows the moment we take the helm, so re-park the
+            // readout every frame rather than only on entry (#915).
+            PositionCargoReadout();
 
             if (_phase != Phase.Cruise)
             {
@@ -4495,6 +4504,28 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Flight instruments: smoothed speed (camera delta — the camera rides the ship),
         /// throttle, heading, plus hull/shield while combat data is present. Shown in cruise only.</summary>
+        /// <summary>Parks the cargo/oxygen readout just below the on-foot HUD's vitals panel.
+        ///
+        /// That panel belongs to <see cref="HudUi"/> — a DIFFERENT canvas, drawn under this overlay
+        /// (sortingOrder 10 vs 12) but built at the same reference resolution, so the two share one
+        /// coordinate space and this overlay's text wins the depth test wherever they meet. The readout
+        /// used to sit at a hard-coded y that cleared the panel as it looks ON FOOT; in flight the panel
+        /// grows by its hull/shield rows and the label landed straight on the hull bar (#915). Reading the
+        /// panel's live bottom edge instead means it follows whatever the panel is currently showing.</summary>
+        private void PositionCargoReadout()
+        {
+            if (_cargoRect == null)
+            {
+                return;
+            }
+
+            float y = -(HudUi.VitalsBottomY + ReadoutGap);
+            if (!Mathf.Approximately(_cargoRect.anchoredPosition.y, y))
+            {
+                _cargoRect.anchoredPosition = new Vector2(20f, y);
+            }
+        }
+
         private void UpdateInstruments()
         {
             if (_instruments == null)
@@ -4524,10 +4555,63 @@ namespace BlocksBeyondTheStars.Client
             var combat = Game?.ShipCombat;
             if (combat != null)
             {
-                text += $"   HULL {Mathf.CeilToInt(combat.Hull)}   SHD {Mathf.CeilToInt(combat.Shield)}";
+                bool alive = Game != null && Game.Health > 0f;
+                _hullWarn = alive && combat.HullMax > 0f && combat.Hull / combat.HullMax < (_hullWarn ? 0.15f : 0.10f);
+                _shieldWarn = alive && combat.ShieldMax > 0f && combat.Shield / combat.ShieldMax < (_shieldWarn ? 0.15f : 0.10f);
+                text += $"   {WarnTint($"HULL {Mathf.CeilToInt(combat.Hull)}", _hullWarn)}"
+                      + $"   {WarnTint($"SHD {Mathf.CeilToInt(combat.Shield)}", _shieldWarn)}";
+                UpdateHullAlarm(dt);
+            }
+            else
+            {
+                _hullWarn = _shieldWarn = false;
+                _hullBeepTimer = 0f;
             }
 
             _instruments.text = text;
+        }
+
+        // Low hull/shield alarm, carried by the instrument line. The vitals panel's hull + shield bars are
+        // hidden while piloting because this line already prints the same numbers (#915) — and their blink
+        // and beep went with them, so the readout that replaced them has to raise the alarm itself. Same
+        // thresholds as the panel (#753): trips below 10 %, clears above 15 %, so a value sitting on the
+        // edge can't flicker the alarm on and off. Unlike the panel these skip a MISSING system (Max 0) —
+        // a ship with no shield module would otherwise alarm forever.
+        private bool _hullWarn, _shieldWarn;
+        private float _hullBeepTimer;
+
+        private static readonly Color InstrumentWarn = new Color(1f, 0.25f, 0.2f);
+
+        /// <summary>Wraps an instrument token in a blinking red tint while its system is critical. Rich text
+        /// (the HUD's established idiom for a coloured value); steady red under reduced motion.</summary>
+        private static string WarnTint(string token, bool warn)
+        {
+            if (!warn)
+            {
+                return token;
+            }
+
+            float k = UiKit.ReducedMotion ? 1f : Mathf.PingPong(Time.time * 2.4f, 1f);
+            var c = Color.Lerp(UiKit.TextCol, InstrumentWarn, 0.35f + 0.65f * k);
+            return $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>{token}</color>";
+        }
+
+        /// <summary>Drives the shared low-systems beep at the vitals panel's cadence, so losing the hull bar
+        /// while piloting doesn't cost the audible warning too.</summary>
+        private void UpdateHullAlarm(float dt)
+        {
+            if (!_hullWarn && !_shieldWarn)
+            {
+                _hullBeepTimer = 0f; // first beep fires immediately when a system next runs low
+                return;
+            }
+
+            _hullBeepTimer -= dt;
+            if (_hullBeepTimer <= 0f)
+            {
+                _hullBeepTimer = 2.5f;
+                ClientAudio.Instance?.Cue("vitals_warning", 0.5f);
+            }
         }
 
         private void OnDestroy()
