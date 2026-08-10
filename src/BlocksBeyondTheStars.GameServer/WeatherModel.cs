@@ -425,7 +425,11 @@ public sealed class WeatherSim
         {
             Fronts.Add(new WeatherFront
             {
-                CenterX = f.CenterX, HalfWidth = f.HalfWidth, Drift = f.Drift, Boost = f.Boost, Life = f.Life,
+                CenterX = f.CenterX,
+                HalfWidth = f.HalfWidth,
+                Drift = f.Drift,
+                Boost = f.Boost,
+                Life = f.Life,
             });
         }
     }

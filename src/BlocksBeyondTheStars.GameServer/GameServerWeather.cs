@@ -464,7 +464,11 @@ public sealed partial class GameServer
     public void AddWeatherFrontForTest(double centerX, double halfWidth, int boost)
         => _sim.Fronts.Add(new WeatherFront
         {
-            CenterX = centerX, HalfWidth = halfWidth, Boost = boost, Drift = 0, Life = 1e6,
+            CenterX = centerX,
+            HalfWidth = halfWidth,
+            Boost = boost,
+            Drift = 0,
+            Life = 1e6,
         });
 
     /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world, and

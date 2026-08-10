@@ -39,7 +39,10 @@ public sealed class WeatherEffectsTests : IDisposable
         var client = new LoopbackClientTransport(link);
         var config = new ServerConfig
         {
-            WorldName = world, Seed = 4242, StartPlanet = planet, AutoSaveIntervalMinutes = 9999,
+            WorldName = world,
+            Seed = 4242,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
