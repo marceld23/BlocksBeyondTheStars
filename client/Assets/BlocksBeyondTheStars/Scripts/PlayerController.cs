@@ -437,18 +437,19 @@ namespace BlocksBeyondTheStars.Client
             // shape descriptor has always stored yaw × up-face (24 orientations); this just hands the player the
             // controls. Furniture (bed/campfire/rug/pot) cycles too, but yaw-only: the server pins its up-face
             // to +Y so sit/heal/warmth keep working — the cycle mirrors that instead of promising a tip that
-            // the place would ignore. Only cycles for a rotatable block, so it never clashes with RepairWreck
-            // on the same key.
+            // the place would ignore. The ladder gets its own five-state cycle (#909): the four walls it can
+            // hug plus free-standing, because quarter turns of its square plate are four identical states.
+            // Only cycles for a rotatable block, so it never clashes with RepairWreck on the same key.
             if (InputMap.Down(InputAction.RotateShape))
             {
                 string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
-                if (HeldPlaceShape(held, out bool furnitureHeld) > 0)
+                if (HeldPlaceShape(held, out var heldCycle) > 0)
                 {
                     bool backwards = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                    StepPlaceOrientation(backwards, furnitureHeld);
+                    StepPlaceOrientation(backwards, heldCycle);
                     Game.ShowMessage(string.Format(
                         Game.Localizer?.Get("hud.shape.orient") ?? "Shape orientation: {0}",
-                        OrientationLabel(furnitureHeld)));
+                        OrientationLabel(heldCycle)));
                 }
             }
 
@@ -2832,7 +2833,13 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item, upFace: _placeUpFace, yaw: _placeYaw);
+                        // Send the orientation the ghost was showing (an explicit rotate-key state, or the
+                        // client's own Auto answer — see PendingPlacement). An item with nothing to orient
+                        // sends the raw override fields and lets the server derive, exactly as before.
+                        bool orientable = PendingPlacement(item, hitCell, placeCell, out _, out int upFace, out int yaw);
+                        Game.Network.SendPlace(placeCell.x, placeCell.y, placeCell.z, item,
+                            upFace: orientable ? upFace : _placeUpFace,
+                            yaw: orientable ? yaw : _placeYaw);
                     }
 
                     TriggerSwing();
@@ -2950,12 +2957,14 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>The shape index the held item would place: the crafted form carried in the item key
-        /// (slabs, stairs, player-designed forms, …), or a furniture block's server-stamped default form
-        /// (bed/campfire/rug/pot — <paramref name="furniture"/> is true for those). 0 = places a plain cube
-        /// or no block at all, i.e. nothing the rotate key or the placement ghost should react to.</summary>
-        private int HeldPlaceShape(string held, out bool furniture)
+        /// (slabs, stairs, player-designed forms, …), or a prop block's server-stamped default form
+        /// (bed/campfire/rug/pot, the ladder's wall plate, the crafted staircase). 0 = places a plain cube
+        /// or no block at all, i.e. nothing the rotate key or the placement ghost should react to.
+        /// <paramref name="cycle"/> says how far this item's orientation may be steered — the rotate key and
+        /// the ghost must offer exactly what the server will honour.</summary>
+        private int HeldPlaceShape(string held, out PropOrientation cycle)
         {
-            furniture = false;
+            cycle = PropOrientation.None;
             if (string.IsNullOrEmpty(held))
             {
                 return 0;
@@ -2964,6 +2973,7 @@ namespace BlocksBeyondTheStars.Client
             int shape = BlocksBeyondTheStars.Shared.State.ItemKey.Shape(held);
             if (shape > 0)
             {
+                cycle = PropOrientation.Full; // a crafted form is a building block: all 24 orientations
                 return shape;
             }
 
@@ -2973,17 +2983,35 @@ namespace BlocksBeyondTheStars.Client
                 return 0;
             }
 
-            shape = BlocksBeyondTheStars.Shared.World.FurnitureShapes.DefaultPlaceShape(def.PlacesBlock);
-            furniture = shape != 0;
-            return shape;
+            cycle = PropShapes.OrientationOf(def.PlacesBlock);
+            return cycle == PropOrientation.None ? 0 : PropShapes.DefaultPlaceShape(def.PlacesBlock);
         }
 
-        /// <summary>One step of the rotate-key cycle. Shaped blocks walk Auto → the 24 up-face × quarter-turn
-        /// orientations → Auto; furniture walks Auto → the four quarter turns → Auto (its up-face is pinned
-        /// to +Y server-side, see the rotate-key comment). <paramref name="backwards"/> reverses the walk.</summary>
-        private void StepPlaceOrientation(bool backwards, bool furniture)
+        /// <summary>The ladder's rotate-key states, in cycle order: the four walls it can hug, then
+        /// free-standing (#909). Auto sits in front of them as index -1. Its plate is a square Panel, so the
+        /// quarter turns the other shapes cycle through would be four identical states here, and the two
+        /// vertical up-faces are the two a ladder has no use for.</summary>
+        private static readonly int[] LadderCycle = { 2, 3, 4, 5, ShapeCode.UpPlusY };
+
+        /// <summary>One step of the rotate-key cycle. Shaped blocks and the crafted staircase walk
+        /// Auto → the 24 up-face × quarter-turn orientations → Auto; furniture walks Auto → the four quarter
+        /// turns → Auto (its up-face is pinned to +Y server-side, see the rotate-key comment); the ladder
+        /// walks its own five mount states. <paramref name="backwards"/> reverses the walk.</summary>
+        private void StepPlaceOrientation(bool backwards, PropOrientation cycle)
         {
-            int lastUpFace = furniture ? 0 : 5;
+            if (cycle == PropOrientation.LadderMount)
+            {
+                _placeYaw = 0; // meaningless for both ladder forms — never send a turn the server drops
+                int at = _placeUpFace < 0 ? -1 : System.Array.IndexOf(LadderCycle, _placeUpFace);
+                int next = at + (backwards ? -1 : 1);
+                if (next >= LadderCycle.Length) { next = -1; }        // past the last state → back to Auto
+                else if (next < -1) { next = LadderCycle.Length - 1; } // before Auto → wrap to the last state
+                _placeUpFace = next < 0 ? -1 : LadderCycle[next];
+                return;
+            }
+
+            bool yawOnly = cycle == PropOrientation.YawOnly;
+            int lastUpFace = yawOnly ? 0 : 5;
             if (_placeUpFace < 0)
             {
                 // Leaving Auto: forwards starts at the first orientation, backwards at the last.
@@ -2992,7 +3020,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (furniture)
+            if (yawOnly)
             {
                 _placeUpFace = 0; // a stale up-face from a previously held shaped block never sticks to furniture
             }
@@ -3011,6 +3039,80 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>
+        /// The exact form + orientation the next place would carry, for the aim the player is holding right
+        /// now. Returns false when the held item places nothing orientable, in which case the place sends the
+        /// raw override fields and the server decides — same as before #909.
+        /// <para>
+        /// In Auto the client answers the orientation question ITSELF instead of leaving it to the server,
+        /// because it knows one thing the intent cannot carry: which block FACE the player clicked. That is
+        /// what makes a ladder hug the wall you aimed at rather than whichever neighbour wins a fixed scan
+        /// order. The server keeps its own derivation for intents that carry no up-face (older clients, its
+        /// own internal placements), so nothing depends on this being sent.
+        /// </para>
+        /// </summary>
+        private bool PendingPlacement(string held, Vector3Int hitCell, Vector3Int placeCell,
+            out int shape, out int upFace, out int yaw)
+        {
+            shape = HeldPlaceShape(held, out var cycle);
+            upFace = _placeUpFace;
+            yaw = _placeYaw;
+            if (shape <= 0)
+            {
+                return false;
+            }
+
+            // The face the player clicked: the step from the block they aimed at to the cell being filled.
+            int clicked = ShapeCode.FaceFromDirection(
+                placeCell.x - hitCell.x, placeCell.y - hitCell.y, placeCell.z - hitCell.z);
+
+            if (yaw < 0)
+            {
+                yaw = ((int)Mathf.Round(transform.eulerAngles.y / 90f)) & 3;
+            }
+
+            switch (cycle)
+            {
+                case PropOrientation.LadderMount:
+                {
+                    if (upFace < 0)
+                    {
+                        upFace = PropShapes.DeriveLadderMount(face => IsLadderMountWall(placeCell, face), clicked);
+                    }
+
+                    var form = PropShapes.LadderForm(upFace);
+                    shape = form.Shape;
+                    upFace = form.UpFace;
+                    yaw = 0;
+                    break;
+                }
+
+                case PropOrientation.YawOnly:
+                    upFace = ShapeCode.UpPlusY; // the server pins it; promising anything else would be a lie
+                    break;
+
+                default:
+                    if (upFace < 0)
+                    {
+                        upFace = DeriveAutoUpFace(placeCell, clicked);
+                    }
+
+                    break;
+            }
+
+            return true;
+        }
+
+        /// <summary>True when the cell on the far side of <paramref name="upFace"/> is a wall a ladder plate
+        /// can hang on. The up-face points AWAY from the plate's support, so the wall sits at the opposite
+        /// offset. Uses the mesher's own classification, so the preview and the drawn ladder cannot disagree.</summary>
+        private bool IsLadderMountWall(Vector3Int cell, int upFace)
+        {
+            var dir = ShapeCode.FaceDirection(upFace);
+            return ChunkMesher.IsLadderMountWall(
+                Game.Content, Game.World.GetBlock(cell.x - dir.X, cell.y - dir.Y, cell.z - dir.Z));
+        }
+
         /// <summary>Refreshes the placement ghost (#863): while a rotatable block is held and the aim ray
         /// has a place cell, the exact form + pending orientation hovers there translucently. Runs only on
         /// the on-foot path — every other state (menus, space view, driving, seated) is caught by the
@@ -3021,47 +3123,66 @@ namespace BlocksBeyondTheStars.Client
         {
             _ghostFrame = Time.frameCount;
             string held = Game != null ? Game.ItemInSlot(Game.SelectedHotbarSlot) : null;
-            int shape = HeldPlaceShape(held, out bool furniture);
+            bool rotatable = HeldPlaceShape(held, out _) > 0;
             if (Game != null)
             {
-                Game.HoldingRotatableBlock = shape > 0; // drives the HUD's "R — rotate" control hint
+                // Drives the HUD's "R — rotate" control hint. Answered from the held item alone, so the hint
+                // does not flicker while the crosshair sweeps past the sky.
+                Game.HoldingRotatableBlock = rotatable;
             }
 
-            if (shape <= 0 || !AimTarget(out _, out var placeCell, out var aimedShip) || aimedShip != null)
+            if (!rotatable || !AimTarget(out var hitCell, out var placeCell, out var aimedShip) || aimedShip != null
+                || !PendingPlacement(held, hitCell, placeCell, out int shape, out int upFace, out int yaw))
             {
                 _placementGhost?.Hide();
                 return;
             }
 
-            // Mirror the server's orientation choice exactly (HandlePlace): an explicit rotate-key override
-            // wins; Auto derives yaw from the facing and the up-face from the surface built against.
-            int yaw = _placeYaw >= 0 ? _placeYaw : ((int)Mathf.Round(transform.eulerAngles.y / 90f)) & 3;
-            int upFace = furniture
-                ? ShapeCode.UpPlusY
-                : (_placeUpFace >= 0 ? _placeUpFace : DeriveGhostUpFace(placeCell));
+            // Shows exactly what the place will send (PendingPlacement feeds both), so the hologram cannot
+            // promise a form or an orientation the placed block then contradicts.
             _placementGhost ??= new PlacementGhost();
             _placementGhost.Show(placeCell, shape, yaw, upFace);
         }
 
-        /// <summary>Client mirror of the server's DeriveShapeUpFace: the shape's base rests on the first
-        /// solid neighbour — floor first (→ +Y up), then the four walls, then the ceiling. Fluids are no
-        /// surface to build against, same as the server. Only feeds the ghost preview; the server still
-        /// derives its own answer on the actual place.</summary>
-        private int DeriveGhostUpFace(Vector3Int cell)
+        /// <summary>The up-face for an Auto placement: the shape's base rests on the surface it was built
+        /// against — the floor first (→ +Y up, the common case of laying a slab on the ground), then the WALL
+        /// THE PLAYER CLICKED, then the remaining walls in the server's fixed scan order, then the ceiling.
+        /// Fluids are no surface to build against, same as the server.
+        /// <para>
+        /// The clicked-face preference (#909) is the one thing the client can answer better than
+        /// <c>GameServer.DeriveShapeUpFace</c>, whose intent carries no aim: it is what lets you build a ramp
+        /// against the wall you are looking at instead of whichever neighbour the scan order happens to reach
+        /// first. The floor still wins over it — extending a floor by clicking the side of the last slab must
+        /// keep laying it flat, not stand it up against that slab.
+        /// </para></summary>
+        private int DeriveAutoUpFace(Vector3Int cell, int clickedFace)
         {
-            bool Solid(int dx, int dy, int dz)
+            bool Supported(int face)
             {
-                var id = Game.World.GetBlock(cell.x + dx, cell.y + dy, cell.z + dz);
+                var dir = ShapeCode.FaceDirection(face);
+                var id = Game.World.GetBlock(cell.x - dir.X, cell.y - dir.Y, cell.z - dir.Z);
                 return !id.IsAir && !IsFluidBlock(id);
             }
 
-            if (Solid(0, -1, 0)) return 0; // floor → +Y up
-            if (Solid(-1, 0, 0)) return 2; // wall → +X up
-            if (Solid(1, 0, 0)) return 3;  // wall → -X up
-            if (Solid(0, 0, -1)) return 4; // wall → +Z up
-            if (Solid(0, 0, 1)) return 5;  // wall → -Z up
-            if (Solid(0, 1, 0)) return 1;  // ceiling → -Y up
-            return 0;
+            if (Supported(ShapeCode.UpPlusY))
+            {
+                return ShapeCode.UpPlusY; // floor below → upright
+            }
+
+            if (clickedFace >= 2 && clickedFace <= 5 && Supported(clickedFace))
+            {
+                return clickedFace; // the wall under the crosshair
+            }
+
+            foreach (int face in ShapeCode.WallFaces)
+            {
+                if (Supported(face))
+                {
+                    return face;
+                }
+            }
+
+            return Supported(1) ? 1 : ShapeCode.UpPlusY; // ceiling, else nothing to rest on
         }
 
         private void LateUpdate()
@@ -3088,7 +3209,7 @@ namespace BlocksBeyondTheStars.Client
         /// (upright / upside down / on its side) plus the quarter-turn in degrees — instead of the old
         /// axis-speak ("+X · 90°") nobody without a maths degree could predict (#863). The placement ghost
         /// shows the exact result; this label just needs to say roughly what changed.</summary>
-        private string OrientationLabel(bool furniture)
+        private string OrientationLabel(PropOrientation cycle)
         {
             var loc = Game?.Localizer;
             if (_placeUpFace < 0)
@@ -3096,7 +3217,16 @@ namespace BlocksBeyondTheStars.Client
                 return loc?.Get("hud.shape.auto") ?? "Auto";
             }
 
-            int upFace = furniture ? 0 : _placeUpFace;
+            if (cycle == PropOrientation.LadderMount)
+            {
+                // Which of the four walls it is naming would need compass words nobody can map to a key press —
+                // the ghost hanging on that exact wall says it better than any label could.
+                return _placeUpFace >= 2
+                    ? loc?.Get("hud.shape.on_wall") ?? "On the wall"
+                    : loc?.Get("hud.shape.free_standing") ?? "Free-standing";
+            }
+
+            int upFace = cycle == PropOrientation.YawOnly ? 0 : _placeUpFace;
             string word = upFace switch
             {
                 0 => loc?.Get("hud.shape.upright") ?? "Upright",

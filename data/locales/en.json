@@ -1640,6 +1640,8 @@
   "hud.shape.upright": "Upright",
   "hud.shape.upside_down": "Upside down",
   "hud.shape.sideways": "On its side",
+  "hud.shape.on_wall": "On the wall",
+  "hud.shape.free_standing": "Free-standing",
   "ui.hud.ship": "Ship",
   "ui.hud.hull": "Hull",
   "ui.hud.shield": "Shield",

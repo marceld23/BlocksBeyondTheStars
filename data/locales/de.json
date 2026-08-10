@@ -1640,6 +1640,8 @@
   "hud.shape.upright": "Aufrecht",
   "hud.shape.upside_down": "Kopfüber",
   "hud.shape.sideways": "Auf der Seite",
+  "hud.shape.on_wall": "An der Wand",
+  "hud.shape.free_standing": "Freistehend",
   "ui.hud.ship": "Schiff",
   "ui.hud.hull": "Hülle",
   "ui.hud.shield": "Schild",

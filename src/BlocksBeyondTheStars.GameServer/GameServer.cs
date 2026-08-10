@@ -3173,10 +3173,14 @@ public sealed partial class GameServer
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
         int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
-        if (dropShape != 0 && dropShape == FurnitureShapes.DefaultPlaceShape(def.Key))
+        if (PropShapes.IsStampedForm(def.Key, dropShape))
         {
-            // A furniture block's server-stamped default form is not player data — dropping it plain keeps
-            // the mined item stacking with crafted ones (a "bed#s01" would never merge with a "bed").
+            // A prop's server-stamped form is not player data — dropping it plain keeps the mined item
+            // stacking with crafted ones (a "bed#s01" would never merge with a "bed"). Asking the shared
+            // helper rather than comparing against the ONE default matters for the ladder (#909), which is
+            // stamped as a wall plate OR a free-standing pole: the pole form would otherwise drop as its own
+            // item key, split the stack, and then place as a plate anyway (the ladder item is not shapeable,
+            // so a shape suffix on it is ignored at place time).
             dropShape = 0;
         }
 
@@ -3329,6 +3333,78 @@ public sealed partial class GameServer
         if (Solid(0, 0, 1)) return 5;  // wall → -Z up
         if (Solid(0, 1, 0)) return 1;  // ceiling → -Y up
         return 0;
+    }
+
+    /// <summary>The packed shape descriptor a prop block is stamped with on placement (#909), or 0 when the
+    /// key is no prop. Each <see cref="PropOrientation"/> honours exactly as much of the intent's orientation
+    /// as its client-side rotate cycle offers — a pinned-back tip or an ignored quarter turn would make the
+    /// placement ghost a liar.</summary>
+    private int StampPropShape(PlayerSession session, PlaceBlockIntent place, string blockKey, Vector3i pos)
+    {
+        var cycle = PropShapes.OrientationOf(blockKey);
+        if (cycle == PropOrientation.None)
+        {
+            return 0;
+        }
+
+        int facing = place.Yaw >= 0 && place.Yaw <= 3
+            ? place.Yaw
+            : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
+
+        switch (cycle)
+        {
+            case PropOrientation.LadderMount:
+            {
+                // The ladder's whole orientation IS its mount face, so the intent's up-face carries it: 2..5
+                // hug that wall, anything else means free-standing (the client's fifth cycle state sends +Y).
+                // Yaw is dropped on purpose — both forms are square about their own axis.
+                int mount = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveLadderMount(pos);
+                var (ladderShape, ladderUp) = PropShapes.LadderForm(mount);
+                return ShapeCode.Pack(ladderShape, 0, ladderUp);
+            }
+
+            case PropOrientation.Full:
+            {
+                // The crafted staircase is a directional form like any shaped block: it may tip onto walls and
+                // ceilings, and auto-orients against the surface it was built on when nothing was chosen.
+                int upFace = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveShapeUpFace(pos);
+                return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, upFace);
+            }
+
+            default:
+                // Furniture turns but never tips: a bed/campfire on a wall would break its sit/heal/warmth checks.
+                return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
+        }
+    }
+
+    /// <summary>Which wall a ladder hugs when the client sent no choice — an old client, a test, or one of the
+    /// server's own internal placements. Mirrors the mesher heuristic #803 shipped with (first solid horizontal
+    /// neighbour, in <see cref="ShapeCode.WallFaces"/> order), so those placements keep landing where they
+    /// always did. The client normally decides this itself and sends the answer, because it can also honour
+    /// the wall the player actually aimed at.</summary>
+    private int DeriveLadderMount(Vector3i pos) => PropShapes.DeriveLadderMount(
+        face =>
+        {
+            // The up-face points AWAY from the plate's support, so the wall sits at the opposite offset.
+            var dir = ShapeCode.FaceDirection(face);
+            var p = WorldConstants.CanonicalBlock(
+                new Vector3i(pos.X - dir.X, pos.Y - dir.Y, pos.Z - dir.Z), _world.Circumference);
+            return IsLadderMountWall(_world.GetBlock(p));
+        },
+        clickedFace: -1);
+
+    /// <summary>A neighbour a ladder plate can hang on. The mesher additionally rules out see-through walls
+    /// (glass, force fields), which the server has no flag for — the divergence only shows for a client old
+    /// enough not to send its own mount face, and costs at most a plate where a pole was drawn before.</summary>
+    private bool IsLadderMountWall(BlockId id)
+    {
+        if (id.IsAir || IsFluid(id.Value) || IsFlora(id.Value))
+        {
+            return false;
+        }
+
+        var def = _content.BlockById(id);
+        return def is not null && def.Solid && def.Key != "ladder";
     }
 
     private void HandlePlace(PlayerSession session, PlaceBlockIntent place)
@@ -3548,19 +3624,16 @@ public sealed partial class GameServer
             }
         }
 
-        // Furniture blocks (#804/#807/#809) read as their real silhouette out of the box: stamp their
-        // default form on placement — the same per-voxel shape channel the Shape action writes, so the
-        // mesher, save and wire all treat it like any player-shaped cell. The quarter-turn honours the
-        // rotate key like any shaped block (#863); without one it follows the player's facing. The up-face
-        // stays +Y on purpose: a bed/campfire tipped onto a wall would break their sit/heal/warmth checks,
-        // so furniture rotates but never tips. BreakBlockAt strips this default again so the drop stacks
-        // with freshly crafted items.
-        if (placeShape == 0 && FurnitureShapes.DefaultPlaceShape(blockDef.Key) is int defShape && defShape != 0)
+        // Prop blocks (furniture #804/#807/#809, ladder + crafted staircase #909) read as their real
+        // silhouette out of the box: stamp their default form on placement — the same per-voxel shape channel
+        // the Shape action writes, so the mesher, save and wire all treat it like any player-shaped cell. The
+        // quarter-turn honours the rotate key like any shaped block (#863); without one it follows the
+        // player's facing. How far the orientation may travel is per prop (PropOrientation), because the
+        // cycle the client offers must promise exactly what is honoured here. BreakBlockAt strips the stamped
+        // form again so the drop stacks with freshly crafted items.
+        if (placeShape == 0)
         {
-            int facing = place.Yaw >= 0 && place.Yaw <= 3
-                ? place.Yaw
-                : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
-            placeShape = ShapeCode.Pack(defShape, facing, ShapeCode.UpPlusY);
+            placeShape = StampPropShape(session, place, blockDef.Key, pos);
         }
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);

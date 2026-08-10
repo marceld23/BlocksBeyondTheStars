@@ -76,7 +76,7 @@ Last updated: 2026-08-08.
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
-| **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block or furniture** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
+| **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on |
@@ -701,6 +701,16 @@ separate unlock; admins can still disable it through server world rules.
   the vertical axis — it always stays upright so beds and campfires keep working. Symmetric forms (sphere,
   dome, cylinder, …) ignore orientation. Mining returns the shaped item; orientation is re-derived each
   time you place it again.
+- **Auto follows your crosshair:** when a cell has no floor under it, the shape leans on **the wall face you
+  actually clicked** instead of whichever neighbouring wall the game finds first. Building on a floor still
+  keeps the shape upright, so extending a floor sideways lays the next block flat as before.
+- **Ladders** are rotatable too, with their own short cycle: **Auto → each of the four walls → free-standing
+  → Auto**. A placed ladder now *keeps* the side you gave it — mining the wall next to it no longer flips the
+  whole column around or turns it into poles. Ladders placed before this update, and those in settlements,
+  keep choosing their wall automatically.
+- **Stairs** you craft are a real staircase now instead of a full cube: they get step geometry you can walk
+  up, and **R** turns them to face any direction (or tips them upside down for an inverted step). Stairs
+  placed before this update stay cubes until you mine and place them again.
 
 ### Designing your own forms
 - Craft the **Shaping Tool** (`shape_tool`, workshop recipe + the cheap `shape_tool` blueprint) and

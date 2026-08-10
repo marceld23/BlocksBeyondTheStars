@@ -522,9 +522,14 @@ namespace BlocksBeyondTheStars.Client
 
                 // Ladder (#803): a thin wall plate WITHOUT a collider, so the player can step into the cell
                 // and the climb detection (PlayerController.OnLadder) can actually engage — the old full
-                // collidable cube made the climb state unreachable from the side. The plate leans against
-                // the first solid horizontal neighbour (settlement ladders hug walls); a free-standing
-                // ladder renders as a slim pole instead. Collider tris go to a throwaway list on purpose.
+                // collidable cube made the climb state unreachable from the side. Collider tris go to a
+                // throwaway list on purpose.
+                //
+                // Which wall it hugs is STORED since #909: a ladder placed by a player carries its own form
+                // (plate + mount face, or the free-standing pole) in the shape descriptor, so it keeps the
+                // side it was given and no longer flips when a neighbouring wall is mined. A ladder with no
+                // descriptor — placed before #909, by worldgen, or inside a ship layout — falls back to the
+                // original heuristic: lean on the first solid horizontal neighbour, else stand as a pole.
                 if (atlas != null && collKey == "ladder")
                 {
                     var dumpTris = _ladderColliderTrisDump ??= new List<int>();
@@ -534,10 +539,14 @@ namespace BlocksBeyondTheStars.Client
                     float ladSky = Skylight(wx, wy + 1, wz);
                     Vector3 ladBl = BlockLightAt(wx, wy, wz);
                     Vector3 ladBlDir = BlockLightDirAt(wx, wy, wz);
-                    int ladUp = LadderMountUpFace(content, worldBlock, wx, wy, wz);
+                    int ladDesc = chunk.GetShapeLocal(WorldConstants.LocalIndex(x, y, z));
+                    int ladShape = ShapeCode.ShapeOf(ladDesc);
+                    int ladUp = ladShape == (int)BlockShape.Panel ? ShapeCode.UpFaceOf(ladDesc)
+                        : ladShape == (int)BlockShape.Post ? -1
+                        : LadderMountUpFace(content, worldBlock, wx, wy, wz);
                     AddShapedBlock(verts, tris, dumpTris, dumpVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        ladUp >= 0 ? (int)BlockShape.Panel : (int)BlockShape.Post,
-                        0, ladUp >= 0 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
+                        ladUp >= 2 ? (int)BlockShape.Panel : (int)BlockShape.Post,
+                        0, ladUp >= 2 ? ladUp : ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, Color.black, 0f, ladSky, ladBl, ladBlDir);
                     continue;
                 }
@@ -1348,8 +1357,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A neighbour the ladder plate can visually hang on: an opaque solid — not air, glass,
-        /// flora, foliage or another ladder.</summary>
-        private static bool IsLadderMountWall(GameContent content, BlockId nb)
+        /// flora, foliage or another ladder. Public because the placement preview asks the same question
+        /// (#909): a ghost that promises a wall mount the mesher would draw as a pole is worse than none.</summary>
+        public static bool IsLadderMountWall(GameContent content, BlockId nb)
             => !nb.IsAir && !IsTransparent(content, nb) && !IsFloraBlock(content, nb) && !IsFoliageBlock(content, nb)
                && content.BlockById(nb)?.Key != "ladder";
 

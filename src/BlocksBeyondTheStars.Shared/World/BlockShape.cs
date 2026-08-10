@@ -37,23 +37,109 @@ public enum BlockShape : byte
     Pot = 18,     // small centred planter box with a rim (bowls, pots)
 }
 
+/// <summary>How much of the orientation a prop's rotate-key cycle may reach (#909). The cycle the player
+/// walks must promise exactly what the placement will honour — offering a tip the server pins back to +Y,
+/// or four quarter turns of a square plate nobody can tell apart, is worse than offering nothing.</summary>
+public enum PropOrientation : byte
+{
+    /// <summary>Not a stamped prop — the item places a plain cube (or no block at all).</summary>
+    None = 0,
+
+    /// <summary>Quarter turns only; the up-face stays +Y (bed/campfire/rug/pot — a tipped bed would break
+    /// its sit/heal/warmth checks).</summary>
+    YawOnly = 1,
+
+    /// <summary>The full 24 orientations, exactly like a shaped building block (the crafted staircase).</summary>
+    Full = 2,
+
+    /// <summary>The ladder's own five states: the four walls it can hug, plus free-standing. Yaw is
+    /// meaningless (its plate is a square <see cref="BlockShape.Panel"/>) and the two vertical up-faces are
+    /// the two a ladder has no use for.</summary>
+    LadderMount = 3,
+}
+
 /// <summary>
-/// The default FORM a furniture block is stamped with on placement (#804/#807/#809), so it reads as its
+/// The default FORM a prop block is stamped with on placement (#804/#807/#809, #909), so it reads as its
 /// silhouette without the player using the Shape action. Shared between the server (stamp on place, strip
 /// from the mined drop) and the client (the rotate key + placement ghost must treat these items as
 /// rotatable even though their item key carries no shape suffix).
 /// </summary>
-public static class FurnitureShapes
+public static class PropShapes
 {
-    /// <summary>The default shape index for a furniture block key, or 0 (plain cube) for everything else.</summary>
+    /// <summary>The default shape index for a prop block key, or 0 (plain cube) for everything else.
+    /// The ladder's default is its wall plate; see <see cref="LadderFreeStanding"/> for the other form it
+    /// can be stamped with.</summary>
     public static int DefaultPlaceShape(string blockKey) => blockKey switch
     {
         "bed" => (int)BlockShape.Slab,
         "campfire" => (int)BlockShape.Slab,
         "rug" => (int)BlockShape.Sheet,
         "flower_pot" => (int)BlockShape.Pot,
+        "ladder" => (int)BlockShape.Panel,     // thin plate hugging a wall (#803 meshed this, #909 stores it)
+        "stairs" => (int)BlockShape.Stairs,    // the crafted staircase used to place as a full cube (#909)
         _ => 0,
     };
+
+    /// <summary>The form a ladder takes when it hugs no wall: a slim pole through the cell. The mesher has
+    /// always drawn a free-standing ladder this way; since #909 the choice can also be stored.</summary>
+    public const int LadderFreeStanding = (int)BlockShape.Post;
+
+    /// <summary>How far this prop's placement orientation may be steered.</summary>
+    public static PropOrientation OrientationOf(string blockKey) => blockKey switch
+    {
+        "ladder" => PropOrientation.LadderMount,
+        "stairs" => PropOrientation.Full,
+        _ => DefaultPlaceShape(blockKey) != 0 ? PropOrientation.YawOnly : PropOrientation.None,
+    };
+
+    /// <summary>True when <paramref name="shape"/> is a form the SERVER stamps on this block key rather than
+    /// player data. Such a form is stripped from the mined drop so it stacks with freshly crafted items —
+    /// which matters most for the ladder, whose two forms (wall plate / free-standing pole) would otherwise
+    /// split the stack into two item keys that both place as a plate anyway.</summary>
+    public static bool IsStampedForm(string blockKey, int shape)
+        => shape != 0
+           && (shape == DefaultPlaceShape(blockKey)
+               || (shape == LadderFreeStanding && blockKey == "ladder"));
+
+    /// <summary>The form + up-face a ladder is stamped with for a chosen mount face: an up-face pointing away
+    /// from one of the four walls keeps the plate, anything else (no wall to hug) becomes the pole. Server and
+    /// client run this same function so the placement ghost cannot promise the wrong silhouette.</summary>
+    public static (int Shape, int UpFace) LadderForm(int upFace)
+        => upFace >= 2 && upFace <= 5
+            ? (DefaultPlaceShape("ladder"), upFace)
+            : (LadderFreeStanding, ShapeCode.UpPlusY);
+
+    /// <summary>
+    /// Picks the wall a ladder hugs when the player let placement decide: the wall they aimed at wins
+    /// (<paramref name="clickedFace"/>, -1 = none), otherwise the first one in <see cref="ShapeCode.WallFaces"/>
+    /// order — the heuristic the mesher has used since #803, kept so a ladder placed by an old client, by
+    /// worldgen or inside a ship layout lands exactly where it always did. Returns <see cref="ShapeCode.UpPlusY"/>
+    /// when there is no wall at all, which <see cref="LadderForm"/> turns into the free-standing pole.
+    /// <paramref name="hasWall"/> answers "is the cell on the far side of this up-face a wall the plate can
+    /// hang on" for one of the four horizontal up-faces.
+    /// </summary>
+    public static int DeriveLadderMount(System.Func<int, bool> hasWall, int clickedFace)
+    {
+        if (hasWall is null)
+        {
+            return ShapeCode.UpPlusY;
+        }
+
+        if (clickedFace >= 2 && clickedFace <= 5 && hasWall(clickedFace))
+        {
+            return clickedFace;
+        }
+
+        foreach (int face in ShapeCode.WallFaces)
+        {
+            if (hasWall(face))
+            {
+                return face;
+            }
+        }
+
+        return ShapeCode.UpPlusY;
+    }
 }
 
 /// <summary>
@@ -133,6 +219,38 @@ public static class ShapeCode
 
     /// <summary>True when <paramref name="upFace"/> is a valid up-face index (0..5).</summary>
     public static bool IsValidUpFace(int upFace) => upFace is >= 0 and <= 5;
+
+    /// <summary>The unit direction an up-face points in — which is also the direction AWAY from the surface
+    /// the shape's base rests on, so the supporting neighbour always sits at the opposite offset.</summary>
+    public static (int X, int Y, int Z) FaceDirection(int upFace) => upFace switch
+    {
+        1 => (0, -1, 0),
+        2 => (1, 0, 0),
+        3 => (-1, 0, 0),
+        4 => (0, 0, 1),
+        5 => (0, 0, -1),
+        _ => (0, 1, 0),
+    };
+
+    /// <summary>The up-face pointing along a unit direction, or -1 for anything that is not one of the six.
+    /// Placement uses it to turn "the block face the player clicked" (the step from the aimed cell to the
+    /// cell being filled) into the up-face that rests the shape on exactly that face.</summary>
+    public static int FaceFromDirection(int dx, int dy, int dz) => (dx, dy, dz) switch
+    {
+        (0, 1, 0) => 0,
+        (0, -1, 0) => 1,
+        (1, 0, 0) => 2,
+        (-1, 0, 0) => 3,
+        (0, 0, 1) => 4,
+        (0, 0, -1) => 5,
+        _ => -1,
+    };
+
+    /// <summary>The four up-faces that lean a shape against a WALL, in the order placement falls back on
+    /// when the player expressed no preference (unchanged from the ladder heuristic #803 shipped with).</summary>
+    public static System.Collections.Generic.IReadOnlyList<int> WallFaces => WallFaceOrder;
+
+    private static readonly int[] WallFaceOrder = { 2, 3, 4, 5 };
 
     // --- Paint design reference (bits 11..26) ---
     // Like the up-face field, the design id was added on top of the existing descriptor: bits 11+ were

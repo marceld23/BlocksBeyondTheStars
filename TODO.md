@@ -135,6 +135,30 @@ a fully frozen image reads as a crash. Weather needed no change (already gated o
 side: `JoinedCount` no longer counts spectators (#487 observers), so an admin quietly watching a world
 stops silently denying its only player their pause. No new locale keys.
 
+### ★ Orientable ladders, real crafted stairs, Auto follows the crosshair (#909, 2026-08-10, branch feat/orientable-ladders-909)
+Three placement fixes that all live on the existing per-voxel shape descriptor — no wire, save or format
+change anywhere. **(1) Auto uses the face you clicked.** `DeriveShapeUpFace` picked the surface a shape
+rests on by scanning neighbours in a fixed order, so building a ramp into a corner landed on whichever
+neighbour that order reached first. The client now answers the Auto question itself (`PendingPlacement`)
+and sends the result: floor first as before, then **the wall under the crosshair**, then the old scan
+order. The server keeps its own derivation for intents with no up-face (older clients, internal
+placements). **(2) The ladder keeps the wall it was given.** A placed ladder stored *no* form at all —
+`ladder` is neither shapeable nor furniture — and the mesher re-invented the look on every rebuild
+(`LadderMountUpFace`), so ladders hugged the wrong wall, turned into poles when free-standing, and flipped
+whenever a neighbouring wall was mined. Placement now stamps the real form (`Panel` + mount face, or
+`Post` free-standing) and the mesher prefers it, falling back to the old heuristic for a descriptor of 0 —
+so pre-#909 saves, settlement ladders and ship layouts keep behaving exactly as before. The rotate key gets
+a ladder-sized cycle: **Auto → the four walls → free-standing → Auto** (its plate is a square Panel, so the
+24-state walk would offer four identical turns and two useless tips). **(3) The crafted staircase is a
+staircase.** `stairs` placed as a plain solid cube although `BlockShape.Stairs` was fully implemented; it
+is now stamped like a prop (step geometry + collider, R turns and tips it). Existing stairs blocks stay
+cubes until re-placed. Plus a drop-strip fix: `BreakBlockAt` compared the stamped form against the ONE
+default, so the ladder's pole form would have dropped as its own item key, split the stack and then placed
+as a plate anyway — the rule now asks `PropShapes.IsStampedForm`. `FurnitureShapes` → `PropShapes`
+(furniture, ladder and stairs share the path) with a `PropOrientation` per prop, so the client cycle can
+only ever offer what the server honours. 7 new tests, `hud.shape.on_wall`/`free_standing` in en+de, manual
+updated.
+
 ### ★ Website translated into all 13 game languages (2026-08-10, branch feat/wix-i18n-locale-tools)
 The full website (all pages, menu, forms, image alt texts) now has complete translations in every
 game language: en/it plus newly created es, fr, nl, pl, pt, tr, ru, uk, ja, ko, zh — the 11 new Wix
