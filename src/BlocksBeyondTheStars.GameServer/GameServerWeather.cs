@@ -28,10 +28,11 @@ public sealed partial class GameServer
         (0xFFB074, 8),   // red-orange (M)
     };
 
-    private static readonly string[] WeatherStates = { "clear", "clouds", "rain", "storm" };
-
-    private const double WeatherChangeInterval = 25.0;
     private const double EnvBroadcastInterval = 5.0;
+
+    /// <summary>Intensity move that earns an extra broadcast between heartbeats, so a swelling storm
+    /// arrives as a ramp on the client instead of a 5 s staircase.</summary>
+    private const float IntensityBroadcastStep = 0.05f;
 
     /// <summary>Day fraction every world starts at when it's activated (late-morning). Reset on each entry, so a
     /// body's arrival time-of-day is deterministic — day or night then depends purely on the landing longitude.</summary>
@@ -51,9 +52,9 @@ public sealed partial class GameServer
     private double _dayLength { get => _worlds.Active.DayLength; set => _worlds.Active.DayLength = value; }
     private double _stormChance { get => _worlds.Active.StormChance; set => _worlds.Active.StormChance = value; }
     private string _planetWeatherMode { get => _worlds.Active.PlanetWeatherMode; set => _worlds.Active.PlanetWeatherMode = value; }
-    private string _weatherState { get => _worlds.Active.WeatherState; set => _worlds.Active.WeatherState = value; }
-    private float _weatherIntensity { get => _worlds.Active.WeatherIntensity; set => _worlds.Active.WeatherIntensity = value; }
-    private double _weatherTimer { get => _worlds.Active.WeatherTimer; set => _worlds.Active.WeatherTimer = value; }
+    private WeatherSim _sim => _worlds.Active.Weather;
+    private string _weatherState => _worlds.Active.Weather.State;
+    private float _weatherIntensity => _worlds.Active.Weather.Intensity;
     private double _sinceEnvBroadcast { get => _worlds.Active.SinceEnvBroadcast; set => _worlds.Active.SinceEnvBroadcast = value; }
     private int _sunColor { get => _worlds.Active.SunColor; set => _worlds.Active.SunColor = value; }
     private int _cloudColor { get => _worlds.Active.CloudColor; set => _worlds.Active.CloudColor = value; }
@@ -67,12 +68,20 @@ public sealed partial class GameServer
     private double _atmosphereHeight { get => _worlds.Active.AtmosphereHeight; set => _worlds.Active.AtmosphereHeight = value; }
     private double _atmosphereDensity { get => _worlds.Active.AtmosphereDensity; set => _worlds.Active.AtmosphereDensity = value; }
     private float _gravityFactor { get => _worlds.Active.GravityFactor; set => _worlds.Active.GravityFactor = value; }
-    private System.Random _envRng { get => _worlds.Active.EnvRng; set => _worlds.Active.EnvRng = value; }
 
     // Public accessors (HUD / tests).
     public float TimeOfDay => (float)_dayFraction;
     public string Weather => _weatherState;
     public int SunColor => _sunColor;
+
+    /// <summary>This world's live wind strength 0..1 — test seam.</summary>
+    public float WindSpeedForTest => _sim.WindSpeed;
+
+    /// <summary>This world's current weather intensity 0..1 — test seam.</summary>
+    public float WeatherIntensityForTest => _weatherIntensity;
+
+    /// <summary>This world's weather simulation — test seam for the episode/front assertions.</summary>
+    public WeatherSim WeatherSimForTest => _sim;
 
     /// <summary>This world's cloud cover 0..1 (0 = airless/clear) — test seam.</summary>
     public float CloudDensityForTest => _cloudDensity;
@@ -126,7 +135,12 @@ public sealed partial class GameServer
         // sky. A body with atmosphere "none" (lava/crystal historically, asteroids) gets no clouds, no changing
         // weather (no rain/storm) and no fog haze; only worlds with air (breathable/toxic) have weather.
         bool airless = (planet?.IsAirless ?? true) || _spaceSky;
-        _planetWeatherMode = airless ? "clear" : (string.IsNullOrEmpty(planet?.Weather) ? "dynamic" : planet!.Weather);
+        // #900: two data modes stop meaning "frozen". An AIRLESS body keeps its empty ladder — no clouds,
+        // no rain, no fog — but the model may schedule the VACUUM-SAFE events there (ion storms, meteor
+        // showers), which is where a space game should feel most alien. An OVERCAST world now sits on a
+        // ladder FLOOR of clouds instead of being pinned to them forever, so a swamp can finally break
+        // into rain. Only void worlds (ship cabins, station decks) stay genuinely fixed.
+        _planetWeatherMode = planet?.Void == true ? "clear" : "dynamic";
         // Base cloud tint comes from the planet type; the final per-world tint is derived below, once the
         // per-world sky hue is known (so clouds can be kept distinct from THIS world's sky).
         _cloudDensity = airless ? 0f : (float)System.Math.Clamp(planet?.CloudDensity ?? 0.45, 0.0, 1.0);
@@ -138,9 +152,27 @@ public sealed partial class GameServer
         _atmosphereDensity = airless ? 0.0
             : planet?.AtmosphereDensity is { } ad ? System.Math.Clamp(ad, 0.0, 1.0)
             : 0.2 + ((((uint)StableStringHash(_world.LocationId) ^ (uint)_meta.Seed) & 0xFFFFu) / 65535.0) * 0.6;
-        _envRng = new System.Random((int)_meta.Seed);
+
+        // #900: the weather RNG is salted with the LOCATION, like AtmosphereDensity/SkyHue/CloudTint/gravity
+        // above. It used to be seeded from the save seed alone, so every world in a save ran the same stream
+        // in lockstep — two worlds with the same storm chance had literally the same weather, and a restart
+        // replayed it. Volatility, the season phase and the wind seed all come out of this stream.
+        _worlds.Active.Weather = new WeatherSim(
+            unchecked((ulong)(uint)StableStringHash(_world.LocationId) << 32 | (uint)_meta.Seed) ^ 0x7EA7BEEFUL);
+        _sim.SeasonAmplitude = planet?.SeasonAmplitude ?? 0.35;
+        _worlds.Active.WeatherEventWeights = planet?.WeatherEvents;
+        if (planet?.WeatherVolatility is { } vol && vol > 0)
+        {
+            _sim.Volatility = System.Math.Clamp(vol, 0.3, 2.5);
+        }
+
+        // Mountain tops sit one ladder step wetter than the valley floor (#900). The line is the planet's
+        // own relief — base height plus its amplitude — so a flat world effectively has none.
+        _worlds.Active.CloudLineY = planet is null
+            ? double.MaxValue
+            : planet.BaseHeight + planet.Amplitude * 1.15 + 10;
+
         _dayFraction = InitialDayFraction;
-        _weatherTimer = 0;
         _sinceEnvBroadcast = 0;
 
         var (system, _) = ActiveLocationNames();
@@ -167,14 +199,42 @@ public sealed partial class GameServer
         // still differ. The client scales jump/walk/jetpack/fall from it (a ≥1-block jump is always preserved).
         _gravityFactor = GravityFor(_worlds.Active.SizeClass, unchecked((uint)(StableStringHash(_world.LocationId) ^ (int)_meta.Seed)));
 
-        // Fixed-weather planets: lock the state; dynamic ones start clear.
-        _weatherState = _planetWeatherMode switch
+        // The planet's authored mode becomes a BAND on the ladder rather than a freeze: "overcast" raises
+        // the floor to clouds, airless bodies drop the ceiling to clear (events still run).
+        _sim.LadderFloor = string.Equals(planet?.Weather, "overcast", System.StringComparison.OrdinalIgnoreCase) && !airless ? 1 : 0;
+        _sim.LadderCeiling = airless || string.Equals(planet?.Weather, "clear", System.StringComparison.OrdinalIgnoreCase)
+            ? 0
+            : WeatherCatalog.MaxSeverity;
+
+        if (_planetWeatherMode == "dynamic")
         {
-            "clear" => "clear",
-            "overcast" => "clouds",
-            _ => "clear",
+            _sim.Start(WeatherCtx());
+        }
+        else
+        {
+            _sim.Force("clear"); // void worlds: a ship cabin has no sky at all
+        }
+    }
+
+    /// <summary>The per-tick inputs the weather model needs from this world.</summary>
+    private WeatherContext WeatherCtx()
+    {
+        var planet = _content.GetPlanet(_worlds.Active.PlanetType);
+        return new WeatherContext
+        {
+            StormChance = _stormChance,
+            AtmosphereDensity = _atmosphereDensity,
+            DayFraction = _dayFraction,
+            SystemTimeDays = _systemTimeDays,
+            // "Airless" for the model means no air weather: vacuum bodies AND space-sky surfaces.
+            Airless = (planet?.IsAirless ?? true) || _spaceSky,
+            Toxic = !_breathable && !((planet?.IsAirless ?? true) || _spaceSky),
+            BaseTemperature = planet?.BaseTemperature ?? 15,
+            PlanetKey = _worlds.Active.PlanetType ?? string.Empty,
+            EventWeights = _worlds.Active.WeatherEventWeights,
+            Circumference = _world.Circumference,
+            Dynamic = _planetWeatherMode == "dynamic",
         };
-        _weatherIntensity = IntensityOf(_weatherState);
     }
 
     private void TickWeather(double dt)
@@ -188,67 +248,31 @@ public sealed partial class GameServer
         // Advance the monotonic orbital clock (fixed reference day, so it's independent of this world's rotation).
         _systemTimeDays += dt / SystemDaySeconds;
 
-        // Dynamic planets cycle weather; fixed ones never change.
-        if (_planetWeatherMode == "dynamic")
-        {
-            _weatherTimer += dt;
-            if (_weatherTimer >= WeatherChangeInterval)
-            {
-                _weatherTimer = 0;
-                string next;
-                if (_weatherState == "fog")
-                {
-                    next = "clear"; // fog lifts back to a clear sky
-                }
-                else
-                {
-                    int idx = System.Array.IndexOf(WeatherStates, _weatherState);
-                    if (idx < 0)
-                    {
-                        idx = 0;
-                    }
-
-                    // From calm air (clear/clouds), the world can roll into fog instead of progressing along the
-                    // rain ramp; thicker atmospheres fog up more often (airless worlds never — density is 0).
-                    double fogChance = idx <= 1 ? 0.3 * _atmosphereDensity : 0.0;
-                    if (_envRng.NextDouble() < fogChance)
-                    {
-                        next = "fog";
-                    }
-                    else
-                    {
-                        idx = _envRng.NextDouble() < _stormChance
-                            ? System.Math.Min(WeatherStates.Length - 1, idx + 1)
-                            : System.Math.Max(0, idx - 1);
-                        next = WeatherStates[idx];
-                    }
-                }
-
-                if (next != _weatherState)
-                {
-                    _weatherState = next;
-                    _weatherIntensity = IntensityOf(next);
-                    BroadcastEnvironment();
-                }
-            }
-        }
+        // The model owns the episode schedule, the intensity envelope, the wind and the fronts (#900).
+        float before = _weatherIntensity;
+        bool changed = _sim.Advance(dt, WeatherCtx());
 
         _sinceEnvBroadcast += dt;
-        if (_sinceEnvBroadcast >= EnvBroadcastInterval)
+        // Broadcast on a state change, on a meaningful intensity move (so ramps read as ramps) or on
+        // the plain heartbeat — whichever comes first.
+        if (changed
+            || System.Math.Abs(_weatherIntensity - before) >= IntensityBroadcastStep
+            || _sinceEnvBroadcast >= EnvBroadcastInterval)
         {
             _sinceEnvBroadcast = 0;
             BroadcastEnvironment();
         }
+
+        TickWeatherEffects(dt);
     }
 
-    private static float IntensityOf(string weather) => weather switch
+    /// <summary>Fallback strength for a state whose episode peak isn't this world's own (a wetter biome
+    /// inside a lighter world episode). Ladder states keep their historic ordering.</summary>
+    private static float IntensityOf(string weather)
     {
-        "storm" => 1.0f,
-        "rain" => 0.6f,
-        "fog" => 0.5f,
-        "clouds" => 0.3f,
-        _ => 0f,
-    };
+        var def = WeatherCatalog.Find(weather);
+        return def is null ? 0f : WeatherCatalog.MidPeak(def);
+    }
 
     /// <summary>Builds the environment for a position — weather is per BIOME (a stormy biome can rain while
     /// a neighbouring clear biome stays sunny), shifted around the world's current weather; the rest
@@ -257,6 +281,7 @@ public sealed partial class GameServer
     {
         var (state, intensity) = BiomeWeatherAt(pos);
         float temperature = CurrentTemperature(state, _dayFraction, pos);
+        var def = WeatherCatalog.Find(state);
         return new WorldEnvironment
         {
             TimeOfDay = (float)_dayFraction,
@@ -264,6 +289,11 @@ public sealed partial class GameServer
             SystemTimeDays = _systemTimeDays,
             Weather = state,
             Intensity = intensity,
+            IntensityRate = _sim.IntensityRate,
+            WeatherFamily = (def?.Family ?? WeatherFamily.Calm).ToString().ToLowerInvariant(),
+            WindSpeed = _sim.WindSpeed,
+            WindDirection = _sim.WindDirection,
+            SeasonWetness = (float)_sim.Wetness(_systemTimeDays),
             Temperature = temperature,
             Precipitation = PrecipitationFor(state, temperature),
             SunColor = _sunColor,
@@ -325,7 +355,11 @@ public sealed partial class GameServer
         double baseT = planet is null
             ? 15.0
             : _generator.AirTemperatureAt(planet, hasPos ? (int)System.Math.Round(pos.Y) : int.MinValue);
-        double weatherDelta = weather switch { "storm" => -8.0, "rain" => -5.0, "fog" => -3.0, "clouds" => -2.0, _ => 2.0 };
+        // The state's own offset, scaled by how far the episode has actually swelled — a storm that is
+        // still building doesn't yet bite like one at full strength (#900).
+        var wdef = WeatherCatalog.Find(weather);
+        double envelope = _sim.Peak > 0.0001f ? System.Math.Clamp(_sim.Intensity / _sim.Peak, 0f, 1f) : 1f;
+        double weatherDelta = wdef is null ? 2.0 : wdef.TempDelta * (wdef.Key == "clear" ? 1.0 : envelope);
         double swing = _breathable ? 6.0 : 16.0; // airless worlds swing hard between day and night
         double dayNight = System.Math.Cos((timeOfDay - 0.5) * 2.0 * System.Math.PI) * swing;
         double t = baseT + weatherDelta + dayNight;
@@ -351,16 +385,29 @@ public sealed partial class GameServer
     /// stage 2 — keys off a dry/sand surface.)</summary>
     private string PrecipitationFor(string weather, float temp)
     {
-        if (weather != "rain" && weather != "storm")
+        var def = WeatherCatalog.Find(weather);
+        if (def is null || def.Precip.Length == 0)
         {
             return "none";
         }
 
+        // Events carry their own form (acid, embers, meteors, spores, blown dust) — temperature has no
+        // say over what an ion-charged sky throws at you.
+        if (!def.IsLadder && def.Key != "blizzard" && def.Key != "drizzle")
+        {
+            return _sim.Precip == "none" ? def.Precip[0] : _sim.Precip;
+        }
+
+        // Ladder rain (and the two wet events) still resolves by climate, position-dependent: the snow
+        // line has to agree with where worldgen actually freezes water.
         if (_content.GetPlanet(_worlds.Active.PlanetType)?.SurfaceBlock == "sand") return "sandstorm"; // dry worlds blow sand
         if (temp >= 55f) return "ash";   // fire-rain / ash on very hot (lava) worlds
         if (temp <= -15f) return "hail"; // very cold → hail
         if (temp <= 2f) return "snow";   // cold → snow
-        return "rain";
+        if (temp <= 5f) return "sleet";  // the wet-snow band between snow and rain
+        // Within the rain band the episode's own roll decides whether it's a downpour or a drizzle, so
+        // a temperate world stops seeing exactly one kind of rain forever.
+        return _sim.Precip is "drizzle" or "rain" ? _sim.Precip : "rain";
     }
 
     /// <summary>The weather in the biome at a position: the world's weather level shifted by a persistent
@@ -372,22 +419,37 @@ public sealed partial class GameServer
             return (_weatherState, _weatherIntensity);
         }
 
-        // Fog blankets the whole world uniformly (it's not on the per-biome rain ramp).
-        if (_weatherState == "fog")
+        // An EVENT (fog, gale, blizzard, ion storm, …) blankets the whole world: it is not on the ladder,
+        // so no biome/front/altitude arithmetic touches it. That separation is the whole point of the
+        // two-layer model — appending a state used to silently rebalance every biome (#900).
+        var current = WeatherCatalog.Find(_weatherState);
+        if (current is not null && !current.IsLadder)
         {
-            return ("fog", _weatherIntensity);
+            return (_weatherState, _weatherIntensity);
         }
 
-        int worldLevel = System.Array.IndexOf(WeatherStates, _weatherState);
-        if (worldLevel < 0)
+        bool hasPos = pos.X != 0f || pos.Y != 0f || pos.Z != 0f;
+        int level = _sim.LadderSeverity;
+        if (hasPos)
         {
-            worldLevel = 0;
+            int biomeIdx = _generator.BiomeIndexAt(_world.Planet, (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z));
+            level += BiomeWeatherOffset(biomeIdx);
+            level += _sim.FrontBoostAt(pos.X, _world.Circumference);
+            if (pos.Y > _worlds.Active.CloudLineY)
+            {
+                level += 1; // summits sit in the cloud/snow while the valley below stays clear
+            }
         }
 
-        int biomeIdx = _generator.BiomeIndexAt(_world.Planet, (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Z));
-        int level = System.Math.Clamp(worldLevel + BiomeWeatherOffset(biomeIdx), 0, WeatherStates.Length - 1);
-        string state = WeatherStates[level];
-        return (state, IntensityOf(state));
+        // Clamp into THIS world's band, not the raw 0..3: an overcast world never reads clear and an
+        // airless one never reads rain, no matter what the biome/front/altitude shifts add up to.
+        level = _sim.ClampSeverity(level);
+        var def = WeatherCatalog.Ladder[level];
+        // Keep the world episode's own envelope shape, but scale it to this position's severity, so a
+        // wetter biome inside a rain episode still swells and fades with the same rhythm.
+        float envelope = _sim.Peak > 0.0001f ? _sim.Intensity / _sim.Peak : 0f;
+        float peak = level == _sim.LadderSeverity ? _sim.Peak : WeatherCatalog.MidPeak(def);
+        return (def.Key, System.Math.Clamp(envelope * peak, 0f, 1f));
     }
 
     /// <summary>Test hook: forces this world's weather (and unlocks dynamic mode so the per-biome shift
@@ -395,14 +457,23 @@ public sealed partial class GameServer
     public void SetWeatherForTest(string state)
     {
         _planetWeatherMode = "dynamic";
-        _weatherState = state;
-        _weatherIntensity = IntensityOf(state);
+        _sim.Force(state);
     }
 
-    /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world.</summary>
+    /// <summary>Test hook: drops a front centred on this longitude so the spatial shift can be asserted.</summary>
+    public void AddWeatherFrontForTest(double centerX, double halfWidth, int boost)
+        => _sim.Fronts.Add(new WeatherFront
+        {
+            CenterX = centerX, HalfWidth = halfWidth, Boost = boost, Drift = 0, Life = 1e6,
+        });
+
+    /// <summary>Persistent per-biome weather offset (-1 drier .. +2 wetter), deterministic per world, and
+    /// slowly rotating over the shared clock so the wet biome isn't the wet one forever (#900).</summary>
     private int BiomeWeatherOffset(int biomeIdx)
     {
-        long h = _meta.Seed ^ (biomeIdx * 2654435761L) ^ 0xB10;
+        // One rotation step per ~6 system-days; the sequence itself stays deterministic per world.
+        long era = (long)(_systemTimeDays / 6.0);
+        long h = _meta.Seed ^ ((biomeIdx + era) * 2654435761L) ^ 0xB10;
         return (int)((ulong)(h < 0 ? -h : h) % 4UL) - 1; // 0..3 → -1..+2
     }
 

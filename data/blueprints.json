@@ -205,6 +205,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
   },
   {
+    "key": "weather_scanner", "nameKey": "blueprint.weather_scanner.name", "descriptionKey": "blueprint.weather_scanner.desc",
+    "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 55,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 } ]
+  },
+  {
     "key": "mining_beam", "nameKey": "blueprint.mining_beam.name", "descriptionKey": "blueprint.mining_beam.desc",
     "category": "Tools", "prerequisites": [ "titanium_drill" ], "knowledgeCost": 90,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]

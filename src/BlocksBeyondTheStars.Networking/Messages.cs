@@ -1914,16 +1914,40 @@ public sealed class WorldEnvironment
     /// Unlike <see cref="TimeOfDay"/> (which wraps 0..1 per day) this keeps counting, so phases drift over days.</summary>
     public double SystemTimeDays { get; set; }
 
-    /// <summary>clear / clouds / rain / storm / fog.</summary>
+    /// <summary>The active weather state. Ladder: clear / clouds / rain / storm. Events (#900): fog /
+    /// ground_fog / drizzle / gale / blizzard / heatwave / acid_rain / ion_storm / meteor_shower /
+    /// ember_fall / spore_bloom.</summary>
     public string Weather { get; set; } = "clear";
 
-    /// <summary>0..1 weather strength.</summary>
+    /// <summary>0..1 weather strength. Since #900 a continuous envelope (attack → plateau → decay) around a
+    /// per-episode peak, not a constant per state — so no two storms come out equally strong.</summary>
     public float Intensity { get; set; }
+
+    /// <summary>How fast <see cref="Intensity"/> is changing, per second. The client extrapolates with it
+    /// between the 5 s environment broadcasts, so a swelling storm ramps instead of stepping.</summary>
+    public float IntensityRate { get; set; }
+
+    /// <summary>Coarse grouping of <see cref="Weather"/> — "calm", "cloudy", "wet", "violent", "obscuring",
+    /// "windy", "exotic". One switch for screen washes, audio beds and the HUD icon.</summary>
+    public string WeatherFamily { get; set; } = "calm";
+
+    /// <summary>Wind strength 0..1 (#900): cloud speed, precipitation slant, flora sway, the wind audio bed
+    /// and the jetpack drift all scale with it.</summary>
+    public float WindSpeed { get; set; }
+
+    /// <summary>Wind direction in radians on the world XZ plane, drifting slowly. Precipitation and blown
+    /// dust travel this way.</summary>
+    public float WindDirection { get; set; }
+
+    /// <summary>Where this world's season currently sits: 0 = dry season, 1 = wet season. A slow swing over
+    /// the shared clock, seeded per world; biases storm likelihood and how fast planted flora regrows.</summary>
+    public float SeasonWetness { get; set; } = 0.5f;
 
     /// <summary>Air temperature at the player, in °C (base per world + weather + day/night). Shown in the HUD.</summary>
     public float Temperature { get; set; } = 15f;
 
-    /// <summary>Active precipitation form: none / rain / snow / hail / ash / sandstorm (climate-driven).</summary>
+    /// <summary>Active precipitation form: none / rain / drizzle / sleet / snow / hail / ash / sandstorm /
+    /// dust / acid / meteor / spores (climate- and event-driven).</summary>
     public string Precipitation { get; set; } = "none";
 
     /// <summary>Sun/star light colour, packed 0xRRGGBB.</summary>
@@ -1971,6 +1995,48 @@ public sealed class WorldEnvironment
     /// different. The client scales jump height, walk speed, jetpack thrust and the fall-damage threshold from
     /// it; a ≥1-block jump is always preserved (lighter worlds jump higher, heavier worlds walk slower).</summary>
     public float GravityFactor { get; set; } = 1.0f;
+}
+
+/// <summary>Client → server: read the sky (#900). Sent by the weather scanner gadget; the server answers
+/// with a <see cref="WeatherForecast"/> for the world the player is standing on.</summary>
+public sealed class WeatherForecastRequest
+{
+}
+
+/// <summary>One predicted weather episode: what is coming, when it starts and how long it holds.</summary>
+public sealed class WeatherForecastEntry
+{
+    /// <summary>The predicted state key (same vocabulary as <see cref="WorldEnvironment.Weather"/>).</summary>
+    public string State { get; set; } = "clear";
+
+    /// <summary>Seconds from now until this episode begins.</summary>
+    public float StartsInSeconds { get; set; }
+
+    /// <summary>How long the episode is expected to hold, in seconds.</summary>
+    public float DurationSeconds { get; set; }
+}
+
+/// <summary>
+/// Server → client: the sky ahead (#900), as read by the weather scanner. Carries what is happening now,
+/// the next few episodes, and how far off the nearest front is — enough to decide whether to set out or
+/// sit this one out.
+/// </summary>
+public sealed class WeatherForecast
+{
+    /// <summary>The state right where the player is standing.</summary>
+    public string Current { get; set; } = "clear";
+
+    /// <summary>Seconds until the current episode gives way to the next.</summary>
+    public float CurrentEndsInSeconds { get; set; }
+
+    /// <summary>The coming episodes, soonest first.</summary>
+    public List<WeatherForecastEntry> Upcoming { get; set; } = new();
+
+    /// <summary>Blocks to the nearest weather front's edge, or −1 when this world carries none.</summary>
+    public float FrontDistance { get; set; } = -1f;
+
+    /// <summary>Where this world's season sits, 0 (dry) .. 1 (wet).</summary>
+    public float SeasonWetness { get; set; } = 0.5f;
 }
 
 /// <summary>

@@ -79,6 +79,7 @@
   { "key": "terrain_blaster", "nameKey": "item.terrain_blaster.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.terrain_blaster.desc", "tool": { "kind": "gadget", "tier": 3, "energyPerUse": 8.0 } },
   { "key": "terrain_scanner", "nameKey": "item.terrain_scanner.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.terrain_scanner.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 10.0 } },
   { "key": "creature_translator", "nameKey": "item.creature_translator.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.creature_translator.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 3.0 } },
+  { "key": "weather_scanner", "nameKey": "item.weather_scanner.name", "category": "tool", "maxStack": 1,    "descriptionKey": "item.weather_scanner.desc", "tool": { "kind": "gadget", "tier": 2, "energyPerUse": 6.0 } },
   { "key": "speeder",         "nameKey": "item.speeder.name",         "category": "tool", "maxStack": 1,    "descriptionKey": "item.speeder.desc", "tool": { "kind": "gadget", "tier": 3, "energyPerUse": 0.0 } },
   { "key": "camera",          "nameKey": "item.camera.name",          "category": "tool", "maxStack": 1,    "descriptionKey": "item.camera.desc", "tool": { "kind": "gadget", "tier": 1, "energyPerUse": 0.0 } },
   { "key": "paint_tool",      "nameKey": "item.paint_tool.name",      "category": "tool", "maxStack": 1,    "descriptionKey": "item.paint_tool.desc", "tool": { "kind": "gadget", "tier": 1, "energyPerUse": 0.0 } },

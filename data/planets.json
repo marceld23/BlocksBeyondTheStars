@@ -25,6 +25,8 @@
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.76, "dataCacheRarity": 0.0015, "floraDensity": 0.04, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 10,
+    "weatherVolatility": 1.25, "seasonAmplitude": 0.3,
+    "weatherEvents": { "blizzard": 3.0, "gale": 1.6, "ion_storm": 1.4, "fog": 0.8 },
     "biomes": [
       { "surfaceBlock": "ice",   "subSurfaceBlock": "ice" },
       { "surfaceBlock": "stone", "subSurfaceBlock": "stone" }
@@ -42,6 +44,8 @@
   },
   {
     "key": "lava", "baseTemperature": 115, "nameKey": "planet.lava.name", "atmosphereHeight": 150, "cloudColor": 5917252, "cloudDensity": 0.7,
+    "weatherVolatility": 1.3, "seasonAmplitude": 0.1,
+    "weatherEvents": { "ember_fall": 3.2, "heatwave": 2.0, "acid_rain": 1.4, "gale": 1.0, "fog": 0.0, "ground_fog": 0.0 },
     "baseHeight": 56, "amplitude": 22, "terrainScale": 40.0,
     "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "deepBlock": "stone", "surfaceDepth": 3,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0018,
@@ -66,6 +70,8 @@
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
     "caveThreshold": 0.81, "dataCacheRarity": 0.0012,
     "weather": "dynamic", "stormChance": 0.18, "dayLengthSeconds": 640, "worldRadius": 900, "floraDensity": 0.05, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 12, "waterAbundance": 0.0,
+    "weatherVolatility": 1.2, "seasonAmplitude": 0.2,
+    "weatherEvents": { "gale": 2.4, "heatwave": 2.2, "fog": 0.1, "ground_fog": 0.2, "drizzle": 0.2 },
     "biomes": [
       { "surfaceBlock": "sand",  "subSurfaceBlock": "sand" },
       { "surfaceBlock": "dirt",  "subSurfaceBlock": "dirt" },
@@ -86,6 +92,8 @@
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.70, "dataCacheRarity": 0.0015,
     "weather": "dynamic", "stormChance": 0.65, "dayLengthSeconds": 560, "worldRadius": 800, "floraDensity": 0.14, "treeDensity": 0.045, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 8,
+    "weatherVolatility": 1.35, "seasonAmplitude": 0.45,
+    "weatherEvents": { "spore_bloom": 2.0, "drizzle": 1.6, "fog": 1.4, "gale": 0.5 },
     "biomes": [
       { "surfaceBlock": "mud",   "subSurfaceBlock": "mud", "floraTheme": "swamp", "floraDensityMul": 1.3, "treeDensityMul": 0.7 },
       { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.2 },
@@ -125,6 +133,8 @@
     "surfaceBlock": "mud", "subSurfaceBlock": "mud", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.66, "dataCacheRarity": 0.0015,
     "weather": "overcast", "stormChance": 0.5, "dayLengthSeconds": 600, "worldRadius": 750, "floraDensity": 0.10, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 8,
+    "weatherVolatility": 0.75, "seasonAmplitude": 0.25,
+    "weatherEvents": { "ground_fog": 2.4, "fog": 1.8, "spore_bloom": 1.5, "drizzle": 1.4, "gale": 0.3 },
     "ores": [
       { "block": "silicate", "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
       { "block": "tin_ore", "rarity": 0.03, "minDepth": 6, "maxDepth": 2048 },
@@ -163,6 +173,8 @@
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0015,
     "weather": "dynamic", "stormChance": 0.6, "dayLengthSeconds": 580, "worldRadius": 950, "floraDensity": 0.10, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 12,
+    "weatherVolatility": 1.5, "seasonAmplitude": 0.4,
+    "weatherEvents": { "gale": 2.2, "fog": 1.8, "drizzle": 1.4 },
     "waterAbundance": 1.2,
     "biomes": [
       { "surfaceBlock": "sand",  "subSurfaceBlock": "sand" },
@@ -249,6 +261,8 @@
     "surfaceBlock": "ash", "subSurfaceBlock": "basalt", "deepBlock": "basalt", "surfaceDepth": 3,
     "caveThreshold": 0.72, "dataCacheRarity": 0.0020,
     "weather": "overcast", "stormChance": 0.3, "dayLengthSeconds": 540, "worldRadius": 720, "floraDensity": 0.05, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.25, "spawnWeight": 5,
+    "weatherVolatility": 1.1, "seasonAmplitude": 0.15,
+    "weatherEvents": { "ember_fall": 2.6, "acid_rain": 1.6, "heatwave": 1.4, "gale": 1.2, "fog": 0.3 },
     "waterAbundance": 0.0, "lavaAbundance": 0.5,
     "ores": [
       { "block": "diamond_ore",  "rarity": 0.011, "minDepth": 50, "maxDepth": 2048 },
@@ -269,6 +283,8 @@
     "surfaceBlock": "snow", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.74, "dataCacheRarity": 0.0015,
     "weather": "dynamic", "stormChance": 0.5, "dayLengthSeconds": 620, "worldRadius": 820, "floraDensity": 0.05, "treeDensity": 0.008, "creatureAbundance": "few", "atmosphere": "breathable", "spawnWeight": 8,
+    "weatherVolatility": 1.1, "seasonAmplitude": 0.45,
+    "weatherEvents": { "blizzard": 2.6, "ground_fog": 1.5, "gale": 1.4, "ion_storm": 1.2 },
     "biomes": [
       { "surfaceBlock": "dirt",  "subSurfaceBlock": "dirt", "floraDensityMul": 0.8 },
       { "surfaceBlock": "snow",  "subSurfaceBlock": "dirt", "floraDensityMul": 1.0 },
@@ -290,6 +306,8 @@
     "surfaceBlock": "mycelium", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
     "caveThreshold": 0.64, "dataCacheRarity": 0.0022,
     "weather": "overcast", "stormChance": 0.3, "dayLengthSeconds": 600, "worldRadius": 780, "floraDensity": 0.13, "creatureAbundance": "many", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 5,
+    "weatherVolatility": 0.85, "seasonAmplitude": 0.4,
+    "weatherEvents": { "spore_bloom": 3.2, "ground_fog": 2.0, "acid_rain": 1.2, "drizzle": 1.3 },
     "biomes": [
       { "surfaceBlock": "mycelium", "subSurfaceBlock": "dirt" },
       { "surfaceBlock": "mud",      "subSurfaceBlock": "mud" },

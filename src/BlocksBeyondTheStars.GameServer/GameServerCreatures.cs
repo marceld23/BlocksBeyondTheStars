@@ -196,7 +196,9 @@ public sealed partial class GameServer
             }
         }
 
-        MoveCreatures(targets, dt);
+        // #900: in a storm, a blizzard or an ion squall the wildlife hunkers down — same movement code,
+        // just a slower clock, so herds visibly settle while the weather rages and pick up again after.
+        MoveCreatures(targets, dt * WeatherCreatureActivity());
 
         // Despawn creatures that drifted far from every player so the cap frees up and fauna keeps
         // appearing around players as they explore — life is spread across the whole planet, not just

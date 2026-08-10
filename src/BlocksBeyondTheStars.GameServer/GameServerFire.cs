@@ -319,20 +319,21 @@ public sealed partial class GameServer
     private bool PrecipitationDouses(Vector3i pos, out float intensity)
     {
         intensity = 0f;
-        if (_weatherState != "rain" && _weatherState != "storm")
+        // Anything that comes down wet can douse — the ladder's rain/storm and the wet events (#900).
+        if (_weatherState is not ("rain" or "storm" or "drizzle" or "blizzard" or "acid_rain"))
         {
             return false; // the world is dry — skip the whole probe
         }
 
         var at = new Vector3f(pos.X + 0.5f, pos.Y + 0.5f, pos.Z + 0.5f);
         var (state, biomeIntensity) = BiomeWeatherAt(at);
-        if (state != "rain" && state != "storm")
+        if (state is not ("rain" or "storm" or "drizzle" or "blizzard" or "acid_rain"))
         {
             return false; // a drier biome sits this one out
         }
 
         string precipitation = PrecipitationFor(state, CurrentTemperature(state, _dayFraction, at));
-        if (precipitation is not ("rain" or "snow" or "hail"))
+        if (precipitation is not ("rain" or "drizzle" or "sleet" or "snow" or "hail" or "acid"))
         {
             return false; // ash-rain on a lava world feeds the fire's mood, not a bucket of water
         }

@@ -45,6 +45,10 @@ public sealed partial class GameServer
     private const float ScannerSeconds = 8f;     // how long the client shows the glow markers
     private const double ScannerCooldown = 10.0;
 
+    // --- balance: weather scanner (#900) ---
+    private const int WeatherForecastEpisodes = 3;  // how far ahead a reading looks
+    private const double WeatherScannerCooldown = 15.0;
+
     private void HandleUseGadget(PlayerSession session, UseGadgetIntent intent)
     {
         var p = session.State;
@@ -96,6 +100,10 @@ public sealed partial class GameServer
             case "creature_translator":
                 UseCreatureTranslator(session, target);
                 cooldown = TranslatorCooldown;
+                break;
+            case "weather_scanner":
+                SendWeatherForecast(session);
+                cooldown = WeatherScannerCooldown;
                 break;
             case "speeder":
                 DeploySpeeder(session); // unfolds a hover vehicle in front of the player (consumes the item)
@@ -234,7 +242,11 @@ public sealed partial class GameServer
 
     private OreScanResult BuildOreScan(BlocksBeyondTheStars.Shared.State.PlayerState state, int radiusBonus = 0)
     {
-        int radius = ScannerRadius + radiusBonus;
+        // #900: blown grit and ionised air swallow the pulse — the scan reaches noticeably less far in a
+        // sandstorm, a gale or an ion storm. Never below a third of its range, so it stays usable.
+        int radius = System.Math.Max(
+            ScannerRadius / 3,
+            (int)System.Math.Round((ScannerRadius + radiusBonus) * WeatherScanFactor()));
         var p = state.Position;
         var centre = WorldConstants.CanonicalBlock(new Vector3i(
             (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y), (int)System.Math.Floor(p.Z)), _world.Circumference);

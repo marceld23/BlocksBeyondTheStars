@@ -102,6 +102,18 @@ public sealed class PlanetType
     /// </summary>
     public string Weather { get; set; } = "dynamic";
 
+    /// <summary>How fast this planet type's weather turns over (#900). 1 = the seeded per-world default;
+    /// above 1 gives shorter, more frequent episodes, below 1 long brooding ones. Null = seeded per world.</summary>
+    public double? WeatherVolatility { get; set; }
+
+    /// <summary>How hard this planet type's wet/dry seasons swing, 0..0.5 (#900). 0 = no seasons.</summary>
+    public double SeasonAmplitude { get; set; } = 0.35;
+
+    /// <summary>Per-type multipliers on the weather EVENT weights, keyed by state
+    /// ("acid_rain", "gale", "spore_bloom", …). Missing keys keep the catalogue default; 0 rules an
+    /// event out entirely. The hard gates (atmosphere, temperature) always apply first.</summary>
+    public Dictionary<string, double>? WeatherEvents { get; set; }
+
     // --- World variety (size & biomes) ---
 
     /// <summary>

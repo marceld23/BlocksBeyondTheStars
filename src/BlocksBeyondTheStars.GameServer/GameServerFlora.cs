@@ -280,7 +280,9 @@ public sealed partial class GameServer
         foreach (var pos in new List<Vector3i>(_floraRegrow.Keys))
         {
             var (floraId, timer) = _floraRegrow[pos];
-            timer -= dt;
+            // #900: rain waters the ground. The regrow clock runs faster while it's actually raining on
+            // this cell and slower through a dry season, a heatwave or corrosive rain.
+            timer -= dt * WeatherRegrowFactor(pos);
             if (timer > 0)
             {
                 _floraRegrow[pos] = (floraId, timer);

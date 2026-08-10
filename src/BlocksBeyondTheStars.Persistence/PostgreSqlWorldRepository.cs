@@ -96,6 +96,9 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS flora_regrow (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 block INTEGER NOT NULL, timer DOUBLE PRECISION NOT NULL, PRIMARY KEY (planet, x, y, z));
+            CREATE TABLE IF NOT EXISTS weather_deposit (
+                planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
+                block INTEGER NOT NULL, timer DOUBLE PRECISION NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS fluid_cell (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 level INTEGER NOT NULL, falling INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -167,6 +170,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             RemapBlockColumn("block_edit", remap);
             RemapBlockColumn("structure_edit", remap);
             RemapBlockColumn("flora_regrow", remap);
+            RemapBlockColumn("weather_deposit", remap);
             RemapSpaceStructureBlocks(remap);
             WriteBlockPaletteLocked(currentPalette);
         });
@@ -726,6 +730,61 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         {
             using var cmd = Connection.CreateCommand();
             cmd.CommandText = "DELETE FROM flora_regrow WHERE planet = @p AND x = @x AND y = @y AND z = @z;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", worldPosition.X);
+            cmd.Parameters.AddWithValue("@y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("@z", worldPosition.Z);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    // --- Weather deposits (snow the sky laid down, so the melt pass can tell it from player snow — #900) ---
+
+    public void SaveWeatherDeposit(string planet, Vector3i worldPosition, ushort block, double timer)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO weather_deposit (planet, x, y, z, block, timer) " +
+                              "VALUES (@p, @x, @y, @z, @b, @t) " +
+                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET block=excluded.block, timer=excluded.timer;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            cmd.Parameters.AddWithValue("@x", worldPosition.X);
+            cmd.Parameters.AddWithValue("@y", worldPosition.Y);
+            cmd.Parameters.AddWithValue("@z", worldPosition.Z);
+            cmd.Parameters.AddWithValue("@b", (int)block);
+            cmd.Parameters.AddWithValue("@t", timer);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredWeatherDeposit> ListWeatherDeposits(string planet)
+    {
+        var result = new List<StoredWeatherDeposit>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT x, y, z, block, timer FROM weather_deposit WHERE planet = @p;";
+            cmd.Parameters.AddWithValue("@p", planet);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredWeatherDeposit(
+                    new Vector3i(reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2)),
+                    (ushort)reader.GetInt32(3),
+                    reader.GetDouble(4)));
+            }
+        }
+
+        return result;
+    }
+
+    public void DeleteWeatherDeposit(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM weather_deposit WHERE planet = @p AND x = @x AND y = @y AND z = @z;";
             cmd.Parameters.AddWithValue("@p", planet);
             cmd.Parameters.AddWithValue("@x", worldPosition.X);
             cmd.Parameters.AddWithValue("@y", worldPosition.Y);

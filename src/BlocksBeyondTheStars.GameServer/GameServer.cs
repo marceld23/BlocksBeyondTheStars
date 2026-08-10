@@ -534,6 +534,7 @@ public sealed partial class GameServer
         // are cultivated, so they carry no world identity anyway.
         InitFlora();
         LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
+        LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
         // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
@@ -3229,13 +3230,16 @@ public sealed partial class GameServer
 
         // Bank the yield computed above. The crate case already handed its own stacks over in
         // RemoveCrateContainer, so only the block's own drops are added here.
+        bool floraHarvest = IsFlora(current.Value);
+        // #900: a spore bloom fattens the harvest — the reason to head out INTO the strange weather.
+        int bloomBonus = floraHarvest ? WeatherHarvestBonus() : 0;
         foreach (var drop in yield.Take(def.Drops.Count))
         {
-            pool.Add(drop.Item, drop.Count);
+            pool.Add(drop.Item, drop.Count + bloomBonus);
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
-        if (IsFlora(current.Value))
+        if (floraHarvest)
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
         }

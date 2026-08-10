@@ -34,6 +34,17 @@ public sealed class FloraRegrowRow
     public double Timer { get; set; }
 }
 
+/// <summary>One weather-deposited cell (settled snow, #900) as a snapshot row.</summary>
+public sealed class WeatherDepositRow
+{
+    public string Planet { get; set; } = string.Empty;
+    public int X { get; set; }
+    public int Y { get; set; }
+    public int Z { get; set; }
+    public ushort Block { get; set; }
+    public double Timer { get; set; }
+}
+
 /// <summary>One persisted in-space structure edit as a snapshot row.</summary>
 public sealed class StructureEditRow
 {
@@ -56,6 +67,7 @@ public sealed class MemoryWorldSnapshot
     public string? MetadataJson { get; set; }
     public List<BlockEditRow> BlockEdits { get; set; } = new();
     public List<FloraRegrowRow> FloraRegrow { get; set; } = new();
+    public List<WeatherDepositRow> WeatherDeposits { get; set; } = new();
     public Dictionary<string, PlayerSnapshot> Players { get; set; } = new();
     public Dictionary<string, ShipSnapshot> Ships { get; set; } = new();
     public List<StoredContainer> Containers { get; set; } = new();
@@ -96,6 +108,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, int Tint, int Glow, int Shape, string Owner, DateTime? EditedUtc)> _blockEdits = new();
     private readonly Dictionary<(string Planet, int Cx, int Cy, int Cz), List<(string Planet, int X, int Y, int Z)>> _blockEditsByChunk = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _flora = new();
+    private readonly Dictionary<(string Planet, int X, int Y, int Z), (ushort Block, double Timer)> _deposits = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (byte Level, bool Falling)> _fluidCells = new();
     private readonly Dictionary<(string Planet, int X, int Y, int Z), (double Remaining, int Generation)> _fireCells = new();
     private readonly Dictionary<string, string> _players = new();       // id → PlayerSnapshot JSON
@@ -214,6 +227,19 @@ public sealed class MemoryWorldRepository : IWorldRepository
             });
         }
 
+        foreach (var kv in _deposits)
+        {
+            snapshot.WeatherDeposits.Add(new WeatherDepositRow
+            {
+                Planet = kv.Key.Planet,
+                X = kv.Key.X,
+                Y = kv.Key.Y,
+                Z = kv.Key.Z,
+                Block = kv.Value.Block,
+                Timer = kv.Value.Timer,
+            });
+        }
+
         foreach (var kv in _structureEdits)
         {
             snapshot.StructureEdits.Add(new StructureEditRow
@@ -235,6 +261,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _blockEdits.Clear();
         _blockEditsByChunk.Clear();
         _flora.Clear();
+        _deposits.Clear();
         _players.Clear();
         _ships.Clear();
         _containers.Clear();
@@ -265,6 +292,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
         foreach (var row in snapshot.FloraRegrow)
         {
             _flora[(row.Planet, row.X, row.Y, row.Z)] = (row.Block, row.Timer);
+        }
+
+        foreach (var row in snapshot.WeatherDeposits)
+        {
+            _deposits[(row.Planet, row.X, row.Y, row.Z)] = (row.Block, row.Timer);
         }
 
         foreach (var kv in snapshot.Players)
@@ -409,6 +441,15 @@ public sealed class MemoryWorldRepository : IWorldRepository
             if (remap.TryGetValue(value.Block, out ushort nb) && nb != value.Block)
             {
                 _flora[key] = (nb, value.Timer);
+            }
+        }
+
+        foreach (var key in _deposits.Keys.ToList())
+        {
+            var value = _deposits[key];
+            if (remap.TryGetValue(value.Block, out ushort nb) && nb != value.Block)
+            {
+                _deposits[key] = (nb, value.Timer);
             }
         }
 
@@ -601,6 +642,35 @@ public sealed class MemoryWorldRepository : IWorldRepository
         lock (_gate)
         {
             _flora.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
+        }
+    }
+
+    // ---------------- Weather deposits (#900) ----------------
+
+    public void SaveWeatherDeposit(string planet, Vector3i worldPosition, ushort block, double timer)
+    {
+        lock (_gate)
+        {
+            _deposits[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (block, timer);
+        }
+    }
+
+    public IReadOnlyList<StoredWeatherDeposit> ListWeatherDeposits(string planet)
+    {
+        lock (_gate)
+        {
+            return _deposits
+                .Where(kv => kv.Key.Planet == planet)
+                .Select(kv => new StoredWeatherDeposit(new Vector3i(kv.Key.X, kv.Key.Y, kv.Key.Z), kv.Value.Block, kv.Value.Timer))
+                .ToList();
+        }
+    }
+
+    public void DeleteWeatherDeposit(string planet, Vector3i worldPosition)
+    {
+        lock (_gate)
+        {
+            _deposits.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
 

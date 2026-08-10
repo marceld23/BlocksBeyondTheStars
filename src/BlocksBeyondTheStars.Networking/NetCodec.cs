@@ -383,6 +383,10 @@ public static class NetCodec
         // Avatar body paint (#874): per-part pixel paintings (torso/arms/legs/helmet), sibling of the face.
         Register(198, typeof(SetBodyPaintIntent));       // Client -> Server (set/clear one part's painting)
         Register(199, typeof(PlayerBodyPaint));          // Server -> Client (another player's painting)
+
+        // Weather forecast gadget (#900): the sky's coming episodes, so weather can be planned around.
+        Register(200, typeof(WeatherForecastRequest));   // Client -> Server
+        Register(201, typeof(WeatherForecast));          // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

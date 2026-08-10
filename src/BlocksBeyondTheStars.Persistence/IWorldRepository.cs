@@ -209,6 +209,24 @@ public readonly struct StoredFloraRegrow
     }
 }
 
+/// <summary>A block the WEATHER laid down (#900) — snow settling during a blizzard — with the warm seconds it
+/// has left before it melts. Tracked in its own table rather than as a plain block edit for one reason: the
+/// melt pass must be able to tell weather snow from snow a PLAYER placed, and only ever remove its own.
+/// Persisted so a restart doesn't strand cells that could then never melt.</summary>
+public readonly struct StoredWeatherDeposit
+{
+    public readonly Vector3i WorldPosition;
+    public readonly ushort Block;
+    public readonly double Timer;
+
+    public StoredWeatherDeposit(Vector3i worldPosition, ushort block, double timer)
+    {
+        WorldPosition = worldPosition;
+        Block = block;
+        Timer = timer;
+    }
+}
+
 /// <summary>A persisted <b>flowing</b> fluid cell: its level (1..8) and whether it was filled from above (feeds
 /// a waterfall column). Sources are deliberately NOT stored — an untracked fluid block IS a source by definition.
 /// Persisted because the fluid block itself survives a restart as a block edit while the in-memory level table
@@ -293,6 +311,15 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Removes a scheduled flora regrowth (the plant returned, or its host was lost).</summary>
     void DeleteFloraRegrow(string planet, Vector3i worldPosition);
+
+    /// <summary>Stores (inserts or replaces) a weather-deposited cell — snow the sky laid down (#900).</summary>
+    void SaveWeatherDeposit(string planet, Vector3i worldPosition, ushort block, double timer);
+
+    /// <summary>Lists all weather deposits on a planet (restored on world load so they can still melt).</summary>
+    IReadOnlyList<StoredWeatherDeposit> ListWeatherDeposits(string planet);
+
+    /// <summary>Removes a weather deposit (it melted, or the player mined/replaced the cell).</summary>
+    void DeleteWeatherDeposit(string planet, Vector3i worldPosition);
 
     /// <summary>Stores (inserts or replaces) a flowing fluid cell's level state, keyed by its world cell.</summary>
     void SaveFluidCell(string planet, Vector3i worldPosition, byte level, bool falling);

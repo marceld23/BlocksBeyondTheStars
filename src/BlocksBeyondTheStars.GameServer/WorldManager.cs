@@ -213,9 +213,6 @@ internal sealed class LoadedWorld
     public double DayLength { get; set; } = 600.0;
     public double StormChance { get; set; } = 0.35;
     public string PlanetWeatherMode { get; set; } = "dynamic";
-    public string WeatherState { get; set; } = "clear";
-    public float WeatherIntensity { get; set; }
-    public double WeatherTimer { get; set; }
     public double SinceEnvBroadcast { get; set; }
     public int SunColor { get; set; } = 0xFFF6E8;
     public int CloudColor { get; set; } = 0xEDEFF2;
@@ -228,7 +225,27 @@ internal sealed class LoadedWorld
     public double OxygenExtractability { get; set; }
     public double AtmosphereHeight { get; set; }
     public double AtmosphereDensity { get; set; }
-    public System.Random EnvRng { get; set; } = new(1);
+
+    /// <summary>This world's live weather (#900): the current episode, its intensity envelope, wind, the
+    /// season phase and the drifting fronts. Created in <c>InitWeather</c> from a seed salted with the
+    /// world's <c>LocationId</c> — sharing one RNG stream across worlds was why every planet in a save
+    /// used to run the very same weather sequence.</summary>
+    public WeatherSim Weather { get; set; } = new(1);
+
+    /// <summary>Per-world event weights from <c>planets.json</c> (acid rain, gale, …); null = catalogue defaults.</summary>
+    public IReadOnlyDictionary<string, double>? WeatherEventWeights { get; set; }
+
+    /// <summary>Absolute Y above which the weather reads one ladder step wetter — mountain tops sit in
+    /// cloud/snow while the valley below stays clear. Derived from the planet's base height + amplitude.</summary>
+    public double CloudLineY { get; set; } = double.MaxValue;
+
+    /// <summary>Weather-deposited snow cells on this world (#900), with the seconds of warmth left before
+    /// they melt. Tracked separately from ordinary block edits so the melt pass can NEVER remove snow a
+    /// player placed themselves.</summary>
+    public Dictionary<Vector3i, double> WeatherDeposits { get; } = new();
+
+    /// <summary>Throttle for the snow accumulation/melt pass.</summary>
+    public double SinceWeatherDeposit { get; set; }
 
     /// <summary>This body's size class (asteroid/moon/planet), set on load — seeds the per-world gravity band.</summary>
     public WorldConstants.WorldSizeClass SizeClass { get; set; } = WorldConstants.WorldSizeClass.Planet;

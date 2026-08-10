@@ -122,15 +122,17 @@ public sealed class SettlementOverhaulTests : IDisposable
     }
 
     [Fact]
-    public void AirlessWorld_HasNoCloudsOrWeather()
+    public void AirlessWorld_HasNoCloudsOrRain()
     {
-        // crystal has atmosphere "none" but is NOT a space-sky body — clouds/weather must still be gated off.
+        // crystal has atmosphere "none" but is NOT a space-sky body. It gets no clouds, no rain and no fog
+        // — but since #900 it is no longer weatherLESS: the ladder is pinned to clear while the vacuum-safe
+        // events (ion storms, meteor showers) may still run.
         var server = Started("crystal", 1, out var repo);
         using (repo)
         {
             Assert.Equal(0f, server.CloudDensityForTest);
-            Assert.Equal("clear", server.WeatherModeForTest);
             Assert.Equal(0.0, server.AtmosphereDensity);
+            Assert.Equal(0, server.WeatherSimForTest.LadderCeiling); // the rain ramp is unreachable here
             Assert.False(server.HasSettlement); // airless ⇒ uninhabited
         }
     }
