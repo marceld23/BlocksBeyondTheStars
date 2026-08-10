@@ -172,30 +172,11 @@ namespace BlocksBeyondTheStars.Client
             return new Rect((CanvasW(part) + 1f) / aw, 0.25f, (SolidPad - 2f) / aw, 0.5f);
         }
 
-        /// <summary>Configures a fresh <see cref="FaceEditor"/> as the unfolded-strip editor for one body
-        /// part: canvas size, template labels, payload codecs and title. The host still wires OnApply.</summary>
-        public static void ConfigureEditor(FaceEditor editor, int part, string initialPixels, System.Func<string, string> localizer)
-        {
-            editor.InitialFace = initialPixels ?? string.Empty;
-            editor.Localizer = localizer;
-            editor.GridW = CanvasW(part);
-            editor.GridH = CanvasH(part);
-            editor.TitleKey = PartKey(part);
-            editor.HintKey = part == BodyPaint.Helmet ? "ui.paint.body.helmet_hint" : "ui.face.hint";
-            editor.DecodeGrid = pixels => ToCanvas(part, pixels);
-            editor.EncodeGrid = grid => FromCanvas(part, grid);
-            editor.ColumnLabelKeys = ColumnKeys(part);
-            editor.RowLabelKeys = RowKeys(part);
-        }
+        // The payload alphabet lives in FacePalette — body paint, faces and block designs all speak it, and
+        // private copies of these two helpers are how a palette widening ends up applied in two places out
+        // of three (it did: #897 found three copies).
+        private static char HexChar(int v) => FacePalette.SymbolOf(v);
 
-        private static char HexChar(int v) => (char)(v < 10 ? '0' + v : 'a' + (v - 10));
-
-        private static int HexValue(char c)
-        {
-            if (c >= '0' && c <= '9') return c - '0';
-            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-            return 0;
-        }
+        private static int HexValue(char c) => FacePalette.ValueOf(c);
     }
 }

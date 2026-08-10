@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -33,6 +34,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            PumpAppearanceQueue(); // paced appearance sends drain even after the editor is gone
+
             if (Game != null)
             {
                 // Close the menu when a transition animation begins so the player can see it:
@@ -286,14 +289,6 @@ namespace BlocksBeyondTheStars.Client
 
         // --- Character appearance (driven by the uGUI Character tab) ---
 
-        private static readonly Color[] Palette =
-        {
-            new Color(0.85f, 0.68f, 0.55f), new Color(0.55f, 0.40f, 0.28f), new Color(0.90f, 0.85f, 0.80f),
-            new Color(0.80f, 0.20f, 0.20f), new Color(0.20f, 0.45f, 0.80f), new Color(0.20f, 0.65f, 0.35f),
-            new Color(0.90f, 0.75f, 0.20f), new Color(0.55f, 0.30f, 0.70f), new Color(0.25f, 0.25f, 0.32f),
-            new Color(0.92f, 0.92f, 0.95f),
-        };
-
         /// <summary>Applies the edited colours to the local avatar, persists them, and tells the server.</summary>
         private void ApplyAppearance()
         {
@@ -316,12 +311,26 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            Settings.HullColor = NextColor(Settings.HullColor);
+            Settings.HullColor = AppearancePalette.Next(Settings.HullColor);
             ApplyAppearance();
         }
 
-        /// <summary>Cycles a body colour (0=skin 1=torso 2=arms 3=legs) — called from the uGUI Character tab.</summary>
-        public void CycleAppearance(int which)
+        /// <summary>Cycles a body colour (0=skin 1=torso 2=arms 3=legs) — the keyboard/controller path that
+        /// predates the appearance screen's swatch grid.</summary>
+        public void CycleAppearance(int which) => SetAppearanceColor(which, AppearancePalette.Next(GetAppearanceColor(which)));
+
+        /// <summary>The current colour of a body part (0=skin 1=torso 2=arms 3=legs).</summary>
+        public Color GetAppearanceColor(int which) => which switch
+        {
+            0 => Settings?.SkinColor ?? Color.gray,
+            1 => Settings?.TorsoColor ?? Color.gray,
+            2 => Settings?.ArmColor ?? Color.gray,
+            _ => Settings?.LegColor ?? Color.gray,
+        };
+
+        /// <summary>Sets a body part's base colour — any RGB, not just palette entries: the colours travel as
+        /// plain RGB, so the appearance screen's colour wheel is free to hand over whatever it likes.</summary>
+        public void SetAppearanceColor(int which, Color color)
         {
             if (Settings == null)
             {
@@ -330,10 +339,10 @@ namespace BlocksBeyondTheStars.Client
 
             switch (which)
             {
-                case 0: Settings.SkinColor = NextColor(Settings.SkinColor); break;
-                case 1: Settings.TorsoColor = NextColor(Settings.TorsoColor); break;
-                case 2: Settings.ArmColor = NextColor(Settings.ArmColor); break;
-                default: Settings.LegColor = NextColor(Settings.LegColor); break;
+                case 0: Settings.SkinColor = color; break;
+                case 1: Settings.TorsoColor = color; break;
+                case 2: Settings.ArmColor = color; break;
+                default: Settings.LegColor = color; break;
             }
 
             ApplyAppearance();
@@ -341,21 +350,35 @@ namespace BlocksBeyondTheStars.Client
 
         private FaceEditor _faceEditor;
 
-        /// <summary>Opens the in-game pixel-face editor (from the Character tab). No-op if already open.</summary>
-        public void OpenFaceEditor()
+        /// <summary>
+        /// Opens the appearance screen (#897): face, torso, arms, legs and helmet as tabs of ONE editor, each
+        /// with its base colour beside the canvas it tints. It replaces nine separate Character-tab cards —
+        /// four "cycle this colour" rows and five "open that editor" rows — which split apart two halves of
+        /// the same decision and made choosing a skin tone a matter of clicking an arrow ten times.
+        /// No-op if already open.
+        /// </summary>
+        public void OpenAppearanceEditor()
         {
-            if (_faceEditor != null)
+            if (_faceEditor != null || Settings == null)
             {
                 return;
             }
 
-            var go = new GameObject("FaceEditor");
+            var go = new GameObject("AppearanceEditor");
             go.transform.SetParent(transform, false);
             _faceEditor = go.AddComponent<FaceEditor>();
-            _faceEditor.InitialFace = Settings?.FacePixels;
             _faceEditor.Localizer = key => Game?.Localizer?.Get(key) ?? key;
-            _faceEditor.OnApply = ApplyFace; // persists locally, updates the in-world avatar + tells the server
+            _faceEditor.Subjects = AppearanceSubjects.Build(
+                () => Settings.FacePixels, ApplyFace,
+                part => Settings.GetBodyPaint(part), ApplyBodyPaint,
+                GetAppearanceColor, SetAppearanceColor);
+            _faceEditor.PreviewState = () => AppearanceSubjects.Snapshot(
+                GetAppearanceColor, () => Settings.FacePixels, part => Settings.GetBodyPaint(part));
         }
+
+        /// <summary>Kept for the older entry points (and any host that only wants the face): the appearance
+        /// screen opens on its face tab.</summary>
+        public void OpenFaceEditor() => OpenAppearanceEditor();
 
         /// <summary>Tears down the pixel-face editor overlay if it is open. The editor builds its own canvas, so
         /// it must be destroyed when the menu closes or the player navigates away — otherwise it stays painted
@@ -369,22 +392,9 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Opens the unfolded-strip pixel editor for one body-paint part (#874) — Torso/Arme/
-        /// Beine/Helm cards on the Character tab. Shares the single-editor slot with the face editor.</summary>
-        public void OpenBodyPaintEditor(int part)
-        {
-            if (_faceEditor != null)
-            {
-                return;
-            }
-
-            var go = new GameObject("BodyPaintEditor");
-            go.transform.SetParent(transform, false);
-            _faceEditor = go.AddComponent<FaceEditor>();
-            BodyPaintKit.ConfigureEditor(_faceEditor, part, Settings?.GetBodyPaint(part),
-                key => Game?.Localizer?.Get(key) ?? key);
-            _faceEditor.OnApply = pixels => ApplyBodyPaint(part, pixels);
-        }
+        /// <summary>Opens the appearance screen on a body-paint part (#874 entry point, kept for callers that
+        /// name a part). Parts are tabs of one screen since #897.</summary>
+        public void OpenBodyPaintEditor(int part) => OpenAppearanceEditor();
 
         /// <summary>Applies an edited body painting: persists it locally, shows it on the local figure, and
         /// tells the server (which persists + relays). The face's sibling path (#874).</summary>
@@ -401,7 +411,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.BodyPaintPixels[part] = Settings.GetBodyPaint(part);
-                Game.Network?.SendBodyPaint(part, Settings.GetBodyPaint(part));
+                QueueAppearanceSend(part, Settings.GetBodyPaint(part));
             }
         }
 
@@ -420,29 +430,57 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.FacePixels = Settings.FacePixels;
-                Game.Network?.SendFace(Settings.FacePixels);
+                QueueAppearanceSend(-1, Settings.FacePixels);
+            }
+        }
+
+        // ── appearance send queue ────────────────────────────────────────────────────────────────
+        //
+        // The server accepts ONE appearance edit (face or any body painting) every 2 s per player and drops
+        // the rest silently — sensible anti-spam when each card was its own screen, but the appearance screen
+        // commits a part every time the player switches tab, so painting a torso and an arm in the same
+        // half-minute used to mean the arm never reached anyone else. The pending payload per part is kept
+        // (newest wins) and sent as the window opens; everything else — local figure, settings, preview — has
+        // already been updated, so this only paces what goes on the wire.
+        private const double AppearanceSendInterval = 2.1; // the server's 2 s + a margin for clock drift
+        private readonly Dictionary<int, string> _pendingAppearance = new(); // -1 = face, 0..3 = body part
+        private double _nextAppearanceSend;
+
+        private void QueueAppearanceSend(int slot, string pixels)
+        {
+            _pendingAppearance[slot] = pixels ?? string.Empty;
+            PumpAppearanceQueue();
+        }
+
+        /// <summary>Sends the next queued appearance payload if the rate-limit window is open. Called from the
+        /// menu's Update, so a queue left behind by a closed editor still drains.</summary>
+        private void PumpAppearanceQueue()
+        {
+            if (_pendingAppearance.Count == 0 || Game?.Network == null || Time.unscaledTimeAsDouble < _nextAppearanceSend)
+            {
+                return;
+            }
+
+            int slot = int.MaxValue;
+            foreach (int key in _pendingAppearance.Keys)
+            {
+                slot = Mathf.Min(slot, key); // face (-1) first, then parts in order — a stable, boring order
+            }
+
+            string pixels = _pendingAppearance[slot];
+            _pendingAppearance.Remove(slot);
+            _nextAppearanceSend = Time.unscaledTimeAsDouble + AppearanceSendInterval;
+            if (slot < 0)
+            {
+                Game.Network.SendFace(pixels);
+            }
+            else
+            {
+                Game.Network.SendBodyPaint(slot, pixels);
             }
         }
 
         private static int Rgb(Color c)
             => (Mathf.RoundToInt(c.r * 255f) << 16) | (Mathf.RoundToInt(c.g * 255f) << 8) | Mathf.RoundToInt(c.b * 255f);
-
-        private static Color NextColor(Color current)
-        {
-            int idx = -1;
-            for (int i = 0; i < Palette.Length; i++)
-            {
-                if (Mathf.Approximately(Palette[i].r, current.r) &&
-                    Mathf.Approximately(Palette[i].g, current.g) &&
-                    Mathf.Approximately(Palette[i].b, current.b))
-                {
-                    idx = i;
-                    break;
-                }
-            }
-
-            return Palette[(idx + 1) % Palette.Length];
-        }
-
     }
 }

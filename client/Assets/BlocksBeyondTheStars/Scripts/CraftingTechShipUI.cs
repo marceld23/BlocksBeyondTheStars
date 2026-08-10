@@ -206,7 +206,11 @@ namespace BlocksBeyondTheStars.Client
                     // Character tab so the live preview re-applies it (SetFace/SetBodyPaint run on rebuild).
                     + (Game.FacePixels?.GetHashCode() ?? 0)
                     + (Game.BodyPaintPixels[0]?.GetHashCode() ?? 0) * 3 + (Game.BodyPaintPixels[1]?.GetHashCode() ?? 0) * 5
-                    + (Game.BodyPaintPixels[2]?.GetHashCode() ?? 0) * 7 + (Game.BodyPaintPixels[3]?.GetHashCode() ?? 0) * 11;
+                    + (Game.BodyPaintPixels[2]?.GetHashCode() ?? 0) * 7 + (Game.BodyPaintPixels[3]?.GetHashCode() ?? 0) * 11
+                    // …and the four base colours, which the appearance screen can now change while it is open
+                    // (#897) — the Character card shows them as swatches and the preview tints from them.
+                    + (Menu?.Settings?.SkinColor.GetHashCode() ?? 0) * 13 + (Menu?.Settings?.TorsoColor.GetHashCode() ?? 0) * 17
+                    + (Menu?.Settings?.ArmColor.GetHashCode() ?? 0) * 19 + (Menu?.Settings?.LegColor.GetHashCode() ?? 0) * 23;
             if (h != _lastDataHash)
             {
                 _lastDataHash = h;
@@ -1562,7 +1566,6 @@ namespace BlocksBeyondTheStars.Client
         private float BuildCharacterList()
         {
             float y = 0f;
-            string[] labels = { L("ui.settings.skin"), L("ui.settings.torso"), L("ui.settings.arms"), L("ui.settings.legs") };
             Color[] cols = Menu != null && Menu.Settings != null
                 ? new[] { Menu.Settings.SkinColor, Menu.Settings.TorsoColor, Menu.Settings.ArmColor, Menu.Settings.LegColor }
                 : new[] { Color.gray, Color.gray, Color.gray, Color.gray };
@@ -1578,33 +1581,19 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // ONE appearance card (#897). This list used to carry nine: four "cycle this colour" rows and five
+            // "open that editor" rows — the colour of a part and the painting on it edited two menu levels
+            // apart, though they are the same decision (unpainted pixels ARE the base colour). The editor now
+            // holds both, with the parts as tabs and a live figure beside the canvas.
+            var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenAppearanceEditor());
+            UiKit.AddText(card.transform, 16, 0, 380, 78, L("ui.appearance.title"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             for (int i = 0; i < 4; i++)
             {
-                int which = i;
-                var card = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => { Menu?.CycleAppearance(which); RebuildList(); });
-                UiKit.AddText(card.transform, 16, 0, 360, 78, labels[i], 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddImage(card.transform, 420, 19, 120, 40, UiKit.SolidSprite, cols[i]);
-                UiKit.AddText(card.transform, 560, 0, 200, 78, L("ui.settings.next_color"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
-                y += 88f;
+                UiKit.AddImage(card.transform, 400 + i * 44, 24, 38, 30, UiKit.SolidSprite, cols[i]); // the four base colours at a glance
             }
 
-            // Custom pixel face: opens the in-game face editor (draw a face shown to everyone).
-            var faceCard = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenFaceEditor());
-            UiKit.AddText(faceCard.transform, 16, 0, 520, 78, L("ui.face.edit"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddText(faceCard.transform, 560, 0, 200, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
-            y += 88f;
-
-            // Body paintings (#874): one card per part, each opening its unfolded-strip pixel editor.
-            for (int part = 0; part < BodyPaintKit.PartCount; part++)
-            {
-                int which = part;
-                var paintCard = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () => Menu?.OpenBodyPaintEditor(which));
-                UiKit.AddText(paintCard.transform, 16, 0, 520, 78, L(BodyPaintKit.PartKey(part)), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                UiKit.AddText(paintCard.transform, 560, 0, 200, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
-                y += 88f;
-            }
-
-            y += 8f;
+            UiKit.AddText(card.transform, 600, 0, 170, 78, L("ui.face.open"), 18, UiKit.Cyan, TextAnchor.MiddleLeft);
+            y += 96f;
 
             // Master volume — − / + adjust the audio bus live (and persist).
             int pct = Mathf.RoundToInt((Menu?.Settings?.MasterVolume ?? 0.8f) * 100f);

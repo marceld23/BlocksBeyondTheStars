@@ -7,6 +7,7 @@ using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
+using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.Shared.World;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -69,16 +70,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        foreach (char c in pixels)
-        {
-            bool hex = c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
-            if (!hex)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return PaintPayload.IsValidSymbols(pixels);
     }
 
     /// <summary>Paints (or clears, on empty pixels) a design onto a placed block. The bitmap dedups into the

@@ -19,14 +19,6 @@ namespace BlocksBeyondTheStars.Client
     {
         public AppShell Shell;
 
-        private static readonly Color[] Palette =
-        {
-            new Color(0.85f, 0.68f, 0.55f), new Color(0.55f, 0.40f, 0.28f), new Color(0.90f, 0.85f, 0.80f),
-            new Color(0.80f, 0.20f, 0.20f), new Color(0.20f, 0.45f, 0.80f), new Color(0.20f, 0.65f, 0.35f),
-            new Color(0.90f, 0.75f, 0.20f), new Color(0.55f, 0.30f, 0.70f), new Color(0.25f, 0.25f, 0.32f),
-            new Color(0.92f, 0.92f, 0.95f), new Color(0.15f, 0.62f, 0.66f), new Color(0.95f, 0.55f, 0.30f),
-        };
-
         private Camera _cam;
         private PlayerAvatar _avatar;
         private Transform _avatarRoot;
@@ -45,10 +37,10 @@ namespace BlocksBeyondTheStars.Client
         private void Start()
         {
             var s = Shell?.Settings;
-            _col[0] = s?.SkinColor ?? Palette[0];
-            _col[1] = s?.TorsoColor ?? Palette[4];
-            _col[2] = s?.ArmColor ?? Palette[4];
-            _col[3] = s?.LegColor ?? Palette[8];
+            _col[0] = s?.SkinColor ?? AppearancePalette.Colors[0];
+            _col[1] = s?.TorsoColor ?? AppearancePalette.Colors[4];
+            _col[2] = s?.ArmColor ?? AppearancePalette.Colors[4];
+            _col[3] = s?.LegColor ?? AppearancePalette.Colors[8];
             _face = s?.FacePixels ?? string.Empty;
             for (int part = 0; part < _bodyPaint.Length; part++)
             {
@@ -115,6 +107,8 @@ namespace BlocksBeyondTheStars.Client
             ColorRow(panel, ref y, L("ui.settings.torso"), 1);
             ColorRow(panel, ref y, L("ui.settings.arms"), 2);
             ColorRow(panel, ref y, L("ui.settings.legs"), 3);
+            UiKit.AddText(panel, 24f, y, w - 48f, 20f, L("ui.appearance.more_colors"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 26f;
 
             y += 8f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.gear_preview"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
@@ -128,23 +122,11 @@ namespace BlocksBeyondTheStars.Client
             y += 10f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.face"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 30f;
-            UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.face.edit"), OpenFaceEditor);
-            y += 42f;
 
-            // Body paintings (#874): one editor button per part, packed 2×2 so the panel height holds.
-            float half = (w - 48f) / 2f;
-            for (int part = 0; part < BodyPaintKit.PartCount; part++)
-            {
-                int which = part;
-                UiKit.AddButton(panel, 20f + (part % 2) * (half + 8f), y, half, 34f,
-                    L(BodyPaintKit.PartKey(part)), () => OpenBodyPaintEditor(which));
-                if (part % 2 == 1)
-                {
-                    y += 38f;
-                }
-            }
-
-            y += 10f;
+            // One button instead of five (#897): face, torso, arms, legs and helmet are tabs of the shared
+            // appearance screen, which also carries the base colours for the part being painted.
+            UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.appearance.title"), OpenAppearanceEditor);
+            y += 52f;
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             y += 26f;
             UiKit.AddInput(panel, 20f, y, w - 40f, 30f, _name, v => _name = v);
@@ -184,7 +166,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void CyclePart(int which, int dir)
         {
-            _col[which] = NextColor(_col[which], dir);
+            _col[which] = AppearancePalette.Next(_col[which], dir);
             _swatch[which].color = _col[which];
             _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
         }
@@ -207,45 +189,48 @@ namespace BlocksBeyondTheStars.Client
 
         private string OffOn(bool on) => on ? L("ui.avatar.on") : L("ui.avatar.off");
 
-        /// <summary>Opens the shared pixel-face editor over the designer; applying it updates the live preview
-        /// and the in-memory face, which the panel's Apply then persists into <see cref="ClientSettings"/>.</summary>
-        private void OpenFaceEditor()
+        /// <summary>Opens the shared appearance screen over the designer — face, torso, arms, legs and helmet
+        /// as tabs, each with its base colour. Edits land in this designer's scratch values and on the rotating
+        /// figure behind the panel; the panel's Apply is still what persists them into
+        /// <see cref="ClientSettings"/>, so backing out of the designer changes nothing.</summary>
+        private void OpenAppearanceEditor()
         {
             if (_faceEditor != null)
             {
                 return;
             }
 
-            var go = new GameObject("FaceEditor");
+            var go = new GameObject("AppearanceEditor");
             go.transform.SetParent(transform, false);
             _faceEditor = go.AddComponent<FaceEditor>();
-            _faceEditor.InitialFace = _face;
             _faceEditor.Localizer = L;
-            _faceEditor.OnApply = face =>
-            {
-                _face = face ?? string.Empty;
-                _avatar?.SetFace(_face); // live preview; persisted to settings by the panel's Apply
-            };
-        }
+            _faceEditor.Subjects = AppearanceSubjects.Build(
+                () => _face,
+                face =>
+                {
+                    _face = face ?? string.Empty;
+                    _avatar?.SetFace(_face);
+                },
+                part => _bodyPaint[part],
+                (part, pixels) =>
+                {
+                    _bodyPaint[part] = pixels ?? string.Empty;
+                    _avatar?.SetBodyPaint(part, _bodyPaint[part]);
+                },
+                which => _col[which],
+                (which, color) =>
+                {
+                    _col[which] = color;
+                    if (_swatch[which] != null)
+                    {
+                        _swatch[which].color = color;
+                    }
 
-        /// <summary>Opens the unfolded-strip editor for one body-paint part over the designer; applying
-        /// updates the live preview, and the panel's Apply persists it (same flow as the face, #874).</summary>
-        private void OpenBodyPaintEditor(int part)
-        {
-            if (_faceEditor != null)
-            {
-                return;
-            }
-
-            var go = new GameObject("BodyPaintEditor");
-            go.transform.SetParent(transform, false);
-            _faceEditor = go.AddComponent<FaceEditor>();
-            BodyPaintKit.ConfigureEditor(_faceEditor, part, _bodyPaint[part], L);
-            _faceEditor.OnApply = pixels =>
-            {
-                _bodyPaint[part] = pixels ?? string.Empty;
-                _avatar?.SetBodyPaint(part, _bodyPaint[part]); // live preview; persisted by the panel's Apply
-            };
+                    _avatar.ApplyColors(_col[0], _col[1], _col[2], _col[3]);
+                });
+            _faceEditor.PreviewState = () => AppearanceSubjects.Snapshot(
+                which => _col[which], () => _face, part => _bodyPaint[part]);
+            _faceEditor.OnClosed = () => _faceEditor = null;
         }
 
         private void Apply()
@@ -322,22 +307,6 @@ namespace BlocksBeyondTheStars.Client
         }
 
         // --- helpers ---
-
-        private static Color NextColor(Color current, int dir)
-        {
-            int idx = -1;
-            for (int i = 0; i < Palette.Length; i++)
-            {
-                if (Mathf.Approximately(Palette[i].r, current.r) && Mathf.Approximately(Palette[i].g, current.g) && Mathf.Approximately(Palette[i].b, current.b))
-                {
-                    idx = i;
-                    break;
-                }
-            }
-
-            int next = ((idx < 0 ? 0 : idx) + dir + Palette.Length) % Palette.Length;
-            return Palette[next];
-        }
 
         private static string Hex(Color c)
             => $"#{Mathf.RoundToInt(c.r * 255f):X2}{Mathf.RoundToInt(c.g * 255f):X2}{Mathf.RoundToInt(c.b * 255f):X2}";

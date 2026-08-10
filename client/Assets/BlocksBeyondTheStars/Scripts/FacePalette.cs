@@ -7,8 +7,9 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// The shared format + palette for the custom pixel face a player draws in the <see cref="FaceEditor"/>.
-    /// A face is a <see cref="Size"/>×<see cref="Size"/> grid of palette indices (0 = transparent, 1..15 =
-    /// the colours in <see cref="Colors"/>), serialized as one hex char per pixel (row 0 = top). The string
+    /// A face is a <see cref="Size"/>×<see cref="Size"/> grid of palette indices (0 = transparent, 1..31 =
+    /// the colours in <see cref="Colors"/>), serialized as one <see cref="Alphabet"/> char per pixel (row 0 =
+    /// top; the alphabet is base32 as of #897, hex before that — old payloads decode unchanged). The string
     /// is what travels over the network (<c>SetFaceIntent</c>/<c>PlayerFace</c>) and persists in
     /// <see cref="ClientSettings.FacePixels"/> / the server player record — opaque to the server, owned here.
     /// </summary>
@@ -31,8 +32,19 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Total pixels (and the length of a full face string).</summary>
         public const int Pixels = Size * Size;
 
-        /// <summary>Paint colours for indices 1..15 (index 0 is transparent — no entry here). A compact
-        /// pixel-art palette: skin tones, hair/feature darks, and a few accents for eyes/markings.</summary>
+        /// <summary>
+        /// Paint colours for indices 1..31 (index 0 is transparent — no entry here).
+        /// <para>
+        /// <b>1..15 are frozen</b>: they are the original 16-colour palette, and every face, body painting and
+        /// block design ever drawn stores those indices. Changing one would silently repaint existing art, so
+        /// new colours only ever get appended.
+        /// </para>
+        /// <para>
+        /// 16..31 (#897) are the shading partners the first 15 lacked: a lighter and a darker sibling for the
+        /// hues people actually shade with, two extra greys and a deep skin tone. What was missing at 16
+        /// colours was never another hue — it was the second tone that turns a flat shape into a lit one.
+        /// </para>
+        /// </summary>
         public static readonly Color32[] Colors =
         {
             new Color32(0, 0, 0, 0),          // 0 = transparent (skin/helmet shows through)
@@ -51,7 +63,36 @@ namespace BlocksBeyondTheStars.Client
             new Color32(150, 96, 200, 255),   // 13 purple
             new Color32(240, 150, 190, 255),  // 14 pink (cheeks/lips)
             new Color32(60, 200, 200, 255),   // 15 cyan
+            new Color32(46, 44, 54, 255),     // 16 charcoal   (between near-black and dark slate)
+            new Color32(104, 100, 112, 255),  // 17 mid grey   (the missing step 2 → 3)
+            new Color32(198, 198, 204, 255),  // 18 light grey (the missing step 3 → 4)
+            new Color32(70, 40, 22, 255),     // 19 dark brown (hair shadow)
+            new Color32(176, 122, 74, 255),   // 20 mid brown  (wood, leather, hair light)
+            new Color32(150, 96, 58, 255),    // 21 deep skin
+            new Color32(120, 30, 28, 255),    // 22 dark red   (shadow under 8)
+            new Color32(236, 122, 104, 255),  // 23 light red  (highlight over 8)
+            new Color32(168, 92, 26, 255),    // 24 dark orange
+            new Color32(250, 226, 150, 255),  // 25 light yellow
+            new Color32(48, 110, 56, 255),    // 26 dark green
+            new Color32(158, 214, 120, 255),  // 27 light green
+            new Color32(34, 84, 140, 255),    // 28 dark blue
+            new Color32(148, 202, 240, 255),  // 29 light blue
+            new Color32(92, 52, 132, 255),    // 30 dark purple
+            new Color32(206, 166, 236, 255),  // 31 light purple
         };
+
+        /// <summary>
+        /// Symbol alphabet of the payload format: one character per pixel, so <b>its length IS the palette
+        /// size</b>. Widened from hex (16) to base32 (#897) — the first sixteen symbols are the hex digits, so
+        /// every payload ever written stays valid and decodes to exactly the same colours.
+        /// <para>
+        /// ⚠ <b>Lower case only.</b> The server lower-cases block-design payloads before validating them
+        /// (<c>GameServerPaint.HandlePaintBlock</c>), so an alphabet with upper-case symbols would silently
+        /// fold two colours into one. That rules out base64-style alphabets; <c>w</c>..<c>z</c> are left free
+        /// for a later top-up.
+        /// </para>
+        /// </summary>
+        public const string Alphabet = "0123456789abcdefghijklmnopqrstuv";
 
         /// <summary>Backdrop shown behind transparent pixels in the editor canvas (so "nothing here" reads as
         /// empty, not as a colour). The avatar instead composites transparent pixels onto the skin.</summary>
@@ -91,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
             var chars = new char[pixels];
             for (int i = 0; i < pixels; i++)
             {
-                chars[i] = HexChar(grid[i]);
+                chars[i] = SymbolOf(grid[i]);
             }
 
             return new string(chars);
@@ -124,7 +165,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     for (int x = 0; x < dstSide; x++)
                     {
-                        grid[y * dstSide + x] = HexValue(face[(y / scale) * srcSide + (x / scale)]);
+                        grid[y * dstSide + x] = ValueOf(face[(y / scale) * srcSide + (x / scale)]);
                     }
                 }
 
@@ -134,7 +175,7 @@ namespace BlocksBeyondTheStars.Client
             int n = Mathf.Min(face.Length, pixels);
             for (int i = 0; i < n; i++)
             {
-                grid[i] = HexValue(face[i]);
+                grid[i] = ValueOf(face[i]);
             }
 
             return grid;
@@ -190,18 +231,23 @@ namespace BlocksBeyondTheStars.Client
             return tex;
         }
 
-        private static char HexChar(int v)
-        {
-            v &= 0xF;
-            return (char)(v < 10 ? '0' + v : 'a' + (v - 10));
-        }
+        /// <summary>The payload symbol for a palette index (out-of-range folds to transparent). Public because
+        /// <see cref="BodyPaintKit"/> and <see cref="PaintDesignAtlas"/> encode/decode the same format — they
+        /// each used to carry a private copy of these two helpers, which is exactly how a palette widening
+        /// ends up applied in two places out of three.</summary>
+        public static char SymbolOf(int index)
+            => index > 0 && index < Alphabet.Length ? Alphabet[index] : Alphabet[0];
 
-        private static int HexValue(char c)
+        /// <summary>The palette index for a payload symbol; anything unknown (including symbols from a NEWER
+        /// client's wider palette) reads as 0 = transparent, so a strange payload degrades to unpainted rather
+        /// than to garbage. Upper case is accepted on read only — payloads are always written lower case.</summary>
+        public static int ValueOf(char c)
         {
             if (c >= '0' && c <= '9') return c - '0';
-            if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+            if (c >= 'a' && c <= 'v') return c - 'a' + 10;
+            if (c >= 'A' && c <= 'V') return c - 'A' + 10;
             return 0;
         }
+
     }
 }

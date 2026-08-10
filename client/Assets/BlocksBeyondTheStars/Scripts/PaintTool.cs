@@ -69,6 +69,9 @@ namespace BlocksBeyondTheStars.Client
             _editor.GridSize = PaintDesignAtlas.Size;
             _editor.InitialFace = current;
             _editor.InitialName = currentName;
+            // Unpainted pixels become the design's paper canvas on the block, not the editor's dark grey —
+            // so the canvas shows what the block will look like (#897).
+            _editor.BaseColor = PaintDesignAtlas.Canvas;
             // The shared editor asks for the face keys; remap title/hint to the paint texts, everything
             // else (palette/apply/clear/back) reads the same in both hosts.
             _editor.Localizer = key => Game.Localizer?.Get(key switch

@@ -104,6 +104,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Paint editors: fill tool, findable eyedropper, 32-colour palette, one Appearance screen (#899, 2026-08-10, branch feat/paint-editor-tools)
+Every pixel editor (avatar face, the four body-paint parts, the block paint tool — all one `FaceEditor`)
+gained a **fill tool** (region-clamped flood fill; Shift = replace that colour everywhere in the region)
+with **single-level undo** that doubles as redo, and the eyedropper that was already there became
+findable: **Alt+click / middle-click** pick a colour, and fill/pick/undo sit in one tool row. The pixel
+palette doubled to **32 colours** — the payload alphabet widened from hex to base32 (`0-9a-v`, same
+payload length, indices 1–15 unchanged, so no existing art moves) and the 16 new slots are shading
+partners for the existing hues; the colour wheel got a brightness column, without which half of them
+were unreachable. Unpainted pixels now render in the subject's **real base colour** (skin / part tint /
+the block's paper canvas) instead of a lying dark slate. Base colours moved into one shared
+`AppearancePalette` (30 curated entries, replacing two different hard-coded lists) and can be any RGB
+via the wheel. Finally the Character tab's **nine cards collapsed into one "Appearance" card**: the five
+parts are tabs of a single editor with the base colour beside the canvas it tints and a full-turntable
+live figure; switching tabs auto-commits, and a client-side send queue paces commits past the server's
+shared 2 s appearance rate limit (which used to swallow all but the first). `Protocol.Version` 2 → 3:
+an older server charset-checks against hex and would silently drop a painting using the new symbols.
+
 ### ★ Website translated into all 13 game languages (2026-08-10, branch feat/wix-i18n-locale-tools)
 The full website (all pages, menu, forms, image alt texts) now has complete translations in every
 game language: en/it plus newly created es, fr, nl, pl, pt, tr, ru, uk, ja, ko, zh — the 11 new Wix

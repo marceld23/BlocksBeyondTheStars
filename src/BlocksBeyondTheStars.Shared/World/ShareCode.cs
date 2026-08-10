@@ -100,24 +100,16 @@ public static class ShareCode
     public static string EncodeDesign(string pixels, string name) => Encode(KindDesign, pixels, name);
 
     /// <summary>Decodes a design share code, checking the bitmap is exactly <paramref name="expectedChars"/>
-    /// lowercase hex characters — the same shape of check the server's paint validator applies.</summary>
+    /// palette symbols — the same shape of check the server's paint validator applies.</summary>
     public static bool TryDecodeDesign(string? code, int expectedChars, out string pixels, out string name)
     {
-        if (!TryDecode(code, KindDesign, out pixels, out name) || pixels.Length != expectedChars)
+        if (!TryDecode(code, KindDesign, out pixels, out name)
+            || pixels.Length != expectedChars
+            || !State.PaintPayload.IsValidSymbols(pixels))
         {
             pixels = string.Empty;
             name = string.Empty;
             return false;
-        }
-
-        foreach (char c in pixels)
-        {
-            if (c is not ((>= '0' and <= '9') or (>= 'a' and <= 'f')))
-            {
-                pixels = string.Empty;
-                name = string.Empty;
-                return false;
-            }
         }
 
         return true;

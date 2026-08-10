@@ -597,8 +597,10 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Paint tool & block designs
 - Craft a **Paint Tool** (`paint_tool`, workshop recipe + the cheap `paint_tool` blueprint). Select it and
-  **right-click a placed solid block** — a **32×32 pixel editor** opens (same palette and controls as the
-  avatar face editor: left-click paints, right-click erases, **E** is the eraser swatch). **Apply** paints the
+  **right-click a placed solid block** — a **32×32 pixel editor** opens (same palette and tools as the
+  appearance screen: left-click paints, right-click erases, **E** is the eraser swatch, **Fill area** floods,
+  **Alt+click** picks up a colour and **Undo** takes a step back; unpainted pixels show the design's paper-white
+  canvas, which is what the block will look like). **Apply** paints the
   design onto the block for everyone; **Clear + Apply** removes it. Works on every block form — panels/plates
   on a wall are the natural canvas, but slabs, ramps and plain cubes take a design too (all faces show it).
 - **Save & reuse**: the *My designs* column in the editor stores designs **locally** ("Save design") and loads
@@ -722,24 +724,31 @@ separate unlock; admins can still disable it through server world rules.
 - **Reporting:** `/reportshape` flags the nearest self-made form for the server operator, the same way
   `/reportpaint` flags a painted block.
 
-### Character & the pixel-face editor
-- The **Character** menu tab shows your avatar (colours/gear preview). It also hosts a **pixel-face editor**:
-  open it to **draw a 32×32 pixel face** on a paint canvas (a 16-colour palette plus an eraser), then **Apply**.
-  **Pick colour** turns the cursor into an eyedropper for one click — it takes the colour already under it,
-  which beats hunting for the shade you used earlier. The **colour wheel** picks by hue: drag the point around
-  the ring (outward = more saturated) and the brush snaps to the closest palette entry. Faces drawn at the old
-  16×16 size still work — they are scaled up automatically the first time you open them.
-- Your drawn face appears on **your figure**, in the live Character-tab preview, and **on your avatar for every
-  other player** (it's server-persistent, so the face follows you). The same editor is also available before you
-  start, in the main-menu **Avatar Designer** (a **Pixel face** button there).
-- **Body paint**: the Character tab (and the Avatar Designer) also has **Paint torso / Paint arms / Paint legs /
-  Paint helmet** — the same pixel editor, painting **one face of the part at a time at full size**. The part's
-  faces are stacked as small labelled **live tiles** beside the canvas (Front / Right / Back / Left; arms and
-  legs get one tile column per limb, headed Left/Right) — click a tile to paint that face, and the tiles update
-  while you draw so you always see the whole part. **Clear** wipes only the face you are on. The helmet's front
-  stays open — your face always shows — and unpainted pixels keep the part's chosen colour, so the colour
-  buttons still work underneath a painting. Paintings are server-persistent and visible to everyone, exactly
-  like the face.
+### Appearance: colours, your pixel face and body paint
+- **Tab → Settings → Appearance** opens one screen for how your figure looks. Along the top are tabs for
+  **Face · Torso · Arms · Legs · Helmet**; a slowly turning figure beside the canvas shows what you are doing,
+  including the back you just painted. Switching tabs saves the part you were on, **Apply** saves and closes,
+  **Back** leaves the part you are on unsaved. The same screen sits behind the **Appearance** button in the
+  main-menu **Avatar Designer**.
+- **Base colour** — every tab has the part's colour right beside the canvas: 30 swatches, or the **colour
+  wheel** for any colour at all (skin and suit colours are not limited to the list). Unpainted pixels are drawn
+  in that colour on the canvas, because that is what will show through. The helmet takes the torso colour.
+- **Painting** — left-click paints, right-click erases, **E** is the eraser swatch. **Fill area** floods the
+  area you click with the current colour (right-click fills it back to empty, **Shift** replaces that colour
+  everywhere on the face you are on). **Pick colour** takes the colour under the cursor for one click —
+  **Alt+click** or the **middle mouse button** do the same at any time. **Undo** takes the last step back;
+  press it again and the step returns.
+- **Colours** — 32 paint colours plus the eraser, arranged so each hue has a lighter and a darker partner for
+  shading. The colour wheel picks by hue (outward = more saturated) with a **brightness column** beside it, and
+  snaps to the closest palette entry. Faces drawn at the old 16×16 size still work — they are scaled up
+  automatically the first time you open them.
+- **The body parts** are painted **one face at a time at full size**. The part's faces are stacked as small
+  labelled **live tiles** beside the canvas (Front / Right / Back / Left; arms and legs get one tile column per
+  limb, headed Left/Right) — click a tile to paint that face, and the tiles update while you draw so you always
+  see the whole part. **Clear** wipes only the face you are on, and a fill never runs over onto another face.
+  The helmet's front stays open, so your face always shows.
+- Everything here appears on **your figure** and **on your avatar for every other player** — it is
+  server-persistent, so your look follows you to any world.
 
 ### Death & respawn
 - At 0 health you respawn at the ship's **Medbay heal-tank** (vitals restored); a salvage capsule may drop

@@ -93,8 +93,11 @@ public sealed class BodyPaintTests : IDisposable
             server.SetBodyPaintForTest(p, BodyPaint.Torso, new string('7', 1024));
             Assert.Equal(string.Empty, p.State.TorsoPixels);
 
-            // Right length, non-hex charset.
-            server.SetBodyPaintForTest(p, BodyPaint.Torso, new string('x', BodyPaint.ExpectedLength(BodyPaint.Torso)));
+            // Right length, symbol outside the palette alphabet. ⚠ Pick one that stays outside it: 'x' was
+            // this sample until the alphabet widened from hex to base32 (#897), where 'x' is still unused but
+            // 'g'..'v' became legal — a sample inside the alphabet would make this assertion pass for the
+            // wrong reason. '!' can never be a palette symbol.
+            server.SetBodyPaintForTest(p, BodyPaint.Torso, new string('!', BodyPaint.ExpectedLength(BodyPaint.Torso)));
             Assert.Equal(string.Empty, p.State.TorsoPixels);
 
             // Unknown part indices must not crash or store anything.
@@ -104,6 +107,12 @@ public sealed class BodyPaintTests : IDisposable
             {
                 Assert.Equal(string.Empty, p.State.GetBodyPaint(part));
             }
+
+            // Nothing above was accepted, so the rate limit is untouched: a payload drawn from the WIDENED
+            // part of the alphabet (#897, base32 't' = palette index 29) is legal and must be stored.
+            string widePalette = new string('t', BodyPaint.ExpectedLength(BodyPaint.Torso));
+            server.SetBodyPaintForTest(p, BodyPaint.Torso, widePalette);
+            Assert.Equal(widePalette, p.State.TorsoPixels);
         }
     }
 

@@ -16,20 +16,33 @@ namespace BlocksBeyondTheStars.Client
     {
         public RenderTexture Texture { get; private set; }
 
+        /// <summary>Turn the figure all the way round instead of swaying (see <see cref="Update"/>): the
+        /// appearance editor needs the painted back and the outer arm shown, not just the face.</summary>
+        public bool FullTurntable;
+
         private Camera _cam;
         private PlayerAvatar _avatar;
         private Transform _model;
         private bool _active;
 
         // Far from any terrain/player so the main camera never sees it and the point light touches nothing else.
-        private static readonly Vector3 Origin = new Vector3(0f, 100000f, 0f);
+        private static readonly Vector3 BaseOrigin = new Vector3(0f, 100000f, 0f);
 
-        public void EnsureBuilt(Color skin, Color torso, Color arms, Color legs)
+        // ⚠ Two rigs may live at once (the Character tab's preview and the one inside the appearance editor):
+        // each rig therefore stands in its OWN slot, or both cameras would frame two overlapping avatars —
+        // the same hazard SetActive already guards against for a rig that is merely idle (B53).
+        private Vector3 _origin = BaseOrigin;
+
+        /// <param name="slot">Which parking spot this rig occupies. Any two rigs alive at the same time must
+        /// pass different slots.</param>
+        public void EnsureBuilt(Color skin, Color torso, Color arms, Color legs, int slot = 0)
         {
             if (_avatar != null)
             {
                 return;
             }
+
+            _origin = BaseOrigin + new Vector3(slot * 80f, 0f, 0f);
 
             Texture = new RenderTexture(440, 660, 16) { name = "AvatarPreviewRT" };
 
@@ -47,8 +60,8 @@ namespace BlocksBeyondTheStars.Client
             // portrait hid the legs). Viewed from the −Z side: the LitColor shader keys off a FIXED light from
             // (0.4, 0.7, −0.55) — the −Z side — so we view (and turn the avatar to face) that side so the front
             // catches the key light. Distance set so the ~1.85 m figure fits the portrait with margin.
-            _cam.transform.position = Origin + new Vector3(-0.85f, 1.05f, -3.95f);
-            _cam.transform.LookAt(Origin + new Vector3(0f, 0.95f, 0f));
+            _cam.transform.position = _origin + new Vector3(-0.85f, 1.05f, -3.95f);
+            _cam.transform.LookAt(_origin + new Vector3(0f, 0.95f, 0f));
 
             var lightGo = new GameObject("AvatarPreviewLight");
             lightGo.transform.SetParent(transform, false);
@@ -56,11 +69,11 @@ namespace BlocksBeyondTheStars.Client
             lamp.type = LightType.Point;       // localized — won't light the rest of the scene
             lamp.range = 16f;
             lamp.intensity = 1.5f;
-            lamp.transform.position = Origin + new Vector3(-1.5f, 2.4f, -3.2f); // front-side fill (camera side)
+            lamp.transform.position = _origin + new Vector3(-1.5f, 2.4f, -3.2f); // front-side fill (camera side)
 
             _model = new GameObject("AvatarPreviewModel").transform;
             _model.SetParent(transform, false);
-            _model.position = Origin;
+            _model.position = _origin;
             _model.localRotation = Quaternion.Euler(0f, 180f, 0f); // face the −Z camera (the lit side)
             _avatar = _model.gameObject.AddComponent<PlayerAvatar>();
             _avatar.Build(skin, torso, arms, legs, spacesuit: true); // preview the player's suited look
@@ -99,7 +112,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Gently sway around the face-toward-camera pose (±20°) instead of a full turntable, so the face
                 // is always shown to the player (the point of the preview) and never spins to the unlit back.
-                float yaw = 180f + Mathf.Sin(Time.time * 0.7f) * 20f;
+                // In the appearance editor it DOES turn all the way: there the whole point is checking the side
+                // you just painted, and a back you cannot see is a back you cannot judge.
+                float yaw = FullTurntable ? 180f + Time.time * 26f : 180f + Mathf.Sin(Time.time * 0.7f) * 20f;
                 _model.localRotation = Quaternion.Euler(0f, yaw, 0f);
             }
         }

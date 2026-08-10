@@ -245,7 +245,7 @@ public sealed class PaintDesignTests : IDisposable
 
     [Theory]
     [InlineData("xyz")]                     // wrong length
-    [InlineData("g")]                       // wrong length AND non-hex
+    [InlineData("g")]                       // wrong length (a legal symbol since #897, but still one char)
     public void MalformedPixels_AreDropped(string bad)
     {
         var (server, client, repo) = Start("paint4");
@@ -260,17 +260,35 @@ public sealed class PaintDesignTests : IDisposable
     }
 
     [Fact]
-    public void NonHex_FullLengthPixels_AreDropped()
+    public void OffAlphabet_FullLengthPixels_AreDropped()
     {
         var (server, client, repo) = Start("paint5");
         var pos = PlaceCanvasBlock(server);
 
+        // 'z' is past the end of the base32 palette alphabet (0-9a-v) — reserved, never a colour.
         client.Send(NetCodec.Encode(new PaintBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Pixels = new string('z', 1024) }),
             DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         Assert.Equal(0, ShapeCode.DesignOf(server.World.GetShape(pos)));
         Assert.Empty(repo.ListPaintDesigns());
+    }
+
+    /// <summary>The palette widened from 16 to 32 colours (#897): a design drawn with the new symbols must
+    /// register like any other, or the extra colours would look right in the editor and vanish on the block.</summary>
+    [Fact]
+    public void WidenedPaletteSymbols_AreAccepted()
+    {
+        var (server, client, repo) = Start("paint6");
+        var pos = PlaceCanvasBlock(server);
+
+        string pixels = new string('v', 1024); // 'v' = palette index 31, the last slot of the base32 alphabet
+        client.Send(NetCodec.Encode(new PaintBlockIntent { X = pos.X, Y = pos.Y, Z = pos.Z, Pixels = pixels }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.NotEqual(0, ShapeCode.DesignOf(server.World.GetShape(pos)));
+        Assert.Equal(pixels, repo.ListPaintDesigns().Single().Pixels);
     }
 
     [Fact]

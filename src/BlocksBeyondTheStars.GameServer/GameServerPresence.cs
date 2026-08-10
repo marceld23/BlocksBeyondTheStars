@@ -69,16 +69,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        foreach (char c in face)
-        {
-            bool hex = c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
-            if (!hex)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return PaintPayload.IsValidSymbols(face);
     }
 
     private void HandleSetFace(PlayerSession session, SetFaceIntent intent)
@@ -128,16 +119,7 @@ public sealed partial class GameServer
             return false;
         }
 
-        foreach (char c in pixels)
-        {
-            bool hex = c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
-            if (!hex)
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return PaintPayload.IsValidSymbols(pixels);
     }
 
     private void HandleSetBodyPaint(PlayerSession session, SetBodyPaintIntent intent)

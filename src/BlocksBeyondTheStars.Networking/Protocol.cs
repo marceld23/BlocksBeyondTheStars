@@ -8,8 +8,11 @@ public static class Protocol
 {
     /// <summary>Bumped whenever the wire format or message set changes incompatibly.
     /// v2: ChunkDataMessage carries the run-length-encoded BlocksRle payload (older clients
-    /// cannot decode it, so the join-time version check keeps them off newer servers).</summary>
-    public const int Version = 2;
+    /// cannot decode it, so the join-time version check keeps them off newer servers).
+    /// v3: the pixel-payload alphabet widened from hex to base32 (#897 — a 32-colour palette). An older
+    /// server charset-checks against hex and would drop a face/body painting/block design containing any
+    /// of the new symbols WITHOUT telling anyone; refusing the join says so plainly instead.</summary>
+    public const int Version = 3;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;

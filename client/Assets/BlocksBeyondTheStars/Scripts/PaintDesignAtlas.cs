@@ -203,12 +203,8 @@ namespace BlocksBeyondTheStars.Client
             Texture.SetPixels32(ox, oy, Tile, Tile, buf);
         }
 
-        private static int HexVal(char c) => c switch
-        {
-            >= '0' and <= '9' => c - '0',
-            >= 'a' and <= 'f' => c - 'a' + 10,
-            >= 'A' and <= 'F' => c - 'A' + 10,
-            _ => 0,
-        };
+        // Shared with faces and body paint — see FacePalette.Alphabet (a private copy here is what would make
+        // a palette widening show up in the editor but not on blocks).
+        private static int HexVal(char c) => FacePalette.ValueOf(c);
     }
 }

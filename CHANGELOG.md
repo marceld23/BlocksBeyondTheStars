@@ -13,6 +13,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎨 Paint editors: fill, a findable eyedropper, 32 colours and one Appearance screen (#899)
+
+- **Fill tool + undo.** Click to flood an area with the current colour (right-click fills with
+  "empty", Shift replaces that colour everywhere in the region). It cannot leak from one box face
+  onto another. Undo takes the last fill, clear or stroke back — press it twice and the change
+  returns.
+- **The eyedropper found its shortcuts.** **Alt+click** or the **middle mouse button** picks up the
+  colour under the cursor; fill, pick and undo now sit together as one tool row.
+- **32 colours instead of 16.** The new half of the palette is shading partners — a lighter and a
+  darker sibling for the hues you actually shade with, two more greys and a deep skin tone — and the
+  colour wheel gained a brightness column so the dark tones are reachable. Every painting drawn
+  before this keeps its exact colours.
+- **The canvas stopped lying.** Unpainted pixels are drawn in the colour that will really show
+  through: your skin, the part's tint, or a block design's paper white.
+- **One "Appearance" screen.** Face, torso, arms, legs and helmet are tabs of a single editor, with
+  the base colour for the part right beside the canvas it tints and a slowly turning figure showing
+  the result — including the back you just painted. It replaces nine separate menu cards.
+- **Any colour for skin and suit.** Base colours come from one shared 30-colour set (the in-game menu
+  and the Avatar Designer used to offer different ones) — or from the colour wheel, which is not
+  limited to the list at all.
+
+  ⚠ Multiplayer: client and server must both be on this version (protocol 3).
+
 ## [2026.8.9] — 2026-08-09
 
 A small, sharp follow-up to the shaper release. The headline is pure building comfort: rotate
