@@ -113,14 +113,18 @@ depth test. The label sat at a hard-coded `y = -160`, which is exactly where the
 **on foot**; `RefreshVitals` appends the hull + shield rows and grows the panel from 116 to 196 px whenever
 `ShipCombat != null` — precisely the space-flight state — so the first appended row landed in the reserved
 slot. Guaranteed in flight, impossible on foot, which is why it survived so long.
-**Fix, two parts.** `HudUi` now publishes its live panel edge as `VitalsBottomY` and `SpaceView` parks the
-readout below it every frame, so the label follows whatever rows the panel is showing instead of assuming a
-fixed edge — the bug class is gone, not just this instance. And the hull/shield bars now **hide while
-piloting**, where they merely repeat the bottom-left instrument line, matching what the compass and the
-time-of-day panel already do. Because those bars also carried the low-vitals blink and beep, the instrument
-line took over the alarm: `HULL`/`SHD` blink red below 10 % (clearing at 15 %, the panel's own hysteresis)
-and drive the same 2.5 s `vitals_warning` cue — now skipping a system the ship doesn't have, so a
-shield-less hull no longer alarms forever. Clears the "known pre-existing wart" noted under the screenshot
+**Fix, two parts.** `HudUi` now publishes its live panel edge as `VitalsBottomY` and `SpaceView` parks its
+readout below it every frame, so the block follows whatever rows the panel is showing instead of assuming a
+fixed edge — the bug class is gone, not just this instance. And **hull + shield moved into the flight HUD**
+as real gauges: the vitals panel drops its ship rows while piloting (the same step-aside the compass and the
+time-of-day panel already make), and the flight view draws its own hull/shield bars under the cargo line, in
+the same column as the suit's bars so the two read as one stack. A pilot gets the fill back — `HULL 240`
+alone never said 240 *of what* — and the numbers stay, printed on the bars. The old duplicate `HULL/SHD`
+text is gone from the instrument line, which is back to `SPD/THR/HDG`. The bars inherit the panel's warning
+behaviour (blink toward red below 10 %, clearing at 15 %, plus the 2.5 s `vitals_warning` cue) and add a
+guard the panel lacked: a system the ship doesn't *have* (`Max == 0`) never alarms, so a shield-less ship
+stops screaming. On an EVA nothing changes — the panel keeps its rows there, because the flight instruments
+are hidden and it is the only hull readout. Clears the "known pre-existing wart" noted under the screenshot
 work below.
 
 ### ★ Every species gets its own voice: phrase, cadence, timbre — and the combat cues too (#901–#907, 2026-08-10, branch feat/creature-voice-genome)
