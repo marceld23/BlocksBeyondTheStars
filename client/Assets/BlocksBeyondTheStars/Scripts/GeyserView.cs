@@ -35,7 +35,9 @@ namespace BlocksBeyondTheStars.Client
                 Rescan();
             }
 
-            float now = Time.time;
+            // World time (#908): no vent goes off behind the pause menu. A plume already in flight is left to
+            // finish its half-second arc rather than freezing in mid-air.
+            float now = Game.WorldTime;
             // Erupt any vent whose timer is up (snapshot the keys — Erupt doesn't mutate the dict).
             foreach (var cell in _ventKeys())
             {

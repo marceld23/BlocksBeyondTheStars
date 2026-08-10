@@ -194,8 +194,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Vector3 camPos = Camera.transform.position;
-            float wind = Time.time * 0.012f * windScale;
-            float t = Time.time;
+            // World time, not frame time (#908): the cloud deck drifts and boils on this clock, so it parks
+            // itself while the world is held instead of sailing on over a frozen landscape.
+            float worldNow = Game != null ? Game.WorldTime : Time.time;
+            float wind = worldNow * 0.012f * windScale;
+            float t = worldNow;
 
             for (int i = 0; i < MaxClouds; i++)
             {

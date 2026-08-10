@@ -145,7 +145,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            float dt = Mathf.Min(Time.deltaTime, 0.1f);
+            // World time, not frame time (#908): micro-fauna is simulated entirely client-side, so a held world
+            // kept swarming with insects until this read the world clock. At dt = 0 every Move* below is a no-op
+            // while Render still runs, which parks the critters in place instead of making them disappear.
+            float dt = Mathf.Min(Game.WorldDeltaTime, 0.1f);
             bool enclosed = !Game.ExposedToSky; // in a cave / under a roof
             bool active = ContextAllows(out bool surfaceOk, enclosed);
 
@@ -157,7 +160,11 @@ namespace BlocksBeyondTheStars.Client
 
             RefreshPlanetSeed(dt);
             RefreshWaterCells(dt);
-            MaintainPopulation(surfaceOk, enclosed);
+            if (!Game.WorldPaused)
+            {
+                MaintainPopulation(surfaceOk, enclosed); // no critter pops into existence behind the pause menu
+            }
+
             MoveAndRender(dt);
         }
 

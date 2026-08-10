@@ -121,6 +121,26 @@ public sealed class SingleplayerPauseTests : IDisposable
     }
 
     [Fact]
+    public void AWatchingAdmin_DoesNotCostThePlayerTheirPause()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            var admin = server.AddLocalPlayer("Marcel");
+            admin.Spectating = true; // observer mode (#487): invisible, no footprint, ignored by creatures
+
+            // Nobody's game is interrupted by holding the world for its only actual player (#908). Before this,
+            // an admin quietly watching a world denied that player their pause — and lifted one already running.
+            server.PauseForTest(p, true);
+            Assert.True(server.IsPaused);
+
+            server.TickForTest(0.1);
+            Assert.True(server.IsPaused);
+        }
+    }
+
+    [Fact]
     public void APauseIsLifted_WhenSomeoneElseJoins()
     {
         var server = Started(out var repo);

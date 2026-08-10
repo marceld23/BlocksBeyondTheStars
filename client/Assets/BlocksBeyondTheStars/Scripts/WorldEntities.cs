@@ -68,6 +68,9 @@ namespace BlocksBeyondTheStars.Client
                 _subscribed = true;
             }
 
+            // Everything below runs on the world clock rather than on frame time (#908): while the server holds
+            // the world for the pause menu, bandits and beasts stop stepping, growling, lunging and firing —
+            // an enemy that kept mauling the player through the "Pause" dialog was the loudest tell of all.
             var seen = _seenScratch;
             seen.Clear();
             var cam = Camera.main; // for the floating health bars (#692)
@@ -84,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 en.Target = new Vector3(e.X, e.Y, e.Z);
-                en.Settled = Vector3.Lerp(en.Settled, en.Target, Time.deltaTime * 8f);
+                en.Settled = Vector3.Lerp(en.Settled, en.Target, Game.WorldDeltaTime * 8f);
 
                 // Face the walk direction (or the player when hostile and close — it stalks you).
                 Vector3 scenePos = Game.ScenePos(en.Settled.x, en.Settled.y, en.Settled.z);
@@ -102,40 +105,40 @@ namespace BlocksBeyondTheStars.Client
                 if (face.sqrMagnitude > 0.01f)
                 {
                     en.Root.transform.rotation = Quaternion.Slerp(
-                        en.Root.transform.rotation, Quaternion.LookRotation(face.normalized), Time.deltaTime * 6f);
+                        en.Root.transform.rotation, Quaternion.LookRotation(face.normalized), Game.WorldDeltaTime * 6f);
                 }
 
                 en.Root.transform.position = scenePos;
-                Animate(en, vel.magnitude / Mathf.Max(Time.deltaTime, 1e-4f), e.Hostile);
+                Animate(en, vel.magnitude / Mathf.Max(Game.WorldDeltaTime, 1e-4f), e.Hostile);
 
                 var audio = ClientAudio.Instance;
                 if (audio != null)
                 {
                     // Periodic menacing growl, spatialised at the enemy (bandits are people — no robot growls).
-                    if (!en.IsBandit && Time.time >= en.NextGrowl)
+                    if (!en.IsBandit && Game.WorldTime >= en.NextGrowl)
                     {
-                        en.NextGrowl = Time.time + Random.Range(6f, 14f);
+                        en.NextGrowl = Game.WorldTime + Random.Range(6f, 14f);
                         audio.At("enemy_growl", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
                     // Hurt flinch + bark on a hull drop (the player's hit landed).
                     if (en.PrevHull >= 0f && e.Hull < en.PrevHull - 0.25f)
                     {
-                        en.FlinchUntil = Time.time + 0.25f;
+                        en.FlinchUntil = Game.WorldTime + 0.25f;
                         audio.At("enemy_hurt", en.Root.transform.position, en.Pitch * MachineJitter(), 0.9f);
                     }
 
                     // Hostile attack (throttled). Hovering drones snipe with a red laser from afar; ground
                     // robots only claw in melee range. Suppressed entirely once the player is aboard the ship —
                     // they've broken off pursuit, so no laser bolts or claw swipes follow them inside.
-                    if (e.Hostile && !playerAboard && Time.time >= en.NextAttack)
+                    if (e.Hostile && !playerAboard && Game.WorldTime >= en.NextAttack)
                     {
                         if (en.IsDrone)
                         {
                             if (toPlayer.sqrMagnitude < DroneFireRange * DroneFireRange)
                             {
-                                en.NextAttack = Time.time + Random.Range(0.7f, 1.3f);
-                                en.AttackUntil = Time.time + 0.18f; // brief charge/recoil tic
+                                en.NextAttack = Game.WorldTime + Random.Range(0.7f, 1.3f);
+                                en.AttackUntil = Game.WorldTime + 0.18f; // brief charge/recoil tic
                                 FireDroneLaser(en, audio);
                             }
                         }
@@ -144,15 +147,15 @@ namespace BlocksBeyondTheStars.Client
                             // Bandit gunner: tracer shots at aura range (cosmetic — the server aura damages).
                             if (toPlayer.sqrMagnitude < BanditGunFireRange * BanditGunFireRange)
                             {
-                                en.NextAttack = Time.time + Random.Range(0.8f, 1.5f);
-                                en.AttackUntil = Time.time + 0.2f;
+                                en.NextAttack = Game.WorldTime + Random.Range(0.8f, 1.5f);
+                                en.AttackUntil = Game.WorldTime + 0.2f;
                                 FireDroneLaser(en, audio);
                             }
                         }
                         else if (toPlayer.sqrMagnitude < 7f)
                         {
-                            en.NextAttack = Time.time + Random.Range(1.4f, 2.8f);
-                            en.AttackUntil = Time.time + 0.35f;
+                            en.NextAttack = Game.WorldTime + Random.Range(1.4f, 2.8f);
+                            en.AttackUntil = Game.WorldTime + 0.35f;
                             audio.At("enemy_attack", en.Root.transform.position, en.Pitch * MachineJitter());
                         }
                     }
@@ -228,19 +231,19 @@ namespace BlocksBeyondTheStars.Client
             if (en.IsDrone)
             {
                 // Hovering scan-drone: a gentle bob + a slow scanning yaw; no limbs to pose.
-                float pitch = Mathf.Sin((Time.time + en.Seed) * 2f) * 4f;
-                if (Time.time < en.AttackUntil)
+                float pitch = Mathf.Sin((Game.WorldTime + en.Seed) * 2f) * 4f;
+                if (Game.WorldTime < en.AttackUntil)
                 {
                     pitch -= 12f; // a brief nose-up recoil kick when it fires
                 }
 
-                en.Body.localRotation = Quaternion.Euler(pitch, (Time.time * 50f) % 360f, 0f);
+                en.Body.localRotation = Quaternion.Euler(pitch, (Game.WorldTime * 50f) % 360f, 0f);
                 return;
             }
 
             float moving = Mathf.Clamp01(speed / 2.5f);
-            en.WalkPhase += Time.deltaTime * (3f + speed * 1.6f);
-            float t = Time.time + en.Seed;
+            en.WalkPhase += Game.WorldDeltaTime * (3f + speed * 1.6f);
+            float t = Game.WorldTime + en.Seed;
 
             float swing = Mathf.Sin(en.WalkPhase) * Mathf.Lerp(4f, 38f, moving);
             float armL = -swing, armR = swing, legL = swing, legR = -swing;
@@ -263,15 +266,15 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            if (Time.time < en.AttackUntil)
+            if (Game.WorldTime < en.AttackUntil)
             {
                 // Claw swipe: the right arm whips from raised to a downward slash.
-                float k = 1f - (en.AttackUntil - Time.time) / 0.35f;
+                float k = 1f - (en.AttackUntil - Game.WorldTime) / 0.35f;
                 armR = Mathf.Lerp(-130f, 45f, Mathf.SmoothStep(0f, 1f, k));
                 bodyPitch += 8f * Mathf.Sin(Mathf.Clamp01(k) * Mathf.PI); // lunge into the swipe
             }
 
-            if (Time.time < en.FlinchUntil)
+            if (Game.WorldTime < en.FlinchUntil)
             {
                 bodyPitch -= 14f; // recoil back when hit
             }

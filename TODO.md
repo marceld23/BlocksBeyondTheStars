@@ -104,6 +104,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ The Esc pause actually stops the world the player can see (#908, 2026-08-10, branch fix/908-singleplayer-pause)
+Follow-up to #612, which made the Esc menu hold the **server** but never told the client about it:
+`NetworkClient.PauseStateReceived` had no subscribers, so everything the client simulates itself kept
+running behind the dialog. `GameBootstrap` now exposes `WorldPaused` / `WorldDeltaTime` / `WorldTime`,
+fed from `PauseState` by a new unit-tested `WorldClock` (Client.Core) that stands still while held and
+skips the paused stretch, so timers don't all fire at once on resume. Moved onto that clock: the
+player's own gravity (pausing mid-fall no longer drops you), micro-fauna, creature bodies + idle/answer
+calls + lunges, planet enemies and bandits, settlement NPCs, the geyser/lava-fall/waterfall ambience,
+and — the "night keeps falling" part — the client's *local* day clock in `Sky` and `SkyBodiesView` plus
+the cloud deck. Deliberately still live: music, UI, the camera and shader/station-prop flicker, because
+a fully frozen image reads as a crash. Weather needed no change (already gated on `MenuOpen`). Server
+side: `JoinedCount` no longer counts spectators (#487 observers), so an admin quietly watching a world
+stops silently denying its only player their pause. No new locale keys.
+
 ### ★ Website translated into all 13 game languages (2026-08-10, branch feat/wix-i18n-locale-tools)
 The full website (all pages, menu, forms, image alt texts) now has complete translations in every
 game language: en/it plus newly created es, fr, nl, pl, pt, tr, ru, uk, ja, ko, zh — the 11 new Wix

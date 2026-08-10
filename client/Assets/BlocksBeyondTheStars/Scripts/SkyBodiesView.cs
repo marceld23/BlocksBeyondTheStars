@@ -98,8 +98,11 @@ namespace BlocksBeyondTheStars.Client
             bool show = !Game.SpaceViewActive && Game.Environment != null && _bodies.Count > 0;
 
             // Continuous day clock: the server's TimeOfDay only arrives in periodic steps — the slow sun hides
-            // that, but our faster bodies would visibly JUMP between updates. Advance a local clock with real
+            // that, but our faster bodies would visibly JUMP between updates. Advance a local clock with world
             // time (the world's day length) and softly resync it to the authoritative value (wrap-aware).
+            // World time, not frame time (#908): this local clock is why "night kept falling" behind the pause
+            // menu even though the server had stopped broadcasting a new TimeOfDay.
+            float dtWorld = Game.WorldDeltaTime;
             float target = Game.LocalTimeOfDay;
             if (_tod < 0f)
             {
@@ -107,9 +110,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float dayLen = Mathf.Max(30f, Game.Environment?.DayLengthSeconds > 1 ? (float)Game.Environment.DayLengthSeconds : 600f);
-            _tod = Mathf.Repeat(_tod + Time.deltaTime / dayLen, 1f);
+            _tod = Mathf.Repeat(_tod + dtWorld / dayLen, 1f);
             float err = Mathf.DeltaAngle(_tod * 360f, target * 360f) / 360f;
-            _tod = Mathf.Repeat(_tod + err * Mathf.Min(1f, Time.deltaTime * 0.4f), 1f);
+            _tod = Mathf.Repeat(_tod + err * Mathf.Min(1f, dtWorld * 0.4f), 1f);
 
             // The monotonic orbital clock: advance locally (fixed reference day) and softly resync to the
             // authoritative SystemTimeDays so the slow phase drift is a glide, not 5-second broadcast steps.
@@ -119,10 +122,10 @@ namespace BlocksBeyondTheStars.Client
                 _sysDays = sysTarget >= 0.0 ? sysTarget : 0.0;
             }
 
-            _sysDays += Time.deltaTime / SystemDaySeconds;
+            _sysDays += dtWorld / SystemDaySeconds;
             if (sysTarget >= 0.0)
             {
-                _sysDays += (sysTarget - _sysDays) * Mathf.Min(1f, Time.deltaTime * 0.4f);
+                _sysDays += (sysTarget - _sysDays) * Mathf.Min(1f, dtWorld * 0.4f);
             }
 
             float day = Mathf.Clamp01(Mathf.Sin(_tod * Mathf.PI));

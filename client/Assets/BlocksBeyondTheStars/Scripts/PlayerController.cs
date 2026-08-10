@@ -1884,6 +1884,15 @@ namespace BlocksBeyondTheStars.Client
 
         private void ApplyGravityOnly()
         {
+            // A held world (#908) holds the body too. Without this, opening the pause menu mid-jump or mid-fall
+            // kept dropping the player through a world that had otherwise stopped — the single most obvious way
+            // the "pause" failed to look like one. The vertical velocity is left untouched, so resuming carries
+            // the fall on from exactly where it stopped instead of restarting it.
+            if (Game != null && Game.WorldPaused)
+            {
+                return;
+            }
+
             bool grounded = _controller.isGrounded;
             UpdateFloorWait(grounded);
             if (grounded)

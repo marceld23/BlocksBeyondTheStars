@@ -172,6 +172,27 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Live total playtime = the server's saved cumulative seconds plus this session so far.</summary>
         public long TotalPlaytimeSeconds => CumulativePlaytimeSeconds + (long)SessionSeconds;
 
+        // --- The held world (#908) -----------------------------------------------------------------------
+        // #612 made the Esc menu stop the SERVER simulation, but the client was never told about it, so
+        // everything it animates itself kept running behind the dialog. Fed from the server's PauseState.
+        private readonly BlocksBeyondTheStars.Client.WorldClock _worldClock = new BlocksBeyondTheStars.Client.WorldClock();
+
+        /// <summary>True while the server is holding the world for our pause menu. False whenever the server
+        /// declined the hold (more than one player joined) — the world really is still running then.</summary>
+        public bool WorldPaused => _worldClock.Paused;
+
+        /// <summary>Seconds to advance CLIENT-SIDE world simulation by this frame — <c>Time.deltaTime</c> while
+        /// the world runs, 0 while it is held. Deliberately derived from the live frame rather than from the
+        /// clock's stored delta so it is correct regardless of script execution order.
+        /// <para>Use this instead of <c>Time.deltaTime</c> for anything that is part of the WORLD (fauna,
+        /// weather, creature bodies). Menus, music, the camera and shader time keep real time on purpose: a
+        /// completely frozen image reads as a crash rather than as a pause.</para></summary>
+        public float WorldDeltaTime => _worldClock.Paused ? 0f : Time.deltaTime;
+
+        /// <summary>Monotonic count of unpaused seconds — the <c>Time.time</c> equivalent for world simulation.
+        /// Timers scheduled against it (a creature's next idle call) do not all fire at once after a long pause.</summary>
+        public float WorldTime => _worldClock.Now;
+
         /// <summary>Recomputes the world's per-species flora colours (deterministic from seed + location,
         /// so every client agrees). Chunks meshed afterwards pick them up via the tint resolver.</summary>
         private void RebuildFloraTints()
@@ -1553,6 +1574,9 @@ namespace BlocksBeyondTheStars.Client
 
                 Knowledge = m.KnowledgePoints;
             };
+            // The server's answer to our pause intent (#908). Honours Allowed implicitly: a declined hold comes
+            // back with Paused = false, so the client keeps simulating exactly as it did before.
+            Network.PauseStateReceived += m => _worldClock.SetPaused(m.Paused);
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
@@ -1858,6 +1882,7 @@ namespace BlocksBeyondTheStars.Client
         private void Update()
         {
             Network?.Poll();
+            _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
 
             _skyScanTimer -= Time.deltaTime;
             if (_skyScanTimer <= 0f)

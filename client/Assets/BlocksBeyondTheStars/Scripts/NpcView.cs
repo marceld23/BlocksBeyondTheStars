@@ -28,13 +28,19 @@ namespace BlocksBeyondTheStars.Client
             public float GestureTimer;     // counts down to the next work gesture (mine/place/talk swing)
             public float GestureLo, GestureHi; // cadence range from the NPC's theme/role
             public string Greeting;        // item 15: a contextual speech-bubble line (empty = none showing)
-            public float GreetingUntil;    // Time.time after which the bubble fades out
+            public float GreetingUntil;    // world time after which the bubble fades out
         }
 
         private const float GreetingSeconds = 7f; // how long a greeting bubble stays up
 
         private readonly Dictionary<int, Npc> _npcs = new Dictionary<int, Npc>();
         private bool _subscribed;
+
+        // World time rather than frame time (#908): settlement NPCs stop walking and gesturing while the server
+        // holds the world, and a greeting bubble that was up stays up for the rest of its seven seconds instead
+        // of expiring behind the pause menu. Falls back to frame time before the bootstrap is wired.
+        private float WorldNow => Game != null ? Game.WorldTime : Time.time;
+        private float WorldDelta => Game != null ? Game.WorldDeltaTime : Time.deltaTime;
 
         private void Update()
         {
@@ -50,13 +56,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Track the latest target without fully catching up before the next snapshot arrives, so the
                 // NPC keeps gliding (and its walk cycle keeps running) instead of stop-start jerking.
-                n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, Time.deltaTime * 5f);
+                n.SettledWorld = Vector3.Lerp(n.SettledWorld, n.Target, WorldDelta * 5f);
                 n.Go.transform.position = Game != null ? Game.ScenePos(n.SettledWorld.x, n.SettledWorld.y, n.SettledWorld.z) : n.SettledWorld;
                 n.Go.transform.rotation = Quaternion.Euler(0f, n.Yaw, 0f);
 
                 // Ambient work gestures: a periodic tool/arm swing so settlement NPCs look busy (miners chip
                 // away often, settlers/builders place now and then, vendors gesture occasionally).
-                n.GestureTimer -= Time.deltaTime;
+                n.GestureTimer -= WorldDelta;
                 if (n.GestureTimer <= 0f)
                 {
                     n.Avatar?.Swing();
@@ -80,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
 
             string text = string.IsNullOrWhiteSpace(m.Text) ? FallbackGreeting(m.Role) : m.Text.Trim();
             n.Greeting = text;
-            n.GreetingUntil = Time.time + GreetingSeconds;
+            n.GreetingUntil = WorldNow + GreetingSeconds;
         }
 
         /// <summary>The localized static greeting shown when no AI line is available, keyed by NPC role.</summary>
@@ -220,7 +226,7 @@ namespace BlocksBeyondTheStars.Client
                 labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, n.Label, UiKit.Cyan, false, 18f, 28f);
 
                 // A live greeting bubble sits just above the nameplate (item 15).
-                if (!string.IsNullOrEmpty(n.Greeting) && Time.time < n.GreetingUntil)
+                if (!string.IsNullOrEmpty(n.Greeting) && WorldNow < n.GreetingUntil)
                 {
                     labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, $"“{n.Greeting}”", UiKit.TextCol, false, 18f, 28f);
                 }

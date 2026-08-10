@@ -1103,7 +1103,10 @@ public sealed partial class GameServer
     public void PauseForTest(PlayerSession session, bool paused)
         => HandlePause(session, new PauseIntent { Paused = paused });
 
-    /// <summary>Number of players who have completed the join handshake.</summary>
+    /// <summary>Number of players who have completed the join handshake. Spectators do not count (#908): an
+    /// invisible admin observing a world is not someone whose game a pause could interrupt, and counting them
+    /// silently denied a lone player their pause — or lifted one that was already running. Everywhere else in
+    /// the server draws the same line (see <c>GameServerObserver</c>).</summary>
     private int JoinedCount
     {
         get
@@ -1111,7 +1114,7 @@ public sealed partial class GameServer
             int n = 0;
             foreach (var s in _sessions.Values)
             {
-                if (s.Joined)
+                if (s.Joined && !s.Spectating)
                 {
                     n++;
                 }

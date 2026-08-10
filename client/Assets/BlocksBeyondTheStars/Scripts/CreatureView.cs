@@ -24,7 +24,7 @@ namespace BlocksBeyondTheStars.Client
             public string Bank;   // creature_{size}_{disposition} voice bank (hurt/alert/attack/die)
             public string Call;   // this species' signature idle call (creature_call_*)
             public float Pitch;   // per-species voice pitch (size + a per-species offset)
-            public float NextCall; // Time.time of the next idle vocalisation
+            public float NextCall; // world time of the next idle vocalisation
             public float AnswerAt; // pending call-answer time (#876) — 0 while none is scheduled
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
@@ -33,7 +33,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
             public Vector3 FaceDir;     // smoothed heading the body turns to face (so it doesn't moonwalk)
             public Vector3 TargetVel;     // velocity estimated from consecutive server updates (#654)
-            public float LastTargetChange; // Time.time of the last authoritative position change (#654)
+            public float LastTargetChange; // world time of the last authoritative position change (#654)
             public float PitchDeg;         // smoothed slope pitch (#652) — nose up/down along real motion
             public float RollDeg;          // smoothed banking roll (#652) — fliers lean into turns
             public Vector3 PrevFaceDir;    // last frame's facing → heading rate for the banking roll
@@ -59,6 +59,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 return;
             }
+
+            // World time, not frame time (#908). While the server holds the world for the pause menu both are
+            // stationary, so animals stop walking, calling, answering and lunging with everything else — and
+            // because WorldTime skips the paused stretch, the timers below do not all fire at once on resume.
+            float now = Game.WorldTime;
+            float dt = Game.WorldDeltaTime;
 
             var seen = _seenScratch;
             seen.Clear();
@@ -87,12 +93,12 @@ namespace BlocksBeyondTheStars.Client
                         Call = CallForHabitat(c.Habitat, idh),
                         Echo = string.Equals(c.Habitat, "Cave", System.StringComparison.OrdinalIgnoreCase),
                         Pitch = Mathf.Clamp(sizePitch * speciesOffset, 0.6f, 1.85f),
-                        NextCall = Time.time + Random.Range(2f, 6f),
+                        NextCall = now + Random.Range(2f, 6f),
                         Settled = pos,
                         PrevSettled = pos,
                         FaceDir = Vector3.forward,
                         PrevFaceDir = Vector3.forward,
-                        LastTargetChange = Time.time,
+                        LastTargetChange = now,
                         PrevHostile = c.Hostile,
                         PrevHull = c.Hull,
                     };
@@ -106,21 +112,21 @@ namespace BlocksBeyondTheStars.Client
                 // (spawn shove, eviction) reset the estimate instead of predicting through them.
                 if ((pos - entry.Target).sqrMagnitude > 1e-6f)
                 {
-                    float gap = Mathf.Max(0.05f, Time.time - entry.LastTargetChange);
+                    float gap = Mathf.Max(0.05f, now - entry.LastTargetChange);
                     var estimated = (pos - entry.Target) / gap;
                     entry.TargetVel = estimated.sqrMagnitude > 64f ? Vector3.zero : estimated;
-                    entry.LastTargetChange = Time.time;
+                    entry.LastTargetChange = now;
                 }
 
                 entry.Target = pos;
-                var predicted = entry.Target + entry.TargetVel * Mathf.Min(Time.time - entry.LastTargetChange, 0.3f);
+                var predicted = entry.Target + entry.TargetVel * Mathf.Min(now - entry.LastTargetChange, 0.3f);
                 // Smoothly chase the (extrapolated) authoritative position; a visible lunge toward the
                 // player is added on top during an attack so attacks read clearly.
-                entry.Settled = Vector3.Lerp(entry.Settled, predicted, Time.deltaTime * 8f);
+                entry.Settled = Vector3.Lerp(entry.Settled, predicted, dt * 8f);
                 Vector3 lunge = Vector3.zero;
-                if (Time.time < entry.AttackUntil)
+                if (now < entry.AttackUntil)
                 {
-                    float k = 1f - (entry.AttackUntil - Time.time) / 0.22f;
+                    float k = 1f - (entry.AttackUntil - now) / 0.22f;
                     var to = Game.PlayerPosition - Game.ScenePos(entry.Settled.x, entry.Settled.y, entry.Settled.z); to.y = 0f;
                     if (to.sqrMagnitude > 0.04f)
                     {
@@ -146,7 +152,7 @@ namespace BlocksBeyondTheStars.Client
                 vel.y = 0f;
                 if (vel.sqrMagnitude > 1e-5f)
                 {
-                    entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * Time.deltaTime));
+                    entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * dt));
                     bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase);
                     float targetPitch = 0f, targetRoll = 0f;
                     if (!medusa)
@@ -157,14 +163,14 @@ namespace BlocksBeyondTheStars.Client
                         if (string.Equals(c.Habitat, "Air", System.StringComparison.OrdinalIgnoreCase))
                         {
                             float turnRate = Vector3.SignedAngle(entry.PrevFaceDir, entry.FaceDir, Vector3.up)
-                                / Mathf.Max(Time.deltaTime, 1e-4f);
+                                / Mathf.Max(dt, 1e-4f);
                             targetRoll = Mathf.Clamp(-turnRate * 0.25f, -20f, 20f);
                         }
                     }
 
                     entry.PrevFaceDir = entry.FaceDir;
-                    entry.PitchDeg = Mathf.Lerp(entry.PitchDeg, targetPitch, 1f - Mathf.Exp(-6f * Time.deltaTime));
-                    entry.RollDeg = Mathf.Lerp(entry.RollDeg, targetRoll, 1f - Mathf.Exp(-6f * Time.deltaTime));
+                    entry.PitchDeg = Mathf.Lerp(entry.PitchDeg, targetPitch, 1f - Mathf.Exp(-6f * dt));
+                    entry.RollDeg = Mathf.Lerp(entry.RollDeg, targetRoll, 1f - Mathf.Exp(-6f * dt));
                     if (entry.FaceDir.sqrMagnitude > 1e-4f)
                     {
                         entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up)
@@ -180,29 +186,29 @@ namespace BlocksBeyondTheStars.Client
                 // quiet — only an occasional soft, low snore rather than its full waking call. Every utterance
                 // gets a small pitch/volume jitter and a random take of the species call (#876/#879) — the
                 // species voice stays deterministic, only the individual utterance varies.
-                if (Time.time >= entry.NextCall)
+                if (now >= entry.NextCall)
                 {
                     if (c.Asleep)
                     {
-                        entry.NextCall = Time.time + Random.Range(9f, 18f);
+                        entry.NextCall = now + Random.Range(9f, 18f);
                         ClientAudio.Instance?.At(TakeOf(entry.Call), entry.Root.transform.position,
                             entry.Pitch * 0.7f * PitchJitter(), 0.3f * VolJitter(), entry.Echo);
                     }
                     else
                     {
-                        entry.NextCall = Time.time + Random.Range(5f, 12f);
+                        entry.NextCall = now + Random.Range(5f, 12f);
                         ClientAudio.Instance?.At(TakeOf(entry.Call), entry.Root.transform.position,
                             entry.Pitch * PitchJitter(), 0.8f * VolJitter(), entry.Echo);
                         if (Random.value < 0.2f)
                         {
-                            entry.AnswerAt = Time.time + Random.Range(0.4f, 0.9f); // a second animal "answers"
+                            entry.AnswerAt = now + Random.Range(0.4f, 0.9f); // a second animal "answers"
                         }
                     }
                 }
 
                 // The scheduled answer call (#876): the same species voice from a slightly different spot at a
                 // slightly different pitch — reads as a second animal answering the first.
-                if (entry.AnswerAt > 0f && Time.time >= entry.AnswerAt)
+                if (entry.AnswerAt > 0f && now >= entry.AnswerAt)
                 {
                     entry.AnswerAt = 0f;
                     if (!c.Asleep)
@@ -230,12 +236,12 @@ namespace BlocksBeyondTheStars.Client
 
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
                     // boarded player (no proximity damage), so the render side must not keep mauling the hull.
-                    if (c.Hostile && !Game.Aboard && Time.time >= entry.NextAttack
+                    if (c.Hostile && !Game.Aboard && now >= entry.NextAttack
                         && (entry.Root.transform.position - Game.PlayerPosition).sqrMagnitude < 9f)
                     {
-                        entry.NextAttack = Time.time + Random.Range(1.5f, 3.5f);
+                        entry.NextAttack = now + Random.Range(1.5f, 3.5f);
                         audio.At(entry.Bank + "_attack", entry.Root.transform.position, entry.Pitch * PitchJitter(), 1f * VolJitter(), entry.Echo);
-                        entry.AttackUntil = Time.time + 0.22f;            // lunge
+                        entry.AttackUntil = now + 0.22f;            // lunge
                         SpawnAttackFx(Vector3.Lerp(Game.PlayerPosition, entry.Settled, 0.35f) + Vector3.up * 0.9f);
                     }
                 }
@@ -355,7 +361,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float s = Mathf.Clamp(c.Size, 0.4f, 8f); // 8: titans (#638)
-            float breathe = Mathf.Sin(Time.time * 1.6f) * 0.03f * s;
+            float breathe = Mathf.Sin(Game.WorldTime * 1.6f) * 0.03f * s;
             e.Root.transform.position += Vector3.up * (breathe - 0.12f * s); // settle low + gentle breathing
 
             if (e.Zzz == null)
@@ -377,7 +383,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             float top = 1.5f * s + 0.5f;
-            float drift = Mathf.Repeat(Time.time * 0.4f, 1f) * 0.5f; // slow upward drift
+            float drift = Mathf.Repeat(Game.WorldTime * 0.4f, 1f) * 0.5f; // slow upward drift
             var platePos = e.Root.transform.position + Vector3.up * (top + drift);
             e.Zzz.transform.position = platePos;
 
@@ -397,7 +403,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (!e.Zzz.activeSelf) e.Zzz.SetActive(true);
-            alpha *= 0.6f + 0.4f * Mathf.Abs(Mathf.Sin(Time.time * 1.2f)); // gentle breathing pulse
+            alpha *= 0.6f + 0.4f * Mathf.Abs(Mathf.Sin(Game.WorldTime * 1.2f)); // gentle breathing pulse
             var col = new Color(0.8f, 0.88f, 1f, 0.85f * alpha);
             if (e.ZzzText.color != col) e.ZzzText.color = col;
         }
