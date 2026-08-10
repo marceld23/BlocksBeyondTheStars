@@ -258,6 +258,15 @@ namespace BlocksBeyondTheStars.Client
 
             // Stations use a clean neutral interior light (not the system sun's tint).
             Color tint = constantLight ? new Color(0.95f, 0.96f, 1f) : warmSun * (brightness * weatherDim);
+
+            // A lightning strike lights the WORLD for a moment (#900), not just the screen: the block light
+            // global is pushed toward a cold white, so the whole landscape flares out of a dark storm.
+            float bolt = constantLight ? 0f : Mathf.Clamp01(WeatherFx.LightningFlash);
+            if (bolt > 0.001f)
+            {
+                tint = Color.Lerp(tint, new Color(1.15f, 1.18f, 1.30f), bolt * 0.8f);
+            }
+
             tint.a = 1f; // marks the global as "set" for the shaders
             Shader.SetGlobalColor(LightId, ShaderColor.Srgb(tint));
 

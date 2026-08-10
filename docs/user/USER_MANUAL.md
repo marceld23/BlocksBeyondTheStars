@@ -635,9 +635,24 @@ separate unlock; admins can still disable it through server world rules.
 - **Day/night is by location** — because X is a longitude, a planet has a real day/night terminator: one
   player can be in daylight while another, far away, is in night, and one lap around the world is one day.
   The clock still advances.
-- **Weather is per biome** — a stormy biome can rain while a neighbouring clear biome stays sunny; some
-  biomes are reliably wetter than others. Weather is hidden + silent in caves/underground. Admins can
-  override time/weather (see §7).
+- **Weather comes in episodes** — it swells, holds and fades rather than switching on and off, and every
+  world has its own temper: some flip between squalls, others brood under one sky for minutes. Storms
+  build through the afternoon, mist gathers around dawn, and a slow wet/dry season rides on top.
+- **Weather is per position** — a stormy biome can rain while a neighbouring clear one stays sunny,
+  mountain tops sit in cloud and snow while the valley below is clear, and **fronts drift across the
+  world**, so you can watch a storm arrive and move on. Weather is hidden + silent in caves/underground.
+  Admins can override time/weather (see §7).
+- **Beyond rain and snow** — drizzle, sleet, hail, ground fog and whiteout fog, gales, blizzards,
+  heatwaves, and the genuinely alien: **acid rain** on toxic worlds, **ember fall** on volcanic ones,
+  **spore blooms** in jungles and swamps, and **ion storms** and **meteor showers** that even airless
+  moons and asteroids get — those used to have no weather at all.
+- **Weather has consequences** — corrosive and falling weather drains your suit out in the open, so a
+  roof is a real answer; rain waters planted flora so it regrows faster; scanners lose range in blown
+  grit and charged air; animals hunker down in violent weather; snow settles on the ground and melts
+  again when it warms up.
+- **…and opportunities** — an **ion storm charges an exposed suit**, a **spore bloom** fattens what you
+  harvest. Sometimes the right move is to walk into the bad weather. Craft the **weather scanner** to
+  read what is coming before you set out.
 - **Multiplayer:** players can be on **different planets / star systems at once**, each with their own ship
   and start point. The star map (Tab → Map) shows where everyone is ("◈ Alice, Bob").
 

@@ -71,15 +71,34 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private struct Style { public Color Color; public float Fall, Slant, Drift, Density; public Vector3 Scale; public Quaternion Tilt; }
+        private struct Style
+        {
+            public Color Color;
+            public float Fall, Slant, Drift, Density;
+            public Vector3 Scale;
+            public Quaternion Tilt;
+
+            /// <summary>Rises instead of falling — spores drifting up off the canopy.</summary>
+            public bool Rises;
+        }
 
         /// <summary>Per-precipitation look: colour, fall speed, slant, sideways drift, density + drop shape.</summary>
         private static Style StyleFor(string precip, bool storm) => precip switch
         {
             "snow" => new Style { Color = new Color(0.96f, 0.97f, 1f), Fall = 0.22f, Slant = 0.8f, Drift = 1.5f, Density = 1.1f, Scale = new Vector3(0.09f, 0.09f, 0.09f), Tilt = Quaternion.identity },
+            "sleet" => new Style { Color = new Color(0.88f, 0.92f, 0.98f), Fall = 0.7f, Slant = 2.5f, Drift = 0.9f, Density = 1.0f, Scale = new Vector3(0.05f, 0.22f, 0.05f), Tilt = Quaternion.Euler(9f, 0f, 0f) },
             "hail" => new Style { Color = new Color(0.86f, 0.90f, 0.96f), Fall = 1.9f, Slant = 1.5f, Drift = 0.3f, Density = 0.9f, Scale = new Vector3(0.11f, 0.13f, 0.11f), Tilt = Quaternion.identity },
             "ash" => new Style { Color = new Color(1f, 0.5f, 0.2f), Fall = 0.30f, Slant = 0.8f, Drift = 1.8f, Density = 1.0f, Scale = new Vector3(0.07f, 0.07f, 0.07f), Tilt = Quaternion.identity },
             "sandstorm" => new Style { Color = new Color(0.82f, 0.70f, 0.46f), Fall = 0.35f, Slant = 16f, Drift = 3f, Density = 1.3f, Scale = new Vector3(0.05f, 0.05f, 0.30f), Tilt = Quaternion.identity },
+            // A gale carries grit, not water: long, near-horizontal streaks.
+            "dust" => new Style { Color = new Color(0.74f, 0.68f, 0.55f), Fall = 0.18f, Slant = 20f, Drift = 4f, Density = 1.1f, Scale = new Vector3(0.04f, 0.04f, 0.36f), Tilt = Quaternion.identity },
+            "drizzle" => new Style { Color = new Color(0.72f, 0.82f, 1f), Fall = 0.55f, Slant = 1.2f, Drift = 0.5f, Density = 0.55f, Scale = new Vector3(0.02f, 0.22f, 0.02f), Tilt = Quaternion.Euler(3f, 0f, 0f) },
+            // Corrosive rain: sickly green, heavier and faster than water.
+            "acid" => new Style { Color = new Color(0.62f, 0.95f, 0.42f), Fall = 1.15f, Slant = 3f, Drift = 0.4f, Density = 1.0f, Scale = new Vector3(0.04f, 0.55f, 0.04f), Tilt = Quaternion.Euler(8f, 0f, 0f) },
+            // Meteorite grit: very fast, long, burning-bright streaks.
+            "meteor" => new Style { Color = new Color(1f, 0.82f, 0.45f), Fall = 3.4f, Slant = 9f, Drift = 0.2f, Density = 0.5f, Scale = new Vector3(0.04f, 1.4f, 0.04f), Tilt = Quaternion.Euler(22f, 0f, 0f) },
+            // Spores drift UP off the canopy — the one weather that rises.
+            "spores" => new Style { Color = new Color(0.72f, 1f, 0.78f), Fall = 0.12f, Slant = 0.6f, Drift = 2.2f, Density = 0.8f, Scale = new Vector3(0.06f, 0.06f, 0.06f), Tilt = Quaternion.identity, Rises = true },
             _ => new Style { Color = new Color(0.68f, 0.80f, 1f), Fall = storm ? 1.45f : 1f, Slant = storm ? 7f : 2f, Drift = 0.3f, Density = 1.0f, Scale = new Vector3(0.03f, storm ? 0.75f : 0.5f, 0.03f), Tilt = Quaternion.Euler(storm ? 14f : 4f, 0f, 0f) },
         };
 
@@ -89,11 +108,13 @@ namespace BlocksBeyondTheStars.Client
             string precip = env?.Precipitation ?? "none";
             // Deliberately NOT gated on Game.ExposedToSky: per-column checks below decide where drops
             // may fall, so rain stays visible outside the cave mouth while the player stands inside.
-            bool active = env != null && precip != "none" && !Game.SpaceViewActive && !Game.MenuOpen;
+            bool inWorld = env != null && !Game.SpaceViewActive && !Game.MenuOpen;
+            bool active = inWorld && precip != "none";
 
-            // Storm fog is global, so it still keys on the player's own exposure — otherwise a
-            // sheltered cave/room would fill with fog too.
-            ApplyFog(env, precip, active && Game.ExposedToSky);
+            // Fog is keyed on the WEATHER, not on the precipitation: fog, ground fog and an ion storm
+            // drop nothing at all yet are exactly the states that close the view in (#900). It still
+            // keys on the player's own exposure — otherwise a sheltered cave/room would fill with fog.
+            ApplyFog(env, precip, inWorld && Game.ExposedToSky);
 
             if (Cam == null || !active)
             {
@@ -111,9 +132,18 @@ namespace BlocksBeyondTheStars.Client
             var s = StyleFor(precip, env.Weather == "storm");
             Color drop = ShaderColor.Srgb(s.Color);
             if (_mat.color != drop) { _mat.color = drop; } // all drops share one material → one precip form at a time
-            int count = Mathf.RoundToInt(Pool * Mathf.Clamp01(0.4f + env.Intensity * 0.6f) * s.Density);
+            // Intensity comes from the SMOOTHED client value (#900), so an episode's swell and fade shows
+            // as a ramp in the drop count rather than a 5 s staircase.
+            float strength = Game != null ? Game.WeatherIntensity : env.Intensity;
+            int count = Mathf.RoundToInt(Pool * Mathf.Clamp01(0.4f + strength * 0.6f) * s.Density);
             var camPos = Cam.transform.position;
             float dt = Time.deltaTime, t = Time.time;
+
+            // Wind blows the precipitation along the world's own wind direction, so a gale visibly drives
+            // it sideways and a still sky drops it straight down.
+            float wind = Game != null ? Game.WindSpeed : 0f;
+            Vector3 windDir = Game != null ? Game.WindVector : Vector3.zero;
+            float windPush = wind * 12f;
 
             for (int i = 0; i < Pool; i++)
             {
@@ -130,7 +160,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!d.gameObject.activeSelf)
                 {
-                    if (!TryRespawn(d, camPos))
+                    if (!TryRespawn(d, camPos, s.Rises))
                     {
                         continue; // no open-sky column found this frame (e.g. deep underground)
                     }
@@ -139,11 +169,17 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 float wobble = Mathf.Sin(t * 2.2f + i) * s.Drift; // flakes/embers/sand swirl sideways
-                var p = d.position + new Vector3((s.Slant + wobble) * dt, -_speed[i] * s.Fall * dt, wobble * 0.4f * dt);
-                if (p.y < camPos.y - 7f || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f)
+                float vertical = _speed[i] * s.Fall * (s.Rises ? 1f : -1f);
+                var p = d.position + new Vector3(
+                    (s.Slant + wobble + windDir.x * windPush) * dt,
+                    vertical * dt,
+                    (wobble * 0.4f + windDir.z * windPush) * dt);
+                // Rising motes leave upward; falling ones die below the camera or inside a block.
+                bool gone = s.Rises ? p.y > camPos.y + SpawnUp + 8f : p.y < camPos.y - 7f;
+                if (gone || (p - camPos).sqrMagnitude > (SpawnRadius * 1.6f) * (SpawnRadius * 1.6f)
                     || InsideBlock(p))
                 {
-                    if (!TryRespawn(d, camPos))
+                    if (!TryRespawn(d, camPos, s.Rises))
                     {
                         d.gameObject.SetActive(false);
                     }
@@ -160,13 +196,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Moves the drop to a fresh spawn above the camera, but only into a column with open
         /// sky overhead — drops must never appear under a cave ceiling or roof. False = no open column
         /// found this frame; the caller keeps the drop hidden and retries next frame.</summary>
-        private bool TryRespawn(Transform d, Vector3 camPos)
+        private bool TryRespawn(Transform d, Vector3 camPos, bool rises = false)
         {
             for (int attempt = 0; attempt < 3; attempt++)
             {
+                // Falling weather appears above the camera; rising motes (spores) come up from below it.
+                float y = rises
+                    ? -4f - (float)_rng.NextDouble() * 4f
+                    : SpawnUp + (float)_rng.NextDouble() * 6f;
                 var p = camPos + new Vector3(
                     (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius,
-                    SpawnUp + (float)_rng.NextDouble() * 6f,
+                    y,
                     (float)(_rng.NextDouble() * 2 - 1) * SpawnRadius);
                 if (ColumnOpen(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y), Mathf.FloorToInt(p.z)))
                 {
@@ -229,6 +269,31 @@ namespace BlocksBeyondTheStars.Client
             return open;
         }
 
+        /// <summary>True while the camera sits within a few blocks of the ground it stands on — the height
+        /// gate for ground fog, which must hang in the valleys and not follow you up a mountain.</summary>
+        private bool IsNearGround(Vector3 p)
+        {
+            var w = Game?.World;
+            if (w == null)
+            {
+                return true;
+            }
+
+            int x = Mathf.FloorToInt(p.x), z = Mathf.FloorToInt(p.z);
+            for (int dy = 1; dy <= GroundFogHeight; dy++)
+            {
+                if (!w.GetBlock(x, Mathf.FloorToInt(p.y) - dy, z).IsAir)
+                {
+                    return true; // solid ground close below → we're down in the mist
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>How far above the ground the ground-fog layer reaches, in blocks.</summary>
+        private const int GroundFogHeight = 7;
+
         private void HideAll()
         {
             if (_drops == null)
@@ -249,8 +314,13 @@ namespace BlocksBeyondTheStars.Client
         /// intensity), restoring the previous fog state when the storm passes or we leave the world.</summary>
         private void ApplyFog(BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env, string precip, bool active)
         {
-            // A sandstorm always blinds you; otherwise only a (rain/ash/snow) storm fogs the air.
-            bool fog = active && (precip == "sandstorm" || env.Weather == "storm");
+            // A sandstorm or a gale always blinds you; so do the obscuring events and a full storm (#900).
+            // Ground fog is deliberately NOT global: it only closes in while the camera is near the ground,
+            // so from a hilltop you look out OVER it — Unity's fog has no height falloff of its own.
+            bool nearGround = Cam == null || Game?.World == null || IsNearGround(Cam.transform.position);
+            bool fog = active && (precip is "sandstorm" or "dust"
+                                  || env.Weather is "storm" or "blizzard" or "fog" or "ion_storm"
+                                  || (env.Weather == "ground_fog" && nearGround));
             if (fog)
             {
                 if (!_fogSaved)
@@ -264,18 +334,31 @@ namespace BlocksBeyondTheStars.Client
 
                 RenderSettings.fog = true;
                 RenderSettings.fogMode = FogMode.ExponentialSquared;
-                float intensity = Mathf.Clamp01(env.Intensity);
-                if (precip == "sandstorm")
+                float intensity = Mathf.Clamp01(Game != null ? Game.WeatherIntensity : env.Intensity);
+                if (precip is "sandstorm" or "dust")
                 {
                     RenderSettings.fogColor = new Color(0.78f, 0.66f, 0.42f);          // choking tan dust
                     RenderSettings.fogDensity = 0.012f + intensity * 0.020f;
                 }
+                else if (env.Weather is "fog" or "ground_fog")
+                {
+                    RenderSettings.fogColor = new Color(0.80f, 0.83f, 0.86f);          // soft grey murk
+                    RenderSettings.fogDensity = (env.Weather == "fog" ? 0.010f : 0.006f) + intensity * 0.022f;
+                }
+                else if (env.Weather == "ion_storm")
+                {
+                    RenderSettings.fogColor = new Color(0.42f, 0.55f, 0.78f);          // charged blue haze
+                    RenderSettings.fogDensity = 0.003f + intensity * 0.008f;
+                }
                 else
                 {
                     RenderSettings.fogColor = precip == "ash" ? new Color(0.34f, 0.26f, 0.22f) // smoky
-                                            : precip == "snow" || precip == "hail" ? new Color(0.74f, 0.78f, 0.84f) // white-out
+                                            : precip == "acid" ? new Color(0.40f, 0.52f, 0.32f) // acrid green
+                                            : precip == "snow" || precip == "sleet" || precip == "hail" ? new Color(0.74f, 0.78f, 0.84f) // white-out
                                             : new Color(0.45f, 0.50f, 0.58f);          // grey-blue rain storm
-                    RenderSettings.fogDensity = 0.004f + intensity * 0.010f;
+                    // A blizzard closes in far harder than an ordinary storm.
+                    float bite = env.Weather == "blizzard" ? 0.022f : 0.010f;
+                    RenderSettings.fogDensity = 0.004f + intensity * bite;
                 }
             }
             else if (_fogSaved)

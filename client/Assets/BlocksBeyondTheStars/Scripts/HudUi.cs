@@ -1374,8 +1374,51 @@ namespace BlocksBeyondTheStars.Client
             string gravStr = env.GravityFactor > 0.01f && Mathf.Abs(env.GravityFactor - 1f) > 0.05f && !Game.OnFootInSpace
                 ? "  " + string.Format(loc.Get("ui.hud.gravity"), env.GravityFactor.ToString("0.0"))
                 : string.Empty;
-            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{gravStr}";
+            _todText.text = $"{(day ? loc.Get("ui.hud.day") : loc.Get("ui.hud.night")).ToUpperInvariant()}  {mm}:{ss:00}  {tempStr}{WeatherChip(loc, env)}{gravStr}";
             _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+        }
+
+        /// <summary>
+        /// The weather chip (#900): a small icon + the localized state name next to the temperature, shown
+        /// only when there is actually weather to name — a clear sky says nothing, so a calm world stays as
+        /// uncluttered as it was. Before this the game never named its own weather anywhere.
+        /// </summary>
+        private string WeatherChip(BlocksBeyondTheStars.Shared.Localization.Localizer loc,
+            BlocksBeyondTheStars.Networking.Messages.WorldEnvironment env)
+        {
+            string state = env.Weather;
+            if (string.IsNullOrEmpty(state) || state == "clear" || env.SpaceSky)
+            {
+                return string.Empty;
+            }
+
+            string icon = state switch
+            {
+                "clouds" => "☁",
+                "rain" or "drizzle" => "☂",
+                "storm" => "⚡",
+                "blizzard" or "gale" => "❄",
+                "fog" or "ground_fog" => "≈",
+                "heatwave" => "☀",
+                "acid_rain" => "☣",
+                "ion_storm" => "⚡",
+                "meteor_shower" => "★",
+                "ember_fall" => "▲",
+                "spore_bloom" => "❋",
+                _ => "•",
+            };
+
+            // Violent and exotic weather is worth a warning colour; the mild states stay plain.
+            string colour = env.WeatherFamily switch
+            {
+                "violent" => "#ff7439",
+                "exotic" => "#c58bff",
+                "obscuring" => "#9fb4c8",
+                _ => null,
+            };
+
+            string label = $"{icon} {loc.Get("weather." + state)}";
+            return "  " + (colour is null ? label : $"<color={colour}>{label}</color>");
         }
 
         /// <summary>Temperature readout tinted by comfort (#666): icy blue below the band, hot orange above

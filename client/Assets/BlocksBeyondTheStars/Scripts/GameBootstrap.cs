@@ -621,6 +621,50 @@ namespace BlocksBeyondTheStars.Client
             env.Weather = "clear";
             env.Precipitation = "none";
             env.Intensity = 0f;
+            env.IntensityRate = 0f;
+            env.WindSpeed = 0f;
+        }
+
+        // --- Weather smoothing (#900) ---------------------------------------------------------------
+        // The server broadcasts the environment on a 5 s heartbeat (plus on state changes and on a big
+        // intensity move). Reading Intensity/WindSpeed straight off the message would step visibly, so the
+        // client extrapolates with the authoritative IntensityRate and eases toward the result. Every FX
+        // reads these instead of env.Intensity.
+        private float _weatherIntensity;
+        private float _windSpeed;
+        private float _windDirection;
+        private float _envAge;
+
+        /// <summary>Smoothed, extrapolated weather strength 0..1 — a swelling storm ramps instead of stepping.</summary>
+        public float WeatherIntensity => _weatherIntensity;
+
+        /// <summary>Smoothed wind strength 0..1: cloud speed, precipitation slant, flora sway, jetpack drift.</summary>
+        public float WindSpeed => _windSpeed;
+
+        /// <summary>Smoothed wind direction in radians on the world XZ plane.</summary>
+        public float WindDirection => _windDirection;
+
+        /// <summary>Wind as a world-space direction vector, scaled by strength — ready to add to a velocity.</summary>
+        public Vector3 WindVector => new Vector3(Mathf.Cos(_windDirection), 0f, Mathf.Sin(_windDirection)) * _windSpeed;
+
+        private void TickWeatherSmoothing()
+        {
+            var env = Environment;
+            if (env == null)
+            {
+                _weatherIntensity = Mathf.MoveTowards(_weatherIntensity, 0f, Time.deltaTime);
+                _windSpeed = Mathf.MoveTowards(_windSpeed, 0f, Time.deltaTime);
+                return;
+            }
+
+            _envAge += Time.deltaTime;
+            // Extrapolate along the reported rate, but never past the 0..1 band or more than one heartbeat
+            // out — a stale message must not run away on its own.
+            float target = Mathf.Clamp01(env.Intensity + env.IntensityRate * Mathf.Min(_envAge, 6f));
+            _weatherIntensity = Mathf.MoveTowards(_weatherIntensity, target, Time.deltaTime * 0.6f);
+            _windSpeed = Mathf.MoveTowards(_windSpeed, Mathf.Clamp01(env.WindSpeed), Time.deltaTime * 0.35f);
+            _windDirection = Mathf.MoveTowardsAngle(
+                _windDirection * Mathf.Rad2Deg, env.WindDirection * Mathf.Rad2Deg, Time.deltaTime * 20f) * Mathf.Deg2Rad;
         }
 
         /// <summary>World-X span over which the local time-of-day shifts a full cycle. This is the world
@@ -928,6 +972,36 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
+
+        /// <summary>
+        /// Renders a weather-scanner reading (#900) as a short, localized block: what the sky is doing here
+        /// now, the next episodes with their ETA, and the nearest front. This is what turns weather from
+        /// something that happens TO the player into something they can plan around.
+        /// </summary>
+        private void OnWeatherForecast(WeatherForecast m)
+        {
+            string Name(string state) => Localizer?.Get("weather." + state) ?? state;
+            string Eta(float seconds) => seconds >= 90f
+                ? string.Format(Localizer?.Get("weather.forecast.minutes") ?? "{0} min", Mathf.RoundToInt(seconds / 60f))
+                : string.Format(Localizer?.Get("weather.forecast.seconds") ?? "{0} s", Mathf.RoundToInt(seconds));
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append(Localizer?.Get("weather.forecast.title") ?? "Weather reading").Append(": ");
+            sb.Append(string.Format(Localizer?.Get("weather.forecast.now") ?? "Now: {0}", Name(m.Current)));
+            foreach (var entry in m.Upcoming)
+            {
+                sb.Append("  •  ").Append(string.Format(
+                    Localizer?.Get("weather.forecast.then") ?? "in {0}: {1}", Eta(entry.StartsInSeconds), Name(entry.State)));
+            }
+
+            sb.Append("  •  ").Append(m.FrontDistance >= 0f
+                ? string.Format(Localizer?.Get("weather.forecast.front") ?? "Front {0} blocks away", Mathf.RoundToInt(m.FrontDistance))
+                : Localizer?.Get("weather.forecast.no_front") ?? "No front nearby");
+            sb.Append("  •  ").Append(Localizer?.Get(
+                m.SeasonWetness >= 0.5f ? "weather.forecast.season_wet" : "weather.forecast.season_dry") ?? string.Empty);
+
+            LastMessage = sb.ToString();
+        }
 
         /// <summary>Generic resolution for "@srv.*" tokens: the token (minus '@') IS the locale key, an
         /// optional ":arg" tail fills the template's {name} placeholder. New server messages use this
@@ -1732,6 +1806,7 @@ namespace BlocksBeyondTheStars.Client
             Network.WorldEnvironmentReceived += m =>
             {
                 Environment = m;
+                _envAge = 0f; // restart the extrapolation window (#900)
                 Circumference = m.Circumference > 0 ? m.Circumference : WorldConstants.Circumference;
                 World?.SetCircumference(Circumference); // chunk/block wrap at this world's size
                 if (CaptureEnvActive)
@@ -1739,6 +1814,7 @@ namespace BlocksBeyondTheStars.Client
                     ApplyCaptureEnv(Environment); // keep marketing shots clear-weather daylight across re-broadcasts
                 }
             };
+            Network.WeatherForecastReceived += OnWeatherForecast;
             Network.WorldResetReceived += OnWorldReset;
             Network.ShipAiLineReceived += m =>
             {
@@ -1883,6 +1959,7 @@ namespace BlocksBeyondTheStars.Client
         {
             Network?.Poll();
             _worldClock.Advance(Time.deltaTime); // after Poll, so a PauseState that just landed takes effect now
+            TickWeatherSmoothing();
 
             _skyScanTimer -= Time.deltaTime;
             if (_skyScanTimer <= 0f)

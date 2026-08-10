@@ -170,10 +170,25 @@ namespace BlocksBeyondTheStars.Client
             switch (env.Weather)
             {
                 case "storm": weatherCover = 0.95f; darken = 0.35f; windScale = 3.0f; stormTall = 0.9f; cirrusFade = 0.0f; break;
+                case "blizzard": weatherCover = 0.98f; darken = 0.45f; windScale = 3.4f; stormTall = 0.7f; cirrusFade = 0.0f; break;
+                case "ember_fall": weatherCover = 0.92f; darken = 0.40f; windScale = 1.6f; stormTall = 0.8f; cirrusFade = 0.0f; break;
+                case "acid_rain": weatherCover = 0.88f; darken = 0.50f; windScale = 2.0f; stormTall = 0.5f; cirrusFade = 0.1f; break;
+                case "ion_storm": weatherCover = 0.55f; darken = 0.70f; windScale = 2.6f; stormTall = 0.2f; cirrusFade = 0.3f; break;
                 case "rain":  weatherCover = 0.80f; darken = 0.55f; windScale = 1.8f; stormTall = 0.3f; cirrusFade = 0.2f; break;
+                // A gale tears the sky along without soaking it: thin cover, very fast.
+                case "gale":  weatherCover = 0.55f; darken = 0.80f; windScale = 4.0f; stormTall = 0.0f; cirrusFade = 0.2f; break;
+                case "drizzle": weatherCover = 0.70f; darken = 0.72f; windScale = 1.3f; stormTall = 0.0f; cirrusFade = 0.4f; break;
+                case "fog":
+                case "ground_fog": weatherCover = 0.72f; darken = 0.85f; windScale = 0.4f; stormTall = 0.0f; cirrusFade = 0.7f; break;
+                // A heatwave burns the sky clean.
+                case "heatwave": weatherCover = env.CloudDensity * 0.2f; darken = 1.1f; windScale = 0.5f; stormTall = 0.0f; cirrusFade = 1.0f; break;
                 case "clouds": weatherCover = 0.60f; darken = 0.80f; windScale = 1.2f; stormTall = 0.0f; cirrusFade = 0.5f; break;
                 default:       weatherCover = env.CloudDensity * 0.5f; darken = 1.0f; windScale = 1.0f; stormTall = 0.0f; cirrusFade = 1.0f; break;
             }
+
+            // The authoritative wind (#900) rides on top of the per-state scale, so the sky's drift speed and
+            // the precipitation's slant agree with each other instead of each guessing on its own.
+            windScale *= 0.6f + 1.8f * (Game != null ? Game.WindSpeed : 0f);
 
             float cover = Mathf.Clamp01(Mathf.Max(env.CloudDensity, weatherCover));
             int count = Mathf.Clamp(Mathf.RoundToInt(MaxClouds * cover), 0, MaxClouds);

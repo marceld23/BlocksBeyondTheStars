@@ -162,6 +162,12 @@ public sealed partial class GameServer
         return factor * (0.85 + 0.3 * _sim.Wetness(_systemTimeDays));
     }
 
+    /// <summary>Test seam: how far a scan pulse reaches under the current sky (1 = unimpeded).</summary>
+    public double WeatherScanFactorForTest() => WeatherScanFactor();
+
+    /// <summary>Test seam: how fast harvested flora grows back at a cell right now (1 = the plain rate).</summary>
+    public double WeatherRegrowFactorForTest(Vector3i pos) => WeatherRegrowFactor(pos);
+
     /// <summary>Scanner/beacon range multiplier for the current weather — blown grit and ionised air cut
     /// a pulse short (#900).</summary>
     private double WeatherScanFactor()

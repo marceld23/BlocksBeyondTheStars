@@ -85,13 +85,17 @@ namespace BlocksBeyondTheStars.Client
 
             _flash = Mathf.Max(0f, _flash - Time.deltaTime * 4f);
             _boltTimer = Mathf.Max(0f, _boltTimer - Time.deltaTime);
-            // Lightning only in a rain thunderstorm — not a blizzard, sandstorm or ashfall.
-            if (Game.Environment.Weather == "storm" && Game.Environment.Precipitation == "rain")
+            // Lightning in a water thunderstorm — and in an ion storm, where the charge IS the weather
+            // (#900). Still never in a blizzard, sandstorm or ashfall.
+            var env = Game.Environment;
+            bool thunderstorm = env.Weather == "storm" && env.Precipitation is "rain" or "drizzle";
+            if (thunderstorm || env.Weather == "ion_storm")
             {
                 _flashTimer -= Time.deltaTime;
                 if (_flashTimer <= 0f)
                 {
-                    _flashTimer = 4f + Random.value * 7f;
+                    // An ion storm crackles far more often than a rain storm rumbles.
+                    _flashTimer = env.Weather == "ion_storm" ? 1.2f + Random.value * 2.5f : 4f + Random.value * 7f;
                     _flash = 1f;
                     _boltTimer = 0.18f; // a bolt accompanies most strikes
                     _boltBaseX = 0.15f + Random.value * 0.7f;
@@ -101,7 +105,15 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
             }
+
+            // Publish the strike so the sky lights the TERRAIN with it (#900). Before this, lightning was a
+            // screen wash only, which is exactly why it never felt like it was happening in the world.
+            LightningFlash = _flash;
         }
+
+        /// <summary>Current lightning-strike brightness, 0..1. Read by <see cref="Sky"/>, which briefly
+        /// boosts the world light so the whole landscape jumps out of the dark with each strike.</summary>
+        public static float LightningFlash { get; private set; }
 
         /// <summary>
         /// Drives the cold-world frost coverage. Needs a real atmosphere (skip airless space-sky bodies, which

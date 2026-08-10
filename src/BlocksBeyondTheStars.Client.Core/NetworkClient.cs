@@ -139,6 +139,9 @@ namespace BlocksBeyondTheStars.Client
         // Terrain-scanner pulse result (Feature 40): ore positions for the through-wall glow markers.
         public event Action<OreScanResult>? OreScanReceived;
 
+        // Weather-scanner reading (#900): what the sky is doing, what is coming and how far off the front is.
+        public event Action<WeatherForecast>? WeatherForecastReceived;
+
         // First-scan ledger backing the Codex "Discoveries" chapter (#484): a full snapshot on join,
         // then a one-entry delta per first-time scan.
         public event Action<DiscoveryLog>? DiscoveryLogReceived;
@@ -664,6 +667,7 @@ namespace BlocksBeyondTheStars.Client
                 case ShipAiLine m: ShipAiLineReceived?.Invoke(m); break;
                 case VegaJournal m: VegaJournalReceived?.Invoke(m); break;
                 case OreScanResult m: OreScanReceived?.Invoke(m); break;
+                case WeatherForecast m: WeatherForecastReceived?.Invoke(m); break;
                 case DiscoveryLog m: DiscoveryLogReceived?.Invoke(m); break;
                 case AchievementList m: AchievementsReceived?.Invoke(m); break;
                 case AchievementUnlocked m: AchievementUnlockedReceived?.Invoke(m); break;

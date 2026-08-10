@@ -70,6 +70,7 @@ ITEMS = [
     ("stasis_projector", "a sleek handheld sci-fi stasis projector gun, dark metal with a glowing cyan crystal emitter and faint blue energy rings"),
     ("terrain_blaster", "a chunky heavy handheld sci-fi terrain blaster cannon, dark armoured metal with glowing orange energy vents and a wide barrel muzzle"),
     ("creature_translator", "a sleek handheld sci-fi creature translator device, dark rounded casing with a small glowing cyan screen and a soft concentric sound-wave emitter on the front"),
+    ("weather_scanner", "a rugged handheld sci-fi weather scanner, dark casing with a small round barometer-style dial, a glowing amber readout showing a tiny cloud-and-lightning glyph, and a short antenna with spinning anemometer cups on top"),
     ("forage_bait", "a small tied bundle of leafy green plant forage and seeds"),
     ("meat_bait", "a raw red strip of fresh meat on a small metal hook"),
     ("nectar_lure", "a small glass vial of glowing golden sweet nectar with a cork stopper"),

@@ -123,6 +123,45 @@ path. Phrases run on the #908 world clock, so a paused world holds mid-call. Cal
 21 new ElevenLabs calls top up the starved water/lava/air/amphibian pools (#906, water had five voices for
 every ocean in the game), and all 69 call assets were switched to mono. The scanner now names a creature's
 call (#907) in all 14 languages, making the voice a readable trait like its colour.
+### ★ Weather overhaul: episodes, wind, alien weather, moving fronts and real stakes (#900, 2026-08-10, branch feat/weather-overhaul)
+The weather system was technically complete but structurally flat, and one bug made it worse than it
+looked: `InitWeather` seeded the weather RNG from the **save seed alone**, unsalted by `LocationId`, so
+every world in a save ran the *same* stream in lockstep — two worlds with the same storm chance had
+literally identical weather — and because `InitWeather` runs on every fresh world load, a restart
+replayed it. Salting it per world is a one-line fix and the single biggest win in the package.
+
+The model moved into a pure, server-free `WeatherModel.cs` (fast to test) built as **two layers**: a
+**ladder** (`clear/clouds/rain/storm`) carrying an explicit severity — the only thing the biome offset,
+fronts and altitude shift — and **events** that override the state and never enter that arithmetic.
+That split is what defuses the old `+2` biome-offset trap: appending a state to the ramp array used to
+silently rebalance every biome.
+
+Weather now runs in **episodes**: each rolls its own peak, duration and precipitation form, and
+intensity is an envelope (attack → plateau → decay), so it swells and fades instead of snapping on and
+no two storms are equally strong. Episode length scales with a **per-world volatility** (the hardcoded
+25 s tick is gone), transitions are biased by **afternoon convection**, a **dawn** fog window and a slow
+**seasonal** swing over the shared clock, and the precipitation form is rolled per episode — a temperate
+world no longer sees exactly one kind of rain forever.
+
+New states: `drizzle`, `ground_fog`, `gale`, `blizzard`, `heatwave`, `acid_rain`, `ion_storm`,
+`meteor_shower`, `ember_fall`, `spore_bloom` (no protocol change — `Weather`/`Precipitation` are
+strings). **Airless bodies finally have weather**: the ladder stays pinned to clear, but the
+vacuum-safe events run, so asteroids and airless moons stop being the one place a space game is
+boring. `overcast` worlds gained a ladder **floor** instead of being frozen on clouds; `clear` worlds a
+**ceiling** (no rain ramp, but gales, fog and heatwaves still pass through).
+
+Space: 0–2 **fronts** drift along the world's east–west wrap and boost the ladder where they pass, and
+**altitude** adds a step above the cloud line — summits sit in cloud and snow while the valley is
+clear. Both feed the existing per-player environment, so no new plumbing was needed.
+
+Stakes, finally: corrosive/falling weather drains the suit **unless roofed**, an **ion storm charges an
+exposed suit** (the inversion that makes bad weather worth walking into), rain speeds flora regrow, a
+**spore bloom** fattens the harvest, scanners lose range in grit and charged air, creatures hunker down,
+and **snow settles as real blocks** on a hard budget — near a player only, capped per pass and per
+world, melting on warm-up, tracked in a new `weather_deposit` table so the melt pass can never remove
+snow a *player* placed. New `weather_scanner` gadget + forecast messages read the coming episodes.
+Client: extrapolated intensity/wind (no more 5 s staircase), lightning that lights the **terrain**,
+thunder delayed by distance, a HUD weather chip, 7 new audio beds, 15 languages.
 
 ### ★ Paint editors: fill tool, findable eyedropper, 32-colour palette, one Appearance screen (#899, 2026-08-10, branch feat/paint-editor-tools)
 Every pixel editor (avatar face, the four body-paint parts, the block paint tool — all one `FaceEditor`)

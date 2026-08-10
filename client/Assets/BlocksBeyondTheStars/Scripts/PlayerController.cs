@@ -30,6 +30,10 @@ namespace BlocksBeyondTheStars.Client
         public float SafeFallSpeed = 14f; // impact speed you can land at unharmed (~5 blocks); faster hurts
         public float JetpackAccel = 26f;   // upward acceleration while the jetpack fires
         public float JetpackMaxRise = 6.5f; // cap on jetpack-driven rise speed
+
+        /// <summary>How hard a full gale pushes a hovering (jetpacking) player downwind, in m/s (#900).
+        /// Deliberately small: readable drift, never a loss of control.</summary>
+        private const float WindDriftPerSecond = 3.2f;
         // Zero-g (above the atmosphere): float instead of fall — Jump rises, crouch sinks, else drift to a stop.
         public float SpaceFloatSpeed = 4f;
         public float SpaceFloatAccel = 14f;
@@ -2303,6 +2307,16 @@ namespace BlocksBeyondTheStars.Client
                     if (_verticalVelocity > JetpackMaxRise)
                     {
                         _verticalVelocity = JetpackMaxRise;
+                    }
+
+                    // #900: hanging in the air with no ground under you, the wind has a hold on you. A gale
+                    // pushes a hovering player noticeably downwind — enough to matter when lining up a
+                    // landing, never enough to take control away.
+                    if (Game != null && Game.WindSpeed > 0.05f && Game.ExposedToSky)
+                    {
+                        var gust = Game.WindVector * (WindDriftPerSecond * Time.deltaTime);
+                        move.x += gust.x;
+                        move.z += gust.z;
                     }
                 }
             }

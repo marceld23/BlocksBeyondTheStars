@@ -362,27 +362,78 @@ Per column the precedence is **pond > river > sea**. On lava worlds the *same* m
 
 ---
 
-## 9. Weather — coupled to biome, not terrain
+## 9. Weather — episodes on a ladder, plus events
 
-Day/night + weather are server-authoritative in
-[`GameServerWeather.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeather.cs).
+Day/night and weather are server-authoritative. The scheduling model itself lives in
+[`WeatherModel.cs`](../../src/BlocksBeyondTheStars.GameServer/WeatherModel.cs) as pure, testable code;
+[`GameServerWeather.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeather.cs) drives it and
+builds the per-player environment, and
+[`GameServerWeatherEvents.cs`](../../src/BlocksBeyondTheStars.GameServer/GameServerWeatherEvents.cs)
+holds what the weather does to the world.
 
-- A **world-global state machine** cycles `clear → clouds → rain → storm` (plus `fog`), stepping every
-  25 s — forward with the planet's `StormChance`, otherwise back. Planets with a fixed `Weather`
-  (`clear`/`overcast`) never change; airless worlds have no weather at all.
-- A **per-biome offset** (`BiomeWeatherAt`) shifts the world level by a persistent **−1 (drier) to +2
-  (wetter)** per biome, so a swamp biome can storm while a neighbouring dry biome stays sunny. Weather
-  is sent **per player by their current biome**, not as one world broadcast.
+### Two layers
 
-What is *not* tied to terrain or biome:
+1. **The ladder** — `clear(0) → clouds(1) → rain(2) → storm(3)`, carrying an explicit
+   `WeatherDef.Severity`. This is the **only** thing the per-biome offset, the fronts and altitude shift.
+2. **Events** — `drizzle`, `fog`, `ground_fog`, `gale`, `blizzard`, `heatwave`, `acid_rain`,
+   `ion_storm`, `meteor_shower`, `ember_fall`, `spore_bloom`. An event carries severity −1, overrides
+   the reported state for its episode, and never enters the ladder arithmetic.
 
-- **Temperature** = planet base + per-world variation (±14 °C) + weather delta + a **day/night swing**
-  (±6 °C with air, ±16 °C airless). Elevation and biome don't enter it.
-- **Precipitation form** follows temperature + surface block: sand → sandstorm, ≥55 °C → ash,
-  ≤−15 °C → hail, ≤2 °C → snow, else rain.
+The split is load-bearing: `BiomeWeatherAt` clamps `severity + offset` into the ladder, so if events
+shared that array, adding one would silently rebalance every biome's weather.
 
-So the only coupling is **weather ⇄ biome** (via the discrete biome index); terrain height never
-influences weather, and the biome index itself is independent of terrain.
+### Episodes
+
+Each episode rolls its own **state, peak intensity, duration and precipitation form**. Intensity is an
+**envelope** (smoothstep attack → plateau → smoothstep decay) around that peak, so weather swells and
+fades rather than snapping on, and no two storms are equally strong. Episode length comes from the
+state's band scaled by a **per-world volatility**, so one world is a fickle squall-machine and the next
+broods for minutes.
+
+Transitions are biased by the planet's `StormChance`, by **afternoon convection**, by a **dawn** window
+that favours fog, and by a slow **seasonal** sine over the shared `SystemTimeDays` clock. Per-planet
+tuning lives in `planets.json`: `weatherVolatility`, `seasonAmplitude` and `weatherEvents` (per-event
+weight multipliers; `0` rules one out).
+
+### Modes are bands, not freezes
+
+A planet's authored `weather` value sets the world's ladder band rather than pinning it:
+
+| Data value | Effect |
+|---|---|
+| `dynamic` | full ladder 0..3 |
+| `overcast` | ladder **floor** 1 — never truly clear, but can still build into rain and storms |
+| `clear` | ladder **ceiling** 0 — no rain ramp, but events (gale, fog, heatwave …) still run |
+| airless body | ceiling 0 **and** only vacuum-safe events (ion storm, meteor shower) |
+| void world (ship/station) | genuinely fixed — no sky at all |
+
+### Space and position
+
+`BiomeWeatherAt(pos)` resolves a position's severity as
+`ladder + biomeOffset(−1..+2) + frontBoost(x) + altitudeBoost(y)`, clamped into the world's band:
+
+- **Fronts** are weather cells drifting along the world's east–west wrap; where one passes, the ladder
+  reads 1–2 steps wetter, so a storm visibly arrives and moves on.
+- **Altitude**: above the world's cloud line (planet base height + amplitude) the weather reads one
+  step wetter — summits sit in cloud and snow while the valley stays clear.
+- The per-biome offset now **rotates slowly** over the shared clock, so the wet biome isn't wet forever.
+
+Environment is sent **per player, for their position**, not as one world broadcast.
+
+### Temperature and precipitation
+
+- **Temperature** = planet base + per-world variation (±14 °C) + the state's own delta **scaled by how
+  far the episode has swelled** + a day/night swing (±6 °C with air, ±16 °C airless) + the altitude
+  lapse and the underground blend.
+- **Precipitation form**: events carry their own (`acid`, `meteor`, `spores`, `dust`, `ash`); ladder
+  rain resolves by climate — sand surface → `sandstorm`, ≥55 °C → `ash`, ≤−15 °C → `hail`, ≤2 °C →
+  `snow`, ≤5 °C → `sleet`, else the episode's own roll of `rain` or `drizzle`.
+
+### Determinism
+
+The weather RNG is seeded from `LocationId ^ Seed` — like `AtmosphereDensity`, `SkyHue`, `CloudTint`
+and gravity. Seeding it from the save seed alone (as it was before #900) meant every world in a save
+ran the same stream in lockstep and a restart replayed it verbatim.
 
 ---
 

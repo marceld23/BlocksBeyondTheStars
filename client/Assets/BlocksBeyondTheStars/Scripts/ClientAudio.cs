@@ -61,6 +61,10 @@ namespace BlocksBeyondTheStars.Client
         private float _speederIntensity;
         private bool _speederBoost;
         private float _thunderTimer;
+
+        // #900: sound travels slower than light — a strike schedules its rumble instead of playing it at once.
+        private string _pendingThunder;
+        private float _thunderDelay;
         private readonly System.Random _rng = new System.Random();
 
         private void Awake()
@@ -191,9 +195,13 @@ namespace BlocksBeyondTheStars.Client
             // silenced when the player is under a roof or in a cave (no weather effects underground).
             if (_ambience != null && _ambience.clip != null)
             {
-                float intensity = Game?.Environment?.Intensity ?? 0.4f;
+                // The smoothed intensity (#900), so a bed swells and fades with the episode instead of
+                // jumping at every 5 s broadcast.
+                float intensity = Game != null ? Game.WeatherIntensity : (Game?.Environment?.Intensity ?? 0.4f);
                 float target = sfx * Mathf.Clamp(0.2f + 0.45f * intensity, 0.18f, 0.6f);
-                bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop" or "wind_strong";
+                bool weatherBed = _ambienceId is "rain_loop" or "storm_loop" or "sandstorm_loop" or "ash_loop"
+                    or "wind_strong" or "gale_loop" or "blizzard_loop" or "drizzle_loop" or "acid_hiss"
+                    or "ion_crackle" or "spore_amb" or "meteor_streak";
                 if (weatherBed && Game != null && !Game.ExposedToSky)
                 {
                     target = 0f;
@@ -204,13 +212,28 @@ namespace BlocksBeyondTheStars.Client
 
             // Occasional thunder during a rain thunderstorm (only with open sky overhead).
             if (Game?.Environment != null && Game.Environment.Weather == "storm"
-                && Game.Environment.Precipitation == "rain" && Game.ExposedToSky)
+                && Game.Environment.Precipitation is "rain" or "drizzle" && Game.ExposedToSky)
             {
                 _thunderTimer -= Time.deltaTime;
                 if (_thunderTimer <= 0f)
                 {
                     _thunderTimer = 8f + (float)_rng.NextDouble() * 12f;
-                    Cue("thunder_" + (1 + _rng.Next(3)));
+                    // #900: the strike is seen before it is heard. A random "distance" delays the rumble by
+                    // up to ~6 s and picks the matching take — close cracks arrive almost at once, distant
+                    // ones roll in late and low.
+                    float distance = (float)_rng.NextDouble();
+                    _thunderDelay = 0.1f + distance * 5.8f;
+                    _pendingThunder = distance < 0.25f ? "thunder_2" : distance < 0.7f ? "thunder_1" : "thunder_3";
+                }
+            }
+
+            if (_pendingThunder != null)
+            {
+                _thunderDelay -= Time.deltaTime;
+                if (_thunderDelay <= 0f)
+                {
+                    Cue(_pendingThunder);
+                    _pendingThunder = null;
                 }
             }
 
@@ -542,13 +565,27 @@ namespace BlocksBeyondTheStars.Client
         {
             // The bad-weather bed is driven by the precipitation type (snow/hail howl, sandstorm hisses,
             // ash roars); otherwise the planet's biome ambience plays.
-            _envBedId = e.Precipitation switch
+            // The weather STATE decides first for the events that have their own voice (#900) — an ion storm
+            // crackles and a gale howls with nothing falling at all — then the precipitation form, then the
+            // planet's own biome ambience.
+            _envBedId = e.Weather switch
             {
-                "sandstorm" => "sandstorm_loop",
-                "ash" => "ash_loop",
-                "hail" or "snow" => "wind_strong",
-                "rain" => e.Weather == "storm" ? "storm_loop" : "rain_loop",
-                _ => BiomeBed(e.Biome),
+                "ion_storm" => "ion_crackle",
+                "gale" => "gale_loop",
+                "blizzard" => "blizzard_loop",
+                "acid_rain" => "acid_hiss",
+                "spore_bloom" => "spore_amb",
+                "fog" or "ground_fog" => "wind_light",
+                _ => e.Precipitation switch
+                {
+                    "sandstorm" or "dust" => "sandstorm_loop",
+                    "ash" => "ash_loop",
+                    "meteor" => "meteor_streak",
+                    "hail" or "snow" or "sleet" => "wind_strong",
+                    "drizzle" => "drizzle_loop",
+                    "rain" => e.Weather == "storm" ? "storm_loop" : "rain_loop",
+                    _ => BiomeBed(e.Biome),
+                },
             };
             RefreshAmbience();
         }
