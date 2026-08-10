@@ -36,7 +36,7 @@ public static class CreatureGenerator
         {
             long s = unchecked(planetSeed ^ ((long)i * golden));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null));
+            list.Add(MakeSpecies(i, rng, allowWater, allowLava, allowCave, biomeCount, forcedHabitat: null, speciesSeed: s));
         }
 
         // Diversity guarantee (#640): every living world should field at least one ground species and
@@ -120,11 +120,11 @@ public static class CreatureGenerator
             const long golden = unchecked((long)0x9E3779B97F4A7C15UL);
             long s = unchecked(planetSeed ^ ((long)pick * golden) ^ WorldGenerator.StableHash("niche:" + niche));
             var rng = new System.Random(unchecked((int)(s ^ (s >> 32))));
-            list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche);
+            list[pick] = MakeSpecies(pick, rng, allowWater, allowLava, allowCave, biomeCount, niche, speciesSeed: s);
         }
     }
 
-    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat)
+    private static CreatureSpecies MakeSpecies(int index, System.Random rng, bool allowWater, bool allowLava, bool allowCave, int biomeCount, CreatureHabitat? forcedHabitat, long speciesSeed)
     {
         var habitat = forcedHabitat ?? PickHabitat(rng, allowWater, allowLava, allowCave);
         bool cave = habitat == CreatureHabitat.Cave;
@@ -215,6 +215,13 @@ public static class CreatureGenerator
         // OVERRIDES the traits it needs rather than biasing the draws that precede it.
         ApplyBodyPlan(rng, species);
         species.SocialGroupSize = PickSocialGroupSize(rng, species);
+
+        // Voice seed (#907): folded from the species' own sub-seed rather than drawn from `rng`, so
+        // adding it changed no existing world's traits by a single bit. It must NOT come from
+        // species.Id — ids are "sp0".."sp8" and repeat on every planet, which is exactly why the old
+        // client-side id hash gave the whole game nine voices per habitat.
+        species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
+
         if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
         {
             // Per-species hover altitude (#637) so the sky gets layers instead of one uniform band.

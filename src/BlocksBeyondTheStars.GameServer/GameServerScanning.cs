@@ -45,11 +45,16 @@ public sealed partial class GameServer
 
         if (subjectType == "creature" && _speciesById.TryGetValue(subjectKey, out var sp))
         {
+            // The voice descriptor (#907) makes a species' call a readable trait like its colour or gait,
+            // instead of something the player can only recognise subconsciously.
+            var voice = Shared.Definitions.CreatureVoices.Derive(
+                sp.VoiceSeed, Shared.Definitions.VoiceTraits.From(sp));
             readout.TraitKeys = new[]
             {
                 "ui.scan.habitat." + sp.Habitat.ToString().ToLowerInvariant(),
                 "ui.scan.activity." + sp.Activity.ToString().ToLowerInvariant(),
                 "ui.scan.temperament." + sp.Temperament.ToString().ToLowerInvariant(),
+                Shared.Definitions.CreatureVoices.DescriptorKey(voice),
             };
             readout.ThreatKey = sp.Hostile ? "ui.scan.threat.hostile"
                 : sp.Temperament == Shared.Definitions.CreatureTemperament.Territorial ? "ui.scan.threat.provokable"

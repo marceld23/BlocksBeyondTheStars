@@ -147,6 +147,13 @@ public sealed class CreatureSpecies
     /// <summary>Bioluminescent — glows in the dark (ties into the lighting system).</summary>
     public bool Glows { get; set; }
 
+    /// <summary>Seed for this species' generated voice (#907). Deliberately NOT derived from
+    /// <see cref="Id"/>: ids are "sp0".."sp8" and repeat on every planet, so hashing the id gave the
+    /// whole game nine voices per habitat. This carries the species' real per-world sub-seed instead.
+    /// Derived without consuming the generator's RNG, so adding it left every existing world's traits
+    /// untouched.</summary>
+    public int VoiceSeed { get; set; }
+
     /// <summary>The biome (index into the planet's biome list) this species is native to, so a multi-biome
     /// world shows different fauna in different regions. -1 = at home in any biome (single-biome worlds).</summary>
     public int BiomeAffinity { get; set; } = -1;

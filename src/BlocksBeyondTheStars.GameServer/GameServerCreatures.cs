@@ -1467,6 +1467,7 @@ public sealed partial class GameServer
             BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,
+            VoiceSeed = sp?.VoiceSeed ?? 0, // 0 → client falls back to hashing the trait tuple (#907)
         };
     }
 

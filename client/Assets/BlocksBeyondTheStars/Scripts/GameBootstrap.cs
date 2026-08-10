@@ -2776,6 +2776,12 @@ namespace BlocksBeyondTheStars.Client
             ShapeIconFactory.ClearCache();
             HeldItem.BlockTileResolver = null;
 
+            // The sampler's baked creature voices are code-created AudioClips held by a STATIC cache, so
+            // they fall in exactly the same trap as the icon caches above: UnloadUnusedAssets cannot free
+            // what a live static reference still pins (#901).
+            SampleKit.ClearCache();
+            CreatureVoiceBank.Clear();
+
             if (ChunkMaterial != null)
             {
                 Destroy(ChunkMaterial);

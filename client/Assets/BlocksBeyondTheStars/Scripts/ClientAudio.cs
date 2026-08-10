@@ -488,12 +488,25 @@ namespace BlocksBeyondTheStars.Client
                 clip = SampleKit.CaveReverb(clip);
             }
 
+            AtClip(clip, pos, pitch, vol, id);
+        }
+
+        /// <summary>Plays an already-resolved clip positionally — the path generated creature voices take,
+        /// since their variant is baked ahead of time rather than looked up by name (#903). The underwater
+        /// muffle still applies here, so a baked voice ducks under water like every other one-shot.</summary>
+        public void AtClip(AudioClip clip, Vector3 pos, float pitch = 1f, float vol = 1f, string label = "voice")
+        {
+            if (clip == null)
+            {
+                return;
+            }
+
             if (_submerged)
             {
                 clip = SampleKit.Muffle(clip);
             }
 
-            var go = new GameObject("sfx_" + id);
+            var go = new GameObject("sfx_" + label);
             go.transform.position = pos;
             var src = go.AddComponent<AudioSource>();
             src.clip = clip;
@@ -506,6 +519,10 @@ namespace BlocksBeyondTheStars.Client
             src.Play();
             Destroy(go, clip.length / Mathf.Max(0.1f, pitch) + 0.2f);
         }
+
+        /// <summary>The raw clip behind a cue id, or null — creature voices need the AudioClip itself to
+        /// bake a species variant from it.</summary>
+        public AudioClip Clip(string id) => _clips.TryGetValue(id, out var clip) ? clip : null;
 
         /// <summary>Switches the looping weather/ambience bed (crossfades via the volume in Update).</summary>
         public void SetAmbience(string id)

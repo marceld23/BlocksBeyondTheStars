@@ -1526,6 +1526,12 @@ public sealed class NetCreature
     public string BodyPlan { get; set; } = "Standard";
     public int NeckLength { get; set; }
     public bool HasTrunk { get; set; }
+
+    /// <summary>Seed for this species' generated voice (#907) — the client derives phrase, cadence and
+    /// timbre from it via <c>CreatureVoices.Derive</c>. Additive field: an older client ignores it and
+    /// a newer client falls back to hashing the trait tuple when a legacy server sends 0, so the wire
+    /// tag is unchanged either way.</summary>
+    public int VoiceSeed { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

@@ -743,6 +743,7 @@ public sealed partial class GameServer
         HasTrunk = s.HasTrunk,
         HoverAltitude = s.HoverAltitude,
         SocialGroupSize = s.SocialGroupSize,
+        VoiceSeed = s.VoiceSeed, // without this a tamed companion loses its voice and re-derives a stranger's
     };
 
     // ---------------------------------------------------------------------------------------------

@@ -104,6 +104,26 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Every species gets its own voice: phrase, cadence, timbre — and the combat cues too (#901–#907, 2026-08-10, branch feat/creature-voice-genome)
+Generated species differed enormously by sight and barely at all by ear, because **the voice was not a
+generated trait**: the client picked `pool[hash(speciesId) % poolLength]` plus a pitch multiplier — and
+species ids are `sp0`..`sp8`, which repeat on *every* planet, so the whole game had about nine voices per
+habitat. Now a species derives a full **voice genome** from a per-world `VoiceSeed` and the traits it
+already has: base call, optional second call layered behind it, a timbre op, phrase length, pulse gap,
+pitch contour and its own calling rate. The coupling is the point — an eyeless cave dweller fires a rising
+train of 4–7 clicks, a titan lets out one slow bellow every half-minute, a medusa is nearly silent, a pack
+hunter barks short saturated bursts. The **combat cues inherit the same timbre** (#903), which retires the
+6-slot bank where every large hostile creature in every world screamed from the same five files.
+Supporting work: `SampleKit` grew eight WebGL-safe sampler ops plus two-sample layering, and its **static
+bake cache is now capped (LRU 64) and cleared on world teardown** (#901) — it was neither, and per-species
+bakes would have leaked ~22 MB per planet with no release point, since `GameBootstrap` survives
+interplanetary travel; bakes are mono (halving memory and DSP) and rendered one per frame off the audio
+path. Phrases run on the #908 world clock, so a paused world holds mid-call. Call selection moved to
+**rendezvous hashing** (#905), so growing a pool now re-voices ~1/N of species instead of all of them.
+21 new ElevenLabs calls top up the starved water/lava/air/amphibian pools (#906, water had five voices for
+every ocean in the game), and all 69 call assets were switched to mono. The scanner now names a creature's
+call (#907) in all 14 languages, making the voice a readable trait like its colour.
+
 ### ★ Paint editors: fill tool, findable eyedropper, 32-colour palette, one Appearance screen (#899, 2026-08-10, branch feat/paint-editor-tools)
 Every pixel editor (avatar face, the four body-paint parts, the block paint tool — all one `FaceEditor`)
 gained a **fill tool** (region-clamped flood fill; Shift = replace that colour everywhere in the region)
