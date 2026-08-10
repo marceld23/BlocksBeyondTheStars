@@ -3351,30 +3351,26 @@ public sealed partial class GameServer
             ? place.Yaw
             : ((int)System.MathF.Round(session.State.Yaw / 90f)) & 3;
 
-        switch (cycle)
+        if (cycle == PropOrientation.LadderMount)
         {
-            case PropOrientation.LadderMount:
-            {
-                // The ladder's whole orientation IS its mount face, so the intent's up-face carries it: 2..5
-                // hug that wall, anything else means free-standing (the client's fifth cycle state sends +Y).
-                // Yaw is dropped on purpose — both forms are square about their own axis.
-                int mount = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveLadderMount(pos);
-                var (ladderShape, ladderUp) = PropShapes.LadderForm(mount);
-                return ShapeCode.Pack(ladderShape, 0, ladderUp);
-            }
-
-            case PropOrientation.Full:
-            {
-                // The crafted staircase is a directional form like any shaped block: it may tip onto walls and
-                // ceilings, and auto-orients against the surface it was built on when nothing was chosen.
-                int upFace = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveShapeUpFace(pos);
-                return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, upFace);
-            }
-
-            default:
-                // Furniture turns but never tips: a bed/campfire on a wall would break its sit/heal/warmth checks.
-                return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
+            // The ladder's whole orientation IS its mount face, so the intent's up-face carries it: 2..5 hug
+            // that wall, anything else means free-standing (the client's fifth cycle state sends +Y). Yaw is
+            // dropped on purpose — both ladder forms are square about their own axis.
+            int mount = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveLadderMount(pos);
+            var (ladderShape, ladderUp) = PropShapes.LadderForm(mount);
+            return ShapeCode.Pack(ladderShape, 0, ladderUp);
         }
+
+        if (cycle == PropOrientation.Full)
+        {
+            // The crafted staircase is a directional form like any shaped block: it may tip onto walls and
+            // ceilings, and auto-orients against the surface it was built on when nothing was chosen.
+            int upFace = ShapeCode.IsValidUpFace(place.UpFace) ? place.UpFace : DeriveShapeUpFace(pos);
+            return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, upFace);
+        }
+
+        // Furniture turns but never tips: a bed/campfire on a wall would break its sit/heal/warmth checks.
+        return ShapeCode.Pack(PropShapes.DefaultPlaceShape(blockKey), facing, ShapeCode.UpPlusY);
     }
 
     /// <summary>Which wall a ladder hugs when the client sent no choice — an old client, a test, or one of the
