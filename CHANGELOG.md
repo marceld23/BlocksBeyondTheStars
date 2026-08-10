@@ -13,6 +13,86 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.10] — 2026-08-10
+
+The polyglot release. In one week the game went from four languages to **fourteen** — Dutch,
+Brazilian Portuguese, Polish, Turkish, a finished Italian, plus Russian, Ukrainian, Simplified
+Chinese, Japanese and Korean, each a complete 3048-key pass over every menu, block, recipe,
+tooltip and story line. Getting the non-Latin five in meant teaching the client a font it never
+had. Alongside that: your astronaut is now paintable head to boot, and the animals stopped
+sounding like a copy-paste of themselves.
+
+### 🌍 Fourteen languages (#881, #883, #884, #885, #886, #887, #888, #889, #891, #890, #892, #893, #895)
+
+- **Ten new complete locales.** Nederlands, Português (Brasil), Polski, Türkçe, Русский,
+  Українська, 简体中文, 日本語 and 한국어 each ship a full 3048/3048 main-table pass plus the
+  68-key VEGA prologue story pack — and **Italiano is finally complete** (15.5 % → 100 %). All
+  of them clear the settings picker's coverage gate, so they simply appear in the language list;
+  the game also picks your OS language on first run. The LLM mission backend answers in the new
+  languages too, and the content-error dialog speaks them before any locale file has loaded.
+- **Italian keeps its human translation.** The top-up fills only missing keys, so the
+  **473 keys hand-translated by [@alessandroquirino-lab](https://github.com/alessandroquirino-lab)
+  survive bit-identically** — community review continues in #625.
+- **A font pipeline for non-Latin scripts.** Rajdhani covers Latin only, so Cyrillic and CJK
+  would have rendered as empty boxes. The UI font now carries a fallback chain: full Noto Sans
+  for Cyrillic/Greek (620 KB) plus Noto Sans SC/JP/KR **subsets built from exactly the glyphs the
+  translations use** — 794/812/196 KB instead of ~16 MB each, so the browser build grows by
+  ~2.4 MB rather than ~50 MB.
+- **Tone, not just words.** Every language got register instructions — informal "je/jij", "ty",
+  "sen", "você", "ты"/"ти", Japanese です/ます, Korean 해요체 — and a homoglyph pass cleaned Latin
+  lookalikes out of Cyrillic words. Dutch got a post-pass for the IJ digraph (IJzererts, not
+  Ijzererts).
+- **The translation tool got fast.** Chunks now translate concurrently (`--workers`), turning a
+  full 61-request language pass from the better part of an hour into minutes — which is why ten
+  languages fit into one release.
+- Known limits: native-speaker review and an on-screen overflow check are pending for the new
+  locales (CJK and Cyrillic strings run long), and chat characters outside the subset show
+  placeholder boxes in the browser build (desktop falls back to OS fonts).
+
+### 🎨 Paint your whole astronaut, not just the face (#874, #875, #882)
+
+- The pixel editor that used to draw only your face now opens for **torso, arms, legs and the
+  space-suit helmet**. Each face of the part is painted **full-size on the 512 px canvas** — the
+  same 16 px cells as the face editor — with the part's other faces stacked beside it as live
+  labelled tiles you click to switch to. The whole-part overview repaints while you draw.
+- **Arms and legs are painted per limb**, not mirrored, so you can go asymmetric. Torso has no
+  top, boots have no soles, and the helmet has no front — it's open, your face stays visible.
+- Unpainted pixels fall through to the part's tint colour, so the existing colour pickers keep
+  working underneath a painting, and an unpainted avatar looks exactly as it did before. Your
+  paint is saved with your character and shown to everyone else in multiplayer.
+- Fixed from the first playtest: painted parts rendered inside-out (hollow shell, near face
+  missing) because the generated meshes' triangle winding was inverted.
+
+### 🐾 The animals stopped repeating themselves (#876, #877, #878, #879, #880)
+
+- **Every call is a little different now.** Idle, alert, attack, hurt and death cues jitter their
+  pitch ±7 % and volume ±15 % around the species' voice — recognizably the same animal, never
+  twice the same sound. Planet enemies jitter subtler (±5 %) — they are machines.
+- **Animals answer each other.** Roughly one in five idle calls schedules a quieter reply half a
+  second later from a slightly offset spot, so a herd reads as a conversation instead of a
+  metronome.
+- **26 new recorded calls**: a second take for all 22 signature calls, picked 50/50 at call time,
+  plus four new voices for thin habitats — `burble` (water), `sizzle` (lava), `keen` (air) and
+  `thrum` (caves).
+- **Cave echo and underwater muffle finally work in the browser.** Unity Web silently ignores
+  audio filter components, so both effects had simply never played on glitch.fun. They are now
+  **baked into the sound itself** — a small Schroeder reverb with a 0.9 s tail and a 680 Hz
+  low-pass, rendered once per clip and cached — which also makes the cave sound identical on
+  every platform.
+
+### 🐛 Fixes
+
+- **HUD toasts speak your language again.** Five server notices — the space-zone return, trade
+  window close, docking status, respawn notice and respawn options — printed the raw message key
+  (`@srv.space.returned`) instead of the translated sentence.
+
+### 🛠️ Behind the scenes
+
+- The marketing screenshot set (DE + EN) was regenerated on the current continents worldgen, and
+  the capture tool learned sandbox worlds, toast-free frames and a planet-aimed space shot.
+- New `tools/wix-i18n/` tooling audits, creates and imports the website's translations, so
+  blocksbeyondthestars.com can follow the game into all fourteen languages.
+
 ## [2026.8.9] — 2026-08-09
 
 A small, sharp follow-up to the shaper release. The headline is pure building comfort: rotate
@@ -2220,7 +2300,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...HEAD
+[2026.8.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...v2026.8.10
 [2026.8.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...v2026.8.9
 [2026.8.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...v2026.8.8
 [2026.8.7]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.6...v2026.8.7
