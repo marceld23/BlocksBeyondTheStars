@@ -245,7 +245,7 @@ public sealed class PaintDesignTests : IDisposable
 
     [Theory]
     [InlineData("xyz")]                     // wrong length
-    [InlineData("g")]                       // wrong length (a legal symbol since #897, but still one char)
+    [InlineData("g")]                       // wrong length (a legal symbol since #899, but still one char)
     public void MalformedPixels_AreDropped(string bad)
     {
         var (server, client, repo) = Start("paint4");
@@ -274,7 +274,7 @@ public sealed class PaintDesignTests : IDisposable
         Assert.Empty(repo.ListPaintDesigns());
     }
 
-    /// <summary>The palette widened from 16 to 32 colours (#897): a design drawn with the new symbols must
+    /// <summary>The palette widened from 16 to 32 colours (#899): a design drawn with the new symbols must
     /// register like any other, or the extra colours would look right in the editor and vanish on the block.</summary>
     [Fact]
     public void WidenedPaletteSymbols_AreAccepted()

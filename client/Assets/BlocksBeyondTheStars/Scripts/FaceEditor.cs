@@ -16,7 +16,7 @@ namespace BlocksBeyondTheStars.Client
     /// of #840, the same as block designs. <b>Apply</b> hands the encoded grid to the host; the face hosts
     /// store/send it as the avatar face, the paint host sends it as a <c>PaintBlockIntent</c>.
     /// <para>
-    /// Since #897 one editor can host SEVERAL <see cref="Subject"/>s (face, torso, arms, legs, helmet) as
+    /// Since #899 one editor can host SEVERAL <see cref="Subject"/>s (face, torso, arms, legs, helmet) as
     /// tabs, each with its own layout, payload codec and <b>base colour</b> — that is what turned nine
     /// Character-tab cards into a single "Appearance" screen. Hosts that only ever edit one thing (the block
     /// paint tool) set the flat fields instead and get exactly the old single-subject screen.
@@ -90,7 +90,7 @@ namespace BlocksBeyondTheStars.Client
         /// "unpainted" will look like (paper white on a block). Subjects carry their own.</summary>
         public Color BaseColor = FacePalette.EditorBackground;
 
-        /// <summary>Several editable parts as tabs (the merged appearance screen, #897). Null/empty = the
+        /// <summary>Several editable parts as tabs (the merged appearance screen, #899). Null/empty = the
         /// classic single-subject editor built from the flat fields above.</summary>
         public List<Subject> Subjects;
 
@@ -132,7 +132,7 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _libList; // library column entries (rebuilt after a save)
 
         // Tools. Painting is the default; fill and the eyedropper are armed modes with a highlighted button,
-        // and both can also be reached by modifier so they feel like a paint program (#897).
+        // and both can also be reached by modifier so they feel like a paint program (#899).
         private bool _picking;          // eyedropper armed: the next canvas click takes a colour, not paints one
         private bool _filling;          // fill armed: the next canvas click floods an area
         private Image _pickButton, _fillButton;
@@ -164,7 +164,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Host fields → the subject list. A host that set <see cref="Subjects"/> wins; everyone else
-        /// gets exactly one subject wrapping the flat fields, which is the pre-#897 editor.</summary>
+        /// gets exactly one subject wrapping the flat fields, which is the pre-#899 editor.</summary>
         private void BuildSubjects()
         {
             if (Subjects != null && Subjects.Count > 0)
@@ -275,7 +275,7 @@ namespace BlocksBeyondTheStars.Client
             // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
             // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
             // the one you used for the left eye by eye in the palette is guesswork. Besides the armed button
-            // it answers to the two gestures every paint program uses: Alt+click and the middle button (#897),
+            // it answers to the two gestures every paint program uses: Alt+click and the middle button (#899),
             // so it is there when a hand reaches for it without a trip to the toolbar.
             bool altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
             if (middleDown || (leftDown && (altHeld || _picking)))
@@ -327,7 +327,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>
         /// Floods the area around a cell with the brush — the tool a 32×32 canvas most obviously wants, since
-        /// colouring a helmet side pixel by pixel is a thousand clicks (#897).
+        /// colouring a helmet side pixel by pixel is a thousand clicks (#899).
         /// <para>
         /// ⚠ The fill is clamped to the ACTIVE region: a body-paint grid holds several box faces side by side,
         /// and paint running from the torso front onto its back (they touch in the grid, not on the body)
@@ -429,7 +429,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The colour a grid cell shows in the editor. Transparent pixels are drawn in the subject's
         /// BASE colour — skin for the face, the part tint for body paint, the paper canvas for a block design
         /// — because that is what they will actually look like; the canvas used to show a flat dark slate and
-        /// so lied about every unpainted pixel (#897). A faint checker keeps "empty" readable as empty.</summary>
+        /// so lied about every unpainted pixel (#899). A faint checker keeps "empty" readable as empty.</summary>
         private Color DisplayColor(int index, int gx, int gy)
         {
             if (index != 0)
@@ -486,7 +486,7 @@ namespace BlocksBeyondTheStars.Client
             _title = UiKit.AddText(panel, 24f, 18f, panelW - 48f, 30f, L(Current.TitleKey ?? Current.LabelKey), 22,
                 UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
 
-            // Part tabs (#897): face / torso / arms / legs / helmet in ONE screen, instead of five menu cards
+            // Part tabs (#899): face / torso / arms / legs / helmet in ONE screen, instead of five menu cards
             // that each tore the editor down and built it again.
             if (multi)
             {
@@ -500,7 +500,7 @@ namespace BlocksBeyondTheStars.Client
             _subjectArea = UiKit.Place(areaGo, 0f, 0f, panelW, 900f);
             BuildSubjectArea(canvasX, canvasY);
 
-            // Palette: colours 1..N then an eraser (index 0). 32 colours (#897) at 12 per row — the widened
+            // Palette: colours 1..N then an eraser (index 0). 32 colours (#899) at 12 per row — the widened
             // palette is mostly shading partners, so keeping each hue's tones near each other matters more
             // than the exact row length.
             float paletteLabelY = canvasY + 528f;
@@ -613,7 +613,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Commits the current canvas and points the editor at another part, keeping the panel (the
-        /// pre-#897 flow destroyed the whole editor per part).</summary>
+        /// pre-#899 flow destroyed the whole editor per part).</summary>
         private void SwitchSubject(int index)
         {
             if (index == _active)
@@ -694,7 +694,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>
         /// A hue/brightness ring you pick a colour on by moving a point around it — the "Kreis" the player
         /// asked for, rather than hunting through a strip of squares, plus the brightness column beside it
-        /// (#897: the ring alone was fixed at full brightness, so half the palette's shading tones — and every
+        /// (#899: the ring alone was fixed at full brightness, so half the palette's shading tones — and every
         /// dark base colour — could not be reached through it at all).
         /// <para>
         /// For the BRUSH it snaps to the nearest palette entry, because a painting stores one symbol per pixel
@@ -868,7 +868,7 @@ namespace BlocksBeyondTheStars.Client
         // ── base colour (avatar subjects) ────────────────────────────────────────────────────────
 
         /// <summary>
-        /// The part's base colour, right where it is being painted (#897). It used to live on separate menu
+        /// The part's base colour, right where it is being painted (#899). It used to live on separate menu
         /// cards, cycled blindly with ←/→ through ten hard-coded colours — while the thing it tints was two
         /// menu levels away. Here it is a swatch grid plus the colour wheel for anything outside it: base
         /// colours travel as plain RGB, so nothing about the format limits the choice.

@@ -174,7 +174,7 @@ namespace BlocksBeyondTheStars.Client
 
         // The payload alphabet lives in FacePalette — body paint, faces and block designs all speak it, and
         // private copies of these two helpers are how a palette widening ends up applied in two places out
-        // of three (it did: #897 found three copies).
+        // of three (it did: #899 found three copies).
         private static char HexChar(int v) => FacePalette.SymbolOf(v);
 
         private static int HexValue(char c) => FacePalette.ValueOf(c);

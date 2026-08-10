@@ -351,7 +351,7 @@ namespace BlocksBeyondTheStars.Client
         private FaceEditor _faceEditor;
 
         /// <summary>
-        /// Opens the appearance screen (#897): face, torso, arms, legs and helmet as tabs of ONE editor, each
+        /// Opens the appearance screen (#899): face, torso, arms, legs and helmet as tabs of ONE editor, each
         /// with its base colour beside the canvas it tints. It replaces nine separate Character-tab cards —
         /// four "cycle this colour" rows and five "open that editor" rows — which split apart two halves of
         /// the same decision and made choosing a skin tone a matter of clicking an arrow ten times.
@@ -393,7 +393,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Opens the appearance screen on a body-paint part (#874 entry point, kept for callers that
-        /// name a part). Parts are tabs of one screen since #897.</summary>
+        /// name a part). Parts are tabs of one screen since #899.</summary>
         public void OpenBodyPaintEditor(int part) => OpenAppearanceEditor();
 
         /// <summary>Applies an edited body painting: persists it locally, shows it on the local figure, and

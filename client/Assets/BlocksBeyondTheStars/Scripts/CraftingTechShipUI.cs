@@ -208,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.BodyPaintPixels[0]?.GetHashCode() ?? 0) * 3 + (Game.BodyPaintPixels[1]?.GetHashCode() ?? 0) * 5
                     + (Game.BodyPaintPixels[2]?.GetHashCode() ?? 0) * 7 + (Game.BodyPaintPixels[3]?.GetHashCode() ?? 0) * 11
                     // …and the four base colours, which the appearance screen can now change while it is open
-                    // (#897) — the Character card shows them as swatches and the preview tints from them.
+                    // (#899) — the Character card shows them as swatches and the preview tints from them.
                     + (Menu?.Settings?.SkinColor.GetHashCode() ?? 0) * 13 + (Menu?.Settings?.TorsoColor.GetHashCode() ?? 0) * 17
                     + (Menu?.Settings?.ArmColor.GetHashCode() ?? 0) * 19 + (Menu?.Settings?.LegColor.GetHashCode() ?? 0) * 23;
             if (h != _lastDataHash)
@@ -1581,7 +1581,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // ONE appearance card (#897). This list used to carry nine: four "cycle this colour" rows and five
+            // ONE appearance card (#899). This list used to carry nine: four "cycle this colour" rows and five
             // "open that editor" rows — the colour of a part and the painting on it edited two menu levels
             // apart, though they are the same decision (unpainted pixels ARE the base colour). The editor now
             // holds both, with the parts as tabs and a live figure beside the canvas.

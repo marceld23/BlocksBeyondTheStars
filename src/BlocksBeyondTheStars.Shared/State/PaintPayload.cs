@@ -11,7 +11,7 @@ namespace BlocksBeyondTheStars.Shared.State;
 /// validators, which is how a palette widening ends up enforced in two of them.
 ///
 /// <para>
-/// The alphabet is base32 (<c>0-9a-v</c>, 32 palette slots) as of #897, hex (<c>0-9a-f</c>) before that.
+/// The alphabet is base32 (<c>0-9a-v</c>, 32 palette slots) as of #899, hex (<c>0-9a-f</c>) before that.
 /// Because the hex digits are its first sixteen symbols, every payload written by an older client stays
 /// valid — no migration, no dual-format handling. Upper case is accepted on read (clients write lower
 /// case; <c>GameServerPaint</c> lower-cases design payloads before validating them, which is also why

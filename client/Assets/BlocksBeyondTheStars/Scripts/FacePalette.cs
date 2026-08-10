@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Client
     /// The shared format + palette for the custom pixel face a player draws in the <see cref="FaceEditor"/>.
     /// A face is a <see cref="Size"/>×<see cref="Size"/> grid of palette indices (0 = transparent, 1..31 =
     /// the colours in <see cref="Colors"/>), serialized as one <see cref="Alphabet"/> char per pixel (row 0 =
-    /// top; the alphabet is base32 as of #897, hex before that — old payloads decode unchanged). The string
+    /// top; the alphabet is base32 as of #899, hex before that — old payloads decode unchanged). The string
     /// is what travels over the network (<c>SetFaceIntent</c>/<c>PlayerFace</c>) and persists in
     /// <see cref="ClientSettings.FacePixels"/> / the server player record — opaque to the server, owned here.
     /// </summary>
@@ -40,7 +40,7 @@ namespace BlocksBeyondTheStars.Client
         /// new colours only ever get appended.
         /// </para>
         /// <para>
-        /// 16..31 (#897) are the shading partners the first 15 lacked: a lighter and a darker sibling for the
+        /// 16..31 (#899) are the shading partners the first 15 lacked: a lighter and a darker sibling for the
         /// hues people actually shade with, two extra greys and a deep skin tone. What was missing at 16
         /// colours was never another hue — it was the second tone that turns a flat shape into a lit one.
         /// </para>
@@ -83,7 +83,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>
         /// Symbol alphabet of the payload format: one character per pixel, so <b>its length IS the palette
-        /// size</b>. Widened from hex (16) to base32 (#897) — the first sixteen symbols are the hex digits, so
+        /// size</b>. Widened from hex (16) to base32 (#899) — the first sixteen symbols are the hex digits, so
         /// every payload ever written stays valid and decodes to exactly the same colours.
         /// <para>
         /// ⚠ <b>Lower case only.</b> The server lower-cases block-design payloads before validating them

@@ -9,7 +9,7 @@ using BodyPaint = BlocksBeyondTheStars.Shared.State.BodyPaint;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Builds the five tabs of the appearance screen (#897) — face, torso, arms, legs, helmet — as
+    /// Builds the five tabs of the appearance screen (#899) — face, torso, arms, legs, helmet — as
     /// <see cref="FaceEditor.Subject"/>s, so the in-game menu and the main-menu Avatar Designer show the
     /// same screen over their own storage (settings vs. the designer's scratch values).
     /// <para>

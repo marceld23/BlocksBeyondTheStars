@@ -123,7 +123,7 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(panel, 20f, y, w - 40f, 22f, L("ui.avatar.face"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 30f;
 
-            // One button instead of five (#897): face, torso, arms, legs and helmet are tabs of the shared
+            // One button instead of five (#899): face, torso, arms, legs and helmet are tabs of the shared
             // appearance screen, which also carries the base colours for the part being painted.
             UiKit.AddButton(panel, 20f, y, w - 40f, 34f, L("ui.appearance.title"), OpenAppearanceEditor);
             y += 52f;
