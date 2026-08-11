@@ -158,10 +158,12 @@ public sealed class HostRegistry : IDisposable
     private readonly Lock _gate = new();
     private readonly SqliteConnection _db;
     private readonly WorldHostConfig _config;
+    private readonly Shared.Moderation.NameScreen _nameScreen;
 
     public HostRegistry(WorldHostConfig config, string? databasePath = null)
     {
         _config = config;
+        _nameScreen = new Shared.Moderation.NameScreen(config.BlockedNameWords, config.WatchNameWords);
         string path = databasePath ?? Path.Combine(config.DataDir, "worldhost.db");
         var dir = Path.GetDirectoryName(path);
         if (!string.IsNullOrEmpty(dir))
@@ -302,15 +304,15 @@ public sealed class HostRegistry : IDisposable
     private static string NormalizeName(string? name)
         => new((name ?? string.Empty).ToLowerInvariant().Where(c => c is not (' ' or '-' or '_')).ToArray());
 
-    /// <summary>True when a name contains a blocked word (kid-facing name hygiene) — same normalization
-    /// as the reservation check, so separator tricks don't slip past. Substring match on a deliberately
-    /// short, unambiguous list.</summary>
-    public bool IsBlockedName(string? name)
-    {
-        string normalized = NormalizeName(name);
-        return normalized.Length > 0
-               && _config.BlockedNameWords.Any(w => NormalizeName(w) is { Length: > 0 } bad && normalized.Contains(bad));
-    }
+    /// <summary>True when a name contains a blocked word (kid-facing name hygiene). Screening lives in
+    /// the shared <see cref="Shared.Moderation.NameScreen"/> (issue #938): stronger normalization than
+    /// the reservation check — diacritics, every separator class and leetspeak digits are folded, so
+    /// "H-i-t-l-e-r", "h.i.t.l.e.r" and "h1tl3r" are all caught.</summary>
+    public bool IsBlockedName(string? name) => _nameScreen.IsBlocked(name);
+
+    /// <summary>Full screening verdict (block / watch / ok) for the operator-notification call sites —
+    /// watch hits are allowed through but flagged (#938).</summary>
+    public Shared.Moderation.NameScreenResult ScreenName(string? name) => _nameScreen.Screen(name);
 
     public static bool IsValidWorldId(string id) => WorldIdRx.IsMatch(id);
 

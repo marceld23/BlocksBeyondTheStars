@@ -2431,6 +2431,32 @@ public sealed partial class GameServer
             name = name.Substring(0, MaxPlayerNameLength); // cap a client-supplied name so it can't be a multi-KB blob (persisted + broadcast in presence)
         }
 
+        // Chat text is control-char-stripped (HandleChat); the join name must be too — it is persisted
+        // and broadcast in presence, and a smuggled newline would corrupt logs and list UIs (#938).
+        name = StripControlChars(name).Trim();
+        if (name.Length == 0)
+        {
+            name = $"player_{connectionId}";
+        }
+
+        // Name screening at the join itself (#938): the WorldHost gates only cover HOSTED worlds — on a
+        // self-hosted or direct-connect server this is the only gate there is. Blocked names are turned
+        // away; watch-list names join normally but leave a log line + optional operator ping (a human
+        // reviews ambiguous terms, the filter never guesses).
+        var nameScreenResult = JoinNameScreen.Screen(name);
+        if (nameScreenResult.Verdict == Shared.Moderation.NameVerdict.Block)
+        {
+            _log.Warn($"Join of '{name}' rejected: name matches blocked term '{nameScreenResult.MatchedTerm}'.");
+            SendTo(connectionId, new JoinRejected { Reason = "@srv.join.name_blocked" });
+            return;
+        }
+
+        if (nameScreenResult.Verdict == Shared.Moderation.NameVerdict.Watch)
+        {
+            _log.Warn($"NAME FLAG: join name '{name}' matches watch-list term '{nameScreenResult.MatchedTerm}' (allowed; review manually).");
+            NotifyOperator("Name flagged", $"Player name '{name}' on world '{_config.WorldName}' matches watch-list term '{nameScreenResult.MatchedTerm}'. The join was allowed — review manually.", "triangular_flag_on_post");
+        }
+
         // Hosted-worlds gate: with a JoinTokenSecret configured, only joins the control plane vouched for
         // (a valid HMAC token, bound to THIS world and THIS name) get in. Validated offline — no network
         // dependency on the control plane. Local sessions (AddLocalPlayer) never pass through here, so the

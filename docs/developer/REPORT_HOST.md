@@ -110,6 +110,13 @@ reports.example.com {
   screenshot — the server forward is the reliable path for it, since the client-direct F1 upload may not
   run on older builds. Oversized shots are dropped upstream (2 MB cap) / by the ReportHost base64 cap,
   keeping the report either way. The local `bumps/` file stays authoritative.
+- **`/reportpaint` / `/reportshape` reports** (#938) — any server with a configured sink also forwards
+  each in-game paint/shape report to the inbox, shaped like a `/bump` (no `reportJson.kind` → category
+  *feedback*, `source: "server"`) with `reportJson.reportType: "paint-report"` / `"shape-report"` and
+  the design id, owner, reporter and block position under `reportJson.report`. Before this, those
+  reports only existed as a row in the world's own `paint_report` table plus a server log line —
+  invisible to the fleet operator. The local row stays authoritative; the wipe commands
+  (`/paintwipe #id`, `/shapewipe #id`) work from the forwarded id.
 - **Client F1 feedback** — the endpoint is the `FeedbackUploader.DefaultEndpoint` constant (by design
   the client always reports to the *official* inbox, from any server). Since the cutover it points at
   `https://reports.blocksbeyondthestars.de/api/bugreport`; the CI secret `BBS_BUGREPORT_API_KEY`
@@ -117,6 +124,16 @@ reports.example.com {
   the cutover keep posting to the legacy Wix endpoint until players update.
 - Smoke test: `scripts/test-feedback-endpoint.ps1` can be pointed at
   `http://localhost:31418/api/bugreport` with the write key.
+
+## Operator push notifications (#938)
+
+`BBS_REPORTS_NOTIFY_URL` (empty = off) makes the inbox POST one short plain-text message per stored
+report — body + `Title`/`Tags` headers, which is the [ntfy](https://ntfy.sh) publish contract, so an
+ntfy topic URL works out of the box (and most generic webhook receivers too). Fire-and-forget: one
+attempt, 10 s timeout, failures swallowed — the stored report is the source of truth.
+Note: in-game F1 feedback arrives twice by design (client-direct + server `/bump` forward), so those
+ping twice. Use a dedicated, unguessably-named topic; the messages contain report titles and player
+names.
 
 ## Code map
 

@@ -352,6 +352,7 @@ public sealed partial class GameServer
         }
 
         string owner = _paintDesigns.TryGetValue(foundDesign, out var d) ? d.OwnerId : string.Empty;
+        string ownerName = d?.OwnerName ?? string.Empty;
         _repo.SavePaintReport(new StoredPaintReport
         {
             ReporterId = session.State.PlayerId,
@@ -365,6 +366,8 @@ public sealed partial class GameServer
         });
         _log.Info($"PAINT REPORT by '{session.State.Name}' ({session.State.PlayerId}): design {foundDesign} " +
                   $"owned by '{owner}' at {cell.X},{cell.Y},{cell.Z} on {_worlds.Active.LocationId}.");
+        ForwardContentReport("paint", session, foundDesign, owner, ownerName,
+            _worlds.Active.LocationId, cell.X, cell.Y, cell.Z);
         Send(session, new ServerMessage { Text = "@srv.paint.report_sent" });
     }
 

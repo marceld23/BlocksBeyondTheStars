@@ -29,6 +29,7 @@ services:
       BBS_REPORTS_ADMIN_PASSWORD: "${BBS_REPORTS_ADMIN_PASSWORD:-}"
       # BBS_REPORTS_RETENTION_DAYS: "180"   # prune reports (incl. screenshots) after N days; 0/unset = keep
       # BBS_REPORTS_TRUST_PROXY: "true"     # rate-limit on X-Forwarded-For — ONLY behind a trusted proxy
+      # BBS_REPORTS_NOTIFY_URL: ""          # ntfy topic URL pinged once per stored report; empty = off (#938)
     volumes:
       - reports_data:/data              # reports.db + screenshots/
 

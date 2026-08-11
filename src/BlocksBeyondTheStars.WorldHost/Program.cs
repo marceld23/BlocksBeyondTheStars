@@ -19,6 +19,10 @@ var metrics = new WorldHostMetrics();
 var orchestrator = new WorldOrchestrator(config, registry, launcher, metrics: metrics);
 var glitch = new GlitchGateway(config, registry, orchestrator);
 
+// Operator push notifications (#938): fire-and-forget pings for new reports and name-screen hits.
+// Off by default (empty BBS_WH_NOTIFY_URL) — everything it announces is also in the logs/admin UI.
+var notifier = new BlocksBeyondTheStars.Shared.Notifications.AdminNotifier(config.NotifyUrl, "worldhost");
+
 // Abuse limits (Phase 3). Signup/login key on the caller IP (real one via X-Forwarded-For — Caddy
 // fronts this service), uploads/reports on the account. See WorldHostConfig for the operator knobs.
 var signupLimit = new RateLimiter(config.SignupPerHourPerIp, TimeSpan.FromHours(1));
@@ -538,10 +542,28 @@ app.MapPost("/api/signup", (HttpContext ctx, SignupRequest req) =>
         return RateLimited();
     }
 
+    // Name screening with operator visibility (#938): blocked attempts previously left no trace at all.
+    // Watch hits are allowed (flagged below, after the account actually exists).
+    var nameScreen = registry.ScreenName(req.Name);
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Block)
+    {
+        metrics.NameBlocked();
+        log.LogWarning("Signup name blocked (matched '{Term}').", nameScreen.MatchedTerm);
+        notifier.Post("Blocked name at signup", $"A signup was rejected: the requested account name matched blocked term '{nameScreen.MatchedTerm}'.", "no_entry");
+        return ApiError("Please choose a different name.");
+    }
+
     var (ok, error, accountId, session) = registry.CreateAccount(req.Name, req.Password, req.ClaimCode, req.AcceptedTermsVersion);
     if (!ok)
     {
         return ApiError(error);
+    }
+
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Watch)
+    {
+        metrics.NameFlagged();
+        log.LogWarning("Account name '{Name}' flagged (matched watch term '{Term}'); signup allowed.", LogSafe(req.Name), nameScreen.MatchedTerm);
+        notifier.Post("Name flagged at signup", $"New account name '{req.Name}' matched watch-list term '{nameScreen.MatchedTerm}'. The signup was allowed — review manually.", "triangular_flag_on_post");
     }
 
     // Deliberately no account id in the log: ids act as stable references in the registry and appearing
@@ -790,6 +812,14 @@ app.MapPost("/api/reports", (HttpContext ctx, ReportRequest req) =>
     // Banned players may still file reports (they can't play, but silencing them buys nothing);
     // reports are length-capped and reviewed manually — nobody is auto-punished by a report.
     var (ok, error) = registry.CreateReport(account.Id, req.WorldId ?? string.Empty, req.ReportedName, req.Category, req.Message ?? string.Empty);
+    if (ok)
+    {
+        // The inbox was pull-only before (#938): the operator had to open /admin to learn a report exists.
+        string reported = string.IsNullOrWhiteSpace(req.ReportedName) ? "(none)" : req.ReportedName.Trim();
+        notifier.Post($"New player report ({(req.Category ?? string.Empty).Trim().ToLowerInvariant()})",
+            $"Reported: {reported}. World: {(string.IsNullOrWhiteSpace(req.WorldId) ? "(none)" : req.WorldId)}. Review on /admin.", "postbox");
+    }
+
     return ok ? Results.Ok() : ApiError(error);
 });
 
@@ -1263,10 +1293,27 @@ app.MapPost("/api/worlds", (HttpContext ctx, CreateWorldRequest req) =>
         return blocked;
     }
 
+    // Same screening as signup (#938): a blocked world name pings the operator, a watch hit flags it.
+    var nameScreen = registry.ScreenName(req.Name);
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Block)
+    {
+        metrics.NameBlocked();
+        log.LogWarning("World name blocked for account {Account} (matched '{Term}').", LogSafe(account.Name), nameScreen.MatchedTerm);
+        notifier.Post("Blocked world name", $"Account '{account.Name}' tried to create a world whose name matched blocked term '{nameScreen.MatchedTerm}'.", "no_entry");
+        return ApiError("Please choose a different world name.");
+    }
+
     var (ok, error, world) = registry.CreateWorld(account.Id, req.Name, req.Password);
     if (!ok)
     {
         return ApiError(error);
+    }
+
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Watch)
+    {
+        metrics.NameFlagged();
+        log.LogWarning("World name '{Name}' flagged (matched watch term '{Term}'); creation allowed.", LogSafe(world!.DisplayName), nameScreen.MatchedTerm);
+        notifier.Post("World name flagged", $"New world '{req.Name}' (owner '{account.Name}') matched watch-list term '{nameScreen.MatchedTerm}'. Creation was allowed — review manually.", "triangular_flag_on_post");
     }
 
     log.LogInformation("World '{Name}' ({Id}) created by {Account}.", LogSafe(world!.DisplayName), world.Id, LogSafe(account.Name));
@@ -1285,6 +1332,16 @@ app.MapPost("/api/worlds/{id}/join", async (HttpContext ctx, string id, JoinRequ
         return Results.NotFound();
     }
 
+    // Name screening visibility (#938): the ORCHESTRATOR stays the enforcement point (unchanged player
+    // responses); this only gives the operator metrics + a ping for what used to happen silently.
+    var nameScreen = registry.ScreenName(req.PlayerName);
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Block)
+    {
+        metrics.NameBlocked();
+        log.LogWarning("Join name blocked on world {Id} for account {Account} (matched '{Term}').", id, LogSafe(account.Name), nameScreen.MatchedTerm);
+        notifier.Post("Blocked player name", $"Account '{account.Name}' tried to join world {id} under a name matching blocked term '{nameScreen.MatchedTerm}'.", "no_entry");
+    }
+
     // The join grant is the access-control choke point: the orchestrator enforces ban/terms AND the
     // creator-set world password (#250/#251) before minting a token; the instance only admits valid
     // tokens. The grant names the caller's account, so the instance can attribute every admitted player.
@@ -1298,6 +1355,13 @@ app.MapPost("/api/worlds/{id}/join", async (HttpContext ctx, string id, JoinRequ
             _ => StatusCodes.Status503ServiceUnavailable,
         };
         return ApiError(error, status);
+    }
+
+    if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Watch)
+    {
+        metrics.NameFlagged();
+        log.LogWarning("Player name '{Name}' flagged on world {Id} (matched watch term '{Term}'); join allowed.", LogSafe(req.PlayerName), id, nameScreen.MatchedTerm);
+        notifier.Post("Player name flagged", $"Player '{req.PlayerName}' (account '{account.Name}') joined world {id} under a name matching watch-list term '{nameScreen.MatchedTerm}'. Review manually.", "triangular_flag_on_post");
     }
 
     return Results.Json(grant);

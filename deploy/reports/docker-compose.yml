@@ -19,6 +19,7 @@ services:
       BBS_REPORTS_ADMIN_USER: ${BBS_REPORTS_ADMIN_USER:-}      # empty = admin UI off
       BBS_REPORTS_ADMIN_PASSWORD: ${BBS_REPORTS_ADMIN_PASSWORD:-}
       BBS_REPORTS_TRUST_PROXY: "true"   # rate-limit on X-Forwarded-For — correct behind our own Caddy
+      BBS_REPORTS_NOTIFY_URL: ${BBS_REPORTS_NOTIFY_URL:-}   # ntfy topic URL; empty = no pings (#938)
       # BBS_REPORTS_RETENTION_DAYS: "180"
     labels:
       caddy: ${BBS_REPORTS_DOMAIN:?set in /opt/bbs/reports/.env}

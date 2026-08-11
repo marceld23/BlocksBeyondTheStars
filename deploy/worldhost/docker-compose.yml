@@ -49,6 +49,11 @@ services:
       # override is only for fleets with their own ReportHost — the server default is the official inbox.
       BBS_WH_CRASH_REPORT_KEY: ${BBS_WH_CRASH_REPORT_KEY:-}
       BBS_WH_CRASH_REPORT_ENDPOINT: ${BBS_WH_CRASH_REPORT_ENDPOINT:-}
+      # Operator push notifications + name screening (#938): ntfy topic URL (empty = off) and the
+      # operator extensions of the built-in blocked/watch word lists (comma-separated; empty = defaults).
+      BBS_WH_NOTIFY_URL: ${BBS_WH_NOTIFY_URL:-}
+      BBS_WH_BLOCKED_WORDS: ${BBS_WH_BLOCKED_WORDS:-}
+      BBS_WH_WATCH_WORDS: ${BBS_WH_WATCH_WORDS:-}
       # Per-tick chunk-stream budget (ms) forwarded to every world as BBS_CHUNK_STREAM_BUDGET_MS (#360):
       # bounds cold-worldgen bursts so one player's fresh join/fast-flight can't stall the world's tick for
       # everyone else. Default 25 (generous headroom under the ~66 ms tick); 0 = off (unbounded).

@@ -268,6 +268,8 @@ public sealed partial class GameServer
         });
         _log.Info($"SHAPE REPORT by '{session.State.Name}' ({session.State.PlayerId}): form {foundShape} " +
                   $"'{design.Name}' owned by '{design.OwnerName}' at {cell.X},{cell.Y},{cell.Z} on {_worlds.Active.LocationId}.");
+        ForwardContentReport("shape", session, foundShape, design.OwnerId, design.OwnerName,
+            _worlds.Active.LocationId, cell.X, cell.Y, cell.Z);
         Send(session, new ServerMessage { Text = "@srv.shape.report_sent" });
     }
 

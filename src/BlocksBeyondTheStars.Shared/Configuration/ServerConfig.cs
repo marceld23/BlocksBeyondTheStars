@@ -116,6 +116,22 @@ public sealed class ServerConfig
     /// (the default) leaves crash uploading disabled regardless of the endpoint — official builds inject it.</summary>
     public string CrashReportApiKey { get; set; } = string.Empty;
 
+    /// <summary>Operator push-notification URL (<c>BBS_NOTIFY_URL</c>, issue #938) — an ntfy topic URL or
+    /// any webhook that accepts a plain-text POST. Pinged on <c>/reportpaint</c>/<c>/reportshape</c> and on
+    /// watch-list name flags. Empty (the default) = off; the hosted fleet leaves this unset because the
+    /// WorldHost/ReportHost carry their own notify hooks there.</summary>
+    public string NotifyUrl { get; set; } = string.Empty;
+
+    /// <summary>Name block list enforced at join (shared semantics with the WorldHost gates — see
+    /// <see cref="Moderation.NameScreen"/>). <c>BBS_BLOCKED_WORDS</c> (comma-separated) EXTENDS the
+    /// defaults; substring-matched, so number codes or short abbreviations never belong here.</summary>
+    public List<string> BlockedNameWords { get; set; } = new(Moderation.NameScreen.DefaultBlockedWords);
+
+    /// <summary>Name watch list: a join under a matching name is ALLOWED but logged + pushed to
+    /// <see cref="NotifyUrl"/> — the human decides, not the filter (issue #938). <c>BBS_WATCH_WORDS</c>
+    /// (comma-separated) EXTENDS the defaults; a leading '=' pins an entry to whole-token matching.</summary>
+    public List<string> WatchNameWords { get; set; } = new(Moderation.NameScreen.DefaultWatchWords);
+
     /// <summary>Opt-in live voice chat. When false (the default on dedicated servers) the server rejects/ignores
     /// voice frames and tells clients voice is unavailable; text chat is unaffected. Voice is relayed live and
     /// never recorded. The bundled singleplayer/host launcher may turn this on for local co-op.</summary>
@@ -685,6 +701,9 @@ public sealed class ServerConfig
         if (Env("BBS_AI_TIMEOUT_SECONDS") is { } aiToStr && int.TryParse(aiToStr, out var aiTo) && aiTo > 0) { AiTimeoutSeconds = aiTo; applied.Add("BBS_AI_TIMEOUT_SECONDS"); }
         if (Env("BBS_CRASH_REPORT_ENDPOINT") is { } crashUrl) { CrashReportEndpoint = crashUrl; applied.Add("BBS_CRASH_REPORT_ENDPOINT"); }
         if (Env("BBS_CRASH_REPORT_KEY") is { } crashKey) { CrashReportApiKey = crashKey; applied.Add("BBS_CRASH_REPORT_KEY"); }
+        if (Env("BBS_NOTIFY_URL") is { } notifyUrl) { NotifyUrl = notifyUrl; applied.Add("BBS_NOTIFY_URL"); }
+        if (Env("BBS_BLOCKED_WORDS") is { } blockedWords) { BlockedNameWords.AddRange(SplitNames(blockedWords)); applied.Add("BBS_BLOCKED_WORDS"); }
+        if (Env("BBS_WATCH_WORDS") is { } watchWords) { WatchNameWords.AddRange(SplitNames(watchWords)); applied.Add("BBS_WATCH_WORDS"); }
         if (Env("BBS_VOICE") is { } voiceStr && bool.TryParse(voiceStr, out var voice)) { VoiceChatEnabled = voice; applied.Add("BBS_VOICE"); }
         if (Env("BBS_IDLE_SHUTDOWN_MINUTES") is { } idleStr && int.TryParse(idleStr, out var idle)) { IdleShutdownMinutes = idle; applied.Add("BBS_IDLE_SHUTDOWN_MINUTES"); }
         if (Env("BBS_JOIN_TOKEN_SECRET") is { } joinSecret) { JoinTokenSecret = joinSecret; applied.Add("BBS_JOIN_TOKEN_SECRET"); }

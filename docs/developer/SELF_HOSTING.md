@@ -573,3 +573,22 @@ BBS_CRASH_REPORT_KEY: "my-write-key"
 Reports are then browsable at `http://localhost:31418/admin` (Basic Auth). The player-facing **F1
 feedback** dialog is unaffected — it reports to the official developers regardless of which server the
 player is on. Full endpoint/config reference: [REPORT_HOST.md](REPORT_HOST.md).
+
+## 12. Optional: moderation pings + name screening (#938)
+
+Three more opt-in knobs for operators of public servers (all empty/off by default):
+
+- `BBS_NOTIFY_URL` — an [ntfy](https://ntfy.sh) topic URL (or any webhook accepting a plain-text
+  POST). The server pings it, fire-and-forget, when a player files `/reportpaint` / `/reportshape`
+  and when someone joins under a watch-listed name. Use a dedicated topic with an unguessable name.
+- `BBS_BLOCKED_WORDS` — comma-separated EXTENSION of the built-in name block list (substring-matched
+  with case/diacritic/separator/leetspeak folding; joins under a matching name are rejected). Only
+  long, unambiguous terms belong here.
+- `BBS_WATCH_WORDS` — comma-separated EXTENSION of the built-in watch list: joins are ALLOWED but
+  logged and pinged to `BBS_NOTIFY_URL`. Short entries match whole name tokens only; prefix an entry
+  with `=` to pin it to token-only matching (e.g. `=support`).
+
+Both lists ship with sensible defaults (slurs and unambiguous extremist terms blocked; extremist
+number codes, serial-killer names and authority impersonation watched), so most operators never need
+to touch them. `/reportpaint`/`/reportshape` rows also land in your ReportHost inbox automatically
+when section 11 is configured.

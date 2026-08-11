@@ -14,6 +14,12 @@ var config = ReportHostConfig.FromEnvironment();
 using var store = new ReportStore(config);
 var limiter = new IngestRateLimiter(config.IngestPerMinute);
 
+// Operator push notifications (#938): one fire-and-forget ping per stored report, so the operator no
+// longer has to poll the admin UI to learn something arrived. Off by default (empty NOTIFY_URL). Note
+// the known double-ping for in-game F1 feedback: those reports arrive twice by design (client-direct
+// POST + the server /bump forward) — see ReportDuplicateGroupingTests.
+var notifier = new BlocksBeyondTheStars.Shared.Notifications.AdminNotifier(config.NotifyUrl, "reports");
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -187,6 +193,8 @@ app.MapPost("/api/bugreport", async (HttpContext ctx) =>
     log.LogInformation("Report {Id} stored ({Category}{Kind}, v{Version}, screenshot: {Shot}).",
         id, parsed.Category, parsed.Kind.Length > 0 ? "/" + parsed.Kind : "", parsed.GameVersion,
         parsed.ScreenshotBytes != null);
+    notifier.Post($"New {parsed.Category} report{(parsed.Kind.Length > 0 ? $" ({parsed.Kind})" : string.Empty)}",
+        $"{parsed.Title}\n(v{parsed.GameVersion}, player '{parsed.PlayerName}') — review on /admin.", "postbox");
     return Results.Json(new { ok = true, bugReportId = id });
 });
 

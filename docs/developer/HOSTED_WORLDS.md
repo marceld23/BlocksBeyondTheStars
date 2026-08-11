@@ -354,13 +354,27 @@ class behind plain methods, so swapping the backend later is contained.
 - **Rate limits** (fixed windows, in-memory, operator knobs): signups 5/h and logins 10/min per
   client IP (real IP via X-Forwarded-For — the app now honors forwarded headers from Caddy), save
   uploads 6/h and reports 10/h per account. Over-budget calls get HTTP 429 with a friendly text.
-- **Blocked-name hygiene** (kid-facing): a short, unambiguous word list (operator-extendable via
-  `BBS_WH_BLOCKED_WORDS`) is enforced on account names, world names AND in-game player names at the
-  join grant — matched with the same normalization as reserved names, so separator tricks are caught.
-  Deliberately minimal to avoid Scunthorpe-style false positives; the report button covers the rest.
+- **Name screening** (kid-facing, #938; shared `Shared.Moderation.NameScreen`, also enforced by the
+  game server itself on direct-connect joins): two tiers, enforced on account names, world names AND
+  in-game player names at the join grant.
+  - *Block list* (operator-extendable via `BBS_WH_BLOCKED_WORDS`): short, unambiguous words,
+    substring-matched on a normalized name that folds case, diacritics, every separator class,
+    leetspeak digits/symbols and repeated letters — "H-i-t-l-e-r", "h.i.t.l.e.r" and "h1tl3r" are all
+    caught. Deliberately minimal to avoid Scunthorpe-style false positives; number codes or short
+    abbreviations never belong here.
+  - *Watch list* (`BBS_WH_WATCH_WORDS`): ambiguous terms — extremist number codes/abbreviations,
+    serial-killer names, authority impersonation. A hit is ALLOWED but flagged: warning log, metrics
+    counter and a `BBS_WH_NOTIFY_URL` ping, so a human reviews instead of the filter guessing. Short
+    entries match whole name tokens only ("Max88" flags, "Tom1988" does not); a leading `=` pins an
+    entry to token-only matching. A small high-severity core is fuzzy-matched (edit distance 1), so
+    "adof" still flags.
+- **Operator push notifications** (#938): `BBS_WH_NOTIFY_URL` (empty = off) receives one plain-text
+  POST with `Title`/`Tags` headers — the ntfy publish contract — on every new player report/feedback,
+  blocked-name attempt and watch-list flag. Fire-and-forget, one attempt, never blocks a request.
+  Use a dedicated, unguessably-named topic (messages contain player/world names).
 - **Prometheus metrics.** `GET /metrics` (loopback only — Caddy does not route it): gauges
   (`bbs_accounts_total`, `bbs_worlds{status=…}`, `bbs_reports_open`) + counters (joins granted,
-  wakes, reaped, archived, rate-limited).
+  wakes, reaped, archived, rate-limited, names blocked/flagged).
 
 ## Legal pages, localization & account deletion (implemented 2026-07-05)
 

@@ -62,6 +62,11 @@ public sealed class ReportHostConfig
     /// could spoof their way past the limiter.</summary>
     public bool TrustProxy { get; set; }
 
+    /// <summary>Operator push-notification URL (<c>BBS_REPORTS_NOTIFY_URL</c>, issue #938) — an ntfy
+    /// topic URL or any webhook accepting a plain-text POST; pinged once per stored report. Empty
+    /// (default) = off, matching the fail-closed credential defaults above.</summary>
+    public string NotifyUrl { get; set; } = string.Empty;
+
     /// <summary>Loads config from BBS_REPORTS_* environment variables over the defaults.</summary>
     public static ReportHostConfig FromEnvironment()
     {
@@ -84,6 +89,7 @@ public sealed class ReportHostConfig
         if (Env("BBS_REPORTS_INGEST_PER_MINUTE") is { } rlStr && int.TryParse(rlStr, out var rl)) { c.IngestPerMinute = rl; }
         if (Env("BBS_REPORTS_RETENTION_DAYS") is { } rdStr && int.TryParse(rdStr, out var rd)) { c.RetentionDays = rd; }
         if (Env("BBS_REPORTS_TRUST_PROXY") is { } tpStr && bool.TryParse(tpStr, out var tp)) { c.TrustProxy = tp; }
+        if (Env("BBS_REPORTS_NOTIFY_URL") is { } notifyUrl) { c.NotifyUrl = notifyUrl; }
 
         return c;
     }

@@ -19,6 +19,8 @@ public sealed class WorldHostMetrics
     private long _reaped;
     private long _archived;
     private long _rateLimited;
+    private long _namesBlocked;
+    private long _namesFlagged;
 
     public void JoinGranted() => Interlocked.Increment(ref _joinsGranted);
 
@@ -29,6 +31,12 @@ public sealed class WorldHostMetrics
     public void Archived(int count) => Interlocked.Add(ref _archived, count);
 
     public void RateLimited() => Interlocked.Increment(ref _rateLimited);
+
+    /// <summary>A name was rejected by the block list (#938) — previously these attempts left no trace at all.</summary>
+    public void NameBlocked() => Interlocked.Increment(ref _namesBlocked);
+
+    /// <summary>A name matched the watch list and was allowed through with an operator flag (#938).</summary>
+    public void NameFlagged() => Interlocked.Increment(ref _namesFlagged);
 
     /// <summary>Renders the scrape body: live gauges from the registry + the process counters.</summary>
     public string Render(HostRegistry registry)
@@ -56,6 +64,10 @@ public sealed class WorldHostMetrics
         sb.Append("bbs_worlds_archived_total ").Append(Interlocked.Read(ref _archived)).Append('\n');
         sb.Append("# TYPE bbs_rate_limited_total counter\n");
         sb.Append("bbs_rate_limited_total ").Append(Interlocked.Read(ref _rateLimited)).Append('\n');
+        sb.Append("# TYPE bbs_names_blocked_total counter\n");
+        sb.Append("bbs_names_blocked_total ").Append(Interlocked.Read(ref _namesBlocked)).Append('\n');
+        sb.Append("# TYPE bbs_names_flagged_total counter\n");
+        sb.Append("bbs_names_flagged_total ").Append(Interlocked.Read(ref _namesFlagged)).Append('\n');
 
         return sb.ToString();
     }

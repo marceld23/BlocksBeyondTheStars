@@ -246,6 +246,15 @@ else if (pendingCrashes > 0)
                 "Attach them to a bug report, or set CrashReportEndpoint + CrashReportApiKey to upload them automatically.");
 }
 
+// Operator push notifications — opt-in like the crash upload (#938). With a notify URL configured
+// (BBS_NOTIFY_URL / config), paint/shape reports and watch-list name flags ping the operator; without
+// one, everything stays in the log + world DB as before.
+if (!string.IsNullOrWhiteSpace(config.NotifyUrl))
+{
+    server.AdminNotifier = new BlocksBeyondTheStars.Shared.Notifications.AdminNotifier(config.NotifyUrl, config.WorldName);
+    logger.Info("Operator notifications enabled (NotifyUrl configured).");
+}
+
 logger.Info("Press Ctrl+C to stop the server.");
 server.Run(); // returns once the shutdown request has been drained + saved on the tick thread
 return 0;

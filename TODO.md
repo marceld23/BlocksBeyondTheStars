@@ -7726,6 +7726,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): name screening with operator flags, moderation pings, visible paint reports (#938)
+
+Kid-facing moderation, three pieces. **(1) Shared name screening** — new `Shared.Moderation.NameScreen`
+replaces the WorldHost's inline blocked-word check and is now ALSO enforced in `GameServer.HandleJoin`
+(direct-connect/self-hosted servers previously had zero name validation; join names are now also
+control-char-stripped, new `srv.join.name_blocked` key en+de). Block list gains real normalization
+(diacritics, every separator class, leetspeak digits incl. both 1→i/1→l, repeated-letter collapse —
+"h1tl3r"/"h.i.t.l.e.r"/"hïtler" all caught) plus a few unambiguous extremist terms (1488, sieg heil…).
+NEW watch tier (flag, never block) for ambiguous terms — extremist codes/abbreviations (afd, 88, hh…),
+serial killers, authority impersonation: whole-token semantics for short codes ("Max88" flags,
+"Tom1988" doesn't), `=` prefix pins token-only, fuzzy edit-distance-1 core catches "adof". Env:
+`BBS_(WH_)BLOCKED_WORDS`/`BBS_(WH_)WATCH_WORDS` extend. **(2) Operator push pings** — new shared
+`AdminNotifier`: one fire-and-forget plain-text POST (ntfy publish contract) per event; WorldHost
+(`BBS_WH_NOTIFY_URL`: new report/feedback, blocked-name attempt, watch flag at signup/world-create/join
++ new `bbs_names_blocked/flagged_total` metrics), ReportHost (`BBS_REPORTS_NOTIFY_URL`: every ingest)
+and dedicated server (`BBS_NOTIFY_URL`). Empty = off everywhere; blocked attempts previously left NO
+trace at all. **(3) `/reportpaint`/`/reportshape` become visible** — forwarded to the ReportHost
+through the existing crash-report sink (`reportType: paint-report/shape-report`, category feedback,
+same pattern as `/bump`; the fleet already passes the key into every world container), so they finally
+show in the inbox instead of only a per-world DB row + log line nobody reads. Docs: HOSTED_WORLDS,
+REPORT_HOST, SELF_HOSTING §12, both `.env.example`s + composes. New `NameScreenTests` (evasions,
+false-positive guards, join gate end-to-end). Chat filtering stays a separate task.
+
+---
+
 ## ✅ Done (2026-08-11): modified stacks name themselves again — no more raw `[item.snow#t8fd030.name]` (#927)
 
 Playtest fallout from the hotbar slot actions: three UI surfaces looked up `item.{key}.name` with the

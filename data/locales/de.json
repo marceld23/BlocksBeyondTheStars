@@ -2856,6 +2856,7 @@
   "srv.gadget.not_usable": "Das ist kein benutzbares Gadget.",
   "srv.gadget.unknown": "Unbekanntes Gadget.",
   "srv.join.bad_password": "Falsches Server-Passwort.",
+  "srv.join.name_blocked": "Bitte wähle einen anderen Spielernamen.",
   "srv.join.name_online": "Der Name '{name}' ist auf diesem Server gerade online.",
   "srv.join.name_taken": "Der Name '{name}' gehört einem anderen Spieler (Namens-Verifikation).",
   "srv.join.not_whitelisted": "Du stehst nicht auf der Gästeliste dieses Servers.",

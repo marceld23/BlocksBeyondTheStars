@@ -114,14 +114,24 @@ public sealed class WorldHostConfig
     public int ArchiveAfterMonths { get; set; } = 6;
 
     /// <summary>Words that may not appear in account names, world names or in-game player names —
-    /// matched against the same normalization as reserved names (lowercase, separators stripped), so
-    /// "H-i-t-l-e-r" is caught too. Kid-facing service: better safe. <c>BBS_WH_BLOCKED_WORDS</c>
-    /// (comma-separated) EXTENDS this list. Deliberately short and unambiguous to avoid Scunthorpe-style
-    /// false positives.</summary>
-    public List<string> BlockedNameWords { get; set; } = new()
-    {
-        "hitler", "nazi", "nigger", "neger", "fuck", "bitch", "hurensohn", "fotze", "wichser", "arschloch",
-    };
+    /// screened via the shared <see cref="Shared.Moderation.NameScreen"/> (lowercase, diacritics,
+    /// separators AND leetspeak folded, so "H-i-t-l-e-r" and "h1tl3r" are both caught). Kid-facing
+    /// service: better safe. <c>BBS_WH_BLOCKED_WORDS</c> (comma-separated) EXTENDS this list.
+    /// Substring-matched — deliberately short and unambiguous to avoid Scunthorpe-style false
+    /// positives; ambiguous terms belong on <see cref="WatchNameWords"/> instead.</summary>
+    public List<string> BlockedNameWords { get; set; } = new(Shared.Moderation.NameScreen.DefaultBlockedWords);
+
+    /// <summary>Watch list (issue #938): names matching these terms are ALLOWED but flagged to the
+    /// operator (log + metrics + <see cref="NotifyUrl"/> ping) — for terms too ambiguous to hard-block
+    /// (extremist number codes, party abbreviations, authority impersonation): a human reviews, the
+    /// filter never guesses. <c>BBS_WH_WATCH_WORDS</c> (comma-separated) EXTENDS this list; a leading
+    /// '=' pins an entry to whole-token matching.</summary>
+    public List<string> WatchNameWords { get; set; } = new(Shared.Moderation.NameScreen.DefaultWatchWords);
+
+    /// <summary>Operator push-notification URL (<c>BBS_WH_NOTIFY_URL</c>, issue #938) — an ntfy topic
+    /// URL or any webhook accepting a plain-text POST. Pinged on new player reports/feedback, blocked
+    /// name attempts and watch-list name flags. Empty (default) = off.</summary>
+    public string NotifyUrl { get; set; } = string.Empty;
 
     // Rate limits (fixed windows). Signup/login key on the caller IP, uploads/reports on the account —
     // they exist to blunt scripted abuse, not to inconvenience players.
@@ -388,6 +398,13 @@ public sealed class WorldHostConfig
         {
             c.BlockedNameWords.AddRange(blocked.Split(',').Select(w => w.Trim()).Where(w => w.Length > 0));
         }
+
+        if (Env("BBS_WH_WATCH_WORDS") is { } watch)
+        {
+            c.WatchNameWords.AddRange(watch.Split(',').Select(w => w.Trim()).Where(w => w.Length > 0));
+        }
+
+        if (Env("BBS_WH_NOTIFY_URL") is { } notifyUrl) { c.NotifyUrl = notifyUrl; }
 
         if (Env("BBS_WH_SIGNUPS_PER_HOUR") is { } suStr && int.TryParse(suStr, out var su)) { c.SignupPerHourPerIp = su; }
         if (Env("BBS_WH_LOGINS_PER_MINUTE") is { } liStr && int.TryParse(liStr, out var li)) { c.LoginPerMinutePerIp = li; }
