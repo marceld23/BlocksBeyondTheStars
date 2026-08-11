@@ -16,7 +16,7 @@
 # doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` is
 # deliberately NOT skipped: it feeds the headless tests (e.g. the en/de locale-parity test).
 #
-# Second output `localesonly` (#921): "true" when the diff's non-doc files are ALL under
+# Second output `localesonly` (#922): "true" when the diff's non-doc files are ALL under
 # data/locales/. ci.yml then replaces the 4-shard matrix with the narrow `locale-tests` job
 # (scripts/locale-test-filter.py), because only the classes that read the locale tables can
 # observe such a change. `nondocs` stays true in that case — lint.yml and codeql.yml are

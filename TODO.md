@@ -105,7 +105,7 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
-### ★ Translation PRs get a narrow CI lane: locales-only diffs skip the 4-shard matrix (#921, 2026-08-11, branch ci/locale-only-test-gate)
+### ★ Translation PRs get a narrow CI lane: locales-only diffs skip the 4-shard matrix (#922, 2026-08-11, branch ci/locale-only-test-gate)
 A PR whose non-doc diff stays inside `data/locales/*.json` now runs one `locale-tests` job (~140 tests,
 < 1 min of test time) instead of the 4-runner matrix + `dotnet format`. The affected-test set lives in
 `scripts/locale-test-filter.py`: a self-maintaining marker scan for direct locale-table readers

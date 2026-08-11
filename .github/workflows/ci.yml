@@ -44,7 +44,7 @@
 # used by lint.yml and codeql.yml). The `format` job stays a directly-required check (its name is stable
 # and GitHub counts its skip as a pass, as before).
 #
-# LOCALES-ONLY NARROW GATE (#921): when the PR diff touches nothing but data/locales/*.json (a
+# LOCALES-ONLY NARROW GATE (#922): when the PR diff touches nothing but data/locales/*.json (a
 # translation PR), the 4-shard matrix and `format` are skipped and the single `locale-tests` job runs
 # the classes that can actually observe a locale edit (scripts/locale-test-filter.py: a marker scan
 # for direct locale-table readers plus hand-listed indirect consumers, found by mutating every locale
