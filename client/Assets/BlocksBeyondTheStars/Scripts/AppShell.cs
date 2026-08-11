@@ -210,12 +210,17 @@ namespace BlocksBeyondTheStars.Client
 
         private IEnumerator RequestArcadeJoin()
         {
-            yield return GlitchIntegration.RequestArcadeSession(PlayerName, (session, error) =>
+            yield return GlitchIntegration.RequestArcadeSession(PlayerName, (session, error, errorCode) =>
             {
                 if (session == null)
                 {
                     Debug.LogWarning($"[Glitch] Arcade session failed: {error}");
-                    MenuNotice = L("ui.glitch.arcade_failed");
+                    // "glitch_full" = every arcade world is at its player cap, "no_capacity" = the
+                    // fleet's RAM budget is spent — either way capacity, not an outage, so point the
+                    // player at singleplayer (which needs no server slot) instead of "try again".
+                    MenuNotice = errorCode == "glitch_full" || errorCode == "no_capacity"
+                        ? L("ui.glitch.arcade_full")
+                        : L("ui.glitch.arcade_failed");
                     return;
                 }
 

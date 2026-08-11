@@ -105,6 +105,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Arcade full? The WebGL menu now says so — and points at singleplayer (#936, 2026-08-11, branch feature/arcade-full-notice-936)
+When every glitch.fun arcade world is at capacity, the portal's `/api/glitch/session` already answered
+with a machine-readable code (`glitch_full`; `no_capacity` when the fleet RAM budget is spent) — but the
+WebGL client threw the body away and showed the same generic `ui.glitch.arcade_failed` notice for every
+failure, indistinguishable from a network hiccup. `GlitchIntegration.RequestArcadeSession` now parses the
+portal's `{error, code}` error body and reports the code alongside the description; `AppShell` maps the
+two capacity codes to the new `ui.glitch.arcade_full` notice — "All arcade worlds are full right now -
+please try again in a few minutes. Singleplayer is always open!" — in all 14 locales (machine top-up for
+the 12 non-EN/DE ones, which also back-filled the two `hud.shape.*` keys #909 had left untranslated).
+Every other failure keeps the generic notice, and the server-side join race (`srv.join.server_full`)
+is deliberately untouched — it is shared with self-hosted servers.
+
 ### ★ Translation PRs get a narrow CI lane: locales-only diffs skip the 4-shard matrix (#922, 2026-08-11, branch ci/locale-only-test-gate)
 A PR whose non-doc diff stays inside `data/locales/*.json` now runs one `locale-tests` job (~140 tests,
 < 1 min of test time) instead of the 4-runner matrix + `dotnet format`. The affected-test set lives in
@@ -7748,6 +7760,43 @@ same pattern as `/bump`; the fleet already passes the key into every world conta
 show in the inbox instead of only a per-world DB row + log line nobody reads. Docs: HOSTED_WORLDS,
 REPORT_HOST, SELF_HOSTING §12, both `.env.example`s + composes. New `NameScreenTests` (evasions,
 false-positive guards, join gate end-to-end). Chat filtering stays a separate task.
+
+---
+
+## ✅ Done (2026-08-12): the slot-action pie works on gamepad and touch (#940)
+
+Follow-up to #935 (below): pad and touch could not OPEN the pie at all — no default pad button, no touch
+control. Now: **gamepad** gets `HotbarAction → R3` as the stock binding (right-stick click; free on the
+XInput layout, "click the stick" mirrors the middle-click; d-pad-down was considered but the project only
+defines a `DPadX` axis), `UiNav.Enable` on the pie's canvas makes the four wedges and every detail-panel
+button stick-navigable with A = click (the wedges sit exactly up/left/right/down, so `Navigation.Automatic`
+maps them 1:1), and **pad B closes** the pie (alongside the toggle key and Esc). The HUD badge/hint from
+#935 show `RS` automatically while a pad is in hand. **Touch** gets a shared "…" button beside the hotbar
+► arrow (symbol label like ◄►≡ — no locale key) that opens the pie on the selected slot via the new
+`HotbarActionUi.CanOpen`/`Toggle` API (same hidden-hotbar gates, EVA allowed); the button only shows while
+the pie could open, and the pie itself was already tap-friendly (flat overlay canvas). USER_MANUAL §2
+pad/touch tables + §5 updated. ⚠ Playtest pending on real devices — CI exercises neither pad nor touch;
+watch for R3 accidental presses while looking around (fallback candidate: d-pad-down + new DPadY axis).
+
+---
+
+## ✅ Done (2026-08-11): the slot-action menu is a radial pie now — and the HUD finally says it exists (#935)
+
+The middle-click hotbar slot actions (#924, below) shipped with zero on-screen tell — not in the hint
+line, no affordance on the hotbar; players would simply never find it. Three additions: **(1)** the
+bottom controls hint appends `· MMB slot actions` (localized, `ui.hud.hint_slot_actions`) while the
+hotbar is up and the selected slot holds an item — the same conditional-append pattern as the fly/rotate
+hints. **(2)** a small **key badge** floats over the SELECTED hotbar cell (lives under the hotbar root, so
+piloting/driving/observer hide it; hidden on touch, which has no key): cyan while Colour/Form apply to
+the held material (same base-key → `PlacesBlock` → Tintable/Shapeable resolution the ring uses), dimmed
+while only Swap does. **(3)** the level-1 verb screen became a proper **radial pie** — four quarter-ring
+wedges around the screen centre (Swap top, Colour left, Form right, Close bottom), built from one
+procedurally generated quarter-annulus sprite rotated into place, with `alphaHitTestMinimumThreshold` so
+clicks only land inside the visible arc; non-applicable quarters stay visible but dim and inert. Mouse
+buttons now render as localized short names in HUD glyphs (`InputMap.MouseLocaleKey` + `ui.key.mouse_*`
+— "Mouse2" read like a debug string; de LMT/MMT/RMT, fr Clic gauche/milieu/droit, pl LPM/ŚPM/PPM, ru
+ЛКМ/СКМ/ПКМ, zh 左键/中键/右键, rest LMB/MMB/RMB). 4 locale keys × 14 languages; USER_MANUAL §5 updated.
+⚠ Playtest pending: pie feel + wedge hit-testing, badge vs pickup-feed overlap on slot 9.
 
 ---
 

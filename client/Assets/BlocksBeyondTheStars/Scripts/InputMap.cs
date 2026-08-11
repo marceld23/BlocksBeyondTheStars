@@ -252,6 +252,18 @@ namespace BlocksBeyondTheStars.Client
             return Key(action).ToString();
         }
 
+        /// <summary>Locale key for a mouse button's short on-screen name (<c>ui.key.mouse_*</c>), or null for
+        /// non-mouse codes. Returned as a KEY because InputMap has no localizer — HUD callers resolve it.
+        /// <see cref="Glyph"/> alone prints the raw KeyCode name ("Mouse2") for mouse-bound actions, which
+        /// reads like a debug string next to the localized LMB/RMB wording of the hint line (#935).</summary>
+        public static string MouseLocaleKey(KeyCode key) => key switch
+        {
+            KeyCode.Mouse0 => "ui.key.mouse_left",
+            KeyCode.Mouse1 => "ui.key.mouse_right",
+            KeyCode.Mouse2 => "ui.key.mouse_middle",
+            _ => null,
+        };
+
         /// <summary>Human label for a pad button (XInput names for the well-known ones, "B10"… for the rest),
         /// or null for <see cref="KeyCode.None"/> / non-pad codes.</summary>
         public static string PadGlyph(KeyCode button) => button switch
