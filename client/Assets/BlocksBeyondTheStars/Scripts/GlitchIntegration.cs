@@ -128,11 +128,21 @@ namespace BlocksBeyondTheStars.Client
             public string nameToken; // install-derived name-claim token — stable across deployments
         }
 
-        /// <summary>Requests an arcade session from the configured portal. Reports (session, null) on
-        /// success or (null, error) on failure — run via StartCoroutine from AppShell. The menu's
-        /// player name rides along as the requested name; the gateway sanitizes it and keeps the
-        /// stable per-install suffix.</summary>
-        public static IEnumerator RequestArcadeSession(string requestedName, Action<ArcadeSession, string> done)
+        /// <summary>Error body of the portal's API endpoints ({ "error": …, "code": … }) — the code
+        /// lets the client distinguish "worlds are full" from a plain network failure.</summary>
+        [Serializable]
+        private sealed class ApiErrorBody
+        {
+            public string error;
+            public string code;
+        }
+
+        /// <summary>Requests an arcade session from the configured portal. Reports (session, null, null)
+        /// on success or (null, error, errorCode) on failure, where errorCode is the portal's
+        /// machine-readable code (e.g. "glitch_full") when the response carried one, otherwise null.
+        /// Run via StartCoroutine from AppShell. The menu's player name rides along as the requested
+        /// name; the gateway sanitizes it and keeps the stable per-install suffix.</summary>
+        public static IEnumerator RequestArcadeSession(string requestedName, Action<ArcadeSession, string, string> done)
         {
             string url = PortalUrl + "/api/glitch/session";
             string body = string.IsNullOrWhiteSpace(requestedName)
@@ -149,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
 
                 if (!IsSuccess(request))
                 {
-                    done?.Invoke(null, DescribeFailure(request));
+                    done?.Invoke(null, DescribeFailure(request), ReadErrorCode(request));
                     yield break;
                 }
 
@@ -165,11 +175,32 @@ namespace BlocksBeyondTheStars.Client
 
                 if (session == null || string.IsNullOrEmpty(session.wssUrl) || string.IsNullOrEmpty(session.joinToken))
                 {
-                    done?.Invoke(null, "Malformed arcade session response.");
+                    done?.Invoke(null, "Malformed arcade session response.", null);
                     yield break;
                 }
 
-                done?.Invoke(session, null);
+                done?.Invoke(session, null, null);
+            }
+        }
+
+        /// <summary>Machine-readable error code from a failed portal response, or null when the body
+        /// is missing or not the portal's error JSON (network failure, proxy error page, …).</summary>
+        private static string ReadErrorCode(UnityWebRequest request)
+        {
+            string body = request.downloadHandler == null ? null : request.downloadHandler.text;
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                return null;
+            }
+
+            try
+            {
+                var parsed = JsonUtility.FromJson<ApiErrorBody>(body);
+                return parsed == null || string.IsNullOrWhiteSpace(parsed.code) ? null : parsed.code;
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 
