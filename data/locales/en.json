@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Needs 1 crystal:",
   "ui.color.dyed": "dyed",
   "ui.color.glowing": "glowing",
+  "ui.color.painted": "painted",
   "ui.craft.cat_shape": "Shape",
   "ui.shape.none": "No shapeable materials in your inventory.",
   "ui.shape.help": "Pick a form to re-shape the material; it still works like a block. Ramps and stairs face the way you look when you place them.",

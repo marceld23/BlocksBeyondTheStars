@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Benötigt 1 Kristall:",
   "ui.color.dyed": "gefärbt",
   "ui.color.glowing": "leuchtend",
+  "ui.color.painted": "bemalt",
   "ui.craft.cat_shape": "Formen",
   "ui.shape.none": "Keine formbaren Materialien im Inventar.",
   "ui.shape.help": "Wähle eine Form, um das Material umzuformen; es funktioniert weiterhin wie ein Block. Rampen und Treppen zeigen beim Platzieren in deine Blickrichtung.",

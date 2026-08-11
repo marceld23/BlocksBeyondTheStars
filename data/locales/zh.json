@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "需要 1 个水晶：",
   "ui.color.dyed": "已染色",
   "ui.color.glowing": "发光中",
+  "ui.color.painted": "带图案",
   "ui.craft.cat_shape": "形状",
   "ui.shape.none": "你的背包里没有可塑形的材料。",
   "ui.shape.help": "选择一种形状来重塑材料；它仍然像方块一样工作。坡道和楼梯会朝向你放置时的视角方向。",

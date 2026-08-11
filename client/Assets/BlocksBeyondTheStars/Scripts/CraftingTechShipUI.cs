@@ -959,19 +959,6 @@ namespace BlocksBeyondTheStars.Client
             (17, "ui.shape.sheet"), (18, "ui.shape.pot"),
         };
 
-        private string ShapeLabel(int shape)
-        {
-            foreach (var o in ShapeOptions)
-            {
-                if (o.Shape == shape)
-                {
-                    return L(o.Loc);
-                }
-            }
-
-            return string.Empty;
-        }
-
         /// <summary>Lists the player's shapeable building materials for the always-available Shape action.</summary>
         private float BuildShapeList()
         {
@@ -3709,27 +3696,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A mission's display title: FreeText (player missions, L3 LLM board texts) verbatim,
         /// otherwise the locale key resolved.</summary>
         private string MissionText(NetMission m) => m.FreeText ? m.Title : L(m.Title);
+        // The shared display-name helper (#927) owns the base-key strip + modifier suffixes; the resolver
+        // names player-designed forms after their creator's label instead of the generic "own form".
         private string ItemName(string item)
-        {
-            var (baseKey, tint, glow) = ItemKey.Parse(item);
-            string name = L($"item.{baseKey}.name");
-            if (glow != 0)
-            {
-                name += " · " + L("ui.color.glowing");
-            }
-            else if (tint != 0)
-            {
-                name += " · " + L("ui.color.dyed");
-            }
+            => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item,
+                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
 
-            int shape = ItemKey.Shape(item);
-            if (shape != 0)
-            {
-                name += " · " + ShapeLabel(shape);
-            }
-
-            return name;
-        }
+        private System.Func<int, string> _customFormName;
         private string Desc(string key)
         {
             // Localizer.Get returns "[key]" (never the bare key) on a miss, so comparing against the key

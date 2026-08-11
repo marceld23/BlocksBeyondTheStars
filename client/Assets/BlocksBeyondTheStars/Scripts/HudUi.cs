@@ -113,6 +113,7 @@ namespace BlocksBeyondTheStars.Client
         private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
 
         private int _lastSelSlot = -1; // hotbar selection tick state
+        private System.Func<int, string> _customFormName; // cached resolver for ItemNames.Display (per-frame path)
 
         // Pickup feed (#745): a short right-aligned column just above the hotbar's right end, one row per
         // collected item ("icon  +n name"). Repeat pickups of the same item merge and count up instead of
@@ -986,8 +987,11 @@ namespace BlocksBeyondTheStars.Client
 
                 s.Icon.color = IconResolver.Tint(item, Game); // toxic consumables read green
                 s.Icon.enabled = true;
-                // The held slot shows its full name (brighter); the rest stay short so the row reads at a glance.
-                string name = loc.Get($"item.{item}.name");
+                // The held slot shows its full name (brighter); the rest stay short so the row reads at a
+                // glance. Resolved through the shared helper — a dyed/shaped/painted stack carries its
+                // modifier in the key, and a raw item.{key}.name lookup renders as the bracketed key (#927).
+                string name = BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(loc, item,
+                    _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
                 s.Name.text = sel ? name : (name.Length > 10 ? name.Substring(0, 9) + "…" : name);
                 s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
             }
@@ -1035,7 +1039,10 @@ namespace BlocksBeyondTheStars.Client
 
                 row.Count += gained;
                 row.Ttl = PickupLife;
-                row.Label.text = $"+{row.Count} {Game.Localizer.Get($"item.{item}.name")}";
+                // Same #927 rule as the hotbar caption: mined dyed/shaped/painted drops arrive with a
+                // composite key, which must never reach the locale table raw.
+                row.Label.text = $"+{row.Count} " + BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(
+                    Game.Localizer, item, _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
                 changed = true;
             }
 

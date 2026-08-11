@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "クリスタル1個が必要：",
   "ui.color.dyed": "染め済み",
   "ui.color.glowing": "発光中",
+  "ui.color.painted": "模様つき",
   "ui.craft.cat_shape": "形状",
   "ui.shape.none": "インベントリに形作れる材料がありません。",
   "ui.shape.help": "形を選んで素材の形状を変えます。ブロックとしての機能は保たれます。設置時は傾斜や階段があなたの向いている方向を向きます。",

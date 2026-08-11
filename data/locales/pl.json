@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Wymaga 1 kryształu:",
   "ui.color.dyed": "zafarbowany",
   "ui.color.glowing": "świecący",
+  "ui.color.painted": "pomalowany",
   "ui.craft.cat_shape": "Kształt",
   "ui.shape.none": "Brak materiałów do formowania w ekwipunku.",
   "ui.shape.help": "Wybierz formę, by przemodelować materiał; nadal zachowuje się jak blok. Rampy i schody będą skierowane tam, gdzie patrzysz podczas stawiania.",

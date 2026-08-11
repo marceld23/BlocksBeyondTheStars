@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Serve 1 cristallo:",
   "ui.color.dyed": "tinto",
   "ui.color.glowing": "luminoso",
+  "ui.color.painted": "dipinto",
   "ui.craft.cat_shape": "Forma",
   "ui.shape.none": "Nessun materiale modellabile nell'inventario.",
   "ui.shape.help": "Scegli una forma per rimodellare il materiale; funziona comunque come un blocco. Rampe e scale si orientano nella direzione in cui guardi quando le posizioni.",

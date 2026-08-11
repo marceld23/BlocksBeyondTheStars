@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "1 kristal gerekir:",
   "ui.color.dyed": "boyandı",
   "ui.color.glowing": "ışıyan",
+  "ui.color.painted": "desenli",
   "ui.craft.cat_shape": "Şekil",
   "ui.shape.none": "Envanterinde şekillendirilebilir malzeme yok.",
   "ui.shape.help": "Malzemeyi yeniden şekillendirmek için bir form seç; yine blok gibi çalışır. Rampalar ve merdivenler yerleştirirken baktığın yöne döner.",

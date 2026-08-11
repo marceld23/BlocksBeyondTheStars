@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Heeft 1 kristal nodig:",
   "ui.color.dyed": "geverfd",
   "ui.color.glowing": "gloeiend",
+  "ui.color.painted": "beschilderd",
   "ui.craft.cat_shape": "Vorm",
   "ui.shape.none": "Geen vormbare materialen in je inventaris.",
   "ui.shape.help": "Kies een vorm om het materiaal te hervormen; het werkt nog steeds als een blok. Hellingen en trappen wijzen de kant op waarin je kijkt wanneer je ze plaatst.",

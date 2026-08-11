@@ -606,7 +606,13 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game.Localizer?.Get(key) ?? key;
 
-        private string ItemName(string item) => L($"item.{item}.name");
+        // Shared helper (#927): the slot's item key carries dyed/glow/shape/paint modifiers, so a raw
+        // item.{key}.name lookup would render the bracketed key — the bug this panel shipped with.
+        private string ItemName(string item)
+            => BlocksBeyondTheStars.Shared.Localization.ItemNames.Display(Game.Localizer, item,
+                _customFormName ??= idx => Game.CustomShapes?.NameOf(idx));
+
+        private System.Func<int, string> _customFormName;
 
         private string ShortName(string item)
         {

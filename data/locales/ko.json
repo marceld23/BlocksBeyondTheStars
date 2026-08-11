@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "크리스탈 1개 필요:",
   "ui.color.dyed": "염색됨",
   "ui.color.glowing": "발광 중",
+  "ui.color.painted": "무늬 있음",
   "ui.craft.cat_shape": "형태",
   "ui.shape.none": "인벤토리에 형태를 바꿀 재료가 없습니다.",
   "ui.shape.help": "모양을 골라 재성형하세요; 여전히 블록처럼 작동합니다. 경사로와 계단은 배치할 때 바라보는 방향을 향합니다.",

@@ -7726,6 +7726,21 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-11): modified stacks name themselves again — no more raw `[item.snow#t8fd030.name]` (#927)
+
+Playtest fallout from the hotbar slot actions: three UI surfaces looked up `item.{key}.name` with the
+COMPOSITE item key (modifiers ride inside the key), which misses every locale table and renders the
+bracketed key. New shared helper `ItemNames.Display` (Shared.Localization) is now the one way from an
+item key to a display name: base name + " · glowing/dyed" + shape label (player-designed forms resolve
+to their given name via a registry lookup, falling back to the generic "own forms" label — never a raw
+key) + new " · painted" suffix for `p`-designs (`ui.color.painted`, 14 languages). Adopted at the
+hotbar caption + pickup feed (both PRE-EXISTING raw lookups from the dye era, hidden by the 10-char
+caption truncation) and the slot-action panel; `CraftingTechShipUI.ItemName` delegates (its private
+copy of the shape-label table is gone). 9 new tests run against the REAL en/de tables and assert
+bracket-free, `#`-free names for every modifier combination.
+
+---
+
 ## ✅ Done (2026-08-11): hotbar slot actions — swap · colour · form · own texture, straight from the HUD
 
 Middle mouse (rebindable `HotbarAction`) on the selected hotbar slot opens a flat action panel (a ring of

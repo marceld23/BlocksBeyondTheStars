@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Nécessite 1 cristal :",
   "ui.color.dyed": "teint",
   "ui.color.glowing": "lumineux",
+  "ui.color.painted": "peint",
   "ui.craft.cat_shape": "Forme",
   "ui.shape.none": "Aucun matériau formable dans ton inventaire.",
   "ui.shape.help": "Choisis une forme pour remodeler le matériau ; il fonctionne toujours comme un bloc. Les rampes et les escaliers font face dans la direction où tu regardes quand tu les poses.",

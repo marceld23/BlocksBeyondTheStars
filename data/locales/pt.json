@@ -793,6 +793,7 @@
   "ui.color.glow_cost": "Precisa de 1 cristal:",
   "ui.color.dyed": "tingido",
   "ui.color.glowing": "brilhando",
+  "ui.color.painted": "pintado",
   "ui.craft.cat_shape": "Forma",
   "ui.shape.none": "Nenhum material moldável no seu inventário.",
   "ui.shape.help": "Escolha uma forma para remodelar o material; ele ainda funciona como um bloco. Rampas e escadas ficam voltadas para a direção que você olhar ao colocá-las.",
