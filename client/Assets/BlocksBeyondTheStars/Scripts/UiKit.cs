@@ -653,10 +653,35 @@ namespace BlocksBeyondTheStars.Client
             var labelText = AddText(go.transform, textX, 0f, w - textX - 10f, h, label, 22, TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             // Shrink the label to fit its button so a longer word (e.g. German "Einstellungen"/"Schließen") never
             // spills out of the frame (B57); it stays at 22 when it fits and only scales down when it must.
-            labelText.resizeTextForBestFit = true;
-            labelText.resizeTextMinSize = 11;
-            labelText.resizeTextMaxSize = 22;
+            FitLabel(labelText, 11, 22);
             return btn;
+        }
+
+        /// <summary>
+        /// Makes a label shrink to fit its rect instead of running past it.
+        /// <para>
+        /// ⚠ <b>`resizeTextForBestFit` alone does not do this.</b> <see cref="AddText"/> builds every label with
+        /// <c>horizontalOverflow = Overflow</c>, and Unity's <c>TextGenerator</c> then treats the available
+        /// width as unbounded — so the Best Fit search only ever shrinks text to fit the HEIGHT, and a long
+        /// localized label keeps its full size and spills sideways out of the frame. Three separate "shrink
+        /// long labels" fixes (button B57, tab bar B28, touch controls) were all quietly no-ops horizontally
+        /// for that reason (#918: German "Farbe aufnehmen" hanging out of the paint editor's button).
+        /// </para>
+        /// Giving the text a width to wrap into is what makes Best Fit consider the width at all; truncating
+        /// vertically keeps it from growing a second line instead of scaling down.
+        /// </summary>
+        public static void FitLabel(Text label, int minSize, int maxSize)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = minSize;
+            label.resizeTextMaxSize = maxSize;
         }
 
         /// <summary>Pins a small amber "new content" badge dot to the top-right corner of a freshly built button,

@@ -521,10 +521,15 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(eraser.transform, 0f, 0f, swatch, swatch, "E", 15, UiKit.TextCol, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // Tool row: fill, eyedropper, undo — grouped so they read as a toolbox rather than as loose buttons.
+            // 200 wide because these carry the longest labels in the panel ("Farbe aufnehmen" in German, and
+            // longer still in Polish/Turkish): a label only auto-shrinks so far before it stops being readable
+            // at arm's length, so give it the room instead (#918).
             float toolsY = paletteLabelY + 32f + 3f * pitch + 12f;
-            _fillButton = UiKit.AddButton(panel, 24f, toolsY, 170f, 44f, L("ui.face.fill"), () => SetFilling(!_filling)).image;
-            _pickButton = UiKit.AddButton(panel, 204f, toolsY, 170f, 44f, L("ui.face.pick"), () => SetPicking(!_picking)).image;
-            UiKit.AddButton(panel, 384f, toolsY, 170f, 44f, L("ui.face.undo"), Undo);
+            // The row stops at x=580: that is where the region-tile column starts, and the helmet's fifth tile
+            // reaches down to this row's top edge.
+            _fillButton = UiKit.AddButton(panel, 24f, toolsY, 200f, 44f, L("ui.face.fill"), () => SetFilling(!_filling)).image;
+            _pickButton = UiKit.AddButton(panel, 232f, toolsY, 200f, 44f, L("ui.face.pick"), () => SetPicking(!_picking)).image;
+            UiKit.AddButton(panel, 440f, toolsY, 140f, 44f, L("ui.face.undo"), Undo);
 
             BuildColorWheel(panel, wide ? 900f : 470f, wide ? 300f : paletteLabelY + 8f);
             if (wide)

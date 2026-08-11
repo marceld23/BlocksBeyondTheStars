@@ -62,6 +62,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
   ⚠ Multiplayer: client and server must both be on this version (protocol 3).
 
+### 🔤 Long button labels stay inside their buttons (#918)
+
+- A localized label that is wider than its button — German "Farbe aufnehmen" in the paint editor,
+  and others across the menus — used to run past the button's frame. Labels now shrink to fit, which
+  is what they were always meant to do; menu tabs, the sidebar headings and the touch controls get
+  the same treatment. Text that already fits looks exactly as before.
+
 ## [2026.8.10] — 2026-08-10
 
 The polyglot release. In one week the game went from four languages to **fourteen** — Dutch,

@@ -483,13 +483,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Auto-fit the label so a long localized tab (e.g. German "Einstellungen") shrinks to fit the
                 // fixed-width button instead of spilling over its graphic (B28); short labels keep full size.
-                var lbl = b.GetComponentInChildren<Text>();
-                if (lbl != null)
-                {
-                    lbl.resizeTextForBestFit = true;
-                    lbl.resizeTextMaxSize = 22;
-                    lbl.resizeTextMinSize = 12;
-                }
+                UiKit.FitLabel(b.GetComponentInChildren<Text>(), 12, 22);
 
                 // Badge a tab that has new content waiting behind it: the Tech tab when research is affordable
                 // now, the Story tab when an unread beat/fragment/memory arrived. Cleared by opening the tab.
@@ -552,9 +546,7 @@ namespace BlocksBeyondTheStars.Client
                     }
 
                     var h = UiKit.AddText(_sidebar, 10, y, 270, 30, label, 17, UiKit.Cyan, TextAnchor.LowerLeft, FontStyle.Bold);
-                    h.resizeTextForBestFit = true;
-                    h.resizeTextMaxSize = 17;
-                    h.resizeTextMinSize = 11;
+                    UiKit.FitLabel(h, 11, 17);
                     y += 36f;
                     continue;
                 }
