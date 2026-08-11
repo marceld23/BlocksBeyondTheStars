@@ -299,7 +299,9 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Hotbar slot actions (swap · colour · form)
 - Press **middle mouse** (rebindable: Settings → Controls → *Hotbar slot actions*) while playing on foot (or
-  during an EVA) to act directly on the **selected hotbar slot** — no trip through the Tab menu:
+  during an EVA) to act directly on the **selected hotbar slot** — no trip through the Tab menu. A **radial
+  menu** opens around the screen centre: **Swap** on top, **Colour** on the left, **Form** on the right and
+  **Close** at the bottom; quarters that don't apply to the held item stay visible but dimmed:
   - **Swap** — a grid of all 24 backpack slots; pick one and it exchanges with the hotbar slot (an empty slot
     simply receives the item). *Remove from quick-bar* stows the slot into the first free backpack slot.
   - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
@@ -313,6 +315,9 @@ separate unlock; admins can still disable it through server world rules.
   the crafting menu offers, so nothing is lost if the panel is closed mid-way).
 - Painted items round-trip like dyed ones now: **placing** a patterned block shows the pattern to everyone,
   **mining** it gives the patterned item back.
+- **You can see that it's there**: while the selected slot holds an item, a small **key badge** (e.g. *MMB*)
+  floats over that hotbar cell — bright when Colour/Form apply to the held material, dimmed when only Swap
+  does — and the controls hint line at the bottom appends *MMB slot actions*. Both follow your rebinding.
 
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market

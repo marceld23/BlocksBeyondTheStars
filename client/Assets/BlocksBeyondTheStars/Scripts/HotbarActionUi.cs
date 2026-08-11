@@ -11,7 +11,7 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Slot actions on the SELECTED hotbar slot, straight from the on-planet HUD: press the HotbarAction
-    /// key (default middle mouse) to open a small ring of verbs around the screen centre — <b>Swap</b>
+    /// key (default middle mouse) to open a radial pie of verbs around the screen centre (#935) — <b>Swap</b>
     /// (exchange the slot against any backpack item), and for a material block additionally <b>Colour</b>
     /// (dye / glow / an own saved paint design) and <b>Form</b> (built-in or own saved forms). Picking a
     /// verb opens its flat detail panel; everything applies to the WHOLE stack and lands back in the same
@@ -156,9 +156,11 @@ namespace BlocksBeyondTheStars.Client
 
         // --- level 1: the verb ring ---
 
-        /// <summary>The three verbs around the screen centre: Swap on top, Colour left, Form right — big
-        /// targets, no scroll, one click. Colour/Form only appear when the held item actually qualifies
-        /// (mirrors the server's Tintable/Shapeable gates so the ring never offers a refused action).</summary>
+        /// <summary>The verbs as a radial pie around the screen centre (#935): four quarter-ring wedges —
+        /// Swap on top, Colour left, Form right, Close at the bottom. Big targets, no scroll, one click.
+        /// Wedges whose verb doesn't apply to the held item stay VISIBLE but dim and inert ("there is a
+        /// verb here, just not for this item") — the served actions still mirror the server's
+        /// Tintable/Shapeable gates, so the menu never offers a refused action.</summary>
         private void BuildRing()
         {
             var root = _canvas.transform;
@@ -166,36 +168,116 @@ namespace BlocksBeyondTheStars.Client
             var t = dim.transform;
 
             const float cx = 960f, cy = 540f; // canvas reference centre (1920×1080)
-            const float bw = 240f, bh = 64f;
 
             string title = string.IsNullOrEmpty(_item)
                 ? L("ui.hotbar_action.empty")
                 : string.Format(L("ui.hotbar_action.title"), ItemName(_item), _slot + 1);
-            var head = UiKit.AddText(t, cx - 320f, cy - 190f, 640f, 34f, title, 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            var head = UiKit.AddText(t, cx - 320f, cy - 330f, 640f, 34f, title, 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddOutline(head);
-
-            // Swap — always available (an empty slot can still receive something from the backpack).
-            UiKit.AddButton(t, cx - bw / 2f, cy - 130f, bw, bh, L("ui.hotbar_action.swap"), () => Rebuild(BuildSwap));
 
             var blockDef = HeldBlockDef();
             bool tintable = blockDef != null && blockDef.Tintable;
             bool shapeable = blockDef != null && blockDef.Shapeable;
-            if (tintable)
-            {
-                UiKit.AddButton(t, cx - bw - 40f, cy - 10f, bw, bh, L("ui.hotbar_action.colour"), () => Rebuild(BuildColour));
-            }
 
-            if (shapeable)
-            {
-                UiKit.AddButton(t, cx + 40f, cy - 10f, bw, bh, L("ui.hotbar_action.form"), () => Rebuild(BuildForm));
-            }
+            // Swap is always available (an empty slot can still receive something from the backpack);
+            // Close always works. Positive z-rotation is counter-clockwise: +90° = left, -90° = right.
+            AddWedge(t, 0f, L("ui.hotbar_action.swap"), true, () => Rebuild(BuildSwap));
+            AddWedge(t, 90f, L("ui.hotbar_action.colour"), tintable, () => Rebuild(BuildColour));
+            AddWedge(t, -90f, L("ui.hotbar_action.form"), shapeable, () => Rebuild(BuildForm));
+            AddWedge(t, 180f, L("ui.hotbar_action.close"), true, Close);
 
             if (!string.IsNullOrEmpty(_item) && !tintable && !shapeable)
             {
-                UiKit.AddText(t, cx - 320f, cy + 70f, 640f, 30f, L("ui.hotbar_action.not_material"), 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
+                UiKit.AddText(t, cx - 320f, cy + 264f, 640f, 30f, L("ui.hotbar_action.not_material"), 16, UiKit.CyanDim, TextAnchor.MiddleCenter);
+            }
+        }
+
+        // Pie geometry: wedge bounding box (= ring outer diameter) and the radius the labels sit on.
+        private const float WedgeDiameter = 460f;
+        private const float WedgeLabelRadius = 152f;
+
+        /// <summary>One quarter-ring wedge of the pie. The shared TOP-wedge sprite is rotated into place
+        /// (uGUI raycasting follows the rotation) and alpha hit-testing keeps clicks inside the visible
+        /// arc — the transparent corners of the bounding box never steal a click from a neighbour. The
+        /// label counter-rotates so it reads upright at the wedge's centroid.</summary>
+        private void AddWedge(Transform parent, float angleDeg, string label, bool enabled, System.Action onClick)
+        {
+            var go = new GameObject("Wedge", typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(WedgeDiameter, WedgeDiameter);
+            rt.anchoredPosition = new Vector2(960f, -540f); // canvas centre, in top-left anchor space
+            rt.localRotation = Quaternion.Euler(0f, 0f, angleDeg);
+
+            var img = go.AddComponent<Image>();
+            img.sprite = WedgeSprite();
+            img.color = enabled ? new Color(0.07f, 0.13f, 0.22f, 0.92f) : new Color(0.05f, 0.08f, 0.13f, 0.35f);
+            img.raycastTarget = enabled;
+            img.alphaHitTestMinimumThreshold = 0.5f;
+
+            if (enabled)
+            {
+                var btn = go.AddComponent<Button>();
+                btn.targetGraphic = img;
+                var c = btn.colors; // same feel as UiKit.AddButton: dim at rest, bright on hover, cyan on press
+                c.normalColor = new Color(0.70f, 0.74f, 0.80f, 1f);
+                c.highlightedColor = Color.white;
+                c.pressedColor = UiKit.Cyan;
+                c.selectedColor = Color.white;
+                c.fadeDuration = 0.08f;
+                btn.colors = c;
+                go.AddComponent<UiHover>();
+                btn.onClick.AddListener(UiSound.Click);
+                btn.onClick.AddListener(() => onClick());
             }
 
-            UiKit.AddButton(t, cx - 80f, cy + 120f, 160f, 46f, L("ui.hotbar_action.close"), Close);
+            var txt = UiKit.AddText(go.transform, 0f, 0f, 260f, 30f, label, 22,
+                enabled ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddOutline(txt);
+            var trt = txt.rectTransform;
+            trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0.5f, 0.5f);
+            trt.anchoredPosition = new Vector2(0f, WedgeLabelRadius); // pre-rotation "up" = the wedge centroid
+            trt.localRotation = Quaternion.Euler(0f, 0f, -angleDeg);  // …counter-rotated to read upright
+        }
+
+        private static Sprite _wedgeSprite;
+
+        /// <summary>The shared quarter-annulus sprite (top wedge, centred on +Y): a soft-edged 90°-minus-gap
+        /// arc between an inner and outer radius. Generated once and cached for the app's lifetime; the
+        /// texture stays CPU-readable because <see cref="Image.alphaHitTestMinimumThreshold"/> samples it.</summary>
+        private static Sprite WedgeSprite()
+        {
+            if (_wedgeSprite != null)
+            {
+                return _wedgeSprite;
+            }
+
+            const int n = 256;
+            const float edge = 1.5f; // anti-alias band, px
+            float c = (n - 1) / 2f;
+            float rOut = c - 1f, rIn = rOut * 0.34f;
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
+            var buf = new Color32[n * n];
+            for (int y = 0; y < n; y++)
+            {
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = x - c, dy = y - c;
+                    float r = Mathf.Sqrt((dx * dx) + (dy * dy));
+                    float radial = Mathf.Clamp01((rOut - r) / edge) * Mathf.Clamp01((r - rIn) / edge);
+                    // 44° half-width leaves a ~2° visual gap to each neighbouring wedge.
+                    float off = Mathf.Abs(Mathf.DeltaAngle(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg, 90f));
+                    float angular = Mathf.Clamp01((44f - off) / edge);
+                    buf[(y * n) + x] = new Color32(255, 255, 255, (byte)(255f * Mathf.Min(radial, angular)));
+                }
+            }
+
+            tex.SetPixels32(buf);
+            tex.Apply(false, false);
+            _wedgeSprite = Sprite.Create(tex, new Rect(0f, 0f, n, n), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            return _wedgeSprite;
         }
 
         // --- level 2: swap (backpack ↔ slot) ---

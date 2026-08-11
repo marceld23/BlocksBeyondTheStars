@@ -87,6 +87,8 @@ namespace BlocksBeyondTheStars.Client
 
         private UiKit.QuickSlot[] _hotbar;
         private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
+        private Text _slotActionBadge;  // HotbarAction key glyph over the SELECTED cell — the slot-action ring's on-hotbar tell (#935)
+        private float _hotbarX0, _hotbarPitch; // cell 0's left edge + cell spacing, for sliding the badge to the selection
 
         // Scan / wreck panels.
         private GameObject _scanPanel, _wreckPanel, _shipRepairPanel;
@@ -495,6 +497,14 @@ namespace BlocksBeyondTheStars.Client
                 _hotbar[i] = UiKit.MakeQuickSlot(hbParent, x0 + i * pitch, hy, sw);
             }
 
+            // Slot-action badge (#935): the HotbarAction key's short name floating just above the SELECTED
+            // cell — the middle-click ring's only at-the-object tell. Slid to the selection and tinted per
+            // frame in RefreshHotbar; lives under the hotbar root so the flying/driving states hide it too.
+            _hotbarX0 = x0;
+            _hotbarPitch = pitch;
+            _slotActionBadge = UiKit.AddText(hbParent, x0, hy - 34f, sw, 20f, string.Empty, 12, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiKit.AddOutline(_slotActionBadge);
+
             // Pickup feed anchors (#745): rows sit flush with the backplate's right edge, stacking upward
             // from just above it.
             _pickupRightX = x0 + total + 12f;
@@ -739,7 +749,17 @@ namespace BlocksBeyondTheStars.Client
             if (Game.HoldingRotatableBlock && _hint.text.Length > 0)
             {
                 _hint.text += " · " + loc.Get("ui.hud.hint_rotate")
-                    .Replace("{key}", InputMap.Glyph(InputAction.RotateShape));
+                    .Replace("{key}", GlyphText(loc, InputAction.RotateShape));
+            }
+
+            // The middle-click slot-action ring (#924) has no other on-screen tell (#935): advertise it
+            // while the hotbar is up and the selected slot holds anything to act on, like the hints above.
+            // RefreshHotbar ran just before this, so the root's active state is current for this frame.
+            if (_hint.text.Length > 0 && _hotbarRoot != null && _hotbarRoot.activeSelf
+                && !string.IsNullOrEmpty(Game.ItemInSlot(Game.SelectedHotbarSlot)))
+            {
+                _hint.text += " · " + loc.Get("ui.hud.hint_slot_actions")
+                    .Replace("{key}", GlyphText(loc, InputAction.HotbarAction));
             }
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
@@ -922,6 +942,7 @@ namespace BlocksBeyondTheStars.Client
 
             _lastSelSlot = selNow;
 
+            bool selQualifies = false; // Colour/Form apply to the selected slot's item (badge tint, #935)
             for (int i = 0; i < Slots; i++)
             {
                 var s = _hotbar[i];
@@ -946,6 +967,18 @@ namespace BlocksBeyondTheStars.Client
                 if (blockDef == null && Game.Content?.GetItem(item)?.PlacesBlock is string pb && pb.Length > 0)
                 {
                     blockDef = Game.Content?.GetBlock(pb); // a seed etc. shows the tile of the block it places
+                }
+
+                if (sel)
+                {
+                    // Mirrors HotbarActionUi.HeldBlockDef exactly (base key → PlacesBlock): a dyed/shaped/
+                    // painted stack carries its modifiers in the composite key, which GetItem won't resolve.
+                    string selBase = BlocksBeyondTheStars.Shared.State.ItemKey.Base(item);
+                    var selItemDef = Game.Content?.GetItem(selBase);
+                    var selDef = selItemDef != null && !string.IsNullOrEmpty(selItemDef.PlacesBlock)
+                        ? Game.Content?.GetBlock(selItemDef.PlacesBlock)
+                        : null;
+                    selQualifies = selDef != null && (selDef.Tintable || selDef.Shapeable);
                 }
 
                 // A shaped block (sphere/pyramid/…) shows a form-specific icon instead of a plain cube tile (#125).
@@ -995,6 +1028,37 @@ namespace BlocksBeyondTheStars.Client
                 s.Name.text = sel ? name : (name.Length > 10 ? name.Substring(0, 9) + "…" : name);
                 s.Name.color = sel ? UiKit.Cyan : UiKit.TextCol;
             }
+
+            // Slot-action badge (#935): shown while the selected slot holds anything to act on (the ring
+            // also opens on an empty slot, but advertising that is noise). Bright while Colour/Form apply
+            // to the held material, dim while only Swap does. Touch has no key to press, so no badge.
+            if (_slotActionBadge != null)
+            {
+                bool show = selNow >= 0 && selNow < Slots && !string.IsNullOrEmpty(Game.ItemInSlot(selNow))
+                            && InputMap.ActiveDevice != InputDeviceKind.Touch;
+                if (_slotActionBadge.gameObject.activeSelf != show)
+                {
+                    _slotActionBadge.gameObject.SetActive(show);
+                }
+
+                if (show)
+                {
+                    var badgeRt = _slotActionBadge.rectTransform;
+                    badgeRt.anchoredPosition = new Vector2(_hotbarX0 + selNow * _hotbarPitch, badgeRt.anchoredPosition.y);
+                    _slotActionBadge.text = GlyphText(loc, InputAction.HotbarAction);
+                    _slotActionBadge.color = selQualifies ? UiKit.Cyan : UiKit.CyanDim;
+                }
+            }
+        }
+
+        /// <summary><see cref="InputMap.Glyph"/> with mouse buttons rendered as their localized short names
+        /// (the LMB/RMB style the hint line already uses) instead of the raw KeyCode name — "Mouse2" reads
+        /// like a debug string on the HUD (#935). Pad glyphs pass through untouched.</summary>
+        private static string GlyphText(BlocksBeyondTheStars.Shared.Localization.Localizer loc, InputAction action)
+        {
+            string glyph = InputMap.Glyph(action);
+            string mouseKey = InputMap.MouseLocaleKey(InputMap.Key(action));
+            return mouseKey != null && glyph == InputMap.Key(action).ToString() ? loc.Get(mouseKey) : glyph;
         }
 
         // --- pickup feed (#745) ---

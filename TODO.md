@@ -7726,6 +7726,26 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-11): the slot-action menu is a radial pie now — and the HUD finally says it exists (#935)
+
+The middle-click hotbar slot actions (#924, below) shipped with zero on-screen tell — not in the hint
+line, no affordance on the hotbar; players would simply never find it. Three additions: **(1)** the
+bottom controls hint appends `· MMB slot actions` (localized, `ui.hud.hint_slot_actions`) while the
+hotbar is up and the selected slot holds an item — the same conditional-append pattern as the fly/rotate
+hints. **(2)** a small **key badge** floats over the SELECTED hotbar cell (lives under the hotbar root, so
+piloting/driving/observer hide it; hidden on touch, which has no key): cyan while Colour/Form apply to
+the held material (same base-key → `PlacesBlock` → Tintable/Shapeable resolution the ring uses), dimmed
+while only Swap does. **(3)** the level-1 verb screen became a proper **radial pie** — four quarter-ring
+wedges around the screen centre (Swap top, Colour left, Form right, Close bottom), built from one
+procedurally generated quarter-annulus sprite rotated into place, with `alphaHitTestMinimumThreshold` so
+clicks only land inside the visible arc; non-applicable quarters stay visible but dim and inert. Mouse
+buttons now render as localized short names in HUD glyphs (`InputMap.MouseLocaleKey` + `ui.key.mouse_*`
+— "Mouse2" read like a debug string; de LMT/MMT/RMT, fr Clic gauche/milieu/droit, pl LPM/ŚPM/PPM, ru
+ЛКМ/СКМ/ПКМ, zh 左键/中键/右键, rest LMB/MMB/RMB). 4 locale keys × 14 languages; USER_MANUAL §5 updated.
+⚠ Playtest pending: pie feel + wedge hit-testing, badge vs pickup-feed overlap on slot 9.
+
+---
+
 ## ✅ Done (2026-08-11): modified stacks name themselves again — no more raw `[item.snow#t8fd030.name]` (#927)
 
 Playtest fallout from the hotbar slot actions: three UI surfaces looked up `item.{key}.name` with the
