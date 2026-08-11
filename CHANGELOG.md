@@ -77,8 +77,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### 🛠️ Behind the scenes
 
-- Ahmed Mohamed Abdelhady Kamel joins the credits for the first unit tests covering `Vector3i`,
-  the block-coordinate type the whole world sits on (#917).
+- Ahmed Mohamed Abdelhady Kamel joins the credits for the first dedicated unit tests covering
+  the core world types: `Vector3i`, `ChunkCoord` and the `Frequency` tuning invariants (#917,
+  #921, #923).
 - Translation PRs get a faster, focused CI lane: a pull request that touches nothing but
   `data/locales/*.json` now runs exactly the test classes that read the locale tables (found by
   mutating every translated string and collecting what fails) instead of the full four-runner

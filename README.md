@@ -131,7 +131,7 @@ Community contributions we're grateful for:
 - **Devin Dixon** ([@ProdigyView](https://github.com/ProdigyView)) — web support: browser-playable WebGL client (WebSocket transport) and optional PostgreSQL persistence backend ([#116](https://github.com/marceld23/BlocksBeyondTheStars/pull/116))
 - **[@SpaleRuby](https://github.com/SpaleRuby)** — accessibility review of the portal website: field labels, announced status messages, real form submission and the password-reset disclosure ([#574](https://github.com/marceld23/BlocksBeyondTheStars/issues/574))
 - **Francesco Quirino** ([@alessandroquirino-lab](https://github.com/alessandroquirino-lab)) — Italian localization: the game's third language, translated from scratch group by group, starting with all 290 block names and descriptions ([#582](https://github.com/marceld23/BlocksBeyondTheStars/pull/582))
-- **Ahmed Mohamed Abdelhady Kamel** ([@ahmdkaml](https://github.com/ahmdkaml)) — server test coverage: the first unit tests for the `Vector3i` block-coordinate type, covering equality and hashing, operators, scalar maths and squared distance ([#917](https://github.com/marceld23/BlocksBeyondTheStars/pull/917))
+- **Ahmed Mohamed Abdelhady Kamel** ([@ahmdkaml](https://github.com/ahmdkaml)) — server test coverage: the first dedicated unit tests for the core world types — `Vector3i`, `ChunkCoord` and the `Frequency` tuning invariants ([#917](https://github.com/marceld23/BlocksBeyondTheStars/pull/917), [#921](https://github.com/marceld23/BlocksBeyondTheStars/pull/921), [#923](https://github.com/marceld23/BlocksBeyondTheStars/pull/923))
 
 **Playtesters** — hands-on testers whose feedback shaped the game:
 
