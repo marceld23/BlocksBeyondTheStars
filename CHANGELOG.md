@@ -13,6 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.11] — 2026-08-11
+
+The tempest release. Weather stopped being a coin flip and became something with a temper, a
+direction and a price — and every creature the generator invents now has a voice of its own to be
+heard over it. Closer to home: the paint editors grew a fill tool and twice the palette, the hotbar
+learned to recolour and reshape a stack without opening a single menu, ladders keep the wall you
+gave them, and the Esc key finally stops the world you can actually see.
+
 ### 🌦 Weather overhaul: episodes, wind, alien skies and real stakes (#900)
 
 - **Every world used to have the same weather.** The weather randomiser was seeded from the save seed
@@ -36,8 +44,39 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   — sometimes the right move is to walk into the bad weather. The new **weather scanner** reads what
   is coming before you set out.
 - **Sights and sounds:** lightning lights the whole landscape now, thunder rolls in late from a
-  distant strike, the sky's speed follows the real wind, a weather chip sits in the HUD in all 15
-  languages, and there are seven new weather soundscapes.
+  distant strike, the sky's speed follows the real wind, a weather chip sits in the HUD in all
+  fourteen languages, and there are seven new weather soundscapes.
+
+### 🐾 Every generated species gets its own voice (#901, #902, #903, #904, #905, #906, #907)
+
+- **The voice was never a generated trait.** The client picked a call sample by hashing the species
+  id — and ids run `sp0`…`sp8` and repeat on every planet, so the whole game had about **nine voices
+  per habitat, forever**, no matter how many worlds you visited. Combat cues were worse: a 6-slot
+  bank keyed only on size and hostility, so every large hostile creature in the universe screamed
+  out of the same five files.
+- **Every species is now issued a voice genome**, derived from its world and from the body it
+  already has: a base call, an optional second call layered behind it, a timbre treatment, a phrase
+  of 1–7 pulses at its own spacing, a pitch contour across that phrase, and its own calling rate —
+  from a 2.8-second chatterer to a drifter that speaks once every 55 seconds.
+- **You can hear the body.** An **eyeless cave dweller** fires a rising train of 4–7 clicks, because
+  it navigates by sound. A **titan** lets out one slow bellow every 14–30 seconds. A **medusa** is
+  nearly silent — one drawn-out drone, half a minute apart. A **pack hunter** barks one or two short
+  saturated bursts on a falling contour. Horns ring, gas sacs muffle, limbless bodies waver, skittish
+  animals sound thin and quick. **Combat cues inherit the same timbre**, so a creature's roar
+  belongs to that creature.
+- **The scanner names the call** — "Calls in rapid clicks", "Calls in slow, deep bellows" — in all
+  fourteen languages, making a voice as readable a trait as colour.
+- **21 new recorded calls** top up the thin habitats (water had **five**), plus lava, air, amphibian
+  and land; all 69 call assets now ship mono, which halves both memory and audio processing.
+- Growing a call pool no longer re-rolls every existing species' voice in that habitat: rendezvous
+  hashing moves roughly 1/N of them, and only ever *to* the new call.
+- Existing worlds keep every trait they had — the voice seed is folded in without consuming a single
+  step of the world generator's randomness.
+- A leak had to be fixed first: the sample cache was a static dictionary that was never cleared or
+  capped. Per-species bakes would have grown it by ~22 MB per planet visited, with no release point
+  at all across interplanetary travel — the browser tab-crash failure mode from #423, appearing
+  after 20–40 minutes of play with nothing useful in the log. It now clears on world teardown and
+  keeps at most 64 bakes.
 
 ### 🎨 Paint editors: fill, a findable eyedropper, 32 colours and one Appearance screen (#899)
 
@@ -62,6 +101,35 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
   ⚠ Multiplayer: client and server must both be on this version (protocol 3).
 
+### 🎒 Recolour, reshape and re-texture straight from the hotbar (#924)
+
+- **Middle mouse on the selected hotbar slot** opens a small verb panel. **Swap** exchanges the stack
+  with any backpack slot; for building materials, **Colour** dyes it, makes it glow, or applies one
+  of your own saved paint designs, and **Form** offers the 19 built-in shapes drawn as silhouettes of
+  that very material, plus your own designed forms. The whole stack converts and lands back in the
+  same slot — no crafting screen, no walk to a bench.
+- **Your own painted textures now travel with the item.** A painted stack shows its design in the
+  hotbar and in the swap grid, places with that design, and **mining it back recovers the design into
+  the drop** — the same round trip that dye and form already made.
+- The key is rebindable (`HotbarAction`). There is no default gamepad button for it yet.
+
+### 🪜 Ladders keep their wall, and the crafted staircase is a staircase (#909)
+
+- **A placed ladder used to store no orientation at all**, so the client re-invented which wall it
+  clung to on every mesh rebuild: ladders hugged a different wall than the one you aimed at,
+  free-standing ladders silently turned into poles, and mining a wall next to a ladder flipped the
+  whole column. Placement now pins the real mount, and **R** cycles Auto → the four walls →
+  free-standing. Ladders already standing in saves, settlements and ship layouts behave exactly as
+  before; only newly placed ones are pinned. A bonus: the wall behind a ladder stops being culled away.
+- **The crafted staircase placed as a plain cube**, even though stepped geometry has existed for
+  shaped materials for a long time. It now has real steps, a collider that matches them, and **R**
+  turns it or tips it upside down.
+- **Auto uses the face you actually clicked.** Building a ramp into a corner used to snap to
+  whichever neighbouring surface a fixed scan order happened to reach first; the wall under the
+  crosshair now wins — a floor still wins over a wall, so extending a floor by clicking the side of
+  the last slab still lays the next one flat. Preview and result are now computed by the same code,
+  so the ghost can no longer disagree with what you get.
+
 ### 🔤 Long button labels stay inside their buttons (#918)
 
 - A localized label that is wider than its button — German "Farbe aufnehmen" in the paint editor,
@@ -71,6 +139,28 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### 🐛 Fixes
 
+- **Esc paused the server, but not the world you were looking at (#908).** The pause has been a real
+  server-side hold since #612 — the client was simply never told about it. So behind the dialog you
+  kept **falling**, creatures kept walking, calling and lunging, bandits kept attacking, settlement
+  NPCs kept strolling, and the client's own day clock kept the sun moving and the clouds sailing. A
+  single-player pause now stands the visible world still too. Music, the camera and UI animation stay
+  live on purpose — a completely frozen image reads as a crash, not as a pause. Also fixed: an
+  invisible admin observing a world used to count as a player, silently denying the only real player
+  their pause.
+- **The space HUD printed "Cargo: N" straight across the hull bar (#915).** The flight overlay and
+  the on-foot HUD share one coordinate space, and the cargo line sat exactly where the vitals panel
+  ends *on foot* — but the panel grows by a hull and a shield row the moment you are flying a ship.
+  The readout now follows the panel's live bottom edge, so no future row can collide with it either.
+  While there: **hull and shield became real gauges in the flight HUD**, in the same column and style
+  as the suit's bars, and they carry the low-hull blink and warning cue with them — plus a guard the
+  old panel lacked, so a ship without shields stops raising a shield alarm. The instrument line is
+  back to `SPD/THR/HDG`. An EVA is unchanged.
+- **Dyed, glowing, shaped or painted stacks showed a raw key instead of a name (#927).** A modified
+  stack carries its modifier inside the item key (`snow#t8fd030`), and three UI surfaces looked that
+  composite key up in the translation table, where it does not exist — so the hotbar caption, the
+  pickup feed and the new slot-action panel printed `[item.snow#t8fd030.name]`. They now show the
+  real name plus what was done to it: "Snow · dyed", "Snow · slab", "Snow · painted". Two of the
+  three sites date back to the dye era and were only hidden by the hotbar caption's truncation.
 - **The French credits screen was one long line.** Every line break in the French credits text was
   double-escaped, so the whole screen — family, contributors, playtesters, licences — ran together
   with visible `\n` markers instead of breaking into lines. The other thirteen languages were fine.
@@ -79,7 +169,10 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 - Ahmed Mohamed Abdelhady Kamel joins the credits for the first dedicated unit tests covering
   the core world types: `Vector3i`, `ChunkCoord` and the `Frequency` tuning invariants (#917,
-  #921, #923).
+  #921, #923, #926).
+- More of the quiet foundations got test coverage: the server presets, the mission validator's
+  contracts, and the localizer's key resolution, English fallback and active-locale precedence
+  (#928, #930, #931, #932).
 - Translation PRs get a faster, focused CI lane: a pull request that touches nothing but
   `data/locales/*.json` now runs exactly the test classes that read the locale tables (found by
   mutating every translated string and collecting what fails) instead of the full four-runner
@@ -2372,7 +2465,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...HEAD
+[2026.8.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...v2026.8.11
 [2026.8.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...v2026.8.10
 [2026.8.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...v2026.8.9
 [2026.8.8]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.7...v2026.8.8
