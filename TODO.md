@@ -11,6 +11,7 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
+A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
 FR/ES/PT/PL/TR/NL/RU/UK/ZH/JA/KO machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
 Claude `Co-Authored-By` trailer; OpenAI texture + ElevenLabs sound generation is blanket-approved
@@ -103,6 +104,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
   single-source-of-truth working end-to-end (validated: published the initial Windows zip).
 
 ---
+
+### ★ Translation PRs get a narrow CI lane: locales-only diffs skip the 4-shard matrix (#921, 2026-08-11, branch ci/locale-only-test-gate)
+A PR whose non-doc diff stays inside `data/locales/*.json` now runs one `locale-tests` job (~140 tests,
+< 1 min of test time) instead of the 4-runner matrix + `dotnet format`. The affected-test set lives in
+`scripts/locale-test-filter.py`: a self-maintaining marker scan for direct locale-table readers
+(TestLocales.Load / CreateLocalizer) plus hand-listed indirect consumers; `verify` runs in CI and fails
+loudly on stale entries. The set was validated EMPIRICALLY: replace every locale value with junk
+(placeholders kept), run the full fast tier — only marker-visible classes fail, and Client.Tests passes
+195/195 against destroyed locales, so skipping it is proven safe. Two method gotchas recorded for
+regeneration: appending junk is too weak (Contains() assertions survive; replacement is required), and
+NpcHintTests' locale-consuming methods are Slow-tier (never in the PR gate to begin with) — it stays in
+HAND_EXTRAS anyway in case those methods ever lose the trait. `detect-doc-only.yml` gained a
+`localesonly` output; the `tests-passed` fan-in refuses the vacuous both-skipped state on such PRs.
+Coverage guarantee unchanged: pushes to main and release.yml still run the COMPLETE suite.
 
 ### ★ Space HUD: the cargo readout stopped overprinting the hull bar (#915, 2026-08-10, branch fix/space-hud-cargo-overlap)
 The flight view's top-left `Cargo: N` label was drawn straight across the on-foot HUD's **Hull** bar (and

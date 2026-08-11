@@ -15,6 +15,12 @@
 # IMPORTANT: this is the SINGLE SOURCE OF TRUTH for the doc/image skip list. To change what counts as
 # doc-only, edit the `case` below here — do not re-add per-workflow copies. `data/**` is
 # deliberately NOT skipped: it feeds the headless tests (e.g. the en/de locale-parity test).
+#
+# Second output `localesonly` (#921): "true" when the diff's non-doc files are ALL under
+# data/locales/. ci.yml then replaces the 4-shard matrix with the narrow `locale-tests` job
+# (scripts/locale-test-filter.py), because only the classes that read the locale tables can
+# observe such a change. `nondocs` stays true in that case — lint.yml and codeql.yml are
+# unaffected and keep running.
 name: Detect doc-only changes
 
 on:
@@ -23,6 +29,9 @@ on:
       nondocs:
         description: "true if the PR diff contains any non-doc, non-image file"
         value: ${{ jobs.detect.outputs.nondocs }}
+      localesonly:
+        description: "true if every non-doc file in the PR diff is under data/locales/"
+        value: ${{ jobs.detect.outputs.localesonly }}
 
 permissions:
   contents: read
@@ -33,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       nondocs: ${{ steps.detect.outputs.nondocs }}
+      localesonly: ${{ steps.detect.outputs.localesonly }}
     steps:
       # Lists the PR's changed files via the API (no checkout needed) and sets nondocs=true if ANY file
       # is neither documentation nor an image. (Explicit case match rather than dorny/paths-filter, whose
@@ -44,7 +54,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           files="$(gh api --paginate "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --jq '.[].filename')"
-          nondocs=false
+          haslocales=false
+          hascode=false
           while IFS= read -r f; do
             [ -z "$f" ] && continue
             case "$f" in
@@ -58,8 +69,20 @@ jobs:
               # and not imported by any test. Push-to-main runs (ruff, CodeQL) still cover them
               # because detection only applies to pull_request events.
               tools/devblog/*|tools/wix-i18n/*|tools/glitch-media/*) ;;
-              *) nondocs=true; break ;;
+              # Locale tables: non-doc (they feed the headless tests), but when the WHOLE diff
+              # stays inside data/locales/ the caller may narrow the test matrix (see header).
+              data/locales/*) haslocales=true ;;
+              *) hascode=true; break ;;
             esac
           done <<< "$files"
+          nondocs=false
+          localesonly=false
+          if [ "$hascode" = true ]; then
+            nondocs=true
+          elif [ "$haslocales" = true ]; then
+            nondocs=true
+            localesonly=true
+          fi
           echo "nondocs=$nondocs" >> "$GITHUB_OUTPUT"
-          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs"
+          echo "localesonly=$localesonly" >> "$GITHUB_OUTPUT"
+          echo "Changed files:"; printf '%s\n' "$files"; echo "nondocs=$nondocs localesonly=$localesonly"

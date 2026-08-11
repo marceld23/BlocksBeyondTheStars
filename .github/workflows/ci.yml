@@ -43,6 +43,14 @@
 # doc/image skip list lives in the shared reusable workflow .github/workflows/detect-doc-only.yml (also
 # used by lint.yml and codeql.yml). The `format` job stays a directly-required check (its name is stable
 # and GitHub counts its skip as a pass, as before).
+#
+# LOCALES-ONLY NARROW GATE (#921): when the PR diff touches nothing but data/locales/*.json (a
+# translation PR), the 4-shard matrix and `format` are skipped and the single `locale-tests` job runs
+# the classes that can actually observe a locale edit (scripts/locale-test-filter.py: a marker scan
+# for direct locale-table readers plus hand-listed indirect consumers, found by mutating every locale
+# value and collecting the failing classes). `tests-passed` requires locale-tests' success in that
+# case. Safety: an under-selected filter cannot reach a release — the push to main after merge runs
+# the COMPLETE suite, and release.yml re-runs it on the tagged commit; the worst case is a red main.
 
 name: CI
 
@@ -71,7 +79,8 @@ jobs:
     needs: changes
     # Run for any push to main, or for a PR that touched at least one non-doc file. A docs-only PR
     # skips this job; the `tests-passed` fan-in treats that as passing, so docs PRs are never blocked.
-    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
+    # A locales-only PR skips the matrix too and runs `locale-tests` instead (see header).
+    if: github.event_name != 'pull_request' || (needs.changes.outputs.nondocs == 'true' && needs.changes.outputs.localesonly != 'true')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # one failing shard must not cancel the others' results
@@ -160,26 +169,78 @@ jobs:
           path: TestResults/*.trx
           if-no-files-found: ignore
 
+  # Narrow test gate for locales-only PRs (see LOCALES-ONLY NARROW GATE in the header): builds the
+  # server test project once and runs only the locale-consuming classes. `verify` runs first so a
+  # stale HAND_EXTRAS entry or a broken marker scan fails loudly instead of silently under-testing.
+  # Same Release + -warnaserror regime as the matrix; the fast-tier duration guardrail is pointless
+  # here (the guards run in seconds) and needs the full trx picture, so it stays matrix-only.
+  locale-tests:
+    name: Locale guard tests
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.localesonly == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            Directory.Build.props
+
+      - name: Restore + build (treat warnings as errors)
+        run: |
+          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
+          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release -warnaserror
+
+      - name: Run locale guard tests
+        run: |
+          python3 scripts/locale-test-filter.py verify
+          FILTER="$(python3 scripts/locale-test-filter.py)"
+          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "Category!=Slow&$FILTER" --logger "trx;LogFileName=locale.trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-locale
+          path: TestResults/*.trx
+          if-no-files-found: ignore
+
   # Fan-in for branch protection: the ONE required check standing in for the whole test matrix.
   # Required checks must not point at matrix jobs directly (names carry the shard index, and a
   # docs-only PR would leave them "Expected — Waiting for status" forever). Passing states:
   #   * build-test == success  → all four shards green
-  #   * build-test == skipped  → docs-only PR (the `changes` job said nondocs=false) — counts as pass,
-  #     but ONLY when `changes` itself succeeded, so a cancelled/failed upstream can't sneak through.
+  #   * build-test == skipped  → docs-only PR (the `changes` job said nondocs=false) or locales-only
+  #     PR (locale-tests ran instead) — counts as pass, but ONLY when `changes` itself succeeded, so
+  #     a cancelled/failed upstream can't sneak through.
+  #   * locale-tests is held to the same success-or-skipped bar, so a red locale guard blocks the PR.
+  # Belt-and-braces: on a locales-only PR the matrix MUST be skipped and locale-tests MUST have run —
+  # any other combination (e.g. both skipped) fails the fan-in rather than passing vacuously.
   tests-passed:
     name: Tests passed
-    needs: [changes, build-test]
+    needs: [changes, build-test, locale-tests]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check matrix result
         run: |
-          echo "changes: ${{ needs.changes.result }} / build-test: ${{ needs.build-test.result }}"
+          echo "changes: ${{ needs.changes.result }} / build-test: ${{ needs.build-test.result }} / locale-tests: ${{ needs.locale-tests.result }}"
           if [ "${{ needs.changes.result }}" != "success" ]; then exit 1; fi
           case "${{ needs.build-test.result }}" in
-            success|skipped) exit 0 ;;
+            success|skipped) ;;
             *) exit 1 ;;
           esac
+          case "${{ needs.locale-tests.result }}" in
+            success|skipped) ;;
+            *) exit 1 ;;
+          esac
+          if [ "${{ needs.changes.outputs.localesonly }}" = "true" ]; then
+            if [ "${{ needs.locale-tests.result }}" != "success" ] || [ "${{ needs.build-test.result }}" != "skipped" ]; then exit 1; fi
+          fi
 
   # Verifies C# code style/formatting (whitespace, using-order, object-initializer line breaks, …) per
   # .editorconfig. Runs against BlocksBeyondTheStars.CI.slnf, a solution filter listing every project EXCEPT
@@ -189,7 +250,9 @@ jobs:
   format:
     name: Format (dotnet format)
     needs: changes
-    if: github.event_name != 'pull_request' || needs.changes.outputs.nondocs == 'true'
+    # Locales-only PRs skip this too: dotnet format checks the C# projects in CI.slnf, which cannot
+    # be affected by a data/locales/*.json diff (and a skipped required job counts as a pass).
+    if: github.event_name != 'pull_request' || (needs.changes.outputs.nondocs == 'true' && needs.changes.outputs.localesonly != 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

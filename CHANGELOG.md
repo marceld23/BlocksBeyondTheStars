@@ -79,6 +79,10 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 - Ahmed Mohamed Abdelhady Kamel joins the credits for the first unit tests covering `Vector3i`,
   the block-coordinate type the whole world sits on (#917).
+- Translation PRs get a faster, focused CI lane: a pull request that touches nothing but
+  `data/locales/*.json` now runs exactly the test classes that read the locale tables (found by
+  mutating every translated string and collecting what fails) instead of the full four-runner
+  matrix. Pushes to `main` and releases still run the complete suite (#921).
 
 ## [2026.8.10] — 2026-08-10
 
