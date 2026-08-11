@@ -76,6 +76,10 @@ These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please ski
 - **Data-driven content.** Blocks, items, recipes, ship modules, tech nodes and planets live
   in `data/*.json`; adding content should not require touching game logic.
 - **Keep `Shared`/`WorldGeneration` `netstandard2.1`-clean** so the Unity client can consume them.
+- **License header on every source file.** Every `.cs` file — tests included — starts with the
+  same three-line AGPL header (`Blocks Beyond the Stars — Copyright …` / `SPDX-License-Identifier:
+  AGPL-3.0-or-later` / `This file is part of …`). Copy it verbatim from any neighbouring file;
+  nothing in CI adds it for you.
 - **Update [TODO.md](TODO.md)** — it is the single Done/Open status doc — when your change
   affects it, and update any doc in `docs/` that your change makes stale.
 
