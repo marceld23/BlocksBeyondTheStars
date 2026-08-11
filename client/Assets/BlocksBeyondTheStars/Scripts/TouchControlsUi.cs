@@ -355,9 +355,8 @@ namespace BlocksBeyondTheStars.Client
 
             var text = UiKit.AddText(rt, 0f, 0f, size, size, label, Mathf.RoundToInt(size * 0.24f),
                 new Color(0.9f, 0.97f, 1f, 0.95f), TextAnchor.MiddleCenter, FontStyle.Bold);
-            text.resizeTextForBestFit = true; // localized labels vary in length (e.g. DE "Tanken")
-            text.resizeTextMinSize = 10;
-            text.resizeTextMaxSize = Mathf.RoundToInt(size * 0.26f);
+            // Localized labels vary in length (e.g. DE "Tanken") — shrink to fit rather than spill.
+            UiKit.FitLabel(text, 10, Mathf.RoundToInt(size * 0.26f));
 
             return go.GetComponent<TouchButton>();
         }

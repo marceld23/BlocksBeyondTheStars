@@ -186,6 +186,16 @@ snow a *player* placed. New `weather_scanner` gadget + forecast messages read th
 Client: extrapolated intensity/wind (no more 5 s staircase), lightning that lights the **terrain**,
 thunder delayed by distance, a HUD weather chip, 7 new audio beds, 15 languages.
 
+### ★ Button labels stay inside their frames: Best Fit never constrained the width (#918, 2026-08-10, branch fix/button-label-fit-918)
+German "Farbe aufnehmen" hung out of its button in the paint editor — and it turned out **no** button
+label had ever been able to shrink horizontally. `UiKit.AddText` builds every label with
+`horizontalOverflow = Overflow`, and Unity's `TextGenerator` then treats the width as unbounded, so
+`resizeTextForBestFit` only ever scaled text to fit the HEIGHT. All three "shrink long labels" fixes
+(button B57, tab bar B28, touch controls) were quietly no-ops sideways. New shared
+`UiKit.FitLabel(label, min, max)` sets Wrap + Truncate alongside Best Fit, so the width is actually
+considered, and the three call sites go through it. The paint editor's tool row also got wider
+(200 px) so its long labels barely need to shrink; it stops at x=580 where the region tiles begin.
+
 ### ★ Paint editors: fill tool, findable eyedropper, 32-colour palette, one Appearance screen (#899, 2026-08-10, branch feat/paint-editor-tools)
 Every pixel editor (avatar face, the four body-paint parts, the block paint tool — all one `FaceEditor`)
 gained a **fill tool** (region-clamped flood fill; Shift = replace that colour everywhere in the region)
