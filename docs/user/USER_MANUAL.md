@@ -114,6 +114,7 @@ buttons — retuning is tracked in issue #195):
 | **(A)** | Jump (hold in air = jetpack; in water = swim up) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
+| **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **Start** | Open / close the gameplay menu |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back. The right stick also
@@ -133,6 +134,7 @@ buttons swap with what you're doing:
 | **Left stick** (bottom-left) | Move / thrust / steer |
 | **Drag** anywhere on the right | Look / steer the ship |
 | **◄ ►** | Cycle hotbar slot (ship-systems bar in flight) |
+| **…** (beside ►) | **Hotbar slot actions** on the selected slot (see §5); shown only when the menu can open |
 | **≡** (top-right) | Open / close the gameplay menu |
 | *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT** | Jump · mine · place · use/board · descend · open chat |
 | *Flying / EVA:* **FIRE (hold) · LAND · SHIP · AUTO · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · camera · dock/board · float up/down |
@@ -298,7 +300,8 @@ separate unlock; admins can still disable it through server world rules.
   simply gone — the game warns you when that happens, so throw something away or empty the hold first.
 
 ### Hotbar slot actions (swap · colour · form)
-- Press **middle mouse** (rebindable: Settings → Controls → *Hotbar slot actions*) while playing on foot (or
+- Press **middle mouse** (rebindable: Settings → Controls → *Hotbar slot actions*; gamepad: **R3**; touch:
+  the **…** button beside the hotbar arrows) while playing on foot (or
   during an EVA) to act directly on the **selected hotbar slot** — no trip through the Tab menu. A **radial
   menu** opens around the screen centre: **Swap** on top, **Colour** on the left, **Form** on the right and
   **Close** at the bottom; quarters that don't apply to the held item stay visible but dimmed:

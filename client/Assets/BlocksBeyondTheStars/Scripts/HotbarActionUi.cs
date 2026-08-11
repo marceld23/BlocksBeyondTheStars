@@ -71,6 +71,40 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True while the action ring / a detail panel is open (gameplay hotkeys stand down).</summary>
         public bool IsOpen => _canvas != null;
 
+        /// <summary>True while the pie could open right now: no other menu owns the input, and a slot is
+        /// actually on screen. Exactly the states in which the HUD hides the hotbar (piloting/driving/
+        /// spectating) refuse — no slots on screen means no slot to act on; EVA deliberately stays allowed,
+        /// the hotbar shows there. Also gates the touch button's visibility (#940).</summary>
+        public bool CanOpen
+        {
+            get
+            {
+                if (Game == null || Game.MenuOpen)
+                {
+                    return false;
+                }
+
+                bool hotbarHidden = ((Game.SpaceViewActive || Game.InSpace) && !Game.InEva)
+                                    || !string.IsNullOrEmpty(Game.InSpeeder)
+                                    || Game.Spectating;
+                return !hotbarHidden;
+            }
+        }
+
+        /// <summary>Opens the pie on the selected slot, or closes it — the touch button's entry point
+        /// (#940). The key/pad path in <see cref="Update"/> funnels through the same gates.</summary>
+        public void Toggle()
+        {
+            if (IsOpen)
+            {
+                Close();
+            }
+            else if (CanOpen)
+            {
+                Open(Game.SelectedHotbarSlot);
+            }
+        }
+
         private void Update()
         {
             if (Game == null)
@@ -80,9 +114,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (IsOpen)
             {
-                // The opening key toggles, Esc always closes. (A focused text field never lives here.)
-                // Marking the frame keeps the app shell / pause menu from ALSO acting on the same Esc (#413).
-                if (InputMap.Down(InputAction.HotbarAction) || Input.GetKeyDown(KeyCode.Escape))
+                // The opening key toggles, Esc always closes, and pad B backs out (#940) — the pie is
+                // stick-navigable, so the pad needs an exit besides re-clicking R3. Marking the frame keeps
+                // the app shell / pause menu from ALSO acting on the same press (#413).
+                if (InputMap.Down(InputAction.HotbarAction) || Input.GetKeyDown(KeyCode.Escape)
+                    || Input.GetKeyDown(KeyCode.JoystickButton1))
                 {
                     Game.MarkMenuInputHandled();
                     Close();
@@ -91,22 +127,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (!InputMap.Down(InputAction.HotbarAction) || Game.MenuOpen)
+            if (InputMap.Down(InputAction.HotbarAction))
             {
-                return;
+                Toggle();
             }
-
-            // Exactly the states in which the HUD hides the hotbar (piloting/driving/spectating): no slots
-            // on screen means no slot to act on. EVA deliberately stays allowed — the hotbar shows there.
-            bool hotbarHidden = ((Game.SpaceViewActive || Game.InSpace) && !Game.InEva)
-                                || !string.IsNullOrEmpty(Game.InSpeeder)
-                                || Game.Spectating;
-            if (hotbarHidden)
-            {
-                return;
-            }
-
-            Open(Game.SelectedHotbarSlot);
         }
 
         // --- panel lifecycle ---
@@ -118,6 +142,7 @@ namespace BlocksBeyondTheStars.Client
             _glowMode = false;
             _canvas = UiKit.CreateCanvas("HotbarActionUi");
             _canvas.sortingOrder = 40; // above the HUD (10) and the flight overlay (12), below nothing that matters
+            UiNav.Enable(_canvas.gameObject); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
             BuildRing();
         }

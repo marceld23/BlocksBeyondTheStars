@@ -7726,6 +7726,23 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): the slot-action pie works on gamepad and touch (#940)
+
+Follow-up to #935 (below): pad and touch could not OPEN the pie at all — no default pad button, no touch
+control. Now: **gamepad** gets `HotbarAction → R3` as the stock binding (right-stick click; free on the
+XInput layout, "click the stick" mirrors the middle-click; d-pad-down was considered but the project only
+defines a `DPadX` axis), `UiNav.Enable` on the pie's canvas makes the four wedges and every detail-panel
+button stick-navigable with A = click (the wedges sit exactly up/left/right/down, so `Navigation.Automatic`
+maps them 1:1), and **pad B closes** the pie (alongside the toggle key and Esc). The HUD badge/hint from
+#935 show `RS` automatically while a pad is in hand. **Touch** gets a shared "…" button beside the hotbar
+► arrow (symbol label like ◄►≡ — no locale key) that opens the pie on the selected slot via the new
+`HotbarActionUi.CanOpen`/`Toggle` API (same hidden-hotbar gates, EVA allowed); the button only shows while
+the pie could open, and the pie itself was already tap-friendly (flat overlay canvas). USER_MANUAL §2
+pad/touch tables + §5 updated. ⚠ Playtest pending on real devices — CI exercises neither pad nor touch;
+watch for R3 accidental presses while looking around (fallback candidate: d-pad-down + new DPadY axis).
+
+---
+
 ## ✅ Done (2026-08-11): the slot-action menu is a radial pie now — and the HUD finally says it exists (#935)
 
 The middle-click hotbar slot actions (#924, below) shipped with zero on-screen tell — not in the hint

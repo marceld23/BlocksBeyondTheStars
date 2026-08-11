@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
         private const KeyCode BtnY = KeyCode.JoystickButton3;   // toggle third-person
         private const KeyCode BtnLb = KeyCode.JoystickButton4;  // place block
         private const KeyCode BtnRb = KeyCode.JoystickButton5;  // mine / attack
+        private const KeyCode BtnR3 = KeyCode.JoystickButton9;  // right-stick click
 
         // Tunables (see issue #195). Look is a rate (deg/sec at sensitivity 1) turned into a per-frame delta
         // so it lands in the same space as a mouse delta — the caller still multiplies by MouseSensitivity,
@@ -143,6 +144,10 @@ namespace BlocksBeyondTheStars.Client
         {
             InputAction.Interact => BtnX,
             InputAction.ToggleThirdPerson => BtnY,
+            // R3 (#940): free on the stock layout, and "click the stick" mirrors the action's default
+            // middle-CLICK. D-pad-down would read nicer next to the d-pad hotbar cycle, but the project
+            // only defines a DPadX axis — d-pad Y isn't readable without touching ProjectSettings.
+            InputAction.HotbarAction => BtnR3,
             _ => KeyCode.None,
         };
 

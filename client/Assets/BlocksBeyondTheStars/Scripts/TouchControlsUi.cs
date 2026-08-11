@@ -14,7 +14,7 @@ namespace BlocksBeyondTheStars.Client
     /// full-screen right-side look pad, and per-context action buttons. Three button clusters cover the
     /// game's control contexts — <b>on foot</b> (jump / mine / place / use / down / chat), <b>flight + EVA</b>
     /// (fire / land / ship / autopilot / view / up / down / use) and <b>speeder</b> (boost / hop / exit /
-    /// refuel) — with the stick, look pad, hotbar ◄► and menu button shared. State is reported to
+    /// refuel) — with the stick, look pad, hotbar ◄►, slot-actions "…" (#940) and menu button shared. State is reported to
     /// <see cref="TouchInputSource"/>, which feeds it into <see cref="InputMap"/>'s combined read alongside
     /// keyboard/mouse and gamepad.
     ///
@@ -42,6 +42,7 @@ namespace BlocksBeyondTheStars.Client
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _boost, _hop;                               // speeder
         private TouchButton _prev, _next, _menu;                        // shared
+        private TouchButton _slotActions;                               // opens the hotbar slot-action pie (#940)
         private readonly List<(InputAction Action, TouchButton Button)> _actions = new();
         private readonly List<(InputAction Action, TouchButton Button)> _heldActions = new();
         private bool _built;
@@ -194,6 +195,20 @@ namespace BlocksBeyondTheStars.Client
             {
                 Chat.OpenInput();
             }
+
+            // The "…" button opens the slot-action pie on the selected hotbar slot (#940). Shown only while
+            // the pie could actually open (same hidden-hotbar gates; EVA allowed). Opening registers a menu
+            // owner, which hides this whole layer — so taps reach the pie, and closing it brings us back.
+            var pie = HotbarActionUi.Instance;
+            if (_slotActions != null)
+            {
+                bool canAct = pie != null && pie.CanOpen;
+                SetActive(_slotActions.gameObject, canAct);
+                if (canAct && _slotActions.DownThisFrame)
+                {
+                    pie.Toggle();
+                }
+            }
         }
 
         private static void SetActive(GameObject go, bool active)
@@ -234,6 +249,11 @@ namespace BlocksBeyondTheStars.Client
             _prev = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(-360f, 130f), 90f, "◄");
             _next = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(360f, 130f), 90f, "►");
             _menu = MakeButton(canvas.transform, new Vector2(1f, 1f), new Vector2(-90f, -90f), 96f, "≡");
+
+            // Slot-action pie opener (#940), tucked beside the ► arrow: touch has no key to press, so this
+            // button IS the feature's input path here. Symbol label like ◄►≡, so no locale key is needed;
+            // Update shows it only while the pie could actually open.
+            _slotActions = MakeButton(canvas.transform, new Vector2(0.5f, 0f), new Vector2(480f, 130f), 90f, "…");
 
             // ---- On-foot cluster (bottom-right) --------------------------------------------------------
             _onFootCluster = MakeCluster(canvas.transform, "OnFoot");
