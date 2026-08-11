@@ -387,6 +387,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RotateShape => "ui.key.rotate_shape",
             InputAction.ToggleThermal => "ui.key.toggle_thermal",
             InputAction.ToggleChat => "ui.key.toggle_chat",
+            InputAction.HotbarAction => "ui.key.hotbar_action",
             InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
             InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
             InputAction.FlightAutopilot => "ui.key.flight_autopilot",

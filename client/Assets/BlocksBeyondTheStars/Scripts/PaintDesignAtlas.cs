@@ -155,6 +155,19 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The live bitmap of a design (main thread; used to pre-load the editor when repainting).</summary>
         public bool TryGetPixels(int id, out string pixels) => _pixelsById.TryGetValue(id, out pixels);
 
+        /// <summary>The atlas UV rect of a live design (main thread) — lets UI surfaces (hotbar icon, swap
+        /// grid) draw a painted ITEM with its actual texture. False for unknown/wiped ids.</summary>
+        public bool TryGetUv(int id, out Rect uv)
+        {
+            if (_uvById.TryGetValue(id, out uv))
+            {
+                return true;
+            }
+
+            uv = default;
+            return false;
+        }
+
         /// <summary>The design-id → atlas-UV lookup as a thread-safe snapshot for one mesh build. The captured
         /// dictionary is immutable (replaced wholesale on change), so worker threads read it freely.</summary>
         public System.Func<int, Rect?> Snapshot()

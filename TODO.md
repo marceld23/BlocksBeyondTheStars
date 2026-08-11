@@ -7701,6 +7701,26 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-11): hotbar slot actions — swap · colour · form · own texture, straight from the HUD
+
+Middle mouse (rebindable `HotbarAction`) on the selected hotbar slot opens a flat action panel (a ring of
+verbs, then a detail pane — deliberately a normal `UiKit.CreateCanvas` overlay, NOT the diegetic HUD canvas,
+which the visor pipeline barrel-distorts so pointer hits land wrong): **Swap** exchanges the slot with any
+backpack slot (`MoveItemIntent`); **Colour** re-dyes/glows the whole stack from the swatch palette (glow
+shows its crystal cost up front); **Form** offers the 19 built-in forms as material silhouettes plus "My
+forms" behind the shape-tool gate. New alongside: **own textures on items** — a saved paint design applies
+to the held stack via the new `PaintCraftIntent` (tag 202), carried as `p<xxxx>` in the item key
+(`ItemKey.Design`; tag is `p`, NOT `d` — `d` is a hex digit and would false-match inside colour payloads).
+Placing stamps the design (live-registry-gated), mining now RECOVERS it into the drop (was: deliberately
+lost). All three craft intents (+custom shape) gained a `Slot` field so the output lands back in the
+invoking slot (`AddCraftOutput`), and the fit check became `CanFitAfterRemoving` — a whole-stack 1:1
+exchange now succeeds in a full inventory (the freed source slot counts). Hotbar/swap-grid icons render a
+painted stack by its design tile (`PaintDesignAtlas.TryGetUv`). 18 locale keys × 14 languages; USER_MANUAL
+§2 controls + §5 "Hotbar slot actions" + paint section updated. 10 new tests (`HotbarSlotActionTests`).
+⚠ Playtest pending: ring/panel feel, visor-on clicks, gamepad (no default pad button — rebindable), touch.
+
+---
+
 ## ✅ Done (2026-08-10): Russian, Ukrainian, Chinese, Japanese, Korean + the non-Latin font pipeline (#886–#889, #891)
 
 The last five languages from the localization push, and the font work that unblocks them: Rajdhani

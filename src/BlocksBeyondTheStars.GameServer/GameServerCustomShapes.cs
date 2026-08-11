@@ -104,7 +104,7 @@ public sealed partial class GameServer
         }
 
         session.NextCustomShapeAt = _uptime + 2.0;
-        ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shapeIndex, "shape");
+        ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shapeIndex, "shape", intent.Slot);
     }
 
     /// <summary>True when the player carries the shaping tool (hotbar or backpack — holding it is only

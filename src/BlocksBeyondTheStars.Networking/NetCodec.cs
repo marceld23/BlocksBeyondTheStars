@@ -387,6 +387,9 @@ public static class NetCodec
         // Weather forecast gadget (#900): the sky's coming episodes, so weather can be planned around.
         Register(200, typeof(WeatherForecastRequest));   // Client -> Server
         Register(201, typeof(WeatherForecast));          // Server -> Client
+
+        // Hotbar slot actions
+        Register(202, typeof(PaintCraftIntent));         // Client -> Server (own texture onto a held material)
     }
 
     private static void Register(byte tag, Type type)

@@ -25,6 +25,7 @@ namespace BlocksBeyondTheStars.Client
         RotateShape,       // cycle a held building shape's orientation (auto → the 6 up-faces) — default R
         ToggleThermal,     // infrared mode while looking through the thermal binoculars — default I
         ToggleChat,        // mute/unmute the chat scrollback overlay for this session (#636) — default J
+        HotbarAction,      // slot actions on the selected hotbar slot (swap/colour/form) — default middle mouse
 
         // Flight / EVA (cockpit + spacewalk). Interact (dock/land/board) and ToggleThirdPerson (view) are
         // reused from the on-foot set so one binding works in both contexts.
@@ -108,7 +109,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
-            InputAction.ToggleThermal, InputAction.ToggleChat,
+            InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.HotbarAction,
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -147,6 +148,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RotateShape => KeyCode.R,
             InputAction.ToggleThermal => KeyCode.I, // "infrared"; N was taken by the VEGA dialogue advance
             InputAction.ToggleChat => KeyCode.J,    // one of the last free letters near the movement hand
+            InputAction.HotbarAction => KeyCode.Mouse2, // middle click — free, and "act on what I hold" reads naturally there
             InputAction.FlightEnterInterior => KeyCode.F,
             InputAction.FlightPadChooser => KeyCode.L,
             InputAction.FlightAutopilot => KeyCode.P,

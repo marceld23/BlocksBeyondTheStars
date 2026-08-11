@@ -272,25 +272,40 @@ namespace BlocksBeyondTheStars.Client
             => Send(new CraftIntent { RecipeKey = recipeKey, Count = count });
 
         /// <summary>Always-available "Dye"/"Glow" action: recolour a held building material (surface tint
-        /// and/or a coloured light source). Output is the same item carrying the colour in its key.</summary>
-        public void SendTintCraft(string sourceItemKey, int tint, int glow, int count = 1)
-            => Send(new TintCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Tint = tint, Glow = glow, Count = count });
+        /// and/or a coloured light source). Output is the same item carrying the colour in its key.
+        /// <paramref name="slot"/> pins the output to an inventory slot (hotbar action); -1 = first free.</summary>
+        public void SendTintCraft(string sourceItemKey, int tint, int glow, int count = 1, int slot = -1)
+            => Send(new TintCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Tint = tint, Glow = glow, Count = count, Slot = slot });
 
         /// <summary>Always-available "Shape" action: re-form a held building material into another geometric
         /// shape (sphere/dome/pyramid/ramp/…). Output is the same item carrying the shape index in its key;
-        /// shape 0 reverts it to a plain cube.</summary>
-        public void SendShapeCraft(string sourceItemKey, int shape, int count = 1)
-            => Send(new ShapeCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Shape = shape, Count = count });
+        /// shape 0 reverts it to a plain cube. <paramref name="slot"/> pins the output slot; -1 = first free.</summary>
+        public void SendShapeCraft(string sourceItemKey, int shape, int count = 1, int slot = -1)
+            => Send(new ShapeCraftIntent { SourceItemKey = sourceItemKey ?? string.Empty, Shape = shape, Count = count, Slot = slot });
 
         /// <summary>Crafts a player-designed form (#843): the micro-voxel bitmap rides along so the server can
-        /// register/dedup it, then hands back the material carrying the registered shape index.</summary>
-        public void SendCustomShapeCraft(string sourceItemKey, string voxels, string name, int count = 1)
+        /// register/dedup it, then hands back the material carrying the registered shape index.
+        /// <paramref name="slot"/> pins the output slot; -1 = first free.</summary>
+        public void SendCustomShapeCraft(string sourceItemKey, string voxels, string name, int count = 1, int slot = -1)
             => Send(new CustomShapeCraftIntent
             {
                 SourceItemKey = sourceItemKey ?? string.Empty,
                 Voxels = voxels ?? string.Empty,
                 Name = name ?? string.Empty,
                 Count = count,
+                Slot = slot,
+            });
+
+        /// <summary>Applies a saved 32×32 paint design to a held building material as an item modifier (the
+        /// hotbar "own texture" action). Empty pixels strip the design. <paramref name="slot"/> pins the
+        /// output slot; -1 = first free.</summary>
+        public void SendPaintCraft(string sourceItemKey, string pixels, int count = 1, int slot = -1)
+            => Send(new PaintCraftIntent
+            {
+                SourceItemKey = sourceItemKey ?? string.Empty,
+                Pixels = pixels ?? string.Empty,
+                Count = count,
+                Slot = slot,
             });
         public void SendFallDamage(float impactSpeed) => Send(new FallDamageIntent { ImpactSpeed = impactSpeed });
 

@@ -9,7 +9,7 @@ chat/admin commands. This is a living document.
 > localized — English, German, French and Spanish are complete, further community translations such as
 > Italian are in progress.)
 
-Last updated: 2026-08-08.
+Last updated: 2026-08-11.
 
 ---
 
@@ -75,6 +75,7 @@ Last updated: 2026-08-08.
 | **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
+| **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
 | **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
@@ -295,6 +296,23 @@ separate unlock; admins can still disable it through server world rules.
   sidearm) has no such button, so you can never leave yourself without a way to dig or a way to see.
 - **When everything is full:** if your backpack *and* your hold are full, whatever you mine or craft next is
   simply gone — the game warns you when that happens, so throw something away or empty the hold first.
+
+### Hotbar slot actions (swap · colour · form)
+- Press **middle mouse** (rebindable: Settings → Controls → *Hotbar slot actions*) while playing on foot (or
+  during an EVA) to act directly on the **selected hotbar slot** — no trip through the Tab menu:
+  - **Swap** — a grid of all 24 backpack slots; pick one and it exchanges with the hotbar slot (an empty slot
+    simply receives the item). *Remove from quick-bar* stows the slot into the first free backpack slot.
+  - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
+    stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one
+    crystal per block** (the button shows the cost, and the panel refuses if you're short). Under **My
+    patterns** your saved paint designs (see §5 → Paint tool) apply to the stack as an **own texture** —
+    the item then shows the pattern in the hotbar, places with it, and *Remove pattern* strips it again.
+  - **Form** — only for a shapeable material: the 19 built-in forms as silhouettes of the actual material,
+    plus **My forms** once you carry the shaping tool. Re-forms the whole stack; *Cube* reverts it.
+- Everything lands **back in the same slot** (colour/form/pattern are free 1:1 exchanges — the same actions
+  the crafting menu offers, so nothing is lost if the panel is closed mid-way).
+- Painted items round-trip like dyed ones now: **placing** a patterned block shows the pattern to everyone,
+  **mining** it gives the patterned item back.
 
 ### Crafting, blueprints, tech
 - Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market
@@ -606,8 +624,9 @@ separate unlock; admins can still disable it through server world rules.
 - **Save & reuse**: the *My designs* column in the editor stores designs **locally** ("Save design") and loads
   them back with one click — across blocks, worlds and servers. Applying a saved design in a new world just
   works; the server keeps one shared copy per world (up to 256 distinct designs).
-- **Mining a painted block loses the paint** (the drop keeps its shape and colour, not the artwork) — reapply
-  it from your library.
+- **Mining a painted block keeps the paint**: the drop carries shape, colour *and* the design, so the item
+  re-places with its artwork (it stacks separately from unpainted material). Designs can also be applied to
+  the **held stack** directly — see §5 → Hotbar slot actions.
 - **Multiplayer**: designs are visible to everyone. If you see something inappropriate, stand next to it and
   type **`/reportpaint`** in chat — the world operator gets the details (`/report Player` stays the separate
   player report). Operators can remove a player's designs everywhere at once with `/paintwipe` (see §Commands).

@@ -2326,6 +2326,7 @@ public sealed partial class GameServer
             case SetFaceIntent face: HandleSetFace(session, face); break;
             case SetBodyPaintIntent bodyPaint: HandleSetBodyPaint(session, bodyPaint); break;
             case PaintBlockIntent paint: HandlePaintBlock(session, paint); break;
+            case PaintCraftIntent paintCraft: HandlePaintCraft(session, paintCraft); break;
             case CustomShapeCraftIntent form: HandleCustomShapeCraft(session, form); break;
             case CraftShipIntent craftShip: HandleCraftShip(session, craftShip); break;
             case SwitchShipIntent switchShip: HandleSwitchShip(session, switchShip); break;
@@ -3173,7 +3174,16 @@ public sealed partial class GameServer
     {
         var current = _world.GetBlock(pos);
         var (dropTint, dropGlow) = _world.GetModifier(pos); // read the dye/glow BEFORE clearing, to recover it into the drop
-        int dropShape = ShapeCode.ShapeOf(_world.GetShape(pos)); // recover the FORM (orientation is re-derived on re-place)
+        int dropDescriptor = _world.GetShape(pos);
+        int dropShape = ShapeCode.ShapeOf(dropDescriptor); // recover the FORM (orientation is re-derived on re-place)
+        // Recover the paint design into the drop too — the same round trip dye and form make. Only a LIVE
+        // design travels; a wiped one is dropped here so the tombstoned id never rides an item into a stack.
+        int dropDesign = ShapeCode.DesignOf(dropDescriptor);
+        if (!IsLivePaintDesign(dropDesign))
+        {
+            dropDesign = 0;
+        }
+
         if (PropShapes.IsStampedForm(def.Key, dropShape))
         {
             // A prop's server-stamped form is not player data — dropping it plain keeps the mined item
@@ -3193,9 +3203,9 @@ public sealed partial class GameServer
         foreach (var drop in def.Drops)
         {
             string item = toxicFloraDrop && drop.Item == "berries" ? "toxic_berries" : drop.Item;
-            if ((dropTint != 0 || dropGlow != 0 || dropShape != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
+            if ((dropTint != 0 || dropGlow != 0 || dropShape != 0 || dropDesign != 0) && _content.GetItem(item)?.PlacesBlock == def.Key)
             {
-                item = ItemKey.Compose(item, dropTint, dropGlow, dropShape);
+                item = ItemKey.Compose(item, dropTint, dropGlow, dropShape, dropDesign);
             }
 
             yield.Add(new ItemAmount(item, drop.Count));
@@ -3636,6 +3646,19 @@ public sealed partial class GameServer
             placeShape = StampPropShape(session, place, blockDef.Key, pos);
         }
 
+        // A painted item carries its design id in the key; stamp it into the descriptor's design bits so the
+        // placed block shows the texture. Composes with any form above (built-in, custom or prop-stamped).
+        // Only a LIVE design is honoured — an item holding a wiped/foreign id places as the plain material,
+        // mirroring the custom-shape fallback. Tintable is the gate, like dye (paint is a surface cosmetic).
+        if (blockDef.Tintable)
+        {
+            int placeDesign = ItemKey.Design(place.ItemKey);
+            if (IsLivePaintDesign(placeDesign))
+            {
+                placeShape = ShapeCode.WithDesign(placeShape, placeDesign);
+            }
+        }
+
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
 
         if (IsContainerBlock(blockDef.Key))
@@ -3815,14 +3838,15 @@ public sealed partial class GameServer
         }
 
         int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
-        // Preserve any shape the source already carried — colouring a shaped block keeps its form.
-        string output = ItemKey.Compose(baseKey, tint, glow, ItemKey.Shape(intent.SourceItemKey));
+        // Preserve any shape/design the source already carried — colouring a shaped or painted block keeps them.
+        string output = ItemKey.Compose(baseKey, tint, glow,
+            ItemKey.Shape(intent.SourceItemKey), ItemKey.Design(intent.SourceItemKey));
 
         // Creative mode: no material cost — just produce the coloured material.
         if (!Rules.CraftingCostsMaterials)
         {
             var freeTintPool = new MaterialPool(_content, session.State, _ship);
-            freeTintPool.Add(output, count);
+            AddCraftOutput(session, freeTintPool, output, count, intent.Slot);
             Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
             SendInventory(session);
             WarnIfPoolOverflowed(session, freeTintPool); // #600
@@ -3844,21 +3868,54 @@ public sealed partial class GameServer
             return;
         }
 
-        // The coloured result is a DIFFERENT item key than the source, so it always needs a free slot (or a
-        // matching part-stack). Verify before consuming — otherwise a full inventory eats the material.
-        if (!pool.CanFit(new[] { new ItemAmount(output, count) }))
+        // The coloured result is a DIFFERENT item key than the source, so it needs room — but the room the
+        // consumed source frees up counts (a whole-stack recolour in a full inventory is still a 1:1 swap).
+        if (!pool.CanFitAfterRemoving(inputs, new[] { new ItemAmount(output, count) }))
         {
             CraftFail(session, "tint", "@inventory_full");
             return;
         }
 
         pool.Remove(inputs);
-        pool.Add(output, count);
+        AddCraftOutput(session, pool, output, count, intent.Slot);
         Send(session, new CraftResult { Success = true, RecipeKey = "tint" });
         SendInventory(session);
         // #600: dyeing PART of a stack needs a fresh slot for the new key, so a full inventory can still lose it.
         WarnIfPoolOverflowed(session, pool);
         ShipAiOnCraft(session);
+    }
+
+    /// <summary>
+    /// Stores a craft output preferring an explicit personal-inventory slot — the hotbar slot the player
+    /// invoked the action on, so a slot-local transform visibly lands in THAT slot instead of the first free
+    /// one (or the cargo hold). Falls back to the ordinary pool add for whatever the slot cannot take: slot
+    /// out of range (-1 = the legacy behaviour), occupied by a different item, or stack-capacity overflow.
+    /// </summary>
+    private void AddCraftOutput(PlayerSession session, MaterialPool pool, string output, int count, int slot)
+    {
+        var inv = session.State.Inventory;
+        if (slot >= 0 && slot < inv.SlotCount && count > 0)
+        {
+            int maxStack = _content.MaxStackOf(output);
+            var existing = inv.Slots[slot];
+            if (existing is null || existing.IsEmpty)
+            {
+                int put = System.Math.Min(count, maxStack);
+                inv.SetSlot(slot, new ItemStack(output, put));
+                count -= put;
+            }
+            else if (existing.Item == output && existing.Count < maxStack)
+            {
+                int put = System.Math.Min(count, maxStack - existing.Count);
+                existing.Count += put;
+                count -= put;
+            }
+        }
+
+        if (count > 0)
+        {
+            pool.Add(output, count);
+        }
     }
 
     /// <summary>
@@ -3883,7 +3940,7 @@ public sealed partial class GameServer
             return;
         }
 
-        ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shape, "shape");
+        ApplyShapeExchange(session, intent.SourceItemKey, intent.Count, shape, "shape", intent.Slot);
     }
 
     /// <summary>Validates that a craft source is a building material that can be re-formed at all — the
@@ -3913,7 +3970,7 @@ public sealed partial class GameServer
     /// the player-designed form craft so the two can never drift apart (inventory-full guard, creative path,
     /// overflow warning, VEGA hooks all live here once).
     /// </summary>
-    private void ApplyShapeExchange(PlayerSession session, string sourceItemKey, int intentCount, int shape, string tag)
+    private void ApplyShapeExchange(PlayerSession session, string sourceItemKey, int intentCount, int shape, string tag, int slot = -1)
     {
         string baseKey = ItemKey.Base(sourceItemKey);
 
@@ -3925,14 +3982,15 @@ public sealed partial class GameServer
         }
 
         int count = System.Math.Clamp(intentCount, 1, ItemDefinition.DefaultMaxStack);
-        // Only the form changes — keep whatever colour the source carried.
-        string output = ItemKey.Compose(baseKey, ItemKey.Tint(sourceItemKey), ItemKey.Glow(sourceItemKey), shape);
+        // Only the form changes — keep whatever colour/design the source carried.
+        string output = ItemKey.Compose(baseKey, ItemKey.Tint(sourceItemKey), ItemKey.Glow(sourceItemKey),
+            shape, ItemKey.Design(sourceItemKey));
 
         // Creative mode: no material cost — just produce the shaped material.
         if (!Rules.CraftingCostsMaterials)
         {
             var freeShapePool = new MaterialPool(_content, session.State, _ship);
-            freeShapePool.Add(output, count);
+            AddCraftOutput(session, freeShapePool, output, count, slot);
             Send(session, new CraftResult { Success = true, RecipeKey = tag });
             SendInventory(session);
             WarnIfPoolOverflowed(session, freeShapePool); // #600
@@ -3949,16 +4007,16 @@ public sealed partial class GameServer
             return;
         }
 
-        // Same as tinting: the re-formed result carries a different composed key, so it needs room of its
-        // own. Check first — a 1:1 transform must never be able to destroy the material.
-        if (!pool.CanFit(new[] { new ItemAmount(output, count) }))
+        // Same as tinting: the re-formed result carries a different composed key, so it needs room — counting
+        // the room the consumed source frees up. A 1:1 transform must never be able to destroy the material.
+        if (!pool.CanFitAfterRemoving(inputs, new[] { new ItemAmount(output, count) }))
         {
             CraftFail(session, tag, "@inventory_full");
             return;
         }
 
         pool.Remove(inputs);
-        pool.Add(output, count);
+        AddCraftOutput(session, pool, output, count, slot);
         Send(session, new CraftResult { Success = true, RecipeKey = tag });
         SendInventory(session);
         WarnIfPoolOverflowed(session, pool); // #600: same partial-stack trap as dyeing

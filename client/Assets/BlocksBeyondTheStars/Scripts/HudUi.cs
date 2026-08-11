@@ -953,8 +953,16 @@ namespace BlocksBeyondTheStars.Client
                     ? ShapeIconFactory.ForBlock(Game.Atlas, (ushort)blockDef.NumericId.Value, shape, Game.CustomShapes)
                     : null;
 
+                // A painted item (own texture, p-field in the key) shows its design — the texture IS the
+                // point of that stack, so it beats the form silhouette. Unresolved/wiped ids fall through.
+                int design = BlocksBeyondTheStars.Shared.State.ItemKey.Design(item);
                 Texture2D itemTex;
-                if (shapeTex != null)
+                if (design != 0 && Game.PaintAtlas != null && Game.PaintAtlas.TryGetUv(design, out var designUv))
+                {
+                    s.Icon.texture = Game.PaintAtlas.Texture;
+                    s.Icon.uvRect = designUv;
+                }
+                else if (shapeTex != null)
                 {
                     s.Icon.texture = shapeTex;
                     s.Icon.uvRect = new Rect(0, 0, 1, 1);

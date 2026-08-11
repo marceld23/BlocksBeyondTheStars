@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.State;
@@ -20,7 +21,10 @@ namespace BlocksBeyondTheStars.GameServer;
 /// opaque to the server but strictly validated (exact length + hex charset) because it is persisted and
 /// rebroadcast, mirroring the pixel-face hardening. Ids are never reused: a moderation wipe leaves an
 /// empty-pixels tombstone so old references go blank instead of pointing at somebody else's later design.
-/// Paint is deliberately LOST on mining — <c>BreakBlockAt</c> re-encodes only the shape index into the drop.
+/// Since the hotbar paint action, a design can also live on an ITEM (<c>p&lt;id&gt;</c> in the key, see
+/// <see cref="ItemKey.Design"/>): <c>HandlePaintCraft</c> mints such items, placing stamps the id into the
+/// cell, and <c>BreakBlockAt</c> recovers a LIVE design back into the drop — the same round trip dye and
+/// form make. A wiped (tombstoned) design is dropped at every step, so old references degrade to plain.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -139,6 +143,110 @@ public sealed partial class GameServer
         var (tint, glow) = _world.GetModifier(pos);
         _world.SetBlock(pos, current, tint, glow, newShape, session.State.PlayerId);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = current.Value, Tint = tint, Glow = glow, Shape = newShape });
+    }
+
+    /// <summary>True when a design id is registered AND not a moderation tombstone — the liveness test the
+    /// item paths (paint craft, place stamp, mine recovery) gate on, so a wiped design never rides an item.</summary>
+    internal bool IsLivePaintDesign(int designId)
+        => designId != 0 && _paintDesigns.TryGetValue(designId, out var d) && d.Pixels.Length != 0;
+
+    /// <summary>
+    /// The hotbar "own texture" action: apply a saved 32×32 design to a HELD building material — the item-key
+    /// sibling of <see cref="HandlePaintBlock"/>, structured like the dye/shape exchanges (free 1:1, output
+    /// slot pinned to the invoking hotbar slot). The bitmap dedups into the same save-global registry; the
+    /// output item carries only the id (<c>p&lt;xxxx&gt;</c>). Empty pixels strip the design from the item.
+    /// Gated on <c>Tintable</c> — paint is a surface cosmetic exactly like dye.
+    /// </summary>
+    private void HandlePaintCraft(PlayerSession session, PaintCraftIntent intent)
+    {
+        string pixels = (intent.Pixels ?? string.Empty).ToLowerInvariant();
+        if (!IsValidPaint(pixels))
+        {
+            return; // malformed (wrong length or non-hex) — drop it, never persist or relay
+        }
+
+        string baseKey = ItemKey.Base(intent.SourceItemKey);
+        var item = _content.GetItem(baseKey);
+        if (item is null || string.IsNullOrEmpty(item.PlacesBlock))
+        {
+            CraftFail(session, "paint", "@srv.craft.tint_item");
+            return;
+        }
+
+        var blockDef = _content.GetBlock(item.PlacesBlock!);
+        if (blockDef is null || !blockDef.Tintable)
+        {
+            CraftFail(session, "paint", "@srv.craft.tint_material");
+            return;
+        }
+
+        int designId = 0;
+        if (pixels.Length != 0)
+        {
+            // The block-paint anti-spam only bites when this bitmap would actually REGISTER (disk write +
+            // world-wide broadcast); re-applying a known design is as cheap as any craft.
+            bool isNew = !_paintDesignIdByPixels.ContainsKey(pixels);
+            if (isNew && _uptime < session.NextPaintAt)
+            {
+                return;
+            }
+
+            if (!TryRegisterPaintDesign(session, pixels, out designId))
+            {
+                Send(session, new ServerMessage { Text = "@srv.paint.limit" });
+                return;
+            }
+
+            if (isNew)
+            {
+                session.NextPaintAt = _uptime + 2.0;
+            }
+        }
+
+        // Re-applying the design the item already carries (incl. "none" on an unpainted one) is a no-op.
+        if (designId == ItemKey.Design(intent.SourceItemKey))
+        {
+            CraftFail(session, "paint", "@srv.craft.same_design");
+            return;
+        }
+
+        int count = System.Math.Clamp(intent.Count, 1, ItemDefinition.DefaultMaxStack);
+        // Only the design changes — keep whatever colour/form the source carried.
+        string output = ItemKey.Compose(baseKey, ItemKey.Tint(intent.SourceItemKey),
+            ItemKey.Glow(intent.SourceItemKey), ItemKey.Shape(intent.SourceItemKey), designId);
+
+        // Creative mode: no material cost — just produce the painted material.
+        if (!Rules.CraftingCostsMaterials)
+        {
+            var freePool = new MaterialPool(_content, session.State, _ship);
+            AddCraftOutput(session, freePool, output, count, intent.Slot);
+            Send(session, new CraftResult { Success = true, RecipeKey = "paint" });
+            SendInventory(session);
+            WarnIfPoolOverflowed(session, freePool); // #600
+            return;
+        }
+
+        var pool = new MaterialPool(_content, session.State, _ship);
+        var inputs = new List<ItemAmount> { new ItemAmount(intent.SourceItemKey, count) };
+        if (!pool.Has(inputs))
+        {
+            CraftFail(session, "paint", "@srv.craft.missing_material");
+            return;
+        }
+
+        // 1:1 exchange — the room the consumed source frees up counts (see the dye/shape twins).
+        if (!pool.CanFitAfterRemoving(inputs, new[] { new ItemAmount(output, count) }))
+        {
+            CraftFail(session, "paint", "@inventory_full");
+            return;
+        }
+
+        pool.Remove(inputs);
+        AddCraftOutput(session, pool, output, count, intent.Slot);
+        Send(session, new CraftResult { Success = true, RecipeKey = "paint" });
+        SendInventory(session);
+        WarnIfPoolOverflowed(session, pool); // #600: painting PART of a stack needs a fresh slot
+        ShipAiOnCraft(session);
     }
 
     /// <summary>Resolves pixels to an existing design id or registers a new one (persist + broadcast to every

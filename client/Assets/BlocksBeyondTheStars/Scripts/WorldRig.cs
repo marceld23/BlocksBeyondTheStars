@@ -177,6 +177,10 @@ namespace BlocksBeyondTheStars.Client
             var shapeTool = root.AddComponent<ShapeToolUi>();
             shapeTool.Game = boot;
 
+            // Hotbar slot actions: swap/colour/form on the selected slot, straight from the HUD.
+            var hotbarActions = root.AddComponent<HotbarActionUi>();
+            hotbarActions.Game = boot;
+
             // Floating beacon labels above their blocks in the world (item 37).
             var beaconView = root.AddComponent<BeaconView>();
             beaconView.Game = boot;

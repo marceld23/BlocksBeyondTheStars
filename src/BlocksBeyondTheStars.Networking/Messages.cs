@@ -101,6 +101,11 @@ public sealed class TintCraftIntent
     public int Glow { get; set; }
 
     public int Count { get; set; } = 1;
+
+    /// <summary>Inventory slot the output should land in (the hotbar slot the action was invoked on),
+    /// or -1 for the legacy "first free slot" behaviour. Old clients send nothing → -1 via the
+    /// contractless decoder, so the wire stays compatible.</summary>
+    public int Slot { get; set; } = -1;
 }
 
 /// <summary>
@@ -119,6 +124,9 @@ public sealed class ShapeCraftIntent
     public int Shape { get; set; }
 
     public int Count { get; set; } = 1;
+
+    /// <summary>Preferred output slot (hotbar action), or -1 for the legacy first-free-slot behaviour.</summary>
+    public int Slot { get; set; } = -1;
 }
 
 /// <summary>The client (which owns on-foot movement) reports a hard landing; the server applies fall damage
@@ -698,6 +706,31 @@ public sealed class CustomShapeCraftIntent
     public string Name { get; set; } = string.Empty;
 
     public int Count { get; set; } = 1;
+
+    /// <summary>Preferred output slot (hotbar action), or -1 for the legacy first-free-slot behaviour.</summary>
+    public int Slot { get; set; } = -1;
+}
+
+/// <summary>
+/// The "own texture" crafting action (hotbar Farbe → Meine Muster): apply a saved 32×32 paint design to a
+/// held building material as an ITEM modifier, the item-key sibling of <see cref="PaintBlockIntent"/> (which
+/// paints a placed block). The bitmap rides along; the server dedups it into the same save-global paint
+/// registry and hands back the material carrying <c>p&lt;designId&gt;</c> in its key. Placing the item stamps
+/// the design into the cell's shape descriptor; mining recovers it — the promise dye and form already make.
+/// Free 1:1, tintable materials only. Empty pixels strip the design (back to the unpainted material).
+/// </summary>
+public sealed class PaintCraftIntent
+{
+    /// <summary>Source material (base key, or an already modified key — colour/shape are preserved).</summary>
+    public string SourceItemKey { get; set; } = string.Empty;
+
+    /// <summary>The design as a 32×32 palette-index hex string; empty removes the design from the item.</summary>
+    public string Pixels { get; set; } = string.Empty;
+
+    public int Count { get; set; } = 1;
+
+    /// <summary>Preferred output slot (hotbar action), or -1 for the legacy first-free-slot behaviour.</summary>
+    public int Slot { get; set; } = -1;
 }
 
 // ---------------- Server -> Client (state) ----------------

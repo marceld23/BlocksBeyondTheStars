@@ -127,6 +127,56 @@ public sealed class MaterialPool
     }
 
     /// <summary>
+    /// Like <see cref="CanFit"/>, but dry-runs the removal of <paramref name="inputs"/> FIRST — the right
+    /// question for a 1:1 exchange (dye/shape/paint), where the outputs may reuse the slots the consumed
+    /// inputs free up. Plain <see cref="CanFit"/> answers "would it fit on top of everything I hold", which
+    /// wrongly refuses a whole-stack transform in a full inventory. Caller still checks <see cref="Has"/>.
+    /// </summary>
+    public bool CanFitAfterRemoving(IEnumerable<ItemAmount> inputs, IEnumerable<ItemAmount> outputs)
+    {
+        var personal = _personal.Clone();
+        var cargo = _cargo?.Clone();
+
+        foreach (var need in inputs)
+        {
+            int remaining = need.Count;
+            int fromPersonal = System.Math.Min(remaining, personal.CountOf(need.Item));
+            if (fromPersonal > 0)
+            {
+                personal.Remove(need.Item, fromPersonal);
+                remaining -= fromPersonal;
+            }
+
+            if (remaining > 0)
+            {
+                cargo?.Remove(need.Item, remaining);
+            }
+        }
+
+        foreach (var add in outputs)
+        {
+            if (add.Count <= 0)
+            {
+                continue;
+            }
+
+            int maxStack = _content.MaxStackOf(add.Item);
+            int leftover = personal.Add(add.Item, add.Count, maxStack);
+            if (leftover > 0 && cargo is not null)
+            {
+                leftover = cargo.Add(add.Item, leftover, maxStack);
+            }
+
+            if (leftover > 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Adds items, personal inventory first then cargo. Returns the amount that did not fit anywhere
     /// (0 = fully stored) and accumulates it into <see cref="Overflow"/> and <see cref="TakeLeftovers"/>.
     /// <b>A non-zero return means those items are not stored anywhere</b> — check <see cref="CanFit"/> up
