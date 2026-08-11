@@ -70,8 +70,9 @@ These mirror [AGENTS.md](AGENTS.md) (the deeper contributor guide — please ski
 - **Text language.** Documentation and code comments are **English**. In-game player-facing
   text is **localized** via localization keys in `data/locales/*.json` — never hardcode
   player-facing strings. New keys go into `en.json` **and** `de.json`: that pair is mandatory
-  and must stay complete. Every other language sits on top of it and falls back to English per
-  missing key — French and Spanish are complete too, Italian is in progress
+  and must stay complete. The other twelve languages sit on top of that pair and fall back to
+  English per missing key. All twelve are essentially complete today, but they are still allowed
+  to lag behind — only `en.json` + `de.json` are mandatory
   (see [Translating the game](#translating-the-game)).
 - **Data-driven content.** Blocks, items, recipes, ship modules, tech nodes and planets live
   in `data/*.json`; adding content should not require touching game logic.
