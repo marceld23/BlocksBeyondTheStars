@@ -7738,6 +7738,49 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## 🔬 Analysis (2026-08-12): LAN-playtest multiplayer bugs — NOT implemented yet, awaiting go
+
+Two-player "Host Game" playtest (world `JustusTest`, v2026.8.11) surfaced five bugs. Root causes
+identified from code + the host-side savegame/server log; fixes are planned but NOT started.
+
+1. **Ghost ship in space (fly-through copy).** `SpaceView.OnStructureDesign` only filters
+   `Kind == "ship"`/empty — `"ship_remote"` (other players' + NPC traders' hulls) falls through and is
+   ALSO built as a static asteroid-path voxel struct: at `(0,0,0)` for player ships (server never sets a
+   position on them), unscaled (2× flight size), collider-less, and never cleaned up. The proper handler
+   in `GameBootstrap` caches the same message for the remote avatar → the hull exists twice. Fix:
+   whitelist static kinds (asteroid/station) in `OnStructureDesign` + client test. Related: `SwitchShip`
+   broadcasts the rebuilt design to everyone as kind `"ship"`, replacing other players' OWN hull.
+2. **Remote ship flickers.** Mostly the ghost from (1) interpenetrating the real remote hull. Also:
+   interpolator delay (0.15 s) < pose broadcast interval (0.2 s) → buffer underrun (hold+jump); a single
+   missing pose snapshot destroys avatar+interpolator (rebuild popping); `SpaceInstance.ShipPosition` is
+   one shared field per instance — two pilots overwrite each other (collision/weapon range/ram damage).
+3. **E-landing hangs in "Lese Landeplätze…"** The home body is registered client-side with an EMPTY id
+   ("empty = current body" convention); `HandleRequestLandingPads` does `FindBody("")` → null → silent
+   return, no reply — client waits forever (no timeout/retry; flight frozen; Esc only escape). The `L`
+   chooser sends the real id and works. Fix: resolve empty id server-side like `HandleLeaveSpace`, always
+   echo a `LandingPadList`, add a client timeout.
+4. **Joiner "lost his ship" after landing.** Savegame proves the fleet row is intact — the ship is not
+   lost, it stayed parked at its old pad ~2.4 km from where he ended up. `RelocateToAssignedPad` never
+   sends `SendShipPlacement` (travel path does) → compass/map ship markers point at the OLD pad. Pad
+   bookkeeping is unsound too: players in space count as "pad free" without releasing their
+   `AssignedPadIndex`, and `PlayerPad` never re-validates an in-range index. Joiner's saved
+   `LandingPadIndex` is 0 (int default = host's home pad) and his respawn anchor is the WORLD ORIGIN
+   (0.5, 66, 0.5) — inside the host's parked ship (#865 fixed the spawn, not the respawn anchor).
+5. **Joiner's avatar standing in the host's ship.** Presence replicates absolute world coords only, AoI
+   culling silently stops sending (no despawn message), the client never times out stale remotes, and
+   `State.Position` is never updated during space flight — the avatar freezes at the last delivered
+   position (likely his origin-anchored spot in the host's ship).
+
+Side findings: 100+ `Ghost block healed` warnings ONLY for the joiner (late-join block/stamp desync —
+needs its own analysis); anti-entomb teleported the joiner to an UNDERGROUND target (y≈45); one
+"Ship parked — 234 cells" stamp (vs. 151-cell starter) offset by one block at the host pad, unexplained.
+
+Suggested fix order (separate PRs): (1) ship_remote filter → (3) landing echo+timeout → (4)+(5) unify
+landing paths + presence despawn. Detailed notes incl. open playtest questions live in the session
+analysis; ask Marcel before implementing.
+
+---
+
 ## ✅ Done (2026-08-12): join dialog shows both default ports — official servers vs. "Host Game" worlds
 
 LAN playtest trap: "Host Game" worlds listen on the bundled server's port **31550**
