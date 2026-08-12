@@ -7811,6 +7811,19 @@ false-positive guards, join gate end-to-end). Chat filtering stays a separate ta
 
 ---
 
+## ✅ Done (2026-08-12): the Swap panel no longer hides its last slot row under Back/Close (#953)
+
+The slot-action **Swap** panel opened a 660-px dialog, but its own content ran to y 774: the 4th
+backpack row overshot the panel bottom and the Back/Close buttons (placed at `h − 78`) sat directly
+ON slots 18/23, covering them and stealing their clicks; the stow button floated entirely below the
+panel on the scrim (dialog panels have no clipping mask). Same class of bug in the **Colour** panel
+(700 px): the own-design tiles clipped 8 px under Back, and the remove-design button (shown when the
+held stack carries a paint design) landed fully on top of it. Fix is purely geometric — Swap grows to
+1000×880, Colour to 900×780, both recentred; the Form panel (740 px) already fit. Cell sizes stay
+untouched on purpose: shrinking them would undercut the touch/pad targets #940/#942 just introduced.
+
+---
+
 ## ✅ Done (2026-08-12): the slot-action pie works on gamepad and touch (#940)
 
 Follow-up to #935 (below): pad and touch could not OPEN the pie at all — no default pad button, no touch

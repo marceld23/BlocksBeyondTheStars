@@ -311,7 +311,9 @@ namespace BlocksBeyondTheStars.Client
         /// opened on (one <c>MoveItemIntent</c>, validated server-side). The invoking slot is highlighted.</summary>
         private void BuildSwap()
         {
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 210f, 1000f, 660f);
+            // 880 tall: the 6×4 slot grid ends at y 696 and the stow button at 774 — a shorter panel put
+            // the Back/Close row ON the last slot row (#953).
+            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 460f, 100f, 1000f, 880f);
             Header(panel, L("ui.hotbar_action.swap_title"));
 
             const int cols = 6;
@@ -370,7 +372,7 @@ namespace BlocksBeyondTheStars.Client
                     () => { Game.Network?.SendMoveItem(_slot, -1); Close(); });
             }
 
-            BackClose(panel, 1000f, 660f);
+            BackClose(panel, 1000f, 880f);
         }
 
         // --- level 2: colour (dye / glow / own designs) ---
@@ -380,7 +382,9 @@ namespace BlocksBeyondTheStars.Client
         /// pins the output back to the invoking slot.</summary>
         private void BuildColour()
         {
-            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 510f, 190f, 900f, 700f);
+            // 780 tall: the design tiles end at y 630 and the remove-design button at 688 — a shorter
+            // panel put the Back/Close row on top of both (#953).
+            var (_, panel) = UiKit.AddModalOverlay(_canvas.transform, 510f, 150f, 900f, 780f);
             Header(panel, string.Format(L("ui.hotbar_action.colour_title"), ItemName(_item), Game.CountInSlot(_slot)));
 
             // Dye/Glow mode toggle. Glow shows what it costs so the wheel never books crystals silently.
@@ -460,7 +464,7 @@ namespace BlocksBeyondTheStars.Client
                     () => { Game.Network?.SendPaintCraft(_item, string.Empty, stack, _slot); Close(); });
             }
 
-            BackClose(panel, 900f, 700f);
+            BackClose(panel, 900f, 780f);
         }
 
         // --- level 2: form (built-in + own) ---
