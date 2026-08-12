@@ -1338,7 +1338,7 @@ app.MapPost("/api/worlds/{id}/join", async (HttpContext ctx, string id, JoinRequ
     if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Block)
     {
         metrics.NameBlocked();
-        log.LogWarning("Join name blocked on world {Id} for account {Account} (matched '{Term}').", id, LogSafe(account.Name), nameScreen.MatchedTerm);
+        log.LogWarning("Join name blocked on world {Id} for account {Account} (matched '{Term}').", LogSafe(id), LogSafe(account.Name), nameScreen.MatchedTerm);
         notifier.Post("Blocked player name", $"Account '{account.Name}' tried to join world {id} under a name matching blocked term '{nameScreen.MatchedTerm}'.", "no_entry");
     }
 
@@ -1360,7 +1360,7 @@ app.MapPost("/api/worlds/{id}/join", async (HttpContext ctx, string id, JoinRequ
     if (nameScreen.Verdict == BlocksBeyondTheStars.Shared.Moderation.NameVerdict.Watch)
     {
         metrics.NameFlagged();
-        log.LogWarning("Player name '{Name}' flagged on world {Id} (matched watch term '{Term}'); join allowed.", LogSafe(req.PlayerName), id, nameScreen.MatchedTerm);
+        log.LogWarning("Player name '{Name}' flagged on world {Id} (matched watch term '{Term}'); join allowed.", LogSafe(req.PlayerName), LogSafe(id), nameScreen.MatchedTerm);
         notifier.Post("Player name flagged", $"Player '{req.PlayerName}' (account '{account.Name}') joined world {id} under a name matching watch-list term '{nameScreen.MatchedTerm}'. Review manually.", "triangular_flag_on_post");
     }
 

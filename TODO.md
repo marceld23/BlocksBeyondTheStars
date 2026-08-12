@@ -7738,6 +7738,20 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): CodeQL follow-up on the #943 moderation logging — `LogSafe(id)` in the join gate
+
+CodeQL raised three alerts against the fresh #943 code. The two `cs/log-forging` hits (Program.cs
+join endpoint) flagged the `{id}` route parameter in the block/watch `LogWarning` lines — a false
+positive in practice (`id` is regex-validated `^[a-f0-9]{12}$` before those lines), but CodeQL
+cannot see through the bool-returning `IsValidWorldId` guard, so both occurrences now go through
+the file's existing `LogSafe()` sanitizer like every other request-derived value. The `cs/web/xss`
+(High) alert on `AdminNotifier`'s `StringContent` was dismissed as a false positive with a comment:
+that content is the body of an OUTBOUND `text/plain` POST to the operator-configured ntfy URL —
+never served to a browser — and header injection/length are already handled by `HeaderValue()`.
+Analysis: `analysis/codeql-alerts-1008-1010.md` (local).
+
+---
+
 ## ✅ Done (2026-08-12): name screening with operator flags, moderation pings, visible paint reports (#938)
 
 Kid-facing moderation, three pieces. **(1) Shared name screening** — new `Shared.Moderation.NameScreen`
