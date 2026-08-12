@@ -158,7 +158,9 @@ public sealed partial class GameServer
             {
                 if (FindSessionByPlayerId(pid) is { } s)
                 {
-                    SendShipDesign(s, rebuilt);
+                    // Only the owner gets it as their OWN hull ("ship") — for everyone else it feeds
+                    // the remote avatar; sending "ship" replaced THEIR own hull with ours (#954).
+                    SendShipDesign(s, rebuilt, pid == _current.State.PlayerId ? null : "ship_remote");
                 }
             }
         }

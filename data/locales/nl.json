@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Terug naar het oppervlak waar je vandaan gelanceerd bent?   Enter = ja · Esc = nee",
   "ui.space.pad_choose": "Kies een landingsplatform",
   "ui.space.pad_loading": "Landingsplaatsen lezen…",
+  "ui.space.pad_timeout": "Geen landingsgegevens van de server - probeer het opnieuw.",
   "ui.space.pad_full": "— ALLE LANDINGSPLATFORMEN BEZET",
   "ui.space.land_on": "Land op",
   "ui.space.land_prompt": "Druk op E om te landen op",

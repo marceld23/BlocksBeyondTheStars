@@ -298,8 +298,10 @@ public sealed partial class GameServer
 
     // --- live occupancy (derived from sessions, never persisted) ---
 
-    /// <summary>True if another player currently holds this pad on this body — i.e. is standing on the body
-    /// (not flown off to space) with this pad assigned. The exception is the player being served.</summary>
+    /// <summary>True if another player currently holds this pad on this body. A holder who is merely up in
+    /// space still RESERVES their pad (#957): their session is alive and their AssignedPadIndex still points
+    /// here, so treating the pad as free let a second player be assigned the same pad — two ships stamped on
+    /// one origin when the holder came back. The exception is the player being served.</summary>
     private bool PadOccupiedByOther(string locationId, int padIndex, string exceptPlayerId)
     {
         if (PadReservedByTrader(locationId, padIndex))
@@ -314,7 +316,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId && !InSpace(s.State.PlayerId))
+            if (s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId)
             {
                 return true;
             }
@@ -362,7 +364,8 @@ public sealed partial class GameServer
 
         foreach (var s in _sessions.Values)
         {
-            if (s.Joined && s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId && !InSpace(s.State.PlayerId))
+            // A holder up in space still reserves the pad (#957) — the chooser shows it as taken.
+            if (s.Joined && s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId)
             {
                 return s.State.Name;
             }
@@ -418,7 +421,10 @@ public sealed partial class GameServer
         }
 
         int idx = session.AssignedPadIndex;
-        if (idx < 0 || idx >= _landingPads.Count)
+        // An in-range index is NOT blindly trusted (#957): a stored/default index (fresh joiners carry 0)
+        // may meanwhile be held by someone else — stamping there put two ships on one origin.
+        if (idx < 0 || idx >= _landingPads.Count
+            || PadOccupiedByOther(_world.LocationId, idx, session.State.PlayerId))
         {
             idx = FirstFreePadIndex(_world.LocationId, _landingPads.Count, session.State.PlayerId);
             if (idx < 0)
@@ -497,9 +503,23 @@ public sealed partial class GameServer
         session.State.Position = spawn;
         session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
         session.State.AboardShip = true;
+
+        // While this player was away (space / a station world), block changes on THIS body were only
+        // broadcast to the players present on it — their client's chunk view is stale now (the #957
+        // "ghost blocks" / invisible-ship desync). Re-stream everything: chunk delivery is idempotent
+        // client-side, so this self-heals whatever drifted, exactly like the cross-body travel path.
+        session.SentChunks.Clear();
+
         SendPlayerState(session);
         SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
         SendLandingPads(session);
+        // Parity with the cross-body travel path (#957): without these the HUD compass ship blip and the
+        // world-map marker kept pointing at the pad of the PREVIOUS landing.
+        SendShipPlacement(session);
+        SendShipStations(session);
+        SendShipCombatStatus(session);
+        SendEnvironment(session);
+        SendDoors(session);
         BroadcastShipTransit(session, session.CurrentLocationId, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent
     }
 
@@ -565,9 +585,15 @@ public sealed partial class GameServer
     /// positions arrive once the player is actually on the body; the chooser only needs index + occupancy.</summary>
     private void HandleRequestLandingPads(PlayerSession session, RequestLandingPadsIntent intent)
     {
-        var body = _galaxy?.FindBody(intent.BodyId);
+        // Empty id = the body the player launched from (same convention HandleLeaveSpace resolves).
+        // The reply must echo the REQUESTED id: the client gates its chooser on that exact string, so
+        // answering with the resolved id (or not answering at all) froze the flight forever (#956).
+        string requestedId = intent.BodyId ?? string.Empty;
+        string resolvedId = requestedId.Length == 0 ? (session.CurrentLocationId ?? string.Empty) : requestedId;
+        var body = _galaxy?.FindBody(resolvedId);
         if (body is null)
         {
+            Send(session, new LandingPadList { BodyId = requestedId, Pads = System.Array.Empty<NetLandingPad>() });
             return;
         }
 
@@ -582,7 +608,7 @@ public sealed partial class GameServer
             pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
         }
 
-        Send(session, new LandingPadList { BodyId = body.Id, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
+        Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
     }
 
     /// <summary>The real pad set for a body (the chooser path). Resolves the body's planet type + circumference,
@@ -653,5 +679,19 @@ public sealed partial class GameServer
     {
         int chosen = TryClaimPad(session, _world.LocationId, _landingPads.Count, padIndex, out string reason);
         return (chosen, reason);
+    }
+
+    /// <summary>Test hook: routes a pad-list request through the real chooser handler (the E-landing path, #956).</summary>
+    public void RequestLandingPadsForTest(PlayerSession session, string bodyId)
+    {
+        Serve(session);
+        HandleRequestLandingPads(session, new RequestLandingPadsIntent { BodyId = bodyId });
+    }
+
+    /// <summary>Test hook: lands a pilot back on the body they launched from (the same-body chooser path, #957).</summary>
+    public void LandOnCurrentBodyForTest(PlayerSession session, int padIndex = -1)
+    {
+        Serve(session);
+        HandleLeaveSpace(session, new LeaveSpaceIntent { DestinationBodyId = string.Empty, PadIndex = padIndex });
     }
 }

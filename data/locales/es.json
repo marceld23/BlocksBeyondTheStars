@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "¿Regresar a la superficie desde la que despegaste?   Enter = sí · Esc = no",
   "ui.space.pad_choose": "Elige una plataforma de aterrizaje",
   "ui.space.pad_loading": "Leyendo plataformas de aterrizaje…",
+  "ui.space.pad_timeout": "No llegan datos de aterrizaje del servidor. Inténtalo de nuevo.",
   "ui.space.pad_full": "— TODAS LAS PLATAFORMAS DE ATERRIZAJE OCUPADAS",
   "ui.space.land_on": "Aterrizar en",
   "ui.space.land_prompt": "Pulsa E para aterrizar en",

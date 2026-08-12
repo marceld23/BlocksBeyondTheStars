@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "要返回你起飞的地面吗？   回车 = 是 · Esc = 否",
   "ui.space.pad_choose": "选择着陆平台",
   "ui.space.pad_loading": "读取着陆平台…",
+  "ui.space.pad_timeout": "未从服务器收到着陆数据——请重试。",
   "ui.space.pad_full": "— 所有着陆平台已被占用",
   "ui.space.land_on": "降落在",
   "ui.space.land_prompt": "按 E 降落",

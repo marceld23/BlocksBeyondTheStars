@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "発進した地点の表面に戻りますか？   Enter = はい · Esc = いいえ",
   "ui.space.pad_choose": "着陸パッドを選んでください",
   "ui.space.pad_loading": "着陸パッドを読み込み中…",
+  "ui.space.pad_timeout": "サーバーから着陸データが届きません。もう一度お試しください。",
   "ui.space.pad_full": "— すべての着陸パッドが埋まっています",
   "ui.space.land_on": "着陸する",
   "ui.space.land_prompt": "Eを押して着陸",

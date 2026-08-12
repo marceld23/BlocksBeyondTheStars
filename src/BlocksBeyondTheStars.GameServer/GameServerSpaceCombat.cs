@@ -146,13 +146,18 @@ public sealed class SpaceInstance
     public List<CombatEntity> Entities { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
 
-    /// <summary>The (shared) ship's authoritative position in this instance, and last tick's, for collision/speed.</summary>
+    /// <summary>The acting player's last reported position — ambient NPC targeting (traders/bandits) and
+    /// single-pilot legacy paths. Collision and incoming fire run per pilot via <see cref="PilotSims"/> (#955).</summary>
     public Vector3f ShipPosition { get; set; }
     public Vector3f ShipLastPosition { get; set; }
 
     /// <summary>Each present player's pose (ship or floating EVA suit) so everyone in the instance can be drawn
-    /// for the others. Visibility only — the shared <see cref="ShipPosition"/> still drives collision.</summary>
+    /// for the others — and, since #955, the per-pilot position for collision and incoming fire.</summary>
     public Dictionary<string, SpacePlayerPose> PlayerPoses { get; } = new();
+
+    /// <summary>Per-pilot collision bookkeeping (#955): last ticked position + damage cooldown. One shared
+    /// field per instance meant two pilots overwrote each other and ram damage could hit the wrong hull.</summary>
+    public Dictionary<string, PilotSim> PilotSims { get; } = new();
 
     /// <summary>Seconds until the ship can take asteroid-collision damage again — a brief grace after a bump so a
     /// ram dents the shield/hull instead of stacking damage every tick and instantly destroying the ship (B56).</summary>
@@ -219,6 +224,13 @@ public sealed class SpaceInstance
 
 /// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
 public readonly record struct SpacePlayerPose(Vector3f Pos, float Yaw, bool Eva);
+
+/// <summary>Mutable per-pilot tick state in a space instance (#955): collision speed baseline + cooldown.</summary>
+public sealed class PilotSim
+{
+    public Vector3f LastPosition { get; set; }
+    public double CollisionCooldown { get; set; }
+}
 
 /// <summary>
 /// Free space flight and ship combat (technical requirements / `anf_space_flight.md` §6-11).
@@ -1426,39 +1438,84 @@ public sealed partial class GameServer
             // collision bounce doesn't move the ship away from the drop first).
             CollectSalvage(instance, TractorRange);
 
-            // Collision: flying into an asteroid damages the ship (scaled by impact speed) and
-            // stops it. Physical — independent of the combat rules.
-            float speed = (float)(System.Math.Sqrt(instance.ShipPosition.DistanceSquared(instance.ShipLastPosition))
-                                  / System.Math.Max(dt, 0.0001));
-            instance.CollisionCooldown = System.Math.Max(0.0, instance.CollisionCooldown - dt);
-            bool hitAsteroid = instance.Entities.Any(e => e.Kind == CombatEntityKind.Asteroid
-                && e.Position.DistanceSquared(instance.ShipPosition) <= ShipCollisionRadius * ShipCollisionRadius);
-            if (hitAsteroid && speed > ShipCollisionMinSpeed)
+            // Collision: flying into an asteroid damages the ship (scaled by impact speed). Per PILOT
+            // (#955): the position, speed baseline and cooldown all used to live in one shared field per
+            // instance, so with two pilots they overwrote each other and the ram damage could land on the
+            // other player's hull (the ship cursor was wherever the last message left it).
+            bool instanceClosed = false;
+            foreach (var pilotId in instance.Players.ToList())
             {
-                instance.ShipPosition = instance.ShipLastPosition; // always bounce back / stop at the impact
-                if (instance.CollisionCooldown <= 0.0)
+                if (FindSessionByPlayerId(pilotId) is not { Joined: true } pilot
+                    || !instance.PlayerPoses.TryGetValue(pilotId, out var pose))
                 {
-                    // A ram dents the shield first, then the hull — never an instant kill (B56). Brief grace
-                    // afterwards so holding thrust into the rock doesn't stack damage every tick.
-                    ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
-                    instance.CollisionCooldown = ShipCollisionCooldown;
-                    foreach (var playerId in instance.Players)
+                    continue; // no pose yet — the client reports one within its first ~0.1 s in space
+                }
+
+                if (!instance.PilotSims.TryGetValue(pilotId, out var sim))
+                {
+                    instance.PilotSims[pilotId] = sim = new PilotSim { LastPosition = pose.Pos };
+                }
+
+                SetCurrent(pilot); // damage/shield below must resolve to THIS pilot's ship
+                float speed = (float)(System.Math.Sqrt(pose.Pos.DistanceSquared(sim.LastPosition))
+                                      / System.Math.Max(dt, 0.0001));
+                sim.CollisionCooldown = System.Math.Max(0.0, sim.CollisionCooldown - dt);
+                bool hitAsteroid = instance.Entities.Any(e => e.Kind == CombatEntityKind.Asteroid
+                    && e.Position.DistanceSquared(pose.Pos) <= ShipCollisionRadius * ShipCollisionRadius);
+                if (hitAsteroid && speed > ShipCollisionMinSpeed)
+                {
+                    if (sim.CollisionCooldown <= 0.0)
                     {
-                        if (FindSessionByPlayerId(playerId) is { } s)
+                        // A ram dents the shield first, then the hull — never an instant kill (B56). Brief
+                        // grace afterwards so holding thrust into the rock doesn't stack damage every tick.
+                        ApplyShipDamage(System.Math.Min(ShipCollisionMaxDamage, speed * ShipCollisionDamageFactor));
+                        sim.CollisionCooldown = ShipCollisionCooldown;
+                        SendShipCombatStatus(pilot);
+                        if (_ship.Hull <= 0f)
                         {
-                            SendShipCombatStatus(s);
+                            DisableShip(instance);
+                            instanceClosed = true;
+                            break;
                         }
                     }
+                }
+                else
+                {
+                    sim.LastPosition = pose.Pos; // keep the pre-impact baseline while touching the rock
+                }
 
+                // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose.
+                float incoming = instance.Entities
+                    .Where(e => e.Hostile && e.Position.DistanceSquared(pose.Pos) <= ShipEngageRange * ShipEngageRange)
+                    .Sum(e => e.DamagePerSecond);
+                if (incoming > 0f)
+                {
+                    bool evaded = ApplyShipDamage((float)(incoming * dt));
                     if (_ship.Hull <= 0f)
                     {
                         DisableShip(instance);
-                        continue;
+                        instanceClosed = true;
+                        break;
                     }
+
+                    SendShipCombatStatus(pilot);
+                    ShipAiThreatCallout(pilot); // Mk2+: VEGA calls out hostile contact (rate-limited)
+                    if (evaded)
+                    {
+                        ShipAiEvadeCallout(pilot); // Mk3: the dodge that just saved the hull
+                    }
+                }
+                else if (_ship.Shield < _shipShieldMax)
+                {
+                    // Out of combat: this pilot's shield recharges.
+                    _ship.Shield = System.Math.Min(_shipShieldMax, _ship.Shield + (float)(_shipShieldRegen * dt));
                 }
             }
 
-            instance.ShipLastPosition = instance.ShipPosition;
+            if (instanceClosed)
+            {
+                continue;
+            }
 
             // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
             // comes in range (they used to hang motionless at their spawn points forever).
@@ -1487,37 +1544,6 @@ public sealed partial class GameServer
             {
                 instance.PilotSyncTimer = 0;
                 BroadcastSpaceState(instance);
-            }
-
-            float incoming = instance.Entities
-                .Where(e => e.Hostile && e.Position.DistanceSquared(instance.ShipPosition) <= ShipEngageRange * ShipEngageRange)
-                .Sum(e => e.DamagePerSecond);
-            if (incoming > 0f)
-            {
-                bool evaded = ApplyShipDamage((float)(incoming * dt));
-                if (_ship.Hull <= 0f)
-                {
-                    DisableShip(instance);
-                    continue;
-                }
-
-                foreach (var playerId in instance.Players)
-                {
-                    if (FindSessionByPlayerId(playerId) is { } s)
-                    {
-                        SendShipCombatStatus(s);
-                        ShipAiThreatCallout(s); // Mk2+: VEGA calls out hostile contact (rate-limited)
-                        if (evaded)
-                        {
-                            ShipAiEvadeCallout(s); // Mk3: the dodge that just saved the hull
-                        }
-                    }
-                }
-            }
-            else if (_ship.Shield < _shipShieldMax)
-            {
-                // Out of combat: shield recharges.
-                _ship.Shield = System.Math.Min(_shipShieldMax, _ship.Shield + (float)(_shipShieldRegen * dt));
             }
 
             // A mined-out asteroid field slowly replenishes over the session (positions stay deterministic).

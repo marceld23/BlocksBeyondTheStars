@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Powrócić na powierzchnię, z której wystartowałeś?   Enter = tak · Esc = nie",
   "ui.space.pad_choose": "Wybierz miejsce lądowania",
   "ui.space.pad_loading": "Odczyt miejsc lądowania…",
+  "ui.space.pad_timeout": "Brak danych lądowania z serwera - spróbuj ponownie.",
   "ui.space.pad_full": "— WSZYSTKIE MIEJSCA LĄDOWANIA ZAJĘTE",
   "ui.space.land_on": "Lądowanie na",
   "ui.space.land_prompt": "Naciśnij E, aby wylądować na",

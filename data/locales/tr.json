@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Fırlatıldığın yüzeye dönülsün mü?   Enter = evet · Esc = hayır",
   "ui.space.pad_choose": "Bir iniş yatağı seç",
   "ui.space.pad_loading": "İniş yatakları okunuyor…",
+  "ui.space.pad_timeout": "Sunucudan iniş verisi alınamadı - lütfen tekrar dene.",
   "ui.space.pad_full": "— TÜM İNİŞ YATAKLARI DOLU",
   "ui.space.land_on": "İn",
   "ui.space.land_prompt": "İnmek için E'ye bas",

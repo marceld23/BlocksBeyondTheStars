@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "발사한 표면으로 돌아가시겠어요?   Enter = 예 · Esc = 아니요",
   "ui.space.pad_choose": "착륙 패드를 선택하세요",
   "ui.space.pad_loading": "착륙 패드 읽는 중…",
+  "ui.space.pad_timeout": "서버에서 착륙 데이터를 받지 못했습니다. 다시 시도해 주세요.",
   "ui.space.pad_full": "— 모든 착륙 패드가 사용 중입니다",
   "ui.space.land_on": "착륙",
   "ui.space.land_prompt": "E를 눌러 착륙",

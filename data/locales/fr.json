@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Retourner à la surface d'où tu as décollé ?   Entrée = oui · Échap = non",
   "ui.space.pad_choose": "Choisis une plateforme d'atterrissage",
   "ui.space.pad_loading": "Lecture des plateformes…",
+  "ui.space.pad_timeout": "Aucune donnée d'atterrissage du serveur - réessaie.",
   "ui.space.pad_full": "— TOUTES LES PLATEFORMES OCCUPÉES",
   "ui.space.land_on": "Atterrir sur",
   "ui.space.land_prompt": "Appuie sur E pour atterrir sur",

@@ -35,7 +35,17 @@ namespace BlocksBeyondTheStars.Client
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
             public string Held = "\0";     // cached held item key
+            public double LastUpdate;      // when the newest presence arrived — drives the stale timeout (#958)
+            public bool TimedOut;          // hidden because updates stopped (kept separate from Hidden: that
+                                           // flag only toggles visibility on server-sent EDGES)
         }
+
+        // Presence arrives at ~10 Hz for every subject inside the viewer's area of interest. When the stream
+        // for a player stops — they left the AoI, boarded a station/ship interior, or launched to space —
+        // there is no despawn message (#958), so without a timeout their avatar froze forever at the last
+        // delivered position (e.g. standing inside the host's ship).
+        private const double StaleHideSeconds = 3.0;
+        private const double StaleDestroySeconds = 10.0;
 
         private readonly Dictionary<string, Remote> _remotes = new Dictionary<string, Remote>();
 
@@ -55,7 +65,7 @@ namespace BlocksBeyondTheStars.Client
             float sq = range * range;
             foreach (var r in _remotes.Values)
             {
-                if ((r.Go.transform.position - from).sqrMagnitude <= sq)
+                if (!r.TimedOut && (r.Go.transform.position - from).sqrMagnitude <= sq)
                 {
                     result.Add(r.Name);
                 }
@@ -71,7 +81,7 @@ namespace BlocksBeyondTheStars.Client
         {
             foreach (var r in _remotes.Values)
             {
-                if (!r.Hidden && r.Go != null)
+                if (!r.Hidden && !r.TimedOut && r.Go != null)
                 {
                     yield return (r.Name, r.Go.transform.position);
                 }
@@ -95,6 +105,34 @@ namespace BlocksBeyondTheStars.Client
             // (the canonical coordinate jumps a whole world at a seam, which a plain lerp would sweep across).
             int circ = Game != null ? Game.Circumference : BlocksBeyondTheStars.Shared.World.WorldConstants.Circumference;
             double now = Time.timeAsDouble;
+
+            // Stale timeout (#958): hide an avatar whose presence stream stopped, and drop it entirely a
+            // few seconds later. A fresh presence packet revives it (OnPresence clears TimedOut).
+            List<string> stale = null;
+            foreach (var kv in _remotes)
+            {
+                var r = kv.Value;
+                double age = now - r.LastUpdate;
+                if (age > StaleDestroySeconds)
+                {
+                    (stale ??= new List<string>()).Add(kv.Key);
+                }
+                else if (age > StaleHideSeconds && !r.TimedOut)
+                {
+                    r.TimedOut = true;
+                    r.Avatar.SetVisible(false);
+                }
+            }
+
+            if (stale != null)
+            {
+                foreach (var id in stale)
+                {
+                    Destroy(_remotes[id].Go);
+                    _remotes.Remove(id); // faces/body paints stay cached — they are per-player, not per-world
+                }
+            }
+
             foreach (var r in _remotes.Values)
             {
                 if (r.Interp.Sample(now, circ, out var pos, out var yaw))
@@ -152,6 +190,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             r.Name = m.Name;
+            r.LastUpdate = Time.timeAsDouble;
+            if (r.TimedOut)
+            {
+                r.TimedOut = false;
+                r.Avatar.SetVisible(!r.Hidden); // the stream resumed — revive unless server-stealthed
+            }
+
             r.Interp.Push(Time.timeAsDouble, new Vector3f(m.X, m.Y, m.Z), m.Yaw);
             r.Jetpacking = m.Jetpacking;
             if (m.Seated != r.Seated)

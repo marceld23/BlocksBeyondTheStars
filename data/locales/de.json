@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Zurück zur Startoberfläche?   Enter = ja · Esc = nein",
   "ui.space.pad_choose": "Landeplatz wählen",
   "ui.space.pad_loading": "Lese Landeplätze…",
+  "ui.space.pad_timeout": "Keine Landedaten vom Server - bitte versuch es noch einmal.",
   "ui.space.pad_full": "— ALLE LANDEPLÄTZE BELEGT",
   "ui.space.land_on": "Landen auf",
   "ui.space.land_prompt": "E drücken, um zu landen auf",

@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Retornar à superfície de onde você lançou?   Enter = sim · Esc = não",
   "ui.space.pad_choose": "Escolha uma plataforma de pouso",
   "ui.space.pad_loading": "Lendo plataformas de pouso…",
+  "ui.space.pad_timeout": "Sem dados de pouso do servidor - tente novamente.",
   "ui.space.pad_full": "— TODAS AS PLATAFORMAS OCUPADAS",
   "ui.space.land_on": "Pousar em",
   "ui.space.land_prompt": "Pressione E para pousar em",

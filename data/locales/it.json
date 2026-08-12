@@ -1711,6 +1711,7 @@
   "ui.space.land_confirm": "Tornare alla superficie da cui sei partito?   Invio = sì · Esc = no",
   "ui.space.pad_choose": "Scegli una piazzola di atterraggio",
   "ui.space.pad_loading": "Lettura piazzole di atterraggio…",
+  "ui.space.pad_timeout": "Nessun dato di atterraggio dal server - riprova.",
   "ui.space.pad_full": "— TUTTE LE PIAZZOLE OCCUPATE",
   "ui.space.land_on": "Atterra su",
   "ui.space.land_prompt": "Premi E per atterrare su",
