@@ -66,8 +66,10 @@ public sealed partial class GameServer
     /// reference. Its cells equal the live structure's <see cref="SpaceStructure.Baseline"/>, and the block at
     /// a baseline cell is the block that should be rebuilt there.</summary>
     private SpaceStructure OwnShipDesignReference(string ownerId)
-        => BuildShipStructureFrom("ship:" + ownerId, ownerId,
-            _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: false);
+        => _ship.IsCustom
+            ? BuildCustomShipStructure("ship:" + ownerId, ownerId, _ship, commissioned: true, applyEdits: false)
+            : BuildShipStructureFrom("ship:" + ownerId, ownerId,
+                _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: false);
 
     /// <summary>Missing design cells: baseline cells that are currently air, with the block the design wants there.</summary>
     private IEnumerable<(Vector3i Cell, BlockDefinition Block)> EnumerateShipRepairCells(SpaceStructure live, SpaceStructure design)

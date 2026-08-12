@@ -64,7 +64,29 @@ public sealed partial class GameServer
         rec.Structure = s;
         // The structure sits ON the levelled pad surface (origin.y = first cell layer above the ground).
         rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, y0 + 1, pad.CenterZ - s.Length / 2);
+        DeriveLandedAnchors(rec);
 
+        CleanLegacyStampResidueOnce(rec, pad); // pre-object saves carry the old stamped hull as world block edits
+
+        rec.Placed = true;
+        _log.Info($"Ship parked at ({rec.Origin.X}, {rec.Origin.Y}, {rec.Origin.Z}) — {s.Cells.Count} cells, {rec.Stations.Count} stations.");
+
+        EvictWildlifeFromShips(); // a creature the ship just parked on/over is pushed back out, not sealed in
+
+        BroadcastToWorld(LandedShipMessage(playerId, rec, removed: false));
+        RegisterDoors(); // pick up the ship's doors (+ keep settlement/other-ship doors in sync)
+
+        // The player's half-built ship (if their keel lies on this world) re-places alongside the parked
+        // ship — join, landing, respawn and ship switch all route through here (#948).
+        EnsureConstructionSite(_current);
+    }
+
+    /// <summary>Pre-resolves a landed structure's gameplay anchors (stations, doors, heal-tank) from its
+    /// structure-local cells + the world origin — shared by pad parking, the construction site and the
+    /// commissioning hand-over (which parks the new ship at the build spot instead of a pad, #948).</summary>
+    private static void DeriveLandedAnchors(LandedShip rec)
+    {
+        var s = rec.Structure;
         rec.Stations.Clear();
         foreach (var (type, cell) in s.StationCells)
         {
@@ -82,16 +104,6 @@ public sealed partial class GameServer
         rec.HealTank = s.MedbayCell is { } mb
             ? new Vector3f(rec.Origin.X + mb.X + 0.5f, rec.Origin.Y + mb.Y + 1f, rec.Origin.Z + mb.Z + 0.5f)
             : new Vector3f(rec.Origin.X + s.Width / 2 + 0.5f, rec.Origin.Y + 1f, rec.Origin.Z + s.Length / 2 + 0.5f);
-
-        CleanLegacyStampResidueOnce(rec, pad); // pre-object saves carry the old stamped hull as world block edits
-
-        rec.Placed = true;
-        _log.Info($"Ship parked at ({rec.Origin.X}, {rec.Origin.Y}, {rec.Origin.Z}) — {s.Cells.Count} cells, {rec.Stations.Count} stations.");
-
-        EvictWildlifeFromShips(); // a creature the ship just parked on/over is pushed back out, not sealed in
-
-        BroadcastToWorld(LandedShipMessage(playerId, rec, removed: false));
-        RegisterDoors(); // pick up the ship's doors (+ keep settlement/other-ship doors in sync)
     }
 
     /// <summary>Removes a player's parked ship from the active world (launch into space / logout) and tells
@@ -138,9 +150,10 @@ public sealed partial class GameServer
             OriginY = rec.Origin.Y,
             OriginZ = rec.Origin.Z,
             // A landed NPC trader has no session; resolve its hull tint from the trader registry instead.
+            // A construction site ("build:<pid>") shows the owner's hull colour like their parked ship.
             Hull = ownerId.StartsWith("npc:", System.StringComparison.Ordinal)
                 ? NpcLandedHull(ownerId)
-                : FindSessionByPlayerId(ownerId)?.HullColor ?? 0,
+                : FindSessionByPlayerId(IsConstructionKey(ownerId) ? ownerId.Substring("build:".Length) : ownerId)?.HullColor ?? 0,
             Width = s.Width,
             Height = s.Height,
             Length = s.Length,
@@ -250,14 +263,23 @@ public sealed partial class GameServer
 
     private void SendShipStations(PlayerSession session)
     {
-        if (!_shipPlaced)
+        // The parked ship's stations plus the construction site's helm ("shipyard" — the commission prompt,
+        // #948). Either may exist without the other: a fresh keel exists before any ship station change.
+        var construction = ConstructionFor(session.State.PlayerId);
+        if (!_shipPlaced && construction is null)
         {
             return;
         }
 
+        var stations = _shipPlaced ? _stations.AsEnumerable() : Enumerable.Empty<(string Type, Vector3f Pos)>();
+        if (construction is not null)
+        {
+            stations = stations.Concat(construction.Stations);
+        }
+
         Send(session, new ShipStations
         {
-            Stations = _stations.Select(s => new NetShipStation
+            Stations = stations.Select(s => new NetShipStation
             {
                 Type = s.Type,
                 X = s.Pos.X,
@@ -293,6 +315,15 @@ public sealed partial class GameServer
         }
 
         var p = session.State;
+
+        // The construction site's helm: commission the self-built ship (#950). Runs before the aboard
+        // check — an un-commissioned frame is intentionally never "aboard" (no free life support).
+        if (station == "shipyard")
+        {
+            TryCommissionShip(session);
+            return;
+        }
+
         var pos = StationPosition(station);
         if (pos is null)
         {
@@ -433,9 +464,12 @@ public sealed partial class GameServer
     /// counts as "aboard").</summary>
     private bool ShipInteriorContains(Vector3f p)
     {
-        foreach (var rec in _worlds.Active.LandedShips.Values)
+        foreach (var (key, rec) in _worlds.Active.LandedShips)
         {
-            if (!rec.Placed)
+            // A construction site is deliberately NOT a ship interior: standing in the open frame must not
+            // count as "aboard" (free life support before the hull is airtight, #950). World-block placement
+            // inside the site is guarded separately (ConstructionContains).
+            if (!rec.Placed || IsConstructionKey(key))
             {
                 continue;
             }

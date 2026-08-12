@@ -160,6 +160,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 12 } ]
   },
   {
+    "key": "ship_builder", "nameKey": "blueprint.ship_builder.name", "descriptionKey": "blueprint.ship_builder.desc",
+    "category": "Ship", "prerequisites": [], "knowledgeCost": 40,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 8 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
     "key": "ship_scout", "nameKey": "blueprint.ship_scout.name", "descriptionKey": "blueprint.ship_scout.desc",
     "category": "Ship", "prerequisites": [ "docking_module" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 6 } ]

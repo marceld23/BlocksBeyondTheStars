@@ -13,6 +13,24 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🚀 Build your own ship — keel to commissioning, anywhere on a planet (#948, #949, #950)
+
+- **Lay a keel, build a ship.** The new blueprint-gated **ship keel** can be placed anywhere on a
+  planet surface (no landing pad needed) and founds a construction site. Build the hull onto it block
+  by block — up to **15×15 blocks, 15 high** — with a helm, at least one engine and a door.
+- **Commission it at the helm.** Pressing E at the new **ship helm** checks the build the way a
+  shipwright would: big enough, exactly one helm, an engine, a door, and an **airtight hull** (glass
+  and doors seal; every gap is a no). Pass, and the build becomes your active ship, parked right where
+  you built it — launch from the menu as usual.
+- **It flies the way you built it (#949).** Hull strength grows with the hull, speed and handling come
+  from engines versus weight: a light frame with spare thrust darts around, a brick with one engine
+  limps. Re-edit your ship on foot any time — take the engine out and the launch check grounds it
+  again until you put one back.
+- **Half-built ships are safe.** The construction site survives rejoins, world trips and logouts (it
+  is saved with your fleet); dismantling the last block returns the parts and cancels the build.
+- **Under the hood:** ship hull edits are now saved **per ship** instead of one shared pile for the
+  whole fleet, so switching ships no longer re-applies another hull's edits onto the wrong design.
+
 ## [2026.8.11] — 2026-08-11
 
 The tempest release. Weather stopped being a coin flip and became something with a temper, a

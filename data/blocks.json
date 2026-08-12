@@ -117,6 +117,9 @@
   { "key": "station_vendor",    "nameKey": "block.station_vendor.name", "category": "machine",    "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4,  "color": 16763000, "drops": [ { "item": "station_vendor", "count": 1 } ] },
   { "key": "mission_board",     "nameKey": "block.mission_board.name", "category": "machine",     "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4,  "color": 5300479,  "drops": [ { "item": "mission_board", "count": 1 } ] },
   { "key": "station_container", "nameKey": "block.station_container.name", "category": "machine", "hardness": 2.0, "requiredTool": "none",  "minToolTier": 0, "color": 14196760, "drops": [ { "item": "station_container", "count": 1 } ] },
+  { "key": "ship_core",   "nameKey": "block.ship_core.name",   "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.55, "color": 5025616,  "drops": [ { "item": "ship_core", "count": 1 } ] },
+  { "key": "ship_helm",   "nameKey": "block.ship_helm.name",   "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.5,  "color": 4162799,  "drops": [ { "item": "ship_helm", "count": 1 } ] },
+  { "key": "ship_engine", "nameKey": "block.ship_engine.name", "category": "machine", "hardness": 3.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.4,  "color": 16744192, "drops": [ { "item": "ship_engine", "count": 1 } ] },
 
   { "key": "strip_light_cyan", "nameKey": "block.strip_light_cyan.name", "category": "light", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.9,  "color": 5300479,  "drops": [] },
   { "key": "strip_light_warm", "nameKey": "block.strip_light_warm.name", "category": "light", "hardness": 4.0, "requiredTool": "drill", "minToolTier": 1, "emission": 0.85, "color": 16763000, "drops": [] },

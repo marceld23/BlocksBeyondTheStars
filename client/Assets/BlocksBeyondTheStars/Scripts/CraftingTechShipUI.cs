@@ -2804,7 +2804,19 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_detail, 8, y, 620, 40, L($"ship.{s.Type}.name"), 30, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Bold);
                 y += 48f;
                 y = ShipStats(def, y);
-                if (!s.Active)
+
+                // A self-built ship has no content definition — show its geometry-derived flight stats
+                // from the fleet message instead (#949).
+                if (def == null && (s.FlightSpeed > 0f || s.Handling > 0f))
+                {
+                    UiKit.AddText(_detail, 8, y, 620, 26,
+                        $"{L("ui.ship.speed")}: {s.FlightSpeed:0.0}    {L("ui.ship.handling")}: {s.Handling:0.0}", 20,
+                        UiKit.TextCol, TextAnchor.UpperLeft);
+                    y += 36f;
+                }
+
+                // An un-commissioned construction can't be switched to — it isn't a ship yet (#950).
+                if (!s.Active && s.Commissioned)
                 {
                     UiKit.AddButton(_detail, 8, y, 280, 56, L("ui.ships.switch"), () => { Game.Network.SendSwitchShip(s.Id); });
                     y += 70f;

@@ -1925,6 +1925,14 @@ public sealed class NetOwnedShip
     public string Id { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public bool Active { get; set; }
+
+    /// <summary>Flight stats for a ship the client cannot resolve from <c>data/ships.json</c> (a self-built
+    /// "custom" ship, whose stats derive from its geometry). 0 = resolve from content as before.</summary>
+    public float FlightSpeed { get; set; }
+    public float Handling { get; set; }
+
+    /// <summary>False while a self-built ship is still under construction (not switchable/flyable yet).</summary>
+    public bool Commissioned { get; set; } = true;
 }
 
 /// <summary>The player's owned ships and which is active (sent on join and on change).</summary>

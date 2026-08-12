@@ -127,6 +127,11 @@ public sealed partial class GameServer
             return false;
         }
 
+        if (ship.IsCustom && !ship.Commissioned)
+        {
+            return false; // still a construction site — commission it at its helm first (#950)
+        }
+
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
 
@@ -183,7 +188,19 @@ public sealed partial class GameServer
         var list = new List<NetOwnedShip>();
         foreach (var kv in _ships)
         {
-            list.Add(new NetOwnedShip { Id = kv.Key, Type = kv.Value.ShipType, Active = kv.Key == _activeShipId });
+            var entry = new NetOwnedShip { Id = kv.Key, Type = kv.Value.ShipType, Active = kv.Key == _activeShipId };
+
+            // A self-built ship can't be resolved from data/ships.json client-side: its geometry-derived
+            // flight stats (and the under-construction flag) ride along in the fleet message (#949).
+            if (kv.Value.IsCustom)
+            {
+                var (_, speed, handling) = CustomShipStatsFor(kv.Value);
+                entry.FlightSpeed = speed;
+                entry.Handling = handling;
+                entry.Commissioned = kv.Value.Commissioned;
+            }
+
+            list.Add(entry);
         }
 
         return new OwnedShips { Ships = list.ToArray() };
@@ -196,7 +213,9 @@ public sealed partial class GameServer
     {
         if (!SwitchShip(intent.ShipId))
         {
-            Reject(session, "switch_ship", "@srv.misc.not_your_ship");
+            bool underConstruction = _ships.TryGetValue(intent.ShipId, out var ship)
+                && ship.IsCustom && !ship.Commissioned;
+            Reject(session, "switch_ship", underConstruction ? "@srv.ship.not_commissioned" : "@srv.misc.not_your_ship");
         }
     }
 }

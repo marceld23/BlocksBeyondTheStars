@@ -351,6 +351,22 @@ separate unlock; admins can still disable it through server world rules.
   Each cargo-hold module adds slots to the shared **cargo hold** (see *Inventory & cargo hold* above); the
   Cargo tab shows the current used/total capacity.
 
+### Building your own ship (keel → commissioning)
+- Unlock the **Shipwright** blueprint (Tech tab), craft a **Ship Keel** at a workshop and place it on open,
+  solid ground **anywhere on a planet** — no landing pad needed. That founds a construction site (one at a
+  time per player).
+- Build the hull straight onto the keel, block by block, up to **15×15 blocks and 15 high**. Blocks must
+  attach to the build; the hull sits on the keel's ground level. Mining a construction block gives it back;
+  taking the last block out cancels the build.
+- A flyable ship needs: at least **20 blocks**, exactly **one Ship Helm**, at least **one Ship Engine**, a
+  **door**, and an **airtight hull** — glass and doors seal fine, any open gap does not.
+- Stand at the helm and press **E** ("Commission ship"). If something is missing the message tells you what;
+  once it passes, the build becomes your **active ship**, parked right where you built it. Launch as usual
+  via menu (Tab) → Map → *Enter space*.
+- **It flies the way you built it:** hull strength grows with the hull size, speed and handling come from
+  engines versus weight — more engines fly faster, a heavy brick turns slowly. You can keep editing your
+  ship on foot afterwards; the launch check re-runs every start (no engine → grounded until you add one).
+
 ### Repairing your own ship
 - Combat dents your ship's **hull** (it never regenerates on its own), and EVA-carved hull cells stay missing
   until you refill them. Use the **cockpit** to fix both in one action: press **E** at the cockpit and a

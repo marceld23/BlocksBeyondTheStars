@@ -2119,6 +2119,7 @@ public sealed partial class GameServer
             ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
             SetActiveWorld(loc);
             RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
+            RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
             if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
             {
@@ -3553,10 +3554,20 @@ public sealed partial class GameServer
             return;
         }
 
-        // No building inside the ship — the cabin is a fixed structure.
-        if (ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z)))
+        // No building inside the ship — the cabin is a fixed structure. The construction site (#948) is
+        // guarded the same way: its cells are structure cells, never world blocks.
+        if (ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z))
+            || ConstructionContains(new Vector3f(pos.X, pos.Y, pos.Z)))
         {
             Reject(session, "place", "@srv.place.no_ship_interior");
+            return;
+        }
+
+        // A ship keel founds a self-built ship (#948): it never becomes a world block — it seeds a new
+        // construction-site structure OBJECT anchored at the cell. Fully handled (incl. material cost).
+        if (blockDef.Key == ShipCoreBlock)
+        {
+            HandleShipCorePlace(session, pos, place.ItemKey);
             return;
         }
 

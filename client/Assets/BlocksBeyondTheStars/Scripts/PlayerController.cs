@@ -2827,6 +2827,17 @@ namespace BlocksBeyondTheStars.Client
                         return;
                     }
 
+                    // Growing a ship CONSTRUCTION SITE (#948): aiming at the half-built hull but the target
+                    // cell lies outside its current bounds — still a structure edit (the server re-anchors
+                    // the grid and re-broadcasts), never a world place next to it.
+                    if (aimedShip != null && aimedShip.StructureId.StartsWith("shipyard:", System.StringComparison.Ordinal))
+                    {
+                        var gl = ShipLocal(aimedShip, placeCell);
+                        Game.Network.SendStructureEdit(aimedShip.StructureId, gl.x, gl.y, gl.z, mine: false, item);
+                        TriggerSwing();
+                        return;
+                    }
+
                     if (def.PlacesBlock == "radio_beacon" && BeaconLabelUi.Instance != null)
                     {
                         // Name the beacon before placing it — the typed label travels with the place (item 37).

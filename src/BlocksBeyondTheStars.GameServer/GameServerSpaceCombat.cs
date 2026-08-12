@@ -280,9 +280,10 @@ public sealed partial class GameServer
     /// <summary>Recomputes hull/shield maxima from built modules and clamps current values.</summary>
     private void RecomputeShipCombatStats()
     {
-        // Base stats come from the active ship's design (data/ships.json); modules add on top.
+        // Base stats come from the active ship's design (data/ships.json); modules add on top. A self-built
+        // ship has no content design — its hull derives from the geometry it was built with (#949).
         var design = _content.GetShip(_ship.ShipType);
-        float hull = design?.BaseHull ?? BaseHull;
+        float hull = _ship.IsCustom ? CustomShipStatsFor(_ship).HullMax : design?.BaseHull ?? BaseHull;
         float shield = (design?.BaseShield ?? 0f) + BaselineShipShield;
         float regen = BaselineShipShieldRegen;
         float radar = BaseRadarRange;
@@ -438,6 +439,23 @@ public sealed partial class GameServer
         {
             RejectSpace(session, "@srv.space.wrecked");
             return;
+        }
+
+        // A self-built ship must (still) be flight-worthy: commissioning can be edited away again on foot,
+        // so the same validation gate re-runs on every launch (#950).
+        if (_ship.IsCustom)
+        {
+            if (!_ship.Commissioned)
+            {
+                RejectSpace(session, "@srv.ship.not_commissioned");
+                return;
+            }
+
+            if (CustomShipLaunchProblem(_ship) is { } problem)
+            {
+                RejectSpace(session, problem);
+                return;
+            }
         }
 
         string locationId = string.IsNullOrEmpty(_ship.CurrentLocationId) ? _meta.ActiveLocationId : _ship.CurrentLocationId;
@@ -1840,7 +1858,7 @@ public sealed partial class GameServer
 
             if (i++ % 5 < 2) // ~2 of every 5 hull cells, scattered deterministically
             {
-                _repo.SetStructureBlock("ship:" + ownerId, cell, BlockId.AirValue);
+                _repo.SetStructureBlock(StructureEditStoreId(design), cell, BlockId.AirValue);
                 carved++;
             }
         }

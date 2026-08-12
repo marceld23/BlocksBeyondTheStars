@@ -7738,6 +7738,40 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): build your own ship on a planet — keel, hull, commissioning, geometry stats (#948, #949, #950)
+
+Players can now BUILD a brand-new ship block by block, anywhere on a planet surface, and fly it.
+**Found** — a new blueprint-gated (`ship_builder`, knowledgeCost 40) `ship_core` item: placing the keel
+never touches the world grid, it founds an un-commissioned `ShipType:"custom"` fleet entry plus a
+construction-site structure OBJECT (`shipyard:<pid>`, LandedShips key `build:<pid>`; one site per player).
+The hull's source of truth is `ShipState.BuiltCells` (the station-style cell blob, persisted with the
+fleet), so the site survives rejoins, world switches and logouts. **Build** — the on-foot structure-edit
+path grew a construction ruleset: attach-only, 15×15 footprint ×15 high cap, keel ground-level floor,
+bounds re-derive from the cells (growing to -X/-Z re-anchors the origin and re-broadcasts the object;
+client-side, aiming at a `shipyard:` structure routes out-of-bounds places to the structure edit instead
+of a world place). Door items become DOOR CELLS (opening + server slide door) — the mesher collides every
+solid cell, so a door block would wall the builder in. **Commission (#950)** — E at the new `ship_helm`
+("shipyard" station prompt) validates: ≥20 blocks, exactly one helm, ≥1 `ship_engine`, a door, and an
+AIRTIGHT interior (outside flood-fill over the bounding box; airtight full cubes + door cells seal, ≥4
+enclosed air cells, sealed standing room at the helm). On success the ship gains the baseline modules
+(cockpit/reactor/life_support/cargo_hold_basic), becomes the ACTIVE ship parked right at the build spot,
+and the helm becomes a regular cockpit station. The launch gate re-runs the same validation every
+`EnterSpace` — editing your engine away grounds the ship with the same kid-readable message. **Geometry
+stats (#949)** — hull HP from cell count, speed/handling from engines vs. mass (clamped 0.4–1.8/0.4–1.7),
+derived server-side (`RecomputeShipCombatStats`) and carried to the client in `NetOwnedShip`
+(`FlightSpeed`/`Handling`/`Commissioned` — contractless MessagePack, wire-compatible, no protocol bump);
+`ResolveShipFlight` and the fleet UI use them, the Switch button hides on un-commissioned entries.
+**Per-ship edit deltas** — structure damage deltas are now scoped per SHIP (`ship:<pid>#<shipId>`, the
+"default" ship keeps the legacy id so old saves keep their edits); previously the whole fleet shared one
+delta set. On-foot edits on a commissioned custom ship are DESIGN changes (blob-backed, repair never
+"fixes" them, stats re-derive); EVA damage + the wreck carve stay delta-backed and repairable. New blocks
+`ship_core`/`ship_helm`/`ship_engine` (machine category → airtight), items, workshop recipes, EN+DE
+locale keys (`srv.ship.*`, `ui.station.shipyard`, `ship.custom.*`). New `CustomShipTests` (8: content
+wiring, founding, adjacency+cap, negative-growth re-anchor, commission reject/accept, stat monotonicity,
+launch-gate re-check). Analysis in memory (`player-built-ships-analysis`).
+
+---
+
 ## ✅ Done (2026-08-12): CodeQL follow-up on the #943 moderation logging — `LogSafe(id)` in the join gate
 
 CodeQL raised three alerts against the fresh #943 code. The two `cs/log-forging` hits (Program.cs

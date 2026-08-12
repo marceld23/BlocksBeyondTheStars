@@ -39,5 +39,33 @@ public sealed class ShipState
     /// </summary>
     public bool Downed { get; set; }
 
+    /// <summary>Ship-type key of a player-built ship (no <c>data/ships.json</c> entry — the geometry and the
+    /// flight stats are derived from <see cref="BuiltCells"/> instead).</summary>
+    public const string CustomShipType = "custom";
+
+    /// <summary>True for a self-built ship (see <see cref="CustomShipType"/>).</summary>
+    public bool IsCustom => ShipType == CustomShipType;
+
+    /// <summary>
+    /// A self-built ship's voxel hull, serialized as structure-local cells ("x:y:z:blockId;…" — the same
+    /// format player stations persist). This is the ship's SOURCE OF TRUTH geometry: the landed object, the
+    /// flight-view structure and the derived stats are all rebuilt from it. Empty for content-designed ships.
+    /// </summary>
+    public string BuiltCells { get; set; } = string.Empty;
+
+    /// <summary>
+    /// False while a self-built ship is still under construction: it cannot be switched to, launched or
+    /// placed as a normal parked ship until it passes commissioning at its helm (airtight hull, helm,
+    /// engine, door, size cap). Content ships are always commissioned.
+    /// </summary>
+    public bool Commissioned { get; set; } = true;
+
+    /// <summary>World + anchor cell of the construction site while un-commissioned (so a rejoin re-places
+    /// the half-built hull where the keel was laid). Unused once commissioned.</summary>
+    public string BuildLocationId { get; set; } = string.Empty;
+    public int BuildX { get; set; }
+    public int BuildY { get; set; }
+    public int BuildZ { get; set; }
+
     public bool HasModule(string moduleKey) => Modules.Contains(moduleKey);
 }

@@ -2591,6 +2591,15 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (s.Active)
                     {
+                        // A self-built ship has no data/ships.json entry — its geometry-derived stats ride
+                        // the fleet message instead (#949).
+                        if (s.FlightSpeed > 0f || s.Handling > 0f)
+                        {
+                            _shipSpeedMul = s.FlightSpeed > 0f ? s.FlightSpeed : 1f;
+                            _shipTurnMul = s.Handling > 0f ? s.Handling : 1f;
+                            return;
+                        }
+
                         type = s.Type;
                         break;
                     }

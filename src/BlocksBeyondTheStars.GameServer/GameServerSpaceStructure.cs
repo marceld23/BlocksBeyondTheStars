@@ -129,8 +129,10 @@ public sealed partial class GameServer
     /// into a standalone sparse grid instead of the planet world. Hatch/door cells render as holes. Ships with
     /// no designed layout fall back to a hollow hull box derived from the design's interior dimensions.</summary>
     private SpaceStructure BuildShipStructure(string ownerId)
-        => BuildShipStructureFrom("ship:" + ownerId, ownerId,
-            _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: true);
+        => _ship.IsCustom
+            ? BuildCustomShipStructure("ship:" + ownerId, ownerId, _ship, commissioned: true, applyEdits: true)
+            : BuildShipStructureFrom("ship:" + ownerId, ownerId,
+                _content.GetShip(_ship.ShipType) ?? _content.GetShip("starter"), persistEdits: true);
 
     /// <summary>Builds a peaceful NPC trader's ship as a voxel structure straight from a ship-type key — no
     /// player owner, no persisted edits. Reuses the exact player-ship voxel pipeline so a trader renders 1:1
@@ -441,10 +443,26 @@ public sealed partial class GameServer
     /// lightweight. An edit setting a cell to air is honoured via <see cref="SpaceStructure.Set"/>.</summary>
     private void ApplyPersistedShipEdits(SpaceStructure s)
     {
-        foreach (var edit in _repo.LoadStructureEdits(s.Id))
+        foreach (var edit in _repo.LoadStructureEdits(StructureEditStoreId(s)))
         {
             s.Set(edit.WorldPosition, new BlockId(edit.Block));
         }
+    }
+
+    /// <summary>Persistence id of a ship structure's per-cell deltas. Historically all of a player's ships
+    /// shared one delta set under the runtime structure id ("ship:&lt;pid&gt;") — switching ships re-applied
+    /// the same edits onto a different design. Deltas are now scoped per SHIP: the fleet's "default" ship
+    /// keeps the legacy id (old saves keep their edits), every other ship gets its own
+    /// "ship:&lt;pid&gt;#&lt;shipId&gt;" row.</summary>
+    private string StructureEditStoreId(SpaceStructure s)
+    {
+        if (s.Kind != "ship" || string.IsNullOrEmpty(s.OwnerId))
+        {
+            return s.Id;
+        }
+
+        string shipId = FindSessionByPlayerId(s.OwnerId)?.ActiveShipId ?? ShipId;
+        return shipId == ShipId ? s.Id : s.Id + "#" + shipId;
     }
 
     /// <summary>Places or mines one cell on a voxel structure during an EVA spacewalk (item 20 S2) — the
@@ -589,7 +607,7 @@ public sealed partial class GameServer
             // player changes are stored), so the edit survives a server restart + re-entry into space.
             if (s.Kind == "ship")
             {
-                _repo.SetStructureBlock(s.Id, pos, BlockId.AirValue);
+                _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue);
             }
 
             // Bank the mined block's drops (ore from asteroids; rebuild materials from a ship hull) — the
@@ -670,7 +688,7 @@ public sealed partial class GameServer
         // a station's whole build is persisted via PersistStation below).
         if (s.Kind == "ship")
         {
-            _repo.SetStructureBlock(s.Id, pos, blockDef.NumericId.Value);
+            _repo.SetStructureBlock(StructureEditStoreId(s), pos, blockDef.NumericId.Value);
         }
 
         BroadcastToInstance(instance, new StructureBlockChanged
@@ -705,6 +723,23 @@ public sealed partial class GameServer
     private void HandleLandedShipEdit(PlayerSession session, StructureEditIntent intent)
     {
         var p = session.State;
+
+        // The player's construction site (#948) has its own ruleset: no design baseline yet, the size cap
+        // replaces the design box, and every change persists into the ship's cell blob.
+        if (intent.StructureId == ConstructionStructureId(p.PlayerId))
+        {
+            if (ConstructionFor(p.PlayerId) is { } build)
+            {
+                HandleConstructionEdit(session, build, intent);
+            }
+            else
+            {
+                Reject(session, "structure", "@srv.structure.none_here");
+            }
+
+            return;
+        }
+
         var rec = _worlds.Active.LandedFor(p.PlayerId);
         if (!rec.Placed || rec.Structure.Id != intent.StructureId)
         {
@@ -729,6 +764,14 @@ public sealed partial class GameServer
         {
             if (s.Baseline.Contains(pos))
             {
+                // A self-built ship stays the player's own design: mining a hull cell is a DESIGN change
+                // that leaves the persisted blob (repair never rebuilds it), not damage (#948).
+                if (_ship.IsCustom)
+                {
+                    HandleCustomShipMine(session, rec, pos);
+                    return;
+                }
+
                 Reject(session, "structure", s.StationCells.Any(sc => sc.Cell == pos)
                     ? "@srv.structure.module_fixed"
                     : "@srv.structure.hull_protected");
@@ -743,7 +786,7 @@ public sealed partial class GameServer
             }
 
             s.Set(pos, BlockId.Air);
-            _repo.SetStructureBlock(s.Id, pos, BlockId.AirValue);
+            _repo.SetStructureBlock(StructureEditStoreId(s), pos, BlockId.AirValue);
 
             if (_content.BlockById(existing) is { } def && def.Drops.Count > 0)
             {
@@ -802,6 +845,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // A self-built ship keeps exactly one helm (the unambiguous commissioning/cockpit anchor, #950) —
+        // checked before any material is consumed.
+        if (_ship.IsCustom && blockDef.Key == ShipHelmBlock
+            && ParseCustomCells(_ship.BuiltCells).Values.Any(b => IsBlockId(b, ShipHelmBlock)))
+        {
+            Reject(session, "structure", "@srv.ship.one_helm");
+            return;
+        }
+
         bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
         var buildPool = new MaterialPool(_content, p, _ship);
         if (!free)
@@ -816,8 +868,19 @@ public sealed partial class GameServer
             SendInventory(session);
         }
 
+        // A self-built ship's on-foot placement is a DESIGN change: it goes into the persisted cell blob
+        // (doors become door cells, engines change the derived stats), not into the damage-delta store.
+        if (_ship.IsCustom)
+        {
+            var cells = ParseCustomCells(_ship.BuiltCells);
+            cells[pos] = blockDef.NumericId;
+            CommitCustomShipCells(session, _ship, rec, commissioned: true, cells, pos,
+                IsDoorBlock(blockDef.Key) ? BlockId.AirValue : blockDef.NumericId.Value);
+            return;
+        }
+
         s.Set(pos, blockDef.NumericId);
-        _repo.SetStructureBlock(s.Id, pos, blockDef.NumericId.Value);
+        _repo.SetStructureBlock(StructureEditStoreId(s), pos, blockDef.NumericId.Value);
         BroadcastToWorld(new StructureBlockChanged
         {
             StructureId = s.Id,

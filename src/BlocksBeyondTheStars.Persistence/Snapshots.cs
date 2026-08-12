@@ -123,6 +123,19 @@ public sealed class ShipSnapshot
     /// <summary>Wreck flag (<see cref="ShipState.Downed"/>): the ship was lost under KeepShipOnDeath=false and
     /// is grounded until repaired. Persisted so a restart/rejoin doesn't hand back a flight-ready ship for free.</summary>
     public bool Downed { get; set; }
+
+    /// <summary>Self-built ship geometry (<see cref="ShipState.BuiltCells"/>) — empty for content ships.</summary>
+    public string BuiltCells { get; set; } = string.Empty;
+
+    /// <summary>Commissioning state of a self-built ship. Defaults true so pre-feature saves (and every
+    /// content ship) deserialize as flight-ready.</summary>
+    public bool Commissioned { get; set; } = true;
+
+    /// <summary>Construction-site anchor of an un-commissioned self-built ship.</summary>
+    public string BuildLocationId { get; set; } = string.Empty;
+    public int BuildX { get; set; }
+    public int BuildY { get; set; }
+    public int BuildZ { get; set; }
 }
 
 /// <summary>Maps between runtime state objects and their persisted snapshots.</summary>
@@ -333,6 +346,12 @@ public static class StateMapper
         Shield = ship.Shield,
         ShipType = ship.ShipType,
         Downed = ship.Downed,
+        BuiltCells = ship.BuiltCells,
+        Commissioned = ship.Commissioned,
+        BuildLocationId = ship.BuildLocationId,
+        BuildX = ship.BuildX,
+        BuildY = ship.BuildY,
+        BuildZ = ship.BuildZ,
     };
 
     public static ShipState FromSnapshot(ShipSnapshot s) => new()
@@ -344,5 +363,11 @@ public static class StateMapper
         Shield = s.Shield,
         ShipType = string.IsNullOrEmpty(s.ShipType) ? "starter" : s.ShipType,
         Downed = s.Downed,
+        BuiltCells = s.BuiltCells ?? string.Empty,
+        Commissioned = s.Commissioned,
+        BuildLocationId = s.BuildLocationId ?? string.Empty,
+        BuildX = s.BuildX,
+        BuildY = s.BuildY,
+        BuildZ = s.BuildZ,
     };
 }
