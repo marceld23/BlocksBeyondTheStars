@@ -38,10 +38,15 @@ namespace BlocksBeyondTheStars.Client
         /// Read by the persistent <see cref="ClientMusic"/> director to pick context music.</summary>
         public GameBootstrap CurrentBoot { get; private set; }
 
+        /// <summary>Default port of official/dedicated servers (the join dialog's prefill). Locally
+        /// hosted "Host Game" worlds listen on <see cref="LocalServerLauncher.DefaultPort"/> instead —
+        /// the join dialog shows both so LAN joiners know which one to enter.</summary>
+        public const int DefaultServerPort = 31415;
+
         // Join target edited on the main menu. PlayerName is loaded from / persisted to
         // ClientSettings (Awake / the connect dialog); Password is session-only.
         public string Host = "127.0.0.1";
-        public string Port = "31415";
+        public string Port = "31415"; // = DefaultServerPort; kept as a string (it is edited in the connect dialog)
         public string PlayerName = ""; // empty until chosen — the menu gates play actions on it (#221)
         public string Password = "";
 

@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "Имя игрока",
   "ui.menu.connect_host": "Адрес сервера (IP или хост)",
   "ui.menu.connect_port": "Порт",
+  "ui.menu.connect_port_hint": "Официальные серверы: {official}\nРазместить мир: {hosted}",
   "ui.menu.connect_password": "Пароль сервера (оставь пустым, если нет)",
   "ui.menu.connect": "Подключиться",
   "ui.menu.play": "Играть",

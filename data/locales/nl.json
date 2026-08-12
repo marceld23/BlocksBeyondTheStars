@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "Spelersnaam",
   "ui.menu.connect_host": "Serveradres (IP of hostnaam)",
   "ui.menu.connect_port": "Poort",
+  "ui.menu.connect_port_hint": "Officiële servers: {official}\nSpel hosten: {hosted}",
   "ui.menu.connect_password": "Serverwachtwoord (leeg laten als er geen is)",
   "ui.menu.connect": "Verbinden",
   "ui.menu.play": "Spelen",

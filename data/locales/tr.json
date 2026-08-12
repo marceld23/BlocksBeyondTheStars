@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "Oyuncu adı",
   "ui.menu.connect_host": "Sunucu adresi (IP veya host adı)",
   "ui.menu.connect_port": "Port",
+  "ui.menu.connect_port_hint": "Resmî sunucular: {official}\nOyun Sun: {hosted}",
   "ui.menu.connect_password": "Sunucu parolası (yoksa boş bırak)",
   "ui.menu.connect": "Bağlan",
   "ui.menu.play": "Oyna",

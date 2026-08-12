@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "플레이어 이름",
   "ui.menu.connect_host": "서버 주소 (IP 또는 호스트명)",
   "ui.menu.connect_port": "포트",
+  "ui.menu.connect_port_hint": "공식 서버: {official}\n게임 호스트: {hosted}",
   "ui.menu.connect_password": "서버 비밀번호 (없으면 비워두세요)",
   "ui.menu.connect": "연결",
   "ui.menu.play": "플레이",

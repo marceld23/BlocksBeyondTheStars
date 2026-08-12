@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "プレイヤー名",
   "ui.menu.connect_host": "サーバーアドレス（IPまたはホスト名）",
   "ui.menu.connect_port": "ポート",
+  "ui.menu.connect_port_hint": "公式サーバー: {official}\nゲームをホスト: {hosted}",
   "ui.menu.connect_password": "サーバーパスワード（なければ空欄）",
   "ui.menu.connect": "接続",
   "ui.menu.play": "プレイ",
