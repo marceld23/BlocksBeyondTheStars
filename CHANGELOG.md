@@ -13,6 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.12] — 2026-08-13
+
+The shipwright release. Until now the ship you flew was one the game handed you; from this version
+you lay a keel on a planet, build the hull block by block, and a shipwright's check at the helm
+decides whether it is airtight enough to fly — and how it flies is whatever you built. The other
+half of this release came out of a long LAN evening with a real crew: ghost ships that were never
+there, pilots frozen mid-air, a landing that hung forever on "Reading landing pads…", and a game
+that stopped dead the moment you alt-tabbed. All of that is fixed.
+
 ### 🚀 Build your own ship — keel to commissioning, anywhere on a planet (#948, #949, #950)
 
 - **Lay a keel, build a ship.** The new blueprint-gated **ship keel** can be placed anywhere on a
@@ -30,6 +39,106 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   is saved with your fleet); dismantling the last block returns the parts and cancels the build.
 - **Under the hood:** ship hull edits are now saved **per ship** instead of one shared pile for the
   whole fleet, so switching ships no longer re-applies another hull's edits onto the wrong design.
+
+### 🛰 Flying together actually works now (#954, #955, #956, #957, #958, #959)
+
+A LAN evening with several players in one world turned up six separate faults. Every one of them is
+fixed:
+
+- **Ghost ships stopped haunting the sky.** Another player's ship was spawned as a static hull with
+  no collision — a decoration that looked like a ship, sat where the ship no longer was, and could
+  not be hit. Worse, when a friend switched ships, *your* hull was replaced by theirs. Remote ships
+  are now their own thing, and switching a ship only changes your own.
+- **Pilots stopped freezing in mid-air.** Remote players jerked and then hung motionless because the
+  smoothing window was shorter than the interval the positions arrive in, and a single missing update
+  deleted the avatar outright. Movement is smooth again, a short gap is ridden out, and a player who
+  really is gone fades after three seconds instead of leaving a statue behind.
+- **Damage lands on the right ship.** Collisions and hostile fire were computed once for the whole
+  instance, so an asteroid one pilot hit could bill another pilot's hull, and shields regenerated for
+  the wrong ship. Each pilot now has their own flight simulation.
+- **"Reading landing pads…" no longer hangs forever.** Requesting the pads of the world you are
+  already at could go unanswered, and the client waited on it with no way out — the flight was simply
+  over. The request is always answered now, the client retries once and then tells you it timed out
+  instead of locking up.
+- **Landing back on the world you launched from shows the real world again.** The client used to keep
+  its stale idea of the terrain, so blocks that had been mined were back and blocks that had been
+  built were missing. A landing at your home body now resyncs the world, the ships parked on it,
+  stations, doors and the weather.
+- **Landing pads stay yours while you are in space**, instead of being handed to someone else the
+  moment you launched.
+
+### 🧊 Alt-tab, crashes and the ghost-block storm (#963, #964, #965)
+
+- **Alt-tabbing froze the game.** The client stopped running the moment it lost focus, while the
+  network connection stayed up and kept piling up messages — so switching to a browser for ten
+  seconds meant coming back to a frozen client with a mountain of backlog to chew through. The game
+  now keeps running in the background, and incoming data is paced across frames instead of arriving
+  as one wall.
+- **A crashed client can rejoin.** After a crash your old session lingered on the server — in one
+  playtest for **22 minutes** — and rejoining with the same name was refused because "you" were
+  already connected. Rejoining with the same name and your own player token now evicts the dead
+  session, and sessions that go silent for 90 seconds are dropped on their own.
+- **Mining no longer floods the world with ghost blocks.** Every click sent the mining action
+  **twice**, and each stray hit could trigger a full re-send of the chunk — with several players
+  mining, that storm was enough to make blocks reappear and vanish. One click is one hit now, and a
+  chunk is re-sent at most once every ten seconds.
+- **Two memory leaks closed:** the minimap and the shape-icon previews threw away their old textures
+  without freeing them, and chunks far behind you were only unloaded while you were moving — stand
+  still in a big world and nothing was ever released.
+
+### 🎯 The hotbar's slot actions are findable — and work on pad and touch (#935, #940)
+
+- **The feature had no tell at all.** Recolouring, reshaping and swapping a stack from the hotbar
+  (new in the last release) was a middle-click that nothing on screen mentioned. Now the controls
+  hint names it while the selected slot holds an item, and a small key badge floats over the selected
+  cell — bright when colour or shape apply, dim when only swapping does.
+- **The verb menu became a radial pie.** Swap, Colour, Form and Close sit as four quarter-ring wedges
+  around the cursor; wedges that cannot apply to the held stack stay visible but inert.
+- **Gamepad and touch reach it too.** On a pad, clicking the right stick opens the pie and the stick
+  navigates the wedges; on touch, a "…" button beside the hotbar arrow opens it, and it only appears
+  when the pie could actually open.
+- **Mouse buttons read as words.** HUD hints showed raw engine names like `Mouse2`; they now print
+  the localized short name in all fourteen languages.
+
+### 🛡 Moderation: name screening, operator pings and visible paint reports (#938)
+
+- **Offensive names are screened at every door.** The block list now sees through accents, spacing,
+  punctuation and leetspelling, and a second, softer tier flags a borderline name for review instead
+  of blocking it outright. The screen runs at the world list, at the join gate *and* on the game
+  server itself, so a name cannot slip in through a side entrance.
+- **The operator gets pinged.** Blocked and flagged joins, crash reports and player reports can now
+  push a notification to the world's operator (opt-in, off by default for self-hosters).
+- **Reported paintings and shapes reach a human.** `/reportpaint` and `/reportshape` used to end in a
+  log line; they now travel to the same inbox as crash reports, with the offending image attached.
+
+### 🐛 Fixes
+
+- **"Host Game" worlds could not be joined with the prefilled port (#936, #960).** A world hosted from
+  the game menu listens on **31550**, but the join dialog prefills the official-server default
+  **31415** — so joining a friend's world with the untouched field silently timed out until someone
+  guessed the number. The dialog now names both defaults next to the port field, in all fourteen
+  languages, on Windows, macOS and Linux alike.
+- **The browser version blamed the wrong thing when the arcade worlds were full (#936).** A full
+  arcade showed the generic "could not start" error, which reads like a broken game. It now says the
+  worlds are full — and that singleplayer is always open.
+- **The hotbar's Swap and Colour panels covered their own buttons (#953).** The Back/Close row sat on
+  top of the last row of backpack slots (two slots unreachable, their clicks stolen) and the stow
+  button floated outside the panel entirely. Both panels grew; the slots kept their size, so the
+  touch and gamepad targets from this release are unaffected.
+
+### 🛠️ Behind the scenes
+
+- Ahmed Mohamed Abdelhady Kamel's test series grew to twelve pull requests — this release adds
+  deterministic randomness, noise generation, chunk modifiers and `BlockId` (#934, #944, #946, #947).
+  His credits entry now describes the series instead of listing individual types (#951).
+- A CodeQL log-forging alert on the join gate's world id was closed by routing it through the existing
+  log sanitizer (#945).
+- New regression tests lock in this release's multiplayer work: the LAN playtest faults, the reconnect
+  and ghost-session rules, and the client's receive budget (which must stay above the server's own
+  send budget, or it would manufacture the very backlog it is meant to pace).
+
+  ℹ Multiplayer: the wire protocol is unchanged (3), but the fixes above only take effect when both
+  the client **and** the server run this version.
 
 ## [2026.8.11] — 2026-08-11
 
@@ -2483,7 +2592,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...HEAD
+[2026.8.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...v2026.8.12
 [2026.8.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...v2026.8.11
 [2026.8.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...v2026.8.10
 [2026.8.9]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.8...v2026.8.9
