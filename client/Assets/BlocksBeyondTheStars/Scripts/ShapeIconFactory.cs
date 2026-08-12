@@ -20,11 +20,24 @@ namespace BlocksBeyondTheStars.Client
     {
         private static readonly Dictionary<int, Texture2D> _cache = new Dictionary<int, Texture2D>();
 
-        /// <summary>Drops every cached icon texture. Called from <see cref="GameBootstrap"/>'s teardown —
-        /// the icons are built from THAT session's atlas, and the (tile id, shape) key would serve stale art
-        /// for a different world's content (#423). The unreferenced textures are then swept by the
-        /// return-to-menu <c>Resources.UnloadUnusedAssets</c> pass.</summary>
-        public static void ClearCache() => _cache.Clear();
+        /// <summary>Destroys every cached icon texture and empties the cache. Called from
+        /// <see cref="GameBootstrap"/>'s teardown — the icons are built from THAT session's atlas, and the
+        /// (tile id, shape) key would serve stale art for a different world's content (#423).
+        /// <para>The textures are destroyed explicitly (#966): this used to only clear the dictionary and
+        /// rely on the return-to-menu <c>Resources.UnloadUnusedAssets</c> pass, but these are code-created
+        /// textures, and a dropped reference alone never frees one.</para></summary>
+        public static void ClearCache()
+        {
+            foreach (var tex in _cache.Values)
+            {
+                if (tex != null)
+                {
+                    Object.Destroy(tex);
+                }
+            }
+
+            _cache.Clear();
+        }
 
         /// <summary>The shape-masked icon texture for a block tile + shape, or null for cube / when the atlas
         /// is not ready or not CPU-readable.</summary>

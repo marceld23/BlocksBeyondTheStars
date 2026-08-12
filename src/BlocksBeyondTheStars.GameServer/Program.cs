@@ -67,7 +67,10 @@ logger.Info($"Persistence backend: {WorldRepositoryFactory.DisplayName(config)}.
 
 // Native UDP for the Windows client; optionally also WebSocket for browser clients
 // (same protocol, same authoritative server). Both share the gameplay port number.
-var native = new LiteNetLibServerTransport(config.MaxPlayers);
+// Headroom on the native path too (#964): sized exactly at MaxPlayers, a crashed player's peer still held
+// its slot, so their own reconnect was refused at the TRANSPORT — before any join gate, and silently.
+var native = new LiteNetLibServerTransport(Math.Max(8, (config.MaxPlayers * 2) + 4));
+native.ConnectionRejected += () => logger.Warn("Connection refused: every transport slot is in use.");
 // Connection cap (#424 S9): scaled off MaxPlayers with generous headroom for handshakes/reconnects,
 // but never below the default — a small world still tolerates a burst of browser tabs.
 var webSocket = config.EnableWebSocket

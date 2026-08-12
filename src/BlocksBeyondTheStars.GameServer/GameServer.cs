@@ -1247,7 +1247,8 @@ public sealed partial class GameServer
             }
         }
 
-        Guard("SampleHistories", deltaSeconds, SampleHistories);
+        Guard("SampleHistories", deltaSeconds, SampleHistories); // also advances _uptime
+        Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
         Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
         Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
         Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
@@ -2082,15 +2083,31 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Seconds a chunk is exempt from a full ghost re-stream after it just had one (#965).</summary>
+    private const double GhostRestreamCooldown = 10.0;
+
     /// <summary>Heals a stale client chunk view (a "ghost" block the server no longer has): confirms the cell's
-    /// authoritative block immediately and forgets the chunk on this session so <see cref="StreamChunks"/> re-sends
-    /// the current authoritative chunk next tick — clearing every ghost in it at once.</summary>
-    private void ResyncStaleChunk(PlayerSession session, Vector3i pos)
+    /// authoritative block immediately, and — only if the same chunk ghosts REPEATEDLY — forgets the chunk on
+    /// this session so <see cref="StreamChunks"/> re-sends the whole authoritative chunk.
+    /// <para>The corrective <see cref="BlockChanged"/> fixes the normal single-cell case on its own. Re-streaming
+    /// the full chunk on EVERY ghost was a bandwidth/CPU amplifier: one ghost cost a whole chunk on the wire plus
+    /// seven chunk remeshes on the client, and a client that double-sent its mine intents (#965) produced one per
+    /// mined block. Returns whether the caller should log the ghost — the log is rate-limited with the
+    /// re-stream so a mining session can no longer spam hundreds of warnings.</para></summary>
+    private bool ResyncStaleChunk(PlayerSession session, Vector3i pos)
     {
         var (rsTint, rsGlow) = _world.GetModifier(pos);
         Send(session, new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _world.GetBlock(pos).Value, Tint = rsTint, Glow = rsGlow, Shape = _world.GetShape(pos) });
+
         var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(pos), _world.Circumference);
+        if (session.GhostChunkSeen.TryGetValue(coord, out double lastAt) && _uptime - lastAt < GhostRestreamCooldown)
+        {
+            return false; // already re-streamed this chunk moments ago — the BlockChanged above is enough
+        }
+
+        session.GhostChunkSeen[coord] = _uptime;
         session.SentChunks.Remove(coord); // not-sent again → StreamChunks re-streams it on the next tick
+        return true;
     }
 
     // ---------------- Connection handling ----------------
@@ -2099,6 +2116,55 @@ public sealed partial class GameServer
     {
         // Session is created on a successful JoinRequest; just note the pending connection.
         _log.Info($"Connection {connectionId} opened; awaiting join.");
+    }
+
+    /// <summary>The live session holding a player name (case-insensitive), or null. One session per name:
+    /// PlayerId == name, so two clients under one name would alias the same player state.</summary>
+    private PlayerSession? FindJoinedSessionByName(string name)
+    {
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && string.Equals(s.State.Name, name, StringComparison.OrdinalIgnoreCase))
+            {
+                return s;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Seconds without a single payload after which a joined session is considered dead (#964).
+    /// The transport cannot see this case: a client whose game froze or whose machine died mid-frame can keep
+    /// answering pings from its network thread, so only the absence of INTENTS proves nobody is playing.
+    /// Generously above any legitimate quiet period — the client sends movement/pose updates continuously,
+    /// and even a paused, fully idle client keeps its transport-level traffic flowing.</summary>
+    private const double SessionHeartbeatTimeout = 90.0;
+
+    /// <summary>Drops joined sessions that have gone silent (see <see cref="SessionHeartbeatTimeout"/>), so a
+    /// crashed player's name and slot are released long before the transport notices.</summary>
+    private void SweepSilentSessions()
+    {
+        List<int>? dead = null;
+        foreach (var (connectionId, session) in _sessions)
+        {
+            if (session.Joined && session.HeartbeatTracked && _uptime - session.LastPayloadAt > SessionHeartbeatTimeout)
+            {
+                (dead ??= new List<int>()).Add(connectionId);
+            }
+        }
+
+        if (dead is null)
+        {
+            return;
+        }
+
+        foreach (int connectionId in dead)
+        {
+            string who = _sessions.TryGetValue(connectionId, out var s) ? s.State.Name : "?";
+            _log.Warn($"Player '{who}' sent nothing for {SessionHeartbeatTimeout:0}s — dropping the session (connection {connectionId}).");
+            _transport.DisconnectClient(connectionId);
+            OnClientDisconnected(connectionId);
+        }
     }
 
     private void OnClientDisconnected(int connectionId)
@@ -2166,7 +2232,20 @@ public sealed partial class GameServer
                 return;
             }
 
-            HandleJoin(connectionId, join);
+            // Guarded like every other handler (#964): HandleJoin registers the session BEFORE its ~40-message
+            // burst, so an exception midway used to leave a half-built session that held the player's name
+            // forever — with no way for them to get back in.
+            try
+            {
+                HandleJoin(connectionId, join);
+            }
+            catch (Exception ex)
+            {
+                _log.Error($"Join from connection {connectionId} threw: {ex}");
+                _sessions.Remove(connectionId); // never leave a half-joined session holding the name
+                SendTo(connectionId, new JoinRejected { Reason = "@srv.join.failed" });
+            }
+
             return;
         }
 
@@ -2174,6 +2253,8 @@ public sealed partial class GameServer
         {
             return; // ignore gameplay intents before joining
         }
+
+        session.LastPayloadAt = _uptime; // app-level heartbeat (#964) — see SweepSilentSessions
 
         // Per-connection flood gate: a token bucket refilled at MsgRatePerSecond, capped at MsgBurst.
         // Every joined intent costs one token; when the bucket is empty the packet is dropped. This bounds
@@ -2489,6 +2570,23 @@ public sealed partial class GameServer
         // `marcel` ≠ `Marcel` mismatch would grant nothing with no error anywhere.
         bool fleetAdmin = IsFleetAdminName(name);
 
+        var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
+        string tokenHash = HashNameToken(join.Token);
+
+        // Reconnect eviction (#964). A client that dies without closing its socket cleanly — PC crash, hard
+        // kill, a frozen game whose transport thread keeps answering pings — leaves a session that still
+        // looks joined. It holds the name and a player slot, so the player's OWN reconnect is refused, and
+        // nothing frees it until the transport finally gives up (22 minutes in the 2026-08-12 playtest).
+        // Whoever proves ownership of the name with the matching token is the rightful owner of that
+        // session: drop the old one and let them back in. This is exactly what the name token is for.
+        if (FindJoinedSessionByName(name) is { } stale
+            && !string.IsNullOrEmpty(state.NameTokenHash) && state.NameTokenHash == tokenHash)
+        {
+            _log.Info($"Player '{name}' reconnected — dropping their previous session (connection {stale.ConnectionId}).");
+            _transport.DisconnectClient(stale.ConnectionId);
+            OnClientDisconnected(stale.ConnectionId); // saves + tears the old session down synchronously
+        }
+
         // A fleet admin gets a reserved slot on top of MaxPlayers: they come to observe a world, and a full
         // world is exactly when moderation is most likely to be needed. Their observer session also does not
         // count toward the cap for anyone else (see JoinedPlayerCount).
@@ -2501,18 +2599,15 @@ public sealed partial class GameServer
 
         // Name reservation: one live session per name — PlayerId == name, so a second client under
         // the same name would alias (and corrupt) the same player state.
-        if (_sessions.Values.Any(s => s.Joined && string.Equals(s.State.Name, name, StringComparison.OrdinalIgnoreCase)))
+        if (FindJoinedSessionByName(name) != null)
         {
             SendTo(connectionId, new JoinRejected { Reason = "@srv.join.name_online:" + name });
             return;
         }
 
-        var state = _repo.LoadPlayer(name) ?? CreateNewPlayer(name);
-
         // Name verification: the first join under a name claims it with the client's per-install token;
         // later joins must present the matching token (protects the host/admin identity from spoofing).
         // Unclaimed records (legacy saves / tokenless clients) adopt the first token they see.
-        string tokenHash = HashNameToken(join.Token);
         if (!string.IsNullOrEmpty(state.NameTokenHash) && state.NameTokenHash != tokenHash)
         {
             SendTo(connectionId, new JoinRejected { Reason = "@srv.join.name_taken:" + name });
@@ -2557,7 +2652,10 @@ public sealed partial class GameServer
             Locale = NormalizeLocale(join.Locale),
             ViewDistance = join.ViewDistanceChunks,
             IsFleetAdmin = fleetAdmin,
+            HeartbeatTracked = true, // joined over the wire → silence is meaningful (#964)
         };
+        session.LastPayloadAt = _uptime; // start the heartbeat clock now (#964) — a client that freezes
+                                         // right after joining must age out like any other silent session
         _sessions[connectionId] = session;
         state.LastSeenUtc = UtcNowIso(); // "last seen" for the admin player list (issue #488)
         SetupPlayerShip(session); // give the player their own ship, stamped into their world
@@ -2828,6 +2926,8 @@ public sealed partial class GameServer
             CurrentLocationId = joinBody,
             Locale = NormalizeLocale(locale),
             IsFleetAdmin = IsFleetAdminName(name), // config-only, like the network join path
+            // NOT heartbeat-tracked (#964): a locally-added player drives the server through direct calls
+            // and never sends a payload, so silence is normal rather than a sign of a dead client.
         };
         _sessions[connectionId] = session;
         state.LastSeenUtc = UtcNowIso();
@@ -2836,6 +2936,39 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
         return session;
+    }
+
+    /// <summary>Test seam: feeds a raw payload through the REAL receive path (join gate, flood gate, heartbeat
+    /// stamp, dispatch) — the only way to exercise joins and rejoins without a live socket (#964).</summary>
+    public void HandlePayloadForTest(int connectionId, byte[] payload) => OnPayload(connectionId, payload);
+
+    /// <summary>Test hook: players currently counted against the player cap.</summary>
+    public int JoinedPlayerCountForTest => JoinedPlayerCount();
+
+    /// <summary>Test hook: how many chunks this session has had fully re-streamed by the ghost heal (#965).</summary>
+    public int GhostReStreamsForTest(string playerId)
+        => FindSessionByPlayerId(playerId)?.GhostChunkSeen.Count ?? 0;
+
+    /// <summary>Test hook: an air cell just above the player, for driving the ghost-block path.</summary>
+    public Vector3i? FindAirCellForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return null;
+        }
+
+        Serve(session);
+        var p = session.State.Position;
+        for (int dy = 2; dy < 12; dy++)
+        {
+            var cell = new Vector3i((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Y) + dy, (int)System.Math.Floor(p.Z));
+            if (WithinBuildHeight(cell.Y) && _world.GetBlock(cell).IsAir)
+            {
+                return cell;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Test seam: simulates a player's connection dropping, running the same disconnect handling a
@@ -3073,8 +3206,11 @@ public sealed partial class GameServer
             // "Block is already empty." reject read as "mining is broken" to players and added nothing — the
             // heal is the fix either way. Log the spot so the actual ghost SOURCE can be identified from
             // reports (a SetBlock somewhere that skipped its broadcast).
-            ResyncStaleChunk(session, pos);
-            _log.Warn($"Ghost block healed at {pos.X},{pos.Y},{pos.Z} for '{session.State.Name}' (client saw a block, server has air).");
+            if (ResyncStaleChunk(session, pos))
+            {
+                _log.Warn($"Ghost block healed at {pos.X},{pos.Y},{pos.Z} for '{session.State.Name}' (client saw a block, server has air).");
+            }
+
             return;
         }
 

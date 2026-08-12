@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "Whitelist'te değilsin.",
   "srv.join.protocol_mismatch": "Protokol uyuşmazlığı (sunucu {server}, istemci {client}).",
   "srv.join.server_full": "Sunucu dolu.",
+  "srv.join.failed": "Sunucuda katılım başarısız oldu. Lütfen tekrar dene.",
   "srv.join.token_required": "Bu sunucu geçerli bir katılım jetonu gerektiriyor. Lütfen dünyalar portalından katıl.",
   "srv.join.welcome": "Hoş geldin! Bu dünya bir aile projesinin parçası — başkalarına nazik ol. Nefret, zorbalık veya ırkçılık yasak (ban ile sonuçlanır). Beta: dünyalar kaybolabilir — portaldan yedek indir!",
   "srv.land.full": "Tüm iniş bölgeleri dolu.",

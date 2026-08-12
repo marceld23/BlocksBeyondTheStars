@@ -85,6 +85,20 @@ public sealed class PlayerSession
     /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
     public HashSet<ChunkCoord> SentChunks { get; } = new();
 
+    /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
+    /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
+    public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();
+
+    /// <summary>Uptime of the last payload received from this client — the app-level heartbeat (#964). A client
+    /// whose process is frozen or dead keeps its transport peer alive (LiteNetLib pings from its own thread), so
+    /// the transport timeout alone can leave a ghost session holding the player's name for many minutes.</summary>
+    public double LastPayloadAt { get; set; }
+
+    /// <summary>Whether this session is subject to the heartbeat sweep — true only for sessions that joined
+    /// over the wire. A locally-added player (tests, in-process hosts) drives the server through direct calls
+    /// and legitimately never sends a payload, so silence says nothing about it being alive.</summary>
+    public bool HeartbeatTracked { get; set; }
+
     /// <summary>The client's requested render distance in chunks (from its JoinRequest), or 0 if it didn't say.
     /// When set, it drives this player's streaming radius (clamped server-side) instead of the host's config —
     /// so the in-game View Distance slider extends the actually-streamed terrain on dedicated servers too, not

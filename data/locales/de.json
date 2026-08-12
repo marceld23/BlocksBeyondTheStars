@@ -2886,6 +2886,7 @@
   "srv.join.not_whitelisted": "Du stehst nicht auf der Gästeliste dieses Servers.",
   "srv.join.protocol_mismatch": "Protokoll passt nicht zusammen (Server {server}, Client {client}).",
   "srv.join.server_full": "Der Server ist voll.",
+  "srv.join.failed": "Der Beitritt ist auf dem Server fehlgeschlagen. Bitte versuch es noch einmal.",
   "srv.join.token_required": "Dieser Server verlangt ein gültiges Join-Token. Bitte über das Weltenportal beitreten.",
   "srv.join.welcome": "Willkommen! Diese Welt ist Teil eines Familien-Projekts — sei nett zu anderen. Keine Hetze, kein Mobbing, kein Rassismus (führt zum Bann). Beta: Welten können verloren gehen — lade im Portal Sicherungen herunter!",
   "srv.land.full": "Alle Landezonen sind belegt.",

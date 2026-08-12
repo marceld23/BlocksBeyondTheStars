@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "你不在白名单上。",
   "srv.join.protocol_mismatch": "协议不匹配（服务器 {server}，客户端 {client}）。",
   "srv.join.server_full": "服务器已满。",
+  "srv.join.failed": "服务器加入失败，请重试。",
   "srv.join.token_required": "此服务器需要有效的加入令牌。请通过世界门户加入。",
   "srv.join.welcome": "欢迎！这个世界是一个家族项目的一部分——请友善相处。禁止仇恨、欺凌或种族歧视（将导致封禁）。测试版：世界可能丢失——请在门户下载备份！",
   "srv.land.full": "所有降落区已被占用。",

@@ -1003,6 +1003,11 @@ namespace BlocksBeyondTheStars.Client
             LastMessage = sb.ToString();
         }
 
+        /// <summary>Localizes a server-authored token for a screen outside the in-game HUD (the menu's join
+        /// rejection, #964). Returns the text unchanged when it is not an "@srv.*" token — operator-authored
+        /// reasons must stay verbatim.</summary>
+        public string ServerTokenText(string text) => ResolveServerToken(text) ?? text;
+
         /// <summary>Generic resolution for "@srv.*" tokens: the token (minus '@') IS the locale key, an
         /// optional ":arg" tail fills the template's {name} placeholder. New server messages use this
         /// instead of growing the hand-written token maps below; returns null for anything else.</summary>
@@ -2072,11 +2077,17 @@ namespace BlocksBeyondTheStars.Client
             int chunkAnchorX = Mathf.FloorToInt(PlayerPosition.x);
             int chunkAnchorY = Mathf.FloorToInt(PlayerPosition.y);
             int chunkAnchorZ = Mathf.FloorToInt(PlayerPosition.z);
-            if (chunkAnchorX != _lastReposX || chunkAnchorY != _lastReposY || chunkAnchorZ != _lastReposZ)
+            // …plus a slow heartbeat, because this pass is also the ONLY thing that unloads far chunks
+            // (#966): a player who stands still — parked at a station, stuck, AFK — never released a single
+            // chunk, however much the world streamed to them while they stood there.
+            _sinceReposTick += Time.deltaTime;
+            bool moved = chunkAnchorX != _lastReposX || chunkAnchorY != _lastReposY || chunkAnchorZ != _lastReposZ;
+            if (moved || _sinceReposTick >= ReposIdleInterval)
             {
                 _lastReposX = chunkAnchorX;
                 _lastReposY = chunkAnchorY;
                 _lastReposZ = chunkAnchorZ;
+                _sinceReposTick = 0f;
                 RepositionChunks();
             }
         }
@@ -2084,6 +2095,10 @@ namespace BlocksBeyondTheStars.Client
         private int _lastReposX = int.MinValue;
         private int _lastReposY = int.MinValue;
         private int _lastReposZ = int.MinValue;
+
+        /// <summary>Seconds between reposition/unload passes while the player does not move (#966).</summary>
+        private const float ReposIdleInterval = 5f;
+        private float _sinceReposTick;
 
         /// <summary>Re-places every loaded chunk GameObject at the seam-aware scene position for the player's
         /// current longitude AND latitude (see <see cref="SceneX"/>/<see cref="SceneZ"/>), and distance-culls
@@ -2858,6 +2873,7 @@ namespace BlocksBeyondTheStars.Client
             // what a live static reference still pins (#901).
             SampleKit.ClearCache();
             CreatureVoiceBank.Clear();
+            WorldMinimap.ClearCache(); // baked body previews — same static-cache trap (#966)
 
             if (ChunkMaterial != null)
             {

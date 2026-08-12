@@ -728,7 +728,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!File.Exists(TokenPath) || !string.Equals(File.ReadAllText(TokenPath).Trim(), token, StringComparison.Ordinal))
                 {
-                    File.WriteAllText(TokenPath, token);
+                    // Flush all the way to the platter (#964). A plain WriteAllText only reaches the OS
+                    // cache: a power loss or BSOD seconds later can leave the file present but EMPTY, and
+                    // an empty token means the player mints a new one and is locked out of their own name
+                    // on every server they have ever played on — there is no recovery path for that.
+                    using var stream = new FileStream(TokenPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                    var bytes = System.Text.Encoding.UTF8.GetBytes(token);
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Flush(flushToDisk: true);
                 }
             }
             catch (Exception e)

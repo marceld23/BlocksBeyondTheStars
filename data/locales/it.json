@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "Non sei nella whitelist.",
   "srv.join.protocol_mismatch": "Incompatibilità di protocollo (server {server}, client {client}).",
   "srv.join.server_full": "Server pieno.",
+  "srv.join.failed": "L'accesso è fallito sul server. Riprova.",
   "srv.join.token_required": "Questo server richiede un token di accesso valido. Entra tramite il portale dei mondi.",
   "srv.join.welcome": "Benvenuto! Questo mondo fa parte di un progetto condiviso — sii gentile con gli altri. No odio, bullismo o razzismo (porta al ban). Beta: i mondi possono andare persi — scarica backup dal portale!",
   "srv.land.full": "Tutte le zone di atterraggio sono occupate.",

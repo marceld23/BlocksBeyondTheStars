@@ -118,5 +118,26 @@ namespace BlocksBeyondTheStars.Client
             _cache[key] = tex;
             return tex;
         }
+
+        /// <summary>Number of baked previews currently held (diagnostics).</summary>
+        public static int CachedCount => _cache.Count;
+
+        /// <summary>Destroys every cached preview and empties the cache (#966). The cache is static, so it
+        /// used to outlive the world that filled it: each mip-mapped RGBA preview is a few hundred KB, one
+        /// per body AND per requested size, and returning to the menu never freed any of them. Clearing the
+        /// dictionary alone would NOT do it — an unreferenced Texture2D is not garbage-collected by Unity,
+        /// it has to be destroyed explicitly (same pattern as SampleKit.ClearCache).</summary>
+        public static void ClearCache()
+        {
+            foreach (var tex in _cache.Values)
+            {
+                if (tex != null)
+                {
+                    Object.Destroy(tex);
+                }
+            }
+
+            _cache.Clear();
+        }
     }
 }

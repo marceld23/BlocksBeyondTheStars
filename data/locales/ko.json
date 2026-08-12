@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "화이트리스트에 등록되어 있지 않아요.",
   "srv.join.protocol_mismatch": "프로토콜 불일치 (서버 {server}, 클라이언트 {client}).",
   "srv.join.server_full": "서버가 가득 찼어요.",
+  "srv.join.failed": "서버에서 접속에 실패했습니다. 다시 시도해 주세요.",
   "srv.join.token_required": "이 서버는 유효한 입장 토큰이 필요해요. 월드 포털을 통해 접속하세요.",
   "srv.join.welcome": "환영합니다! 이 월드는 가족 프로젝트의 일부예요 — 다른 사람에게 친절하게 대해 주세요. 혐오, 괴롭힘, 인종차별은 금지(밴 대상)입니다. 베타: 월드가 사라질 수 있으니 포털에서 백업을 내려받으세요!",
   "srv.land.full": "모든 착륙 구역이 차 있어요.",

@@ -195,8 +195,33 @@ namespace BlocksBeyondTheStars.Client
                     Disconnected?.Invoke();
                 }
             };
-            _transport.PayloadReceived += OnPayload;
+            _transport.PayloadReceived += EnqueuePayload;
         }
+
+        // ---- Receive budget (#963) ----
+        // The transport drains its whole event queue in one PollEvents() call, and dispatch used to happen
+        // straight from that callback. After a stall — an alt-tabbed client (the player loop stops while the
+        // transport thread keeps queueing), a hitch, a chunk burst — that meant decoding and applying MINUTES
+        // of traffic inside a single frame: a multi-second freeze, then a long stutter while the resulting
+        // mesh backlog drained at a few chunks per frame. The server has always budgeted its SENDING
+        // (ChunkStreamPerTick / ChunkStreamBudgetMs); this is the receive-side counterpart.
+        private readonly Queue<byte[]> _inbox = new();
+
+        /// <summary>Max payloads dispatched per <see cref="Poll"/>. Generous — a healthy frame never queues
+        /// anywhere near this — so normal play behaves exactly as before and only a backlog is paced.</summary>
+        public int MaxDispatchPerPoll { get; set; } = 96;
+
+        /// <summary>Max CHUNK payloads dispatched per <see cref="Poll"/>. Chunks are by far the most expensive
+        /// message (decode + store + mark 7 chunks dirty), so they get their own cap.
+        /// <para>It MUST stay above the server's per-tick chunk budget (<c>ChunkStreamPerTick</c>, 16): a cap
+        /// below what the server can send in one tick would not pace a backlog, it would CREATE one — the
+        /// client could never catch up, and the gap would grow for as long as terrain kept streaming.</para></summary>
+        public int MaxChunksPerPoll { get; set; } = 24;
+
+        /// <summary>Payloads still waiting to be dispatched (diagnostics / tests).</summary>
+        public int PendingPayloads => _inbox.Count;
+
+        private void EnqueuePayload(byte[] payload) => _inbox.Enqueue(payload);
 
         public void Connect(string host, int port) => _transport.Connect(host, port);
 
@@ -599,8 +624,37 @@ namespace BlocksBeyondTheStars.Client
         public void SendSpeederImpact(string speederId, float speed)
             => Send(new SpeederImpactIntent { SpeederId = speederId ?? string.Empty, Speed = speed });
 
-        /// <summary>Pumps the transport; call once per frame from a MonoBehaviour Update.</summary>
-        public void Poll() => _transport.Poll();
+        /// <summary>Pumps the transport and dispatches up to one frame's worth of queued payloads; call once
+        /// per frame from a MonoBehaviour Update. Anything beyond the budget stays queued for the next frame
+        /// (#963), so a backlog costs a few paced frames instead of one multi-second freeze.</summary>
+        public void Poll()
+        {
+            _transport.Poll(); // fills _inbox via EnqueuePayload
+
+            int dispatched = 0, chunks = 0;
+            while (_inbox.Count > 0 && dispatched < MaxDispatchPerPoll)
+            {
+                // Chunks are capped separately; stop once that cap is hit and the next payload is a chunk,
+                // rather than reordering the stream (block edits must not overtake the chunk they patch).
+                if (chunks >= MaxChunksPerPoll && IsChunkPayload(_inbox.Peek()))
+                {
+                    break;
+                }
+
+                var payload = _inbox.Dequeue();
+                dispatched++;
+                if (IsChunkPayload(payload))
+                {
+                    chunks++;
+                }
+
+                OnPayload(payload);
+            }
+        }
+
+        /// <summary>Cheap "is this a chunk?" test used by the receive budget — decoding twice would defeat the
+        /// purpose, so it peeks at the codec's type tag instead.</summary>
+        private static bool IsChunkPayload(byte[] payload) => NetCodec.IsMessageType<ChunkDataMessage>(payload);
 
         private void Send(object message, DeliveryMode mode = DeliveryMode.ReliableOrdered)
             => _transport.Send(NetCodec.Encode(message), mode);

@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "Tu n'es pas sur la liste blanche.",
   "srv.join.protocol_mismatch": "Incompatibilité de protocole (serveur {server}, client {client}).",
   "srv.join.server_full": "Serveur plein.",
+  "srv.join.failed": "La connexion a échoué côté serveur. Réessaie.",
   "srv.join.token_required": "Ce serveur nécessite un jeton d'accès valide. Rejoins via le portail des mondes.",
   "srv.join.welcome": "Bienvenue ! Ce monde fait partie d'un projet familial — sois gentil avec les autres. Pas de haine, harcèlement ou racisme (entraîne un bannissement). Bêta : les mondes peuvent être perdus — télécharge des sauvegardes sur le portail !",
   "srv.land.full": "Toutes les zones d'atterrissage sont prises.",

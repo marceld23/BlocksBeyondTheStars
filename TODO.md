@@ -7738,6 +7738,51 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): hosting stability — alt-tab freeze, reconnect after a crash, ghost-block storm, client memory (#963–#966)
+
+Second round of fixes from the same LAN playtest. Root cause of two of them was the same setting:
+**`runInBackground` was off**, so the Unity player loop stopped when the window lost focus while LiteNetLib's
+own thread kept the connection alive and kept queueing.
+
+**#963 alt-tab freeze** — `runInBackground` is on now, and `NetworkClient.Poll` gained a **receive budget**:
+payloads are queued and dispatched at most 64 per frame (chunks capped at 8), preserving stream order, so a
+backlog costs a few paced frames instead of one multi-second freeze plus minutes of mesh-backlog stutter.
+The server always budgeted its *sending*; this is the missing receive-side counterpart. New
+`NetCodec.IsMessageType<T>` classifies a payload from its type tag alone (native and browser-JSON framing)
+so the budget needs no second decode.
+
+**#964 could not reconnect after a client crash** — a dead client's session kept looking joined (its peer
+answered pings from the transport thread), holding the player's name and slot; the playtest log shows the
+disconnect landing **22 minutes** after the crash. Now: a join presenting the same name **and** the matching
+name token **evicts** the stale session (that is what the token is for; a wrong token is still refused, so
+this is not a name-stealing tool); an **app-level heartbeat** (`LastPayloadAt`, stamped on join and on every
+payload) drops sessions silent for 90 s — the only signal that reveals "network thread alive, game dead";
+`DisconnectTimeout`/`PingInterval` are set explicitly on both transports instead of inherited; the native
+transport gets the same slot headroom as the WebSocket path (it was sized exactly at `MaxPlayers`, so a
+crashed player's own reconnect could be refused at the transport, **silently** — rejects are logged now);
+`HandleJoin` is guarded like every other handler (an exception used to strand a half-built session holding
+the name forever, new `srv.join.failed` in all 14 locales); and `JoinRejected` is routed through the token
+resolver, so players see a real sentence instead of `[srv.join.name_online:Justus]`. The client also flushes
+`player_token.txt` to disk — an empty token after a power loss meant a permanent lockout from your own name.
+
+**#965 ghost-block storm** (769 warnings in one session, ~one per mined block) — the client sent **two** mine
+intents on the first frame of every click: `HandleInteract` and `HandleDrillAudio` run in the same `Update`
+and only the latter armed the cooldown. Both now go through one `SendMineHit` helper. Server-side the
+amplifier is defused too: a ghost still gets its corrective `BlockChanged`, but the **full chunk re-stream**
+(and its log line) is rate-limited to once per chunk per 10 s — it used to cost a whole chunk on the wire
+plus seven client remeshes per ghost.
+
+**#966 client memory** — the 1.8 GB was the *client* (the bundled server is its own process, a few MB of
+chunk cache): chunk meshes at view distance 8, kept in a system-RAM copy on top of the GPU copy. Fixed here:
+`WorldMinimap`'s static preview cache and `ShapeIconFactory` now **destroy** their textures instead of just
+dropping references (Unity never collects those), and the chunk unload pass runs on a 5 s heartbeat as well
+as on movement — a standing or stuck player never released a chunk before. The vertex-format packing and
+`UploadMeshData(true)` remain open (bigger, riskier change; see the issue).
+
+New tests: `ReceiveBudgetTests` (5) and `ReconnectAndGhostTests` (5). Playtest verify pending.
+
+---
+
 ## ✅ Done (2026-08-12): LAN-playtest multiplayer fixes — ghost ships, frozen avatars, landing hang, pad bookkeeping (#954–#959)
 
 Fixes for the five bugs from the 2026-08-12 two-player playtest (analysis in the section above):

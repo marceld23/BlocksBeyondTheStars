@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "Je staat niet op de whitelist.",
   "srv.join.protocol_mismatch": "Protocol mismatch (server {server}, client {client}).",
   "srv.join.server_full": "Server is vol.",
+  "srv.join.failed": "Deelnemen is mislukt op de server. Probeer het opnieuw.",
   "srv.join.token_required": "Deze server vereist een geldig toegangstoken. Gebruik het wereldportaal om mee te doen.",
   "srv.join.welcome": "Welkom! Deze wereld maakt deel uit van een familieproject — wees aardig voor anderen. Geen haat, pesten of racisme (leidt tot een ban). Bèta: werelden kunnen verloren gaan — download back-ups op het portaal!",
   "srv.land.full": "Alle landingszones zijn bezet.",

@@ -1439,8 +1439,11 @@ namespace BlocksBeyondTheStars.Client
                 // A reason of the form "@<locale key>" is a message the SERVER wants shown in the player's
                 // language — used by the moderation kick (#497), where the text is ours, not free prose.
                 // Everything else stays verbatim: those reasons are operator- or owner-authored.
+                // Routed through the token resolver so a ":arg" tail fills the template's {name} (#964):
+                // a plain L() lookup treated "srv.join.name_online:Justus" as one key and showed the
+                // player the raw "[srv.join.name_online:Justus]" instead of a sentence.
                 string reason = igBoot.JoinRejectedReason;
-                MenuNotice = reason.Length > 1 && reason[0] == '@' ? L(reason.Substring(1)) : reason;
+                MenuNotice = igBoot.ServerTokenText(reason);
                 ReturnToMenu();
                 return;
             }

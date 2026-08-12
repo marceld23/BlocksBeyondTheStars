@@ -401,6 +401,52 @@ public static class NetCodec
     public static byte[] Encode(object message)
         => UseJsonEncoding ? EncodeJson(message) : EncodeMessagePack(message);
 
+    /// <summary>Whether a payload carries <typeparamref name="T"/>, WITHOUT deserializing its body — the type
+    /// tag alone answers it. Lets a caller triage a queue cheaply (the client's receive budget, #963, caps
+    /// expensive chunk messages separately) instead of decoding every payload twice.</summary>
+    public static bool IsMessageType<T>(byte[] payload)
+    {
+        if (payload is null || payload.Length == 0 || !TypeToTag.TryGetValue(typeof(T), out var want))
+        {
+            return false;
+        }
+
+        if (payload[0] != JsonEnvelopeTag)
+        {
+            return payload[0] == want;
+        }
+
+        // Browser JSON envelope: the tag is the first field, written as {"tag":N,"body":...} by EncodeJson.
+        // Read those few ASCII digits rather than parsing the (potentially chunk-sized) document.
+        const string prefix = "{\"tag\":";
+        if (payload.Length < 1 + prefix.Length + 1)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < prefix.Length; i++)
+        {
+            if (payload[1 + i] != (byte)prefix[i])
+            {
+                return false;
+            }
+        }
+
+        int value = 0;
+        for (int i = 1 + prefix.Length; i < payload.Length && i < 1 + prefix.Length + 3; i++)
+        {
+            byte c = payload[i];
+            if (c < (byte)'0' || c > (byte)'9')
+            {
+                return i > 1 + prefix.Length && value == want;
+            }
+
+            value = (value * 10) + (c - (byte)'0');
+        }
+
+        return value == want;
+    }
+
     private static byte[] EncodeMessagePack(object message)
     {
         var type = message.GetType();

@@ -2886,6 +2886,7 @@
   "srv.join.not_whitelisted": "You are not on the whitelist.",
   "srv.join.protocol_mismatch": "Protocol mismatch (server {server}, client {client}).",
   "srv.join.server_full": "Server is full.",
+  "srv.join.failed": "Joining failed on the server. Please try again.",
   "srv.join.token_required": "This server requires a valid join token. Please join through the worlds portal.",
   "srv.join.welcome": "Welcome! This world is part of a family project — be kind to others. No hate, bullying or racism (leads to a ban). Beta: worlds can be lost — download backups on the portal!",
   "srv.land.full": "All landing zones are taken.",

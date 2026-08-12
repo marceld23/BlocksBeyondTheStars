@@ -35,10 +35,24 @@ public sealed class LiteNetLibServerTransport : IServerTransport
     public event Action<int>? ClientDisconnected;
     public event Action<int, byte[]>? PayloadReceived;
 
+    /// <summary>Raised when a connection request is refused because every transport slot is taken — a silent
+    /// reject is undebuggable (the server log showed nothing at all for a player who could not get in, #964).</summary>
+    public event Action? ConnectionRejected;
+
     public LiteNetLibServerTransport(int maxConnections = 16)
     {
         _maxConnections = maxConnections;
-        _manager = new NetManager(_listener) { AutoRecycle = true };
+        _manager = new NetManager(_listener)
+        {
+            AutoRecycle = true,
+            // Spell the timeouts out rather than inheriting library defaults (#964): how fast a dead peer
+            // frees its slot is gameplay-visible — it decides how long a crashed player's session keeps
+            // holding their name. NOTE this only covers a peer that stops ANSWERING; a client whose game
+            // froze but whose transport thread still pings looks perfectly alive here, which is why the
+            // server also runs an app-level heartbeat on top.
+            DisconnectTimeout = 10000,
+            PingInterval = 1000,
+        };
 
         _listener.ConnectionRequestEvent += request =>
         {
@@ -49,6 +63,7 @@ public sealed class LiteNetLibServerTransport : IServerTransport
             else
             {
                 request.Reject();
+                ConnectionRejected?.Invoke();
             }
         };
 
@@ -126,7 +141,8 @@ public sealed class LiteNetLibClientTransport : IClientTransport
 
     public LiteNetLibClientTransport()
     {
-        _manager = new NetManager(_listener) { AutoRecycle = true };
+        // Explicit, matching the server side (#964) — see the note there.
+        _manager = new NetManager(_listener) { AutoRecycle = true, DisconnectTimeout = 10000, PingInterval = 1000 };
 
         _listener.PeerConnectedEvent += peer =>
         {

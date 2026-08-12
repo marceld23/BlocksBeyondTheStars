@@ -2868,6 +2868,7 @@
   "srv.join.not_whitelisted": "Nie ma cię na liście dozwolonych.",
   "srv.join.protocol_mismatch": "Niezgodność protokołu (serwer {server}, klient {client}).",
   "srv.join.server_full": "Serwer jest pełny.",
+  "srv.join.failed": "Dołączanie nie powiodło się po stronie serwera. Spróbuj ponownie.",
   "srv.join.token_required": "Ten serwer wymaga ważnego tokena do dołączenia. Dołącz przez portal światów.",
   "srv.join.welcome": "Witaj! Ten świat jest częścią projektu rodzinnego — bądź miły dla innych. Zakaz nienawiści, prześladowań i rasizmu (prowadzi do bana). Beta: światy mogą zniknąć — pobieraj kopie zapasowe z portalu!",
   "srv.land.full": "Wszystkie strefy lądowania są zajęte.",
