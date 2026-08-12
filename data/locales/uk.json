@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "Імʼя гравця",
   "ui.menu.connect_host": "Адреса сервера (IP або хостнейм)",
   "ui.menu.connect_port": "Порт",
+  "ui.menu.connect_port_hint": "Офіційні сервери: {official}\nЗапустити гру: {hosted}",
   "ui.menu.connect_password": "Пароль сервера (залиши порожнім, якщо нема)",
   "ui.menu.connect": "Підключитись",
   "ui.menu.play": "Грати",

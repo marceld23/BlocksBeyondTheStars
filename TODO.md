@@ -7738,6 +7738,18 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-12): join dialog shows both default ports — official servers vs. "Host Game" worlds
+
+LAN playtest trap: "Host Game" worlds listen on the bundled server's port **31550**
+(`LocalServerLauncher.DefaultPort`), but the join dialog's port field is prefilled with the official
+server default **31415** — so joining a friend's hosted world with the untouched default port silently
+times out ("Keine Verbindung zum Server möglich"). The connect dialog now shows a dim two-line hint next
+to the port field naming both defaults (`ui.menu.connect_port_hint`, localized in all 14 languages, with
+`{official}`/`{hosted}` placeholders filled from the constants — new `AppShell.DefaultServerPort`).
+Applies to every desktop client (Windows/macOS/Linux — one shared Unity UI).
+
+---
+
 ## ✅ Done (2026-08-12): build your own ship on a planet — keel, hull, commissioning, geometry stats (#948, #949, #950)
 
 Players can now BUILD a brand-new ship block by block, anywhere on a planet surface, and fly it.

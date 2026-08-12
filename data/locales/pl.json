@@ -1429,6 +1429,7 @@
   "ui.menu.connect_name": "Nazwa gracza",
   "ui.menu.connect_host": "Adres serwera (IP lub nazwa hosta)",
   "ui.menu.connect_port": "Port",
+  "ui.menu.connect_port_hint": "Serwery oficjalne: {official}\nUruchom serwer: {hosted}",
   "ui.menu.connect_password": "Hasło serwera (zostaw puste, jeśli brak)",
   "ui.menu.connect": "Połącz",
   "ui.menu.play": "Graj",

@@ -269,6 +269,14 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInput(dlg, 30f, 186f, 540f, 38f, host[0], v => host[0] = v);
             UiKit.AddText(dlg, 30f, 240f, 540f, 22f, shell.L("ui.menu.connect_port"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 266f, 260f, 38f, port[0], v => port[0] = v);
+            // Both well-known defaults next to the port field: official servers prefill 31415, but a
+            // friend's "Host Game" world listens on 31550 — without the hint every LAN join with the
+            // untouched default port times out.
+            UiKit.AddText(dlg, 306f, 258f, 264f, 54f,
+                shell.L("ui.menu.connect_port_hint")
+                    .Replace("{official}", AppShell.DefaultServerPort.ToString())
+                    .Replace("{hosted}", LocalServerLauncher.DefaultPort.ToString()),
+                13, UiKit.CyanDim, TextAnchor.MiddleLeft);
             UiKit.AddText(dlg, 30f, 320f, 540f, 22f, shell.L("ui.menu.connect_password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             var passInput = UiKit.AddInput(dlg, 30f, 346f, 540f, 38f, pass[0], v => pass[0] = v);
             passInput.contentType = InputField.ContentType.Password; // mask it like the portal login field
