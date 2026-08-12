@@ -495,6 +495,14 @@ public sealed partial class GameServer
         instance.Players.Add(playerId);
         _playerInstance[playerId] = instanceId;
 
+        // Seed this pilot's pose + collision baseline at the launch point (#955). Poses used to appear only
+        // once the client sent its first ShipMove, so the others' avatars popped in late (and were destroyed
+        // again by any snapshot that arrived before it), and the collision speed baseline started at
+        // wherever the pilot already was instead of where they launched.
+        var launchPose = new SpacePlayerPose(instance.ShipPosition, 0f, session?.State.InEva ?? false);
+        instance.PlayerPoses[playerId] = launchPose;
+        instance.PilotSims[playerId] = new PilotSim { LastPosition = launchPose.Pos };
+
         // Launch with the shields up (baseline + modules). The clamp in RecomputeShipCombatStats only ever lowers
         // the stored shield, so a fresh ship would otherwise start a flight at 0 shield and have to charge it.
         RecomputeShipCombatStats();
@@ -581,6 +589,7 @@ public sealed partial class GameServer
         if (_spaceInstances.TryGetValue(instanceId, out var instance))
         {
             instance.Players.Remove(playerId);
+            instance.PilotSims.Remove(playerId); // per-pilot collision state dies with the flight (#955)
             if (instance.Players.Count == 0)
             {
                 _spaceInstances.Remove(instanceId);
@@ -1438,10 +1447,40 @@ public sealed partial class GameServer
             // collision bounce doesn't move the ship away from the drop first).
             CollectSalvage(instance, TractorRange);
 
-            // Collision: flying into an asteroid damages the ship (scaled by impact speed). Per PILOT
-            // (#955): the position, speed baseline and cooldown all used to live in one shared field per
-            // instance, so with two pilots they overwrote each other and the ram damage could land on the
-            // other player's hull (the ship cursor was wherever the last message left it).
+            // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
+            // comes in range (they used to hang motionless at their spawn points forever).
+            bool hostilesMoved = MoveSpaceHostiles(instance, dt);
+            AnnounceHostileSpotting(instance); // warn the pilot the moment a hostile starts hunting the ship
+            instance.HostileSyncTimer += dt;
+            if (hostilesMoved && instance.HostileSyncTimer >= 0.15)
+            {
+                instance.HostileSyncTimer = 0;
+                BroadcastSpaceState(instance);
+            }
+
+            // Peaceful NPC trader traffic: spawn (warp in), fly toward a station/inner system, dock or pass
+            // through, depart (warp out). Purely ambient — invulnerable, never damages anyone.
+            TickSpaceTraders(instance, dt);
+
+            // Bandit-ship ambush: in flagged systems a raider may warp in, hail the ship and demand cargo —
+            // comply and it leaves, refuse and it fights (see GameServerBanditShips).
+            TickBanditShips(instance, dt);
+
+            // Remote pilots (#756): HandleShipMove only STORES poses — without a periodic re-broadcast the
+            // other players' ships only refreshed when a hostile or trader happened to move (0 Hz in a
+            // quiet instance). Solo instances skip it; the pose data is theirs alone.
+            instance.PilotSyncTimer += dt;
+            if (instance.Players.Count > 1 && instance.PilotSyncTimer >= 0.2)
+            {
+                instance.PilotSyncTimer = 0;
+                BroadcastSpaceState(instance);
+            }
+
+            // Collision + hostile fire, per PILOT (#955): position, speed baseline and cooldown used to
+            // live in one shared field per instance, so with two pilots they overwrote each other and the
+            // damage could land on the other player's hull (the ship cursor was wherever the last message
+            // left it). Runs AFTER MoveSpaceHostiles so freshly-aggroed hostiles bite within the same tick
+            // (the pre-#955 ordering the combat tests rely on).
             bool instanceClosed = false;
             foreach (var pilotId in instance.Players.ToList())
             {
@@ -1515,35 +1554,6 @@ public sealed partial class GameServer
             if (instanceClosed)
             {
                 continue;
-            }
-
-            // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
-            // comes in range (they used to hang motionless at their spawn points forever).
-            bool hostilesMoved = MoveSpaceHostiles(instance, dt);
-            AnnounceHostileSpotting(instance); // warn the pilot the moment a hostile starts hunting the ship
-            instance.HostileSyncTimer += dt;
-            if (hostilesMoved && instance.HostileSyncTimer >= 0.15)
-            {
-                instance.HostileSyncTimer = 0;
-                BroadcastSpaceState(instance);
-            }
-
-            // Peaceful NPC trader traffic: spawn (warp in), fly toward a station/inner system, dock or pass
-            // through, depart (warp out). Purely ambient — invulnerable, never damages anyone.
-            TickSpaceTraders(instance, dt);
-
-            // Bandit-ship ambush: in flagged systems a raider may warp in, hail the ship and demand cargo —
-            // comply and it leaves, refuse and it fights (see GameServerBanditShips).
-            TickBanditShips(instance, dt);
-
-            // Remote pilots (#756): HandleShipMove only STORES poses — without a periodic re-broadcast the
-            // other players' ships only refreshed when a hostile or trader happened to move (0 Hz in a
-            // quiet instance). Solo instances skip it; the pose data is theirs alone.
-            instance.PilotSyncTimer += dt;
-            if (instance.Players.Count > 1 && instance.PilotSyncTimer >= 0.2)
-            {
-                instance.PilotSyncTimer = 0;
-                BroadcastSpaceState(instance);
             }
 
             // A mined-out asteroid field slowly replenishes over the session (positions stay deterministic).
