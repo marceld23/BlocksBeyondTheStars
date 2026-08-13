@@ -7738,6 +7738,40 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-13): chunk-mesh memory — packed vertex format + non-readable upload (#966)
+
+Closes the part of #966 that the previous round deliberately left open: the chunk meshes themselves.
+Two independent factors, each roughly a halving:
+
+**The system-RAM copy is gone.** Unity keeps a full CPU-side copy of every mesh next to the GPU one
+unless it is told otherwise, and `UploadMeshData(markNoLongerReadable: true)` appeared nowhere in
+`client/`. The render mesh is now uploaded non-readable. That rules out the old Clear()+refill reuse
+(a non-readable mesh cannot be rewritten), so each rebuild returns a **fresh** mesh and
+`ApplyChunkMesh` destroys the one it replaces — without that, A2's rebuild rate would leak a mesh per
+remesh. Nothing reads a chunk mesh back: collision has its own mesh, and the ship/speeder meshers only
+ever assign the render mesh to a `MeshFilter`. The **collision** mesh stays readable on purpose —
+`Physics.BakeMesh`/`MeshCollider` cook from it, and its vertex count is a fraction of the render mesh's.
+
+**The vertex format is packed: 112 → 56 B/vertex.** The plain `Mesh` setters store every channel as
+floats — position, normal, tangent, colour and five UV sets. `ChunkMeshData.Pack` now interleaves the
+build lists into a `PackedVertex` uploaded through `SetVertexBufferParams`/`SetVertexBufferData`:
+normal, tangent and block-light direction as `SNorm8` (all unit vectors), the material colour as
+`UNorm8` (gloss/metal/shade×AO/emission are 0..1), sky/leaf/block-light as `Float16`. Position and the
+**atlas UV stay `Float32`** — a UV off by a quantum bleeds the neighbouring tile in. Packing runs on
+the build worker thread, not next to the main-thread upload. **Shaders are untouched:** the GPU expands
+these formats to float on read, so `BlockAtlas`/`BlockAtlasTransparent` see exactly what they saw before.
+
+New tests: `ChunkMeshPackingEditModeTests` (5, EditMode) — half/SNorm/UNorm round-trips, positions and
+atlas UVs bit-exact, buffer reuse across builds, and the upload keeping the three-submesh index split
+while reporting `isReadable == false`. Not covered by PR CI (it is .NET-only); verified with a local
+EditMode run (24/24) and a Windows player build.
+
+Still open from the issue and deliberately not done here: greedy-meshing the **render** mesh (the
+collider path already does it) — a change to the geometry itself, not to how it is stored. Playtest
+verify pending: watch peak RAM at view distance 8.
+
+---
+
 ## ✅ Done (2026-08-12): hosting stability — alt-tab freeze, reconnect after a crash, ghost-block storm, client memory (#963–#966)
 
 Second round of fixes from the same LAN playtest. Root cause of two of them was the same setting:
@@ -7777,7 +7811,8 @@ chunk cache): chunk meshes at view distance 8, kept in a system-RAM copy on top 
 `WorldMinimap`'s static preview cache and `ShapeIconFactory` now **destroy** their textures instead of just
 dropping references (Unity never collects those), and the chunk unload pass runs on a 5 s heartbeat as well
 as on movement — a standing or stuck player never released a chunk before. The vertex-format packing and
-`UploadMeshData(true)` remain open (bigger, riskier change; see the issue).
+`UploadMeshData(true)` were left open here as the bigger, riskier change — done on 2026-08-13, see the
+section above.
 
 New tests: `ReceiveBudgetTests` (5) and `ReconnectAndGhostTests` (5). Playtest verify pending.
 

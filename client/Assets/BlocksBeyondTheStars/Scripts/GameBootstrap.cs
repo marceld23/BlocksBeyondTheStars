@@ -2708,11 +2708,11 @@ namespace BlocksBeyondTheStars.Client
         /// collider bake (P2). A null collider (only fluids/air) clears the collider immediately.</summary>
         private void ApplyChunkMesh(ChunkCoord coord, ChunkMeshData data)
         {
-            // Reuse this chunk's existing render mesh on a rebuild (A3) — avoids a per-remesh Mesh allocation and
-            // the leak of the previous one (A2 raises the rebuild rate, which would otherwise grow that leak).
+            // The render mesh is uploaded non-readable (#966), which rules out the old Clear()+refill reuse — a
+            // non-readable mesh cannot be rewritten. So every rebuild gets a fresh mesh and the outgoing one is
+            // destroyed below; Unity never collects Mesh objects, and A2's rebuild rate would grow that leak fast.
             bool exists = _chunkObjects.TryGetValue(coord, out var view) && view?.Go != null;
-            var reuse = exists ? view!.Filter.sharedMesh : null;
-            var (mesh, collider) = data.ToMeshes(reuse);
+            var (mesh, collider) = data.ToMeshes();
 
             if (!exists)
             {
@@ -2734,7 +2734,12 @@ namespace BlocksBeyondTheStars.Client
                 _chunkObjects[coord] = view;
             }
 
-            view!.Filter.sharedMesh = mesh;
+            var staleMesh = view!.Filter.sharedMesh; // the mesh this rebuild replaces (null on the first build)
+            view.Filter.sharedMesh = mesh;
+            if (staleMesh != null && staleMesh != mesh)
+            {
+                Destroy(staleMesh);
+            }
 
             // Ground-detail scatter (T0): (re)build this chunk's instanced tuft/pebble decoration. Render-only,
             // distance-culled + quality-gated inside the component; a chunk with no scatter points disables it.

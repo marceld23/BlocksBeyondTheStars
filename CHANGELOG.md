@@ -13,6 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧠 The world takes a quarter of the memory to look at (#966)
+
+- **Chunk meshes are far lighter.** Every visible chunk was stored twice — once on the graphics card
+  and once again in main memory — and each corner of every block carried a pile of full-precision
+  numbers it never needed. Both are fixed: the spare copy is gone and the data is packed, so the
+  terrain around you costs roughly a quarter of what it did. A long session at the largest view
+  distance was reaching 1.8 GB; the terrain part of that is now a fraction.
+- Nothing about how the world looks changes — same geometry, same lighting, same colours.
+
 ## [2026.8.12] — 2026-08-13
 
 The shipwright release. Until now the ship you flew was one the game handed you; from this version

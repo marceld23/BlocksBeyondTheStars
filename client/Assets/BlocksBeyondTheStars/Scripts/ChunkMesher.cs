@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
+using Rendering = UnityEngine.Rendering;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -832,6 +834,11 @@ namespace BlocksBeyondTheStars.Client
             AccumulateFlatNormals(verts, trisP, normals);
             data.Bounds = ComputeBounds(verts, n);
             data.ColliderBounds = ComputeBounds(colliderVerts, n);
+
+            // Interleave the per-attribute lists into the compact GPU vertex layout (#966). Done HERE, on the
+            // build (worker) thread, because it is pure struct maths — doing it in ToMeshes would put a
+            // per-vertex loop back on the main thread right next to the upload.
+            data.Pack();
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
             return data;
@@ -1932,6 +1939,14 @@ namespace BlocksBeyondTheStars.Client
         public Bounds ColliderBounds;
         public readonly List<Vector4> Scatter = new List<Vector4>();  // ground-detail scatter points (xyz = local pos, w = type); NOT uploaded to the mesh
 
+        /// <summary>The interleaved GPU vertex buffer produced by <see cref="Pack"/> — <see cref="PackedCount"/>
+        /// valid entries (the array itself is grown geometrically and reused with the pooled instance).</summary>
+        public PackedVertex[] Packed = System.Array.Empty<PackedVertex>();
+
+        /// <summary>How many entries of <see cref="Packed"/> are valid (equals <c>Verts.Count</c> after
+        /// <see cref="Pack"/>).</summary>
+        public int PackedCount;
+
         // Small bounded pool: builds run on worker threads while Release happens on the main thread, so access
         // is lock-guarded (a handful of ops per frame — contention is negligible). The cap bounds how much list
         // capacity idles here; an over-cap Release simply drops the instance to the GC (= the old behaviour).
@@ -1971,6 +1986,7 @@ namespace BlocksBeyondTheStars.Client
                 Verts.Clear(); OpaqueTris.Clear(); TransparentTris.Clear(); PaintTris.Clear(); ColliderTris.Clear(); ColliderVerts.Clear();
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
+                PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
                 Bounds = default;
                 ColliderBounds = default;
                 _pooled = true;
@@ -1978,41 +1994,194 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
-        /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).</summary>
-        public (Mesh Render, Mesh Collider) ToMeshes(Mesh reuseRender = null)
+        /// <summary>One vertex in the compact GPU layout (#966). The default Mesh API stores every channel as
+        /// full floats — position + normal + tangent + colour + five UV sets came to 112 B/vertex, which at the
+        /// ~1200 chunks a view distance of 8 keeps resident was the single largest block of client memory.
+        /// Quantising the channels that do not need float precision brings that to 56 B; combined with
+        /// <see cref="Mesh.UploadMeshData"/> dropping the system-RAM copy (see <see cref="ToMeshes"/>), chunk
+        /// mesh memory falls to roughly a quarter of what it was.
+        ///
+        /// The field order MUST match <see cref="VertexLayout"/> — Unity derives each attribute's byte offset
+        /// from the order of the descriptors within the stream. Shaders need no change: the GPU expands
+        /// SNorm8/UNorm8/Float16 to float on read, exactly like the CPU-side floats it replaces.</summary>
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct PackedVertex
         {
-            // Reuse the chunk's existing render Mesh on a rebuild (A3): Clear()+refill avoids allocating a fresh
-            // Mesh — and leaking the old one — on every remesh. The collider mesh is always fresh, because it is
-            // cooked asynchronously by Physics.BakeMesh and reusing a mesh mid-bake would be unsafe.
-            var mesh = reuseRender != null ? reuseRender : new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
-            if (reuseRender != null)
+            public Vector3 Position;              // Float32x3 — block-local position, needs full precision
+            public sbyte Nx, Ny, Nz, Nw;          // SNorm8x4  — unit face normal (w unused)
+            public sbyte Tx, Ty, Tz, Tw;          // SNorm8x4  — tangent xyz + handedness (all exactly ±1/0)
+            public byte Cr, Cg, Cb, Ca;           // UNorm8x4  — gloss / metal / shade×AO / emission, all 0..1
+            public Vector2 Uv;                    // Float32x2 — atlas coordinates, kept float (tile precision)
+            public ushort SkyX, SkyY;             // Float16x2 — skylight 0..1, tint/face mode (small integer)
+            public ushort LeafX, LeafY, LeafZ, LeafW;  // Float16x4 — foliage flag + tint, or the water-body data
+            public ushort BlX, BlY, BlZ, BlW;     // Float16x4 — propagated block-light colour (may exceed 1)
+            public sbyte Dx, Dy, Dz, Dw;          // SNorm8x4  — block-light direction (unit or zero)
+        }
+
+        /// <summary>The vertex stream layout matching <see cref="PackedVertex"/>, in VertexAttribute enum order
+        /// (Unity requires that within a stream). 56 B/vertex against the 112 B the plain Mesh setters use.</summary>
+        private static readonly Rendering.VertexAttributeDescriptor[] VertexLayout =
+        {
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Position, Rendering.VertexAttributeFormat.Float32, 3),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Normal, Rendering.VertexAttributeFormat.SNorm8, 4),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Tangent, Rendering.VertexAttributeFormat.SNorm8, 4),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.Color, Rendering.VertexAttributeFormat.UNorm8, 4),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord0, Rendering.VertexAttributeFormat.Float32, 2),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord1, Rendering.VertexAttributeFormat.Float16, 2),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord2, Rendering.VertexAttributeFormat.Float16, 4),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord3, Rendering.VertexAttributeFormat.Float16, 4),
+            new Rendering.VertexAttributeDescriptor(Rendering.VertexAttribute.TexCoord4, Rendering.VertexAttributeFormat.SNorm8, 4),
+        };
+
+        // Nothing downstream re-reads or re-validates what we just built: the indices come from our own
+        // emitters and the bounds are computed analytically, so skip both checks on every upload.
+        private const Rendering.MeshUpdateFlags UploadFlags =
+            Rendering.MeshUpdateFlags.DontRecalculateBounds | Rendering.MeshUpdateFlags.DontValidateIndices;
+
+        /// <summary>Interleaves the per-attribute build lists into <see cref="Packed"/>. Pure struct maths — safe
+        /// on the build worker thread, and kept off the main thread on purpose (the upload is already there).
+        /// The emitters fill every channel in lockstep with <see cref="Verts"/>, so all lists have equal length.
+        /// </summary>
+        public void Pack()
+        {
+            int n = Verts.Count;
+            if (Packed.Length < n)
             {
-                mesh.Clear();
+                // Geometric growth, so a chunk that keeps re-meshing at a similar size stops reallocating.
+                Packed = new PackedVertex[Mathf.NextPowerOfTwo(Mathf.Max(n, 1024))];
             }
 
-            mesh.SetVertices(Verts);
+            var packed = Packed;
+            for (int i = 0; i < n; i++)
+            {
+                Vector3 nrm = Normals[i];
+                Vector4 tan = Tangents[i];
+                Color col = Colors[i];
+                Vector2 sky = SkyUv[i];
+                Vector4 leaf = LeafUv[i];
+                Vector3 bl = BlockLight[i];
+                Vector3 dir = BlockLightDir[i];
+
+                packed[i] = new PackedVertex
+                {
+                    Position = Verts[i],
+                    Nx = SNorm(nrm.x), Ny = SNorm(nrm.y), Nz = SNorm(nrm.z), Nw = 0,
+                    Tx = SNorm(tan.x), Ty = SNorm(tan.y), Tz = SNorm(tan.z), Tw = SNorm(tan.w),
+                    Cr = UNorm(col.r), Cg = UNorm(col.g), Cb = UNorm(col.b), Ca = UNorm(col.a),
+                    Uv = Uvs[i],
+                    SkyX = Half(sky.x), SkyY = Half(sky.y),
+                    LeafX = Half(leaf.x), LeafY = Half(leaf.y), LeafZ = Half(leaf.z), LeafW = Half(leaf.w),
+                    BlX = Half(bl.x), BlY = Half(bl.y), BlZ = Half(bl.z), BlW = 0,
+                    Dx = SNorm(dir.x), Dy = SNorm(dir.y), Dz = SNorm(dir.z), Dw = 0,
+                };
+            }
+
+            PackedCount = n;
+        }
+
+        /// <summary>Quantises a -1..1 value to the SNorm8 the GPU expands back by dividing by 127.</summary>
+        public static sbyte SNorm(float v) => (sbyte)Mathf.Clamp(Mathf.RoundToInt(v * 127f), -127, 127);
+
+        /// <summary>Quantises a 0..1 value to the UNorm8 the GPU expands back by dividing by 255.</summary>
+        public static byte UNorm(float v) => (byte)Mathf.Clamp(Mathf.RoundToInt(v * 255f), 0, 255);
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct FloatBits
+        {
+            [FieldOffset(0)] public float F;
+            [FieldOffset(0)] public uint U;
+        }
+
+        /// <summary>IEEE-754 float → half (binary16), round-to-nearest-even. Hand-rolled rather than
+        /// <c>Mathf.FloatToHalf</c> so it is unambiguously pure managed maths on the build worker thread.
+        /// Sub-normals flush to zero and overflow clamps to the largest finite half — both are far outside the
+        /// 0..~8 range these channels carry, and a NaN/Inf leaking into a vertex buffer would be far worse.
+        /// </summary>
+        public static ushort Half(float value)
+        {
+            FloatBits bits = default;
+            bits.F = value;
+            uint x = bits.U;
+            uint sign = (x >> 16) & 0x8000u;
+            uint magnitude = x & 0x7FFFFFFFu;
+
+            if (magnitude >= 0x7F800000u)
+            {
+                return (ushort)(sign | (magnitude > 0x7F800000u ? 0u : 0x7BFFu)); // NaN → ±0, Inf → max finite
+            }
+
+            int exp = (int)((x >> 23) & 0xFFu) - 127 + 15;
+            uint mant = x & 0x7FFFFFu;
+            if (exp <= 0)
+            {
+                return (ushort)sign; // sub-normal/underflow → signed zero
+            }
+
+            uint half = ((uint)exp << 10) | (mant >> 13);
+            if ((mant & 0x1000u) != 0 && ((mant & 0xFFFu) != 0 || (half & 1u) != 0))
+            {
+                half++; // round half to even; a carry into the exponent is the correct rounded result
+            }
+
+            return (ushort)(sign | (half >= 0x7C00u ? 0x7BFFu : half));
+        }
+
+        /// <summary>Uploads the data into a render mesh (opaque + see-through submeshes) and a separate
+        /// fluid-excluded collision mesh. MUST run on the main thread (the Unity Mesh API is not thread-safe).
+        ///
+        /// The render mesh is built through the low-level buffer API so it gets the compact
+        /// <see cref="PackedVertex"/> layout, and is then uploaded with <c>markNoLongerReadable: true</c> —
+        /// without that Unity keeps a full system-RAM copy of every chunk mesh next to the GPU one, doubling
+        /// their cost (#966). Nothing reads a chunk mesh back: the collider has its own mesh, and the ship/
+        /// speeder meshers only ever assign the render mesh to a MeshFilter.
+        ///
+        /// A consequence of the non-readable upload is that the previous mesh can no longer be Clear()ed and
+        /// refilled, so every build returns a FRESH mesh — callers must destroy the one they replace (Unity does
+        /// not collect Mesh objects), which is what <c>GameBootstrap.ApplyChunkMesh</c> does.</summary>
+        public (Mesh Render, Mesh Collider) ToMeshes()
+        {
+            var mesh = new Mesh { indexFormat = Rendering.IndexFormat.UInt32 };
+            mesh.SetVertexBufferParams(PackedCount, VertexLayout);
+            if (PackedCount > 0)
+            {
+                mesh.SetVertexBufferData(Packed, 0, 0, PackedCount, 0, UploadFlags);
+            }
+
             // Three submeshes sharing one vertex buffer: 0 = opaque (BlockAtlas), 1 = see-through
             // (BlockAtlasTransparent), 2 = player-painted design faces (paint atlas). The renderer is given
             // the materials in the same order. An empty submesh just draws nothing — chunks without glass or
-            // paint pay no extra draw call.
+            // paint pay no extra draw call. They share one index buffer, laid out opaque | transparent | paint.
+            int nOpaque = OpaqueTris.Count, nTransparent = TransparentTris.Count, nPaint = PaintTris.Count;
+            mesh.SetIndexBufferParams(nOpaque + nTransparent + nPaint, Rendering.IndexFormat.UInt32);
+            if (nOpaque > 0)
+            {
+                mesh.SetIndexBufferData(OpaqueTris, 0, 0, nOpaque, UploadFlags);
+            }
+
+            if (nTransparent > 0)
+            {
+                mesh.SetIndexBufferData(TransparentTris, 0, nOpaque, nTransparent, UploadFlags);
+            }
+
+            if (nPaint > 0)
+            {
+                mesh.SetIndexBufferData(PaintTris, 0, nOpaque + nTransparent, nPaint, UploadFlags);
+            }
+
             mesh.subMeshCount = 3;
-            mesh.SetTriangles(OpaqueTris, 0);
-            mesh.SetTriangles(TransparentTris, 1);
-            mesh.SetTriangles(PaintTris, 2);
-            mesh.SetColors(Colors);
-            mesh.SetUVs(0, Uvs);
-            mesh.SetUVs(1, SkyUv);
-            mesh.SetUVs(2, LeafUv);
-            mesh.SetUVs(3, BlockLight);
-            mesh.SetUVs(4, BlockLightDir);
-            mesh.SetTangents(Tangents);
-            mesh.SetNormals(Normals);
+            // Every submesh gets the whole chunk's bounds: conservative (never culls something that is visible)
+            // and free, where a per-submesh sweep would be another pass over the vertices.
+            mesh.SetSubMesh(0, new Rendering.SubMeshDescriptor(0, nOpaque) { bounds = Bounds }, UploadFlags);
+            mesh.SetSubMesh(1, new Rendering.SubMeshDescriptor(nOpaque, nTransparent) { bounds = Bounds }, UploadFlags);
+            mesh.SetSubMesh(2, new Rendering.SubMeshDescriptor(nOpaque + nTransparent, nPaint) { bounds = Bounds }, UploadFlags);
             mesh.bounds = Bounds;
+            mesh.UploadMeshData(true); // drop the system-RAM copy — the mesh is render-only from here on
 
             // Collision mesh: its OWN vertex list (greedy-merged solid faces + shaped-block geometry, fluids
             // excluded so water is passable) — far fewer verts/tris than the render mesh, which is exactly
-            // what makes the WebGL cook and the desktop Physics.BakeMesh cheap.
+            // what makes the WebGL cook and the desktop Physics.BakeMesh cheap. Deliberately left readable and
+            // on the plain float layout: Physics.BakeMesh/MeshCollider read this mesh back to cook it, and its
+            // vertex count is a fraction of the render mesh's, so it is not where the memory sits.
             Mesh collider = null;
             if (ColliderTris.Count > 0)
             {
