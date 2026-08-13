@@ -163,6 +163,85 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.Empty(pilot.SentChunks); // cleared → the world re-streams fresh (stale-view self-heal)
     }
 
+    // ---------------- #971: the same-body landing must also MOVE the player ----------------
+
+    /// <summary>Lands the pilot back on a pad that is NOT the one they launched from and returns both the
+    /// pad they left and the messages the server sent them, so a test can assert where they ended up.</summary>
+    private static (int LaunchPad, int ChosenPad, object[] ToPilot) LandOnAnotherPad(
+        SvGameServer server, RecordingTransport transport, PlayerSession pilot)
+    {
+        int launchPad = pilot.AssignedPadIndex;
+        int chosenPad = launchPad == 0 ? 1 : 0; // the chooser's "some other pad on this planet"
+        server.EnterSpace(pilot.State.PlayerId);
+
+        transport.Sent.Clear();
+        server.LandOnCurrentBodyForTest(pilot, chosenPad);
+
+        return (launchPad, chosenPad,
+            transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).ToArray());
+    }
+
+    [Fact]
+    public void LandingBackOnTheSameBody_SnapsThePlayerOntoTheClaimedPad()
+    {
+        // Landing back on the same planet parked the ship on the chosen pad but left the PLAYER standing at
+        // the pad they launched from, thousands of blocks away: "I landed and my ship isn't there" (#971).
+        // The position must ride the RespawnNotice snap channel — the client discards a position that
+        // arrives on PlayerStateUpdate (#414 N17), and there is no WorldReset here to re-arm its spawn snap.
+        var transport = new RecordingTransport();
+        var server = NewServer("land_snap", transport);
+        var pilot = server.AddLocalPlayer("Pilot");
+        Assert.True(server.LandingPadCount >= 2, "the same-body landing bug needs a second pad to choose");
+
+        var (launchPad, chosenPad, toPilot) = LandOnAnotherPad(server, transport, pilot);
+        Assert.NotEqual(launchPad, chosenPad);
+
+        var snap = toPilot.OfType<RespawnNotice>().LastOrDefault();
+        Assert.NotNull(snap);
+        Assert.False(snap!.Died); // a touchdown, not a death — no red flash on the client
+
+        // The snap and the authoritative position agree, and both sit on the ship that just parked.
+        var anchor = server.ShipAnchorOf("Pilot");
+        Assert.Equal(pilot.State.Position.X, snap.X);
+        Assert.Equal(pilot.State.Position.Y, snap.Y);
+        Assert.Equal(pilot.State.Position.Z, snap.Z);
+        Assert.InRange(snap.X, anchor.X - 32, anchor.X + 32);
+        Assert.InRange(snap.Z, anchor.Z - 32, anchor.Z + 32);
+        Assert.True(pilot.State.AboardShip);
+    }
+
+    [Fact]
+    public void AfterLandingBackOnTheSameBody_TheStalePreLaunchPoseIsDropped()
+    {
+        // The client keeps streaming its pre-launch pose for a beat after the landing. Without the #865
+        // spawn-adoption gate the server TRUSTED it and dragged the player straight back to the old pad —
+        // which is the position the checkpoint save then persisted (the savegame that reported #971).
+        var transport = new RecordingTransport();
+        var server = NewServer("land_stale", transport);
+        var pilot = server.AddLocalPlayer("Pilot");
+        var preLaunch = pilot.State.Position; // standing in the ship on the pad they are about to leave
+
+        // The pilot has been playing for a while: their client adopted the join spawn long ago, so the gate
+        // is clear and the server trusts them — exactly the state a real launch happens from.
+        server.HandlePayloadForTest(pilot.ConnectionId, NetCodec.Encode(
+            new MoveIntent { X = preLaunch.X, Y = preLaunch.Y, Z = preLaunch.Z }));
+        Assert.False(pilot.AwaitingSpawnAdopt);
+
+        LandOnAnotherPad(server, transport, pilot);
+        var landed = pilot.State.Position;
+
+        server.HandlePayloadForTest(pilot.ConnectionId, NetCodec.Encode(
+            new MoveIntent { X = preLaunch.X, Y = preLaunch.Y, Z = preLaunch.Z }));
+
+        Assert.Equal(landed.X, pilot.State.Position.X); // the authoritative touchdown stands
+        Assert.Equal(landed.Z, pilot.State.Position.Z);
+
+        // …and once the client has adopted the snap, normal movement is trusted again.
+        server.HandlePayloadForTest(pilot.ConnectionId, NetCodec.Encode(
+            new MoveIntent { X = landed.X + 1f, Y = landed.Y, Z = landed.Z }));
+        Assert.Equal(landed.X + 1f, pilot.State.Position.X);
+    }
+
     // ---------------- #954: SwitchShip must not replace OTHER players' own hulls ----------------
 
     [Fact]

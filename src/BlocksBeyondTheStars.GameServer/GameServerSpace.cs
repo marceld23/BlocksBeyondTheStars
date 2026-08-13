@@ -503,6 +503,7 @@ public sealed partial class GameServer
         session.State.Position = spawn;
         session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
         session.State.AboardShip = true;
+        session.AwaitingSpawnAdopt = true; // #865: the client keeps streaming its pre-launch pose for a beat
 
         // While this player was away (space / a station world), block changes on THIS body were only
         // broadcast to the players present on it — their client's chunk view is stale now (the #957
@@ -510,6 +511,12 @@ public sealed partial class GameServer
         // client-side, so this self-heals whatever drifted, exactly like the cross-body travel path.
         session.SentChunks.Clear();
 
+        // The touchdown must ride the RespawnNotice snap channel (Died=false → no death feedback): the
+        // client DISCARDS a position that arrives on PlayerStateUpdate (same rule as the suit teleporter,
+        // #414 N17), and unlike the cross-body travel path there is no WorldReset here to re-arm its spawn
+        // snap. Without this the body stayed at the pad it launched from while the ship parked on the pad
+        // the player picked in the chooser — "I landed and my ship isn't there" (#971).
+        Send(session, new RespawnNotice { X = spawn.X, Y = spawn.Y, Z = spawn.Z, Reason = "@srv.land.touchdown" });
         SendPlayerState(session);
         SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
         SendLandingPads(session);

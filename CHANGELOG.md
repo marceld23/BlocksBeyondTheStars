@@ -22,6 +22,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   distance was reaching 1.8 GB; the terrain part of that is now a fraction.
 - Nothing about how the world looks changes — same geometry, same lighting, same colours.
 
+### 🐞 Fixed
+
+- **Landing back on the planet you launched from puts you back in your ship (#971).** Picking a
+  different landing pad in the chooser parked the ship there but left *you* standing at the pad you
+  launched from — often thousands of blocks away, so it looked like the ship had vanished. The
+  touchdown now moves you with your ship, exactly as a landing on another planet already did.
+
 ## [2026.8.12] — 2026-08-13
 
 The shipwright release. Until now the ship you flew was one the game handed you; from this version

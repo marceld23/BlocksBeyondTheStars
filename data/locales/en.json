@@ -2892,6 +2892,7 @@
   "srv.land.full": "All landing zones are taken.",
   "srv.land.no_pad": "That landing pad doesn't exist.",
   "srv.land.pad_taken": "That landing pad is already taken.",
+  "srv.land.touchdown": "Touchdown — you are back aboard your ship.",
   "srv.loot.no_container": "No such container.",
   "srv.loot.no_crate": "No such crate.",
   "srv.loot.nothing_to_stash": "No loose materials to store.",

@@ -7738,6 +7738,28 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-13): landing back on the same planet puts you back in your ship (#971)
+
+Found in a singleplayer playtest of the released v2026.8.12 build: launch from the starter planet, land
+back on it, pick a **different pad** in the chooser — the ship parks on the chosen pad, but the player is
+still standing at the pad they launched from. It reads as *"I landed and my ship isn't there"*.
+
+The savegame proves the split: the player row's `RespawnPoint` (server-only) had moved to the new ship's
+heal-tank at `(2489, 89, -369)`, while `Position` (client-writable) was still at the old ship's
+`(10232, 75, -3)`. `RelocateToAssignedPad` set the position and called `SendPlayerState` — but the client
+**discards** a position arriving on `PlayerStateUpdate` (the rule the suit teleporter already documents,
+#414 N17), and unlike the cross-body travel path there is no `WorldReset` here to re-arm its spawn snap.
+`AwaitingSpawnAdopt` was not set either, so the client's next stale `MoveIntent` overwrote the
+authoritative touchdown server-side — and that is what the checkpoint save persisted.
+
+Fix: the same-body landing now sends a `RespawnNotice` (`Died = false`, new `srv.land.touchdown`) with the
+computed spawn and arms the #865 spawn-adoption gate — the same two things the cross-body landing does.
+Server-side only, no protocol change. It stayed hidden until the pad chooser shipped because the auto-pick
+path (`padIndex = -1`) counts the player's own pad as free, so a solo pilot normally lands back on the pad
+they launched from. Two new regression tests in `LanPlaytestRegressionTests` (both fail without the fix).
+
+---
+
 ## ✅ Done (2026-08-13): chunk-mesh memory — packed vertex format + non-readable upload (#966)
 
 Closes the part of #966 that the previous round deliberately left open: the chunk meshes themselves.

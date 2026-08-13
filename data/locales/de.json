@@ -2892,6 +2892,7 @@
   "srv.land.full": "Alle Landezonen sind belegt.",
   "srv.land.no_pad": "Diesen Landeplatz gibt es nicht.",
   "srv.land.pad_taken": "Dieser Landeplatz ist schon belegt.",
+  "srv.land.touchdown": "Gelandet — du bist wieder an Bord deines Schiffs.",
   "srv.loot.no_container": "Diesen Behälter gibt es nicht.",
   "srv.loot.no_crate": "Diese Kiste gibt es nicht.",
   "srv.loot.nothing_to_stash": "Keine losen Materialien zum Einlagern.",
