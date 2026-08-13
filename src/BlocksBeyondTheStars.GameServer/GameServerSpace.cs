@@ -374,6 +374,24 @@ public sealed partial class GameServer
         return null;
     }
 
+    /// <summary>The occupancy of a pad AS SEEN BY one player: who holds it, whether that blocks them, and
+    /// whether the holder is themselves. The distinction matters because a player keeps their pad reserved
+    /// while they are up in space (#957) — sending that back as plain "occupied" made the chooser grey out
+    /// the very pad the player was trying to return to, labelled with their own name (#977). Blocking is
+    /// therefore computed exactly like the landing itself does it, excluding the player being served.</summary>
+    private NetLandingPad PadStatusFor(string locationId, int padIndex, PlayerSession receiver)
+    {
+        string occupant = PadOccupantName(locationId, padIndex) ?? string.Empty;
+        bool mine = occupant.Length > 0 && !PadOccupiedByOther(locationId, padIndex, receiver.State.PlayerId);
+        return new NetLandingPad
+        {
+            Index = padIndex,
+            Occupied = occupant.Length > 0 && !mine,
+            Occupant = occupant,
+            Mine = mine,
+        };
+    }
+
     /// <summary>Picks the pad a landing player will touch down on: their requested pad if it's free, else (for an
     /// auto request, index &lt; 0) the first free pad. Returns -1 and a reason if the pad is taken or the body is
     /// full. Validates against the destination body's deterministic pad count (works before the world is loaded).</summary>
@@ -520,6 +538,7 @@ public sealed partial class GameServer
         SendPlayerState(session);
         SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
         SendLandingPads(session);
+        SyncAppearance(session); // faces + body paintings both ways — the launch dropped them (#982)
         // Parity with the cross-body travel path (#957): without these the HUD compass ship blip and the
         // world-map marker kept pointing at the pad of the PREVIOUS landing.
         SendShipPlacement(session);
@@ -538,8 +557,9 @@ public sealed partial class GameServer
         for (int i = 0; i < _landingPads.Count; i++)
         {
             var p = _landingPads[i];
-            string occ = PadOccupantName(_world.LocationId, p.Index) ?? string.Empty;
-            pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
+            pads[i] = PadStatusFor(_world.LocationId, p.Index, session);
+            pads[i].X = p.CenterX;
+            pads[i].Z = p.CenterZ;
         }
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
@@ -611,8 +631,9 @@ public sealed partial class GameServer
         for (int i = 0; i < computed.Count; i++)
         {
             var p = computed[i];
-            string occ = PadOccupantName(body.Id, p.Index) ?? string.Empty;
-            pads[i] = new NetLandingPad { Index = p.Index, X = p.CenterX, Z = p.CenterZ, Occupied = occ.Length > 0, Occupant = occ };
+            pads[i] = PadStatusFor(body.Id, p.Index, session);
+            pads[i].X = p.CenterX;
+            pads[i].Z = p.CenterZ;
         }
 
         Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });

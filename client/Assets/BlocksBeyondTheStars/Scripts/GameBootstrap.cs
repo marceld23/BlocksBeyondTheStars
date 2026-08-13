@@ -735,6 +735,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>A player who has asked to dock with us (awaiting our accept/decline), or empty.</summary>
         public string PendingDockFrom { get; set; } = string.Empty;
 
+        /// <summary>A player who has asked to trade with us (awaiting our accept/decline), or empty (#981).</summary>
+        public string PendingTradeFrom { get; set; } = string.Empty;
+
         /// <summary>Latest authoritative docking state (partner + docked flag), or null.</summary>
         public DockStatus Dock { get; private set; }
 
@@ -1921,11 +1924,16 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.WreckRepairStatusChanged += m => Wreck = m.Claimed ? null : m;
             Network.ShipRepairStatusChanged += m => ShipRepair = m.NeedsRepair ? m : null;
-            Network.TradeUpdated += m => { Trade = m; TradeActive = true; };
+            // An incoming trade invitation (#981) needs an answer, so it is held as state — a toast alone
+            // could not be acted on. It clears the moment the trade opens or the invitation is answered.
+            // The toast comes with the ServerMessage the server sends alongside it.
+            Network.TradeRequested += m => PendingTradeFrom = m.Requester;
+            Network.TradeUpdated += m => { Trade = m; TradeActive = true; PendingTradeFrom = string.Empty; };
             Network.TradeClosedReceived += m =>
             {
                 TradeActive = false;
                 Trade = null;
+                PendingTradeFrom = string.Empty;
                 LastMessage = m.Completed ? "Trade complete." : ServerMessageText(m.Reason);
             };
             Network.DockRequested += m => { PendingDockFrom = m.Requester; LastMessage = $"{m.Requester} requests docking."; };

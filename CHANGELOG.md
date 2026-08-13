@@ -13,6 +13,41 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🤝 A trade request can finally be accepted (#981)
+
+- **T did nothing — for both of you.** Asking a nearby player to trade told them "someone wants to
+  trade" in the chat line, and that was the end of it: there was no window, no key and no way at all to
+  say yes, so no player-to-player trade could ever be opened.
+- An invitation now opens an **Accept / Decline** window, exactly like a docking request, and accepting
+  opens the trade on both sides. The asker gets a confirmation that the request went out.
+- The keys also stop swallowing themselves: T and K are offered as far as the server's trade range
+  reaches, instead of one metre closer, where pressing them produced no reaction whatsoever.
+
+### 🎨 Other players wear their own paintwork (#982)
+
+- **Everyone else looked like a factory-fresh suit.** A player's self-painted face and body paint were
+  only ever sent *to* them when they arrived — nobody already in the world was told what the newcomer
+  looks like, and nothing re-sent it when someone travelled, landed or boarded a station. Your friends
+  only saw your artwork if you happened to repaint yourself while they watched.
+- Appearance is now exchanged both ways on every arrival, so you see each other's work straight away.
+
+### 🛬 You can land on your own pad again (#977)
+
+- **"Pad 2 is occupied — by yourself."** Your landing pad stays reserved while you are up in space, so
+  nobody parks a second ship on top of yours. But the chooser showed that reservation to *you* as
+  taken, with your own name under it, and it only lets you click free pads — so the one pad your ship
+  is actually standing on was the one place you could not land.
+- Your pad is now drawn as yours, in cyan, and stays selectable — in the flight chooser and on the
+  world map. Pads held by other players stay blocked exactly as before.
+
+### 🔌 The join dialog offers the port you actually need (#978)
+
+- **Joining a friend's world takes one number less.** "Join server" now prefills **31550**, the port a
+  world hosted from inside the game listens on — the only kind of server this dialog is used for.
+  Official worlds keep arriving with their own address from the Official Worlds menu.
+- The hint next to the field still names the dedicated-server port (31415) for anyone typing in a
+  server address by hand, and what you type is remembered for the next time the dialog opens.
+
 ### ⏸️ Multiplayer pauses too — once everybody is in the menu (#973)
 
 - **A break is a break for the whole crew.** Until now only a player alone in a world could pause it;

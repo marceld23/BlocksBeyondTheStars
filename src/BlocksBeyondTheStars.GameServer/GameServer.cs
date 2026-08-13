@@ -823,6 +823,7 @@ public sealed partial class GameServer
         SendLandingPads(session);
         SendContainers(session);
         SendStarMap(session);
+        SyncAppearance(session); // faces + body paintings both ways — appearance is per-world state (#982)
         Send(session, new ServerMessage
         {
             Text = hyperjump
@@ -2858,7 +2859,7 @@ public sealed partial class GameServer
         SendLandingPads(session);
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
-        SendExistingFaces(session);     // custom pixel faces of already-online players
+        SyncAppearance(session);        // custom faces + body paintings, BOTH ways (#982)
         SendPaintDesigns(session);      // paint-design registry — before any chunk with painted blocks can arrive
         SendCustomShapes(session);      // …and the form registry, for the same reason (#843)
         ShipAiOnJoin(session); // boot VEGA: onboarding intro / veteran skip / resume objective

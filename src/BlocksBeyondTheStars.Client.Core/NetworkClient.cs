@@ -43,6 +43,11 @@ namespace BlocksBeyondTheStars.Client
         // Ship docking (M18) and free space flight / combat (M19). Rendering is added later;
         // these hooks let the client react to the authoritative state the server reports.
         public event Action<DockRequestNotice>? DockRequested;
+
+        /// <summary>Someone nearby wants to trade (#981) — the client must offer accept/decline and answer
+        /// with <see cref="SendTradeRespond"/>, or the request dies unanswered.</summary>
+        public event Action<TradeRequestNotice>? TradeRequested;
+
         public event Action<DockStatus>? DockStatusChanged;
         public event Action<ShipCombatStatus>? ShipCombatStatusChanged;
         public event Action<SpaceState>? SpaceStateReceived;
@@ -674,6 +679,7 @@ namespace BlocksBeyondTheStars.Client
                 case ServerMessage m: ServerMessageReceived?.Invoke(m); break;
                 case MaintenanceNotice m: MaintenanceNoticeReceived?.Invoke(m); break;
                 case DockRequestNotice m: DockRequested?.Invoke(m); break;
+                case TradeRequestNotice m: TradeRequested?.Invoke(m); break;
                 case DockStatus m: DockStatusChanged?.Invoke(m); break;
                 case ShipCombatStatus m: ShipCombatStatusChanged?.Invoke(m); break;
                 case SpaceState m: SpaceStateReceived?.Invoke(m); break;

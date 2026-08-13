@@ -38,15 +38,26 @@ namespace BlocksBeyondTheStars.Client
         /// Read by the persistent <see cref="ClientMusic"/> director to pick context music.</summary>
         public GameBootstrap CurrentBoot { get; private set; }
 
-        /// <summary>Default port of official/dedicated servers (the join dialog's prefill). Locally
-        /// hosted "Host Game" worlds listen on <see cref="LocalServerLauncher.DefaultPort"/> instead —
-        /// the join dialog shows both so LAN joiners know which one to enter.</summary>
+        /// <summary>Default port of official/dedicated servers. Named in the join dialog's hint, but NOT its
+        /// prefill: official worlds bring their own host + port from the portal, so the only thing typed into
+        /// that dialog by hand is a friend's "Host Game" world, which listens on
+        /// <see cref="LocalServerLauncher.DefaultPort"/> (#978).</summary>
         public const int DefaultServerPort = 31415;
 
-        // Join target edited on the main menu. PlayerName is loaded from / persisted to
-        // ClientSettings (Awake / the connect dialog); Password is session-only.
+        // Live join target — whatever the next StartJoin dials. Written by ALL join routes: the connect
+        // dialog, the portal (official worlds), the WebGL/arcade defaults and in-game hosting.
+        // PlayerName is loaded from / persisted to ClientSettings (Awake / the connect dialog);
+        // Password is session-only.
         public string Host = "127.0.0.1";
-        public string Port = "31415"; // = DefaultServerPort; kept as a string (it is edited in the connect dialog)
+        public string Port = "31415"; // kept as a string (it is edited in the connect dialog)
+
+        /// <summary>What the connect dialog prefills — deliberately NOT <see cref="Host"/>/<see cref="Port"/>
+        /// (#978). Those are the live join target and get overwritten by the portal join and by in-game
+        /// hosting, so after one visit to an official world the dialog would offer that world's address back
+        /// as the "default". Only the connect dialog writes these, and the port starts on the value the
+        /// dialog is actually used for: a friend's hosted world on the LAN.</summary>
+        public string ManualJoinHost = "127.0.0.1";
+        public string ManualJoinPort = LocalServerLauncher.DefaultPort.ToString();
         public string PlayerName = ""; // empty until chosen — the menu gates play actions on it (#221)
         public string Password = "";
 

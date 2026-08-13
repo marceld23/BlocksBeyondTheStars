@@ -32,7 +32,9 @@ namespace BlocksBeyondTheStars.Client
             // to the in-browser server directly instead of opening any socket.
             boot.Loopback = shell.BrowserServer != null && shell.BrowserServer.Running ? shell.BrowserServer.Link : null;
             boot.Host = shell.Host;
-            boot.Port = int.TryParse(shell.Port, out var p) && p > 0 ? p : 31415;
+            // A port that doesn't parse can only come from the hand-typed connect dialog, and that dialog
+            // exists for LAN/self-host joins — so fall back to the hosted-world port, not the official one (#978).
+            boot.Port = int.TryParse(shell.Port, out var p) && p > 0 ? p : LocalServerLauncher.DefaultPort;
             boot.PlayerName = string.IsNullOrWhiteSpace(shell.PlayerName) ? "Pilot" : shell.PlayerName;
             boot.Password = shell.Password ?? "";
             // Arcade sessions claim their name with the install-derived gateway token — the browser-local

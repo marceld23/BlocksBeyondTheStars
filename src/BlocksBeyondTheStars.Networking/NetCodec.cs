@@ -390,6 +390,10 @@ public static class NetCodec
 
         // Hotbar slot actions
         Register(202, typeof(PaintCraftIntent));         // Client -> Server (own texture onto a held material)
+
+        // Player-to-player trade handshake (#981): the invitation needs its own message so the target can
+        // answer it — a chat line alone left TradeRespondIntent with no sender in the whole client.
+        Register(203, typeof(TradeRequestNotice));       // Server -> Client (someone nearby wants to trade)
     }
 
     private static void Register(byte tag, Type type)

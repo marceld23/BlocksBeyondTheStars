@@ -82,7 +82,14 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(toPlayer) is { } to)
         {
             Send(to, new ServerMessage { Text = "@srv.trade.request:" + fromPlayer });
+            // …and as an answerable invitation (#981). The chat line alone could not be acted on: nothing in
+            // the client sent TradeRespondIntent, so every trade request died where it landed.
+            Send(to, new TradeRequestNotice { Requester = fromPlayer });
         }
+
+        // The asker gets a confirmation too: pressing T used to produce nothing whatsoever on the
+        // requesting side, which is indistinguishable from a key that does not work (#981).
+        Send(from, new ServerMessage { Text = "@srv.trade.request_sent:" + toPlayer });
     }
 
     public void RespondTrade(string player, bool accept)
@@ -279,6 +286,14 @@ public sealed partial class GameServer
         foreach (var key in _tradeRequests.Where(kv => kv.Value == playerId).Select(kv => kv.Key).ToList())
         {
             _tradeRequests.Remove(key);
+
+            // Withdraw the invitation on the target's screen too (#981): it is a MODAL window now — it frees
+            // the cursor and pauses on-foot control — so a requester who walks off or crashes must not leave
+            // an unanswerable dialog sitting in someone else's face.
+            if (FindSessionByPlayerId(key) is { } target)
+            {
+                Send(target, new TradeClosed { Completed = false, Reason = "@srv.trade.partner_left" });
+            }
         }
 
         if (_trades.FirstOrDefault(t => t.Involves(playerId)) is { } session)

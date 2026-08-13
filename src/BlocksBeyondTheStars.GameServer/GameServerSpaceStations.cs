@@ -279,6 +279,7 @@ public sealed partial class GameServer
             Z = station.Spawn.Z,
         });
         SendStarMap(session); // refresh markers/owner/visited now that this station counts as visited
+        SyncAppearance(session); // faces + body paintings both ways on the station world (#982)
         ShipAiOnStationBoarded(session); // VEGA onboarding: first station visit
         _log.Info($"Player '{session.State.Name}' boarded station '{station.Name}' (own world '{stationLoc}').");
         CheckpointSave($"docked at {station.Name}"); // auto-save when docking a station
