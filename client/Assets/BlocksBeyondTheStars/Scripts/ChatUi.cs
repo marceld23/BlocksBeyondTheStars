@@ -424,7 +424,9 @@ namespace BlocksBeyondTheStars.Client
                 case "/give":
                     if (p.Length < 2) { LocalLine(L("ui.cmd.usage_give")); return true; }
                     int count = p.Length >= 3 && int.TryParse(p[2], out var c) ? c : 1;
-                    string who = p.Length >= 4 ? p[3].TrimStart('@') : null;
+                    // The target is the LAST argument, so it takes the rest of the line — a name may hold
+                    // spaces (#980) and only the item and the count are single tokens.
+                    string who = p.Length >= 4 ? AdminChatCommand.PlayerArgument(t, 3) : null;
                     net.SendAdminCommand("give_item", stringArg: p[1], intArg: count, targetPlayer: who);
                     return true;
 
@@ -443,9 +445,12 @@ namespace BlocksBeyondTheStars.Client
 
                     return true;
 
+                // Every command below whose argument is a PLAYER NAME takes the whole rest of the line, not
+                // the next token: names contain spaces ("mincraft Fan"), and passing the first word alone
+                // made the server answer "target player not found" (#980).
                 case "/tpp":
                     if (p.Length < 2) { LocalLine(L("ui.cmd.usage_tpp")); return true; }
-                    net.SendAdminCommand("teleport_to_player", targetPlayer: p[1]);
+                    net.SendAdminCommand("teleport_to_player", targetPlayer: AdminChatCommand.PlayerArgument(t));
                     return true;
 
                 case "/settime":
@@ -468,14 +473,15 @@ namespace BlocksBeyondTheStars.Client
 
                 case "/builds":
                     // Optional player filter: "/builds Justus" lists only that player's structures.
-                    net.SendAdminCommand("builds", stringArg: p.Length >= 2 ? p[1].TrimStart('@') : null);
+                    net.SendAdminCommand("builds", stringArg: p.Length >= 2 ? AdminChatCommand.PlayerArgument(t) : null);
                     return true;
 
                 case "/where":
                     if (p.Length < 2) { LocalLine(L("ui.cmd.usage_where")); return true; }
-                    net.SendAdminCommand("where", stringArg: p[1].TrimStart('@'));
+                    net.SendAdminCommand("where", stringArg: AdminChatCommand.PlayerArgument(t));
                     return true;
 
+                // Not part of the name rule above: the argument here is on|off, never a player.
                 case "/spectate":
                 case "/observe":
                     net.SendAdminCommand("spectate", stringArg: p.Length >= 2 ? p[1] : null);
@@ -547,7 +553,7 @@ namespace BlocksBeyondTheStars.Client
                             return true;
                         }
 
-                        net.SendAdminCommand("kick", stringArg: p[1].TrimStart('@'));
+                        net.SendAdminCommand("kick", stringArg: AdminChatCommand.PlayerArgument(t));
                         return true;
                     }
 
@@ -563,7 +569,8 @@ namespace BlocksBeyondTheStars.Client
                             return true;
                         }
 
-                        net.SendAdminCommand("paintwipe", stringArg: p[1].TrimStart('@'));
+                        // "#42" (a design id) survives this untouched — only quotes and a leading '@' go.
+                        net.SendAdminCommand("paintwipe", stringArg: AdminChatCommand.PlayerArgument(t));
                         return true;
                     }
 

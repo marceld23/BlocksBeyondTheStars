@@ -156,6 +156,80 @@ public sealed class AdminCheatTests : IDisposable
         Assert.False(snap.Died);
     }
 
+    /// <summary>Names with spaces and a different capitalisation still resolve (#980): the client now sends
+    /// the whole rest of the typed line, and the server matches it the way every other admin lookup does.
+    /// An exact-case compare used to answer "target player not found" for a player who was right there.</summary>
+    [Theory]
+    [InlineData("mincraft Fan", "exact")]
+    [InlineData("MINCRAFT fan", "case")]
+    [InlineData("  \"mincraft Fan\"  ", "quoted")]
+    public void Teleport_ToPlayer_MatchesSpacedAndDifferentlyCasedNames(string typed, string world)
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpname_" + world);
+
+        var target = server.AddLocalPlayer("mincraft Fan");
+        target.State.Position = new Shared.Geometry.Vector3f(321, 70, 123);
+
+        RespawnNotice? snap = null;
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is RespawnNotice r) snap = r; };
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_player", TargetPlayer = typed }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(snap);
+        Assert.Equal(321f, snap!.X);
+        Assert.Equal(123f, snap.Z);
+    }
+
+    /// <summary>An empty or unknown target still has to be refused — the tolerant match must not fall
+    /// back to "some session" (or to the admin's own).</summary>
+    [Theory]
+    [InlineData("", "empty")]
+    [InlineData("   ", "blank")]
+    [InlineData("Nobody", "unknown")]
+    public void Teleport_ToPlayer_RejectsUnknownTarget(string typed, string world)
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpmiss_" + world);
+        var before = server.Sessions[1].State.Position;
+
+        ActionRejected? rejected = null;
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is ActionRejected r) rejected = r; };
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_player", TargetPlayer = typed }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(rejected);
+        Assert.Equal(before, server.Sessions[1].State.Position);
+    }
+
+    /// <summary><c>/give</c> resolves its target through the same lookup, so a spaced name must land in
+    /// THAT player's inventory rather than silently in the admin's own (the null fallback).</summary>
+    [Fact]
+    public void GiveItem_ToSpacedName_ReachesThatPlayer()
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "givename");
+        var target = server.AddLocalPlayer("mincraft Fan");
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent
+        {
+            Command = "give_item",
+            StringArg = "titanium_plate",
+            IntArg = 5,
+            TargetPlayer = "MINCRAFT Fan",
+        }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.Equal(5, target.State.Inventory.CountOf("titanium_plate"));
+        Assert.Equal(0, server.Sessions[1].State.Inventory.CountOf("titanium_plate"));
+    }
+
     [Fact]
     public void GodMode_PreventsDeath()
     {
