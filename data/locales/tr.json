@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "Süre",
   "ui.pause.quit": "Ana menüye çık",
   "ui.pause.resume": "Devam et",
-  "ui.pause.title": "Duraklatıldı"
+  "ui.pause.title": "Duraklatıldı",
+  "ui.pause.waiting_for": "Duraklatıldı {0}/{1} — bekleniyor: {2}",
+  "ui.pause.world_held": "Dünya durduruldu — herkes duraklatma menüsünde."
 }

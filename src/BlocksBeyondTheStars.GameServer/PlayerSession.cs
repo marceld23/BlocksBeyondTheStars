@@ -99,6 +99,30 @@ public sealed class PlayerSession
     /// and legitimately never sends a payload, so silence says nothing about it being alive.</summary>
     public bool HeartbeatTracked { get; set; }
 
+    // --- The pause menu (#973) ------------------------------------------------------------------------
+    // The world holds once EVERY joined player wants it held, so the intent lives on the session rather
+    // than on the server: a single global "paused" bool had no owner and could only ever serve one player.
+
+    /// <summary>True while this player sits in their pause menu asking for the world to be held. The world
+    /// itself only stops when every joined non-spectator agrees (see <c>GameServer.RecomputePause</c>).</summary>
+    public bool WantsPause { get; set; }
+
+    /// <summary>Seconds this session has been silent while the WORLD stood still. A held world does not
+    /// advance <see cref="LastPayloadAt"/>'s clock, so the normal heartbeat sweep is blind during a pause —
+    /// this is the same liveness signal on a clock that keeps running (see
+    /// <c>GameServer.SweepSilentPausedSessions</c>).</summary>
+    public double PausedSilentSeconds { get; set; }
+
+    /// <summary>True once this client has re-sent its pause intent while already holding — the keep-alive
+    /// that proves it is still alive behind an open menu. It doubles as a capability probe: a client from
+    /// before #973 sends nothing at all while paused, and must never be dropped for that.</summary>
+    public bool SendsPauseKeepAlive { get; set; }
+
+    /// <summary>True while a hold that ran out its ceiling must not be re-entered from this still-open menu.
+    /// Without it the auto-resume would be pointless: the client keeps sending its keep-alive, and the very
+    /// next one would put the world straight back to sleep. Cleared when the player closes the menu.</summary>
+    public bool PauseHoldExpired { get; set; }
+
     /// <summary>The client's requested render distance in chunks (from its JoinRequest), or 0 if it didn't say.
     /// When set, it drives this player's streaming radius (clamped server-side) instead of the host's config —
     /// so the in-game View Distance slider extends the actually-streamed terrain on dedicated servers too, not

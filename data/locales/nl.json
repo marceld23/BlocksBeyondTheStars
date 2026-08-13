@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "Tijd",
   "ui.pause.quit": "Terug naar hoofdmenu",
   "ui.pause.resume": "Doorgaan",
-  "ui.pause.title": "Gepauzeerd"
+  "ui.pause.title": "Gepauzeerd",
+  "ui.pause.waiting_for": "Gepauzeerd {0}/{1} — wachten op: {2}",
+  "ui.pause.world_held": "Wereld stilgezet — iedereen zit in het pauzemenu."
 }

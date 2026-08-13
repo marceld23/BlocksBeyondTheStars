@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "時間",
   "ui.pause.quit": "メインメニューに戻る",
   "ui.pause.resume": "再開",
-  "ui.pause.title": "一時停止中"
+  "ui.pause.title": "一時停止中",
+  "ui.pause.waiting_for": "一時停止 {0}/{1} — 待機中: {2}",
+  "ui.pause.world_held": "ワールド停止中 — 全員が一時停止メニューにいます。"
 }

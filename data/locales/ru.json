@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "Время",
   "ui.pause.quit": "Выйти в главное меню",
   "ui.pause.resume": "Продолжить",
-  "ui.pause.title": "Пауза"
+  "ui.pause.title": "Пауза",
+  "ui.pause.waiting_for": "Пауза {0}/{1} — ждём: {2}",
+  "ui.pause.world_held": "Мир остановлен — все в меню паузы."
 }

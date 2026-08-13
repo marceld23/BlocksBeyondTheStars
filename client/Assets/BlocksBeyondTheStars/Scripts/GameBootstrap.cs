@@ -177,9 +177,19 @@ namespace BlocksBeyondTheStars.Client
         // everything it animates itself kept running behind the dialog. Fed from the server's PauseState.
         private readonly BlocksBeyondTheStars.Client.WorldClock _worldClock = new BlocksBeyondTheStars.Client.WorldClock();
 
-        /// <summary>True while the server is holding the world for our pause menu. False whenever the server
-        /// declined the hold (more than one player joined) — the world really is still running then.</summary>
+        /// <summary>True while the server is holding the world for our pause menu. False while somebody else is
+        /// still playing (#973: the world only holds once every player is in their menu) — it really is still
+        /// running then.</summary>
         public bool WorldPaused => _worldClock.Paused;
+
+        /// <summary>How many joined players are asking for the hold, and how many there are — the "2 of 3 ready"
+        /// the pause dialog shows. Both 0 until the first <c>PauseState</c> arrives.</summary>
+        public int PauseHoldingPlayers { get; private set; }
+        public int PauseJoinedPlayers { get; private set; }
+
+        /// <summary>The players the hold is still waiting for, comma-separated (empty while it is running or
+        /// while nobody is waiting on anybody).</summary>
+        public string PauseWaitingFor { get; private set; } = string.Empty;
 
         /// <summary>Seconds to advance CLIENT-SIDE world simulation by this frame — <c>Time.deltaTime</c> while
         /// the world runs, 0 while it is held. Deliberately derived from the live frame rather than from the
@@ -1655,7 +1665,13 @@ namespace BlocksBeyondTheStars.Client
             };
             // The server's answer to our pause intent (#908). Honours Allowed implicitly: a declined hold comes
             // back with Paused = false, so the client keeps simulating exactly as it did before.
-            Network.PauseStateReceived += m => _worldClock.SetPaused(m.Paused);
+            Network.PauseStateReceived += m =>
+            {
+                _worldClock.SetPaused(m.Paused);
+                PauseHoldingPlayers = m.HoldingPlayers;
+                PauseJoinedPlayers = m.JoinedPlayers;
+                PauseWaitingFor = m.WaitingFor ?? string.Empty;
+            };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;

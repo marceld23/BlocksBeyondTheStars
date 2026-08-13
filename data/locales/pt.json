@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "Tempo",
   "ui.pause.quit": "Sair para o menu principal",
   "ui.pause.resume": "Continuar",
-  "ui.pause.title": "Pausado"
+  "ui.pause.title": "Pausado",
+  "ui.pause.waiting_for": "Pausado {0}/{1} — à espera de: {2}",
+  "ui.pause.world_held": "Mundo parado — todos estão no menu de pausa."
 }

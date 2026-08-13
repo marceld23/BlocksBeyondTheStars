@@ -1082,102 +1082,204 @@ public sealed partial class GameServer
 
     // ---------------- Tick ----------------
 
-    // --- Singleplayer pause ---------------------------------------------------------------------------
+    // --- The world pause --------------------------------------------------------------------------------
     // "Im Einzelspieler sollte das Spiel pausiert werden, wenn man in das Menü geht." The Esc dialog was
-    // already titled "Pause" with a "Resume" button but nothing ever stopped.
+    // already titled "Pause" with a "Resume" button but nothing ever stopped (#612), and the client was not
+    // told about the hold either (#908). Both only ever served a LONE player: a second joined player had the
+    // request refused outright, so two friends taking a break both watched hunger drain behind their menus.
+    //
+    // #973 makes it a group decision instead. The intent lives on each session; the world holds once EVERY
+    // joined player is asking for it, and runs again the moment one of them resumes. Nobody can freeze a
+    // world for anybody else, because everybody has to agree — which is also why no rule switches this off.
 
-    /// <summary>True while a lone player has the world held from their menu. Only the simulation stops — the
-    /// transport keeps being polled, or the unpause could never arrive.</summary>
+    /// <summary>True while the world is held. DERIVED from the players' intents by
+    /// <see cref="RecomputePause"/> — never assign it anywhere else. Only the simulation stops: the transport
+    /// keeps being polled, or the unpause could never arrive.</summary>
     private bool _paused;
 
-    /// <summary>Seconds the world has been held. A client that dies with its menu open must not leave the world
-    /// frozen forever (it would also never save), so the hold expires.</summary>
+    /// <summary>Seconds the world has been held, in real time. A client that dies with its menu open must not
+    /// leave the world frozen forever (it would also never save), so the hold expires.</summary>
     private double _pausedFor;
 
-    /// <summary>Longest a pause may last before the world resumes on its own.</summary>
+    /// <summary>What the last <see cref="PauseState"/> broadcast said. The pause dialog shows who is still
+    /// missing, so the message has to go out whenever the tally moves — but only then, not every tick.</summary>
+    private (bool Paused, int Holding, int Joined, string Waiting) _pauseBroadcast = (false, -1, -1, string.Empty);
+
+    /// <summary>Longest a lone player may hold the world before it resumes on its own.</summary>
     private const double MaxPauseSeconds = 30 * 60;
+
+    /// <summary>Longest a GROUP hold may last. Shorter than a solo hold on purpose: it suspends everyone
+    /// else's evening too, and a hold nobody is left to end costs more the more players are waiting on it.</summary>
+    private const double MaxGroupPauseSeconds = 10 * 60;
 
     /// <summary>True while the world is holding — for tests and the /status snapshot.</summary>
     public bool IsPaused => _paused;
 
-    /// <summary>Drives the pause intent for tests (the client sends it when the Esc menu opens/closes).</summary>
+    /// <summary>Drives the pause intent for tests (the client sends it when the Esc menu opens/closes, and
+    /// repeats it as a keep-alive while the menu stays open). Stamps the heartbeat the way the wire path
+    /// does — this stands in for a real payload, and a test client must not look silent for sending one.</summary>
     public void PauseForTest(PlayerSession session, bool paused)
-        => HandlePause(session, new PauseIntent { Paused = paused });
-
-    /// <summary>Number of players who have completed the join handshake. Spectators do not count (#908): an
-    /// invisible admin observing a world is not someone whose game a pause could interrupt, and counting them
-    /// silently denied a lone player their pause — or lifted one that was already running. Everywhere else in
-    /// the server draws the same line (see <c>GameServerObserver</c>).</summary>
-    private int JoinedCount
     {
-        get
-        {
-            int n = 0;
-            foreach (var s in _sessions.Values)
-            {
-                if (s.Joined && !s.Spectating)
-                {
-                    n++;
-                }
-            }
-
-            return n;
-        }
+        session.LastPayloadAt = _uptime;
+        HandlePause(session, new PauseIntent { Paused = paused });
     }
 
     /// <summary>
-    /// Honours a pause request only while the asking player is alone in the world — one player must never be
-    /// able to freeze a dedicated or hosted world under everybody else. The answer goes back either way so the
-    /// client can keep its menu honest instead of claiming a pause it did not get.
+    /// Records a player's pause intent. It is always accepted — what it means for the WORLD is decided by
+    /// <see cref="RecomputePause"/>, which holds only when everybody agrees. (Before #973 a request was
+    /// refused outright whenever a second player was joined.)
     /// </summary>
     private void HandlePause(PlayerSession session, PauseIntent intent)
     {
-        bool allowed = JoinedCount <= 1;
-        if (allowed)
+        session.PausedSilentSeconds = 0; // hearing from this client at all is what the keep-alive is for
+
+        if (!intent.Paused)
         {
-            if (intent.Paused && !_paused)
+            session.PauseHoldExpired = false; // closing the menu ends the hold — and any lockout on it
+        }
+        else
+        {
+            // A repeat while this session already wants the hold is the client's keep-alive: behind an open
+            // menu it is the only payload it sends, and the only proof that it is still alive (see
+            // SweepSilentPausedSessions). Seeing one also tells us this client is new enough to send them.
+            if (session.WantsPause)
+            {
+                session.SendsPauseKeepAlive = true;
+            }
+
+            if (session.PauseHoldExpired)
+            {
+                // The hold already ran out under this open menu. The keep-alives still prove the client is
+                // alive (stamped above), but they must not put the world straight back to sleep — that would
+                // make the ceiling meaningless. Closing and reopening the menu asks again.
+                return;
+            }
+        }
+
+        session.WantsPause = intent.Paused;
+        RecomputePause();
+    }
+
+    /// <summary>
+    /// Derives the hold from the players' intents and broadcasts it whenever the tally moves. The world holds
+    /// while at least one player is joined and EVERY joined non-spectator wants it held.
+    /// <para>
+    /// Spectators are excluded exactly as in #908: an invisible admin observing a world is not someone whose
+    /// game a pause could interrupt — counting them silently denied the actual players their pause, and would
+    /// now block it forever (an observer never opens a pause menu). Everywhere else in the server draws the
+    /// same line (see <c>GameServerObserver</c>).
+    /// </para>
+    /// </summary>
+    private void RecomputePause()
+    {
+        int joined = 0;
+        int holding = 0;
+        foreach (var s in _sessions.Values)
+        {
+            if (!s.Joined || s.Spectating)
+            {
+                continue;
+            }
+
+            joined++;
+            if (s.WantsPause)
+            {
+                holding++;
+            }
+        }
+
+        // Only worth naming names when somebody is actually waiting on somebody: this runs every tick, and
+        // while everyone is simply playing (holding == 0) nobody has a pause dialog to read them in.
+        List<string>? waitingFor = null;
+        if (holding > 0 && holding < joined)
+        {
+            foreach (var s in _sessions.Values)
+            {
+                if (s.Joined && !s.Spectating && !s.WantsPause)
+                {
+                    (waitingFor ??= new List<string>()).Add(s.State.Name);
+                }
+            }
+        }
+
+        // "Nobody joined" must not read as "everybody agrees": an empty world would hold forever, never save,
+        // and on a hosted server never idle out.
+        bool hold = joined > 0 && holding == joined;
+        if (hold != _paused)
+        {
+            if (hold)
             {
                 SaveAll(); // a held world is a natural, safe save point — and covers a client that never comes back
             }
 
-            _paused = intent.Paused;
+            _paused = hold;
             _pausedFor = 0;
+            foreach (var s in _sessions.Values)
+            {
+                s.PausedSilentSeconds = 0; // the paused-silence clock only runs while the world stands still
+            }
+
+            _log.Info(hold
+                ? $"World held — all {joined} player(s) are in the pause menu."
+                : "World resumed.");
         }
 
-        Send(session, new PauseState { Paused = _paused, Allowed = allowed });
+        string waiting = waitingFor is null ? string.Empty : string.Join(", ", waitingFor);
+        var tally = (_paused, holding, joined, waiting);
+        if (tally != _pauseBroadcast)
+        {
+            _pauseBroadcast = tally;
+
+            // Broadcast, not a reply to the asker: every client stops its OWN world clock from this message,
+            // and the pause dialog shows the tally to everyone waiting in it.
+            Broadcast(new PauseState
+            {
+                Paused = _paused,
+                Allowed = true, // the intent is always recorded now; only the world's answer can be "not yet"
+                HoldingPlayers = holding,
+                JoinedPlayers = joined,
+                WaitingFor = waiting,
+            });
+        }
     }
 
-    /// <summary>Lifts a pause that must not continue: someone else joined, or the holder has been gone too long.
-    /// Returns true when the world is (still) held after this check.</summary>
+    /// <summary>Clears every player's pause intent when the hold expires on its own, and latches the menus
+    /// that were holding it (see <see cref="PlayerSession.PauseHoldExpired"/>) — otherwise the world would
+    /// re-enter the hold on the very next recompute, with everybody still sitting in their menus.</summary>
+    private void ClearPauseIntents()
+    {
+        foreach (var s in _sessions.Values)
+        {
+            s.PauseHoldExpired |= s.WantsPause;
+            s.WantsPause = false;
+        }
+    }
+
+    /// <summary>Advances the hold and releases it when it must not continue: the last holder left, a client
+    /// died behind its menu, or the hold outlived its ceiling. Returns true while the world is (still) held.
+    /// <para>Also runs while the world is NOT held — the tally it broadcasts has to follow players joining and
+    /// leaving, not just the pause itself.</para></summary>
     private bool HoldingPause(double deltaSeconds)
     {
         if (!_paused)
         {
-            return false;
-        }
-
-        // The hold only makes sense for exactly the one player who asked for it: a second player arriving always
-        // wins over one player's menu, and a holder who disconnected (or quit to the main menu) leaves nobody to
-        // hold it for — a dedicated world must not sit frozen because someone left with the menu open.
-        if (JoinedCount != 1)
-        {
-            _paused = false;
-            _pausedFor = 0;
-            Broadcast(new PauseState { Paused = false, Allowed = false });
+            RecomputePause(); // a join/leave changes what the pause dialogs are waiting for
             return false;
         }
 
         _pausedFor += deltaSeconds;
-        if (_pausedFor >= MaxPauseSeconds)
+        double ceiling = _pauseBroadcast.Holding > 1 ? MaxGroupPauseSeconds : MaxPauseSeconds;
+        if (_pausedFor >= ceiling)
         {
-            _log.Info("Pause expired — resuming the world.");
-            _paused = false;
-            _pausedFor = 0;
-            Broadcast(new PauseState { Paused = false, Allowed = true });
+            _log.Info($"Pause expired after {ceiling / 60:0} min — resuming the world.");
+            ClearPauseIntents();
+            RecomputePause();
             return false;
         }
 
-        return true;
+        SweepSilentPausedSessions(deltaSeconds); // a client that died mid-pause must not hold the world hostage
+        RecomputePause(); // a swept session takes its intent with it — with nobody left the hold ends here
+        return _paused;
     }
 
     public void Tick(double deltaSeconds)
@@ -1190,6 +1292,11 @@ public sealed partial class GameServer
         {
             Guard("Moderation", deltaSeconds, TickModeration);
             Guard("Maintenance", deltaSeconds, TickMaintenance);
+
+            // The control plane must keep seeing a held world (#973): the /status snapshot is what the hosted
+            // fleet polls, and freezing it would report a stale player count for as long as the pause lasts.
+            // Safe to run here — with players joined it only republishes; the idle timer stays at zero.
+            Guard("HostedLifecycle", deltaSeconds, TickHostedLifecycle);
             return;
         }
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
@@ -2136,8 +2243,9 @@ public sealed partial class GameServer
     /// <summary>Seconds without a single payload after which a joined session is considered dead (#964).
     /// The transport cannot see this case: a client whose game froze or whose machine died mid-frame can keep
     /// answering pings from its network thread, so only the absence of INTENTS proves nobody is playing.
-    /// Generously above any legitimate quiet period — the client sends movement/pose updates continuously,
-    /// and even a paused, fully idle client keeps its transport-level traffic flowing.</summary>
+    /// Generously above any legitimate quiet period — a playing client sends movement/pose updates
+    /// continuously, and a paused one sends the pause keep-alive (see <see cref="SweepSilentPausedSessions"/>,
+    /// which applies the same budget on a clock that keeps running while the world does not).</summary>
     private const double SessionHeartbeatTimeout = 90.0;
 
     /// <summary>Drops joined sessions that have gone silent (see <see cref="SessionHeartbeatTimeout"/>), so a
@@ -2153,6 +2261,48 @@ public sealed partial class GameServer
             }
         }
 
+        DropSilentSessions(dead);
+    }
+
+    /// <summary>
+    /// Drops clients that fell silent WHILE THE WORLD STOOD STILL (#973). The normal sweep above cannot see
+    /// them: it ages sessions against <c>_uptime</c>, which a simulation system advances — and a held world
+    /// runs no simulation, so every heartbeat freezes along with the clock.
+    /// <para>
+    /// Two things go wrong without this pass. A player whose client crashes behind its pause menu squats
+    /// their name and slot for the whole hold — up to <see cref="MaxGroupPauseSeconds"/> — which is exactly
+    /// the rejoin lockout #964 removed for a running world. And if EVERY paused client dies (a host machine
+    /// going to sleep), nobody is left to resume: the world sits frozen, saving nothing, until the ceiling.
+    /// </para>
+    /// <para>
+    /// Only clients that have shown they send the pause keep-alive are swept. One from before #973 sends
+    /// nothing at all while its menu is open — dropping it for that would be a regression, not a fix — so a
+    /// mixed-version world simply keeps the old behaviour and waits out the ceiling.
+    /// </para>
+    /// </summary>
+    private void SweepSilentPausedSessions(double deltaSeconds)
+    {
+        List<int>? dead = null;
+        foreach (var (connectionId, session) in _sessions)
+        {
+            if (!session.Joined || !session.HeartbeatTracked || !session.SendsPauseKeepAlive)
+            {
+                continue;
+            }
+
+            session.PausedSilentSeconds += deltaSeconds;
+            if (session.PausedSilentSeconds > SessionHeartbeatTimeout)
+            {
+                (dead ??= new List<int>()).Add(connectionId);
+            }
+        }
+
+        DropSilentSessions(dead);
+    }
+
+    /// <summary>Disconnects the sessions a heartbeat sweep found dead, logging each one.</summary>
+    private void DropSilentSessions(List<int>? dead)
+    {
         if (dead is null)
         {
             return;
@@ -2255,6 +2405,7 @@ public sealed partial class GameServer
         }
 
         session.LastPayloadAt = _uptime; // app-level heartbeat (#964) — see SweepSilentSessions
+        session.PausedSilentSeconds = 0; // the same signal on a clock that runs while the world is held (#973)
 
         // Per-connection flood gate: a token bucket refilled at MsgRatePerSecond, capped at MsgBurst.
         // Every joined intent costs one token; when the bucket is empty the packet is dropped. This bounds

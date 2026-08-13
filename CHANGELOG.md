@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ⏸️ Multiplayer pauses too — once everybody is in the menu (#973)
+
+- **A break is a break for the whole crew.** Until now only a player alone in a world could pause it;
+  in multiplayer the Esc menu said "Paused" while hunger drained, creatures hunted and night fell
+  behind it. Now the world stops as soon as **every** player is sitting in their pause menu, and runs
+  again the moment one of them presses Resume.
+- **The dialog tells you what it is waiting for** — "Paused 1/2 — waiting for: Severin" — instead of
+  claiming a pause that is not running. In 14 languages.
+- Nobody can pause a world out from under anyone else: it takes everybody. Watching admins in observer
+  mode neither block a pause nor count towards one.
+- **A friend whose game crashes mid-break no longer holds up the room.** Their name and slot are
+  released on the usual budget, and a world where every paused client died wakes up instead of sitting
+  frozen (follow-up to #964).
+
 ### 🧠 The world takes a quarter of the memory to look at (#966)
 
 - **Chunk meshes are far lighter.** Every visible chunk was stored twice — once on the graphics card

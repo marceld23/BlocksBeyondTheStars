@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "时间",
   "ui.pause.quit": "退出到主菜单",
   "ui.pause.resume": "继续",
-  "ui.pause.title": "已暂停"
+  "ui.pause.title": "已暂停",
+  "ui.pause.waiting_for": "已暂停 {0}/{1} — 等待：{2}",
+  "ui.pause.world_held": "世界已停止 — 所有人都在暂停菜单中。"
 }

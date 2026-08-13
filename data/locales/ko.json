@@ -3123,5 +3123,7 @@
   "ui.minigame.time": "시간",
   "ui.pause.quit": "메인 메뉴로 나가기",
   "ui.pause.resume": "계속",
-  "ui.pause.title": "일시 중지"
+  "ui.pause.title": "일시 중지",
+  "ui.pause.waiting_for": "일시 중지 {0}/{1} — 대기 중: {2}",
+  "ui.pause.world_held": "월드 정지 — 모두가 일시 중지 메뉴에 있습니다."
 }

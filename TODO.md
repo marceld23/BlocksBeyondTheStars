@@ -105,6 +105,35 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Multiplayer pauses too — once everybody is in the pause menu (#973, 2026-08-13, branch feat/973-multiplayer-pause)
+The Esc hold from #612/#908 only ever served a **lone** player: `HandlePause` refused the request outright
+while a second player was joined, and `HoldingPause` lifted a running hold the moment that count moved. Two
+friends taking a break both watched hunger drain behind their menus. The intent now lives on the session
+(`PlayerSession.WantsPause`) and the world holds while **every** joined non-spectator wants it — a group
+decision nobody can force on anyone else, which is why there is no rule to switch it off. `RecomputePause`
+derives `_paused` and every lift condition falls out of it: someone resumes, someone joins (a fresh session
+starts unpaused), the last holder leaves (an empty world must never hold — it would never save or idle out),
+or the ceiling expires (30 min solo, **10 min** for a group). `PauseState` is now **broadcast** rather than
+answered to the asker — each client stops its own `WorldClock` from it — and carries the tally
+(`HoldingPlayers`/`JoinedPlayers`/`WaitingFor`), so the dialog shows "Paused 1/2 — waiting for: Severin"
+instead of claiming a hold it does not have. Appended fields on contractless MessagePack: **no protocol
+bump**, and a pre-#973 client still pauses correctly on `Paused` alone. The #908 spectator carve-out matters
+more than ever — an observer never opens a pause menu, so counting them would block the hold forever.
+
+**The heartbeat trap this exposed (follow-up to #964).** Behind an open menu the client sends *nothing*:
+`PlayerController` returns before `SendMovement()` whenever `MenuOpen` is set. That the old singleplayer hold
+never tripped the 90 s `SweepSilentSessions` drop was an accident of tick order — `_uptime` and the sweep both
+sit behind the paused early-return, so the heartbeat froze with the world. A client that dies behind its
+dialog therefore squatted its name and slot for the whole hold (the rejoin lockout #964 removed), and if
+*every* paused client died there was nobody left to resume at all. The client now **repeats its pause intent
+every 15 s** and the paused branch runs `SweepSilentPausedSessions` against the hold's own real-time clock.
+`_uptime` is deliberately *not* advanced during a hold — every `_uptime`-keyed cooldown in the server would
+expire for free across a pause. Only clients that have shown they send the keep-alive are swept, so a
+mixed-version world keeps the old behaviour instead of dropping an innocent old client. `TickHostedLifecycle`
+also runs while held now: the /status snapshot the fleet polls must not go stale for ten minutes.
+`SingleplayerPauseTests` → `WorldPauseTests` (12 tests: the two that encoded "one player only" now assert the
+group rule). Two new locale keys in all 14 languages.
+
 ### ★ Arcade full? The WebGL menu now says so — and points at singleplayer (#936, 2026-08-11, branch feature/arcade-full-notice-936)
 When every glitch.fun arcade world is at capacity, the portal's `/api/glitch/session` already answered
 with a machine-readable code (`glitch_full`; `no_capacity` when the fleet RAM budget is spent) — but the
