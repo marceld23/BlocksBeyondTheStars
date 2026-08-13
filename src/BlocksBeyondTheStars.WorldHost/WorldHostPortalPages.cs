@@ -1,16 +1,23 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Localization;
+
 namespace BlocksBeyondTheStars.WorldHost;
 
 /// <summary>
 /// Server-rendered portal shells for the hosted-worlds control plane: landing (sign in / create account
 /// with the required community-rules + beta acceptance), "My Worlds" management, and the rules page.
-/// Pages are fully localized server-side (German default, English via <c>?lang=en</c> — see
-/// <see cref="NormalizeLang"/>); a DE/EN switcher lives in the shared header (pill toggle) and, as
-/// plain links, in the footer. Self-contained like the
-/// per-instance PortalPage (inline CSS + SVG logo, no shipped assets); the pages talk to /api with a
-/// Bearer session from localStorage. Deliberately compact — the polished experience is the game itself.
+/// Pages are fully localized server-side into every language the game ships (German default, any other
+/// via <c>?lang=</c> — see <see cref="PortalLocales"/>); the switcher lives in the shared header
+/// (language picker) and, as plain links, in the footer. Self-contained like the per-instance
+/// PortalPage (inline CSS + SVG logo, no shipped assets); the pages talk to /api with a Bearer session
+/// from localStorage. Deliberately compact — the polished experience is the game itself.
+/// <para>
+/// The locale tables are trusted content (our own literals, like the inline strings they replaced), so
+/// their few <c>&lt;b&gt;/&lt;code&gt;</c> tags are emitted as markup. Anything a player typed still goes
+/// through HtmlEncode / the client-side <c>esc()</c>.
+/// </para>
 /// </summary>
 public static class WorldHostPortalPages
 {
@@ -22,13 +29,20 @@ public static class WorldHostPortalPages
         Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>Clamps a request's language choice to the two supported portal languages. German is
-    /// the default for anything unknown — the service's primary audience — and "en" must be an exact,
-    /// deliberate choice (URL parameter or the cookie the switcher set).</summary>
-    public static string NormalizeLang(string? lang) => lang == "en" ? "en" : "de";
+    /// <summary>The API error codes the pages translate client-side. Kept as a list so the injected map
+    /// and the locale files can be validated against each other.</summary>
+    internal static readonly string[] ErrorCodes =
+    [
+        "accept_rules", "name_invalid", "password_short", "name_taken", "name_reserved", "name_blocked",
+        "world_name_invalid", "world_limit", "no_capacity", "player_name_invalid", "terms_outdated",
+        "world_not_found", "world_start_failed", "world_wake_failed", "stop_first", "upload_too_large",
+        "upload_empty", "save_invalid", "save_missing", "rate_limited", "password_required",
+        "wrong_password", "too_many_attempts", "world_password_invalid",
+    ];
 
     /// <summary>The game website's entry point for a language (empty when the operator turned the link
-    /// off). English falls back to the main URL when no separate EN entry point is configured.</summary>
+    /// off). Only English has its own configured entry point; every other language falls back to the
+    /// main URL — which is what the site itself does.</summary>
     internal static string WebsiteUrl(WorldHostConfig? config, string lang)
     {
         if (config is null || string.IsNullOrWhiteSpace(config.WebsiteUrl))
@@ -54,137 +68,91 @@ public static class WorldHostPortalPages
         return host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? host[4..] : host;
     }
 
-    /// <summary>First-visit language from the browser's <c>Accept-Language</c> header: the first
-    /// supported primary tag wins (browsers list tags in preference order, so full q-value parsing
-    /// would only complicate this). A browser that asks for NEITHER de nor en (French, Spanish, …)
-    /// gets English — the portal has no pages in those languages yet, and English is the game's
-    /// fallback language everywhere else too. Only a missing header keeps the German default (the
-    /// service's primary audience). Only consulted when neither <c>?lang=</c> nor the
-    /// <c>bbs_lang</c> cookie carries an explicit choice — auto-detection never persists, so a
-    /// deliberate switch always outranks it.</summary>
-    public static string LangFromAcceptHeader(string? acceptLanguage)
+    public static string Landing(WorldHostConfig config, string lang = PortalLocales.DefaultLang)
     {
-        if (string.IsNullOrWhiteSpace(acceptLanguage))
-        {
-            return "de";
-        }
-
-        foreach (string part in acceptLanguage.Split(','))
-        {
-            string tag = part.Split(';')[0].Trim();
-            string primary = tag.Length >= 3 && tag[2] == '-' ? tag[..2] : tag;
-            if (primary.Equals("de", StringComparison.OrdinalIgnoreCase))
-            {
-                return "de";
-            }
-
-            if (primary.Equals("en", StringComparison.OrdinalIgnoreCase))
-            {
-                return "en";
-            }
-        }
-
-        return "en";
-    }
-
-    public static string Landing(WorldHostConfig config, string lang = "de")
-    {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var t = PortalLocales.For(lang);
 
         // The footer carries the same link on every page, but a first-time visitor lands HERE and would
         // never scroll for it — the site is where the game itself, the downloads and the devblog live.
-        string websiteLine = WebsiteUrl(config, lang) is { Length: > 0 } siteUrl
-            ? $@"<p class='sub'>{T("Alles über das Spiel, Downloads und Devblog:", "Everything about the game, downloads and devblog:")}
+        string websiteLine = WebsiteUrl(config, t.Lang) is { Length: > 0 } siteUrl
+            ? $@"<p class='sub'>{t.T("landing.websiteLine")}
  <a href='{System.Net.WebUtility.HtmlEncode(siteUrl)}' target='_blank' rel='noopener noreferrer'>{System.Net.WebUtility.HtmlEncode(WebsiteLabel(siteUrl))} ↗</a></p>"
             : string.Empty;
 
+        // The rules link lives in a {rules} placeholder rather than inside the sentence: a translator
+        // must never have to retype an href, and the query has to stay this page's language.
+        string rulesLink = $"<a href='/rules{t.Query}'>{t.T("landing.signup.consentLink")}</a>";
+        string termsLink = $"<a href='/rules{t.Query}'>{t.T("landing.terms.consentLink")}</a>";
+
         string body = $@"
-<h1>Blocks Beyond the Stars — <span class='o'>{T("Welten", "Worlds")}</span></h1>
-<p class='sub'>{T("Eigene Multiplayer-Welt erstellen und mit Freunden spielen.", "Create your own multiplayer world and play with friends.")}</p>
+<h1>Blocks Beyond the Stars — <span class='o'>{t.T("landing.worlds")}</span></h1>
+<p class='sub'>{t.T("landing.sub")}</p>
 {websiteLine}
 <div class='card how'>
- <h2>{T("So funktioniert's", "How it works")}</h2>
+ <h2>{t.T("landing.how.title")}</h2>
  <ol>
-  <li>{T("Kostenloses Konto erstellen (keine E-Mail nötig) und deine eigene Welt anlegen.",
-        "Create a free account (no email needed) and create your own world.")}</li>
-  <li>{T("Beitritts-Passwort setzen und mit deinen Freunden teilen.",
-        "Set a join password and share it with your friends.")}</li>
-  <li>{T("Welt öffentlich listen — Freunde finden sie dann in der Weltenliste (hier und im Spiel) und treten mit deinem Passwort bei.",
-        "List your world publicly — friends then find it in the world list (here and in the game) and join with your password.")}</li>
+  <li>{t.T("landing.how.step1")}</li>
+  <li>{t.T("landing.how.step2")}</li>
+  <li>{t.T("landing.how.step3")}</li>
  </ol>
- <p class='hint'>{T("Offene Server gibt es nicht: Jede öffentliche Welt ist durch das Passwort ihres Erstellers geschützt.",
-        "There are no open servers: every public world is protected by its creator's password.")}</p>
+ <p class='hint'>{t.T("landing.how.hint")}</p>
 </div>
-<div class='kids'>🧒 {T(
-        "Frag bitte zuerst deine Eltern, ob es okay ist, dieses Spiel zu spielen.",
-        "Please ask your parents first if it is okay for you to play this game.")}</div>
-<div class='beta'>⚠ <b>Beta:</b> {T(
-        "Das Spiel wird noch gebaut — Welten können kaputtgehen oder verloren gehen. Lade regelmäßig eine Sicherung herunter!",
-        "The game is still being built — worlds can break or disappear. Download a backup regularly!")}</div>
+<div class='kids'>🧒 {t.T("landing.kids")}</div>
+<div class='beta'>⚠ <b>{t.T("landing.beta.label")}</b> {t.T("landing.beta.text")}</div>
 <div id='msg' role='status' aria-live='polite' aria-atomic='true'></div>
 <div class='cols'>
  <form class='card' id='su-form' novalidate>
-  <h2>{T("Konto erstellen", "Create account")}</h2>
-  <label for='su-name'>{T("Kontoname", "Account name")}</label>
-  <input id='su-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' placeholder='{T("Erfinde einen Kontonamen (Buchstaben, Zahlen, - und _)", "Invent an account name (letters, digits, - and _)")}' maxlength='24'>
-  <label for='su-pass'>{T("Passwort", "Password")}</label>
-  <input id='su-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{T("Min. 8 Zeichen", "At least 8 characters")}'>
-  <p class='hint'>{T(
-        "Der Kontoname ist nur zum Anmelden — deinen Spielernamen wählst du getrennt und kannst ihn jederzeit ändern. Keine E-Mail nötig. <b>Schreib dir Kontoname, Passwort und deine Rettungscodes auf!</b> Mit einem Rettungscode kannst du ein vergessenes Passwort zurücksetzen.",
-        "The account name is only for signing in — you pick your player name separately and can change it anytime. No email needed. <b>Write down your account name, password and rescue codes!</b> A rescue code lets you reset a forgotten password.")}</p>
-  <label class='consent'><input type='checkbox' id='su-accept'> <span>{T(
-        "Ich akzeptiere die <a href='/rules?lang=de'>Community-Regeln</a> und den Beta-Hinweis",
-        "I accept the <a href='/rules?lang=en'>community rules</a> and the beta notice")}</span></label>
-  <button type='submit'>{T("Konto erstellen", "Create account")}</button>
+  <h2>{t.T("landing.createAccount")}</h2>
+  <label for='su-name'>{t.T("landing.accountName")}</label>
+  <input id='su-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' placeholder='{t.T("landing.accountNamePlaceholder")}' maxlength='24'>
+  <label for='su-pass'>{t.T("landing.password")}</label>
+  <input id='su-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{t.T("landing.passwordPlaceholder")}'>
+  <p class='hint'>{t.T("landing.signup.hint")}</p>
+  <label class='consent'><input type='checkbox' id='su-accept'> <span>{t.T("landing.signup.consent", ("rules", rulesLink))}</span></label>
+  <button type='submit'>{t.T("landing.createAccount")}</button>
   <div id='su-codes' hidden>
-    <h2 id='su-codes-title' tabindex='-1'>{T("Deine Rettungscodes", "Your rescue codes")}</h2>
-    <p class='hint'>{T(
-        "<b>Schreib diese Codes auf Papier!</b> Mit einem Code kannst du ein neues Passwort setzen, wenn du deins vergisst. Jeder Code geht nur einmal — sie werden nie wieder angezeigt.",
-        "<b>Write these codes on paper!</b> A code lets you set a new password if you forget yours. Each code works once — they are never shown again.")}</p>
+    <h2 id='su-codes-title' tabindex='-1'>{t.T("landing.codes.title")}</h2>
+    <p class='hint'>{t.T("landing.codes.hint")}</p>
     <p id='su-codes-list' style='font-size:1.5em'></p>
-    <button type='button' onclick=""location.href='/worlds'+LQ"">{T("Aufgeschrieben — weiter", "Written down — continue")}</button>
+    <button type='button' onclick=""location.href='/worlds'+LQ"">{t.T("landing.codes.continue")}</button>
   </div>
  </form>
  <div class='card'>
-  <h2>{T("Anmelden", "Sign in")}</h2>
+  <h2>{t.T("landing.signIn")}</h2>
   <form id='li-form' novalidate>
-   <label for='li-name'>{T("Kontoname", "Account name")}</label>
+   <label for='li-name'>{t.T("landing.accountName")}</label>
    <input id='li-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' maxlength='24'>
-   <label for='li-pass'>{T("Passwort", "Password")}</label>
+   <label for='li-pass'>{t.T("landing.password")}</label>
    <input id='li-pass' name='password' type='password' autocomplete='current-password'>
-   <button type='submit'>{T("Anmelden", "Sign in")}</button>
+   <button type='submit'>{t.T("landing.signIn")}</button>
   </form>
-  <p class='hint'><button type='button' class='linky' id='li-recover-toggle' aria-expanded='false' aria-controls='li-recover'>{T(
-        "Passwort vergessen? Mit Rettungscode zurücksetzen", "Forgot your password? Reset it with a rescue code")}</button></p>
+  <p class='hint'><button type='button' class='linky' id='li-recover-toggle' aria-expanded='false' aria-controls='li-recover'>{t.T("landing.recover.toggle")}</button></p>
   <form id='li-recover' novalidate hidden>
-    <label for='rc-name'>{T("Kontoname", "Account name")}</label>
+    <label for='rc-name'>{t.T("landing.accountName")}</label>
     <input id='rc-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' maxlength='24'>
-    <label for='rc-code'>{T("Rettungscode", "Rescue code")}</label>
-    <input id='rc-code' name='code' autocomplete='off' autocapitalize='characters' spellcheck='false' placeholder='{T("z. B. AB2C-DEF3", "e.g. AB2C-DEF3")}' maxlength='12'>
-    <label for='rc-pass'>{T("Neues Passwort", "New password")}</label>
-    <input id='rc-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{T("Min. 8 Zeichen", "At least 8 characters")}'>
-    <button type='submit'>{T("Neues Passwort setzen", "Set new password")}</button>
+    <label for='rc-code'>{t.T("landing.recover.code")}</label>
+    <input id='rc-code' name='code' autocomplete='off' autocapitalize='characters' spellcheck='false' placeholder='{t.T("landing.recover.codePlaceholder")}' maxlength='12'>
+    <label for='rc-pass'>{t.T("landing.recover.newPassword")}</label>
+    <input id='rc-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{t.T("landing.passwordPlaceholder")}'>
+    <button type='submit'>{t.T("landing.recover.submit")}</button>
   </form>
   <form id='li-terms' novalidate hidden>
-    <p>{T("Die Community-Regeln haben sich geändert.", "The community rules changed.")}</p>
-    <label class='consent'><input type='checkbox' id='li-accept'> <span>{T(
-        "Ich akzeptiere die <a href='/rules?lang=de'>Regeln</a>",
-        "I accept the <a href='/rules?lang=en'>rules</a>")}</span></label>
-    <button type='submit'>{T("Weiter", "Continue")}</button>
+    <p>{t.T("landing.terms.changed")}</p>
+    <label class='consent'><input type='checkbox' id='li-accept'> <span>{t.T("landing.terms.consent", ("rules", termsLink))}</span></label>
+    <button type='submit'>{t.T("landing.terms.submit")}</button>
   </form>
  </div>
 </div>" + LandingScript
             .Replace("__TERMS__", config.TermsVersion.ToString())
             .Replace("__L__", System.Text.Json.JsonSerializer.Serialize(new
             {
-                acceptFirst = T("Bitte akzeptiere zuerst die Regeln.", "Please accept the rules first."),
-                wrongLogin = T("Name oder Passwort falsch.", "Wrong name or password."),
-                err = T("Fehler", "Error"),
+                acceptFirst = t.T("landing.js.acceptFirst"),
+                wrongLogin = t.T("landing.js.wrongLogin"),
+                err = t.T("common.error"),
             }, ScriptJson))
-            .Replace("__LQ__", lang == "en" ? "?lang=en" : string.Empty);
+            .Replace("__LQ__", t.Query);
 
-        return Shell($"Blocks Beyond the Stars — {T("Welten", "Worlds")}", body, lang, config);
+        return Shell($"Blocks Beyond the Stars — {t.T("landing.worlds")}", body, t.Lang, config);
     }
 
     // Plain (non-interpolated) verbatim script: single braces stay single, localized strings arrive
@@ -193,7 +161,7 @@ public static class WorldHostPortalPages
 <script>
 const TERMS = __TERMS__;
 const L = __L__;
-const LQ = '__LQ__'; // keeps ?lang=en across the JS navigations (the bbs_lang cookie is the fallback)
+const LQ = '__LQ__'; // keeps ?lang= across the JS navigations (the bbs_lang cookie is the fallback)
 function say(t){document.getElementById('msg').textContent = t||'';}
 // Blocking validation: say() alone only updates the status line — a keyboard/screen-reader user is left
 // without a target. Moving focus to the field that needs fixing names the problem where it happened (#574).
@@ -254,186 +222,168 @@ document.getElementById('li-recover-toggle').addEventListener('click', function(
 });
 </script>";
 
-    public static string Worlds(WorldHostConfig config, string lang = "de")
+    public static string Worlds(WorldHostConfig config, string lang = PortalLocales.DefaultLang)
     {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var t = PortalLocales.For(lang);
 
         string body = $@"
-<h1>{T("Meine <span class='o'>Welten</span>", "My <span class='o'>Worlds</span>")}</h1>
-<div class='beta'>⚠ Beta: {T(
-        "Welten können kaputtgehen oder verloren gehen — lade Sicherungen herunter!",
-        "Worlds can break or vanish — download backups!")}</div>
+<h1>{t.T("worlds.title", ("worlds", $"<span class='o'>{t.T("landing.worlds")}</span>"))}</h1>
+<div class='beta'>⚠ Beta: {t.T("worlds.beta")}</div>
 <div id='msg' role='status' aria-live='polite' aria-atomic='true'></div>
 <div id='notices'></div>
 <div class='card'>
- <h2>{T("Dein Spielername", "Your player name")}</h2>
- <label for='player-name'>{T("Spielername", "Player name")}</label>
+ <h2>{t.T("worlds.playerName.title")}</h2>
+ <label for='player-name'>{t.T("worlds.playerName.label")}</label>
  <input id='player-name' name='player-name' autocomplete='nickname' maxlength='24'>
- <p class='hint'>{T("Mit diesem Namen trittst du Welten bei — er ist unabhängig vom Kontonamen und jederzeit änderbar.",
-        "You join worlds with this name — it is independent of your account name and can be changed anytime.")}</p>
+ <p class='hint'>{t.T("worlds.playerName.hint")}</p>
 </div>
 <form class='card' id='w-form' novalidate>
- <h2>{T("Neue Welt", "New world")}</h2>
- <label for='w-name'>{T("Weltname", "World name")}</label>
+ <h2>{t.T("worlds.new.title")}</h2>
+ <label for='w-name'>{t.T("worlds.new.name")}</label>
  <input id='w-name' name='world-name' maxlength='40'>
  <details>
-  <summary>{T("Mit Passwort schützen (optional)", "Protect with a password (optional)")}</summary>
-  <label for='w-pass'>{T("Passwort", "Password")}</label>
-  <input id='w-pass' type='password' placeholder='{T("Min. 4 Zeichen", "At least 4 characters")}' maxlength='24' autocomplete='new-password'>
-  <label for='w-pass2'>{T("Passwort wiederholen", "Repeat password")}</label>
+  <summary>{t.T("worlds.new.protect")}</summary>
+  <label for='w-pass'>{t.T("landing.password")}</label>
+  <input id='w-pass' type='password' placeholder='{t.T("worlds.new.passwordPlaceholder")}' maxlength='24' autocomplete='new-password'>
+  <label for='w-pass2'>{t.T("worlds.new.repeat")}</label>
   <input id='w-pass2' type='password' maxlength='24' autocomplete='new-password'>
-  <p class='hint'>{T("Mit Passwort können nur Spieler beitreten, die es kennen.", "With a password, only players who know it can join.")}</p>
+  <p class='hint'>{t.T("worlds.new.hint")}</p>
  </details>
- <button id='w-create' type='submit'>{T("Erstellen", "Create")}</button>
+ <button id='w-create' type='submit'>{t.T("worlds.new.submit")}</button>
 </form>
 <div id='list'></div>
 <div class='card'>
- <h2>{T("Öffentliche Welten", "Public worlds")}</h2>
- <p class='hint'>{T(
-        "Von anderen Spielern geteilte Welten — zum Beitreten brauchst du das Passwort des Erstellers.",
-        "Worlds shared by other players — you need the creator's password to join.")}</p>
+ <h2>{t.T("worlds.public.title")}</h2>
+ <p class='hint'>{t.T("worlds.public.hint")}</p>
  <div id='public-list'></div>
 </div>
 <div class='card'>
- <h2>{T("Feedback & Ideen", "Feedback & ideas")}</h2>
- <p class='hint'>{T(
-        "Was wünschst du dir für das Spiel? Was können wir besser machen? Schreib es uns!",
-        "What do you wish for the game? What could we do better? Tell us!")}</p>
+ <h2>{t.T("worlds.feedback.title")}</h2>
+ <p class='hint'>{t.T("worlds.feedback.hint")}</p>
  <form id='f-form' novalidate>
-  <label for='f-msg'>{T("Deine Idee oder dein Wunsch", "Your idea or wish")}</label>
+  <label for='f-msg'>{t.T("worlds.feedback.label")}</label>
   <input id='f-msg' name='idea' maxlength='500'>
-  <button type='submit'>{T("Abschicken", "Send")}</button>
+  <button type='submit'>{t.T("worlds.feedback.submit")}</button>
  </form>
  <details>
-  <summary>{T("Etwas Schlimmes passiert? → Spieler melden", "Something bad happened? → Report a player")}</summary>
-  <p class='hint'>{T(
-        "Am einfachsten geht es direkt im Spiel: Tippe <code>/report &lt;Name&gt;</code> in den Chat oder nutze den Melden-Knopf in der Spielerliste (Schiff → Allianz). Hier geht es auch:",
-        "The easiest way is right in the game: type <code>/report &lt;name&gt;</code> in chat or use the report button in the player list (ship → alliance). It also works here:")}</p>
+  <summary>{t.T("worlds.report.summary")}</summary>
+  <p class='hint'>{t.T("worlds.report.hint")}</p>
   <form id='r-form' novalidate>
-   <label for='r-name'>{T("Spielername", "Player name")}</label>
+   <label for='r-name'>{t.T("worlds.playerName.label")}</label>
    <input id='r-name' name='reported-name' autocapitalize='none' maxlength='24'>
-   <label for='r-cat'>{T("Worum geht es?", "What is it about?")}</label>
-   <select id='r-cat' name='category'><option value='chat'>Chat</option><option value='name'>Name</option><option value='griefing'>{T("Zerstören (Griefing)", "Griefing")}</option><option value='other'>{T("Anderes", "Other")}</option></select>
-   <label for='r-world'>{T("Welche Welt? (optional)", "Which world? (optional)")}</label>
-   <select id='r-world' name='world'><option value=''>{T("— keine Angabe —", "— not specified —")}</option></select>
-   <label for='r-msg'>{T("Was ist passiert?", "What happened?")}</label>
+   <label for='r-cat'>{t.T("worlds.report.category")}</label>
+   <select id='r-cat' name='category'><option value='chat'>{t.T("worlds.report.cat.chat")}</option><option value='name'>{t.T("worlds.report.cat.name")}</option><option value='griefing'>{t.T("worlds.report.cat.griefing")}</option><option value='other'>{t.T("worlds.report.cat.other")}</option></select>
+   <label for='r-world'>{t.T("worlds.report.world")}</label>
+   <select id='r-world' name='world'><option value=''>{t.T("worlds.report.worldNone")}</option></select>
+   <label for='r-msg'>{t.T("worlds.report.what")}</label>
    <input id='r-msg' name='what-happened' maxlength='500'>
-   <button type='submit'>{T("Melden", "Report")}</button>
+   <button type='submit'>{t.T("worlds.report.submit")}</button>
   </form>
-  <p class='hint'>{T("Wir schauen uns jede Meldung an — niemand wird automatisch bestraft.", "We review every report — nobody is punished automatically.")}</p>
+  <p class='hint'>{t.T("worlds.report.footer")}</p>
  </details>
 </div>
 <div class='card'>
  <details>
-  <summary>{T("Konto löschen", "Delete account")}</summary>
-  <p class='hint'>{T(
-        "Löscht dein Konto endgültig — mitsamt allen deinen Welten und Spielständen. Das kann niemand rückgängig machen!",
-        "Permanently deletes your account — including all your worlds and saves. Nobody can undo this!")}</p>
-  <button class='danger' onclick='deleteAccount()'>{T("Konto endgültig löschen", "Delete account permanently")}</button>
+  <summary>{t.T("worlds.delete.summary")}</summary>
+  <p class='hint'>{t.T("worlds.delete.hint")}</p>
+  <button class='danger' onclick='deleteAccount()'>{t.T("worlds.delete.button")}</button>
  </details>
 </div>
-<p><a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> · <button type='button' class='linky' onclick=""localStorage.removeItem('bbs_session');location.href='/'"">{T("Abmelden", "Sign out")}</button></p>" + WorldsScript
+<p><a href='/rules{t.Query}'>{t.T("shell.rules")}</a> · <button type='button' class='linky' onclick=""localStorage.removeItem('bbs_session');location.href='/'"">{t.T("worlds.signOut")}</button></p>" + WorldsScript
             .Replace("__L__", System.Text.Json.JsonSerializer.Serialize(new
             {
-                err = T("Fehler", "Error"),
-                namePrompt = T("Dein Spielername?", "Your player name?"),
-                yourName = T("Dein Spielername", "Your player name"),
-                needName = T("Bitte gib oben deinen Spielernamen ein.", "Please enter your player name above."),
-                waking = T("Welt wird gestartet… das kann bis zu einer Minute dauern.", "Waking the world… this can take up to a minute."),
-                ready = T("Welt läuft! Klick unten auf „Im Browser spielen“.", "World is running! Click “Play in the browser” below."),
-                playNow = T("✅ Bereit — jetzt im Browser spielen", "✅ Ready — play now in the browser"),
-                joinInGame = T("Im Spiel beitreten", "Join in game"),
-                token = T("Token (10 min gültig)", "Token (valid 10 min)"),
-                play = T("Spielen", "Play"),
-                stop = T("Stoppen", "Stop"),
-                dlSave = T("Sicherung laden", "Download save"),
-                upSave = T("Save hochladen", "Upload save"),
-                del = T("Löschen", "Delete"),
-                delConfirm = T("Welt '%s' wirklich löschen?", "Really delete world '%s'?"),
-                noWorlds = T("Noch keine Welt — erstelle deine erste!", "No world yet — create your first!"),
-                creating = T("Welt wird erstellt…", "Creating world…"),
-                created = T("Welt erstellt! 🚀", "World created! 🚀"),
-                stopping = T("Welt wird gestoppt…", "Stopping the world…"),
-                stopDone = T("Welt gestoppt.", "World stopped."),
-                deleting = T("Welt wird gelöscht…", "Deleting the world…"),
-                delDone = T("Welt gelöscht.", "World deleted."),
-                makePublic = T("Öffentlich listen", "List publicly"),
-                makePrivate = T("Privat machen", "Make private"),
-                publicOn = T("Welt ist jetzt öffentlich sichtbar. 🌍", "World is now public. 🌍"),
-                publicOff = T("Welt ist wieder privat.", "World is private again."),
-                publicBadge = T("Öffentlich gelistet", "Publicly listed"),
-                publicConfirm = T(
-                    "Diese Welt öffentlich listen? Jede/r mit dem Passwort kann dann beitreten.",
-                    "List this world publicly? Anyone with the password can then join."),
-                publicNeedsPw = T("Nur Welten mit Passwort können öffentlich gelistet werden.", "Only password-protected worlds can be listed publicly."),
-                noPublic = T("Gerade keine öffentlichen Welten. Sei die/der Erste! 🚀", "No public worlds right now. Be the first! 🚀"),
-                uploading = T("Upload läuft…", "Uploading…"),
-                upDone = T("Save übernommen!", "Save imported!"),
-                reported = T("Danke für deine Meldung!", "Thanks for your report!"),
-                feedbackThanks = T("Danke für deine Idee! 🚀", "Thanks for your idea! 🚀"),
-                feedbackEmpty = T("Bitte schreib zuerst deine Idee auf.", "Please write your idea first."),
-                delAcc1 = T("Konto und ALLE Welten endgültig löschen?", "Permanently delete the account and ALL worlds?"),
-                delAcc2 = T("Wirklich sicher? Es gibt kein Zurück!", "Really sure? There is no way back!"),
-                pw = T("Passwort", "Password"),
-                pwOff = T("(aus)", "(off)"),
-                pwProtected = T("Passwort-geschützt", "Password protected"),
-                pwNew = T("Neues Passwort (min. 4 Zeichen)", "New password (min. 4 characters)"),
-                pwRepeat = T("Wiederholen", "Repeat"),
-                pwSet = T("Setzen", "Set"),
-                pwRemove = T("Entfernen", "Remove"),
-                pwMismatch = T("Die Passwörter stimmen nicht überein.", "The passwords do not match."),
-                pwEnter = T("Bitte ein Passwort eingeben (min. 4 Zeichen).", "Please enter a password (min. 4 characters)."),
-                pwSetDone = T("Passwort gesetzt.", "Password set."),
-                pwRemovedDone = T("Passwort entfernt.", "Password removed."),
-                pwRemoveConfirm = T("Passwort entfernen — dann kann jeder beitreten?", "Remove the password — anyone can join then?"),
-                pwNeedPrompt = T("Diese Welt braucht ein Passwort:", "This world needs a password:"),
-                pwWrongPrompt = T("Falsches Passwort — nochmal versuchen:", "Wrong password — try again:"),
-                banTitle = T("Dein Konto ist gesperrt", "Your account is blocked"),
-                banPerm = T("Die Sperre gilt, bis wir sie aufheben.", "The block stays until we lift it."),
-                banUntil = T("Die Sperre endet am %s.", "The block ends on %s."),
-                banSince = T("Gesperrt seit %s.", "Blocked since %s."),
-                noticeTitle = T("Nachricht vom Portal", "Message from the portal"),
-                noticeReason = T("Grund:", "Reason:"),
-                noticeAppeal = T(
-                    "Wenn du denkst, das ist ein Fehler: Frag deine Eltern und schreibt uns über die Kontaktadresse auf dieser Seite.",
-                    "If you think this is a mistake: ask your parents and write to us at the contact address on this page."),
-                noticeUnbanned = T("Deine Sperre wurde aufgehoben — willkommen zurück!", "Your block has been lifted — welcome back!"),
-                noticeWorldDeleted = T("Deine Welt „%s“ wurde von uns gelöscht.", "Your world “%s” was deleted by us."),
-                noticeOk = T("Verstanden", "Got it"),
+                err = t.T("common.error"),
+                needName = t.T("worlds.js.needName"),
+                waking = t.T("worlds.js.waking"),
+                ready = t.T("worlds.js.ready"),
+                playNow = t.T("worlds.js.playNow"),
+                joinInGame = t.T("worlds.js.joinInGame"),
+                token = t.T("worlds.js.token"),
+                play = t.T("worlds.js.play"),
+                stop = t.T("worlds.js.stop"),
+                dlSave = t.T("worlds.js.dlSave"),
+                upSave = t.T("worlds.js.upSave"),
+                del = t.T("worlds.js.del"),
+                delConfirm = t.T("worlds.js.delConfirm"),
+                noWorlds = t.T("worlds.js.noWorlds"),
+                creating = t.T("worlds.js.creating"),
+                created = t.T("worlds.js.created"),
+                stopping = t.T("worlds.js.stopping"),
+                stopDone = t.T("worlds.js.stopDone"),
+                deleting = t.T("worlds.js.deleting"),
+                delDone = t.T("worlds.js.delDone"),
+                makePublic = t.T("worlds.js.makePublic"),
+                makePrivate = t.T("worlds.js.makePrivate"),
+                publicOn = t.T("worlds.js.publicOn"),
+                publicOff = t.T("worlds.js.publicOff"),
+                publicBadge = t.T("worlds.js.publicBadge"),
+                publicConfirm = t.T("worlds.js.publicConfirm"),
+                publicNeedsPw = t.T("worlds.js.publicNeedsPw"),
+                noPublic = t.T("worlds.js.noPublic"),
+                uploading = t.T("worlds.js.uploading"),
+                upDone = t.T("worlds.js.upDone"),
+                reported = t.T("worlds.js.reported"),
+                feedbackThanks = t.T("worlds.js.feedbackThanks"),
+                feedbackEmpty = t.T("worlds.js.feedbackEmpty"),
+                delAcc1 = t.T("worlds.js.delAcc1"),
+                delAcc2 = t.T("worlds.js.delAcc2"),
+                pw = t.T("worlds.js.pw"),
+                pwOff = t.T("worlds.js.pwOff"),
+                pwProtected = t.T("worlds.js.pwProtected"),
+                pwNew = t.T("worlds.js.pwNew"),
+                pwRepeat = t.T("worlds.js.pwRepeat"),
+                pwSet = t.T("worlds.js.pwSet"),
+                pwRemove = t.T("worlds.js.pwRemove"),
+                pwMismatch = t.T("worlds.js.pwMismatch"),
+                pwEnter = t.T("worlds.js.pwEnter"),
+                pwSetDone = t.T("worlds.js.pwSetDone"),
+                pwRemovedDone = t.T("worlds.js.pwRemovedDone"),
+                pwRemoveConfirm = t.T("worlds.js.pwRemoveConfirm"),
+                pwNeedPrompt = t.T("worlds.js.pwNeedPrompt"),
+                pwWrongPrompt = t.T("worlds.js.pwWrongPrompt"),
+                banTitle = t.T("worlds.js.banTitle"),
+                banPerm = t.T("worlds.js.banPerm"),
+                banUntil = t.T("worlds.js.banUntil"),
+                banSince = t.T("worlds.js.banSince"),
+                noticeTitle = t.T("worlds.js.noticeTitle"),
+                noticeReason = t.T("worlds.js.noticeReason"),
+                noticeAppeal = t.T("worlds.js.noticeAppeal"),
+                noticeUnbanned = t.T("worlds.js.noticeUnbanned"),
+                noticeWorldDeleted = t.T("worlds.js.noticeWorldDeleted"),
+                noticeOk = t.T("worlds.js.noticeOk"),
                 reasons = new
                 {
-                    chat = T("Wie du im Chat mit anderen geredet hast", "How you talked to others in chat"),
-                    griefing = T("Zerstören in fremden Welten", "Wrecking things in other people's worlds"),
-                    cheating = T("Schummeln im Spiel", "Cheating in the game"),
-                    name = T("Dein Name war nicht in Ordnung", "Your name was not okay"),
-                    other = T("Verstoß gegen die Community-Regeln", "Breaking the community rules"),
+                    chat = t.T("worlds.js.reason.chat"),
+                    griefing = t.T("worlds.js.reason.griefing"),
+                    cheating = t.T("worlds.js.reason.cheating"),
+                    name = t.T("worlds.js.reason.name"),
+                    other = t.T("worlds.js.reason.other"),
                 },
-                mod = T("Spieler verwalten", "Manage players"),
-                modHint = T(
-                    "Gesperrte Spieler kommen nicht mehr in diese Welt. Das Spiel selbst bleibt für sie offen.",
-                    "Blocked players cannot enter this world any more. The game itself stays open to them."),
-                modNone = T("Niemand ist gesperrt.", "Nobody is blocked."),
-                modVisitors = T("Wer war hier", "Who has been here"),
-                modNoVisitors = T("Bisher war niemand in dieser Welt.", "Nobody has visited this world yet."),
-                modBlock = T("sperren", "block"),
-                modUnblock = T("entsperren", "unblock"),
-                modKick = T("rauswerfen", "kick"),
-                modReason = T("Grund (der Spieler sieht ihn)", "reason (the player sees it)"),
-                modBlocked = T("Gesperrt.", "Blocked."),
-                modUnblocked = T("Entsperrt.", "Unblocked."),
-                modKicked = T("Rausgeworfen.", "Kicked."),
-                modNotOnline = T("Der Spieler ist gerade nicht in dieser Welt.", "The player is not in this world right now."),
+                mod = t.T("worlds.js.mod"),
+                modHint = t.T("worlds.js.modHint"),
+                modNone = t.T("worlds.js.modNone"),
+                modVisitors = t.T("worlds.js.modVisitors"),
+                modNoVisitors = t.T("worlds.js.modNoVisitors"),
+                modBlock = t.T("worlds.js.modBlock"),
+                modUnblock = t.T("worlds.js.modUnblock"),
+                modKick = t.T("worlds.js.modKick"),
+                modReason = t.T("worlds.js.modReason"),
+                modBlocked = t.T("worlds.js.modBlocked"),
+                modUnblocked = t.T("worlds.js.modUnblocked"),
+                modKicked = t.T("worlds.js.modKicked"),
+                modNotOnline = t.T("worlds.js.modNotOnline"),
                 st = new
                 {
-                    stopped = T("gestoppt", "stopped"),
-                    starting = T("startet…", "starting…"),
-                    running = T("läuft", "running"),
-                    archived = T("archiviert", "archived"),
+                    stopped = t.T("worlds.js.status.stopped"),
+                    starting = t.T("worlds.js.status.starting"),
+                    running = t.T("worlds.js.status.running"),
+                    archived = t.T("worlds.js.status.archived"),
                 },
             }, ScriptJson));
 
-        return Shell($"{T("Meine Welten", "My Worlds")} — Blocks Beyond the Stars", body, lang, config);
+        return Shell(
+            $"{t.T("worlds.title", ("worlds", t.T("landing.worlds")))} — Blocks Beyond the Stars",
+            body, t.Lang, config);
     }
 
     private const string WorldsScript = @"
@@ -560,9 +510,11 @@ async function joinWorld(id, pw, grantId){
       // no-op (#252).
       await load();
       say(L.ready);
+      // The portal's language rides along, so the browser client's loading shell greets the player in
+      // the same language they just used to get here (#970).
       const playUrl = `/play/?auto_join=1&player_name=${encodeURIComponent(name)}`
         + `&server_host=${encodeURIComponent(j.wssUrl)}&hosted_token=${encodeURIComponent(j.joinToken)}`
-        + `&world_id=${encodeURIComponent(j.worldId)}`;
+        + `&world_id=${encodeURIComponent(j.worldId)}&lang=${encodeURIComponent(PAGE_LANG)}`;
       // Primary action = the browser-play button (can't auto-open a popup after the await — the click
       // gesture is spent — so it's a link the player taps with a fresh gesture). Native host/port/token
       // tucked into a details so desktop players can still copy it without cluttering the main action.
@@ -721,28 +673,26 @@ loadPublic();
 loadNotices();
 </script>";
 
-    public static string Rules(WorldHostConfig config, string lang = "de")
+    public static string Rules(WorldHostConfig config, string lang = PortalLocales.DefaultLang)
     {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var t = PortalLocales.For(lang);
 
         // Single-sourced with GET /api/terms (the in-game rules screen) — see CommunityRules.
-        string card = CommunityRules.HtmlCard(lang);
+        string card = CommunityRules.HtmlCard(t.Lang);
 
-        return Shell($"{T("Community-Regeln", "Community Rules")} — Blocks Beyond the Stars", $@"
-<h1>Community-<span class='o'>{T("Regeln", "Rules")}</span> <span class='sub'>(v{config.TermsVersion})</span></h1>
+        return Shell($"{t.T("rules.pageTitle")} — Blocks Beyond the Stars", $@"
+<h1><span class='o'>{t.T("rules.pageTitle")}</span> <span class='sub'>(v{config.TermsVersion})</span></h1>
 {card}
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
+<p><a href='/{t.Query}'>{t.T("shell.back")}</a></p>", t.Lang, config);
     }
 
     /// <summary>Impressum (§5 DDG). Operator data comes from config so a SELF-HOSTED WorldHost never
     /// serves the project authors' identity; unset config renders an explicit "not configured" notice.
     /// The legal body itself stays German (the legally authoritative text for a German operator) —
     /// only the chrome and notices are localized.</summary>
-    public static string Impressum(WorldHostConfig config, string lang = "de")
+    public static string Impressum(WorldHostConfig config, string lang = PortalLocales.DefaultLang)
     {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var t = PortalLocales.For(lang);
 
         string name = System.Net.WebUtility.HtmlEncode(config.LegalName);
         string email = System.Net.WebUtility.HtmlEncode(config.LegalEmail);
@@ -751,15 +701,13 @@ loadNotices();
             .Select(part => System.Net.WebUtility.HtmlEncode(part.Trim())));
 
         string operatorBlock = string.IsNullOrEmpty(name)
-            ? $@"<p class='beta'>⚠ {T(
-                "Der Betreiber dieses (selbst gehosteten) Portals hat sein Impressum noch nicht konfiguriert (BBS_WH_LEGAL_NAME / _ADDRESS / _EMAIL).",
-                "The operator of this (self-hosted) portal has not configured their legal notice yet (BBS_WH_LEGAL_NAME / _ADDRESS / _EMAIL).")}</p>"
+            ? $@"<p class='beta'>⚠ {t.T("legal.notConfigured")}</p>"
             : $@"<p><b>{name}</b><br>{address}</p>
                 <p>E-Mail: <a href='mailto:{email}'>{email}</a></p>";
 
         return Shell("Impressum — Blocks Beyond the Stars", $@"
-<h1>Impressum <span class='sub'>· Legal notice</span></h1>
-{(lang == "en" ? "<p class='hint'>This legal notice is required by German law (§ 5 DDG) and is therefore provided in German.</p>" : "")}
+<h1>Impressum <span class='sub'>· {t.T("shell.legal")}</span></h1>
+{(t.IsGerman ? string.Empty : $"<p class='hint'>{t.T("legal.germanOnly")}</p>")}
 <div class='card'>
  <h2>Angaben gemäß § 5 DDG</h2>
  {operatorBlock}
@@ -779,41 +727,33 @@ loadNotices();
  Namen und Logos von „Blocks Beyond the Stars“ und „JuMaVe Games“ bleiben davon unberührt.</p>
 </div>
 <div class='card'>
- <h2>Beta-Dienst</h2>
- <p>{T(
-        "Dieses Welten-Portal ist ein kostenloses Hobby- und Familienprojekt im Beta-Stadium. Es besteht kein Anspruch auf Verfügbarkeit oder Datenerhalt — Welten und Spielstände können jederzeit verloren gehen (nutze die Sicherungs-Funktion!).",
-        "This worlds portal is a free hobby and family project in beta. There is no entitlement to availability or data retention — worlds and saves can be lost at any time (use the backup feature!).")}</p>
+ <h2>{t.T("legal.beta.title")}</h2>
+ <p>{t.T("legal.beta.text")}</p>
 </div>
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
+<p><a href='/{t.Query}'>{t.T("shell.back")}</a></p>", t.Lang, config);
     }
 
-    /// <summary>Datenschutzerklärung (DSGVO) — the German text is the legally authoritative one; with
-    /// <c>?lang=en</c> the English summary card moves to the top so English visitors get the essentials
-    /// first, followed by the authoritative German text.</summary>
-    public static string Privacy(WorldHostConfig config, string lang = "de")
+    /// <summary>Datenschutzerklärung (DSGVO) — the German text is the legally authoritative one. In any
+    /// other language the plain-language summary card moves to the top, so a visitor gets the essentials
+    /// in their own language first, followed by the authoritative German text.</summary>
+    public static string Privacy(WorldHostConfig config, string lang = PortalLocales.DefaultLang)
     {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var t = PortalLocales.For(lang);
 
         string name = System.Net.WebUtility.HtmlEncode(config.LegalName);
         string email = System.Net.WebUtility.HtmlEncode(config.LegalEmail);
         string address = System.Net.WebUtility.HtmlEncode(config.LegalAddress);
         string controller = string.IsNullOrEmpty(name)
-            ? $"<p class='beta'>⚠ {T("Verantwortlicher noch nicht konfiguriert (BBS_WH_LEGAL_*).", "Controller not configured yet (BBS_WH_LEGAL_*).")}</p>"
+            ? $"<p class='beta'>⚠ {t.T("privacy.notConfigured")}</p>"
             : $"<p><b>{name}</b>, {address} — E-Mail: <a href='mailto:{email}'>{email}</a></p>";
 
-        string englishSummary = @"
-<div class='card'>
- <h2>🇬🇧 English summary</h2>
- <p>This service is deliberately data-minimal: a self-chosen account name, a password hash (never the
- password), your worlds and your reports/feedback — <b>no email, no real name, no ads, no tracking, no
- third-party embeds</b>. IPs are held transiently for rate limiting and in routine server logs only. Hosting is in
- Germany; nothing is shared or sold. Short in-game NPC texts are generated by an LLM at OVHcloud (EU) —
- only the moment's game context (e.g. your in-world player name, the NPC and the situation) is sent, never
- account data or IPs, and built-in fallback texts take over if it is unavailable. Deleting your account
- (button on the worlds page) permanently removes the account, sessions, your reports and all your worlds
- including saves. For any privacy request, email the address above. The German text below is the
- authoritative version.</p>
+        // German readers get the authoritative text first and the English summary as the appendix it has
+        // always been; every other language gets its own summary up top.
+        var summary = t.IsGerman ? PortalLocales.For("en") : t;
+        string summaryCard = $@"
+<div class='card' lang='{summary.Lang}'>
+ <h2>{summary.T("privacy.summary.title")}</h2>
+ <p>{summary.T("privacy.summary.text")}</p>
 </div>";
 
         string germanBody = $@"
@@ -880,9 +820,9 @@ loadNotices();
 </div>";
 
         return Shell("Datenschutz — Blocks Beyond the Stars", $@"
-<h1>Datenschutz<span class='o'>erklärung</span> <span class='sub'>· Privacy policy</span></h1>
-{(lang == "en" ? englishSummary + germanBody : germanBody + englishSummary)}
-<p><a href='/{(lang == "en" ? "?lang=en" : "")}'>{T("Zurück", "Back")}</a></p>", lang, config);
+<h1>Datenschutz<span class='o'>erklärung</span> <span class='sub'>· {t.T("privacy.pageTitle")}</span></h1>
+{(t.IsGerman ? germanBody + summaryCard : summaryCard + germanBody)}
+<p><a href='/{t.Query}'>{t.T("shell.back")}</a></p>", t.Lang, config);
     }
 
     /// <summary>The game logo as a compact self-contained inline SVG (mini block cluster + orbit ring,
@@ -896,28 +836,74 @@ loadNotices();
 <circle cx='90' cy='38' r='3.4' fill='#ff8c26'/>
 </svg>";
 
-    /// <summary>Shared page chrome, styled after the per-instance portal (dark starfield, cyan/orange):
-    /// game-logo header, localized footer with the DE/EN switcher, and the shared error localization.
-    /// Internal so the operator admin pages (<see cref="WorldHostAdminPages"/>) share the same look.</summary>
-    internal static string Shell(string title, string body, string lang = "de", WorldHostConfig? config = null)
+    /// <summary>The header language picker. A <c>&lt;select&gt;</c> rather than the old DE/EN pill pair:
+    /// fourteen languages no longer fit as a toggle, and a native select is the one control every phone
+    /// browser renders well. It is a plain GET form, so it still works with JavaScript disabled (the
+    /// <c>&lt;noscript&gt;</c> button) — the onchange handler only saves that extra click.</summary>
+    private static string LanguageSwitcher(PortalText t)
     {
-        lang = NormalizeLang(lang);
-        string T(string de, string en) => lang == "en" ? en : de;
+        var options = new System.Text.StringBuilder();
+        foreach (var locale in PortalLocales.Supported)
+        {
+            string code = locale.Code();
+            options.Append($"<option value='{code}' lang='{code}'{(code == t.Lang ? " selected" : string.Empty)}>")
+                   .Append(System.Net.WebUtility.HtmlEncode(locale.NativeName()))
+                   .Append("</option>");
+        }
+
+        return $@"<form class='langsw' method='get'>
+<label class='lg' for='langsel'><span aria-hidden='true'>🌐</span><span class='sr'>{t.T("shell.language")}</span></label>
+<select id='langsel' name='lang' onchange='this.form.submit()'>{options}</select>
+<noscript><button type='submit'>{t.T("shell.languageApply")}</button></noscript>
+</form>";
+    }
+
+    /// <summary>Every language as a plain link — the no-JavaScript path, and what a crawler follows.</summary>
+    private static string FooterLanguages(PortalText t)
+        => string.Join(" · ", PortalLocales.Supported.Select(locale =>
+        {
+            string code = locale.Code();
+            string label = System.Net.WebUtility.HtmlEncode(locale.NativeName());
+            return code == t.Lang
+                ? $"<span class='cur' lang='{code}'>{label}</span>"
+                : $"<a href='?lang={code}' lang='{code}'>{label}</a>";
+        }));
+
+    /// <summary>Shared page chrome, styled after the per-instance portal (dark starfield, cyan/orange):
+    /// game-logo header, localized footer with the language switcher, and the shared error localization.
+    /// Internal so the operator admin pages (<see cref="WorldHostAdminPages"/>) share the same look.</summary>
+    internal static string Shell(
+        string title, string body, string lang = PortalLocales.DefaultLang, WorldHostConfig? config = null)
+    {
+        var t = PortalLocales.For(lang);
 
         // Outbound link to the game's own website, per language. Opens in a new tab: leaving the portal
         // mid-session (signed in, a world possibly waking) would be the worse trade. Omitted when the
         // operator cleared the URLs — a self-hoster must not advertise someone else's site.
-        string websiteLink = WebsiteUrl(config, lang) is { Length: > 0 } url
-            ? $"<a href='{System.Net.WebUtility.HtmlEncode(url)}' target='_blank' rel='noopener noreferrer'>{T("Spiel-Website", "Game website")} ↗</a> ·\n"
+        string websiteLink = WebsiteUrl(config, t.Lang) is { Length: > 0 } url
+            ? $"<a href='{System.Net.WebUtility.HtmlEncode(url)}' target='_blank' rel='noopener noreferrer'>{t.T("shell.website")} ↗</a> ·\n"
             : string.Empty;
 
+        // Tell search engines the page exists in every language, instead of letting them index whichever
+        // one the crawler's Accept-Language happened to ask for.
+        string alternates = string.Concat(PortalLocales.Supported.Select(locale =>
+            $"<link rel='alternate' hreflang='{locale.Code()}' href='?lang={locale.Code()}'>\n"))
+            + $"<link rel='alternate' hreflang='x-default' href='?lang={PortalLocales.DefaultLang}'>";
+
+        // Shared error localization: API errors carry a machine `code`, resolved client-side against the
+        // map injected here — one flat table, for this page's language only.
+        string errors = System.Text.Json.JsonSerializer.Serialize(
+            ErrorCodes.ToDictionary(code => code, code => t.T("err." + code), StringComparer.Ordinal),
+            ScriptJson);
+
         return $@"<!DOCTYPE html>
-<html lang='{lang}'>
+<html lang='{t.Lang}'>
 <head>
 <meta charset='utf-8'>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 <title>{System.Net.WebUtility.HtmlEncode(title)}</title>
 <link rel='icon' type='image/x-icon' href='/favicon.ico'>
+{alternates}
 <style>
 :root{{--cyan:#5fd7ff;--orange:#ff8c26;--line:#21304c}}
 *{{box-sizing:border-box}}
@@ -925,9 +911,13 @@ body{{font-family:'Rajdhani','Segoe UI',system-ui,sans-serif;color:#dfe9f7;margi
  background:radial-gradient(1100px 640px at 50% -12%,#15243f 0%,#070a12 58%),#070a12}}
 main{{max-width:860px;margin:0 auto}}
 header{{max-width:860px;margin:0 auto 6px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}}
-.langsw{{display:flex;flex:none;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-weight:600}}
-.langsw a,.langsw .cur{{padding:7px 14px;text-decoration:none}}
-.langsw .cur{{background:#1c4a6e88;color:#eaf6ff}} .langsw a{{color:#9db2cf}} .langsw a:hover{{color:var(--cyan)}}
+.langsw{{display:flex;align-items:center;gap:6px;flex:none}}
+.langsw label.lg{{display:inline-block;margin:0;font-size:18px;line-height:1;cursor:pointer}}
+.langsw select{{display:inline-block;width:auto;margin:0;padding:7px 10px;font-weight:600}}
+.langsw button{{margin:0}}
+/* Visually hidden but read out by assistive tech: the globe is the visible affordance, the word is the
+   control's accessible name. */
+.sr{{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}}
 .brand{{display:flex;align-items:center;gap:12px;text-decoration:none}}
 .brand .mark{{width:64px;height:48px;flex:none}}
 .brand .word{{font-size:20px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#eaf6ff;
@@ -945,8 +935,8 @@ input,select{{display:block;width:100%;margin:8px 0;padding:9px 10px;border-radi
 input[type=checkbox]{{display:inline-block;width:auto;margin:0;padding:0}}
 /* Every field carries a visible label (#574) — a placeholder alone vanishes the moment a kid starts
    typing, and repeated 'Account name' fields become indistinguishable in a screen reader's field list.
-   The two label classes below have their own layout, so they stay out of this rule. */
-label:not(.consent):not(.up){{display:block;margin:10px 0 2px;font-size:.9rem;font-weight:600;color:#c3d3ea}}
+   The label classes below have their own layout, so they stay out of this rule. */
+label:not(.consent):not(.up):not(.lg){{display:block;margin:10px 0 2px;font-size:.9rem;font-weight:600;color:#c3d3ea}}
 /* Keyboard users must always see where they are — never remove this without a replacement. */
 :focus-visible{{outline:3px solid var(--cyan);outline-offset:2px}}
 [hidden]{{display:none!important}}
@@ -975,61 +965,34 @@ ul{{line-height:1.6}}
 .how ol{{margin:8px 0 4px;padding-left:22px;line-height:1.6}} .how li{{margin:4px 0}}
 footer{{max-width:860px;margin:28px auto 0;padding-top:12px;border-top:1px solid var(--line);
  color:#9db2cf;font-size:.9rem;text-align:center}}
-footer .lang a{{margin:0 4px}} footer .lang .cur{{color:#dfe9f7;font-weight:700}}
+footer .lang{{display:block;margin-top:8px;line-height:1.9}}
+footer .lang a{{margin:0 2px}} footer .lang .cur{{color:#dfe9f7;font-weight:700;margin:0 2px}}
 </style>
 <script>
-// Shared error localization: API errors carry a machine `code`; the page's server-chosen language
-// (DE default, ?lang=en) picks the column. Ban reasons are operator-written free text, so `banned`
-// keeps the original message.
+// This page's language, handed on to links that leave for the browser client (/play reads ?lang=).
+const PAGE_LANG = '{t.Lang}';
+// Shared error localization: API errors carry a machine `code`, resolved against the table the server
+// injected for THIS page's language. Ban reasons are operator-written free text, so `banned` keeps the
+// original message.
 window.bbsErr = function(j, fallback) {{
-  var de = __LANGDE__;
-  var M = {{
-    accept_rules: ['Bitte akzeptiere zuerst die Community-Regeln.', 'Please accept the community rules first.'],
-    name_invalid: ['Name: 3-24 Zeichen, nur Buchstaben, Ziffern, - und _.', 'Name must be 3-24 characters: letters, digits, - or _.'],
-    password_short: ['Das Passwort braucht mindestens 8 Zeichen.', 'Password must be at least 8 characters.'],
-    name_taken: ['Dieser Name ist schon vergeben.', 'This name is already taken.'],
-    name_reserved: ['Dieser Name ist reserviert.', 'This name is reserved.'],
-    name_blocked: ['Bitte wähle einen anderen Namen.', 'Please choose a different name.'],
-    world_name_invalid: ['Weltname: 1-40 druckbare Zeichen.', 'World name must be 1-40 printable characters.'],
-    world_limit: ['Welten-Limit erreicht.', 'World limit reached.'],
-    no_capacity: ['Gerade keine Kapazität frei — bitte später nochmal versuchen.', 'No capacity available right now — please try again later.'],
-    player_name_invalid: ['Spielername: 1-24 druckbare Zeichen.', 'Player name must be 1-24 printable characters.'],
-    terms_outdated: ['Die Community-Regeln haben sich geändert — bitte neu akzeptieren.', 'The community rules changed — please accept them again.'],
-    world_not_found: ['Welt nicht gefunden.', 'World not found.'],
-    world_start_failed: ['Die Welt konnte nicht gestartet werden — bitte gleich nochmal versuchen.', 'The world could not be started — please try again in a moment.'],
-    world_wake_failed: ['Die Welt ist nicht rechtzeitig aufgewacht — bitte nochmal versuchen.', 'The world did not come up in time — please try again.'],
-    stop_first: ['Bitte stoppe die Welt zuerst.', 'Stop the world first.'],
-    upload_too_large: ['Der Save ist zu groß für den Upload.', 'The save exceeds the upload limit.'],
-    upload_empty: ['Leerer Upload.', 'Empty upload.'],
-    save_invalid: ['Diese Datei ist kein gültiger Blocks-Beyond-the-Stars-Spielstand.', 'This file is not a valid Blocks Beyond the Stars save.'],
-    save_missing: ['Diese Welt hat noch keinen Spielstand (nie gestartet).', 'This world has no save yet (never started).'],
-    rate_limited: ['Zu viele Anfragen — bitte warte kurz und versuche es dann nochmal.', 'Too many requests — please wait a bit and try again.'],
-    password_required: ['Diese Welt braucht ein Passwort.', 'This world needs a password.'],
-    wrong_password: ['Falsches Welt-Passwort.', 'Wrong world password.'],
-    too_many_attempts: ['Zu viele Passwort-Versuche — bitte warte ein paar Minuten.', 'Too many password attempts — please wait a few minutes.'],
-    world_password_invalid: ['Welt-Passwort: 4-24 druckbare Zeichen.', 'World password must be 4-24 printable characters.'],
-  }};
+  var M = __ERRORS__;
   if (j && j.code === 'banned') {{ return j.error || fallback; }}
   var hit = j && j.code && M[j.code];
-  return hit ? hit[de ? 0 : 1] : ((j && j.error) || fallback);
+  return hit || ((j && j.error) || fallback);
 }};
 </script>
 </head>
 <body>
-<header><a class='brand' href='/{(lang == "en" ? "?lang=en" : "")}'>{LogoSvg}<span class='word'><b>Blocks</b> Beyond the Stars</span></a>
-<nav class='langsw' aria-label='Sprache / Language'>{(lang == "en"
-        ? "<a href='?lang=de' lang='de'>DE</a><span class='cur'>EN</span>"
-        : "<span class='cur'>DE</span><a href='?lang=en' lang='en'>EN</a>")}</nav></header>
+<header><a class='brand' href='/{t.Query}'>{LogoSvg}<span class='word'><b>Blocks</b> Beyond the Stars</span></a>
+{LanguageSwitcher(t)}</header>
 <main>{body}</main>
 <footer>
-{websiteLink}<a href='/rules{(lang == "en" ? "?lang=en" : "")}'>{T("Regeln", "Rules")}</a> ·
-<a href='/impressum{(lang == "en" ? "?lang=en" : "")}'>{T("Impressum", "Legal notice")}</a> ·
-<a href='/datenschutz{(lang == "en" ? "?lang=en" : "")}'>{T("Datenschutz", "Privacy")}</a>
-<span class='lang'> · {(lang == "en"
-        ? "<a href='?lang=de'>Deutsch</a><span class='cur'>English</span>"
-        : "<span class='cur'>Deutsch</span><a href='?lang=en'>English</a>")}</span>
+{websiteLink}<a href='/rules{t.Query}'>{t.T("shell.rules")}</a> ·
+<a href='/impressum{t.Query}'>{t.T("shell.legal")}</a> ·
+<a href='/datenschutz{t.Query}'>{t.T("shell.privacy")}</a>
+<span class='lang'>{FooterLanguages(t)}</span>
 </footer>
 </body>
-</html>".Replace("__LANGDE__", lang == "en" ? "false" : "true");
+</html>".Replace("__ERRORS__", errors);
     }
 }

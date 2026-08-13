@@ -179,7 +179,7 @@ namespace BlocksBeyondTheStars.Client.Portal
     }
 
     /// <summary>Current community rules (GET /api/terms): the version number signup must echo, plus the
-    /// full rules text in both languages so the client renders them in-game (#268).</summary>
+    /// full rules text so the client renders them in-game (#268).</summary>
     public sealed class PortalTermsResult
     {
         public bool Ok { get; set; }
@@ -188,6 +188,10 @@ namespace BlocksBeyondTheStars.Client.Portal
         /// <summary>Stable machine code of the error (empty on success/unknown) — the UI localizes it.</summary>
         public string Code { get; set; } = string.Empty;
         public int Version { get; set; }
+
+        /// <summary>The rules in the language that was asked for (#970). Empty against a portal that
+        /// predates the field — fall back to <see cref="TextDe"/>/<see cref="TextEn"/> then.</summary>
+        public string Text { get; set; } = string.Empty;
         public string TextDe { get; set; } = string.Empty;
         public string TextEn { get; set; } = string.Empty;
     }
@@ -287,10 +291,12 @@ namespace BlocksBeyondTheStars.Client.Portal
         }
 
         /// <summary>Current rules version + text — anonymous; fetched before signup (the version must be
-        /// echoed) and for the in-game rules screen (#268).</summary>
-        public PortalTermsResult GetTerms()
+        /// echoed) and for the in-game rules screen (#268). <paramref name="lang"/> is the player's
+        /// locale code; an older portal simply ignores it and only fills TextDe/TextEn (#970).</summary>
+        public PortalTermsResult GetTerms(string lang = "")
         {
-            var (status, body) = Get("/api/terms", session: null);
+            string query = string.IsNullOrEmpty(lang) ? string.Empty : "?lang=" + Uri.EscapeDataString(lang);
+            var (status, body) = Get("/api/terms" + query, session: null);
             return ParseTerms(status, body);
         }
 
@@ -677,6 +683,7 @@ namespace BlocksBeyondTheStars.Client.Portal
             using (doc)
             {
                 result.Ok = true;
+                result.Text = GetString(doc!, "text");
                 result.TextDe = GetString(doc!, "textDe");
                 result.TextEn = GetString(doc!, "textEn");
                 if (doc!.RootElement.TryGetProperty("version", out var v) && v.TryGetInt32(out int version))

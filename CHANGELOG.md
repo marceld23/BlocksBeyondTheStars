@@ -36,6 +36,21 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   distance was reaching 1.8 GB; the terrain part of that is now a fraction.
 - Nothing about how the world looks changes — same geometry, same lighting, same colours.
 
+### 🌍 The worlds portal now speaks all fourteen game languages (#970)
+
+- **play.blocksbeyondthestars.de is no longer German/English only.** Creating an account, making a
+  world, setting a join password, reading the community rules — all of it now renders in every
+  language the game itself ships. Pick yours from the globe in the page header, or from the list at
+  the bottom of every page; the choice is remembered.
+- **A first visit lands in your own language.** The browser's language preference is matched against
+  all fourteen now, not just German and English.
+- **The in-game rules screen follows.** The community rules are single-sourced with the portal, so
+  the rules the client shows before signup arrive in the player's language too.
+- **Browser play greets you in your language** — the loading screen behind `/play` is localized, and
+  the portal's Play button hands your language to it.
+- Impressum and Datenschutz keep their German bodies (they are the legally authoritative text) and
+  now carry a plain-language summary in your own language above them.
+
 ### 🐞 Fixed
 
 - **Landing back on the planet you launched from puts you back in your ship (#971).** Picking a

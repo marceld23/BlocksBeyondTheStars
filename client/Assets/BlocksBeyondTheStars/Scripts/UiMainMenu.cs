@@ -630,6 +630,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Secondary portal dialogs (#268-#270).
             PortalTermsResult cachedTerms = null; // rules text+version change per deployment — fetch once
+            string cachedTermsLang = null;        // …but re-fetch after the player switched language (#970)
             string saveBackupDir = System.IO.Path.Combine(Application.persistentDataPath, "portal_saves");
             var warnCol = new Color(1f, 0.55f, 0.4f);
 
@@ -674,16 +675,18 @@ namespace BlocksBeyondTheStars.Client
 
             async void LoadTerms(System.Action<PortalTermsResult> done)
             {
-                if (cachedTerms != null && cachedTerms.Ok)
+                string lang = shell.Settings.Language;
+                if (cachedTerms != null && cachedTerms.Ok && cachedTermsLang == lang)
                 {
                     done(cachedTerms);
                     return;
                 }
 
                 var portal = new PortalClient(PortalBase());
-                var r = await Task.Run(() => portal.GetTerms());
+                var r = await Task.Run(() => portal.GetTerms(lang));
                 if (official == null) { return; }
                 cachedTerms = r;
+                cachedTermsLang = lang;
                 done(r);
             }
 
@@ -716,7 +719,11 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                         rTitle.text = shell.L("ui.portal.rules_title") + " (v" + terms.Version + ")";
-                        rBody.text = shell.Settings.Language == "de" ? terms.TextDe : terms.TextEn;
+                        // `Text` is the portal's answer in the player's own language (#970); a portal
+                        // that predates it leaves the field empty and we fall back to the DE/EN pair.
+                        rBody.text = !string.IsNullOrEmpty(terms.Text)
+                            ? terms.Text
+                            : (shell.Settings.Language == "de" ? terms.TextDe : terms.TextEn);
                     });
                 }
 

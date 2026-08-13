@@ -4,31 +4,35 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.WorldHost;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// WorldHost portal pages: full DE/EN localization (German default, ?lang=en — issue #253), the
-/// Play-button browser deep-link + the join-grant rendering order that made Play look like a no-op
-/// (issue #252), the game-logo branding (issue #254), and the /play WebGL serving policy helpers.
+/// WorldHost portal pages: server-side localization (German default, every other game language via
+/// ?lang= — issues #253 and #970), the Play-button browser deep-link + the join-grant rendering order
+/// that made Play look like a no-op (issue #252), the game-logo branding (issue #254), and the /play
+/// WebGL serving policy helpers.
 /// </summary>
 public sealed class WorldHostPortalPagesTests
 {
     private static readonly WorldHostConfig Config = new();
 
-    // ---------------- Localization (#253) ----------------
+    // ---------------- Localization (#253, #970) ----------------
 
     [Theory]
     [InlineData(null, "de")]
     [InlineData("", "de")]
     [InlineData("de", "de")]
     [InlineData("en", "en")]
-    [InlineData("fr", "de")] // anything unknown falls back to the German default
+    [InlineData("fr", "fr")] // every game language is a portal language now (#970)
+    [InlineData("zh", "zh")]
+    [InlineData("xx", "de")] // anything unknown still falls back to the German default
     [InlineData("EN", "de")] // deliberate exact match — no case folding surprises
-    public void NormalizeLang_DefaultsToGerman(string? input, string expected)
-        => Assert.Equal(expected, WorldHostPortalPages.NormalizeLang(input));
+    public void Normalize_AcceptsEveryGameLanguage_AndDefaultsToGerman(string? input, string expected)
+        => Assert.Equal(expected, PortalLocales.Normalize(input));
 
     [Fact]
     public void Landing_German_HasNoMixedEnglish()
@@ -84,30 +88,55 @@ public sealed class WorldHostPortalPagesTests
     }
 
     [Fact]
-    public void Shell_CarriesTheLanguageSwitcher_AndErrorLanguageFlag()
+    public void Shell_TranslatesTheApiErrorTable_ForThePagesOwnLanguage()
     {
+        // The error codes used to arrive as a DE/EN pair picked by a `var de` flag; the server now
+        // injects one flat map in the page's language — anything else would be a silent English page.
         string de = WorldHostPortalPages.Landing(Config);
-        Assert.Contains("?lang=en'>English</a>", de);
-        Assert.Contains("var de = true;", de);
+        Assert.Contains("\"name_taken\":\"Dieser Name ist schon vergeben.\"", de);
 
         string en = WorldHostPortalPages.Landing(Config, "en");
-        Assert.Contains("?lang=de'>Deutsch</a>", en);
-        Assert.Contains("var de = false;", en);
+        Assert.Contains("\"name_taken\":\"This name is already taken.\"", en);
+
+        string fr = WorldHostPortalPages.Landing(Config, "fr");
+        Assert.DoesNotContain("Dieser Name ist schon vergeben.", fr);
+        Assert.DoesNotContain("This name is already taken.", fr);
     }
 
     [Fact]
-    public void Shell_ShowsTheLanguageToggle_InTheHeader()
+    public void Shell_ShowsTheLanguagePicker_InTheHeader_AndEveryLanguageInTheFooter()
     {
         // The footer links alone were effectively invisible (below the fold, small grey text) — the
-        // header pill is the discoverable switcher, rendered before the page body.
+        // header control is the discoverable switcher, rendered before the page body. It is a plain
+        // GET form so it still works without JavaScript.
         string de = WorldHostPortalPages.Landing(Config);
-        Assert.Contains("class='langsw'", de);
-        Assert.Contains("<span class='cur'>DE</span><a href='?lang=en'", de);
+        Assert.Contains("class='langsw' method='get'", de);
+        Assert.Contains("<select id='langsel' name='lang'", de);
+        Assert.Contains("<noscript><button type='submit'>", de);
+        Assert.Contains("<option value='de' lang='de' selected>Deutsch</option>", de);
+        Assert.Contains("<option value='ja' lang='ja'>日本語</option>", de);
         Assert.True(de.IndexOf("class='langsw'", StringComparison.Ordinal)
             < de.IndexOf("<main>", StringComparison.Ordinal));
 
+        // Footer: the current language is inert text, every other one a real link.
+        Assert.Contains("<span class='cur' lang='de'>Deutsch</span>", de);
+        Assert.Contains("<a href='?lang=en' lang='en'>English</a>", de);
+
         string en = WorldHostPortalPages.Landing(Config, "en");
-        Assert.Contains("<a href='?lang=de' lang='de'>DE</a><span class='cur'>EN</span>", en);
+        Assert.Contains("<option value='en' lang='en' selected>English</option>", en);
+        Assert.Contains("<a href='?lang=de' lang='de'>Deutsch</a>", en);
+    }
+
+    [Fact]
+    public void Shell_AnnouncesEveryLanguageAsAnAlternate()
+    {
+        string html = WorldHostPortalPages.Landing(Config);
+        foreach (var locale in PortalLocales.Supported)
+        {
+            Assert.Contains($"<link rel='alternate' hreflang='{locale.Code()}' href='?lang={locale.Code()}'>", html);
+        }
+
+        Assert.Contains("hreflang='x-default'", html);
     }
 
     [Theory]
@@ -117,23 +146,41 @@ public sealed class WorldHostPortalPagesTests
     [InlineData("en-US,en;q=0.9", "en")]
     [InlineData("EN-us", "en")] // header tags are case-insensitive, unlike our own ?lang= values
     [InlineData("de-DE,de;q=0.9,en;q=0.8", "de")]
-    [InlineData("fr-FR,fr;q=0.9,en;q=0.8", "en")] // first SUPPORTED tag wins, not just the first tag
-    [InlineData("fr-FR,fr", "en")] // nothing supported → English, the game's fallback language
+    [InlineData("fr-FR,fr;q=0.9,en;q=0.8", "fr")] // French is a portal language now (#970)
+    [InlineData("zh-CN,zh;q=0.9,en;q=0.8", "zh")]
+    [InlineData("sv-SE,sv;q=0.9,en;q=0.8", "en")] // first SUPPORTED tag wins, not just the first tag
+    [InlineData("sv-SE,sv", "en")] // nothing supported → English, the game's fallback language
     [InlineData("*", "en")]
-    [InlineData("eng-US", "en")] // only the exact de/en primary tags count
+    [InlineData("eng-US", "en")] // only exact two-letter primary tags count
     public void LangFromAcceptHeader_PicksTheFirstSupportedLanguage(string? header, string expected)
-        => Assert.Equal(expected, WorldHostPortalPages.LangFromAcceptHeader(header));
+        => Assert.Equal(expected, PortalLocales.LangFromAcceptHeader(header));
 
     [Fact]
-    public void Privacy_EnglishPutsTheSummaryFirst_GermanTextStaysAuthoritative()
+    public void Privacy_NonGermanPutsTheSummaryFirst_GermanTextStaysAuthoritative()
     {
-        string en = WorldHostPortalPages.Privacy(Config, "en");
-        Assert.True(en.IndexOf("English summary", StringComparison.Ordinal)
-            < en.IndexOf("Verantwortlicher", StringComparison.Ordinal));
+        // The German body is the legally authoritative text; a visitor who does not read German gets
+        // the plain-language summary in their own language above it.
+        foreach (string lang in new[] { "en", "fr", "ja" })
+        {
+            string html = WorldHostPortalPages.Privacy(Config, lang);
+            Assert.True(html.IndexOf("class='card' lang='" + lang + "'", StringComparison.Ordinal)
+                < html.IndexOf("Verantwortlicher", StringComparison.Ordinal),
+                $"{lang}: the localized summary must come before the German body");
+        }
 
+        // German readers meet the authoritative text first; the English summary stays the appendix.
         string de = WorldHostPortalPages.Privacy(Config);
         Assert.True(de.IndexOf("Verantwortlicher", StringComparison.Ordinal)
-            < de.IndexOf("English summary", StringComparison.Ordinal));
+            < de.IndexOf("class='card' lang='en'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Impressum_TellsNonGermanReaders_WhyTheNoticeIsGerman()
+    {
+        Assert.DoesNotContain("required by German law", WorldHostPortalPages.Impressum(Config));
+        Assert.Contains("required by German law", WorldHostPortalPages.Impressum(Config, "en"));
+        // The legal body itself never translates — it is the authoritative text.
+        Assert.Contains("Angaben gemäß § 5 DDG", WorldHostPortalPages.Impressum(Config, "ja"));
     }
 
     // ---------------- Kid-friendly rework: feedback card + parental notice (#257) ----------------

@@ -134,6 +134,23 @@ also runs while held now: the /status snapshot the fleet polls must not go stale
 `SingleplayerPauseTests` → `WorldPauseTests` (12 tests: the two that encoded "one player only" now assert the
 group rule). Two new locale keys in all 14 languages.
 
+### ★ The worlds portal speaks all 14 game languages (#970, 2026-08-13, branch feat/970-portal-i18n)
+play.blocksbeyondthestars.de was German/English only while the game shipped fourteen languages: every
+portal string lived inline as a two-argument `T(de, en)` helper, so a third language was structurally
+impossible. The text now lives in `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` — the same
+flat key→text JSON as the game locales, **embedded in the assembly** (the WorldHost image carries no
+`data/` folder, so an embedded resource is what survives a plain `dotnet publish`), resolved through the
+shared `Localizer` with English as the per-key fallback. `PortalLocales` replaces the old
+`NormalizeLang`/`LangFromAcceptHeader` pair and accepts every code `GameLocale` knows; `PageLang` stores
+any of them in `bbs_lang`. The DE/EN pill became a header language picker (a plain GET form, so it works
+without JavaScript) plus per-language footer links and `hreflang` alternates. The community rules moved
+into the same tables — and since they are single-sourced into `GET /api/terms`, the **in-game** rules
+screen gets all fourteen too (new `?lang=`/`text`; `textDe`/`textEn` stay for older clients). `/play`'s
+loading shell localizes from the `lang` the Play button now appends. Impressum and Datenschutz keep
+their German bodies (the authoritative text) with a localized summary on top. The twelve new tables were
+machine-generated with `tools/translate_locale.py`; `PortalLocalizationTests` fails on a missing key, a
+lost `{placeholder}`/`%s`, or altered inline markup.
+
 ### ★ Arcade full? The WebGL menu now says so — and points at singleplayer (#936, 2026-08-11, branch feature/arcade-full-notice-936)
 When every glitch.fun arcade world is at capacity, the portal's `/api/glitch/session` already answered
 with a machine-readable code (`glitch_full`; `no_capacity` when the fleet RAM budget is spent) — but the

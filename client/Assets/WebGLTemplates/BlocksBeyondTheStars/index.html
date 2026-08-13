@@ -52,6 +52,34 @@
       <div id="unity-fullscreen-button" title="Fullscreen">⛶</div>
     </div>
     <script>
+      // The two words this shell shows before the engine (which does its own localization) takes over.
+      // The portal's Play button appends ?lang=<code>; a direct visit falls back to the browser's own
+      // language, and anything we don't ship stays English (#970).
+      var BBS_SHELL_TEXT = {
+        de: ["Wird geladen", "Vollbild"],
+        en: ["Loading", "Fullscreen"],
+        es: ["Cargando", "Pantalla completa"],
+        fr: ["Chargement", "Plein écran"],
+        it: ["Caricamento", "Schermo intero"],
+        ja: ["読み込み中", "全画面表示"],
+        ko: ["불러오는 중", "전체 화면"],
+        nl: ["Laden", "Volledig scherm"],
+        pl: ["Wczytywanie", "Pełny ekran"],
+        pt: ["Carregando", "Tela cheia"],
+        ru: ["Загрузка", "Полный экран"],
+        tr: ["Yükleniyor", "Tam ekran"],
+        uk: ["Завантаження", "Повний екран"],
+        zh: ["加载中", "全屏"]
+      };
+      (function localizeShell() {
+        var asked = new URLSearchParams(location.search).get("lang")
+          || (navigator.language || "en").slice(0, 2).toLowerCase();
+        var text = BBS_SHELL_TEXT[asked] || BBS_SHELL_TEXT.en;
+        document.documentElement.lang = BBS_SHELL_TEXT[asked] ? asked : "en";
+        document.querySelector("#bbs-loading-hint").textContent = text[0];
+        document.querySelector("#unity-fullscreen-button").title = text[1];
+      })();
+
       var canvas = document.querySelector("#unity-canvas");
 
       // Shows a temporary message banner/ribbon for a few seconds, or

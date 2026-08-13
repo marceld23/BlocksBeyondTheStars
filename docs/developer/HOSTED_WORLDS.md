@@ -123,11 +123,15 @@ through Caddy.
   (`BBS_WH_WEBGL_DIR`, bind-mounted on the fleet — see deploy/README.md; mirrors the per-instance
   Api's serving incl. cache-bust stamping and .br/.gz encodings, kept testable in `PlayPage`). The
   My-Worlds **Play** button wakes the world, then deep-links
-  `/play/?auto_join=1&player_name=…&server_host=<wssUrl>&hosted_token=…&world_id=…` — the client
-  reads `hosted_token`/`world_id` from the page URL (`GlitchIntegration` → `AppShell.HostedToken`)
-  so the instance's token gate admits the browser join. The portal pages themselves are fully
-  localized (German default, `?lang=en` + DE/EN footer switcher, `bbs_lang` cookie) and carry the
-  game logo + website favicon.
+  `/play/?auto_join=1&player_name=…&server_host=<wssUrl>&hosted_token=…&world_id=…&lang=…` — the
+  client reads `hosted_token`/`world_id` from the page URL (`GlitchIntegration` →
+  `AppShell.HostedToken`) so the instance's token gate admits the browser join, and the WebGL
+  loading shell uses `lang` for its own two words. The portal pages themselves are fully localized
+  into **every language the game ships** (German default, `?lang=<code>`, header picker + footer
+  links, `bbs_lang` cookie — text in `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json`,
+  embedded in the assembly, English as the per-key fallback) and carry the game logo + website
+  favicon. Impressum and Datenschutz keep their German bodies (the legally authoritative text)
+  with a localized plain-language summary on top.
 
 ## Reserved developer names
 

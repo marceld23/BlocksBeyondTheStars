@@ -17,7 +17,8 @@ The settings screen offers a language automatically once its coverage clears the
 | Codex wiki | `data/wiki/articles.json` | per-article `{"en": …, "de": …, "fr": …, "es": …}` maps | Guide chapters (untranslated articles fall back to English) |
 | What's New | `data/whatsnew.json` | `title_<code>` / `body_<code>` per entry | In-game changelog (translate new entries going forward; the backlog stays EN/DE) |
 | AI backend | `ai-backend/app/llm.py` `_LANGUAGE_NAMES` | code → language name | LLM-generated NPC lines, VEGA banter, mission flavour |
-| Web portal | `src/BlocksBeyondTheStars.WorldHost/` | per-language strings in code | play.blocksbeyondthestars.de + in-game community rules (DE/EN today; other locales get EN) |
+| Web portal | `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` | flat `"key": "text"` JSON, embedded in the assembly | play.blocksbeyondthestars.de (landing, My Worlds, rules, page chrome, API error texts) + the in-game community-rules screen through `GET /api/terms` |
+| Browser-play shell | `client/Assets/WebGLTemplates/BlocksBeyondTheStars/index.html` | `BBS_SHELL_TEXT` map | The two words shown while the WebGL build loads ("Loading", "Fullscreen") |
 | Launcher | nothing to do | reads `data/locales/<code>.json` itself | Splash screen |
 
 Everything else (`blocks.json`, `items.json`, `missions.json`, `achievements.json`,
@@ -87,8 +88,14 @@ The picker, coverage gating, launcher splash and everything key-driven need **no
 - **Wiki**: add your language to each article's `title`/`body` map in
   `data/wiki/articles.json`; high-traffic articles first. Untranslated ones fall back to EN.
 - **What's New**: add `title_<code>`/`body_<code>` to NEW entries in `data/whatsnew.json`.
-- **Web portal**: per-language strings in `WorldHostPortalPages.cs`/`CommunityRules.cs`
-  (community rules also show in-game). Impressum/Datenschutz stay German (legal).
+- **Web portal**: `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json` — same flat JSON as
+  the game locales, translated the same way (`translate_locale.py`, see Step 6). It also feeds
+  the in-game community-rules screen. `{rules}`/`{worlds}` are substitution slots and `%s` a
+  runtime value: keep them, and keep the handful of `<b>`/`<code>` tags. The Impressum and
+  Datenschutz **bodies** stay German (the legally authoritative text) — only their chrome and
+  the plain-language summary card are translated.
+- **Browser-play shell**: two words in `BBS_SHELL_TEXT`
+  (`client/Assets/WebGLTemplates/BlocksBeyondTheStars/index.html`).
 
 ## Step 6 — Machine first pass (maintainer workflow)
 
@@ -99,6 +106,9 @@ uv run --no-project python tools/translate_locale.py fr --dry-run   # count + re
 uv run --no-project python tools/translate_locale.py fr             # translates only MISSING keys
 uv run --no-project python tools/translate_locale.py fr --file data/stories/vega_protocol/locales/fr.json \
     --source data/stories/vega_protocol/locales/en.json
+uv run --no-project python tools/translate_locale.py fr \
+    --source src/BlocksBeyondTheStars.WorldHost/Locales/en.json \
+    --file   src/BlocksBeyondTheStars.WorldHost/Locales/fr.json   # the web portal
 uv run --no-project python tools/locale_report.py --check           # hard-defect validation
 ```
 
@@ -114,7 +124,9 @@ PRs then improve a playable language instead of starting from zero.
 - [ ] Wiki articles translated (or accepted EN fallback)
 - [ ] What's New: new entries carry the language
 - [ ] AI backend maps the language name
-- [ ] Portal + community rules translated (or accepted EN fallback)
+- [ ] Portal + community rules translated (`src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json`
+      — `PortalLocalizationTests` fails on a gap, so this one is not optional)
+- [ ] Browser-play shell carries the language (`BBS_SHELL_TEXT`)
 - [ ] Content-error dialog switch extended
 - [ ] Glyph + overflow spot-check done in-game
 - [ ] Settings picker offers the language (coverage ≥ 45 %)

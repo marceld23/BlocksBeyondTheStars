@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.WorldHost;
 using Xunit;
 
@@ -60,7 +61,29 @@ public sealed class WorldHostTermsTests
     [Fact]
     public void UnknownLanguage_FallsBackToGerman()
     {
-        Assert.Equal(CommunityRules.PlainText("de"), CommunityRules.PlainText("fr"));
+        Assert.Equal(CommunityRules.PlainText("de"), CommunityRules.PlainText("xx"));
         Assert.Equal(CommunityRules.HtmlCard("de"), CommunityRules.HtmlCard(null!));
+    }
+
+    [Fact]
+    public void EveryPortalLanguage_RendersItsOwnRules()
+    {
+        // The rules ride the portal locale tables, so the /rules page AND the in-game rules screen
+        // exist in every game language (#970): six bullets, no HTML, and never the German text.
+        string german = CommunityRules.PlainText("de");
+        foreach (var locale in PortalLocales.Supported)
+        {
+            string code = locale.Code();
+            string text = CommunityRules.PlainText(code);
+            Assert.DoesNotContain("</", text, StringComparison.Ordinal);
+            Assert.DoesNotContain("&lt;", text, StringComparison.Ordinal);
+            Assert.Contains("/report", text, StringComparison.Ordinal);
+            Assert.Equal(6, Array.FindAll(text.Split('\n'),
+                line => line.StartsWith("• ", StringComparison.Ordinal)).Length);
+            if (code != "de")
+            {
+                Assert.NotEqual(german, text);
+            }
+        }
     }
 }

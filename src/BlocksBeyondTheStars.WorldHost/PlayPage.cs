@@ -37,19 +37,13 @@ public static class PlayPage
     /// /play never 404s blankly on a fresh deployment.</summary>
     public static string NotInstalledHtml(string lang)
     {
-        bool en = WorldHostPortalPages.NormalizeLang(lang) == "en";
-        return "<!DOCTYPE html><meta charset='utf-8'><title>Blocks Beyond the Stars</title>"
+        var t = PortalLocales.For(lang);
+        return $"<!DOCTYPE html><html lang='{t.Lang}'><meta charset='utf-8'><title>Blocks Beyond the Stars</title>"
             + "<body style='font-family:system-ui;background:#070a12;color:#dfe9f7;padding:40px;line-height:1.5'>"
-            + (en
-                ? "<h2>The browser client is not installed on this portal yet.</h2>"
-                  + "<p>The operator needs to place a Unity <code>Build/WebGL</code> folder in the portal's "
-                  + "webgl directory (<code>BBS_WH_WEBGL_DIR</code>).</p>"
-                  + "<p><a style='color:#5fd7ff' href='/?lang=en'>Back to the worlds portal</a></p>"
-                : "<h2>Der Browser-Client ist auf diesem Portal noch nicht installiert.</h2>"
-                  + "<p>Der Betreiber muss einen Unity-<code>Build/WebGL</code>-Ordner in das webgl-Verzeichnis "
-                  + "des Portals legen (<code>BBS_WH_WEBGL_DIR</code>).</p>"
-                  + "<p><a style='color:#5fd7ff' href='/'>Zurück zum Welten-Portal</a></p>")
-            + "</body>";
+            + $"<h2>{t.T("play.notInstalled.title")}</h2>"
+            + $"<p>{t.T("play.notInstalled.text")}</p>"
+            + $"<p><a style='color:#5fd7ff' href='/{t.Query}'>{t.T("play.notInstalled.back")}</a></p>"
+            + "</body></html>";
     }
 
     /// <summary>Content-Encoding + decoded Content-Type for Unity's precompressed build files, so the

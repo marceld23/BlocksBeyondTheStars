@@ -4,6 +4,13 @@
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
   </ItemGroup>
 
+  <!-- Portal UI text, one table per language (issue #970). Embedded rather than shipped beside the
+       binary: the WorldHost image carries no data/ folder, so an embedded resource is what survives a
+       plain `dotnet publish` without a new volume mount or Dockerfile COPY. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Locales\*.json" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <!-- Override the transitive SQLitePCLRaw 2.1.11 bundle: its native e_sqlite3 has a known CVE (GHSA-2m69-gcr7-jv3q, NU1903). -->

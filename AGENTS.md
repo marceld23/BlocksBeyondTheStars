@@ -77,6 +77,13 @@ Dependency direction (no cycles): `Shared` ← everything; `WorldGeneration`,
      community locale, and never extend the DE/EN completeness tests to cover them
      (`CommunityLocaleTests` guards those files instead). `tools/locale_report.py`
      shows coverage; a language reaches the in-game picker only once covered enough.
+   - *The web portal's own tables* (`src/BlocksBeyondTheStars.WorldHost/Locales/*.json`) are the
+     deliberate exception to the previous point: ~200 keys, held **complete in all 14 languages**
+     and enforced by `PortalLocalizationTests` (#970) — the portal is the first thing a new player
+     sees, and a half-English signup page is the bug that issue removed. A new portal key therefore
+     needs a top-up in the same PR: `uv run --no-project python tools/translate_locale.py <code>
+     --source src/BlocksBeyondTheStars.WorldHost/Locales/en.json --file
+     src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json`.
 2. **Server is authoritative** — see the golden rule above.
 3. **Data-driven content** — blocks, items, recipes, ship modules, tech nodes,
    planets live in `data/*.json`, not hardcoded in logic. Adding content should not
