@@ -1086,9 +1086,13 @@ namespace BlocksBeyondTheStars.Client
                     ShowLandMap(pads);
                     for (int i = 0; i < pads.Length && i < 9; i++)
                     {
-                        if ((Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) && !pads[i].Occupied)
+                        // #999: key N selects the pad LABELLED N (Index + 1), not array slot N — today the
+                        // server sends pads in index order so both agree, but any reordered/filtered list
+                        // would silently land the ship on the wrong pad.
+                        var pad = System.Array.Find(pads, p => p.Index == i);
+                        if (pad != null && (Input.GetKeyDown(KeyCode.Alpha1 + i) || Input.GetKeyDown(KeyCode.Keypad1 + i)) && !pad.Occupied)
                         {
-                            LandOnPad(pads[i].Index);
+                            LandOnPad(pad.Index);
                             break;
                         }
                     }

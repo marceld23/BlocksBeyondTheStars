@@ -199,9 +199,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (contact.Position.DistanceSquared(instance.ShipPosition) > StationBoardRange * StationBoardRange)
+        if (contact.Position.DistanceSquared(PilotPositionIn(instance, playerId)) > StationBoardRange * StationBoardRange)
         {
-            Reject(session, "station", "@srv.station.closer");
+            Reject(session, "station", "@srv.station.closer"); // #994: measured from THIS pilot's ship
             return;
         }
 
@@ -218,7 +218,7 @@ public sealed partial class GameServer
         // to the float next to it, rather than re-launching.
         if (session.State.InEva)
         {
-            _dockedFromEva[playerId] = instance.ShipPosition;
+            _dockedFromEva[playerId] = PilotPositionIn(instance, playerId); // #994: THIS pilot's float spot
         }
 
         instance.Players.Remove(playerId);

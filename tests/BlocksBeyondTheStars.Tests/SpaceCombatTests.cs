@@ -640,6 +640,38 @@ public sealed class SpaceCombatTests : IDisposable
     }
 
     [Fact]
+    public void FireWeapon_RangeChecksTheActingPilotsOwnShip_NotTheLastMover()
+    {
+        // #994: space instances are shared per body and instance.ShipPosition is last-writer-wins across
+        // all pilots. The range check (and aim) must use the ACTING pilot's own pose — with the shared
+        // field, a wingman reporting from far away made the gunner's point-blank shot "out of range".
+        var server = NewServer("perpilot_range", r =>
+        {
+            r.FreeSpaceFlight = true;
+            r.AsteroidDestruction = AsteroidDestructionMode.MiningOnly;
+        }, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Gunner");
+            server.Ship.Modules.Add("asteroid_breaker"); // cursor still points at the just-added Gunner
+            server.EnterSpace("Gunner");
+            var ast = server.SpaceEntitiesFor("Gunner").First(e => e.Kind == CombatEntityKind.Asteroid);
+
+            server.AddLocalPlayer("Wingman");
+            server.EnterSpace("Wingman"); // same body → same instance
+
+            // The gunner parks next to the rock; the wingman reports LAST, from far beyond weapon range.
+            server.ShipMove("Gunner", ast.Position.X + 4f, ast.Position.Y, ast.Position.Z);
+            server.ShipMove("Wingman", ast.Position.X + 800f, ast.Position.Y, ast.Position.Z + 800f);
+
+            float hullBefore = ast.Hull;
+            server.FireWeapon("Gunner", "asteroid_breaker", ast.Id);
+            Assert.True(ast.Hull < hullBefore,
+                "the shot must range-check against the gunner's own ship, not the last pose that arrived");
+        }
+    }
+
+    [Fact]
     public void Shoot_CarvesVoxelAsteroid_ThenDestroysIt()
     {
         // item 20 S3: voxel ore asteroids carve down as you shoot them (no splitting), then yield loot + vanish.

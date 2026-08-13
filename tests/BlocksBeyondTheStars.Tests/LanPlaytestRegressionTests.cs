@@ -379,6 +379,85 @@ public sealed class LanPlaytestRegressionTests : IDisposable
             && x.Msg is SpaceShipDesign d && d.Id == "ship:Ann" && d.Kind == "ship");
     }
 
+    // ---------------- 2026-08-13 audit follow-ups (#996/#997/#999) ----------------
+
+    [Fact]
+    public void TheStarMapsFreePadCount_DoesNotCountYourOwnReservationAgainstYou()
+    {
+        // #999: a pilot in space keeps their pad reserved (#957) and the chooser already excludes that
+        // reservation for its holder (#977) — but the star map's free-pad count did not, so the last pad
+        // being your OWN made the map say "pads full" one screen before the chooser happily offered it.
+        var transport = new RecordingTransport();
+        var server = NewServer("pad_count", transport);
+
+        var ann = server.AddLocalPlayer("Ann");
+        Assert.True(ann.AssignedPadIndex >= 0);
+        int freeBefore = server.FreePadCountForTest();
+        server.EnterSpace("Ann"); // the reservation is held while she is up in space (#957)
+
+        Assert.Equal(freeBefore, server.FreePadCountForTest());        // neutral: still reserved
+        Assert.Equal(freeBefore + 1, server.FreePadCountForTest("Ann")); // as seen by the holder (#999)
+    }
+
+    [Fact]
+    public void AnObserverLandingBackOnTheSameBody_ClaimsNoPadAndNoAnchor()
+    {
+        // #996: HandleTravel has exempted spectators from the pad/ship half of a landing since #487 —
+        // the same-body path did not: it claimed a communal pad for the invisible observer and set
+        // AboardShip/RespawnPoint as if they had a ship parked there.
+        var transport = new RecordingTransport();
+        var server = NewServer("observer_land", transport, placeShip: false);
+
+        var watcher = server.AddLocalPlayer("Watcher");
+        watcher.Spectating = true;
+        watcher.State.AboardShip = false;
+        var anchorBefore = watcher.State.RespawnPoint;
+        server.EnterSpace("Watcher");
+        int freeBefore = server.FreePadCountForTest();
+
+        server.LandOnCurrentBodyForTest(watcher, 1); // an explicit pad pick, like the chooser sends
+
+        Assert.Equal(freeBefore, server.FreePadCountForTest()); // no pad claimed by the observer
+        Assert.False(watcher.State.AboardShip);
+        Assert.Equal(anchorBefore.X, watcher.State.RespawnPoint.X); // anchor untouched
+        Assert.Equal(anchorBefore.Z, watcher.State.RespawnPoint.Z);
+    }
+
+    [Fact]
+    public void ANewPlayersRespawnAnchor_IsTheirOwnSpawn_NotTheLastServedShips()
+    {
+        // #997: CreateNewPlayer runs BEFORE the new session exists, so _shipPlaced/_healTank still
+        // resolve under the last served player's ship cursor. With PlaceStarterShip=false nothing
+        // overwrites the anchor afterwards — a brand-new player persisted the HOST's heal tank and
+        // respawned inside the host's ship.
+        var transport = new RecordingTransport();
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "respawn_anchor"));
+        _repos.Add(repo);
+        var config = new ServerConfig
+        {
+            WorldName = "respawn_anchor",
+            Seed = 1,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = true,
+        };
+        config.Rules.FreeSpaceFlight = true;
+        var server = new SvGameServer(config, _content, transport, repo);
+        server.Start();
+
+        var host = server.AddLocalPlayer("Host"); // ship parked → cursor + heal tank point at the host
+        config.PlaceStarterShip = false;          // a shipwright world for everyone joining after (#949)
+        var newbie = server.AddLocalPlayer("Newbie");
+
+        // The newbie's anchor is at their own pad, not at the host's heal tank (pads sit far apart).
+        Assert.InRange(newbie.State.RespawnPoint.X, newbie.State.Position.X - 8, newbie.State.Position.X + 8);
+        Assert.InRange(newbie.State.RespawnPoint.Z, newbie.State.Position.Z - 8, newbie.State.Position.Z + 8);
+        Assert.True(
+            System.Math.Abs(newbie.State.RespawnPoint.X - host.State.RespawnPoint.X) > 8
+            || System.Math.Abs(newbie.State.RespawnPoint.Z - host.State.RespawnPoint.Z) > 8,
+            "the new player's respawn anchor must not be the host's heal tank");
+    }
+
     public void Dispose()
     {
         foreach (var repo in _repos)

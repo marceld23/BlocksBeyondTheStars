@@ -1298,6 +1298,10 @@ public sealed partial class GameServer
             // fleet polls, and freezing it would report a stale player count for as long as the pause lasts.
             // Safe to run here — with players joined it only republishes; the idle timer stays at zero.
             Guard("HostedLifecycle", deltaSeconds, TickHostedLifecycle);
+
+            // #996: an observer neither holds nor counts toward the pause (#973) and keeps flying — without
+            // streaming they run off the already-sent chunks into void until somebody resumes the world.
+            Guard("SpectatorChunks", StreamChunksToSpectators);
             return;
         }
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
@@ -1995,7 +1999,29 @@ public sealed partial class GameServer
             ? System.Math.Clamp(session.ViewDistance, 1, MaxClientViewDistanceChunks)
             : System.Math.Max(1, _config.ViewDistanceChunks);
 
-    private void StreamChunks()
+    private void StreamChunks() => StreamChunks(spectatorsOnly: false);
+
+    /// <summary>Chunk streaming for observers while the world is held paused (#996): spectators don't hold
+    /// the pause and keep moving, but the paused tick skips the per-world simulation loop (and with it
+    /// <see cref="StreamChunks()"/>) entirely. Non-spectators sit in their pause menus and have no use for
+    /// chunks until the world resumes.</summary>
+    private void StreamChunksToSpectators()
+    {
+        if (!_sessions.Values.Any(s => s.Joined && s.Spectating))
+        {
+            return; // the common case — nobody is observing
+        }
+
+        foreach (var locId in OccupiedLocations())
+        {
+            if (SetActiveWorld(locId))
+            {
+                StreamChunks(spectatorsOnly: true);
+            }
+        }
+    }
+
+    private void StreamChunks(bool spectatorsOnly)
     {
         int perTickBudget = System.Math.Max(1, _config.ChunkStreamPerTick);
 
@@ -2013,6 +2039,11 @@ public sealed partial class GameServer
 
         foreach (var session in JoinedInActiveWorld())
         {
+            if (spectatorsOnly && !session.Spectating)
+            {
+                continue; // paused-world streaming (#996) serves only the observers
+            }
+
             int radius = EffectiveViewRadius(session); // per-player: honour the client's View Distance slider
             int streamRadius = radius + LoadAheadRings; // load one hazed ring past the fog edge so it fades in, not pops (#388)
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
@@ -2420,6 +2451,29 @@ public sealed partial class GameServer
             catch (Exception ex)
             {
                 _log.Error($"Join from connection {connectionId} threw: {ex}");
+                try
+                {
+                    // #998: the join burst may already have parked the player's ship object
+                    // (SetupPlayerShip) — plain session removal left it orphaned in the world with no
+                    // owner to ever clean it up. Tear the world half down, but deliberately do NOT
+                    // save: the session may be half-restored, and persisting partial state could
+                    // clobber the real save the retry-join is about to load.
+                    if (_sessions.TryGetValue(connectionId, out var half))
+                    {
+                        LeaveSpace(half.State.PlayerId);
+                        if (SetActiveWorld(half.CurrentLocationId))
+                        {
+                            RemoveLandedShip(half);
+                            RemoveConstructionSite(half);
+                            BroadcastToWorld(new PlayerLeft { PlayerId = half.State.PlayerId });
+                        }
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    _log.Error($"Join-failure cleanup for connection {connectionId} threw: {cleanupEx}");
+                }
+
                 _sessions.Remove(connectionId); // never leave a half-joined session holding the name
                 SendTo(connectionId, new JoinRejected { Reason = "@srv.join.failed" });
             }
@@ -2530,12 +2584,35 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>Messages still served while the world is held paused (#995): the resume path itself, chat
+    /// and voice (players coordinating the resume), diagnostics, explicit saves, harmless UI state,
+    /// read-only requests and admin commands. Everything else — movement, mining, building, crafting,
+    /// combat, trading — would mutate a world whose simulation (threats, hunger, clock) is frozen.</summary>
+    private static bool PausedMayHandle(object message) => message switch
+    {
+        PauseIntent or ChatIntent or VoiceFrame or BumpReport or SaveGameIntent
+            or SelectHotbarIntent or AdminCommandIntent => true,
+        RequestStarMap or RequestMissions or RequestCompanionsIntent
+            or RequestAllianceListIntent or RequestLandingPadsIntent => true,
+        _ => false,
+    };
+
     private void Dispatch(PlayerSession session, object message)
     {
         // Observer mode is read-only apart from block removal (issue #487): an invisible admin who could
         // craft, loot, trade or shoot would change a world nobody can see them in. Dropped silently — the
         // client already hides the affordances, so a rejection toast would just be noise.
         if (session.Spectating && !SpectatorMayHandle(message))
+        {
+            return;
+        }
+
+        // #995: while every player holds the world paused, the simulation is frozen — so gameplay intents
+        // must not mutate the frozen world either. A stock client sends nothing from its pause menu, so this
+        // only stops a modified client from mining/building/moving while everyone else's clock stands still.
+        // Control-plane traffic stays live (the resume path, chat, saves, read-only requests, admin
+        // commands), and spectators are exempt: they never hold the pause and keep moving (#996).
+        if (_paused && !session.Spectating && !PausedMayHandle(message))
         {
             return;
         }
@@ -2952,7 +3029,11 @@ public sealed partial class GameServer
             PlayerId = name,
             Name = name,
             Position = spawn,
-            RespawnPoint = _shipPlaced ? _healTank : spawn, // the heal-tank in the ship's Medbay
+            // #997: this runs BEFORE the new session exists, so the per-player ship cursor (_shipPlaced /
+            // _healTank) still points at whoever the server processed last — with PlaceStarterShip=false
+            // the HOST's heal tank persisted as a brand-new player's respawn anchor. The pad spawn is the
+            // only anchor that is truly theirs here; SetupPlayerShip re-anchors to their own heal tank.
+            RespawnPoint = spawn,
             AboardShip = true,
             // The very first player to join becomes the world admin (world creator).
             Role = _repo.ListPlayerIds().Count == 0
@@ -5238,7 +5319,7 @@ public sealed partial class GameServer
             Name = sys.Name,
             MapX = sys.MapX,
             MapY = sys.MapY,
-            Bodies = sys.Bodies.Select(ToNetBody).ToArray(),
+            Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),
         }).ToArray();
 
         var players = _sessions.Values
@@ -5314,8 +5395,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Projects a galaxy body to its network form, including its fixed-landing-pad capacity + how many
-    /// pads are currently free (item 38) so the star map can flag a full body. Non-surface bodies have 0 pads.</summary>
-    private NetBody ToNetBody(BlocksBeyondTheStars.Shared.World.CelestialBody b)
+    /// pads are currently free (item 38) so the star map can flag a full body. Non-surface bodies have 0 pads.
+    /// The free count is AS SEEN BY the receiver (#999): their own in-space reservation doesn't count against
+    /// them, matching the pad chooser (#977) and the landing itself.</summary>
+    private NetBody ToNetBody(BlocksBeyondTheStars.Shared.World.CelestialBody b, PlayerSession receiver)
     {
         int total = string.IsNullOrEmpty(b.PlanetType) ? 0 : PadCountFor(b.Id, b.PlanetType!, b.Kind);
         return new NetBody
@@ -5334,7 +5417,7 @@ public sealed partial class GameServer
             SizeBias = b.SizeBias, // #549: the client sizes this body with the same bias the server does
             RingSeed = b.RingSeed, // #596: 0 = no rings; the client renders the ring system from this
             PadsTotal = total,
-            PadsFree = total > 0 ? FreePadCount(b.Id, total) : 0,
+            PadsFree = total > 0 ? FreePadCount(b.Id, total, receiver.State.PlayerId) : 0,
         };
     }
 

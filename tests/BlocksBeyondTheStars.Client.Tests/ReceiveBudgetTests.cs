@@ -133,6 +133,24 @@ public sealed class ReceiveBudgetTests
     }
 
     [Fact]
+    public void TheChunkCap_HoldsForEveryConfiguredStreamRate()
+    {
+        // #999: ChunkStreamPerTick is operator-configurable (config file + BBS_CHUNK_STREAM_PER_TICK), so
+        // the invariant above only guarded the DEFAULT. The setter clamps to a shared ceiling now — an
+        // operator pushing the rate above the client's per-frame cap would put slow clients into exactly
+        // the unbounded backlog #963 removed.
+        var cfg = new ServerConfig { ChunkStreamPerTick = 999 };
+        Assert.Equal(ServerConfig.ChunkStreamPerTickCeiling, cfg.ChunkStreamPerTick);
+
+        cfg.ChunkStreamPerTick = 0; // nonsense low values clamp up to a working minimum
+        Assert.Equal(1, cfg.ChunkStreamPerTick);
+
+        using var client = new NetworkClient(new BatchTransport());
+        Assert.True(client.MaxChunksPerPoll > ServerConfig.ChunkStreamPerTickCeiling,
+            "the per-frame chunk cap must stay above the config ceiling, not just the default");
+    }
+
+    [Fact]
     public void IsMessageType_RecognisesChunks_WithoutDecodingTheBody()
     {
         Assert.True(NetCodec.IsMessageType<ChunkDataMessage>(Chunk(3)));

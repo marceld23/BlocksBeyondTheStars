@@ -509,7 +509,7 @@ public sealed partial class GameServer
         // near it, so you can't mine/build across the whole zone. (The own ship rides the pilot, so skip it.)
         if (s.Kind != "ship")
         {
-            var suit = instance.ShipPosition;
+            var suit = PilotPositionIn(instance, p.PlayerId); // #994: range from THIS pilot's suit/ship
             float ex = suit.X - s.Position.X, ey = suit.Y - s.Position.Y, ez = suit.Z - s.Position.Z;
             if (ex * ex + ey * ey + ez * ez > StructureEditRange * StructureEditRange)
             {

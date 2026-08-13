@@ -105,6 +105,30 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Multiplayer-audit follow-ups: per-pilot space actions, a real pause, observer + join hygiene (#994–#999, 2026-08-14, branch fix/mp-audit-findings)
+A code audit of every multiplayer fix shipped since v2026.8.12 confirmed all of them — and surfaced six
+new findings, fixed together here. **#994 (the real gameplay bug):** space instances are shared per body
+and `instance.ShipPosition` is last-writer-wins across pilots; #955 moved collision/incoming fire to
+per-pilot `PilotSims` but left the *player-triggered* actions on the shared field — weapon range + aim,
+salvage auto-collect, tractor reach, station boarding, structure-edit range, EVA dock/interior return
+spots. All of those now read the acting pilot's own pose (`PilotPositionIn`, falls back to the shared
+field until the first pose arrives); the passive tractor tick collects per pilot into their own cargo.
+**#995:** the all-players pause froze the simulation but the dispatcher kept serving gameplay intents —
+a modified client could mine/build/move for the whole hold with every threat suspended. `PausedMayHandle`
+now gates dispatch while held (resume/chat/saves/read-only/admin stay live; spectators exempt).
+**#996:** observers got no chunks during a group pause (streaming lived below the paused early-return —
+they flew into void) and the same-body landing path claimed a communal pad + set AboardShip/RespawnPoint
+for them; both now mirror HandleTravel's #487 exemptions, and `StreamChunksToSpectators` runs in the held
+tick. **#997:** `CreateNewPlayer` read `_shipPlaced`/`_healTank` under the stale ship cursor — with
+`PlaceStarterShip=false` a brand-new player persisted the *host's* heal tank as respawn anchor. **#998:**
+the #964 join-failure guard removed only the session; it now also tears down the freshly parked ship (no
+save — half-restored state must not clobber the real one). **#999 polish:** stale-avatar nameplates now
+hide with the body (3 s, #958), the star map's free-pad count excludes your own reservation (matching
+#977), pad number keys select by pad *label* not array slot, and `ChunkStreamPerTick` clamps to a shared
+ceiling (20) so an operator config can't out-send the client's 24/frame receive budget (#963). Seven new
+regression tests across `WorldPauseTests`, `LanPlaytestRegressionTests`, `SpaceCombatTests`,
+`ReceiveBudgetTests`.
+
 ### ★ No more water surfaces hanging in mid-water in the distance (#987, 2026-08-13, branch fix/987-water-lod-fake-surfaces)
 Diving in an ocean showed flat water planes floating at chunk-boundary heights far away, joined by thin
 bright vertical strips. Two bugs, one on each side. **Server:** the distance-based vertical LOD anchors a far

@@ -13,6 +13,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- **Space actions now act from *your* ship.** With two pilots over the same planet, firing, tractor
+  pulls, salvage collection, station boarding and EVA structure edits were range-checked from whichever
+  ship reported its position last — shots next to an asteroid could come back "out of range" while your
+  wingman flew far away. Every player-triggered space action now uses the acting pilot's own position;
+  the passive tractor also collects into each pilot's own cargo hold. (#994)
+- **The group pause now freezes actions, not just the clock.** While every player holds the world
+  paused, gameplay intents (mining, building, moving, combat…) are dropped server-side; resume, chat,
+  saves and admin commands stay live. A stock client never sent them anyway — a modified one could farm
+  a frozen world for the whole hold. (#995)
+- **Watching admins survive a group pause** — observers keep receiving terrain while the world is held
+  instead of flying into void, and landing an observer on the same body no longer claims a communal
+  landing pad or marks them aboard a ship. (#996)
+- **A brand-new player's respawn anchor is their own** — on worlds without a starter ship it could be
+  persisted as the *host's* heal tank, respawning them inside the host's ship. (#997)
+- **A failed join cleans up after itself** — the freshly parked ship of a join that died mid-handshake
+  no longer stays behind as an ownerless prop. (#998)
+- **Multiplayer polish:** a frozen remote avatar's nameplate disappears with the body instead of
+  floating in mid-air; the star map no longer says "pads full" when the last pad is your own
+  reservation; pad number keys pick the pad by its label; the server's chunk-stream rate clamps to what
+  clients can absorb per frame. (#999)
+
 ## [2026.8.13] — 2026-08-13
 
 The crewmate release. The last version put several players into one world for the first time; this one

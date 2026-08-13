@@ -194,6 +194,79 @@ public sealed class WorldPauseTests : IDisposable
     }
 
     [Fact]
+    public void WhileHeld_GameplayIntentsAreDropped_ButTheResumePathStaysLive()
+    {
+        // #995: the hold froze the SIMULATION but the dispatcher kept serving gameplay intents — a stock
+        // client sends nothing from its pause menu, but a modified one could mine/build/move for the whole
+        // hold with every threat (and everyone else's clock) suspended.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            var start = p.State.Position;
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode( // clear the join adopt gate (#865)
+                new MoveIntent { X = start.X, Y = start.Y, Z = start.Z }));
+
+            server.PauseForTest(p, true);
+            Assert.True(server.IsPaused);
+
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(
+                new MoveIntent { X = start.X + 1f, Y = start.Y, Z = start.Z }));
+            Assert.Equal(start.X, p.State.Position.X); // the frozen world ignored the movement
+
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(new PauseIntent { Paused = false }));
+            Assert.False(server.IsPaused); // the resume path must stay live through the gate
+
+            server.HandlePayloadForTest(p.ConnectionId, NetCodec.Encode(
+                new MoveIntent { X = start.X + 1f, Y = start.Y, Z = start.Z }));
+            Assert.Equal(start.X + 1f, p.State.Position.X); // …and movement is trusted again
+        }
+    }
+
+    [Fact]
+    public void WhileHeld_NoChunksStreamToThePausedPlayers()
+    {
+        // The paused tick skips the simulation loop entirely — holders sit in their menus and have no use
+        // for chunks. (The observer case below is the exception, #996.)
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            server.PauseForTest(p, true);
+
+            transport.Sent.Clear();
+            server.TickForTest(0.1);
+            Assert.True(server.IsPaused);
+            Assert.DoesNotContain(transport.Sent, m => m is ChunkDataMessage);
+        }
+    }
+
+    [Fact]
+    public void WhileHeld_AnObserverStillReceivesChunks()
+    {
+        // #996: a spectator neither holds nor counts toward the pause and keeps flying — but chunk
+        // streaming lived below the paused early-return, so an admin moving through a held world ran off
+        // the already-streamed radius into void for up to the whole hold.
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, transport);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            var admin = server.AddLocalPlayer("Marcel");
+            admin.Spectating = true; // observer mode (#487)
+
+            server.PauseForTest(p, true);
+            Assert.True(server.IsPaused);
+
+            transport.Sent.Clear();
+            server.TickForTest(0.1);
+            Assert.True(server.IsPaused);
+            Assert.Contains(transport.Sent, m => m is ChunkDataMessage); // streamed to the observer
+        }
+    }
+
+    [Fact]
     public void APauseIsLifted_WhenSomeoneElseJoins()
     {
         var server = Started(out var repo);

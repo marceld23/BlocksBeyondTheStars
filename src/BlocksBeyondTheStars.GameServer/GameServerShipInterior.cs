@@ -48,8 +48,8 @@ public sealed partial class GameServer
         }
 
         // Remember how to drop back into the flight view (and the ship's parked spot, even if the now-empty
-        // instance unloads while we're inside).
-        _inShipInterior[playerId] = new ShipInteriorReturn(instanceId, instance.ShipPosition, session.CurrentLocationId, _world.PlanetKey);
+        // instance unloads while we're inside). #994: THIS pilot's spot, not whichever pilot moved last.
+        _inShipInterior[playerId] = new ShipInteriorReturn(instanceId, PilotPositionIn(instance, playerId), session.CurrentLocationId, _world.PlanetKey);
 
         instance.Players.Remove(playerId);
         _playerInstance.Remove(playerId);
@@ -116,6 +116,10 @@ public sealed partial class GameServer
         {
             inst.ShipPosition = ret.ShipPos;
             inst.ShipLastPosition = ret.ShipPos;
+            // #994: per-pilot pose is the authority for player actions now — put it back too, so the first
+            // action after stepping out doesn't range-check against the pre-interior launch seed.
+            inst.PlayerPoses[playerId] = new SpacePlayerPose(ret.ShipPos, 0f, eva);
+            inst.PilotSims[playerId] = new PilotSim { LastPosition = ret.ShipPos };
         }
 
         if (eva)

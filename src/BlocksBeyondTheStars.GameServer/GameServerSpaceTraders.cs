@@ -855,6 +855,6 @@ public sealed partial class GameServer
         var body = _galaxy.FindBody(bodyId);
         string planetKey = body?.PlanetType ?? _meta.DefaultPlanetType;
         int total = PadCountFor(bodyId, planetKey, body?.Kind ?? CelestialKind.Planet);
-        return FreePadCount(bodyId, total);
+        return FreePadCount(bodyId, total, string.Empty);
     }
 }

@@ -58,7 +58,20 @@ public sealed class ServerConfig
     /// chunks to send, so a too-small budget makes terrain "thaw in" slowly at the horizon. Each freshly streamed
     /// chunk that isn't cached is generated synchronously in the tick, so this also bounds first-visit gen cost:
     /// a host seeing tick overruns on weak hardware can lower it; a strong host can raise it for snappier fill.</summary>
-    public int ChunkStreamPerTick { get; set; } = 16;
+    public int ChunkStreamPerTick
+    {
+        get => _chunkStreamPerTick;
+        set => _chunkStreamPerTick = Math.Clamp(value, 1, ChunkStreamPerTickCeiling);
+    }
+
+    private int _chunkStreamPerTick = 16;
+
+    /// <summary>Hard ceiling for <see cref="ChunkStreamPerTick"/> (#999): the client's receive budget drains
+    /// a bounded number of chunks per frame (NetworkClient.MaxChunksPerPoll, 24 — asserted to stay above this
+    /// in ReceiveBudgetTests), so a server configured to push more could out-send a low-fps client
+    /// indefinitely — recreating exactly the backlog #963 removed. The setter clamps so the invariant holds
+    /// for every config source (file, env var, code), not just the default value.</summary>
+    public const int ChunkStreamPerTickCeiling = 20;
 
     /// <summary>Optional wall-clock budget (milliseconds) for chunk streaming per tick; 0 = off. When set,
     /// StreamChunks stops sending once the budget is spent — remaining chunks come next tick, nearest-first

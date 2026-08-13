@@ -48,11 +48,11 @@ public sealed class ServerConfigTests
         var config = new ServerConfig();
         var applied = config.ApplyCommandLine(new[]
         {
-            "--chunk-stream-per-tick", "24",
+            "--chunk-stream-per-tick", "18", // stays under the #999 ceiling (values above clamp to it)
             "--chunk-stream-budget-ms", "12.5", // invariant decimal point, must parse regardless of host locale
         });
 
-        Assert.Equal(24, config.ChunkStreamPerTick);
+        Assert.Equal(18, config.ChunkStreamPerTick);
         Assert.Equal(12.5, config.ChunkStreamBudgetMs);
         Assert.Contains("chunk-stream-per-tick", applied);
         Assert.Contains("chunk-stream-budget-ms", applied);

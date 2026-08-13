@@ -311,7 +311,10 @@ public sealed partial class GameServer
 
         foreach (var s in _sessions.Values)
         {
-            if (!s.Joined || s.State.PlayerId == exceptPlayerId)
+            // An observer never HOLDS a pad (#487/#996): occupancy is derived live from AssignedPadIndex,
+            // and the relocate path may stamp one on a spectating session — an invisible admin must not
+            // block a communal pad for the players.
+            if (!s.Joined || s.Spectating || s.State.PlayerId == exceptPlayerId)
             {
                 continue;
             }
@@ -339,13 +342,16 @@ public sealed partial class GameServer
         return -1;
     }
 
-    /// <summary>How many of a body's pads are currently free (live occupancy).</summary>
-    private int FreePadCount(string locationId, int total)
+    /// <summary>How many of a body's pads are currently free (live occupancy). <paramref name="exceptPlayerId"/>
+    /// is the player the count is FOR (#999): their own in-space reservation doesn't block them (#977), so it
+    /// must not read as "occupied" either — or the star map said "pads full" while the chooser one screen
+    /// later happily offered their own pad. Pass <see cref="string.Empty"/> for a neutral count (NPC traders).</summary>
+    private int FreePadCount(string locationId, int total, string exceptPlayerId)
     {
         int free = 0;
         for (int i = 0; i < total; i++)
         {
-            if (!PadOccupiedByOther(locationId, i, string.Empty))
+            if (!PadOccupiedByOther(locationId, i, exceptPlayerId))
             {
                 free++;
             }
@@ -365,7 +371,8 @@ public sealed partial class GameServer
         foreach (var s in _sessions.Values)
         {
             // A holder up in space still reserves the pad (#957) — the chooser shows it as taken.
-            if (s.Joined && s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId)
+            // Observers hold nothing (#487/#996), so their name must never label a pad.
+            if (s.Joined && !s.Spectating && s.AssignedPadIndex == padIndex && s.CurrentLocationId == locationId)
             {
                 return s.State.Name;
             }
@@ -510,7 +517,9 @@ public sealed partial class GameServer
             _ship.CurrentLocationId = session.CurrentLocationId; // keep the ship's body in sync so a later launch rises off THIS body (mirrors HandleTravel; B48) — fixes launching off an asteroid landing you adrift in the wrong orbit
         }
 
-        if (_config.PlaceStarterShip)
+        // An observer arrives with no ship, no pad and no respawn anchor (#487/#996) — mirrors HandleTravel,
+        // which has exempted spectators from the pad/ship half of a landing since day one.
+        if (_config.PlaceStarterShip && !session.Spectating)
         {
             PlaceLandedShip();
         }
@@ -519,8 +528,12 @@ public sealed partial class GameServer
         int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
-        session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
-        session.State.AboardShip = true;
+        if (!session.Spectating)
+        {
+            session.State.RespawnPoint = _shipPlaced ? _healTank : spawn;
+            session.State.AboardShip = true;
+        }
+
         session.AwaitingSpawnAdopt = true; // #865: the client keeps streaming its pre-launch pose for a beat
 
         // While this player was away (space / a station world), block changes on THIS body were only
@@ -699,7 +712,7 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test hook: how many of the active world's pads are currently free.</summary>
-    public int FreePadCountForTest() => FreePadCount(_world.LocationId, _landingPads.Count);
+    public int FreePadCountForTest(string exceptPlayerId = "") => FreePadCount(_world.LocationId, _landingPads.Count, exceptPlayerId);
 
     /// <summary>Test hook: runs the landing-pad claim for a player (mirrors a landing). Returns the chosen pad
     /// index (or -1 with a reason if the pad is taken / the body is full).</summary>

@@ -146,8 +146,9 @@ public sealed class SpaceInstance
     public List<CombatEntity> Entities { get; set; } = new();
     public HashSet<string> Players { get; set; } = new();
 
-    /// <summary>The acting player's last reported position — ambient NPC targeting (traders/bandits) and
-    /// single-pilot legacy paths. Collision and incoming fire run per pilot via <see cref="PilotSims"/> (#955).</summary>
+    /// <summary>The last reported position of ANY pilot — ambient NPC targeting (traders/bandits) only.
+    /// Player-triggered actions (fire/tractor/board/structure edits) resolve per pilot via
+    /// <see cref="PlayerPoses"/> (#994); collision and incoming fire via <see cref="PilotSims"/> (#955).</summary>
     public Vector3f ShipPosition { get; set; }
     public Vector3f ShipLastPosition { get; set; }
 
@@ -280,6 +281,13 @@ public sealed partial class GameServer
 
     /// <summary>True while the player is flying in a space instance.</summary>
     public bool InSpace(string playerId) => _playerInstance.ContainsKey(playerId);
+
+    /// <summary>The acting pilot's OWN position in the instance (#994). Instances are shared per body and
+    /// <see cref="SpaceInstance.ShipPosition"/> is last-writer-wins across all pilots, so range checks and
+    /// aim for player-triggered actions must read the pilot's pose instead. Falls back to the shared field
+    /// only while no pose has arrived yet (the client reports one within its first ~0.1 s in space).</summary>
+    private static Vector3f PilotPositionIn(SpaceInstance instance, string playerId)
+        => instance.PlayerPoses.TryGetValue(playerId, out var pose) ? pose.Pos : instance.ShipPosition;
 
     /// <summary>The combat entities in the player's current space instance (empty if not in space).</summary>
     public IReadOnlyList<CombatEntity> SpaceEntitiesFor(string playerId)
@@ -936,13 +944,14 @@ public sealed partial class GameServer
             return;
         }
 
-        if (target.Position.DistanceSquared(instance.ShipPosition) > weapon.Range * weapon.Range)
+        var shipPos = PilotPositionIn(instance, playerId); // #994: THIS pilot's ship, not whoever moved last
+        if (target.Position.DistanceSquared(shipPos) > weapon.Range * weapon.Range)
         {
             RejectSpace(session, "@srv.space.out_of_range");
             return;
         }
 
-        if (!ValidateSpaceAim(session, instance, target, dirX, dirY, dirZ))
+        if (!ValidateSpaceAim(session, shipPos, target, dirX, dirY, dirZ))
         {
             return;
         }
@@ -1045,7 +1054,7 @@ public sealed partial class GameServer
     /// target (#693). Mirrors the on-foot <c>ValidateAim</c>: generous tolerances (latency, drifting
     /// targets), zero direction = older client = skip. AutoAim ON needs the target roughly ahead;
     /// AutoAim OFF needs a genuine boresight line — the nose ray must pass near the target's body.</summary>
-    private bool ValidateSpaceAim(PlayerSession? session, SpaceInstance instance, CombatEntity target, float dirX, float dirY, float dirZ)
+    private bool ValidateSpaceAim(PlayerSession? session, Vector3f shipPos, CombatEntity target, float dirX, float dirY, float dirZ)
     {
         float dirLenSq = dirX * dirX + dirY * dirY + dirZ * dirZ;
         if (dirLenSq < 0.0001f)
@@ -1053,9 +1062,9 @@ public sealed partial class GameServer
             return true; // no aim data (older client) — keep the legacy range-only behaviour
         }
 
-        float tx = target.Position.X - instance.ShipPosition.X;
-        float ty = target.Position.Y - instance.ShipPosition.Y;
-        float tz = target.Position.Z - instance.ShipPosition.Z;
+        float tx = target.Position.X - shipPos.X;
+        float ty = target.Position.Y - shipPos.Y;
+        float tz = target.Position.Z - shipPos.Z;
         float dist = (float)System.Math.Sqrt(tx * tx + ty * ty + tz * tz);
         if (dist < 3f)
         {
@@ -1276,19 +1285,21 @@ public sealed partial class GameServer
     // before you've learned to nose right into the wreck). Widened so flying near the wreck reliably collects it.
     private const float TractorRange = 16f;
 
-    /// <summary>Tractor beam: pulls salvage drops within <paramref name="range"/> into the ship's cargo hold
-    /// (until full). The passive tick uses a short range; a manual pull (quick-bar) sweeps a wider one.</summary>
-    private void CollectSalvage(SpaceInstance instance, float range)
+    /// <summary>Tractor beam: pulls salvage drops within <paramref name="range"/> of the COLLECTING pilot's
+    /// ship into that ship's cargo hold (until full). The passive tick uses a short range; a manual pull
+    /// (quick-bar) sweeps a wider one. The caller must have pinned the ship cursor to the collector (#994).</summary>
+    private void CollectSalvage(SpaceInstance instance, float range, string playerId)
     {
         if (!_ship.HasModule(TractorModule))
         {
             return;
         }
 
+        var shipPos = PilotPositionIn(instance, playerId); // #994: sweep around the collector's own ship
         bool changed = false;
         foreach (var drop in instance.Entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop).ToList())
         {
-            if (drop.Position.DistanceSquared(instance.ShipPosition) > range * range)
+            if (drop.Position.DistanceSquared(shipPos) > range * range)
             {
                 continue;
             }
@@ -1302,9 +1313,9 @@ public sealed partial class GameServer
         if (changed)
         {
             BroadcastSpaceState(instance);
-            foreach (var playerId in instance.Players)
+            foreach (var presentId in instance.Players)
             {
-                if (FindSessionByPlayerId(playerId) is { } s)
+                if (FindSessionByPlayerId(presentId) is { } s)
                 {
                     SendInventory(s); // cargo is part of the inventory update when aboard
                 }
@@ -1372,7 +1383,7 @@ public sealed partial class GameServer
                 return; // already collected / gone — no need to nag
             }
 
-            if (drop.Position.DistanceSquared(instance.ShipPosition) > TractorReach * TractorReach)
+            if (drop.Position.DistanceSquared(PilotPositionIn(instance, playerId)) > TractorReach * TractorReach)
             {
                 RejectSpace(session, Localize(session?.Locale ?? "en", "space.tractor.out_of_range"));
                 return;
@@ -1396,7 +1407,7 @@ public sealed partial class GameServer
             return;
         }
 
-        CollectSalvage(instance, TractorPullRange);
+        CollectSalvage(instance, TractorPullRange, playerId);
     }
 
     private void HandleTractorPull(PlayerSession session, TractorPullIntent intent)
@@ -1444,8 +1455,16 @@ public sealed partial class GameServer
             }
 
             // Tractor beam: pull nearby salvage drops into the cargo hold (before collision, so the
-            // collision bounce doesn't move the ship away from the drop first).
-            CollectSalvage(instance, TractorRange);
+            // collision bounce doesn't move the ship away from the drop first). Per pilot (#994): each
+            // fitted tractor sweeps around its OWN ship into its own cargo, not the shared position.
+            foreach (var collectorId in instance.Players.ToList())
+            {
+                if (FindSessionByPlayerId(collectorId) is { Joined: true } collector)
+                {
+                    SetCurrent(collector); // module check + cargo below resolve to this pilot's ship
+                    CollectSalvage(instance, TractorRange, collectorId);
+                }
+            }
 
             // Hostile movement: drones/UFOs/cruisers patrol around their post and CHASE the ship when it
             // comes in range (they used to hang motionless at their spawn points forever).
@@ -2150,8 +2169,9 @@ public sealed partial class GameServer
         if (string.IsNullOrEmpty(dest) || dest == session.CurrentLocationId)
         {
             // Land back on the current body — claim a free landing pad first (item 38); a full body refuses.
+            // An observer takes no pad (#487/#996): pads are finite and communal — same rule as HandleTravel.
             SetActiveWorld(session.CurrentLocationId);
-            if (!ClaimPadOrReject(session, session.CurrentLocationId, intent.PadIndex))
+            if (!session.Spectating && !ClaimPadOrReject(session, session.CurrentLocationId, intent.PadIndex))
             {
                 return;
             }

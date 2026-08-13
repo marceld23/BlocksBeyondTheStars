@@ -308,7 +308,9 @@ namespace BlocksBeyondTheStars.Client
             var labels = ScreenLabelLayer.Instance;
             foreach (var r in _remotes.Values)
             {
-                if (!r.Hidden)
+                // #999: TimedOut hides the BODY within seconds (#958) — without checking it here the
+                // nameplate kept floating in mid-air over the hidden avatar until the destroy timeout.
+                if (!r.Hidden && !r.TimedOut)
                 {
                     // Fade names out between 30 m and 45 m — a bit further than NPCs so mates stay recognisable.
                     labels.World(cam, r.Go.transform.position + Vector3.up * 2.1f, r.Name, UiKit.TextCol, false, 30f, 45f);

@@ -83,7 +83,7 @@ public sealed partial class GameServer
         // Place it a few units ahead of the suit, on its heading.
         float yaw = instance.PlayerPoses.TryGetValue(playerId, out var pose) ? pose.Yaw : 0f;
         double rad = yaw * System.Math.PI / 180.0;
-        var suit = instance.ShipPosition;
+        var suit = PilotPositionIn(instance, playerId); // #994: THIS suit, not whichever pilot moved last
         var at = new Vector3f(suit.X + (float)System.Math.Sin(rad) * 5f, suit.Y, suit.Z + (float)System.Math.Cos(rad) * 5f);
 
         var s = new SpaceStructure
