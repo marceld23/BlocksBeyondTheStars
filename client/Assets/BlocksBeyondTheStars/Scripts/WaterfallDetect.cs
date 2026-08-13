@@ -17,7 +17,12 @@ namespace BlocksBeyondTheStars.Client
         /// surface) and at least two of its four horizontal neighbours open to air — a thin hanging stream.
         /// The air-side test is what separates a waterfall column from a filled deep pool (whose sides are
         /// water or bank), so a calm lake never reads as falling.</summary>
-        public static bool IsFalling(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int x, int y, int z)
+        /// <param name="loaded">Optional "is this cell's chunk actually streamed in?" test. A cell we don't hold
+        /// reads as air through <paramref name="worldBlock"/>, which used to make every submerged cell along the
+        /// streamed region's edge a "waterfall" — scrolling streaks down the flanks of an ordinary deep sea
+        /// (#987). Null = everything is loaded.</param>
+        public static bool IsFalling(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int x, int y, int z,
+            System.Func<int, int, int, bool> loaded = null)
         {
             if (worldBlock(x, y, z).Value != waterId.Value)
             {
@@ -30,12 +35,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int air = 0;
-            if (worldBlock(x + 1, y, z).IsAir) air++;
-            if (worldBlock(x - 1, y, z).IsAir) air++;
-            if (worldBlock(x, y, z + 1).IsAir) air++;
-            if (worldBlock(x, y, z - 1).IsAir) air++;
+            if (OpenAir(worldBlock, loaded, x + 1, y, z)) air++;
+            if (OpenAir(worldBlock, loaded, x - 1, y, z)) air++;
+            if (OpenAir(worldBlock, loaded, x, y, z + 1)) air++;
+            if (OpenAir(worldBlock, loaded, x, y, z - 1)) air++;
             return air >= 2;
         }
+
+        /// <summary>Air the column could actually fall through: empty AND in a chunk we hold.</summary>
+        private static bool OpenAir(System.Func<int, int, int, BlockId> worldBlock, System.Func<int, int, int, bool> loaded, int x, int y, int z)
+            => worldBlock(x, y, z).IsAir && (loaded == null || loaded(x, y, z));
 
         /// <summary>If (x,y,z) is the LANDING cell a waterfall rests on — i.e. it is not itself falling water but
         /// the cell directly above it is — return how many falling-water cells stack above it (the drop height),

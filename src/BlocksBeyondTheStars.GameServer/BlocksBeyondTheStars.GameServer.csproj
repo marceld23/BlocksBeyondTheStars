@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- Lets the test suite reach pure helpers that would otherwise need a full server spin-up to exercise
+         (e.g. the far-column streaming band). Same arrangement WorldGeneration already uses. -->
+    <InternalsVisibleTo Include="BlocksBeyondTheStars.Tests" />
     <ProjectReference Include="..\BlocksBeyondTheStars.Shared\BlocksBeyondTheStars.Shared.csproj" />
     <ProjectReference Include="..\BlocksBeyondTheStars.WorldGeneration\BlocksBeyondTheStars.WorldGeneration.csproj" />
     <ProjectReference Include="..\BlocksBeyondTheStars.Persistence\BlocksBeyondTheStars.Persistence.csproj" />

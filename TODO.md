@@ -105,6 +105,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ No more water surfaces hanging in mid-water in the distance (#987, 2026-08-13, branch fix/987-water-lod-fake-surfaces)
+Diving in an ocean showed flat water planes floating at chunk-boundary heights far away, joined by thin
+bright vertical strips. Two bugs, one on each side. **Server:** the distance-based vertical LOD anchors a far
+column's three-chunk band at `WorldGenerator.SurfaceHeight`, which is the *terrain* top — under a sea that is
+the **seabed**, with the generator filling everything above it up to `SeaLevel`. Any ocean deeper than the
+band was cut off mid-water and its real surface never streamed. `FarColumnBand` (pure, unit-tested) now runs
+the band from just under the seabed up to just over the **waterline**, capped at `FarColumnMaxChunks = 6` by
+trimming the bottom — the surface is what you see; the seabed under deep water is lost in the haze anyway.
+**Client:** `worldBlock` returns `Air` for a chunk the client does not hold, and the fluid rules read exactly
+that: "air above" makes water a *surface* (lowered top face, waves, foam, full skylight) and "air beside"
+makes it a *waterfall* (mode 4 scrolling streaks, which also bypass the B43 side-face cull) — so the streamed
+band's top rendered as a fake ocean surface and its side edges as fake cascades, with mist VFX to match. A new
+optional `worldLoaded` predicate (from the same thread-safe neighbourhood snapshot `worldBlock` uses) lets
+`ChunkMesher`, `WaterSurface.Classify` and `WaterfallDetect.IsFalling` tell "unstreamed" from "open air";
+see-through faces toward an unloaded chunk are culled, opaque ones deliberately are not (that edge must read
+as a wall, not a hole). Null predicate = old behaviour, so the one-shot ship/speeder meshers are untouched.
+
 ### ★ Multiplayer pauses too — once everybody is in the pause menu (#973, 2026-08-13, branch feat/973-multiplayer-pause)
 The Esc hold from #612/#908 only ever served a **lone** player: `HandlePause` refused the request outright
 while a second player was joined, and `HoldingPause` lifted a running hold the moment that count moved. Two

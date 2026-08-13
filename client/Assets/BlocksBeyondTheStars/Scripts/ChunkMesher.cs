@@ -86,9 +86,10 @@ namespace BlocksBeyondTheStars.Client
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null,
-            System.Func<int, Rect?> designUv = null)
+            System.Func<int, Rect?> designUv = null,
+            System.Func<int, int, int, bool> worldLoaded = null)
         {
-            var data = BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape, designUv);
+            var data = BuildGeometry(chunk, content, worldBlock, atlas, floraTint, paintTint, lights, worldShape, designUv, worldLoaded);
             var meshes = data.ToMeshes();
             data.Release();
             return meshes;
@@ -101,12 +102,15 @@ namespace BlocksBeyondTheStars.Client
         /// (the <paramref name="chunk"/>, the <paramref name="worldBlock"/>/<paramref name="worldShape"/>
         /// delegates, <paramref name="content"/>, <paramref name="atlas"/>, the tint resolvers and
         /// <paramref name="lights"/>) MUST be a thread-safe snapshot — atomic value reads with no concurrent
-        /// dictionary mutation (see the planet streamer's neighbourhood snapshot in GameBootstrap).</summary>
+        /// dictionary mutation (see the planet streamer's neighbourhood snapshot in GameBootstrap).
+        /// <paramref name="worldLoaded"/> tells the fluid rules apart which empty cells are real air and which are
+        /// merely un-streamed (see <c>Loaded</c> below); null = the caller has all the data (ship/speeder meshers).</summary>
         public static ChunkMeshData BuildGeometry(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
             System.Func<int, int, int, int> worldShape = null,
-            System.Func<int, Rect?> designUv = null)
+            System.Func<int, Rect?> designUv = null,
+            System.Func<int, int, int, bool> worldLoaded = null)
         {
             // Pooled output buffers: every build used to allocate ~13 fresh List<>s whose backing arrays are
             // large (a dense chunk's vertex list alone runs to six figures of bytes), making chunk (re)meshing
@@ -231,6 +235,15 @@ namespace BlocksBeyondTheStars.Client
                 return open / (float)total;
             }
 
+            // A cell in a chunk the client does not hold is NOT open air — the streamer either has not sent it
+            // yet or (past the far-column vertical LOD) never will. worldBlock cannot express that: it hands back
+            // Air for a missing chunk. The FLUID rules must tell the two apart, because "air above" is what makes
+            // water a surface and "air beside" is what makes it a waterfall — so an ocean cut off by the streamed
+            // band rendered a wavy water surface hanging in mid-water, with scrolling waterfall streaks down the
+            // band's side edges (#987). Null (the one-shot ship/speeder meshers, which hold all their own data,
+            // and the tests) = everything is loaded, i.e. exactly the old behaviour.
+            bool Loaded(int lx, int ly, int lz) => worldLoaded == null || worldLoaded(lx, ly, lz);
+
             // Per-cell water classification cache for this build (each cell is sampled by up to four
             // corners; classify it once).
             var waterCells = _waterCellsScratch ??= new Dictionary<(int X, int Y, int Z), Vector4>();
@@ -240,7 +253,7 @@ namespace BlocksBeyondTheStars.Client
                 var key = (cwx, cwy, cwz);
                 if (!waterCells.TryGetValue(key, out var d))
                 {
-                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz);
+                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz, Loaded);
                     waterCells[key] = d;
                 }
 
@@ -259,7 +272,8 @@ namespace BlocksBeyondTheStars.Client
                 for (int oz = -1; oz <= 0; oz++)
                 {
                     int cx = cwx + ox, cz = cwz + oz;
-                    bool surface = worldBlock(cx, cwy, cz).Value == waterId.Value && worldBlock(cx, cwy + 1, cz).IsAir;
+                    bool surface = worldBlock(cx, cwy, cz).Value == waterId.Value
+                        && worldBlock(cx, cwy + 1, cz).IsAir && Loaded(cx, cwy + 1, cz);
                     if (!surface)
                     {
                         foam += 1f; // the shore itself
@@ -444,20 +458,20 @@ namespace BlocksBeyondTheStars.Client
                 // Water SURFACE cells (air above) get a body classification — open water with gentle
                 // waves + coastal foam, calm lake, or flowing river — packed into the top face's
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
-                bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir;
+                bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
                 Vector4 waterData = isWaterSurface ? WaterCellData(id, wx, wy, wz) : Vector4.zero;
                 // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
-                bool isFallingWater = collKey == "water" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz);
+                bool isFallingWater = collKey == "water" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, Loaded);
 
                 // Lava SURFACE cell (air above): tag its faces as tint mode 5 so the opaque atlas shader animates
                 // a slow molten crust over the otherwise-static glow (L1). Lava is opaque, so unlike water this
                 // rides the opaque shader's skyl.y mode channel, not the transparent water layout.
-                bool isLavaSurface = collKey == "lava" && worldBlock(wx, wy + 1, wz).IsAir;
+                bool isLavaSurface = collKey == "lava" && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
                 // Falling-lava column (a lavafall, L3): like falling water, but mode 6 → the opaque shader streaks
                 // a hot glow straight DOWN the vertical flanks. WaterfallDetect is fluid-agnostic (takes the id).
-                bool isFallingLava = collKey == "lava" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz);
+                bool isFallingLava = collKey == "lava" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, Loaded);
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
@@ -671,7 +685,12 @@ namespace BlocksBeyondTheStars.Client
                     // OWN faces stay a thin shell — the `foliage` branch draws toward air/glass only, so it still
                     // culls against opaque AND its own kind. (Solid flora meshes its own shape and never reaches
                     // this loop, so it needs no branch here — only its opaque NEIGHBOURS must keep their faces.)
-                    bool drawFace = transparent ? nb.IsAir
+                    //
+                    // See-through blocks additionally require that "air" to be LOADED (#987): a face toward a
+                    // chunk we simply don't have would draw a water/glass pane into the void at the streamed
+                    // region's edge. Opaque blocks deliberately keep theirs — culling those would turn the edge
+                    // of the loaded world see-through instead of closing it off with an ordinary wall.
+                    bool drawFace = transparent ? (nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? (nb.IsAir || IsTransparent(content, nb))
                         : (nb.IsAir || IsTransparent(content, nb) || IsFloraBlock(content, nb) || IsFoliageBlock(content, nb));
 

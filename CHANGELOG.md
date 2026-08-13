@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🌊 Deep water stops growing ghost surfaces in the distance (#987)
+
+- **No more water planes hanging in mid-water.** Far away, an ocean was only streamed up to a fixed band
+  above its seabed, and the game drew that cut-off as if it were the water's surface — flat panes floating
+  at odd heights, with thin glowing "waterfalls" running down their edges. Distant seas are now streamed up
+  to their real waterline, so what you see out there is the actual surface.
+- **Nothing fake at the edge of the loaded world either.** Water and glass no longer draw a face toward
+  terrain that has not arrived yet, which also removes the brief flicker of a false surface while a new
+  area streams in.
+
 ### 🧑‍🚀 Admin commands finally accept player names with a space (#980)
 
 - **`/tpp mincraft Fan` works.** Commands that take a player name only ever read the first word of it,

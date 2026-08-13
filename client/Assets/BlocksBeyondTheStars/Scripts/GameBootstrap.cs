@@ -2592,6 +2592,12 @@ namespace BlocksBeyondTheStars.Client
                 var local = WorldConstants.WorldToLocal(pos);
                 return ch.Get(local.X, local.Y, local.Z);
             };
+            // Companion to worldBlock: worldBlock cannot distinguish "air" from "chunk we don't have" (both come
+            // back as Air), and the fluid rules need that difference — see ChunkMesher's Loaded (#987). Answers
+            // from the SAME captured neighbourhood, so it is exactly as thread-safe, and every caller stays
+            // within it (face tests read ±1 block, the shore scan ±12 → at most one chunk out).
+            System.Func<int, int, int, bool> worldLoaded = (wx, wy, wz) =>
+                blocks.ContainsKey(WorldConstants.WorldToChunk(WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ)));
             System.Func<int, int, int, int> worldShape = (wx, wy, wz) =>
             {
                 var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ);
@@ -2621,7 +2627,7 @@ namespace BlocksBeyondTheStars.Client
                 string error = null;
                 try
                 {
-                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape, designUv);
+                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape, designUv, worldLoaded);
                 }
                 catch (System.Exception ex)
                 {

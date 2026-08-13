@@ -26,12 +26,16 @@ namespace BlocksBeyondTheStars.Client
         private const int RiverMaxWidth = 5;          // total width ≤ this (either axis) → flowing channel
         private const int OpenWaterSpan = 2 * ScanCap; // one axis this wide (cap hit both ways) → waves
 
-        public static Vector4 Classify(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int wx, int wy, int wz)
+        /// <param name="loaded">Optional "is this cell's chunk actually streamed in?" test — a cell we don't hold
+        /// must not end a shore run, or the streamed region's edge grows a phantom coastline (foam + pond/river
+        /// classification) in the middle of an ocean (#987). Null = everything is loaded.</param>
+        public static Vector4 Classify(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int wx, int wy, int wz,
+            System.Func<int, int, int, bool> loaded = null)
         {
-            int px = Run(worldBlock, waterId, wx, wy, wz, 1, 0);
-            int nx = Run(worldBlock, waterId, wx, wy, wz, -1, 0);
-            int pz = Run(worldBlock, waterId, wx, wy, wz, 0, 1);
-            int nz = Run(worldBlock, waterId, wx, wy, wz, 0, -1);
+            int px = Run(worldBlock, waterId, wx, wy, wz, 1, 0, loaded);
+            int nx = Run(worldBlock, waterId, wx, wy, wz, -1, 0, loaded);
+            int pz = Run(worldBlock, waterId, wx, wy, wz, 0, 1, loaded);
+            int nz = Run(worldBlock, waterId, wx, wy, wz, 0, -1, loaded);
             int spanX = px + nx + 1;
             int spanZ = pz + nz + 1;
 
@@ -56,11 +60,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Consecutive same-water cells beyond (wx,wz) in one direction, capped at <see cref="ScanCap"/>.
         /// Anything else — bank, beach, air over a lower pool (a waterfall lip), other fluids — ends the run.</summary>
-        private static int Run(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int wx, int wy, int wz, int dx, int dz)
+        private static int Run(System.Func<int, int, int, BlockId> worldBlock, BlockId waterId, int wx, int wy, int wz, int dx, int dz,
+            System.Func<int, int, int, bool> loaded)
         {
             for (int d = 1; d <= ScanCap; d++)
             {
-                if (worldBlock(wx + dx * d, wy, wz + dz * d).Value != waterId.Value)
+                int sx = wx + dx * d, sz = wz + dz * d;
+                if (loaded != null && !loaded(sx, wy, sz))
+                {
+                    return ScanCap; // past the streamed edge — assume the body carries on rather than inventing a shore
+                }
+
+                if (worldBlock(sx, wy, sz).Value != waterId.Value)
                 {
                     return d - 1;
                 }

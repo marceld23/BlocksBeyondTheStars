@@ -1959,6 +1959,27 @@ public sealed partial class GameServer
     private const int FarSurfaceBandBelow = 1;
     private const int FarSurfaceBandAbove = 1;
 
+    /// <summary>Total height cap (chunks) for a far column's band. A SUBMERGED column stretches its band from the
+    /// seabed up to the sea SURFACE (see <see cref="StreamChunks"/>), which a flooded rift could make hundreds of
+    /// blocks tall; this caps that. Trimming happens at the BOTTOM — the surface is what the player actually sees,
+    /// and the deep seabed under it is hidden by the underwater haze anyway.</summary>
+    private const int FarColumnMaxChunks = 6;
+
+    /// <summary>The chunk-Y band a FAR column streams: from just below its terrain surface up to just above its
+    /// VISIBLE top — the waterline on a submerged column, the ground itself on a dry one. Pure arithmetic, so the
+    /// rule is unit-testable without spinning up a world. <paramref name="seaLevel"/> is int.MinValue on a dry
+    /// world (and below the terrain on any column that stands above the sea), which leaves the band exactly where
+    /// it was before #987.</summary>
+    internal static (int LoCy, int HiCy) FarColumnBand(int surfaceY, int seaLevel)
+    {
+        int surfCy = WorldConstants.WorldToChunk(surfaceY);
+        int hiCy = (seaLevel > surfaceY ? WorldConstants.WorldToChunk(seaLevel) : surfCy) + FarSurfaceBandAbove;
+        // Trim at the BOTTOM when a very deep body would blow the cap: the waterline is what the player sees, the
+        // seabed far below it is lost in the underwater haze (and the client culls fluid faces toward the chunks
+        // we never sent, so the cut stays invisible).
+        return (System.Math.Max(surfCy - FarSurfaceBandBelow, hiCy - (FarColumnMaxChunks - 1)), hiCy);
+    }
+
     /// <summary>Extra chunk rings streamed BEYOND the player's view radius (and beyond the client's fog edge, which
     /// sits at the view radius). This terrain loads while it is still fully hazed, so as the player walks forward the
     /// newly-revealed edge is already meshed and simply fades in through the fog instead of popping in from nothing
@@ -2009,6 +2030,7 @@ public sealed partial class GameServer
             // lighter client). Surface-relative (not player-relative) so a distant valley or peak well off the
             // player's own altitude still streams its visible shell.
             var planet = _world.Planet;
+            int seaLevel = _generator.SeaLevel(planet); // int.MinValue on a dry world; cached per world
             var pending = new List<(ChunkCoord Coord, int DistSq)>();
             for (int dx = -streamRadius; dx <= streamRadius; dx++)
                 for (int dz = -streamRadius; dz <= streamRadius; dz++)
@@ -2023,10 +2045,15 @@ public sealed partial class GameServer
                     {
                         int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
                         int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
-                        int surfCy = WorldConstants.WorldToChunk(
-                            new Vector3i(worldX, _generator.SurfaceHeight(planet, worldX, worldZ), worldZ)).Y;
-                        loDy = surfCy - FarSurfaceBandBelow - center.Y;
-                        hiDy = surfCy + FarSurfaceBandAbove - center.Y;
+                        // SurfaceHeight is the TERRAIN top — under a sea that is the seabed, and the generator
+                        // fills everything from there up to the sea level with the sea fluid. Anchoring the band
+                        // at the seabed therefore cut a deep ocean off mid-water, and the client (which reads a
+                        // missing chunk as air) rendered that cut as a wavy water SURFACE hanging in mid-water,
+                        // with fake waterfall streaks down the band's side edges (#987). FarColumnBand stretches
+                        // a submerged column up to its real waterline instead.
+                        var band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel);
+                        loDy = band.LoCy - center.Y;
+                        hiDy = band.HiCy - center.Y;
                     }
 
                     for (int dy = loDy; dy <= hiDy; dy++)

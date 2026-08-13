@@ -81,6 +81,13 @@ worldgen has water above and air on ≥2 sides, which is exactly what `Waterfall
 - **mist** at the impact — `WaterfallMistView.cs` (mirrors `GeyserView`, wired in `WorldRig`)
   bursts pale spray where the drop exceeds 3 blocks, capped/gravity-arced/shrink-fade.
 
+**"Air" must mean air, not "not streamed yet" (#987).** The block lookup the client hands these rules
+returns `Air` for any chunk it does not hold, so at the edge of the streamed region every submerged cell
+looked like a cascade and the top of a cut-off ocean looked like a surface. `IsFalling` and
+`WaterSurface.Classify` therefore take an optional `loaded` predicate (supplied by the chunk mesher from the
+same neighbourhood snapshot), and the mesher culls see-through faces toward chunks it does not have. Opaque
+faces still draw toward them — that edge must close off as a wall rather than open a hole.
+
 A catch basin is carved at the foot of each fall so the column has a plunge pool to land in. The new
 asset is the **sound**: `client/Assets/Resources/audio/water_fall.mp3` (ElevenLabs loop), selected
 by `ClientAudio.WaterBedFor` for a nearby falling/impacting column (drop ≥ 4), ranked above the calm

@@ -8,15 +8,18 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
 namespace BlocksBeyondTheStars.Tests;
 
-/// <summary>Covers the chunk-streaming budget (A2) and the far-chunk eviction sweep (A4): the per-tick stream
-/// budget is honoured (so a wider view fills proportionally faster), and chunks that drift outside every
-/// player's keep-range are dropped from the cache while the player's own region stays resident.</summary>
+/// <summary>Covers the chunk-streaming budget (A2), the far-chunk eviction sweep (A4) and the distance-based
+/// vertical LOD: the per-tick stream budget is honoured (so a wider view fills proportionally faster), chunks
+/// that drift outside every player's keep-range are dropped from the cache while the player's own region stays
+/// resident, and a far column streams the band around its VISIBLE top — the waterline where it is flooded, so a
+/// deep ocean is no longer cut off mid-water (#987).</summary>
 public sealed class ChunkStreamingTests : IDisposable
 {
     private readonly string _root;
@@ -208,8 +211,48 @@ public sealed class ChunkStreamingTests : IDisposable
             if (server.World.IsChunkLoaded(new ChunkCoord(center.X + 5, cy, center.Z))) farLayers++;
         }
 
+        // A SUBMERGED far column stretches its band up to the waterline (#987), so its ceiling is the cap, not
+        // the three-chunk surface band. Probe for that only after counting — GetBlock caches the chunks it reads.
+        bool submerged = false;
+        int probeX = (center.X + 5) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+        int probeZ = center.Z * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+        for (int y = (center.Y - 8) * WorldConstants.ChunkSize; y <= (center.Y + 8) * WorldConstants.ChunkSize; y++)
+        {
+            var key = server.World.Definition(server.World.GetBlock(new Vector3i(probeX, y, probeZ)))?.Key;
+            if (key is "water" or "lava") { submerged = true; break; }
+        }
+
         Assert.Equal(6, nearLayers); // near column: full vertical span
-        Assert.InRange(farLayers, 1, 3); // far column: just the surface band (below+surface+above)
+        Assert.InRange(farLayers, 1, submerged ? 6 : 3); // far column: the surface band, stretched to the waterline when flooded
+    }
+
+    [Theory]
+    // A dry world (no sea at all) and a column standing above the sea keep the original three-chunk band.
+    [InlineData(100, int.MinValue, 5, 7)]
+    [InlineData(100, 64, 5, 7)]
+    // Submerged: the seabed sits at y=100 (chunk 6) but the water reaches y=150 (chunk 9), so the band must
+    // stretch up to chunk 10 instead of stopping at chunk 7 with the ocean cut off mid-water (#987).
+    [InlineData(100, 150, 5, 10)]
+    // A shallow sea whose waterline shares the seabed's chunk changes nothing.
+    [InlineData(100, 104, 5, 7)]
+    public void FarColumnBand_ReachesTheWaterline_OnSubmergedColumns(int surfaceY, int seaLevel, int expectedLo, int expectedHi)
+    {
+        var (lo, hi) = SvGameServer.FarColumnBand(surfaceY, seaLevel);
+
+        Assert.Equal(expectedLo, lo);
+        Assert.Equal(expectedHi, hi);
+    }
+
+    [Fact]
+    public void FarColumnBand_CapsAVeryDeepFloodedColumn_ByTrimmingTheSeabed_NotTheWaterline()
+    {
+        // A flooded rift: hundreds of blocks of water over the seabed. The waterline must still be in the band
+        // (that is the whole point), but the band may not grow without bound — it is trimmed from the bottom.
+        var (lo, hi) = SvGameServer.FarColumnBand(surfaceY: 0, seaLevel: 500);
+
+        Assert.Equal(WorldConstants.WorldToChunk(500) + 1, hi);
+        Assert.Equal(6, hi - lo + 1); // capped total height
+        Assert.True(lo <= WorldConstants.WorldToChunk(500), "the waterline's own chunk must stay inside the band");
     }
 
     public void Dispose()
