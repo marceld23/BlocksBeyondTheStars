@@ -13,15 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🌊 Deep water stops growing ghost surfaces in the distance (#987)
+## [2026.8.13] — 2026-08-13
 
-- **No more water planes hanging in mid-water.** Far away, an ocean was only streamed up to a fixed band
-  above its seabed, and the game drew that cut-off as if it were the water's surface — flat panes floating
-  at odd heights, with thin glowing "waterfalls" running down their edges. Distant seas are now streamed up
-  to their real waterline, so what you see out there is the actual surface.
-- **Nothing fake at the edge of the loaded world either.** Water and glass no longer draw a face toward
-  terrain that has not arrived yet, which also removes the brief flicker of a false surface while a new
-  area streams in.
+The crewmate release. The last version put several players into one world for the first time; this one
+is what the evenings after that turned up. Almost everything here is something that was *there* but
+unreachable: a trade you could ask for but never accept, a break only one player was ever allowed to
+take, paintwork nobody else could see, your own landing pad refusing you, a world rule hidden under a
+button. Add a sea that stopped drawing surfaces that were not there, a world that fits in a quarter of
+the memory, and a worlds portal that now speaks all fourteen game languages.
 
 ### 🤝 A trade request can finally be accepted (#981)
 
@@ -32,6 +31,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   opens the trade on both sides. The asker gets a confirmation that the request went out.
 - The keys also stop swallowing themselves: T and K are offered as far as the server's trade range
   reaches, instead of one metre closer, where pressing them produced no reaction whatsoever.
+
+### ⏸️ Multiplayer pauses too — once everybody is in the menu (#973)
+
+- **A break is a break for the whole crew.** Until now only a player alone in a world could pause it;
+  in multiplayer the Esc menu said "Paused" while hunger drained, creatures hunted and night fell
+  behind it. Now the world stops as soon as **every** player is sitting in their pause menu, and runs
+  again the moment one of them presses Resume.
+- **The dialog tells you what it is waiting for** — "Paused 1/2 — waiting for: Severin" — instead of
+  claiming a pause that is not running. In 14 languages.
+- Nobody can pause a world out from under anyone else: it takes everybody. Watching admins in observer
+  mode neither block a pause nor count towards one.
+- **A friend whose game crashes mid-break no longer holds up the room.** Their name and slot are
+  released on the usual budget, and a world where every paused client died wakes up instead of sitting
+  frozen (follow-up to #964).
 
 ### 🎨 Other players wear their own paintwork (#982)
 
@@ -58,6 +71,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - The hint next to the field still names the dedicated-server port (31415) for anyone typing in a
   server address by hand, and what you type is remembered for the next time the dialog opens.
 
+### 🖥 Two things the host screen was keeping to itself (#983, #984)
+
+- **A world rule you could not switch on (#983).** "Keep ship when destroyed" was drawn *underneath*
+  the footer buttons of the world options page, which swallowed every click on it — the newest rule in
+  the list was the one rule nobody could set. The rows sit tighter now and the whole column ends clear
+  of the buttons again.
+- **The host now sees the address to read out (#984).** Your own join address only ever appeared after
+  worldgen had finished, in the chat scrollback — so the person hosting had to go looking for the very
+  number everyone was waiting on. The host bar shows **"Your address: ip:port"** with a **Copy**
+  button while the world is still generating.
+
 ### 🧑‍🚀 Admin commands finally accept player names with a space (#980)
 
 - **`/tpp mincraft Fan` works.** Commands that take a player name only ever read the first word of it,
@@ -68,19 +92,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   `/where` and `/goto` always did. Quoted names (`/tpp "mincraft Fan"`) and the `@Name` habit from
   other games are accepted everywhere too.
 
-### ⏸️ Multiplayer pauses too — once everybody is in the menu (#973)
+### 🌊 Deep water stops growing ghost surfaces in the distance (#987)
 
-- **A break is a break for the whole crew.** Until now only a player alone in a world could pause it;
-  in multiplayer the Esc menu said "Paused" while hunger drained, creatures hunted and night fell
-  behind it. Now the world stops as soon as **every** player is sitting in their pause menu, and runs
-  again the moment one of them presses Resume.
-- **The dialog tells you what it is waiting for** — "Paused 1/2 — waiting for: Severin" — instead of
-  claiming a pause that is not running. In 14 languages.
-- Nobody can pause a world out from under anyone else: it takes everybody. Watching admins in observer
-  mode neither block a pause nor count towards one.
-- **A friend whose game crashes mid-break no longer holds up the room.** Their name and slot are
-  released on the usual budget, and a world where every paused client died wakes up instead of sitting
-  frozen (follow-up to #964).
+- **No more water planes hanging in mid-water.** Far away, an ocean was only streamed up to a fixed band
+  above its seabed, and the game drew that cut-off as if it were the water's surface — flat panes floating
+  at odd heights, with thin glowing "waterfalls" running down their edges. Distant seas are now streamed up
+  to their real waterline, so what you see out there is the actual surface.
+- **Nothing fake at the edge of the loaded world either.** Water and glass no longer draw a face toward
+  terrain that has not arrived yet, which also removes the brief flicker of a false surface while a new
+  area streams in.
 
 ### 🧠 The world takes a quarter of the memory to look at (#966)
 
@@ -112,6 +132,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   different landing pad in the chooser parked the ship there but left *you* standing at the pad you
   launched from — often thousands of blocks away, so it looked like the ship had vanished. The
   touchdown now moves you with your ship, exactly as a landing on another planet already did.
+
+### 🛠️ Behind the scenes
+
+- Ahmed Mohamed Abdelhady Kamel's test series continues with the networking codec: every top-level
+  message must be registered before it can be sent, and CI now fails when a new one is not (#979);
+  a roundtrip and byte-flip fuzz suite pins the rule that a malformed packet must never take the
+  server tick down (#989).
+- The world options page grew a layout guard: a test reads the page's own source and fails with the
+  arithmetic in the message when an appended row would run under the footer — the exact way #983
+  went unnoticed.
+
+  ℹ Multiplayer: the wire protocol is unchanged (**3**), but trade invitations, the shared pause and
+  other players' paintwork are new messages — they only work when the client **and** the server run
+  this version.
 
 ## [2026.8.12] — 2026-08-13
 
@@ -2692,7 +2726,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...HEAD
+[2026.8.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...v2026.8.13
 [2026.8.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...v2026.8.12
 [2026.8.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...v2026.8.11
 [2026.8.10]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.9...v2026.8.10
