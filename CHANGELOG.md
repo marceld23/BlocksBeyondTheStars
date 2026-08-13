@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧑‍🚀 Admin commands finally accept player names with a space (#980)
+
+- **`/tpp mincraft Fan` works.** Commands that take a player name only ever read the first word of it,
+  so any name with a space came back as "target player not found" — as if that player did not exist.
+  The name is now simply the rest of the line, for `/tpp`, `/where`, `/builds`, `/kick`, `/paintwipe`
+  and the trailing name in `/give iron_plate 5 mincraft Fan`.
+- **Capitalisation no longer matters** for `/tpp` and `/give`: `/tpp marcel` finds *Marcel*, the way
+  `/where` and `/goto` always did. Quoted names (`/tpp "mincraft Fan"`) and the `@Name` habit from
+  other games are accepted everywhere too.
+
 ### ⏸️ Multiplayer pauses too — once everybody is in the menu (#973)
 
 - **A break is a break for the whole crew.** Until now only a player alone in a world could pause it;

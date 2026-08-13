@@ -936,6 +936,12 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/ai Prompt` | Generate an AI mission (content tool, not a cheat; needs the optional AI backend — see §5 → *Dynamic AI text* and [SELF_HOSTING.md](../developer/SELF_HOSTING.md) §8) |
 | `/help admin` | List the admin commands in chat (`/admin` does the same) |
 
+**Player names with spaces** work everywhere a command takes one: the name is simply the rest of the
+line, so `/tpp mincraft Fan` teleports you to *mincraft Fan*. Capitalisation does not matter, quoting
+the name is allowed (`/tpp "mincraft Fan"`) and a leading `@` is ignored. In `/give` the name comes
+last for the same reason — `/give iron_plate 5 mincraft Fan`. Don't know the exact spelling? `/players`
+lists everyone.
+
 #### Named teleport targets
 
 Typing coordinates to get to the village you can see on the map is silly, so `/tp` also takes a **target

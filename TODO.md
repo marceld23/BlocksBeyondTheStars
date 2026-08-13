@@ -7784,6 +7784,35 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-13): admin commands accept player names with spaces — and any capitalisation (#980)
+
+Reported from a hosted world: teleporting to the player `mincraft Fan` was impossible. `/tpp mincraft Fan`
+answered *"target player not found"*, which reads like the player does not exist rather than like the name
+got cut in half.
+
+`ChatUi.TryAdminCommand` splits the typed line on whitespace and passed only `p[1]` on — so the server
+received `mincraft`. The same truncation hit `/where`, `/builds`, `/kick`, `/paintwipe` and the target
+of `/give` (`p[3]`), where the miss is silent: `give_item` falls back to the admin's own inventory when
+the target does not resolve. `/tp` and `/goto` were already right (they forward the whole rest of the
+line), which is why `/goto mincraft Fan` was the only way in — fleet-admin only.
+
+Fix: the parsing moved into `AdminChatCommand` in **Client.Core** (Unity-free, like `ReportChatCommand`
+for `/report`, so the headless suite covers it). `PlayerArgument(line, skipTokens)` returns everything
+after the verb — `skipTokens: 3` for `/give <item> <count> <name…>` — and strips surrounding quotes plus
+a leading `@`. `/spectate` deliberately keeps taking one token: its argument is `on|off`, not a name.
+
+Second, smaller defect in the same path: `GameServer.FindSessionByName` (backing `teleport_to_player`
+and `give_item`) compared names with `==`, so `/tpp marcel` missed the player `Marcel` — while every
+other admin lookup (`/where`, `/builds`, `/goto`, `/kick`, `/paintwipe`) has always been
+`OrdinalIgnoreCase`. Now it trims and matches case-insensitively like the rest, and an empty target
+still resolves to nobody instead of to "some session".
+
+New tests: `AdminChatCommandTests` (client, 18 cases incl. `#designId` passing through untouched) and
+three additions to `AdminCheatTests` — spaced/differently-cased/quoted teleport targets, unknown targets
+still rejected, and `/give` to a spaced name landing in *that* player's inventory. No protocol change.
+
+---
+
 ## ✅ Done (2026-08-13): landing back on the same planet puts you back in your ship (#971)
 
 Found in a singleplayer playtest of the released v2026.8.12 build: launch from the starter planet, land
