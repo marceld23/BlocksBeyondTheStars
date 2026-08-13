@@ -21,7 +21,10 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public RemotePlayers Remotes;
 
-        public float InteractRange = 6f;
+        /// <summary>How close another player must be before T/K are offered. Matches the server's trade range
+        /// (8 m): a shorter client range swallowed the keypress silently just outside it — no window, no
+        /// message, no sound — which reads as a broken key rather than "step closer" (#981).</summary>
+        public float InteractRange = 8f;
 
         private void Update()
         {
@@ -35,7 +38,9 @@ namespace BlocksBeyondTheStars.Client
             // remotely at any time, even under the Tab menu). The per-owner registration is idempotent,
             // and the arbiter keeps the cursor free while ANY owner — us or the menu above us — is still
             // open, so a remote resolve can no longer strand a locked cursor (#407 → #413).
-            bool modal = Game.TradeActive || !string.IsNullOrEmpty(Game.PendingDockFrom);
+            bool modal = Game.TradeActive
+                || !string.IsNullOrEmpty(Game.PendingDockFrom)
+                || !string.IsNullOrEmpty(Game.PendingTradeFrom);
             Game.SetMenuOwner(this, modal);
 
             if (modal || Game.MenuOpen || Game.SpaceViewActive || Game.ChatTyping)
@@ -98,6 +103,8 @@ namespace BlocksBeyondTheStars.Client
         private Text _hint;
         private GameObject _dockPanel;
         private Text _dockName;
+        private GameObject _tradeAskPanel;
+        private Text _tradeAskName;
         private GameObject _tradePanel;
         private Text _tradeTitle, _myStatus, _theirStatus;
         private Text _myKnow, _theirKnow; // item 11: knowledge offered on each side
@@ -124,12 +131,21 @@ namespace BlocksBeyondTheStars.Client
 
             bool dock = !string.IsNullOrEmpty(Game.PendingDockFrom);
             bool trade = Game.TradeActive && Game.Trade != null;
+            // One window at a time: both are centred, so a trade invitation waits behind an open trade or a
+            // docking request rather than stacking on top of it (the state survives, it just shows later).
+            bool tradeAsk = !trade && !dock && !string.IsNullOrEmpty(Game.PendingTradeFrom);
             _dockPanel.SetActive(dock);
             _tradePanel.SetActive(trade);
+            _tradeAskPanel.SetActive(tradeAsk);
 
             if (dock)
             {
                 _dockName.text = Game.PendingDockFrom;
+            }
+
+            if (tradeAsk)
+            {
+                _tradeAskName.text = Game.PendingTradeFrom;
             }
 
             if (trade)
@@ -139,7 +155,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Non-modal centre hint (no cursor): undock, or trade/dock a nearby player.
             string hint = null;
-            if (!dock && !trade && !Game.MenuOpen && !Game.SpaceViewActive)
+            if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive)
             {
                 if (!string.IsNullOrEmpty(Game.StationName))
                 {
@@ -204,7 +220,30 @@ namespace BlocksBeyondTheStars.Client
             _hint.gameObject.SetActive(false);
 
             BuildDockPanel(root, loc);
+            BuildTradeAskPanel(root, loc);
             BuildTradePanel(root, loc);
+        }
+
+        /// <summary>The incoming-trade invitation (#981). Without it a trade request was unanswerable: the
+        /// server recorded it and said so in chat, but no client path ever sent the response intent, so the
+        /// trade panel could never open. Mirrors the docking request window right above it.</summary>
+        private void BuildTradeAskPanel(Transform root, BlocksBeyondTheStars.Shared.Localization.Localizer loc)
+        {
+            _tradeAskPanel = CenterPanel(root, 380f, 150f, 0f, "Trade Request");
+            UiKit.AddText(_tradeAskPanel.transform, 20f, 14f, 340f, 26f, loc.Get("ui.trade.request_title"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _tradeAskName = UiKit.AddText(_tradeAskPanel.transform, 20f, 50f, 340f, 24f, string.Empty, 20, UiKit.TextCol);
+
+            UiKit.AddButton(_tradeAskPanel.transform, 20f, 96f, 165f, 36f, loc.Get("ui.action.accept"), () =>
+            {
+                Game.Network.SendTradeRespond(true);
+                Game.PendingTradeFrom = string.Empty; // the trade panel takes over once the server confirms
+            });
+            UiKit.AddButton(_tradeAskPanel.transform, 195f, 96f, 165f, 36f, loc.Get("ui.action.decline"), () =>
+            {
+                Game.Network.SendTradeRespond(false);
+                Game.PendingTradeFrom = string.Empty;
+            });
+            _tradeAskPanel.SetActive(false);
         }
 
         private void BuildDockPanel(Transform root, BlocksBeyondTheStars.Shared.Localization.Localizer loc)

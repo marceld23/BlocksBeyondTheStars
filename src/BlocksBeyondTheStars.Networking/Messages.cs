@@ -576,6 +576,15 @@ public sealed class TradeRespondIntent
     public bool Accept { get; set; }
 }
 
+/// <summary>Server tells a player that someone nearby wants to trade with them (#981) — the counterpart of
+/// <see cref="DockRequestNotice"/>. Before this, the invitation was only a chat/toast line, and the client
+/// had no way at all to answer it: the trade could never be opened. A pre-#981 client drops the unknown tag
+/// and still sees the accompanying <see cref="ServerMessage"/>, so no protocol bump is needed.</summary>
+public sealed class TradeRequestNotice
+{
+    public string Requester { get; set; } = string.Empty;
+}
+
 /// <summary>Client sets the items on its side of the open trade (replaces the previous offer).</summary>
 public sealed class TradeOfferIntent
 {

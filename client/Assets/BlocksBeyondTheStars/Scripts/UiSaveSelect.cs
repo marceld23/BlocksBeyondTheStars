@@ -296,7 +296,7 @@ namespace BlocksBeyondTheStars.Client
             // ── Host options (host mode only): player cap + optional join password ───────────────
             if (host)
             {
-                var bar = UiKit.AddPanel(root, 850f, 800f, 700f, 100f, UiKit.PanelFill).transform;
+                var bar = UiKit.AddPanel(root, 850f, 800f, 700f, 186f, UiKit.PanelFill).transform;
                 UiKit.AddText(bar, 20f, 8f, 300f, 24f, shell.L("ui.host.max_players"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
                 Text count = null;
                 UiKit.AddButton(bar, 20f, 38f, 46f, 46f, "-", () =>
@@ -312,6 +312,27 @@ namespace BlocksBeyondTheStars.Client
                 });
                 UiKit.AddText(bar, 240f, 8f, 440f, 24f, shell.L("ui.host.password"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
                 UiKit.AddInput(bar, 240f, 38f, 440f, 46f, hostPass[0], v => hostPass[0] = v);
+
+                // The join address, HERE and not only in the chat once the world is up (#984): the host
+                // reads it out (or copies it) while worldgen runs, so the friends can be typing already.
+                // Resolved on build — the picker re-reads the live interface list, so unplugging the cable
+                // and reopening this screen shows the Wi-Fi address instead of a stale one.
+                string joinAddress = AppShell.LanJoinAddress();
+                UiKit.AddText(bar, 20f, 92f, 400f, 24f, shell.L("ui.host.your_address"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+                UiKit.AddText(bar, 20f, 116f, 520f, 32f, joinAddress, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                Text addressHint = null;
+                UiKit.AddButton(bar, 552f, 112f, 128f, 40f, shell.L("ui.host.copy"), () =>
+                {
+                    GUIUtility.systemCopyBuffer = joinAddress;
+                    if (addressHint != null)
+                    {
+                        // The hint line doubles as the confirmation — a clipboard copy is otherwise
+                        // completely invisible, and the bar has no room for a toast.
+                        addressHint.text = shell.L("ui.host.copied");
+                        addressHint.color = UiKit.Cyan;
+                    }
+                });
+                addressHint = UiKit.AddText(bar, 20f, 152f, 660f, 28f, shell.L("ui.host.address_hint"), 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
             }
 
             UiKit.AddButton(root, 90f, 920f, 240f, 50f, shell.L("ui.menu.back"), () => shell.GoTo(ShellPhase.MainMenu), "btn_exit");

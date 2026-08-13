@@ -194,6 +194,35 @@ public sealed partial class GameServer
     private static PlayerFace FaceOf(PlayerSession s)
         => new() { PlayerId = s.State.PlayerId, Pixels = s.State.FacePixels ?? string.Empty };
 
+    /// <summary>Exchanges custom appearance BOTH ways for a player entering a world (#982): they receive
+    /// everyone else's face + body paintings, and everyone else receives theirs.
+    ///
+    /// Only the pull half existed, and only on join. Faces and paintings are out-of-band, one-shot messages
+    /// filtered by world — so a player who joined (or travelled in) was the only one who saw the others
+    /// correctly, while everyone already there kept rendering them as a blank default avatar until they
+    /// happened to repaint themselves. Presence updates carry the colour scheme but not the pixel art.</summary>
+    private void SyncAppearance(PlayerSession session)
+    {
+        SendExistingFaces(session);
+        if (session.Spectating)
+        {
+            return; // observers are invisible — nothing about them goes out (issue #487)
+        }
+
+        if (!string.IsNullOrEmpty(session.State.FacePixels))
+        {
+            BroadcastFace(session);
+        }
+
+        for (int part = 0; part < BodyPaint.PartCount; part++)
+        {
+            if (!string.IsNullOrEmpty(session.State.GetBodyPaint(part)))
+            {
+                BroadcastBodyPaint(session, part);
+            }
+        }
+    }
+
     /// <summary>Sends the new player the custom faces AND body paintings of everyone already online on
     /// their world (one message per painted part — most parts are unpainted and cost nothing).</summary>
     private void SendExistingFaces(PlayerSession newcomer)

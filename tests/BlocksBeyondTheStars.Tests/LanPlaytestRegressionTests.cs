@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -240,6 +241,115 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         server.HandlePayloadForTest(pilot.ConnectionId, NetCodec.Encode(
             new MoveIntent { X = landed.X + 1f, Y = landed.Y, Z = landed.Z }));
         Assert.Equal(landed.X + 1f, pilot.State.Position.X);
+    }
+
+    // ---------------- #977: your OWN reserved pad must stay selectable ----------------
+
+    /// <summary>Asks the server for a body's pads on behalf of one session and returns the reply's entry for
+    /// one pad index — the exact data the flight chooser and the world map draw from.</summary>
+    private static NetLandingPad PadAsSeenBy(
+        SvGameServer server, RecordingTransport transport, PlayerSession viewer, int padIndex)
+    {
+        transport.Sent.Clear();
+        server.RequestLandingPadsForTest(viewer, viewer.CurrentLocationId);
+        var reply = transport.Sent
+            .Where(x => x.Conn == viewer.ConnectionId)
+            .Select(x => x.Msg).OfType<LandingPadList>().Last();
+        return reply.Pads.Single(p => p.Index == padIndex);
+    }
+
+    [Fact]
+    public void PadChooser_ShowsYourOwnReservedPadAsYoursNotAsTaken()
+    {
+        // A pilot in space keeps their pad reserved (#957) — and that reservation was reported back to the
+        // reserving pilot as plain "occupied", labelled with their own name. The client only offers FREE
+        // pads, so the pilot could not land back on their own ship's pad at all.
+        var transport = new RecordingTransport();
+        var server = NewServer("pad_mine", transport);
+
+        var ann = server.AddLocalPlayer("Ann");
+        int annPad = ann.AssignedPadIndex;
+        Assert.True(annPad >= 0, "joining with a ship parks it on a pad");
+        server.EnterSpace("Ann");
+
+        var mine = PadAsSeenBy(server, transport, ann, annPad);
+        Assert.False(mine.Occupied); // selectable in the chooser
+        Assert.True(mine.Mine);      // …and drawn as hers
+        Assert.Equal("Ann", mine.Occupant);
+
+        // The server agrees: landing back on the reserved pad is accepted and parks her ship there.
+        server.LandOnCurrentBodyForTest(ann, annPad);
+        Assert.Equal(annPad, ann.AssignedPadIndex);
+    }
+
+    [Fact]
+    public void PadChooser_StillShowsAnotherPilotsReservedPadAsTaken()
+    {
+        // The other half of #977: excluding the viewer must not weaken the reservation for anyone else.
+        var transport = new RecordingTransport();
+        var server = NewServer("pad_theirs", transport);
+
+        var ann = server.AddLocalPlayer("Ann");
+        int annPad = ann.AssignedPadIndex;
+        server.EnterSpace("Ann");
+        var ben = server.AddLocalPlayer("Ben");
+
+        var theirs = PadAsSeenBy(server, transport, ben, annPad);
+        Assert.True(theirs.Occupied); // Ben cannot pick it
+        Assert.False(theirs.Mine);
+        Assert.Equal("Ann", theirs.Occupant);
+    }
+
+    // ---------------- #981: a trade request must be answerable ----------------
+
+    [Fact]
+    public void ATradeRequest_ArrivesAsAnAnswerableInvitation()
+    {
+        // The invitation used to be a chat line only, and NOTHING in the client ever sent the response
+        // intent — so pressing T looked dead on both sides and the trade could never open.
+        var transport = new RecordingTransport();
+        var server = NewServer("trade_notice", transport);
+        var ann = server.AddLocalPlayer("Ann");
+        var ben = server.AddLocalPlayer("Ben");
+        ben.State.Position = ann.State.Position; // standing together (pads are far apart)
+
+        transport.Sent.Clear();
+        server.RequestTrade("Ann", "Ben");
+
+        Assert.Contains(transport.Sent, x => x.Conn == ben.ConnectionId
+            && x.Msg is TradeRequestNotice n && n.Requester == "Ann");
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId // the asker sees it went out
+            && x.Msg is ServerMessage m && m.Text.StartsWith("@srv.trade.request_sent", StringComparison.Ordinal));
+
+        // …and the answer the client can now give opens the trade for both.
+        server.RespondTrade("Ben", true);
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is TradeUpdate);
+        Assert.Contains(transport.Sent, x => x.Conn == ben.ConnectionId && x.Msg is TradeUpdate);
+    }
+
+    // ---------------- #982: painted avatars must travel BOTH ways ----------------
+
+    [Fact]
+    public void EnteringAWorld_ExchangesPaintedAvatarsBothWays()
+    {
+        // Faces and body paintings are out-of-band one-shot messages: only the arriving player was ever
+        // sent them, so everybody already in the world kept rendering the newcomer as a blank avatar.
+        var transport = new RecordingTransport();
+        var server = NewServer("paint_sync", transport);
+        var ann = server.AddLocalPlayer("Ann");
+        var ben = server.AddLocalPlayer("Ben");
+        string pixels = new string('7', BodyPaint.ExpectedLength(BodyPaint.Torso));
+        server.SetBodyPaintForTest(ann, BodyPaint.Torso, pixels);
+        server.SetBodyPaintForTest(ben, BodyPaint.Torso, pixels);
+        server.EnterSpace("Ann");
+
+        transport.Sent.Clear();
+        server.LandOnCurrentBodyForTest(ann); // a world entry — the same sync every arrival runs
+
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId
+            && x.Msg is PlayerBodyPaint p && p.PlayerId == "Ben"); // the arriving player sees the others…
+        Assert.Contains(transport.Sent, x => x.Conn == ben.ConnectionId
+            && x.Msg is PlayerBodyPaint p && p.PlayerId == "Ann"); // …and the others see them (the missing half)
     }
 
     // ---------------- #954: SwitchShip must not replace OTHER players' own hulls ----------------

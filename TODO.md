@@ -122,6 +122,89 @@ optional `worldLoaded` predicate (from the same thread-safe neighbourhood snapsh
 see-through faces toward an unloaded chunk are culled, opaque ones deliberately are not (that edge must read
 as a wall, not a hole). Null predicate = old behaviour, so the one-shot ship/speeder meshers are untouched.
 
+### ★ LAN playtest follow-ups: own pad, join port, trade handshake, painted avatars (#977, #978, #981, #982, 2026-08-13, branch fix/977-978-own-pad-and-join-port)
+Four findings from the LAN playtest of v2026.8.12 (a fifth, "my ship is not on the pad I landed on", was
+already fixed by #971 — that fix simply landed *after* the release tag and needs a new build, not code).
+
+**#981 — a trade request could never be accepted.** `PlayerInteractions` sends `TradeRequestIntent` on T,
+the server records it and tells the target with a `ServerMessage`… and there it ended:
+`NetworkClient.SendTradeRespond` had **no caller anywhere in the client** — no key, no panel, no command.
+Docking, in the same file, has the full path (`DockRequestNotice` → `PendingDockFrom` → modal panel), so
+trade got the same shape: a new `TradeRequestNotice` (NetCodec **203**; an older client drops the unknown
+tag and still sees the chat line, so no protocol bump), `GameBootstrap.PendingTradeFrom`, and an
+Accept/Decline window that clears when the trade opens, is declined or closes. The asker now also gets a
+`@srv.trade.request_sent` confirmation — pressing T produced literally nothing on the requesting side,
+which is indistinguishable from a dead key. `InteractRange` 6 m → 8 m to match the server's `TradeRange`:
+the client used to swallow the keypress in the two-metre gap between the two ranges. ⚠ K (dock) is a
+different story and stays as it is: it legitimately needs a built `docking_module` (a 65-knowledge
+blueprint), and refuses with a localized reason — which is now reliably reachable since the range matches.
+
+**#982 — other players wore a blank avatar.** Faces and body paintings (#874) ride out-of-band one-shot
+messages; presence carries only the colour scheme. They were sent in exactly two places: `SendExistingFaces`
+on join (**pull only** — the newcomer learns what everyone looks like, nobody learns what the newcomer
+looks like) and the change broadcasts, which is why the paint appeared the moment its owner repainted.
+Both broadcasts filter on `CurrentLocationId` and nothing re-ran them on a world change, so travel,
+same-body landing and station boarding left both directions stale. New `SyncAppearance(session)` does the
+exchange both ways (skipping observers, who must stay invisible, #487) and is called from the join
+handshake, `HandleTravel`, `RelocateToAssignedPad` and `EnterBoardedStation`. The observer-off path had
+already patched its own corner of this by hand — the comment there ("the face is out-of-band and would
+otherwise stay missing") described the whole bug.
+
+**#977 — the chooser locked you out of your own pad.** Since #957 a pilot keeps `AssignedPadIndex` while
+they are up in space, which is what stops a second ship being stamped on their origin. But `PadOccupantName`
+and both senders (`SendLandingPads`, `HandleRequestLandingPads`) computed occupancy without knowing who the
+list was *for*, so the reserving pilot got their own pad back as `Occupied` with their own name on it — and
+`SpaceView` only builds buttons for free pads (the 1–9 shortcuts are gated on `!Occupied` too). The landing
+itself would have been accepted: `TryClaimPad` excludes `session.State.PlayerId`. Occupancy is now derived
+per receiver in `PadStatusFor`, using the very same `PadOccupiedByOther` check the landing uses, and the new
+`NetLandingPad.Mine` flag carries "this one is yours" to the client (appended field on contractless
+MessagePack → **no protocol bump**; an older client just sees a free pad, which is the behaviour it needs).
+Chooser and world map draw a `Mine` pad in cyan with the owner caption. Two regression tests: the reserving
+pilot sees it as selectable and can land back on it, while a second player still sees it as taken.
+
+**#978 — the join dialog prefilled the wrong port.** `AppShell.Host`/`Port` were two things at once: the
+live join target *and* the connect dialog's prefill. The portal join, the WebGL defaults and in-game hosting
+all write those fields, so the "default" drifted to whatever was joined last, and the shipped default (31415)
+belonged to dedicated servers — which are never dialled by hand, since Official Worlds fills host and port in
+automatically. The prefill moved to its own `ManualJoinHost`/`ManualJoinPort` pair that only the dialog
+writes, starting at `LocalServerLauncher.DefaultPort` (31550), and `WorldRig`'s unparseable-port fallback
+follows. The #960 hint stays as it is — it already names both ports, and it is the wording the other twelve
+locales were translated from.
+
+### ★ Your join address, on the host screen, before the world loads (#984, 2026-08-13, branch fix/983-984-worldopt-footer-and-host-ip)
+Hosting told you where friends should connect only **after** worldgen: `ChatUi` announced `HostInfo` once
+into the scrollback plus one HUD toast, and the host screen's own subtitle sent you looking for it
+("share the address shown in-game"). Miss the line and nothing in the client repeats it. The host bar now
+carries **Your address · `192.168.x.y:31550`** with a **Copy** button (`GUIUtility.systemCopyBuffer`, as the
+paint/shape share codes use; the hint line doubles as the "copied" confirmation, because a clipboard write
+is otherwise invisible), so the address can be read out or pasted while the world is still generating. The
+in-game announcement stays as the second chance.
+
+The other half was that the address could simply be **wrong**. `LocalLanIp` returned the first IPv4 of the
+first interface that was up — on any box with Hyper-V/WSL (`vEthernet`), VirtualBox (192.168.56.x), VMware,
+Docker or a VPN, that race is regularly won by an adapter nobody can reach, and it looks exactly as
+trustworthy as the right one. Enumeration stays in `AppShell` (it needs the platform), but the *choice* moved
+to `LanAddress` in Client.Core: a default gateway is worth more than anything else (no route = no network
+anyone else is on), Ethernet/Wi-Fi beats "unknown" types, adapter names that give a virtual switch away are
+penalised harder than the type bonus can repay, home LAN ranges beat CGNAT/mesh-VPN space, and ties keep
+enumeration order so two openings of the screen agree. Loopback, link-local (169.254 = no DHCP answered),
+multicast and malformed addresses are rejected outright; an offline machine degrades to `127.0.0.1` as before.
+Pure and Unity-free ⇒ `LanAddressTests` covers the ranking in the PR gate instead of on one developer's NIC
+list. Four new locale keys in all 14 languages, and the host subtitle now points *down*, not into the game.
+
+### ★ World options: the bottom rule was hidden behind — and blocked by — the footer buttons (#983, 2026-08-13, branch fix/983-984-worldopt-footer-and-host-ip)
+"Keep ship when destroyed" was drawn *underneath* the "Hand-designed structures…" / "Advanced: planet types…"
+buttons, which swallowed its clicks: the rule could not be set at all. The page is a fixed grid with no
+scrolling and no clipping, so a column that outgrows the shared footer line does not get cut off, it slides
+under it. The left column ran `78 + 2 headers + 10 gap + 11 × RowH 62` and ended at 816 against a footer that
+starts at 778 — and the comment above the block still claimed both columns "end flush with the footer", which
+was true right up until the 11th row (`805e1657`, the KeepShipOnDeath rule) was appended. Row pitch is now
+**56**, the same pitch the advanced page already uses, which leaves the longer column 22 px of air and touches
+nothing else. The real fix is the guard: `WorldOptionsLayoutTests` *parses* `UiWorldOptions.cs` — start y,
+every literal header/gap step and one `RowH` per `Row(…)` call, in source order — so the next row somebody
+appends is counted automatically and fails in CI with the arithmetic in the message, instead of quietly
+disappearing under a button.
+
 ### ★ Multiplayer pauses too — once everybody is in the pause menu (#973, 2026-08-13, branch feat/973-multiplayer-pause)
 The Esc hold from #612/#908 only ever served a **lone** player: `HandlePause` refused the request outright
 while a second player was joined, and `HoldingPause` lifted a running hold the moment that count moved. Two

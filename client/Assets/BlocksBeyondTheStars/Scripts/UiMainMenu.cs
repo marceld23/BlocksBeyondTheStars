@@ -257,8 +257,8 @@ namespace BlocksBeyondTheStars.Client
 
             // --- Connect-to-server dialog (added last so it draws on top; hidden until JOIN is pressed) ---
             string[] name = { shell.PlayerName };
-            string[] host = { shell.Host };
-            string[] port = { shell.Port };
+            string[] host = { shell.ManualJoinHost };
+            string[] port = { shell.ManualJoinPort };
             string[] pass = { "" };
             var (connectOverlay, dlg) = UiKit.AddModalOverlay(root, 660f, 280f, 600f, 520f);
             connect = connectOverlay;
@@ -269,9 +269,10 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddInput(dlg, 30f, 186f, 540f, 38f, host[0], v => host[0] = v);
             UiKit.AddText(dlg, 30f, 240f, 540f, 22f, shell.L("ui.menu.connect_port"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 266f, 260f, 38f, port[0], v => port[0] = v);
-            // Both well-known defaults next to the port field: official servers prefill 31415, but a
-            // friend's "Host Game" world listens on 31550 — without the hint every LAN join with the
-            // untouched default port times out.
+            // Both well-known defaults next to the port field. The field itself prefills the "Host Game"
+            // port (#978) because that is what this dialog is for — official worlds arrive with their own
+            // host + port from the portal — and the hint still names the dedicated-server port for anyone
+            // typing in a server address by hand (#960).
             UiKit.AddText(dlg, 306f, 258f, 264f, 54f,
                 shell.L("ui.menu.connect_port_hint")
                     .Replace("{official}", AppShell.DefaultServerPort.ToString())
@@ -297,8 +298,12 @@ namespace BlocksBeyondTheStars.Client
                 shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
                 shell.Settings.Save();
 
-                shell.Host = string.IsNullOrWhiteSpace(host[0]) ? "127.0.0.1" : host[0].Trim();
-                shell.Port = string.IsNullOrWhiteSpace(port[0]) ? shell.Port : port[0].Trim();
+                // Remember what was typed for the next time this dialog opens, then dial it. The prefill is
+                // kept apart from the live join target (#978) — the portal join overwrites the latter.
+                shell.ManualJoinHost = string.IsNullOrWhiteSpace(host[0]) ? "127.0.0.1" : host[0].Trim();
+                shell.ManualJoinPort = string.IsNullOrWhiteSpace(port[0]) ? shell.ManualJoinPort : port[0].Trim();
+                shell.Host = shell.ManualJoinHost;
+                shell.Port = shell.ManualJoinPort;
                 shell.Password = pass[0] ?? "";
                 shell.HostedToken = ""; // manual join: no official-worlds grant
                 shell.HostedWorldId = "";

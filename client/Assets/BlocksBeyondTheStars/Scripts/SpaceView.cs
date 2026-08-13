@@ -1457,6 +1457,9 @@ namespace BlocksBeyondTheStars.Client
                 mx = Mathf.Clamp(mx, pad, pad + mapW - marker);
                 my = Mathf.Clamp(my, mapTop, mapTop + mapH - marker);
 
+                // Your OWN pad is selectable (#977): you keep it reserved while you are up in space, and it is
+                // the pad your ship is parked on — the one you most likely want to come back down to. It is
+                // drawn cyan and captioned with your name, so it reads as yours rather than as just free.
                 bool free = !p.Occupied;
                 var col = free ? new Color(0.16f, 0.55f, 0.30f, 0.98f) : new Color(0.45f, 0.12f, 0.12f, 0.98f);
                 int padIndex = p.Index;
@@ -1465,6 +1468,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
                     _captureFreePads.Add((new Vector2(mx + marker * 0.5f, my + marker * 0.5f), padIndex));
+                    if (p.Mine)
+                    {
+                        UiKit.AddText(panel.transform, mx - 30, my + marker, marker + 60, 18,
+                            string.IsNullOrEmpty(p.Occupant) ? Loc("ui.space.pad_yours", "your pad") : p.Occupant,
+                            12, UiKit.Cyan, TextAnchor.UpperCenter);
+                    }
                 }
                 else
                 {

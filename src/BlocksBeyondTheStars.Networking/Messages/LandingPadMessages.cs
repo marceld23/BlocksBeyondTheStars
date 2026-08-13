@@ -16,10 +16,20 @@ public sealed class NetLandingPad
     public int Index { get; set; }
     public int X { get; set; }
     public int Z { get; set; }
+
+    /// <summary>True if the pad is blocked FOR THE RECEIVING PLAYER — someone else (or a landed trader)
+    /// holds it. A player's own reservation is never "occupied" to themselves (#977): a pad held while
+    /// its owner is up in space is exactly the pad they want to come back down on.</summary>
     public bool Occupied { get; set; }
 
-    /// <summary>Name of the player currently on this pad (empty if free) — shown in the chooser.</summary>
+    /// <summary>Name of the player currently on this pad (empty if free) — shown in the chooser. Set for
+    /// the receiver's own pad too, which carries <see cref="Mine"/> instead of <see cref="Occupied"/>.</summary>
     public string Occupant { get; set; } = string.Empty;
+
+    /// <summary>True if the receiving player is the one holding this pad (#977) — their parked or reserved
+    /// ship's pad. Drawn as theirs and stays selectable in the chooser. Appended field: contractless
+    /// MessagePack, so an older peer simply reads it as false (no protocol bump).</summary>
+    public bool Mine { get; set; }
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight
