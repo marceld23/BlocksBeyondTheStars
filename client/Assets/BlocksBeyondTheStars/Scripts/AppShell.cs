@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Localization;
@@ -779,11 +780,15 @@ namespace BlocksBeyondTheStars.Client
             BrowserWorldBooting = false; // the wire exists — the loading screen may hand off now
         }
 
-        /// <summary>The machine's LAN IPv4 (the address friends on the same network join), or loopback.</summary>
-        private static string LocalLanIp()
+        /// <summary>The machine's LAN IPv4 (the address friends on the same network join), or loopback.
+        /// Enumeration happens here (it needs the platform); WHICH interface wins is decided by the
+        /// unit-tested <see cref="LanAddress"/> — "the first one that is up" used to hand out the
+        /// Hyper-V/VirtualBox/VPN address on any box that has one (#984).</summary>
+        public static string LocalLanIp()
         {
             try
             {
+                var candidates = new List<LanCandidate>();
                 foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
                 {
                     if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up
@@ -792,23 +797,50 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    foreach (var addr in ni.GetIPProperties().UnicastAddresses)
+                    var props = ni.GetIPProperties();
+                    bool hasGateway = false;
+                    foreach (var gw in props.GatewayAddresses)
                     {
-                        if (addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                            && !addr.Address.ToString().StartsWith("169.254.")) // skip link-local
+                        // A gateway entry of 0.0.0.0 is Windows' way of saying "none" on some adapters.
+                        if (gw?.Address != null
+                            && gw.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
+                            && !System.Net.IPAddress.Any.Equals(gw.Address))
                         {
-                            return addr.Address.ToString();
+                            hasGateway = true;
+                            break;
+                        }
+                    }
+
+                    bool physical = ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Ethernet
+                        || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Wireless80211
+                        || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.GigabitEthernet
+                        || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.FastEthernetT
+                        || ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.FastEthernetFx;
+
+                    foreach (var addr in props.UnicastAddresses)
+                    {
+                        if (addr.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                        {
+                            candidates.Add(new LanCandidate(addr.Address.ToString(), hasGateway, physical,
+                                ni.Name + " " + ni.Description));
                         }
                     }
                 }
+
+                return LanAddress.Pick(candidates);
             }
             catch
             {
                 // Fall through to loopback — the host can still read the port from the dialog.
+                return LanAddress.Loopback;
             }
-
-            return "127.0.0.1";
         }
+
+        /// <summary>The "ip:port" a friend on the same network types into Connect — the host screen shows
+        /// it BEFORE the world launches (#984), and <see cref="HostInfo"/> repeats it in-game. Reads the
+        /// live interface list on each call, so switching from cable to Wi-Fi is picked up.</summary>
+        public static string LanJoinAddress(int port = LocalServerLauncher.DefaultPort)
+            => LocalLanIp() + ":" + port.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         public void StartJoin()
         {

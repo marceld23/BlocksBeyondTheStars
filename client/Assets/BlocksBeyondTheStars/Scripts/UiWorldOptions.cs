@@ -73,7 +73,13 @@ namespace BlocksBeyondTheStars.Client
 
             float lx = 30f, rx = 820f;
             float ly = 78f, ry = 78f;
-            const float RowH = 62f;
+
+            // Row pitch. The hard constraint is `78 + headers + rows*RowH <= FooterY` — a column that
+            // grows past that line does not scroll or clip, it slides UNDER the footer buttons, which
+            // then swallow its clicks (#983: the 11th left row, "keep ship", was unreachable at 62).
+            // 56 is the pitch the advanced page already uses and leaves the longer column 22 px of air.
+            // WorldOptionsLayoutTests holds the sums, so the next added row fails in CI, not on screen.
+            const float RowH = 56f;
 
             void Row(bool leftCol, string label, string[] steps, System.Func<int> get, System.Action<int> set)
             {
@@ -101,9 +107,10 @@ namespace BlocksBeyondTheStars.Client
             var onOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
             Row(true, shell.L("ui.worldopt.space_combat"), onOff, () => opt.SpaceCombat ? 1 : 0, v => opt.SpaceCombat = v == 1);
             Row(true, shell.L("ui.worldopt.keep_ship"), onOff, () => opt.KeepShip ? 1 : 0, v => opt.KeepShip = v == 1);
-            // Auto-aim (#693) intentionally has NO creation row: both columns already end flush with the
-            // footer. New worlds start with the server default (ON); the world admin flips it live in the
-            // in-game world-rules panel, and scripts can pass --auto-aim false at launch.
+            // Auto-aim (#693) intentionally has NO creation row: the page is a fixed grid and both columns
+            // are close to the footer line (see RowH). New worlds start with the server default (ON); the
+            // world admin flips it live in the in-game world-rules panel, and scripts can pass
+            // --auto-aim false at launch.
 
             // Right column: the generated world.
             UiKit.AddText(main.transform, rx, ry, 700f, 24f, shell.L("ui.worldopt.col_world"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

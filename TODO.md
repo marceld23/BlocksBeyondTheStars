@@ -154,6 +154,40 @@ writes, starting at `LocalServerLauncher.DefaultPort` (31550), and `WorldRig`'s 
 follows. The #960 hint stays as it is — it already names both ports, and it is the wording the other twelve
 locales were translated from.
 
+### ★ Your join address, on the host screen, before the world loads (#984, 2026-08-13, branch fix/983-984-worldopt-footer-and-host-ip)
+Hosting told you where friends should connect only **after** worldgen: `ChatUi` announced `HostInfo` once
+into the scrollback plus one HUD toast, and the host screen's own subtitle sent you looking for it
+("share the address shown in-game"). Miss the line and nothing in the client repeats it. The host bar now
+carries **Your address · `192.168.x.y:31550`** with a **Copy** button (`GUIUtility.systemCopyBuffer`, as the
+paint/shape share codes use; the hint line doubles as the "copied" confirmation, because a clipboard write
+is otherwise invisible), so the address can be read out or pasted while the world is still generating. The
+in-game announcement stays as the second chance.
+
+The other half was that the address could simply be **wrong**. `LocalLanIp` returned the first IPv4 of the
+first interface that was up — on any box with Hyper-V/WSL (`vEthernet`), VirtualBox (192.168.56.x), VMware,
+Docker or a VPN, that race is regularly won by an adapter nobody can reach, and it looks exactly as
+trustworthy as the right one. Enumeration stays in `AppShell` (it needs the platform), but the *choice* moved
+to `LanAddress` in Client.Core: a default gateway is worth more than anything else (no route = no network
+anyone else is on), Ethernet/Wi-Fi beats "unknown" types, adapter names that give a virtual switch away are
+penalised harder than the type bonus can repay, home LAN ranges beat CGNAT/mesh-VPN space, and ties keep
+enumeration order so two openings of the screen agree. Loopback, link-local (169.254 = no DHCP answered),
+multicast and malformed addresses are rejected outright; an offline machine degrades to `127.0.0.1` as before.
+Pure and Unity-free ⇒ `LanAddressTests` covers the ranking in the PR gate instead of on one developer's NIC
+list. Four new locale keys in all 14 languages, and the host subtitle now points *down*, not into the game.
+
+### ★ World options: the bottom rule was hidden behind — and blocked by — the footer buttons (#983, 2026-08-13, branch fix/983-984-worldopt-footer-and-host-ip)
+"Keep ship when destroyed" was drawn *underneath* the "Hand-designed structures…" / "Advanced: planet types…"
+buttons, which swallowed its clicks: the rule could not be set at all. The page is a fixed grid with no
+scrolling and no clipping, so a column that outgrows the shared footer line does not get cut off, it slides
+under it. The left column ran `78 + 2 headers + 10 gap + 11 × RowH 62` and ended at 816 against a footer that
+starts at 778 — and the comment above the block still claimed both columns "end flush with the footer", which
+was true right up until the 11th row (`805e1657`, the KeepShipOnDeath rule) was appended. Row pitch is now
+**56**, the same pitch the advanced page already uses, which leaves the longer column 22 px of air and touches
+nothing else. The real fix is the guard: `WorldOptionsLayoutTests` *parses* `UiWorldOptions.cs` — start y,
+every literal header/gap step and one `RowH` per `Row(…)` call, in source order — so the next row somebody
+appends is counted automatically and fails in CI with the arithmetic in the message, instead of quietly
+disappearing under a button.
+
 ### ★ Multiplayer pauses too — once everybody is in the pause menu (#973, 2026-08-13, branch feat/973-multiplayer-pause)
 The Esc hold from #612/#908 only ever served a **lone** player: `HandlePause` refused the request outright
 while a second player was joined, and `HoldingPause` lifted a running hold the moment that count moved. Two

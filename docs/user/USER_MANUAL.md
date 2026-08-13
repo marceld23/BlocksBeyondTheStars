@@ -23,11 +23,13 @@ Last updated: 2026-08-11.
   **Official Worlds** → online multiplayer on the official servers (see below).
 - **Host Game (in-game multiplayer hosting):** the same world picker as singleplayer — *any* saved world
   can be hosted ("open to LAN" style) or a new one created — plus a host bar with **max players** (2–16)
-  and an optional **join password**. The game starts the bundled server locally and you join immediately;
+  and an optional **join password**. The host bar also shows **your address** (`ip:port`) with a **Copy**
+  button — read it out or paste it to your friends while the world is still loading; it is the address
+  they type into *Join Server*. The game starts the bundled server locally and you join immediately;
   you are the world's admin (the very first player of a fresh world is its **WorldAdmin**; the host's
-  name is additionally passed as a server admin). The address friends join is announced in chat and as a
-  HUD toast ("Hosting — friends can join at ip:port"). The session ends (and the world saves) when the
-  host quits. Friends outside your LAN need a port forward of that UDP port.
+  name is additionally passed as a server admin). The same address is announced again in chat and as a
+  HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
+  saves) when the host quits. Friends outside your LAN need a port forward of that UDP port.
 - **Official Worlds (online multiplayer, beta):** the in-game portal for hosted worlds on the official
   servers — also available in the browser at [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de).
   Create a free account (no email needed), then create your own world. There are **no open public

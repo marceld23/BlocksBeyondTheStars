@@ -7,6 +7,10 @@ namespace BlocksBeyondTheStars.Client.Tests;
 /// server test suite's <c>TestPaths</c>; duplicated here so this project stays self-contained).</summary>
 public static class ClientTestPaths
 {
+    /// <summary>The repository root (the folder holding <c>data/</c>) — for tests that read source files,
+    /// e.g. the Unity UI layout guards.</summary>
+    public static string RepoRoot() => Directory.GetParent(DataDir())!.FullName;
+
     public static string DataDir()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
