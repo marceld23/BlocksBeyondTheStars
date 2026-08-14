@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Yuvayı değiştir",
   "ui.hotbar_action.title": "{0} — yuva {1}",
   "ui.inventory.title": "Envanter",
+  "ui.inventory.backpack": "Sırt çantası",
   "ui.inventory.quickbar": "Hızlı çubuk",
   "ui.inventory.quickbar_hint": "Bu öğeyi hızlı çubuğa koymak için bir hızlı yuva seç.",
   "ui.inventory.remove_quickslot": "Hızlı çubuktan çıkar",

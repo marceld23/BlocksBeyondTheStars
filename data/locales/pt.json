@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Trocar espaço",
   "ui.hotbar_action.title": "{0} — espaço {1}",
   "ui.inventory.title": "Inventário",
+  "ui.inventory.backpack": "Mochila",
   "ui.inventory.quickbar": "Barra rápida",
   "ui.inventory.quickbar_hint": "Escolha um slot rápido para colocar este item na barra rápida.",
   "ui.inventory.remove_quickslot": "Remover da barra rápida",

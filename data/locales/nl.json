@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Vak wisselen",
   "ui.hotbar_action.title": "{0} — vak {1}",
   "ui.inventory.title": "Inventaris",
+  "ui.inventory.backpack": "Rugzak",
   "ui.inventory.quickbar": "Snelbalk",
   "ui.inventory.quickbar_hint": "Kies een snelvak om dit item op de snelbalk te zetten.",
   "ui.inventory.remove_quickslot": "Verwijder van snelbalk",

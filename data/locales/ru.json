@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Обменять ячейку",
   "ui.hotbar_action.title": "{0} — ячейка {1}",
   "ui.inventory.title": "Инвентарь",
+  "ui.inventory.backpack": "Рюкзак",
   "ui.inventory.quickbar": "Быстрая панель",
   "ui.inventory.quickbar_hint": "Выбери быстрый слот, чтобы поместить этот предмет на быструю панель.",
   "ui.inventory.remove_quickslot": "Убрать с быстрой панели",

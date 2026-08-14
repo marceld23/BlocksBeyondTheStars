@@ -635,7 +635,7 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 case Mode.Inventory:
                     list.Clear();
-                    list.Add(("personal", L("ui.inventory.title"), "cat_inventory"));
+                    list.Add(("personal", L("ui.inventory.backpack"), "cat_inventory"));
                     list.Add(("cargo", L("ui.cargo.title"), "cat_cargo"));
                     break;
                 case Mode.Missions:

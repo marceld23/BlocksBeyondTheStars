@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "スロットを入れ替える",
   "ui.hotbar_action.title": "{0} — スロット{1}",
   "ui.inventory.title": "所持品",
+  "ui.inventory.backpack": "バックパック",
   "ui.inventory.quickbar": "クイックバー",
   "ui.inventory.quickbar_hint": "このアイテムをクイックバーのスロットに入れてください。",
   "ui.inventory.remove_quickslot": "クイックバーから外す",

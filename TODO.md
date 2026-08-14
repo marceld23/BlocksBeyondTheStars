@@ -117,6 +117,13 @@ menu open. Only the Esc pause menu had a keep-alive (#973). The position streams
 actually-dead clients. No protocol change; the server side is untouched. Cosmetic side-finding logged in
 #1008: a heartbeat kick logs `Connection N closed.` twice.
 
+### ★ Inventory tab: the personal-inventory sidebar entry is now "Backpack" (#1012, 2026-08-14, branch fix/inventory-backpack-label)
+The in-game menu's Inventory tab showed "Inventory" twice — as the tab label and again as the first
+sidebar entry (the `personal` category reused `ui.inventory.title`), even though other strings already
+call that container the backpack. The sidebar now reads **Backpack / Cargo Hold** (DE: Rucksack /
+Frachtraum) via a new `ui.inventory.backpack` key added to all 14 locales, wordings reused from the
+already-translated `ui.avatar.pack`. Client-only label change, no protocol impact.
+
 ### ★ Scanner: aim-gated targeting + feedback for empty/rejected scans (#1005, 2026-08-14, branch fix/scanner-stuck-1005)
 Playtest report: the scanner sometimes "sticks" — it keeps showing the last scanned subject until the
 player walks away and does something else. Root cause was proximity-only target selection:
