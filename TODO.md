@@ -105,6 +105,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Ship function blocks now look like function blocks (#1009, 2026-08-14, branch fix/1009-station-marker-blocks)
+The station marker blocks aboard ships stamped as generic world blocks — workshop as `stone`, quarters
+as `carbon`, medbay as `ice`, and the cargo hold as plain `iron_wall` (invisible against the hull) — so
+nothing in a room read as "the thing you press E on". `StationBlockKey` now maps each station to the
+existing themed machine block whose *world* function already matches the station's: medbay → `heal_tank`
+(emissive tank), workshop → `workbench`, quarters → `bed`, cargo → `crate`. No new blocks, textures or
+protocol; both the authored-layout path and the code-box starter hull share the one mapping, station
+cells stay baseline-protected (never minable), and existing saves pick the new markers up on the next
+structure rebuild. `lab`/`console` markers still default to `iron_wall` (no matching textured block yet)
+— left as a follow-up.
+
 ### ★ Scan-drones no longer visibly shoot through solid terrain (#1004, 2026-08-14, branch fix/drone-fire-los)
 Playtest report: hiding in a cave, a guard scan-drone hovering outside appeared to fire at the player
 straight through the rock. The shooting was cosmetic — the server gates both the hunt lock and the
