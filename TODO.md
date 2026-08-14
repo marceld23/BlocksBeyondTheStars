@@ -105,6 +105,19 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Blocks can be placed on the ground beside a parked ship again (#1023, 2026-08-14, branch fix/ship-box-place-redirect)
+LAN playtest: "sand and dirt can't be placed" — the materials were innocent. The client rerouted ANY
+place whose target cell fell inside a landed ship's bounding box to a structure edit, even when the
+player aimed at the ground: the box test (`LandedShipBoundsAt`, `dy 0..Height` inclusive over the full
+Width×Length rectangle) also covers the ground-level air ring around the hull. Beside another pilot's
+ship the server answered `none_here` ("No such structure here."), beside your own `no_anchor` — or,
+hull-adjacent, the block silently became part of the ship. Since you spawn next to your ship, freshly
+mined dirt/sand was the typical victim. `PlayerController` now reroutes only when the aim ray actually
+hit that ship (`boundsShip == aimedShip`); aiming at a world block always sends a world place, and the
+server keeps guarding the real interior (`ShipInteriorContains`). Cabin furnishing and roof building
+still target ship cells, so they keep working. Client-only, no protocol change. Likely the same root
+cause as the "painted block won't place" LAN report.
+
 ### ★ Crafting menu says "no room for the result" up front instead of a missable toast (#1010, 2026-08-14, branch fix/craft-ui-inventory-full)
 LAN playtest: a player had unlocked the paint-tool blueprint and owned every ingredient, yet the craft
 kept failing — the backpack was full (24/24 slots), the inputs only shrink existing stacks without

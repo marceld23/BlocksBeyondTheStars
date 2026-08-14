@@ -2848,9 +2848,14 @@ namespace BlocksBeyondTheStars.Client
                 if (def != null && !string.IsNullOrEmpty(def.PlacesBlock))
                 {
                     // Placing INSIDE a parked ship furnishes the cabin: route to a structure edit (the
-                    // block becomes part of the ship and persists with it), not a world place.
+                    // block becomes part of the ship and persists with it), not a world place. Only when the
+                    // aim ray hit THAT ship, though — the bounding box also covers the ground-level air ring
+                    // around the hull, and rerouting a place that targets a world block (the ground beside a
+                    // parked ship) made any block "unplaceable" there: a foreign ship answers none_here, the
+                    // own hull no_anchor (#1023). Aiming at the ground → world place; the server still guards
+                    // the real interior authoritatively.
                     var boundsShip = Game.LandedShipBoundsAt(placeCell.x, placeCell.y, placeCell.z, out var lp);
-                    if (boundsShip != null)
+                    if (boundsShip != null && boundsShip == aimedShip)
                     {
                         Game.Network.SendStructureEdit(boundsShip.StructureId, lp.X, lp.Y, lp.Z, mine: false, item);
                         TriggerSwing();
