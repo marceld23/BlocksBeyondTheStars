@@ -13,28 +13,82 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Fixed
+## [2026.8.14] — 2026-08-14
 
-- **Space actions now act from *your* ship.** With two pilots over the same planet, firing, tractor
-  pulls, salvage collection, station boarding and EVA structure edits were range-checked from whichever
-  ship reported its position last — shots next to an asteroid could come back "out of range" while your
-  wingman flew far away. Every player-triggered space action now uses the acting pilot's own position;
-  the passive tractor also collects into each pilot's own cargo hold. (#994)
-- **The group pause now freezes actions, not just the clock.** While every player holds the world
-  paused, gameplay intents (mining, building, moving, combat…) are dropped server-side; resume, chat,
-  saves and admin commands stay live. A stock client never sent them anyway — a modified one could farm
-  a frozen world for the whole hold. (#995)
-- **Watching admins survive a group pause** — observers keep receiving terrain while the world is held
-  instead of flying into void, and landing an observer on the same body no longer claims a communal
-  landing pad or marks them aboard a ship. (#996)
-- **A brand-new player's respawn anchor is their own** — on worlds without a starter ship it could be
-  persisted as the *host's* heal tank, respawning them inside the host's ship. (#997)
-- **A failed join cleans up after itself** — the freshly parked ship of a join that died mid-handshake
-  no longer stays behind as an ownerless prop. (#998)
-- **Multiplayer polish:** a frozen remote avatar's nameplate disappears with the body instead of
-  floating in mid-air; the star map no longer says "pads full" when the last pad is your own
-  reservation; pad number keys pick the pad by its label; the server's chunk-stream rate clamps to what
-  clients can absorb per frame. (#999)
+The shipshape release. After the last two versions turned the game into something you play with other
+people, we went back over every one of those multiplayer fixes line by line and checked them against
+the code instead of against our memory of writing them. All of them hold. But the walk-through found
+six seams where the new features stopped just short — a pause that stopped the clock without stopping
+what people could do, space actions still measured from the wrong cockpit, an observer left in the void.
+No new features here; this release makes the last two honest.
+
+### 🛰 Every pilot acts from their own cockpit (#994)
+
+- **"Out of range" while you were sitting right next to it.** An earlier fix gave each pilot their own
+  flight simulation for collisions and damage — but the *actions* you trigger yourself still measured
+  from whichever ship had reported its position to the server last. With two of you over the same
+  planet, a shot at an asteroid in front of you could be rejected because your wingman was far away,
+  and a tractor beam could reach out from somewhere you had never been.
+- Firing (range **and** aim), salvage collection, tractor pulls, station boarding, EVA structure edits
+  and the dock/interior return spots now all use the position of the pilot performing them. The passive
+  tractor tick collects into each pilot's own hold.
+
+### ⏸️ A held pause really holds (#995)
+
+- **The pause stopped the clock, not the hands.** When everybody holds the world paused, the
+  simulation stops — but the server kept accepting whatever players sent it. A stock client sends
+  nothing while it is in the pause menu, so nobody noticed; a modified one could hold the world frozen
+  for the full ten minutes, with hunger and enemies switched off, and mine and build the whole time.
+- Gameplay intents are now dropped at the door while the world is held. Resume, chat, saves, admin
+  commands and everything read-only stay live, so a pause still behaves like a pause.
+
+### 👁 Watching admins survive a pause — and stop taking pads (#996)
+
+- **An observer flew into nothing.** A watching admin does not block a group pause and does not count
+  towards one — but the terrain stream was switched off with the rest of the world, so an observer who
+  kept flying during a hold ran out of loaded world and into the void, for up to ten minutes.
+  Observers keep receiving chunks while the world is held.
+- **An observer no longer claims a landing pad.** Landing one on the body they were already at
+  reserved a communal pad, parked a ship and marked them as aboard it. Spectators are now left out of
+  pad occupancy at the single place it is derived, which also closes the same leak on the travel path.
+
+### 🧑‍🚀 A newcomer's respawn point is their own (#997)
+
+- **You could wake up inside the host's ship.** On a world configured without a starter ship, a new
+  player's respawn anchor was read while the server still had the *previous* player's ship selected —
+  so the host's heal tank was saved as the newcomer's spawn. This is the last echo of the origin-spawn
+  bug fixed earlier; the default configuration was never affected.
+
+### 🧹 A failed join cleans up after itself (#998)
+
+- **A half-finished join left a ship behind.** If a join failed after the player's ship had already
+  been parked, only the session was cleaned up — the ship stayed on the world as an ownerless prop
+  nobody could fly or remove. The parked ship is now torn down with the failed join (deliberately
+  without saving the half-restored state).
+
+### ✨ Multiplayer polish (#999)
+
+- **A nameplate no longer floats where a player used to be.** When a remote avatar is hidden because
+  its updates stopped, its name tag went with it — before, the tag hung in mid-air for the three to
+  ten seconds until the body was removed.
+- **The star map stops claiming the pads are full** when the only pad left is the one reserved for
+  *you* — the same fix the flight chooser already got.
+- **The number keys in the pad chooser pick the pad on the label**, not the pad in that position in
+  the list.
+- **The server's chunk-stream rate cannot outrun the client any more:** it is clamped below what a
+  client can absorb per frame, so a raised setting cannot manufacture the backlog the pacing exists to
+  prevent.
+
+### 🛠️ Behind the scenes
+
+- Ahmed Mohamed Abdelhady Kamel's networking-test series continues: registering the same message type
+  twice is now caught by a guard instead of silently keeping one of them (#993).
+- The audit that produced this release is covered by tests: intents arriving during a hold, chunk
+  streaming while paused, per-pilot space actions and the chunk-cap invariant under a raised setting.
+
+  ℹ Multiplayer: the wire protocol is unchanged (**3**). Only the floating nameplate and the pad
+  number keys are client-side fixes; everything else lives on the server, so **the host's version
+  decides** whether the pause, space-action and observer fixes apply to a session.
 
 ## [2026.8.13] — 2026-08-13
 
@@ -2749,7 +2803,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...HEAD
+[2026.8.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...v2026.8.14
 [2026.8.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...v2026.8.13
 [2026.8.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...v2026.8.12
 [2026.8.11]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.10...v2026.8.11
