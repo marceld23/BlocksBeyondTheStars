@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "알 수 없는 대상.",
   "ui.scan.no_scanner": "스캐너 없음.",
   "ui.scan.not_scannable": "스캔 가능한 대상이 아님.",
+  "ui.scan.no_target": "스캐너: 시야에 대상이 없습니다.",
   "ui.scan.subject.asteroid": "소행성",
   "ui.scan.subject.monument_arcade": "폐허가 된 아케이드",
   "ui.scan.subject.monument_gate": "고대 관문",

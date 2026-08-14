@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "Onbekend object.",
   "ui.scan.no_scanner": "Geen scanner.",
   "ui.scan.not_scannable": "Niet scanbaar.",
+  "ui.scan.no_target": "Scanner: geen doelwit in zicht.",
   "ui.scan.subject.asteroid": "Asteroïde",
   "ui.scan.subject.monument_arcade": "Gevallen Arcade",
   "ui.scan.subject.monument_gate": "Oude Poort",

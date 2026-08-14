@@ -1767,6 +1767,7 @@
   "ui.scan.unknown": "Unbekanntes Ziel.",
   "ui.scan.no_scanner": "Kein Scanner.",
   "ui.scan.not_scannable": "Kein scanbares Objekt.",
+  "ui.scan.no_target": "Scanner: kein Ziel im Blick.",
   "ui.scan.subject.asteroid": "Asteroid",
   "ui.scan.subject.monument_arcade": "Verfallene Arkade",
   "ui.scan.subject.monument_gate": "Uraltes Tor",

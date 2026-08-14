@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "Bilinmeyen konu.",
   "ui.scan.no_scanner": "Tarayıcı yok.",
   "ui.scan.not_scannable": "Tarayılamaz nesne.",
+  "ui.scan.no_target": "Tarayıcı: görüş alanında hedef yok.",
   "ui.scan.subject.asteroid": "Asteroid",
   "ui.scan.subject.monument_arcade": "Düşmüş Arcade",
   "ui.scan.subject.monument_gate": "Antik Kapı",

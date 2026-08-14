@@ -69,8 +69,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Nearest live critter within <paramref name="reach"/> of a WORLD position (#757), for the
         /// handheld scanner. Critter positions are canonical world coordinates (same frame as
-        /// <see cref="GameBootstrap.PlayerPosition"/>).</summary>
-        public bool NearestCritter(Vector3 worldPos, float reach, out string kindKey, out Vector3 worldAt)
+        /// <see cref="GameBootstrap.PlayerPosition"/>). The optional <paramref name="filter"/> (world position →
+        /// eligible) lets the scanner keep off-aim critters from answering the scan (#1005).</summary>
+        public bool NearestCritter(Vector3 worldPos, float reach, out string kindKey, out Vector3 worldAt,
+            System.Func<Vector3, bool> filter = null)
         {
             kindKey = null;
             worldAt = default;
@@ -78,7 +80,7 @@ namespace BlocksBeyondTheStars.Client
             foreach (var c in _alive)
             {
                 float d = (c.WorldPos - worldPos).sqrMagnitude;
-                if (d < bestSq)
+                if (d < bestSq && (filter == null || filter(c.WorldPos)))
                 {
                     bestSq = d;
                     kindKey = c.Kind.Key;

@@ -105,6 +105,19 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Scanner: aim-gated targeting + feedback for empty/rejected scans (#1005, 2026-08-14, branch fix/scanner-stuck-1005)
+Playtest report: the scanner sometimes "sticks" — it keeps showing the last scanned subject until the
+player walks away and does something else. Root cause was proximity-only target selection:
+`ScanTarget()` picked the nearest creature within reach (8 m) with no aim or line check, so a creature
+idling anywhere nearby — behind the player, through a wall — captured every scan press; micro-fauna
+(5 m) behaved the same. Every miss was silent on top: the client sent nothing on an empty aim and the
+server built rejections but never sent them (`Rejected(...)` was returned, `HandleScan` discarded it),
+while the scan panel stays pinned on the last readout for as long as the scanner is held (#482). Now:
+creature/critter targets must sit inside a 25° aim cone (point-blank ≤ 2 m always passes), an empty
+scan shows "Scanner: no target in view." (new `ui.scan.no_target`, all 14 locales), and the server
+sends rejected scans over the existing `ScanResult` message — no protocol bump; an old client shows the
+legacy English info string. New regression test `RejectedScan_IsSentToTheClient`.
+
 ### ★ Ship function blocks now look like function blocks (#1009, 2026-08-14, branch fix/1009-station-marker-blocks)
 The station marker blocks aboard ships stamped as generic world blocks — workshop as `stone`, quarters
 as `carbon`, medbay as `ice`, and the cargo hold as plain `iron_wall` (invisible against the hull) — so

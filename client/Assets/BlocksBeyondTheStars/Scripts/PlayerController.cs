@@ -1117,13 +1117,29 @@ namespace BlocksBeyondTheStars.Client
             return true;
         }
 
-        /// <summary>Scans the nearest creature (threat assessment) or, failing that, the block in view.</summary>
+        private const float ScanConeDegrees = 25f;      // generous — creatures move; still excludes behind/beside
+        private const float ScanPointBlankSq = 2f * 2f; // this close the angle test degenerates — always scannable
+
+        /// <summary>Whether a scan target is inside the aim cone around the view direction, or point-blank
+        /// (standing on it). Proximity alone must not qualify a target: a creature idling anywhere within
+        /// reach — behind the player, through a wall — used to capture every scan press, which read as
+        /// "the scanner is stuck on the last readout" (#1005).</summary>
+        private static bool InScanCone(Vector3 eye, Vector3 fwd, Vector3 at)
+        {
+            var to = at - eye;
+            return to.sqrMagnitude <= ScanPointBlankSq || Vector3.Angle(fwd, to) <= ScanConeDegrees;
+        }
+
+        /// <summary>Scans the aimed-at creature (threat assessment) or, failing that, the block in view.</summary>
         private void ScanTarget()
         {
             if (Game?.Network == null || Camera == null)
             {
                 return;
             }
+
+            Vector3 eye = Camera.transform.position;
+            Vector3 fwd = Camera.transform.forward;
 
             string speciesId = null;
             Vector3 scanPos = default;
@@ -1132,7 +1148,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var cp = Game.ScenePos(c.X, c.Y, c.Z); // seam-aware (longitude wraps)
                 float d = (cp - transform.position).sqrMagnitude;
-                if (d < bestSq)
+                if (d < bestSq && InScanCone(eye, fwd, cp))
                 {
                     bestSq = d;
                     speciesId = c.SpeciesId;
@@ -1147,11 +1163,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Micro-fauna (#757): when no real creature is in reach, the nearest ambient critter answers.
+            // Micro-fauna (#757): when no real creature is in view, the nearest aimed-at critter answers.
             // Critters are client-local, so the kind is resolved here and the server only validates that it
             // exists (same trust level as the creature scan above). Shorter reach — they're tiny.
             if (MicroFaunaView.Instance != null
-                && MicroFaunaView.Instance.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt))
+                && MicroFaunaView.Instance.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt,
+                    world => InScanCone(eye, fwd, Game.ScenePos(world.x, world.y, world.z))))
             {
                 Game.Network.SendScan("microfauna", critterKey);
                 Weapons?.Pulse(Game.ScenePos(critterAt.x, critterAt.y, critterAt.z), new Color(0.4f, 0.85f, 1f));
@@ -1160,17 +1177,17 @@ namespace BlocksBeyondTheStars.Client
 
             // Voxel ray-march INCLUDING fluids, so you can scan a water/lava block too (they have no collider, so
             // a Physics.Raycast passes straight through them — that's why water "couldn't be scanned", B26).
-            if (!AimBlock(out var b, out _, includeFluids: true))
-            {
-                return;
-            }
-
-            var def = Game.Content?.BlockById(Game.World.GetBlock(b.x, b.y, b.z));
-            if (def != null)
+            if (AimBlock(out var b, out _, includeFluids: true)
+                && Game.Content?.BlockById(Game.World.GetBlock(b.x, b.y, b.z)) is { } def)
             {
                 Game.Network.SendScan("block", def.Key);
                 Weapons?.Pulse(new Vector3(b.x + 0.5f, b.y + 0.5f, b.z + 0.5f), new Color(0.4f, 0.85f, 1f));
+                return;
             }
+
+            // Nothing scannable in view — say so. The scan panel stays pinned on the previous readout while
+            // the scanner is held, so a silent miss looks like the scanner stopped working (#1005).
+            Game.ShowMessage(Game.Localizer?.Get("ui.scan.no_target") ?? "Scanner: no target in view.");
         }
 
         private BinocularOptic _optic;
