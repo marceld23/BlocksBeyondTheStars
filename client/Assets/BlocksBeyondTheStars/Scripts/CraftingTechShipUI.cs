@@ -54,6 +54,10 @@ namespace BlocksBeyondTheStars.Client
         // Quick-bar = the first N personal-inventory slots (must match the server's HotbarSlots / HudUi Slots).
         private const int QuickSlots = 9;
 
+        // The personal inventory's fixed size (quick-bar 0..8 + backpack 9..23) — must match the server's
+        // PlayerState inventory; the snapshot only carries occupied slots, so free slots derive from this.
+        private const int PersonalSlotTotal = 24;
+
         private Canvas _canvas;
         private RectTransform _sidebar, _listContent, _detail, _header;
         private Text _footer, _hint, _feedback;
@@ -3436,8 +3440,107 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
+            // The result must also FIT somewhere (server: MaterialPool.CanFit, #600) — otherwise the card
+            // reads "craftable" and the button is live, but the server refuses with @inventory_full and the
+            // only feedback is an easy-to-miss toast (LAN playtest: full 24-slot backpack, the inputs only
+            // shrink stacks without freeing a slot, and the new tool needs a fresh one).
+            if (!ResultFits(r))
+            {
+                reason = L("ui.craft.inventory_full");
+                return false;
+            }
+
             reason = string.Empty;
             return true;
+        }
+
+        /// <summary>Client-side dry-run of the server's <c>MaterialPool.CanFit</c> for a single craft:
+        /// every output must fit on top of what is held right now — stack top-up first, then free slots,
+        /// spilling into the ship's cargo hold only while aboard (the exact pool the server hands the
+        /// crafted items to). Deliberately as pessimistic as the server: inputs are NOT removed first, so
+        /// a craft whose inputs would free a slot still reads as blocked — the server refuses it too.</summary>
+        private bool ResultFits(RecipeDefinition r)
+        {
+            var personal = SimStacks(Game.Personal);
+            var cargo = Game.Aboard ? SimStacks(Game.Cargo) : null;
+            int freePersonal = Mathf.Max(0, PersonalSlotTotal - personal.Count);
+            int freeCargo = cargo != null ? Mathf.Max(0, Game.CargoSlots - cargo.Count) : 0;
+
+            foreach (var output in r.Outputs)
+            {
+                if (output.Count <= 0)
+                {
+                    continue;
+                }
+
+                int maxStack = Game.Content.MaxStackOf(output.Item);
+                int remaining = SimAdd(personal, ref freePersonal, output.Item, output.Count, maxStack);
+                if (remaining > 0 && cargo != null)
+                {
+                    remaining = SimAdd(cargo, ref freeCargo, output.Item, remaining, maxStack);
+                }
+
+                if (remaining > 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>Mutable copy of an inventory snapshot for the fit dry-run (occupied slots only).</summary>
+        private sealed class SimStack
+        {
+            public string Item = string.Empty;
+            public int Count;
+        }
+
+        private static List<SimStack> SimStacks(BlocksBeyondTheStars.Networking.Messages.NetItemStack[] slots)
+        {
+            var list = new List<SimStack>();
+            if (slots != null)
+            {
+                foreach (var s in slots)
+                {
+                    list.Add(new SimStack { Item = s.Item, Count = s.Count });
+                }
+            }
+
+            return list;
+        }
+
+        /// <summary>Adds <paramref name="count"/> of an item to the simulated stacks the way the server's
+        /// <c>Inventory.Add</c> does (top up same-item stacks, then open new stacks in free slots) and
+        /// returns what found no room. Outputs of one recipe compete for the same free slots.</summary>
+        private static int SimAdd(List<SimStack> stacks, ref int freeSlots, string item, int count, int maxStack)
+        {
+            foreach (var s in stacks)
+            {
+                if (count <= 0)
+                {
+                    break;
+                }
+
+                if (s.Item != item || s.Count >= maxStack)
+                {
+                    continue;
+                }
+
+                int put = System.Math.Min(maxStack - s.Count, count);
+                s.Count += put;
+                count -= put;
+            }
+
+            while (count > 0 && freeSlots > 0)
+            {
+                int put = System.Math.Min(maxStack, count);
+                stacks.Add(new SimStack { Item = item, Count = put });
+                freeSlots--;
+                count -= put;
+            }
+
+            return count;
         }
 
         /// <summary>Reachability tier for the list ordering (#826): 0 = craftable now (blueprint unlocked +

@@ -105,6 +105,16 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Crafting menu says "no room for the result" up front instead of a missable toast (#1010, 2026-08-14, branch fix/craft-ui-inventory-full)
+LAN playtest: a player had unlocked the paint-tool blueprint and owned every ingredient, yet the craft
+kept failing — the backpack was full (24/24 slots), the inputs only shrink existing stacks without
+freeing one, and the new tool needs a fresh slot. The server refused correctly (`MaterialPool.CanFit`,
+the #600 protection) but the crafting UI still presented the recipe as craftable: green card, live
+button, and the only feedback was the post-click toast. `CraftingTechShipUI.CanCraft` now runs a
+client-side dry-run mirroring the server's fit check (stack top-up at max-stack, then free slots,
+cargo-hold spill only while aboard), disables the craft button and shows the existing localized
+`ui.craft.inventory_full` line in the detail pane. Client-only; the server check stays authoritative.
+
 ### ★ Inventory tab: the personal-inventory sidebar entry is now "Backpack" (#1012, 2026-08-14, branch fix/inventory-backpack-label)
 The in-game menu's Inventory tab showed "Inventory" twice — as the tab label and again as the first
 sidebar entry (the `personal` category reused `ui.inventory.title`), even though other strings already
