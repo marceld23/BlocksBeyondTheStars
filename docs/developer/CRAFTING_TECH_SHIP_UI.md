@@ -75,6 +75,7 @@ components, a category sidebar and blueprint state.
 ## Known gaps / deferred
 
 - The full **3D ship-expansion preview** is deferred; the Ship tab uses cards + a stat-delta preview.
-- The "missing material → where to get it" deep popover (craftable? which planet? cargo? reward?) is a
-  polish item layered on the have/need rows.
+- Have/need rows now carry a source tag — *craftable* (`GameContent.CraftDepth > 0`) vs *raw resource* —
+  and a craftable ingredient the player is short of lists the materials for the missing amount one recipe
+  level deep (`IngredientRow`, #1016). A deeper "which planet? cargo? reward?" popover remains deferred.
 - Inventory is still a category list rather than a drag/swap slot grid (tracked separately in TODO.md).

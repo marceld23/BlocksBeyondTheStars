@@ -105,6 +105,24 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ VEGA introduces the menu and the Codex on first boot (#1015, 2026-08-14, branch feat/vega-codex-craft-hints)
+New players were never told two fundamental things: that the Tab menu exists (only mentioned in passing
+by onboarding stages 2–3) and that the Codex — the in-game wiki with 24 guide articles — exists at all
+(no VEGA line anywhere pointed at it). Two new Kind-0 onboarding lines, `vega.intro.menu` and
+`vega.intro.codex`, now follow `vega.intro.2` in `ShipAiOnJoin`, before the first mining task. Covered
+by the existing `vega:intro` milestone (veteran skip and tutorial restart unaffected), added to the
+`VegaText` journal reconstruction so they stay re-readable in the Story-tab tips log, localized in all
+14 languages. Join-sequence ordering asserted in `ShipAiTests`.
+
+### ★ Crafting: ingredients say whether you craft them or find them (#1016, 2026-08-14, branch feat/vega-codex-craft-hints)
+Every have/need ingredient row (recipe detail, tech unlock cost, ship cost block — now one shared
+`IngredientRow` helper) carries a source tag: *craftable* (`GameContent.CraftDepth > 0`, the precomputed
+raw-vs-crafted discriminator; barter excluded) or *raw resource*. A craftable ingredient you are still
+short of also lists what crafting the missing amount takes — its producing recipe's inputs scaled to the
+missing count, indented beneath, one recipe level deep, each again tagged craftable/raw. All data is
+client-side (`Game.Content`), no protocol change; new keys `ui.craft.src_craftable`/`ui.craft.src_raw`
+in all 14 locales.
+
 ### ★ Blocks can be placed on the ground beside a parked ship again (#1023, 2026-08-14, branch fix/ship-box-place-redirect)
 LAN playtest: "sand and dirt can't be placed" — the materials were innocent. The client rerouted ANY
 place whose target cell fell inside a landed ship's bounding box to a structure edit, even when the

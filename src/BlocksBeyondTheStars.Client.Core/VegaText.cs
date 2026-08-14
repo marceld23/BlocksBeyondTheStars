@@ -91,6 +91,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 keys.Add("vega.intro.1");
                 keys.Add("vega.intro.2");
+                keys.Add("vega.intro.menu");
+                keys.Add("vega.intro.codex");
             }
 
             bool allStages = true;

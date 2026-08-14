@@ -78,10 +78,10 @@ public sealed class VegaTextTests
     // ---- JournalKeys (#737): milestones → locale keys ----
 
     [Fact]
-    public void Intro_MapsToBothIntroLines()
+    public void Intro_MapsToAllIntroLines()
     {
         var keys = VegaText.JournalKeys(new[] { "vega:intro" });
-        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2" }, keys);
+        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2", "vega.intro.menu", "vega.intro.codex" }, keys);
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class VegaTextTests
     public void MemoryFragmentsAndForeignMilestones_AreExcluded()
     {
         var keys = VegaText.JournalKeys(new[] { "vega:mem:3", "story:vega_protocol:beat:1", "vega:intro" });
-        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2" }, keys);
+        Assert.Equal(new[] { "vega.intro.1", "vega.intro.2", "vega.intro.menu", "vega.intro.codex" }, keys);
     }
 
     [Fact]

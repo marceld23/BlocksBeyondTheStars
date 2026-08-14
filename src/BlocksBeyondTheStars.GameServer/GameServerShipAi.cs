@@ -140,6 +140,10 @@ public sealed partial class GameServer
 
                 SendVegaLine(session, "vega.intro.1", 0);
                 SendVegaLine(session, "vega.intro.2", 0);
+                // Point new players at the Tab menu and the Codex before the first task (#1015) —
+                // without these, neither surface is ever introduced until stage 2 mentions Tab in passing.
+                SendVegaLine(session, "vega.intro.menu", 0);
+                SendVegaLine(session, "vega.intro.codex", 0);
                 SendVegaLine(session, "vega.s.mine.start", 0);
             }
 

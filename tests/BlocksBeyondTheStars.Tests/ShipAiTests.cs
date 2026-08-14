@@ -91,6 +91,13 @@ public sealed class ShipAiTests : IDisposable
 
         // The intro + first objective arrived, and the chain starts at the mining stage.
         Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
+        Assert.Contains(lines, l => l.LineKey == "vega.intro.menu" && l.Kind == 0);
+        Assert.Contains(lines, l => l.LineKey == "vega.intro.codex" && l.Kind == 0);
+        var introKeys = lines.Select(l => l.LineKey).ToList();
+        Assert.True(introKeys.IndexOf("vega.intro.2") < introKeys.IndexOf("vega.intro.menu")
+            && introKeys.IndexOf("vega.intro.menu") < introKeys.IndexOf("vega.intro.codex")
+            && introKeys.IndexOf("vega.intro.codex") < introKeys.IndexOf("vega.s.mine.start"),
+            "menu + Codex are introduced after the greeting and before the first task (#1015)");
         Assert.Contains(lines, l => l.LineKey == "vega.s.mine.start");
         Assert.Equal("vega.obj.mine", lines.Last().ObjectiveKey);
         Assert.Contains("vega:intro", server.MilestonesForTest("Rookie"));

@@ -2653,11 +2653,7 @@ namespace BlocksBeyondTheStars.Client
             y += 34f;
             foreach (var inp in r.Inputs)
             {
-                int have = Owned(inp.Item);
-                bool ok = have >= inp.Count;
-                UiKit.AddText(_detail, 20, y, 620, 28, $"{(ok ? "✓" : "✗")} {ItemName(inp.Item)}  {have}/{inp.Count}", 20,
-                    ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-                y += 30f;
+                y = IngredientRow(inp, y, 20);
             }
 
             y += 8f;
@@ -2774,11 +2770,7 @@ namespace BlocksBeyondTheStars.Client
 
                 foreach (var c in bp.UnlockCost)
                 {
-                    int have = Owned(c.Item);
-                    bool ok = have >= c.Count;
-                    UiKit.AddText(_detail, 20, y, 620, 26, $"{(ok ? "✓" : "✗")} {ItemName(c.Item)}  {have}/{c.Count}", 18,
-                        ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-                    y += 28f;
+                    y = IngredientRow(c, y, 18);
                 }
             }
 
@@ -3329,17 +3321,54 @@ namespace BlocksBeyondTheStars.Client
             return y;
         }
 
+        /// <summary>One ✓/✗ have/need ingredient row plus a source tag (#1016): tells the player whether the
+        /// material is itself craftable or a raw resource to find in the world. A craftable ingredient the
+        /// player is still short of also lists what crafting the missing amount takes, indented beneath —
+        /// one recipe level deep, enough to see what to actually gather without rendering a whole tree.</summary>
+        private float IngredientRow(ItemAmount inp, float y, int size)
+        {
+            int have = Owned(inp.Item);
+            bool ok = have >= inp.Count;
+            bool craftable = Game.Content.CraftDepth(inp.Item) > 0;
+            UiKit.AddText(_detail, 20, y, 620, size + 8, $"{(ok ? "✓" : "✗")} {ItemName(inp.Item)}  {have}/{inp.Count}", size,
+                ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
+            UiKit.AddText(_detail, 20, y, 620, size + 8, L(craftable ? "ui.craft.src_craftable" : "ui.craft.src_raw"),
+                size - 4, UiKit.CyanDim, TextAnchor.UpperRight);
+            y += size + 10f;
+            if (!craftable || ok)
+            {
+                return y;
+            }
+
+            var (sub, perCraft) = DisassembleRecipe(inp.Item);
+            if (sub == null)
+            {
+                return y; // craftable per CraftDepth, but its recipe has no inputs — nothing to break down
+            }
+
+            int crafts = (inp.Count - have + perCraft - 1) / perCraft;
+            foreach (var si in sub.Inputs)
+            {
+                int need = si.Count * crafts;
+                int subHave = Owned(si.Item);
+                bool subOk = subHave >= need;
+                bool subCraftable = Game.Content.CraftDepth(si.Item) > 0;
+                UiKit.AddText(_detail, 44, y, 596, size + 4,
+                    $"{(subOk ? "✓" : "✗")} {ItemName(si.Item)}  {subHave}/{need} · {L(subCraftable ? "ui.craft.src_craftable" : "ui.craft.src_raw")}",
+                    size - 4, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += size + 6f;
+            }
+
+            return y;
+        }
+
         private float CostBlock(IEnumerable<ItemAmount> cost, string blueprint, float y)
         {
             UiKit.AddText(_detail, 8, y, 620, 26, L("ui.craft.needs"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
             y += 32f;
             foreach (var c in cost)
             {
-                int have = Owned(c.Item);
-                bool ok = have >= c.Count;
-                UiKit.AddText(_detail, 20, y, 620, 26, $"{(ok ? "✓" : "✗")} {ItemName(c.Item)}  {have}/{c.Count}", 18,
-                    ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-                y += 28f;
+                y = IngredientRow(c, y, 18);
             }
 
             if (!string.IsNullOrEmpty(blueprint))
