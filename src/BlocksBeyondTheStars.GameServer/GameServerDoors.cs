@@ -69,6 +69,17 @@ public sealed partial class GameServer
     private static bool IsDoorBlock(string blockKey)
         => blockKey is "door_hinge" or "door_slide" or "door_wood" or "door_energy";
 
+    /// <summary>Door kind for a placeable door BLOCK key — the inverse of <see cref="DoorItemFor"/>. Used
+    /// wherever a player places a door block (world cell or self-built ship), so the door entity keeps the
+    /// behaviour of the block that was placed (#1021).</summary>
+    private static string DoorKindForBlock(string blockKey) => blockKey switch
+    {
+        "door_slide" => "slide",
+        "door_wood" => "wood",   // cheap early-game hinge door, swings by hand like the metal one
+        "door_energy" => "energy", // walk-through air curtain — the door that seals a base room (#793)
+        _ => "hinge",
+    };
+
     /// <summary>The item a door of this kind hands back when it is picked up again.</summary>
     private static string DoorItemFor(string kind) => kind switch
     {
@@ -118,20 +129,22 @@ public sealed partial class GameServer
                 continue;
             }
 
-            foreach (var pos in rec.Doors)
+            foreach (var (kind, pos) in rec.Doors)
             {
-                // The ship's doors are energy doors (item 35): a slide door with a passable blue energy field
-                // shown in the opening while open. Auto-open like a slide door (handled above). The hatch is the
-                // wide gap in the ship's rear (-Z) wall, which runs along X → force that door across X so it
-                // sits parallel to the opening, not lengthwise in the cabin (B41a; a ±1 jamb probe at the
-                // centre of a wide gap is ambiguous). Only the rear-wall hatch gets the forced axis: interior
-                // doors of a multi-room layout (hammerhead) can face ±X, and their narrower openings make the
-                // jamb probe unambiguous — let it decide.
+                // An authored ship's doors are all energy doors (item 35): a slide door with a passable blue
+                // energy field shown in the opening while open, auto-open like a slide door (handled above).
+                // A SELF-BUILT ship's doors keep the kind of the door block the player placed, so a wooden or
+                // metal hinge door still swings by hand with E (#1021). The hatch is the wide gap in the
+                // ship's rear (-Z) wall, which runs along X → force that door across X so it sits parallel to
+                // the opening, not lengthwise in the cabin (B41a; a ±1 jamb probe at the centre of a wide gap
+                // is ambiguous). Only the rear-wall hatch gets the forced axis: interior doors of a
+                // multi-room layout (hammerhead) can face ±X, and their narrower openings make the jamb probe
+                // unambiguous — let it decide.
                 var ship = rec;
                 var local = ship.ToLocal(new Vector3i(
                     (int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z)),
                     _world.Circumference);
-                _doors.Add(MakeDoor("energy", pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
+                _doors.Add(MakeDoor(kind, pos, ShipHatchOpenRange, forceAxisX: local.Z == 0 ? true : (bool?)null,
                     solid: (x, y, z) => !ship.Structure.Get(ship.ToLocal(new Vector3i(x, y, z), _world.Circumference)).IsAir));
             }
         }

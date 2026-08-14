@@ -64,6 +64,11 @@ public sealed class SpaceStructure
     /// <summary>Doorway base cells (sci-fi slide doors fill these openings) in structure-local coords.</summary>
     public List<Vector3i> DoorCells { get; } = new();
 
+    /// <summary>Door kind per doorway cell ("slide"/"hinge"/"wood"/"energy"). Authored ships leave this
+    /// empty — their doors all register as energy doors (item 35). A self-built ship records the kind of
+    /// the door block the player actually placed, so a wooden/hinge door stays hand-operated (#1021).</summary>
+    public Dictionary<Vector3i, string> DoorKinds { get; } = new();
+
     /// <summary>The medbay heal-tank cell (respawn point), if the design carries one.</summary>
     public Vector3i? MedbayCell { get; set; }
 

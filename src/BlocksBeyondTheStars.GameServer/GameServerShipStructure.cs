@@ -97,8 +97,11 @@ public sealed partial class GameServer
         rec.Doors.Clear();
         foreach (var cell in s.DoorCells)
         {
-            rec.Doors.Add(new Vector3f(
-                rec.Origin.X + cell.X + 0.5f, rec.Origin.Y + cell.Y, rec.Origin.Z + cell.Z + 0.5f));
+            // No recorded kind (authored ships) → energy door, the sealing auto-door every authored ship
+            // uses (item 35). Self-built ships record the placed door block's kind per cell (#1021).
+            rec.Doors.Add((
+                s.DoorKinds.TryGetValue(cell, out var kind) ? kind : "energy",
+                new Vector3f(rec.Origin.X + cell.X + 0.5f, rec.Origin.Y + cell.Y, rec.Origin.Z + cell.Z + 0.5f)));
         }
 
         rec.HealTank = s.MedbayCell is { } mb

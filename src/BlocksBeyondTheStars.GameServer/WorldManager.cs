@@ -266,7 +266,7 @@ internal sealed class LandedShip
     public SpaceStructure Structure { get; set; } = new();
     public Vector3f HealTank { get; set; }            // medbay respawn point (world coords)
     public List<(string Type, Vector3f Pos)> Stations { get; } = new(); // world coords
-    public List<Vector3f> Doors { get; } = new();     // doorway base centres (world coords)
+    public List<(string Kind, Vector3f Pos)> Doors { get; } = new(); // door kind + doorway base centre (world coords)
 
     /// <summary>Maps a world cell into the structure-local grid (longitude wrap-aware on X).</summary>
     public Vector3i ToLocal(Vector3i world, int circumference)

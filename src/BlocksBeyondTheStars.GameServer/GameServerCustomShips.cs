@@ -159,9 +159,12 @@ public sealed partial class GameServer
 
         foreach (var (pos, block) in cells)
         {
-            if (IsDoorBlockId(block))
+            if (_content.BlockById(block) is { } doorDef && IsDoorBlock(doorDef.Key))
             {
-                s.DoorCells.Add(pos); // a server-authoritative slide door fills the opening
+                // A server-authoritative door fills the opening — and it keeps the KIND of the door block
+                // the player built in, so a wooden/hinge door still swings by hand with E (#1021).
+                s.DoorCells.Add(pos);
+                s.DoorKinds[pos] = DoorKindForBlock(doorDef.Key);
                 continue;
             }
 
@@ -656,7 +659,7 @@ public sealed partial class GameServer
     private string? AirtightProblem(ShipState ship)
     {
         var s = BuildCustomShipStructure("validate:" + ship.ShipType, string.Empty, ship, commissioned: false);
-        var doorCells = new HashSet<Vector3i>(s.DoorCells);
+        var doorCells = new HashSet<Vector3i>(s.DoorCells); // any kind seals for validation (the panel fills the opening)
 
         bool Seals(Vector3i c)
         {

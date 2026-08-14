@@ -233,6 +233,38 @@ public sealed class CustomShipTests : IDisposable
         }
     }
 
+    // ---------------- Door kinds (#1021) ----------------
+
+    /// <summary>A wooden door built into a self-built ship must stay a hand-operated wooden door. It used
+    /// to register as an auto-sliding energy door like the authored ships' hatches — E did nothing and no
+    /// door hint showed, so "the wooden door can't be opened" (#1021).</summary>
+    [Fact]
+    public void WoodenDoor_OnASelfBuiltShip_StaysHandOperated()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            LayKeel(server, pilot);
+
+            // A doorway next to the keel: floor row, jambs left + right, the wooden door in between.
+            const string yard = "shipyard:Pilot";
+            Edit(server, yard, 1, 0, 0, "iron_wall");
+            Edit(server, yard, 2, 0, 0, "iron_wall");
+            Edit(server, yard, 0, 1, 0, "iron_wall");
+            Edit(server, yard, 2, 1, 0, "iron_wall");
+            Edit(server, yard, 1, 1, 0, "door_wood");
+
+            // The registered door is a WOODEN door, not the authored ships' auto-sliding energy hatch …
+            var wood = server.DoorSnapshots.Single(d => d.Kind == "wood");
+            Assert.False(wood.Open);
+
+            // … so pressing E at it swings it open, exactly like a wooden door placed on the ground.
+            server.InteractDoorForTest(pilot, wood.Id);
+            Assert.True(server.DoorSnapshots.Single(d => d.Id == wood.Id).Open);
+        }
+    }
+
     // ---------------- Commissioning ----------------
 
     [Fact]

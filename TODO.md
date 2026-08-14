@@ -105,6 +105,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Wooden door on a self-built ship swings by hand again (#1021, 2026-08-14, branch fix/ship-door-kind)
+LAN playtest: "the wooden door can't be opened." A door block built into a self-built ship (#948) was
+collapsed into a position-only `DoorCells` entry, and `RegisterDoors` hard-coded every landed-ship door
+to the authored ships' auto-sliding **energy** hatch (item 35) — `HandleDoorInteract` only serves
+hand-operated kinds and the client's `NearestHinge` skips non-hinged kinds, so E did nothing and no
+"E: Door" hint showed. The structure now records the door KIND per doorway cell
+(`SpaceStructure.DoorKinds`, carried through `LandedShip.Doors`): self-built ships register the door
+the player actually placed (wood/hinge swing on E; slide/energy keep proximity auto-open + the forced
+rear-hatch axis), authored ships keep their all-energy doors unchanged. Ground-placed doors were always
+fine (`PlaceableDoorTests`); new regression test `WoodenDoor_OnASelfBuiltShip_StaysHandOperated`.
+Server-only, no protocol change (`NetDoor.Kind` already carried the string).
+
 ### ★ VEGA introduces the menu and the Codex on first boot (#1015, 2026-08-14, branch feat/vega-codex-craft-hints)
 New players were never told two fundamental things: that the Tab menu exists (only mentioned in passing
 by onboarding stages 2–3) and that the Codex — the in-game wiki with 24 guide articles — exists at all
