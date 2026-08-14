@@ -13,7 +13,62 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Fixed
+## [2026.8.15] — 2026-08-15
+
+The quartermaster release. Version 2026.8.14 was tagged hours before a three-player LAN evening —
+this is everything that evening turned up, plus the storage feature it inspired. Crates can now be
+told what belongs in them, VEGA shows newcomers the menu and the Codex, copper turns up where you
+actually dig, and a long list of things that quietly broke the flow — the heartbeat kicking players
+who sat in a menu, the see-through wall behind a torch, the craft button promising more than the
+backpack could hold — are gone.
+
+### 📦 Crates that know what belongs in them (#1032)
+
+- Aim at a placed storage crate or wood box and press **E** to choose which items it accepts — an
+  ore crate, a food crate, a fuel crate. The bulk **H** stash then only moves whitelisted stacks:
+  walk your loot past a row of dedicated crates and it sorts itself. Selecting nothing (or *Allow
+  everything*) keeps today's accept-all behaviour. (#1038)
+- The filter is enforced by the server, dyed and re-formed variants of an allowed material still
+  count as that material, and a stash the filter blocked completely says so instead of claiming the
+  box is full.
+
+### 🧭 VEGA shows newcomers around (#1015, #1016, #1011)
+
+- After the opening lines VEGA now introduces the **Tab menu** (inventory, crafting, tech, map) and
+  points at the **Codex** — the two discoveries new players most often missed. Both lines stay
+  re-readable in the Story tab. (#1022)
+- Crafting cost lists tag every ingredient as **craftable** or **raw resource**; for a craftable
+  ingredient you are short of, its own recipe inputs are listed right beneath, scaled to the missing
+  amount. (#1022)
+- VEGA hints and story pages no longer vanish on a 25-second timer — a fully revealed page stays
+  until you continue with **N**, however fast or slow you read. Esc still skips the prologue, and
+  the settings toggle still mutes advisor hints. (#1018)
+
+### ⛏️ Copper where you dig (#1024)
+
+- Which ore a world offered you was a lottery: each vein's whole budget went into one smooth
+  large-scale noise field, which necessarily concentrates the ore into few giant blobs. LAN verdict:
+  "copper is too rare — and when you finally find it, it's a mountain."
+- Shallow starter ores (iron, copper, silicate) now split their budget across **two scales**: half
+  stays in the big mother-lode strikes that make prospecting worth it, half goes into a fine sprinkle
+  of small veins that turn up wherever you dig. Median tunnel distance to the first copper drops from
+  39–91 m to 25–41 m; tunnels finding *no* copper in 256 m drop from up to a quarter to 2–4 %. Deep
+  rarities (diamond, uranium, …) keep the single field — a rare strike should stay a find. (#1028)
+- ⚠ Like every worldgen change, ore positions shift inside *untouched* terrain of existing worlds;
+  everything players built, mined or placed persists.
+
+### 🚀 Ship rooms read as rooms (#1009, #1021)
+
+- The station marker blocks aboard ships were generic world blocks — the workshop a stone block, the
+  medbay ice, the quarters carbon, the cargo hold invisible against the hull. Each station is now
+  the themed machine block whose world function already matches the room: **heal tank** in the
+  medbay, **workbench** in the workshop, **bed** in the quarters, **crate** at the cargo hold.
+  Existing saves pick the markers up automatically. (#1013)
+- A wooden door built into a self-built ship ignored **E**: every landed-ship door was registered as
+  an auto-sliding energy hatch. Doors now keep the kind you actually placed — wood and hinge doors
+  swing by hand, slide and energy doors keep their proximity auto-open. (#1026)
+
+### 🌍 Multiplayer: the world stays under your feet (#1030, #1020, #1008)
 
 - **"I only see space": returning to an area another player kept loaded showed void terrain.** The
   client frees far-away terrain to keep memory bounded, but the server only forgot what it had sent a
@@ -21,17 +76,70 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   teleport, beam or on foot — streamed nothing: ship and animals rendered over a starfield. The server
   now also forgets per player, by that player's own distance, so a return always re-streams the ground.
   `/tpp` additionally refreshes your aboard-ship state and refuses targets that are in space or on
-  another planet instead of copying their coordinates into the wrong scene. (#1030)
-
+  another planet instead of copying their coordinates into the wrong scene. (#1036)
 - **Dying near another player could respawn you inside *their* ship.** Deaths dealt by the world's AI
   (creatures, guardian machines, bandits, a destroyed speeder) — and the void-rescue teleport — resolved
   the respawn target through whichever player the server had served last, dropping the victim at the
   other player's heal tank (and it could even re-home that ship). Every death and rescue path now pins
-  the dying player's own ship first. (#1020)
+  the dying player's own ship first. (#1027)
 - **Another player's landing pad never showed as occupied on your world map.** The pad list was sent
   only once, on your own arrival: anyone who landed *after* you kept showing as a free, anonymous pad
   forever. Claiming or releasing a pad (landing, joining, leaving, observer mode) now republishes the
-  pad list to everyone on the body. (#1020)
+  pad list to everyone on the body. (#1027)
+- **The 90-second heartbeat kicked players who were just sitting in a menu.** The client went
+  completely silent behind crafting, map, trade, chat, the star map and the pad chooser — seven kicks
+  in one 80-minute LAN evening. The position stream now keeps flowing (frozen in place) behind every
+  menu, so the sweep only catches actually dead connections. (#1014)
+
+### 🧱 Placing blocks near a ship works again (#1023, #1031)
+
+- **"Sand and dirt cannot be placed."** The materials were innocent: *any* placement into a landed
+  ship's bounding box — which includes the ground-level air ring around the hull, exactly where
+  players spawn — was silently rerouted into a ship-structure edit and rejected. Placements only
+  become structure edits now when the aim ray actually hits that ship; aiming at the ground always
+  places a world block. Most likely this also explains the "painted block won't place" report. (#1025)
+- **The wall behind a torch was see-through.** Torches, lanterns and ladders never fill their block
+  cell, but the mesher treated them as sealing neighbours and culled the wall face behind them —
+  visually *and* from the collider. They now count as open space for face culling, ambient occlusion
+  and light, so the wall stays a wall. (#1035)
+
+### 🛠️ Crafting & inventory polish (#1010, #1012, #1033)
+
+- **The craft button no longer promises what your backpack can't hold.** With 24/24 slots full, a
+  recipe showed green and clickable, and the refusal arrived as an easy-to-miss toast. The client now
+  dry-runs the same fit check the server enforces and disables the button with the localized
+  "inventory full" notice up front. (#1019)
+- The Inventory tab's first sidebar entry no longer repeats "Inventory" — it is **Backpack** now
+  (German: *Rucksack*), next to the unchanged Cargo Hold. (#1017)
+- Selecting an empty hotbar slot shows your gloved **hand** instead of nothing — tinted to match
+  your suit's arm colour, with the usual swing on a punch. (#1037)
+
+### 🔍 The scanner scans what you aim at (#1005, #1004)
+
+- **The scanner looked stuck on its last subject.** It picked the nearest creature within reach by
+  pure distance — including one behind you or behind a wall — and a missed scan was silent, leaving
+  the old readout pinned. Scans are now aim-gated (a 25° cone around your view; point-blank always
+  passes), and an empty or rejected scan says so in a toast. (#1007)
+- **A guard drone no longer fires laser bolts at you through solid rock.** The shots were always
+  cosmetic — damage checked line of sight — but the client drew and voiced them regardless. Ranged
+  attack effects now hold fire without a clear sight line. (#1006)
+
+### 🗒 Honest descriptions (#1029)
+
+- The forge's description promised *faster* smelting — crafting is instant, there is nothing to be
+  faster than. It now states the forge's real advantages: more metal out of every ore than the
+  workbench, and the ability to refine rare ores (titanium, tungsten, uranium, diamond, …) the
+  workbench can't handle. Fixed in all 14 languages. (#1034)
+
+### 🛠️ Behind the scenes
+
+- The crate filter travels as one new additive intent message and an additive save column via the
+  usual idempotent migration — old saves simply read as "allow everything". (#1038)
+
+  ℹ Multiplayer: the wire protocol stays **3**. The fixes split roughly evenly between client side
+  (heartbeat, placement rerouting, craft gating, torch wall, hand, VEGA timing) and server side
+  (respawn, pads, terrain re-stream, doors, room markers, ore) — for the full effect, host and
+  clients should both update.
 
 ## [2026.8.14] — 2026-08-14
 
@@ -2823,7 +2931,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...HEAD
+[2026.8.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...v2026.8.15
 [2026.8.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...v2026.8.14
 [2026.8.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...v2026.8.13
 [2026.8.12]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.11...v2026.8.12
