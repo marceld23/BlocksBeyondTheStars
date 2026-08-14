@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "Soggetto sconosciuto.",
   "ui.scan.no_scanner": "Nessuno scanner.",
   "ui.scan.not_scannable": "Oggetto non scansionabile.",
+  "ui.scan.no_target": "Scanner: nessun bersaglio in vista.",
   "ui.scan.subject.asteroid": "Asteroide",
   "ui.scan.subject.monument_arcade": "Arcade Caduta",
   "ui.scan.subject.monument_gate": "Portale Antico",

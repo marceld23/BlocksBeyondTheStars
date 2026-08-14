@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "Неизвестный объект.",
   "ui.scan.no_scanner": "Нет сканера.",
   "ui.scan.not_scannable": "Нельзя отсканировать.",
+  "ui.scan.no_target": "Сканер: нет цели в поле зрения.",
   "ui.scan.subject.asteroid": "Астероид",
   "ui.scan.subject.monument_arcade": "Павший Аркад",
   "ui.scan.subject.monument_gate": "Древние Врата",

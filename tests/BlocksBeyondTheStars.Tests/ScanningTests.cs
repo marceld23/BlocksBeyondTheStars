@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.GameServer;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -384,6 +387,46 @@ public sealed class ScanningTests : IDisposable
             Assert.Equal(20, p.State.KnowledgePoints);
             server.ReportMinigameResultForTest("Gamer", "", rating: 3);
             Assert.Equal(20, p.State.KnowledgePoints);
+        }
+    }
+
+    [Fact]
+    public void RejectedScan_IsSentToTheClient()
+    {
+        // A rejected scan must still reach the client: HandleScan used to drop the rejection, so the
+        // HUD stayed pinned on the previous readout — "the scanner is stuck" (#1005).
+        var link = new LoopbackLink();
+        var st = new LoopbackServerTransport(link);
+        var config = new ServerConfig { WorldName = "rocky", Seed = 4242, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "rocky"));
+        using (repo)
+        {
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+
+            var results = new List<ScanResult>();
+            var client = new LoopbackClientTransport(link);
+            client.PayloadReceived += payload =>
+            {
+                if (NetCodec.Decode(payload) is ScanResult r)
+                {
+                    results.Add(r);
+                }
+            };
+            client.Connect("loopback", 0);
+            client.Send(NetCodec.Encode(new JoinRequest { PlayerName = "Scout" }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+            client.Poll();
+            results.Clear(); // ignore anything the join itself pushed
+
+            client.Send(NetCodec.Encode(new ScanIntent { SubjectType = "block", SubjectKey = "definitely_not_a_block" }), DeliveryMode.ReliableOrdered);
+            server.Tick(0.1);
+            client.Poll();
+
+            var rejection = Assert.Single(results);
+            Assert.Equal("ui.scan.unknown", rejection.InfoKey);
+            Assert.False(rejection.FirstTime);
+            Assert.Equal(0, rejection.KnowledgeGained);
         }
     }
 

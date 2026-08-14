@@ -1766,6 +1766,7 @@
   "ui.scan.unknown": "未知对象。",
   "ui.scan.no_scanner": "无扫描器。",
   "ui.scan.not_scannable": "不可扫描的对象。",
+  "ui.scan.no_target": "扫描仪：视野内没有目标。",
   "ui.scan.subject.asteroid": "小行星",
   "ui.scan.subject.monument_arcade": "倒塌的街机",
   "ui.scan.subject.monument_gate": "远古之门",

@@ -34,7 +34,7 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
         {
-            return Rejected(subjectKey, "ui.scan.no_scanner", "No scanner.");
+            return Rejected(null, subjectKey, "ui.scan.no_scanner", "No scanner.");
         }
 
         var readout = new ScanReadout { Kind = subjectType, SubjectKey = subjectKey, Display = subjectKey };
@@ -129,7 +129,7 @@ public sealed partial class GameServer
         }
         else
         {
-            return Rejected(subjectKey, "ui.scan.unknown", "Unknown subject.");
+            return Rejected(session, subjectKey, "ui.scan.unknown", "Unknown subject.");
         }
 
         // Ledger key tracks the first scan (per species/block, or shared per tree); the readout shows `Display`.
@@ -160,9 +160,19 @@ public sealed partial class GameServer
         public string LegacyThreat = "—";
     }
 
-    /// <summary>A scan that produced nothing to award (no session / unscannable subject).</summary>
-    private static ScanResult Rejected(string subjectKey, string infoKey, string legacyInfo)
-        => new() { Subject = subjectKey, SubjectKey = subjectKey, InfoKey = infoKey, Info = legacyInfo, Threat = "—" };
+    /// <summary>A scan that produced nothing to award (no session / unscannable subject). The result is
+    /// still SENT when a session exists: a silently dropped scan leaves the client's readout pinned on the
+    /// previous subject, which reads as "the scanner is stuck" (#1005).</summary>
+    private ScanResult Rejected(PlayerSession? session, string subjectKey, string infoKey, string legacyInfo)
+    {
+        var result = new ScanResult { Subject = subjectKey, SubjectKey = subjectKey, InfoKey = infoKey, Info = legacyInfo, Threat = "—" };
+        if (session is not null)
+        {
+            Send(session, result);
+        }
+
+        return result;
+    }
 
     /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).</summary>
     public ScanResult ScanSpaceEntity(string playerId, string entityId)
@@ -170,7 +180,7 @@ public sealed partial class GameServer
         var session = FindSessionByPlayerId(playerId);
         if (session is null)
         {
-            return new ScanResult { Subject = entityId, Info = "No scanner.", Threat = "—" };
+            return Rejected(null, entityId, "ui.scan.no_scanner", "No scanner.");
         }
 
         if (!_playerInstance.TryGetValue(playerId, out var instanceId)
@@ -178,7 +188,7 @@ public sealed partial class GameServer
             || instance.Entities.FirstOrDefault(e => e.Id == entityId) is not { } target
             || target.Kind != CombatEntityKind.Asteroid)
         {
-            return Rejected(entityId, "ui.scan.not_scannable", "Not a scannable object.");
+            return Rejected(session, entityId, "ui.scan.not_scannable", "Not a scannable object.");
         }
 
         // Asteroids break down to mineral drops; report the resource types they ultimately yield.
