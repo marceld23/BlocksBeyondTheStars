@@ -105,6 +105,16 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Scan-drones no longer visibly shoot through solid terrain (#1004, 2026-08-14, branch fix/drone-fire-los)
+Playtest report: hiding in a cave, a guard scan-drone hovering outside appeared to fire at the player
+straight through the rock. The shooting was cosmetic — the server gates both the hunt lock and the
+proximity damage on `HasLineOfSight`, so no health ever moved — but the client played the laser beam +
+attack zap on `Hostile` + range alone (`DroneFireRange` 16), and `WeaponFx.Shoot` draws the beam
+unclipped, so the bolt visibly penetrated the cave wall. Ranged attack effects (scan-drone laser AND the
+bandit gunner tracer) are now gated on a render-side sight march that mirrors the server's rule:
+solid-or-fluid cells occlude, endpoints skipped, unloaded chunks read as clear. The march lives in
+`Client.Core` (`SightLine`, CinematicStageScan pattern) with five unit tests.
+
 ### ★ Multiplayer-audit follow-ups: per-pilot space actions, a real pause, observer + join hygiene (#994–#999, 2026-08-14, branch fix/mp-audit-findings)
 A code audit of every multiplayer fix shipped since v2026.8.12 confirmed all of them — and surfaced six
 new findings, fixed together here. **#994 (the real gameplay bug):** space instances are shared per body
