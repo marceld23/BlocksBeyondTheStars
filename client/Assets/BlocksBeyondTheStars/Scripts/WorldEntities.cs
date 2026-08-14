@@ -135,7 +135,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         if (en.IsDrone)
                         {
-                            if (toPlayer.sqrMagnitude < DroneFireRange * DroneFireRange)
+                            if (toPlayer.sqrMagnitude < DroneFireRange * DroneFireRange && CanSeePlayer(scenePos))
                             {
                                 en.NextAttack = Game.WorldTime + Random.Range(0.7f, 1.3f);
                                 en.AttackUntil = Game.WorldTime + 0.18f; // brief charge/recoil tic
@@ -145,7 +145,7 @@ namespace BlocksBeyondTheStars.Client
                         else if (en.IsGunner)
                         {
                             // Bandit gunner: tracer shots at aura range (cosmetic — the server aura damages).
-                            if (toPlayer.sqrMagnitude < BanditGunFireRange * BanditGunFireRange)
+                            if (toPlayer.sqrMagnitude < BanditGunFireRange * BanditGunFireRange && CanSeePlayer(scenePos))
                             {
                                 en.NextAttack = Game.WorldTime + Random.Range(0.8f, 1.5f);
                                 en.AttackUntil = Game.WorldTime + 0.2f;
@@ -198,6 +198,38 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch * MachineJitter());
             }
+        }
+
+        /// <summary>Whether a ranged attacker at <paramref name="shooter"/> has a clear sight line to the
+        /// player's chest (#1004). The server gates its hunt lock AND its damage on line-of-sight, so a
+        /// player who ducks into a cave takes no hits — but the ranged fire effect used to key on range
+        /// alone, so a drone hovering outside visibly sniped them straight through the rock. Mirrors the
+        /// server's sight rule: a non-air block whose definition is missing or <c>Solid</c> occludes, and
+        /// so do water/lava; endpoint cells are skipped (the bodies aren't occluders).</summary>
+        private bool CanSeePlayer(Vector3 shooter)
+        {
+            if (Game?.World == null)
+            {
+                return true; // no world to sample — keep the effect rather than silently muting combat
+            }
+
+            Vector3 chest = Game.PlayerPosition + Vector3.up * 0.9f; // where the beam aims
+            return SightLine.Clear(IsSightBlockingCell, shooter.x, shooter.y, shooter.z, chest.x, chest.y, chest.z);
+        }
+
+        /// <summary>Sight-blocking test for one world cell — the client twin of the server's
+        /// <c>IsSightBlockingCell</c>. <c>GetBlock</c> canonicalises seam coordinates and reads unloaded
+        /// chunks as air (clear), which is the right lenient default for a cosmetic effect.</summary>
+        private bool IsSightBlockingCell(int wx, int wy, int wz)
+        {
+            var id = Game.World.GetBlock(wx, wy, wz);
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            var def = Game.Content?.BlockById(id);
+            return def == null || def.Solid || def.Key is "water" or "lava";
         }
 
         /// <summary>A ranged attacker's shot: a short laser beam to the player (with a little scatter) plus the
