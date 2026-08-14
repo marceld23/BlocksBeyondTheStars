@@ -420,9 +420,9 @@ namespace BlocksBeyondTheStars.Client
                 _held = null;
             }
 
-            if (kind == HeldItem.Kind.None)
+            if (kind == HeldItem.Kind.None || kind == HeldItem.Kind.Hand)
             {
-                return;
+                return; // Hand (#1033) is first-person only — the avatar already has its own hand mesh.
             }
 
             _held = HeldItem.Build(_handR, kind, tint, blockKey);

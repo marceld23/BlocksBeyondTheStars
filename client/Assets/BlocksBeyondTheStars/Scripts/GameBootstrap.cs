@@ -1499,6 +1499,9 @@ namespace BlocksBeyondTheStars.Client
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
 
+            // The empty-slot hand (#1033) wears a glove in the player's suit arm colour.
+            HeldItem.HandTintResolver = () => Settings?.ArmColor;
+
             if (Loopback != null)
             {
                 // In-process singleplayer: the server lives in THIS process (BrowserLocalServer) — the

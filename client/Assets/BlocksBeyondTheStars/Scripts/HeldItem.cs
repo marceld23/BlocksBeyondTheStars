@@ -14,18 +14,31 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public static class HeldItem
     {
-        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget }
+        public enum Kind { None, Block, Drill, Gun, Blade, Scanner, Tool, Gadget, Hand }
 
         /// <summary>Resolves a block key to its atlas texture + tile UV rect, so a held block shows its REAL
         /// in-world texture instead of a flat map colour. Wired by GameBootstrap once the atlas exists; null
         /// (or a null result) falls back to the tinted cube.</summary>
         public static System.Func<string, (Texture2D Tex, Rect Uv)?> BlockTileResolver;
 
+        /// <summary>Resolves the local player's suit arm colour so the empty-slot hand matches the
+        /// avatar's glove. Wired by GameBootstrap; null falls back to the default suit blue.</summary>
+        public static System.Func<Color?> HandTintResolver;
+
+        /// <summary>Default glove colour when no resolver is wired (= <c>ClientSettings.ArmColor</c> default).</summary>
+        private static readonly Color DefaultGlove = new Color(0.20f, 0.45f, 0.80f);
+
         /// <summary>Maps the selected inventory item to a held-item kind + tint (+ the block key for
         /// <see cref="Kind.Block"/>, so the held cube can carry the block's real atlas tile).</summary>
         public static (Kind kind, Color tint, string blockKey) For(GameContent content, string itemKey)
         {
-            if (string.IsNullOrEmpty(itemKey) || content == null)
+            if (string.IsNullOrEmpty(itemKey))
+            {
+                // Empty hotbar slot: show the bare (gloved) hand instead of nothing (#1033).
+                return (Kind.Hand, HandTintResolver?.Invoke() ?? DefaultGlove, null);
+            }
+
+            if (content == null)
             {
                 return (Kind.None, Color.white, null);
             }
@@ -141,6 +154,16 @@ namespace BlocksBeyondTheStars.Client
                     Cube(holder.transform, new Vector3(0f, 0f, 0.18f), new Vector3(0.08f, 0.08f, 0.12f), dark);     // barrel
                     Cube(holder.transform, new Vector3(0f, 0f, 0.27f), new Vector3(0.10f, 0.10f, 0.05f), tint);     // emitter glow
                     Cube(holder.transform, new Vector3(0f, -0.12f, -0.04f), new Vector3(0.07f, 0.16f, 0.09f), dark); // grip
+                    break;
+
+                case Kind.Hand:
+                    // Empty slot (#1033): a gloved fist on the suit-coloured forearm — thumb on the inner
+                    // side of a right hand, cuff a darker shade for definition.
+                    var cuff = new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f);
+                    Cube(holder.transform, new Vector3(0.02f, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint); // forearm
+                    Cube(holder.transform, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);    // cuff
+                    Cube(holder.transform, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);         // fist
+                    Cube(holder.transform, new Vector3(-0.075f, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint); // thumb
                     break;
 
                 default: // Tool
