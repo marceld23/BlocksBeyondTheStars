@@ -292,8 +292,9 @@ namespace BlocksBeyondTheStars.Client
             // the three solid blocks meeting at it (its two edge neighbours + the diagonal, in the outward
             // layer) are filled. Turns the flat per-face shade into soft contact shadows in every crevice, so
             // the blocky world reads far more grounded/organic. Baked into vertex-colour .b, which the atlas
-            // shader already multiplies into the lighting — no shader change. Air, glass, water + plants don't
-            // occlude; opaque solids do. The outward-cell probes are cached for the chunk.
+            // shader already multiplies into the lighting — no shader change. Air, glass, water, plants + slim
+            // props (torch/lantern/ladder) don't occlude; opaque solids do. The outward-cell probes are cached
+            // for the chunk.
             var aoOcc = _aoOccScratch ??= new Dictionary<(int, int, int), bool>();
             aoOcc.Clear();
             bool AoOccluder(int ax, int ay, int az)
@@ -305,7 +306,8 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var b = worldBlock(ax, ay, az);
-                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b);
+                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
+                    && !IsSlimPropBlock(content, b);
                 aoOcc[key] = res;
                 return res;
             }
@@ -681,7 +683,10 @@ namespace BlocksBeyondTheStars.Client
                     // rounded shaped block that doesn't fill the cell's corners — none of them cover the ground/
                     // wall behind. Dropping this (batch 27afca87) culled the ground top UNDER every plant →
                     // see-through white holes ("the transparent plant floor"; solid-flora domes left white
-                    // corner slivers). Mirror AoOccluder's non-occluder set exactly (flora + foliage). Foliage's
+                    // corner slivers). The same goes for SLIM PROPS (torch/lantern/ladder): they mesh their own
+                    // slim geometry and never fill the cell, so a wall must keep its face (and collider face)
+                    // behind them — otherwise placing a torch opened an x-ray hole into the world (#1031).
+                    // Mirror AoOccluder's non-occluder set exactly (flora + foliage + slim props). Foliage's
                     // OWN faces stay a thin shell — the `foliage` branch draws toward air/glass only, so it still
                     // culls against opaque AND its own kind. (Solid flora meshes its own shape and never reaches
                     // this loop, so it needs no branch here — only its opaque NEIGHBOURS must keep their faces.)
@@ -692,7 +697,8 @@ namespace BlocksBeyondTheStars.Client
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
                     bool drawFace = transparent ? (nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? (nb.IsAir || IsTransparent(content, nb))
-                        : (nb.IsAir || IsTransparent(content, nb) || IsFloraBlock(content, nb) || IsFoliageBlock(content, nb));
+                        : (nb.IsAir || IsTransparent(content, nb) || IsFloraBlock(content, nb) || IsFoliageBlock(content, nb)
+                            || IsSlimPropBlock(content, nb));
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
@@ -1354,6 +1360,21 @@ namespace BlocksBeyondTheStars.Client
             return key is "water" or "lava";
         }
 
+        /// <summary>True for slim props that mesh their OWN geometry and never fill their cell: the
+        /// torch/lantern cross-billboards and the ladder wall plate/pole. Like flora, such a cell must not
+        /// seal a neighbouring opaque block's face (#1031: the wall behind a placed torch turned see-through),
+        /// must not occlude AO corners, and must not stop placed-light propagation. The other non-solid
+        /// blocks (water/fire/energy_gate) are already covered by <see cref="IsTransparent"/>.</summary>
+        private static bool IsSlimPropBlock(GameContent content, BlockId id)
+        {
+            if (id.IsAir)
+            {
+                return false;
+            }
+
+            return content.BlockById(id)?.Key is "torch" or "lantern" or "ladder";
+        }
+
         /// <summary>The up-face that leans the ladder's wall plate against the first solid horizontal
         /// neighbour (#803), or -1 when the ladder stands free (→ slim pole instead). The Panel's body sits
         /// at LOW local Y, so up-face +X (2) rests the plate against the -X wall, and so on.</summary>
@@ -1586,7 +1607,8 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var b = worldBlock(wx, wy, wz);
-                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b);
+                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
+                    && !IsSlimPropBlock(content, b);
                 opaqueCache[key] = res;
                 return res;
             }

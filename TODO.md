@@ -105,6 +105,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ The wall behind a placed torch is no longer see-through (#1031, 2026-08-15, branch fix/torch-xray-neighbor-cull)
+Placing a torch on a wall opened an x-ray hole: `ChunkMesher`'s neighbour-culling only kept an opaque
+face toward air / transparent / flora / foliage cells, and a torch cell is none of those — it meshes
+its own slim cross-billboard and never fills the cell, yet it *sealed* the wall face behind it (render
+AND collider face, same loop). The lantern shared the bug, and the ladder too (mostly masked by its
+wall plate leaning against that very face). A new `IsSlimPropBlock` set (torch/lantern/ladder) is now
+treated like air in all three places that must stay in sync: the opaque `drawFace` branch, the AO
+corner occluder, and the placed-light BFS (a slim prop no longer blocks light or stamps a full-cell
+contact shadow onto its wall). The other `solid:false` blocks (water/fire/energy_gate) were already
+covered via `IsTransparent`. Client-only, no protocol change.
+
 ### ★ Empty hotbar slot shows the player's hand (#1033, 2026-08-15, branch fix/empty-slot-hand-viewmodel)
 Selecting an empty hotbar slot rendered nothing at all in first person: `HeldItem.For` mapped the empty
 item key to `Kind.None`, so the viewmodel holder was deactivated entirely — no feedback that the slot
