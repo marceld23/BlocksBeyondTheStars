@@ -8012,6 +8012,24 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-15): storage crates take a per-crate item filter — the player decides what belongs in (#1032)
+
+Feature wish: dedicate crates to specific contents (an ore crate, a food crate) so the bulk **H** stash
+sorts itself instead of dumping everything everywhere. Aim at a placed crate / wood box and press **E**:
+a modal grid (current whitelist + the stashable items you carry) toggles what the crate accepts; *Allow
+everything* clears it. Server-authoritative: `DepositToContainer` skips non-whitelisted stacks (matched on
+`ItemKey.Base`, so dyed/re-formed variants of an allowed material still fit) and a fully-filtered stash
+answers with its own reject (`srv.loot.filter_blocked`) instead of the misleading "box is full". The
+filter persists (`container.filter` column, idempotent `ALTER TABLE` migration on SQLite + Postgres;
+the in-memory WebGL repo needed nothing) and rides `NetContainer.Filter` on the existing container
+broadcast — new intent `SetContainerFilterIntent` (tag 204), **no protocol bump** (additive). Station-
+derived runtime crates deliberately aren't persisted by the filter handler. HUD prompt at a crate now
+shows **Filter on** plus the E hint; USER_MANUAL documents the workflow (and the previously missing
+**H** key row). New `ContainerFilterTests` cover whitelist enforcement, dyed-variant matching, clearing,
+input sanitising and the persistence roundtrip.
+
+---
+
 ## ✅ Done (2026-08-14): shallow ore veins split across two noise scales — the ore lottery is over (#1024)
 
 Player report (LAN playtest): *"copper is too rare — and the deposits are gigantic, but which ore you

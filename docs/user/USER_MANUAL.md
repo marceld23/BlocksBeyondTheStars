@@ -82,7 +82,8 @@ Last updated: 2026-08-11.
 | **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
-| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on |
+| **H** | Store your loose materials in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
+| **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder back into its item |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
@@ -235,6 +236,11 @@ separate unlock; admins can still disable it through server world rules.
   pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals).
 - **Wood box** (hand-crafted from logs): early-game storage sharing the crate's stash/loot keys, but it
   only holds a few kinds of material (8 stacks) — the workshop's iron crate stores everything.
+- **Storage crates — choose what goes in:** aim at a placed crate or wood box and press **E** to pick
+  which items belong in it (an ore crate, a food crate, …). From then on **H** only stores the chosen
+  items there — walk your loot past a row of dedicated crates and it sorts itself. The HUD prompt shows
+  **Filter on** at such a crate; select nothing in the dialog (or hit *Allow everything*) to go back to
+  accepting it all. Dyed or re-formed variants of a chosen material count as that material.
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
 
 ### Fire

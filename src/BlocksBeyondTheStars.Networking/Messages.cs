@@ -322,6 +322,16 @@ public sealed class DepositContainerIntent
     public string ContainerId { get; set; } = string.Empty;
 }
 
+/// <summary>Client sets which items a storage crate accepts on a stash (#1032). <see cref="Items"/> carries
+/// base item keys (no colour/shape modifiers — the server matches stashed stacks by their base key, so a
+/// dyed variant of an allowed material still fits). An empty array clears the filter (everything allowed).
+/// The server validates proximity and drops unknown or non-stashable keys.</summary>
+public sealed class SetContainerFilterIntent
+{
+    public string ContainerId { get; set; } = string.Empty;
+    public string[] Items { get; set; } = System.Array.Empty<string>();
+}
+
 /// <summary>
 /// Client permanently destroys an item it no longer wants (#599) — every other path (cargo hold, storage
 /// crate, trade) only <i>stores</i> it, so without this a stack of 300 dirt is carried around forever.
@@ -1691,6 +1701,11 @@ public sealed class NetContainer
     public float Y { get; set; }
     public float Z { get; set; }
     public int ItemCount { get; set; }
+
+    /// <summary>Base item keys this crate accepts on a stash (#1032); empty = everything. Contents stay
+    /// count-only on purpose — the filter is small and changes rarely, an item list would ride every
+    /// stash/loot broadcast.</summary>
+    public string[] Filter { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>Lootable containers on the current planet (salvage capsules / corpses), sent on join + on change.

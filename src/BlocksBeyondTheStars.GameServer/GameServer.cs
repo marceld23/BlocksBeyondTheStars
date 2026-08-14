@@ -2702,6 +2702,7 @@ public sealed partial class GameServer
             case RequestLandingPadsIntent reqPads: HandleRequestLandingPads(session, reqPads); break;
             case LootContainerIntent loot: HandleLootContainer(session, loot); break;
             case DepositContainerIntent dep: HandleDepositContainer(session, dep); break;
+            case SetContainerFilterIntent filter: HandleSetContainerFilter(session, filter); break;
             case MoveCargoItemIntent moveCargo: HandleMoveCargoItem(session, moveCargo); break;
             case ShipMoveIntent shipMove: HandleShipMove(session, shipMove); break;
             case DisassembleIntent disassemble: HandleDisassemble(session, disassemble); break;

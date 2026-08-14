@@ -170,6 +170,10 @@ namespace BlocksBeyondTheStars.Client
             var beaconLabel = root.AddComponent<BeaconLabelUi>();
             beaconLabel.Game = boot;
 
+            // Crate stash filter (#1032): opens on E at a storage crate — pick what belongs in it.
+            var containerFilter = root.AddComponent<ContainerFilterUi>();
+            containerFilter.Game = boot;
+
             // Block-paint editor host (#818): opens when using the paint tool on a placed block.
             var paintTool = root.AddComponent<PaintToolUi>();
             paintTool.Game = boot;

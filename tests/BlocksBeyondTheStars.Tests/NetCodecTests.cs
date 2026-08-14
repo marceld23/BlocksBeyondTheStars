@@ -254,6 +254,7 @@ public sealed class NetCodecTests
         [201] = typeof(WeatherForecast),
         [202] = typeof(PaintCraftIntent),
         [203] = typeof(TradeRequestNotice),
+        [204] = typeof(SetContainerFilterIntent),
     };
 
     [Fact]

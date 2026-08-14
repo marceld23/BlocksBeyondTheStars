@@ -26,6 +26,10 @@ public sealed partial class GameServer
     /// unbounded — capacity is the wood box's price for being craftable from nothing but logs.</summary>
     private const int WoodCrateStackSlots = 8;
 
+    /// <summary>Upper bound on a crate's filter list (#1032) — enough for any real sorting scheme, small
+    /// enough that a hostile client can't inflate the container broadcast every player receives.</summary>
+    private const int MaxFilterEntries = 32;
+
     private List<StoredContainer> _containers => _worlds.Active.Containers;
 
     /// <summary>Blocks that become a storage container when placed (share the "crate" container kind,
@@ -174,10 +178,19 @@ public sealed partial class GameServer
 
         var merged = container.Items.Where(s => !s.IsEmpty).ToDictionary(s => s.Item, s => s.Count);
         bool stashed = false;
+        bool boxFull = false;
         foreach (var (item, count) in toStash)
         {
+            // Dedicated crates (#1032): only whitelisted items go in. Matched on the base key so a
+            // dyed/shaped variant of an allowed material still fits.
+            if (container.Filter.Count > 0 && !container.Filter.Contains(ItemKey.Base(item)))
+            {
+                continue; // not what this crate is for — this stack stays with the player
+            }
+
             if (woodBox && !merged.ContainsKey(item) && merged.Count >= WoodCrateStackSlots)
             {
+                boxFull = true;
                 continue; // box full for new item types — this stack stays with the player
             }
 
@@ -188,7 +201,9 @@ public sealed partial class GameServer
 
         if (!stashed)
         {
-            Reject(session, "stash", "@srv.loot.wood_box_full");
+            // "Box full" only when capacity actually refused something; otherwise the filter did, and
+            // saying "full" at an empty-but-dedicated crate would send the player hunting phantom space.
+            Reject(session, "stash", boxFull ? "@srv.loot.wood_box_full" : "@srv.loot.filter_blocked");
             return;
         }
 
@@ -200,6 +215,46 @@ public sealed partial class GameServer
 
     private void HandleDepositContainer(PlayerSession session, DepositContainerIntent intent)
         => DepositToContainer(session.State.PlayerId, intent.ContainerId);
+
+    /// <summary>The player dedicates a crate to specific items (#1032): press E at a crate, pick what belongs
+    /// in it. Server-authoritative — unknown keys and non-stashable categories are dropped here, so the client
+    /// UI is a convenience, not the rule. An empty list clears the filter.</summary>
+    private void HandleSetContainerFilter(PlayerSession session, SetContainerFilterIntent intent)
+    {
+        var container = _containers.FirstOrDefault(c => c.Id == intent.ContainerId && c.Kind == "crate");
+        if (container is null)
+        {
+            Reject(session, "stash", "@srv.loot.no_crate");
+            return;
+        }
+
+        var center = new Vector3f(container.Position.X + 0.5f, container.Position.Y + 0.5f, container.Position.Z + 0.5f);
+        if (WrapDistSq(session.State.Position, center) > LootReach * LootReach)
+        {
+            Reject(session, "stash", "@out_of_reach");
+            return;
+        }
+
+        container.Filter = (intent.Items ?? Array.Empty<string>())
+            .Select(ItemKey.Base)
+            .Where(key => _content.GetItem(key)?.Category is Shared.Definitions.ItemCategory.Material or Shared.Definitions.ItemCategory.Component)
+            .Distinct()
+            .Take(MaxFilterEntries)
+            .ToList();
+
+        // Station-derived crates are runtime-only (rebuilt on every board, never saved) — persisting one
+        // here would leave a phantom row behind. Only crates that exist as placed blocks are written back.
+        if (IsContainerBlock(_content.BlockById(_world.GetBlock(container.Position))?.Key ?? string.Empty))
+        {
+            _repo.SaveContainer(container);
+        }
+
+        BroadcastContainers();
+    }
+
+    /// <summary>Test/util entrypoint: set a crate's filter as a given player (mirrors the filter intent).</summary>
+    public void SetContainerFilterForTest(PlayerSession session, string containerId, string[] items)
+        => HandleSetContainerFilter(session, new SetContainerFilterIntent { ContainerId = containerId, Items = items });
 
     /// <summary>Places a storage crate the player just built into the world as an (empty) lootable container.</summary>
     private void PlaceCrate(Vector3i pos)
@@ -251,6 +306,7 @@ public sealed partial class GameServer
         Y = c.Position.Y,
         Z = c.Position.Z,
         ItemCount = c.Items.Count,
+        Filter = c.Filter.ToArray(),
     };
 
     /// <summary>The containers a client renders + loots. Ground drop packets share this store (and its free

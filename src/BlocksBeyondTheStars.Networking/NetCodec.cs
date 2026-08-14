@@ -398,6 +398,10 @@ public static class NetCodec
         // Player-to-player trade handshake (#981): the invitation needs its own message so the target can
         // answer it — a chat line alone left TradeRespondIntent with no sender in the whole client.
         Register(203, typeof(TradeRequestNotice));       // Server -> Client (someone nearby wants to trade)
+
+        // Per-crate stash filter (#1032): the player decides what belongs in a container. The filter itself
+        // travels back on NetContainer.Filter — no extra server->client message needed.
+        Register(204, typeof(SetContainerFilterIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

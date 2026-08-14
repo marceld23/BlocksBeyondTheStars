@@ -1342,6 +1342,21 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // A storage crate you're aiming at → choose what belongs in it (#1032). Matched by the
+            // container list, not the block alone, so a crate block that hasn't registered yet no-ops.
+            if (AimBlock(out var crateHit, out _)
+                && Game.Content?.BlockById(Game.World.GetBlock(crateHit.x, crateHit.y, crateHit.z))?.Key is "crate" or "wood_crate")
+            {
+                foreach (var c in Game.Containers)
+                {
+                    if (c.Kind == "crate" && (int)c.X == crateHit.x && (int)c.Y == crateHit.y && (int)c.Z == crateHit.z)
+                    {
+                        ContainerFilterUi.Instance?.Open(c.Id, c.Filter);
+                        return;
+                    }
+                }
+            }
+
             // A heal tank — or its low-tech precursor, the bed (#804) — you're aiming at → make it your
             // home spawn point (base/station, issue #461).
             if (AimBlock(out var tankHit, out _)

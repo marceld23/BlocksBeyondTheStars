@@ -73,7 +73,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS ship (id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
-                x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL);
+                x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL,
+                filter TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS door (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 kind TEXT NOT NULL, axisx INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -143,6 +144,8 @@ public sealed class SqliteWorldRepository : IWorldRepository
         TryExecute("ALTER TABLE paint_report ADD COLUMN kind TEXT NOT NULL DEFAULT 'paint';");
         // Attribution for copied designs (#846): pre-existing designs simply have no designer name on record.
         TryExecute("ALTER TABLE paint_design ADD COLUMN owner_name TEXT NOT NULL DEFAULT '';");
+        // Per-container stash filter (#1032): '' = no filter, which is what every pre-existing crate keeps.
+        TryExecute("ALTER TABLE container ADD COLUMN filter TEXT NOT NULL DEFAULT '';");
     }
 
     // --- Block-id palette (content-shift migration) ---
@@ -596,13 +599,14 @@ public sealed class SqliteWorldRepository : IWorldRepository
     public void SaveContainer(StoredContainer container)
     {
         var json = JsonSerializer.Serialize(container.Items, JsonOptions);
+        var filter = container.Filter.Count == 0 ? string.Empty : JsonSerializer.Serialize(container.Filter, JsonOptions);
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json) " +
-                              "VALUES ($id, $p, $k, $x, $y, $z, $json) " +
+            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json, filter) " +
+                              "VALUES ($id, $p, $k, $x, $y, $z, $json, $filter) " +
                               "ON CONFLICT(id) DO UPDATE SET planet=excluded.planet, kind=excluded.kind, " +
-                              "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json;";
+                              "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json, filter=excluded.filter;";
             cmd.Parameters.AddWithValue("$id", container.Id);
             cmd.Parameters.AddWithValue("$p", container.Planet);
             cmd.Parameters.AddWithValue("$k", container.Kind);
@@ -610,6 +614,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("$y", container.Position.Y);
             cmd.Parameters.AddWithValue("$z", container.Position.Z);
             cmd.Parameters.AddWithValue("$json", json);
+            cmd.Parameters.AddWithValue("$filter", filter);
             cmd.ExecuteNonQuery();
         }
     }
@@ -620,11 +625,12 @@ public sealed class SqliteWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT id, kind, x, y, z, json FROM container WHERE planet = $p;";
+            cmd.CommandText = "SELECT id, kind, x, y, z, json, filter FROM container WHERE planet = $p;";
             cmd.Parameters.AddWithValue("$p", planet);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
+                var filterJson = reader.GetString(6);
                 result.Add(new StoredContainer
                 {
                     Id = reader.GetString(0),
@@ -632,6 +638,9 @@ public sealed class SqliteWorldRepository : IWorldRepository
                     Kind = reader.GetString(1),
                     Position = new Vector3i(reader.GetInt32(2), reader.GetInt32(3), reader.GetInt32(4)),
                     Items = JsonSerializer.Deserialize<List<ItemStack>>(reader.GetString(5), JsonOptions) ?? new List<ItemStack>(),
+                    Filter = filterJson.Length == 0
+                        ? new List<string>()
+                        : JsonSerializer.Deserialize<List<string>>(filterJson, JsonOptions) ?? new List<string>(),
                 });
             }
         }

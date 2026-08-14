@@ -16,6 +16,10 @@ public sealed class StoredContainer
     public string Kind { get; set; } = "container";
     public Vector3i Position { get; set; }
     public List<ItemStack> Items { get; set; } = new();
+
+    /// <summary>Base item keys allowed into this container on a stash (#1032). Empty = everything allowed
+    /// (the pre-filter behaviour, and what every container saved before this shipped deserializes to).</summary>
+    public List<string> Filter { get; set; } = new();
 }
 
 /// <summary>A player-built door, persisted by its world cell so it survives the deterministic door rebuild.</summary>

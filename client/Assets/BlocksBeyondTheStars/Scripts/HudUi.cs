@@ -1820,9 +1820,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // A storage crate (Task 5 Stage 3b) shows the take/store keys; salvage capsules just say "loot".
-            return nearest.Kind == "crate"
-                ? $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})  ·  {loc.Get("ui.hud.stash_keys")}"
-                : $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})";
+            // A dedicated crate (#1032) announces its filter, so "H did nothing" reads as "wrong crate".
+            if (nearest.Kind == "crate")
+            {
+                string label = nearest.Filter is { Length: > 0 }
+                    ? $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})  ·  {loc.Get("ui.hud.stash_filtered")}"
+                    : $"{loc.Get("ui.hud.stash")} ({nearest.ItemCount})";
+                return $"{label}  ·  {loc.Get("ui.hud.stash_keys")}  ·  {loc.Get("ui.hud.stash_filter_key")}";
+            }
+
+            return $"{loc.Get("ui.hud.loot")} ({nearest.ItemCount})";
         }
 
         private bool HoldingScanner()

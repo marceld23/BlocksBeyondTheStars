@@ -463,6 +463,10 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendDepositContainer(string containerId) => Send(new DepositContainerIntent { ContainerId = containerId });
 
+        /// <summary>Dedicate a crate to specific base item keys (#1032); an empty array clears the filter.</summary>
+        public void SendSetContainerFilter(string containerId, string[] items)
+            => Send(new SetContainerFilterIntent { ContainerId = containerId, Items = items ?? System.Array.Empty<string>() });
+
         /// <summary>Move items between the personal inventory and the ship's cargo hold. <paramref name="item"/> = ""
         /// with <paramref name="bulkAll"/> = true is "stow all" / "take all"; otherwise it moves all of one item.</summary>
         public void SendMoveCargoItem(bool toCargo, string item = "", bool bulkAll = false)
