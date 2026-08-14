@@ -105,6 +105,16 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ VEGA hints and story pages stay until the player continues (#1011, 2026-08-14, branch fix/vega-lines-persist)
+Every line in VEGA's speech panel — advisor hints, story/memory beats, onboarding, prologue pages —
+was auto-dismissed 25 s after it finished typing (`AutoAdvanceSeconds` in `VegaPanel`), so slow
+readers (and long German lines) lost hints before finishing them. The timeout is gone: a fully
+revealed page now stays until **[N]** is pressed; later lines simply wait in the queue, exactly as
+before. All the escape hatches are untouched — Esc still skips the whole prologue, the
+`VegaHints` settings mute still suppresses advisor lines, and unattended screenshot runs still
+clear the panel via `DismissSpeechForCapture()` (that hook is why the "unattended panel" fallback
+the timeout was built for is no longer needed). Client-only change, no protocol/locale impact.
+
 ### ★ Crafting menu says "no room for the result" up front instead of a missable toast (#1010, 2026-08-14, branch fix/craft-ui-inventory-full)
 LAN playtest: a player had unlocked the paint-tool blueprint and owned every ingredient, yet the craft
 kept failing — the backpack was full (24/24 slots), the inputs only shrink existing stacks without

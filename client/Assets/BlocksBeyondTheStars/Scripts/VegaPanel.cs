@@ -11,8 +11,10 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// The HUD companion panel for the ship AI "VEGA": shows her lines with a typewriter effect (queued,
     /// radio blip per line) and a persistent objective chip while the onboarding chain is active, with a
-    /// skip button. Lines arrive as locale KEYS (<see cref="ShipAiLine"/>) and are localized here, so the
-    /// companion is fully bilingual and offline-safe. Advisor hints (Kind 1) respect the settings mute.
+    /// skip button. A revealed page stays until the player presses the continue key — there is no
+    /// auto-dismiss timeout (#1011). Lines arrive as locale KEYS (<see cref="ShipAiLine"/>) and are
+    /// localized here, so the companion is fully bilingual and offline-safe. Advisor hints (Kind 1)
+    /// respect the settings mute.
     /// </summary>
     public sealed class VegaPanel : MonoBehaviour
     {
@@ -28,7 +30,6 @@ namespace BlocksBeyondTheStars.Client
         public MemoryFlashback Flashback;
 
         private const float CharsPerSecond = 42f;
-        private const float AutoAdvanceSeconds = 25f; // fallback so an unattended line never blocks forever
         private const KeyCode ContinueKey = KeyCode.N;
 
         // Left-column layout in HUD reference units (1536×864). The column is full: vitals end at y 260,
@@ -51,7 +52,6 @@ namespace BlocksBeyondTheStars.Client
         private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
         private float _shown;     // characters revealed so far
-        private float _holdLeft;  // auto-advance fallback once fully revealed
 
         // Long lines are split into panel-sized pages, advanced with the same continue key (#736). German
         // runs 12–20 % longer than English, so the bandit briefing and several hints exceed the ~4 visible
@@ -356,7 +356,7 @@ namespace BlocksBeyondTheStars.Client
             if (_current.Length == 0 && _queue.Count > 0)
             {
                 // No line starts behind the loading curtain (#760/#761): a page typing into blackness
-                // is inaudible-invisible and burns its auto-advance window. Bounded inside HoldQueue.
+                // is inaudible-invisible. Bounded inside HoldQueue.
                 if (Cinematic != null && Cinematic.HoldQueue)
                 {
                     return;
@@ -479,10 +479,11 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Fully revealed: wait for the continue key (the lines used to run into each other —
-            // unreadable); a generous timeout still auto-advances an unattended panel.
-            _holdLeft -= Time.deltaTime;
-            if (pressed || _holdLeft <= 0f)
+            // Fully revealed: wait for the continue key — and ONLY the key (#1011). The old 25 s
+            // auto-advance made hints and story pages vanish before slow readers got through them;
+            // nothing gameplay-critical blocks on the panel (later lines just queue), and unattended
+            // capture runs clear it via DismissSpeechForCapture.
+            if (pressed)
             {
                 if (_page < _pages.Count - 1)
                 {
@@ -503,7 +504,6 @@ namespace BlocksBeyondTheStars.Client
             _page = index;
             _current = _pages.Count > 0 ? _pages[index] : string.Empty;
             _shown = 0f;
-            _holdLeft = AutoAdvanceSeconds;
             _speechText.text = string.Empty;
             _continueHint.gameObject.SetActive(false);
         }

@@ -188,7 +188,8 @@ separate unlock; admins can still disable it through server world rules.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
-  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N**. Advisor hints can
+  chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** — a line stays on
+  screen until you do (no auto-dismiss), and further lines wait in the queue. Advisor hints can
   be muted (Settings → VEGA hints); the tutorial can be skipped or **restarted** from the Settings tab.
 
 ---

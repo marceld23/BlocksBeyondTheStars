@@ -74,7 +74,7 @@ namespace BlocksBeyondTheStars.Client
         public bool Active => _active;
 
         /// <summary>True while <see cref="VegaPanel"/> should wait before dequeuing ANY line: the world
-        /// is behind the loading veil, so a page would type into blackness and burn its auto-advance.
+        /// is behind the loading veil, so a page would type into blackness, unseen and unheard.
         /// The timeout measures the CONTINUOUS hold (it resets whenever the veil is down), so later
         /// landings/boardings hold correctly too. The veil's own MaxShow (25 s) caps it in practice.</summary>
         public bool HoldQueue
