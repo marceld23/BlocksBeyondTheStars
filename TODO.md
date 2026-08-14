@@ -105,6 +105,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Crafting menu says "no room for the result" up front instead of a missable toast (#1010, 2026-08-14, branch fix/craft-ui-inventory-full)
+LAN playtest: a player had unlocked the paint-tool blueprint and owned every ingredient, yet the craft
+kept failing — the backpack was full (24/24 slots), the inputs only shrink existing stacks without
+freeing one, and the new tool needs a fresh slot. The server refused correctly (`MaterialPool.CanFit`,
+the #600 protection) but the crafting UI still presented the recipe as craftable: green card, live
+button, and the only feedback was the post-click toast. `CraftingTechShipUI.CanCraft` now runs a
+client-side dry-run mirroring the server's fit check (stack top-up at max-stack, then free slots,
+cargo-hold spill only while aboard), disables the craft button and shows the existing localized
+`ui.craft.inventory_full` line in the detail pane. Client-only; the server check stays authoritative.
+
+### ★ Inventory tab: the personal-inventory sidebar entry is now "Backpack" (#1012, 2026-08-14, branch fix/inventory-backpack-label)
+The in-game menu's Inventory tab showed "Inventory" twice — as the tab label and again as the first
+sidebar entry (the `personal` category reused `ui.inventory.title`), even though other strings already
+call that container the backpack. The sidebar now reads **Backpack / Cargo Hold** (DE: Rucksack /
+Frachtraum) via a new `ui.inventory.backpack` key added to all 14 locales, wordings reused from the
+already-translated `ui.avatar.pack`. Client-only label change, no protocol impact.
+
 ### ★ Browsing a menu no longer gets you kicked after 90 s (#1008, 2026-08-14, branch fix/menu-heartbeat-keepalive)
 Tonight's 3-player LAN session dropped every player repeatedly — seven `sent nothing for 90s — dropping
 the session` kicks in ~80 minutes in the host's log. The #964 heartbeat assumes "a playing client sends
@@ -116,13 +133,6 @@ menu open. Only the Esc pause menu had a keep-alive (#973). The position streams
 (position simply frozen) in all those states — sent before the early-outs — so the sweep only catches
 actually-dead clients. No protocol change; the server side is untouched. Cosmetic side-finding logged in
 #1008: a heartbeat kick logs `Connection N closed.` twice.
-
-### ★ Inventory tab: the personal-inventory sidebar entry is now "Backpack" (#1012, 2026-08-14, branch fix/inventory-backpack-label)
-The in-game menu's Inventory tab showed "Inventory" twice — as the tab label and again as the first
-sidebar entry (the `personal` category reused `ui.inventory.title`), even though other strings already
-call that container the backpack. The sidebar now reads **Backpack / Cargo Hold** (DE: Rucksack /
-Frachtraum) via a new `ui.inventory.backpack` key added to all 14 locales, wordings reused from the
-already-translated `ui.avatar.pack`. Client-only label change, no protocol impact.
 
 ### ★ Scanner: aim-gated targeting + feedback for empty/rejected scans (#1005, 2026-08-14, branch fix/scanner-stuck-1005)
 Playtest report: the scanner sometimes "sticks" — it keeps showing the last scanned subject until the
