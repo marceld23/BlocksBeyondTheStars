@@ -362,6 +362,10 @@ namespace BlocksBeyondTheStars.Client
                     ApplyGravityOnly(); // seated: the controller is disabled and the chair holds us anyway
                 }
 
+                // Keep the position stream flowing (position simply frozen): behind an open panel this is
+                // the client's ONLY payload, and the server drops sessions silent for 90 s (#964) — browsing
+                // the crafting menu or painting an avatar must not read as a dead client (#1008).
+                SendMovement();
                 return;
             }
 

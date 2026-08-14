@@ -1041,6 +1041,19 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // Report our position so the server runs authoritative collisions against asteroids/entities and
+            // the other players in this instance can see our ship. Sent BEFORE the menu/prompt early-outs
+            // below: behind the star map, the pad chooser or the destruction prompt this is the client's only
+            // payload, and the server drops sessions silent for 90 s (#964/#1008). After the ship was
+            // destroyed the server has already removed us from the instance and ignores the intent — but
+            // receiving it still stamps the heartbeat.
+            _moveSendTimer -= Time.deltaTime;
+            if (_moveSendTimer <= 0f)
+            {
+                _moveSendTimer = 0.08f; // ~12 Hz
+                Game.Network?.SendShipMove(_ship.transform.localPosition, _yaw);
+            }
+
             // Hold position while a menu is open (e.g. the Tab star map, used to hyperspace-jump to another
             // system), or while the ship-destruction "Weiter" prompt is up, so flight input doesn't fight
             // the UI / swing the camera behind the modal.
@@ -1242,15 +1255,6 @@ namespace BlocksBeyondTheStars.Client
                     _landTargetName = body.Name;
                     _landTargetSq = sq;
                 }
-            }
-
-            // Report our position so the server runs authoritative collisions against asteroids/entities and
-            // the other players in this instance can see our ship.
-            _moveSendTimer -= Time.deltaTime;
-            if (_moveSendTimer <= 0f)
-            {
-                _moveSendTimer = 0.08f; // ~12 Hz
-                Game.Network?.SendShipMove(_ship.transform.localPosition, _yaw);
             }
 
             // Boarding: find the nearest station in range; E boards it (the server validates the range).
@@ -1784,7 +1788,22 @@ namespace BlocksBeyondTheStars.Client
         /// Float up to the parked ship (or a station) and press E to board — no take-off animation.</summary>
         private void UpdateEva()
         {
-            if (_ship == null || Game.MenuOpen)
+            if (_ship == null)
+            {
+                return;
+            }
+
+            // Report the suit's pose so the other players in this instance see us floating (the server tags
+            // it as an EVA from our InEva state). Sent BEFORE the menu early-out below — behind an open panel
+            // this is the client's only payload, and the server drops sessions silent for 90 s (#964/#1008).
+            _moveSendTimer -= Time.deltaTime;
+            if (_moveSendTimer <= 0f)
+            {
+                _moveSendTimer = 0.08f;
+                Game.Network?.SendShipMove(_evaPos, _evaYaw);
+            }
+
+            if (Game.MenuOpen)
             {
                 return;
             }
@@ -1845,15 +1864,6 @@ namespace BlocksBeyondTheStars.Client
             if (!Game.MenuOpen && InputMap.Down(InputAction.EvaDeployStation))
             {
                 Game.Network?.SendDeployStationCore();
-            }
-
-            // Report the suit's pose so the other players in this instance see us floating (the server tags it
-            // as an EVA from our InEva state).
-            _moveSendTimer -= Time.deltaTime;
-            if (_moveSendTimer <= 0f)
-            {
-                _moveSendTimer = 0.08f;
-                Game.Network?.SendShipMove(_evaPos, _evaYaw);
             }
 
             // Board targets: the parked ship, or the nearest station in range (whichever is closer wins on E).

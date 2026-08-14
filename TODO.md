@@ -105,6 +105,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Browsing a menu no longer gets you kicked after 90 s (#1008, 2026-08-14, branch fix/menu-heartbeat-keepalive)
+Tonight's 3-player LAN session dropped every player repeatedly — seven `sent nothing for 90s — dropping
+the session` kicks in ~80 minutes in the host's log. The #964 heartbeat assumes "a playing client sends
+movement updates continuously", but the client went completely silent in several alive states: on foot
+with any UI panel open (crafting, map, inventory, paint editor, chat, cinematic —
+`PlayerController.Update` returned before `SendMovement()`), in space behind the star map / pad chooser /
+ship-destruction prompt (`UpdateCruise` early-outs before the 12 Hz `SendShipMove`), and on EVA with a
+menu open. Only the Esc pause menu had a keep-alive (#973). The position streams now keep flowing
+(position simply frozen) in all those states — sent before the early-outs — so the sweep only catches
+actually-dead clients. No protocol change; the server side is untouched. Cosmetic side-finding logged in
+#1008: a heartbeat kick logs `Connection N closed.` twice.
+
 ### ★ Scan-drones no longer visibly shoot through solid terrain (#1004, 2026-08-14, branch fix/drone-fire-los)
 Playtest report: hiding in a cave, a guard scan-drone hovering outside appeared to fire at the player
 straight through the rock. The shooting was cosmetic — the server gates both the hunt lock and the
