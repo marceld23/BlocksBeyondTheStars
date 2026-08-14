@@ -118,6 +118,22 @@ server keeps guarding the real interior (`ShipInteriorContains`). Cabin furnishi
 still target ship cells, so they keep working. Client-only, no protocol change. Likely the same root
 cause as the "painted block won't place" LAN report.
 
+### ★ Returning to an area a partner kept loaded no longer shows void terrain (#1030, 2026-08-15, branch fix/tpp-void-terrain)
+F1 report from tonight's LAN session: after `/tpp` to a player 1.7 km away, "I only see space" — the
+target's ship and the animals rendered, the terrain did not, while the server's bump snapshot showed
+solid forest all around. Multiplayer-only bookkeeping gap: since #966 the client unloads chunks
+farther than ~384 blocks (block data included), but the server only forgot a session's `SentChunks`
+via the sweep's far-from-EVERY-player eviction. With a partner camping in an area its chunks stayed
+cached — and stayed "already sent" for the returning player, so `StreamChunks` skipped them forever
+and missing chunks render as air. The sweep now ALSO prunes each session's sent-set by that session's
+OWN anchor (view radius + 4, seam-aware on both wrap axes, capped safely below the client's 24-chunk
+unload distance); anything pruned while the client still holds it merely re-streams idempotently on
+return. `/tpp` itself hardened for parity with `/tp`: it now refreshes the aboard state after the
+snap and refuses targets in a space instance or on another body (new `srv.tpp.not_here` key, EN+DE)
+instead of copying coordinates across scenes. Server-only fix — a host update suffices, no protocol
+bump. Regression tests: two-player sweep round-trip (red before the fix), cross-body reject, aboard
+refresh.
+
 ### ★ VEGA hints and story pages stay until the player continues (#1011, 2026-08-14, branch fix/vega-lines-persist)
 Every line in VEGA's speech panel — advisor hints, story/memory beats, onboarding, prologue pages —
 was auto-dismissed 25 s after it finished typing (`AutoAdvanceSeconds` in `VegaPanel`), so slow

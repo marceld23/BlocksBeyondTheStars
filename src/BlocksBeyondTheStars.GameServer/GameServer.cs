@@ -2179,8 +2179,10 @@ public sealed partial class GameServer
     /// <summary>Evicts cached chunks in the active world that fall outside the keep-range of every joined player,
     /// bounding server memory on long exploration (the cache otherwise only ever grew). The keep radius sits a
     /// few chunks beyond the streaming radius so a chunk the player can currently see is never dropped; chunks
-    /// regenerate on demand (with persisted edits re-applied) if the player returns, and the client keeps its own
-    /// copy regardless (it never unloads), so eviction is invisible. Honours <see cref="ServerConfig.MaxLoadedChunksPerPlayer"/>
+    /// regenerate on demand (with persisted edits re-applied) if the player returns. The client unloads its own
+    /// far chunks too (~384 blocks, #966), so each session's sent-set is also pruned by that session's OWN
+    /// distance below — the cache eviction alone only forgets chunks far from EVERY player, which left a
+    /// returning player's sent-set stale wherever another player kept the area alive (#1030). Honours <see cref="ServerConfig.MaxLoadedChunksPerPlayer"/>
     /// in spirit by keeping the resident set proportional to the view, not the distance travelled.</summary>
     private void SweepFarChunks()
     {
@@ -2216,6 +2218,42 @@ public sealed partial class GameServer
                 }
             }
         }
+
+        // The eviction above only forgets chunks that are far from EVERY player — but the client unloads by its
+        // own distance alone (RepositionChunks, ~384 blocks = 24 chunks). So while another player camped in an
+        // area, its chunks stayed cached AND stayed in a departed player's sent-set even though that player's
+        // client had long discarded them; on return, StreamChunks skipped them as "already sent" and the
+        // returner stood in void terrain the server actually had ("/tpp … I only see space", #1030). Prune each
+        // sent-set by ITS OWN session's anchor too. The prune radius must stay below the client's 24-chunk
+        // unload distance (or a client-unloaded chunk could survive in the sent-set); a chunk pruned while the
+        // client still holds it merely re-streams when it re-enters the view, which is idempotent.
+        foreach (var session in JoinedInActiveWorld())
+        {
+            var anchor = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
+            int pruneRadius = System.Math.Min(EffectiveViewRadius(session) + 4, 20);
+            int pruneSq = pruneRadius * pruneRadius;
+            int circumference = _world.Circumference;
+            session.SentChunks.RemoveWhere(c => WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
+        }
+    }
+
+    /// <summary>Squared chunk-grid distance measured the short way round BOTH seams (X wraps at the chunk
+    /// circumference, Z at the latitude chunk band; Y is linear). The sent-set prune must not read a chunk just
+    /// across a seam as "far", or a player standing near a seam would re-stream half their view every sweep.</summary>
+    private static int WrappedChunkDistanceSquared(ChunkCoord a, ChunkCoord b, int circumference)
+    {
+        int dx = WrapChunkDelta(a.X - b.X, WorldConstants.ChunksAroundOf(circumference));
+        int dy = a.Y - b.Y;
+        int dz = WrapChunkDelta(a.Z - b.Z, WorldConstants.LatitudePeriodFor(circumference) / WorldConstants.ChunkSize);
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /// <summary>Shortest signed delta on a wrapping chunk axis with the given period (chunk-unit twin of
+    /// <see cref="WorldConstants.WrapDeltaX(int,int)"/>, whose parameter is a BLOCK circumference).</summary>
+    private static int WrapChunkDelta(int delta, int period)
+    {
+        int m = ((delta % period) + period) % period;
+        return m > period / 2 ? m - period : m;
     }
 
     /// <summary>Fills a chunk message's sparse colour-modifier + shape arrays from the chunk's dyed/glowing/
@@ -4791,10 +4829,28 @@ public sealed partial class GameServer
                         return;
                     }
 
+                    // A position is only meaningful inside its own scene: while flying a space instance the
+                    // snap channel would fight the flight scene (same guard as /tp), and a target who is in
+                    // space or on another body has coordinates that mean nothing on the admin's body — copying
+                    // them raw dropped the admin at a spot picked from the wrong scene (#1030).
+                    if (InSpace(p.PlayerId))
+                    {
+                        Reject(session, "admin", "@srv.tp.no_surface_targets");
+                        return;
+                    }
+
+                    if (InSpace(target.State.PlayerId)
+                        || !string.Equals(target.CurrentLocationId, session.CurrentLocationId, System.StringComparison.Ordinal))
+                    {
+                        Reject(session, "admin", "@srv.tpp.not_here:" + target.State.Name);
+                        return;
+                    }
+
                     p.Position = target.State.Position;
                     // Same snap-channel rule as teleport_to_location (#414 M7).
                     Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "@srv.tp.to:" + target.State.Name });
                     SendPlayerState(session);
+                    UpdateAboard(session); // jumping onto/off a ship must flip the aboard state now, not on the next move (parity with /tp)
                     CheatLog(p, $"teleported to player {target.State.Name}");
                     break;
                 }

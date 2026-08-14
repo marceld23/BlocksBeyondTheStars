@@ -3106,6 +3106,7 @@
   "srv.tp.to_ship": "Teleported back to your ship.",
   "srv.tp.unknown_kind": "Unknown target '{name}'. List what is here with /tp.",
   "srv.tp.your_ship": "your ship",
+  "srv.tpp.not_here": "{name} is not on this planet right now — /tpp only reaches players on the same planet.",
   "srv.trade.busy": "Can't start a trade right now.",
   "srv.trade.cancelled": "Trade cancelled.",
   "srv.trade.complete": "Trade complete.",

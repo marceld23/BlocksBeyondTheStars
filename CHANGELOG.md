@@ -15,6 +15,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### Fixed
 
+- **"I only see space": returning to an area another player kept loaded showed void terrain.** The
+  client frees far-away terrain to keep memory bounded, but the server only forgot what it had sent a
+  player when the area was far from *everyone*. With a partner standing there, coming back — by
+  teleport, beam or on foot — streamed nothing: ship and animals rendered over a starfield. The server
+  now also forgets per player, by that player's own distance, so a return always re-streams the ground.
+  `/tpp` additionally refreshes your aboard-ship state and refuses targets that are in space or on
+  another planet instead of copying their coordinates into the wrong scene. (#1030)
+
 - **Dying near another player could respawn you inside *their* ship.** Deaths dealt by the world's AI
   (creatures, guardian machines, bandits, a destroyed speeder) — and the void-rescue teleport — resolved
   the respawn target through whichever player the server had served last, dropping the victim at the

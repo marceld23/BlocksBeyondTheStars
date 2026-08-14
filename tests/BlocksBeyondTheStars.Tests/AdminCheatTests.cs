@@ -184,6 +184,52 @@ public sealed class AdminCheatTests : IDisposable
         Assert.Equal(123f, snap.Z);
     }
 
+    /// <summary>A target on another body has coordinates from a different scene — copying them raw dropped
+    /// the admin at a spot that means nothing on their own body (#1030), so the jump is refused instead.</summary>
+    [Fact]
+    public void Teleport_ToPlayer_RejectsTargetOnAnotherBody()
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpbody");
+        var before = server.Sessions[1].State.Position;
+
+        var target = server.AddLocalPlayer("Target");
+        target.State.Position = new Shared.Geometry.Vector3f(321, 70, 123);
+        target.CurrentLocationId = "elsewhere"; // parked on a different body than the admin
+
+        ActionRejected? rejected = null;
+        client.PayloadReceived += pl => { if (NetCodec.Decode(pl) is ActionRejected r) rejected = r; };
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_player", TargetPlayer = "Target" }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+
+        Assert.NotNull(rejected);
+        Assert.Equal(before, server.Sessions[1].State.Position);
+    }
+
+    /// <summary>/tpp used to skip the aboard-state refresh /tp performs after its snap, so an admin jumping
+    /// OFF their ship kept AboardShip=true until their next step — wrong O2 semantics meanwhile (#1030).</summary>
+    [Fact]
+    public void Teleport_ToPlayer_RefreshesAboardState()
+    {
+        var rules = new GameRules { AdminCheats = true, AllowCheatsInSurvival = true };
+        var (server, client) = Start(rules, "tpaboard");
+        var admin = server.Sessions[1];
+        Assert.True(admin.State.AboardShip); // spawns at the heal tank, aboard the starter ship
+
+        var target = server.AddLocalPlayer("Target");
+        target.State.Position = new Shared.Geometry.Vector3f(321, 70, 123); // on open ground, off the ship
+
+        client.Send(NetCodec.Encode(new AdminCommandIntent { Command = "teleport_to_player", TargetPlayer = "Target" }),
+            DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.Equal(target.State.Position, admin.State.Position);
+        Assert.False(admin.State.AboardShip); // refreshed by the snap, not deferred to the next move
+    }
+
     /// <summary>An empty or unknown target still has to be refused — the tolerant match must not fall
     /// back to "some session" (or to the admin's own).</summary>
     [Theory]

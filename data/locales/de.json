@@ -3106,6 +3106,7 @@
   "srv.tp.to_ship": "Zurück zu deinem Schiff teleportiert.",
   "srv.tp.unknown_kind": "Unbekanntes Ziel '{name}'. Mögliche Ziele mit /tp auflisten.",
   "srv.tp.your_ship": "dein Schiff",
+  "srv.tpp.not_here": "{name} ist gerade nicht auf diesem Planeten — /tpp erreicht nur Spieler auf demselben Planeten.",
   "srv.trade.busy": "Gerade kann kein Handel gestartet werden.",
   "srv.trade.cancelled": "Handel abgebrochen.",
   "srv.trade.complete": "Handel abgeschlossen.",

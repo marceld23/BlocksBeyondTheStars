@@ -132,6 +132,67 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.True(server.World.IsChunkLoaded(nearChunk), "the player's own region must stay resident through the sweep");
     }
 
+    /// <summary>The multiplayer half of the sweep (#1030): the cache eviction only forgets chunks that are far
+    /// from EVERY player, so chunks a camping partner kept alive stayed in a departed player's sent-set even
+    /// though that player's client had long unloaded them (RepositionChunks drops everything past ~384 blocks).
+    /// On return — /tpp, a beam, or simply walking back — StreamChunks skipped them as "already sent" and the
+    /// returner stood in void terrain the server actually had ("I only see space"). The sweep must therefore
+    /// also prune every session's sent-set by that session's OWN distance.</summary>
+    [Fact]
+    [Trait("Category", "Slow")]
+    public void Sweep_ForgetsADepartedPlayersSentChunks_EvenWhenAPartnerKeepsThemCached()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "sweep_mp"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "sweep_mp",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            ViewDistanceChunks = 2,
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        var camper = server.AddLocalPlayer("Camper");
+        var traveler = server.AddLocalPlayer("Traveler");
+        traveler.State.Position = camper.State.Position; // side by side, sharing one home region
+        var home = WorldConstants.WorldToChunk(camper.State.Position.ToBlock());
+
+        for (int i = 0; i < 20; i++)
+        {
+            server.TickForTest(0.1); // stream the shared home region to BOTH sessions
+        }
+
+        Assert.Contains(home, traveler.SentChunks); // sanity: the home chunk reached the traveler
+
+        // The traveler leaves — far past the streaming radius AND the client's ~24-chunk unload distance,
+        // placed high above the terrain so neither the entombed- nor the void-rescue relocates the anchor.
+        var homePos = camper.State.Position;
+        traveler.State.Position = new Vector3f(homePos.X, homePos.Y + 120f, homePos.Z + 640f);
+
+        for (int i = 0; i < 15; i++)
+        {
+            server.TickForTest(1.0); // run past the 10 s sweep interval
+        }
+
+        // The camper keeps the region alive, so the cache must keep it — which is exactly why the old
+        // "forget only what was evicted" bookkeeping never forgot it for the traveler.
+        Assert.True(server.World.IsChunkLoaded(home), "the camper's region must stay cached through the sweep");
+        Assert.Contains(home, camper.SentChunks); // the camper still sees it — no over-pruning
+        Assert.DoesNotContain(home, traveler.SentChunks); // the traveler's client unloaded it — forget it here too
+
+        // And the return trip re-streams it through the normal path (the visible half of the bug).
+        traveler.State.Position = homePos;
+        for (int i = 0; i < 20; i++)
+        {
+            server.TickForTest(0.1);
+        }
+
+        Assert.Contains(home, traveler.SentChunks);
+    }
+
     [Fact]
     [Trait("Category", "Slow")]
     public void ClientViewDistance_ExtendsStreamingRadius_BeyondHostDefault()
