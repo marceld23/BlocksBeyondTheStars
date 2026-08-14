@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Échanger l'emplacement",
   "ui.hotbar_action.title": "{0} — emplacement {1}",
   "ui.inventory.title": "Inventaire",
+  "ui.inventory.backpack": "Sac à dos",
   "ui.inventory.quickbar": "Barre rapide",
   "ui.inventory.quickbar_hint": "Choisis un emplacement rapide pour placer cet objet dans la barre rapide.",
   "ui.inventory.remove_quickslot": "Retirer de la barre rapide",

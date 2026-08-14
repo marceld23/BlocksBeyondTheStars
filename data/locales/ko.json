@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "슬롯 교체",
   "ui.hotbar_action.title": "{0} — 슬롯 {1}",
   "ui.inventory.title": "인벤토리",
+  "ui.inventory.backpack": "배낭",
   "ui.inventory.quickbar": "퀵바",
   "ui.inventory.quickbar_hint": "이 아이템을 퀵바의 슬롯에 넣으세요.",
   "ui.inventory.remove_quickslot": "퀵바에서 제거",

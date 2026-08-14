@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "更换格子",
   "ui.hotbar_action.title": "{0} — 格子{1}",
   "ui.inventory.title": "物品栏",
+  "ui.inventory.backpack": "背包",
   "ui.inventory.quickbar": "快捷栏",
   "ui.inventory.quickbar_hint": "选择一个快捷栏位把此物品放入快捷栏。",
   "ui.inventory.remove_quickslot": "从快捷栏移除",

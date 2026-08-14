@@ -910,6 +910,7 @@
   "ui.hotbar_action.swap_title": "Обміняти комірку",
   "ui.hotbar_action.title": "{0} — комірка {1}",
   "ui.inventory.title": "Інвентар",
+  "ui.inventory.backpack": "Рюкзак",
   "ui.inventory.quickbar": "Швидка панель",
   "ui.inventory.quickbar_hint": "Оберіть слот швидкого доступу, щоб помістити туди цей предмет.",
   "ui.inventory.remove_quickslot": "Видалити з швидкої панелі",
