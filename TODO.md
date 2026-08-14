@@ -7958,6 +7958,31 @@ still rejected, and `/give` to a spaced name landing in *that* player's inventor
 
 ---
 
+## ✅ Done (2026-08-14): dying no longer respawns you in another player's ship; pad occupancy live for everyone (#1020)
+
+From the 3-player LAN playtest: the host died and woke up in a joiner's ship, and two of the three
+players never saw the third player's landing pad as occupied on their world maps.
+
+**Respawn:** the AI damage ticks (creatures, guardian machines, bandits, destroyed speeders) call
+`RespawnPlayer` without pinning the per-player ship cursor, which still pointed at whoever the server
+served last — `RecoverToShip` then read (and even re-homed) *that* player's ship and dropped the victim
+at their heal tank. Same class as #997, which fixed it for `CreateNewPlayer` only. Fix: pin the cursor
+at the top of `RespawnPlayer` **and** `RecoverToShip` (before the first `_ship` read), and make
+`SafeSpawnPoint` resolve the ship by its `playerId` argument (`LandedFor(playerId)`) instead of the
+cursor — the void-rescue tick used it unpinned and teleported rescued players into foreign hulls too.
+
+**Pads:** `LandingPadList` was a world-entry snapshot, sent only to the arriving player. New
+`BroadcastLandingPads()` republishes it (per session — `Mine` is receiver-relative) on every occupancy
+change: landing/relocate, join, disconnect, observer on/off. Players up in space are skipped (their pad
+chooser owns the client's single pad-list slot) except the lander themselves. Server-only, existing
+message, no protocol bump — effective via the host's bundled server even for older clients.
+
+Three new `LanPlaytestRegressionTests`; `KillPlayerForTest` mirrors the unpinned AI-tick call. Follow-up
+noted in #1020: the client keeps one global pad-list slot and the world map doesn't gate on its body id,
+so a chooser reply for a padless body wipes the map's markers until re-entry.
+
+---
+
 ## ✅ Done (2026-08-13): landing back on the same planet puts you back in your ship (#971)
 
 Found in a singleplayer playtest of the released v2026.8.12 build: launch from the starter planet, land

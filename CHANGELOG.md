@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dying near another player could respawn you inside *their* ship.** Deaths dealt by the world's AI
+  (creatures, guardian machines, bandits, a destroyed speeder) — and the void-rescue teleport — resolved
+  the respawn target through whichever player the server had served last, dropping the victim at the
+  other player's heal tank (and it could even re-home that ship). Every death and rescue path now pins
+  the dying player's own ship first. (#1020)
+- **Another player's landing pad never showed as occupied on your world map.** The pad list was sent
+  only once, on your own arrival: anyone who landed *after* you kept showing as a free, anonymous pad
+  forever. Claiming or releasing a pad (landing, joining, leaving, observer mode) now republishes the
+  pad list to everyone on the body. (#1020)
+
 ## [2026.8.14] — 2026-08-14
 
 The shipshape release. After the last two versions turned the game into something you play with other

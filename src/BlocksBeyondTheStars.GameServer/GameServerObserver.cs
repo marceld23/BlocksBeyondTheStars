@@ -92,6 +92,7 @@ public sealed partial class GameServer
 
         session.AssignedPadIndex = -1;        // release the landing pad: pads are communal and finite
         BroadcastToWorld(new PlayerLeft { PlayerId = p.PlayerId }); // clients drop the avatar they can see
+        BroadcastLandingPads(); // the released pad is free again — everyone's map must show it (#1020)
         // Pets and deployed speeders despawn on the next reconcile tick — CompanionOwnersHere/ReconcileSpeeders
         // stop counting a spectating session as present.
 
@@ -125,6 +126,8 @@ public sealed partial class GameServer
                 ClaimPadOrReject(session, session.CurrentLocationId, -1); // take a pad again (any free one)
                 PlaceLandedShip();
             }
+
+            BroadcastLandingPads(session); // the re-claimed pad is taken again — everyone's map must show it (#1020)
         }
 
         // Re-announce: presence resumes on the next tick by itself, but the face is out-of-band and would

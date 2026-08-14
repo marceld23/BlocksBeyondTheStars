@@ -550,7 +550,7 @@ public sealed partial class GameServer
         Send(session, new RespawnNotice { X = spawn.X, Y = spawn.Y, Z = spawn.Z, Reason = "@srv.land.touchdown" });
         SendPlayerState(session);
         SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
-        SendLandingPads(session);
+        BroadcastLandingPads(session); // the touchdown claimed a pad — everyone's map must show it (#1020)
         SyncAppearance(session); // faces + body paintings both ways — the launch dropped them (#982)
         // Parity with the cross-body travel path (#957): without these the HUD compass ship blip and the
         // world-map marker kept pointing at the pad of the PREVIOUS landing.
@@ -577,6 +577,25 @@ public sealed partial class GameServer
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
         Send(session, new LandingPadList { BodyId = _world.LocationId, Pads = pads, TimeOfDay = (float)_dayFraction });
+    }
+
+    /// <summary>Re-sends the active body's pad list to everyone on it. The list is otherwise a world-entry
+    /// snapshot: a pad claimed or released AFTER a bystander arrived stayed free/anonymous on their world
+    /// map forever (#1020). Occupancy (<see cref="NetLandingPad.Mine"/>) is receiver-relative, so this must
+    /// send per session rather than broadcast one message. Players up in space are skipped — their pad
+    /// chooser owns the client's single pad-list slot and a fresh list arrives with their touchdown —
+    /// except <paramref name="always"/>, the player whose arrival triggered the update.</summary>
+    private void BroadcastLandingPads(PlayerSession? always = null)
+    {
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (s != always && InSpace(s.State.PlayerId))
+            {
+                continue;
+            }
+
+            SendLandingPads(s);
+        }
     }
 
     /// <summary>The day fraction the player will arrive at when landing on <paramref name="bodyId"/>: the live time

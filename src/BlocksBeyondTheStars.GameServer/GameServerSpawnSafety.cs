@@ -158,13 +158,16 @@ public sealed partial class GameServer
     /// <summary>How far up we look for standing room before giving up and using the ship/landing pad.</summary>
     private const int EntombedProbeHeight = 256;
 
-    /// <summary>A safe place to stand in the active world: the ship's heal-tank if a ship is parked, else
-    /// the landing-zone surface.</summary>
+    /// <summary>A safe place to stand in the active world: the player's OWN ship's heal-tank if their ship
+    /// is parked here, else the landing-zone surface. Resolved by <paramref name="playerId"/>, NOT the ship
+    /// cursor — the void-rescue tick runs with the cursor on whoever was served last, and the cursor's heal
+    /// tank teleported the rescued player into someone else's hull (#1020).</summary>
     private Vector3f SafeSpawnPoint(string playerId)
     {
-        if (_shipPlaced)
+        var ownShip = _worlds.Active.LandedFor(playerId);
+        if (ownShip.Placed)
         {
-            return _healTank;
+            return ownShip.HealTank;
         }
 
         var pad = FindSessionByPlayerId(playerId) is { } s ? PlayerPad(s)

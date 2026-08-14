@@ -820,7 +820,7 @@ public sealed partial class GameServer
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
         SendBases(session); // player-founded bases on this body (Grundstein markers)
-        SendLandingPads(session);
+        BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendStarMap(session);
         SyncAppearance(session); // faces + body paintings both ways — appearance is per-world state (#982)
@@ -1417,6 +1417,11 @@ public sealed partial class GameServer
     /// <summary>Test helper kept explicit so tests can drive one authoritative server tick.</summary>
     public void TickForTest(double deltaSeconds) => Tick(deltaSeconds);
 
+    /// <summary>Test entrypoint mirroring the AI damage ticks (creatures/bandits/machines/speeders): a direct
+    /// <see cref="RespawnPlayer"/> call, deliberately WITHOUT serving the victim first — those ticks run with
+    /// the ship cursor on whoever was served last, which is exactly the #1020 death-in-a-foreign-ship setup.</summary>
+    public void KillPlayerForTest(PlayerSession session, string reason) => RespawnPlayer(session, reason);
+
     /// <summary>Saves everything durably NOW, outside the autosave cadence — the same guarded path the
     /// periodic autosave takes. The browser singleplayer host calls this when the tab loses focus
     /// (visibility change): a WebGL page gets no reliable shutdown callback, so waiting out the autosave
@@ -1736,6 +1741,12 @@ public sealed partial class GameServer
     /// </summary>
     private void RespawnPlayer(PlayerSession session, string reason)
     {
+        // Deaths dealt by AI ticks (creatures, guardians, bandits, speeder crashes) arrive here with the
+        // ship cursor still on whoever the server served last — everything downstream (_ship/_shipPlaced/
+        // _healTank) would resolve to THAT player's ship, respawning the victim inside someone else's hull
+        // (#1020, same class as #997). Pin the cursor to the dying player before any of it is read.
+        SetCurrent(session);
+
         var p = session.State;
         bool dropSalvage = !Rules.KeepInventoryOnDeath &&
                            Rules.DeathPenalty is DeathPenalty.Normal or DeathPenalty.Hard;
@@ -1895,8 +1906,10 @@ public sealed partial class GameServer
     private void RecoverToShip(PlayerSession session, string reason, bool salvaged)
     {
         var p = session.State;
-        // The cursor is already on this session (set by the per-player tick / Serve), so _ship is this
-        // player's ship — recover to the world it's parked on.
+        // Pin the ship cursor BEFORE the first _ship read: this runs from death paths where the cursor may
+        // still point at another player (#1020) — reading (or re-homing, below) _ship then targets the
+        // wrong player's ship and recovers the victim to the world THAT ship is parked on.
+        SetCurrent(session);
         string shipHome = !string.IsNullOrEmpty(_ship?.CurrentLocationId) ? _ship.CurrentLocationId : _meta.ActiveLocationId;
 
         // Finale rule (P6): a death inside the Guardian system must not respawn the clone in the boss arena —
@@ -2396,6 +2409,7 @@ public sealed partial class GameServer
             RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
             RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
+            BroadcastLandingPads(); // the leaver's pad is free again — everyone's map must show it (#1020)
             if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
             {
                 // Move the cursor off the world we're about to drop, back to the (always-resident) default
@@ -2960,7 +2974,7 @@ public sealed partial class GameServer
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
-        SendLandingPads(session);
+        BroadcastLandingPads(session); // the join claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
         SyncAppearance(session);        // custom faces + body paintings, BOTH ways (#982)
