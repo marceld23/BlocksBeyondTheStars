@@ -2546,6 +2546,7 @@ public sealed class WorldGenerator
                                               // ordinary surface into the middle entries.
         public double CaveThreshold;          // quantile-calibrated (0 = caves disabled)
         public double[] OreCdf = System.Array.Empty<double>();  // sorted ore-field samples (empirical CDF)
+        public double[] OreFineCdf = System.Array.Empty<double>(); // ditto for the fine sprinkle field (#1024)
         public int LavaTableDepth = int.MaxValue; // cave cells deeper than this fill with lava (#472/#477 L-A)
         public double BaseTemperature;        // planet base + per-world variation (°C) — worldgen-static part
         public double LapsePerBlock;          // °C lost per block above the reference altitude (#476)
@@ -2652,7 +2653,11 @@ public sealed class WorldGenerator
 
         // 4) Ore field CDF (#472): SelectOre turns each vein's rarity into a quantile of this, so `rarity`
         //    finally IS the kept fraction (the multiplier bumps never fixed this because the knob was broken).
-        c.OreCdf = FieldSamplesSorted(seed + 100, 9.0, 9.0, 9.0);
+        //    The fine sprinkle field (#1024) gets its own CDF: in theory both fields share one distribution,
+        //    but the thresholds sit in the far tail where the 4096-sample quantile is noisy — measuring each
+        //    field keeps the kept fraction exact for both.
+        c.OreCdf = FieldSamplesSorted(seed + 100, 9.0, 9.0, 9.0, samples: 16384);
+        c.OreFineCdf = FieldSamplesSorted(seed + OreFineFieldSalt, OreFineScale, OreFineScale, OreFineScale, samples: 16384);
 
         // 5) Deep lava table (#472/#477 L-A): carved cave cells below this depth fill with molten rock — the
         //    danger half to the now-reachable deep ore bands. Kept below the cave-fauna scan (surface−49).
@@ -2702,10 +2707,14 @@ public sealed class WorldGenerator
     }
 
     /// <summary>Sorted samples of a ValueT field over this world's domain — its empirical CDF. Thresholds
-    /// derived from this stay meaningful no matter how many interpolation axes the torus sampler stacks.</summary>
-    private double[] FieldSamplesSorted(long fieldSeed, double scaleX, double scaleY, double scaleZ)
+    /// derived from this stay meaningful no matter how many interpolation axes the torus sampler stacks.
+    /// Ore thresholds sit at 98.5–99.5+ % quantiles where a 4096-sample estimate drifts a vein's kept
+    /// fraction by ±25 % between worlds — those callers pass a larger <paramref name="samples"/> (#1024);
+    /// the cave carve fraction (2–22 %) is fine at the default.</summary>
+    private double[] FieldSamplesSorted(long fieldSeed, double scaleX, double scaleY, double scaleZ,
+        int samples = 4096)
     {
-        const int N = 4096;
+        int N = samples;
         var vals = new double[N];
         int period = LatPeriod;
         for (int i = 0; i < N; i++)
@@ -4553,6 +4562,11 @@ public sealed class WorldGenerator
         return 1 + (int)System.Math.Round(n * (baseDepth - 1));
     }
 
+    // Two-scale veins (#1024): the sprinkle field's block scale and its seed offset. The offset keeps the
+    // fine fields (salt + i*31) clear of the coarse fields (100 + i*31) and every other worldgen salt.
+    private const double OreFineScale = 4.5;
+    private const long OreFineFieldSalt = 61000;
+
     private BlockId SelectOre(PlanetType planet, WorldCalibration calib, long seed, int x, int y, int z,
         int depth, BlockId fallback, double richness)
     {
@@ -4586,9 +4600,33 @@ public sealed class WorldGenerator
                 continue;
             }
 
-            double threshold = calib.OreCdf[(int)((1.0 - frac) * (calib.OreCdf.Length - 1))];
-            double n = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0);
-            if (n > threshold)
+            bool hit;
+            if (ore.MinDepth <= 8)
+            {
+                // Two-scale split (#1024): a quantile over ONE smooth 9-block field concentrates a vein's
+                // whole budget into few huge deposits (measured: >90 % of copper sat in ≥64-block blobs and
+                // a straight tunnel needed a median ~90 m to meet the first one — "which ore you find is a
+                // lottery"). Shallow starter veins therefore spend half their budget on the coarse field
+                // (big strikes stay worth prospecting for) and half on a fine 4.5-block field whose small
+                // veins turn up regularly while digging. The union stays ≈ frac (overlap is frac²/4).
+                double half = frac * 0.5;
+                double coarseThr = calib.OreCdf[(int)((1.0 - half) * (calib.OreCdf.Length - 1))];
+                hit = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0) > coarseThr;
+                if (!hit)
+                {
+                    double fineThr = calib.OreFineCdf[(int)((1.0 - half) * (calib.OreFineCdf.Length - 1))];
+                    hit = ValueT(seed + OreFineFieldSalt + i * 31, x, y, z, OreFineScale, OreFineScale, OreFineScale) > fineThr;
+                }
+            }
+            else
+            {
+                // Deep rarities keep the single coarse field: a rare strike SHOULD be a find, and their
+                // budgets are too thin to split without dissolving into single-block specks.
+                double threshold = calib.OreCdf[(int)((1.0 - frac) * (calib.OreCdf.Length - 1))];
+                hit = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0) > threshold;
+            }
+
+            if (hit)
             {
                 var oreBlock = _content.GetBlock(ore.Block);
                 if (oreBlock is not null)

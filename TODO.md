@@ -7971,6 +7971,32 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-14): shallow ore veins split across two noise scales — the ore lottery is over (#1024)
+
+Player report (LAN playtest): *"copper is too rare — and the deposits are gigantic, but which ore you
+find is pure luck."* Measurement (a sim replicating `SelectOre` + the #472 CDF calibration 1:1) proved
+the *shape* wrong, not the amount: copper was 1.9–3.1 % of all rock, but 93–96 % of it sat in deposits
+of ≥ 64 blocks (largest ~5,000), so the first *any* ore was visible after a median 0–9 m of tunnelling
+while the first *copper* took a median ~90 m — and 14–25 % of 256 m tunnels never met any. Root cause:
+a quantile threshold over ONE smooth 9-block-scale field necessarily concentrates a vein's whole kept
+fraction into few huge blobs around rare field maxima; deposit count/size was not a knob at all.
+
+Fix in `SelectOre` (#1024): shallow starter veins (`minDepth ≤ 8`) now spend **half their budget on the
+coarse 9-block field** (mother-lode strikes stay worth prospecting for) and **half on a new fine
+4.5-block sprinkle field** (own seed offset + own per-world CDF in the calibration), so small veins turn
+up regularly wherever a player digs. Deep rarities keep the single coarse field — a rare strike should
+be a find. Both ore CDFs now sample 16,384 field points (up from 4,096): the thresholds sit at 98.5+ %
+quantiles where the smaller sample drifted a vein's kept fraction by up to ±25 % between worlds.
+
+Measured after the split (same sim): median tunnel distance to first copper 25–41 m (p90 91–169 m),
+"no copper in 256 m" tunnels 2–4 % (was 14–25 %), 16³ deep-rock pockets without copper ≤ 1 % (was
+22–29 %) — total per-ore fractions unchanged within calibration accuracy. New regression test
+`ShallowOres_TurnUpInNearlyEveryPocket_NotOnlyInRareGiantStrikes` (two seeds; verified to FAIL on the
+old distribution). No protocol change (chunks are server-streamed); like every worldgen field change,
+ore shifts inside *unmodified* terrain of existing saves.
+
+---
+
 ## ✅ Done (2026-08-13): admin commands accept player names with spaces — and any capitalisation (#980)
 
 Reported from a hosted world: teleporting to the player `mincraft Fan` was impossible. `/tpp mincraft Fan`

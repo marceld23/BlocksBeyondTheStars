@@ -215,7 +215,12 @@ above it so digging out the bottom is impossible). The server's vertical build b
 **Y −2100** (#580), so even the deepest foundation is reachable — "dig to the bedrock" works on every
 world. Ore veins (3D noise × rarity × per-world richness) and caves (3D noise, if `CaveThreshold > 0`)
 are carved into the crust; ore density ramps up to **+60 % over the first ~600 blocks down** (#580),
-so the descent pays.
+so the descent pays. Shallow starter veins (`minDepth ≤ 8`: iron/copper/silicate class) spend their
+budget on **two field scales** (#1024): half on the coarse 9-block field (big "mother lode" strikes
+worth prospecting for) and half on a fine 4.5-block sprinkle field (small veins that turn up
+regularly while digging) — one smooth coarse field alone concentrated a vein's whole budget into few
+giant deposits, making *which* ore a player found a lottery. Deep rarities stay single-field: a rare
+strike should be a find.
 
 ---
 

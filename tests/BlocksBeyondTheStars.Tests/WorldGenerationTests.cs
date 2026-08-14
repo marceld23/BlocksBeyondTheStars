@@ -444,6 +444,54 @@ public class WorldGenerationTests
         }
     }
 
+    [Theory]
+    [InlineData(77)]
+    [InlineData(4242)]
+    public void ShallowOres_TurnUpInNearlyEveryPocket_NotOnlyInRareGiantStrikes(long seed)
+    {
+        // #1024: a quantile over ONE smooth 9-block field concentrated a starter vein's whole budget into
+        // few giant deposits — copper was ~2 % of all rock yet a straight tunnel needed a median ~90 m to
+        // meet any ("which ore you find is a lottery"). The two-scale split spends half of every shallow
+        // vein's budget on a fine sprinkle field, so modest amounts turn up wherever a player digs.
+        // Yardstick: 16³ pockets ≈ the rock a short mining gallery sweeps. Before the split 22–29 % of
+        // deep-interior pockets held no copper at all (measured); after it ≤ 1 %. The 95 % gate below
+        // leaves room for cave-riddled pockets without ever passing the old distribution.
+        var content = Content();
+        var planet = content.GetPlanet("rocky")!;
+        var gen = new WorldGenerator(seed, content);
+        ushort copper = content.GetBlock("copper_ore")!.NumericId.Value;
+
+        int pockets = 0, withCopper = 0;
+        for (int cx = 0; cx < 3; cx++)
+            for (int cz = 0; cz < 3; cz++)
+            {
+                // cy = 0 → Y 0..31, well below the rocky surface: every shallow vein is depth-eligible.
+                var chunk = gen.Generate(planet, new ChunkCoord(cx, 0, cz));
+                for (int ox = 0; ox < WorldConstants.ChunkSize; ox += 16)
+                    for (int oy = 0; oy < WorldConstants.ChunkSize; oy += 16)
+                        for (int oz = 0; oz < WorldConstants.ChunkSize; oz += 16)
+                        {
+                            bool has = false;
+                            for (int x = ox; x < ox + 16 && !has; x++)
+                                for (int y = oy; y < oy + 16 && !has; y++)
+                                    for (int z = oz; z < oz + 16 && !has; z++)
+                                    {
+                                        has = chunk.Get(x, y, z).Value == copper;
+                                    }
+
+                            pockets++;
+                            if (has)
+                            {
+                                withCopper++;
+                            }
+                        }
+            }
+
+        Assert.True(withCopper >= (int)(pockets * 0.95),
+            $"copper missing in {pockets - withCopper} of {pockets} 16³ deep-rock pockets — " +
+            "the fine sprinkle half of the two-scale vein split (#1024) is not reaching the world");
+    }
+
     private static int CountBlock(WorldGenerator gen, BlocksBeyondTheStars.Shared.Definitions.PlanetType planet, ushort block,
         int cyLo = 3, int cyHi = 5)
     {
