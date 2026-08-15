@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.16] — 2026-08-16
+
+The rendezvous release. The suit teleporter finally asks *where to* — back to the ship as always, or
+straight to an ally on the same planet, and admins land beside a player instead of inside them.
+Factories stop being grey boxes: the machines have textures, sculpted housings and moving parts you
+can watch. The Avatar Designer keeps several named outfits, the player-to-player trade window joins
+the rest of the UI, touch and gamepad players can reach every verb (VEGA, EVA building, maps, the
+context-actions list), and two small post-8.15 fixes — the clipped "craftable" tag and the broken
+fleet world detail page — ride along.
+
 ### 📡 Suit teleporter: back to ship — or to an ally on this planet (#1056, #1055)
 
 - **The suit teleporter now asks where to.** Right-click on the held device opens a small picker instead of
@@ -88,6 +98,28 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - Under the hood: `InputAction.VegaContinue / PlanetMap / ContextActions`, `InputMap.InjectNextFrame`,
   `ContextActionsUi`; the planet map and the finale breach hold moved off raw key polls. Twelve community
   locales topped up (26 keys each).
+
+### 🩹 Small fixes since 2026.8.15 (#1057, #1063)
+
+- **The ingredient source tag no longer clips.** The right-aligned **craftable** / **raw resource** tag
+  next to each crafting ingredient (new in 2026.8.15) ended 4 px past the detail pane's edge and read
+  `craftabl|e`; it now ends clear of the pane and its scrollbar, and a source-guard test keeps every
+  right-anchored detail text inside the viewport. (#1057)
+- **Fleet admin: the world detail page works again.** Every hosted world with a save file showed
+  *"Could not read the world save: misuse of aggregate function MAX()"* and three empty cards — a
+  correlated sub-select the SQLite planner rejects since the save gained edit attribution. The
+  "last editor" query is fixed (it now really names the *most recent* editor, not the highest player
+  id), and a failing section reports on its own card instead of blanking players and structures. New
+  `WorldInspectorTests` write real saves — attributed, legacy schema, sabotaged table, missing file.
+  (#1063)
+
+### 🔧 Under the hood
+
+- **Community:** end-to-end server hardening tests through the real `PayloadReceived → OnPayload →
+  NetCodec.Decode → dispatch` path — malformed payloads never escape, unjoined connections and hostile
+  `MoveItemIntent` slots are rejected, duplicate `JoinRequest`s are dropped, the valid `ToSlot = -1`
+  stow still emits its `InventoryUpdate`, and dispatch keeps serving valid requests after rejected
+  input. Thanks @ahmdkaml! (#1046, #1049; part of #569)
 
 ## [2026.8.15] — 2026-08-15
 
@@ -3007,7 +3039,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...HEAD
+[2026.8.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...v2026.8.16
 [2026.8.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...v2026.8.15
 [2026.8.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...v2026.8.14
 [2026.8.13]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.12...v2026.8.13
