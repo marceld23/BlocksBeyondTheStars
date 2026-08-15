@@ -117,6 +117,26 @@ instead of blanking players and structures with a false "no player records". New
 write a real save through `SqliteWorldRepository` (attributed, legacy schema, sabotaged table, missing
 file). WorldHost-only — needs a world-host image rebuild + pin bump to reach the fleet.
 
+### ★ Release ~57 → ~35 min: sharded release test gate + the 19-min worldgen scan test fixed (#1067, 2026-08-16, branch ci/release-test-shards)
+The release gate ran the FULL suite on one runner (33–36 min) and was the longest job of every release,
+with the ~22 min Docker image queued behind it (`needs: test`) — critical path test → docker ≈ 57 min,
+where WebGL build + packaging alone would be ~35. Half of the suite's summed 6979 s were THREE Slow tests;
+`WorldGenerationTests.TryGetWaterSurface_LandsInsideGeneratedWater` alone took 1159–1701 s: its 1024²
+scan only stopped early once a *pooled* river reach (#469) turned up, and it never asserted that it had
+found one — so it walked ~1 M columns and passed anyway. It now takes the pooled columns straight from
+`RiverField.ColumnsByPosition` (new inspection property), caps the ordinary scan, caches chunks, and
+**asserts `pooledVerified > 0`** (rivers do pool on jungle/seed 7) — ~2 s, back in the fast tier, and
+the #469 case is really covered. Sharding is now shared: reusable `.github/workflows/tests.yml`
+(inputs tier / warnaserror / nuget-cache / duration-guardrail / artifact-prefix) called by `ci.yml`
+(job id `build-test` unchanged, so the `Tests passed` fan-in is untouched) and `release.yml` (job id
+`test` unchanged, every package/publish/docker `needs` still holds). `partition-tests.py` packs with
+**tier-aware weights** (`--tier fast|full`; new `test-shard-weights-slow.json` holds the Slow seconds
+per class — the old fast-only weights left Slow classes at the 10 s default, so main-push shards ran
+3 / 4 / 9.5 / 23.5 min) and grew a `weights` subcommand that rebuilds both files from trx artifacts +
+a `--list-tests --filter Category=Slow` listing. Follow-ups (not in this PR): the two contention-sensitive
+Slow tests (`Reap_SkipsAWorld…` 29 s → 918 s, `Gateway_DropsAConnection…` 275 s → 896 s on a loaded
+runner) and, only if the gate grows again, building the Docker image up front and retagging after it.
+
 ### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
 A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
 `machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the

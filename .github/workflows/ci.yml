@@ -13,22 +13,17 @@
 #   * tests build/run in Release (worldgen/sim tests are CPU-bound and much faster than in Debug), and
 #   * a duration guardrail (scripts/check-test-durations.py) fails a PR when any non-Slow test exceeds
 #     its budget, so new heavies must either get the Slow trait or a real fix.
-# See the Test step below for details.
+# See the Test step in tests.yml for details.
 #
 # SHARDED TEST MATRIX (#716): the server suite is CPU-bound and already scales ~perfectly with cores
-# (summed test time ≈ 2550 s fast-tier; at maxParallelThreads 4 on the 4-vCPU runner that IS the
-# ~11 min wall the PR gate used to spend). More in-process threads would gain nothing (no more cores;
-# xunit.runner.json pins 4 because of the WorldGenerator lock convoy, #536) — so the suite fans out
-# over 4 runners instead, cutting the test step to ~3 min. scripts/partition-tests.py deterministically
-# packs test CLASSES onto shards (weights: scripts/test-shard-weights.json, from real trx data) and
-# emits each shard's --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a
-# partition-completeness check (--list-tests cross-check) so a class no shard filter matches can never
-# be SILENTLY untested. Branch protection requires the `tests-passed` fan-in job, NOT the matrix jobs
-# (matrix job names carry the shard index and a skipped required matrix would not report).
-#
-# We target the test projects directly (not the whole .sln) on purpose: the .sln also contains the
-# WinForms launcher (net10.0-windows), which cannot build on the Linux runner. Building the test
-# projects pulls in exactly their dependencies (server/shared/client.core) and nothing Windows-only.
+# (at maxParallelThreads 4 on the 4-vCPU runner the summed test time IS the ~11 min wall the PR gate
+# used to spend). More in-process threads would gain nothing (no more cores; xunit.runner.json pins 4
+# because of the WorldGenerator lock convoy, #536) — so the suite fans out over 4 runners instead,
+# cutting the test step to ~3 min. The matrix itself lives in the reusable .github/workflows/tests.yml
+# (#1067) — shared with release.yml's gate, so the two cannot drift — and is called by `build-test`
+# below with the tier/-warnaserror/guardrail settings this workflow wants. Branch protection requires
+# the `tests-passed` fan-in job, NOT the matrix jobs (matrix job names carry the shard index and a
+# skipped required matrix would not report).
 #
 # Warnings ARE enforced here: the build runs with -warnaserror so any analyzer/compiler warning fails
 # the PR, even though the local build keeps TreatWarningsAsErrors=false (Directory.Build.props) for a
@@ -74,100 +69,24 @@ jobs:
   changes:
     uses: ./.github/workflows/detect-doc-only.yml
 
+  # The sharded matrix (reusable tests.yml, see header). Two-tier gate: pull requests run only the fast
+  # tier (--filter Category!=Slow, packed on the fast-tier weights) plus the duration guardrail; a push
+  # to main runs the COMPLETE suite (tier full). Both build with -warnaserror; the NuGet cache is on
+  # because this is the job a human waits on (#531). The job id stays `build-test` — `tests-passed`
+  # reads `needs.build-test.result`.
   build-test:
-    name: Build + test (shard ${{ matrix.shard }}/4)
+    name: Build + test
     needs: changes
     # Run for any push to main, or for a PR that touched at least one non-doc file. A docs-only PR
     # skips this job; the `tests-passed` fan-in treats that as passing, so docs PRs are never blocked.
     # A locales-only PR skips the matrix too and runs `locale-tests` instead (see header).
     if: github.event_name != 'pull_request' || (needs.changes.outputs.nondocs == 'true' && needs.changes.outputs.localesonly != 'true')
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false # one failing shard must not cancel the others' results
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - uses: actions/checkout@v5
-
-      # NuGet package cache. The repo uses no packages.lock.json, so setup-dotnet's default lockfile glob
-      # finds nothing and would fail — cache-dependency-path pins the key to the project files instead.
-      # Deliberately enabled ONLY in ci.yml: this is the job that runs on every PR, where turnaround time
-      # is what a human waits on. The release/CodeQL jobs are not on any critical path, so caching them
-      # would just spend the scarce 10 GB cache budget we are freeing up in #529 (#531).
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            Directory.Build.props
-
-      # Shard 1 also owns the small Client.Tests suite (~11 s), so shards 2-4 skip restoring and
-      # building it entirely.
-      - name: Restore
-        run: |
-          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
-          if [ "${{ matrix.shard }}" = "1" ]; then
-            dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
-          fi
-
-      # -warnaserror promotes every compiler/analyzer warning to a build error for the PR gate.
-      # Release configuration: the suite is dominated by CPU-bound worldgen/sim tests, which run far
-      # faster optimized — the correctness gate is the same tests, just not on a Debug-slowed engine.
-      - name: Build (treat warnings as errors)
-        run: |
-          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release -warnaserror
-          if [ "${{ matrix.shard }}" = "1" ]; then
-            dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release -warnaserror
-          fi
-
-      # Partition-completeness guard (shard 1 only — needs a built assembly, any shard's would do):
-      # every test that --list-tests discovers must be matched by EXACTLY one shard's filter. A test
-      # class the partition misses (nested class, name colliding with a namespace segment, …) fails
-      # the build here instead of silently never running on any shard.
-      - name: Verify shard partition covers every test
-        if: matrix.shard == 1
-        run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --list-tests > listed-tests.txt
-          python3 scripts/partition-tests.py verify --shards 4 --list-file listed-tests.txt
-
-      # Two-tier test gate: PRs skip the tests marked [Trait("Category", "Slow")] — the statistical
-      # worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
-      # guaranteed twice downstream: every push to main runs the COMPLETE suite here (shard filter
-      # only, no tier filter), and release.yml runs it again on the tagged commit before anything is
-      # published. The shard filter (which test classes THIS runner executes) is combined with the
-      # tier filter via `&`.
-      - name: Test
-        env:
-          # xUnit maps [Trait("Category", ...)] to the vstest Category property.
-          TIER: ${{ github.event_name == 'pull_request' && 'Category!=Slow' || '' }}
-        run: |
-          SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards 4)"
-          FILTER="${TIER:+$TIER&}$SHARD_FILTER"
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          if [ "${{ matrix.shard }}" = "1" ]; then
-            dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release ${TIER:+--filter "$TIER"} --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
-          fi
-
-      # Fast-tier duration guardrail (PRs only — the full run on main legitimately contains Slow tests):
-      # fail when any non-Slow test exceeds the per-test budget, so the fast tier cannot silently decay
-      # again. Offenders belong in the Slow tier or need a real fix. The budget is deliberately loose:
-      # trx durations are wall-clock, and parallel CPU-heavy tests inflate innocent awaiting tests via
-      # thread-pool contention (a 9 ms test has measured 37 s inside the full suite) — 120 s only trips
-      # on order-of-magnitude offenders, which is exactly the decay this guards against.
-      - name: Check fast-tier test durations
-        if: github.event_name == 'pull_request'
-        run: python3 scripts/check-test-durations.py --max-seconds 120 TestResults/*.trx
-
-      # Keep the .trx results even when a suite fails, so failures are inspectable from the run page.
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: test-results-shard-${{ matrix.shard }}
-          path: TestResults/*.trx
-          if-no-files-found: ignore
+    uses: ./.github/workflows/tests.yml
+    with:
+      tier: ${{ github.event_name == 'pull_request' && 'fast' || 'full' }}
+      warnaserror: true
+      nuget-cache: true
+      duration-guardrail: ${{ github.event_name == 'pull_request' }}
 
   # Narrow test gate for locales-only PRs (see LOCALES-ONLY NARROW GATE in the header): builds the
   # server test project once and runs only the locale-consuming classes. `verify` runs first so a

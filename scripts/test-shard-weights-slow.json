@@ -1,0 +1,21 @@
+{
+  "AdminNamedTeleportTests": 89.1,
+  "BountyMissionTests": 32.6,
+  "ChunkStreamingTests": 46.0,
+  "CreatureTests": 57.3,
+  "EnergyFenceTests": 106.8,
+  "FloraTests": 19.2,
+  "FloraVarietyTests": 6.7,
+  "GameServerCouplingTests": 71.7,
+  "NpcHintTests": 75.4,
+  "PlaytimeTests": 13.4,
+  "SettlementNpcTests": 27.9,
+  "SettlementOverhaulTests": 292.2,
+  "StructureInteractionTests": 6.8,
+  "TerrainExtremesTests": 0.4,
+  "WebSocketTransportTests": 277.3,
+  "WorldGenerationTests": 27.8,
+  "WorldHostPhase3Tests": 29.2,
+  "WreckRepairTests": 29.4,
+  "WreckStampTests": 11.5
+}

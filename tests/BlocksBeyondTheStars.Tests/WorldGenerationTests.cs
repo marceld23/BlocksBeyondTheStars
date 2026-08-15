@@ -568,7 +568,6 @@ public class WorldGenerationTests
     }
 
     [Fact]
-    [Trait("Category", "Slow")] // 1024² scan seeking a pooled reach (#469) — full-tier only (PRs skip Slow)
     public void TryGetWaterSurface_LandsInsideGeneratedWater()
     {
         // Guards the fauna fix: aquatic creatures spawn at the column TryGetWaterSurface reports. The old probe
@@ -588,42 +587,83 @@ public class WorldGenerationTests
             content.GetBlock("flora_seagrass")!.NumericId.Value,
         };
         int cs = WorldConstants.ChunkSize;
+        // Chunks are generated once per coordinate: neighbouring water cells share a chunk, and re-generating
+        // it per cell was part of why this test used to run for 20+ minutes on CI (#1067).
+        var chunks = new System.Collections.Generic.Dictionary<ChunkCoord, ChunkData>();
+        ChunkData ChunkAt(ChunkCoord coord)
+        {
+            if (!chunks.TryGetValue(coord, out var chunk))
+            {
+                chunk = gen.Generate(planet, coord);
+                chunks[coord] = chunk;
+            }
 
-        // #469: the old 25-column cap stopped at the first ponds and never reached a POOLED river column —
-        // whose surface sits ABOVE the local terrain, exactly the case the helper used to get wrong (it
-        // reconstructed the band from surfaceY and reported water inside solid rock). Verify many more
-        // columns AND at least one pooled one (WaterSurfaceY above the terrain).
-        var field = gen.RiverFieldFor(planet);
-        int verified = 0, pooledVerified = 0;
-        for (int wx = 0; wx < 1024 && (verified < 400 || pooledVerified == 0); wx++)
-            for (int wz = 0; wz < 1024 && (verified < 400 || pooledVerified == 0); wz++)
+            return chunk;
+        }
+
+        // Every cell of the reported [seabed+1 .. top] span must be water or aquatic flora in the generated
+        // world — i.e. the helper points a swimmer at a genuine, fully-filled water body (the old surface+1
+        // probe sat in the air above flush ponds, which is what kept water creatures from ever spawning).
+        // River columns live in the wrapped latitude domain, i.e. wz can be negative — floor-divide/mod so the
+        // chunk + local index stay right (a truncating `/` and `%` would land in the wrong chunk there).
+        static int FloorDiv(int a, int b) => (int)System.Math.Floor((double)a / b);
+        static int Mod(int a, int b) => ((a % b) + b) % b;
+        void AssertWaterColumn(int wx, int wz, int top, int bed)
+        {
+            Assert.True(top > bed, "a water column must have at least one water cell above the seabed");
+            for (int y = bed + 1; y <= top; y++)
+            {
+                var chunk = ChunkAt(new ChunkCoord(FloorDiv(wx, cs), FloorDiv(y, cs), FloorDiv(wz, cs)));
+                ushort cell = chunk.Get(Mod(wx, cs), Mod(y, cs), Mod(wz, cs)).Value;
+                Assert.True(aquatic.Contains(cell), $"cell ({wx},{y},{wz}) in the reported water column should be water/aquatic flora");
+            }
+        }
+
+        // 1) Ordinary water columns (sea, upland ponds, thin river sheets): a bounded scan of the first rows —
+        //    a jungle world is wet enough that 400 of them turn up within a few rows.
+        int verified = 0;
+        for (int wx = 0; wx < 1024 && verified < 400; wx++)
+        {
+            for (int wz = 0; wz < 1024 && verified < 400; wz++)
             {
                 if (!gen.TryGetWaterSurface(planet, wx, wz, out int top, out int bed))
                 {
                     continue;
                 }
 
-                Assert.True(top > bed, "a water column must have at least one water cell above the seabed");
-
-                // Every cell of the reported [seabed+1 .. top] span must be water or aquatic flora in the generated
-                // world — i.e. the helper points a swimmer at a genuine, fully-filled water body (the old surface+1
-                // probe sat in the air above flush ponds, which is what kept water creatures from ever spawning).
-                for (int y = bed + 1; y <= top; y++)
-                {
-                    var coord = new ChunkCoord(wx / cs, y / cs, wz / cs);
-                    var chunk = gen.Generate(planet, coord);
-                    ushort cell = chunk.Get(wx % cs, y % cs, wz % cs).Value;
-                    Assert.True(aquatic.Contains(cell), $"cell ({wx},{y},{wz}) in the reported water column should be water/aquatic flora");
-                }
-
+                AssertWaterColumn(wx, wz, top, bed);
                 verified++;
-                if (field.TryGet(wx, wz, out var col) && col.WaterSurfaceY > gen.SurfaceHeight(planet, wx, wz))
-                {
-                    pooledVerified++; // a pooled reach — the regression case fish used to spawn in rock on
-                }
             }
+        }
 
         Assert.True(verified > 0, "expected to find water columns on a watery world.");
+
+        // 2) POOLED river reaches (#469): a pooled column's water surface sits ABOVE the local terrain — exactly
+        //    the case the helper used to get wrong (it reconstructed the band from surfaceY and reported water
+        //    inside solid rock, so fish spawned in stone). Walk the routed field's own columns for them instead
+        //    of scanning the world: the old 1024² search only stopped early once it had stumbled on a pooled
+        //    column, ran 20-28 min per full-tier CI run — and never asserted that it had found one (#1067).
+        int pooledVerified = 0;
+        foreach (var (pos, col) in gen.RiverFieldFor(planet).ColumnsByPosition)
+        {
+            if (col.WaterSurfaceY <= gen.SurfaceHeight(planet, pos.X, pos.Z))
+            {
+                continue; // a thin sheet following the ground — covered by (1)
+            }
+
+            if (!gen.TryGetWaterSurface(planet, pos.X, pos.Z, out int top, out int bed))
+            {
+                continue; // e.g. a volcano crater takes precedence over the river at this column
+            }
+
+            AssertWaterColumn(pos.X, pos.Z, top, bed);
+            if (++pooledVerified >= 32)
+            {
+                break;
+            }
+        }
+
+        Assert.True(pooledVerified > 0, "expected the routed river field of a watery world to contain pooled reaches — rivers are meant to pool.");
     }
 
     [Fact]

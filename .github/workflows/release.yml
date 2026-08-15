@@ -117,40 +117,19 @@ jobs:
   # RELEASE TEST GATE: the FULL headless test suite on the exact tagged commit. ci.yml's PR check runs
   # only the fast tier (Category!=Slow), and nothing ties a tag to a green CI run on main — this job
   # closes that gap: every package/publish job (installers, itch.io, Docker image) `needs` it, so no
-  # asset ships unless all tests pass. It runs in parallel with the ~15+ min Unity player builds, so it
-  # adds no wall-clock time to a release. Mirrors ci.yml's build-test but without -warnaserror (warnings
-  # are a PR-gate concern; this gate is about behaviour).
+  # asset ships unless all tests pass. It is the same sharded 4-runner matrix ci.yml uses (reusable
+  # tests.yml, #1067), tier full and without -warnaserror (warnings are a PR-gate concern; this gate is
+  # about behaviour). Sharded it finishes well inside the ~30 min WebGL player build, so it adds no
+  # wall-clock time to a release — on a single runner it took 33–36 min and, with the Docker image
+  # queued behind it, made every release ~57 min instead of ~35. Per-shard .trx artifacts land as
+  # release-test-results-<shard>.
   test:
     name: Full test suite (release gate)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
-
-      # Release configuration, matching ci.yml: the CPU-bound worldgen/sim tests run far faster optimized.
-      - name: Restore + build test projects
-        run: |
-          dotnet restore tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj
-          dotnet restore tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj
-          dotnet build tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-restore -c Release
-          dotnet build tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-restore -c Release
-
-      - name: Test (full suite, Slow tier included)
-        run: |
-          dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --logger "trx;LogFileName=server.trx" --results-directory TestResults
-          dotnet test tests/BlocksBeyondTheStars.Client.Tests/BlocksBeyondTheStars.Client.Tests.csproj --no-build -c Release --logger "trx;LogFileName=clientcore.trx" --results-directory TestResults
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: release-test-results
-          path: TestResults/*.trx
-          if-no-files-found: ignore
+    uses: ./.github/workflows/tests.yml
+    with:
+      tier: full
+      warnaserror: false
+      artifact-prefix: release-test-results
 
   build-player:
     name: Build Unity player (Windows)
@@ -840,8 +819,10 @@ jobs:
   # workflow_dispatch run just build-validates it — same publish gating as the GitHub Release / itch.io steps.
   docker:
     name: Dedicated-server image
-    # `test` gates the GHCR push like every other publish job. It costs the image ~14 min of start delay
-    # (it no longer launches immediately), but that stays well inside the Unity-build wall time.
+    # `test` gates the GHCR push like every other publish job. It costs the image the gate's start delay
+    # (it no longer launches immediately) — with the sharded gate (~10 min) plus the ~22 min multi-arch
+    # build that still lands inside the ~30 min WebGL player build + packaging (#1067). If the gate ever
+    # grows again, the next lever is to build the image up front and only retag/push after the gate.
     needs: [version, test]
     permissions:
       contents: read

@@ -47,9 +47,17 @@ soak tests marked `[Trait("Category", "Slow")]` for a fast gate, while every pus
 `dotnet test --filter "Category!=Slow"`. On top of the tiering, CI **shards the server suite across a
 4-runner matrix** (#716): the suite is CPU-bound and already scales ~perfectly with cores in-process
 (`xunit.runner.json` pins `maxParallelThreads: 4`, see #536), so the only way to go faster is more
-runners. `scripts/partition-tests.py` deterministically packs test classes onto shards (weights from
-`scripts/test-shard-weights.json` — refresh it occasionally from a CI `.trx` artifact when balance
-drifts) and shard 1 cross-checks `--list-tests` output so every test provably runs on exactly one shard.
+runners. The matrix lives in the reusable `.github/workflows/tests.yml` (#1067), called by `ci.yml`
+(PRs: fast tier + `-warnaserror` + duration guardrail; pushes to main: full tier) and by `release.yml`
+(the release gate: full tier, no `-warnaserror`) — so both run the identical build/filter/verify steps
+and the release gate finishes in ~10 min instead of the 33–36 min a single runner took.
+`scripts/partition-tests.py` deterministically packs test classes onto shards with **tier-aware
+weights** (`scripts/test-shard-weights.json` = fast-tier seconds, `test-shard-weights-slow.json` = the
+`Slow` tests' seconds per class; `--tier fast|full` picks the sum that matches the run) and shard 1
+cross-checks `--list-tests` output so every test provably runs on exactly one shard. Refresh the
+weights when shard durations drift apart: download the `test-results-shard-*` artifacts of a full-tier
+run (a push to main or a release), list the Slow tests, and run
+`partition-tests.py weights --trx <shard trx…> --slow-list slow.txt --write` (see the script header).
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
 Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at

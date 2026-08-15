@@ -60,6 +60,10 @@ public sealed class RiverField
     /// <summary>All stamped columns (inspection / tests).</summary>
     public IReadOnlyCollection<RiverColumn> Columns => _cols.Values;
 
+    /// <summary>All stamped columns keyed by wrapped world (X, Z) (inspection / tests) — lets a test walk the
+    /// river columns directly instead of scanning the whole world for them (#1067).</summary>
+    public IReadOnlyDictionary<(int X, int Z), RiverColumn> ColumnsByPosition => _cols;
+
     private RiverField(Dictionary<(int, int), RiverColumn> cols, Dictionary<(int, int), int> lakeShore,
         int circumference, int waterfalls, BlockId fillFluid)
     {
