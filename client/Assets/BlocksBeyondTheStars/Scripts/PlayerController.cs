@@ -2805,12 +2805,14 @@ namespace BlocksBeyondTheStars.Client
                     return;
                 }
 
-                // Right-click the held suit teleporter → recall to the ship. The item was craftable but
-                // had no client-side trigger at all (#414 N17); the server validates ownership, suit
-                // energy and the cooldown, and answers with a RespawnNotice snap (or a reject toast).
+                // Right-click the held suit teleporter → the destination picker (#1056): back to the ship, or
+                // to an allied player on this body. (Until #1056 the click recalled instantly — the item had
+                // no client-side trigger at all before #414 N17.) The server validates ownership, suit energy,
+                // the cooldown and the alliance, and answers with a RespawnNotice snap (or a reject toast).
                 if (held == "suit_teleporter")
                 {
-                    Game.Network?.SendTeleportToShip();
+                    if (TeleporterUi.Instance != null) TeleporterUi.Instance.Open();
+                    else Game.Network?.SendTeleportToShip();
                     return;
                 }
 

@@ -402,6 +402,10 @@ public static class NetCodec
         // Per-crate stash filter (#1032): the player decides what belongs in a container. The filter itself
         // travels back on NetContainer.Filter — no extra server->client message needed.
         Register(204, typeof(SetContainerFilterIntent)); // Client -> Server
+
+        // Suit teleporter destination picker (#1056): beam to an allied player on the same body. The recall
+        // to the ship stays TeleportToShipIntent (38); a server without this tag simply drops the message.
+        Register(205, typeof(TeleportToPlayerIntent));   // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

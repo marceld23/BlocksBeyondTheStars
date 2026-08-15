@@ -116,6 +116,30 @@ corner occluder, and the placed-light BFS (a slim prop no longer blocks light or
 contact shadow onto its wall). The other `solid:false` blocks (water/fire/energy_gate) were already
 covered via `IsTransparent`. Client-only, no protocol change.
 
+### ★ Suit teleporter picks a destination: back to ship or to an ally on this planet (#1056, #1055, 2026-08-15, branch feat/suit-teleporter-picker)
+The suit teleporter only ever recalled you to your ship — right-click on the held item fired
+`TeleportToShipIntent` straight away, no menu — while alliances could be formed galaxy-wide with no way to
+actually reach an ally short of walking. Right-click now opens a **TeleporterUi** picker (BeamPadUi
+sibling: modal, UiNav/pad-navigable, Esc/B closes): row one is *Back to ship*, below it one row per
+**allied** player currently on the same body (`StarMap.Players` ∩ `Alliances.Allies` ∩
+`ActiveLocationId`, distance when the avatar is streamed in). New `TeleportToPlayerIntent` (NetCodec
+205) → `GameServer.TeleportToPlayer`: the shared device gates (item / not in space / 30 s cooldown shared
+with the recall / 10 energy) plus alliance (`AreAllied`, enforced server-side whatever the client
+showed), same `CurrentLocationId`, target not in space and not `AboardShip` (ships stay private), snap
+via `RespawnNotice{"@srv.tp.to:Name"}` + `UpdateAboard`. **#1055:** admin `/tpp` copied the target's
+position 1:1 and dropped you inside their capsule; a new `LandingSpotNear(target, yaw)` (8 compass
+candidates at 1.75 blocks, starting in front of the target, ground-snapped with 2 clear blocks, raw
+fallback) is used by `/tpp` and the ally jump alike. New world rule **StarterTeleporter** (default off;
+`--starter-teleporter true`, live On/Off row in the world-rules panel next to Auto-aim,
+`SetWorldRulesIntent.StarterTeleporter`, `ServerRules.StarterTeleporter`): hands a suit teleporter to
+every player who joins without one and to everyone online when flipped on — an ordinary item,
+deliberately not in the undiscardable `StarterKit.Items`. Locales: 13 new keys + reworded item/blueprint
+descriptions in EN/DE, machine top-up for the other 12; Codex *Getting Around* + *Alliances* and the
+user manual (controls row, Alliances, new *Suit teleporter* section, `/tpp`) updated. Tests:
+`TeleportToPlayerTests` (11: happy path on ground, non-ally / no device / other body / target aboard /
+self reject, shared cooldown, landing fallback + facing preference, rule on/off + idempotence);
+`AdminCheatTests` `/tpp` asserts relaxed to "beside". Client + server both need the update (new intent).
+
 ### ★ Empty hotbar slot shows the player's hand (#1033, 2026-08-15, branch fix/empty-slot-hand-viewmodel)
 Selecting an empty hotbar slot rendered nothing at all in first person: `HeldItem.For` mapped the empty
 item key to `Kind.None`, so the viewmodel holder was deactivated entirely — no feedback that the slot

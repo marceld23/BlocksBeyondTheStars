@@ -74,7 +74,7 @@ Last updated: 2026-08-11.
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
-| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner) |
+| **Right-click** | Place the selected hotbar block (or **use** the selected gadget, e.g. the terrain scanner; with the **suit teleporter** selected it opens the destination picker — back to ship / to an ally, see §5) |
 | **Mouse wheel** | Cycle hotbar slot |
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
@@ -500,6 +500,9 @@ separate unlock; admins can still disable it through server world rules.
   private** — only the owner and their allies can board them.
 - The **base core / station core** itself stays **owner-only** (an ally can't dissolve your base or rename your
   station). Alliances are pairwise (no named groups or roles).
+- Allies can **beam to each other**: a held **suit teleporter** (right-click) lists every ally standing on the
+  same planet — see *Suit teleporter* below. Ships stay private: the jump is refused while your ally is
+  aboard theirs.
 - **Family-friendly play:** this is a game for all ages, so keep radio chat and the names you give players,
   bases, stations, beacons and creatures friendly. You can **mute** any player you don't want to hear, and
   the host can turn **voice chat** off entirely. See the in-game Codex chapter **House Rules** for the full
@@ -512,6 +515,22 @@ separate unlock; admins can still disable it through server world rules.
   name, coordinates and distance; pick one to **beam** there.
 - Beaming costs **6 suit energy** with a **6 s cooldown**. Each pad shows its name on the planet map (key **M**)
   and as a floating label in the world. Only the owner can rename a pad; mining it removes it.
+
+### Suit teleporter (back to ship · to an ally)
+- Craft the **suit teleporter** (`suit_teleporter`; blueprint *Suit Teleporter* in the Suit category, then a
+  workshop recipe: titanium plates + cable + energy cells + data fragments). Put it in the hotbar, select it and
+  **right-click** (touch/pad: the *place* action) — a small **destination picker** opens:
+  - **Back to ship** — recalls you to your ship's heal tank (the respawn point). This is what the device has
+    always done.
+  - **Allies on this planet** — one row per **allied** player who is currently on the same world (name + distance
+    when they're in view; *out of sight* otherwise). **Beam** puts you down **beside** them, facing them.
+    Non-allied players are never listed, and the server checks the alliance again on every jump.
+- Both jumps cost **10 suit energy** and share a **30 s cooldown**; neither works while flying in space, and the
+  ally jump is refused while that ally is **aboard their ship** (ships stay private) or on **another body**.
+- **Multiplayer hosts:** the world rule **Starter teleporter for everyone** (Tab → Settings → world rules,
+  world admin; or launch with `--starter-teleporter true`) hands every player who joins without one a suit
+  teleporter — switching it on also gives one to everybody online. It stays an ordinary item (unlike the
+  protected starter kit) and is off by default, so singleplayer progression is unchanged.
 
 ### Wrecks: repair & claim
 - A crashed wreck shows a **wreck panel** (right HUD) with a hull-repair progress bar. Aim at a breach
@@ -946,7 +965,7 @@ rejections) appear in the **chat scrollback**, not just the brief HUD toast.
 | `/tp X Y Z` | Teleport to coordinates |
 | `/tp Target` | Teleport to a landmark **on the body you are standing on** — see *Named teleport targets* below |
 | `/tp` | List every named target here, with the exact word to type and its distance |
-| `/tpp Player` | Teleport to a player |
+| `/tpp Player` | Teleport to a player on the body you are on — you land **beside** them, never inside them (#1055) |
 | `/settime day\|night\|…` | Set the world time of day |
 | `/setweather clear\|storm\|…` | Set the world weather |
 | `/fly` | Toggle free flight for yourself (no gravity). In **Creative/Sandbox** worlds everybody can already fly — double-tap **Space**; this is the per-player admin cheat for the other modes |

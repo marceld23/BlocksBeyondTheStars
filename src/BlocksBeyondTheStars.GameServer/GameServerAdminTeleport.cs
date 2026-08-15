@@ -312,6 +312,51 @@ public sealed partial class GameServer
         SendPlayerState(session);
     }
 
+    /// <summary>Radius (blocks) at which <see cref="LandingSpotNear"/> puts an arriving player beside their
+    /// target: close enough to read as "I'm here", far enough that the two capsules never overlap.</summary>
+    private const float LandingBesideDistance = 1.75f;
+
+    /// <summary>
+    /// A standing spot <b>beside</b> another player, for every "teleport to player" (#1055). Copying the target's
+    /// position 1:1 — what <c>/tpp</c> did — drops the arrival inside the target's capsule; both get shoved
+    /// around or stick until one of them moves. Eight compass candidates at <see cref="LandingBesideDistance"/>
+    /// are tried, starting in front of the target (the way they face, so the arrival is seen, not felt), each
+    /// snapped to the ground column and required to have two clear blocks of standing room. Falls back to the
+    /// raw target position only when nothing around them fits (a 1-wide corridor, a pillar top).
+    /// </summary>
+    private Vector3f LandingSpotNear(Vector3f target, float targetYaw)
+    {
+        int ty = (int)Math.Floor(target.Y);
+        int tx = (int)Math.Floor(target.X), tz = (int)Math.Floor(target.Z);
+        // Yaw is degrees around +Y (client convention: 0 = +Z forward, 90 = +X). Start with "in front of".
+        double baseAngle = targetYaw * Math.PI / 180.0;
+        for (int i = 0; i < 8; i++)
+        {
+            double a = baseAngle + i * (Math.PI / 4.0);
+            float cx = target.X + (float)(Math.Sin(a) * LandingBesideDistance);
+            float cz = target.Z + (float)(Math.Cos(a) * LandingBesideDistance);
+            int bx = (int)Math.Floor(cx), bz = (int)Math.Floor(cz);
+            if (bx == tx && bz == tz)
+            {
+                continue; // same cell as the target — that IS the overlap we're avoiding
+            }
+
+            // Ground-snap: from one block above the target's feet, walk down a couple of cells to a floor.
+            for (int y = ty + 1; y >= ty - 2; y--)
+            {
+                if (IsBodyBlockingCell(bx, y - 1, bz) && !IsBodyBlockingCell(bx, y, bz) && !IsBodyBlockingCell(bx, y + 1, bz))
+                {
+                    return new Vector3f(bx + 0.5f, y, bz + 0.5f);
+                }
+            }
+        }
+
+        return target;
+    }
+
+    /// <summary>Test seam for <see cref="LandingSpotNear"/>.</summary>
+    public Vector3f LandingSpotNearForTest(Vector3f target, float targetYaw = 0f) => LandingSpotNear(target, targetYaw);
+
     /// <summary>Test seam: the resolvable targets on the player's current body, as <c>/tp</c> would list them.</summary>
     public IReadOnlyList<(string Kind, int Number, string Label, Vector3f Position)> TeleportTargetsForTest(string playerId)
     {

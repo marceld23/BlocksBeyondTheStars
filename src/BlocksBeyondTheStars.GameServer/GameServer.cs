@@ -2755,6 +2755,7 @@ public sealed partial class GameServer
             case ScanEntityIntent scanEntity: HandleScanEntity(session, scanEntity); break;
             case LoadRationIntent loadRation: HandleLoadRation(session, loadRation); break;
             case TeleportToShipIntent: HandleTeleportToShip(session); break;
+            case TeleportToPlayerIntent tpp: HandleTeleportToPlayer(session, tpp); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
             case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
@@ -2971,6 +2972,7 @@ public sealed partial class GameServer
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
+        GrantStarterTeleporter(session); // StarterTeleporter world rule (#1056): hand out the device on join
 
         var (systemName, planetName) = ActiveLocationNames();
         SendTo(connectionId, new JoinAccepted
@@ -3248,6 +3250,7 @@ public sealed partial class GameServer
         EnsureSafeSpawn(session); // self-heal a position persisted mid-fall (don't load them into the void)
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
+        GrantStarterTeleporter(session); // StarterTeleporter world rule (#1056): hand out the device on join
         return session;
     }
 
@@ -4841,7 +4844,8 @@ public sealed partial class GameServer
                         return;
                     }
 
-                    p.Position = target.State.Position;
+                    // Beside the target, not inside their capsule (#1055).
+                    p.Position = LandingSpotNear(target.State.Position, target.State.Yaw);
                     // Same snap-channel rule as teleport_to_location (#414 M7).
                     Send(session, new RespawnNotice { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z, Reason = "@srv.tp.to:" + target.State.Name });
                     SendPlayerState(session);
@@ -5508,6 +5512,7 @@ public sealed partial class GameServer
             Bandits = r.Bandits.ToString(),
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
+            StarterTeleporter = r.StarterTeleporter,
             VoiceChatEnabled = _config.VoiceChatEnabled,
         });
     }
@@ -5564,6 +5569,11 @@ public sealed partial class GameServer
             Rules.AutoAim = intent.AutoAim.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
+        if (!string.IsNullOrEmpty(intent.StarterTeleporter))
+        {
+            Rules.StarterTeleporter = intent.StarterTeleporter.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit
         _repo.SaveMetadata(_meta);
 
@@ -5572,13 +5582,14 @@ public sealed partial class GameServer
             if (s.Joined)
             {
                 SendRules(s);
+                if (GrantStarterTeleporter(s)) { SendInventory(s); } // #1056: flipping the rule on hands the device to everyone online now
             }
         }
 
         _log.Info($"World rules updated by '{session.State.Name}': creatures={Rules.CreatureAbundance}, " +
                   $"planet={Rules.PlanetEnemies}, space={Rules.SpaceNpcEnemies}, ufos={Rules.AlienUfos}, " +
                   $"bandits={Rules.Bandits}, instantTravel={Rules.InstantTravel}, hazards={Rules.EnvironmentalHazards}, " +
-                  $"autoAim={Rules.AutoAim}.");
+                  $"autoAim={Rules.AutoAim}, starterTeleporter={Rules.StarterTeleporter}.");
     }
 
     /// <summary>Rearranges the player's personal inventory by swapping two slots (B58 — customising the quick-bar,

@@ -1677,6 +1677,20 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(autoAimBtn.transform, 560, 0, 200, 78, autoAim ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 autoAim ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // Starter teleporter (world option, #1056): when on, every player who joins without a suit teleporter
+            // is handed one (and everyone online gets one the moment it is switched on) — a multiplayer crew can
+            // beam to allies on the same body and back to their ships without grinding the blueprint first.
+            bool starterTp = rules?.StarterTeleporter ?? false;
+            var starterTpBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+            {
+                Game?.Network?.SendSetWorldRules(starterTeleporter: starterTp ? "Off" : "On");
+                Invoke(nameof(RebuildList), 0.35f);
+            });
+            UiKit.AddText(starterTpBtn.transform, 16, 0, 520, 78, L("ui.worldopt.starter_teleporter"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(starterTpBtn.transform, 560, 0, 200, 78, starterTp ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                starterTp ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 96f;
             y += 16f;
 
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).

@@ -262,6 +262,11 @@ namespace BlocksBeyondTheStars.Client
             var remotes = root.AddComponent<RemotePlayers>();
             remotes.Game = boot;
 
+            // Suit teleporter destination picker (#1056): back to ship, or to an allied player on this body.
+            var teleporter = root.AddComponent<TeleporterUi>();
+            teleporter.Game = boot;
+            teleporter.Remotes = remotes;
+
             // Render settlement + space-station NPCs.
             var npcs = root.AddComponent<NpcView>();
             npcs.Game = boot;

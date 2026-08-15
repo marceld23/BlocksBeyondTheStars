@@ -216,6 +216,13 @@ public sealed class GameRules
     /// admin. Old saves deserialize without the field and keep the ON default — no start-up lift needed.</summary>
     public bool AutoAim { get; set; } = true;
 
+    /// <summary>Starter teleporter (world option, default OFF — issue #1056): when ON every player who joins
+    /// without a suit teleporter is handed one, so a multiplayer crew can beam to each other (allies on the same
+    /// body) and back to their ships without each grinding the blueprint first. Live-editable by the world admin;
+    /// flipping it on also hands one to everyone online. Old saves deserialize without the field and keep the
+    /// OFF default — no start-up lift needed.</summary>
+    public bool StarterTeleporter { get; set; }
+
     /// <summary>Whether crafting consumes materials / needs stations (false in Creative).</summary>
     public bool CraftingCostsMaterials => GameMode != GameMode.Creative;
 

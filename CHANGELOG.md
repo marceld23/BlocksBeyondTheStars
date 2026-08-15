@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📡 Suit teleporter: back to ship — or to an ally on this planet (#1056, #1055)
+
+- **The suit teleporter now asks where to.** Right-click on the held device opens a small picker instead of
+  recalling on the spot: **Back to ship** (what it always did), and below it every **ally** who is on the
+  same planet right now, with their distance when they're in view. Pick one and you appear **beside** them.
+  Ships stay private — the jump is refused while your ally is aboard theirs — and the server re-checks the
+  alliance, the body, energy and the shared 30 s cooldown on every use. (#1056)
+- **Hosts can hand it out.** New world rule **Starter teleporter for everyone** (world-rules panel, or
+  `--starter-teleporter true`): every player who joins without a suit teleporter gets one, and switching it
+  on gives one to everybody online. Off by default, so singleplayer progression is unchanged. (#1056)
+- **`/tpp` lands you next to the player, not inside them.** The admin teleport copied the target's position
+  exactly and left both of you overlapping; it now uses the same "land beside" spot finder as the ally jump.
+  (#1055)
+- Codex (*Getting Around*, *Alliances*) and the user manual describe the picker; the item and blueprint
+  descriptions mention both destinations. Client and server both need this update (a new message).
+
 ### 🎮 Touch and gamepad reach every verb again (#1041, #1042, #1043, #1044)
 
 - **VEGA can be advanced without a keyboard.** The ship AI's continue key was the raw **N** and nothing

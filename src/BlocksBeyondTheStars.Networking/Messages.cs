@@ -400,6 +400,15 @@ public sealed class LoadRationIntent
 /// <summary>Client uses the suit teleporter to recall to its ship (server validates device/cooldown/energy).</summary>
 public sealed class TeleportToShipIntent { }
 
+/// <summary>Client uses the suit teleporter to beam to an <b>allied</b> player on the same body (#1056). The
+/// server validates device/cooldown/energy, the alliance, same-body + not-in-space, and that the target is not
+/// aboard their own ship; the arrival lands beside the target. Rejects arrive as <c>@srv.tp.*</c> toasts.</summary>
+public sealed class TeleportToPlayerIntent
+{
+    /// <summary>The ally to beam to (player id == display name).</summary>
+    public string TargetPlayerId { get; set; } = string.Empty;
+}
+
 /// <summary>Client toggles the stealth field (requires a stealth suit + energy).</summary>
 public sealed class ToggleStealthIntent { }
 
@@ -1017,6 +1026,10 @@ public sealed class ServerRules
     /// automatically; when false only the entity under the crosshair can be hit (manual aiming).</summary>
     public bool AutoAim { get; set; } = true;
 
+    /// <summary>Starter-teleporter world option (#1056): when true every joining player is handed a suit
+    /// teleporter (multiplayer convenience); default false.</summary>
+    public bool StarterTeleporter { get; set; }
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -1048,6 +1061,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Auto-aim toggle (#693): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string AutoAim { get; set; } = string.Empty;
+
+    /// <summary>Starter-teleporter toggle (#1056): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string StarterTeleporter { get; set; } = string.Empty;
 }
 
 // --- Missions ---

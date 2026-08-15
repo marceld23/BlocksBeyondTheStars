@@ -540,6 +540,10 @@ public sealed class ServerConfig
                     // #693: manual aiming — weapons only hit what is under the crosshair when off.
                     if (bool.TryParse(value, out var aa)) { Rules.AutoAim = aa; applied.Add("auto-aim"); }
                     break;
+                case "starter-teleporter":
+                    // #1056: hand every joining player a suit teleporter (multiplayer crews beam to allies / ship).
+                    if (bool.TryParse(value, out var stp)) { Rules.StarterTeleporter = stp; applied.Add("starter-teleporter"); }
+                    break;
                 case "story":
                     Rules.StoryId = value; applied.Add("story"); // pack id, "none" for sandbox, or "default"/empty
                     break;

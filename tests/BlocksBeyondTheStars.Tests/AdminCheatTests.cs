@@ -151,8 +151,7 @@ public sealed class AdminCheatTests : IDisposable
         client.Poll();
 
         Assert.NotNull(snap);
-        Assert.Equal(321f, snap!.X);
-        Assert.Equal(123f, snap.Z);
+        Assert.InRange(System.MathF.Abs(snap!.X - 321f) + System.MathF.Abs(snap.Z - 123f), 0f, 4f); // beside the target (#1055), same body
         Assert.False(snap.Died);
     }
 
@@ -180,8 +179,7 @@ public sealed class AdminCheatTests : IDisposable
         client.Poll();
 
         Assert.NotNull(snap);
-        Assert.Equal(321f, snap!.X);
-        Assert.Equal(123f, snap.Z);
+        Assert.InRange(System.MathF.Abs(snap!.X - 321f) + System.MathF.Abs(snap.Z - 123f), 0f, 4f); // beside the target (#1055)
     }
 
     /// <summary>A target on another body has coordinates from a different scene — copying them raw dropped
