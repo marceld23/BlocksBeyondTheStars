@@ -105,6 +105,58 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
+A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
+`machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the
+atlas painted the default grey — even the terminal (#1050, three new gpt-image-1-mini tiles via
+`gen_textures.py`, same NOTICES terms). (2) `BlockTextureAtlas.PaintTile` never read the `color`
+authored in blocks.json — `BaseColor(key)` was the only source, so `bedrock`, `ship_core/helm/engine`
+and the factory blocks all fell to the same default; the procedural fallback is now palette → authored
+colour → default (#1051, palette entries keep priority so the strip lights etc. are unchanged). (3)
+`FactoryView` anchored every animated part at the *centre* of the roof-top pipe block: rotor spokes
+fully buried, half the press stroke hidden, conveyor cubes sliding out of the block sides — only the
+0.18 m status light was ever visible. The machinery now hangs on the housing's front face (towards the
+door) at housing scale: a 2.4 m flywheel with rim, a piston press with rod, cylinder and anvil, a belt
+with drive rollers (#1052, client-only). (4) `FactoryGenerator` sculpts the housing from stock blocks —
+dark `engine_panel` plinth course, glass inspection windows in the side faces, an amber `cargo_floor`
+work strip on the floor in front, `factory_pipe` exhausts on the back corners rising to the ceiling
+(#1053, factories re-derive per session so existing worlds pick it up; new
+`Generator_Housing_IsSculptedNotASlab` test).
+
+### ★ Avatar Designer keeps several outfits (#1047, 2026-08-15, branch feat/avatar-outfits)
+Once you had painted a nice suit, trying a second look meant overwriting it: the designer had exactly one
+"current look" (`ClientSettings.SkinColor/…/FacePixels/*Pixels`) plus an Export nobody could import. New
+`AvatarOutfit` (name + four colours + face + four body-paint parts; gear toggles stay a preview because in
+the game the shown gear follows equipped items) and `ClientSettings.Outfits` (list, cap `MaxOutfits` = 8,
+absent in older settings files → loads empty). The designer grows an **Outfits** panel left of the control
+panel: **Save outfit** stores the scratch look under the name field (new, or overwriting the outfit that
+already carries that name), clicking a row loads it into the designer + preview + name field, **Rename
+selected** renames the highlighted row, ✕ deletes without confirmation (the applied in-game look is a
+separate copy, so deleting even the outfit you wear changes nothing). Apply remains the only thing that
+touches the in-game avatar, so the server is untouched — it still only sees the applied look on the next
+join. `UiNav.Enable` on the designer canvas (it had none) so a pad reaches everything; 12 new
+`ui.avatar.outfit*` keys in all 14 locales. Client-only. Follow-up candidate: an in-game quick-switch
+that applies a saved outfit from the pause/ring menu.
+
+### ★ Player trade window restyled to match the rest of the UI (#1058, 2026-08-15, branch fix/trade-ui-restyle)
+The player-to-player trade panel (`PlayerInteractions.cs`) predated every later UI convention: a
+private translucent `CenterPanel` with no scrim or fade, ± buttons of 26×24 / 36×26 px whose label rect
+(`AddButton` reserves `w − 28`) came out negative or 8 px wide — the glyphs were effectively invisible
+and far too small for a finger —, plain-text rows without item icons, a left column labelled "Your
+offer" that was really the whole inventory, ready/waiting as a text suffix, and no Esc/pad-B cancel.
+Rebuilt on `UiKit.AddModalOverlay` (900×640, scrim + opaque dialog, `TransitionIn`): title "Trade
+with {partner}" + subtitle explaining the both-confirm rule; left "Your inventory" as icon cards
+(`IconResolver`, 56 px rows, `[−] n [+]` at 44 px, row highlighted while offered); right "You give" /
+"You get from {partner}" boxes with a `READY` / `waiting…` pill each and the knowledge line inside
+(the teach control shows only when `MyKnowledgeMax > 0`, else a one-line hint); footer Confirm turns
+green "Confirmed — waiting for {partner}" once pressed (so the server's silent reset on any offer
+change becomes visible), Cancel right-aligned, device-specific hint (Esc / B, none on touch). Esc and
+gamepad B cancel the trade / decline a request; `UiNav` stays on all three windows. The trade-request
+and dock-request prompts share one `BuildAskDialog` so they look identical. Row rebuild only runs
+when the `TradeUpdate`, the inventory array or the language changed. Toasts "Trade complete." and
+"{0} requests docking." localized; DE "Ihr Angebot" → "Angebot der Gegenseite". 18 new
+`ui.trade.*` / `ui.dock.*` keys in all 14 locales. Client-only, no protocol change.
+
 ### ★ The wall behind a placed torch is no longer see-through (#1031, 2026-08-15, branch fix/torch-xray-neighbor-cull)
 Placing a torch on a wall opened an x-ray hole: `ChunkMesher`'s neighbour-culling only kept an opaque
 face toward air / transparent / flora / foliage cells, and a torch cell is none of those — it meshes
@@ -8129,6 +8181,20 @@ derived runtime crates deliberately aren't persisted by the filter handler. HUD 
 shows **Filter on** plus the E hint; USER_MANUAL documents the workflow (and the previously missing
 **H** key row). New `ContainerFilterTests` cover whitelist enforcement, dyed-variant matching, clearing,
 input sanitising and the persistence roundtrip.
+
+---
+
+## ✅ Done (2026-08-15): the ingredient source tag ("craftable" / "raw resource") no longer clips at the detail pane's edge (#1057)
+
+Playtest find on v2026.8.15: the right-aligned source tag that #1016/#1022 added to every ingredient row
+in the Crafting / Tech / Ship detail pane read `craftabl|e` — its last glyph was cut off. Cause: the tag was
+placed at `x 20 + w 620 = 640` inside a detail scroll viewport that is only **636 px** wide and clipped by a
+`RectMask2D`, with the 8-px auto-hide inline scrollbar overlaying the viewport's right edge on top of that.
+Left-anchored rows share the same geometry but never showed it (their text ends long before the edge).
+Fix: the tag's rect now ends at 616 (20 px inside the viewport, clear of the scrollbar). Client-only, no
+protocol/content change. New `CraftDetailLayoutTests` (client suite) parse `CraftingTechShipUI.cs` /
+`UiKit.cs` and assert every right-anchored `AddText(_detail, …)` ends inside `viewport − scrollbar`, plus a
+pinned check on the #1057 row itself.
 
 ---
 

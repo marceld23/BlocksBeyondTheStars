@@ -187,6 +187,10 @@ TEXTURES = [
     ("station_vendor", "a sci-fi trading post kiosk counter, a dark metal booth with a warm amber-lit display shelf of goods and a small price screen, front view"),
     ("mission_board", "a sci-fi mission notice board, a dark metal panel covered in small glowing blue holographic job postings and status lights, front view"),
     ("station_container", "a sci-fi station storage container, an orange ribbed metal cargo locker with a hinged front hatch and a small status light, front view"),
+    # Factory look (#1050): the machine housing, its pipe stack and the production terminal had no tile.
+    ("machine_block", "a heavy sci-fi industrial machine housing, dark grey armoured metal casing with rivets, bolted seams, ventilation slits and a small amber indicator light, front view"),
+    ("factory_pipe", "an industrial factory pipe duct, a thick riveted olive-grey metal pipe with flanged joints and a pressure valve, front view"),
+    ("factory_terminal", "a sci-fi factory production terminal, a dark metal console with a glowing cyan holographic screen showing production graphs, buttons and a status light, front view"),
 ]
 
 

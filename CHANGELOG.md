@@ -29,6 +29,42 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - Codex (*Getting Around*, *Alliances*) and the user manual describe the picker; the item and blueprint
   descriptions mention both destinations. Client and server both need this update (a new message).
 
+### 🏭 Factories look like factories (#1050, #1051, #1052, #1053)
+
+- **The machines have faces now.** The machine housing, its pipes and the production terminal had no
+  texture at all — every one painted the same flat grey, so a factory was "a room with two big grey
+  boxes". All three got real tiles. (#1050)
+- **Authored block colours count.** A `color` set in `blocks.json` was ignored by the texture atlas
+  whenever a block had neither a tile nor a hand-picked palette entry; it is now the fallback tint, so
+  bedrock, the ship core/helm/engine markers and the factory blocks show their intended colours. (#1051)
+- **You can see the machines run.** The press, flywheel and conveyor were drawn *inside* the pipe block
+  on the roof — all you saw was a blinking light. They now hang on the front of the housing at proper
+  size: a big rimmed flywheel spinning, a piston hammering onto an anvil, parts riding a belt between
+  drive rollers. (#1052)
+- **Housings are sculpted, not slabs.** Dark plinth course, glass inspection windows in the sides, an
+  amber work strip on the floor in front, and exhaust pipes rising from the back corners into the
+  ceiling. Existing worlds get the new look on next load. (#1053)
+
+### 👕 Avatar Designer: save and switch between several outfits (#1047)
+
+- The Avatar Designer now keeps up to **eight named outfits** — colours, pixel face and body paint — in a
+  new **Outfits** panel: **Save outfit** stores your current look under the name you typed (or updates
+  the outfit that already has that name), clicking one loads it back onto the rotating figure, **Rename
+  selected** and ✕ do what they say. **Apply** is still the only button that changes your in-game avatar,
+  so you can browse and tweak looks freely. Older settings files simply start with an empty list. (#1047)
+
+### 🤝 Player trade window now looks like the rest of the game (#1058)
+
+- The trade window between two players was the odd one out: a translucent panel with the world
+  shining through, `−`/`+` buttons so small their glyphs vanished (and no finger could hit them),
+  plain text rows without item pictures, and no way to cancel with **Esc** or the pad. It is now a
+  proper dialog — dimmed backdrop, "Trade with {partner}", your inventory as icon cards with big
+  `−`/`+` buttons, a clear **You give / You get from {partner}** summary with a `READY` /
+  `waiting…` badge on each side, and a Confirm button that turns green while you wait for the other
+  player. **Esc** (keyboard) or **B** (gamepad) cancels; the stick walks every control; touch targets
+  are finger-sized. The incoming trade-request and docking-request prompts got the same treatment,
+  and "Trade complete" is finally translated. (#1058)
+
 ### 🎮 Touch and gamepad reach every verb again (#1041, #1042, #1043, #1044)
 
 - **VEGA can be advanced without a keyboard.** The ship AI's continue key was the raw **N** and nothing

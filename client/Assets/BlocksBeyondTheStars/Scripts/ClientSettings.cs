@@ -104,6 +104,66 @@ namespace BlocksBeyondTheStars.Client
     /// in <c>Application.persistentDataPath/client_settings.json</c>. See
     /// <c>docs/developer/CLIENT_SHELL_AND_ASSETS.md</c>.
     /// </summary>
+    /// <summary>One saved avatar outfit (#1047): a named copy of everything the Avatar Designer produces for a
+    /// look — the four body colours, the pixel face and the four body-paint parts. Purely local (the server
+    /// only ever sees the look that is currently applied), stored as a flat class so JsonUtility can persist
+    /// it. Gear toggles are NOT part of an outfit: in the game the shown gear follows the equipped items, the
+    /// designer's toggles are only a preview.</summary>
+    [Serializable]
+    public sealed class AvatarOutfit
+    {
+        public string Name = "";
+        public Color SkinColor;
+        public Color TorsoColor;
+        public Color ArmColor;
+        public Color LegColor;
+        public string FacePixels = "";
+        public string TorsoPixels = "";
+        public string ArmPixels = "";
+        public string LegPixels = "";
+        public string HelmetPixels = "";
+
+        /// <summary>The body painting for a BodyPaint part index (empty for unknown parts).</summary>
+        public string GetBodyPaint(int part)
+        {
+            switch (part)
+            {
+                case 0: return TorsoPixels ?? "";
+                case 1: return ArmPixels ?? "";
+                case 2: return LegPixels ?? "";
+                case 3: return HelmetPixels ?? "";
+                default: return "";
+            }
+        }
+
+        /// <summary>Stores the body painting for a BodyPaint part index (unknown parts ignored).</summary>
+        public void SetBodyPaint(int part, string pixels)
+        {
+            switch (part)
+            {
+                case 0: TorsoPixels = pixels ?? ""; break;
+                case 1: ArmPixels = pixels ?? ""; break;
+                case 2: LegPixels = pixels ?? ""; break;
+                case 3: HelmetPixels = pixels ?? ""; break;
+            }
+        }
+
+        /// <summary>A detached copy (so a saved outfit and the designer's scratch state never share pixels).</summary>
+        public AvatarOutfit Clone() => new AvatarOutfit
+        {
+            Name = Name ?? "",
+            SkinColor = SkinColor,
+            TorsoColor = TorsoColor,
+            ArmColor = ArmColor,
+            LegColor = LegColor,
+            FacePixels = FacePixels ?? "",
+            TorsoPixels = TorsoPixels ?? "",
+            ArmPixels = ArmPixels ?? "",
+            LegPixels = LegPixels ?? "",
+            HelmetPixels = HelmetPixels ?? "",
+        };
+    }
+
     [Serializable]
     public sealed class ClientSettings
     {
@@ -320,6 +380,50 @@ namespace BlocksBeyondTheStars.Client
                 case 1: ArmPixels = pixels ?? ""; break;
                 case 2: LegPixels = pixels ?? ""; break;
                 case 3: HelmetPixels = pixels ?? ""; break;
+            }
+        }
+
+        /// <summary>Upper bound on saved outfits (#1047) — keeps the designer's outfit list on one panel without
+        /// scrolling and the settings file small (each painted part is a few KB of pixels).</summary>
+        public const int MaxOutfits = 8;
+
+        /// <summary>Saved avatar outfits (#1047), in the order they were created. The applied look above stays
+        /// the source of truth for the game; an outfit only becomes it through the designer's Apply. Absent in
+        /// older settings files, which therefore load with an empty list.</summary>
+        public List<AvatarOutfit> Outfits = new List<AvatarOutfit>();
+
+        /// <summary>The currently applied look as an outfit named <paramref name="name"/> (a detached copy).</summary>
+        public AvatarOutfit CaptureOutfit(string name) => new AvatarOutfit
+        {
+            Name = name ?? "",
+            SkinColor = SkinColor,
+            TorsoColor = TorsoColor,
+            ArmColor = ArmColor,
+            LegColor = LegColor,
+            FacePixels = FacePixels ?? "",
+            TorsoPixels = TorsoPixels ?? "",
+            ArmPixels = ArmPixels ?? "",
+            LegPixels = LegPixels ?? "",
+            HelmetPixels = HelmetPixels ?? "",
+        };
+
+        /// <summary>Makes <paramref name="outfit"/> the applied look (colours, face, body paint). Does not save;
+        /// the caller decides when to persist, exactly like the designer's Apply.</summary>
+        public void ApplyOutfit(AvatarOutfit outfit)
+        {
+            if (outfit == null)
+            {
+                return;
+            }
+
+            SkinColor = outfit.SkinColor;
+            TorsoColor = outfit.TorsoColor;
+            ArmColor = outfit.ArmColor;
+            LegColor = outfit.LegColor;
+            FacePixels = outfit.FacePixels ?? "";
+            for (int part = 0; part < 4; part++)
+            {
+                SetBodyPaint(part, outfit.GetBodyPaint(part));
             }
         }
 

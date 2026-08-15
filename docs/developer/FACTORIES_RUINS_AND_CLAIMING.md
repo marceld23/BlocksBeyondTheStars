@@ -40,9 +40,12 @@ other.
 
 A factory is an industrial hall (`FactoryGenerator.cs`, built on the generic `SettlementStructure`
 voxel+marker container): metal walls + glass windows, a door, and **one or more machine bays**, each a
-`machine_block` housing plus a `factory_pipe` stack. A `factory_terminal` block sits by the door. Size,
-depth, machine count and machine archetypes are seeded per instance, so no two look alike. Stamped with
-the shared `StampSettlementBlocks` (terrain carve + stepped foundation + block stamp).
+3×3×(4–5) `machine_block` housing sculpted from stock blocks — a dark `engine_panel` plinth course, glass
+inspection windows in the side faces, an amber `cargo_floor` work strip on the floor in front, a
+`factory_pipe` on the roof (the machine anchor) plus exhaust pipes on the back corners rising into the
+ceiling (#1053). A `factory_terminal` block sits by the door. Size, depth, machine count and machine
+archetypes are seeded per instance, so no two look alike. Stamped with the shared `StampSettlementBlocks`
+(terrain carve + stepped foundation + block stamp). All three factory blocks have bundled tiles (#1050).
 
 ### 2.1 The production roster — "never everything"
 
@@ -70,13 +73,16 @@ claiming is a separate mechanic and is *not* required to produce.
 The server sends a `FactoryList` (`FactoryMessages.cs`, NetCodec tag 172) on world entry: each
 `NetFactory` carries the terminal position, roster, claim state and a `NetMachine[]` (archetype +
 anchor). `FactoryView.cs` (modelled on `DoorView`/`StationDecorView`) overlays animated GameObjects on
-the static housings:
+the static housings. The anchor is the **centre of the roof-top pipe block**; the geometry hangs on the
+housing's **front (−Z) face** towards the hall door, in local units (housing top = y −0.5, front face =
+z −1.5; the housing is ≥ 4 tall so y −0.5 … −4.5 is always real housing — #1052 moved it there, the parts
+used to sit inside the pipe block and were invisible):
 
-- **press** — a piston head that hammers up/down (`localPosition` lerp),
-- **rotor** — a 4-spoke wheel that spins (`localRotation`),
-- **conveyor** — parts scrolling along a band,
+- **press** — a piston cylinder, a wide head with rod hammering down onto an anvil (`localPosition`),
+- **rotor** — a 2.4 m vertical flywheel (axle, four spokes, eight-segment rim) spinning about Z (`localRotation`),
+- **conveyor** — a belt bed with two turning drive rollers and parts scrolling along it,
 
-each with a pulsing status light. Motion is procedural and continuous (ambient-running), camera-proximity
+each on two mounting rails with a pulsing status light top-right. Motion is procedural and continuous (ambient-running), camera-proximity
 gated for frame time. Materials use the project `LitColor` shader (never Standard — it strips in player
 builds). `FactoryView` is attached in `WorldRig.cs` alongside the other entity views.
 

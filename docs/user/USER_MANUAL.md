@@ -624,8 +624,13 @@ separate unlock; admins can still disable it through server world rules.
   report back. Bounties follow the world's **Bandits** option: no bandits, no bounty missions.
 
 ### Trade
-- **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and
-  confirms; the swap executes atomically once both confirm.
+- **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
+  other player accepts or declines. The trade window lists **your inventory** on the left — `−` / `+` on an
+  item stages it — and shows **You give / You get from {partner}** on the right, each with a `READY` /
+  `waiting…` badge. Both **Confirm**; the swap executes atomically once both sides are ready (changing an
+  offer resets both confirmations, and your Confirm button turns green while you wait). **Esc** / pad **B**
+  or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
+  Max in the "You give" box).
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
   (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
@@ -874,9 +879,16 @@ controls (Ship/Station/Town/Material 3D editors): **hold Right-mouse** to look, 
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |
 | **Station Editor** | Space stations (hull/glass/light + hangar/vendor/mission/heal/quarters/console markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
 | **Town Editor** | Settlements/villages (walls, windows, ladders/stairs, lamps + vendor/mission/NPC markers) | `structure.json` + `layout.json` → `tools/merge_structure.py` |
-| **Avatar Editor** | Player skin (per-part colours + gear preview) | `skin.json` → `tools/merge_avatar.py` (Apply also saves locally) |
+| **Avatar Editor** | Player skin (per-part colours + gear preview) and up to eight saved **outfits** | `skin.json` → `tools/merge_avatar.py` (Apply also saves locally) |
 | **Item & Recipe Editor** | Items (stats, tool/weapon properties, worn + eaten effects) + recipes (station, inputs, market vendor theme) + optional blueprint gating | `content.json` → `tools/merge_recipe.py` |
 | **Material Editor** | Block materials: paint a 64×64 tile, set mining (hardness/tool/drops), palette section, dyeable/shapeable, look (gloss/metal/glow/colour), world spawn (frequency/depth/world-type) | `material.json` + `texture.bytes` → `tools/merge_material.py` |
+
+**Avatar Editor outfits:** the **Outfits** panel beside the controls keeps up to eight named looks
+(colours + pixel face + body paint). Type a name in **Skin name** and press **Save outfit** to store the
+look shown on the figure (a new outfit, or an update of the one that already has that name); click an
+outfit to load it back onto the figure, **Rename selected** renames the highlighted one to the name field,
+✕ deletes it. Only **Apply** changes the avatar you wear in the game — loading or deleting an outfit never
+does — so the same look stays on your avatar until you apply another one.
 
 **Material Editor painting:** Left-click paints with the selected swatch, Right-click erases to the base
 colour; Fill/Flat/Clear and an RGB base-colour picker are in the side panel. "World type" targets which
