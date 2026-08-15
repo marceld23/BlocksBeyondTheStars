@@ -51,6 +51,35 @@ public sealed class FactoryStructureTests : IDisposable
     }
 
     [Fact]
+    public void Generator_Housing_IsSculptedNotASlab()
+    {
+        // #1053: a machine bay is more than a solid block of machine_block — dark plinth course, glass
+        // inspection windows in the side faces, an amber hazard strip on the floor in front, and exhaust
+        // pipes on the back corners rising to just under the roof.
+        var s = FactoryGenerator.Generate(77, 2, _content);
+        ushort Id(string key) => _content.GetBlock(key)!.NumericId.Value;
+        int bz = s.Length / 2 - 1;      // first bay depth (mirrors FactoryGenerator)
+        int bx = 2;                     // first bay X
+        int wallTop = s.Height - 2;     // interior ceiling; the roof slab sits above it
+
+        Assert.Equal(Id("engine_panel"), s.Get(bx, 1, bz));
+        Assert.Equal(Id("machine_block"), s.Get(bx + 1, 2, bz));
+        Assert.Equal(Id("glass"), s.Get(bx, 2, bz + 1));
+        Assert.Equal(Id("glass"), s.Get(bx + 2, 3, bz + 1));
+        Assert.Equal(Id("cargo_floor"), s.Get(bx + 1, 0, bz - 1));
+        Assert.Equal(Id("factory_pipe"), s.Get(bx, wallTop, bz + 2));
+        Assert.Equal(Id("factory_pipe"), s.Get(bx + 2, wallTop, bz + 2));
+        Assert.Equal(Id("factory_pipe"), s.Get(bx + 1, wallTop, bz + 2));
+
+        // The front face stays plain housing so the client-side machinery mounts on a flat wall.
+        for (int y = 2; y <= 4; y++)
+            for (int x = 0; x < 3; x++)
+            {
+                Assert.Equal(Id("machine_block"), s.Get(bx + x, y, bz));
+            }
+    }
+
+    [Fact]
     public void Generator_MachineCount_TracksRosterSize()
     {
         int one = FactoryGenerator.Generate(5, 1, _content).Markers.Count(m => m.Type.StartsWith("machine:", StringComparison.Ordinal));

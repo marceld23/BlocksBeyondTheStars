@@ -12,9 +12,12 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// one or more multi-block <b>machines</b>, with a <b>production terminal</b> by the door. Reuses the generic
 /// <see cref="SettlementStructure"/> voxel+marker container so the existing stamping pipeline places it. The
 /// machines themselves are static <c>machine_block</c> housings in the voxel grid; each carries a
-/// <c>machine:&lt;archetype&gt;</c> marker so the client can overlay an animated machine entity on top (the
-/// moving pistons/rotors/conveyors). The terminal carries a <c>factory_terminal</c> marker; a <c>loot</c>
-/// marker seeds a scavenge cache. Randomised per instance (size, machine count, depth, archetypes).
+/// <c>machine:&lt;archetype&gt;</c> marker so the client can overlay an animated machine entity on its front
+/// face (the moving pistons/rotors/conveyors). Each housing is sculpted from stock blocks — a dark plinth
+/// course, glass inspection windows in the side faces, an amber hazard strip on the floor in front and
+/// exhaust pipes rising from the back corners into the ceiling — so it reads as a machine rather than a slab.
+/// The terminal carries a <c>factory_terminal</c> marker; a <c>loot</c> marker seeds a scavenge cache.
+/// Randomised per instance (size, machine count, depth, archetypes).
 /// </summary>
 public static class FactoryGenerator
 {
@@ -37,6 +40,8 @@ public static class FactoryGenerator
         ushort machine = B("machine_block", wall);
         ushort pipe = B("factory_pipe", machine);
         ushort terminal = B("factory_terminal", wall);
+        ushort plinth = B("engine_panel", machine);   // dark industrial base course under each machine
+        ushort hazard = B("cargo_floor", floor);      // amber work-zone strip on the floor in front of a bay
 
         int w = machineCount * BayStride + 3;
         int l = 9 + rng.Next(0, 2) * 2; // 9 or 11 deep
@@ -102,11 +107,37 @@ public static class FactoryGenerator
                 for (int z = 0; z < 3; z++)
                     for (int y = 1; y <= mh; y++)
                     {
-                        Set(bx + x, y, bz + z, machine);
+                        // Dark plinth course at floor level, machine housing above (#1053: the housing used
+                        // to be a featureless solid slab of one block).
+                        Set(bx + x, y, bz + z, y == 1 ? plinth : machine);
                     }
+
+            // Inspection windows in both side faces (the front face is left plain — the client mounts the
+            // animated press/rotor/conveyor on it).
+            for (int y = 2; y <= 3; y++)
+            {
+                Set(bx, y, bz + 1, glass);
+                Set(bx + 2, y, bz + 1, glass);
+            }
+
+            // Amber hazard strip on the floor in front of the bay — the operator's work zone.
+            for (int x = 0; x < 3; x++)
+            {
+                Set(bx + x, 0, bz - 1, hazard);
+            }
 
             // Pipe stack on top of the housing, and a machine anchor marker the client animates from.
             Set(bx + 1, mh + 1, bz + 1, pipe);
+
+            // Exhaust pipes on the two back corners rising into the ceiling, joined by a run along the back
+            // edge — an inverted U (or a plain bar when the housing already reaches just under the ceiling).
+            for (int y = mh + 1; y <= wallTop; y++)
+            {
+                Set(bx, y, bz + 2, pipe);
+                Set(bx + 2, y, bz + 2, pipe);
+            }
+
+            Set(bx + 1, wallTop, bz + 2, pipe);
             string archetype = Archetypes[(i + (int)(((seed >> 3) % Archetypes.Length + Archetypes.Length)) % Archetypes.Length) % Archetypes.Length];
             markers.Add(new SettlementMarker("machine:" + archetype, new Vector3i(bx + 1, mh + 1, bz + 1)));
         }

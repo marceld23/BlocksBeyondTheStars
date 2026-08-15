@@ -105,6 +105,24 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
+A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
+`machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the
+atlas painted the default grey — even the terminal (#1050, three new gpt-image-1-mini tiles via
+`gen_textures.py`, same NOTICES terms). (2) `BlockTextureAtlas.PaintTile` never read the `color`
+authored in blocks.json — `BaseColor(key)` was the only source, so `bedrock`, `ship_core/helm/engine`
+and the factory blocks all fell to the same default; the procedural fallback is now palette → authored
+colour → default (#1051, palette entries keep priority so the strip lights etc. are unchanged). (3)
+`FactoryView` anchored every animated part at the *centre* of the roof-top pipe block: rotor spokes
+fully buried, half the press stroke hidden, conveyor cubes sliding out of the block sides — only the
+0.18 m status light was ever visible. The machinery now hangs on the housing's front face (towards the
+door) at housing scale: a 2.4 m flywheel with rim, a piston press with rod, cylinder and anvil, a belt
+with drive rollers (#1052, client-only). (4) `FactoryGenerator` sculpts the housing from stock blocks —
+dark `engine_panel` plinth course, glass inspection windows in the side faces, an amber `cargo_floor`
+work strip on the floor in front, `factory_pipe` exhausts on the back corners rising to the ceiling
+(#1053, factories re-derive per session so existing worlds pick it up; new
+`Generator_Housing_IsSculptedNotASlab` test).
+
 ### ★ Avatar Designer keeps several outfits (#1047, 2026-08-15, branch feat/avatar-outfits)
 Once you had painted a nice suit, trying a second look meant overwriting it: the designer had exactly one
 "current look" (`ClientSettings.SkinColor/…/FacePixels/*Pixels`) plus an Export nobody could import. New

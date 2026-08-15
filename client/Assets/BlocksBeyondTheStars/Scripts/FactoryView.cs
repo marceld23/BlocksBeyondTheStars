@@ -9,7 +9,8 @@ namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
     /// Renders the animated <b>machines</b> inside a factory (<see cref="FactoryList"/>) — overlaid on the
-    /// static voxel housings the world mesher already draws. Each machine runs one of a few procedural
+    /// static voxel housings the world mesher already draws (mounted on the housing front face, see
+    /// <see cref="BuildMachine"/>). Each machine runs one of a few procedural
     /// archetypes (a piston <c>press</c> that hammers up/down, a <c>rotor</c> that spins, a <c>conveyor</c> of
     /// scrolling parts) with a pulsing status light, all driven entirely client-side. The factory's production
     /// terminal shows an "operate" prompt up close — crafting itself goes through the normal crafting menu and
@@ -129,22 +130,29 @@ namespace BlocksBeyondTheStars.Client
             switch (m.Archetype)
             {
                 case "rotor":
-                    m.Mover.localRotation = Quaternion.Euler(0f, t * 220f + m.Phase * 57f, 0f);
+                    // A big flywheel mounted on the housing front, spinning about its axle (world Z).
+                    m.Mover.localRotation = Quaternion.Euler(0f, 0f, t * 140f + m.Phase * 57f);
                     break;
                 case "conveyor":
                     if (m.Parts != null)
                     {
                         for (int i = 0; i < m.Parts.Length; i++)
                         {
-                            float u = Mathf.Repeat(t * 0.6f + i / (float)m.Parts.Length, 1f);
-                            m.Parts[i].localPosition = new Vector3(Mathf.Lerp(-1.1f, 1.1f, u), 0.05f, 0f);
+                            float u = Mathf.Repeat(t * 0.45f + i / (float)m.Parts.Length, 1f);
+                            m.Parts[i].localPosition = new Vector3(Mathf.Lerp(-1.25f, 1.25f, u), 0.24f, 0f);
                         }
                     }
 
+                    // The drive rollers at either end turn with the band.
+                    if (m.Mover != null)
+                    {
+                        m.Mover.localRotation = Quaternion.Euler(0f, 0f, -t * 160f);
+                    }
+
                     break;
-                default: // "press" — a piston head that hammers down and back up
-                    float drop = Mathf.Abs(Mathf.Sin(p)) * 0.7f;
-                    m.Mover.localPosition = new Vector3(0f, 0.7f - drop, 0f);
+                default: // "press" — a piston head that hammers down onto the anvil and back up
+                    float drop = Mathf.Abs(Mathf.Sin(p)) * PressStroke;
+                    m.Mover.localPosition = new Vector3(0f, PressTop - drop, PressZ);
                     break;
             }
 
@@ -216,13 +224,30 @@ namespace BlocksBeyondTheStars.Client
             return f;
         }
 
+        // Machine geometry lives on the FRONT face of the 3×3 housing (the −Z face, towards the hall door),
+        // in local units relative to the anchor the server sends — the centre of the roof-top pipe block.
+        // The housing top is therefore at local y −0.5 and its front face at local z −1.5; the housing is
+        // always ≥ 4 tall, so anything within y −0.5 … −4.5 is guaranteed to hang on real housing. (#1052:
+        // the parts used to sit INSIDE the pipe block — rotor spokes fully buried, half the press stroke
+        // hidden — so all a player saw of a "machine" was the status light.)
+        private const float FrontZ = -1.5f;
+        private const float PressZ = FrontZ - 0.55f;
+        private const float PressTop = -2.0f;    // piston head at the top of its stroke
+        private const float PressStroke = 1.0f;  // how far it hammers down towards the anvil
+
         private Machine BuildMachine(Transform parent, NetMachine nm, int idx)
         {
             var root = new GameObject($"Machine {nm.Archetype}").transform;
             root.SetParent(parent, true);
 
             var metal = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) };
+            var dark = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.16f, 0.17f, 0.20f)) };
+            var accent = new Material(_litShader) { color = ShaderColor.Srgb(new Color(0.72f, 0.42f, 0.14f)) };
             var hot = new Material(_litShader) { color = ShaderColor.Srgb(new Color(1f, 0.6f, 0.15f)) };
+
+            // Two mounting rails on the housing front that every archetype bolts onto.
+            Box(root, "Rail L", new Vector3(-1.2f, -2.4f, FrontZ - 0.08f), new Vector3(0.16f, 3.4f, 0.16f), dark);
+            Box(root, "Rail R", new Vector3(1.2f, -2.4f, FrontZ - 0.08f), new Vector3(0.16f, 3.4f, 0.16f), dark);
 
             Transform mover = null;
             Transform[] parts = null;
@@ -231,62 +256,70 @@ namespace BlocksBeyondTheStars.Client
             {
                 case "rotor":
                 {
-                    var hub = new GameObject("Rotor").transform;
-                    hub.SetParent(root, false);
-                    hub.localPosition = new Vector3(0f, 0.4f, 0f);
+                    // A vertical flywheel: hub axle, four spokes and an eight-segment rim, spinning about Z.
+                    Box(root, "Bearing", new Vector3(0f, -2.3f, FrontZ - 0.15f), new Vector3(0.7f, 0.7f, 0.3f), dark);
+                    var wheel = new GameObject("Wheel").transform;
+                    wheel.SetParent(root, false);
+                    wheel.localPosition = new Vector3(0f, -2.3f, FrontZ - 0.5f);
+                    Box(wheel, "Axle", Vector3.zero, new Vector3(0.36f, 0.36f, 0.5f), metal);
                     for (int i = 0; i < 4; i++)
                     {
-                        var spoke = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                        Strip(spoke);
-                        spoke.transform.SetParent(hub, false);
-                        spoke.transform.localRotation = Quaternion.Euler(0f, i * 45f, 0f);
-                        spoke.transform.localScale = new Vector3(1.4f, 0.18f, 0.22f);
-                        spoke.GetComponent<Renderer>().sharedMaterial = metal;
+                        var spoke = Box(wheel, "Spoke", Vector3.zero, new Vector3(2.2f, 0.18f, 0.16f), metal);
+                        spoke.localRotation = Quaternion.Euler(0f, 0f, i * 45f);
                     }
 
-                    mover = hub;
+                    const float rimR = 1.1f;
+                    for (int i = 0; i < 8; i++)
+                    {
+                        float ang = i * 45f;
+                        float rad = ang * Mathf.Deg2Rad;
+                        var seg = Box(wheel, "Rim", new Vector3(Mathf.Cos(rad) * rimR, Mathf.Sin(rad) * rimR, 0f), new Vector3(0.2f, 0.9f, 0.22f), accent);
+                        seg.localRotation = Quaternion.Euler(0f, 0f, ang);
+                    }
+
+                    mover = wheel;
                     break;
                 }
 
                 case "conveyor":
                 {
+                    // A belt across the housing front at working height: a bed, two drive rollers and parts scrolling along it.
+                    Box(root, "Bed", new Vector3(0f, -2.75f, FrontZ - 0.45f), new Vector3(3.0f, 0.14f, 0.7f), dark);
+                    Box(root, "Belt", new Vector3(0f, -2.66f, FrontZ - 0.45f), new Vector3(2.8f, 0.06f, 0.6f), metal);
+                    var rollers = new GameObject("Rollers").transform;
+                    rollers.SetParent(root, false);
+                    rollers.localPosition = new Vector3(0f, -2.75f, FrontZ - 0.45f);
+                    Box(rollers, "Roller L", new Vector3(-1.45f, 0f, 0f), new Vector3(0.28f, 0.28f, 0.72f), accent);
+                    Box(rollers, "Roller R", new Vector3(1.45f, 0f, 0f), new Vector3(0.28f, 0.28f, 0.72f), accent);
+
                     var band = new GameObject("Band").transform;
                     band.SetParent(root, false);
+                    band.localPosition = new Vector3(0f, -2.75f, FrontZ - 0.45f);
                     parts = new Transform[4];
                     for (int i = 0; i < parts.Length; i++)
                     {
-                        var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                        Strip(box);
-                        box.transform.SetParent(band, false);
-                        box.transform.localScale = new Vector3(0.3f, 0.3f, 0.3f);
-                        box.GetComponent<Renderer>().sharedMaterial = metal;
-                        parts[i] = box.transform;
+                        parts[i] = Box(band, "Part", new Vector3(0f, 0.24f, 0f), new Vector3(0.36f, 0.36f, 0.36f), metal);
                     }
 
-                    mover = band;
+                    mover = rollers;
                     break;
                 }
 
                 default: // "press"
                 {
-                    // A fixed frame post + a piston head that hammers down between the posts.
-                    var head = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    Strip(head);
-                    head.transform.SetParent(root, false);
-                    head.transform.localScale = new Vector3(0.8f, 0.4f, 0.8f);
-                    head.GetComponent<Renderer>().sharedMaterial = metal;
-                    mover = head.transform;
+                    // A piston cylinder on top, a wide head hammering down between the rails onto an anvil.
+                    Box(root, "Cylinder", new Vector3(0f, -1.15f, PressZ), new Vector3(0.6f, 1.0f, 0.6f), dark);
+                    Box(root, "Anvil", new Vector3(0f, -3.55f, PressZ), new Vector3(1.6f, 0.34f, 0.9f), dark);
+                    Box(root, "Anvil Top", new Vector3(0f, -3.35f, PressZ), new Vector3(1.2f, 0.08f, 0.7f), accent);
+                    var head = Box(root, "Head", new Vector3(0f, PressTop, PressZ), new Vector3(1.4f, 0.4f, 0.8f), metal);
+                    Box(head, "Rod", new Vector3(0f, 1.75f, 0f), new Vector3(0.2f, 3.0f, 0.35f), metal); // child of the scaled head → 0.28 × 1.2 × 0.28 m, retracting into the cylinder
+                    mover = head;
                     break;
                 }
             }
 
-            // A small glowing status light cube on a stalk.
-            var status = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Strip(status);
-            status.transform.SetParent(root, false);
-            status.transform.localPosition = new Vector3(0.6f, 1.0f, 0.6f);
-            status.transform.localScale = Vector3.one * 0.18f;
-            status.GetComponent<Renderer>().sharedMaterial = hot;
+            // A glowing status light on the frame, top-right, where it reads from across the hall.
+            Box(root, "Status", new Vector3(1.2f, -0.65f, FrontZ - 0.2f), Vector3.one * 0.22f, hot);
 
             return new Machine
             {
@@ -298,6 +331,19 @@ namespace BlocksBeyondTheStars.Client
                 StatusMat = hot,
                 Phase = (idx * 1.7f) % 6.283f,
             };
+        }
+
+        /// <summary>A collider-less cube primitive parented under <paramref name="parent"/> (machine part).</summary>
+        private static Transform Box(Transform parent, string name, Vector3 localPos, Vector3 size, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = name;
+            Strip(go);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localScale = size;
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+            return go.transform;
         }
 
         private static void Strip(GameObject go)

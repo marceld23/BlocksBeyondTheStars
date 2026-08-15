@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -61,7 +62,7 @@ namespace BlocksBeyondTheStars.Client
                 int id = b.NumericId.Value;
                 if (id > 0 && id < Cols * Rows)
                 {
-                    PaintTile(id, b.Key);
+                    PaintTile(id, b);
                 }
             }
 
@@ -457,15 +458,18 @@ namespace BlocksBeyondTheStars.Client
             return new Rect(x * w + inset, y * h + inset, w - 2f * inset, h - 2f * inset);
         }
 
-        private void PaintTile(int id, string key)
+        private void PaintTile(int id, BlockDefinition def)
         {
+            string key = def.Key;
             int ox = (id % Cols) * Tile, oy = (id / Cols) * Tile;
 
             // Prefer a generated block texture (Resources/textures/<key>.bytes); fall back to the
-            // procedural tile when none is bundled.
+            // procedural tile when none is bundled. The procedural tint comes from the curated palette
+            // when there is an entry, else from the authored `color` in blocks.json (#1051 — it used to
+            // be ignored here, so every data-tinted block without a tile painted the same default grey).
             if (!TryPaintFromAsset(key, ox, oy))
             {
-                Color baseCol = BaseColor(key);
+                Color baseCol = BaseColor(key) ?? DataColor(def) ?? DefaultTint;
                 var rng = new System.Random(Hash(key));
 
                 for (int px = 0; px < Tile; px++)
@@ -1059,7 +1063,23 @@ namespace BlocksBeyondTheStars.Client
             return h;
         }
 
-        private static Color BaseColor(string key) => key switch
+        /// <summary>Fallback tint for a block that has neither a bundled tile, a palette entry nor an authored colour.</summary>
+        private static readonly Color DefaultTint = new Color(0.6f, 0.6f, 0.62f);
+
+        /// <summary>The 0xRRGGBB <c>color</c> authored in blocks.json, if any.</summary>
+        private static Color? DataColor(BlockDefinition def)
+        {
+            if (def.Color is not int rgb)
+            {
+                return null;
+            }
+
+            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+        }
+
+        /// <summary>Curated procedural tint per key; null when the key has no palette entry (the caller
+        /// then falls back to the authored blocks.json colour, then <see cref="DefaultTint"/>).</summary>
+        private static Color? BaseColor(string key) => key switch
         {
             "stone" => new Color(0.55f, 0.55f, 0.57f),
             "dirt" => new Color(0.45f, 0.32f, 0.20f),
@@ -1101,7 +1121,7 @@ namespace BlocksBeyondTheStars.Client
             "flora_lily" => new Color(0.30f, 0.62f, 0.34f),  // lily-pad green
             "flora_cropberry" => new Color(0.22f, 0.58f, 0.24f), // farmed bush (#627): leafy green, berries in Decorate
             "hydro_tray" => new Color(0.28f, 0.34f, 0.38f),      // dark tray housing; the nutrient gel glows in Decorate
-            _ => new Color(0.6f, 0.6f, 0.62f),
+            _ => null,
         };
     }
 }

@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏭 Factories look like factories (#1050, #1051, #1052, #1053)
+
+- **The machines have faces now.** The machine housing, its pipes and the production terminal had no
+  texture at all — every one painted the same flat grey, so a factory was "a room with two big grey
+  boxes". All three got real tiles. (#1050)
+- **Authored block colours count.** A `color` set in `blocks.json` was ignored by the texture atlas
+  whenever a block had neither a tile nor a hand-picked palette entry; it is now the fallback tint, so
+  bedrock, the ship core/helm/engine markers and the factory blocks show their intended colours. (#1051)
+- **You can see the machines run.** The press, flywheel and conveyor were drawn *inside* the pipe block
+  on the roof — all you saw was a blinking light. They now hang on the front of the housing at proper
+  size: a big rimmed flywheel spinning, a piston hammering onto an anvil, parts riding a belt between
+  drive rollers. (#1052)
+- **Housings are sculpted, not slabs.** Dark plinth course, glass inspection windows in the sides, an
+  amber work strip on the floor in front, and exhaust pipes rising from the back corners into the
+  ceiling. Existing worlds get the new look on next load. (#1053)
+
 ### 👕 Avatar Designer: save and switch between several outfits (#1047)
 
 - The Avatar Designer now keeps up to **eight named outfits** — colours, pixel face and body paint — in a
