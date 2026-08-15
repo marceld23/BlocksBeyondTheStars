@@ -21,6 +21,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   selected** and ✕ do what they say. **Apply** is still the only button that changes your in-game avatar,
   so you can browse and tweak looks freely. Older settings files simply start with an empty list. (#1047)
 
+### 🤝 Player trade window now looks like the rest of the game (#1058)
+
+- The trade window between two players was the odd one out: a translucent panel with the world
+  shining through, `−`/`+` buttons so small their glyphs vanished (and no finger could hit them),
+  plain text rows without item pictures, and no way to cancel with **Esc** or the pad. It is now a
+  proper dialog — dimmed backdrop, "Trade with {partner}", your inventory as icon cards with big
+  `−`/`+` buttons, a clear **You give / You get from {partner}** summary with a `READY` /
+  `waiting…` badge on each side, and a Confirm button that turns green while you wait for the other
+  player. **Esc** (keyboard) or **B** (gamepad) cancels; the stick walks every control; touch targets
+  are finger-sized. The incoming trade-request and docking-request prompts got the same treatment,
+  and "Trade complete" is finally translated. (#1058)
+
 ### 🎮 Touch and gamepad reach every verb again (#1041, #1042, #1043, #1044)
 
 - **VEGA can be advanced without a keyboard.** The ship AI's continue key was the raw **N** and nothing

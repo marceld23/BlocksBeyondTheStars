@@ -120,6 +120,25 @@ join. `UiNav.Enable` on the designer canvas (it had none) so a pad reaches every
 `ui.avatar.outfit*` keys in all 14 locales. Client-only. Follow-up candidate: an in-game quick-switch
 that applies a saved outfit from the pause/ring menu.
 
+### ★ Player trade window restyled to match the rest of the UI (#1058, 2026-08-15, branch fix/trade-ui-restyle)
+The player-to-player trade panel (`PlayerInteractions.cs`) predated every later UI convention: a
+private translucent `CenterPanel` with no scrim or fade, ± buttons of 26×24 / 36×26 px whose label rect
+(`AddButton` reserves `w − 28`) came out negative or 8 px wide — the glyphs were effectively invisible
+and far too small for a finger —, plain-text rows without item icons, a left column labelled "Your
+offer" that was really the whole inventory, ready/waiting as a text suffix, and no Esc/pad-B cancel.
+Rebuilt on `UiKit.AddModalOverlay` (900×640, scrim + opaque dialog, `TransitionIn`): title "Trade
+with {partner}" + subtitle explaining the both-confirm rule; left "Your inventory" as icon cards
+(`IconResolver`, 56 px rows, `[−] n [+]` at 44 px, row highlighted while offered); right "You give" /
+"You get from {partner}" boxes with a `READY` / `waiting…` pill each and the knowledge line inside
+(the teach control shows only when `MyKnowledgeMax > 0`, else a one-line hint); footer Confirm turns
+green "Confirmed — waiting for {partner}" once pressed (so the server's silent reset on any offer
+change becomes visible), Cancel right-aligned, device-specific hint (Esc / B, none on touch). Esc and
+gamepad B cancel the trade / decline a request; `UiNav` stays on all three windows. The trade-request
+and dock-request prompts share one `BuildAskDialog` so they look identical. Row rebuild only runs
+when the `TradeUpdate`, the inventory array or the language changed. Toasts "Trade complete." and
+"{0} requests docking." localized; DE "Ihr Angebot" → "Angebot der Gegenseite". 18 new
+`ui.trade.*` / `ui.dock.*` keys in all 14 locales. Client-only, no protocol change.
+
 ### ★ The wall behind a placed torch is no longer see-through (#1031, 2026-08-15, branch fix/torch-xray-neighbor-cull)
 Placing a torch on a wall opened an x-ray hole: `ChunkMesher`'s neighbour-culling only kept an opaque
 face toward air / transparent / flora / foliage cells, and a torch cell is none of those — it meshes

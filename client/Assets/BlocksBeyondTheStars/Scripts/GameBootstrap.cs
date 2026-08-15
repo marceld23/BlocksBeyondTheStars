@@ -1937,9 +1937,9 @@ namespace BlocksBeyondTheStars.Client
                 TradeActive = false;
                 Trade = null;
                 PendingTradeFrom = string.Empty;
-                LastMessage = m.Completed ? "Trade complete." : ServerMessageText(m.Reason);
+                LastMessage = m.Completed ? (Localizer?.Get("ui.trade.complete") ?? "Trade complete.") : ServerMessageText(m.Reason);
             };
-            Network.DockRequested += m => { PendingDockFrom = m.Requester; LastMessage = $"{m.Requester} requests docking."; };
+            Network.DockRequested += m => { PendingDockFrom = m.Requester; LastMessage = (Localizer?.Get("ui.dock.requests_toast") ?? "{0} requests docking.").Replace("{0}", m.Requester); };
             Network.DockStatusChanged += m =>
             {
                 Dock = m;

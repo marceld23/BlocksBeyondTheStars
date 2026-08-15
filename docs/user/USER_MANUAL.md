@@ -605,8 +605,13 @@ separate unlock; admins can still disable it through server world rules.
   report back. Bounties follow the world's **Bandits** option: no bandits, no bounty missions.
 
 ### Trade
-- **Player ↔ player:** press **T** near a player to open a modal trade. Each side stages an offer (+/−) and
-  confirms; the swap executes atomically once both confirm.
+- **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
+  other player accepts or declines. The trade window lists **your inventory** on the left — `−` / `+` on an
+  item stages it — and shows **You give / You get from {partner}** on the right, each with a `READY` /
+  `waiting…` badge. Both **Confirm**; the swap executes atomically once both sides are ready (changing an
+  offer resets both confirmations, and your Confirm button turns green while you wait). **Esc** / pad **B**
+  or **Cancel** aborts. If you know more than your partner you can also *teach knowledge* here (`−` / `+` /
+  Max in the "You give" box).
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
   (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
