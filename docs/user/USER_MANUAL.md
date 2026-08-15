@@ -90,9 +90,9 @@ Last updated: 2026-08-11.
 | **U** | Undock from a player / leave a boarded space station |
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
-| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) |
+| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) — rebindable; gamepad **Back**, touch **NEXT ▶** |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
-| **M** | Toggle the world map (top-down planet view; click to set a waypoint) |
+| **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
 | **J** | Hide / show the chat scrollback for this session (rebindable; see also Settings → Comfort → Chat display) |
 | **V** (hold) | Push-to-talk voice (if the server enabled voice; needs a radio; key is configurable) |
@@ -118,10 +118,16 @@ buttons — retuning is tracked in issue #195):
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
+| **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
+| **Back / View** | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
 | **Start** | Open / close the gameplay menu |
 
-In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back. The right stick also
-steers the ship in flight. Direct hotbar number-key picks remain keyboard-only.
+In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes the
+landing-pad chooser (pick a pad with the stick, **(A)** lands, **(B)** cancels), trade and docking
+requests, the bandit demand, and both maps. The right stick also steers the ship in flight; the d-pad
+cycles the **ship-systems bar** (laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain
+keyboard-only. Verbs without a face button — everything in the **L3 Actions** list — can also be given
+their own button in Settings.
 
 **Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button
@@ -136,11 +142,15 @@ buttons swap with what you're doing:
 |---|---|
 | **Left stick** (bottom-left) | Move / thrust / steer |
 | **Drag** anywhere on the right | Look / steer the ship |
-| **◄ ►** | Cycle hotbar slot (ship-systems bar in flight) |
+| **◄ ►** | Cycle hotbar slot (ship-systems bar — laser ↔ tractor beam — at the helm) |
 | **…** (beside ►) | **Hotbar slot actions** on the selected slot (see §5); shown only when the menu can open |
+| **ACT** (beside ◄) | **Actions** — a list of everything you can do right now: rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair a wreck, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, … Tap an entry to do it. Shown only when something applies |
+| **NEXT ▶** (top-centre) | **VEGA: continue** — advance or dismiss the ship AI's line; shown only while a line is up |
 | **≡** (top-right) | Open / close the gameplay menu |
-| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT** | Jump · mine · place · use/board · descend · open chat |
-| *Flying / EVA:* **FIRE (hold) · LAND · SHIP · AUTO · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · camera · dock/board · float up/down |
+| *On foot:* **JUMP · MINE (hold) · PLACE · USE · DOWN · CHAT · VIEW · MAP** | Jump · mine · place · use/board · descend · open chat · camera · planet map |
+| *On foot, when it applies:* **ROTATE · ATTACK** | Rotate the held block's placement (appears while a rotatable block is selected) · swing / fire the held weapon (hold on the Guardian core to breach it) |
+| *Flying:* **FIRE (hold) · LAND · SHIP · AUTO · MAP · VIEW · USE · UP · DOWN** | Fire · landing pads · walk the ship · autopilot · system chart · camera · dock/board · float up/down |
+| *EVA (spacewalk):* **FIRE (hold) · PLACE · DEPLOY · VIEW · USE · UP · DOWN** | Mine · place the selected block · deploy a station core · camera · board · float up/down |
 | *Speeder:* **BOOST (hold) · JUMP · EXIT · FUEL** | Boost · hop · dismount · refuel |
 
 Menus are tapped directly. Text entry (your name, chat): on a native tablet the on-screen keyboard opens

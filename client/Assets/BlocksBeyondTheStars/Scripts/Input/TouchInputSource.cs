@@ -45,9 +45,10 @@ namespace BlocksBeyondTheStars.Client
         // No 1..9 pick on touch — the hotbar is cycled via the ◄ ► buttons (HotbarScroll).
         public int HotbarSlotDown() => -1;
 
-        // Discrete actions come from the per-context button clusters (USE / LAND / SHIP / AUTO / VIEW /
-        // EXIT / FUEL, and BOOST as a hold). Anything without a touch button stays keyboard/pad-only —
-        // harmless, since sources are combined.
+        // Discrete actions come from the per-context button clusters (USE / LAND / SHIP / AUTO / VIEW / MAP /
+        // ROTATE / ATTACK / DEPLOY / EXIT / FUEL / NEXT, with BOOST and ATTACK also as holds). Everything else
+        // is reachable through the context-actions list (ContextActionsUi, #1042), which injects the picked
+        // action into InputMap directly — so no verb is touch-unreachable any more.
         public bool ActionDown(InputAction action) => Live && Ui.ActionDownFor(action);
         public bool ActionHeld(InputAction action) => Live && Ui.ActionHeldFor(action);
         public bool ActionUp(InputAction action) => false;
@@ -61,7 +62,7 @@ namespace BlocksBeyondTheStars.Client
 
             return Ui.Move.sqrMagnitude > 0.0001f
                 || Ui.LookDelta.sqrMagnitude > 0.0001f
-                || Ui.JumpHeld || Ui.MineHeld || Ui.DescendHeld;
+                || Ui.AnyButtonPressed; // any tap counts, so the HUD flips to touch glyphs on the first press (#1042)
         }
     }
 }

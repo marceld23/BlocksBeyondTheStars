@@ -22,8 +22,28 @@ how controller support was built and how touch (tablet-web) will be.
 
 Replace the raw call with the `InputMap` verb, e.g. `Input.GetAxis("Horizontal")` → `InputMap.MoveX()`,
 `Input.GetMouseButtonDown(0)` → `InputMap.PrimaryDown()`, `Input.GetButton("Jump")` → `InputMap.JumpHeld()`.
-The migrated gameplay surface is `PlayerController` (on-foot + speeder) and `SpaceView` (flight + EVA + turret).
-A handful of number-key / Escape picks are intentionally still keyboard-only (secondary, not locomotion).
+The migrated gameplay surface is `PlayerController` (on-foot + speeder), `SpaceView` (flight + EVA + turret),
+`PlayerInteractions` (trade / dock / undock), `WorldMap` (`PlanetMap`), `VegaPanel` (`VegaContinue`) and
+`FinaleView` (the breach hold is `PrimaryFire` held). Number-key picks keep a device-neutral fallback: the
+on-foot / EVA hotbar and the ship-systems quick-bar all also step on `InputMap.HotbarScroll()` (wheel, d-pad
+◄►, touch ◄►). Escape stays keyboard; every panel that a pad can reach also closes on **B**
+(`KeyCode.JoystickButton1`).
+
+### Context-actions list + injected edges (#1042/#1043)
+
+Twenty-odd on-foot / flight verbs have a letter each on the keyboard, but the stock pad has two free
+buttons and a tablet a handful of thumb targets. `ContextActionsUi` (`Scripts/ContextActionsUi.cs`) is the
+device-neutral answer: one control — `InputAction.ContextActions` (pad **LS** click, touch **ACT**, no key by
+default) — opens a list of every verb whose *applicability probe* is true right now (rotate with a rotatable
+block held, trade / dock with a player in reach, undock when docked, loot / stash with a container in reach,
+lamp, thermal with binoculars raised, EVA deploy, speeder exit / refuel, VEGA continue, …). Picking an entry
+calls **`InputMap.InjectNextFrame(action)`**, which makes `InputMap.Down(action)` true exactly once on the
+following frame — after the list has closed and gameplay polls again — so the existing poll sites fire
+unchanged; the list is a second *front-end*, not a second rule set. Probes live next to the handlers they
+mirror (`PlayerController.HeldRotatable / NearContainer / NearCrate / NearWreck / NearOwnParkedSpeeder /
+HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / CanDisembark`,
+`VegaPanel.LineShowing`); add a probe + a `Table` row when a new verb lands, or it stays keyboard-only.
+`InputMap.LabelKey(action)` (`ui.key.*`) names entries and the settings rows from one table.
 
 ## Pad rebinding & glyphs
 
@@ -38,6 +58,11 @@ A handful of number-key / Escape picks are intentionally still keyboard-only (se
   `ui.space.eva_controls_pad`), and the board/land prompts (`ui.space.*_fmt` keys take the glyph as `{0}`).
 - **Default conflict rule:** `FlightEnterInterior` deliberately has NO default pad button —
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
+- **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
+  RB mine · d-pad ◄► hotbar / ship system · **LS = ContextActions** (the list above) · **RS = HotbarAction**
+  (slot pie) · **Back = VegaContinue** · Start = menu. LT/RT and d-pad ▲▼ are not defined as InputManager
+  axes, so those are the last free physical controls; every other action reaches the pad through the
+  context-actions list or a rebind.
 
 ## Retuning the gamepad (needs real hardware — issue #201)
 
@@ -63,8 +88,11 @@ the stick/d-pad into directional nav and A/B into Submit/Cancel, so the only gap
 has nothing selected — this component selects (and re-selects, self-healing) the first interactable control
 while a pad is the active device, and is completely inert on keyboard/mouse. Wire it with `UiNav.Enable(root)`.
 Wired on: the main menu, the in-game (Tab/Start) menu, settings, the world picker, vendor trade, the Codex
-(Wiki), credits, the feedback dialog and the respawn prompt. Add the same one-liner after
-`UiKit.CreateCanvas` for any new interactive screen.
+(Wiki), credits, the feedback dialog, the respawn prompt, the slot-action pie, the context-actions list, the
+landing-pad chooser (land map), the trade / dock prompts + trade panel, the bandit demand, the planet map and
+the flight system chart (#1043). Add the same one-liner after `UiKit.CreateCanvas` for any new interactive
+screen, and let **B** close it (see `WorldMap.Update` for the pattern). Still pointer-only: the map
+*markers* (waypoint by click) and the finale duel's IMGUI choices.
 
 ## Touch controls (tablet-web)
 
@@ -75,11 +103,17 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
   (`TouchStick`, `TouchLookPad`, `TouchButton`) so the canvas scaler and multitouch routing are the
   EventSystem's job. It is created in `WorldRig` on `root` and builds **lazily on the first Update** (so the
   localizer is up — button labels are DE/EN via `ui.touch.*`). Shared controls: left virtual joystick,
-  full-screen right look pad, hotbar ◄►, menu (≡). Three per-context **clusters** swap with the control
-  state: **on foot** (JUMP / MINE-hold / PLACE / USE / DOWN / CHAT), **flight + EVA** (`Game.SpaceViewActive`:
-  FIRE-hold / LAND / SHIP / AUTO / VIEW / USE / UP / DOWN) and **speeder** (`Game.DrivenSpeeder != null`:
-  BOOST-hold / JUMP / EXIT / FUEL). Discrete buttons map to `InputAction`s through a lookup the
-  `TouchInputSource.ActionDown/ActionHeld` methods read, so rebind-consuming call sites work unchanged.
+  full-screen right look pad, hotbar ◄►, slot-actions "…" (#940), **ACT** (the context-actions list, #1042),
+  **NEXT ▶** (VEGA continue, shown only while a line is up, #1041), menu (≡). Three per-context **clusters**
+  swap with the control state: **on foot** (JUMP / MINE-hold / PLACE / USE / DOWN / CHAT / VIEW / MAP, plus
+  contextual **ROTATE** while a rotatable block is held and **ATTACK** (tap = swing, hold = finale breach)
+  while a weapon is held), **flight + EVA** (`Game.SpaceViewActive`: FIRE-hold / USE / VIEW / UP / DOWN,
+  and at the helm LAND / SHIP / AUTO / MAP which swap for **PLACE / DEPLOY** in EVA — `Game.InEva`) and
+  **speeder** (`Game.DrivenSpeeder != null`: BOOST-hold / JUMP / EXIT / FUEL). Discrete buttons map to
+  `InputAction`s through a lookup the `TouchInputSource.ActionDown/ActionHeld` methods read, so
+  rebind-consuming call sites work unchanged; everything without a button is one tap away behind ACT.
+  Contextual buttons hide while their verb does not apply (probes on `PlayerController` / `FinaleView`), so
+  a tablet never carries a dead target.
 - **Inert on desktop / behaviour-preserving:** the UI is only built when touch is actually in use
   (`TouchControlsUi.ShouldShow()` = `Application.isMobilePlatform` OR a real touch has been seen —
   `Input.touchCount > 0` latches once), and `TouchInputSource` reads zero whenever the controls aren't

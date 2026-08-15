@@ -374,33 +374,8 @@ namespace BlocksBeyondTheStars.Client
             _ => ChatVisibility.Auto,
         };
 
-        private static string KeyLabel(InputAction action) => action switch
-        {
-            InputAction.Interact => "ui.key.interact",
-            InputAction.PrimaryFire => "ui.key.primary_fire",
-            InputAction.StowVehicle => "ui.key.stow_vehicle",
-            InputAction.ToggleThirdPerson => "ui.key.toggle_third_person",
-            InputAction.LootContainer => "ui.key.loot_container",
-            InputAction.DepositToCrate => "ui.key.deposit_to_crate",
-            InputAction.RepairWreck => "ui.key.repair_wreck",
-            InputAction.ToggleLamp => "ui.key.toggle_lamp",
-            InputAction.RotateShape => "ui.key.rotate_shape",
-            InputAction.ToggleThermal => "ui.key.toggle_thermal",
-            InputAction.ToggleChat => "ui.key.toggle_chat",
-            InputAction.HotbarAction => "ui.key.hotbar_action",
-            InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
-            InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
-            InputAction.FlightAutopilot => "ui.key.flight_autopilot",
-            InputAction.FlightMap => "ui.key.flight_map",
-            InputAction.EvaDeployStation => "ui.key.eva_deploy_station",
-            InputAction.SpeederBoost => "ui.key.speeder_boost",
-            InputAction.SpeederExit => "ui.key.speeder_exit",
-            InputAction.SpeederRefuel => "ui.key.speeder_refuel",
-            InputAction.Disembark => "ui.key.disembark",
-            InputAction.RequestTrade => "ui.key.request_trade",
-            InputAction.RequestDock => "ui.key.request_dock",
-            _ => string.Empty,
-        };
+        // The action → locale-key table lives in InputMap.LabelKey (shared with the context-actions list, #1042).
+        private static string KeyLabel(InputAction action) => InputMap.LabelKey(action);
 
         /// <summary>While a control row is capturing, bind the next key / pad button pressed (Escape cancels).
         /// Returns immediately when not rebinding, so it costs nothing in normal use.</summary>

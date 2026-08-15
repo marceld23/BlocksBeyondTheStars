@@ -1066,7 +1066,8 @@ namespace BlocksBeyondTheStars.Client
             // No accidental drop to the surface — you choose where you touch down.
             if (_confirmLand)
             {
-                if (Input.GetKeyDown(KeyCode.Escape))
+                // Esc — or pad B (#1043): the land map is stick-navigable, so the pad needs a back-out too.
+                if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
                 {
                     Game.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                     CancelLandChooser();
@@ -1317,6 +1318,22 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Device-neutral cycle (#1044): the hotbar scroll — mouse wheel, pad d-pad ◄►, touch ◄► — steps
+            // through the systems, wrapping. Neither pad nor touch has number keys, and the wheel is
+            // otherwise idle while piloting; the EVA hotbar already accepts the same scroll.
+            if (_systems.Count > 1)
+            {
+                float step = InputMap.HotbarScroll();
+                if (step > 0f)
+                {
+                    _selectedSystem = (_selectedSystem + _systems.Count - 1) % _systems.Count;
+                }
+                else if (step < 0f)
+                {
+                    _selectedSystem = (_selectedSystem + 1) % _systems.Count;
+                }
+            }
+
             _fireCd -= Time.deltaTime;
             var sys = _systems[_selectedSystem];
             if (sys.Kind == "laser")
@@ -1409,6 +1426,7 @@ namespace BlocksBeyondTheStars.Client
             var panel = UiKit.AddPanel(_ui.transform, px, py, pw, ph, new Color(0.03f, 0.07f, 0.13f, 0.97f));
             panel.raycastTarget = true; // eat clicks behind the map
             _landMapGo = panel.gameObject;
+            UiNav.Enable(_landMapGo); // pad: the stick walks the pad markers + Cancel, A lands (#1043) — no number keys on a pad
 
             string title = loc != null ? loc.Get("ui.space.pad_choose") : "Choose a landing pad";
             string bodyName = string.IsNullOrEmpty(_landTargetName) ? string.Empty : $" — {_landTargetName}";

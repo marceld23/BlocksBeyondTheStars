@@ -109,5 +109,55 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.AreEqual(InputDeviceKind.KeyboardMouse, InputMap.ActiveDevice);
             Assert.AreEqual("E", InputMap.Glyph(InputAction.Interact));
         }
+
+        // ---- Device-neutral verbs (#1041–#1043) --------------------------------------------------------------
+
+        [Test]
+        public void NewActions_KeepTheirHistoricalKeys_AndTakeTheFreePadButtons()
+        {
+            InputMap.Use(new ClientSettings());
+            // VEGA's continue used to be the raw N key; the planet map polled M directly. Same letters, now rebindable.
+            Assert.AreEqual(KeyCode.N, InputMap.Key(InputAction.VegaContinue));
+            Assert.AreEqual(KeyCode.M, InputMap.Key(InputAction.PlanetMap));
+            // The context-actions list has no keyboard default (every verb already has a key) — pad LS / touch ACT.
+            Assert.AreEqual(KeyCode.None, InputMap.Key(InputAction.ContextActions));
+            Assert.AreEqual(KeyCode.JoystickButton8, GamepadInputSource.ButtonFor(InputAction.ContextActions));
+            Assert.AreEqual(KeyCode.JoystickButton6, GamepadInputSource.ButtonFor(InputAction.VegaContinue));
+            // …and the two stick clicks / Back have glyphs, so the VEGA hint and the settings rows can name them.
+            Assert.AreEqual("LS", InputMap.PadGlyph(KeyCode.JoystickButton8));
+            Assert.AreEqual("Back", InputMap.PadGlyph(KeyCode.JoystickButton6));
+        }
+
+        [Test]
+        public void EveryAction_HasALabelKey_AndIsListedInARebindGroup()
+        {
+            foreach (InputAction action in System.Enum.GetValues(typeof(InputAction)))
+            {
+                Assert.IsNotEmpty(InputMap.LabelKey(action), $"{action} has no ui.key.* label");
+                bool listed = System.Array.IndexOf(InputMap.Remappable, action) >= 0
+                              || System.Array.IndexOf(InputMap.FlightRemappable, action) >= 0
+                              || System.Array.IndexOf(InputMap.VehicleRemappable, action) >= 0;
+                Assert.IsTrue(listed, $"{action} is missing from the settings rebind groups");
+            }
+        }
+
+        [Test]
+        public void UnboundAction_IsNeverDown_OnKeyboard()
+        {
+            InputMap.Use(new ClientSettings());
+            // KeyCode.None must not be handed to Input.GetKeyDown — an unbound action simply never fires.
+            Assert.IsFalse(InputMap.Down(InputAction.ContextActions));
+            Assert.IsFalse(InputMap.Held(InputAction.ContextActions));
+        }
+
+        [Test]
+        public void InjectNextFrame_ArmsTheEdge_ForTheFollowingFrameOnly()
+        {
+            // The context-actions list fires a verb by injection; the edge is for the NEXT frame (the list has
+            // closed and gameplay polls again), never the current one. In an EditMode test the frame counter
+            // does not advance, so "next frame" is observable only as "not this frame".
+            InputMap.InjectNextFrame(InputAction.ToggleLamp);
+            Assert.IsFalse(InputMap.Down(InputAction.ToggleLamp));
+        }
     }
 }

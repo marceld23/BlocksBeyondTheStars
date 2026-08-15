@@ -76,6 +76,82 @@ namespace BlocksBeyondTheStars.Client
 
         private const int HotbarSlots = 9;
 
+        // ---- Applicability probes for device-neutral UI (#1042/#1043) --------------------------------
+        // The touch layer and the context-actions list show a verb only while it would do something. Each
+        // probe mirrors the precondition its verb's handler checks, so a button never offers a dead action.
+        // They are cheap (a few list scans) and are polled once per frame at most.
+
+        /// <summary>The selected hotbar item has a placement orientation to cycle (RotateShape applies).</summary>
+        public bool HeldRotatable => Game != null && HeldPlaceShape(Game.ItemInSlot(Game.SelectedHotbarSlot), out _) > 0;
+
+        /// <summary>The selected hotbar item is a weapon (PrimaryFire has something better than fists to swing).</summary>
+        public bool HoldsWeapon =>
+            Game?.Content?.GetItem(Game.ItemInSlot(Game.SelectedHotbarSlot))?.Tool?.Kind
+                == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Weapon;
+
+        /// <summary>A lootable container is within loot reach (LootContainer applies).</summary>
+        public bool NearContainer => NearestContainerId(crateOnly: false) != null;
+
+        /// <summary>A storage crate is within reach (DepositToCrate applies).</summary>
+        public bool NearCrate => NearestContainerId(crateOnly: true) != null;
+
+        /// <summary>A parked speeder of ours is within stow range (StowVehicle applies).</summary>
+        public bool NearOwnParkedSpeeder
+        {
+            get
+            {
+                if (Game?.Speeders == null)
+                {
+                    return false;
+                }
+
+                float rangeSq = SpeederStowRange * SpeederStowRange;
+                foreach (var s in Game.Speeders)
+                {
+                    if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId)
+                        && (Game.ScenePos(s.X, s.Y, s.Z) - transform.position).sqrMagnitude < rangeSq)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        /// <summary>The binoculars are raised (ToggleThermal applies).</summary>
+        public bool BinocularsRaised => _optic != null && _optic.Raised;
+
+        /// <summary>A wreck is registered for repair (RepairWreck applies — the aim check happens on press).</summary>
+        public bool NearWreck => Game != null && Game.Wreck != null;
+
+        private string NearestContainerId(bool crateOnly)
+        {
+            if (Game?.Containers == null)
+            {
+                return null;
+            }
+
+            string nearest = null;
+            float bestSq = 6f * 6f; // loot / deposit reach — same radius the handlers use
+            foreach (var c in Game.Containers)
+            {
+                if (crateOnly && c.Kind != "crate")
+                {
+                    continue;
+                }
+
+                float d = (Game.ScenePos(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - transform.position).sqrMagnitude; // seam-aware
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    nearest = c.Id;
+                }
+            }
+
+            return nearest;
+        }
+
         private static readonly Vector3 FirstPersonEye = new Vector3(0f, 1.6f, 0f);
         private static readonly Vector3 ThirdPersonEye = new Vector3(0f, 1.9f, -3.5f);
 
@@ -812,18 +888,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string nearest = null;
-            float bestSq = 6f * 6f; // loot reach
-            foreach (var c in Game.Containers)
-            {
-                float d = (Game.ScenePos(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - transform.position).sqrMagnitude; // seam-aware
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    nearest = c.Id;
-                }
-            }
-
+            string nearest = NearestContainerId(crateOnly: false);
             if (nearest != null)
             {
                 // Success cue moved to the container-broadcast diff (#751): playing it here, before the
@@ -841,23 +906,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            string nearest = null;
-            float bestSq = 6f * 6f;
-            foreach (var c in Game.Containers)
-            {
-                if (c.Kind != "crate")
-                {
-                    continue;
-                }
-
-                float d = (Game.ScenePos(c.X + 0.5f, c.Y + 0.5f, c.Z + 0.5f) - transform.position).sqrMagnitude;
-                if (d < bestSq)
-                {
-                    bestSq = d;
-                    nearest = c.Id;
-                }
-            }
-
+            string nearest = NearestContainerId(crateOnly: true);
             if (nearest != null)
             {
                 ClientAudio.Instance?.Cue("loot");

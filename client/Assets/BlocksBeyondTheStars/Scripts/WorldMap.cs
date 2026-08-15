@@ -42,15 +42,18 @@ namespace BlocksBeyondTheStars.Client
 
             // Esc closes the map like every other panel — before this, the map set MenuOpen (so the app
             // shell left Esc alone) but had no handler of its own, leaving Esc swallowed-but-dead (#413 N6).
-            if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping)
+            // Pad B backs out too (#1043) — the map is stick-navigable, so the pad needs an exit besides
+            // re-pressing its (unbound by default) map control.
+            if (_open && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)) && !Game.ChatTyping)
             {
                 Game.MarkMenuInputHandled(); // consumed — don't also pop the quit prompt
                 Close();
             }
 
             // Not while the death/ship-destruction prompt is up — confirming it would otherwise reveal a
-            // still-open map (#413 N6).
-            if (Input.GetKeyDown(KeyCode.M) && !Game.ChatTyping && !Game.AwaitingRespawnConfirm)
+            // still-open map (#413 N6). The toggle is the rebindable PlanetMap action (default M) so the
+            // touch MAP button and the context-actions list reach it as well (#1042).
+            if (InputMap.Down(InputAction.PlanetMap) && !Game.ChatTyping && !Game.AwaitingRespawnConfirm)
             {
                 if (_open)
                 {
@@ -104,6 +107,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("WorldMapUI");
             _canvas.sortingOrder = 60;
+            UiNav.Enable(_canvas.gameObject); // pad: auto-focus the zoom / waypoint / close buttons (#1043)
             var root = _canvas.transform;
 
             UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.92f));

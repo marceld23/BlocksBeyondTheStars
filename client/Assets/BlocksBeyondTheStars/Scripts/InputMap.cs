@@ -42,6 +42,14 @@ namespace BlocksBeyondTheStars.Client
         Disembark,            // leave a boarded station / undock — default U
         RequestTrade,         // request a trade with a nearby player — default T
         RequestDock,          // request to dock with a nearby player — default K
+
+        // Device-neutral verbs (#1041–#1043). These used to be raw keys (or did not exist), which left
+        // touch and gamepad without any path to them: VEGA's continue key was keyboard-only, the planet
+        // map polled KeyCode.M directly, and there was no way to reach the long tail of on-foot verbs
+        // from a pad with only two free buttons.
+        VegaContinue,         // advance / dismiss the VEGA speech line — default N, pad Back
+        PlanetMap,            // toggle the on-foot planet map — default M (the flight chart is FlightMap)
+        ContextActions,       // open the list of currently applicable verbs — no key by default, pad LS, touch "⋯"
     }
 
     /// <summary>
@@ -110,6 +118,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.HotbarAction,
+            InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -160,6 +169,9 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Disembark => KeyCode.U,
             InputAction.RequestTrade => KeyCode.T,
             InputAction.RequestDock => KeyCode.K,
+            InputAction.VegaContinue => KeyCode.N,  // the key VegaPanel always used; now rebindable + reachable from pad/touch (#1041)
+            InputAction.PlanetMap => KeyCode.M,     // WorldMap's historical key — same letter as FlightMap, different context (#1042)
+            InputAction.ContextActions => KeyCode.None, // keyboard players have every verb on a key already; pad LS / touch "⋯"
             _ => KeyCode.None,
         };
 
@@ -176,9 +188,27 @@ namespace BlocksBeyondTheStars.Client
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
         }
 
+        // ---- Injected edges ------------------------------------------------------------------------------
+        // A UI (the context-actions list, #1042/#1043) can fire an action on the caller's behalf. The edge is
+        // armed for the NEXT frame, not this one: the list closes on the pick, and the gameplay poll sites
+        // (PlayerController / PlayerInteractions / SpaceView) only run once Game.MenuOpen is false again —
+        // which is the following Update. Frame-stable like every other Down(): every read that frame agrees.
+        private static InputAction _injected;
+        private static int _injectedFrame = -1;
+
+        /// <summary>Makes <see cref="Down"/> report <paramref name="action"/> exactly once, on the next frame —
+        /// the path a menu pick takes to fire a gameplay verb without a physical control.</summary>
+        public static void InjectNextFrame(InputAction action)
+        {
+            _injected = action;
+            _injectedFrame = Time.frameCount + 1;
+        }
+
+        private static bool Injected(InputAction action) => _injectedFrame == Time.frameCount && _injected == action;
+
         // Discrete rebindable actions — combined across all backends so a pad button, the touch USE button, or
         // the bound key all fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key).
-        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action);
+        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action);
         public static bool Held(InputAction action) => _desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action);
         public static bool Up(InputAction action) => _desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action);
 
@@ -232,6 +262,39 @@ namespace BlocksBeyondTheStars.Client
             int s = _desktop.HotbarSlotDown();
             return s >= 0 ? s : _pad.HotbarSlotDown();
         }
+
+        /// <summary>Locale key of an action's human name (<c>ui.key.*</c>) — the settings rebind rows and the
+        /// context-actions list (#1042) both label actions through this one table.</summary>
+        public static string LabelKey(InputAction action) => action switch
+        {
+            InputAction.Interact => "ui.key.interact",
+            InputAction.PrimaryFire => "ui.key.primary_fire",
+            InputAction.StowVehicle => "ui.key.stow_vehicle",
+            InputAction.ToggleThirdPerson => "ui.key.toggle_third_person",
+            InputAction.LootContainer => "ui.key.loot_container",
+            InputAction.DepositToCrate => "ui.key.deposit_to_crate",
+            InputAction.RepairWreck => "ui.key.repair_wreck",
+            InputAction.ToggleLamp => "ui.key.toggle_lamp",
+            InputAction.RotateShape => "ui.key.rotate_shape",
+            InputAction.ToggleThermal => "ui.key.toggle_thermal",
+            InputAction.ToggleChat => "ui.key.toggle_chat",
+            InputAction.HotbarAction => "ui.key.hotbar_action",
+            InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
+            InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
+            InputAction.FlightAutopilot => "ui.key.flight_autopilot",
+            InputAction.FlightMap => "ui.key.flight_map",
+            InputAction.EvaDeployStation => "ui.key.eva_deploy_station",
+            InputAction.SpeederBoost => "ui.key.speeder_boost",
+            InputAction.SpeederExit => "ui.key.speeder_exit",
+            InputAction.SpeederRefuel => "ui.key.speeder_refuel",
+            InputAction.Disembark => "ui.key.disembark",
+            InputAction.RequestTrade => "ui.key.request_trade",
+            InputAction.RequestDock => "ui.key.request_dock",
+            InputAction.VegaContinue => "ui.key.vega_continue",
+            InputAction.PlanetMap => "ui.key.planet_map",
+            InputAction.ContextActions => "ui.key.context_actions",
+            _ => string.Empty,
+        };
 
         // ---- Glyphs -------------------------------------------------------------------------------------
 

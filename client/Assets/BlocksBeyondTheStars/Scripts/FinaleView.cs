@@ -35,8 +35,7 @@ namespace BlocksBeyondTheStars.Client
         /// only while the player is actually on the Guardian Core.</summary>
         private const string GuardianSystemName = "Guardian Core";
 
-        private const float HackTickInterval = 0.4f; // cadence of channel ticks while the breach key is held
-        private const KeyCode BreachKey = KeyCode.F;
+        private const float HackTickInterval = 0.4f; // cadence of channel ticks while the breach control is held
 
         private bool _subscribed;
         private string _systemName = string.Empty;
@@ -63,6 +62,10 @@ namespace BlocksBeyondTheStars.Client
         private bool OnGuardianWorld => string.Equals(_systemName, GuardianSystemName, System.StringComparison.Ordinal);
         private bool FinaleActive => Game?.Story != null && Game.Story.GuardianSystemRevealed && !Game.Story.GuardianDefeated;
 
+        /// <summary>True while holding the breach control would do something: finale live, on the Guardian
+        /// world, core not yet hacked, no duel up. Gates the touch ATTACK/hold button (#1042).</summary>
+        public bool BreachAvailable => FinaleActive && OnGuardianWorld && !_hacked && !_duelActive;
+
         private void Awake() => Instance = this;
 
         private void Update()
@@ -76,9 +79,11 @@ namespace BlocksBeyondTheStars.Client
                 _subscribed = true;
             }
 
-            // Breach channel: hold the key on the Guardian Core to send hack ticks (the server gates them by
-            // location + state, so over-sending off-core simply does nothing).
-            if (FinaleActive && OnGuardianWorld && !_hacked && !_duelActive && Input.GetKey(BreachKey))
+            // Breach channel: hold the control on the Guardian Core to send hack ticks (the server gates them by
+            // location + state, so over-sending off-core simply does nothing). The control is the PrimaryFire
+            // action — its default key IS the historical F, and going through InputMap gives the pad binding
+            // and the touch ATTACK hold button the same channel (#1042/#1043).
+            if (BreachAvailable && InputMap.Held(InputAction.PrimaryFire))
             {
                 _hackTickTimer += Time.deltaTime;
                 if (_hackTickTimer >= HackTickInterval)
@@ -172,7 +177,12 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (FinaleActive && OnGuardianWorld && !_hacked)
             {
-                DrawHint(L("ui.finale.hack_hint", "Hold [F] to breach the Guardian core"));
+                // All 14 locales carry the literal "[F]" token; swap in the control for the device in hand
+                // (bound key / pad glyph / the touch ATTACK button) so the hint never names a dead key.
+                string control = InputMap.ActiveDevice == InputDeviceKind.Touch
+                    ? L("ui.touch.attack", "ATTACK")
+                    : InputMap.Glyph(InputAction.PrimaryFire);
+                DrawHint(L("ui.finale.hack_hint", "Hold [F] to breach the Guardian core").Replace("[F]", "[" + control + "]"));
             }
         }
 

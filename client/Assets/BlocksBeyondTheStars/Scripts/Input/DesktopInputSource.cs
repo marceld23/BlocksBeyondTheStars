@@ -45,9 +45,11 @@ namespace BlocksBeyondTheStars.Client
             return -1;
         }
 
-        public bool ActionDown(InputAction action) => Input.GetKeyDown(InputMap.Key(action));
-        public bool ActionHeld(InputAction action) => Input.GetKey(InputMap.Key(action));
-        public bool ActionUp(InputAction action) => Input.GetKeyUp(InputMap.Key(action));
+        // An action with no keyboard key at all (KeyCode.None — e.g. ContextActions, which pad/touch open
+        // through their own control) is simply never down here.
+        public bool ActionDown(InputAction action) { var k = InputMap.Key(action); return k != KeyCode.None && Input.GetKeyDown(k); }
+        public bool ActionHeld(InputAction action) { var k = InputMap.Key(action); return k != KeyCode.None && Input.GetKey(k); }
+        public bool ActionUp(InputAction action) { var k = InputMap.Key(action); return k != KeyCode.None && Input.GetKeyUp(k); }
 
         /// <summary>Keyboard/mouse activity this frame — any key held or the mouse moved/clicked/scrolled.
         /// Used only to decide whether to show keyboard glyphs; a tiny mouse jitter threshold avoids

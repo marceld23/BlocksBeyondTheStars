@@ -30,7 +30,6 @@ namespace BlocksBeyondTheStars.Client
         public MemoryFlashback Flashback;
 
         private const float CharsPerSecond = 42f;
-        private const KeyCode ContinueKey = KeyCode.N;
 
         // Left-column layout in HUD reference units (1536×864). The column is full: vitals end at y 260,
         // the toast sits at 268, the scan panel starts at 650 and the hotbar backplate owns y 742…834 /
@@ -338,11 +337,27 @@ namespace BlocksBeyondTheStars.Client
             _queue.Enqueue((L(key), false)); // shows via the normal typewriter path; bypasses the VegaHints mute by design
         }
 
-        /// <summary>True when the continue key should be ignored: the in-game menu is open, or a text
-        /// field (chat, beacon label) currently has keyboard focus.</summary>
+        /// <summary>True when the continue control should be ignored: the in-game menu is open, or a text
+        /// field (chat, beacon label) currently has keyboard focus. Only a focused INPUT FIELD counts —
+        /// uGUI also leaves an ordinary Button selected after any click, and with pad focus
+        /// (<see cref="UiNavFocus"/>) something is selected most of the time; treating that as "captured"
+        /// left the panel stuck after the first HUD click / on a pad (#1041).</summary>
         private bool InputCaptured()
-            => (Game != null && Game.MenuOpen)
-               || UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject != null;
+        {
+            if (Game != null && Game.MenuOpen)
+            {
+                return true;
+            }
+
+            var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
+            return selected != null && selected.GetComponent<InputField>() != null;
+        }
+
+        /// <summary>True while a VEGA line is on screen (typing or waiting for continue) — gates the touch
+        /// NEXT button and the context-actions entry (#1041); the panel itself stays non-modal.</summary>
+        public bool LineShowing => _speechText != null && _current.Length > 0;
+
+        private InputDeviceKind _hintDevice = (InputDeviceKind)(-1);
 
         private void Update()
         {
@@ -459,7 +474,17 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            bool pressed = Input.GetKeyDown(ContinueKey) && !InputCaptured();
+            // Continue is a rebindable action (#1041): the bound key (default N), the pad's Back button, the
+            // touch NEXT button and the context-actions list all land here — the panel used to poll the
+            // raw N key, which no pad or touch device could ever press.
+            bool pressed = InputMap.Down(InputAction.VegaContinue) && !InputCaptured();
+
+            // The hint names the control for the device in hand; re-render it when the player switches
+            // device mid-line (picks up the pad, taps the screen).
+            if (_continueHint.gameObject.activeSelf && InputMap.ActiveDevice != _hintDevice)
+            {
+                ShowContinueHint();
+            }
 
             if (_shown < _current.Length)
             {
@@ -510,13 +535,24 @@ namespace BlocksBeyondTheStars.Client
 
         private void ShowContinueHint()
         {
+            // The control name follows the active device (#1041): the bound key on keyboard, the pad glyph
+            // on a gamepad, the on-screen NEXT button on touch. "ui.vega.next" (the old fixed "[N]" text)
+            // stays in the locale files for community locales that still carry it.
+            _hintDevice = InputMap.ActiveDevice;
+            string next = _hintDevice switch
+            {
+                InputDeviceKind.Touch => L("ui.vega.next_touch"),
+                InputDeviceKind.Gamepad => string.Format(L("ui.vega.next_pad"), InputMap.Glyph(InputAction.VegaContinue)),
+                _ => string.Format(L("ui.vega.next_key"), InputMap.Key(InputAction.VegaContinue)),
+            };
+
             // Multi-page lines get a page indicator so "Continue" visibly means "next page", not "dismiss".
             string hint = _pages.Count > 1
-                ? L("ui.vega.next") + "  " + string.Format(L("ui.vega.page"), _page + 1, _pages.Count)
-                : L("ui.vega.next");
-            if (_currentIsPrologue)
+                ? next + "  " + string.Format(L("ui.vega.page"), _page + 1, _pages.Count)
+                : next;
+            if (_currentIsPrologue && _hintDevice == InputDeviceKind.KeyboardMouse)
             {
-                hint += "      " + L("ui.vega.prologue.skip"); // Esc skips the narration (#754)
+                hint += "      " + L("ui.vega.prologue.skip"); // Esc skips the narration (#754) — keyboard only
             }
 
             _continueHint.text = hint;

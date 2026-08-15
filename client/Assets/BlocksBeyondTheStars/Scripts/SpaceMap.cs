@@ -65,7 +65,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping)
+            // Esc — or pad B (#1043) — closes the chart.
+            if (_open && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)) && !Game.ChatTyping)
             {
                 Game.MarkMenuInputHandled(); // consumed — don't also pop the quit prompt (#413)
                 Close();
@@ -149,6 +150,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("SpaceMapUI");
             _canvas.sortingOrder = 60; // above the flight HUD, like the surface map
+            UiNav.Enable(_canvas.gameObject); // pad: clear-waypoint / close reachable by stick (#1043); markers stay pointer-only
             var root = _canvas.transform;
 
             UiKit.AddImage(root, 0, 0, 1920, 1080, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.92f));

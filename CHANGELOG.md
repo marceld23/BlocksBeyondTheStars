@@ -13,6 +13,30 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎮 Touch and gamepad reach every verb again (#1041, #1042, #1043, #1044)
+
+- **VEGA can be advanced without a keyboard.** The ship AI's continue key was the raw **N** and nothing
+  else — on a tablet or with only a pad in hand every line, and every story page after the first,
+  stayed on screen forever. Continue is now a rebindable action: **N** on the keyboard, **Back/View** on
+  the pad, a **NEXT ▶** button on touch, and the hint names whichever one you hold. (#1041)
+- **Touch controls: rotate, EVA building, maps, attack, and a list for everything else.** New on-screen
+  buttons: **ROTATE** (appears while a rotatable block is selected), **PLACE** and **DEPLOY** in EVA
+  (you could not build in space by touch at all), **MAP** on foot and at the helm, **VIEW** on foot,
+  **ATTACK** while a weapon is held (hold it on the Guardian core to breach). An **ACT** button opens a
+  list of every verb that applies right now — trade / dock with the player beside you, undock, loot /
+  stash, repair, lamp, thermal, stow the speeder, … — one tap each. Any tap now switches the HUD to
+  touch hints. (#1042)
+- **Gamepad: two stick clicks, and every menu walks.** **L3** opens the same context-actions list (the
+  stock Xbox layout had only two free buttons for twenty unbound verbs), **Back** advances VEGA. The
+  landing-pad chooser, trade and docking requests, the trade panel, the bandit demand, the planet map
+  and the flight chart are stick-navigable now and **(B)** backs out of each — a pad-only pilot could
+  not land before. (#1043)
+- **Ship-systems bar cycles with the wheel / d-pad / touch ◄►.** Switching from the laser to the tractor
+  beam needed a number key; the same scroll that cycles the hotbar now steps through the systems. (#1044)
+- Under the hood: `InputAction.VegaContinue / PlanetMap / ContextActions`, `InputMap.InjectNextFrame`,
+  `ContextActionsUi`; the planet map and the finale breach hold moved off raw key polls. Twelve community
+  locales topped up (26 keys each).
+
 ## [2026.8.15] — 2026-08-15
 
 The quartermaster release. Version 2026.8.14 was tagged hours before a three-player LAN evening —

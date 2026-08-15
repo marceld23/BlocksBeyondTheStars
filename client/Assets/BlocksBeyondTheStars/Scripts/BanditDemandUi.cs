@@ -210,6 +210,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("BanditDemandUi");
             _canvas.sortingOrder = 24; // above the dock/trade panels
+            UiNav.Enable(_canvas.gameObject); // pad: stick walks Comply / Refuse, A picks (#1043) — 1/2 keys stay
             var root = _canvas.transform;
 
             _panel = new GameObject("BanditPanel", typeof(RectTransform)).gameObject;

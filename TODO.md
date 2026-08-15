@@ -128,6 +128,33 @@ EVA gets the hand too via the viewmodel's self-refresh. Raw materials still show
 candidate on top of `Kind.Hand`). Client-only, no protocol change; 4 new `HeldItemEditModeTests` pin
 the mapping.
 
+### ★ Touch + gamepad reach every verb again (#1041–#1044, 2026-08-15, branch feat/touch-pad-coverage)
+Audit of the two non-keyboard backends against the 23 `InputAction`s: touch mapped 9 of them, the pad
+had stock buttons for 3, and several verbs bypassed `InputMap` entirely — `VegaPanel` polled the raw
+**N** key (since #1011 removed the auto-advance, a tablet or pad-only player was stuck on the first
+VEGA page forever), `WorldMap` polled **M**, `FinaleView` polled **F**, the ship-systems bar and the
+pad chooser took only number keys. Fix, in layers: (1) three new rebindable actions —
+`VegaContinue` (N / pad Back / touch NEXT ▶), `PlanetMap` (M / touch MAP), `ContextActions` (pad L3 /
+touch ACT, no key). (2) `ContextActionsUi`: a stick-navigable / tappable list of every verb whose
+applicability probe is true right now (rotate, trade, dock, undock, loot, stash, repair, stow, attack,
+thermal, lamp, maps, EVA deploy, speeder exit/refuel, VEGA next); a pick calls
+`InputMap.InjectNextFrame(action)`, so the existing poll sites fire unchanged — one mechanism covers
+both devices' long tail. Probes sit beside the handlers (`PlayerController.HeldRotatable / NearContainer /
+NearCrate / NearWreck / NearOwnParkedSpeeder / HoldsWeapon / BinocularsRaised`,
+`PlayerInteractions.CanRequestTradeOrDock / CanDisembark`, `VegaPanel.LineShowing`, `FinaleView.BreachAvailable`).
+(3) Touch: direct contextual buttons for the frequent verbs — ROTATE (rotatable block held), ATTACK
+(weapon held / Guardian core; tap swings, hold breaches), VIEW + MAP on foot, MAP at the helm, and in EVA
+PLACE + DEPLOY replace LAND / SHIP / AUTO (EVA building was impossible by touch: `PlaceDown` only read the
+on-foot button); any tap now flips the HUD to touch glyphs. (4) Pad: `UiNav.Enable` + **B**-close on the
+land map (a pad-only pilot could not land), trade / dock prompts + trade panel, bandit demand, planet
+map, flight chart; `HadActivityThisFrame` sees Back / Start / L3 / R3. (5) `SpaceView` cycles the
+systems bar on `HotbarScroll` (wheel / d-pad / touch ◄►), wrapping. Hints follow the device (`ui.vega.next_*`,
+`ui.*_actions`, the finale `[F]` token, `ui.hud.hint_pad` + flight/EVA pad hints). Locales: 16 new keys
+EN + DE, all 12 community locales topped up via `translate_locale.py` (26 keys each incl. earlier lag);
+`InputMap.LabelKey` is the single action→`ui.key.*` table (settings rows + list). Client-only, no protocol
+change; 4 new `InputAbstractionEditModeTests`. Still keyboard-only by design: chat typing on a pad,
+push-to-talk, the finale duel's IMGUI choices on a pad, map *markers* on a pad; on-device feel is #201/#202.
+
 ### ★ Wooden door on a self-built ship swings by hand again (#1021, 2026-08-14, branch fix/ship-door-kind)
 LAN playtest: "the wooden door can't be opened." A door block built into a self-built ship (#948) was
 collapsed into a position-only `DoorCells` entry, and `RegisterDoors` hard-coded every landed-ship door

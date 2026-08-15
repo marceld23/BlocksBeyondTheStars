@@ -89,7 +89,7 @@ namespace BlocksBeyondTheStars.Client
 
         private string NearbyPlayer()
         {
-            if (Remotes == null)
+            if (Remotes == null || Game == null)
             {
                 return null;
             }
@@ -97,6 +97,16 @@ namespace BlocksBeyondTheStars.Client
             var near = Remotes.PlayersWithin(Game.PlayerPosition, InteractRange);
             return near.Count > 0 ? near[0] : null;
         }
+
+        /// <summary>True while a trade / dock request could be sent right now: a player in reach, and we are
+        /// neither docked nor aboard a station. Gates the context-actions entries (#1042/#1043).</summary>
+        public bool CanRequestTradeOrDock =>
+            Game != null && string.IsNullOrEmpty(Game.StationName) && !(Game.Dock != null && Game.Dock.Docked)
+            && !string.IsNullOrEmpty(NearbyPlayer());
+
+        /// <summary>True while <see cref="InputAction.Disembark"/> would do something (docked, or aboard a station).</summary>
+        public bool CanDisembark =>
+            Game != null && (!string.IsNullOrEmpty(Game.StationName) || (Game.Dock != null && Game.Dock.Docked));
 
         // ── Modern uGUI build (replaces the IMGUI windows) ───────────────────────────────────
         private Canvas _canvas;
@@ -157,20 +167,23 @@ namespace BlocksBeyondTheStars.Client
             string hint = null;
             if (!dock && !trade && !tradeAsk && !Game.MenuOpen && !Game.SpaceViewActive)
             {
+                // The keyboard hints name letters (U / T / K); on pad and touch those verbs live in the
+                // context-actions list, so the hint points there instead (#1042/#1043).
+                bool keys = InputMap.ActiveDevice == InputDeviceKind.KeyboardMouse;
                 if (!string.IsNullOrEmpty(Game.StationName))
                 {
-                    hint = loc.Get("ui.station.leave_hint");
+                    hint = loc.Get(keys ? "ui.station.leave_hint" : "ui.station.leave_hint_actions");
                 }
                 else if (Game.Dock != null && Game.Dock.Docked)
                 {
-                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get("ui.dock.undock_hint")}";
+                    hint = $"{loc.Get("ui.dock.docked")} {Game.Dock.Partner} · {loc.Get(keys ? "ui.dock.undock_hint" : "ui.dock.undock_hint_actions")}";
                 }
                 else
                 {
                     string near = NearbyPlayer();
                     if (!string.IsNullOrEmpty(near))
                     {
-                        hint = $"{loc.Get("ui.interact.trade_dock")} {near}";
+                        hint = $"{loc.Get(keys ? "ui.interact.trade_dock" : "ui.interact.trade_dock_actions")} {near}";
                     }
                 }
             }
@@ -243,6 +256,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SendTradeRespond(false);
                 Game.PendingTradeFrom = string.Empty;
             });
+            UiNav.Enable(_tradeAskPanel); // pad: stick walks Accept / Decline (#1043)
             _tradeAskPanel.SetActive(false);
         }
 
@@ -262,6 +276,7 @@ namespace BlocksBeyondTheStars.Client
                 Game.Network.SendDockResponse(Game.PendingDockFrom, false);
                 Game.PendingDockFrom = string.Empty;
             });
+            UiNav.Enable(_dockPanel); // pad: stick walks Accept / Decline (#1043)
             _dockPanel.SetActive(false);
         }
 
@@ -287,6 +302,7 @@ namespace BlocksBeyondTheStars.Client
 
             UiKit.AddButton(t, 20f, h - 52f, 180f, 38f, loc.Get("ui.action.confirm"), () => Game.Network.SendTradeConfirm());
             UiKit.AddButton(t, 210f, h - 52f, 180f, 38f, loc.Get("ui.action.cancel"), () => Game.Network.SendTradeCancel());
+            UiNav.Enable(_tradePanel); // pad: stick walks the −/+ rows, Confirm / Cancel (#1043)
             _tradePanel.SetActive(false);
         }
 
