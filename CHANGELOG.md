@@ -13,6 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 👕 Avatar Designer: save and switch between several outfits (#1047)
+
+- The Avatar Designer now keeps up to **eight named outfits** — colours, pixel face and body paint — in a
+  new **Outfits** panel: **Save outfit** stores your current look under the name you typed (or updates
+  the outfit that already has that name), clicking one loads it back onto the rotating figure, **Rename
+  selected** and ✕ do what they say. **Apply** is still the only button that changes your in-game avatar,
+  so you can browse and tweak looks freely. Older settings files simply start with an empty list. (#1047)
+
 ### 🎮 Touch and gamepad reach every verb again (#1041, #1042, #1043, #1044)
 
 - **VEGA can be advanced without a keyboard.** The ship AI's continue key was the raw **N** and nothing

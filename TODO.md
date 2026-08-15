@@ -105,6 +105,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Avatar Designer keeps several outfits (#1047, 2026-08-15, branch feat/avatar-outfits)
+Once you had painted a nice suit, trying a second look meant overwriting it: the designer had exactly one
+"current look" (`ClientSettings.SkinColor/…/FacePixels/*Pixels`) plus an Export nobody could import. New
+`AvatarOutfit` (name + four colours + face + four body-paint parts; gear toggles stay a preview because in
+the game the shown gear follows equipped items) and `ClientSettings.Outfits` (list, cap `MaxOutfits` = 8,
+absent in older settings files → loads empty). The designer grows an **Outfits** panel left of the control
+panel: **Save outfit** stores the scratch look under the name field (new, or overwriting the outfit that
+already carries that name), clicking a row loads it into the designer + preview + name field, **Rename
+selected** renames the highlighted row, ✕ deletes without confirmation (the applied in-game look is a
+separate copy, so deleting even the outfit you wear changes nothing). Apply remains the only thing that
+touches the in-game avatar, so the server is untouched — it still only sees the applied look on the next
+join. `UiNav.Enable` on the designer canvas (it had none) so a pad reaches everything; 12 new
+`ui.avatar.outfit*` keys in all 14 locales. Client-only. Follow-up candidate: an in-game quick-switch
+that applies a saved outfit from the pause/ring menu.
+
 ### ★ The wall behind a placed torch is no longer see-through (#1031, 2026-08-15, branch fix/torch-xray-neighbor-cull)
 Placing a torch on a wall opened an x-ray hole: `ChunkMesher`'s neighbour-culling only kept an opaque
 face toward air / transparent / flora / foliage cells, and a torch cell is none of those — it meshes
