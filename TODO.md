@@ -8123,6 +8123,20 @@ input sanitising and the persistence roundtrip.
 
 ---
 
+## ✅ Done (2026-08-15): the ingredient source tag ("craftable" / "raw resource") no longer clips at the detail pane's edge (#1057)
+
+Playtest find on v2026.8.15: the right-aligned source tag that #1016/#1022 added to every ingredient row
+in the Crafting / Tech / Ship detail pane read `craftabl|e` — its last glyph was cut off. Cause: the tag was
+placed at `x 20 + w 620 = 640` inside a detail scroll viewport that is only **636 px** wide and clipped by a
+`RectMask2D`, with the 8-px auto-hide inline scrollbar overlaying the viewport's right edge on top of that.
+Left-anchored rows share the same geometry but never showed it (their text ends long before the edge).
+Fix: the tag's rect now ends at 616 (20 px inside the viewport, clear of the scrollbar). Client-only, no
+protocol/content change. New `CraftDetailLayoutTests` (client suite) parse `CraftingTechShipUI.cs` /
+`UiKit.cs` and assert every right-anchored `AddText(_detail, …)` ends inside `viewport − scrollbar`, plus a
+pinned check on the #1057 row itself.
+
+---
+
 ## ✅ Done (2026-08-14): shallow ore veins split across two noise scales — the ore lottery is over (#1024)
 
 Player report (LAN playtest): *"copper is too rare — and the deposits are gigantic, but which ore you

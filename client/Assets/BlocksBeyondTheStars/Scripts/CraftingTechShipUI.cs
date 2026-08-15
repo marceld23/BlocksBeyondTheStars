@@ -3332,7 +3332,10 @@ namespace BlocksBeyondTheStars.Client
             bool craftable = Game.Content.CraftDepth(inp.Item) > 0;
             UiKit.AddText(_detail, 20, y, 620, size + 8, $"{(ok ? "✓" : "✗")} {ItemName(inp.Item)}  {have}/{inp.Count}", size,
                 ok ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), TextAnchor.UpperLeft);
-            UiKit.AddText(_detail, 20, y, 620, size + 8, L(craftable ? "ui.craft.src_craftable" : "ui.craft.src_raw"),
+            // Right-anchored, so its right edge must clear the detail viewport (636 wide, RectMask2D) AND the
+            // 8-px inline scrollbar that overlays the viewport's right edge — x = 20 + 620 = 640 lost the last
+            // glyph ("craftabl|e", #1057). 20 + 596 = 616 leaves 20 px, well clear of both.
+            UiKit.AddText(_detail, 20, y, 596, size + 8, L(craftable ? "ui.craft.src_craftable" : "ui.craft.src_raw"),
                 size - 4, UiKit.CyanDim, TextAnchor.UpperRight);
             y += size + 10f;
             if (!craftable || ok)
