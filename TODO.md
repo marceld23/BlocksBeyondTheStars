@@ -105,6 +105,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Admin portal: world detail page reads attributed saves again (#1063, 2026-08-15, branch fix/1063-inspector-max-aggregate)
+Every world with a save file showed `Could not read the world save: SQLite Error 1: 'misuse of aggregate
+function MAX()'` and three empty cards ("No player records…"). `WorldInspector.ReadHotspots` put
+`MAX(e.owner_id)` inside the WHERE of a correlated sub-select — illegal in SQLite, fails at prepare time —
+and that branch runs for any save carrying the #490 attribution columns, i.e. everything since #491
+(2026-07-26). The "last editor" now comes from SQLite's bare-column rule (`e.owner_id` of the row holding
+`MAX(edited_unix)` — the genuinely most recent editor, not the highest player id). `Read()` also degrades
+per section: a failing query reports on its own card (`PlayersProblem`/`BuildsProblem`/`HotspotsProblem`)
+instead of blanking players and structures with a false "no player records". New `WorldInspectorTests`
+write a real save through `SqliteWorldRepository` (attributed, legacy schema, sabotaged table, missing
+file). WorldHost-only — needs a world-host image rebuild + pin bump to reach the fleet.
+
 ### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
 A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
 `machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the

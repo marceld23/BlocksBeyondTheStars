@@ -17,13 +17,18 @@ public sealed record InspectedBuild(string Kind, string Name, string Owner, stri
 /// cells edited before attribution existed (issue #490 cannot be back-filled).</summary>
 public sealed record InspectedHotspot(string Body, int X, int Z, int Edits, string LastEditor, DateTime? LastEditUtc);
 
-/// <summary>Everything the world-detail page shows, plus how stale it might be.</summary>
+/// <summary>Everything the world-detail page shows, plus how stale it might be.
+/// <see cref="Problem"/> is set only when the save could not be opened at all; a section that fails on its own
+/// (schema drift, a bad row) reports through its <c>*Problem</c> field so the other cards stay useful (#1063).</summary>
 public sealed record WorldInsight(
     IReadOnlyList<InspectedPlayer> Players,
     IReadOnlyList<InspectedBuild> Builds,
     IReadOnlyList<InspectedHotspot> Hotspots,
     DateTime? SaveModifiedUtc,
-    string? Problem);
+    string? Problem,
+    string? PlayersProblem = null,
+    string? BuildsProblem = null,
+    string? HotspotsProblem = null);
 
 /// <summary>
 /// Reads a world save directly for the operator's world-detail page.
@@ -89,12 +94,20 @@ public static class WorldInspector
             using var con = new SqliteConnection(builder.ToString());
             con.Open();
 
+            // Each section fails on its own: one broken query must not blank the others and make the page
+            // claim "no player records" for a world full of players (issue #1063 — that is exactly what the
+            // hotspot query did for every attributed save).
+            var (players, playersProblem) = Section<IReadOnlyList<InspectedPlayer>>("players", () => ReadPlayers(con));
+            var (builds, buildsProblem) = Section<IReadOnlyList<InspectedBuild>>("structures", () => ReadBuilds(con));
+            var (hotspots, hotspotsProblem) = Section<IReadOnlyList<InspectedHotspot>>("build hotspots", () => ReadHotspots(con));
+
             return new WorldInsight(
-                ReadPlayers(con),
-                ReadBuilds(con),
-                ReadHotspots(con),
+                players ?? Array.Empty<InspectedPlayer>(),
+                builds ?? Array.Empty<InspectedBuild>(),
+                hotspots ?? Array.Empty<InspectedHotspot>(),
                 File.GetLastWriteTimeUtc(path),
-                null);
+                null,
+                playersProblem, buildsProblem, hotspotsProblem);
         }
         catch (Exception e)
         {
@@ -103,6 +116,19 @@ public static class WorldInspector
             return new WorldInsight(
                 Array.Empty<InspectedPlayer>(), Array.Empty<InspectedBuild>(), Array.Empty<InspectedHotspot>(),
                 null, "Could not read the world save: " + e.Message);
+        }
+    }
+
+    private static (T? Value, string? Problem) Section<T>(string what, Func<T> read)
+        where T : class
+    {
+        try
+        {
+            return (read(), null);
+        }
+        catch (Exception e) when (e is SqliteException or InvalidOperationException or InvalidCastException)
+        {
+            return (null, $"Could not read {what} from the world save: {e.Message}");
         }
     }
 
@@ -210,9 +236,14 @@ public static class WorldInspector
         const string bucketX = "CAST(FLOOR(CAST(x AS REAL) / $bucket) AS INTEGER)";
         const string bucketZ = "CAST(FLOOR(CAST(z AS REAL) / $bucket) AS INTEGER)";
 
+        // "Last editor" leans on SQLite's bare-column rule: in an aggregate query with exactly one MIN()/MAX(),
+        // bare columns (here e.owner_id inside the correlated sub-select) come from the row that holds the
+        // maximum — so the name belongs to the most recent edit in the bucket. COUNT(*) does not disturb the
+        // rule (only MIN/MAX count). Do NOT write MAX(e.owner_id) inside the sub-select: an aggregate in a
+        // sub-query's WHERE is "misuse of aggregate function" and took the whole page down (issue #1063).
         cmd.CommandText = attributed
             ? $@"SELECT planet, {bucketX} AS bx, {bucketZ} AS bz, COUNT(*) AS n,
-                        COALESCE((SELECT r.name FROM player_ref r WHERE r.id = MAX(e.owner_id)), ''),
+                        COALESCE((SELECT r.name FROM player_ref r WHERE r.id = e.owner_id), ''),
                         MAX(e.edited_unix)
                  FROM block_edit e GROUP BY planet, bx, bz
                  HAVING n >= $min ORDER BY n DESC LIMIT $limit;"

@@ -75,7 +75,11 @@ public static class WorldHostAdminPages
 
         // ---- Players ----
         sb.Append("<div class='card'><h2>Players</h2>");
-        if (insight.Players.Count == 0)
+        if (insight.PlayersProblem is { } playersProblem)
+        {
+            sb.Append($"<p class='beta'>{E(playersProblem)}</p>");
+        }
+        else if (insight.Players.Count == 0)
         {
             sb.Append("<p class='hint'>No player records in this save.</p>");
         }
@@ -96,7 +100,11 @@ public static class WorldHostAdminPages
 
         // ---- Named structures ----
         sb.Append("<div class='card'><h2>Structures</h2>");
-        if (insight.Builds.Count == 0)
+        if (insight.BuildsProblem is { } buildsProblem)
+        {
+            sb.Append($"<p class='beta'>{E(buildsProblem)}</p>");
+        }
+        else if (insight.Builds.Count == 0)
         {
             sb.Append("<p class='hint'>No bases, beacons, beam pads or stations have been placed.</p>");
         }
@@ -121,7 +129,11 @@ public static class WorldHostAdminPages
         sb.Append("<p class='hint'>Clusters of changed blocks — this is how you find a house someone built " +
                   "without placing a base core, or a hillside that was dug away. \"Last editor\" is empty for " +
                   "cells changed before edit attribution shipped; it cannot be reconstructed.</p>");
-        if (insight.Hotspots.Count == 0)
+        if (insight.HotspotsProblem is { } hotspotsProblem)
+        {
+            sb.Append($"<p class='beta'>{E(hotspotsProblem)}</p>");
+        }
+        else if (insight.Hotspots.Count == 0)
         {
             sb.Append("<p class='hint'>No building activity of note yet.</p>");
         }
