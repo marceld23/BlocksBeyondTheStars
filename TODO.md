@@ -105,6 +105,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Story engine: finale + one-shot insight lines are pack-owned (#1086, 2026-08-16, branch feat/story-pack-owned-keys, from the Voidcraft fork)
+The story engine was pack-agnostic for beats/fragments/memories, but the finale (`guardian_revealed`,
+`finale_resolved`, the star-map system name) and the two once-per-player gameplay insights (companion ward,
+shaped block) were hard-wired to `story.vega.*` keys in `GameServerStory*` — a second campaign would speak
+VEGA Protocol copy at its own climax. `StoryDefinition` now carries `FinaleRevealTextKey`,
+`FinaleResolvedTextKey`, `FinaleSystemNameKey`, `InsightUnlockBeatCount` and `CompanionWardTextKey` /
+`ShapeAnomalyTextKey` (empty = insight off), defaults = the VEGA keys (zero behaviour change for existing
+saves); `data/stories/vega_protocol/story.json` declares them; `tools/merge_story.py` validates the whole
+pack surface (finale/insight keys, fragments incl. `lore.cat.*`, memories, coreArguments, flavour) in both
+languages plus `id` = directory name. `StoryPackLoadTests` compares the pack-owned keys data↔fallback and
+resolves every pack-owned line (`[key]` marker check — story prose may start with a bracket).
+Cherry-picked with `-x` from Tombonator3000/Voidcraft@4882658b (author Tom Erland Husby, credited in
+README + in-game credits, 14 locales) — first of the #1085 upstream batch. Voidcraft branding and the
+default-story swap were left out; `vega_protocol` stays the default.
+
 ### ★ Admin portal: world detail page reads attributed saves again (#1063, 2026-08-15, branch fix/1063-inspector-max-aggregate)
 Every world with a save file showed `Could not read the world save: SQLite Error 1: 'misuse of aggregate
 function MAX()'` and three empty cards ("No player records…"). `WorldInspector.ReadHotspots` put
