@@ -10347,6 +10347,31 @@ index.html at root for Glitch's deploy engine, optional CLI deploy). Docs: HOSTE
 Known v0.7.8 limitation: in-game `/report` is portal-session-bound and silently unavailable for
 arcade guests (documented). The public Baumhaus amendment ships as a devblog follow-up with launch.
 
+## ✅ Done (2026-08-16): glitch.fun store page refreshed — 14 languages, current controls, August feature set, new screenshots
+
+The store listing had not been touched since 2026-07-15 (32 releases ago) and still advertised
+"English and German", a "How to play" whose flight `F`/`L` lines no longer matched the game, and the
+pre-continents screenshot set. Refreshed via `tools/glitch-media/upload_media.py` (`--update-json`,
+`--instructions-file`, `--remove`/`--media`, `--main-image`, `--banner`) — the committed sources are the
+single source of truth for the store copy:
+- [tools/glitch-media/deep_dive.json](tools/glitch-media/deep_dive.json): 14 languages named in
+  `visual_audio_style` + `key_features` + short/long description; key features now cover continents /
+  rings / asteroid belts, block rotate + own shapes + wall paint, in-world ship building, temperature +
+  weather with wind, bandits + bounties, homestead (beds, campfires, sealed rooms), pixel-painted
+  astronaut with 8 outfits, player trading, keyboard/gamepad/touch; "settlers" → villages + monuments;
+  arcade cap "up to 8 players per world"; long description mentions "What's new?", book/audiobook and
+  the daily dev podcast; new `github_page` + `youtube_page` (repo + Let's-Play playlist).
+- [tools/glitch-media/instructions.md](tools/glitch-media/instructions.md): flight `F` = leave the helm
+  and walk the interior (airlock for EVA), `L` = back to your launch pad, `M` star chart, wheel cycles
+  ship systems; on foot adds Space/Ctrl, middle-click slot actions, H deposit, T trade, V view, R rotate;
+  EVA `B` station core; gamepad + rebindable controls; F2/F1 feedback; "What's new?" pointer.
+- Gallery: the 13 EN screenshots swapped for the 2026-08-09 continents regeneration of
+  `docs/screenshots/en` (same file names), main image + banner re-uploaded from the same set; the EN
+  trailer (June cut) stays — no newer trailer exists (candidate for a re-cut later).
+Unchanged on purpose: genres, website `.com/en`, itch link, empty age rating / release date / pricing,
+no Discord (does not exist). Verified via a fresh `GET /titles/{id}` (updated_at 2026-08-16, media
+list + fields as expected); active glitch deployment is 2026.8.16.
+
 ## ✅ Done (2026-07-15): glitch.fun store page filled + `tools/glitch-media` uploader
 
 The glitch.fun store page for the title is now fully populated via a new API tool,
