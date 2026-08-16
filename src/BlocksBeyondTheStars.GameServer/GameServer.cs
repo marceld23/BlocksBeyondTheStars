@@ -801,6 +801,7 @@ public sealed partial class GameServer
         SendLandedShips(session); // every parked ship object on this world (incl. the player's own)
         SendShipPlacement(session);
         SendShipStations(session);
+        SendStationsInReach(session); // #1070: the Tab-menu gates start from the server truth, not a guess
         SendPlanetPois(session);
         SendEnvironment(session);
         if (!session.Spectating)
@@ -1350,6 +1351,7 @@ public sealed partial class GameServer
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
+            Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
             Guard("TickShipAi", deltaSeconds, TickShipAi); // VEGA advisor hints + memory-fragment redemption
             Guard("StreamChunks", StreamChunks);
@@ -2712,6 +2714,7 @@ public sealed partial class GameServer
             case AttackEntityIntent attack: HandleAttackEntity(session, attack); break;
             case ShootBlockIntent shot: HandleShootBlock(session, shot); break;
             case UseStationIntent use: HandleUseStation(session, use); break;
+            case LocateStationIntent locate: HandleLocateStation(session, locate); break; // #1072
             case SetAppearanceIntent appearance: HandleSetAppearance(session, appearance); break;
             case SetFaceIntent face: HandleSetFace(session, face); break;
             case SetBodyPaintIntent bodyPaint: HandleSetBodyPaint(session, bodyPaint); break;
@@ -2992,6 +2995,7 @@ public sealed partial class GameServer
         SendLandedShips(session); // every parked ship object on the join world
         SendShipPlacement(session);
         SendShipStations(session);
+        SendStationsInReach(session); // #1070
         SendPlanetPois(session);
         SendOwnedShips(session);
         SendEnvironment(session);
@@ -4608,6 +4612,14 @@ public sealed partial class GameServer
             return;
         }
 
+        // Research is location-bound to the cockpit (#1074) — the Tech tab used to claim a "lab" that no
+        // ship ever had while this handler enforced nothing at all. Free-crafting (Creative) worlds skip it, like crafting does.
+        if (Rules.CraftingCostsMaterials && !ResearchAvailable(session))
+        {
+            Reject(session, "unlock", "@srv.unlock.cockpit");
+            return;
+        }
+
         foreach (var pre in bp.Prerequisites)
         {
             if (!session.State.UnlockedBlueprints.Contains(pre))
@@ -5059,7 +5071,11 @@ public sealed partial class GameServer
         return tool.Tier >= block.MinToolTier;
     }
 
-    private bool StationAvailable(PlayerState player, CraftingStation station)
+    private bool StationAvailable(PlayerState player, CraftingStation station) => StationAvailable(player, _ship, station);
+
+    /// <summary>The station check against an explicit ship (the per-player tick that publishes
+    /// <see cref="StationsInReach"/> must not swing the ship cursor around, #1070).</summary>
+    private bool StationAvailable(PlayerState player, ShipState ship, CraftingStation station)
     {
         if (station == CraftingStation.Hand)
         {
@@ -5098,7 +5114,7 @@ public sealed partial class GameServer
             _ => string.Empty,
         };
 
-        return moduleKey.Length > 0 && _ship.HasModule(moduleKey);
+        return moduleKey.Length > 0 && ship.HasModule(moduleKey);
     }
 
     /// <summary>True when a placed crafting-station block (workbench/forge) sits within reach of the player,

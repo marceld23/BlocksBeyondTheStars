@@ -406,6 +406,12 @@ public static class NetCodec
         // Suit teleporter destination picker (#1056): beam to an allied player on the same body. The recall
         // to the ship stays TeleportToShipIntent (38); a server without this tag simply drops the message.
         Register(205, typeof(TeleportToPlayerIntent));   // Client -> Server
+
+        // Station affordances (#1070/#1072): the server tells the client which crafting stations are in
+        // reach (single source of truth for the Tab-menu gates) and answers "where is the nearest one?".
+        Register(206, typeof(StationsInReach));          // Server -> Client
+        Register(207, typeof(LocateStationIntent));      // Client -> Server
+        Register(208, typeof(StationLocation));          // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

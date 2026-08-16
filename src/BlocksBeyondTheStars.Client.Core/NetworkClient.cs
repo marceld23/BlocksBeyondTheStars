@@ -69,6 +69,10 @@ namespace BlocksBeyondTheStars.Client
         public event Action<DropPacketList>? DropPacketsReceived;
         public event Action<ShipPlacement>? ShipPlacementReceived;
         public event Action<ShipStations>? ShipStationsReceived;
+        /// <summary>#1070: which crafting stations / research / ship-build are usable right now (server truth).</summary>
+        public event Action<StationsInReach>? StationsInReachReceived;
+        /// <summary>#1072: answer to <see cref="SendLocateStation"/> — nearest matching station block.</summary>
+        public event Action<StationLocation>? StationLocationReceived;
         public event Action<PlanetPoiList>? PlanetPoisReceived;
         public event Action<BeaconList>? BeaconsReceived;
         public event Action<BeamList>? BeamsReceived; // placed beam blocks (teleporter pads) on the current world
@@ -516,6 +520,9 @@ namespace BlocksBeyondTheStars.Client
         public void SendLeaveStation() => Send(new LeaveStationIntent());
 
         public void SendUseStation(string station) => Send(new UseStationIntent { Station = station });
+
+        /// <summary>#1072: ask where the nearest station of this kind is (a CraftingStation name, "research" or "shipbuild").</summary>
+        public void SendLocateStation(string station) => Send(new LocateStationIntent { Station = station });
         public void SendDoorInteract(int doorId) => Send(new DoorInteractIntent { DoorId = doorId });
 
         /// <summary>E on a placed heal tank: make it the custom spawn point (issue #461).</summary>
@@ -706,6 +713,8 @@ namespace BlocksBeyondTheStars.Client
                 case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
                 case ShipPlacement m: ShipPlacementReceived?.Invoke(m); break;
                 case ShipStations m: ShipStationsReceived?.Invoke(m); break;
+                case StationsInReach m: StationsInReachReceived?.Invoke(m); break;
+                case StationLocation m: StationLocationReceived?.Invoke(m); break;
                 case PlanetPoiList m: PlanetPoisReceived?.Invoke(m); break;
                 case BeaconList m: BeaconsReceived?.Invoke(m); break;
                 case BeamList m: BeamsReceived?.Invoke(m); break;

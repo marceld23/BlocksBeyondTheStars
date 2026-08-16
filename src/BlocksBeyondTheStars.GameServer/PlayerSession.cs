@@ -223,6 +223,17 @@ public sealed class PlayerSession
     /// <summary>Cached result of the last bed proximity scan (#804) — same cadence as the tank scan.</summary>
     public bool NearBed { get; set; }
 
+    // --- Station affordances (#1070/#1072) ---
+
+    /// <summary>Countdown to the next station-set re-evaluation (StationsInReach publish-on-change).</summary>
+    public double StationScanIn { get; set; }
+
+    /// <summary>Compact key of the last StationsInReach sent, so the tick only pushes real changes.</summary>
+    public string? LastStationsInReach { get; set; }
+
+    /// <summary>Server uptime of the last answered LocateStationIntent (rate limit).</summary>
+    public double LastStationLocateAt { get; set; } = -1;
+
     // --- Temperature hazard (#666): the effective-temperature scan is ~1 Hz, the drain applies every tick ---
 
     /// <summary>Countdown to the next effective-temperature rescan (block probe + shelter check are the

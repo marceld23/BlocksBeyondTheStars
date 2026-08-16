@@ -263,37 +263,34 @@ public sealed class ShipStructureTests : IDisposable
     }
 
     [Fact]
-    public void ConsoleAndLab_AreHandled_AndUnknownStationsNoLongerFailSilently()
+    public void Console_IsHandled_AndUnknownStationsNoLongerFailSilently()
     {
-        // Issue #463: 'console' and 'lab' used to fall off the end of the UseStation switch (silent no-op)
-        // and their HUD prompts rendered raw keys. Now both have a server arm, a default arm catches any
-        // future unknown id, and the prompt labels resolve in both languages.
+        // Issue #463: 'console' (and the since-retired 'lab', #1074) used to fall off the end of the UseStation
+        // switch (silent no-op) and their HUD prompts rendered raw keys. Now the console has a server arm, a
+        // default arm catches any unknown id, and the prompt label resolves in both languages.
         var server = Started(placeShip: true, out var repo);
         using (repo)
         {
             var pilot = server.AddLocalPlayer("Pilot");
             pilot.State.AboardShip = true;
 
-            // The parametric box ship carries both stations.
+            // The parametric box ship carries the console; the phantom lab is gone (research → cockpit, #1074).
             var console = server.StationPosition("console");
-            var lab = server.StationPosition("lab");
             Assert.NotNull(console);
-            Assert.NotNull(lab);
+            Assert.Null(server.StationPosition("lab"));
 
-            // None of these may throw or corrupt vitals (console/lab are informational; 'wibble' hits the
+            // None of these may throw or corrupt vitals (the console is informational; 'wibble' hits the
             // default arm instead of vanishing silently).
             pilot.State.Health = 40f;
             pilot.State.Position = console!.Value;
             server.UseStation("Pilot", "console");
-            pilot.State.Position = lab!.Value;
-            server.UseStation("Pilot", "lab");
             Assert.Equal(40f, pilot.State.Health);
 
             // Prompt labels resolve in both languages (the raw-key bug half of #463).
             var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
             var en = content.CreateLocalizer(GameLocale.English);
             var de = content.CreateLocalizer(GameLocale.German);
-            foreach (var key in new[] { "ui.station.console", "ui.station.lab" })
+            foreach (var key in new[] { "ui.station.console" })
             {
                 Assert.True(en.Has(key), $"missing '{key}' in en locale");
                 Assert.True(de.Has(key), $"missing '{key}' in de locale");

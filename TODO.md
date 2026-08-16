@@ -152,6 +152,43 @@ stashes, relic caches, pirates and bounty missions), re-translated in all 14 loc
 the whole server path were verified end to end through the real payload path (join lists, reach check,
 unlock, star ledger, save/reload) — no server change. Client-only; needs a client build to ship.
 
+### ★ Tab menu names the BLOCK it needs — server-published station gates, "where is it", cockpit research (#1070–#1075, 2026-08-16, branch feat/station-affordances-1070)
+Three Tab-menu tabs only work at a station, and nothing said which block that was. Worse, client and
+server disagreed on "at a station": the client read only ship station markers (`Game.NearbyStation`) and
+gated per TAB, the server checks placed WORLD blocks per RECIPE — so at a base workbench the Crafting tab
+was dimmed and the button dead, hand recipes were client-blocked away from the parked ship, and a forge
+recipe said "Go to the workshop" (then the server rejected: needs a forge — the #451 pattern). The Tech
+"lab" existed nowhere (invisible `iron_wall` marker, no layout/palette entry) while `HandleUnlock`
+enforced nothing; the Ship tab said "console" but the server wanted the workshop module. **Now:**
+- **Server truth (#1070):** new `StationsInReach` (usable `CraftingStation` set + `ResearchOk` +
+  `ShipBuildOk`), sent on join and on change (½-s per-player re-scan, `GameServerStationAffordances.cs`;
+  `StationAvailable` got an explicit-ship overload so the tick never swings the ship cursor). Client
+  `CanCraft` gates per recipe from that set; Crafting dims only when NO station is in reach; Unlock/Build
+  buttons disable with a reason instead of a failing toast.
+- **Vocabulary (#1071):** every gate names the block — Workbench / Forge / Detoxifier / Matter Forge /
+  Algae Tank / Campfire / Cockpit / Workshop module — with its icon: dimmed tabs carry a station icon
+  badge, the detail pane shows "Station: [icon] Forge ✓/✗", reasons read "Needs a Forge nearby — or your
+  ship's Refinery module"; `ui.craft.station_*` values are block names (so `@need_station:` toasts follow);
+  the footer lists what is in reach; mission-board rejections are localized instead of the raw token.
+- **"Where?" (#1072):** `LocateStationIntent` → `StationLocation` (24-block sphere scan for the block, or
+  the parked ship's cockpit/workshop cell); the gate row under the tab bar (moved out of the search box's
+  rect it used to overlap) shows "Workbench · 12 m ↗" live, **Show** sets the compass waypoint, **Craft one
+  →** jumps to the recipe when none is nearby; closing the menu drops an 8-s through-wall marker
+  (`OreScanView.ShowStationMarker`).
+- **World side (#1073):** aiming at a placed workbench/forge/detoxifier/matter forge/algae tank/campfire
+  shows "Workbench — crafting: menu (Tab) → Crafting" (`Game.AimedStationBlock`); the ship `console`
+  marker stamps as `data_cache` instead of vanishing into the hull.
+- **Cockpit research (#1074):** `HandleUnlock` rejects `@srv.unlock.cockpit` unless aboard within station
+  reach of the cockpit (helm counts while flying; free-craft worlds and worlds without a parked ship skip
+  it — no cockpit to walk to); the phantom `lab` marker/keys/E-arm are gone; Ship gate = aboard + workshop
+  module in wording and code.
+- **Docs (#1075):** Codex guide *Stations & the Tab menu* (block → tab → function table, EN+DE), VEGA
+  `craft.start`/`unlock.start` name the workbench / cockpit, USER_MANUAL + CRAFTING_TECH_SHIP_UI updated.
+NetCodec 206/207/208 + golden list; 23 new locale keys + 8 removed (`go_to_lab` …), 12 community
+locales topped up via `translate_locale.py`; new `StationAffordanceTests` (5). Client (Unity) + server
+both change → both must update. Playtest: base workbench lights the Crafting tab; forge recipe names the
+forge; Tech dimmed until at the cockpit; "Show" blip + marker on close.
+
 ### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
 A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
 `machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the

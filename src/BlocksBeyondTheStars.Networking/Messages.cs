@@ -2224,3 +2224,50 @@ public sealed class VegaJournal
     /// <c>vega:hint:&lt;id&gt;</c>, <c>vega:mem:&lt;n&gt;</c>).</summary>
     public string[] Milestones { get; set; } = System.Array.Empty<string>();
 }
+
+/// <summary>
+/// Server → client: which crafting/production stations the player can use RIGHT NOW (#1070). The server is
+/// the single source of truth for "am I at a station" — the client used to guess from ship station markers
+/// only, so a base workbench, a placed forge and even hand recipes read as blocked in the Tab menu while
+/// the server would have crafted happily. Sent on join and whenever the set changes.
+/// </summary>
+public sealed class StationsInReach
+{
+    /// <summary>Lower-case <c>CraftingStation</c> names usable now ("workshop", "refinery", …). "hand" is
+    /// always usable and therefore never listed; "market"/"factory" keep their own client-side checks.</summary>
+    public string[] Available { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Research (Tech tab) is possible: aboard the ship and at its cockpit (#1074).</summary>
+    public bool ResearchOk { get; set; }
+
+    /// <summary>Ship modules can be built: aboard the ship and a workshop module is fitted (#1074).</summary>
+    public bool ShipBuildOk { get; set; }
+}
+
+/// <summary>Client → server: "where is the nearest station that would unlock this?" (#1072). The station is
+/// a lower-case <c>CraftingStation</c> name, or "research" (the cockpit) / "shipbuild" (the workshop module).</summary>
+public sealed class LocateStationIntent
+{
+    public string Station { get; set; } = string.Empty;
+}
+
+/// <summary>Server → client: the answer to <see cref="LocateStationIntent"/> — the nearest matching block
+/// (or ship station) position, so the menu can say "Workbench · 12 m ↗" and show it on the compass.</summary>
+public sealed class StationLocation
+{
+    public string Station { get; set; } = string.Empty;
+
+    public bool Found { get; set; }
+
+    /// <summary>"block" (a placed world block) or "ship" (a station/module aboard your parked ship).</summary>
+    public string Kind { get; set; } = string.Empty;
+
+    /// <summary>The block key found (for the icon + name), e.g. "workbench"; a ship hit names the station cell.</summary>
+    public string BlockKey { get; set; } = string.Empty;
+
+    public int X { get; set; }
+
+    public int Y { get; set; }
+
+    public int Z { get; set; }
+}

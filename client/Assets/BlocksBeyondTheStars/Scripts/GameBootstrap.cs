@@ -386,6 +386,34 @@ namespace BlocksBeyondTheStars.Client
         public float LandingPadsTimeOfDay { get; private set; } = 0.35f;
         public string NearbyStation;
 
+        /// <summary>The placed crafting-station block the player is aiming at (workbench, forge, …) or null —
+        /// drives the HUD "Workbench — crafting: Tab → Crafting" prompt (#1073). Set by PlayerController.</summary>
+        public string AimedStationBlock;
+
+        // --- Station affordances (#1070/#1072): the SERVER says which stations are usable right now. ---
+
+        /// <summary>Lower-case CraftingStation names usable now ("workshop", "refinery", …); hand is implicit.
+        /// Replaces the old guess from ship station markers, which never saw a base workbench.</summary>
+        public HashSet<string> StationsAvailable { get; } = new HashSet<string>();
+
+        /// <summary>Research (Tech tab) is possible right now — at the cockpit (#1074).</summary>
+        public bool ResearchOk { get; private set; }
+
+        /// <summary>Ship modules can be built right now — aboard, with a workshop module (#1074).</summary>
+        public bool ShipBuildOk { get; private set; }
+
+        /// <summary>False until the first StationsInReach arrived — a pre-#1070 host never sends one, and the menu
+        /// then falls back to its old ship-marker heuristic instead of dimming everything.</summary>
+        public bool StationsKnown { get; private set; }
+
+        /// <summary>Raised after every StationsInReach update (the menu re-evaluates its gates).</summary>
+        public event System.Action StationsInReachChanged;
+
+        /// <summary>The last "where is the nearest …?" answer (#1072); null before the first one.</summary>
+        public StationLocation LastStationLocation { get; private set; }
+
+        public event System.Action<StationLocation> StationLocated;
+
         // Navigation, missions & rules (M23).
         public StarMapData StarMap { get; private set; }
         public MissionList Missions { get; private set; }
@@ -1684,6 +1712,24 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.ShipPlacementReceived += m => ShipPosition = new Vector3(m.X, m.Y, m.Z);
             Network.ShipStationsReceived += m => Stations = m.Stations;
+            Network.StationsInReachReceived += m =>
+            {
+                StationsAvailable.Clear();
+                foreach (var s in m.Available ?? System.Array.Empty<string>())
+                {
+                    StationsAvailable.Add(s);
+                }
+
+                ResearchOk = m.ResearchOk;
+                ShipBuildOk = m.ShipBuildOk;
+                StationsKnown = true;
+                StationsInReachChanged?.Invoke();
+            };
+            Network.StationLocationReceived += m =>
+            {
+                LastStationLocation = m;
+                StationLocated?.Invoke(m);
+            };
             Network.PlanetPoisReceived += m => PlanetPois = m.Pois;
             Network.BeaconsReceived += m => Beacons = m.Beacons ?? System.Array.Empty<NetBeacon>();
             Network.BeamsReceived += m => Beams = m.Beams ?? System.Array.Empty<NetBeam>();
@@ -1953,7 +1999,8 @@ namespace BlocksBeyondTheStars.Client
                 Dock = m;
                 LastMessage = m.Docked ? $"Docked with {m.Partner}" : ServerMessageText(m.Reason);
             };
-            Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : $"Mission: {m.Reason}";
+            // #1071: rejections arrive as @srv.mission.* tokens — localize them instead of pushing the raw token at the player.
+            Network.MissionResultReceived += m => LastMessage = m.Success ? $"Mission '{m.MissionId}' complete!" : ServerMessageText(m.Reason);
             Network.RespawnNoticeReceived += m =>
             {
                 LastMessage = ServerMessageText(m.Reason);

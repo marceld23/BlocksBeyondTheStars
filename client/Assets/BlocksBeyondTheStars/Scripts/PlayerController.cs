@@ -1353,6 +1353,19 @@ namespace BlocksBeyondTheStars.Client
                 Game.NearbyStation = "market"; // a settlement/station vendor → "trade" prompt + E opens the market
             }
 
+            // #1073: a placed crafting-station block you're LOOKING at (workbench, forge, …) tells you what it
+            // powers in the menu — the server unlocks recipes by standing next to it, but nothing in the world
+            // said so. Ship marker cells are covered by NearbyStation above; the factory terminal has its own label.
+            Game.AimedStationBlock = null;
+            if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
+            {
+                string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
+                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "algae_tank" or "campfire")
+                {
+                    Game.AimedStationBlock = aimedKey;
+                }
+            }
+
             if (!InputMap.Down(InputAction.Interact))
             {
                 return;
@@ -1515,7 +1528,6 @@ namespace BlocksBeyondTheStars.Client
                 case "market": Menu?.OpenMarket(); Game.Network?.SendNpcGreet("vendor"); break; // item 15: vendor greeting
                 case "cargo": Menu?.OpenInventory(); break;
                 case "console": Menu?.OpenShip(); Game.Network?.SendUseStation("console"); break; // ship status/repairs (#463)
-                case "lab": Menu?.OpenTech(); break; // research tab (#463)
                 default:
                     if (Game.NearbyStation == "medbay") ClientAudio.Instance?.Cue("heal");
                     Game.Network?.SendUseStation(Game.NearbyStation);

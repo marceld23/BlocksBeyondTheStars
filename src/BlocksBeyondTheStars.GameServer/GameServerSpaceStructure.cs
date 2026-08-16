@@ -308,13 +308,14 @@ public sealed partial class GameServer
         // Keep the two rows just inside the hatch (z=1,2) free of station blocks: stations stamp as solid,
         // knee-high marker blocks, and medbay/quarters in the rear corners (z=1) flanked the 3-wide doorway,
         // leaving a single 1-wide lane the 0.86-wide player capsule snagged on unless dead-centred (#211).
-        int rearRow = System.Math.Min(halfZ + 1, halfZ * 2 - 2); // deeper in the cabin, clear of the lab/console row
+        int rearRow = System.Math.Min(halfZ + 1, halfZ * 2 - 2); // deeper in the cabin, clear of the cockpit/console row
         BoxStation("medbay", 1, rearRow);
         BoxStation("cockpit", halfX, halfZ * 2 - 1);
         BoxStation("workshop", halfX * 2 - 1, halfZ);
         BoxStation("cargo", 1, halfZ);
         BoxStation("quarters", halfX * 2 - 1, rearRow);
-        BoxStation("lab", 1, halfZ * 2 - 1);
+        // No "lab" marker any more (#1074): research happens at the cockpit; the lab was an invisible
+        // iron_wall cell that no authored layout or editor palette ever had.
         BoxStation("console", halfX * 2 - 1, halfZ * 2 - 1);
 
         // Exterior silhouette so the box reads as a SHIP from outside (bug fix): side wings, rear engine
@@ -378,7 +379,7 @@ public sealed partial class GameServer
             string? accentKey = type switch
             {
                 "medbay" => "medbay_panel",
-                "lab" or "cockpit" or "console" => "lab_panel",
+                "cockpit" or "console" => "lab_panel",
                 "cargo" => "cargo_floor",
                 "workshop" => "engine_panel",
                 "quarters" => "metal_panel",

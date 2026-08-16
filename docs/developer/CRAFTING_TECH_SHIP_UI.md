@@ -27,10 +27,16 @@ components, a category sidebar and blueprint state.
 - **Always show "why".** A disabled action states the reason — missing material (with have/need
   counts), needs a station, needs a blueprint, or disabled by a server rule. The blocking reason is
   computed client-side so cards explain *before* you click; server reject text is still surfaced.
-- **Location-bound.** Crafting is active at the **workshop**, Tech at the **lab**, Ship expansion at
-  the **ship console**. The Tab still opens anywhere; when you're not at the station the screen guides
-  you there (the dimmed-but-clickable tab gating uses `IsTabAvailable`). The server stays authoritative
-  on craft/unlock/build.
+- **Location-bound — server-published (#1070/#1074).** The server sends `StationsInReach` (the crafting
+  stations usable right now + `ResearchOk` + `ShipBuildOk`) on join and on change; the client never guesses
+  from ship markers any more. Crafting gates **per recipe** (`StationAvailable(r.Station)`), Tech binds to
+  the **cockpit** (`HandleUnlock` enforces it too), Ship to **aboard + workshop module**. The Tab still opens
+  anywhere; a dimmed-but-clickable tab (`IsTabAvailable`) carries the icon of the block it waits for, and
+  the **gate row** under the tab bar names that block, asks the server where the nearest one is
+  (`LocateStationIntent` → `StationLocation`, live distance + arrow), offers **Show** (compass waypoint)
+  and **Craft one →** (jump to the recipe that produces the block). Closing the menu drops a through-wall
+  marker on the located block (`OreScanView.ShowStationMarker`). Vocabulary rule (#1071): the UI names the
+  **block** (Workbench, Forge, Cockpit …), never an abstract "workshop/lab/console".
 - **Blueprint state on the client.** The server's `PlayerState.UnlockedBlueprints` is synced to the
   client (on join, on unlock, on resync) so cards can show "craftable now", grey locked recipes, and
   blueprint status without round-tripping.
@@ -48,11 +54,12 @@ components, a category sidebar and blueprint state.
 - Data sources (no new data needed): `ItemDefinition` (category/tool/effects), `RecipeDefinition`
   (station/blueprint/inputs/outputs), `BlueprintDefinition` (category/prerequisites/costs),
   `ShipModuleDefinition` / `ShipDefinition` (stats/cost/blueprint), `Game.OwnedShips`.
-- Backend: blueprint sync (unlocked-blueprints push → client `Unlocked` set); the ship structure emits
-  station markers (`medbay / cockpit / workshop / cargo / quarters / lab` — see
-  `GameServerSpaceStructure.cs`). Tech binds to `lab` (the workshop doubles as a research bench) and
-  Ship binds to `console` (the cockpit doubles as the ship console), so designed ships without a
-  dedicated lab/console tile still work — see `StationOkFor` in `CraftingTechShipUI.cs`.
+- Backend: blueprint sync (unlocked-blueprints push → client `Unlocked` set); station gates + locator in
+  `GameServerStationAffordances.cs` (`StationsInReach`, `LocateStationIntent`/`StationLocation`); the ship
+  structure emits station markers (`medbay / cockpit / workshop / cargo / quarters / console` — see
+  `GameServerSpaceStructure.cs`; the phantom `lab` marker was retired in #1074, research lives at the
+  cockpit). Client mapping station → block/module: `StationBlockKey` / `StationModuleKey` in
+  `CraftingTechShipUI.cs`; the world-side look-at prompt is `Game.AimedStationBlock` (#1073).
 
 ## Design notes
 
