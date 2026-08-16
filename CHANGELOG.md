@@ -13,6 +13,122 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.17] — 2026-08-16
+
+The wayfinder release. Two things players kept asking — *why is this tab greyed out?* and *what
+should I be doing right now?* — get answers in the game itself. The Tab menu names the **block** a
+gated tab needs, shows how far away it is, and points the compass at it; VEGA adds throttled,
+repeatable **context tips** — the lamp is off in the dark, rare ore is right there, a settlement is
+over the ridge, an asteroid is in tractor range. Minigames pay knowledge in every world (not just
+the one where you set your record), the July static audit is closed out with a handful of latent
+client fixes, and the release pipeline itself got ~20 minutes faster.
+
+**Protocol stays 3**, but this release adds four new network messages (station gates, station
+locator, lamp state) — hosts and players should update **client and server together**; an old
+host simply never shows the new gate rows and never gives the lamp tip.
+
+### 🧭 The Tab menu names the block it needs — and where it is (#1070, #1071, #1072, #1073, #1074, #1075)
+
+- **The server decides what is in reach.** Client and server used to disagree on "at a station":
+  the client read only the *ship's* station markers and dimmed whole tabs, the server checked placed
+  *world blocks* per recipe. So a base workbench left the Crafting tab dead, a forge recipe said
+  "go to the workshop" (then the server refused: needs a forge), and the Tech tab's "lab" existed
+  nowhere. The server now publishes the set of **stations in reach** (on join and whenever it
+  changes); the client gates **per recipe** from it, Crafting dims only when *no* station is near,
+  and the Unlock/Build buttons disable with a reason instead of a failing toast. Old hosts fall back
+  to the previous heuristic. (#1070)
+- **Every gate names the block, with its icon.** Dimmed tabs carry a station badge, the recipe detail
+  pane shows *Station: 🔥 Forge ✓/✗*, reasons read "Needs a **Forge** nearby — or your ship's
+  Refinery module", the footer lists what is in reach, and mission-board rejections are localized
+  instead of the raw `@srv.mission.*` token. (#1071)
+- **"Where is it?"** A gate row under the tab bar (moved out of the search box it used to overlap)
+  shows *Workbench · 12 m ↗* live; **Show** sets the compass waypoint, **Craft one →** jumps to the
+  recipe when none is nearby, and closing the menu drops an 8-second through-wall marker on the
+  block. On the ship, the parked cockpit / workshop cell is the target. (#1072)
+- **Blocks say what they are for.** Aim at a placed workbench, forge, detoxifier, matter forge,
+  algae tank or campfire and the hint reads "Workbench — crafting: menu (Tab) → Crafting". The ship
+  `console` marker no longer vanishes into the hull. (#1073)
+- **Research happens at the cockpit.** Unlocking tech now requires being aboard within reach of the
+  cockpit (the helm counts while flying; free-craft worlds and worlds without a parked ship skip
+  the check). The phantom "lab" is gone; the Ship tab's gate is "aboard + workshop module" in
+  wording and in code. (#1074)
+- Codex guide *Stations & the Tab menu* (block → tab → function), VEGA's craft/unlock hints name
+  the workbench and cockpit, user manual updated. 23 new locale keys, 8 removed, all 14 languages.
+  Messages 206–208. (#1075)
+
+### 🤖 VEGA context tips — rare, repeatable, situational (#1077, #1078, #1079, #1080, #1081, #1082)
+
+- **A tip framework instead of one-shot hints.** Every tip has a dwell (the situation must hold for a
+  few seconds), a per-tip cooldown (10–15 min), a hard repeat cap per save (2–4 times, then VEGA
+  considers it learned), and a priority (safety > equipment > opportunity). All tips share one
+  cadence per player — at least two minutes apart, quiet for the first minute after joining, LLM
+  banter counts against it; a *first* safety hint still gets through. Reacting within 30 s (lamp on,
+  ore mined, settlement entered) retires the tip early. Repeat counters live in the save as
+  milestones — no schema change; the journal hides them. Repeats are muted by the same VEGA settings
+  as banter and are dropped while the speech queue is busy. (#1077)
+- **Equipment:** "It's dark — your suit lamp is on {key}", lamp missing, torch underground, eat now,
+  medkit, wrong tool, scanner idle, speeder left far behind. Darkness is judged by the server (night,
+  or a solid column above your head, and no torch/lantern/campfire/lava within 6 blocks). (#1078)
+- **Materials + progression:** rare ore near (rarity ≤ 3 % in *this* planet's ore table, exposed
+  blocks only), the ore you still need, data cache near, "you can craft that now", "you can afford
+  that blueprint". Opportunity tips wait for the "scan" onboarding stage. (#1079)
+- **Places + company:** settlement, ruin, factory, treasure, trader, tameable creature and other
+  players nearby — with the same reveal gating as the planet map. (#1080)
+- **Space:** asteroid in range (or "you have no tool for it"), station near, hull low, jump ready.
+  (#1081)
+- **Vitals repeat.** O₂, energy, hunger, cold and heat warnings repeat with a 15-minute cooldown, capped
+  per save. (#1082)
+- Under the hood: the lamp ON/OFF state was client-only — a new `SetLampIntent` (message 209) reports
+  every effective change. Block probes are a 17³ box every 10 s per player, never the O(r³) scanner
+  sweep. `{key:Action}` tokens in locale lines expand to the bound key / pad glyph / touch wording
+  client-side (the old hard-coded "L" in the night hint uses it in all 14 locales). 26 new
+  `vega.hint.*` keys.
+
+### 🕹️ Minigames pay knowledge in every world (#1069)
+
+- The Arcade only reported a run to the server when it beat your **local** personal best — but that
+  best is per install, while the server's 5-knowledge-per-star ledger is per player *and per world*.
+  A game mastered in one world never paid out in the next, on a friend's LAN server, or for a second
+  player on the same PC (permanently for bounded-score games). Every **completed** run is now
+  reported; the server dedupes, so a replay that earns nothing new is a no-op. The Arcade badge and
+  the "Data fragment recovered!" toast fire only for games that unlock *after* joining, not on
+  every join. The `data_fragment` item description no longer claims data cubes / scanning / taming
+  yield the item (they pay knowledge; the item comes from caches, terminals, chests, stashes,
+  pirates and bounty missions) — corrected in all 14 locales. (#1069)
+
+### 🩹 Audit closeout: loud fallbacks and five latent client fixes (#427, #428)
+
+- **Server: content problems fail loudly.** A `data/ship_layouts/*.json` cell that names an unknown
+  block now fails the content load instead of silently stamping `iron_wall`; a mission template whose
+  item is missing from content warns once before falling back. The last ten hard-coded server lines
+  (three paint rejects, seven `/paintwipe` / `/shapewipe` admin lines) are localized in all 14
+  languages. (#427)
+- **Placed-lamp light crosses the wrap seams.** Light from lamps and torches stopped dead at the
+  X = 0 / circumference and latitude seams of a planet — skylight and AO already crossed them, block
+  light now does too. (#428)
+- **Localization guards that could never fire** (`localized == key`) now use `Localizer.Has` — portal
+  error codes, ban-notice reasons and the Codex VEGA log show a translation or a readable fallback
+  instead of `[key]`. The wiki logs a warning when `articles.json` fails to load. (#428)
+- **Shader safety net.** All 21 runtime `Shader.Find` shaders (plus the `Unlit/Transparent` /
+  `Sprites/Default` fallbacks) are listed in the build script and always-included; the retired
+  VolumetricFog GUID is gone from GraphicsSettings. The Built-in-RP fallback of `BlockAtlas` mirrors
+  the URP bark branch, so `wood_log` no longer takes the player-dye recolour on a URP fallback.
+  (#428)
+
+### 🔧 Under the hood
+
+- **Release pipeline ~20 minutes faster.** The release test gate ran the full suite on one runner
+  (33–36 min, the Docker image queued behind it). It now uses the same 4-runner sharded matrix as PR
+  CI (`tests.yml` as a reusable workflow; tier-aware shard weights), and the 19-minute
+  `TryGetWaterSurface_LandsInsideGeneratedWater` test — which walked ~1 M columns and never asserted
+  it had found a pooled river — takes its pooled columns from the routed river field, asserts it
+  found some, and runs in ~2 s in the fast tier. Expected release wall time ~57 → ~35 min, main-push
+  CI ~25 → ~10 min. (#1067)
+- New tests: `StationAffordanceTests`, `ShipAiTests` (dwell / cadence / cooldown / cap / learned /
+  first-safety bypass, vitals repeat, rare-ore probe), `VegaTextTests`, `LightSourcesWrapTests`,
+  `ContentTests.Validation_DetectsUnknownShipLayoutCell`; protocol golden list covers messages
+  206–209.
+
 ## [2026.8.16] — 2026-08-16
 
 The rendezvous release. The suit teleporter finally asks *where to* — back to the ship as always, or
@@ -3039,7 +3155,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...HEAD
+[2026.8.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...v2026.8.17
 [2026.8.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...v2026.8.16
 [2026.8.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...v2026.8.15
 [2026.8.14]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.13...v2026.8.14
