@@ -137,6 +137,21 @@ a `--list-tests --filter Category=Slow` listing. Follow-ups (not in this PR): th
 Slow tests (`Reap_SkipsAWorld…` 29 s → 918 s, `Gateway_DropsAConnection…` 275 s → 896 s on a loaded
 runner) and, only if the gate grows again, building the Docker image up front and retagging after it.
 
+### ★ Minigame knowledge is paid in every world, not only on a new personal best (#1069, 2026-08-16, branch fix/minigame-result-report-1069)
+A data-fragment minigame mastered in one world paid **no knowledge** in the next world, on a friend's LAN
+server, or for a second player on the same PC: `ArcadeUI` only sent `MinigameResultIntent` on a **new
+personal best**, and that best lives in `ClientSettings` — per install, per game key — while the server's
+5-per-star ledger (#767, `Milestones["arcade:<game>:star:n"]`) is per player and per world. Bounded-score
+games (Star Memory, Blueprint Scramble, Flow Puzzle, Laser Grid, Glyph Decoder, …) made it permanent. The
+client now reports **every completed run** and lets the server dedupe (a replay that earns nothing new is a
+no-op there); the local best still drives the "★ best" rail line. Same PR: the Arcade badge + "Data fragment
+recovered!" toast no longer fire on every join that has any unlocked game (the first `GameUnlocks` after
+connect only seeds the collection); `item.data_fragment.desc` no longer claims data cubes / scanning /
+taming yield the item (they pay knowledge — the item comes from data caches, terminals, chests, bandit
+stashes, relic caches, pirates and bounty missions), re-translated in all 14 locales. The cube pickup and
+the whole server path were verified end to end through the real payload path (join lists, reach check,
+unlock, star ledger, save/reload) — no server change. Client-only; needs a client build to ship.
+
 ### ★ Factories look like factories: textured machines with visible moving parts (#1050–#1053, 2026-08-15, branch feat/factory-look)
 A found factory read as "a room with two big grey boxes". Three independent causes stacked up: (1)
 `machine_block`, `factory_pipe` and `factory_terminal` had no bundled tile and no palette entry, so the

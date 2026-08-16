@@ -170,7 +170,8 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Creates (once) the native minigame host that runs the C# games in the play region, wiring its
-        /// result handler to the local-highscore + knowledge path (record best → grant knowledge on a new best).</summary>
+        /// result handler to the local-highscore + knowledge path (record best locally, report every completed
+        /// run to the server).</summary>
         private void EnsureNative()
         {
             if (_native != null) return;
@@ -181,7 +182,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool newBest = Settings != null && Settings.RecordMinigameScore(k, score);
                 if (newBest) Settings.Save();
-                if (completed && newBest) Game?.Network?.SendMinigameResult(k, score, rating, completed);
+                // Report EVERY completed run, not only a new personal best (#1069). The local best is per install
+                // and per game key, while the server's star ledger (#767) is per player and per world — gating on
+                // the local best meant a game mastered in one world never paid knowledge in the next world, on a
+                // friend's LAN server, or for a second player on the same PC. The server dedupes per star, so a
+                // replay that earns nothing new is a no-op there.
+                if (completed) Game?.Network?.SendMinigameResult(k, score, rating, completed);
                 RebuildRail(); // refresh the rail's "★ best" line
             };
             _native.Mount(_root, RegionX, RegionY, RegionW, RegionH);

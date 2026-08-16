@@ -847,6 +847,10 @@ namespace BlocksBeyondTheStars.Client
         public bool NewArcadeUnseen { get; private set; }
         public void MarkArcadeSeen() => NewArcadeUnseen = false;
 
+        /// <summary>Whether a <c>GameUnlocks</c> list has arrived since the last connect. The first one seeds the
+        /// collection (empty → N) and must not read as a fresh pickup (#1069); reset with the per-session state.</summary>
+        private bool _unlocksSeeded;
+
         /// <summary>Set when new story content (a beat / net fragment / memory) arrives but the Story tab hasn't
         /// been opened since — the menu badges the Story entry while true. Cleared by <see cref="MarkStorySeen"/>.</summary>
         public bool NewStoryUnseen { get; private set; }
@@ -1692,7 +1696,11 @@ namespace BlocksBeyondTheStars.Client
             Network.GameUnlocksReceived += m =>
             {
                 var incoming = new System.Collections.Generic.HashSet<string>(m.Unlocked ?? System.Array.Empty<string>());
-                bool grew = incoming.Count > UnlockedGames.Count;
+                // Only a list that grows AFTER the join seed is a real pickup worth the badge + toast (#1069) —
+                // otherwise every join with any unlocked game flashed "Data fragment recovered!" and re-badged the
+                // Arcade entry.
+                bool grew = _unlocksSeeded && incoming.Count > UnlockedGames.Count;
+                _unlocksSeeded = true;
                 UnlockedGames = incoming;
                 RebuildWikiState();
                 if (grew)

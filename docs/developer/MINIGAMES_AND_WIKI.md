@@ -48,7 +48,9 @@ Menu "Codex"/"DataQubes" button
   `UnlockGameIntent`, `GameUnlocks`, `MinigameResultIntent` (finished run → server grants knowledge points,
   5 per star newly earned on that game — a per-player best-rating ledger in `PlayerState.Milestones`
   (`arcade:<game>:star:N`) stops replays from farming research (#767), in
-  `GameServerDataCubes.HandleMinigameResult`).
+  `GameServerDataCubes.HandleMinigameResult`). The client reports **every** completed run (`ArcadeUI`) and
+  leaves the dedupe to that ledger — it must not gate on the local personal best, which is per install
+  and per game key, not per world (#1069).
 - Gated by `ServerConfig.PlaceDataCubes` (default on). A Creative world (`CreativeUnlockAllBlueprints`) also
   unlocks every minigame via `UnlockAllGames`.
 
