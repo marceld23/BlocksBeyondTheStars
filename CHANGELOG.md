@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🐛 Codex: Guide and Items chapters render again (#1097)
+
+- Codex → **Guide** ("Anleitung") and **Items** showed an empty pane. One uGUI `Text` held the whole chapter,
+  and past ~16 250 characters uGUI refuses to build the mesh (`Mesh can not have more than 65000 vertices`)
+  — nothing at all was drawn. German crossed that line on 2026-08-08, English with the 2026.8.17 articles;
+  the Items chapter (195 items with descriptions) was over it in both languages.
+- Chapters are now rendered as a column of Texts split at paragraph boundaries (`UiTextChunks`, ≤ 10 000
+  characters each, unit-tested against the real `articles.json` in EN and DE). Scrolling covers the whole
+  chapter as before; the articles and descriptions may keep growing.
+
 ## [2026.8.17] — 2026-08-16
 
 The wayfinder release. Two things players kept asking — *why is this tab greyed out?* and *what

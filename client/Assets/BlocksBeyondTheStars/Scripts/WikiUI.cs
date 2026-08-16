@@ -171,18 +171,29 @@ namespace BlocksBeyondTheStars.Client
             return content;
         }
 
-        /// <summary>Renders the current chapter as a single wrapped rich-text block and sizes the scroll content
-        /// to it (one block keeps the layout robust; per-entry rows can come with the in-editor polish pass).</summary>
+        /// <summary>Renders the current chapter as a column of wrapped rich-text blocks and sizes the scroll
+        /// content to their sum. The chapter text is split into chunks of at most
+        /// <see cref="UiTextChunks.DefaultMaxChars"/> characters (paragraph boundaries first): a single uGUI Text
+        /// past ~16 250 characters trips VertexHelper's 65 000-vertex ArgumentException inside the Graphic rebuild
+        /// and renders NOTHING — which is exactly how the Guide and Items chapters went blank once the articles
+        /// and item descriptions grew (#1097). Each chunk keeps its trailing newlines, so the paragraph gap
+        /// between two chunks survives the split (preferredHeight counts them).</summary>
         private void RenderChapter(Transform content, float textW)
         {
             string body = BuildChapterText(_chapter);
-            var t = UiKit.AddText(content, Pad, Pad, textW, 100f, body, 18, UiKit.TextCol, TextAnchor.UpperLeft);
-            t.horizontalOverflow = HorizontalWrapMode.Wrap;
-            t.verticalOverflow = VerticalWrapMode.Overflow;
+            float y = Pad;
+            foreach (string chunk in UiTextChunks.Split(body))
+            {
+                var t = UiKit.AddText(content, Pad, y, textW, 100f, chunk, 18, UiKit.TextCol, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.verticalOverflow = VerticalWrapMode.Overflow;
 
-            float textH = t.preferredHeight; // wrapped height for the current rect width
-            ((RectTransform)t.transform).sizeDelta = new Vector2(textW, textH + 10f);
-            ((RectTransform)content).sizeDelta = new Vector2(0f, Mathf.Max(RegionH, textH + 2f * Pad));
+                float textH = t.preferredHeight; // wrapped height for the current rect width
+                ((RectTransform)t.transform).sizeDelta = new Vector2(textW, textH + 10f);
+                y += textH;
+            }
+
+            ((RectTransform)content).sizeDelta = new Vector2(0f, Mathf.Max(RegionH, y + Pad));
         }
 
         private string BuildChapterText(string chapter) => chapter switch

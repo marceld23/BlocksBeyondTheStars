@@ -67,6 +67,11 @@ Menu "Codex"/"DataQubes" button
   (icon/title/desc + cube seed → game). On WebGL this comes from the cached StreamingAssets data folder.
 - `WikiUI.cs` + `WikiMarkup` (`Client.Core`) — load `StreamingAssets/data/wiki/articles.json` and render the
   articles natively (discovery-gated Systems & Worlds chapters from the player's visited set).
+  A chapter is rendered as a **column of uGUI Texts**, split by `UiTextChunks.Split` (`Client.Core`) at
+  paragraph boundaries into chunks of ≤ 10 000 characters: one uGUI `Text` past ~16 250 characters trips
+  `VertexHelper`'s 65 000-vertex `ArgumentException` and draws **nothing** — the Guide and Items chapters
+  went blank that way once the content grew (#1097). Articles and descriptions may grow freely; a new
+  data-fed Text elsewhere must chunk the same way (or render per-entry rows like What's New).
 - `DataCubeView.cs` — renders the glowing cube (texture `Resources/props/data_cube`, point light, pulse),
   proximity hum (`data_cube_hum`), and the E label. `PlayerController` E-interact sends the download +
   plays `data_cube_download`.

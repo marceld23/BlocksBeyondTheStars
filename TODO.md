@@ -105,6 +105,16 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Codex Guide + Items chapters render again — one uGUI Text hit the 65 000-vertex limit (#1097, 2026-08-16, branch fix/codex-guide-blank-1097)
+Codex → Guide ("Anleitung") and Items showed a completely empty pane. `WikiUI.RenderChapter` put the whole
+chapter into ONE `UnityEngine.UI.Text`; uGUI builds 4 vertices per glyph and `VertexHelper.FillMesh` throws
+`Mesh can not have more than 65000 vertices` at ~16 250 characters, inside the Graphic rebuild — so the
+Text silently gets no mesh. The Guide (25 articles) crossed that line in German on 2026-08-08 (#852) and in
+English on 2026-08-16 (#1083); Items (195 names + descriptions, ~20 k chars) was over it in both languages,
+Blocks (~15 k DE) sat at the edge. New pure `UiTextChunks.Split` (Client.Core; paragraph → line → tag-safe
+hard cut, lossless) and `RenderChapter` stacks one Text per ≤ 10 000-char chunk. `UiTextChunksTests` cover
+the boundaries and run the real `articles.json` in EN + DE through the WikiUI pipeline. Client-only.
+
 ### ★ Admin portal: world detail page reads attributed saves again (#1063, 2026-08-15, branch fix/1063-inspector-max-aggregate)
 Every world with a save file showed `Could not read the world save: SQLite Error 1: 'misuse of aggregate
 function MAX()'` and three empty cards ("No player records…"). `WorldInspector.ReadHotspots` put
