@@ -74,8 +74,8 @@ public sealed partial class GameServer
 
         _storyState.GuardianSystemRevealed = true;
         EnsureGuardianSystemInGalaxy();
-        SpeakVegaLineToAll("story.vega.guardian_revealed");
-        BroadcastToJoined(new GuardianSystemRevealed { LabelKey = "story.vega.guardian_system" });
+        SpeakVegaLineToAll(_story.FinaleRevealTextKey);
+        BroadcastToJoined(new GuardianSystemRevealed { LabelKey = _story.FinaleSystemNameKey });
         BroadcastStarMap(); // the finale system now appears as a jump target on everyone's travel screen
     }
 
@@ -435,7 +435,10 @@ public sealed partial class GameServer
         }
 
         BroadcastToJoined(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
-        SpeakVegaLineToAll("story.vega.finale_resolved");
+        if (_story is not null)
+        {
+            SpeakVegaLineToAll(_story.FinaleResolvedTextKey);
+        }
         MarkGuardianDefeated();
     }
 

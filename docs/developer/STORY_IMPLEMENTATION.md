@@ -97,6 +97,14 @@ Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 Add a pack under `data/stories/<id>/` — no engine edits. A pack is "story-complete" only once its beats,
 fragments, memories, flavour and `coreArguments` are authored + translated (DE+EN), per LORE_STRUCTURE.
 
+The finale and the two one-shot gameplay insights are **pack-owned** too (they predate pluggable packs and
+used to be hard-wired to `story.vega.*`): `finaleRevealTextKey`, `finaleResolvedTextKey`, `finaleSystemNameKey`,
+`insightUnlockBeatCount` (beats revealed before the insights may fire), `companionWardTextKey`,
+`shapeAnomalyTextKey` (empty = insight disabled). Defaults are the VEGA keys, so an older pack keeps working,
+but a new storyline must set them or it will speak VEGA Protocol copy at its climax. Run
+`python tools/merge_story.py data/stories/<id>` before committing — it validates the whole pack surface
+(finale/insight keys, fragments incl. `lore.cat.*`, memories, `coreArguments`, flavour) in both languages.
+
 ## Known remaining gaps / deferred
 
 - Client/world-gen: the two physical finale routes + in-world core console, and bespoke boss/core visuals

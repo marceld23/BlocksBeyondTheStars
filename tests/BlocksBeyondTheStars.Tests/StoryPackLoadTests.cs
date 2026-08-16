@@ -9,8 +9,9 @@ using Xunit;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// P1 — the story pack format + loader: the `vega_protocol` pack loads from `data/stories/`, its beat text
-/// resolves bilingual, and the data pack matches the built-in fallback (no drift).
+/// P1 — the story pack format + loader: the `vega_protocol` pack loads from `data/stories/`, every pack-owned
+/// line (beats, finale, insights, fragments, memories, arguments) resolves bilingual, and the data pack matches
+/// the built-in fallback (no drift).
 /// </summary>
 public class StoryPackLoadTests
 {
@@ -44,6 +45,12 @@ public class StoryPackLoadTests
         Assert.Equal(builtin.KillWeight, data.KillWeight);
         Assert.Equal(builtin.MilestoneWeight, data.MilestoneWeight);
         Assert.Equal(builtin.KillContributionCap, data.KillContributionCap);
+        Assert.Equal(builtin.FinaleRevealTextKey, data.FinaleRevealTextKey);
+        Assert.Equal(builtin.FinaleResolvedTextKey, data.FinaleResolvedTextKey);
+        Assert.Equal(builtin.FinaleSystemNameKey, data.FinaleSystemNameKey);
+        Assert.Equal(builtin.InsightUnlockBeatCount, data.InsightUnlockBeatCount);
+        Assert.Equal(builtin.CompanionWardTextKey, data.CompanionWardTextKey);
+        Assert.Equal(builtin.ShapeAnomalyTextKey, data.ShapeAnomalyTextKey);
         for (int i = 0; i < builtin.Beats.Count; i++)
         {
             Assert.Equal(builtin.Beats[i].Threshold, data.Beats[i].Threshold);
@@ -52,7 +59,7 @@ public class StoryPackLoadTests
     }
 
     [Fact]
-    public void Beat_text_resolves_in_both_languages()
+    public void Every_pack_owned_story_text_resolves_in_both_languages()
     {
         var content = Load();
         var en = content.CreateLocalizer(GameLocale.English);
@@ -62,11 +69,47 @@ public class StoryPackLoadTests
         Assert.Equal("The VEGA Protocol", en.Get(def.NameKey));
         Assert.Equal("Das VEGA-Protokoll", de.Get(def.NameKey));
 
-        foreach (var beat in def.Beats)
+        // The engine is story-agnostic only when every story-owned line travels with the pack: finale, insights,
+        // beats, fragments (+ their lore category label), memories, flavour lines and the finale argument tree.
+        var keys = new List<string>
         {
-            Assert.False(en.Get(beat.TextKey).StartsWith("["), $"EN missing {beat.TextKey}");
-            Assert.False(de.Get(beat.TextKey).StartsWith("["), $"DE missing {beat.TextKey}");
+            def.NameKey,
+            def.FinaleRevealTextKey,
+            def.FinaleResolvedTextKey,
+            def.FinaleSystemNameKey,
+            def.CompanionWardTextKey,
+            def.ShapeAnomalyTextKey,
+        };
+        keys.AddRange(def.Beats.Select(x => x.TextKey));
+        keys.AddRange(def.Fragments.SelectMany(x => new[] { x.TextKey, "lore.cat." + x.Category }));
+        keys.AddRange(def.Memories.Select(x => x.TextKey));
+        keys.AddRange(def.FlavourLines.Select(x => x.TextKey));
+        foreach (var node in def.CoreArguments)
+        {
+            keys.Add(node.PromptKey);
+            keys.AddRange(node.Choices.SelectMany(x => new[] { x.TextKey, x.ResponseKey }));
         }
+
+        // Compare against the localizer's exact missing-key marker: story prose may legitimately start with a
+        // bracket (e.g. "[archive corrupted] …"). DE falls back to EN inside the localizer, so strict per-language
+        // completeness is enforced by tools/merge_story.py; this guards the runtime surface.
+        foreach (var key in keys)
+        {
+            Assert.NotEqual($"[{key}]", en.Get(key));
+            Assert.NotEqual($"[{key}]", de.Get(key));
+        }
+    }
+
+    [Fact]
+    public void Pack_owned_finale_and_insight_keys_load_from_data()
+    {
+        var def = Load().Stories["vega_protocol"];
+        Assert.Equal("story.vega.guardian_revealed", def.FinaleRevealTextKey);
+        Assert.Equal("story.vega.finale_resolved", def.FinaleResolvedTextKey);
+        Assert.Equal("story.vega.guardian_system", def.FinaleSystemNameKey);
+        Assert.Equal(6, def.InsightUnlockBeatCount);
+        Assert.Equal("story.vega.insight.companion_ward", def.CompanionWardTextKey);
+        Assert.Equal("story.vega.insight.shape_anomaly", def.ShapeAnomalyTextKey);
     }
 
     [Fact]

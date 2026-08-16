@@ -9,7 +9,7 @@ namespace BlocksBeyondTheStars.Shared.Story;
 /// <summary>
 /// One narrator beat in a story pack's ordered arc. Beats reveal strictly in <see cref="Index"/> order, each
 /// gated by a <see cref="Threshold"/> on the story-progress score (see <see cref="StoryEngine"/>). The
-/// <see cref="TextKey"/> is a locale key the narrator (e.g. VEGA) speaks — bilingual DE+EN like all in-game
+/// <see cref="TextKey"/> is a locale key the narrator speaks — bilingual DE+EN like all in-game
 /// text. The pack is story-agnostic data: nothing here is VEGA-specific.
 /// </summary>
 public sealed class StoryBeat
@@ -40,7 +40,7 @@ public sealed class StoryFragment
     /// <summary>Unique fragment id (the dedupe key tracked in <c>StoryState.FoundFragmentKeys</c>).</summary>
     public string Key { get; set; } = string.Empty;
 
-    /// <summary>Lore category: vega | sps | guardian | network | settler | netnode (for the reader/icon).</summary>
+    /// <summary>Pack-defined lore category used by the reader/icon (for example vega, sps, guardian, network, settler or netnode).</summary>
     public string Category { get; set; } = string.Empty;
 
     /// <summary>Locale key of the archive text shown on pickup (bilingual DE+EN).</summary>
@@ -146,9 +146,8 @@ public sealed class MissionThread
 
 /// <summary>
 /// A story pack: identity + pacing config + the ordered beat arc. The story engine consumes this and is
-/// completely story-agnostic, so further storylines are added as more packs (see the implementation plan
-/// D2–D4). For P0 a pack is code-defined in <see cref="StoryRegistry"/>; a later phase loads it from
-/// <c>data/stories/&lt;id&gt;/</c>.
+/// completely story-agnostic, so further storylines are added as more packs. Runtime packs load from
+/// <c>data/stories/&lt;id&gt;/</c>; <see cref="StoryRegistry"/> supplies built-in fallbacks.
 /// </summary>
 public sealed class StoryDefinition
 {
@@ -196,4 +195,25 @@ public sealed class StoryDefinition
 
     /// <summary>Mission threads (P7): turning in a matching random mission also yields a story fragment.</summary>
     public List<MissionThread> MissionThreads { get; set; } = new();
+
+    // The finale and the two one-shot gameplay insights predate pluggable story packs. Keeping their text
+    // keys on the pack prevents a second storyline from silently speaking VEGA Protocol copy at its climax.
+
+    /// <summary>Locale key spoken when the finale system first appears on the star map.</summary>
+    public string FinaleRevealTextKey { get; set; } = "story.vega.guardian_revealed";
+
+    /// <summary>Locale key spoken after the finale dialogue duel has been won.</summary>
+    public string FinaleResolvedTextKey { get; set; } = "story.vega.finale_resolved";
+
+    /// <summary>Locale key used for the finale system marker.</summary>
+    public string FinaleSystemNameKey { get; set; } = "story.vega.guardian_system";
+
+    /// <summary>Beat count required before the optional gameplay insight lines may fire.</summary>
+    public int InsightUnlockBeatCount { get; set; } = 6;
+
+    /// <summary>Locale key for the once-per-player companion ward insight; empty disables it.</summary>
+    public string CompanionWardTextKey { get; set; } = "story.vega.insight.companion_ward";
+
+    /// <summary>Locale key for the once-per-player shaped-block insight; empty disables it.</summary>
+    public string ShapeAnomalyTextKey { get; set; } = "story.vega.insight.shape_anomaly";
 }

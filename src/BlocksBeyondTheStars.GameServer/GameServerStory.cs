@@ -373,51 +373,46 @@ public sealed partial class GameServer
 
     // ---------------- Event-driven story insights (taming ward + non-cube shapes) ----------------
     //
-    // Two discrete, action-triggered VEGA memories that tie the taming + block-shape features into the arc.
-    // Unlike the threshold beats (B0–B12) these are NOT progress-gated and must NOT join the Beats list (that
-    // would break the engine's strict beat ordering) — they are spoken directly on their gameplay event, once
-    // per player, tracked with the same per-player milestone mechanism the beats use.
-
-    /// <summary>Beats spoken once the Guardian's protective mandate is known (beat B5 "The Guardian"): beats
-    /// 0..5 revealed ⇒ BeatsRevealed ≥ 6. Both insights stay silent until then so an early tame or shape can't
-    /// pre-empt the Guardian reveal — they defer to the next eligible trigger (the per-player flag is only
-    /// consumed once a line is actually spoken). Assumes the default vega_protocol arc shape.</summary>
-    private const int GuardianMandateBeatCount = 6;
-
-    /// <summary>True once the shared arc has named the Guardian and its "protect the living worlds" mandate —
-    /// the premise both insights build on. Requires an active story (silent in the "none" sandbox).</summary>
-    private bool GuardianMandateKnown => StoryActive && _storyState.BeatsRevealed >= GuardianMandateBeatCount;
+    // Two discrete, action-triggered narrator insights tie taming + block shapes into the active pack.
+    // They do not contribute progress or join the ordered Beats list. The pack chooses the earliest beat count;
+    // after that they are spoken on their gameplay event, once per player, and tracked as player milestones.
 
     private const string CompanionWardInsightKey = "story:insight:companion-ward";
     private const string ShapeAnomalyInsightKey = "story:insight:shape-anomaly";
 
-    /// <summary>VEGA's realisation the first time a present companion makes a Guardian machine stand down: the
-    /// network reads a creature-bonded human as part of the biosphere it guards, not as prey. Once-only per
-    /// player, gated behind the Guardian reveal. Returns true if it spoke this call. Driven from
+    /// <summary>The narrator's realisation the first time a present companion makes a machine stand down.
+    /// Once-only per player and gated by the active pack's insight threshold. Returns true if it spoke. Driven from
     /// <c>TickEnemies</c> (a warded player within hunt range of a machine).</summary>
     private bool RevealCompanionWardInsight(PlayerSession session)
     {
-        if (!GuardianMandateKnown || !session.State.Milestones.Add(CompanionWardInsightKey))
+        var story = _story;
+        if (story is null
+            || _storyState.BeatsRevealed < story.InsightUnlockBeatCount
+            || string.IsNullOrEmpty(story.CompanionWardTextKey)
+            || !session.State.Milestones.Add(CompanionWardInsightKey))
         {
             return false; // story too early (flag NOT consumed → may fire later), or already heard
         }
 
-        SendVegaLine(session, "story.vega.insight.companion_ward", 2); // ShipAiLine kind 2 = memory/story
+        SendVegaLine(session, story.CompanionWardTextKey, 2); // ShipAiLine kind 2 = memory/story
         return true;
     }
 
-    /// <summary>VEGA's recovered memory the first time the player forms a non-cube block: the Service always
-    /// built in cubes by design — to the Guardian any deliberate curve or edge is a constructed anomaly, the
-    /// mark of a human hand. Narrative only (no mechanic). Once-only per player, gated behind the reveal.
+    /// <summary>The narrator's insight the first time the player forms a non-cube block. Narrative only (no
+    /// mechanic), once-only per player and gated by the active pack's insight threshold.
     /// Returns true if it spoke this call. Driven from <c>HandleShapeCraft</c>.</summary>
     private bool RevealShapeAnomalyMemory(PlayerSession session)
     {
-        if (!GuardianMandateKnown || !session.State.Milestones.Add(ShapeAnomalyInsightKey))
+        var story = _story;
+        if (story is null
+            || _storyState.BeatsRevealed < story.InsightUnlockBeatCount
+            || string.IsNullOrEmpty(story.ShapeAnomalyTextKey)
+            || !session.State.Milestones.Add(ShapeAnomalyInsightKey))
         {
             return false;
         }
 
-        SendVegaLine(session, "story.vega.insight.shape_anomaly", 2);
+        SendVegaLine(session, story.ShapeAnomalyTextKey, 2);
         return true;
     }
 

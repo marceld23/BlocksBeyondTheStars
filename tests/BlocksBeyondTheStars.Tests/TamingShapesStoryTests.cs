@@ -15,12 +15,9 @@ using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// Story integration of two systems (analysis: memory taming-shapes-story-integration-analysis):
-/// (1) a present tamed companion makes the Guardian machines stand down — they read a creature-bonded human
-/// as part of the protected biosphere — and VEGA voices the realisation; (2) forming a non-cube block is the
-/// cue for VEGA's recovered memory that the Service only ever built in cubes because the Guardian reads any
-/// other form as an anomaly. Both VEGA lines are once-only and gated behind the Guardian reveal (beat B5) so
-/// an early tame/shape can't pre-empt it; the companion-ward *mechanic* works regardless of story progress.
+/// Story integration of two systems: a present tamed companion makes the Guardian machines stand down, and
+/// forming a non-cube block triggers a second narrator insight. Both lines are pack-owned, once-only and gated
+/// by that pack's insight beat count; the companion-ward mechanic works regardless of story progress.
 /// </summary>
 public sealed class TamingShapesStoryTests : IDisposable
 {
@@ -97,23 +94,23 @@ public sealed class TamingShapesStoryTests : IDisposable
         return server.TamedCreaturesForTest(playerId).Count > before;
     }
 
-    /// <summary>Advances the shared arc past the Guardian reveal (beat B5 ⇒ BeatsRevealed ≥ 6).</summary>
-    private static void RevealGuardian(SvGameServer server)
+    /// <summary>Advances the shared arc past the active pack's insight gate.</summary>
+    private static void OpenInsightGate(SvGameServer server)
     {
         for (int i = 0; i < 100 && server.StorySnapshot.BeatsRevealed < 6; i++)
         {
             server.AdminAdvanceStory(5);
         }
 
-        Assert.True(server.StorySnapshot.BeatsRevealed >= 6, "the Guardian beat (B5) should be revealed");
+        Assert.True(server.StorySnapshot.BeatsRevealed >= 6, "the story insight gate should be open");
     }
 
     // -----------------------------------------------------------------------------------------------------
-    // Narrative: both VEGA insights are gated behind the Guardian reveal and fire exactly once.
+    // Narrative: both pack-owned insights are gated by story progress and fire exactly once.
     // -----------------------------------------------------------------------------------------------------
 
     [Fact]
-    public void StoryInsights_StaySilentBeforeGuardianReveal_ThenSpeakOnce()
+    public void StoryInsights_StaySilentBeforeTheirBeatGate_ThenSpeakOnce()
     {
         var server = Started(out var repo);
         using (repo)
@@ -127,7 +124,7 @@ public sealed class TamingShapesStoryTests : IDisposable
             Assert.False(server.HasStoryMilestoneForTest("Ranger", CompanionWardKey));
             Assert.False(server.HasStoryMilestoneForTest("Ranger", ShapeAnomalyKey));
 
-            RevealGuardian(server);
+            OpenInsightGate(server);
 
             // Gate open: each speaks exactly once.
             Assert.True(server.RevealCompanionWardInsightForTest("Ranger"));
@@ -150,11 +147,11 @@ public sealed class TamingShapesStoryTests : IDisposable
             p.State.AboardShip = false;
             p.State.Inventory.Add("stone", 10, 99);
 
-            // Before the Guardian reveal, forming a shape must not pre-empt it (flag stays unset).
+            // Before the pack's insight gate, forming a shape must not consume the once-only flag.
             server.ShapeCraft("Builder", "stone", (int)BlockShape.Sphere);
             Assert.False(server.HasStoryMilestoneForTest("Builder", ShapeAnomalyKey));
 
-            RevealGuardian(server);
+            OpenInsightGate(server);
 
             // The first non-cube craft after the reveal fires the memory.
             server.ShapeCraft("Builder", "stone", (int)BlockShape.Pyramid);
@@ -171,7 +168,7 @@ public sealed class TamingShapesStoryTests : IDisposable
             var p = server.AddLocalPlayer("Builder");
             p.State.AboardShip = false;
             p.State.Inventory.Add("stone#s04", 4, 99); // a sphere to un-shape back to a plain cube
-            RevealGuardian(server);
+            OpenInsightGate(server);
 
             // Re-forming an existing shape back to a cube (shape 0) is not "forming a non-cube" → no memory.
             server.ShapeCraft("Builder", "stone#s04", (int)BlockShape.Cube);

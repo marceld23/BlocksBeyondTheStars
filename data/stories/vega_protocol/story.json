@@ -5,6 +5,12 @@
   "killWeight": 1,
   "milestoneWeight": 2,
   "killContributionCap": 40,
+  "finaleRevealTextKey": "story.vega.guardian_revealed",
+  "finaleResolvedTextKey": "story.vega.finale_resolved",
+  "finaleSystemNameKey": "story.vega.guardian_system",
+  "insightUnlockBeatCount": 6,
+  "companionWardTextKey": "story.vega.insight.companion_ward",
+  "shapeAnomalyTextKey": "story.vega.insight.shape_anomaly",
   "beats": [
     { "index": 0,  "title": "Systems online",        "textKey": "story.vega.beat00", "threshold": 0,   "knowledgeReward": 0 },
     { "index": 1,  "title": "A familiar signature",  "textKey": "story.vega.beat01", "threshold": 6,   "knowledgeReward": 3 },

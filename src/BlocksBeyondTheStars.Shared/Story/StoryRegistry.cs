@@ -61,6 +61,13 @@ public static class StoryRegistry
         KillWeight = 1,
         MilestoneWeight = 2,
         KillContributionCap = 40,
+        // Finale + one-shot insight lines are pack-owned (mirrors data/stories/vega_protocol/story.json).
+        FinaleRevealTextKey = "story.vega.guardian_revealed",
+        FinaleResolvedTextKey = "story.vega.finale_resolved",
+        FinaleSystemNameKey = "story.vega.guardian_system",
+        InsightUnlockBeatCount = 6,
+        CompanionWardTextKey = "story.vega.insight.companion_ward",
+        ShapeAnomalyTextKey = "story.vega.insight.shape_anomaly",
         // Beats pay +1 knowledge each (was +3): the arc alone used to out-earn the whole research
         // ladder's knowledge ceiling, trivialising the blueprint gate (#767).
         Beats = new List<StoryBeat>
