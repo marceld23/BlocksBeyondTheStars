@@ -188,6 +188,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 _browser = BrowserScreen.None;
                 CloseFaceEditor(); // the modal face editor is owned by the menu — don't let it linger after close
+                _ui?.OnMenuClosed(); // #1072: a located station gets a through-wall marker once the menu is gone
                 _ui?.Hide();
                 _wikiUi?.Hide();
                 _arcadeUi?.Hide();

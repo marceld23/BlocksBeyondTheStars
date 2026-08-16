@@ -186,12 +186,17 @@ separate unlock; admins can still disable it through server world rules.
 
 - **Tab menu** — tabs for Inventory, Crafting, Tech (blueprints), Ship (modules/build), Map, Missions,
   Character (appearance), plus **Story**, **Companions** (tamed creatures, see §5) and **Alliances** (see §5),
-  with **Settings** pinned far right. Crafting/Tech/Ship are **location-bound** (workshop / lab / ship console); the
-  UI tells you when you must go to the right station.
+  with **Settings** pinned far right. Crafting/Tech/Ship are **location-bound**: Crafting to a station **block**
+  (workbench, forge, …), Tech to your ship's **cockpit**, Ship to the **workshop module** aboard. The **gate row**
+  above the list names the block you need (with its icon), how far away the nearest one is and in which
+  direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
+  Hand recipes work anywhere.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 - **Tab availability dimming** — tabs whose context isn't met are **greyed out** (but still clickable to peek):
-  **Map** needs you aboard, **Crafting** a workshop, **Tech** a lab, **Ship** the ship console. While not aboard,
+  **Map** needs you aboard, **Crafting** dims only when no station block is in reach (hand recipes still work),
+  **Tech** needs the cockpit, **Ship** the workshop module aboard; a dimmed tab shows the icon of the block it is
+  waiting for. While not aboard,
   the Map's travel buttons are also disabled (the world is shown but you can't quick-travel from on foot), and
   the Inventory's **Cargo Hold** transfer controls are hidden (the hold is only reachable from aboard the ship).
 - **World map (M)** — top-down view of explored terrain (fog-of-war), with player/ship/station markers and
@@ -342,8 +347,12 @@ separate unlock; admins can still disable it through server world rules.
   does — and the controls hint line at the bottom appends *MMB slot actions*. Both follow your rebinding.
 
 ### Crafting, blueprints, tech
-- Recipes are made at **stations**: hand (free), workshop, refinery, detoxifier, transmuter, market
-  (barter). Inputs are consumed, outputs produced (free in Creative).
+- Recipes are made at **stations**: hand (free, anywhere), workshop, refinery, detoxifier, transmuter, market
+  (barter). Inputs are consumed, outputs produced (free in Creative). Each station is a **block** you stand
+  next to — **workbench** (workshop), **forge** (refinery), **detoxifier**, **matter forge** (transmuter),
+  **algae tank**, **campfire** — or the matching **ship module** while you're aboard. The menu names the block
+  a recipe needs and where the nearest one is; aiming at a placed station block shows on the HUD which
+  menu tab it powers. The Codex guide *Stations & the Tab menu* has the full table.
 - The **workshop** is your everyday bench: it smelts the common ores (iron, copper, gold, silver, …) into
   ingots and fabricates parts, tools, weapons and building blocks.
 - The **refinery** (the *forge* block on a base, or the refinery ship module — both unlocked via Tech) is
@@ -353,7 +362,8 @@ separate unlock; admins can still disable it through server world rules.
   never need it before you can build it: its metals are also the ones that need a titanium-tier drill to mine.
 - The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
-- **Blueprints** gate advanced recipes — unlock them with **knowledge points** (earned by scanning) plus
+- **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Tech tab; the helm counts
+  while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
 - **Tiered upgrades consume their predecessor:** where an item is a straight upgrade of another —
   oxygen tanks II/III, the terrain scanner, weapon upgrade chains, the AI cores — the recipe **requires
@@ -366,7 +376,8 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Ship, modules, building
 - A ship is a set of fitted **modules** (cockpit, reactor, life support, workshop, medbay, cargo holds,
-  lab, refinery, …). Modules enable on-board stations and cargo capacity. Build/expand from the Ship tab.
+  refinery, detoxifier, transmuter, …). Modules enable on-board stations and cargo capacity. Build/expand from the
+  Ship tab — aboard, at the workshop module.
   Each cargo-hold module adds slots to the shared **cargo hold** (see *Inventory & cargo hold* above); the
   Cargo tab shows the current used/total capacity.
 

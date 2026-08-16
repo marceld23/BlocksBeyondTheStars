@@ -776,6 +776,11 @@ namespace BlocksBeyondTheStars.Client
                         : $"ui.station.{Game.NearbyStation}";
                     prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
                 }
+                else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
+                {
+                    // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
+                    prompt = loc.Get("ui.station.block." + Game.AimedStationBlock);
+                }
                 else if (HoldingScanner())
                 {
                     prompt = loc.Get("ui.scan.use_hint");

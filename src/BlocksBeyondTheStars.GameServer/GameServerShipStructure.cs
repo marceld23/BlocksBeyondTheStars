@@ -248,6 +248,7 @@ public sealed partial class GameServer
         "workshop" => "workbench",
         "quarters" => "bed",
         "cargo" => "crate",
+        "console" => "data_cache", // #1073: the ship console reads as a terminal instead of vanishing into the hull
         _ => "iron_wall",
     };
 
@@ -399,11 +400,6 @@ public sealed partial class GameServer
                 // cockpit WITHOUT the helm arm — no launch, just the repair readout. The client opens the Ship tab.
                 SendShipRepairStatus(session);
                 Send(session, new ServerMessage { Text = "@srv.station.console" });
-                break;
-
-            case "lab":
-                // The lab gates the Tech tab (research) exactly like workshop gates crafting; E opens it client-side.
-                Send(session, new ServerMessage { Text = "@srv.station.lab" });
                 break;
 
             default:

@@ -31,6 +31,45 @@ namespace BlocksBeyondTheStars.Client
         private bool _subscribed;
         private static Shader _glow;
 
+        /// <summary>The scene's overlay (one per world rig) — lets the Tab menu drop a station marker (#1072).</summary>
+        public static OreScanView Instance { get; private set; }
+
+        private void Awake() => Instance = this;
+
+        /// <summary>#1072: a single through-wall marker on a station block the menu just pointed at (the
+        /// "go there" hint made visible in the world once the menu closes). Same glow cube as an ore hit,
+        /// cyan so it reads as "station", auto-clears after <paramref name="seconds"/>.</summary>
+        public void ShowStationMarker(int x, int y, int z, float seconds)
+        {
+            if (Game == null)
+            {
+                return;
+            }
+
+            Clear();
+            _glow ??= Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
+            _until = Time.time + Mathf.Max(2f, seconds);
+            AddMarker(Game.ScenePos(x + 0.5f, y + 0.5f, z + 0.5f), new Color(0.45f, 0.95f, 1f), 0f, 0.8f);
+        }
+
+        private void AddMarker(Vector3 scenePos, Color tint, float phase, float scale)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "OreMarker";
+            var col = go.GetComponent<Collider>();
+            if (col != null)
+            {
+                Destroy(col);
+            }
+
+            go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
+            go.transform.position = scenePos;
+            go.transform.localScale = Vector3.one * scale;
+            var mat = new Material(_glow) { color = ShaderColor.Srgb(tint * 0.8f) };
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+            _markers.Add(new Marker { Go = go, Mat = mat, Base = ShaderColor.Srgb(tint * 0.8f), Phase = phase });
+        }
+
         private void Update()
         {
             if (!_subscribed && Game?.Network != null)
@@ -87,22 +126,9 @@ namespace BlocksBeyondTheStars.Client
 
             for (int i = 0; i < scan.X.Length; i++)
             {
-                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = "OreMarker";
-                var col = go.GetComponent<Collider>();
-                if (col != null)
-                {
-                    Destroy(col);
-                }
-
-                go.transform.SetParent(transform, true); // under the game root → not leaked into menus/editors
-                go.transform.position = Game.ScenePos(scan.X[i] + 0.5f, scan.Y[i] + 0.5f, scan.Z[i] + 0.5f);
-                go.transform.localScale = Vector3.one * 0.65f; // smaller than the block — reads as "inside" it
-
-                Color tint = TintFor(i < scan.Block.Length ? scan.Block[i] : (ushort)0);
-                var mat = new Material(_glow) { color = ShaderColor.Srgb(tint * 0.8f) };
-                go.GetComponent<Renderer>().sharedMaterial = mat;
-                _markers.Add(new Marker { Go = go, Mat = mat, Base = ShaderColor.Srgb(tint * 0.8f), Phase = i * 0.61f });
+                // Smaller than the block — reads as "inside" it.
+                AddMarker(Game.ScenePos(scan.X[i] + 0.5f, scan.Y[i] + 0.5f, scan.Z[i] + 0.5f),
+                    TintFor(i < scan.Block.Length ? scan.Block[i] : (ushort)0), i * 0.61f, 0.65f);
             }
         }
 
