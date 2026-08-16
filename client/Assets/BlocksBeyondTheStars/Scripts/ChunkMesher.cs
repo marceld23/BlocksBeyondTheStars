@@ -1551,6 +1551,9 @@ namespace BlocksBeyondTheStars.Client
             sources.Clear();
             if (lights != null)
             {
+                // The sources arrive already re-expressed in THIS chunk's raw frame (ClientWorld.LightSourcesNear
+                // measures across the wrap seams, #428), so a plain box test and raw-integer flood keys are
+                // correct here: worldBlock() canonicalizes every lookup, so the flood crosses the seam.
                 int loX = origin.X - LightRadius, hiX = origin.X + n + LightRadius;
                 int loY = origin.Y - LightRadius, hiY = origin.Y + n + LightRadius;
                 int loZ = origin.Z - LightRadius, hiZ = origin.Z + n + LightRadius;

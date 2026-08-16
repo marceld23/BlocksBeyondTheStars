@@ -32,21 +32,38 @@ namespace BlocksBeyondTheStars.Client.EditorTools
         private const string SceneDir = "Assets/Scenes";
         private const string ScenePath = SceneDir + "/Launcher.unity";
 
-        /// <summary>Shaders the client loads at runtime via Shader.Find — must be force-included or the build strips them.</summary>
+        /// <summary>Shaders the client loads at runtime via Shader.Find — must be force-included or the build strips them.
+        /// Keep this the FULL set of <c>Shader.Find("BlocksBeyondTheStars/…")</c> names in Scripts/ (plus the built-in
+        /// fallbacks those call sites use): GraphicsSettings.asset normally already lists them, but this pass is the
+        /// safety net when that asset regresses (merge conflict, Unity rewrite) — a missing entry strips silently and
+        /// the build succeeds with no glass submesh / starfield / visor (#428). Check with
+        /// <c>grep -rhoE 'Shader\.Find\("[^"]+"\)' client/Assets/BlocksBeyondTheStars/Scripts | sort -u</c>.</summary>
         private static readonly string[] RuntimeShaders =
         {
-            "BlocksBeyondTheStars/VertexColorOpaque",
-            "BlocksBeyondTheStars/BlockAtlas",
-            "BlocksBeyondTheStars/LitColor",
-            "BlocksBeyondTheStars/SunGlow",
-            "BlocksBeyondTheStars/SunRays",
-            "BlocksBeyondTheStars/Nebula",
             "BlocksBeyondTheStars/Atmosphere",
+            "BlocksBeyondTheStars/Aurora",
+            "BlocksBeyondTheStars/BlockAtlas",
+            "BlocksBeyondTheStars/BlockAtlasTransparent",
+            "BlocksBeyondTheStars/Cloud",
+            "BlocksBeyondTheStars/HeatHaze",
+            "BlocksBeyondTheStars/LitColor",
+            "BlocksBeyondTheStars/Nebula",
             "BlocksBeyondTheStars/Particle",
             "BlocksBeyondTheStars/ParticleAlpha",
-            "BlocksBeyondTheStars/Aurora",
-            "BlocksBeyondTheStars/Cloud",
+            "BlocksBeyondTheStars/PlanetRing",
+            "BlocksBeyondTheStars/ScatterLit",
+            "BlocksBeyondTheStars/SkyBodyPhase",
+            "BlocksBeyondTheStars/Starfield",
+            "BlocksBeyondTheStars/SunGlow",
+            "BlocksBeyondTheStars/SunRays",
+            "BlocksBeyondTheStars/Thermal",
+            "BlocksBeyondTheStars/ThermalMarker",
+            "BlocksBeyondTheStars/VertexColorOpaque",
+            "BlocksBeyondTheStars/Visor",
+            "BlocksBeyondTheStars/VisorGlass",
             "Unlit/Color",
+            "Unlit/Transparent", // `?? Shader.Find("Unlit/Transparent")` fallbacks (glow/field quads)
+            "Sprites/Default",   // MenuBackground particle fallback
         };
 
         [MenuItem("BlocksBeyondTheStars/Build Windows Player")]

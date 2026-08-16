@@ -188,6 +188,35 @@ public class ContentTests
         Assert.Contains(ex.Problems, p => p.Contains("nonexistent_item"));
     }
 
+    /// <summary>#427: an unknown block id in an authored ship layout used to become hull silently at stamp
+    /// time; the validator now fails the load, while the editor's special palette ids (hatch, doors, lights,
+    /// engine, glass) and station markers stay legal.</summary>
+    [Fact]
+    public void Validation_DetectsUnknownShipLayoutCell()
+    {
+        static GameContent Build(params ShipLayoutCell[] cells) => new(
+            blocks: new[] { new BlockDefinition { Key = "iron_wall" } },
+            items: Array.Empty<ItemDefinition>(),
+            recipes: Array.Empty<RecipeDefinition>(),
+            blueprints: Array.Empty<BlueprintDefinition>(),
+            shipModules: Array.Empty<ShipModuleDefinition>(),
+            locales: new Dictionary<GameLocale, Dictionary<string, string>>(),
+            shipLayouts: new[] { new ShipLayout { Key = "ship_test", Width = 3, Height = 3, Length = 3, Cells = cells.ToList() } });
+
+        // Legal: a real block, every element id and a station marker.
+        Build(
+            new ShipLayoutCell { Id = "iron_wall" },
+            new ShipLayoutCell { Id = "hatch" },
+            new ShipLayoutCell { Id = "door_slide", Kind = "element" },
+            new ShipLayoutCell { Id = "light_red" },
+            new ShipLayoutCell { Id = "engine" },
+            new ShipLayoutCell { Id = "cockpit", Kind = "station" }).Validate();
+
+        var ex = Assert.Throws<ContentValidationException>(() =>
+            Build(new ShipLayoutCell { X = 1, Y = 2, Z = 0, Id = "iron_wal" }).Validate());
+        Assert.Contains(ex.Problems, p => p.Contains("ship_test") && p.Contains("iron_wal") && p.Contains("(1,2,0)"));
+    }
+
     /// <summary>The browser client parses locale files it fetched over HTTP with this entry point, before
     /// its content cache exists, so the splash/intro screens can localize (#831). It must read a real
     /// shipped locale file exactly like the filesystem path does.</summary>

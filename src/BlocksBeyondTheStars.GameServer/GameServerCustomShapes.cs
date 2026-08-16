@@ -281,7 +281,7 @@ public sealed partial class GameServer
         string target = (arg ?? string.Empty).Trim();
         if (target.Length == 0)
         {
-            Reject(session, "admin", "Usage: /shapewipe Player  or  /shapewipe #shapeId");
+            Reject(session, "admin", "@srv.admin.usage_shapewipe");
             return;
         }
 
@@ -305,7 +305,7 @@ public sealed partial class GameServer
 
         if (toWipe.Count == 0)
         {
-            Send(session, new ServerMessage { Text = $"No custom forms found for '{target}'." });
+            Send(session, new ServerMessage { Text = "@srv.admin.shapes_none:" + target });
             return;
         }
 
@@ -325,7 +325,7 @@ public sealed partial class GameServer
             }
         }
 
-        Send(session, new ServerMessage { Text = $"Wiped {toWipe.Count} custom form(s)." });
+        Send(session, new ServerMessage { Text = "@srv.admin.shapes_wiped:" + toWipe.Count });
         CheatLog(session.State, $"wiped {toWipe.Count} custom form(s) ({target})");
     }
 }

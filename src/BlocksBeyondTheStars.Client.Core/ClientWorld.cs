@@ -189,7 +189,12 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Light sources within <paramref name="radius"/> blocks of a chunk's box — handed to the
-        /// mesher so a placed lamp's colour floods across chunk seams, not just its own chunk.</summary>
+        /// mesher so a placed lamp's colour floods across chunk seams, not just its own chunk.
+        /// Round worlds (#428): the sources are stored canonically, but the distance is measured the short way
+        /// round BOTH wrap seams and every hit is re-expressed in the chunk's own (un-wrapped) frame — so a
+        /// lamp at X = circumference − 2 reaches the chunk at X = 0 as X = −2, and the mesher's flood fill
+        /// (which keys cells in that raw frame and canonicalizes block lookups) carries light across the seam
+        /// like skylight and AO already do.</summary>
         public List<(Vector3i Pos, int Rgb)> LightSourcesNear(ChunkCoord coord, int radius)
         {
             var result = new List<(Vector3i, int)>();
@@ -201,18 +206,24 @@ namespace BlocksBeyondTheStars.Client
             coord = WorldConstants.CanonicalChunk(coord, _circumference);
             var origin = WorldConstants.ChunkOrigin(coord);
             int nsz = WorldConstants.ChunkSize;
-            int loX = origin.X - radius, hiX = origin.X + nsz + radius;
-            int loY = origin.Y - radius, hiY = origin.Y + nsz + radius;
-            int loZ = origin.Z - radius, hiZ = origin.Z + nsz + radius;
+            int lo = -radius, hi = nsz + radius;
             foreach (var kv in _lightSources)
             {
                 var p = kv.Key;
-                if (p.X < loX || p.X > hiX || p.Y < loY || p.Y > hiY || p.Z < loZ || p.Z > hiZ)
+                int dy = p.Y - origin.Y;
+                if (dy < lo || dy > hi)
                 {
                     continue;
                 }
 
-                result.Add((p, kv.Value));
+                int dx = WorldConstants.WrapDeltaX(p.X - origin.X, _circumference);
+                int dz = WorldConstants.WrapDeltaZ(p.Z - origin.Z, _circumference);
+                if (dx < lo || dx > hi || dz < lo || dz > hi)
+                {
+                    continue;
+                }
+
+                result.Add((new Vector3i(origin.X + dx, p.Y, origin.Z + dz), kv.Value));
             }
 
             return result;

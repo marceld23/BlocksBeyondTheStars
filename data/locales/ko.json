@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "계속",
   "ui.pause.title": "일시 중지",
   "ui.pause.waiting_for": "일시 중지 {0}/{1} — 대기 중: {2}",
-  "ui.pause.world_held": "월드 정지 — 모두가 일시 중지 메뉴에 있습니다."
+  "ui.pause.world_held": "월드 정지 — 모두가 일시 중지 메뉴에 있습니다.",
+  "srv.admin.paint_none": "'{name}'에 대한 페인트 디자인을 찾을 수 없습니다.",
+  "srv.admin.paint_wiped": "{name} 페인트 디자인을 삭제했습니다.",
+  "srv.admin.shapes_none": "'{name}'에 대한 사용자 정의 형태를 찾을 수 없습니다.",
+  "srv.admin.shapes_wiped": "{name} 사용자 정의 형태를 삭제했습니다.",
+  "srv.admin.usage_paintwipe": "사용법: /paintwipe 플레이어  또는  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "사용법: /shapewipe 플레이어  또는  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "그 블록은 닿을 수 없는 거리예요 — 더 가까이 이동하세요.",
+  "srv.paint.protected": "이 지역은 보호되어 있어요 — 페인트할 수 없습니다.",
+  "srv.paint.solid_only": "페인트할 수 있는 것은 단단한 블록뿐이에요."
 }

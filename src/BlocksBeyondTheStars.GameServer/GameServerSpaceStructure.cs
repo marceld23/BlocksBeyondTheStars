@@ -147,6 +147,9 @@ public sealed partial class GameServer
         => BuildShipStructureFrom(structureId, string.Empty,
             _content.GetShip(shipTypeKey) ?? _content.GetShip("starter"), persistEdits: false);
 
+    // #427: layout ids already warned about (one line per layout+id, not one per cell per rebuild).
+    private readonly HashSet<string> _warnedLayoutIds = new(StringComparer.Ordinal);
+
     private SpaceStructure BuildShipStructureFrom(string structureId, string ownerId, ShipDefinition? design, bool persistEdits)
     {
         var s = new SpaceStructure { Id = structureId, Kind = "ship", OwnerId = ownerId };
@@ -205,7 +208,15 @@ public sealed partial class GameServer
 
                 // Any block key (iron_wall, carbon cargo, …) renders as that block; unknown ids fall back to hull.
                 // Authored dye/glow/shape ride along (the ship editor can tint + shape + orient any block).
-                s.Set(p, _content.GetBlock(cell.Id)?.NumericId ?? wall, cell.Tint, cell.Glow, cell.Shape);
+                // #427: content validation rejects unknown ids at load, so this fallback should never fire —
+                // if it does (a layout that bypassed the loader), say so once instead of stamping hull silently.
+                var cellBlock = _content.GetBlock(cell.Id);
+                if (cellBlock == null && _warnedLayoutIds.Add($"{layout.Key}:{cell.Id}"))
+                {
+                    _log.Warn($"Ship layout '{layout.Key}' cell ({cell.X},{cell.Y},{cell.Z}) has unknown block id '{cell.Id}' — stamping hull instead.");
+                }
+
+                s.Set(p, cellBlock?.NumericId ?? wall, cell.Tint, cell.Glow, cell.Shape);
             }
 
             // Guarantee a flush, solid floor across the footprint (fills layout gaps) so the player never

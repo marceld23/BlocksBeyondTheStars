@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "再開",
   "ui.pause.title": "一時停止中",
   "ui.pause.waiting_for": "一時停止 {0}/{1} — 待機中: {2}",
-  "ui.pause.world_held": "ワールド停止中 — 全員が一時停止メニューにいます。"
+  "ui.pause.world_held": "ワールド停止中 — 全員が一時停止メニューにいます。",
+  "srv.admin.paint_none": "「{name}」のペイントデザインは見つかりませんでした。",
+  "srv.admin.paint_wiped": "{name} のペイントデザインを削除しました。",
+  "srv.admin.shapes_none": "「{name}」のカスタム形状は見つかりませんでした。",
+  "srv.admin.shapes_wiped": "{name} のカスタム形状を削除しました。",
+  "srv.admin.usage_paintwipe": "使い方: /paintwipe プレイヤー  または  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "使い方: /shapewipe プレイヤー  または  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "そのブロックには届きません — もっと近づいてください。",
+  "srv.paint.protected": "このエリアは保護されています — ペイントできません。",
+  "srv.paint.solid_only": "塗装できるのはソリッドブロックのみです。"
 }

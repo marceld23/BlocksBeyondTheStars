@@ -97,14 +97,14 @@ public sealed partial class GameServer
         var pos = new Vector3i(intent.X, intent.Y, intent.Z);
         if (!WithinReach(session.State, pos))
         {
-            Reject(session, "paint", "Out of reach.");
+            Reject(session, "paint", "@srv.paint.out_of_reach");
             return;
         }
 
         var current = _world.GetBlock(pos);
         if (current.Value == BlockId.AirValue || _world.Definition(current) is not { Solid: true })
         {
-            Reject(session, "paint", "Only solid blocks can be painted.");
+            Reject(session, "paint", "@srv.paint.solid_only");
             return;
         }
 
@@ -113,7 +113,7 @@ public sealed partial class GameServer
         if (IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
             || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin))
         {
-            Reject(session, "paint", "This area is protected.");
+            Reject(session, "paint", "@srv.paint.protected");
             return;
         }
 
@@ -379,7 +379,7 @@ public sealed partial class GameServer
         string target = (arg ?? string.Empty).Trim();
         if (target.Length == 0)
         {
-            Reject(session, "admin", "Usage: /paintwipe Player  or  /paintwipe #designId");
+            Reject(session, "admin", "@srv.admin.usage_paintwipe");
             return;
         }
 
@@ -403,7 +403,7 @@ public sealed partial class GameServer
 
         if (toWipe.Count == 0)
         {
-            Send(session, new ServerMessage { Text = $"No paint designs found for '{target}'." });
+            Send(session, new ServerMessage { Text = "@srv.admin.paint_none:" + target });
             return;
         }
 
@@ -423,7 +423,7 @@ public sealed partial class GameServer
             }
         }
 
-        Send(session, new ServerMessage { Text = $"Wiped {toWipe.Count} paint design(s)." });
+        Send(session, new ServerMessage { Text = "@srv.admin.paint_wiped:" + toWipe.Count });
         CheatLog(session.State, $"wiped {toWipe.Count} paint design(s) ({target})");
     }
 }

@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Devam et",
   "ui.pause.title": "Duraklatıldı",
   "ui.pause.waiting_for": "Duraklatıldı {0}/{1} — bekleniyor: {2}",
-  "ui.pause.world_held": "Dünya durduruldu — herkes duraklatma menüsünde."
+  "ui.pause.world_held": "Dünya durduruldu — herkes duraklatma menüsünde.",
+  "srv.admin.paint_none": "'{name}' için boya deseni bulunamadı.",
+  "srv.admin.paint_wiped": "{name} boya deseni(leri) temizlendi.",
+  "srv.admin.shapes_none": "'{name}' için özel form bulunamadı.",
+  "srv.admin.shapes_wiped": "{name} özel form(ları) temizlendi.",
+  "srv.admin.usage_paintwipe": "Kullanım: /paintwipe Player  veya  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Kullanım: /shapewipe Player  veya  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "O blok erişim dışında — biraz daha yaklaş.",
+  "srv.paint.protected": "Bu alan korumalı — burası boyanamaz.",
+  "srv.paint.solid_only": "Sadece katı bloklar boyanabilir."
 }

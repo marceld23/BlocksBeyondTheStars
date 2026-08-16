@@ -431,6 +431,16 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 {
                     // Molten lava surface (mode 5): untinted; the animated crust modulates the glow below.
                 }
+                // Bark (mode 4): mirrors the URP pass (#428) — without this branch a wood_log face fell
+                // through to the player-dye recolour. Per-world dark bark hue in TEXCOORD2.yzw; black = natural.
+                else if (i.skyl.y > 3.5)
+                {
+                    if (dot(i.leaf.yzw, float3(1, 1, 1)) > 0.01)
+                    {
+                        float lum = dot(albedo, float3(0.299, 0.587, 0.114));
+                        albedo = lerp(albedo, lum * i.leaf.yzw * 1.4, 0.72);
+                    }
+                }
                 // Player dye (mode 3): a luminance-based recolour applied everywhere (independent of the
                 // flora-tint global), so dyed building blocks read vividly on any world and in caves.
                 else if (i.skyl.y > 2.5)

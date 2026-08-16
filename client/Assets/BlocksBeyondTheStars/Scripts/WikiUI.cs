@@ -392,8 +392,10 @@ namespace BlocksBeyondTheStars.Client
                     _articles = Array.Empty<Article>();
                 }
             }
-            catch
+            catch (Exception e)
             {
+                // A corrupt articles.json used to remove every hand-written article without a trace (#428).
+                Debug.LogWarning($"[WikiUI] failed to load wiki/articles.json: {e.Message}");
                 _articles = Array.Empty<Article>();
             }
         }

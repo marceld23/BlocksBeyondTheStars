@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "继续",
   "ui.pause.title": "已暂停",
   "ui.pause.waiting_for": "已暂停 {0}/{1} — 等待：{2}",
-  "ui.pause.world_held": "世界已停止 — 所有人都在暂停菜单中。"
+  "ui.pause.world_held": "世界已停止 — 所有人都在暂停菜单中。",
+  "srv.admin.paint_none": "未找到 '{name}' 的油漆设计。",
+  "srv.admin.paint_wiped": "已清除 {name} 的油漆设计。",
+  "srv.admin.shapes_none": "未找到 '{name}' 的自定义形状。",
+  "srv.admin.shapes_wiped": "已清除 {name} 的自定义形状。",
+  "srv.admin.usage_paintwipe": "用法：/paintwipe 玩家 或 /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "用法：/shapewipe 玩家 或 /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "该方块够不着 — 请靠近一点。",
+  "srv.paint.protected": "此区域受保护 — 无法涂色。",
+  "srv.paint.solid_only": "只有实体方块可以被涂色。"
 }

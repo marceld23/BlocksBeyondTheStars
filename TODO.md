@@ -137,6 +137,26 @@ a `--list-tests --filter Category=Slow` listing. Follow-ups (not in this PR): th
 Slow tests (`Reap_SkipsAWorld…` 29 s → 918 s, `Gateway_DropsAConnection…` 275 s → 896 s on a loaded
 runner) and, only if the gate grows again, building the Docker image up front and retagging after it.
 
+### ★ Audit leftovers: loud content fallbacks, the last hard-coded server lines, and five latent client fixes (#427, #428, 2026-08-16, branch fix/audit-427-428)
+Two static-audit issues from July closed out. **Server (#427):** an unknown block id in an authored
+`data/ship_layouts/*.json` cell used to become hull silently (`?? iron_wall`) — `GameContent.Validate`
+now fails the load for it (the editor's special ids hatch/door_*/glass/light*/engine and station markers
+stay legal; `ShipLayoutCell.IsElementId`), and the stamp path warns once per layout+id should anything
+bypass the loader; a board-mission template whose item vanished from content logs a warning before
+collapsing onto template 0. The last 10 hard-coded English server lines (paint rejects, `/paintwipe` +
+`/shapewipe` usage/results) moved behind `@srv.*` keys in all 14 locales (en/de by hand, 12 via
+`translate_locale.py`) — S20 itself had already been done wholesale by #822. **Client (#428):** placed-lamp
+light now crosses the world wrap seams — `ClientWorld.LightSourcesNear` measures with `WrapDeltaX/Z` and
+hands the mesher sources re-expressed in the chunk's own frame, so the flood fill (raw keys + canonicalized
+lookups) carries colour across X = 0 / circumference and the latitude seam like skylight and AO
+(`LightSourcesWrapTests`); the two `localized == key` guards (`Localizer.Get` returns `"[key]"`, so they never
+fired) use `Localizer.Has` — no more raw `[ui.portal.err_x]` / `[ui.notice.reason_x]`, and the Codex VEGA log
+skips untranslated future hints properly; a corrupt `wiki/articles.json` now logs a warning instead of
+wiping the wiki silently; the BuildScript always-include safety net lists all 21 runtime `Shader.Find`
+shaders (+ the `Unlit/Transparent` / `Sprites/Default` fallbacks) and the retired VolumetricFog GUID is
+gone from GraphicsSettings; the Built-in-RP subshader of BlockAtlas got the URP pass's bark branch (mode 4)
+so `wood_log` no longer falls into the player-dye recolour if URP ever falls back.
+
 ### ★ VEGA context tips: "it's dark and your suit lamp is off", rare ore, places, asteroids — throttled and repeatable (#1077–#1082, 2026-08-16, branch feat/vega-context-tips)
 VEGA's advisor hints fired exactly once per save with no cooldown and no notion of pacing — fine for
 teaching moments, useless for situational advice. New `GameServerShipAiContext.cs` adds a **throttled tip

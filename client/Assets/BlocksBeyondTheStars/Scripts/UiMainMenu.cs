@@ -378,9 +378,10 @@ namespace BlocksBeyondTheStars.Client
                     return error;
                 }
 
+                // Localizer.Get returns "[key]" on a miss (never the bare key), so ask Has() — comparing
+                // against the key could never match and leaked the raw "[ui.portal.err_x]" (#428).
                 string key = "ui.portal.err_" + code;
-                string localized = shell.L(key);
-                return localized == key ? error : localized;
+                return shell.Localizer != null && shell.Localizer.Has(key) ? shell.L(key) : error;
             }
 
             bool SignedIn() => !string.IsNullOrEmpty(shell.Settings.PortalSessionToken);
@@ -614,8 +615,7 @@ namespace BlocksBeyondTheStars.Client
                 if (!string.IsNullOrEmpty(code))
                 {
                     string key = "ui.notice.reason_" + code;
-                    string localized = shell.L(key);
-                    translated = localized == key ? code : localized;
+                    translated = shell.Localizer != null && shell.Localizer.Has(key) ? shell.L(key) : code;
                 }
 
                 if (string.IsNullOrWhiteSpace(reason))

@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Wznów",
   "ui.pause.title": "Pauza",
   "ui.pause.waiting_for": "Pauza {0}/{1} — czekamy na: {2}",
-  "ui.pause.world_held": "Świat zatrzymany — wszyscy są w menu pauzy."
+  "ui.pause.world_held": "Świat zatrzymany — wszyscy są w menu pauzy.",
+  "srv.admin.paint_none": "Nie znaleziono wzorów malowania dla '{name}'.",
+  "srv.admin.paint_wiped": "Usunięto {name} wzór(y) malowania.",
+  "srv.admin.shapes_none": "Nie znaleziono niestandardowych form dla '{name}'.",
+  "srv.admin.shapes_wiped": "Usunięto {name} niestandardową formę/formy.",
+  "srv.admin.usage_paintwipe": "Użycie: /paintwipe Gracz  lub  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Użycie: /shapewipe Gracz  lub  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Ten blok jest poza zasięgiem — podejdź bliżej.",
+  "srv.paint.protected": "Ten obszar jest chroniony — nie można go pomalować.",
+  "srv.paint.solid_only": "Malować można tylko bloki pełne."
 }

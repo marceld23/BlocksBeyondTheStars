@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Continuar",
   "ui.pause.title": "Pausado",
   "ui.pause.waiting_for": "Pausado {0}/{1}: esperando a {2}",
-  "ui.pause.world_held": "Mundo detenido: todos están en el menú de pausa."
+  "ui.pause.world_held": "Mundo detenido: todos están en el menú de pausa.",
+  "srv.admin.paint_none": "No se encontraron diseños de pintura para '{name}'.",
+  "srv.admin.paint_wiped": "Se borró(n) {name} diseño(s) de pintura.",
+  "srv.admin.shapes_none": "No se encontraron formas personalizadas para '{name}'.",
+  "srv.admin.shapes_wiped": "Se borró(n) {name} forma(s) personalizada(s).",
+  "srv.admin.usage_paintwipe": "Uso: /paintwipe Jugador  o  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Uso: /shapewipe Jugador  o  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Ese bloque está fuera de alcance — acércate.",
+  "srv.paint.protected": "Esta área está protegida — no se puede pintar.",
+  "srv.paint.solid_only": "Solo se pueden pintar bloques sólidos."
 }

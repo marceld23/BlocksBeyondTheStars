@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Reprendre",
   "ui.pause.title": "En pause",
   "ui.pause.waiting_for": "En pause {0}/{1} — en attente de : {2}",
-  "ui.pause.world_held": "Monde suspendu — tout le monde est dans le menu pause."
+  "ui.pause.world_held": "Monde suspendu — tout le monde est dans le menu pause.",
+  "srv.admin.paint_none": "Aucun motif de peinture trouvé pour '{name}'.",
+  "srv.admin.paint_wiped": "Motif(s) de peinture {name} effacé(s).",
+  "srv.admin.shapes_none": "Aucune forme personnalisée trouvée pour '{name}'.",
+  "srv.admin.shapes_wiped": "Forme(s) personnalisée(s) {name} effacée(s).",
+  "srv.admin.usage_paintwipe": "Utilisation : /paintwipe Joueur  ou  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Utilisation : /shapewipe Joueur  ou  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Ce bloc est hors de portée — approche-toi.",
+  "srv.paint.protected": "Cette zone est protégée — elle ne peut pas être peinte.",
+  "srv.paint.solid_only": "Seuls les blocs pleins peuvent être peints."
 }

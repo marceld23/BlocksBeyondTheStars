@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Продовжити",
   "ui.pause.title": "Пауза",
   "ui.pause.waiting_for": "Пауза {0}/{1} — чекаємо на: {2}",
-  "ui.pause.world_held": "Світ зупинено — усі в меню паузи."
+  "ui.pause.world_held": "Світ зупинено — усі в меню паузи.",
+  "srv.admin.paint_none": "Дизайнів фарбування для '{name}' не знайдено.",
+  "srv.admin.paint_wiped": "Видалено {name} дизайн(и) фарбування.",
+  "srv.admin.shapes_none": "Користувацьких форм для '{name}' не знайдено.",
+  "srv.admin.shapes_wiped": "Видалено {name} користувацьку(і) форму(и).",
+  "srv.admin.usage_paintwipe": "Використання: /paintwipe Player  або  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Використання: /shapewipe Player  або  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Цей блок за межами досяжності — підійди ближче.",
+  "srv.paint.protected": "Ця зона захищена — її не можна фарбувати.",
+  "srv.paint.solid_only": "Фарбувати можна тільки суцільні блоки."
 }

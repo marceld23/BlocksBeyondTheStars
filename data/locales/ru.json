@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Продолжить",
   "ui.pause.title": "Пауза",
   "ui.pause.waiting_for": "Пауза {0}/{1} — ждём: {2}",
-  "ui.pause.world_held": "Мир остановлен — все в меню паузы."
+  "ui.pause.world_held": "Мир остановлен — все в меню паузы.",
+  "srv.admin.paint_none": "Для «{name}» не найдено раскрасок.",
+  "srv.admin.paint_wiped": "Удалено {name} раскраски(й).",
+  "srv.admin.shapes_none": "Для «{name}» не найдено пользовательских форм.",
+  "srv.admin.shapes_wiped": "Удалено {name} пользовательской формы(й).",
+  "srv.admin.usage_paintwipe": "Использование: /paintwipe Игрок  или  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Использование: /shapewipe Игрок  или  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Этот блок вне досягаемости — подойдите ближе.",
+  "srv.paint.protected": "Эта область защищена — её нельзя раскрашивать.",
+  "srv.paint.solid_only": "Можно раскрашивать только твёрдые блоки."
 }

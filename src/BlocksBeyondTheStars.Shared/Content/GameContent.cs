@@ -686,6 +686,24 @@ public sealed class GameContent
             }
         }
 
+        // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull
+        // (`?? iron_wall`), so a data typo would ship invisibly — surface it at load like every other reference.
+        foreach (var layout in _shipLayouts.Values)
+        {
+            foreach (var cell in layout.Cells)
+            {
+                if (cell.Kind == "station")
+                {
+                    continue; // station types map to marker blocks server-side (unknown → hull marker, by design)
+                }
+
+                if (string.IsNullOrEmpty(cell.Id) || (!ShipLayoutCell.IsElementId(cell.Id) && !_blocks.ContainsKey(cell.Id)))
+                {
+                    problems.Add($"Ship layout '{layout.Key}' cell ({cell.X},{cell.Y},{cell.Z}) references unknown block or element '{cell.Id}'.");
+                }
+            }
+        }
+
         if (problems.Count > 0)
         {
             throw new ContentValidationException(problems);

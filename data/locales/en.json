@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Resume",
   "ui.pause.title": "Paused",
   "ui.pause.waiting_for": "Paused {0}/{1} — waiting for: {2}",
-  "ui.pause.world_held": "World held — everyone is in the pause menu."
+  "ui.pause.world_held": "World held — everyone is in the pause menu.",
+  "srv.admin.paint_none": "No paint designs found for '{name}'.",
+  "srv.admin.paint_wiped": "Wiped {name} paint design(s).",
+  "srv.admin.shapes_none": "No custom forms found for '{name}'.",
+  "srv.admin.shapes_wiped": "Wiped {name} custom form(s).",
+  "srv.admin.usage_paintwipe": "Usage: /paintwipe Player  or  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Usage: /shapewipe Player  or  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "That block is out of reach — move closer.",
+  "srv.paint.protected": "This area is protected — it cannot be painted.",
+  "srv.paint.solid_only": "Only solid blocks can be painted."
 }

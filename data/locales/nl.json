@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Doorgaan",
   "ui.pause.title": "Gepauzeerd",
   "ui.pause.waiting_for": "Gepauzeerd {0}/{1} — wachten op: {2}",
-  "ui.pause.world_held": "Wereld stilgezet — iedereen zit in het pauzemenu."
+  "ui.pause.world_held": "Wereld stilgezet — iedereen zit in het pauzemenu.",
+  "srv.admin.paint_none": "Geen verfdesigns gevonden voor '{name}'.",
+  "srv.admin.paint_wiped": "Verwijderde {name} verfdesign(s).",
+  "srv.admin.shapes_none": "Geen aangepaste vormen gevonden voor '{name}'.",
+  "srv.admin.shapes_wiped": "Verwijderde {name} aangepaste vorm(en).",
+  "srv.admin.usage_paintwipe": "Gebruik: /paintwipe Speler  of  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Gebruik: /shapewipe Speler  of  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Dat blok is buiten bereik — ga dichterbij.",
+  "srv.paint.protected": "Dit gebied is beschermd — het kan niet geverfd worden.",
+  "srv.paint.solid_only": "Alleen massieve blokken kunnen geverfd worden."
 }

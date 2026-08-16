@@ -2507,13 +2507,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var key in Game.VegaLogKeys)
                 {
-                    string text = L(key);
-                    if (text == key)
+                    if (Game?.Localizer == null || !Game.Localizer.Has(key))
                     {
-                        continue; // a future server hint this client has no translation for — no raw ids
+                        continue; // a future server hint this client has no translation for — no raw "[key]" (#428)
                     }
 
-                    y = StoryEntry(y, text);
+                    y = StoryEntry(y, L(key));
                     anyTip = true;
                 }
             }

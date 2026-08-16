@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Riprendi",
   "ui.pause.title": "In pausa",
   "ui.pause.waiting_for": "In pausa {0}/{1} — in attesa di: {2}",
-  "ui.pause.world_held": "Mondo fermo — sono tutti nel menu di pausa."
+  "ui.pause.world_held": "Mondo fermo — sono tutti nel menu di pausa.",
+  "srv.admin.paint_none": "Nessun motivo di vernice trovato per '{name}'.",
+  "srv.admin.paint_wiped": "Cancellato/i {name} motivo/i di vernice.",
+  "srv.admin.shapes_none": "Nessuna forma personalizzata trovata per '{name}'.",
+  "srv.admin.shapes_wiped": "Cancellata/e {name} forma/e personalizzata/e.",
+  "srv.admin.usage_paintwipe": "Uso: /paintwipe Giocatore  o  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Uso: /shapewipe Giocatore  o  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Quel blocco è fuori portata — avvicinati.",
+  "srv.paint.protected": "Questa area è protetta — non può essere pitturata.",
+  "srv.paint.solid_only": "Possono essere pitturati solo blocchi solidi."
 }

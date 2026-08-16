@@ -3281,5 +3281,14 @@
   "ui.pause.resume": "Weiterspielen",
   "ui.pause.title": "Pause",
   "ui.pause.waiting_for": "Pausiert {0}/{1} – warten auf: {2}",
-  "ui.pause.world_held": "Welt angehalten – alle sind im Pausenmenü."
+  "ui.pause.world_held": "Welt angehalten – alle sind im Pausenmenü.",
+  "srv.admin.paint_none": "Keine Bemalungen für '{name}' gefunden.",
+  "srv.admin.paint_wiped": "{name} Bemalung(en) gelöscht.",
+  "srv.admin.shapes_none": "Keine eigenen Formen für '{name}' gefunden.",
+  "srv.admin.shapes_wiped": "{name} eigene Form(en) gelöscht.",
+  "srv.admin.usage_paintwipe": "Verwendung: /paintwipe Spieler  oder  /paintwipe #designId",
+  "srv.admin.usage_shapewipe": "Verwendung: /shapewipe Spieler  oder  /shapewipe #shapeId",
+  "srv.paint.out_of_reach": "Dieser Block ist außer Reichweite — geh näher heran.",
+  "srv.paint.protected": "Dieser Bereich ist geschützt — hier kann nichts bemalt werden.",
+  "srv.paint.solid_only": "Nur massive Blöcke lassen sich bemalen."
 }

@@ -461,6 +461,9 @@ public sealed partial class GameServer
 
     private const int BoardWindow = 3;
 
+    // #427: mission templates already reported as referencing a missing item.
+    private readonly HashSet<string> _warnedMissionTemplates = new(StringComparer.Ordinal);
+
     private static readonly (string Need, int Target, string Reward, int RewardN)[] GiverMissionTemplates =
     {
         ("iron_ore", 10, "iron_plate", 3),
@@ -481,9 +484,16 @@ public sealed partial class GameServer
     {
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:mission:{slot}")));
         var tpl = GiverMissionTemplates[rng.Next(GiverMissionTemplates.Length)];
-        // Fall back to the first template if a content item is missing.
+        // Fall back to the first template if a content item is missing — and say so (#427): the templates are
+        // code, not validated content, so a renamed item would otherwise silently collapse every board onto
+        // template 0. Warned once per template, not per coined mission.
         if (_content.GetItem(tpl.Need) is null || _content.GetItem(tpl.Reward) is null)
         {
+            if (_warnedMissionTemplates.Add(tpl.Need + ">" + tpl.Reward))
+            {
+                _log.Warn($"Board mission template '{tpl.Need}' → '{tpl.Reward}' references an unknown item; falling back to template 0 ('{GiverMissionTemplates[0].Need}').");
+            }
+
             tpl = GiverMissionTemplates[0];
         }
 

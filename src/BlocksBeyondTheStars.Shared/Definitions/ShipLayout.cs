@@ -26,6 +26,18 @@ public sealed class ShipLayout
 /// <summary>One placed cell: position + what it is (a block, a station marker, or a special element).</summary>
 public sealed class ShipLayoutCell
 {
+    /// <summary>The non-block ids a layout cell may carry (kind "block"/"element"): the ship editor's special
+    /// palette entries the server stamps as something other than a plain content block. Anything else must be a
+    /// real block key — <c>GameContent.Validate</c> fails the load on an unknown id (#427) instead of the server
+    /// silently stamping hull there.</summary>
+    private static readonly HashSet<string> ElementIds = new(System.StringComparer.Ordinal)
+    {
+        "hatch", "door_slide", "door_hinge", "door_energy", "glass", "light", "headlight", "light_red", "light_green", "engine",
+    };
+
+    /// <summary>True for a special (non-block) palette id — see <see cref="ElementIds"/>.</summary>
+    public static bool IsElementId(string? id) => !string.IsNullOrEmpty(id) && ElementIds.Contains(id!);
+
     public int X { get; set; }
     public int Y { get; set; }
     public int Z { get; set; }
