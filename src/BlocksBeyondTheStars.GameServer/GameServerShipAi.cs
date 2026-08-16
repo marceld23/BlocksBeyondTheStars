@@ -114,6 +114,7 @@ public sealed partial class GameServer
     private void ShipAiOnJoin(PlayerSession session)
     {
         var p = session.State;
+        session.VegaTipReadyAt = _uptime + VegaTipJoinQuiet; // context tips (#1077) stay quiet right after a join
         if (!p.Milestones.Contains(VegaIntroMilestone))
         {
             p.Milestones.Add(VegaIntroMilestone);
@@ -328,10 +329,9 @@ public sealed partial class GameServer
             session.VegaAdvisorAccum = 0.0;
             var p = session.State;
 
-            if (p.Oxygen < 25f)
-            {
-                ShipAiHintOnce(session, "o2");
-            }
+            // Vitals coaching (o2 / energy / hunger / cold / heat) moved to the throttled context tips
+            // (#1082): the first occurrence still behaves like the old once-hint, later ones repeat with
+            // a long cooldown — see GameServerShipAiContext.cs.
 
             // New players never notice the oxygen system on the deliberately breathable start world — the bar
             // just sits full and the < 25% warning never fires. Teach it once, the first time they're outside
@@ -339,24 +339,6 @@ public sealed partial class GameServer
             if (AtmosphereBreathable && !p.AboardShip && !p.InEva && !ShipInteriorContains(p.Position) && !InStation(p.PlayerId))
             {
                 ShipAiHintOnce(session, "breathe");
-            }
-
-            if (p.SuitEnergy < 15f)
-            {
-                ShipAiHintOnce(session, "energy");
-            }
-
-            // Temperature hazard (#666): the first time the suit's climate control actually fights the
-            // local extreme, explain what is draining the energy and how to escape it (dig in / roof /
-            // ship / insulation). One line per extreme per save.
-            if (p.SuitClimateActive)
-            {
-                ShipAiHintOnce(session, session.EffectiveTemperatureC < ComfortLowC ? "cold" : "heat");
-            }
-
-            if (p.Hunger < 40f)
-            {
-                ShipAiHintOnce(session, "hunger"); // earlier nudge (40%) + the line now names where food comes from
             }
 
             // Aboard with a less-than-full belly: teach that life support tops hunger up — but only slowly, so
@@ -385,6 +367,7 @@ public sealed partial class GameServer
             }
 
             TickVegaMemory(session);
+            TickVegaContextTips(session); // throttled situational tips (#1077): lamp, ore, places, space …
             TickVegaBanterFor(session); // LLM smalltalk once onboarding is done (silent without AI)
         }
     }
@@ -551,13 +534,14 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_uptime < session.VegaBanterNextAt)
+        if (_uptime < session.VegaBanterNextAt || _uptime < session.VegaTipReadyAt)
         {
-            return;
+            return; // not due — or a context tip just went out (banter shares the tip cadence, #1077)
         }
 
         session.VegaBanterNextAt = _uptime + VegaBanterMinDelay
             + _vegaRng.NextDouble() * (VegaBanterMaxDelay - VegaBanterMinDelay);
+        session.VegaTipReadyAt = _uptime + VegaTipGap;
 
         string cacheKey = VegaBanterKey(session);
         if (_vegaBanterCache.TryGetValue(cacheKey, out var cached))

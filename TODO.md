@@ -137,6 +137,37 @@ a `--list-tests --filter Category=Slow` listing. Follow-ups (not in this PR): th
 Slow tests (`Reap_SkipsAWorld…` 29 s → 918 s, `Gateway_DropsAConnection…` 275 s → 896 s on a loaded
 runner) and, only if the gate grows again, building the Docker image up front and retagging after it.
 
+### ★ VEGA context tips: "it's dark and your suit lamp is off", rare ore, places, asteroids — throttled and repeatable (#1077–#1082, 2026-08-16, branch feat/vega-context-tips)
+VEGA's advisor hints fired exactly once per save with no cooldown and no notion of pacing — fine for
+teaching moments, useless for situational advice. New `GameServerShipAiContext.cs` adds a **throttled tip
+framework**: every tip has a dwell (the situation must hold for a few seconds), a per-tip cooldown (10–15
+min), a hard repeat cap per save (2–4, then VEGA considers it learned), a priority (safety > equipment >
+opportunity), and all tips share one **cadence per player** (≥ 120 s between two tips, quiet for the first
+minute after joining, LLM banter counts against it too; a FIRST safety hint still bypasses the cadence).
+Repeat counters persist as milestones without a schema change — `vega:hint:<id>` for the first occurrence
+(what the tips log already lists), `#2`/`#3` afterwards, `#done` once the player reacted within 30 s (lamp
+switched on, ore mined, settlement entered) — and `VegaText.JournalKeys` ignores the markers. First
+occurrences go out as Kind 1, repeats as **Kind 5** (same settings mute; the client drops a Kind-5 line when
+its speech queue already holds two). Opportunity tips wait for the "scan" onboarding stage.
+**Tips:** vitals (#1082: `o2`/`energy`/`hunger`/`cold`/`heat` now repeat with a 15-min cooldown, capped) ·
+equipment (#1078: `lamp_off`, `lamp_missing`, `torch_underground`, `eat_now`, `medkit`, `wrong_tool`,
+`scanner_idle`, `speeder_far`) · materials + progression (#1079: `rare_ore_near` — rarity ≤ 0.03 in the
+planet's own ore table, exposed blocks only —, `needed_ore_near`, `data_cache_near`, `craftable_now`,
+`blueprint_affordable`) · places + company (#1080: `settlement_near`, `ruin_near`, `factory_near`,
+`treasure_near`, `trader_near`, `tameable_near`, `player_near`; same reveal gating as the planet map) ·
+space (#1081: `asteroid_near` / `asteroid_no_tool`, `station_near`, `hull_low`, `jump_ready`).
+Darkness is a server heuristic (night, or a solid column above the head, and no torch/lantern/campfire/lava
+within six blocks — the server has no per-block light level); the lamp ON/OFF state was client-only, so a
+new `SetLampIntent` (NetCodec **206**, golden list) reports it from `PlayerController.UpdateLamp`. Block
+probes are a 17³ `GetBlockIfLoaded` box every 10 s (never the O(r³) scanner sweep). Locale lines can name
+the control with a `{key:Action}` token that `VegaPanel` expands via `InputMap.Glyph` (pad glyph / touch
+wording `ui.vega.key_touch`) — `vega.hint.night`'s hard-coded "L" uses it now, in all 14 locales; several
+`{n}` arguments travel packed in `LineArg` (`VegaText.SplitArgs`). 26 new `vega.hint.*` keys en+de by hand,
+the other twelve locales via `translate_locale.py` (its placeholder guard now keeps `{key:…}` tokens
+verbatim). Tests: `ShipAiTests` (dwell + cadence + cooldown + cap + learned + first-safety bypass, vitals
+repeat + markers in the join snapshot, rare-ore probe + scan-stage gate), `VegaTextTests` (marker filtering,
+canonical order, `SplitArgs`, `ExpandKeyTokens`), NetCodec golden list.
+
 ### ★ Minigame knowledge is paid in every world, not only on a new personal best (#1069, 2026-08-16, branch fix/minigame-result-report-1069)
 A data-fragment minigame mastered in one world paid **no knowledge** in the next world, on a friend's LAN
 server, or for a second player on the same PC: `ArcadeUI` only sent `MinigameResultIntent` on a **new

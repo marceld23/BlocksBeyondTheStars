@@ -2758,6 +2758,7 @@ public sealed partial class GameServer
             case TeleportToPlayerIntent tpp: HandleTeleportToPlayer(session, tpp); break;
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
+            case SetLampIntent sl: HandleSetLamp(session, sl); break;
             case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
             case SetEvaIntent eva: HandleSetEva(session, eva); break;
             case StructureEditIntent structureEdit: HandleStructureEdit(session, structureEdit); break;
@@ -3742,6 +3743,7 @@ public sealed partial class GameServer
 
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
+        ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
     }
 
     /// <summary>Area mining for powerful drills: breaks the mineable, unprotected blocks around a centre.

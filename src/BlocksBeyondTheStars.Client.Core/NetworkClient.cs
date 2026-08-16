@@ -453,6 +453,9 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendSetJetpack(bool active) => Send(new SetJetpackIntent { Active = active });
 
+        /// <summary>Suit lamp on/off (#1077) — informational, feeds VEGA's context tips only.</summary>
+        public void SendSetLamp(bool on) => Send(new SetLampIntent { On = on });
+
         public void SendSetSeated(bool active) => Send(new SetSeatedIntent { Active = active });
 
         public void SendSetEva(bool active) => Send(new SetEvaIntent { Active = active });

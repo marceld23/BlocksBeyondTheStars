@@ -1857,7 +1857,7 @@ namespace BlocksBeyondTheStars.Client
                 if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) { StoryLogBeats.Add(m.LineKey); NewStoryUnseen = true; } // a story beat
                 // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
                 // moment they arrive. Kind 2 is the story log's, Kind 4 (prologue) is intro-only by design.
-                if (m.Kind is 0 or 1 or 3 && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
+                if (m.Kind is 0 or 1 or 3 or 5 && !string.IsNullOrEmpty(m.LineKey) && !VegaLogKeys.Contains(m.LineKey))
                 {
                     VegaLogKeys.Add(m.LineKey);
                 }

@@ -174,6 +174,44 @@ public sealed class PlayerSession
     /// <summary>Uptime of the next LLM banter check (0 = not armed yet; armed on the first poll).</summary>
     public double VegaBanterNextAt { get; set; }
 
+    // --- Context tips (#1077): throttled, repeatable advisor lines. Persisted counters live in
+    // State.Milestones ("vega:hint:<id>", "#2", "#done"); everything here is per-connection pacing state. ---
+
+    /// <summary>The suit lamp is switched on (client-reported via <c>SetLampIntent</c>; the server only sees
+    /// whether the lamp is CARRIED otherwise). Session-scoped — a rejoin starts with the lamp off, like the client.</summary>
+    public bool LampOn { get; set; }
+
+    /// <summary>Uptime before which VEGA says no further context tip (global cadence, shared with banter).</summary>
+    public double VegaTipReadyAt { get; set; }
+
+    /// <summary>Per tip id: uptime the condition first became true in the current run (dwell / hysteresis).</summary>
+    public Dictionary<string, double> VegaTipSince { get; } = new();
+
+    /// <summary>Per tip id: uptime before which the same tip does not repeat.</summary>
+    public Dictionary<string, double> VegaTipCooldownUntil { get; } = new();
+
+    /// <summary>The last context tip fired + when — the "learned" window (a reaction shortly after
+    /// the tip retires it for good).</summary>
+    public string VegaTipLastId { get; set; } = string.Empty;
+    public double VegaTipLastAt { get; set; }
+
+    /// <summary>Things already mentioned this session (settlement names, ore keys, recipe keys, player
+    /// names …) so a tip that repeats never names the same thing twice in one sitting.</summary>
+    public HashSet<string> VegaTipMentioned { get; } = new();
+
+    /// <summary>Uptime of the next (heavier) block-probe around the player; results cached in <see cref="VegaProbe"/>.</summary>
+    public double VegaTipProbeAt { get; set; }
+    public VegaTipProbe VegaProbe { get; } = new();
+
+    /// <summary>Uptime the terrain scanner was last used (0 = never this session).</summary>
+    public double VegaScannerUsedAt { get; set; }
+
+    /// <summary>Blocks broken while holding no drill although one is carried (resets when a drill is held).</summary>
+    public int VegaHandMineStreak { get; set; }
+
+    /// <summary>Decaying "is digging right now" score: +1 per broken block, ×0.9 per second.</summary>
+    public double VegaMineRecent { get; set; }
+
     // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
 
     /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the

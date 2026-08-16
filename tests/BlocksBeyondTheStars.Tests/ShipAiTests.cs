@@ -438,6 +438,207 @@ public sealed class ShipAiTests : IDisposable
         }
     }
 
+    // --- Context tips (#1077): throttled, repeatable situational advice ---
+
+    /// <summary>Ticks the server one simulated second at a time (the advisor poll is 1 Hz), sending a
+    /// harmless keep-alive every half minute so the silent-session sweep (90 s) never drops the player.</summary>
+    private static void TickSeconds(SvGameServer server, LoopbackClientTransport client, int seconds, Action? eachSecond = null)
+    {
+        for (int i = 0; i < seconds; i++)
+        {
+            if (i % 30 == 0)
+            {
+                client.Send(NetCodec.Encode(new SelectHotbarIntent { Slot = 0 }), DeliveryMode.ReliableOrdered);
+            }
+
+            eachSecond?.Invoke();
+            server.Tick(1.0);
+        }
+
+        client.Poll();
+    }
+
+    [Fact]
+    public void LampOffTip_WaitsForDwellAndCadence_RepeatsAfterCooldown_AndRetiresOnceLearned()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Nightwalker");
+
+        var session = server.Sessions[1];
+        var p = session.State;
+        p.AboardShip = false; // on foot on the surface (no starter ship in this config)
+        p.Inventory.Add("suit_lamp", 1, 1);
+        server.ResetVegaProbeForTest("Nightwalker");
+        // A rocky night is cold and a long night makes hungry — retire the other safety hints up front so
+        // only the deliberately triggered O2 hint competes with the lamp tip for the cadence.
+        foreach (var other in new[] { "cold", "heat", "hunger", "energy", "medkit" })
+        {
+            p.Milestones.Add("vega:hint:" + other + "#done");
+        }
+
+        lines.Clear();
+
+        // Ticks with the world clock pinned to deep night (a full day is only 600 s here).
+        float oxygenPin = 100f;
+        void Night(int seconds) => TickSeconds(server, client, seconds, () => { server.SetDayFractionForTest(0.95); p.Oxygen = oxygenPin; p.Hunger = 100f; });
+
+        // The join-quiet minute: nothing yet, however long the lamp stays off.
+        Night(30);
+        Assert.DoesNotContain(lines, l => l.LineKey == "vega.hint.lamp_off");
+
+        // A first SAFETY hint ignores the cadence entirely (the old teaching moment) …
+        oxygenPin = 10f;
+        Night(2);
+        Assert.Contains(lines, l => l.LineKey == "vega.hint.o2" && l.Kind == 1);
+        Assert.Contains("vega:hint:o2", server.MilestonesForTest("Nightwalker"));
+        int afterO2 = lines.Count;
+        oxygenPin = 100f;
+
+        // … and it starts the 120 s cadence: the lamp tip (dwell 8 s long satisfied) has to wait for it.
+        Night(100);
+        var diag = server.VegaTipCandidatesForTest("Nightwalker");
+        Assert.True(diag.Candidates.Contains("lamp_off"),
+            $"lamp_off should be a candidate at night with a lamp carried and off — candidates: [{string.Join(",", diag.Candidates)}], solidAbove={diag.SolidAbove}, lightNear={diag.LightNear}, aboard={diag.Aboard}");
+        Assert.DoesNotContain(lines.Skip(afterO2), l => l.LineKey == "vega.hint.lamp_off");
+        Night(25);
+        var first = Assert.Single(lines, l => l.LineKey == "vega.hint.lamp_off");
+        Assert.Equal(1, first.Kind); // first occurrence = advisor kind (goes to the tips log)
+        Assert.Contains("vega:hint:lamp_off", server.MilestonesForTest("Nightwalker"));
+
+        // Still dark, lamp still off: the per-tip cooldown (10 min) keeps VEGA quiet …
+        Night(60);
+        Assert.Single(lines, l => l.LineKey == "vega.hint.lamp_off");
+
+        // … and once it is over the tip repeats (dwell again) as a Kind-5 context repeat with a #2 marker.
+        server.SkipVegaTipCooldownsForTest("Nightwalker");
+        Night(12);
+        var st = server.VegaTipStateForTest("Nightwalker", "lamp_off");
+        Assert.True(lines.Count(l => l.LineKey == "vega.hint.lamp_off") == 2,
+            $"expected the repeat — count={st.Count} cooldownUntil={st.CooldownUntil} readyAt={st.ReadyAt} since={st.Since} uptime={st.Uptime}; lines=[{string.Join(",", lines.Select(l => l.LineKey + ":" + l.Kind))}]");
+        Assert.Equal(5, lines.Last(l => l.LineKey == "vega.hint.lamp_off").Kind);
+        Assert.Contains("vega:hint:lamp_off#2", server.MilestonesForTest("Nightwalker"));
+
+        // The player switches the lamp on right after the tip: learned → retired for this save.
+        client.Send(NetCodec.Encode(new SetLampIntent { On = true }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        Assert.True(server.LampOnForTest("Nightwalker"));
+        Assert.Contains("vega:hint:lamp_off#done", server.MilestonesForTest("Nightwalker"));
+
+        // Lamp off again, cooldown over, still night — VEGA never brings it up again.
+        client.Send(NetCodec.Encode(new SetLampIntent { On = false }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        server.SkipVegaTipCooldownsForTest("Nightwalker");
+        Night(15);
+        Assert.Equal(2, lines.Count(l => l.LineKey == "vega.hint.lamp_off"));
+    }
+
+    [Fact]
+    public void VitalsHint_RepeatsWithCooldown_UpToTheCap_AndTheSnapshotCarriesTheMarkers()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var journals = new List<VegaJournal>();
+        client.PayloadReceived += payload =>
+        {
+            if (NetCodec.Decode(payload) is VegaJournal j)
+            {
+                journals.Add(j);
+            }
+        };
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Gasper");
+        var p = server.Sessions[1].State;
+        p.AboardShip = false;
+
+        int Fired() => lines.Count(l => l.LineKey == "vega.hint.energy");
+        void Starve(int seconds)
+        {
+            for (int i = 0; i < seconds; i++)
+            {
+                p.SuitEnergy = 5f;
+                server.Tick(1.0);
+            }
+
+            client.Poll();
+        }
+
+        Starve(2);
+        Assert.Equal(1, Fired());
+        Starve(5);
+        Assert.Equal(1, Fired()); // inside the 15-min cooldown: silent
+
+        for (int repeat = 2; repeat <= 4; repeat++)
+        {
+            server.SkipVegaTipCooldownsForTest("Gasper");
+            Starve(2);
+            Assert.Equal(repeat, Fired());
+            Assert.Equal(5, lines.Last(l => l.LineKey == "vega.hint.energy").Kind);
+            Assert.Contains("vega:hint:energy#" + repeat, server.MilestonesForTest("Gasper"));
+        }
+
+        server.SkipVegaTipCooldownsForTest("Gasper");
+        Starve(3);
+        Assert.Equal(4, Fired()); // the cap: never a fifth time
+
+        // The join snapshot carries the repeat markers verbatim (the client-side journal filters them —
+        // covered by VegaTextTests.JournalKeys_IgnoresContextTipRepeatMarkers).
+        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        client.Poll();
+        var snapshot = journals.Last().Milestones;
+        Assert.Contains("vega:hint:energy", snapshot);
+        Assert.Contains("vega:hint:energy#2", snapshot);
+    }
+
+    [Fact]
+    public void ContextTips_ProbeFindsRareOre_AndOpportunityTipsWaitForTheScanStage()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Prospector");
+        var session = server.Sessions[1];
+        var p = session.State;
+        p.AboardShip = false;
+        server.SetDayFractionForTest(0.5); // daylight — no lamp talk
+
+        // Plant an exposed vein of the rarest ore of the starter world two blocks in front of the player.
+        int px = (int)Math.Floor(p.Position.X), py = (int)Math.Floor(p.Position.Y), pz = (int)Math.Floor(p.Position.Z);
+        var gold = _content.GetBlock("gold_ore")!;
+        server.World.SetBlock(new Vector3i(px + 2, py, pz), gold.NumericId);
+        server.World.SetBlock(new Vector3i(px + 2, py, pz + 1), gold.NumericId);
+        server.ResetVegaProbeForTest("Prospector");
+
+        // Fresh save (onboarding stage 0): opportunity tips stay quiet even past the join-quiet minute.
+        TickSeconds(server, client, 75);
+        Assert.DoesNotContain(lines, l => l.LineKey == "vega.hint.rare_ore_near");
+
+        // Grant the tutorial (all stages) → the same situation now produces the tip, naming the ore.
+        client.Send(NetCodec.Encode(new SkipOnboardingIntent()), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+        server.SkipVegaTipCooldownsForTest("Prospector");
+        server.ResetVegaProbeForTest("Prospector");
+        TickSeconds(server, client, 15);
+        var tip = Assert.Single(lines, l => l.LineKey == "vega.hint.rare_ore_near");
+        Assert.False(string.IsNullOrEmpty(tip.LineArg));
+        Assert.Contains("vega:hint:rare_ore_near", server.MilestonesForTest("Prospector"));
+
+        // Mining an ore right after the tip counts as learned.
+        server.VegaTipLearnedForTest("Prospector", "rare_ore_near");
+        Assert.Contains("vega:hint:rare_ore_near#done", server.MilestonesForTest("Prospector"));
+    }
+
     private static void SqliteWorldRepositoryReset()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

@@ -20,9 +20,70 @@ namespace BlocksBeyondTheStars.Client
         private static readonly string[] StageOrder =
             { "mine", "craft", "eat", "scan", "unlock", "launch", "dock", "trade", "land" };
 
-        /// <summary>Advisor hints in teaching order (vitals first, then situational).</summary>
+        /// <summary>Advisor hints in teaching order (vitals first, then situational), followed by the context
+        /// tips (#1077) in the order they tend to matter: gear, materials, places, space.</summary>
         private static readonly string[] HintOrder =
-            { "o2", "breathe", "energy", "cold", "heat", "hunger", "shipfood", "invfull", "night", "poi" };
+        {
+            "o2", "breathe", "energy", "cold", "heat", "hunger", "shipfood", "invfull", "night", "poi",
+            "medkit", "hull_low",
+            "lamp_off", "lamp_missing", "torch_underground", "eat_now", "wrong_tool", "scanner_idle", "speeder_far",
+            "rare_ore_near", "needed_ore_near", "data_cache_near", "craftable_now", "blueprint_affordable",
+            "settlement_near", "ruin_near", "factory_near", "treasure_near", "trader_near", "tameable_near", "player_near",
+            "asteroid_near", "asteroid_no_tool", "station_near", "jump_ready",
+        };
+
+        /// <summary>Repeat / retire markers the server appends to a context-tip milestone (<c>vega:hint:lamp_off#2</c>,
+        /// <c>#done</c>). They are pacing state, not tips — the log lists a tip once.</summary>
+        private const char TipRepeatMarker = '#';
+
+        /// <summary>Separator between several <c>{n}</c> arguments packed into one <c>ShipAiLine.LineArg</c>
+        /// (mirrors the server's <c>VegaArgSeparator</c>).</summary>
+        public const char ArgSeparator = '\u001f';
+
+        /// <summary>Splits a packed line argument into the <c>{0}</c>, <c>{1}</c>… values.</summary>
+        public static string[] SplitArgs(string lineArg)
+            => string.IsNullOrEmpty(lineArg) ? Array.Empty<string>() : lineArg.Split(ArgSeparator);
+
+        /// <summary>
+        /// Replaces <c>{key:Action}</c> tokens in a localized line with the on-screen name of the control bound to
+        /// that action (keyboard key, pad button or touch wording — whatever <paramref name="glyph"/> returns for
+        /// the action name). A token whose action the resolver does not know is dropped to its action name so a
+        /// stale locale never shows raw braces. Lines without tokens are returned untouched.
+        /// </summary>
+        public static string ExpandKeyTokens(string text, Func<string, string> glyph)
+        {
+            if (string.IsNullOrEmpty(text) || text.IndexOf("{key:", StringComparison.Ordinal) < 0)
+            {
+                return text;
+            }
+
+            var sb = new System.Text.StringBuilder(text.Length);
+            int i = 0;
+            while (i < text.Length)
+            {
+                int start = text.IndexOf("{key:", i, StringComparison.Ordinal);
+                if (start < 0)
+                {
+                    sb.Append(text, i, text.Length - i);
+                    break;
+                }
+
+                int end = text.IndexOf('}', start);
+                if (end < 0)
+                {
+                    sb.Append(text, i, text.Length - i);
+                    break;
+                }
+
+                sb.Append(text, i, start - i);
+                string action = text.Substring(start + 5, end - start - 5);
+                string resolved = glyph(action);
+                sb.Append(string.IsNullOrEmpty(resolved) ? action : resolved);
+                i = end + 1;
+            }
+
+            return sb.ToString();
+        }
 
         private static readonly string[] WorldOrder =
             { "asteroid", "ocean", "corrupted", "fungal", "ice", "volcanic" };
@@ -142,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
             var rest = new List<string>();
             foreach (var m in set)
             {
-                if (m.StartsWith("vega:hint:", StringComparison.Ordinal))
+                if (m.StartsWith("vega:hint:", StringComparison.Ordinal) && m.IndexOf(TipRepeatMarker) < 0)
                 {
                     rest.Add("vega.hint." + m["vega:hint:".Length..].Replace(':', '.'));
                 }

@@ -256,6 +256,7 @@ public sealed class NetCodecTests
         [203] = typeof(TradeRequestNotice),
         [204] = typeof(SetContainerFilterIntent),
         [205] = typeof(TeleportToPlayerIntent),
+        [206] = typeof(SetLampIntent),
     };
 
     [Fact]

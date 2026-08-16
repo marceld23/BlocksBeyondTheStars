@@ -233,7 +233,10 @@ public sealed partial class GameServer
     /// client renders them as through-wall glow markers. Non-destructive; nearest hits win when the world is
     /// richer than the message cap.</summary>
     private void UseTerrainScanner(PlayerSession session)
-        => Send(session, BuildOreScan(session.State, VegaScannerRadiusBonus(session)));
+    {
+        ShipAiOnScannerUsed(session); // the "you carry a scanner" nudge (#1078) rests after a real use
+        Send(session, BuildOreScan(session.State, VegaScannerRadiusBonus(session)));
+    }
 
     /// <summary>Test seam: the scan result the terrain scanner would send for a player right now
     /// (including any AI-core radius bonus — VEGA crunches the returns).</summary>

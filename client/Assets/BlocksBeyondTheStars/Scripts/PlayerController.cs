@@ -975,7 +975,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 _lampCone.SetActive(on);
             }
+
+            // Tell the server about every effective change (toggle, forced-off in space, lamp dropped) so
+            // VEGA's "it's dark and your lamp is off" tip (#1077) sees the real state; nothing else uses it.
+            if (on != _lampReported)
+            {
+                _lampReported = on;
+                Game?.Network?.SendSetLamp(on);
+            }
         }
+
+        /// <summary>The lamp state last reported to the server (a fresh session starts "off" on both ends).</summary>
+        private bool _lampReported;
 
         /// <summary>Builds the visible light shaft (a faint warm translucent cone) once, parented to the
         /// camera so it always points where the player looks. The actual lighting is the shader spotlight

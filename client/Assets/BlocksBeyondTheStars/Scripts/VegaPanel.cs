@@ -160,6 +160,24 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
+        /// <summary>Resolver for <c>{key:Action}</c> tokens in VEGA lines: the pad glyph or bound key for a
+        /// known action; on touch the on-screen action menu is the way to reach every toggle, so the token
+        /// reads as that menu. Unknown action names fall through as-is (VegaText drops to the name).</summary>
+        private string KeyGlyphFor(string action)
+        {
+            if (!System.Enum.TryParse<InputAction>(action, out var a))
+            {
+                return action;
+            }
+
+            if (InputMap.ActiveDevice == InputDeviceKind.Touch)
+            {
+                return L("ui.vega.key_touch");
+            }
+
+            return InputMap.Glyph(a);
+        }
+
         /// <summary>Capture hook (<see cref="ScreenshotDirector"/>): drop any queued VEGA speech and hide the
         /// panel, so an unattended screenshot run never catches the onboarding/greeting dialog in the frame.
         /// (Previously a fresh world needed a throwaway run just to get past the intro lines.)</summary>
@@ -270,7 +288,15 @@ namespace BlocksBeyondTheStars.Client
                 Flashback?.Trigger(); // a recovered memory gets the brief flashback treatment (#762)
             }
 
-            bool muted = m.Kind == 1 && Settings is { VegaHints: false };
+            // Advisor hints (1) and repeated context tips (5, #1077) share the settings mute; a repeated tip
+            // is also dropped outright while VEGA still has lines waiting — situational advice must never
+            // pile up behind a story beat or a lesson (the situation will still be there next time).
+            bool muted = m.Kind is 1 or 5 && Settings is { VegaHints: false };
+            if (m.Kind == 5 && _queue.Count >= 2)
+            {
+                muted = true;
+            }
+
             Debug.Log($"[Cinematic] VEGA line kind={m.Kind} key={m.LineKey} textLen={m.Text?.Length ?? 0} muted={muted}");
             if (!string.IsNullOrEmpty(m.Text) && !muted)
             {
@@ -283,8 +309,13 @@ namespace BlocksBeyondTheStars.Client
                 string text = L(m.LineKey);
                 if (!string.IsNullOrEmpty(m.LineArg) && text.Contains("{0}"))
                 {
-                    text = string.Format(text, m.LineArg);
+                    // Several arguments travel packed in one LineArg (#1079: "{ore} — what you need for {item}").
+                    text = string.Format(text, VegaText.SplitArgs(m.LineArg));
                 }
+
+                // {key:Action} → the control bound to that action on the device in hand (#1077) — so "your
+                // suit lamp is on L" reads right after a rebind, on a pad, and on touch.
+                text = VegaText.ExpandKeyTokens(text, KeyGlyphFor);
 
                 // Prologue pages (Kind 4, #754) ride the normal queue with a flag — same panel, same
                 // paging, plus the dim + Esc-to-skip while one is showing.

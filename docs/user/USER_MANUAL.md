@@ -401,8 +401,15 @@ separate unlock; admins can still disable it through server world rules.
 - **Onboarding (new worlds):** VEGA guides you through an 8-stage chain (mine → craft → scan → unlock a
   blueprint → launch → dock a station → trade/take a mission → land elsewhere), each stage tracked on the
   objective chip. **Skippable and restartable** from the Settings tab; veteran saves skip automatically.
-- **Advisor:** one-time contextual hints (low oxygen/energy/hunger, full inventory, first nightfall,
-  "ruins detected", world-type flavour). Mute via Settings → **VEGA hints**.
+- **Advisor:** one-time contextual hints (full inventory, first nightfall, "ruins detected", world-type
+  flavour) plus **context tips** that notice your situation and may come back — rarely: gear you carry
+  but aren't using (a suit lamp switched off in the dark, torches underground, food when hungry, a medkit
+  when hurt, a drill in the pack while digging by hand, an idle terrain scanner), rare ore or a missing
+  ingredient right in front of you, a recipe or blueprint you can afford now, a settlement / ruin /
+  factory / trader / other player close by, and in space minable asteroids, a station, a low hull or a
+  ready jump generator. Low oxygen/energy/hunger and temperature warnings repeat with a long cooldown.
+  Every tip waits a few seconds, VEGA says at most one every couple of minutes, each repeats at most two
+  or three times per save (and stops for good once you react to it). Mute via Settings → **VEGA hints**.
 - **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
   the **autopilot** (press **P** in flight); `ai_core_mk3` adds a 12 % evasive-manoeuvre damage negation.
 - **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them

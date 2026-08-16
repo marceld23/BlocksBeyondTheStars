@@ -419,6 +419,14 @@ public sealed class SetJetpackIntent
     public bool Active { get; set; }
 }
 
+/// <summary>Client → server: the suit lamp was switched on or off (#1077). Purely informational — the lamp
+/// itself is a client-side shader light; the server only uses this for VEGA's "it's dark and your lamp is
+/// off" context tip. Sent on every toggle, when the client forces the lamp off, and once after spawning.</summary>
+public sealed class SetLampIntent
+{
+    public bool On { get; set; }
+}
+
 /// <summary>Client → server: the player sat down on (or stood up from) a chair-shaped cell (#806).
 /// Pure pose state — no buffs; it rides the presence broadcast so other players see a seated avatar.
 /// The client owns the camera/movement lock; the server only mirrors and sanity-checks the flag.</summary>
@@ -2200,7 +2208,9 @@ public sealed class ShipAiLine
 
     public int ObjectiveTarget { get; set; }
 
-    /// <summary>0 = onboarding, 1 = advisor hint, 2 = memory/story, 3 = system (module/ability notices).</summary>
+    /// <summary>0 = onboarding, 1 = advisor hint, 2 = memory/story, 3 = system (module/ability notices),
+    /// 4 = prologue page (full-screen overlay), 5 = repeated context tip (#1077 — muted like 1, and dropped
+    /// by the client while its speech queue is busy).</summary>
     public byte Kind { get; set; }
 }
 

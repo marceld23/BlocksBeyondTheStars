@@ -406,6 +406,10 @@ public static class NetCodec
         // Suit teleporter destination picker (#1056): beam to an allied player on the same body. The recall
         // to the ship stays TeleportToShipIntent (38); a server without this tag simply drops the message.
         Register(205, typeof(TeleportToPlayerIntent));   // Client -> Server
+
+        // Suit lamp state (#1077): lets VEGA's context tips know the lamp is off in the dark. Informational
+        // only — a server without this tag drops the message and simply never gives that tip.
+        Register(206, typeof(SetLampIntent));            // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

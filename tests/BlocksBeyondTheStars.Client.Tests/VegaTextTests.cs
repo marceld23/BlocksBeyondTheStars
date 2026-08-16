@@ -145,4 +145,50 @@ public sealed class VegaTextTests
         var reversed = VegaText.JournalKeys(milestones.Reverse());
         Assert.Equal(forward, reversed);
     }
+
+    // ---- Context tips (#1077): repeat markers, packed args, {key:Action} tokens ----
+
+    [Fact]
+    public void JournalKeys_IgnoresContextTipRepeatMarkers()
+    {
+        var keys = VegaText.JournalKeys(new[]
+        {
+            "vega:hint:lamp_off", "vega:hint:lamp_off#2", "vega:hint:lamp_off#3", "vega:hint:lamp_off#done",
+            "vega:hint:o2#2", "vega:hint:some_future_tip#4",
+        });
+
+        Assert.Single(keys, k => k == "vega.hint.lamp_off");
+        Assert.DoesNotContain(keys, k => k.Contains('#'));
+        Assert.DoesNotContain("vega.hint.o2", keys); // only the marker arrived, not the first occurrence
+        Assert.DoesNotContain(keys, k => k.StartsWith("vega.hint.some_future_tip"));
+    }
+
+    [Fact]
+    public void JournalKeys_ListsContextTips_InCanonicalOrder_AfterTheClassicHints()
+    {
+        var keys = VegaText.JournalKeys(new[] { "vega:hint:asteroid_near", "vega:hint:lamp_off", "vega:hint:night", "vega:hint:rare_ore_near" });
+        Assert.Equal(new[] { "vega.hint.night", "vega.hint.lamp_off", "vega.hint.rare_ore_near", "vega.hint.asteroid_near" }, keys);
+    }
+
+    [Fact]
+    public void SplitArgs_UnpacksSeveralArguments()
+    {
+        Assert.Empty(VegaText.SplitArgs(""));
+        Assert.Equal(new[] { "Gold" }, VegaText.SplitArgs("Gold"));
+        Assert.Equal(new[] { "Copper", "Iron plate" }, VegaText.SplitArgs("Copper" + VegaText.ArgSeparator + "Iron plate"));
+        Assert.Equal("Copper — for Iron plate.", string.Format("{0} — for {1}.", VegaText.SplitArgs("Copper" + VegaText.ArgSeparator + "Iron plate")));
+    }
+
+    [Fact]
+    public void ExpandKeyTokens_ReplacesKnownActions_KeepsUnknownNames_LeavesPlainText()
+    {
+        string Glyph(string action) => action == "ToggleLamp" ? "(Y)" : action == "FlightMap" ? "M" : "";
+
+        Assert.Equal("Your suit lamp is on (Y).", VegaText.ExpandKeyTokens("Your suit lamp is on {key:ToggleLamp}.", Glyph));
+        Assert.Equal("(Y) then M", VegaText.ExpandKeyTokens("{key:ToggleLamp} then {key:FlightMap}", Glyph));
+        Assert.Equal("Press Nonsense now", VegaText.ExpandKeyTokens("Press {key:Nonsense} now", Glyph)); // unresolved → the name, never raw braces
+        Assert.Equal("Inventory full ({0}).", VegaText.ExpandKeyTokens("Inventory full ({0}).", Glyph)); // {0} placeholders untouched
+        Assert.Equal("broken {key:ToggleLamp", VegaText.ExpandKeyTokens("broken {key:ToggleLamp", Glyph)); // unterminated token survives verbatim
+        Assert.Equal("", VegaText.ExpandKeyTokens("", Glyph));
+    }
 }

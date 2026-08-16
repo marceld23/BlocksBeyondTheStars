@@ -43,7 +43,7 @@ if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-PLACEHOLDER = re.compile(r"\{[A-Za-z0-9_]+\}")
+PLACEHOLDER = re.compile(r"\{[A-Za-z0-9_:]+\}")  # {name} and the {key:Action} control tokens (#1077)
 
 LANGUAGES = {
     "de": "German",
@@ -67,7 +67,8 @@ voxel space-exploration game (mining, crafting, ships, planets, a ship AI called
 Rules:
 - Translate from English to {language}. Return ONLY a JSON object with the SAME keys and the \
 translated values. No commentary, no markdown fence.
-- Keep every placeholder like {{name}}, {{item}}, {{count}} EXACTLY as-is (position may move).
+- Keep every placeholder like {{name}}, {{item}}, {{count}} EXACTLY as-is (position may move). \
+Control tokens like {{key:ToggleLamp}} are placeholders too — copy them byte for byte, never translate the word inside.
 - Keep formatting: leading/trailing punctuation, newlines (\\n), brackets, ALL-CAPS style where used.
 - Tone: friendly, concise, kid-appropriate. Use the informal address (German "du", French "tu", \
 Spanish "tú", Portuguese "você", Polish "ty", Turkish "sen", Dutch "je/jij", Russian "ты", \nUkrainian "ти"). Japanese: friendly polite です/ます; Korean: friendly 해요체; Chinese: plain friendly register.
