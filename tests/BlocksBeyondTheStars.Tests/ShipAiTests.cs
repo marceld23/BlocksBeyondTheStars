@@ -349,8 +349,10 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains(lines, l => l.LineKey == "vega.mem.2" && l.Kind == 2);
     }
 
+    /// <summary>#1104: the arc's finale hands over the Mk3 core's research MATERIALS, not the blueprint — the
+    /// 200-KP threshold and the cockpit still gate the actual research.</summary>
     [Fact]
-    public void TenthFragment_CompletesTheArc_AndTeachesTheMk3Blueprint()
+    public void TenthFragment_CompletesTheArc_AndHandsOverTheMk3Parts()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
         using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
@@ -375,8 +377,71 @@ public sealed class ShipAiTests : IDisposable
         client.Poll();
 
         Assert.Contains("vega:mem:10", server.MilestonesForTest("Historian"));
-        Assert.Contains("ai_core_mk3", p.UnlockedBlueprints);
+        Assert.DoesNotContain("ai_core_mk3", p.UnlockedBlueprints); // still has to be researched
+        foreach (var part in _content.GetBlueprint("ai_core_mk3")!.UnlockCost)
+        {
+            Assert.True(p.Inventory.CountOf(part.Item) + server.Ship.Cargo.CountOf(part.Item) >= part.Count, part.Item);
+        }
+
         Assert.Contains(lines, l => l.LineKey == "vega.mem.10" && l.Kind == 2);
+        Assert.Contains(lines, l => l.LineKey == "vega.sys.mk3bp");
+    }
+
+    /// <summary>With no room for the Mk3 parts the last fragment waits (nothing consumed, one warning line);
+    /// making room lets VEGA finish reading it.</summary>
+    [Fact]
+    public void TenthFragment_WaitsWhileTheHoldIsFull_ThenPaysOut()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Historian");
+
+        var p = server.Sessions[1].State;
+        for (int beat = 1; beat <= 9; beat++)
+        {
+            p.Milestones.Add("vega:mem:" + beat);
+        }
+
+        // Every backpack slot but the fragment's holds a full stack of an unrelated material, and the hold too.
+        int max = _content.MaxStackOf("stone");
+        for (int i = 0; i < p.Inventory.SlotCount; i++)
+        {
+            p.Inventory.SetSlot(i, new ItemStack("stone", max));
+        }
+
+        for (int i = 0; i < server.Ship.Cargo.SlotCount; i++)
+        {
+            server.Ship.Cargo.SetSlot(i, new ItemStack("stone", max));
+        }
+
+        p.Inventory.SetSlot(10, new ItemStack("ai_memory_fragment", 1));
+        for (int i = 0; i < 4; i++)
+        {
+            server.Tick(1.1);
+        }
+
+        client.Poll();
+        Assert.DoesNotContain("vega:mem:10", server.MilestonesForTest("Historian"));
+        Assert.Equal(1, p.Inventory.CountOf("ai_memory_fragment"));                 // not consumed
+        Assert.Single(lines.Where(l => l.LineKey == "vega.sys.mk3parts_full"));   // said once, not per tick
+
+        // Make room → the fragment is read and the parts arrive.
+        for (int i = 0; i < server.Ship.Cargo.SlotCount; i++)
+        {
+            server.Ship.Cargo.SetSlot(i, null);
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            server.Tick(1.1);
+        }
+
+        client.Poll();
+        Assert.Contains("vega:mem:10", server.MilestonesForTest("Historian"));
         Assert.Contains(lines, l => l.LineKey == "vega.sys.mk3bp");
     }
 

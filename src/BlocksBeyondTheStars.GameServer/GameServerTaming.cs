@@ -212,6 +212,8 @@ public sealed partial class GameServer
         _creatures.Remove(creature);
         SpawnCompanionEntity(p.PlayerId, tc, creature.Position);
         _tameAttempts.Remove(p.PlayerId);
+        OnAchievementTame(session);          // "Beast Friend" / "Tamer" (#1102)
+        RecordStoryMilestone("tame:first");  // the first companion of the save advances the arc (#1105)
         _repo.SavePlayer(p);
 
         BroadcastCreatures();

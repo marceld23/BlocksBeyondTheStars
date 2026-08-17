@@ -114,6 +114,7 @@ public sealed partial class GameServer
         {
             _containers.Remove(container);
             _repo.DeleteContainer(container.Id);
+            OnAchievementLoot(session); // "Treasure Hunter": a find looted empty (#1102)
         }
         else
         {

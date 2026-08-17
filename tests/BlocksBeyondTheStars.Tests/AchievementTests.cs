@@ -5,6 +5,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.State;
@@ -209,6 +210,95 @@ public sealed class AchievementTests : IDisposable
             int afterRepeat = p.State.AchievementCounters.TryGetValue("visit:body", out int v2) ? v2 : 0;
 
             Assert.Equal(afterFirst, afterRepeat);
+        }
+    }
+
+    // --- Late-game counters (#1102) ------------------------------------------------------------------
+
+    /// <summary>The research ladder can never demand more blueprints than the tree holds, and every new
+    /// category has its section title translated — both are data-authoring mistakes the panel would show.</summary>
+    [Fact]
+    public void ResearchTargetsFitTheTree_AndEveryCategoryIsTranslated()
+    {
+        int blueprints = _content.Blueprints.Count;
+        foreach (var a in _content.Achievements.Where(a => a.Counter == AchievementCounters.ResearchAny))
+        {
+            Assert.True(a.Target <= blueprints, $"'{a.Key}' wants {a.Target} blueprints but the tree has {blueprints}");
+        }
+
+        foreach (var locale in new[] { GameLocale.English, GameLocale.German })
+        {
+            var loc = _content.CreateLocalizer(locale);
+            foreach (var cat in _content.Achievements.Select(a => a.Category).Distinct())
+            {
+                Assert.NotEqual($"achv.category.{cat}", loc.Get($"achv.category.{cat}"));
+            }
+        }
+    }
+
+    /// <summary>A blueprint researched at the cockpit bumps <c>research:any</c> — the "Researcher" ladder.</summary>
+    [Fact]
+    public void ResearchingABlueprint_AdvancesTheResearchCounter()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            var bp = _content.GetBlueprint("machete")!; // 3 KP, iron plates, no prerequisites
+            p.State.KnowledgePoints = bp.KnowledgeCost;
+            foreach (var cost in bp.UnlockCost)
+            {
+                p.State.Inventory.Add(cost.Item, cost.Count, 99);
+            }
+
+            server.UnlockBlueprint("Justus", bp.Key);
+
+            Assert.Contains(bp.Key, p.State.UnlockedBlueprints);
+            Assert.Equal(1, p.State.AchievementCounters[AchievementCounters.ResearchAny]);
+        }
+    }
+
+    /// <summary>A first-time scan bumps <c>scan:any</c>; scanning the same subject again does not — the ledger
+    /// that gates the knowledge also gates the tally, so the "Scholar" ladder can't be farmed on one rock.</summary>
+    [Fact]
+    public void FirstScansAdvanceTheScanCounter_RescansDoNot()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            p.State.Inventory.SetSlot(2, new ItemStack("hand_scanner", 1));
+
+            server.ScanSubject("Justus", "block", "iron_ore");
+            server.ScanSubject("Justus", "block", "iron_ore");
+            server.ScanSubject("Justus", "block", "stone");
+
+            Assert.Equal(2, p.State.AchievementCounters[AchievementCounters.ScanAny]);
+        }
+    }
+
+    /// <summary>The counters travel with the achievement list, unclamped, so the Progress page can show the
+    /// raw "blocks mined" figure rather than the capped bar value.</summary>
+    [Fact]
+    public void TheAchievementList_CarriesTheRawCounters()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Justus");
+            p.State.AboardShip = false;
+            p.State.Inventory.SetSlot(0, new ItemStack("basic_drill", 1));
+            for (int i = 0; i < 12; i++)
+            {
+                var pos = new Vector3i(40 + i, 60, 40);
+                p.State.Position = new Vector3f(pos.X + 1.2f, pos.Y + 0.5f, pos.Z + 0.5f);
+                server.World.SetBlock(pos, _content.GetBlock("stone")!.NumericId);
+                server.MineBlock("Justus", pos.X, pos.Y, pos.Z);
+            }
+
+            var list = server.AchievementListForTest(p);
+            Assert.Equal(12, list.Counters["mine:any"]);                                   // raw, not capped at 10
+            Assert.Equal(10, list.Items.Single(a => a.Key == "first_blocks").Progress); // the bar value is capped
         }
     }
 

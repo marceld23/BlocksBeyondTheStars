@@ -380,13 +380,69 @@ public sealed class ScanningTests : IDisposable
             server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 1);
             Assert.Equal(15, p.State.KnowledgePoints);
 
-            // A different game has its own ledger; incomplete runs and missing keys never pay.
+            // A different game has its own ledger — and, as the player's SECOND game, pays 4 per star (#1104);
+            // incomplete runs and missing keys never pay.
             server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 1);
-            Assert.Equal(20, p.State.KnowledgePoints);
+            Assert.Equal(19, p.State.KnowledgePoints);
             server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 3, completed: false);
-            Assert.Equal(20, p.State.KnowledgePoints);
+            Assert.Equal(19, p.State.KnowledgePoints);
             server.ReportMinigameResultForTest("Gamer", "", rating: 3);
-            Assert.Equal(20, p.State.KnowledgePoints);
+            Assert.Equal(19, p.State.KnowledgePoints);
+        }
+    }
+
+    /// <summary>#1104: the arcade's knowledge follows a global diminishing curve over the games a player starts
+    /// (5/4/3/2/1 per star, then 1 forever), so the 20-game catalogue can no longer out-earn the whole tech tree
+    /// on its own. A game's rate is fixed by the rank it entered at, so a later star of the first game still pays 5.</summary>
+    [Fact]
+    public void MinigameKnowledge_DiminishesOverTheGamesAPlayerStarts()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Gamer");
+
+            server.ReportMinigameResultForTest("Gamer", "g1", rating: 3); // 3 × 5
+            server.ReportMinigameResultForTest("Gamer", "g2", rating: 3); // 3 × 4
+            server.ReportMinigameResultForTest("Gamer", "g3", rating: 3); // 3 × 3
+            server.ReportMinigameResultForTest("Gamer", "g4", rating: 3); // 3 × 2
+            server.ReportMinigameResultForTest("Gamer", "g5", rating: 3); // 3 × 1
+            server.ReportMinigameResultForTest("Gamer", "g6", rating: 3); // 3 × 1
+            Assert.Equal(15 + 12 + 9 + 6 + 3 + 3, p.State.KnowledgePoints);
+
+            // The first game keeps its rank: a star earned there later still pays the full 5.
+            server.ReportMinigameResultForTest("Gamer", "g1", rating: 1); // already banked → 0
+            Assert.Equal(48, p.State.KnowledgePoints);
+            p.State.Milestones.Remove("arcade:g1:star:3");                // pretend the third star was never banked
+            server.ReportMinigameResultForTest("Gamer", "g1", rating: 3);
+            Assert.Equal(53, p.State.KnowledgePoints);
+
+            // Twenty games in total stay far below the tree's 220-point ceiling.
+            for (int i = 7; i <= 20; i++)
+            {
+                server.ReportMinigameResultForTest("Gamer", "g" + i, rating: 3);
+            }
+
+            Assert.Equal(53 + 14 * 3, p.State.KnowledgePoints);
+        }
+    }
+
+    /// <summary>A save from before the curve carries stars without a rank marker: such a game is ranked the next
+    /// time it is played, its banked stars stay banked, and only the new stars pay — at that rank's rate.</summary>
+    [Fact]
+    public void MinigameKnowledge_LegacyStarsWithoutARank_AreRankedOnNextPlay()
+    {
+        var server = Started("rocky", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Gamer");
+            p.State.Milestones.Add("arcade:old:star:1"); // pre-#1104 ledger: one star, no rank
+            server.ReportMinigameResultForTest("Gamer", "fresh", rating: 1); // rank 1 → 5
+            Assert.Equal(5, p.State.KnowledgePoints);
+
+            server.ReportMinigameResultForTest("Gamer", "old", rating: 3); // takes rank 2 → stars 2+3 pay 4 each
+            Assert.Equal(13, p.State.KnowledgePoints);
+            Assert.Contains("arcade:old:rank:2", p.State.Milestones);
         }
     }
 

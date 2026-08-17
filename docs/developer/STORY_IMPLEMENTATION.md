@@ -33,7 +33,13 @@ crosses a threshold (not on a specific find), so a linear arc works in a random 
 - **Machine kills** — defeating a Guardian machine (planet enemies + space drones/UFOs; organic fauna
   excluded) advances the story and has a chance to drop a **player memory** (a per-player, non-contradictory
   personal unlock; each player is a different imprint).
-- **Milestones** — mission turn-in (settlement helped) and first-discovery system mapping.
+- **Milestones** — repeatable: mission turn-in (settlement helped) and first-discovery system mapping;
+  **once per save** (#1105, `RecordStoryMilestone(onceKey)`, keys persisted in `StoryState.MilestoneKeys`):
+  first base founded, first player station commissioned, first self-built ship commissioned, first companion
+  tamed, first hyperjump, first monument scanned per world (`monument:<body>`). Pacing note: fragments cap
+  at 6 (18 pts) and kills at 40, so before #1105 the remaining ~130 of the 204 needed came almost entirely
+  from delivery turn-ins; the once-firsts add roughly 10–20 pts per playthrough from building, taming and
+  exploring — they widen the arc's inputs without making any of them farmable.
 
 **Beats** are spoken through the existing VEGA narrator pipeline (`ShipAiLine`); the speaker identity is a
 pack field, so no new beat UI. Per-player "seen beats" reuse `PlayerState.Milestones` (`story:<id>:beat:N`)

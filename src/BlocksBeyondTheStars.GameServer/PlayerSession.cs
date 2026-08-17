@@ -168,6 +168,10 @@ public sealed class PlayerSession
 
     /// <summary>Uptime gates pacing memory-fragment redemption and the space callouts.</summary>
     public double VegaMemoryReadyAt { get; set; }
+
+    /// <summary>Set once VEGA has said "no room for the Mk3 parts" this session, so the final memory fragment
+    /// waits quietly instead of nagging every tick (#1104).</summary>
+    public bool VegaMemoryHoldFullWarned { get; set; }
     public double VegaThreatReadyAt { get; set; }
     public double VegaEvadeReadyAt { get; set; }
 

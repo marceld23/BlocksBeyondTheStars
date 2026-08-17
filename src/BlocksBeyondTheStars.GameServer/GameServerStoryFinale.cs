@@ -437,6 +437,12 @@ public sealed partial class GameServer
         BroadcastToJoined(new CoreDialogueMessage { Node = _duelNode, ResponseKey = finalResponseKey, Won = true });
         SpeakVegaLineToAll("story.vega.finale_resolved");
         MarkGuardianDefeated();
+
+        // Everyone aboard for the resolution earns the finale achievement — the arc is shared, so is the win (#1102).
+        foreach (var session in _sessions.Values.Where(s => s.Joined))
+        {
+            OnAchievementStoryFinale(session);
+        }
     }
 
     private void BroadcastDuelNode(string responseKey)

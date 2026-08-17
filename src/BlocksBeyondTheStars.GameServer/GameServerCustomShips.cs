@@ -811,6 +811,8 @@ public sealed partial class GameServer
         SendDoors(session);
         SendShipCombatStatus(session);
         Send(session, new ServerMessage { Text = "@srv.ship.commissioned" });
+        OnAchievementShipCommissioned(session); // "Shipwright" (#1102)
+        RecordStoryMilestone("ship:first");     // the first self-built ship of the save advances the arc (#1105)
         _log.Info($"Self-built ship '{uc.Id}' of {p.Name} commissioned ({s.Cells.Count} cells).");
     }
 

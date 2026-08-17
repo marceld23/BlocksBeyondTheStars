@@ -180,6 +180,44 @@ public sealed class GameServerStoryP7P8Tests : IDisposable
         }
     }
 
+    // ---------------- #1105: once-per-save milestones ----------------
+
+    /// <summary>The firsts (first base, first station, first tame, ...) count exactly once per save, survive a
+    /// reload, and a repeat of the same first is a no-op — so they widen the arc without becoming a farm.</summary>
+    [Fact]
+    public void Once_per_save_milestones_count_once_and_survive_a_reload()
+    {
+        string world = "p7p8_once_" + Guid.NewGuid().ToString("N");
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        SvGameServer Boot()
+        {
+            var st = new LoopbackServerTransport(new LoopbackLink());
+            var config = new ServerConfig { WorldName = "rocky", Seed = 4242, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+            var server = new SvGameServer(config, _content, st, repo);
+            server.Start();
+            return server;
+        }
+
+        using (repo)
+        {
+            var server = Boot();
+            int before = server.StorySnapshot.Milestones;
+
+            server.RecordStoryMilestoneForTest("base:first");
+            server.RecordStoryMilestoneForTest("base:first");   // repeating the first is a no-op
+            server.RecordStoryMilestoneForTest("tame:first");
+            server.RecordStoryMilestoneForTest("");             // an empty key never counts
+            Assert.Equal(before + 2, server.StorySnapshot.Milestones);
+
+            var reloaded = Boot();
+            Assert.Equal(before + 2, reloaded.StorySnapshot.Milestones);
+            reloaded.RecordStoryMilestoneForTest("base:first"); // remembered across the reload
+            Assert.Equal(before + 2, reloaded.StorySnapshot.Milestones);
+            reloaded.RecordStoryMilestoneForTest("monument:rocky-1"); // a new first still counts
+            Assert.Equal(before + 3, reloaded.StorySnapshot.Milestones);
+        }
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

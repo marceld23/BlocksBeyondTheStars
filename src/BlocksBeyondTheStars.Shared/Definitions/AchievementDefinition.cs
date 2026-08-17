@@ -64,4 +64,40 @@ public static class AchievementCounters
 
     /// <summary>A creature or raider defeated.</summary>
     public const string Defeat = "defeat:any";
+
+    // --- Late-game counters (#1102): the mid/late-game goals hang off these. Every one is bumped at an
+    // existing gameplay event; none of them is a new mechanic.
+
+    /// <summary>A first-time scan of anything (block, flora, creature, micro-fauna, monument, asteroid).</summary>
+    public const string ScanAny = "scan:any";
+
+    /// <summary>A first-time monument (rune) scan.</summary>
+    public const string ScanMonument = "scan:monument";
+
+    /// <summary>A blueprint researched at the cockpit.</summary>
+    public const string ResearchAny = "research:any";
+
+    /// <summary>A player-built space station commissioned.</summary>
+    public const string StationCommissioned = "station:commissioned";
+
+    /// <summary>A player-built ship commissioned (keel → flight-worthy).</summary>
+    public const string ShipCommissioned = "ship:commissioned";
+
+    /// <summary>A wild creature tamed into a companion.</summary>
+    public const string TameAny = "tame:any";
+
+    /// <summary>A world container (wreck salvage, ruin cache, drop capsule …) looted empty.</summary>
+    public const string LootAny = "loot:any";
+
+    /// <summary>A star system entered for the first time (landed in it or arrived by hyperjump).</summary>
+    public const string VisitSystem = "visit:system";
+
+    /// <summary>A board / bounty mission turned in.</summary>
+    public const string MissionCompleted = "mission:completed";
+
+    /// <summary>A hyperjump to another star system.</summary>
+    public const string Hyperjump = "hyperjump:any";
+
+    /// <summary>The Guardian finale won (every player who was aboard for it).</summary>
+    public const string StoryFinale = "story:finale";
 }

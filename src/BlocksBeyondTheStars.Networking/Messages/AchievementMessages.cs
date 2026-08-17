@@ -25,6 +25,11 @@ public sealed class NetAchievement
 public sealed class AchievementList
 {
     public List<NetAchievement> Items { get; set; } = new();
+
+    /// <summary>The player's raw lifetime counters (<c>mine:any</c>, <c>visit:body</c>, <c>research:any</c> …),
+    /// unclamped — the "Journey" figures on the Progress page read these directly (#1103). Additive field on the
+    /// contractless MessagePack body: an older client simply ignores it.</summary>
+    public Dictionary<string, int> Counters { get; set; } = new();
 }
 
 /// <summary>

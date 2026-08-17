@@ -23,8 +23,13 @@ public sealed class StoryState
     /// <summary>Guardian-machine kills across the save (contribution capped in <see cref="StoryEngine"/>).</summary>
     public int MachineKills { get; set; }
 
-    /// <summary>Milestones reached (systems mapped / settlements helped / first base or station built).</summary>
+    /// <summary>Milestones reached (systems mapped, settlements helped, and the once-per-save firsts in
+    /// <see cref="MilestoneKeys"/>).</summary>
     public int Milestones { get; set; }
+
+    /// <summary>Once-per-save milestone keys already counted (e.g. <c>base:first</c>, <c>ship:first</c>,
+    /// <c>monument:&lt;body&gt;</c>), so a first can never be farmed by repeating it (#1105).</summary>
+    public HashSet<string> MilestoneKeys { get; set; } = new(StringComparer.Ordinal);
 
     /// <summary>How many beats of the arc have been revealed so far (revealed strictly in order).</summary>
     public int BeatsRevealed { get; set; }

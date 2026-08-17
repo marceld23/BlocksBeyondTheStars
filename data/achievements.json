@@ -4,18 +4,44 @@
   { "key": "iron_50",        "counter": "mine:iron_ore",   "target": 50,  "category": "mining",   "rewards": [ { "item": "iron_plate", "count": 10 } ] },
   { "key": "crystal_10",     "counter": "mine:crystal",    "target": 10,  "category": "mining",   "rewards": [ { "item": "energy_cell_1", "count": 1 } ] },
   { "key": "quarry",         "counter": "mine:any",        "target": 500, "category": "mining",   "rewards": [ { "item": "iron_plate", "count": 20 } ] },
+  { "key": "miner_5000",     "counter": "mine:any",        "target": 5000,  "category": "mining", "rewards": [ { "item": "titanium_plate", "count": 10 } ] },
+  { "key": "deep_delver",    "counter": "mine:any",        "target": 50000, "category": "mining", "rewards": [ { "item": "titanium_plate", "count": 20 }, { "item": "energy_cell_1", "count": 10 } ] },
 
   { "key": "first_build",    "counter": "build:any",       "target": 1,   "category": "building", "rewards": [] },
   { "key": "builder_100",    "counter": "build:any",       "target": 100, "category": "building", "rewards": [ { "item": "metal_panel", "count": 6 } ] },
   { "key": "builder_1000",   "counter": "build:any",       "target": 1000,"category": "building", "rewards": [ { "item": "metal_panel", "count": 24 } ] },
+  { "key": "builder_10000",  "counter": "build:any",       "target": 10000, "category": "building", "rewards": [ { "item": "metal_panel", "count": 48 }, { "item": "glass", "count": 24 } ] },
+  { "key": "shipwright",     "counter": "ship:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "titanium_plate", "count": 8 } ] },
+  { "key": "station_master", "counter": "station:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "circuit_board", "count": 4 } ] },
 
   { "key": "first_craft",    "counter": "craft:any",       "target": 1,   "category": "crafting", "rewards": [] },
   { "key": "crafter_50",     "counter": "craft:any",       "target": 50,  "category": "crafting", "rewards": [ { "item": "circuit_board", "count": 2 } ] },
+  { "key": "crafter_500",    "counter": "craft:any",       "target": 500, "category": "crafting", "rewards": [ { "item": "circuit_board", "count": 4 }, { "item": "carbon_composite", "count": 6 } ] },
   { "key": "own_door",       "counter": "craft:door_wood", "target": 1,   "category": "crafting", "rewards": [ { "item": "wood_log", "count": 8 } ] },
+
+  { "key": "researcher_10",  "counter": "research:any",    "target": 10,  "category": "research", "rewards": [ { "item": "circuit_board", "count": 2 } ] },
+  { "key": "researcher_35",  "counter": "research:any",    "target": 35,  "category": "research", "rewards": [ { "item": "titanium_plate", "count": 10 } ] },
+  { "key": "polymath",       "counter": "research:any",    "target": 72,  "category": "research", "rewards": [ { "item": "power_cell", "count": 4 } ] },
+  { "key": "scholar",        "counter": "scan:any",        "target": 25,  "category": "research", "rewards": [ { "item": "circuit_board", "count": 2 } ] },
+  { "key": "naturalist",     "counter": "scan:any",        "target": 100, "category": "research", "rewards": [ { "item": "titanium_plate", "count": 6 } ] },
+  { "key": "archaeologist",  "counter": "scan:monument",   "target": 5,   "category": "research", "rewards": [ { "item": "energy_cell_1", "count": 4 } ] },
 
   { "key": "first_journey",  "counter": "visit:body",      "target": 2,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 1 } ] },
   { "key": "wanderer",       "counter": "visit:body",      "target": 8,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
+  { "key": "voyager",        "counter": "visit:body",      "target": 20,  "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 6 } ] },
+  { "key": "pathfinder",     "counter": "visit:body",      "target": 40,  "category": "explore",  "rewards": [ { "item": "power_cell", "count": 4 } ] },
+  { "key": "system_hopper",  "counter": "visit:system",    "target": 3,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
+  { "key": "starfarer",      "counter": "visit:system",    "target": 8,   "category": "explore",  "rewards": [ { "item": "power_cell", "count": 2 } ] },
+  { "key": "jump_pilot",     "counter": "hyperjump:any",   "target": 1,   "category": "explore",  "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
+  { "key": "treasure_hunter","counter": "loot:any",        "target": 10,  "category": "explore",  "rewards": [ { "item": "medpack", "count": 3 } ] },
 
   { "key": "first_defeat",   "counter": "defeat:any",      "target": 1,   "category": "survival", "rewards": [ { "item": "medpack", "count": 1 } ] },
-  { "key": "defender_25",    "counter": "defeat:any",      "target": 25,  "category": "survival", "rewards": [ { "item": "medpack", "count": 4 } ] }
+  { "key": "defender_25",    "counter": "defeat:any",      "target": 25,  "category": "survival", "rewards": [ { "item": "medpack", "count": 4 } ] },
+  { "key": "defender_100",   "counter": "defeat:any",      "target": 100, "category": "survival", "rewards": [ { "item": "medpack", "count": 6 }, { "item": "titanium_plate", "count": 4 } ] },
+  { "key": "beast_friend",   "counter": "tame:any",        "target": 1,   "category": "survival", "rewards": [ { "item": "medpack", "count": 1 } ] },
+  { "key": "tamer",          "counter": "tame:any",        "target": 5,   "category": "survival", "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
+
+  { "key": "helping_hand",   "counter": "mission:completed", "target": 5,  "category": "story",   "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
+  { "key": "quartermasters_friend", "counter": "mission:completed", "target": 25, "category": "story", "rewards": [ { "item": "circuit_board", "count": 4 } ] },
+  { "key": "guardian_defeated", "counter": "story:finale", "target": 1,   "category": "story",    "rewards": [ { "item": "power_cell", "count": 4 } ] }
 ]

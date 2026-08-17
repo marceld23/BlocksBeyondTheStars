@@ -141,6 +141,9 @@ public sealed class StoredStoryState
     public bool GuardianSystemRevealed { get; set; }
     public bool GuardianDefeated { get; set; }
     public List<string> FoundFragmentKeys { get; set; } = new();
+
+    /// <summary>Once-per-save milestone keys already counted (#1105). Absent in older blobs → empty.</summary>
+    public List<string> MilestoneKeys { get; set; } = new();
 }
 
 /// <summary>A persisted player-built space station (item 20 S4): its voxel cells + registry row (owner, name,

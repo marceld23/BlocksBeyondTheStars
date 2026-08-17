@@ -185,8 +185,13 @@ separate unlock; admins can still disable it through server world rules.
 ## 4. Menus & HUD
 
 - **Tab menu** — tabs for Inventory, Crafting, Tech (blueprints), Ship (modules/build), Map, Missions,
-  Character (appearance), plus **Story**, **Companions** (tamed creatures, see §5) and **Alliances** (see §5),
-  with **Settings** pinned far right. Crafting/Tech/Ship are **location-bound**: Crafting to a station **block**
+  Character (appearance), plus **Story**, **Companions** (tamed creatures, see §5), **Alliances** (see §5) and
+  **Achievements**, with **Settings** pinned far right. The **Achievements** tab opens with a **Progress** block —
+  research N of M blueprints, Codex discoveries, story %, achievements done — and a **Journey** grid of your
+  lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
+  goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, the whole
+  tech tree, your own station or ship, the Guardian finale) and each pays an item reward. The **Tech** tab
+  header shows how much of the tree you have researched and which blueprint you could research next. Crafting/Tech/Ship are **location-bound**: Crafting to a station **block**
   (workbench, forge, …), Tech to your ship's **cockpit**, Ship to the **workshop module** aboard. The **gate row**
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
@@ -424,7 +429,9 @@ separate unlock; admins can still disable it through server world rules.
 - **AI-core modules:** `ai_core_mk2` adds +6 terrain-scanner radius, hostile-contact callouts in space and
   the **autopilot** (press **P** in flight); `ai_core_mk3` adds a 12 % evasive-manoeuvre damage negation.
 - **Memory fragments:** data terminals in wrecks and vaults drop `ai_memory_fragment`s — VEGA redeems them
-  aboard (+3 knowledge each) and tells her backstory over 10 beats; the final beat teaches the Mk3 blueprint.
+  aboard (+3 knowledge each) and tells her backstory over 10 beats; the final beat hands over the **research
+  materials** for the AI Core Mk3 (stowed in your pack/hold — VEGA waits until there is room), which you then
+  research at the cockpit like any other blueprint once you have the knowledge for it.
 
 ### Dynamic AI text (optional LLM backend)
 - A server can enable an optional AI text service that makes some flavour text dynamic: **NPC greeting

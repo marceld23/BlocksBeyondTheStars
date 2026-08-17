@@ -105,20 +105,7 @@ public sealed partial class GameServer
             return;
         }
 
-        var p = session.State;
-        var list = new AchievementList
-        {
-            Items = _content.Achievements.Select(a => new NetAchievement
-            {
-                Key = a.Key,
-                Category = a.Category ?? string.Empty,
-                Target = a.Target,
-                Progress = System.Math.Min(CounterOf(p, a.Counter), a.Target),
-                Earned = p.Achievements.Contains(a.Key),
-            }).ToList(),
-        };
-
-        Send(session, list);
+        Send(session, BuildAchievementList(session)); // items + the raw journey counters (#1103)
     }
 
     /// <summary>
@@ -165,6 +152,36 @@ public sealed partial class GameServer
 
     private void OnAchievementVisit(PlayerSession session) => Advance(session, AchievementCounters.VisitBody);
 
+    // Late-game counters (#1102) — each is one line at an existing gameplay event.
+
+    /// <summary>A first-time scan; monuments also bump their own tally.</summary>
+    private void OnAchievementScan(PlayerSession session, string kind)
+    {
+        Advance(session, AchievementCounters.ScanAny);
+        if (kind == "monument")
+        {
+            Advance(session, AchievementCounters.ScanMonument);
+        }
+    }
+
+    private void OnAchievementResearch(PlayerSession session) => Advance(session, AchievementCounters.ResearchAny);
+
+    private void OnAchievementStationCommissioned(PlayerSession session) => Advance(session, AchievementCounters.StationCommissioned);
+
+    private void OnAchievementShipCommissioned(PlayerSession session) => Advance(session, AchievementCounters.ShipCommissioned);
+
+    private void OnAchievementTame(PlayerSession session) => Advance(session, AchievementCounters.TameAny);
+
+    private void OnAchievementLoot(PlayerSession session) => Advance(session, AchievementCounters.LootAny);
+
+    private void OnAchievementVisitSystem(PlayerSession session) => Advance(session, AchievementCounters.VisitSystem);
+
+    private void OnAchievementMissionCompleted(PlayerSession session) => Advance(session, AchievementCounters.MissionCompleted);
+
+    private void OnAchievementHyperjump(PlayerSession session) => Advance(session, AchievementCounters.Hyperjump);
+
+    private void OnAchievementStoryFinale(PlayerSession session) => Advance(session, AchievementCounters.StoryFinale);
+
     // --- Test entrypoints -----------------------------------------------------------------------------
 
     /// <summary>Re-checks and pays out anything due (the join path), for tests.</summary>
@@ -172,4 +189,22 @@ public sealed partial class GameServer
 
     /// <summary>Drives the "arrived on a body" bookkeeping, for tests.</summary>
     public void MarkArrivedOnBodyForTest(PlayerSession session, string bodyId) => MarkArrivedOnBody(session, bodyId);
+
+    /// <summary>The achievement list exactly as the client receives it, for tests.</summary>
+    public AchievementList AchievementListForTest(PlayerSession session) => BuildAchievementList(session);
+
+    /// <summary>The player's full achievement list with live (capped) progress plus the raw counters (#1103).</summary>
+    private AchievementList BuildAchievementList(PlayerSession session)
+        => new()
+        {
+            Items = _content.Achievements.Select(a => new NetAchievement
+            {
+                Key = a.Key,
+                Category = a.Category ?? string.Empty,
+                Target = a.Target,
+                Progress = System.Math.Min(CounterOf(session.State, a.Counter), a.Target),
+                Earned = session.State.Achievements.Contains(a.Key),
+            }).ToList(),
+            Counters = new Dictionary<string, int>(session.State.AchievementCounters),
+        };
 }

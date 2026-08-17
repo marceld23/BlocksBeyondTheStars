@@ -191,11 +191,20 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Knowledge per star for the Nth distinct arcade game a player starts (rank 1 = their first game):
+    /// 5 / 4 / 3 / 2 and then 1 for every game after the fourth (#1104). The first game still teaches the full
+    /// 15 for three stars; the whole 20-game catalogue tops out around 90 KP instead of the 300 that used to
+    /// out-earn every blueprint threshold in the tree on its own.</summary>
+    private static int ArcadeKnowledgePerStar(int gameRank) => System.Math.Max(1, 6 - System.Math.Max(1, gameRank));
+
     /// <summary>A minigame run finished — grant knowledge for stars newly earned on this game. Analysing the
-    /// same fragment twice teaches nothing (#767): each star pays 5 knowledge once per player per game
-    /// (best-rating ledger in <c>PlayerState.Milestones</c>), so the first 3-star run pays 15, replays pay
-    /// nothing, and improving a 1-star best to 3 stars pays the +10 difference. The rating is clamped
-    /// server-side. Knowledge feeds the tech tree; the client reads it back from the inventory sync.</summary>
+    /// same fragment twice teaches nothing (#767): each star pays once per player per game (best-rating ledger
+    /// in <c>PlayerState.Milestones</c>), so the first 3-star run pays in full, replays pay nothing, and
+    /// improving a 1-star best to 3 stars pays only the two new stars. What a star is WORTH follows a global
+    /// diminishing curve over the games the player has started (#1104, see <see cref="ArcadeKnowledgePerStar"/>);
+    /// a game's rank is fixed the moment its first star is banked (<c>arcade:&lt;key&gt;:rank:&lt;n&gt;</c>), so
+    /// later stars of the same game pay the same rate. The rating is clamped server-side. Knowledge feeds the
+    /// tech tree; the client reads it back from the inventory sync.</summary>
     private void HandleMinigameResult(PlayerSession session, MinigameResultIntent intent)
     {
         if (!intent.Completed)
@@ -209,13 +218,25 @@ public sealed partial class GameServer
             return; // missing/implausible key — no ledger to credit against
         }
 
+        var milestones = session.State.Milestones;
+        int rank = ArcadeGameRank(milestones, key);
+        if (rank == 0)
+        {
+            // First time this game enters the curve: it takes the next rank after every game already ranked.
+            // (A save from before the curve carries stars without a rank marker; such a game is ranked the
+            // next time it is played — its already-banked stars stay banked, only new stars pay at that rate.)
+            rank = ArcadeGamesRanked(milestones) + 1;
+            milestones.Add("arcade:" + key + ":rank:" + rank);
+        }
+
+        int perStar = ArcadeKnowledgePerStar(rank);
         int rating = System.Math.Clamp(intent.Rating, 1, 3);
         int reward = 0;
         for (int star = 1; star <= rating; star++)
         {
-            if (session.State.Milestones.Add("arcade:" + key + ":star:" + star))
+            if (milestones.Add("arcade:" + key + ":star:" + star))
             {
-                reward += 5;
+                reward += perStar;
             }
         }
 
@@ -227,6 +248,37 @@ public sealed partial class GameServer
         session.State.KnowledgePoints += reward;
         SendInventory(session); // carries KnowledgePoints to the client
         Send(session, new ServerMessage { Text = "@srv.misc.data_analysed:" + reward });
+    }
+
+    /// <summary>The rank a game took when it entered the knowledge curve, or 0 if it hasn't yet.</summary>
+    private static int ArcadeGameRank(HashSet<string> milestones, string gameKey)
+    {
+        string prefix = "arcade:" + gameKey + ":rank:";
+        foreach (var m in milestones)
+        {
+            if (m.StartsWith(prefix, System.StringComparison.Ordinal)
+                && int.TryParse(m.AsSpan(prefix.Length), out int rank) && rank > 0)
+            {
+                return rank;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>How many distinct games this player has already ranked into the curve.</summary>
+    private static int ArcadeGamesRanked(HashSet<string> milestones)
+    {
+        int count = 0;
+        foreach (var m in milestones)
+        {
+            if (m.StartsWith("arcade:", System.StringComparison.Ordinal) && m.Contains(":rank:", System.StringComparison.Ordinal))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>Test hook: report a finished minigame run (mirrors the client's <see cref="MinigameResultIntent"/>).</summary>

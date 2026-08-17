@@ -62,6 +62,7 @@ public sealed partial class GameServer
             _storyState.GuardianSystemRevealed = stored.GuardianSystemRevealed;
             _storyState.GuardianDefeated = stored.GuardianDefeated;
             _storyState.FoundFragmentKeys = new HashSet<string>(stored.FoundFragmentKeys ?? new List<string>(), StringComparer.Ordinal);
+            _storyState.MilestoneKeys = new HashSet<string>(stored.MilestoneKeys ?? new List<string>(), StringComparer.Ordinal);
         }
         else if (stored is null && string.Equals(Rules.StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
@@ -97,6 +98,7 @@ public sealed partial class GameServer
             GuardianSystemRevealed = _storyState.GuardianSystemRevealed,
             GuardianDefeated = _storyState.GuardianDefeated,
             FoundFragmentKeys = _storyState.FoundFragmentKeys.ToList(),
+            MilestoneKeys = _storyState.MilestoneKeys.ToList(),
         });
 
     // ---------------- Event hooks (called from gameplay) ----------------
@@ -131,10 +133,26 @@ public sealed partial class GameServer
         AdvanceStory();
     }
 
-    /// <summary>Records a story milestone (system mapped / settlement helped / first base or station built).</summary>
+    /// <summary>Records a repeatable story milestone: a star system newly mapped, a settlement helped (mission
+    /// turned in). The once-per-save firsts go through <see cref="RecordStoryMilestone(string)"/>.</summary>
     public void RecordStoryMilestone()
     {
         if (!StoryActive)
+        {
+            return;
+        }
+
+        _storyState.Milestones++;
+        AdvanceStory();
+    }
+
+    /// <summary>Records a once-per-save story milestone (#1105): the first base founded, the first station or
+    /// self-built ship commissioned, the first companion tamed, the first hyperjump, the first rune read on a
+    /// world (<c>monument:&lt;body&gt;</c>). The key is remembered in <see cref="StoryState.MilestoneKeys"/> so a
+    /// first can never be farmed by repeating it; a duplicate key is a no-op.</summary>
+    public void RecordStoryMilestone(string onceKey)
+    {
+        if (!StoryActive || string.IsNullOrEmpty(onceKey) || !_storyState.MilestoneKeys.Add(onceKey))
         {
             return;
         }
@@ -520,6 +538,9 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: record a story milestone (mirrors the gameplay event).</summary>
     public void RecordStoryMilestoneForTest() => RecordStoryMilestone();
+
+    /// <summary>Test hook: record a once-per-save milestone (mirrors the gameplay firsts, #1105).</summary>
+    public void RecordStoryMilestoneForTest(string onceKey) => RecordStoryMilestone(onceKey);
 
     /// <summary>Test hook: switch the active story pack (mirrors the admin intent).</summary>
     public void SetActiveStoryForTest(string storyId) => SetActiveStory(storyId);

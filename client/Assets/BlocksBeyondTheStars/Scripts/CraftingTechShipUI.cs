@@ -1234,6 +1234,39 @@ namespace BlocksBeyondTheStars.Client
                 .ToList();
 
             float y = 0f;
+
+            // Header (#1103): how much of the tree is done and what the player could research next — the
+            // "how far am I" line the tab never had. Counts the whole tree, not the current filter.
+            {
+                int total = Game.Content.Blueprints.Count;
+                int done = 0;
+                BlueprintDefinition next = null;
+                foreach (var bp in Game.Content.Blueprints.Values)
+                {
+                    if (Game.UnlockedBlueprints.Contains(bp.Key))
+                    {
+                        done++;
+                        continue;
+                    }
+
+                    if (bp.Prerequisites.All(Game.UnlockedBlueprints.Contains) && HasAll(bp.UnlockCost) && Game.Knowledge >= bp.KnowledgeCost
+                        && (next == null || bp.KnowledgeCost < next.KnowledgeCost))
+                    {
+                        next = bp; // the cheapest researchable one is the natural "next"
+                    }
+                }
+
+                UiKit.AddText(_listContent, 0, y, 760, 28,
+                    L("ui.tech.progress").Replace("{done}", Mathf.Min(done, total).ToString()).Replace("{total}", total.ToString()),
+                    20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 28f;
+                string nextLine = next != null
+                    ? L("ui.tech.next").Replace("{name}", L($"blueprint.{next.Key}.name"))
+                    : L("ui.tech.next_none");
+                UiKit.AddText(_listContent, 0, y, 760, 24, nextLine, 16, next != null ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 34f;
+            }
+
             int lastTier = -1;
             foreach (var bp in shown)
             {
@@ -2371,6 +2404,11 @@ namespace BlocksBeyondTheStars.Client
         {
             float y = 8f;
             var all = Game?.Achievements;
+
+            // The page opens with a Progress block (#1103): the whole-game "how far am I" that used to exist
+            // nowhere — research, discoveries, story and the raw journey counters — before the goal list.
+            y = BuildProgressBlock(y);
+
             if (all == null || all.Length == 0)
             {
                 UiKit.AddText(_listContent, 8, y, 760, 34, L("ui.achv.none"), 20, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -2415,6 +2453,88 @@ namespace BlocksBeyondTheStars.Client
 
             return y + 12f;
         }
+
+        /// <summary>The Progress block (#1103): research N of M, discoveries, story %, achievements done — one line
+        /// each — then the raw lifetime counters as a two-column "Journey" grid. Everything here is data the
+        /// server already sends; the block just puts it in one place. Absolute rows, no LayoutGroup.</summary>
+        private float BuildProgressBlock(float y)
+        {
+            const float RowW = 760f;
+            UiKit.AddText(_listContent, 8, y, RowW, 36, L("ui.progress.title"), 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 42f;
+
+            int bpTotal = Game?.Content?.Blueprints?.Count ?? 0;
+            int bpDone = Game?.UnlockedBlueprints?.Count ?? 0;
+            var lines = new List<string>
+            {
+                L("ui.progress.research").Replace("{done}", Mathf.Min(bpDone, bpTotal).ToString()).Replace("{total}", bpTotal.ToString()),
+                L("ui.progress.discoveries").Replace("{count}", (Game?.Discoveries?.Count ?? 0).ToString()),
+            };
+
+            var story = Game?.Story;
+            if (story != null && story.Active)
+            {
+                int pct = story.ProgressTarget > 0 ? Mathf.Clamp(Mathf.RoundToInt(100f * story.Progress / story.ProgressTarget), 0, 100) : 0;
+                lines.Add(L("ui.progress.story").Replace("{pct}", pct.ToString()));
+            }
+
+            var all = Game?.Achievements;
+            if (all != null && all.Length > 0)
+            {
+                int done = 0;
+                for (int i = 0; i < all.Length; i++)
+                {
+                    if (all[i].Earned) done++;
+                }
+
+                lines.Add(L("ui.progress.achievements").Replace("{done}", done.ToString()).Replace("{total}", all.Length.ToString()));
+            }
+
+            foreach (var line in lines)
+            {
+                UiKit.AddText(_listContent, 20, y, RowW - 28f, 26, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+                y += 28f;
+            }
+
+            // Journey: the raw counters, two per row. Only counters the server has actually reported show up,
+            // so a fresh save reads short rather than as a wall of zeros.
+            var counters = Game?.AchievementCounters;
+            if (counters != null && counters.Count > 0)
+            {
+                y += 6f;
+                UiKit.AddText(_listContent, 8, y, RowW, 30, L("ui.progress.journey"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 34f;
+
+                var cells = new List<string>();
+                foreach (var counter in JourneyCounters)
+                {
+                    if (counters.TryGetValue(counter, out int n) && n > 0)
+                    {
+                        cells.Add(L("ui.progress.stat." + counter.Replace(':', '_')) + ": " + n.ToString("N0"));
+                    }
+                }
+
+                for (int i = 0; i < cells.Count; i += 2)
+                {
+                    UiKit.AddText(_listContent, 20, y, 360, 26, cells[i], 17, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    if (i + 1 < cells.Count)
+                    {
+                        UiKit.AddText(_listContent, 400, y, 360, 26, cells[i + 1], 17, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    }
+
+                    y += 26f;
+                }
+            }
+
+            return y + 14f;
+        }
+
+        /// <summary>The counters the Journey grid shows, in display order (keys as the server names them).</summary>
+        private static readonly string[] JourneyCounters =
+        {
+            "visit:body", "visit:system", "hyperjump:any", "mine:any", "build:any", "craft:any",
+            "scan:any", "research:any", "defeat:any", "tame:any", "mission:completed", "loot:any",
+        };
 
         /// <summary>One achievement row: name, description, a filled bar and the tally (or "Done").</summary>
         private float AchievementRow(float y, BlocksBeyondTheStars.Networking.Messages.NetAchievement a)

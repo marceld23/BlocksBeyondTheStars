@@ -160,6 +160,7 @@ public sealed partial class GameServer
         BroadcastBasesOn(body);
         SendStarMap(session); // the player's travel-screen badge for this body lights up
         Send(session, new ServerMessage { Text = "@srv.base.founded:" + basePoint.Name });
+        RecordStoryMilestone("base:first"); // the first base of the save advances the arc (#1105)
     }
 
     /// <summary>If a base entity sits at this cell (its base_core was just mined or blasted), drop + forget it.

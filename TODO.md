@@ -105,6 +105,42 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Progress & economy — late-game achievements, progress figures, the last knowledge faucets, story milestones (#1102–#1105, 2026-08-17, branch feat/progression-pr1-progress-economy)
+PR 1 of the progression package (epic #1101). The audit behind the epic found the game well served for its first
+~5 hours and then pulling on nothing: 15 achievements that all end by "1 000 blocks / 8 bodies", no single place
+that says how far along you are, two knowledge faucets that still let a child out-earn the whole tech tree from
+the arcade, and a story arc that ~65 delivery turn-ins had to carry alone.
+**Achievements (#1102):** eleven new lifetime counters at existing gameplay events — `scan:any` / `scan:monument`
+(first-time scan), `research:any` (blueprint researched), `station:commissioned`, `ship:commissioned`, `tame:any`,
+`loot:any` (a find looted empty), `visit:system`, `mission:completed`, `hyperjump:any`, `story:finale` (every
+player aboard for the won duel) — and 24 new goals in `data/achievements.json` across the old categories plus
+two new ones (*Research*, *Story*): Excavator 5 000 / Deep Delver 50 000 blocks, Master Builder 10 000,
+Shipwright, Station Master, Manufacturer 500, Researcher 10 / Engineer 35 / Polymath (the whole tree — a test
+pins its target to the blueprint count), Scholar 25 / Naturalist 100 scans, Archaeologist 5 monuments, Voyager
+20 / Pathfinder 40 worlds, System Hopper 3 / Starfarer 8 systems, Jump Pilot, Treasure Hunter 10, Guardian of the
+Colony 100, Beast Friend / Tamer 5, Helping Hand 5 / Quartermaster's Friend 25 missions, The Verdict Overturned.
+Rewards are late materials (titanium plates, circuit boards, energy/power cells, panels, medpacks) — never
+knowledge. EN+DE by hand, 12 community locales via the translate tool.
+**Progress figures (#1103):** `AchievementList` now carries the raw `Counters` (additive field on the
+contractless MessagePack body — old clients ignore it, no new tag). The Achievements tab opens with a **Progress**
+block — research N of 72, Codex discoveries, story %, achievements done — and a two-column **Journey** grid of the
+lifetime tallies; the Tech tab has a header line ("Researched N of M · Next affordable: …", cheapest researchable
+blueprint by knowledge); the Codex Discoveries sections show per-kind counts.
+**Knowledge faucets (#1104):** the arcade now pays on a global diminishing curve over the games a player starts —
+5/4/3/2 KP per star for the first four games, 1 thereafter; a game's rank is fixed when its first star is banked
+(`arcade:<key>:rank:<n>`) so later stars of the same game pay the same rate, legacy saves get ranked on next
+play, and a full 20-game clear is ≈ 90 KP instead of the 300 that beat every threshold in the tree. The VEGA
+memory arc's tenth fragment hands over the **Mk3 core's research materials** (10 fragments, 8 titanium plates,
+12 cable) into pack/hold instead of adding the blueprint to the archive; the 200-KP threshold and the cockpit
+stay. No room → the fragment waits (nothing consumed), VEGA says so once (`vega.sys.mk3parts_full`).
+**Story milestones (#1105):** `RecordStoryMilestone(onceKey)` with a persisted `StoryState.MilestoneKeys` set
+(JSON blob, additive) — the first base founded, first station and first self-built ship commissioned, first
+companion tamed, first hyperjump and the first rune read per world (`monument:<body>`) each advance the arc once
+per save; the doc comment that promised "first base or station built" is true now. New tests: research/scan
+counters, raw counters on the list, research targets ≤ blueprint count + category keys, arcade curve + legacy
+ranking, Mk3 parts hand-over + hold-full wait, once-milestones across a reload. USER_MANUAL §4/§5 and
+`docs/developer/STORY_IMPLEMENTATION.md` updated.
+
 ### ★ SRP Batcher: the URP shaders declare their material properties where the batcher can see them (#573, 2026-08-17, branch perf/573-srp-batcher-cbuffers)
 The SRP Batcher has been enabled in the URP asset all along, but almost none of our own shaders qualified for
 it: a shader is only batched when **every per-material property sits in one `CBUFFER_START(UnityPerMaterial)`

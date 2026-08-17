@@ -760,6 +760,12 @@ public sealed partial class GameServer
 
         LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
         session.CurrentLocationId = body.Id;
+        if (hyperjump && !session.Spectating)
+        {
+            OnAchievementHyperjump(session);        // "Jump Pilot" (#1102)
+            RecordStoryMilestone("hyperjump:first"); // the save's first jump between stars advances the arc (#1105)
+        }
+
         MarkArrivedOnBody(session, body.Id); // landed here → a quick-travel target + its system now known
 
         // Park this player's own ship object on the destination world before placing them.
@@ -4648,6 +4654,7 @@ public sealed partial class GameServer
         // research materials are consumed. (Knowledge can also be taught to others without losing any.)
         pool.Remove(bp.UnlockCost);
         session.State.UnlockedBlueprints.Add(bp.Key);
+        OnAchievementResearch(session); // "Researcher" ladder (#1102)
 
         // Localized frame + the blueprint's own localized display name (falls back to the raw key).
         Send(session, new ServerMessage
@@ -5467,6 +5474,7 @@ public sealed partial class GameServer
 
         if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
         {
+            OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
         }
     }
@@ -5477,6 +5485,7 @@ public sealed partial class GameServer
     {
         if (!string.IsNullOrEmpty(systemId) && session.State.KnownSystems.Add(systemId))
         {
+            OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
         }
     }

@@ -286,6 +286,10 @@ namespace BlocksBeyondTheStars.Client
         /// the client never counts anything itself). Empty until the join snapshot arrives.</summary>
         public NetAchievement[] Achievements { get; private set; } = System.Array.Empty<NetAchievement>();
 
+        /// <summary>The player's raw lifetime counters (blocks mined, worlds visited, blueprints researched …)
+        /// as last sent with the achievement list — the "Journey" figures on the Progress page (#1103).</summary>
+        public System.Collections.Generic.Dictionary<string, int> AchievementCounters { get; private set; } = new();
+
         /// <summary>An optional space-flight nav waypoint (#597), set on the system chart while flying:
         /// either the id of a landable body / space station (snap-to-marker; <see cref="SpaceView"/>
         /// resolves it to a live position) or a free scene-space point. The space radar shows it and the
@@ -1945,6 +1949,7 @@ namespace BlocksBeyondTheStars.Client
             Network.AchievementsReceived += m =>
             {
                 Achievements = m?.Items?.ToArray() ?? System.Array.Empty<NetAchievement>();
+                AchievementCounters = m?.Counters ?? new System.Collections.Generic.Dictionary<string, int>();
             };
             Network.AchievementUnlockedReceived += m =>
             {

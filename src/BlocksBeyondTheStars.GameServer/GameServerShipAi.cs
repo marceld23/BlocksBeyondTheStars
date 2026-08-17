@@ -398,7 +398,9 @@ public sealed partial class GameServer
 
     // --- Memory fragments (Phase C story arc): found in wreck/vault data terminals and data caches,
     // redeemed one at a time when the player is back aboard the ship — VEGA "reads" them and recovers
-    // a beat of her past. Completing the arc teaches the Mk3 core blueprint. ---
+    // a beat of her past. Completing the arc hands over the Mk3 core's research materials (#1104): the
+    // blueprint itself still has to be researched at the cockpit behind its knowledge threshold — the arc
+    // used to add it straight to the archive, which made the tree's second-most-expensive unlock free. ---
 
     private void TickVegaMemory(PlayerSession session)
     {
@@ -410,14 +412,42 @@ public sealed partial class GameServer
 
         int restored = p.Milestones.Count(m => m.StartsWith("vega:mem:", System.StringComparison.Ordinal));
         int beat = restored + 1;
+
+        // The final beat comes with the Mk3 parts list stowed in the hold; if there is no room for them the
+        // fragment simply waits — nothing is consumed and nothing is lost (the same rule the achievement
+        // rewards follow). Cargo counts because the player is aboard by definition here.
+        MaterialPool? pool = null;
+        var mk3Cost = beat == VegaMemoryBeats ? _content.GetBlueprint(VegaMk3Blueprint)?.UnlockCost : null;
+        if (mk3Cost is { Count: > 0 })
+        {
+            session.Ships.TryGetValue(session.ActiveShipId, out var ownShip); // this player's ship, not the cursor's
+            pool = new MaterialPool(_content, p, ownShip ?? _ship);
+            if (!pool.CanFit(mk3Cost))
+            {
+                if (session.VegaMemoryHoldFullWarned)
+                {
+                    return;
+                }
+
+                session.VegaMemoryHoldFullWarned = true;
+                SendVegaLine(session, "vega.sys.mk3parts_full", 3);
+                return;
+            }
+        }
+
         p.Inventory.Remove(VegaMemoryItem, 1);
         p.Milestones.Add("vega:mem:" + beat);
         p.KnowledgePoints += VegaMemoryKnowledge;
         session.VegaMemoryReadyAt = _uptime + 6.0; // space multiple fragments out so the lines can be read
 
         SendVegaLine(session, beat <= VegaMemoryBeats ? "vega.mem." + beat : "vega.mem.more", 2);
-        if (beat == VegaMemoryBeats && p.UnlockedBlueprints.Add(VegaMk3Blueprint))
+        if (mk3Cost is { Count: > 0 } && pool is not null && p.Milestones.Add("vega:mem:mk3parts"))
         {
+            foreach (var part in mk3Cost)
+            {
+                pool.Add(part.Item, part.Count);
+            }
+
             SendVegaLine(session, "vega.sys.mk3bp", 3);
         }
 

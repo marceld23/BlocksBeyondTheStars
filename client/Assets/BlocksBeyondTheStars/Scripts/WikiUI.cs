@@ -259,7 +259,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 names.Sort((a, b) => string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase));
-                sb.Append("<b>").Append(L("ui.wiki.discoveries." + kind)).Append("</b>\n");
+                sb.Append("<b>").Append(L("ui.wiki.discoveries." + kind)).Append(" (").Append(names.Count).Append(")</b>\n"); // per-kind tally (#1103)
                 foreach (var name in names)
                 {
                     sb.Append("  • ").Append(name).Append('\n');

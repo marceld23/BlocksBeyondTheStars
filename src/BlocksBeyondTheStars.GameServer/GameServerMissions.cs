@@ -235,6 +235,7 @@ public sealed partial class GameServer
 
         _repo.SavePlayer(session.State);
         Send(session, new MissionResult { Success = true, MissionId = missionId });
+        OnAchievementMissionCompleted(session); // "Helping Hand" / "Quartermaster's Friend" (#1102)
         RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
         TryThreadMission(def);    // P7: a matching mission thread also yields a story fragment
         SendInventory(session);
