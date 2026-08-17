@@ -53,7 +53,7 @@
     "interiorWidth": 9, "interiorLength": 11, "height": 4, "cargoSlots": 48,
     "layout": "ship_thunderbolt",
     "requiredBlueprint": "ship_thunderbolt",
-    "craftCost": [ { "item": "titanium_plate", "count": 45 }, { "item": "iron_plate", "count": 40 }, { "item": "cable", "count": 22 }, { "item": "energy_cell_1", "count": 6 }, { "item": "steel", "count": 8 }, { "item": "glass", "count": 8 }, { "item": "circuit_board", "count": 5 } ],
+    "craftCost": [ { "item": "titanium_plate", "count": 45 }, { "item": "iron_plate", "count": 40 }, { "item": "cable", "count": 22 }, { "item": "energy_cell_1", "count": 6 }, { "item": "steel", "count": 8 }, { "item": "glass", "count": 8 }, { "item": "circuit_board", "count": 5 }, { "item": "reactor_fuel", "count": 2 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "ship_cannon_1" ]
   },
   {
@@ -63,7 +63,7 @@
     "interiorWidth": 11, "interiorLength": 12, "height": 4, "cargoSlots": 60,
     "layout": "ship_deathblock",
     "requiredBlueprint": "ship_deathblock",
-    "craftCost": [ { "item": "titanium_plate", "count": 70 }, { "item": "iron_plate", "count": 100 }, { "item": "cable", "count": 34 }, { "item": "energy_cell_1", "count": 10 }, { "item": "steel", "count": 16 }, { "item": "circuit_board", "count": 8 } ],
+    "craftCost": [ { "item": "titanium_plate", "count": 70 }, { "item": "iron_plate", "count": 100 }, { "item": "cable", "count": 34 }, { "item": "energy_cell_1", "count": 10 }, { "item": "steel", "count": 16 }, { "item": "circuit_board", "count": 8 }, { "item": "reactor_fuel", "count": 4 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "ship_cannon_1" ]
   },
   {
@@ -73,7 +73,7 @@
     "interiorWidth": 14, "interiorLength": 15, "height": 4, "cargoSlots": 72,
     "layout": "ship_hammerhead",
     "requiredBlueprint": "ship_hammerhead",
-    "craftCost": [ { "item": "titanium_plate", "count": 60 }, { "item": "iron_plate", "count": 80 }, { "item": "cable", "count": 30 }, { "item": "energy_cell_1", "count": 8 }, { "item": "steel", "count": 12 }, { "item": "glass", "count": 10 }, { "item": "circuit_board", "count": 6 } ],
+    "craftCost": [ { "item": "titanium_plate", "count": 60 }, { "item": "iron_plate", "count": 80 }, { "item": "cable", "count": 30 }, { "item": "energy_cell_1", "count": 8 }, { "item": "steel", "count": 12 }, { "item": "glass", "count": 10 }, { "item": "circuit_board", "count": 6 }, { "item": "reactor_fuel", "count": 3 } ],
     "startModules": [ "cockpit", "reactor", "life_support", "workshop", "medbay", "quarters", "cargo_hold_basic", "ship_cannon_1" ]
   }
 ]

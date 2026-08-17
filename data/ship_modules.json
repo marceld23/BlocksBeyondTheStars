@@ -52,7 +52,7 @@
   {
     "key": "jump_generator", "nameKey": "module.jump_generator.name", "descriptionKey": "module.jump_generator.desc",
     "mandatory": false, "requiredBlueprint": "jump_generator",
-    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 }, { "item": "circuit_board", "count": 2 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 25 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 8 }, { "item": "glass", "count": 6 }, { "item": "reactor_fuel", "count": 1 }, { "item": "circuit_board", "count": 2 }, { "item": "neodymium", "count": 2 } ],
     "stats": { "jump_range": 1000 }
   },
   {
@@ -64,7 +64,7 @@
   {
     "key": "hull_plating", "nameKey": "module.hull_plating.name", "descriptionKey": "module.hull_plating.desc",
     "mandatory": false, "requiredBlueprint": "hull_plating",
-    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 }, { "item": "steel", "count": 6 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 20 }, { "item": "iron_plate", "count": 20 }, { "item": "steel", "count": 6 }, { "item": "lead_ingot", "count": 4 } ],
     "stats": { "hull": 100 }
   },
   {
@@ -94,7 +94,7 @@
   {
     "key": "laser_cannon_2", "nameKey": "module.laser_cannon_2.name", "descriptionKey": "module.laser_cannon_2.desc",
     "mandatory": false, "requiredBlueprint": "laser_cannon_2",
-    "buildCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 6 }, { "item": "glass", "count": 4 } ],
+    "buildCost": [ { "item": "titanium_plate", "count": 40 }, { "item": "cable", "count": 16 }, { "item": "energy_cell_1", "count": 6 }, { "item": "glass", "count": 4 }, { "item": "reactor_fuel", "count": 1 } ],
     "stats": { "weapon_class": 1, "weapon_damage": 45, "weapon_range": 70, "weapon_cooldown": 1.2, "weapon_energy": 5 }
   },
   {

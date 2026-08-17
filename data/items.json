@@ -183,6 +183,22 @@
   { "key": "insulated_wall", "nameKey": "item.insulated_wall.name", "category": "block", "maxStack": 1024, "placesBlock": "insulated_wall" },
   { "key": "energy_fence",   "nameKey": "item.energy_fence.name",   "category": "block", "maxStack": 1024, "placesBlock": "energy_fence", "descriptionKey": "item.energy_fence.desc" },
   { "key": "energy_gate",    "nameKey": "item.energy_gate.name",    "category": "block", "maxStack": 16,   "placesBlock": "energy_gate", "descriptionKey": "item.energy_gate.desc" },
+  // Interior decor (#1108): the lights, panels and machine parts worldgen builds ship interiors, stations and
+  // factory halls from — craftable now (recipes.json). data_cache stays loot-only on purpose.
+  { "key": "light_white", "nameKey": "item.light_white.name", "category": "block", "maxStack": 1024, "placesBlock": "light_white" },
+  { "key": "light_red", "nameKey": "item.light_red.name", "category": "block", "maxStack": 1024, "placesBlock": "light_red" },
+  { "key": "light_green", "nameKey": "item.light_green.name", "category": "block", "maxStack": 1024, "placesBlock": "light_green" },
+  { "key": "strip_light_cyan", "nameKey": "item.strip_light_cyan.name", "category": "block", "maxStack": 1024, "placesBlock": "strip_light_cyan" },
+  { "key": "strip_light_warm", "nameKey": "item.strip_light_warm.name", "category": "block", "maxStack": 1024, "placesBlock": "strip_light_warm" },
+  { "key": "force_field", "nameKey": "item.force_field.name", "category": "block", "maxStack": 1024, "placesBlock": "force_field", "descriptionKey": "item.force_field.desc" },
+  { "key": "medbay_panel", "nameKey": "item.medbay_panel.name", "category": "block", "maxStack": 1024, "placesBlock": "medbay_panel" },
+  { "key": "lab_panel", "nameKey": "item.lab_panel.name", "category": "block", "maxStack": 1024, "placesBlock": "lab_panel" },
+  { "key": "cargo_floor", "nameKey": "item.cargo_floor.name", "category": "block", "maxStack": 1024, "placesBlock": "cargo_floor" },
+  { "key": "engine_panel", "nameKey": "item.engine_panel.name", "category": "block", "maxStack": 1024, "placesBlock": "engine_panel" },
+  { "key": "engine_nozzle", "nameKey": "item.engine_nozzle.name", "category": "block", "maxStack": 1024, "placesBlock": "engine_nozzle" },
+  { "key": "factory_terminal", "nameKey": "item.factory_terminal.name", "category": "block", "maxStack": 1024, "placesBlock": "factory_terminal", "descriptionKey": "item.factory_terminal.desc" },
+  { "key": "factory_pipe", "nameKey": "item.factory_pipe.name", "category": "block", "maxStack": 1024, "placesBlock": "factory_pipe" },
+  { "key": "machine_block", "nameKey": "item.machine_block.name", "category": "block", "maxStack": 1024, "placesBlock": "machine_block" },
 
   { "key": "iron_block",      "nameKey": "item.iron_block.name",      "category": "block", "maxStack": 1024, "placesBlock": "iron_block" },
   { "key": "copper_block",    "nameKey": "item.copper_block.name",    "category": "block", "maxStack": 1024, "placesBlock": "copper_block" },

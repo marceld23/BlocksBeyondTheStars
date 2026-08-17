@@ -105,6 +105,42 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Material economy — reactor fuel as a build cost, every metal with ≥3 uses, the interior-decor blocks craftable (#1106–#1108, 2026-08-18, branch feat/progression-pr2-h2-materials)
+PR 2 of the progression package (epic #1101) — pure content: JSON + locales + one test file, no C#. The audit
+found `reactor_fuel` feeding one jump generator and nothing else, five materials with a single use and nine
+ingots with two, and the game's best-looking blocks (the ship-interior lights and panels, the factory guts)
+being exactly the ones a player could never build with.
+**Reactor fuel (#1106, decided variant A — no power system, no consumption):** fuel is the **one-time build cost**
+of the big things — Thunderbolt 2, Hammerhead 3, Deathblock 4 (`ships.json` craftCost), the heavy laser cannon 1
+and the jump generator 1 (`ship_modules.json` buildCost, the generator also takes 2 neodymium for its field
+coils). No recipe consumes it and nothing burns it while running — every device carries its own energy cell;
+big reactors need fuel to *start*. The issue's "station-core upgrade" sink has no code counterpart (there is no
+station upgrade), and `station_core` must stay pre-refinery (RefineryProgressionTests), so the fifth sink is
+the cannon instead. Item text rewritten EN/DE, one manual line under *Ship, modules, building*.
+**Every metal earns its keep (#1107):** each H2 metal (aluminium, tin, nickel, cobalt, platinum, lead, zinc,
+tungsten, lithium, neodymium, light alloy, biofuel, magnet) now has ≥3 uses across ≥2 stations, counting recipe
+inputs + ship craft costs (shipyard) + module build costs (module bay). Ten new recipes: refinery variants that
+follow the efficiency-smelt rule (better yield, workshop fallback stays) — `refine_bronze` (tin), `refine_brass`
+(zinc), `refine_steel` (nickel), `refine_light_alloy` (3 aluminium + titanium ore → 2), `magnet_sintered`
+(neodymium → 4), `carbide_cobalt` (tungsten + cobalt binder, no platinum), `power_cell_refined` (2 cells +
+lithium + cobalt → 2, no sulfur); `energy_cell_lithium` (workshop, a cell batch of 3); `torch_oil` and
+`lantern_oil` (hand, biofuel — light where no tree grows). Two existing recipes gained a part in-theme:
+`speeder` +2 light alloy (frame), `mining_beam` +1 magnet (confinement); `hull_plating` +4 lead (shielding).
+**Interior decor craftable (#1108):** the 14 worldgen-only blocks — `light_white/red/green`, `strip_light_cyan/warm`,
+`force_field`, `medbay_panel`, `lab_panel`, `cargo_floor`, `engine_panel`, `engine_nozzle`, `factory_terminal`,
+`factory_pipe`, `machine_block` — have an item (`placesBlock`), drop themselves and a workshop recipe: lights are a
+crystal in a glass housing with an aluminium reflector (berries tint the port lens, fibre the starboard one,
+cobalt the cyan strip, brass the warm one), panels are plated `metal_panel` + polymer with one metal each (tin,
+nickel, zinc, tungsten), nozzle steel + tungsten + carbide, machine housing gear + magnet + circuit, the force
+field a platinum emitter behind the **energy-door blueprint**. `force_field` lost `mineable: false` (hardness 5,
+drill T1) so a placed one comes back — worldgen hangar fields are protected by the station rules anyway. A placed
+`factory_terminal` is decoration: the factory tab still keys off a real `FactoryInstance` (server roster check +
+client `PlayerAtTerminal`), the item text says so. `data_cache` stays loot-only. Item names in EN/DE + the 12
+community locales (item name = the language's block name), descs machine-translated.
+**Tests:** `MaterialEconomyTests` — every H2 metal ≥3 uses / ≥2 stations, refinery variants out-yield the
+workshop per metal, reactor fuel ≥4 build-cost sinks and never a recipe input, every decor block mineable +
+self-drop + item + recipe (+ `data_cache` has no item), decor items named in both languages.
+
 ### ★ Progress & economy — late-game achievements, progress figures, the last knowledge faucets, story milestones (#1102–#1105, 2026-08-17, branch feat/progression-pr1-progress-economy)
 PR 1 of the progression package (epic #1101). The audit behind the epic found the game well served for its first
 ~5 hours and then pulling on nothing: 15 achievements that all end by "1 000 blocks / 8 bodies", no single place

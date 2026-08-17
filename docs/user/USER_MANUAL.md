@@ -365,6 +365,14 @@ separate unlock; admins can still disable it through server world rules.
   platinum, uranium, neodymium) and refines diamond, carbide and reactor fuel. It also offers **higher-yield
   smelts** of the common ores (e.g. iron and copper) than the workshop — handy for bulk metalwork. You can
   never need it before you can build it: its metals are also the ones that need a titanium-tier drill to mine.
+- **Every metal has a job:** each ore family (aluminium, tin, nickel, cobalt, platinum, lead, zinc, tungsten,
+  lithium, neodymium, plus light alloy, biofuel and magnets) feeds at least three recipes across two stations —
+  refinery variants of bronze, brass, steel, carbide, power cells and magnets out-yield the workshop ones, lithium
+  triples a cell batch, and biofuel makes torches and lanterns where no tree grows.
+- **Interior decor is craftable:** the lights, light strips, force field, medbay/lab/cargo/engine panels, engine
+  nozzle, factory terminal, pipe and machine housing that ship interiors, stations and factories are built from all
+  have workshop recipes (lights: crystal in a glass housing — no power needed; the force field needs the energy-door
+  blueprint). Only the data cache stays loot-only.
 - The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
 - **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Tech tab; the helm counts
@@ -385,6 +393,9 @@ separate unlock; admins can still disable it through server world rules.
   Ship tab — aboard, at the workshop module.
   Each cargo-hold module adds slots to the shared **cargo hold** (see *Inventory & cargo hold* above); the
   Cargo tab shows the current used/total capacity.
+- **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
+  capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
+  their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
 
 ### Building your own ship (keel → commissioning)
 - Unlock the **Shipwright** blueprint (Tech tab), craft a **Ship Keel** at a workshop and place it on open,

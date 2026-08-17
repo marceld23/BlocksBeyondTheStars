@@ -981,6 +981,7 @@ public sealed class SpaceCombatTests : IDisposable
         state.Inventory.Add("titanium_plate", 20, 99);
         state.Inventory.Add("iron_plate", 20, 99);
         state.Inventory.Add("steel", 6, 99); // Task 5 Stage 4: hull plating now also needs steel
+        state.Inventory.Add("lead_ingot", 4, 99); // #1107: and lead for the radiation shielding
 
         client.Send(NetCodec.Encode(new BuildShipModuleIntent { ModuleKey = "hull_plating" }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
