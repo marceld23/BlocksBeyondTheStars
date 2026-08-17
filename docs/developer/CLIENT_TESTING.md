@@ -14,7 +14,7 @@ not a mock — at three tiers, fastest first.
 | Tier | Suite | What runs | Needs Unity? | Needs server exe? |
 |---|---|---|---|---|
 | 1 | `ClientCore` | Real `NetworkClient` ↔ real in-process `GameServer` over a `LoopbackLink` | no | no |
-| 1.5 | `UnityEdit` | Unity EditMode unit tests (ClientWorld, BlockTextureAtlas) | yes (Editor) | no |
+| 1.5 | `UnityEdit` | Unity EditMode unit tests (ClientWorld, mesh packing, shader/asset rules) | yes (Editor) | no |
 | 2 | `UnityPlay` | Real `NetworkClient` ↔ the **published** server exe over loopback UDP | yes (Editor) | yes |
 | — | `Dotnet` | The existing .NET server/shared xUnit suite | no | no |
 
@@ -60,6 +60,15 @@ These are the bulk of the value and run in `dotnet test`. All test classes carry
 `client/Assets/Tests/EditMode/`. Headless in-Editor unit tests for **Unity-runtime-safe** logic — `ClientWorld`
 round-trips run inside the Editor/Mono. (Code that calls `Object.Destroy` cannot run here — `Destroy` is illegal
 in edit mode — so the atlas test lives in PlayMode below.)
+
+This tier is also where **asset-level** rules are checked, because they need the `AssetDatabase`:
+`ShaderSrpBatcherEditModeTests` asserts that the project's shaders compile and that every per-material property
+is declared inside `CBUFFER_START(UnityPerMaterial)`, which is what makes a shader SRP-Batcher-compatible
+(#573). ⚠️ One caveat worth knowing before adding more graphics assertions: the runner passes `-nographics`, and
+Unity's own compatibility API can only answer for a SubShader it has actually **compiled** — headless it reports
+`Not initialized ()` for every URP SubShader, URP's own `Lit` included. That test therefore canaries on `Lit`
+and skips itself rather than fail on a blind probe; the source-level check next to it needs no graphics device
+and is the one that holds in CI. Run the suite from the Editor's Test Runner window for the real verdict.
 
 ## Tier 2 — Unity PlayMode (`UnityPlay`)
 
