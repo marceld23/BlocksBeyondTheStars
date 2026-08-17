@@ -55,7 +55,14 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             float4 _Sc_LampColor;
             float  _Sc_Indoor;
             float4 _Sc_FloraTint;
-            float  _LeafCutoff;
+
+            // SRP Batcher (#573): the per-MATERIAL properties (the Properties block above) live here and
+            // nowhere else, with the same layout in every pass — the ShadowCaster below repeats it. The _Sc_*
+            // globals above stay outside on purpose: they are per-frame values (Shader.SetGlobal*), and the
+            // batcher would otherwise serve each material's own stale copy of them.
+            CBUFFER_START(UnityPerMaterial)
+                float _LeafCutoff;
+            CBUFFER_END
 
             struct Attributes
             {
@@ -309,8 +316,13 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float _LeafCutoff;
-            float3 _LightDirection; // set by URP while rendering the shadow map
+
+            // Must match the forward pass's UnityPerMaterial layout exactly (SRP Batcher requirement).
+            CBUFFER_START(UnityPerMaterial)
+                float _LeafCutoff;
+            CBUFFER_END
+
+            float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
 
             struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };
             struct SVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };

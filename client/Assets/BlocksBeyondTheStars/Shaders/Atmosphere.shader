@@ -27,7 +27,11 @@ Shader "BlocksBeyondTheStars/Atmosphere"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            float _Brightness;
+            // SRP Batcher (#573): per-MATERIAL properties in UnityPerMaterial; the _Sc_* globals below stay out.
+            CBUFFER_START(UnityPerMaterial)
+                float _Brightness;
+            CBUFFER_END
+
             float4 _Sc_SunDir; // world-space direction TO the sun
             float4 _Sc_Sky;    // current sky colour
             float4 _Sc_Light;  // sun colour × day brightness (a>0.5 = set)

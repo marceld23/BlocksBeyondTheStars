@@ -105,6 +105,34 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ SRP Batcher: the URP shaders declare their material properties where the batcher can see them (#573, 2026-08-17, branch perf/573-srp-batcher-cbuffers)
+The SRP Batcher has been enabled in the URP asset all along, but almost none of our own shaders qualified for
+it: a shader is only batched when **every per-material property sits in one `CBUFFER_START(UnityPerMaterial)`
+block, with the same layout in every pass** of the SubShader — and ours declared them bare, which silently
+costs one SetPass call per material. Eleven URP SubShaders now declare them properly: `LitColor` (the real
+prize — avatars, held items, doors, ship previews, station/structure models are many distinct materials on one
+shader), `BlockAtlas` + `BlockAtlasTransparent`, `SkyBodyPhase` (one material per planet/moon), `Atmosphere`,
+`Aurora`, `Nebula`, `SunRays`, `PlanetRing`, `Particle`, `ParticleAlpha`. `LitColor` and `BlockAtlas` repeat the
+identical block in their ShadowCaster pass, because a layout that differs between passes disqualifies the whole
+shader. **The `_Sc_*` / `_HeatAmp` / `_ThermalAmt` globals stay OUTSIDE the cbuffer on purpose** — they are
+per-frame `Shader.SetGlobal*` values (sun, sky, fog, headlamp), and inside `UnityPerMaterial` the batcher would
+serve each material's own stale copy of them instead. Deliberately unchanged, all verified compatible or out of
+scope: `ScatterLit`, `VertexColorOpaque`, `HeatHaze`, `Thermal` (no material properties at all — nothing to
+wrap), `Visor` (a render-graph blit; the batcher only ever sees `DrawRenderers`), `VisorGlass` (Built-in-RP
+overlay quad, no URP SubShader), and `Cloud`/`Starfield`/`SunGlow`/`ThermalMarker` (already correct).
+No visual change is intended — this moves declarations, not maths. New `ShaderSrpBatcherEditModeTests` keeps it
+that way: the shaders compile, Unity itself reports every URP SubShader as batcher-compatible (through the same
+internal API the Material Inspector's "SRP Batcher: compatible" line uses, with `VisorGlass` explicitly waived),
+and a source-level check fails any future property declared outside the cbuffer. Frame-time effect not measured
+yet — the win is fewer SetPass calls, best seen in the Frame Debugger. Ask 2 of #573 (the WebGL startup
+`ERROR: Shader` lines) is untouched and now tracked on its own as #1099.
+
+One thing the work turned up for anyone reaching for the same check: Unity's own compatibility API
+(`ShaderUtil.GetSRPBatcherCompatibilityCode`, what the Shader Inspector's "SRP Batcher" line shows) can only
+answer for a SubShader that has actually been compiled. In a headless `-nographics` batch run every URP
+SubShader — URP's own `Lit` included — answers `Not initialized ()`, so that check skips itself there and the
+source-level one carries CI.
+
 ### ★ Codex Guide + Items chapters render again — one uGUI Text hit the 65 000-vertex limit (#1097, 2026-08-16, branch fix/codex-guide-blank-1097)
 Codex → Guide ("Anleitung") and Items showed a completely empty pane. `WikiUI.RenderChapter` put the whole
 chapter into ONE `UnityEngine.UI.Text`; uGUI builds 4 vertices per glyph and `VertexHelper.FillMesh` throws

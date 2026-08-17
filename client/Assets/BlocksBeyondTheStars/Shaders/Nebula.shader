@@ -26,7 +26,10 @@ Shader "BlocksBeyondTheStars/Nebula"
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            float _Brightness;
+            // SRP Batcher (#573): per-MATERIAL properties in UnityPerMaterial.
+            CBUFFER_START(UnityPerMaterial)
+                float _Brightness;
+            CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float4 color : COLOR; };
             struct Varyings { float4 positionCS : SV_POSITION; float3 dir : TEXCOORD0; float4 color : COLOR; };

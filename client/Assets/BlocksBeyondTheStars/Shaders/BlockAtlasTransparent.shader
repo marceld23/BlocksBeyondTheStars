@@ -46,7 +46,12 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
             float4 _Sc_SunDir;
             float4 _Sc_Sky;   // sky colour (set by Sky.cs) — water SSR sky fallback
             float _Sc_ScreenFx; // 1 when the depth+opaque textures exist (Medium+); 0 on Low → water uses the simple look
-            float _BaseAlpha;
+
+            // SRP Batcher (#573): per-MATERIAL properties only. The _Sc_* globals above stay outside — they are
+            // set once per frame via Shader.SetGlobal*, not per material.
+            CBUFFER_START(UnityPerMaterial)
+                float _BaseAlpha;
+            CBUFFER_END
 
             struct Attributes
             {

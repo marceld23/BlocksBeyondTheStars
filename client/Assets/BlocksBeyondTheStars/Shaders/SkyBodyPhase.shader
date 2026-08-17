@@ -40,13 +40,20 @@ Shader "BlocksBeyondTheStars/SkyBodyPhase"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float4 _MainTex_ST;
-            float4 _Color;
-            float4 _PhaseSunDir;
-            float _Earthshine;
-            float _TermSoft;
-            float _LimbDark;
-            float _DayLight;
+
+            // SRP Batcher (#573): per-MATERIAL properties in UnityPerMaterial. Sky bodies are the textbook case —
+            // every planet/moon is its own material with its own phase direction, so the batcher can only keep
+            // them in one SetPass if the properties live here.
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _Color;
+                float4 _PhaseSunDir;
+                float _Earthshine;
+                float _TermSoft;
+                float _LimbDark;
+                float _DayLight;
+            CBUFFER_END
+
             float4 _Sc_Sky; // global: current sky colour (linear, set by Sky.cs) — daytime atmosphere wash
 
             struct Attributes { float4 positionOS : POSITION; float3 normal : NORMAL; float2 uv : TEXCOORD0; };

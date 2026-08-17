@@ -26,7 +26,11 @@ Shader "BlocksBeyondTheStars/Particle"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float4 _MainTex_ST;
+
+            // SRP Batcher (#573): per-MATERIAL properties in UnityPerMaterial (texture handles stay outside).
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+            CBUFFER_END
 
             struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };
             struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float4 color : COLOR; };

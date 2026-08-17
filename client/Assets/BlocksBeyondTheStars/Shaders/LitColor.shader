@@ -41,10 +41,19 @@ Shader "BlocksBeyondTheStars/LitColor"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
-            float4 _MainTex_ST;
-            float4 _Color;
-            float _Floor;
-            float _Fill;
+
+            // SRP Batcher (#573): every per-MATERIAL property (i.e. everything in the Properties block above)
+            // must sit in this one cbuffer, and its layout must be IDENTICAL in every pass of this SubShader —
+            // the ShadowCaster below repeats it verbatim. Texture/sampler handles stay outside, and so do the
+            // _Sc_* globals: those are one value for the whole frame (Shader.SetGlobal*), not per material, and
+            // moving them in here would make the batcher feed each material's stale copy instead.
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _Color;
+                float _Floor;
+                float _Fill;
+            CBUFFER_END
+
             float4 _Sc_LampPos;
             float4 _Sc_LampDir;
             float4 _Sc_LampColor;
@@ -101,7 +110,16 @@ Shader "BlocksBeyondTheStars/LitColor"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
 
-            float3 _LightDirection;
+            // Same UnityPerMaterial layout as the forward pass — the SRP Batcher only accepts a shader whose
+            // passes agree on it, so this repeats the block even though the shadow pass reads none of it.
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _Color;
+                float _Floor;
+                float _Fill;
+            CBUFFER_END
+
+            float3 _LightDirection; // set by URP while rendering the shadow map (a global, not a material property)
 
             struct SAttr { float4 positionOS : POSITION; float3 normal : NORMAL; };
             struct SVary { float4 positionCS : SV_POSITION; };
