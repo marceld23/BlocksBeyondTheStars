@@ -764,7 +764,8 @@ separate unlock; admins can still disable it through server world rules.
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
   discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
 - Your **first landing on a world** records it in the Codex under **Discoveries → Places** and pays
-  **+5 knowledge** — exploring the galaxy is itself a way to learn.
+  **+5 knowledge** — exploring the galaxy is itself a way to learn. (Your starting world gets its Places
+  entry too, but pays nothing — home isn't a discovery.)
 - **Space stations** appear in the world list too (yours show their owner; others show *"Station of …"*).
   Selecting one offers **Board** — but only if you've **docked there at least once** before (just like landing
   gates worlds); a never-visited station shows *"visit it once to unlock"*. Boarding takes you straight inside.

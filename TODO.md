@@ -118,7 +118,9 @@ live-streamed cells lifted after far-chunk unload; `WorldMap.BuildTexture` draws
 lighter "explored" fog tone. Star map: never-entered systems read **"Unknown system"** (`SystemDisplayName`
 in CraftingTechShipUI) — a fitted `radar_array` reveals real names (its second use, #1107 spirit). First
 landing per body → Codex **Discoveries → Places** (`place:<bodyId>` ledger entry) **+5 knowledge**
-(`RecordPlaceDiscovery`); pre-#1113 saves backfill landed bodies silently on join (no windfall).
+(`RecordPlaceDiscovery`) — EXCEPT the spawn world, which records the entry but pays nothing (a join-time
+grant flips `VegaIsVeteran`, KnowledgePoints > 0, and would skip onboarding for every fresh save);
+pre-#1113 saves backfill landed bodies silently on join (no windfall).
 Optional body NAMING deliberately skipped — it needs a world-level custom-name store; noted in #1113.
 **Worldgen defaults (#1114):** the three regimes (SystemVariance/AsteroidBelts/TerrainContinents) were
 already creation-default ON — the real deltas: `SpaceStations` Rare→**Normal** for NEW saves (ServerConfig
