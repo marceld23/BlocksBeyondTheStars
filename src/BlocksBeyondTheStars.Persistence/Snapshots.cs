@@ -89,6 +89,10 @@ public sealed class PlayerSnapshot
     /// <summary>Star systems this player has entered (reveals their bodies + mini map on the travel screen).</summary>
     public List<string> KnownSystems { get; set; } = new();
 
+    /// <summary>Explored-map bitmaps per body (#1113; body id → cell bits, base64 in the JSON). Absent in
+    /// older saves — the map then starts fogged, exactly as before, and nothing else is lost.</summary>
+    public Dictionary<string, byte[]> ExploredCells { get; set; } = new();
+
     /// <summary>Tamed creatures (companions) — named, bound to their home world. Persisted so they survive a
     /// reload (the wild fauna they came from does not — it is regenerated per visit).</summary>
     public List<TamedCreature> TamedCreatures { get; set; } = new();
@@ -213,6 +217,7 @@ public static class StateMapper
         UnlockedGames = p.UnlockedGames.ToList(),
         LandedBodies = p.LandedBodies.ToList(),
         KnownSystems = p.KnownSystems.ToList(),
+        ExploredCells = CloneExploredCells(p.ExploredCells),
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
@@ -225,6 +230,28 @@ public static class StateMapper
         LegPixels = p.LegPixels,
         HelmetPixels = p.HelmetPixels,
     };
+
+    /// <summary>Copies the explored-map bitmaps so a snapshot doesn't alias the live arrays, dropping
+    /// null/oversized entries (a tampered save can then never balloon the player blob, #1113).</summary>
+    private static Dictionary<string, byte[]> CloneExploredCells(Dictionary<string, byte[]>? cells)
+    {
+        var copy = new Dictionary<string, byte[]>();
+        if (cells == null)
+        {
+            return copy;
+        }
+
+        foreach (var kv in cells)
+        {
+            if (!string.IsNullOrEmpty(kv.Key) && kv.Value is { Length: > 0 }
+                && kv.Value.Length <= BlocksBeyondTheStars.Shared.World.ExploredMap.MaxBytesPerBody)
+            {
+                copy[kv.Key] = (byte[])kv.Value.Clone();
+            }
+        }
+
+        return copy;
+    }
 
     /// <summary>Copies a deployed speeder record so a snapshot doesn't alias the live list.</summary>
     private static DeployedSpeeder CloneSpeeder(DeployedSpeeder s) => new()
@@ -323,6 +350,7 @@ public static class StateMapper
         UnlockedGames = new HashSet<string>(s.UnlockedGames ?? new List<string>()),
         LandedBodies = new HashSet<string>(s.LandedBodies ?? new List<string>()),
         KnownSystems = new HashSet<string>(s.KnownSystems ?? new List<string>()),
+        ExploredCells = CloneExploredCells(s.ExploredCells),
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),

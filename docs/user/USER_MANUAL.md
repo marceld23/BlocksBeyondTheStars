@@ -205,7 +205,8 @@ separate unlock; admins can still disable it through server world rules.
   the Map's travel buttons are also disabled (the world is shown but you can't quick-travel from on foot), and
   the Inventory's **Cargo Hold** transfer controls are hidden (the hold is only reachable from aboard the ship).
 - **World map (M)** — top-down view of explored terrain (fog-of-war), with player/ship/station markers and
-  click-to-set waypoints.
+  click-to-set waypoints. The map **remembers where you have been**: ground you explored earlier — even in a
+  previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
@@ -760,6 +761,10 @@ separate unlock; admins can still disable it through server world rules.
     you fly to its worlds and land. Once you've been somewhere, quick-travel to it works from then on.
   - **On:** quick-travel works for any world/system immediately, visited or not.
 - Jumping to **another star system** always requires a fitted **`jump_generator`** module.
+- A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
+  discover. A fitted **`radar_array`** module decodes the beacon signals and reveals all system names.
+- Your **first landing on a world** records it in the Codex under **Discoveries → Places** and pays
+  **+5 knowledge** — exploring the galaxy is itself a way to learn.
 - **Space stations** appear in the world list too (yours show their owner; others show *"Station of …"*).
   Selecting one offers **Board** — but only if you've **docked there at least once** before (just like landing
   gates worlds); a never-visited station shows *"visit it once to unlock"*. Boarding takes you straight inside.

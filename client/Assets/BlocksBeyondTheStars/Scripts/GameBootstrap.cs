@@ -753,6 +753,18 @@ namespace BlocksBeyondTheStars.Client
         public readonly System.Collections.Generic.Dictionary<string, string> Discoveries
             = new System.Collections.Generic.Dictionary<string, string>();
 
+        /// <summary>Persisted explored-map cells per body (#1113), as the server sent them on arrival —
+        /// the planet map draws these as "remembered" ground under its live fog. Keyed by body id so an
+        /// out-of-order WorldReset can never show another body's fog.</summary>
+        public readonly System.Collections.Generic.Dictionary<string, ExploredMapData> ExploredMaps
+            = new System.Collections.Generic.Dictionary<string, ExploredMapData>();
+
+        /// <summary>Explored cells seen live THIS session on the current body (cell indices, see
+        /// <c>ExploredMap.CellIndex</c>) — chunks unload again behind the player, but a cell once streamed
+        /// stays lifted on the map even before the server's next snapshot. Cleared on world change.</summary>
+        public readonly System.Collections.Generic.HashSet<int> SessionExploredCells
+            = new System.Collections.Generic.HashSet<int>();
+
         /// <summary>Repair progress of the wreck the player is standing in (null until a wreck reports it).</summary>
         public WreckRepairStatus Wreck { get; private set; }
 
@@ -1760,6 +1772,7 @@ namespace BlocksBeyondTheStars.Client
             Network.FactoriesReceived += m => Factories = m.Factories ?? System.Array.Empty<NetFactory>();
             Network.LandingPadsReceived += m => { LandingPads = m.Pads ?? System.Array.Empty<NetLandingPad>(); LandingPadsBody = m.BodyId ?? string.Empty; LandingPadsTimeOfDay = m.TimeOfDay; };
             Network.StarMapReceived += m => { StarMap = m; RebuildWikiState(); };
+            Network.ExploredMapReceived += m => { if (!string.IsNullOrEmpty(m.BodyId)) ExploredMaps[m.BodyId] = m; };
             Network.DataCubesReceived += m => DataCubes = m.Cubes ?? System.Array.Empty<NetDataCube>();
             Network.GameUnlocksReceived += m =>
             {
@@ -2337,6 +2350,14 @@ namespace BlocksBeyondTheStars.Client
             World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
             MarkChunkAndNeighborsDirty(coord);
             _lastChunkArrivalTime = Time.time; // feed the view-settle gate (#390)
+
+            // #1113: remember this chunk's map cell for the session — the chunk itself may unload again
+            // behind the player, but the planet map's fog stays lifted where they have already been.
+            int cell = BlocksBeyondTheStars.Shared.World.ExploredMap.CellIndex(coord.X, coord.Z, Circumference);
+            if (cell >= 0)
+            {
+                SessionExploredCells.Add(cell);
+            }
         }
 
         /// <summary>Marks a chunk AND its six neighbours for re-meshing. A freshly stored/resynced chunk
@@ -2415,6 +2436,7 @@ namespace BlocksBeyondTheStars.Client
         {
             LocationName = string.IsNullOrEmpty(m.SystemName) ? m.PlanetName : $"{m.SystemName} · {m.PlanetName}";
             RebuildFloraTints(); // a new world ⇒ its own per-species flora colours
+            SessionExploredCells.Clear(); // #1113: live-explored cells are per body
 
             // Parked ship objects belong to the world we just left; the new world re-sends its own.
             LandedShips.Clear();

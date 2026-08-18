@@ -241,11 +241,37 @@ namespace BlocksBeyondTheStars.Client
             var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             var px2 = new Color[size * size];
             var fog = new Color(0.06f, 0.09f, 0.16f, 1f);
+
+            // #1113: where the player HAS been but no chunk is loaded any more, the fog lifts to a
+            // "remembered" tone instead of going dark — from the server's persisted bitmap (survives a
+            // reload) plus the cells streamed live this session (chunks unload behind the player).
+            var exploredFog = new Color(0.14f, 0.19f, 0.28f, 1f);
+            int circ = Game.Circumference;
+            BlocksBeyondTheStars.Networking.Messages.ExploredMapData explored = null;
+            if (Game.StarMap != null && !string.IsNullOrEmpty(Game.StarMap.ActiveLocationId))
+            {
+                Game.ExploredMaps.TryGetValue(Game.StarMap.ActiveLocationId, out explored);
+            }
+
             for (int i = 0; i < px2.Length; i++)
             {
                 if (height[i] == int.MinValue)
                 {
-                    px2[i] = fog;
+                    int cell = -1;
+                    if (circ > 0)
+                    {
+                        float wx = _ox + ((i % size) + 0.5f) * step;
+                        float wz = _oz + ((i / size) + 0.5f) * step;
+                        cell = BlocksBeyondTheStars.Shared.World.ExploredMap.CellIndex(
+                            WorldConstants.CanonicalChunkX(Mathf.FloorToInt(wx / WorldConstants.ChunkSize), circ),
+                            WorldConstants.CanonicalChunkZ(Mathf.FloorToInt(wz / WorldConstants.ChunkSize), circ),
+                            circ);
+                    }
+
+                    bool seen = cell >= 0
+                        && (Game.SessionExploredCells.Contains(cell)
+                            || (explored != null && BlocksBeyondTheStars.Shared.World.ExploredMap.GetBit(explored.Cells, cell)));
+                    px2[i] = seen ? exploredFog : fog;
                     continue;
                 }
 

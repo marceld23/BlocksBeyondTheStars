@@ -238,6 +238,22 @@ namespace BlocksBeyondTheStars.Client
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.settlement_templates"), freqSteps,
                 () => opt.SettlementTemplates, v => opt.SettlementTemplates = v, rebuilders: null);
 
+            // Galaxy & terrain layout (#1114): the three worldgen regimes every new world ships with.
+            // They live here (not the main page — its fixed grid is full, see RowH there) as opt-outs;
+            // creation-only, like the template sliders above.
+            y += 72f;
+            UiKit.AddText(parent, 30f, y, 700f, 24f, shell.L("ui.worldopt.col_galaxy"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 34f;
+            var galaxyOnOff = new[] { shell.L("ui.toggle.off"), shell.L("ui.toggle.on") };
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.variance"), galaxyOnOff,
+                () => opt.SystemVariance ? 1 : 0, v => opt.SystemVariance = v == 1, rebuilders: null);
+            y += 62f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.belts"), galaxyOnOff,
+                () => opt.AsteroidBelts ? 1 : 0, v => opt.AsteroidBelts = v == 1, rebuilders: null);
+            y += 62f;
+            AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.continents"), galaxyOnOff,
+                () => opt.TerrainContinents ? 1 : 0, v => opt.TerrainContinents = v == 1, rebuilders: null);
+
             // Pack picker (right column): one toggle per pack; "on" = enabled = not in DisabledPacks.
             float px = 820f, py = 96f;
             UiKit.AddText(parent, px, py, 740f, 24f, shell.L("ui.worldopt.packs_title"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

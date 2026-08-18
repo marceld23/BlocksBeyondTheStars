@@ -1226,6 +1226,18 @@ public sealed class NetMapBase
     public string Name { get; set; } = string.Empty;
 }
 
+/// <summary>Server → client on arriving on a body (#1113): the receiver's PERSISTED explored-map cells
+/// for that body, so the planet map's fog stays lifted across sessions. One bit per 8×8-chunk cell
+/// (<c>ExploredMap</c> in Shared derives the grid from the circumference on both sides); the client
+/// overlays it with the live-streamed chunks. Empty <see cref="Cells"/> = nothing explored yet.</summary>
+public sealed class ExploredMapData
+{
+    public string BodyId { get; set; } = string.Empty;
+    public int Cols { get; set; }
+    public int Rows { get; set; }
+    public byte[] Cells { get; set; } = System.Array.Empty<byte>();
+}
+
 /// <summary>Client → server: hyperjump into a (possibly never-visited) star system, arriving in FLIGHT mode
 /// in that system's space (not landed). Needs a jump generator. The way to reach a system whose bodies you
 /// can't yet see on the travel screen.</summary>

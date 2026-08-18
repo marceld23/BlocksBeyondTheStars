@@ -651,6 +651,19 @@ namespace BlocksBeyondTheStars.Client
             return map.Systems.FirstOrDefault(s => s.Id == curId) ?? map.Systems[0];
         }
 
+        /// <summary>A never-entered system's name reads "Unknown system" (#1113) — the galaxy is discovered,
+        /// not read off a chart. A fitted radar array decodes the beacon signals and shows real names.</summary>
+        private string SystemDisplayName(NetStarSystem sys)
+            => sys == null ? string.Empty
+                : Game.KnowsSystem(sys.Id) || sys.Id == CurrentSystemId() || HasRadarArray()
+                    ? sys.Name
+                    : L("ui.map.system_unknown");
+
+        /// <summary>True when the active ship carries a radar_array module (server-reported fit).</summary>
+        private bool HasRadarArray()
+            => Game?.ShipCombat?.Modules != null
+                && System.Array.IndexOf(Game.ShipCombat.Modules, "radar_array") >= 0;
+
         private List<(string key, string label, string icon)> Categories()
         {
             var list = new List<(string, string, string)> { ("all", L("ui.craft.cat_all"), "cat_all") };
@@ -714,7 +727,9 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                         // Distant systems under a Hyperspace heading. Unknown ones read as a single
-                        // "unexplored" entry (their bodies stay hidden until you hyperjump there).
+                        // "unexplored" entry (their bodies stay hidden until you hyperjump there); their
+                        // NAME shows only once entered — or with a radar array fitted (#1113). The sidebar
+                        // key stays the real name either way (it is never displayed).
                         if (distant.Count > 0)
                         {
                             list.Add(("head:hyper", L("ui.map.hyperspace"), string.Empty));
@@ -722,7 +737,7 @@ namespace BlocksBeyondTheStars.Client
                             {
                                 string label = Game.KnowsSystem(sys.Id)
                                     ? "★ " + sys.Name
-                                    : sys.Name + "  ·  " + L("ui.map.unexplored");
+                                    : SystemDisplayName(sys) + "  ·  " + L("ui.map.unexplored");
                                 list.Add(("sys:" + sys.Name, label, "cat_planet"));
                             }
                         }

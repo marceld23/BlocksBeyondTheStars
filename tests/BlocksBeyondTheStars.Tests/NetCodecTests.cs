@@ -261,6 +261,7 @@ public sealed class NetCodecTests
         [208] = typeof(StationLocation),
         [209] = typeof(SetLampIntent),
         [210] = typeof(LoreTextRevealed),
+        [211] = typeof(ExploredMapData),
     };
 
     [Fact]

@@ -104,8 +104,17 @@ public sealed class ServerConfig
     /// whose asteroids share real belt annuli — while the
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SystemVariance"/> and
     /// <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.AsteroidBelts"/> properties
-    /// default to false, so a loaded save whose metadata predates the features stays byte-identical.</summary>
-    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new() { SystemVariance = true, AsteroidBelts = true, TerrainContinents = true };
+    /// default to false, so a loaded save whose metadata predates the features stays byte-identical.
+    /// Space stations are Normal here for the same reason (#1114): new galaxies get a station in most
+    /// systems, while the <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SpaceStations"/>
+    /// property keeps its Rare default so an old save whose metadata omitted the field is unchanged.</summary>
+    public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new()
+    {
+        SystemVariance = true,
+        AsteroidBelts = true,
+        TerrainContinents = true,
+        SpaceStations = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
+    };
 
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>
     public AiLevel AiLevel { get; set; } = AiLevel.Off;

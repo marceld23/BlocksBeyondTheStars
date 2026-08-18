@@ -190,6 +190,13 @@ public sealed class PlayerState
     /// "jump here" entry until visited. Server-authoritative, persisted. The current system always counts.</summary>
     public HashSet<string> KnownSystems { get; set; } = new();
 
+    /// <summary>Coarse explored-map cells per celestial body (#1113): body id → bitmap, one bit per
+    /// <see cref="BlocksBeyondTheStars.Shared.World.ExploredMap.CellChunks"/>²-chunk cell (dimensions derive
+    /// from the body's circumference — see <c>ExploredMap.GridFor</c>). A cell is set when its terrain was
+    /// ever streamed to this player, so the planet map's fog stays lifted across sessions. Server-
+    /// authoritative, persisted; never cleared. Bounded: ≤ ~1 KB even for the largest body.</summary>
+    public Dictionary<string, byte[]> ExploredCells { get; set; } = new();
+
     /// <summary>Minigame keys the player has "downloaded" from data cubes found on planets — their personal
     /// arcade collection, playable from the in-game menu. Server-authoritative, persisted; never removed once
     /// set. The keys are opaque to the server (the client maps them to bundled HTML/JS games); they carry no

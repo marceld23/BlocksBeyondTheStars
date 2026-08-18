@@ -37,8 +37,15 @@ namespace BlocksBeyondTheStars.Client
         public int Settlements = 3;    // Normal
         public int Wrecks = 3;         // Normal
         public int Vaults = 3;         // Normal
-        public int Stations = 2;       // Rare (server default)
+        public int Stations = 3;       // Normal (server default since #1114 — most systems get a station)
         public int Exotic = 3;         // Normal
+
+        // Galaxy & terrain layout (#1114, creation-only): all three shipped earlier behind creation-time
+        // gates and are the default for new worlds; the toggles exist to opt OUT (e.g. the classic flat
+        // scatter for determinism comparisons). A loaded save always keeps what its metadata stored.
+        public bool SystemVariance = true;
+        public bool AsteroidBelts = true;
+        public bool TerrainContinents = true;
 
         // Hand-designed structure templates: how readily an authored station/settlement is used in place
         // of a procedural one (Freq index; server default = Rare). 0 (Off) ⇒ always procedural.
@@ -108,6 +115,7 @@ namespace BlocksBeyondTheStars.Client
             Bandits = other.Bandits;
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
+            SystemVariance = other.SystemVariance; AsteroidBelts = other.AsteroidBelts; TerrainContinents = other.TerrainContinents;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
             SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip; AutoAim = other.AutoAim;
@@ -145,8 +153,12 @@ namespace BlocksBeyondTheStars.Client
             if (Settlements != 3) Arg("settlements", Freq[Settlements]);
             if (Wrecks != 3) Arg("planet-wrecks", Freq[Wrecks]);
             if (Vaults != 3) Arg("vaults", Freq[Vaults]);
-            if (Stations != 2) Arg("stations", Freq[Stations]);
+            if (Stations != 3) Arg("stations", Freq[Stations]);
             if (Exotic != 3) Arg("exotic", Freq[Exotic]);
+
+            if (!SystemVariance) Arg("variance", "false");
+            if (!AsteroidBelts) Arg("belts", "false");
+            if (!TerrainContinents) Arg("continents", "false");
 
             if (StationTemplates != 2) Arg("station-templates", Freq[StationTemplates]);
             if (SettlementTemplates != 2) Arg("settlement-templates", Freq[SettlementTemplates]);

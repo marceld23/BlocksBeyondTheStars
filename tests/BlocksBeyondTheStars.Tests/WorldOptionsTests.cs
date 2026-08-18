@@ -94,6 +94,27 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.Equal("lava", config.StartPlanet);
     }
 
+    // ---- Worldgen-regime creation defaults vs. load safety (#1114) ---------------------------
+
+    [Fact]
+    public void NewWorldDefaults_CarryTheWorldgenRegimes_LegacyMetadataStaysClassic()
+    {
+        // Creation path: ServerConfig's default description is what a NEW world bakes.
+        var config = new ServerConfig();
+        Assert.True(config.World.SystemVariance);
+        Assert.True(config.World.AsteroidBelts);
+        Assert.True(config.World.TerrainContinents);
+        Assert.Equal(Frequency.Normal, config.World.SpaceStations); // #1114: most systems get a station
+
+        // Load path: metadata that predates the fields deserializes to the classic regime — the plain
+        // type defaults must stay false/Rare or every old galaxy would re-derive differently on load.
+        var legacy = System.Text.Json.JsonSerializer.Deserialize<WorldDescription>("{}")!;
+        Assert.False(legacy.SystemVariance);
+        Assert.False(legacy.AsteroidBelts);
+        Assert.False(legacy.TerrainContinents);
+        Assert.Equal(Frequency.Rare, legacy.SpaceStations);
+    }
+
     // ---- The world owns its rules (RulesOverride bake + reload) -------------------------------
 
     [Fact]

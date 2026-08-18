@@ -105,6 +105,32 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Explorer discovery — the map remembers, unknown systems, Places + knowledge, worldgen defaults (#1113, #1114, 2026-08-18, branch feat/progression-pr4-explorer-discovery)
+PR 4 of the progression package (epic #1101). The audit: mapping a world left no trace after a reload
+(fog = streamed chunks only), the star map named every system from minute one, and landing on a new world
+granted nothing but an achievement tick.
+**Persisted exploration (#1113):** per-player, per-body explored-cell bitmap (`ExploredMap` in Shared —
+one bit per 8×8-chunk cell, grid derived from the circumference on BOTH sides, ≤ ~1 KB even for a 16000
+body; `PlayerState.ExploredCells`, size-capped in the snapshot mapper). Server marks cells as chunks
+stream (`MarkExploredCell` in `GameServerExploration.cs`), sends the bitmap on every arrival
+(`ExploredMapData`, NetCodec id 211 + golden list). Client: `SessionExploredCells` keeps
+live-streamed cells lifted after far-chunk unload; `WorldMap.BuildTexture` draws remembered cells in a
+lighter "explored" fog tone. Star map: never-entered systems read **"Unknown system"** (`SystemDisplayName`
+in CraftingTechShipUI) — a fitted `radar_array` reveals real names (its second use, #1107 spirit). First
+landing per body → Codex **Discoveries → Places** (`place:<bodyId>` ledger entry) **+5 knowledge**
+(`RecordPlaceDiscovery`); pre-#1113 saves backfill landed bodies silently on join (no windfall).
+Optional body NAMING deliberately skipped — it needs a world-level custom-name store; noted in #1113.
+**Worldgen defaults (#1114):** the three regimes (SystemVariance/AsteroidBelts/TerrainContinents) were
+already creation-default ON — the real deltas: `SpaceStations` Rare→**Normal** for NEW saves (ServerConfig
+initializer; the WorldDescription type default stays Rare so legacy metadata loads unchanged — golden test
+in WorldOptionsTests), the creation panel's Stations slider default follows, and three **opt-out toggles**
+("Galaxy & terrain") on the world-options structures page (`--variance/--belts/--continents false`).
+**D3 (#1115) not here:** template authoring belongs in the in-game editors (Justus / community #96/#97) —
+raising the use frequency with one template would just stamp the same layout more often.
+Tests: `ExplorationTests` (grid bounds, canonical-domain rejection, stream→bitmap→reload round-trip,
+place-once + knowledge, backfill), NetCodec golden 211, `WorldOptionsTests` creation-vs-legacy defaults.
+Locales: 6 new keys, EN+DE hand-written, 12 community locales MT'd.
+
 ### ★ Story findable on purpose — structure fragments + pity, reader panel + story objective, environmental lore, NPC threads (#1109–#1112, 2026-08-18, branch feat/progression-pr3-story-findable)
 PR 3 of the progression package (epic #1101). The audit found the story arc carried by ~65 delivery
 turn-ins: fragments spawned only on random surface spots (50 % of bodies none), arrived as a vanishing

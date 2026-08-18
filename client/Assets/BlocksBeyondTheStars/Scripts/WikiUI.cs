@@ -309,7 +309,7 @@ namespace BlocksBeyondTheStars.Client
             // Ledger keys are "kind:key" ("asteroid" has no colon); group so creatures/plants/materials read apart.
             // A monument's key carries the body id too ("monument:<location>:<archetype>"), so the same relic
             // found on another planet lists as its own discovery — which is exactly what it is.
-            foreach (var kind in new[] { "creature", "microfauna", "tree", "flora", "block", "monument", "asteroid" })
+            foreach (var kind in new[] { "place", "creature", "microfauna", "tree", "flora", "block", "monument", "asteroid" })
             {
                 var names = new List<string>();
                 foreach (var pair in log)

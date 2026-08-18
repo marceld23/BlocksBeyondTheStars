@@ -419,6 +419,10 @@ public static class NetCodec
 
         // Environmental lore texts (#1111): a rune inscription / wreck log / ruin note found at a site.
         Register(210, typeof(LoreTextRevealed));         // Server -> Client
+
+        // Persisted exploration (#1113): the receiver's explored-map cells for the body just arrived on,
+        // so the planet map's fog stays lifted across sessions.
+        Register(211, typeof(ExploredMapData));          // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

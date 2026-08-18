@@ -2175,6 +2175,7 @@ public sealed partial class GameServer
                 PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
                 Send(session, msg);
                 session.SentChunks.Add(coord);
+                MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
                 sent++;
             }
         }
@@ -3017,6 +3018,7 @@ public sealed partial class GameServer
         SendNetFragments(session); // story net fragments on the join world (P2)
         SendFactories(session);   // factories on the join world (animated machines + production terminals)
         SendGameUnlocks(session); // the player's downloaded-games collection (per-player, persisted)
+        BackfillPlaceDiscoveries(session); // pre-#1113 saves: mirror already-landed bodies into "Places" first
         SendDiscoveryLog(session); // the first-scan ledger, for the Codex "Discoveries" chapter (#484)
 
         // Achievements: settle anything that came due while a reward had nowhere to go, retro-award entries that
@@ -5471,6 +5473,7 @@ public sealed partial class GameServer
         if (session.State.LandedBodies.Add(body.Id))
         {
             OnAchievementVisit(session);
+            RecordPlaceDiscovery(session, body); // #1113: a "Places" Codex entry + the knowledge grant
         }
 
         if (!string.IsNullOrEmpty(body.SystemId) && session.State.KnownSystems.Add(body.SystemId))
@@ -5478,6 +5481,8 @@ public sealed partial class GameServer
             OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
         }
+
+        SendExploredMap(session, body.Id); // #1113: the remembered fog for this body's planet map
     }
 
     /// <summary>Records that a player has entered a star system in flight (a hyperjump arrival) — reveals
