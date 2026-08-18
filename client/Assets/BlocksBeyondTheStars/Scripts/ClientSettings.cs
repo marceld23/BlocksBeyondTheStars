@@ -454,6 +454,11 @@ namespace BlocksBeyondTheStars.Client
         /// Auto (the default) keeps the HUD clear without hiding what other players say.</summary>
         public ChatVisibility ChatVisibility = ChatVisibility.Auto;
 
+        /// <summary>NPC radio calls (#1119): 0 all · 1 missions only · 2 off. Mirrored to the SERVER on
+        /// join and on change — the server initiates the calls, so a client-only mute could not silence
+        /// them. 0 is what an absent field deserializes to, so old files default to "all".</summary>
+        public int NpcCalls;
+
         /// <summary>Auto-stow loose materials/components into the ship's cargo hold the moment you board (tools
         /// and weapons stay on you). Off by default so boarding never silently empties your inventory; opt in to
         /// keep your personal pack clear for exploring on foot.</summary>

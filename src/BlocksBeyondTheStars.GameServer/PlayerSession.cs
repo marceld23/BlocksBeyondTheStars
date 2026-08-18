@@ -207,6 +207,16 @@ public sealed class PlayerSession
     /// names …) so a tip that repeats never names the same thing twice in one sitting.</summary>
     public HashSet<string> VegaTipMentioned { get; } = new();
 
+    /// <summary>Uptime before which no NPC radio call is made to this player (#1119; global ≤1/10 min
+    /// cadence, armed with a quiet period on join so a rejoin never opens with a ringing radio).</summary>
+    public double NpcCallReadyAt { get; set; }
+
+    /// <summary>Per call key (e.g. "camp:12:(«campKey»)"): uptime before which the same call never repeats.</summary>
+    public Dictionary<string, double> NpcCallCooldownUntil { get; } = new();
+
+    /// <summary>Uptime of the next NPC radio-call trigger scan for this player (#1119).</summary>
+    public double NpcCallScanAt { get; set; }
+
     /// <summary>Uptime of the next (heavier) block-probe around the player; results cached in <see cref="VegaProbe"/>.</summary>
     public double VegaTipProbeAt { get; set; }
     public VegaTipProbe VegaProbe { get; } = new();

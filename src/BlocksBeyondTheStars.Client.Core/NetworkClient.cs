@@ -135,6 +135,8 @@ namespace BlocksBeyondTheStars.Client
         public event Action<ExploredMapData>? ExploredMapReceived;                   // persisted planet-map fog (#1113)
         public event Action<BuildCodeResult>? BuildCodeReceived;                     // blueprint copy result (#1117)
         public event Action<BuildPasteResult>? BuildPasteResultReceived;             // blueprint paste result (#1117)
+        public event Action<NpcStandingList>? NpcStandingsReceived;                  // NPC relationship stages (#1118)
+        public event Action<KnownNpcList>? KnownNpcsReceived;                        // "People you know" roster (#1118)
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
@@ -449,6 +451,10 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendUseGadget(string gadgetKey, Vector3f target)
             => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
+
+        public void SendRequestKnownNpcs() => Send(new RequestKnownNpcsIntent());
+
+        public void SendSetNpcCalls(int mode) => Send(new SetNpcCallsIntent { Mode = mode });
 
         public void SendCopyBuild(int x1, int y1, int z1, int x2, int y2, int z2, string name)
             => Send(new CopyBuildIntent { X1 = x1, Y1 = y1, Z1 = z1, X2 = x2, Y2 = y2, Z2 = z2, Name = name });
@@ -792,6 +798,8 @@ namespace BlocksBeyondTheStars.Client
                 case ExploredMapData m: ExploredMapReceived?.Invoke(m); break;
                 case BuildCodeResult m: BuildCodeReceived?.Invoke(m); break;
                 case BuildPasteResult m: BuildPasteResultReceived?.Invoke(m); break;
+                case NpcStandingList m: NpcStandingsReceived?.Invoke(m); break;
+                case KnownNpcList m: KnownNpcsReceived?.Invoke(m); break;
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;

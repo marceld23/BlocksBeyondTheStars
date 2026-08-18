@@ -42,7 +42,7 @@ public sealed partial class GameServer
 
     /// <summary>Records an interaction in an NPC's memory of this player (item 14): raises the relationship by a
     /// per-kind weight and appends to the capped last-N log. Persists with the player.</summary>
-    private void RecordNpcInteraction(PlayerState player, string npcKey, string npcName, string npcRole, NpcInteractionKind kind)
+    private void RecordNpcInteraction(PlayerState player, string npcKey, string npcName, string npcRole, NpcInteractionKind kind, string place = "")
     {
         if (string.IsNullOrEmpty(npcKey))
         {
@@ -65,6 +65,11 @@ public sealed partial class GameServer
             rel.Role = npcRole;
         }
 
+        if (!string.IsNullOrEmpty(place))
+        {
+            rel.Place = place; // #1118: the "People you know" list shows where they live
+        }
+
         rel.Value = System.Math.Clamp(rel.Value + InteractionWeight(kind), -100, 100);
         rel.Log.Add(new NpcInteraction { Kind = kind });
         if (rel.Log.Count > NpcMemoryLog)
@@ -75,7 +80,7 @@ public sealed partial class GameServer
 
     /// <summary>Records that the player took a mission from a board's quartermaster (item 14).</summary>
     private void RecordMissionAccepted(PlayerState player, string missionId, string giverName)
-        => RecordNpcInteraction(player, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted);
+        => RecordNpcInteraction(player, NpcKey(LocationKeyOfMission(missionId), "quartermaster"), giverName, "quartermaster", NpcInteractionKind.MissionAccepted, NpcPlaceFor(player));
 
     /// <summary>Records a barter the player just made at a settlement/station vendor (item 14); no-op aboard ship.</summary>
     private void RecordVendorTrade(PlayerState player)
@@ -95,7 +100,7 @@ public sealed partial class GameServer
             return; // traded at the ship's own console — not an NPC vendor
         }
 
-        RecordNpcInteraction(player, NpcKey(locationKey, "vendor"), vendor?.Name ?? string.Empty, "vendor", NpcInteractionKind.Trade);
+        RecordNpcInteraction(player, NpcKey(locationKey, "vendor"), vendor?.Name ?? string.Empty, "vendor", NpcInteractionKind.Trade, NpcPlaceFor(player));
     }
 
     /// <summary>The nearest live NPC with the given role to a player (same world), or null.</summary>

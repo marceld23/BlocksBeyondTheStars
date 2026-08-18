@@ -94,6 +94,11 @@ public sealed class PlayerState
     /// interaction log. Persisted; feeds item 15's dialog backend.</summary>
     public Dictionary<string, NpcRelationship> NpcMemory { get; set; } = new();
 
+    /// <summary>How much the world may call this player over the radio (#1119) — a player PREFERENCE the
+    /// server persists (the server initiates the calls, so a client-only setting could not silence them).
+    /// Defaults to All; set via <c>SetNpcCallsIntent</c> from the client's Comfort settings.</summary>
+    public NpcCallsMode NpcCallsMode { get; set; } = NpcCallsMode.All;
+
     /// <summary>Subjects already scanned (e.g. "creature:sp0", "block:iron_ore") — only new scans pay knowledge.</summary>
     public HashSet<string> Scanned { get; set; } = new();
 

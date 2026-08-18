@@ -220,10 +220,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var labels = ScreenLabelLayer.Instance;
-            foreach (var n in _npcs.Values)
+            foreach (var pair in _npcs)
             {
+                var n = pair.Value;
+
+                // A known face reads as one (#1118): the relationship stage joins the nameplate. Absent
+                // from the standings = stranger, which deliberately shows nothing extra.
+                string label = n.Label;
+                if (Game != null && Game.NpcStandings.TryGetValue(pair.Key, out string stageKey))
+                {
+                    label = $"{label} · {Game.Localizer?.Get(stageKey) ?? stageKey}";
+                }
+
                 // Names only read up close: fade out between 18 m and 28 m so distant NPCs stay anonymous.
-                labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, n.Label, UiKit.Cyan, false, 18f, 28f);
+                labels.World(cam, n.Go.transform.position + Vector3.up * 2.1f, label, UiKit.Cyan, false, 18f, 28f);
 
                 // A live greeting bubble sits just above the nameplate (item 15).
                 if (!string.IsNullOrEmpty(n.Greeting) && WorldNow < n.GreetingUntil)

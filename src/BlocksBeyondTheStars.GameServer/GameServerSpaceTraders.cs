@@ -564,7 +564,18 @@ public sealed partial class GameServer
             return string.Empty;
         }
 
+        // The world notices your base (#1120): a body with a founded base draws traders — customers live
+        // there. The current body still wins (the trader is already headed in), then base worlds, then any.
         var prefer = candidates.FirstOrDefault(b => b.Id == locationId);
+        if (prefer is null)
+        {
+            var baseWorlds = candidates.Where(b => _bases.Any(x => x.Planet == b.Id)).ToList();
+            if (baseWorlds.Count > 0 && _traderRng.Next(100) < 70)
+            {
+                return baseWorlds[_traderRng.Next(baseWorlds.Count)].Id;
+            }
+        }
+
         return (prefer ?? candidates[_traderRng.Next(candidates.Count)]).Id;
     }
 
@@ -610,6 +621,7 @@ public sealed partial class GameServer
 
         BroadcastWarpFx(instance, t.Pos, arriving: false); // it drops out of the flight scene to descend
         _log.Info($"NPC trader '{t.Name}' ({t.ShipType}) is setting down on {t.DestBodyId} (pad {pad}).");
+        NpcRadioOnTraderLanded(t.DestBodyId, t.Name); // #1120: base owners on that world get a hail
         return true;
     }
 

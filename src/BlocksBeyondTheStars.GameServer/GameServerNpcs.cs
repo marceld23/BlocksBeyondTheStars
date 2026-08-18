@@ -422,10 +422,15 @@ public sealed partial class GameServer
             || key is "torch" or "lantern" or "ladder"
             || (foliagePasses && key == "tree_leaves");
 
+    // NOTE: BroadcastNpcs runs on the 0.2 s position-sync cadence — per-receiver standings (#1118) must
+    // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.
     private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
 
     private void SendNpcs(PlayerSession session)
-        => Send(session, new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+    {
+        Send(session, new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+        SendNpcStandings(session); // #1118: the receiver's relationship stages for these NPCs
+    }
 
     private static NetNpc ToNetNpc(ServerNpc n) => new()
     {

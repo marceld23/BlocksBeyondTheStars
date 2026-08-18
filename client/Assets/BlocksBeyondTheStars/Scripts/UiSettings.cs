@@ -170,6 +170,14 @@ namespace BlocksBeyondTheStars.Client
             // in-game toggle key does the same thing for one session without opening this menu.
             Cycle(ref y, L("ui.settings.chat_visibility"), L(ChatVisibilityLabel(S.ChatVisibility)),
                 () => { S.ChatVisibility = NextChatVisibility(S.ChatVisibility); Rebuild(); });
+            // NPC radio calls (#1119): the server initiates them, so a change is pushed to it right away
+            // (and again on every join — see GameBootstrap's join sequence).
+            Cycle(ref y, L("ui.settings.npc_calls"), L(NpcCallsLabel(S.NpcCalls)), () =>
+            {
+                S.NpcCalls = (S.NpcCalls + 1) % 3;
+                FindAnyObjectByType<GameBootstrap>()?.Network?.SendSetNpcCalls(S.NpcCalls);
+                Rebuild();
+            });
             Toggle(ref y, L("ui.settings.playtime_reminder"), S.PlaytimeReminder, () => { S.PlaytimeReminder = !S.PlaytimeReminder; Rebuild(); });
             // Reminder interval: 15-minute steps from 15 min up to 4 hours; greyed in effect when the toggle is off.
             Stepper(ref y, L("ui.settings.reminder_interval"), (S.ReminderMinutes - 15) / 225f, 15, 240,
@@ -359,6 +367,13 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Locale key for a chat-visibility mode's button caption.</summary>
+        private static string NpcCallsLabel(int mode) => mode switch
+        {
+            1 => "ui.settings.npc_calls.missions",
+            2 => "ui.settings.npc_calls.off",
+            _ => "ui.settings.npc_calls.all",
+        };
+
         private static string ChatVisibilityLabel(ChatVisibility mode) => mode switch
         {
             ChatVisibility.Always => "ui.settings.chat_visibility.always",

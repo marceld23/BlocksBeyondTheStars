@@ -163,6 +163,7 @@ public sealed partial class GameServer
         if (IsBoardMissionId(missionId))
         {
             RecordMissionAccepted(session.State, missionId, def.GiverName);
+            SendNpcStandings(session); // #1118: the quartermaster's nameplate stage may just have risen
         }
 
         OnBountyAccepted(session, def); // #730/#731: persist the def + reveal a camp bounty's camp on the map
@@ -263,6 +264,10 @@ public sealed partial class GameServer
         _repo.SavePlayer(session.State);
         Send(session, new MissionResult { Success = true, MissionId = missionId });
         OnAchievementMissionCompleted(session); // "Helping Hand" / "Quartermaster's Friend" (#1102)
+        if (IsBoardMissionId(missionId))
+        {
+            NpcRadioOnBoardTurnIn(session, missionId, def.GiverName); // #1119: "something new on my board"
+        }
         RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
         TryThreadMission(def);    // P7: a matching mission thread also yields a story fragment
         SendInventory(session);

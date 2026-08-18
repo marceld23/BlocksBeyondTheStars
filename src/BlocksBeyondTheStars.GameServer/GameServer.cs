@@ -1372,6 +1372,8 @@ public sealed partial class GameServer
         Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
         Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
         Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
+        Guard("TickNpcRadio", TickNpcRadio);   // NPC radio calls (#1119): per-player 30 s trigger scans
+        Guard("TickBaseLife", TickBaseLife);   // the world notices your base (#1120): settlers move in
         Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
         Guard("TickAiMissions", TickAiMissions); // publish /ai_mission generations finished off-thread
         Guard("TickVegaBanter", TickVegaBanter); // push VEGA's LLM banter lines finished off-thread
@@ -2772,6 +2774,8 @@ public sealed partial class GameServer
             case SetLampIntent sl: HandleSetLamp(session, sl); break;
             case CopyBuildIntent cb: HandleCopyBuild(session, cb); break;    // #1117: region → share code
             case PasteBuildIntent pb: HandlePasteBuild(session, pb); break;  // #1117: share code → blocks
+            case RequestKnownNpcsIntent: HandleRequestKnownNpcs(session); break;  // #1118: "People you know"
+            case SetNpcCallsIntent nc: HandleSetNpcCalls(session, nc); break;     // #1119: call preference
             case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
             case SetEvaIntent eva: HandleSetEva(session, eva); break;
             case StructureEditIntent structureEdit: HandleStructureEdit(session, structureEdit); break;
@@ -3031,6 +3035,7 @@ public sealed partial class GameServer
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
+        ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up
         BroadcastLandingPads(session); // the join claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendExistingPresences(session); // show already-online players to the newcomer
@@ -4296,6 +4301,7 @@ public sealed partial class GameServer
         if (recipe.Station == Shared.Definitions.CraftingStation.Market && !session.State.AboardShip)
         {
             RecordVendorTrade(session.State);
+            SendNpcStandings(session); // #1118: the vendor's nameplate stage may just have risen
             ShipAiOnTradeOrMission(session); // VEGA onboarding: a vendor barter counts as the first trade
         }
 

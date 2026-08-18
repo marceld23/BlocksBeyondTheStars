@@ -429,6 +429,13 @@ public static class NetCodec
         Register(213, typeof(BuildCodeResult));          // Server -> Client
         Register(214, typeof(PasteBuildIntent));         // Client -> Server
         Register(215, typeof(BuildPasteResult));         // Server -> Client
+
+        // Living NPCs (#1118/#1119): per-player relationship stages for nameplates, the "People you know"
+        // roster, and the NPC radio-call preference.
+        Register(216, typeof(NpcStandingList));          // Server -> Client
+        Register(217, typeof(RequestKnownNpcsIntent));   // Client -> Server
+        Register(218, typeof(KnownNpcList));             // Server -> Client
+        Register(219, typeof(SetNpcCallsIntent));        // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

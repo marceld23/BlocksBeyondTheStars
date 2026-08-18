@@ -5,6 +5,16 @@ using System.Collections.Generic;
 
 namespace BlocksBeyondTheStars.Shared.State;
 
+/// <summary>How much the world may call a player over the radio (#1119) — a PLAYER preference the server
+/// stores, because the server initiates the calls. All = missions + hints; MissionsOnly mutes the flavour
+/// hints; Off silences NPC calls entirely.</summary>
+public enum NpcCallsMode
+{
+    All,
+    MissionsOnly,
+    Off,
+}
+
 /// <summary>The kind of player↔NPC interaction an NPC remembers (item 14).</summary>
 public enum NpcInteractionKind
 {
@@ -29,6 +39,11 @@ public sealed class NpcRelationship
     /// <summary>The NPC's coined name + role at the time of interaction (so item 15 needn't re-derive them).</summary>
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
+
+    /// <summary>Display name of where the NPC lives (settlement/station/base), captured at interaction time
+    /// (#1118) — the "People you know" list shows it without having to reverse a location-key hash. Empty in
+    /// pre-#1118 memories; refreshed on the next interaction.</summary>
+    public string Place { get; set; } = string.Empty;
 
     /// <summary>Relationship score — interactions raise it; higher = friendlier.</summary>
     public int Value { get; set; }

@@ -599,6 +599,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Settlement / station NPCs (vendors, quartermasters, settlers) near the player.</summary>
         public NetNpc[] Npcs { get; private set; } = System.Array.Empty<NetNpc>();
 
+        /// <summary>Relationship stage per live NPC id (#1118, locale keys like <c>npc.stage.known</c>) —
+        /// per receiver, absent = stranger. Nameplates append it so a known face reads as one.</summary>
+        public readonly System.Collections.Generic.Dictionary<int, string> NpcStandings
+            = new System.Collections.Generic.Dictionary<int, string>();
+
+        /// <summary>The "People you know" roster (#1118), friendliest first — filled on request
+        /// (<c>SendRequestKnownNpcs</c>) for the Character tab.</summary>
+        public NetKnownNpc[] KnownNpcs { get; private set; } = System.Array.Empty<NetKnownNpc>();
+
         /// <summary>True when a settlement/station vendor stands within trading reach — enables market
         /// barter at their stall (the server also allows it aboard your ship).</summary>
         public bool NearVendor
@@ -1917,6 +1926,15 @@ namespace BlocksBeyondTheStars.Client
             Network.PlanetEnemiesReceived += m => PlanetEnemies = m.Enemies;
             Network.CreaturesReceived += m => Creatures = m.Creatures;
             Network.NpcsReceived += m => Npcs = m.Npcs;
+            Network.NpcStandingsReceived += m =>
+            {
+                NpcStandings.Clear();
+                for (int i = 0; i < m.NpcIds.Length && i < m.StageKeys.Length; i++)
+                {
+                    NpcStandings[m.NpcIds[i]] = m.StageKeys[i];
+                }
+            };
+            Network.KnownNpcsReceived += m => KnownNpcs = m.People ?? System.Array.Empty<NetKnownNpc>();
             Network.ContainersReceived += m => OnContainers(m);
             Network.OwnedShipsReceived += m => OwnedShips = m.Ships;
             Network.WorldEnvironmentReceived += m =>
@@ -2139,6 +2157,7 @@ namespace BlocksBeyondTheStars.Client
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
                             string.IsNullOrEmpty(HostedToken) ? null : HostedToken);
                         Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
+                        Network.SendSetNpcCalls(Settings?.NpcCalls ?? 0); // #1119: the server initiates NPC calls, so it must know the preference
                         if (!string.IsNullOrEmpty(FacePixels))
                         {
                             Network.SendFace(FacePixels); // tell others our custom face (server persists + relays)
@@ -2450,6 +2469,7 @@ namespace BlocksBeyondTheStars.Client
             PlanetEnemies = System.Array.Empty<NetCombatEntity>();
             Creatures = System.Array.Empty<NetCreature>();
             Npcs = System.Array.Empty<NetNpc>();
+            NpcStandings.Clear(); // #1118: per-world NPC ids — the new world re-sends its own standings
             Containers = System.Array.Empty<NetContainer>();
             Beacons = System.Array.Empty<NetBeacon>();
             Beams = System.Array.Empty<NetBeam>();

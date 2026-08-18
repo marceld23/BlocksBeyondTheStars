@@ -193,6 +193,7 @@ namespace BlocksBeyondTheStars.Client
                     + StationsSig() * 3
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
+                    + (Game.KnownNpcs?.Length ?? 0) * 503 // #1118: the roster arrives async
                     + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0)
                     // Aboard / ship-interior state drives the Map tab dimming + travel-button gating, so a change
                     // (board/leave the ship with the menu open) must rebuild the header + map buttons.
@@ -747,6 +748,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Character:
                     list.Clear();
                     list.Add(("appearance", L("ui.settings.character"), "cat_suit"));
+                    list.Add(("people", L("ui.character.people"), "cat_mission")); // #1118: who you know
                     break;
                 case Mode.Alliances:
                     list.Clear();
@@ -804,7 +806,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Inventory: y = BuildInventoryList(); break;
                 case Mode.Map: y = BuildMapList(); break;
                 case Mode.Missions: y = BuildMissionsList(); break;
-                case Mode.Character: y = BuildCharacterList(); break;
+                case Mode.Character: y = _category == "people" ? BuildPeopleList() : BuildCharacterList(); break;
                 case Mode.Alliances: y = BuildAlliancesList(); break;
                 case Mode.Story: y = BuildStoryList(); break;
                 case Mode.Companions: y = BuildCompanionsList(); break;
@@ -1660,6 +1662,39 @@ namespace BlocksBeyondTheStars.Client
             RebuildList();
             RebuildSidebar();
         }
+
+        /// <summary>"People you know" (#1118): everyone with a standing, friendliest first, straight from
+        /// the server's persisted NPC memory. Requested lazily (rate-limited) — the refresh hash rebuilds
+        /// the list when the roster lands.</summary>
+        private float BuildPeopleList()
+        {
+            if (Game?.Network != null && Time.unscaledTime - _peopleRequestedAt > 5f)
+            {
+                _peopleRequestedAt = Time.unscaledTime;
+                Game.Network.SendRequestKnownNpcs();
+            }
+
+            float y = 8f;
+            var people = Game?.KnownNpcs;
+            if (people == null || people.Length == 0)
+            {
+                var empty = UiKit.AddText(_listContent, 16, y, 740, 60, L("ui.character.people_empty"), 17, UiKit.CyanDim, TextAnchor.UpperLeft);
+                empty.horizontalOverflow = HorizontalWrapMode.Wrap;
+                return y + 70f;
+            }
+
+            foreach (var person in people)
+            {
+                UiKit.AddText(_listContent, 8, y + 4, 700, 30, person.Name, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                string place = string.IsNullOrEmpty(person.Place) ? string.Empty : $"  ·  {person.Place}";
+                UiKit.AddText(_listContent, 28, y + 34, 720, 24, $"{L(person.RoleKey)}  ·  {L(person.StageKey)}{place}", 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 68f;
+            }
+
+            return y + 8f;
+        }
+
+        private float _peopleRequestedAt = -999f;
 
         private float BuildCharacterList()
         {

@@ -93,6 +93,9 @@ public sealed class PlayerSnapshot
     /// older saves — the map then starts fogged, exactly as before, and nothing else is lost.</summary>
     public Dictionary<string, byte[]> ExploredCells { get; set; } = new();
 
+    /// <summary>NPC radio-call preference (#1119): 0 All · 1 MissionsOnly · 2 Off. Absent in older saves ⇒ All.</summary>
+    public int NpcCallsMode { get; set; }
+
     /// <summary>Tamed creatures (companions) — named, bound to their home world. Persisted so they survive a
     /// reload (the wild fauna they came from does not — it is regenerated per visit).</summary>
     public List<TamedCreature> TamedCreatures { get; set; } = new();
@@ -208,6 +211,7 @@ public static class StateMapper
         KnowledgePoints = p.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(p.KnowledgeGivenTo),
         NpcMemory = CloneNpcMemory(p.NpcMemory),
+        NpcCallsMode = (int)p.NpcCallsMode,
         Scanned = p.Scanned.ToList(),
         ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         RationStore = DumpInventory(p.RationStore),
@@ -305,6 +309,7 @@ public static class StateMapper
             {
                 Name = rel.Name,
                 Role = rel.Role,
+                Place = rel.Place,
                 Value = rel.Value,
                 Log = rel.Log.Select(i => new NpcInteraction { Kind = i.Kind }).ToList(),
             };
@@ -342,6 +347,7 @@ public static class StateMapper
         KnowledgePoints = s.KnowledgePoints,
         KnowledgeGivenTo = new Dictionary<string, int>(s.KnowledgeGivenTo ?? new Dictionary<string, int>()),
         NpcMemory = CloneNpcMemory(s.NpcMemory),
+        NpcCallsMode = System.Enum.IsDefined(typeof(NpcCallsMode), s.NpcCallsMode) ? (NpcCallsMode)s.NpcCallsMode : NpcCallsMode.All,
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),

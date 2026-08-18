@@ -266,6 +266,10 @@ public sealed class NetCodecTests
         [213] = typeof(BuildCodeResult),
         [214] = typeof(PasteBuildIntent),
         [215] = typeof(BuildPasteResult),
+        [216] = typeof(NpcStandingList),
+        [217] = typeof(RequestKnownNpcsIntent),
+        [218] = typeof(KnownNpcList),
+        [219] = typeof(SetNpcCallsIntent),
     };
 
     [Fact]
