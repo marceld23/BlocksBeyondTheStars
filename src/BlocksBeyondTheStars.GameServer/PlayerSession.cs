@@ -74,6 +74,10 @@ public sealed class PlayerSession
     public double NextPaintAt { get; set; }
     public double NextCustomShapeAt { get; set; }
 
+    /// <summary>Earliest uptime the next blueprint paste is accepted (#1117) — a paste is up to 4096
+    /// placements in one intent, so it gets a real cooldown.</summary>
+    public double NextBlueprintPasteAt { get; set; }
+
     /// <summary>Server uptime (seconds) before which the "backpack full" toast is suppressed (#600). Area
     /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
     public double NextInventoryFullHintAt { get; set; }

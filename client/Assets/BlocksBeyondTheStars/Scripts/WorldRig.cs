@@ -170,6 +170,10 @@ namespace BlocksBeyondTheStars.Client
             var beaconLabel = root.AddComponent<BeaconLabelUi>();
             beaconLabel.Game = boot;
 
+            // Blueprint tool overlay (#1117): corner marking + export/paste dialogs for build share codes.
+            var blueprintTool = root.AddComponent<BlueprintToolUi>();
+            blueprintTool.Game = boot;
+
             // Crate stash filter (#1032): opens on E at a storage crate — pick what belongs in it.
             var containerFilter = root.AddComponent<ContainerFilterUi>();
             containerFilter.Game = boot;

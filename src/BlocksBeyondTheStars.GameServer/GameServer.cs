@@ -2770,6 +2770,8 @@ public sealed partial class GameServer
             case ToggleStealthIntent: HandleToggleStealth(session); break;
             case SetJetpackIntent sj: HandleSetJetpack(session, sj); break;
             case SetLampIntent sl: HandleSetLamp(session, sl); break;
+            case CopyBuildIntent cb: HandleCopyBuild(session, cb); break;    // #1117: region → share code
+            case PasteBuildIntent pb: HandlePasteBuild(session, pb); break;  // #1117: share code → blocks
             case SetSeatedIntent seat: HandleSetSeated(session, seat); break;
             case SetEvaIntent eva: HandleSetEva(session, eva); break;
             case StructureEditIntent structureEdit: HandleStructureEdit(session, structureEdit); break;

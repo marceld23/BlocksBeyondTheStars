@@ -133,6 +133,8 @@ namespace BlocksBeyondTheStars.Client
         public event Action<PlayerMemoryRevealed>? PlayerMemoryReceived;
         public event Action<LoreTextRevealed>? LoreTextRevealedReceived;             // environmental lore text found (#1111)
         public event Action<ExploredMapData>? ExploredMapReceived;                   // persisted planet-map fog (#1113)
+        public event Action<BuildCodeResult>? BuildCodeReceived;                     // blueprint copy result (#1117)
+        public event Action<BuildPasteResult>? BuildPasteResultReceived;             // blueprint paste result (#1117)
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
@@ -447,6 +449,12 @@ namespace BlocksBeyondTheStars.Client
 
         public void SendUseGadget(string gadgetKey, Vector3f target)
             => Send(new UseGadgetIntent { GadgetKey = gadgetKey, X = target.X, Y = target.Y, Z = target.Z });
+
+        public void SendCopyBuild(int x1, int y1, int z1, int x2, int y2, int z2, string name)
+            => Send(new CopyBuildIntent { X1 = x1, Y1 = y1, Z1 = z1, X2 = x2, Y2 = y2, Z2 = z2, Name = name });
+
+        public void SendPasteBuild(string code, int x, int y, int z)
+            => Send(new PasteBuildIntent { Code = code, X = x, Y = y, Z = z });
 
         public void SendLoadRation(string itemKey, int count) => Send(new LoadRationIntent { ItemKey = itemKey, Count = count });
 
@@ -782,6 +790,8 @@ namespace BlocksBeyondTheStars.Client
                 case PlayerMemoryRevealed m: PlayerMemoryReceived?.Invoke(m); break;
                 case LoreTextRevealed m: LoreTextRevealedReceived?.Invoke(m); break;
                 case ExploredMapData m: ExploredMapReceived?.Invoke(m); break;
+                case BuildCodeResult m: BuildCodeReceived?.Invoke(m); break;
+                case BuildPasteResult m: BuildPasteResultReceived?.Invoke(m); break;
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;

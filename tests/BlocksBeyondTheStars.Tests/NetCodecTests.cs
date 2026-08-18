@@ -262,6 +262,10 @@ public sealed class NetCodecTests
         [209] = typeof(SetLampIntent),
         [210] = typeof(LoreTextRevealed),
         [211] = typeof(ExploredMapData),
+        [212] = typeof(CopyBuildIntent),
+        [213] = typeof(BuildCodeResult),
+        [214] = typeof(PasteBuildIntent),
+        [215] = typeof(BuildPasteResult),
     };
 
     [Fact]

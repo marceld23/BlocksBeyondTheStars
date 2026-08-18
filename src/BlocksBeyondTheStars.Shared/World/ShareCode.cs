@@ -27,6 +27,9 @@ public static class ShareCode
     /// <summary>Kind marker for a painted block design.</summary>
     public const string KindDesign = "D";
 
+    /// <summary>Kind marker for a whole-build blueprint (#1117) — see <c>BlueprintCode</c>.</summary>
+    public const string KindBuild = "B";
+
     /// <summary>Builds a share code. Returns an empty string for an empty payload.</summary>
     public static string Encode(string kind, string payload, string name)
     {

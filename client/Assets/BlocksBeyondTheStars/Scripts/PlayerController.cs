@@ -1295,9 +1295,22 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Aim point: the block under the crosshair, else a point a few metres ahead of the camera.
-            Vector3 target = AimBlock(out var cell, out _, includeFluids: true)
+            bool aimed = AimBlock(out var cell, out _, includeFluids: true);
+            Vector3 target = aimed
                 ? new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f)
                 : transform.position + Camera.transform.forward * 5f;
+
+            // The blueprint tool (#1117) is fully client-orchestrated (corner marking + its own intents) —
+            // it never sends the generic gadget intent, and it needs an aimed BLOCK, not a point in the air.
+            if (key == "blueprint_tool")
+            {
+                if (aimed)
+                {
+                    BlueprintToolUi.Instance?.UseAt(cell);
+                }
+
+                return;
+            }
 
             Game.Network.SendUseGadget(key, target);
 

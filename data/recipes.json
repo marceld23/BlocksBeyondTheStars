@@ -43,6 +43,7 @@
   // Rebuild recipe for the starter scanner — cheap and blueprint-free, because the advanced scanner
   // consumes it as an upgrade input (#798) and a starter item must never become unobtainable.
   { "key": "hand_scanner",     "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 1 }, { "item": "glass", "count": 1 } ], "outputs": [ { "item": "hand_scanner", "count": 1 } ] },
+  { "key": "blueprint_tool",   "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "cable", "count": 2 }, { "item": "glass", "count": 1 } ], "outputs": [ { "item": "blueprint_tool", "count": 1 } ] },
 
   // Weapon tiers are UPGRADES (#798): each consumes its predecessor (the blade/frame is rebuilt into the
   // next weapon). scrap_pistol stays OUT of the chain — starter-only with no recipe, and the deliberate
