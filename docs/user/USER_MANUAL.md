@@ -668,6 +668,20 @@ separate unlock; admins can still disable it through server world rules.
   camp, raise a beacon, or extend your own base. Progress counts as you **place** blocks (mining them back
   out never loses credit) and the job turns in at the board like any other.
 
+### People you know & NPC radio calls
+- **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
+  quartermaster: **Stranger → Acquaintance → Friend**. The stage shows on their **nameplate** when you walk
+  up, and everyone you know is listed under **Tab → Character → People you know** (name, role, stage, where
+  they live).
+- **The world calls you.** People you know reach out over the radio — "📻 Name (Place)" in chat: a
+  quartermaster with bandits nearby points you at the bounty, a refilled mission board gets a mention, a
+  trader landing near your base hails you. Calls need a **radio you carry** (comm = same world, system =
+  same system, galaxy = anywhere), come at most every few minutes, and never repeat themselves. The
+  **Settings → Comfort → NPC radio calls** option switches them to *missions only* or *off*.
+- **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
+  machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
+  people. No visitor ever damages a block.
+
 ### Trade
 - **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
   other player accepts or declines. The trade window lists **your inventory** on the left — `−` / `+` on an

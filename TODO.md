@@ -105,6 +105,33 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Living NPCs — identity + stages, radio calls, the world notices your base (#1118, #1119, #1120, 2026-08-18, branch feat/progression-pr6-living-npcs)
+PR 6 of the progression package (epic #1101) — the last core PR. The audit: NPC memory existed but nothing
+showed it; the radio only ever carried players; bases had zero systemic feedback.
+**Identity (#1118):** the greeting-tone thresholds (`RelationshipTier`: hostile/stranger/known/trusted)
+are now player-visible — localized as Distrustful/Stranger/Acquaintance/Friend (`npc.stage.*`). Nameplates
+append the stage (per-receiver `NpcStandingList`, msg 216 — deliberately NOT on the 0.2 s NPC position
+broadcast; sent with `SendNpcs` + after trades/mission-accepts). Character tab gained **People you know**
+(`KnownNpcList` 218 on request 217, from the persisted `NpcMemory`; new `NpcRelationship.Place` captured
+at interaction time — reversing the location-key hash is impossible). Stages rise via the existing weights.
+**Radio calls (#1119):** `GameServerNpcRadio.cs` — an NPC the player KNOWS calls them: "📻 Name (Place)"
+as a targeted `ChatMessage` (first server-originated chat line in the codebase). Triggers: uncleared camp
+→ quartermaster points at the bounty (mission-category); board refill after a turn-in (hint); trader
+landed near a base (#1120, hint, no acquaintance needed — it's an advert). Gates: radio tier reaches the
+location (comm/system/galaxy items), relationship ≥ known, ≤1 call/10 min (VEGA-style), 1 h per-call
+cooldown, 90 s join quiet. Preference `PlayerState.NpcCallsMode` (All/MissionsOnly/Off, msg 219) — server-
+persisted because the SERVER initiates calls; client row in Settings→Comfort (ChatVisibility cycle
+pattern), mirrored on join. "Queued while offline" = the repo's recompute-on-join pattern: the first scan
+after the quiet period announces whatever is still true. Family/peaceful: no camps → no such calls.
+**Base life (#1120 stages 1–2):** traders 70 %-prefer landing on worlds with a founded base and hail its
+owner on touchdown; `GameServerBaseLife.cs` round-robin-scans bases (10 s, one 17³ zone per tick) and
+moves a **settler** in at ≥3 machine-category blocks (deterministic look per base id, `MakeNpc` like the
+landed-trader pilots, seeded at KNOWN standing for the owner, announced by call). Dissolved base → settler
+leaves. Stage 3 (opt-in bandit scouting) rides with D4/#1122 as planned; no NPC ever touches a block.
+Tests: `NpcRadioTests` (camp call + cooldown; no-radio/stranger/opt-out gates; preference + roster intents),
+`BaseLifeTests` (no settler on a bare claim, moves in at 3 machines + known to owner, never doubles),
+NetCodec golden 216–219. Locales: 15 keys EN+DE hand-written, 12 community locales MT'd.
+
 ### ★ Builder goals — Build missions on settlement boards, whole-build share codes (#1116, #1117, 2026-08-18, branch feat/progression-pr5-builder-goals)
 PR 5 of the progression package (epic #1101). The audit: building had three achievements and zero
 assignments, and nothing a builder makes could leave the world (forms/paint share via BBTS1 codes,
