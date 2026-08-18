@@ -57,6 +57,7 @@ ITEMS = [
     ("ai_core_mk3", "an advanced spherical ship AI computer core, dark metal lattice with bright cyan energy seams"),
     ("plant_fiber", "a small bundle of dried green plant fibres"),
     ("paint_tool", "a handheld sci-fi paint sprayer tool with a small colour palette of bright paint pots attached"),
+    ("blueprint_tool", "a handheld sci-fi surveying tool projecting a small glowing cyan holographic wireframe cube blueprint above it"),
     # Consumables (toxic ones are tinted green at runtime; base art stays natural)
     ("creature_meat", "a juicy grilled steak of meat on a small bone"),
     ("cooked_meat", "a golden-brown roasted meat joint on a small bone with rising steam wisps, freshly cooked over a campfire"),
