@@ -262,7 +262,7 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains("vega:stage:land", milestones);
         Assert.Contains(lines, l => l.LineKey == "vega.veteran");
         Assert.DoesNotContain(lines, l => l.LineKey == "vega.intro.1");
-        Assert.Equal(string.Empty, lines.Last().ObjectiveKey); // no objective chip for veterans
+        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110)
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains("vega:stage:trade", milestones);
         Assert.Contains("vega:stage:land", milestones);
         Assert.Contains(lines, l => l.LineKey == "vega.skip");
-        Assert.Equal(string.Empty, lines.Last().ObjectiveKey);
+        Assert.StartsWith("story.obj.", lines.Last().ObjectiveKey); // post-tutorial the chip shows the story objective (#1110)
     }
 
     [Fact]
