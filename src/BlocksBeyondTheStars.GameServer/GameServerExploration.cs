@@ -77,7 +77,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>First landing on a body: a "place" Discoveries entry + the knowledge grant, pushed as the
-    /// usual ledger delta so the Codex updates live.</summary>
+    /// usual ledger delta so the Codex updates live. The VERY FIRST body — the spawn world — records the
+    /// entry but pays nothing: knowledge is for venturing out, and a join-time grant would make VEGA read
+    /// every fresh save as a veteran (<c>VegaIsVeteran</c> keys on KnowledgePoints &gt; 0) and skip the
+    /// whole onboarding.</summary>
     private void RecordPlaceDiscovery(PlayerSession session, CelestialBody body)
     {
         if (!TryAddPlaceEntry(session.State, body))
@@ -85,14 +88,22 @@ public sealed partial class GameServer
             return;
         }
 
-        session.State.KnowledgePoints += KnowledgeFirstLanding;
+        bool spawnWorld = session.State.LandedBodies.Count <= 1; // the caller just added this body
+        if (!spawnWorld)
+        {
+            session.State.KnowledgePoints += KnowledgeFirstLanding;
+        }
+
         Send(session, new DiscoveryLog
         {
             Entries = new[] { PlaceLedgerPrefix + body.Id },
             Names = new[] { body.Name },
             Full = false,
         });
-        SendInventory(session); // the knowledge total just changed
+        if (!spawnWorld)
+        {
+            SendInventory(session); // the knowledge total just changed
+        }
     }
 
     /// <summary>Adds the ledger entry alone — no knowledge, no messages. Shared by the live path and the

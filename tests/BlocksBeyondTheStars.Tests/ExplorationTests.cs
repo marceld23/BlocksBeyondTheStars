@@ -156,12 +156,19 @@ public sealed class ExplorationTests : IDisposable
         string home = session.State.CurrentLocationId;
         Assert.Contains("place:" + home, session.State.Scanned);
         Assert.True(session.State.ScannedNames.ContainsKey("place:" + home), "the entry carries the body's display name");
-        int knowledgeAfterJoin = session.State.KnowledgePoints;
-        Assert.True(knowledgeAfterJoin >= SvGameServer.KnowledgeFirstLanding, "the first landing pays knowledge");
 
-        // Landing on the same body again must not pay again.
-        server.MarkArrivedOnBodyForTest(session, home);
-        Assert.Equal(knowledgeAfterJoin, session.State.KnowledgePoints);
+        // The SPAWN world records its entry but pays NOTHING — a join-time grant would flip VEGA's
+        // veteran heuristic (KnowledgePoints > 0) and skip the onboarding for every fresh save.
+        Assert.Equal(0, session.State.KnowledgePoints);
+
+        // The first real first-landing elsewhere pays — exactly once.
+        var other = server.Galaxy.Systems.SelectMany(s => s.Bodies).First(b => b.Id != home);
+        server.MarkArrivedOnBodyForTest(session, other.Id);
+        Assert.Contains("place:" + other.Id, session.State.Scanned);
+        Assert.Equal(SvGameServer.KnowledgeFirstLanding, session.State.KnowledgePoints);
+
+        server.MarkArrivedOnBodyForTest(session, other.Id);
+        Assert.Equal(SvGameServer.KnowledgeFirstLanding, session.State.KnowledgePoints);
     }
 
     // ---- Pre-#1113 saves: landed bodies backfill silently on join ------------------------------
