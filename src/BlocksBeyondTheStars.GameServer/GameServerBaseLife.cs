@@ -78,27 +78,27 @@ public sealed partial class GameServer
         int count = 0;
         int r = BaseProtectionRadius;
         for (int x = -r; x <= r; x++)
-        for (int y = -r; y <= r; y++)
-        for (int z = -r; z <= r; z++)
-        {
-            var pos = new Vector3i(b.Cell.X + x, b.Cell.Y + y, b.Cell.Z + z);
-            if (!WithinBuildHeight(pos.Y))
-            {
-                continue;
-            }
+            for (int y = -r; y <= r; y++)
+                for (int z = -r; z <= r; z++)
+                {
+                    var pos = new Vector3i(b.Cell.X + x, b.Cell.Y + y, b.Cell.Z + z);
+                    if (!WithinBuildHeight(pos.Y))
+                    {
+                        continue;
+                    }
 
-            var block = _world.GetBlock(WorldConstants.CanonicalBlock(pos, _world.Circumference));
-            if (block.IsAir)
-            {
-                continue;
-            }
+                    var block = _world.GetBlock(WorldConstants.CanonicalBlock(pos, _world.Circumference));
+                    if (block.IsAir)
+                    {
+                        continue;
+                    }
 
-            var def = _content.BlockById(block);
-            if (def is { Category: "machine" } && def.Key != "base_core")
-            {
-                count++;
-            }
-        }
+                    var def = _content.BlockById(block);
+                    if (def is { Category: "machine" } && def.Key != "base_core")
+                    {
+                        count++;
+                    }
+                }
 
         return count;
     }
