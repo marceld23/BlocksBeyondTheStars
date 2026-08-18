@@ -126,7 +126,7 @@ public sealed partial class GameServer
         }
 
         session.NextBlueprintPasteAt = _uptime + BlueprintPasteCooldown;
-        bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
         int placed = 0, skippedMaterials = 0, skippedProtected = 0, skippedSpecial = 0;
 

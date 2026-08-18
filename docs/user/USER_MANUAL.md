@@ -1117,6 +1117,21 @@ and that option is off by default on hosted worlds.
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
 | `/paintwipe Player` (or `#designId`) | Removes that player's painted block designs **everywhere at once** (or a single design by id, taken from the report log). Wiped designs stay wiped across restarts |
+| `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
+
+#### Per-player mode — one world, mixed Survival and Creative
+
+A shared world normally has ONE mode. As **world admin** you can give a single player their own: with
+`/mode Player creative` (or the **Player modes** rows on the Settings tab, listed there only for admins)
+that player plays **Creative** — free crafting and research, creative flight (double-tap **Space**), no
+oxygen/hunger/temperature, and machines, bandits and aggressive creatures ignore them — while everyone
+else keeps playing the world as it is. The classic family setup: the kid builds carefree in the shared
+survival world, the parent keeps the survival challenge. It also works the other way round
+(`/mode Player survival` in a creative world), `/mode Player world` puts them back on the world's mode,
+and the setting **persists** — it survives rejoins and restarts until an admin changes it. Like the other
+tools in this section it is moderation, not a cheat: it works even when admin cheats are off. The world's
+own difficulty sliders (oxygen/hunger rates, hazards) still apply to a survival-playing player, and world
+options like PvP or structure damage are never per-player.
 
 #### Blocking players from your own hosted world
 

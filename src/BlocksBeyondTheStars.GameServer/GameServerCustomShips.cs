@@ -258,7 +258,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         var pool = new MaterialPool(_content, p, _ship);
         if (!free)
         {
@@ -497,7 +497,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         var buildPool = new MaterialPool(_content, p, _ship);
         if (!free)
         {

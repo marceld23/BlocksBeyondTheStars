@@ -110,7 +110,7 @@ public sealed partial class GameServer
     {
         // Free-crafting worlds (Creative) skip every station/material check in HandleCraft/HandleUnlock, so
         // the menu must not dim anything there either.
-        bool free = !Rules.CraftingCostsMaterials;
+        bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride);
         var ship = ShipOf(session);
         var available = new List<string>();
         foreach (var station in GatedStations)

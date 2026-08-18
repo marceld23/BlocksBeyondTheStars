@@ -1512,7 +1512,8 @@ public sealed partial class GameServer
             var playerCell = new Vector3i(
                 (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
             bool atBase = !p.InEva && (InAnyBaseZone(playerCell) || InSealedBaseRoom(playerCell));
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || InStation(p.PlayerId) || !Rules.OxygenEnabled);
+            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || InStation(p.PlayerId)
+                || !Rules.OxygenEnabledFor(p.ModeOverride));
             // Which source keeps this player breathing — sent to the client so the HUD can name it
             // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room). Base ranks last so
             // the label only claims the base when nothing closer (ship/station) already covers you.
@@ -1582,7 +1583,7 @@ public sealed partial class GameServer
 
             // Hunger (survival): aboard the ship, boarded on a station (both have life support), or when
             // disabled, sate; otherwise drain and, once empty, starve (health loss until the player eats).
-            if (p.AboardShip || InStation(p.PlayerId) || !Rules.HungerEnabled)
+            if (p.AboardShip || InStation(p.PlayerId) || !Rules.HungerEnabledFor(p.ModeOverride))
             {
                 p.Hunger = System.Math.Min(100f, p.Hunger + (float)(dt * 10));
             }
@@ -2460,6 +2461,14 @@ public sealed partial class GameServer
             RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
             BroadcastToWorld(new PlayerLeft { PlayerId = session.State.PlayerId }); // remove their avatar in-world
             BroadcastLandingPads(); // the leaver's pad is free again — everyone's map must show it (#1020)
+            foreach (var other in _sessions.Values)
+            {
+                if (other.Joined && other.State.IsAdmin)
+                {
+                    SendRules(other); // the admins' player-mode roster (#1121) loses this player
+                }
+            }
+
             if (!string.IsNullOrEmpty(loc) && loc != _meta.ActiveLocationId && !OccupiedLocations().Contains(loc))
             {
                 // Move the cursor off the world we're about to drop, back to the (always-resident) default
@@ -3006,6 +3015,16 @@ public sealed partial class GameServer
         SendInventory(session);
         SendPlayerState(session);
         SendRules(session);
+        // Online admins carry a player-mode roster in their rule set (#1121) — refresh it now that this
+        // player is on it.
+        foreach (var other in _sessions.Values)
+        {
+            if (other.Joined && other != session && other.State.IsAdmin)
+            {
+                SendRules(other);
+            }
+        }
+
         SendShipCombatStatus(session);
         SendLandedShips(session); // every parked ship object on the join world
         SendShipPlacement(session);
@@ -4083,7 +4102,7 @@ public sealed partial class GameServer
         }
 
         // Creative mode and admin instant-build place without consuming materials.
-        bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
         if (!free)
         {
@@ -4215,7 +4234,7 @@ public sealed partial class GameServer
         int count = System.Math.Clamp(craft.Count, 1, ItemDefinition.DefaultMaxStack);
 
         // Creative mode: no material/blueprint/station cost — just produce the output.
-        if (!Rules.CraftingCostsMaterials)
+        if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
             var freePool = new MaterialPool(_content, session.State, _ship);
             foreach (var output in recipe.Outputs)
@@ -4350,7 +4369,7 @@ public sealed partial class GameServer
             ItemKey.Shape(intent.SourceItemKey), ItemKey.Design(intent.SourceItemKey));
 
         // Creative mode: no material cost — just produce the coloured material.
-        if (!Rules.CraftingCostsMaterials)
+        if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
             var freeTintPool = new MaterialPool(_content, session.State, _ship);
             AddCraftOutput(session, freeTintPool, output, count, intent.Slot);
@@ -4494,7 +4513,7 @@ public sealed partial class GameServer
             shape, ItemKey.Design(sourceItemKey));
 
         // Creative mode: no material cost — just produce the shaped material.
-        if (!Rules.CraftingCostsMaterials)
+        if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
             var freeShapePool = new MaterialPool(_content, session.State, _ship);
             AddCraftOutput(session, freeShapePool, output, count, slot);
@@ -4634,7 +4653,7 @@ public sealed partial class GameServer
 
         // Research is location-bound to the cockpit (#1074) — the Tech tab used to claim a "lab" that no
         // ship ever had while this handler enforced nothing at all. Free-crafting (Creative) worlds skip it, like crafting does.
-        if (Rules.CraftingCostsMaterials && !ResearchAvailable(session))
+        if (Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) && !ResearchAvailable(session))
         {
             Reject(session, "unlock", "@srv.unlock.cockpit");
             return;
@@ -4784,6 +4803,12 @@ public sealed partial class GameServer
 
             case "where":
                 AdminWhere(session, cmd.StringArg ?? cmd.TargetPlayer);
+                return;
+
+            // Per-player mode override (#1121) — world management, not a cheat: family worlds keep
+            // AdminCheats off, and exactly there a parent needs to hand the kid Creative. The role is the gate.
+            case "set_mode":
+                AdminSetPlayerMode(session, cmd.TargetPlayer, cmd.StringArg);
                 return;
 
             // Observer mode + its jump command are fleet-admin only: they reach into worlds other people own,
@@ -5031,6 +5056,64 @@ public sealed partial class GameServer
 
     private void CheatLog(PlayerState admin, string message)
         => _log.Info($"[CHEAT] Admin {admin.Name} {message}.");
+
+    /// <summary>Per-player mode override (#1121): <c>/mode &lt;player&gt; survival|creative|world</c> — the
+    /// world admin lets one player play by another mode's rules than the world's (kid = creative flight +
+    /// free crafting, parent unchanged). "world" clears the override. Online players only: the override is
+    /// applied to the live session and persisted with it.</summary>
+    private void AdminSetPlayerMode(PlayerSession session, string? targetName, string? modeArg)
+    {
+        var target = FindSessionByName(targetName);
+        if (target is null)
+        {
+            Reject(session, "admin", "@srv.mode.usage");
+            return;
+        }
+
+        PlayerModeOverride? over = (modeArg ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "survival" => PlayerModeOverride.Survival,
+            "creative" => PlayerModeOverride.Creative,
+            "world" or "none" or "clear" => PlayerModeOverride.None,
+            _ => null,
+        };
+        if (over is null)
+        {
+            Reject(session, "admin", "@srv.mode.usage");
+            return;
+        }
+
+        target.State.ModeOverride = over.Value;
+        _repo.SavePlayer(target.State);
+        CheatLog(session.State, $"set {target.State.Name}'s mode override to {over.Value}");
+
+        // The target's client re-reads its effective rules (mode label, O2 bar, flight) right away; every
+        // admin's Settings tab re-renders its player-mode rows from the re-broadcast roster.
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && (s == target || s.State.IsAdmin))
+            {
+                SendRules(s);
+            }
+        }
+
+        SendPlayerState(target); // CanFly follows the override
+        string modeName = Rules.ModeFor(over.Value).ToString();
+        Send(target, new ServerMessage
+        {
+            Text = Localize(target.Locale, over.Value == PlayerModeOverride.None ? "srv.mode.cleared_you" : "srv.mode.set_you")
+                .Replace("{mode}", modeName),
+        });
+        if (target != session)
+        {
+            Send(session, new ServerMessage
+            {
+                Text = Localize(session.Locale, "srv.mode.set_admin")
+                    .Replace("{player}", target.State.Name)
+                    .Replace("{mode}", over.Value == PlayerModeOverride.None ? Rules.GameMode.ToString() : modeName),
+            });
+        }
+    }
 
     // ---------------- Helpers ----------------
 
@@ -5393,8 +5476,9 @@ public sealed partial class GameServer
             AiCoreTier = VegaCoreTier(session),
             InSpeeder = p.InSpeeder,
             Spectating = session.Spectating,
-            // A creative world lets everybody fly; /fly keeps working as the per-player admin cheat.
-            CanFly = Rules.CreativeFlight || p.Fly,
+            // A creative world lets everybody fly; a per-player Creative override (#1121) grants it too;
+            // /fly keeps working as the per-player admin cheat.
+            CanFly = Rules.CreativeFlightFor(p.ModeOverride) || p.Fly,
         });
     }
 
@@ -5535,9 +5619,22 @@ public sealed partial class GameServer
     private void SendRules(PlayerSession session)
     {
         var r = Rules;
+        // The mode + its derived switches are the receiver's EFFECTIVE ones (#1121): a per-player override
+        // makes the kid's client read "Creative" (and hide the O2 bar) while the world stays Survival.
+        var over = session.State.ModeOverride;
+        // World admins additionally get the online players' overrides, feeding the Settings-tab rows.
+        string[] modeNames = System.Array.Empty<string>();
+        string[] modeValues = System.Array.Empty<string>();
+        if (session.State.IsAdmin)
+        {
+            var online = _sessions.Values.Where(s => s.Joined).OrderBy(s => s.State.Name).Take(24).ToList();
+            modeNames = online.Select(s => s.State.Name).ToArray();
+            modeValues = online.Select(s => s.State.ModeOverride.ToString()).ToArray();
+        }
+
         Send(session, new ServerRules
         {
-            GameMode = r.GameMode.ToString(),
+            GameMode = r.ModeFor(over).ToString(),
             Pvp = r.Pvp.ToString(),
             WeaponMode = r.WeaponMode.ToString(),
             AggressiveAliens = r.AggressiveAliens.ToString(),
@@ -5545,7 +5642,7 @@ public sealed partial class GameServer
             DeathPenalty = r.DeathPenalty.ToString(),
             KeepInventoryOnDeath = r.KeepInventoryOnDeath,
             KeepShipOnDeath = r.KeepShipOnDeath,
-            OxygenEnabled = r.OxygenEnabled,
+            OxygenEnabled = r.OxygenEnabledFor(over),
             AdminCheatsActive = r.CheatsAllowed,
             CreatureAbundance = r.CreatureAbundance.ToString(),
             PlanetEnemies = r.PlanetEnemies.ToString(),
@@ -5556,6 +5653,8 @@ public sealed partial class GameServer
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
             VoiceChatEnabled = _config.VoiceChatEnabled,
+            PlayerModeNames = modeNames,
+            PlayerModeValues = modeValues,
         });
     }
 

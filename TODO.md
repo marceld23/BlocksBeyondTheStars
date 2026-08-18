@@ -105,6 +105,32 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Per-player mode — one family world, mixed Survival/Creative (#1121, 2026-08-19, branch feat/progression-pr7-per-player-mode)
+PR 7 of the progression package (epic #1101), first non-core PR. The problem: `GameRules` derived every
+mode switch from the world's `GameMode` — one family world, one ruleset; a parent wanting survival and a
+kid wanting creative could not share a world.
+**Rules refactor:** new `PlayerModeOverride` (None/Survival/Creative) on `PlayerState` (persisted via the
+snapshot int + `Enum.IsDefined` guard, like `NpcCallsMode`); every mode-derived getter gained a `…For(override)`
+twin (`ModeFor`, `CraftingCostsMaterialsFor`, `OxygenEnabledFor`, `HungerEnabledFor`,
+`TemperatureHazardsEnabledFor`, `CreativeFlightFor`) — the parameterless originals delegate to `…For(None)`,
+so world-level callers (spawning, presets, base-air warnings) are untouched. All ~25 per-player consumption
+sites (crafting/research/build/repair/paint/blueprint-paste `free` checks, oxygen/hunger/temperature/weather
+ticks, `CanFly`) now pass the session's override. `CheatsAllowed` deliberately stays world-level.
+**Hostiles:** new `PlayerState.IgnoredByHostiles` (god mode ∨ cloak ∨ creative override) replaces the
+scattered `GodMode || Stealthed` checks in machine/bandit/fauna targeting + ambush scheduling — a
+creative-override player is invisible to hostiles, mirroring a creative world where they never spawn.
+**Admin surface:** `set_mode` admin command in the MODERATION switch (role is the gate, NOT `CheatsAllowed` —
+family worlds keep cheats off, and exactly there a parent needs it); `/mode Player survival|creative|world`
+in chat (last token = mode, rest = name, #980-safe); Settings tab gained **Player modes** rows — the server
+fills a name/override roster into `ServerRules` (contractless MessagePack, field add is codec-safe) only for
+admin receivers, so the section simply doesn't render for others. `/players` shows the override.
+**Client truth:** `SendRules` now sends the receiver's EFFECTIVE mode + `OxygenEnabledFor` (kid's client
+reads "Creative", hides the O2 pressure) and `SendPlayerState.CanFly` follows the override; on `set_mode`
+the target gets rules+state+toast immediately and all admins get the refreshed roster.
+Locales: 10 new keys EN+DE by hand, 12 community locales MT'd. Tests: `PlayerModeOverrideTests` (5) —
+getter matrix, snapshot round-trip + unknown-value guard, admin command incl. non-admin refusal +
+spaced names, live effective-rules/CanFly/free-craft flow, SQLite restart persistence.
+
 ### ★ Living NPCs — identity + stages, radio calls, the world notices your base (#1118, #1119, #1120, 2026-08-18, branch feat/progression-pr6-living-npcs)
 PR 6 of the progression package (epic #1101) — the last core PR. The audit: NPC memory existed but nothing
 showed it; the radio only ever carried players; bases had zero systemic feedback.

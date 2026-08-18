@@ -103,7 +103,7 @@ public sealed partial class GameServer
             return;
         }
 
-        if (!Rules.TemperatureHazardsEnabled || sheltered)
+        if (!Rules.TemperatureHazardsEnabledFor(p.ModeOverride) || sheltered)
         {
             return;
         }

@@ -1841,6 +1841,27 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(starterTpBtn.transform, 560, 0, 200, 78, starterTp ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 starterTp ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // Per-player mode overrides (#1121): one row per online player, cycling World / Survival /
+            // Creative. The server fills the roster ONLY for world admins, so the section simply is not
+            // there for everyone else — same admin gating as the rule rows above, but without the noise.
+            var modeNames = rules?.PlayerModeNames;
+            if (modeNames != null && modeNames.Length > 0)
+            {
+                UiKit.AddText(_listContent, 16, y, 760, 30, L("ui.worldopt.player_modes"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 40f;
+                string[] modeSteps = { "None", "Survival", "Creative" };
+                for (int i = 0; i < modeNames.Length; i++)
+                {
+                    string playerName = modeNames[i];
+                    string current = rules.PlayerModeValues != null && i < rules.PlayerModeValues.Length
+                        ? rules.PlayerModeValues[i] : "None";
+                    StepRow(playerName, modeSteps, "ui.worldopt.pmode.", current,
+                        v => Game?.Network?.SendAdminCommand("set_mode",
+                            stringArg: v == "None" ? "world" : v.ToLowerInvariant(), targetPlayer: playerName));
+                }
+            }
+
             y += 16f;
 
             // VEGA advisor hints on/off — mutes the ship AI's optional coaching (onboarding chip stays).

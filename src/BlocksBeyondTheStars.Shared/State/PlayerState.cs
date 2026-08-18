@@ -174,6 +174,17 @@ public sealed class PlayerState
     public bool Fly { get; set; }
     public bool InstantBuild { get; set; }
 
+    /// <summary>Per-player mode override (#1121), set by the world admin (<c>/mode</c> or the Settings tab):
+    /// this player plays Creative or Survival regardless of the world's mode — the rule getters consult it
+    /// via the <c>GameRules.*For</c> twins. None = the world's mode. Persisted, so the kid's creative
+    /// override survives a rejoin without the admin re-issuing it.</summary>
+    public Configuration.PlayerModeOverride ModeOverride { get; set; } = Configuration.PlayerModeOverride.None;
+
+    /// <summary>Hostiles (machines, bandits, aggressive fauna) treat this player as not there: god mode,
+    /// cloak — or a per-player Creative override (#1121), mirroring a creative world, where they never
+    /// spawn at all.</summary>
+    public bool IgnoredByHostiles => GodMode || Stealthed || ModeOverride == Configuration.PlayerModeOverride.Creative;
+
     public bool IsAdmin => Role is PlayerRole.Admin or PlayerRole.WorldAdmin;
 
     /// <summary>Accepted missions and their progress.</summary>

@@ -238,7 +238,12 @@ public sealed partial class GameServer
 
             Send(session, new ServerMessage
             {
-                Text = $"{state.Name} [{state.Role}] · {BodyLabel(state.CurrentLocationId)} · "
+                Text = $"{state.Name} [{state.Role}]"
+                       // A per-player mode override (#1121) is worth a glance in the roster; the silent
+                       // default (playing the world's mode) stays silent.
+                       + (state.ModeOverride == Shared.Configuration.PlayerModeOverride.None
+                           ? string.Empty : $" [{state.ModeOverride}]")
+                       + $" · {BodyLabel(state.CurrentLocationId)} · "
                        + $"{Coords(state.Position)} · {status}",
             });
         }

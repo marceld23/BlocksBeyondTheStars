@@ -467,6 +467,15 @@ namespace BlocksBeyondTheStars.Client
                 case "/god": net.SendAdminCommand("godmode"); return true;
                 case "/instant": net.SendAdminCommand("instant_build"); return true;
 
+                // Per-player mode override (#1121): "/mode <player…> <survival|creative|world>". The LAST
+                // token is the mode, everything between is the player name — names contain spaces (#980).
+                case "/mode":
+                    if (p.Length < 3) { LocalLine(L("ui.cmd.usage_mode")); return true; }
+                    net.SendAdminCommand("set_mode",
+                        stringArg: p[p.Length - 1],
+                        targetPlayer: t.Substring(p[0].Length, t.Length - p[0].Length - p[p.Length - 1].Length).Trim());
+                    return true;
+
                 // ---- Fleet-admin observer + inspection (issues #487/#488) ----
                 // Note these are NOT gated by the "admin cheats" world option server-side; the role is the gate.
                 case "/players": net.SendAdminCommand("players"); return true;
@@ -586,6 +595,7 @@ namespace BlocksBeyondTheStars.Client
         private void AdminHelp()
         {
             LocalLine(L("ui.admin.help_cheats"));
+            LocalLine(L("ui.admin.help_mode"));
             LocalLine(L("ui.admin.help_teleport"));
             LocalLine(L("ui.admin.help_inspect"));
             LocalLine(L("ui.admin.help_fleet"));

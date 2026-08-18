@@ -156,7 +156,7 @@ public sealed partial class GameServer
 
         var design = OwnShipDesignReference(session.State.PlayerId);
         var (missing, cost) = ComputeShipRepairCost(live, design);
-        bool free = !Rules.CraftingCostsMaterials || session.State.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(session.State.ModeOverride) || session.State.InstantBuild;
         var pool = new MaterialPool(_content, session.State, _ship);
 
         // A ship lost under KeepShipOnDeath=false is grounded until its wreck is fully restored. Once the hull is
@@ -210,7 +210,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         var pool = new MaterialPool(_content, p, _ship);
         float hullBefore = _ship.Hull;
         int cellsRepaired = 0;
@@ -299,7 +299,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         string item = RepairItemForBlock(def);
         var pool = new MaterialPool(_content, p, _ship);
         if (!free)

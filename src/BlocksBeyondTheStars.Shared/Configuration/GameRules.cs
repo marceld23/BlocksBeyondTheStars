@@ -22,6 +22,16 @@ public enum GameMode
     Creative,
 }
 
+/// <summary>Per-player mode override (#1121): lets one player in a shared world play by different
+/// mode-derived rules than the world's <see cref="GameMode"/> — a parent keeps survival while the kid
+/// free-crafts and flies. None = play the world's mode. Set by the world admin, persisted per player.</summary>
+public enum PlayerModeOverride
+{
+    None,
+    Survival,
+    Creative,
+}
+
 public enum PvpMode
 {
     Off,
@@ -223,11 +233,28 @@ public sealed class GameRules
     /// OFF default — no start-up lift needed.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>The mode a player effectively plays (#1121): the world's <see cref="GameMode"/> unless the
+    /// world admin gave them a per-player override. Every mode-derived rule below has a <c>…For</c> twin
+    /// taking the player's override, so one family world can mix survival and creative players.</summary>
+    public GameMode ModeFor(PlayerModeOverride over) => over switch
+    {
+        PlayerModeOverride.Survival => GameMode.Survival,
+        PlayerModeOverride.Creative => GameMode.Creative,
+        _ => GameMode,
+    };
+
     /// <summary>Whether crafting consumes materials / needs stations (false in Creative).</summary>
-    public bool CraftingCostsMaterials => GameMode != GameMode.Creative;
+    public bool CraftingCostsMaterials => CraftingCostsMaterialsFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="CraftingCostsMaterials"/> (#1121).</summary>
+    public bool CraftingCostsMaterialsFor(PlayerModeOverride over) => ModeFor(over) != GameMode.Creative;
 
     /// <summary>Whether the suit consumes oxygen given the mode and setting.</summary>
-    public bool OxygenEnabled => GameMode != GameMode.Creative && OxygenConsumption != OxygenConsumption.Off;
+    public bool OxygenEnabled => OxygenEnabledFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="OxygenEnabled"/> (#1121).</summary>
+    public bool OxygenEnabledFor(PlayerModeOverride over)
+        => ModeFor(over) != GameMode.Creative && OxygenConsumption != OxygenConsumption.Off;
 
     /// <summary>Oxygen drain per second derived from the configured rate. Softened again (Severin playtest —
     /// oxygen still felt punishing) — at Normal a full tank now lasts ~285s on foot (was ~200s, originally ~50s).
@@ -241,7 +268,11 @@ public sealed class GameRules
     };
 
     /// <summary>Whether the player's hunger drains given the mode and setting.</summary>
-    public bool HungerEnabled => GameMode != GameMode.Creative && HungerConsumption != HungerConsumption.Off;
+    public bool HungerEnabled => HungerEnabledFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="HungerEnabled"/> (#1121).</summary>
+    public bool HungerEnabledFor(PlayerModeOverride over)
+        => ModeFor(over) != GameMode.Creative && HungerConsumption != HungerConsumption.Off;
 
     /// <summary>Hunger lost per second outside the ship, derived from the configured tier. Softened and tiered
     /// after Severin playtest #2 (nearly starved twice in the first minutes): at Normal a full bar now lasts
@@ -259,7 +290,17 @@ public sealed class GameRules
     /// then slowly damages health. Off in Creative (like oxygen/hunger) and when the world's
     /// environmental-hazard tier is <see cref="HazardLevel.Off"/> — the in-game "Environmental hazards"
     /// world option is the switch.</summary>
-    public bool TemperatureHazardsEnabled => GameMode != GameMode.Creative && EnvironmentalHazards != HazardLevel.Off;
+    public bool TemperatureHazardsEnabled => TemperatureHazardsEnabledFor(PlayerModeOverride.None);
+
+    /// <summary>Per-player twin of <see cref="TemperatureHazardsEnabled"/> (#1121).</summary>
+    public bool TemperatureHazardsEnabledFor(PlayerModeOverride over)
+        => ModeFor(over) != GameMode.Creative && EnvironmentalHazards != HazardLevel.Off;
+
+    /// <summary>Per-player twin of <see cref="CreativeFlight"/> (#1121): an overridden player flies exactly
+    /// when the mode they effectively play is Creative; None falls back to the world flag, so the world's
+    /// own creative-flight setting keeps governing everyone without an override.</summary>
+    public bool CreativeFlightFor(PlayerModeOverride over)
+        => over == PlayerModeOverride.None ? CreativeFlight : ModeFor(over) == GameMode.Creative;
 
     /// <summary>Difficulty multiplier applied to the temperature drain AND exposure damage (issue #666).
     /// Normal is the tuning baseline (ice world ≈ 10 min suit buffer with no gear).</summary>

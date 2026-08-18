@@ -1041,6 +1041,15 @@ public sealed class ServerRules
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
+
+    /// <summary>Per-player mode overrides (#1121), parallel to <see cref="PlayerModeValues"/> — the online
+    /// players' names, filled only when the RECEIVER is a world admin (they feed the Settings-tab
+    /// "player modes" rows). Empty for everyone else. Note <see cref="GameMode"/> above is already the
+    /// receiver's EFFECTIVE mode, override included.</summary>
+    public string[] PlayerModeNames { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>Current override per player in <see cref="PlayerModeNames"/>: "None", "Survival" or "Creative".</summary>
+    public string[] PlayerModeValues { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>Client → server (world admin only): live-edits the gameplay world options — creature

@@ -96,6 +96,9 @@ public sealed class PlayerSnapshot
     /// <summary>NPC radio-call preference (#1119): 0 All · 1 MissionsOnly · 2 Off. Absent in older saves ⇒ All.</summary>
     public int NpcCallsMode { get; set; }
 
+    /// <summary>Per-player mode override (#1121): 0 None · 1 Survival · 2 Creative. Absent in older saves ⇒ None.</summary>
+    public int ModeOverride { get; set; }
+
     /// <summary>Tamed creatures (companions) — named, bound to their home world. Persisted so they survive a
     /// reload (the wild fauna they came from does not — it is regenerated per visit).</summary>
     public List<TamedCreature> TamedCreatures { get; set; } = new();
@@ -212,6 +215,7 @@ public static class StateMapper
         KnowledgeGivenTo = new Dictionary<string, int>(p.KnowledgeGivenTo),
         NpcMemory = CloneNpcMemory(p.NpcMemory),
         NpcCallsMode = (int)p.NpcCallsMode,
+        ModeOverride = (int)p.ModeOverride,
         Scanned = p.Scanned.ToList(),
         ScannedNames = new Dictionary<string, string>(p.ScannedNames),
         RationStore = DumpInventory(p.RationStore),
@@ -348,6 +352,9 @@ public static class StateMapper
         KnowledgeGivenTo = new Dictionary<string, int>(s.KnowledgeGivenTo ?? new Dictionary<string, int>()),
         NpcMemory = CloneNpcMemory(s.NpcMemory),
         NpcCallsMode = System.Enum.IsDefined(typeof(NpcCallsMode), s.NpcCallsMode) ? (NpcCallsMode)s.NpcCallsMode : NpcCallsMode.All,
+        ModeOverride = System.Enum.IsDefined(typeof(Shared.Configuration.PlayerModeOverride), s.ModeOverride)
+            ? (Shared.Configuration.PlayerModeOverride)s.ModeOverride
+            : Shared.Configuration.PlayerModeOverride.None,
         Scanned = new HashSet<string>(s.Scanned ?? new List<string>()),
         ScannedNames = new Dictionary<string, string>(s.ScannedNames ?? new Dictionary<string, string>()),
         RationStore = RestoreInventory(BlocksBeyondTheStars.Shared.State.PlayerState.RationStoreSlots, s.RationStore ?? new List<InventorySlotDto>()),

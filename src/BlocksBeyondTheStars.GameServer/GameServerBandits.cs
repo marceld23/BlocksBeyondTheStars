@@ -145,7 +145,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.GodMode || p.Stealthed)
+                if (p.IgnoredByHostiles)
                 {
                     continue;
                 }
@@ -212,7 +212,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (_uptime < session.NextBanditAmbushAt || p.GodMode || p.Stealthed)
+            if (_uptime < session.NextBanditAmbushAt || p.IgnoredByHostiles)
             {
                 continue;
             }
@@ -521,7 +521,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.GodMode || s.State.Stealthed)
+            if (s.State.IgnoredByHostiles)
             {
                 continue;
             }
@@ -564,8 +564,7 @@ public sealed partial class GameServer
            && mark.CurrentLocationId == _world.LocationId
            && !mark.State.AboardShip
            && !InSpace(mark.State.PlayerId)
-           && !mark.State.Stealthed
-           && !mark.State.GodMode
+           && !mark.State.IgnoredByHostiles
            && !mark.Spectating;
 
     private PlayerSession? NearestBanditPrey(CombatEntity bandit, List<PlayerSession> targets)
@@ -574,7 +573,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.GodMode || s.State.Stealthed)
+            if (s.State.IgnoredByHostiles)
             {
                 continue;
             }

@@ -216,7 +216,7 @@ public sealed partial class GameServer
             ItemKey.Glow(intent.SourceItemKey), ItemKey.Shape(intent.SourceItemKey), designId);
 
         // Creative mode: no material cost — just produce the painted material.
-        if (!Rules.CraftingCostsMaterials)
+        if (!Rules.CraftingCostsMaterialsFor(session.State.ModeOverride))
         {
             var freePool = new MaterialPool(_content, session.State, _ship);
             AddCraftOutput(session, freePool, output, count, intent.Slot);

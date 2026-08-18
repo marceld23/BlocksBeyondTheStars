@@ -73,7 +73,7 @@ public sealed partial class GameServer
     private void TickTemperature(PlayerSession session, double dt)
     {
         var p = session.State;
-        if (!Rules.TemperatureHazardsEnabled)
+        if (!Rules.TemperatureHazardsEnabledFor(p.ModeOverride))
         {
             p.SuitClimateActive = false;
             return;

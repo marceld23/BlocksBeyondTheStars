@@ -302,7 +302,7 @@ public sealed partial class GameServer
             return;
         }
 
-        bool free = !Rules.CraftingCostsMaterials || p.InstantBuild;
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
         if (!free)
         {
             if (!p.Inventory.Has(SpeederRefuelItem, 1))

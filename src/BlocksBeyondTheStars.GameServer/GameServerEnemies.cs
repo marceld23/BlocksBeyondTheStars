@@ -182,7 +182,7 @@ public sealed partial class GameServer
             foreach (var session in targets)
             {
                 var p = session.State;
-                if (p.GodMode || p.Stealthed) // cloaked players aren't detected
+                if (p.IgnoredByHostiles) // cloaked, god-mode and creative-override (#1121) players aren't detected
                 {
                     continue;
                 }
@@ -344,7 +344,7 @@ public sealed partial class GameServer
         double bestSq = (double)EnemyHuntRange * EnemyHuntRange;
         foreach (var s in targets)
         {
-            if (s.State.GodMode || s.State.Stealthed || warded.Contains(s.State.PlayerId))
+            if (s.State.IgnoredByHostiles || warded.Contains(s.State.PlayerId))
             {
                 continue;
             }
