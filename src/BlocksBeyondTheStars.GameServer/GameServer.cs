@@ -4192,6 +4192,7 @@ public sealed partial class GameServer
 
         SendInventory(session);
         OnAchievementBuild(session);
+        OnBlockPlaced(session, blockDef, pos); // #1116: advance any matching Build mission objectives
     }
 
     private void HandleCraft(PlayerSession session, CraftIntent craft)

@@ -98,6 +98,33 @@ public sealed partial class GameServer
     public void SimulateTravelForTest(PlayerSession session, string bodyId, string bodyName)
         => OnPlayerTravelled(session, bodyId, bodyName);
 
+    /// <summary>Whether a placed block satisfies a Build objective's target (#1116): a plain block key, or
+    /// one of the virtual groups "any" / "light" (blocks of category light — torches, lamps, strips; NOT a
+    /// merely glowing forge) / "base" (the placement lies inside the placer's OWN base zone).</summary>
+    internal static bool BuildObjectiveMatches(string target, BlocksBeyondTheStars.Shared.Definitions.BlockDefinition placed, bool inOwnBase) => target switch
+    {
+        "any" => true,
+        "light" => placed.Category == "light",
+        "base" => inOwnBase,
+        _ => target == placed.Key,
+    };
+
+    /// <summary>Test hook: simulate a player placing a block, driving any Build objectives (#1116).</summary>
+    public void SimulatePlaceForTest(PlayerSession session, string blockKey, Vector3i pos)
+    {
+        if (_content.GetBlock(blockKey) is { } def)
+        {
+            OnBlockPlaced(session, def, pos);
+        }
+    }
+
+    /// <summary>Test hook: simulate a player mining a block — Mine objectives advance, Build objectives
+    /// must NOT regress (#1116).</summary>
+    public void SimulateMineForTest(PlayerSession session, string blockKey) => OnBlockMined(session, blockKey);
+
+    /// <summary>Test hook: a mission definition's first objective, or null for an unknown mission.</summary>
+    public MissionObjective? FirstObjectiveForTest(string missionId) => GetMissionDef(missionId)?.Objectives.FirstOrDefault();
+
     private void HandleAcceptMission(PlayerSession session, string missionId)
     {
         var def = GetMissionDef(missionId);
@@ -476,6 +503,83 @@ public sealed partial class GameServer
         ("data_fragment", 3, "medpack", 1),
     };
 
+    // Build missions (#1116): a builder's assignment beside the delivery jobs. Targets are either a block
+    // key or one of three virtual groups the place hook understands: "any" (any block), "light" (category
+    // "light" — torches/lamps, NOT a merely glowing forge), "base" (inside the player's OWN base zone).
+    // Own deterministic slot sequence (id prefix "…b<slot>") so the existing gather rolls stay untouched —
+    // re-seeding those would morph missions players already hold across the update.
+    private static readonly (string Target, int Count, string Reward, int RewardN, string Key)[] BuildMissionTemplates =
+    {
+        ("any", 20, "medpack", 1, "shelter"),                // raise a shelter — 20 blocks, any kind
+        ("light", 6, "energy_cell_1", 2, "light"),           // light the camp — 6 light blocks
+        ("radio_beacon", 1, "titanium_plate", 2, "beacon"),  // raise a beacon the settlement can steer by
+        ("base", 15, "glass", 8, "home"),                    // extend your own base — 15 blocks in its zone
+    };
+
+    /// <summary>Deterministically coins one BUILD board mission for a slot (#1116) — same stability contract
+    /// as <see cref="BuildBoardMission"/>, separate rng stream ("buildmission") and template pool.</summary>
+    private MissionDefinition BuildBoardBuildMission(string id, string boardKey, int slot, string giverName)
+    {
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:buildmission:{slot}")));
+        var tpl = BuildMissionTemplates[rng.Next(BuildMissionTemplates.Length)];
+        if (_content.GetItem(tpl.Reward) is null)
+        {
+            if (_warnedMissionTemplates.Add("build:" + tpl.Key))
+            {
+                _log.Warn($"Build mission template '{tpl.Key}' rewards an unknown item '{tpl.Reward}'; falling back to template 0 ('{BuildMissionTemplates[0].Key}').");
+            }
+
+            tpl = BuildMissionTemplates[0];
+        }
+
+        int required = tpl.Count > 4 ? System.Math.Max(4, tpl.Count + rng.Next(-3, 5)) : tpl.Count;
+        return new MissionDefinition
+        {
+            Id = id,
+            Source = MissionSource.System,
+            NameKey = $"mission.settlement.build_{tpl.Key}.title",
+            DescriptionKey = $"mission.settlement.build_{tpl.Key}.desc",
+            GiverName = giverName,
+            Objectives = { new MissionObjective { Type = MissionObjectiveType.Build, Target = tpl.Target, Required = required } },
+            Rewards = { new ItemAmount(tpl.Reward, tpl.RewardN) },
+            Active = true,
+        };
+    }
+
+    /// <summary>Called when a player places a block, to advance any matching Build objectives (#1116). The
+    /// mirror of <see cref="OnBlockMined"/> — and deliberately increment-only: mining a block back out never
+    /// regresses a build objective (a builder rearranging their work must not lose credit).</summary>
+    private void OnBlockPlaced(PlayerSession session, BlocksBeyondTheStars.Shared.Definitions.BlockDefinition placed, Vector3i pos)
+    {
+        foreach (var pr in session.State.Missions)
+        {
+            if (pr.Status != MissionStatus.Active)
+            {
+                continue;
+            }
+
+            var def = GetMissionDef(pr.MissionId);
+            if (def is null)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < def.Objectives.Count && i < pr.ObjectiveProgress.Count; i++)
+            {
+                var obj = def.Objectives[i];
+                if (obj.Type != MissionObjectiveType.Build || pr.ObjectiveProgress[i] >= obj.Required)
+                {
+                    continue;
+                }
+
+                if (BuildObjectiveMatches(obj.Target, placed, InOwnBaseZone(session.State.PlayerId, pos)))
+                {
+                    pr.ObjectiveProgress[i]++;
+                }
+            }
+        }
+    }
+
     /// <summary>A mission-giver's coined name, deterministic per board so it matches the quartermaster NPC.</summary>
     private static string CoinGiverName(string boardKey)
         => BlocksBeyondTheStars.WorldGeneration.NameGenerator.Person(new System.Random(unchecked((int)WorldGenerator.StableHash("giver:" + boardKey))));
@@ -516,8 +620,13 @@ public sealed partial class GameServer
     /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
     /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
     /// Collects the ids this board currently offers into <paramref name="currentBoardIds"/>.</summary>
-    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds)
+    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds, bool build = false, int window = BoardWindow)
     {
+        // NOTE (#1116): the gather parse below also sees build ids ("…b3" fails int.TryParse and is skipped),
+        // and vice versa — the two sequences share a board but never each other's slots.
+        MissionDefinition Coin(string id, int slot)
+            => build ? BuildBoardBuildMission(id, boardKey, slot, giverName) : BuildBoardMission(id, boardKey, slot, giverName);
+
         var taken = new HashSet<int>();
         foreach (var m in player.Missions)
         {
@@ -529,7 +638,7 @@ public sealed partial class GameServer
             taken.Add(s);
             if (m.Status != MissionStatus.TurnedIn && !_missionDefs.ContainsKey(m.MissionId))
             {
-                _missionDefs[m.MissionId] = BuildBoardMission(m.MissionId, boardKey, s, giverName); // turn-in-able after reload
+                _missionDefs[m.MissionId] = Coin(m.MissionId, s); // turn-in-able after reload
             }
 
             idSet.Add(m.MissionId);
@@ -537,7 +646,7 @@ public sealed partial class GameServer
         }
 
         int offered = 0;
-        for (int slot = 0; offered < BoardWindow && slot <= taken.Count + BoardWindow; slot++)
+        for (int slot = 0; offered < window && slot <= taken.Count + window; slot++)
         {
             if (taken.Contains(slot))
             {
@@ -547,7 +656,7 @@ public sealed partial class GameServer
             string id = idPrefix + slot;
             if (!_missionDefs.ContainsKey(id))
             {
-                _missionDefs[id] = BuildBoardMission(id, boardKey, slot, giverName);
+                _missionDefs[id] = Coin(id, slot);
             }
 
             idSet.Add(id);
@@ -575,7 +684,9 @@ public sealed partial class GameServer
             }
 
             string prefix = $"settle_{(uint)WorldGenerator.StableHash(s.Name) % 100000u}_";
-            EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, CoinGiverName(s.Name), currentBoardIds);
+            string giver = CoinGiverName(s.Name);
+            EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds);
+            EnsureBoardWindow(player, prefix + "b", s.Name, s.MissionIds, giver, currentBoardIds, build: true, window: 1); // #1116: one build job beside the deliveries
             EnsureCampBounties(prefix, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
         }
     }
@@ -598,7 +709,7 @@ public sealed partial class GameServer
 
     /// <summary>Seeds a giver board's first window (slots 0..BoardWindow-1) at stamp time, so the board offers
     /// missions even before any player has opened the list; the per-player window then slides as they take them.</summary>
-    private void StockBoard(string idPrefix, string boardKey, HashSet<string> idSet, string giverName)
+    private void StockBoard(string idPrefix, string boardKey, HashSet<string> idSet, string giverName, bool withBuild = false)
     {
         for (int slot = 0; slot < BoardWindow; slot++)
         {
@@ -606,6 +717,17 @@ public sealed partial class GameServer
             if (!_missionDefs.ContainsKey(id))
             {
                 _missionDefs[id] = BuildBoardMission(id, boardKey, slot, giverName);
+            }
+
+            idSet.Add(id);
+        }
+
+        if (withBuild)
+        {
+            string id = idPrefix + "b0"; // #1116: settlement boards open with one build job on offer
+            if (!_missionDefs.ContainsKey(id))
+            {
+                _missionDefs[id] = BuildBoardBuildMission(id, boardKey, 0, giverName);
             }
 
             idSet.Add(id);

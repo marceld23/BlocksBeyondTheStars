@@ -94,6 +94,23 @@ public sealed partial class GameServer
            && System.Math.Abs(pos.Y - core.Y) <= BaseProtectionRadius
            && System.Math.Abs(pos.Z - core.Z) <= BaseProtectionRadius;
 
+    /// <summary>True if the cell lies inside a base zone the PLAYER OWNS on the current world — the "build
+    /// at home" test the build missions use (#1116). Allied zones deliberately don't count: the assignment
+    /// is to extend YOUR base.</summary>
+    private bool InOwnBaseZone(string playerId, Vector3i pos)
+    {
+        string body = _world.LocationId;
+        foreach (var b in _bases)
+        {
+            if (b.Planet == body && b.OwnerId == playerId && WithinBaseZone(b.Cell, pos))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>True if the cell lies inside ANY founded base's zone on the current world (serve the session
     /// first). Ownership is deliberately ignored: the base's life-support field breathes for visitors too —
     /// the protection rules still keep them from editing anything. Same cube as the build protection, so the

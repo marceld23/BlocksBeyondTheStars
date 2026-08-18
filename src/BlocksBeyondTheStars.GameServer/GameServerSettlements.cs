@@ -411,7 +411,7 @@ public sealed partial class GameServer
             if (!p.Ruined && inst.Markers.Any(m => m.Type == "mission_board"))
             {
                 string prefix = $"settle_{(uint)WorldGenerator.StableHash(p.Name) % 100000u}_";
-                StockBoard(prefix, p.Name, inst.MissionIds, CoinGiverName(p.Name));
+                StockBoard(prefix, p.Name, inst.MissionIds, CoinGiverName(p.Name), withBuild: true); // #1116
             }
 
             _settlements.Add(inst);
