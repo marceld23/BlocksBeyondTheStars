@@ -98,11 +98,11 @@ public sealed class BlueprintTests : IDisposable
         const int sx = 8, sy = 4, sz = 8;
         var cells = new BlueprintCell[sx * sy * sz];
         for (int x = 0; x < sx; x++)
-        for (int z = 0; z < sz; z++)
-        {
-            cells[BlueprintCode.CellIndex(x, 0, z, sy, sz)] = new BlueprintCell { Key = "concrete" };
-            cells[BlueprintCode.CellIndex(x, 3, z, sy, sz)] = new BlueprintCell { Key = "glass" };
-        }
+            for (int z = 0; z < sz; z++)
+            {
+                cells[BlueprintCode.CellIndex(x, 0, z, sy, sz)] = new BlueprintCell { Key = "concrete" };
+                cells[BlueprintCode.CellIndex(x, 3, z, sy, sz)] = new BlueprintCell { Key = "glass" };
+            }
 
         string code = BlueprintCode.Encode(sx, sy, sz, "Marcel", "Shed", cells);
         Assert.InRange(code.Length, 1, 1500);

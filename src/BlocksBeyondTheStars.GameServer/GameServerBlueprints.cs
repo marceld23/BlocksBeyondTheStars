@@ -54,37 +54,37 @@ public sealed partial class GameServer
         var cells = new BlueprintCell[sx * sy * sz];
         bool any = false;
         for (int x = 0; x < sx; x++)
-        for (int y = 0; y < sy; y++)
-        for (int z = 0; z < sz; z++)
-        {
-            var pos = WorldConstants.CanonicalBlock(new Vector3i(min.X + x, min.Y + y, min.Z + z), _world.Circumference);
-            if (!WithinBuildHeight(pos.Y))
-            {
-                continue;
-            }
+            for (int y = 0; y < sy; y++)
+                for (int z = 0; z < sz; z++)
+                {
+                    var pos = WorldConstants.CanonicalBlock(new Vector3i(min.X + x, min.Y + y, min.Z + z), _world.Circumference);
+                    if (!WithinBuildHeight(pos.Y))
+                    {
+                        continue;
+                    }
 
-            var block = _world.GetBlock(pos);
-            if (block.IsAir || IsFluid(block.Value))
-            {
-                continue; // fluids don't copy — a pasted lake would be a griefing tool, not a build
-            }
+                    var block = _world.GetBlock(pos);
+                    if (block.IsAir || IsFluid(block.Value))
+                    {
+                        continue; // fluids don't copy — a pasted lake would be a griefing tool, not a build
+                    }
 
-            var def = _content.BlockById(block);
-            if (def is null)
-            {
-                continue;
-            }
+                    var def = _content.BlockById(block);
+                    if (def is null)
+                    {
+                        continue;
+                    }
 
-            var (tint, glow) = _world.GetModifier(pos);
-            cells[BlueprintCode.CellIndex(x, y, z, sy, sz)] = new BlueprintCell
-            {
-                Key = def.Key,
-                Shape = _world.GetShape(pos), // design bits are stripped by the encoder (paint ids are save-local)
-                Tint = tint,
-                Glow = glow,
-            };
-            any = true;
-        }
+                    var (tint, glow) = _world.GetModifier(pos);
+                    cells[BlueprintCode.CellIndex(x, y, z, sy, sz)] = new BlueprintCell
+                    {
+                        Key = def.Key,
+                        Shape = _world.GetShape(pos), // design bits are stripped by the encoder (paint ids are save-local)
+                        Tint = tint,
+                        Glow = glow,
+                    };
+                    any = true;
+                }
 
         if (!any)
         {
@@ -131,70 +131,70 @@ public sealed partial class GameServer
         int placed = 0, skippedMaterials = 0, skippedProtected = 0, skippedSpecial = 0;
 
         for (int x = 0; x < sx; x++)
-        for (int y = 0; y < sy; y++)
-        for (int z = 0; z < sz; z++)
-        {
-            var cell = cells[BlueprintCode.CellIndex(x, y, z, sy, sz)];
-            if (string.IsNullOrEmpty(cell.Key))
-            {
-                continue; // air
-            }
-
-            var def = _content.GetBlock(cell.Key!);
-            if (def is null || IsBlueprintSpecialBlock(def.Key) || IsDoorBlock(def.Key) || IsContainerBlock(def.Key)
-                || def.Key == ShipCoreBlock)
-            {
-                skippedSpecial++; // unknown in this save, or a block that founds an entity on placement
-                continue;
-            }
-
-            var pos = WorldConstants.CanonicalBlock(new Vector3i(origin.X + x, origin.Y + y, origin.Z + z), _world.Circumference);
-            if (!WithinBuildHeight(pos.Y) || !_world.GetBlock(pos).IsAir
-                || (!session.State.IsAdmin && IsOnLandingPad(pos))
-                || IsStationBlock(pos)
-                || IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
-                || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin)
-                || ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z))
-                || ConstructionContains(new Vector3f(pos.X, pos.Y, pos.Z)))
-            {
-                skippedProtected++; // occupied, protected, or outside the build band — same rules as by hand
-                continue;
-            }
-
-            if ((def.Key == "torch" && !AtmospherePresent)
-                || (IsFlora(def.NumericId.Value) && (!IsValidFloraHost(def.NumericId.Value, pos) || !IsFloraEnclosedForVoidWorld(pos))))
-            {
-                skippedSpecial++; // a dud here by hand too (airless torch, plant without its host block)
-                continue;
-            }
-
-            if (!free)
-            {
-                var item = _content.GetItem(def.Key);
-                if (item is null || item.PlacesBlock != def.Key || pool.Count(def.Key) < 1)
+            for (int y = 0; y < sy; y++)
+                for (int z = 0; z < sz; z++)
                 {
-                    skippedMaterials++; // the ghost stays a gap until the builder can afford the block
-                    continue;
+                    var cell = cells[BlueprintCode.CellIndex(x, y, z, sy, sz)];
+                    if (string.IsNullOrEmpty(cell.Key))
+                    {
+                        continue; // air
+                    }
+
+                    var def = _content.GetBlock(cell.Key!);
+                    if (def is null || IsBlueprintSpecialBlock(def.Key) || IsDoorBlock(def.Key) || IsContainerBlock(def.Key)
+                        || def.Key == ShipCoreBlock)
+                    {
+                        skippedSpecial++; // unknown in this save, or a block that founds an entity on placement
+                        continue;
+                    }
+
+                    var pos = WorldConstants.CanonicalBlock(new Vector3i(origin.X + x, origin.Y + y, origin.Z + z), _world.Circumference);
+                    if (!WithinBuildHeight(pos.Y) || !_world.GetBlock(pos).IsAir
+                        || (!session.State.IsAdmin && IsOnLandingPad(pos))
+                        || IsStationBlock(pos)
+                        || IsFactoryProtected(pos, session.State.PlayerId, session.State.IsAdmin)
+                        || IsBaseProtected(pos, session.State.PlayerId, session.State.IsAdmin)
+                        || ShipInteriorContains(new Vector3f(pos.X, pos.Y, pos.Z))
+                        || ConstructionContains(new Vector3f(pos.X, pos.Y, pos.Z)))
+                    {
+                        skippedProtected++; // occupied, protected, or outside the build band — same rules as by hand
+                        continue;
+                    }
+
+                    if ((def.Key == "torch" && !AtmospherePresent)
+                        || (IsFlora(def.NumericId.Value) && (!IsValidFloraHost(def.NumericId.Value, pos) || !IsFloraEnclosedForVoidWorld(pos))))
+                    {
+                        skippedSpecial++; // a dud here by hand too (airless torch, plant without its host block)
+                        continue;
+                    }
+
+                    if (!free)
+                    {
+                        var item = _content.GetItem(def.Key);
+                        if (item is null || item.PlacesBlock != def.Key || pool.Count(def.Key) < 1)
+                        {
+                            skippedMaterials++; // the ghost stays a gap until the builder can afford the block
+                            continue;
+                        }
+
+                        pool.Remove(new[] { new ItemAmount(def.Key, 1) });
+                    }
+
+                    // A custom-form descriptor (#843) references THIS save's registry; a foreign index falls back
+                    // to a plain cube rather than stamping geometry nobody can mesh. Tint/glow only on tintables.
+                    int shape = cell.Shape;
+                    if (ShapeCode.IsCustomDescriptor(shape) && !HasCustomShape(ShapeCode.ShapeOf(shape)))
+                    {
+                        shape = 0;
+                    }
+
+                    int tint = def.Tintable ? cell.Tint : 0;
+                    int glow = def.Tintable ? cell.Glow : 0;
+                    _world.SetBlock(pos, def.NumericId, tint, glow, shape, session.State.PlayerId);
+                    BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = def.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
+                    OnBlockPlaced(session, def, pos); // build missions advance like any hand-placed block (#1116)
+                    placed++;
                 }
-
-                pool.Remove(new[] { new ItemAmount(def.Key, 1) });
-            }
-
-            // A custom-form descriptor (#843) references THIS save's registry; a foreign index falls back
-            // to a plain cube rather than stamping geometry nobody can mesh. Tint/glow only on tintables.
-            int shape = cell.Shape;
-            if (ShapeCode.IsCustomDescriptor(shape) && !HasCustomShape(ShapeCode.ShapeOf(shape)))
-            {
-                shape = 0;
-            }
-
-            int tint = def.Tintable ? cell.Tint : 0;
-            int glow = def.Tintable ? cell.Glow : 0;
-            _world.SetBlock(pos, def.NumericId, tint, glow, shape, session.State.PlayerId);
-            BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = def.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
-            OnBlockPlaced(session, def, pos); // build missions advance like any hand-placed block (#1116)
-            placed++;
-        }
 
         if (placed > 0)
         {
