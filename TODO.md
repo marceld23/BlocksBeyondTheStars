@@ -105,6 +105,33 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Builder goals — Build missions on settlement boards, whole-build share codes (#1116, #1117, 2026-08-18, branch feat/progression-pr5-builder-goals)
+PR 5 of the progression package (epic #1101). The audit: building had three achievements and zero
+assignments, and nothing a builder makes could leave the world (forms/paint share via BBTS1 codes,
+structures didn't).
+**Build missions (#1116):** settlement boards offer ONE build job beside the 3-slot gather window — own
+deterministic slot sequence (id "…b<slot>", `BuildBoardBuildMission`) so the existing gather rolls stay
+byte-identical (regenerating a HELD board mission with a changed template pool would morph it on reload).
+Templates: raise a shelter (any ×~20), light the camp (category-`light` ×~6 — a glowing forge does NOT
+count), raise a beacon (radio_beacon ×1), build on home ground (own-base zone ×~15, new
+`InOwnBaseZone`). `MissionObjectiveType.Build` existed as a "later" stub; progress now advances in
+`OnBlockPlaced` (hooked beside `OnAchievementBuild`), is increment-only (mining never regresses), and
+turn-in/`BuildNetMission` handle it generically. Matcher is pure/static (`BuildObjectiveMatches`).
+**Whole-build share codes (#1117):** `BlueprintCode` in Shared — region ≤16³ → palette (block KEYS, not
+save-local ids) + RLE cells + per-cell shape/tint/glow, Deflate → `BBTS1-B-…` (paint-design bits stripped
+on encode; custom-form descriptors fall back to cubes in a save that lacks them). New `blueprint_tool`
+item (gadget, cheap workshop recipe) + `BlueprintToolUi` modal (corner A/B → name → code to clipboard;
+clipboard code → paste at aim, `ui.blueprint.*`). Server `GameServerBlueprints.cs`: copy needs proximity
+(48), paste has a 3 s cooldown and re-validates EVERY cell like a hand-placed block (build height, air
+only, pads/stations/factories/foreign bases, ship interiors), pays base items from the inventory
+(creative/instant-build free), skips entity-founding blocks (doors/containers/base_core/beacons/beam/keel)
+and credits the author in the result toast. Msgs 212–215 + golden list. Pasted blocks advance build
+missions + achievements.
+Tests: `BuildMissionTests` (board offers the job, advance/no-regress/turn-in, pure matcher),
+`BlueprintTests` (lossless round-trip, design-bit strip, tampered/oversized codes, clipboard-friendly
+length, live copy→paste with material payment, foreign-base protection). Locales: 33 keys EN+DE
+hand-written, 12 community locales MT'd. USER_MANUAL: build jobs + blueprint tool sections.
+
 ### ★ Explorer discovery — the map remembers, unknown systems, Places + knowledge, worldgen defaults (#1113, #1114, 2026-08-18, branch feat/progression-pr4-explorer-discovery)
 PR 4 of the progression package (epic #1101). The audit: mapping a world left no trace after a reload
 (fog = streamed chunks only), the star map named every system from minute one, and landing on a new world

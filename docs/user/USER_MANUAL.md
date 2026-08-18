@@ -664,6 +664,9 @@ separate unlock; admins can still disable it through server world rules.
 - **Raider bounty:** station mission boards in **pirate systems** put a price on the raider ship prowling
   the sector. While you hold the bounty, the raider *will* show up on your next flight — destroy it and
   report back. Bounties follow the world's **Bandits** option: no bandits, no bounty missions.
+- **Build jobs:** settlement boards also offer one **building assignment** — raise a shelter, light the
+  camp, raise a beacon, or extend your own base. Progress counts as you **place** blocks (mining them back
+  out never loses credit) and the job turns in at the board like any other.
 
 ### Trade
 - **Player ↔ player:** press **T** near a player (pad/touch: **Actions → trade**) to send a request; the
@@ -748,6 +751,19 @@ separate unlock; admins can still disable it through server world rules.
 - **Multiplayer**: designs are visible to everyone. If you see something inappropriate, stand next to it and
   type **`/reportpaint`** in chat — the world operator gets the details (`/report Player` stays the separate
   player report). Operators can remove a player's designs everywhere at once with `/paintwipe` (see §Commands).
+
+### Blueprint tool — share whole builds
+- Craft a **Blueprint Tool** (`blueprint_tool`, cheap workshop recipe). It shares **whole builds** the way
+  forms and paint designs already share: as a **`BBTS1-B-…` code** you can paste into chat, a forum post or
+  a message.
+- **Copy:** use the tool on a block to mark **corner A**, then on a second block for **corner B** (up to
+  **16×16×16**). Name the build in the dialog — the code lands in your **clipboard** and credits you as the
+  author.
+- **Paste:** with a build code in the clipboard, use the tool on the ground where the build should stand
+  and confirm. Blocks are **paid from your inventory** (free in Creative); cells that are occupied,
+  protected (someone else's base) or unaffordable are skipped and tallied honestly — nothing is ever forced
+  into another player's build. Doors, chests, beacons and other "living" blocks don't travel in a blueprint;
+  shapes and dye do (custom forms fall back to plain cubes in a world that doesn't know them).
 
 ### Travel & the star map
 - Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus
