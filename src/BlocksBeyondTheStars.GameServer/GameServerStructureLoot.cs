@@ -20,6 +20,11 @@ public sealed partial class GameServer
     /// <summary>Spawns a one-time lootable container at a structure marker (idempotent across reloads).</summary>
     private void SpawnStructureLoot(string structureKind, string markerType, Vector3f pos, System.Random rng)
     {
+        // Story fragments in structures (#1109): a data terminal or relic cache may also hold a net fragment.
+        // Deliberately OUTSIDE the GeneratedLoot guard — fragments re-derive per residency (minus found ones),
+        // while the loot container spawns exactly once ever.
+        TryPlaceStructureFragment(markerType, pos);
+
         int bx = (int)pos.X, by = (int)pos.Y, bz = (int)pos.Z;
         string key = $"{structureKind}:{markerType}:{bx}:{by}:{bz}";
         if (_meta.GeneratedLoot.Contains(key))

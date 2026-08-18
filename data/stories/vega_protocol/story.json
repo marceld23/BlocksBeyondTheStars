@@ -7,18 +7,18 @@
   "killContributionCap": 40,
   "beats": [
     { "index": 0,  "title": "Systems online",        "textKey": "story.vega.beat00", "threshold": 0,   "knowledgeReward": 0 },
-    { "index": 1,  "title": "A familiar signature",  "textKey": "story.vega.beat01", "threshold": 6,   "knowledgeReward": 3 },
-    { "index": 2,  "title": "The Service",           "textKey": "story.vega.beat02", "threshold": 14,  "knowledgeReward": 3 },
-    { "index": 3,  "title": "Not scattered, erased", "textKey": "story.vega.beat03", "threshold": 24,  "knowledgeReward": 3 },
-    { "index": 4,  "title": "Ours, once",            "textKey": "story.vega.beat04", "threshold": 36,  "knowledgeReward": 3 },
-    { "index": 5,  "title": "The Guardian",          "textKey": "story.vega.beat05", "threshold": 50,  "knowledgeReward": 3 },
-    { "index": 6,  "title": "The verdict",           "textKey": "story.vega.beat06", "threshold": 66,  "knowledgeReward": 3 },
-    { "index": 7,  "title": "Her stand",             "textKey": "story.vega.beat07", "threshold": 84,  "knowledgeReward": 3 },
-    { "index": 8,  "title": "The thought-arcs",      "textKey": "story.vega.beat08", "threshold": 104, "knowledgeReward": 3 },
-    { "index": 9,  "title": "What you are",          "textKey": "story.vega.beat09", "threshold": 126, "knowledgeReward": 3 },
-    { "index": 10, "title": "Many minds",            "textKey": "story.vega.beat10", "threshold": 150, "knowledgeReward": 3 },
-    { "index": 11, "title": "It still sleeps",       "textKey": "story.vega.beat11", "threshold": 176, "knowledgeReward": 3 },
-    { "index": 12, "title": "The choice",            "textKey": "story.vega.beat12", "threshold": 204, "knowledgeReward": 3 }
+    { "index": 1,  "title": "A familiar signature",  "textKey": "story.vega.beat01", "threshold": 6,   "knowledgeReward": 1 },
+    { "index": 2,  "title": "The Service",           "textKey": "story.vega.beat02", "threshold": 14,  "knowledgeReward": 1 },
+    { "index": 3,  "title": "Not scattered, erased", "textKey": "story.vega.beat03", "threshold": 24,  "knowledgeReward": 1 },
+    { "index": 4,  "title": "Ours, once",            "textKey": "story.vega.beat04", "threshold": 36,  "knowledgeReward": 1 },
+    { "index": 5,  "title": "The Guardian",          "textKey": "story.vega.beat05", "threshold": 50,  "knowledgeReward": 1 },
+    { "index": 6,  "title": "The verdict",           "textKey": "story.vega.beat06", "threshold": 66,  "knowledgeReward": 1 },
+    { "index": 7,  "title": "Her stand",             "textKey": "story.vega.beat07", "threshold": 84,  "knowledgeReward": 1 },
+    { "index": 8,  "title": "The thought-arcs",      "textKey": "story.vega.beat08", "threshold": 104, "knowledgeReward": 1 },
+    { "index": 9,  "title": "What you are",          "textKey": "story.vega.beat09", "threshold": 126, "knowledgeReward": 1 },
+    { "index": 10, "title": "Many minds",            "textKey": "story.vega.beat10", "threshold": 150, "knowledgeReward": 1 },
+    { "index": 11, "title": "It still sleeps",       "textKey": "story.vega.beat11", "threshold": 176, "knowledgeReward": 1 },
+    { "index": 12, "title": "The choice",            "textKey": "story.vega.beat12", "threshold": 204, "knowledgeReward": 1 }
   ],
   "fragments": [
     { "key": "frag_vega_signature",   "category": "vega",     "textKey": "lore.frag.frag_vega_signature",   "weight": 2 },
@@ -81,5 +81,10 @@
   ],
   "missionThreads": [
     { "missionIdContains": "settlement", "fragmentKey": "frag_settler_legend" }
+  ],
+  "npcThreads": [
+    { "key": "npc_settler_legend", "role": "vendor",        "minStage": "known",   "minKnowledge": 1, "textKey": "npcthread.settler_legend", "fragmentKey": "frag_settler_legend" },
+    { "key": "npc_guardian_rumor", "role": "quartermaster", "minStage": "known",   "minKnowledge": 3, "textKey": "npcthread.guardian_rumor" },
+    { "key": "npc_network_hope",   "role": "vendor",        "minStage": "trusted", "minKnowledge": 4, "textKey": "npcthread.network_hope" }
   ]
 }

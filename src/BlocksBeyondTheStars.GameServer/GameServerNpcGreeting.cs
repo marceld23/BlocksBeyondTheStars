@@ -168,6 +168,17 @@ public sealed partial class GameServer
 
         _lastGreetAt[coolKey] = _uptime;
 
+        // NPC story threads (#1112): a person who KNOWS something — the settler legend from the elder, the
+        // Guardian rumour from the quartermaster. Fires once per player, gated by relationship + knowledge;
+        // beats hints and smalltalk because it is the rarest thing an NPC can say. Deterministic text (never
+        // LLM), and a thread that carries a fragment records it like any other find.
+        string thread = TryEmitNpcThread(session, npc, npcKey);
+        if (thread.Length > 0)
+        {
+            Send(session, new NpcGreeting { NpcId = npc.Id, Name = npc.Name, Role = npc.Role, Text = thread });
+            return;
+        }
+
         // NPC treasure hints: occasionally the NPC shares where the wreck / a hidden cache lies instead of a
         // greeting — revealing it on the map for everyone. Deterministic text; deliberately bypasses the LLM
         // path (the greeting cache is per relationship tier, so a cached line would replay another player's

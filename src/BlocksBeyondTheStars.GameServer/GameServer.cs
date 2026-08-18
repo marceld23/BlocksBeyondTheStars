@@ -823,6 +823,7 @@ public sealed partial class GameServer
         SendDoors(session);
         SendDataCubes(session); // minigame download cubes on this body
         SendNetFragments(session); // story net fragments on this body (P2)
+        SendVegaObjective(session); // the story objective is per body — "a fragment is HERE" (#1110)
         SendFactories(session); // factories on this body (animated machines + production terminals)
         SendBeacons(session);
         SendBeams(session); // placed beam blocks (teleporter pads) on this body

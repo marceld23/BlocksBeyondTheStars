@@ -2603,13 +2603,39 @@ namespace BlocksBeyondTheStars.Client
                 {
                     foreach (var (cat, key) in Game.StoryLogFragments)
                     {
-                        y = StoryEntry(y, "[" + IdLabel("lore.cat.", cat) + "] " + L(key));
+                        y = StoryReadableEntry(y, L("ui.reader.fragment"), IdLabel("lore.cat.", cat), key);
                     }
                 }
 
                 y += 10f;
                 y = AllianceSection(L("ui.story.memories"), y);
-                y = StoryEntries(y, Game.StoryLogMemories);
+                if (Game.StoryLogMemories == null || Game.StoryLogMemories.Count == 0)
+                {
+                    y = StoryEmpty(y);
+                }
+                else
+                {
+                    foreach (var key in Game.StoryLogMemories)
+                    {
+                        y = StoryReadableEntry(y, L("ui.reader.memory"), string.Empty, key);
+                    }
+                }
+
+                // Field records (#1111): rune inscriptions, wreck logs, ruin notes — what the world itself
+                // told this player. Re-readable like the fragments.
+                y += 10f;
+                y = AllianceSection(L("ui.story.lore"), y);
+                if (Game.StoryLogLore == null || Game.StoryLogLore.Count == 0)
+                {
+                    y = StoryEmpty(y);
+                }
+                else
+                {
+                    foreach (var (site, key) in Game.StoryLogLore)
+                    {
+                        y = StoryReadableEntry(y, L("ui.lore.site." + site), string.Empty, key);
+                    }
+                }
             }
             else
             {
@@ -2663,7 +2689,7 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly TextGenerator StoryMeasurer = new TextGenerator();
 
-        private float StoryEntry(float y, string text)
+        private float StoryEntry(float y, string text, float width = 756f)
         {
             // Measured height instead of the old length/64 guess (which underestimated long German lines),
             // and wrap actually enabled — the UiKit default (Overflow) let a long entry run past the pane.
@@ -2678,15 +2704,30 @@ namespace BlocksBeyondTheStars.Client
                 lineSpacing = 1f,
                 horizontalOverflow = HorizontalWrapMode.Wrap,
                 verticalOverflow = VerticalWrapMode.Overflow,
-                generationExtents = new Vector2(756f, 0f),
+                generationExtents = new Vector2(width, 0f),
                 textAnchor = TextAnchor.UpperLeft,
                 pivot = new Vector2(0f, 1f),
                 color = Color.white,
             };
             float h = 8f + StoryMeasurer.GetPreferredHeight(row, settings);
-            var t = UiKit.AddText(_listContent, 12, y, 756, h, row, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            var t = UiKit.AddText(_listContent, 12, y, width, h, row, 17, UiKit.TextCol, TextAnchor.UpperLeft);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             return y + h + 6f;
+        }
+
+        /// <summary>A story-log row with a Read button (#1110): the bullet text as before, plus the reader —
+        /// long archive texts get a real page instead of squinting at a list row.</summary>
+        private float StoryReadableEntry(float y, string title, string label, string textKey)
+        {
+            string text = string.IsNullOrEmpty(label) ? L(textKey) : "[" + label + "] " + L(textKey);
+            float rowTop = y;
+            y = StoryEntry(y, text, 660f); // keep clear of the Read button's lane
+
+            UiKit.AddButton(_listContent, 688, rowTop, 92, 30, L("ui.story.read"), () =>
+            {
+                StoryReaderUi.Instance?.OpenOverMenu(title, label, L(textKey));
+            });
+            return y;
         }
 
         private float StoryEmpty(float y)

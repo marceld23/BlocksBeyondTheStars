@@ -202,6 +202,15 @@ public static class ContentLoader
                 continue;
             }
 
+            // Environmental lore texts (#1111) live in their own file — story.json stays the arc, this is
+            // the (larger, contributor-friendly) site-text table. Absent file → whatever story.json holds.
+            var loreFile = Path.Combine(dir, "lore_sites.json");
+            if (File.Exists(loreFile)
+                && JsonSerializer.Deserialize<List<Story.LoreSite>>(File.ReadAllText(loreFile), JsonOptions) is { } sites)
+            {
+                def.LoreSites.AddRange(sites);
+            }
+
             result.Add(def);
 
             var packLocaleDir = Path.Combine(dir, "locales");

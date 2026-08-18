@@ -416,6 +416,9 @@ public static class NetCodec
         // Suit lamp state (#1077): lets VEGA's context tips know the lamp is off in the dark. Informational
         // only — a server without this tag drops the message and simply never gives that tip.
         Register(209, typeof(SetLampIntent));            // Client -> Server
+
+        // Environmental lore texts (#1111): a rune inscription / wreck log / ruin note found at a site.
+        Register(210, typeof(LoreTextRevealed));         // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

@@ -252,6 +252,7 @@ public sealed partial class GameServer
             if (readout.Kind == "monument")
             {
                 RecordStoryMilestone("monument:" + _world.LocationId); // first rune read on this world (#1105)
+                TryRevealLoreText(session, "monument"); // the runes' inscription opens in the reader (#1111)
             }
         }
 

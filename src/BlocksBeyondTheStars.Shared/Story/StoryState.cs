@@ -42,4 +42,8 @@ public sealed class StoryState
 
     /// <summary>Keys of net fragments already found, so the same fragment is never counted twice.</summary>
     public HashSet<string> FoundFragmentKeys { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>Pity budget (#1109): bodies stamped in a row that rolled zero surface fragments. At two the
+    /// next body guarantees one, so a player can never go many worlds without a single story find.</summary>
+    public int BodiesWithoutFragment { get; set; }
 }

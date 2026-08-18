@@ -44,10 +44,31 @@ public sealed partial class GameServer
     /// <summary>Number of net fragments on the active world.</summary>
     public int NetFragmentCount => _netFragments.Count;
 
+    /// <summary>How many dry bodies in a row the pity budget tolerates before the next one guarantees a
+    /// fragment (#1109) — with the 50/35/15 roll this bounds the worst case at every third body.</summary>
+    private const int NetFragmentPityAfter = 2;
+
+    /// <summary>The surface roll of <see cref="StampNetFragments"/> with the pity budget applied (#1109):
+    /// 50 % none / 35 % one / 15 % two, except that after <see cref="NetFragmentPityAfter"/> zero-fragment
+    /// bodies in a row the next body is guaranteed one. Pure so tests can simulate long journeys.</summary>
+    internal static int RollNetFragmentCount(System.Random rng, ref int bodiesWithoutFragment)
+    {
+        double r = rng.NextDouble();
+        int count = r < 0.5 ? 0 : r < 0.85 ? 1 : 2;
+        if (count == 0 && bodiesWithoutFragment >= NetFragmentPityAfter)
+        {
+            count = 1;
+        }
+
+        bodiesWithoutFragment = count == 0 ? bodiesWithoutFragment + 1 : 0;
+        return count;
+    }
+
     /// <summary>Scatters this world's net fragments (idempotent per resident world). Deterministic from the
     /// world seed; skips Void worlds, an inactive story, and a pack with no fragments. Each spot draws a
     /// not-yet-found fragment from the active pack (weighted), so found ones never reappear; most bodies carry
-    /// none, the rest one or two — a meaningful, rarer find than data cubes.</summary>
+    /// none, the rest one or two — a meaningful, rarer find than data cubes. A pity budget (#1109) guarantees
+    /// a fragment after <see cref="NetFragmentPityAfter"/> dry bodies in a row (persisted per save).</summary>
     private void StampNetFragments()
     {
         if (!StoryActive || _story is null || _story.Fragments.Count == 0)
@@ -55,10 +76,12 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_netFragments.Count > 0)
+        if (_worlds.Active.NetFragmentsStamped)
         {
-            return; // already stamped for this resident world
+            return; // already rolled for this resident world (a zero-roll world must not re-roll — pity!)
         }
+
+        _worlds.Active.NetFragmentsStamped = true;
 
         var planet = _world.Planet;
         if (planet.Void)
@@ -69,8 +92,13 @@ public sealed partial class GameServer
         long fSeed = _meta.Seed ^ WorldGenerator.StableHash("netfragment:" + _world.LocationId);
         var rng = new System.Random(unchecked((int)(fSeed ^ (fSeed >> 32))));
 
-        double r = rng.NextDouble();
-        int count = r < 0.5 ? 0 : r < 0.85 ? 1 : 2;
+        int pity = _storyState.BodiesWithoutFragment;
+        int count = RollNetFragmentCount(rng, ref pity);
+        if (pity != _storyState.BodiesWithoutFragment)
+        {
+            _storyState.BodiesWithoutFragment = pity;
+            PersistStoryState();
+        }
 
         for (int i = 0; i < count; i++)
         {
@@ -98,6 +126,57 @@ public sealed partial class GameServer
         {
             _log.Info($"Scattered {_netFragments.Count} net fragment(s) on '{_world.LocationId}'.");
         }
+    }
+
+    /// <summary>Chance that a lore-bearing structure marker holds a net fragment (#1109), by marker type.
+    /// VEGA's onboarding promises "old ruins and wrecks sometimes hold fragments of my memory" — now true.</summary>
+    private static double StructureFragmentChance(string markerType) => markerType switch
+    {
+        "data_terminal" => 0.5,
+        "relic_cache" => 0.35,
+        _ => 0.0,
+    };
+
+    /// <summary>Places a net fragment at a structure marker (#1109) — wreck/vault data terminals and monument
+    /// relic caches. Runs every residency (structures re-derive each session), deterministic from the marker
+    /// position, and only while the spot's roll succeeds AND the pack still has unfound fragments — so an
+    /// unread structure fragment survives a reload, and a read one never comes back.</summary>
+    private void TryPlaceStructureFragment(string markerType, Vector3f pos)
+    {
+        if (!StoryActive || _story is null || _story.Fragments.Count == 0 || StructureFragmentChance(markerType) <= 0)
+        {
+            return;
+        }
+
+        long seed = _meta.Seed ^ WorldGenerator.StableHash(
+            $"structfrag:{_world.LocationId}:{(int)pos.X}:{(int)pos.Y}:{(int)pos.Z}");
+        var rng = new System.Random(unchecked((int)(seed ^ (seed >> 32))));
+        if (rng.NextDouble() > StructureFragmentChance(markerType))
+        {
+            return;
+        }
+
+        var spot = new Vector3f(pos.X, pos.Y + 1f, pos.Z);
+        if (_netFragments.Any(f => WrapDistSq(f.Pos, spot) < 4.0))
+        {
+            return; // this marker's fragment is already placed (idempotent within a residency)
+        }
+
+        var frag = PickNetFragment(rng);
+        if (frag is null)
+        {
+            return; // every fragment of the pack is found or already placed somewhere
+        }
+
+        _netFragments.Add(new ServerNetFragment
+        {
+            Id = _nextNetFragmentId++,
+            Pos = spot,
+            Key = frag.Key,
+            Category = frag.Category,
+            TextKey = frag.TextKey,
+        });
+        BroadcastNetFragments(); // players may already be on the world when a structure stamps
     }
 
     /// <summary>Weighted pick of a fragment not yet found and not already placed on this world (or null).</summary>

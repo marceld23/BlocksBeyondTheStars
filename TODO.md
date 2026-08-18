@@ -105,6 +105,49 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Story findable on purpose — structure fragments + pity, reader panel + story objective, environmental lore, NPC threads (#1109–#1112, 2026-08-18, branch feat/progression-pr3-story-findable)
+PR 3 of the progression package (epic #1101). The audit found the story arc carried by ~65 delivery
+turn-ins: fragments spawned only on random surface spots (50 % of bodies none), arrived as a vanishing
+toast, the objective chip went blank after the tutorial, the world carried zero readable lore, and NPCs
+knew nothing. The Voidcraft start-pad fragment (#1087) stays open pending its author's CLA — the pity
+budget covers the early game without it.
+**Fragments findable (#1109):** `data_terminal` and `relic_cache` markers roll a net fragment per residency
+(`TryPlaceStructureFragment`, deterministic from the marker position; unread ones survive a reload, found
+keys never return — VEGA's onboarding line about ruins holding her memory is true now). Pity budget: after
+two zero-fragment bodies the third guarantees one (`StoryState.BodiesWithoutFragment`, persisted; any find
+resets it; `RollNetFragmentCount` is pure and simulation-tested: ≥6 fragments over any 20-body journey).
+The old "list non-empty" stamp guard became a real `NetFragmentsStamped` flag so dry worlds don't re-roll
+the pity counter. Signal: VEGA context tip `fragment_signal` (bearing + distance, tip table) which also
+reveals a `fragment_signal` map POI (drops off on pickup); world-map glyph + legend row.
+**Story objective + reader (#1110):** after the tutorial the chip carries `story.obj.fragment_here/search/
+help/finale` with the arc's score as counter (server-side in `VegaObjectiveKey`; per-body update on landing,
+per-advance via `BroadcastStoryState`; client gates `story.obj.*` behind the VEGA-hints setting, and
+`OnboardingActive` no longer misreads a story objective as a running tutorial). New modal `StoryReaderUi`
+(TeleporterUi skeleton, `UiTextChunks`-chunked, queues while another menu is open): fragments, memories and
+lore open there instead of a toast. Story tab rows got Read buttons + a *Field records* section; Codex got
+a **Lore** chapter (found texts full, sealed count for the rest). Rejoin-proof: `StoryStateMessage` now
+carries `FoundFragmentKeys` (per save) + `PlayerMemoryKeys`/`FoundLoreKeys` (per player, message built per
+receiver); `Client.Core.StoryLog` rebuilds the logs in pack order (headless-tested).
+**Environmental lore (#1111):** `data/stories/<pack>/lore_sites.json` — 26 texts across 9 site kinds
+(monument, wreck, data_terminal, ruin, vault, bandit_camp, chest, settlement, factory), weighted and
+knowledge-gated (spoilers stay locked until the arc is far enough). Revealed on monument scan
+(`TryRevealLoreText` beside the #1105 milestone) and on looting a structure container (site derived from
+the loot id — `LoreSiteOfContainer`); once per player per text (`Milestones` `lore:<key>`), new
+`LoreTextRevealed` message (id 210, golden list). EN+DE hand-written, 12 community locales MT'd.
+**NPC threads (#1112):** `npcThreads[]` in the story pack — (role, minStage known/trusted, minKnowledge,
+textKey, optional fragmentKey). On greeting, the first eligible unfired thread speaks (before treasure
+hints, deterministic, works with `AiLevel Off`) and a carried fragment is recorded + revealed. Three
+threads shipped: the settler legend (vendor, hands over `frag_settler_legend`), the Guardian rumour
+(quartermaster, k3), the network-hope line (trusted vendor, k4).
+**Fixes along the way:** `ResetStoryState` now clears `MilestoneKeys` (pack switch left old once-per-save
+firsts blocking the new pack) and the pity counter; `story.json` beat `knowledgeReward` back to 1 (#767
+had decided 1, the data pack silently still paid 3 — the no-drift test now compares the field).
+**Tests:** `StoryFindabilityTests` (pity simulation + persistence, structure placement/idempotence/no-revive,
+story objective key, rejoin snapshot, lore gating/dedupe/derivation, ≥20 texts EN+DE, new-key locale guard),
+`NpcThreadTests` (fires once at known standing + hands over the fragment, stranger gets nothing, pack
+declares threads), `StoryLogTests` (client, pack-order rebuild), golden list [210]. USER_MANUAL §5,
+STORY_IMPLEMENTATION.md gaps struck.
+
 ### ★ Material economy — reactor fuel as a build cost, every metal with ≥3 uses, the interior-decor blocks craftable (#1106–#1108, 2026-08-18, branch feat/progression-pr2-h2-materials)
 PR 2 of the progression package (epic #1101) — pure content: JSON + locales + one test file, no C#. The audit
 found `reactor_fuel` feeding one jump generator and nothing else, five materials with a single use and nine

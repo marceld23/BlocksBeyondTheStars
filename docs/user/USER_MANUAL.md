@@ -603,6 +603,11 @@ separate unlock; admins can still disable it through server world rules.
   half-standing tower, and rubble overgrown by flora. Unlike bases and stations they are **not protected**:
   every block is **freely mineable**, and what you clear stays cleared. VEGA may hint at *"structural
   echoes nearby — ruins or wreckage"*; bring a scanner, there's often something worth digging out.
+- **Field records:** ruins, wrecks, buried vaults and data terminals carry **readable texts** — logs,
+  notes and plaques that surface while you scavenge them. Each opens in a reader panel, is kept in the
+  Story tab (*Field records*) and the Codex **Lore** chapter, and some only appear once the story has
+  come far enough. Data terminals and monument relic caches may also hold a **net fragment** of the
+  story itself — VEGA occasionally picks up a **fragment signal** and marks it on your map.
 - **Treasure chests** are standalone lootable caches scattered away from settlements. Each is looted
   **once** and holds richer salvage than ordinary drops — and they are the main world source of a rare
   **SPS access code**.
@@ -671,6 +676,15 @@ separate unlock; admins can still disable it through server world rules.
   (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
   ship's trade console — so you can trade without a vendor too.
+
+### Story: finding the thread
+- After the tutorial the **objective chip** keeps a quiet story pointer ("a net fragment is on this
+  world", "search ruins and wrecks", …) with the arc's progress as its counter. It respects the
+  **VEGA hints** setting — turn hints off and the chip clears once the tutorial is done.
+- Net fragments, personal memories and field records open in a **reader panel** and stay re-readable in
+  the Story tab (Read buttons) — and they survive rejoining a server.
+- Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
+  (trade with them!) may share what they know — one of them keeps a page of the settler legend.
 
 ### Scanning & knowledge
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**

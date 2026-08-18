@@ -33,6 +33,33 @@ public sealed class StoryStateMessage
 
     public bool GuardianSystemRevealed { get; set; }
     public bool GuardianDefeated { get; set; }
+
+    /// <summary>Keys of the save's found net fragments (#1110) — the client resolves text + category from the
+    /// pack definition, so the Story tab's fragment list survives a rejoin. Additive; old clients ignore it.</summary>
+    public string[] FoundFragmentKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>THIS player's unlocked personal-memory keys (#1110). Per-session content — the message is
+    /// built per receiver. Additive; old clients ignore it.</summary>
+    public string[] PlayerMemoryKeys { get; set; } = System.Array.Empty<string>();
+
+    /// <summary>THIS player's found environmental lore keys (#1111) — site + text resolve from the pack's
+    /// <c>LoreSites</c> client-side. Additive.</summary>
+    public string[] FoundLoreKeys { get; set; } = System.Array.Empty<string>();
+}
+
+/// <summary>Server → client: an environmental lore text just found (#1111) — a rune inscription read with the
+/// scanner, a wreck log or ruin note surfaced by looting the site. The client localizes <see cref="TextKey"/>
+/// and shows it in the reader panel; <see cref="Site"/> picks the title ("ui.lore.site.&lt;site&gt;").</summary>
+public sealed class LoreTextRevealed
+{
+    /// <summary>The lore entry's stable key (per-player dedupe/bookkeeping).</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Site kind: monument | wreck | vault | data_terminal | ruin | bandit_camp | chest | settlement | factory.</summary>
+    public string Site { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the readable text (pack locale tables, merged into the shared localizer).</summary>
+    public string TextKey { get; set; } = string.Empty;
 }
 
 /// <summary>

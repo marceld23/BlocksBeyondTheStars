@@ -1,0 +1,35 @@
+[
+  { "key": "mon_watchers",     "site": "monument",      "textKey": "lore.site.mon_watchers",     "minKnowledge": 0, "weight": 3 },
+  { "key": "mon_star_count",   "site": "monument",      "textKey": "lore.site.mon_star_count",   "minKnowledge": 0, "weight": 3 },
+  { "key": "mon_first_ships",  "site": "monument",      "textKey": "lore.site.mon_first_ships",  "minKnowledge": 1, "weight": 2 },
+  { "key": "mon_red_night",    "site": "monument",      "textKey": "lore.site.mon_red_night",    "minKnowledge": 2, "weight": 2 },
+  { "key": "mon_sleeper",      "site": "monument",      "textKey": "lore.site.mon_sleeper",      "minKnowledge": 3, "weight": 1 },
+
+  { "key": "wreck_mayday",     "site": "wreck",         "textKey": "lore.site.wreck_mayday",     "minKnowledge": 0, "weight": 3 },
+  { "key": "wreck_manifest",   "site": "wreck",         "textKey": "lore.site.wreck_manifest",   "minKnowledge": 0, "weight": 3 },
+  { "key": "wreck_last_entry", "site": "wreck",         "textKey": "lore.site.wreck_last_entry", "minKnowledge": 1, "weight": 2 },
+  { "key": "wreck_no_enemy",   "site": "wreck",         "textKey": "lore.site.wreck_no_enemy",   "minKnowledge": 2, "weight": 2 },
+
+  { "key": "term_survey",      "site": "data_terminal", "textKey": "lore.site.term_survey",      "minKnowledge": 0, "weight": 3 },
+  { "key": "term_lockdown",    "site": "data_terminal", "textKey": "lore.site.term_lockdown",    "minKnowledge": 1, "weight": 2 },
+  { "key": "term_protocol_g",  "site": "data_terminal", "textKey": "lore.site.term_protocol_g",  "minKnowledge": 3, "weight": 2 },
+  { "key": "term_thought_arcs","site": "data_terminal", "textKey": "lore.site.term_thought_arcs","minKnowledge": 3, "weight": 1 },
+
+  { "key": "ruin_doorframe",   "site": "ruin",          "textKey": "lore.site.ruin_doorframe",   "minKnowledge": 0, "weight": 3 },
+  { "key": "ruin_school",      "site": "ruin",          "textKey": "lore.site.ruin_school",      "minKnowledge": 0, "weight": 2 },
+  { "key": "ruin_shelter",     "site": "ruin",          "textKey": "lore.site.ruin_shelter",     "minKnowledge": 1, "weight": 2 },
+  { "key": "ruin_left_behind", "site": "ruin",          "textKey": "lore.site.ruin_left_behind", "minKnowledge": 2, "weight": 1 },
+
+  { "key": "vault_plaque",     "site": "vault",         "textKey": "lore.site.vault_plaque",     "minKnowledge": 0, "weight": 3 },
+  { "key": "vault_inventory",  "site": "vault",         "textKey": "lore.site.vault_inventory",  "minKnowledge": 1, "weight": 2 },
+  { "key": "vault_sealed",     "site": "vault",         "textKey": "lore.site.vault_sealed",     "minKnowledge": 2, "weight": 1 },
+
+  { "key": "bandit_ledger",    "site": "bandit_camp",   "textKey": "lore.site.bandit_ledger",    "minKnowledge": 0, "weight": 2 },
+  { "key": "bandit_letter",    "site": "bandit_camp",   "textKey": "lore.site.bandit_letter",    "minKnowledge": 1, "weight": 1 },
+
+  { "key": "chest_note",       "site": "chest",         "textKey": "lore.site.chest_note",       "minKnowledge": 0, "weight": 2 },
+  { "key": "chest_map_scrap",  "site": "chest",         "textKey": "lore.site.chest_map_scrap",  "minKnowledge": 1, "weight": 1 },
+
+  { "key": "settle_notice",    "site": "settlement",    "textKey": "lore.site.settle_notice",    "minKnowledge": 0, "weight": 2 },
+  { "key": "factory_worklog",  "site": "factory",       "textKey": "lore.site.factory_worklog",  "minKnowledge": 1, "weight": 2 }
+]

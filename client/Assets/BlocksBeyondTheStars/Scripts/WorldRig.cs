@@ -199,6 +199,11 @@ namespace BlocksBeyondTheStars.Client
             var beamPad = root.AddComponent<BeamPadUi>();
             beamPad.Game = boot;
 
+            // Story reader (#1110): fragments, memories and lore texts open in a modal reader, re-readable
+            // from the Story tab. Must exist before the network handlers fire their first reveal.
+            var reader = root.AddComponent<StoryReaderUi>();
+            reader.Game = boot;
+
             // Ship AI companion "VEGA": onboarding lines, objective chip, advisor hints, story beats.
             var vega = root.AddComponent<VegaPanel>();
             vega.Game = boot;

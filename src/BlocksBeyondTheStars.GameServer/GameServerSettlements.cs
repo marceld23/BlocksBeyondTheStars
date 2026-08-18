@@ -163,6 +163,22 @@ public sealed partial class GameServer
             }
         }
 
+        // Fragment signals (#1109): a net fragment VEGA has called out stays marked until someone picks it
+        // up (the pickup removes the fragment, so the marker drops off on its own).
+        foreach (var frag in _netFragments)
+        {
+            if (_meta.RevealedPois.Contains(_world.LocationId + "|frag:" + frag.Key))
+            {
+                pois.Add(new NetPoi
+                {
+                    Type = "fragment_signal",
+                    Name = Localize(session.Locale, "poi.fragment"),
+                    X = frag.Pos.X,
+                    Z = frag.Pos.Z,
+                });
+            }
+        }
+
         // Bandit camps stay discovery content UNTIL a bounty mission is accepted (#730) — the quest
         // giver marks the target. A cleared camp drops off the map again on its own.
         foreach (var camp in _banditCamps)

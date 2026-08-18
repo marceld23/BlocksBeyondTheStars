@@ -909,6 +909,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Story Log: unlocked personal-memory locale keys.</summary>
         public readonly System.Collections.Generic.List<string> StoryLogMemories = new();
 
+        /// <summary>Story Log: found environmental lore texts (site kind + locale key, #1111) — rune
+        /// inscriptions, wreck logs, ruin notes. Per player; re-readable in the Story tab + Codex.</summary>
+        public readonly System.Collections.Generic.List<(string Site, string TextKey)> StoryLogLore = new();
+
         /// <summary>Story Log: the VEGA story-beat lines heard so far (locale keys, ShipAiLine kind 2 = memory/story).</summary>
         public readonly System.Collections.Generic.List<string> StoryLogBeats = new();
 
@@ -1021,6 +1025,20 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Shows a transient HUD message from a client-side system (e.g. the VEGA autopilot).</summary>
         public void ShowMessage(string text) => LastMessage = text ?? string.Empty;
+
+        /// <summary>Opens the story reader panel (#1110) with a localized title/label + text key — or falls
+        /// back to the message toast when no reader exists (headless/degraded rigs stay functional).</summary>
+        private void OpenReader(string title, string label, string textKey)
+        {
+            if (StoryReaderUi.Instance != null)
+            {
+                StoryReaderUi.Instance.Open(title, label, Localizer?.Get(textKey) ?? textKey);
+            }
+            else
+            {
+                ShowMessage(Localizer?.Get(textKey) ?? textKey);
+            }
+        }
 
         /// <summary>
         /// Renders a weather-scanner reading (#900) as a short, localized block: what the sky is doing here
@@ -1903,7 +1921,10 @@ namespace BlocksBeyondTheStars.Client
             Network.WorldResetReceived += OnWorldReset;
             Network.ShipAiLineReceived += m =>
             {
-                OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey);
+                // The post-tutorial story objective (#1110) rides the same chip — it must not read as an
+                // active tutorial (the settings button offers "restart" only while truly onboarding).
+                OnboardingActive = !string.IsNullOrEmpty(m.ObjectiveKey)
+                    && !m.ObjectiveKey.StartsWith("story.obj.", System.StringComparison.Ordinal);
                 if (m.Kind == 2 && !string.IsNullOrEmpty(m.LineKey)) { StoryLogBeats.Add(m.LineKey); NewStoryUnseen = true; } // a story beat
                 // Tips log (#737): onboarding (0), advisor (1) and system (3) lines become re-readable the
                 // moment they arrive. Kind 2 is the story log's, Kind 4 (prologue) is intro-only by design.
@@ -1918,19 +1939,53 @@ namespace BlocksBeyondTheStars.Client
                 VegaLogKeys.Clear();
                 VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones));
             };
-            Network.StoryStateReceived += m => Story = m;
+            Network.StoryStateReceived += m =>
+            {
+                Story = m;
+                // Rejoin-proof logs (#1110/#1111): the snapshot carries the found KEYS; texts resolve from
+                // the pack. Replaces the live-collected lists — the server is authoritative.
+                if (Content is not null && Content.TryGetStory(m.StoryId, out var pack))
+                {
+                    StoryLogFragments.Clear();
+                    StoryLogFragments.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Fragments(pack, m.FoundFragmentKeys));
+                    StoryLogMemories.Clear();
+                    StoryLogMemories.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Memories(pack, m.PlayerMemoryKeys));
+                    StoryLogLore.Clear();
+                    StoryLogLore.AddRange(BlocksBeyondTheStars.Client.Core.StoryLog.Lore(pack, m.FoundLoreKeys));
+                }
+            };
             Network.NetFragmentsReceived += m => NetFragments = m.Fragments;
             Network.NetFragmentRevealedReceived += m =>
             {
-                StoryLogFragments.Add((m.Category, m.TextKey));
+                if (!StoryLogFragments.Contains((m.Category, m.TextKey)))
+                {
+                    StoryLogFragments.Add((m.Category, m.TextKey));
+                }
+
                 NewStoryUnseen = true; // badge the Story menu entry until the player reads it
-                ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey); // the archive text (Story Log keeps it to re-read)
+                // The reader panel (#1110) replaces the old toast; the Story Log keeps the text to re-read.
+                OpenReader(Localizer?.Get("ui.reader.fragment") ?? "Net fragment",
+                    Localizer?.Get("lore.cat." + m.Category) ?? m.Category, m.TextKey);
             };
             Network.PlayerMemoryReceived += m =>
             {
-                StoryLogMemories.Add(m.TextKey);
+                if (!StoryLogMemories.Contains(m.TextKey))
+                {
+                    StoryLogMemories.Add(m.TextKey);
+                }
+
                 NewStoryUnseen = true;
-                ShowMessage(Localizer?.Get(m.TextKey) ?? m.TextKey);
+                OpenReader(Localizer?.Get("ui.reader.memory") ?? "Memory", string.Empty, m.TextKey);
+            };
+            Network.LoreTextRevealedReceived += m =>
+            {
+                if (!StoryLogLore.Contains((m.Site, m.TextKey)))
+                {
+                    StoryLogLore.Add((m.Site, m.TextKey));
+                }
+
+                NewStoryUnseen = true;
+                OpenReader(Localizer?.Get("ui.lore.site." + m.Site) ?? m.Site, string.Empty, m.TextKey);
             };
             Network.ScanResultReceived += m =>
             {

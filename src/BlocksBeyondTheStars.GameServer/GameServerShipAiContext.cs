@@ -106,6 +106,9 @@ public sealed partial class GameServer
         new("treasure_near",  VegaTipPriority.Opportunity, 5,  900, 3, true),
         new("trader_near",    VegaTipPriority.Opportunity, 5,  900, 3, true),
         new("tameable_near",  VegaTipPriority.Opportunity, 5,  900, 3, true),
+        // Story signal (#1109): an unread net fragment is somewhere on this world — VEGA gives a rough
+        // bearing and marks it on the map, so the story is findable on purpose instead of by luck.
+        new("fragment_signal", VegaTipPriority.Opportunity, 5, 900, 3, true),
         new("player_near",    VegaTipPriority.Opportunity, 5,  900, 3, true),
         // Space (#1081).
         new("asteroid_near",  VegaTipPriority.Opportunity, 5,  900, 3, true),
@@ -346,6 +349,13 @@ public sealed partial class GameServer
         }
 
         SendVegaLine(session, "vega.hint." + spec.Id, count == 0 ? (byte)1 : VegaTipRepeatKind, arg);
+
+        // The fragment signal (#1109) also marks the spoken-of fragment on everyone's map — the mention
+        // carries its key ("frag:<key>"), and the POI drops off on its own once the fragment is picked up.
+        if (spec.Id == "fragment_signal" && mention.StartsWith("frag:", System.StringComparison.Ordinal))
+        {
+            RevealPoi(_world.LocationId + "|" + mention);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -572,6 +582,30 @@ public sealed partial class GameServer
                 && WrapDistSq(p.Position, cont.Position) <= 80.0 * 80.0)
             {
                 add("treasure_near", "", "chest:" + cont.Id);
+            }
+        }
+
+        if (StoryActive && _netFragments.Count > 0)
+        {
+            GameServer.ServerNetFragment? nearest = null;
+            double bestSq = double.MaxValue;
+            foreach (var f in _netFragments)
+            {
+                double d = WrapDistSq(p.Position, f.Pos);
+                if (d < bestSq)
+                {
+                    bestSq = d;
+                    nearest = f;
+                }
+            }
+
+            if (nearest is not null)
+            {
+                double fdx = WorldConstants.WrapDeltaX((double)(nearest.Pos.X - p.Position.X), _world.Circumference);
+                double fdz = WorldConstants.WrapDeltaZ((double)(nearest.Pos.Z - p.Position.Z), _world.Circumference);
+                int fdist = System.Math.Max(10, (int)(System.Math.Round(System.Math.Sqrt((fdx * fdx) + (fdz * fdz)) / 10.0) * 10));
+                string arg = fdist + " m " + Localize(session.Locale, DirectionKey(fdx, fdz));
+                add("fragment_signal", arg, "frag:" + nearest.Key);
             }
         }
 

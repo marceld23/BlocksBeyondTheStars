@@ -206,6 +206,10 @@ internal sealed class LoadedWorld
     public int NextBeamId { get; set; } = 1;
     public int NextNetFragmentId { get; set; } = 1;
 
+    /// <summary>True once the surface fragment roll ran for this residency (#1109). The old "list non-empty"
+    /// guard re-rolled zero-fragment worlds on every visit, which would double-count the pity budget.</summary>
+    public bool NetFragmentsStamped { get; set; }
+
     // Per-world weather/environment (TickWeather + BroadcastEnvironment are per-planet: day length, storm
     // chance, atmosphere/oxygen, clouds, weather RNG). time-of-day fraction included; admin time/weather
     // strings stay global on GameServer for now.

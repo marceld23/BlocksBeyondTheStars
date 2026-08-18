@@ -63,6 +63,7 @@ public sealed partial class GameServer
             _storyState.GuardianDefeated = stored.GuardianDefeated;
             _storyState.FoundFragmentKeys = new HashSet<string>(stored.FoundFragmentKeys ?? new List<string>(), StringComparer.Ordinal);
             _storyState.MilestoneKeys = new HashSet<string>(stored.MilestoneKeys ?? new List<string>(), StringComparer.Ordinal);
+            _storyState.BodiesWithoutFragment = stored.BodiesWithoutFragment;
         }
         else if (stored is null && string.Equals(Rules.StoryId, StoryRegistry.NoneStoryId, StringComparison.OrdinalIgnoreCase))
         {
@@ -99,6 +100,7 @@ public sealed partial class GameServer
             GuardianDefeated = _storyState.GuardianDefeated,
             FoundFragmentKeys = _storyState.FoundFragmentKeys.ToList(),
             MilestoneKeys = _storyState.MilestoneKeys.ToList(),
+            BodiesWithoutFragment = _storyState.BodiesWithoutFragment,
         });
 
     // ---------------- Event hooks (called from gameplay) ----------------
@@ -117,6 +119,7 @@ public sealed partial class GameServer
         }
 
         _storyState.FragmentsFound++;
+        _storyState.BodiesWithoutFragment = 0; // any find breaks the drought (#1109)
         AdvanceStory();
     }
 
@@ -230,20 +233,25 @@ public sealed partial class GameServer
         }
     }
 
-    private void SendStoryState(PlayerSession session) => Send(session, BuildStoryState());
+    private void SendStoryState(PlayerSession session) => Send(session, BuildStoryState(session));
 
     private void BroadcastStoryState()
     {
-        var msg = BuildStoryState();
         foreach (var session in _sessions.Values.Where(s => s.Joined))
         {
-            Send(session, msg);
+            Send(session, BuildStoryState(session)); // per receiver: memory/lore keys are per player (#1110)
+            SendVegaObjective(session);              // the chip's story objective follows the arc (#1110)
         }
     }
 
-    private StoryStateMessage BuildStoryState()
+    /// <summary>Milestone-key prefixes of the per-player story surfaces snapshotted to the client (#1110/#1111).</summary>
+    private const string MemoryMilestonePrefix = "story:mem:";
+    private const string LoreMilestonePrefix = "lore:";
+
+    private StoryStateMessage BuildStoryState(PlayerSession session)
     {
         int target = _story is { Beats.Count: > 0 } d ? d.Beats[d.Beats.Count - 1].Threshold : 0;
+        var mine = session.State.Milestones;
         return new StoryStateMessage
         {
             StoryId = _storyState.StoryId,
@@ -256,6 +264,13 @@ public sealed partial class GameServer
             BeatsRevealed = _storyState.BeatsRevealed,
             GuardianSystemRevealed = _storyState.GuardianSystemRevealed,
             GuardianDefeated = _storyState.GuardianDefeated,
+            // Re-readable logs (#1110/#1111): the save's found fragments + this player's memories/lore, so the
+            // Story tab and the Codex survive a rejoin instead of resetting to the session's live events.
+            FoundFragmentKeys = _storyState.FoundFragmentKeys.ToArray(),
+            PlayerMemoryKeys = mine.Where(m => m.StartsWith(MemoryMilestonePrefix, StringComparison.Ordinal))
+                .Select(m => m.Substring(MemoryMilestonePrefix.Length)).ToArray(),
+            FoundLoreKeys = mine.Where(m => m.StartsWith(LoreMilestonePrefix, StringComparison.Ordinal))
+                .Select(m => m.Substring(LoreMilestonePrefix.Length)).ToArray(),
         };
     }
 
@@ -309,6 +324,8 @@ public sealed partial class GameServer
         _storyState.GuardianSystemRevealed = false;
         _storyState.GuardianDefeated = false;
         _storyState.FoundFragmentKeys.Clear();
+        _storyState.MilestoneKeys.Clear(); // a new pack starts its once-per-save firsts fresh
+        _storyState.BodiesWithoutFragment = 0;
         ResetFinaleRuntime();
     }
 
@@ -532,6 +549,14 @@ public sealed partial class GameServer
 
     /// <summary>Test hook: record a net fragment find (mirrors the gameplay event).</summary>
     public void RecordStoryFragmentForTest(string fragmentKey) => RecordStoryFragment(fragmentKey);
+
+    /// <summary>Test seam: the story-state snapshot exactly as it would be sent to this player (#1110).</summary>
+    public StoryStateMessage? StoryStateForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } session ? BuildStoryState(session) : null;
+
+    /// <summary>Test seam: place a structure fragment at a marker position (mirrors <c>SpawnStructureLoot</c>).</summary>
+    public void PlaceStructureFragmentForTest(string markerType, float x, float y, float z)
+        => TryPlaceStructureFragment(markerType, new Shared.Geometry.Vector3f(x, y, z));
 
     /// <summary>Test hook: record a Guardian-machine kill (mirrors the gameplay event).</summary>
     public void RecordStoryMachineKillForTest() => RecordStoryMachineKill();

@@ -131,6 +131,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<NetFragmentList>? NetFragmentsReceived;
         public event Action<NetFragmentRevealed>? NetFragmentRevealedReceived;
         public event Action<PlayerMemoryRevealed>? PlayerMemoryReceived;
+        public event Action<LoreTextRevealed>? LoreTextRevealedReceived;             // environmental lore text found (#1111)
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
@@ -778,6 +779,7 @@ namespace BlocksBeyondTheStars.Client
                 case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
                 case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;
                 case PlayerMemoryRevealed m: PlayerMemoryReceived?.Invoke(m); break;
+                case LoreTextRevealed m: LoreTextRevealedReceived?.Invoke(m); break;
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;

@@ -144,6 +144,9 @@ public sealed class StoredStoryState
 
     /// <summary>Once-per-save milestone keys already counted (#1105). Absent in older blobs → empty.</summary>
     public List<string> MilestoneKeys { get; set; } = new();
+
+    /// <summary>Pity budget (#1109): bodies stamped in a row without a surface fragment. Absent → 0.</summary>
+    public int BodiesWithoutFragment { get; set; }
 }
 
 /// <summary>A persisted player-built space station (item 20 S4): its voxel cells + registry row (owner, name,

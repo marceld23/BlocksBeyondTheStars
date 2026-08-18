@@ -48,6 +48,9 @@ public class StoryPackLoadTests
         {
             Assert.Equal(builtin.Beats[i].Threshold, data.Beats[i].Threshold);
             Assert.Equal(builtin.Beats[i].TextKey, data.Beats[i].TextKey);
+            // #767 set the per-beat knowledge to 1; the data pack wins at runtime, so it must not drift
+            // back up (it silently had, until PR 3 caught it).
+            Assert.Equal(builtin.Beats[i].KnowledgeReward, data.Beats[i].KnowledgeReward);
         }
     }
 

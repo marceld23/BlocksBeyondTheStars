@@ -107,8 +107,19 @@ fragments, memories, flavour and `coreArguments` are authored + translated (DE+E
 
 - Client/world-gen: the two physical finale routes + in-world core console, and bespoke boss/core visuals
   (the voxel chamber already reads well) are follow-ups.
-- A proper re-readable Fragment/Memory reader panel (today: a toast + the Story Log tab list).
-- Pity/budget + structure-placed fragments (combat already de-risks soft-lock).
+- ~~A proper re-readable Fragment/Memory reader panel~~ — shipped with #1110: `StoryReaderUi` (modal,
+  chunked via `UiTextChunks`), Read buttons in the Story tab, and a rejoin-proof snapshot on
+  `StoryStateMessage` (`FoundFragmentKeys` / `PlayerMemoryKeys` / `FoundLoreKeys`, built per receiver).
+- ~~Pity/budget + structure-placed fragments~~ — shipped with #1109: `StoryState.BodiesWithoutFragment`
+  (persisted; after two dry bodies the third guarantees a fragment, any find resets it), and
+  `data_terminal`/`relic_cache` markers roll a fragment per residency (`TryPlaceStructureFragment` —
+  deterministic from the marker position, found keys never return). VEGA's `fragment_signal` context tip
+  gives a bearing and reveals a `fragment_signal` map POI; after the tutorial the objective chip carries
+  a `story.obj.*` line (gated client-side by the VEGA-hints setting).
+- Environmental lore (#1111): `data/stories/<pack>/lore_sites.json` — weighted, knowledge-gated texts per
+  site kind (monument scan / structure loot), revealed once per player (`PlayerState.Milestones`
+  `lore:<key>`), listed in the Codex "Lore" chapter. NPC story threads (#1112): `npcThreads[]` in the
+  pack — role + relationship stage + knowledge gate, once per player, may hand over a fragment.
 - Numeric tuning (`Wf/Wk/Wm`, kill cap, thresholds, memory-drop chance, gauntlet HP) stays data-driven.
 
 ## Appendix — boss/finale music

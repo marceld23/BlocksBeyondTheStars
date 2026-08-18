@@ -333,6 +333,16 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool hasObjective = !string.IsNullOrEmpty(_objectiveKey);
+
+            // The post-tutorial story objective (#1110) is optional coaching: unlike the onboarding chip
+            // (which always shows) it respects the VEGA-hints mute, so a player who turned guidance off
+            // gets their clean HUD back.
+            if (hasObjective && _objectiveKey.StartsWith("story.obj.", System.StringComparison.Ordinal)
+                && Settings is { VegaHints: false })
+            {
+                hasObjective = false;
+            }
+
             _chip.SetActive(hasObjective);
             if (hasObjective)
             {

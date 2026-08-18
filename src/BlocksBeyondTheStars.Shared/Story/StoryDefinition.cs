@@ -145,6 +145,59 @@ public sealed class MissionThread
 }
 
 /// <summary>
+/// One environmental lore text of a story pack (#1111): a rune inscription, wreck log, ruin note or vault
+/// plaque, revealed when the player scans/loots the matching site kind. Data-driven per <see cref="Site"/>,
+/// weighted, and gated by the world's knowledge level like the flavour lines — texts that would spoil a
+/// beat stay locked until the story has come far enough. Found texts persist per player.
+/// </summary>
+public sealed class LoreSite
+{
+    /// <summary>Unique id — the per-player found/dedupe key (<c>PlayerState.Milestones</c> "lore:&lt;key&gt;").</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The site kind this text belongs to: monument | wreck | vault | data_terminal | ruin |
+    /// bandit_camp | chest | settlement | factory.</summary>
+    public string Site { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the readable text (bilingual DE+EN in the pack's locale files).</summary>
+    public string TextKey { get; set; } = string.Empty;
+
+    /// <summary>Minimum world knowledge level (0…4) before this text can be found — the spoiler gate.</summary>
+    public int MinKnowledge { get; set; }
+
+    /// <summary>Relative draw weight when several texts of a site are still unfound.</summary>
+    public int Weight { get; set; } = 1;
+}
+
+/// <summary>
+/// One NPC story thread of a story pack (#1112): a settlement/station NPC who KNOWS something — greeting
+/// them (at the given relationship stage and knowledge level) hands over a story fragment or a spoken
+/// rumour, once per player. The people of the world carry the story, not only VEGA. Works with
+/// <c>AiLevel.Off</c>: the spoken line is deterministic localized text, never LLM output.
+/// </summary>
+public sealed class NpcThread
+{
+    /// <summary>Unique id — the per-player fired/dedupe key (<c>PlayerState.Milestones</c> "npcthread:&lt;key&gt;").</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>The NPC role that carries this thread ("vendor" | "quartermaster"); empty = any role.</summary>
+    public string Role { get; set; } = string.Empty;
+
+    /// <summary>Minimum relationship tier with THIS NPC: "" (any) | "known" | "trusted".</summary>
+    public string MinStage { get; set; } = string.Empty;
+
+    /// <summary>Minimum world knowledge level (0…4) before the NPC opens up.</summary>
+    public int MinKnowledge { get; set; }
+
+    /// <summary>Locale key of what the NPC says when the thread fires (bilingual DE+EN).</summary>
+    public string TextKey { get; set; } = string.Empty;
+
+    /// <summary>Optional: the story fragment the NPC hands over (recorded + revealed like any fragment find;
+    /// deduped per save). Empty = the thread is a rumour only.</summary>
+    public string FragmentKey { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// A story pack: identity + pacing config + the ordered beat arc. The story engine consumes this and is
 /// completely story-agnostic, so further storylines are added as more packs (see the implementation plan
 /// D2–D4). For P0 a pack is code-defined in <see cref="StoryRegistry"/>; a later phase loads it from
@@ -196,4 +249,12 @@ public sealed class StoryDefinition
 
     /// <summary>Mission threads (P7): turning in a matching random mission also yields a story fragment.</summary>
     public List<MissionThread> MissionThreads { get; set; } = new();
+
+    /// <summary>Environmental lore texts per site kind (#1111), loaded from the pack's <c>lore_sites.json</c>
+    /// (or inline). Empty packs simply have mute ruins.</summary>
+    public List<LoreSite> LoreSites { get; set; } = new();
+
+    /// <summary>NPC story threads (#1112): people who hand over a fragment or rumour on greeting. Empty packs
+    /// leave the story to the narrator.</summary>
+    public List<NpcThread> NpcThreads { get; set; } = new();
 }
