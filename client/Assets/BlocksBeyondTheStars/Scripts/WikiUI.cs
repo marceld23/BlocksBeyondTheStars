@@ -223,9 +223,7 @@ namespace BlocksBeyondTheStars.Client
         private string BuildLore()
         {
             var sb = new StringBuilder();
-            sb.Append("<b><size=24>").Append(L("ui.wiki.lore")).Append("</size></b>
-
-");
+            sb.Append("<b><size=24>").Append(L("ui.wiki.lore")).Append("</size></b>\n\n");
 
             var fragments = Game?.StoryLogFragments;
             var memories = Game?.StoryLogMemories;
@@ -246,58 +244,46 @@ namespace BlocksBeyondTheStars.Client
             int total = (pack?.Fragments.Count ?? 0) + (pack?.Memories.Count ?? 0) + (pack?.LoreSites.Count ?? 0);
             if (total > 0)
             {
-                sb.Append(string.Format(L("ui.wiki.lore.found"), found, total)).Append("
-
-");
+                sb.Append(string.Format(L("ui.wiki.lore.found"), found, total)).Append("\n\n");
             }
 
             if (fragments is { Count: > 0 })
             {
-                sb.Append("<b>").Append(L("ui.story.fragments")).Append(" (").Append(fragments.Count).Append(")</b>
-");
+                sb.Append("<b>").Append(L("ui.story.fragments")).Append(" (").Append(fragments.Count).Append(")</b>\n");
                 foreach (var (cat, key) in fragments)
                 {
-                    sb.Append("  • <b>[").Append(L("lore.cat." + cat)).Append("]</b> ").Append(L(key)).Append('
-');
+                    sb.Append("  • <b>[").Append(L("lore.cat." + cat)).Append("]</b> ").Append(L(key)).Append('\n');
                 }
 
-                sb.Append('
-');
+                sb.Append('\n');
             }
 
             if (memories is { Count: > 0 })
             {
-                sb.Append("<b>").Append(L("ui.story.memories")).Append(" (").Append(memories.Count).Append(")</b>
-");
+                sb.Append("<b>").Append(L("ui.story.memories")).Append(" (").Append(memories.Count).Append(")</b>\n");
                 foreach (var key in memories)
                 {
-                    sb.Append("  • ").Append(L(key)).Append('
-');
+                    sb.Append("  • ").Append(L(key)).Append('\n');
                 }
 
-                sb.Append('
-');
+                sb.Append('\n');
             }
 
             if (lore is { Count: > 0 })
             {
-                sb.Append("<b>").Append(L("ui.story.lore")).Append(" (").Append(lore.Count).Append(")</b>
-");
+                sb.Append("<b>").Append(L("ui.story.lore")).Append(" (").Append(lore.Count).Append(")</b>\n");
                 foreach (var (site, key) in lore)
                 {
-                    sb.Append("  • <b>").Append(L("ui.lore.site." + site)).Append(":</b> ").Append(L(key)).Append('
-');
+                    sb.Append("  • <b>").Append(L("ui.lore.site." + site)).Append(":</b> ").Append(L(key)).Append('\n');
                 }
 
-                sb.Append('
-');
+                sb.Append('\n');
             }
 
             int missing = total - found;
             if (missing > 0)
             {
-                sb.Append("<color=#9fb4c8>").Append(new string('?', 3)).Append(" × ").Append(missing).Append("</color>
-");
+                sb.Append("<color=#9fb4c8>").Append(new string('?', 3)).Append(" × ").Append(missing).Append("</color>\n");
             }
 
             return sb.ToString();
