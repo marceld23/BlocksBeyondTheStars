@@ -653,12 +653,21 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>A never-entered system's name reads "Unknown system" (#1113) — the galaxy is discovered,
-        /// not read off a chart. A fitted radar array decodes the beacon signals and shows real names.</summary>
+        /// not read off a chart. A fitted radar array decodes the beacon signals and shows real names.
+        /// Frontier systems (#1122) carry a tag either way: the far rim is richer, and that is worth
+        /// telegraphing BEFORE the player has been there — it is the reason to fly far.</summary>
         private string SystemDisplayName(NetStarSystem sys)
-            => sys == null ? string.Empty
-                : Game.KnowsSystem(sys.Id) || sys.Id == CurrentSystemId() || HasRadarArray()
-                    ? sys.Name
-                    : L("ui.map.system_unknown");
+        {
+            if (sys == null)
+            {
+                return string.Empty;
+            }
+
+            string name = Game.KnowsSystem(sys.Id) || sys.Id == CurrentSystemId() || HasRadarArray()
+                ? sys.Name
+                : L("ui.map.system_unknown");
+            return sys.Tier >= 2 ? $"{name} · {L("ui.map.frontier")}" : name;
+        }
 
         /// <summary>True when the active ship carries a radar_array module (server-reported fit).</summary>
         private bool HasRadarArray()
@@ -1841,6 +1850,23 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddText(starterTpBtn.transform, 560, 0, 200, 78, starterTp ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
                 starterTp ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
             y += 96f;
+
+            // Frontier danger (#1122, opt-in): tougher machines out in the frontier tier. Only offered
+            // when planet enemies exist at all — on peaceful/family worlds (PlanetEnemies Off) the row is
+            // hidden, matching "richness only, never danger" for those setups.
+            if (!string.Equals(rules?.PlanetEnemies, "Off", System.StringComparison.OrdinalIgnoreCase))
+            {
+                bool frontier = rules?.FrontierDanger ?? false;
+                var frontierBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    Game?.Network?.SendSetWorldRules(frontierDanger: frontier ? "Off" : "On");
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                UiKit.AddText(frontierBtn.transform, 16, 0, 520, 78, L("ui.worldopt.frontier_danger"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(frontierBtn.transform, 560, 0, 200, 78, frontier ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                    frontier ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
 
             // Per-player mode overrides (#1121): one row per online player, cycling World / Survival /
             // Creative. The server fills the roster ONLY for world admins, so the section simply is not

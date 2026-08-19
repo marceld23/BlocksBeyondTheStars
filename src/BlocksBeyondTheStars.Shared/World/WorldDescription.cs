@@ -150,6 +150,12 @@ public sealed class WorldDescription
     /// description carries true; a loaded save keeps whatever it stored).</summary>
     public bool TerrainContinents { get; set; }
 
+    /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
+    /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
+    /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every
+    /// existing save keeps its fixed galaxy; the creation UI offers it as the "growing" universe size.</summary>
+    public bool GalaxyGrowth { get; set; }
+
     // --- World options (creation-time; baked into the save's metadata — they shape worldgen) ---
 
     /// <summary>Flora/tree density factor applied on top of each world's seeded variation.</summary>

@@ -338,7 +338,10 @@ public sealed partial class GameServer
     /// </summary>
     private void BuildGalaxy()
     {
-        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate();
+        // #1123: a grown save regenerates with the persisted extra count — system N is a pure function
+        // of (seed, N), so the grown systems come back byte-identical, in the same pass as the fixed ones.
+        int systemCount = _meta.Description.StarSystemCount + Math.Max(0, _meta.GalaxyGrownSystems);
+        _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate(systemCount);
 
         var stored = _repo.LoadLocationStatuses();
         foreach (var body in _galaxy.AllBodies())
@@ -506,10 +509,14 @@ public sealed partial class GameServer
         bool airlessMoon = worldBody?.Kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         world.World.Cratered = airlessMoon; // stamped on the world so chunk gen re-configures fully (#424 S13)
+        // Frontier scaling (#1122): outer systems generate richer rare-tier veins. Stamped like Cratered,
+        // so every chunk generation re-configures the shared generator with it.
+        world.World.FrontierOreBoost = FrontierOreBoostFor(FrontierTierForBody(locationId));
         // Configure the shared generator for this body's direct gen queries (size, cratering, pads —
         // LandingPadFlats is still empty for a brand-new world; BuildLandingPads below refills it).
         // The location id salts the per-body identity (#478): terrain character, rosters, structures.
-        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats, locationId);
+        _generator.SetWorldMode(world.World.Circumference, airlessMoon, world.World.LandingPadFlats, locationId,
+            world.World.FrontierOreBoost);
         if (!isNew)
         {
             return world; // already resident — keep its fauna/structures/edits
@@ -5510,6 +5517,7 @@ public sealed partial class GameServer
             MapX = sys.MapX,
             MapY = sys.MapY,
             Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),
+            Tier = FrontierTierOf(sys.Id), // #1122: the star map tags frontier systems
         }).ToArray();
 
         var players = _sessions.Values
@@ -5573,6 +5581,7 @@ public sealed partial class GameServer
         {
             OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
+            MaybeGrowGalaxy(session, body.SystemId); // #1123: reaching the edge pushes the frontier out
         }
 
         SendExploredMap(session, body.Id); // #1113: the remembered fog for this body's planet map
@@ -5586,6 +5595,7 @@ public sealed partial class GameServer
         {
             OnAchievementVisitSystem(session); // "System Hopper" / "Starfarer" (#1102)
             RecordStoryMilestone(); // a new star system mapped → story milestone (P3)
+            MaybeGrowGalaxy(session, systemId); // #1123: reaching the edge pushes the frontier out
         }
     }
 
@@ -5652,6 +5662,7 @@ public sealed partial class GameServer
             InstantTravel = r.InstantTravel,
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
+            FrontierDanger = r.FrontierDanger,
             VoiceChatEnabled = _config.VoiceChatEnabled,
             PlayerModeNames = modeNames,
             PlayerModeValues = modeValues,
@@ -5713,6 +5724,11 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(intent.StarterTeleporter))
         {
             Rules.StarterTeleporter = intent.StarterTeleporter.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!string.IsNullOrEmpty(intent.FrontierDanger))
+        {
+            Rules.FrontierDanger = intent.FrontierDanger.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit

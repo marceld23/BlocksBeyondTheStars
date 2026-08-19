@@ -192,6 +192,13 @@ public sealed class GameRules
     /// back (lesson from the unkillable-UFO bug). Live-editable.</summary>
     public AlienActivity Bandits { get; set; } = AlienActivity.Normal;
 
+    /// <summary>Frontier danger (#1122, opt-in — default OFF everywhere except the `dangerous` preset):
+    /// when on, planet machines in the outermost frontier tier spawn as the tougher variant. Pure risk
+    /// dial — the frontier's RICHNESS (rare ores, extra vault/monument, better loot) is unconditional,
+    /// this only decides whether the risk scales with it. Never touches blocks, never the home system;
+    /// family/peaceful setups have PlanetEnemies Off and never see it. Live-editable.</summary>
+    public bool FrontierDanger { get; set; }
+
     /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
     /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a
     /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>

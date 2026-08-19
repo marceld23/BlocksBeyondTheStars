@@ -467,7 +467,11 @@ public sealed partial class GameServer
 
     private void SpawnPlanetEnemyNear(Shared.State.PlayerState player, bool asDrone)
     {
-        bool tougher = !asDrone && Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme;
+        // Frontier danger (#1122, opt-in world rule): out in the full-frontier tier the machines hit like
+        // the Frequent/Extreme ones — never in the home system, never unless the admin switched it on
+        // (family/peaceful setups have PlanetEnemies Off and never even spawn these).
+        bool tougher = !asDrone && (Rules.PlanetEnemies is AlienActivity.Frequent or AlienActivity.Extreme
+            || (Rules.FrontierDanger && FrontierTierForBody(_world.LocationId) >= 2));
 
         // Spawn well OUTSIDE the 28-block detection range (9–13 felt like an ambush): fiends appear
         // 35–50 blocks out, roam the area on wander headings, and only start hunting when the player

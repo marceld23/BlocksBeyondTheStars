@@ -73,14 +73,27 @@ public sealed class WorldGenerator
     /// bodies of the same planet type are different worlds. Null/empty keeps the legacy per-type seeding.
     /// </summary>
     public void SetWorldMode(int circumference, bool cratered, IReadOnlyList<LandingPadFlatten>? landingPads,
-        string? locationId = null)
+        string? locationId = null, double frontierOreBoost = 1.0)
     {
         _circumference = circumference;
         _crateredWorld = cratered;
         _landingPads = landingPads ?? System.Array.Empty<LandingPadFlatten>();
         _locationId = locationId ?? string.Empty;
         _locationSalt = string.IsNullOrEmpty(locationId) ? 0L : StableHash(locationId);
+        // Frontier scaling (#1122): outer star systems multiply their RARE-tier veins (RareTier ores
+        // only) by this factor. 1.0 (every legacy caller, every home-system world) is a no-op — the
+        // boost rides OUTSIDE the calibration, like the world-option ore factor, so the memoised
+        // calibration cache needs no key extension.
+        _frontierOreBoost = frontierOreBoost;
     }
+
+    /// <summary>Rare-vein multiplier for the CURRENT body (#1122), set per world via
+    /// <see cref="SetWorldMode"/>. 1.0 = home/near systems and all legacy callers.</summary>
+    private double _frontierOreBoost = 1.0;
+
+    /// <summary>The currently configured frontier rare-vein multiplier (#1122) — exposed so save/restore
+    /// callers can re-apply the COMPLETE mode state (#424 S13), like <see cref="LocationId"/>.</summary>
+    public double FrontierOreBoost => _frontierOreBoost;
 
     // Continents (#704): only worlds CREATED with the flag may roll continental terrain — the offset
     // relocates the oceans wholesale, so existing galaxies must keep their coasts (WorldDescription
@@ -4594,7 +4607,11 @@ public sealed class WorldGenerator
             // now-reachable deep kilometre rewards the descent instead of frustrating it. Shallow bands
             // are untouched (bonus ≈ 0 near the surface) — nothing moves away from new players.
             double depthBonus = 1.0 + 0.6 * System.Math.Min(1.0, depth / 600.0);
-            double frac = System.Math.Clamp(ore.Rarity * richness * depthBonus * scale, 0.0, cap);
+            // Frontier scaling (#1122): only the RARE-tier veins (tier-2 tool gate) get richer out there —
+            // the starter iron/copper economy is the same everywhere, so the frontier never becomes the
+            // better place to begin, only the better place to RETURN to.
+            double rarity = ore.RareTier ? ore.Rarity * _frontierOreBoost : ore.Rarity;
+            double frac = System.Math.Clamp(rarity * richness * depthBonus * scale, 0.0, cap);
             if (frac <= 0.0)
             {
                 continue;

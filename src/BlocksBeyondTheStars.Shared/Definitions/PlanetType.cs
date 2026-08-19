@@ -34,6 +34,12 @@ public sealed class OreVein
     /// <summary>Depth band below the surface in which this ore can spawn.</summary>
     public int MinDepth { get; set; }
     public int MaxDepth { get; set; } = 256;
+
+    /// <summary>Computed at content load, never from data (#1122): true when the ore's block needs a
+    /// tier-2 tool (titanium/cobalt/uranium/platinum/tungsten/neodymium/diamond class) — exactly these
+    /// veins get the frontier richness boost in outer star systems.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool RareTier { get; set; }
 }
 
 /// <summary>

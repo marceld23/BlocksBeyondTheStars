@@ -82,6 +82,15 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> BodyPlanetTypes { get; set; } = new();
 
     /// <summary>
+    /// Growing galaxy (#1123): how many systems were appended BEYOND the description's
+    /// <c>StarSystemCount</c> by frontier jumps. The galaxy is re-derived from the seed on every start,
+    /// so persisting the COUNT is enough — system N is a pure function of (seed, N), and regenerating
+    /// with count + grown reproduces every grown system byte-identically. 0 (absent in older saves) means
+    /// the galaxy is exactly the description's fixed one.
+    /// </summary>
+    public int GalaxyGrownSystems { get; set; }
+
+    /// <summary>
     /// True for worlds created after ships became placed objects (#870): such a save never persisted a
     /// stamped hull, so the legacy stamp-residue cleanup must never run on it (it would delete the player's
     /// own builds beside a pad on their first landing there). False (missing) on older saves — they migrate

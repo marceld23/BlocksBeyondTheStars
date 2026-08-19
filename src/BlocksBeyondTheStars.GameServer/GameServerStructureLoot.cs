@@ -122,6 +122,14 @@ public sealed partial class GameServer
                 break;
         }
 
+        // Frontier scaling (#1122): containers out in the full-frontier tier carry one late-game pick on
+        // top — the flight out there should pay in exactly the materials the H2 tech ladder wants. The
+        // roll comes AFTER the per-type rolls, so home-system loot streams are byte-identical to before.
+        if (FrontierTierForBody(_world.LocationId) >= 2)
+        {
+            AddRandom(new[] { "titanium_plate", "circuit_board", "energy_cell_1", "gold_ingot", "crystal" }, 1, 1, 2);
+        }
+
         return items;
     }
 }

@@ -71,6 +71,8 @@ public sealed partial class GameServer
         int count = rng.NextDouble() < System.Math.Min(0.95, 0.75 * f)
             ? (rng.NextDouble() < System.Math.Min(0.8, 0.35 * f) ? 2 : 1)
             : 0;
+
+
         for (int i = 0; i < count; i++)
         {
             // A deterministic spot away from the spawn/landing area, each vault in its own direction. The
@@ -161,8 +163,76 @@ public sealed partial class GameServer
             }
         }
 
+        // Frontier scaling (#1122): a full-frontier world buries one vault MORE — in its OWN placement
+        // slot ("vault_frontier"), so the base loop, its rng draws and every existing record replay
+        // unchanged. Worlds stamped BEFORE the feature record a one-time skip instead (no vault ever
+        // materialises retroactively under someone's base); only newly stamped worlds carry the extra one.
+        int requested = count;
+        if (count > 0 && FrontierTierForBody(_world.LocationId) >= 2)
+        {
+            // Draws consumed unconditionally (the stream contract above) — the tier is seed-stable.
+            int fx = (120 + rng.Next(320)) * (rng.Next(2) == 0 ? 1 : -1);
+            int fz = (90 + rng.Next(280)) * (rng.Next(2) == 0 ? 1 : -1);
+            int fwx = WorldConstants.WrapX(fx, _world.Circumference);
+            var extraRec = FindPlacementRecord("vault_frontier", 0);
+            if (extraRec is not null)
+            {
+                if (extraRec.Placed)
+                {
+                    requested++;
+                    StampVault(extraRec.X, extraRec.Z, rng, write, extraRec.Seat == "wellhead", legacyGate: false);
+                }
+            }
+            else if (!_worlds.Active.VirginAtLoad)
+            {
+                RecordPlacementSkip("vault_frontier", 0);
+            }
+            else
+            {
+                bool FitsExtra(int x, int z) => !OverlapsAnySettlement(x, z, 6) && !_generator.IsSurfaceLava(planet, x, z);
+                int vx = fwx, vz = fz;
+                bool ok = FitsExtra(vx, vz);
+                for (int radius = 12; radius <= 96 && !ok; radius += 12)
+                {
+                    for (int step = 0; step < 8 && !ok; step++)
+                    {
+                        double a = step * System.Math.PI / 4.0;
+                        int nx = WorldConstants.WrapX(fwx + (int)(System.Math.Cos(a) * radius), _world.Circumference);
+                        int nz = fz + (int)(System.Math.Sin(a) * radius);
+                        if (FitsExtra(nx, nz))
+                        {
+                            vx = nx;
+                            vz = nz;
+                            ok = true;
+                        }
+                    }
+                }
+
+                if (!ok)
+                {
+                    RecordPlacementSkip("vault_frontier", 0);
+                }
+                else
+                {
+                    requested++;
+                    bool wet = _generator.TryGetWaterSurface(planet, vx, vz, out _, out _);
+                    int cnt = _vaultEntrances.Count;
+                    StampVault(vx, vz, rng, write, wellhead: wet, legacyGate: false);
+                    if (_vaultEntrances.Count > cnt)
+                    {
+                        var e = _vaultEntrances[^1];
+                        RecordPlacement("vault_frontier", 0, e, e.Y, onIsland: false, wet ? "wellhead" : "buried", string.Empty);
+                    }
+                    else
+                    {
+                        RecordPlacementSkip("vault_frontier", 0);
+                    }
+                }
+            }
+        }
+
         SavePlacementRecords();
-        ReportStamp("vault", count, _vaultEntrances.Count);
+        ReportStamp("vault", requested, _vaultEntrances.Count);
         if (write && _vaultEntrances.Count > 0)
         {
             _log.Info($"Stamped {_vaultEntrances.Count} buried vault(s) on '{_world.LocationId}'.");

@@ -47,6 +47,11 @@ public sealed class ServerWorld
     /// at world-load so every chunk generation can fully re-configure the shared generator (#424 S13).</summary>
     public bool Cratered { get; set; }
 
+    /// <summary>Frontier rare-vein multiplier for this body (#1122): 1.0 in the home/near systems, richer
+    /// out in the frontier tier. Stamped by the server at world-load (like <see cref="Cratered"/>) so every
+    /// chunk generation re-configures the shared generator with it.</summary>
+    public double FrontierOreBoost { get; set; } = 1.0;
+
     public ServerWorld(GameContent content, WorldGenerator generator, IWorldRepository repo, PlanetType planet, string locationId, int circumference)
     {
         _content = content;
@@ -78,7 +83,7 @@ public sealed class ServerWorld
         // Fully re-configure the SHARED generator for THIS world before generating (#424 S13): size,
         // airless-moon cratering, pad flattening AND the body identity (#478) together — a partial set
         // here previously left stale state of whatever world was configured last.
-        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId);
+        _generator.SetWorldMode(Circumference, Cratered, LandingPadFlats, LocationId, FrontierOreBoost);
         var chunk = _generator.Generate(Planet, coord);
         foreach (var edit in _repo.LoadChunkEdits(LocationId, coord))
         {

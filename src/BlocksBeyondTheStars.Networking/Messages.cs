@@ -1038,6 +1038,10 @@ public sealed class ServerRules
     /// teleporter (multiplayer convenience); default false.</summary>
     public bool StarterTeleporter { get; set; }
 
+    /// <summary>Frontier-danger world option (#1122): when true, machines in the outermost frontier tier
+    /// spawn as the tougher variant. Opt-in risk dial; the frontier's richness is unconditional.</summary>
+    public bool FrontierDanger { get; set; }
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -1081,6 +1085,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Starter-teleporter toggle (#1056): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string StarterTeleporter { get; set; } = string.Empty;
+
+    /// <summary>Frontier-danger toggle (#1122): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string FrontierDanger { get; set; } = string.Empty;
 }
 
 // --- Missions ---
@@ -1202,6 +1209,11 @@ public sealed class NetStarSystem
     public float MapX { get; set; }
     public float MapY { get; set; }
     public NetBody[] Bodies { get; set; } = System.Array.Empty<NetBody>();
+
+    /// <summary>Frontier tier (#1122): 0 home turf, 1 mid, 2 frontier (richer rare ores, extra
+    /// vault/monument — and, with the opt-in "Frontier danger" rule, tougher machines). The star map
+    /// tags tier-2 systems so flying far has a visible reason.</summary>
+    public int Tier { get; set; }
 }
 
 public sealed class StarMapData

@@ -112,6 +112,7 @@ public static class ServerPresets
             AlienUfos = AlienActivity.Normal,
             PlanetEnemies = AlienActivity.Frequent,
             Bandits = AlienActivity.Frequent,
+            FrontierDanger = true, // #1122: the risk dial belongs on by default exactly here
             AsteroidDestruction = AsteroidDestructionMode.WeaponsAllowed,
             ShipDocking = DockingMode.RequestRequired,
             PersonalLandingZones = true,

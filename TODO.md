@@ -105,6 +105,34 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ The frontier — distance pays, and the galaxy can grow (#1122, #1123, 2026-08-19, branch feat/progression-pr8-frontier-galaxy)
+PR 8 of the progression package (epic #1101). The audit: nothing scaled with distance (system #8 ≡ #1) and
+the default 8-system galaxy simply ran out once visited.
+**Frontier tiers (#1122):** `GameServerFrontier.cs` — tier 0/1/2 from star-map distance to home (`sys0`)
+with ABSOLUTE thresholds (400/700), so tiers are a pure function of the seed, never re-tier as the galaxy
+grows, and home is always 0. Effects: rare-tier ore veins ×1.25/×1.6 (`OreVein.RareTier`, derived at content
+load from the block's `minToolTier ≥ 2` — starter iron/copper identical everywhere; boost rides OUTSIDE the
+memoised calibration via a new `SetWorldMode` param, stamped per world like `Cratered`); +1 vault on tier-2
+worlds as its OWN placement slot `vault_frontier` (base rng stream untouched; pre-feature worlds record a
+one-time skip so no vault ever materialises retroactively under a base); +1 monument (fresh stamps only,
+hard cap 3 kept); structure caches add one late-game pick; star map tags tier-2 systems ("Frontier", shown
+even while the name is still "Unknown system" — `NetStarSystem.Tier`). Opt-in rule `GameRules.FrontierDanger`
+(default off, `dangerous` preset on): tier-2 machines spawn as the tougher variant; the Settings toggle hides
+when PlanetEnemies is Off (family = richer, never more dangerous).
+**Growing galaxy (#1123):** `WorldDescription.GalaxyGrowth` (creation-time, default false = every existing
+save stays fixed; UI = 5th "Universe size" step "Growing" → `--galaxy-growth true`). Persistence is ONE int
+(`WorldMetadata.GalaxyGrownSystems`): the galaxy is re-derived per start, and `UniverseGenerator.Generate(count)`
+has the PREFIX property (system N is a pure function of seed+N, names claimed in index order), so a restart
+regenerates every grown system byte-identically. Growth trigger: a system becomes newly known to a player
+(hyperjump/first travel) AND ranks among the 3 outermost by map distance → regenerate at count+1, adopt the
+new system object (append-only — live references stay valid), pin its body types (#468), save, broadcast the
+star map, toast "srv.galaxy.grown". Grown systems place OUTWARD of home (Hash01 salt 900 — positions only;
+the body rng stream is untouched, `GalaxyLayoutRegressionTests` hashes stand). Soft cap 48 → "the frontier
+is quiet". Locales: 5 new keys EN+DE, 12 MT'd. Tests: `FrontierGalaxyTests` (7) — prefix property + outward
+placement, tier stability, edge-jump growth + restart round-trip, off-by-default/legacy-fixed, soft cap,
+ore-boost enriches rare veins only, preset/live-edit rule plumbing; guard subset (galaxy hashes, placement
+guarantees, world options, monuments, presets) all green.
+
 ### ★ Per-player mode — one family world, mixed Survival/Creative (#1121, 2026-08-19, branch feat/progression-pr7-per-player-mode)
 PR 7 of the progression package (epic #1101), first non-core PR. The problem: `GameRules` derived every
 mode switch from the world's `GameMode` — one family world, one ruleset; a parent wanting survival and a

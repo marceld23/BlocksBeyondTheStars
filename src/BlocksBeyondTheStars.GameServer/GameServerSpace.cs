@@ -111,6 +111,7 @@ public sealed partial class GameServer
         bool savedCratered = _generator.Cratered;
         var savedPads = _generator.LandingPads;
         string savedLocation = _generator.LocationId;
+        double savedOreBoost = _generator.FrontierOreBoost;
         bool airlessMoon = kind == CelestialKind.Moon
             && string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         // Full mode swap for the target body (#424 S13) — no pads: this computes WHERE the pads go, so
@@ -159,7 +160,7 @@ public sealed partial class GameServer
         }
         finally
         {
-            _generator.SetWorldMode(savedCirc, savedCratered, savedPads, savedLocation);
+            _generator.SetWorldMode(savedCirc, savedCratered, savedPads, savedLocation, savedOreBoost);
         }
     }
 

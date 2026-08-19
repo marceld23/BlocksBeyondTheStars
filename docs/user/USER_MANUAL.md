@@ -800,6 +800,23 @@ separate unlock; admins can still disable it through server world rules.
   Selecting one offers **Board** — but only if you've **docked there at least once** before (just like landing
   gates worlds); a never-visited station shows *"visit it once to unlock"*. Boarding takes you straight inside.
 
+### The frontier — why flying far pays
+- Systems far from your home system carry a **"Frontier"** tag on the star map (shown even before you know
+  their name — it's the reason to go). Out there worlds generate **richer rare-ore veins** (titanium, cobalt,
+  uranium, platinum, tungsten, neodymium, diamond — everything the late tech tree wants), roll an **extra
+  buried vault and monument**, and structure caches carry a bonus late-game find. Your starter ores (iron,
+  copper, …) are the same everywhere — the frontier is the better place to *return to*, never the better
+  place to begin.
+- **Frontier danger** (Settings → world rules, world admin, off by default): when switched on, the machines
+  out in the frontier hit like the toughest world settings — richness and risk scale together. On
+  peaceful/family worlds there are no machines at all, so those stay "richer, never more dangerous". The
+  `dangerous` preset ships with it on.
+- **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 8
+  systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
+  telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a
+  generous cap ("the frontier is quiet"). Growth is permanent: new systems survive save/reload like any
+  others. Worlds created with a fixed size never change.
+
 ### Day/night & weather
 - **The world wraps east–west** — the X axis is a longitude, so walking continuously east (or west) brings
   you back to where you started, as if the planet were round. The seam is invisible (terrain, biomes, caves

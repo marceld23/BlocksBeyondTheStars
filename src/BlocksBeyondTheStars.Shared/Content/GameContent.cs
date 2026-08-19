@@ -661,6 +661,9 @@ public sealed class GameContent
             foreach (var ore in planet.Ores)
             {
                 RequireBlock($"Planet '{planet.Key}' ore", ore.Block);
+                // Frontier boost eligibility (#1122): derived from the block's tool gate, so the ore
+                // data never has to repeat (and can never contradict) the tier.
+                ore.RareTier = (GetBlock(ore.Block)?.MinToolTier ?? 0) >= 2;
             }
         }
 

@@ -122,10 +122,16 @@ public sealed class UniverseGenerator
         return list;
     }
 
-    public Galaxy Generate()
+    public Galaxy Generate() => Generate(_desc.StarSystemCount);
+
+    /// <summary>Generates the galaxy with an explicit system count — the growing-galaxy hook (#1123):
+    /// a grown save regenerates with <c>StarSystemCount + GalaxyGrownSystems</c>. System i is a pure
+    /// function of (seed, i) and the name registry is claimed in index order, so generating N+1 systems
+    /// reproduces the first N byte-identically (the PREFIX property the growth feature relies on).</summary>
+    public Galaxy Generate(int systemCount)
     {
         var galaxy = new Galaxy();
-        int systems = System.Math.Max(0, _desc.StarSystemCount);
+        int systems = System.Math.Max(0, systemCount);
 
         // Galaxy-wide name registry (#678): every system and proper-named body claims its name here so
         // no two read the same. The old scheme never deduped (two "Veyra-42"s were possible).
@@ -160,6 +166,21 @@ public sealed class UniverseGenerator
                 MapX = rng.NextFloat() * 1000f,
                 MapY = rng.NextFloat() * 1000f,
             };
+
+            // Frontier growth (#1123): systems appended beyond the description's fixed count sit OUTWARD
+            // of the home system, not anywhere in the 1000² box — jumping the edge pushes the rim out. The
+            // uniform draws above are kept (the body rng stream must stay byte-identical, and existing
+            // fixed galaxies never reach this branch); only the stored values are overridden, from the
+            // separate Hash01 stream (salt 900), so a restart reproduces the same spot.
+            if (i >= System.Math.Max(0, _desc.StarSystemCount) && galaxy.Systems.Count > 0)
+            {
+                var home = galaxy.Systems[0];
+                int growthIndex = i - System.Math.Max(0, _desc.StarSystemCount);
+                float angle = Hash01(i, 1, 900) * 2f * (float)System.Math.PI;
+                float radius = 750f + System.Math.Min(650f, growthIndex * 35f) + Hash01(i, 2, 900) * 120f;
+                system.MapX = home.MapX + (float)System.Math.Cos(angle) * radius;
+                system.MapY = home.MapY + (float)System.Math.Sin(angle) * radius;
+            }
 
             int planetCap = System.Math.Max(1, _desc.PlanetsPerSystemMax); // the world-size slider still caps
             int moonCap = System.Math.Max(0, _desc.MoonsPerPlanetMax);

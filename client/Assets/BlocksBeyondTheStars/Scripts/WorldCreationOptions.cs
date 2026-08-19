@@ -181,7 +181,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (UniverseSize != 1)
             {
-                // Klein / Normal / Groß / Riesig → systems + planets-per-system + moons.
+                // Klein / Normal / Groß / Riesig / Wachsend → systems + planets-per-system + moons.
+                // "Growing" (#1123) starts as the normal 8-system galaxy and appends a system whenever a
+                // player hyperjumps into one of the current outermost ones.
                 (int systems, int pMin, int pMax, int moons) = UniverseSize switch
                 {
                     0 => (4, 2, 4, 2),
@@ -193,6 +195,7 @@ namespace BlocksBeyondTheStars.Client
                 Arg("planets-min", pMin.ToString());
                 Arg("planets-max", pMax.ToString());
                 Arg("moons-max", moons.ToString());
+                if (UniverseSize == 4) Arg("galaxy-growth", "true");
             }
 
             if (Oxygen != 2) Arg("oxygen", OxygenSteps[Oxygen]);

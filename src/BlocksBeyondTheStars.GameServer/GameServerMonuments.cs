@@ -75,6 +75,15 @@ public sealed partial class GameServer
         double r = rng.NextDouble() / sizeFactor;
         int count = r < 0.30 ? 0 : r < 0.75 ? 1 : r < 0.95 ? 2 : 3;
         count = System.Math.Min(MonumentHardCap, (int)System.Math.Round(count * System.Math.Clamp(factor, 0.0, 2.0)));
+
+        // Frontier scaling (#1122): full-frontier worlds roll one monument MORE (still under the hard
+        // cap). After the rolls, so the rng stream — and every existing world's count — is unchanged;
+        // zero-count worlds stay empty (the slider's "none here" verdict is respected out there too).
+        if (count > 0 && FrontierTierForBody(_world.LocationId) >= 2)
+        {
+            count = System.Math.Min(MonumentHardCap, count + 1);
+        }
+
         if (count <= 0)
         {
             // The "none here" roll is a decision too — record it (the guard above documents exactly this

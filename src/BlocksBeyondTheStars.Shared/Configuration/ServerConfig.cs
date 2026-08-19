@@ -652,6 +652,13 @@ public sealed class ServerConfig
                     else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.TerrainContinents = true; applied.Add("continents"); }
                     else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.TerrainContinents = false; applied.Add("continents"); }
                     break;
+                case "galaxy-growth":
+                    // Growing galaxy (#1123): jumping the edge appends a new system (creation-time choice;
+                    // off = the classic fixed galaxy, and every existing save stays fixed regardless).
+                    if (bool.TryParse(value, out var gg)) { World.GalaxyGrowth = gg; applied.Add("galaxy-growth"); }
+                    else if (string.Equals(value, "on", StringComparison.OrdinalIgnoreCase)) { World.GalaxyGrowth = true; applied.Add("galaxy-growth"); }
+                    else if (string.Equals(value, "off", StringComparison.OrdinalIgnoreCase)) { World.GalaxyGrowth = false; applied.Add("galaxy-growth"); }
+                    break;
                 case "danger":
                     // Global hostility multiplier (#547) — scales space-ambush odds + bandit-camp presence.
                     if (Enum.TryParse<BlocksBeyondTheStars.Shared.World.Frequency>(value, ignoreCase: true, out var dg)) { World.Danger = dg; applied.Add("danger"); }
