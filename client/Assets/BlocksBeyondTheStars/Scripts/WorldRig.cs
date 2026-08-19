@@ -310,6 +310,11 @@ namespace BlocksBeyondTheStars.Client
             var finale = root.AddComponent<FinaleView>();
             finale.Game = boot;
 
+            // The ending (#1124): resolution card + credits roll + epilogue, played when the server says
+            // the story is resolved (win, join catch-up, or the Story tab's replay button).
+            var resolution = root.AddComponent<ResolutionCinematic>();
+            resolution.Game = boot;
+
             // Death feedback: red flash + sound on planet death, explosion glare on ship destruction.
             var deathFx = root.AddComponent<DeathFx>();
             deathFx.Game = boot;

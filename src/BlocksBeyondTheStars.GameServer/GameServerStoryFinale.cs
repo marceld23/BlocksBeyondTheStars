@@ -438,10 +438,57 @@ public sealed partial class GameServer
         SpeakVegaLineToAll("story.vega.finale_resolved");
         MarkGuardianDefeated();
 
+        // The epilogue (#1124) enters the story log like a beat — the handover to what starts AFTER the
+        // story — and the resolution cinematic plays for everyone aboard. Latecomers catch up on join.
+        if (_story is not null && !string.IsNullOrEmpty(_story.EpilogueTextKey))
+        {
+            SpeakVegaLineToAll(_story.EpilogueTextKey);
+        }
+
         // Everyone aboard for the resolution earns the finale achievement — the arc is shared, so is the win (#1102).
         foreach (var session in _sessions.Values.Where(s => s.Joined))
         {
             OnAchievementStoryFinale(session);
+            SendStoryResolved(session); // #1124: resolution screen + credits + epilogue
+        }
+    }
+
+    /// <summary>Milestone key marking that this player has SEEN the resolution cinematic (#1124) — the join
+    /// catch-up sends it exactly once; the Story tab can always request a replay.</summary>
+    private string ResolutionSeenKey => $"story:{_story?.Id ?? "none"}:resolved";
+
+    /// <summary>Sends the resolution cinematic (#1124) and remembers that this player has seen it.</summary>
+    private void SendStoryResolved(PlayerSession session)
+    {
+        Send(session, new StoryResolved
+        {
+            StoryNameKey = _story?.NameKey ?? string.Empty,
+            EpilogueTitle = _story?.EpilogueTitle ?? string.Empty,
+            EpilogueTextKey = _story?.EpilogueTextKey ?? string.Empty,
+        });
+        if (session.State.Milestones.Add(ResolutionSeenKey))
+        {
+            _repo.SavePlayer(session.State);
+        }
+    }
+
+    /// <summary>Join catch-up (#1124): a player who was not aboard for the win (or an existing finished
+    /// save from before the cinematic existed) gets the resolution once on their next join.</summary>
+    private void SendStoryResolvedOnJoinIfMissed(PlayerSession session)
+    {
+        if (_storyState.GuardianDefeated && !session.State.Milestones.Contains(ResolutionSeenKey))
+        {
+            SendStoryResolved(session);
+        }
+    }
+
+    /// <summary>Story tab "watch the ending" (#1124): replays the resolution — only once the story IS
+    /// resolved, so the button can never spoil anything.</summary>
+    private void HandleRequestStoryResolution(PlayerSession session)
+    {
+        if (_storyState.GuardianDefeated)
+        {
+            SendStoryResolved(session);
         }
     }
 

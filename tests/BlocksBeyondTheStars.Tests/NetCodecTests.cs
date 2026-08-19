@@ -270,6 +270,8 @@ public sealed class NetCodecTests
         [217] = typeof(RequestKnownNpcsIntent),
         [218] = typeof(KnownNpcList),
         [219] = typeof(SetNpcCallsIntent),
+        [220] = typeof(StoryResolved),
+        [221] = typeof(RequestStoryResolutionIntent),
     };
 
     [Fact]

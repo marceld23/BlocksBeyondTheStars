@@ -140,6 +140,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<GuardianSystemRevealed>? GuardianSystemRevealedReceived; // finale system placed on the map
         public event Action<CoreHackProgress>? CoreHackProgressReceived;             // core-hack channel progress
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
+        public event Action<StoryResolved>? StoryResolvedReceived;                   // #1124: play the resolution cinematic
 
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult>? ScanResultReceived;
@@ -567,6 +568,7 @@ namespace BlocksBeyondTheStars.Client
         public void SendStorySelect(string storyId) => Send(new StorySelectIntent { StoryId = storyId ?? string.Empty });
         public void SendCoreHackTick() => Send(new CoreHackIntent());                                  // channel the core hack
         public void SendCoreDialogueChoice(int choiceIndex) => Send(new CoreDialogueChoiceIntent { ChoiceIndex = choiceIndex }); // duel rebuttal
+        public void SendRequestStoryResolution() => Send(new RequestStoryResolutionIntent());          // #1124: watch the ending again
 
         /// <summary>Reports a finished minigame run so the server can grant a knowledge reward.</summary>
         public void SendMinigameResult(string gameKey, int score, int rating, bool completed)
@@ -804,6 +806,7 @@ namespace BlocksBeyondTheStars.Client
                 case GuardianSystemRevealed m: GuardianSystemRevealedReceived?.Invoke(m); break;
                 case CoreHackProgress m: CoreHackProgressReceived?.Invoke(m); break;
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
+                case StoryResolved m: StoryResolvedReceived?.Invoke(m); break;
                 case BanditDemand m: BanditDemandReceived?.Invoke(m); break;
                 case BanditEncounterResult m: BanditResultReceived?.Invoke(m); break;
             }

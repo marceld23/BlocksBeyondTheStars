@@ -79,6 +79,9 @@ public static class StoryRegistry
             Beat(11, "It still sleeps",       176, 1),  // locates the dormant Guardian system
             Beat(12, "The choice",            204, 1),  // finale opens
         },
+        // #1124: revealed by WINNING the finale, never by score — see StoryDefinition.EpilogueTitle.
+        EpilogueTitle = "The relay network",
+        EpilogueTextKey = "story.vega.beat13",
     };
 
     private static StoryBeat Beat(int index, string title, int threshold, int knowledge) => new()

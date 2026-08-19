@@ -2687,6 +2687,19 @@ namespace BlocksBeyondTheStars.Client
                     16, UiKit.CyanDim, TextAnchor.MiddleLeft);
                 y += 40f;
 
+                // The ending, re-viewable (#1124): once the story is resolved, the resolution cinematic can
+                // be replayed any time. The server re-sends it on request; the cinematic itself waits until
+                // this menu is closed, so the button both asks for it and gets the menu out of the way.
+                if (s.GuardianDefeated)
+                {
+                    UiKit.AddButton(_listContent, 0, y, 780, 56, L("ui.story.view_ending"), () =>
+                    {
+                        Game?.Network?.SendRequestStoryResolution();
+                        Hide();
+                    });
+                    y += 66f;
+                }
+
                 y = AllianceSection(L("ui.story.beats"), y);
                 y = StoryEntries(y, Game.StoryLogBeats);
 

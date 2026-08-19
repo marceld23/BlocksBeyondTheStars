@@ -231,6 +231,8 @@ public sealed partial class GameServer
         {
             RevealBeatTo(session, _story.Beats[i]);
         }
+
+        SendStoryResolvedOnJoinIfMissed(session); // #1124: the ending, for whoever missed the moment
     }
 
     private void SendStoryState(PlayerSession session) => Send(session, BuildStoryState(session));

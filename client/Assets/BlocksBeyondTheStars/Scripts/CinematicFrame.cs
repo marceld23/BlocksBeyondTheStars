@@ -34,6 +34,11 @@ namespace BlocksBeyondTheStars.Client
             return frame;
         }
 
+        /// <summary>The frame's canvas root, for cinematics that need their own child elements beyond the
+        /// caption/hint (#1124: the resolution cinematic hangs its credits roll here). Children share the
+        /// canvas' sorting order and die with the frame.</summary>
+        public Transform Root => _canvas != null ? _canvas.transform : transform;
+
         private void Build(string name, int sortingOrder)
         {
             _canvas = UiKit.CreateCanvas(name + "Canvas", (int)RefW, (int)RefH);

@@ -436,6 +436,10 @@ public static class NetCodec
         Register(217, typeof(RequestKnownNpcsIntent));   // Client -> Server
         Register(218, typeof(KnownNpcList));             // Server -> Client
         Register(219, typeof(SetNpcCallsIntent));        // Client -> Server
+
+        // Story resolution cinematic (#1124): the ending as a shown thing — resolution, credits, epilogue.
+        Register(220, typeof(StoryResolved));                // Server -> Client
+        Register(221, typeof(RequestStoryResolutionIntent)); // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

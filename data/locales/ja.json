@@ -627,6 +627,7 @@
   "ui.story.memories": "個人的な記憶",
   "ui.story.vega": "VEGAのヒント",
   "ui.story.vega.none": "まだヒントはありません — 探索するとVEGAが話します。",
+  "ui.story.view_ending": "エンディングをもう一度見る",
   "ui.story.none": "まだ何もないよ — 探索して破片を回収し、機械と戦ってね。",
   "ui.finale.hack_hint": "下のガーディアンコアに到達しよう — 下に掘るかシャフトを使って — そして[F]を長押しして突破してね",
   "ui.finale.hacking": "ガーディアンコアを突破中",

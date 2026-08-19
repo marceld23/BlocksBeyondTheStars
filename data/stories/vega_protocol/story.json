@@ -86,5 +86,7 @@
     { "key": "npc_settler_legend", "role": "vendor",        "minStage": "known",   "minKnowledge": 1, "textKey": "npcthread.settler_legend", "fragmentKey": "frag_settler_legend" },
     { "key": "npc_guardian_rumor", "role": "quartermaster", "minStage": "known",   "minKnowledge": 3, "textKey": "npcthread.guardian_rumor" },
     { "key": "npc_network_hope",   "role": "vendor",        "minStage": "trusted", "minKnowledge": 4, "textKey": "npcthread.network_hope" }
-  ]
+  ],
+  "epilogueTitle": "The relay network",
+  "epilogueTextKey": "story.vega.beat13"
 }

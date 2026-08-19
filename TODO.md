@@ -105,6 +105,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ The ending — resolution cinematic, credits, epilogue handover (#1124, 2026-08-19, branch feat/progression-pr9-ending)
+PR 9 of the progression package (epic #1101). The audit: after `WinDuel` the reward for finishing the story
+was one VEGA line, a music sting and an emptier galaxy — no ending screen, no credits, nothing that *starts*.
+**Data:** `StoryDefinition.EpilogueTitle/EpilogueTextKey` — deliberately NOT a 14th beat (beats reveal by
+score and all-beats-revealed GATES the finale; a beat 13 in `Beats` would deadlock the arc). The epilogue
+reveals on the WIN instead: `story.vega.beat13` hands over to the relay network (Track F). Mirrored in the
+`StoryRegistry` fallback (no-drift test extended); pack locales EN+DE by hand + 12 MT'd (`translate_locale
+--file/--source`).
+**Server:** `StoryResolved` (msg 220) broadcast on the duel win, the epilogue spoken as a kind-2 VEGA line
+(enters the story log like a beat); per-player milestone `story:<id>:resolved` → join catch-up sends the
+cinematic EXACTLY once to whoever missed the moment (incl. existing finished saves — they get the ending
+they never had); `RequestStoryResolutionIntent` (msg 221) replays it from the Story tab, and only when the
+story IS resolved (the button can never spoil).
+**Client:** new `ResolutionCinematic` (WorldRig, `CinematicFrame` at sorting order 68 + `CinematicTimeline`,
+the intro pattern): resolution card (story name + stand-down line) → credits roll (the menu's
+`ui.credits.body`, scrolled bottom→top) → epilogue card. Skippable with **Esc only** (never any-key — the
+player may be mid-walk when it starts), queued while a menu is open; the Story tab gained "Watch the ending
+again" (closes the menu and requests). `CinematicFrame.Root` exposed for the roll text; the IMGUI finale
+banner yields while the cinematic plays (IMGUI draws above every canvas). Music: the existing
+`FinaleResolution` window keys off GuardianDefeated and covers replays/catch-up unchanged.
+Codex wiki deliberately untouched — the ending is a spoiler, not a feature to document in-game.
+Tests: `StoryResolutionTests` (4) — win broadcast + epilogue in the log + milestone, latecomer catch-up
+exactly once (restart round-trip), replay request silent-until-resolved then answers, epilogue text EN+DE;
+golden list +220/221; STORY_IMPLEMENTATION.md id table updated.
+
 ### ★ The frontier — distance pays, and the galaxy can grow (#1122, #1123, 2026-08-19, branch feat/progression-pr8-frontier-galaxy)
 PR 8 of the progression package (epic #1101). The audit: nothing scaled with distance (system #8 ≡ #1) and
 the default 8-system galaxy simply ran out once visited.

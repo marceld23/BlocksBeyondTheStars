@@ -163,8 +163,10 @@ namespace BlocksBeyondTheStars.Client
             {
                 DrawDuel();
             }
-            else if (_won && Time.time < _resolveVisibleUntil)
+            else if (_won && Time.time < _resolveVisibleUntil && !(ResolutionCinematic.Instance?.Playing ?? false))
             {
+                // IMGUI draws above every canvas, so the banner must yield while the resolution
+                // cinematic (#1124) is on screen — it says the same thing, bigger.
                 DrawCentredBanner(L("ui.finale.resolved", "The Guardian core powers down. The galaxy is at peace."));
             }
             else if (Time.time < _hackBarVisibleUntil)

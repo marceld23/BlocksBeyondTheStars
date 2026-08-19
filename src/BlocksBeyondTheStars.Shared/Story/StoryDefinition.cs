@@ -257,4 +257,15 @@ public sealed class StoryDefinition
     /// <summary>NPC story threads (#1112): people who hand over a fragment or rumour on greeting. Empty packs
     /// leave the story to the narrator.</summary>
     public List<NpcThread> NpcThreads { get; set; } = new();
+
+    /// <summary>Epilogue title shown by the resolution cinematic (#1124) — a raw string like the beat
+    /// titles. Deliberately NOT part of <see cref="Beats"/>: beats reveal by progress score and
+    /// all-beats-revealed gates the finale, so a 14th beat there would deadlock the arc. The epilogue
+    /// reveals on the finale win instead. Empty = the pack has no authored epilogue (the resolution
+    /// cinematic then plays without one).</summary>
+    public string EpilogueTitle { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the epilogue text (#1124), spoken into the story log and shown by the
+    /// resolution cinematic after the finale win — the handover to whatever starts AFTER the story.</summary>
+    public string EpilogueTextKey { get; set; } = string.Empty;
 }

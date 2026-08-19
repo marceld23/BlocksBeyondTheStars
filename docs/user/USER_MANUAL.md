@@ -703,6 +703,10 @@ separate unlock; admins can still disable it through server world rules.
   the Story tab (Read buttons) — and they survive rejoining a server.
 - Scanning **runes** at a monument now also reveals their inscription. Settlement folk who know you
   (trade with them!) may share what they know — one of them keeps a page of the settler legend.
+- **Finishing the story is a moment now**: winning the finale plays a short **ending** — the resolution,
+  the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**),
+  plays once on the next join for anyone who was offline at the time, and the Story tab keeps a
+  **"Watch the ending again"** button once you've earned it.
 
 ### Scanning & knowledge
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**

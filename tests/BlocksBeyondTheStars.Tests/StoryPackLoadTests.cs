@@ -40,6 +40,8 @@ public class StoryPackLoadTests
         var builtin = StoryRegistry.Default;
 
         Assert.Equal(builtin.Beats.Count, data.Beats.Count);
+        Assert.Equal(builtin.EpilogueTitle, data.EpilogueTitle);     // #1124
+        Assert.Equal(builtin.EpilogueTextKey, data.EpilogueTextKey); // #1124
         Assert.Equal(builtin.FragmentWeight, data.FragmentWeight);
         Assert.Equal(builtin.KillWeight, data.KillWeight);
         Assert.Equal(builtin.MilestoneWeight, data.MilestoneWeight);

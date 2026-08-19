@@ -2813,6 +2813,7 @@ public sealed partial class GameServer
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
             case CoreDialogueChoiceIntent coreChoice: HandleCoreDialogueChoice(session, coreChoice); break;
+            case RequestStoryResolutionIntent: HandleRequestStoryResolution(session); break; // #1124: watch the ending again
         }
     }
 

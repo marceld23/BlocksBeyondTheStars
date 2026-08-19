@@ -164,6 +164,27 @@ public sealed class CoreDialogueMessage
     public bool Won { get; set; }
 }
 
+/// <summary>Server → client (#1124): the story is RESOLVED — play the resolution cinematic (resolution
+/// line → credits roll → epilogue handover). Sent to everyone online when the finale duel is won, once as
+/// join catch-up to anyone who missed it (tracked per player via a milestone), and again on request from
+/// the Story tab's "watch the ending" button. All text is locale keys / pack strings — the client
+/// localizes.</summary>
+public sealed class StoryResolved
+{
+    /// <summary>Locale key of the story pack's display name (for the cinematic's title card).</summary>
+    public string StoryNameKey { get; set; } = string.Empty;
+
+    /// <summary>The epilogue's title — a raw pack string like the beat titles; may be empty.</summary>
+    public string EpilogueTitle { get; set; } = string.Empty;
+
+    /// <summary>Locale key of the epilogue text (the handover to the post-story goal); may be empty.</summary>
+    public string EpilogueTextKey { get; set; } = string.Empty;
+}
+
+/// <summary>Client → server (#1124): the player wants to watch the ending again (Story tab). The server
+/// answers with <see cref="StoryResolved"/> — but only when the story actually IS resolved.</summary>
+public sealed class RequestStoryResolutionIntent { }
+
 /// <summary>Client → server: the player offers a rebuttal at the current duel node. The server validates the
 /// index against the active node; a correct (contradiction) choice advances the duel, a wrong one is dismissed
 /// and the node is re-presented (the duel cannot be lost, only stalled).</summary>

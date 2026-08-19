@@ -80,6 +80,8 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
 | 147 | `StorySelectIntent` | C→S | admin sets the active story |
 | 148 | `NetFragmentList` | S→C | fragments on the current world |
 | 149 | `CoreHackProgress` | S→C | hack channel progress + complete |
+| 220 | `StoryResolved` | S→C | play the resolution cinematic (win, join catch-up, replay) (#1124) |
+| 221 | `RequestStoryResolutionIntent` | C→S | Story tab "watch the ending again" (#1124) |
 
 Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 
