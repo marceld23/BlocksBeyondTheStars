@@ -105,6 +105,29 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ SPS relays & jump lanes — the late-game goal begins (#1125, 2026-08-19, branch feat/progression-pr10-relays)
+PR 10 of the progression package (epic #1101), Track F part 1 (F-2/#1126 adds the growth hook + star-map
+rendering + epilogue insights). The audit: nothing sat behind the last blueprint, the H2 ore chain had no
+consumer, and the new epilogue hands the player a relay network that didn't exist. Now any **commissioned
+player station** converts into an **SPS relay**: a data-driven bill of materials (`data/relay.json` — bulk
+titanium/iron plates, circuit boards, reactor fuel), **co-op contributable** (any player, delivered in
+person — aboard, alongside in space, or in the station's system), meter persisted as an additive
+`WorldMetadata.Relays` field (no migration). Two completed relays in systems within `linkRange` (500
+map units) form a **jump lane**: both travel paths (`HandleTravel`, `HyperjumpToSystem`) waive the
+`jump_generator` for lane hops. Lanes are never persisted — they re-derive from completed relays on every
+start. Surfaces: star-map detail pane meter + per-item **Deliver** buttons (server clamps to missing+held;
+`int.MaxValue` = give everything), Progress-header line once the first relay stands, Journey counter,
+`relay_engineer` achievement (reactor fuel reward), `relay:first`/`relay:lane` story milestones, completion +
+lane toasts in all 14 locales, Codex-wiki article "relays" (EN+DE). Messages 222 `RelayNetworkState` /
+223 `ContributeRelayIntent` (golden list updated — next free id 224). Drive-by fix: the Journey grid's
+Hyperjumps row rendered its raw locale key (`JourneyCounters` says `hyperjump:any` → lookup
+`ui.progress.stat.hyperjump_any`, locales shipped `…stat.hyperjump`) — key renamed in all 14 locales.
+Tests: `RelayNetworkTests` (5 — content resolution, consume/complete/refuse-after-done, in-person + co-op
+gates, lane forms and carries a generator-less jump while lane-less targets still refuse, meters + lanes
+survive a restart). Gotcha for later: a fresh ship's `CurrentLocationId` can be a planet-TYPE key (e.g.
+"varied"), so a station's `_stationHostBody` may not resolve to a galaxy body — relay code derives the
+system via host body WITH a star-map-entry fallback, and the in-person check is system-level on the ground.
+
 ### ★ The ending — resolution cinematic, credits, epilogue handover (#1124, 2026-08-19, branch feat/progression-pr9-ending)
 PR 9 of the progression package (epic #1101). The audit: after `WinDuel` the reward for finishing the story
 was one VEGA line, a music sting and an emptier galaxy — no ending screen, no credits, nothing that *starts*.

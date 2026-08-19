@@ -921,6 +921,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The active story's shared progress (story P0) — drives the Story Log meter; null/inactive when off.</summary>
         public StoryStateMessage Story { get; private set; }
 
+        /// <summary>The SPS relay network (#1125): every player station's relay meter + the live jump lanes,
+        /// as last sent by the server. Null until the join snapshot arrives; disabled when the data has no relay.</summary>
+        public RelayNetworkState RelayNetwork { get; private set; }
+
         /// <summary>Net fragments on the current world (synced) — rendered by <c>NetFragmentView</c>.</summary>
         public NetStoryFragment[] NetFragments { get; private set; } = System.Array.Empty<NetStoryFragment>();
 
@@ -1970,6 +1974,7 @@ namespace BlocksBeyondTheStars.Client
                 VegaLogKeys.Clear();
                 VegaLogKeys.AddRange(VegaText.JournalKeys(m.Milestones));
             };
+            Network.RelayNetworkReceived += m => RelayNetwork = m; // #1125: server-authoritative, render-only
             Network.StoryStateReceived += m =>
             {
                 Story = m;

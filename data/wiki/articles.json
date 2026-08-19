@@ -88,6 +88,17 @@
     }
   },
   {
+    "id": "relays",
+    "title": {
+      "en": "SPS Relays",
+      "de": "SPS-Relais"
+    },
+    "body": {
+      "en": "<p>Before the fall, the Stellar Positioning Service held the galaxy together with a network of jump relays. Rebuilding it is the great work after the story ends — and you can start any time.</p><p>Any <b>commissioned player station</b> can be converted into a relay: open it on the <b>Map</b> and deliver the bill of materials in person — bulk metal plates, circuit boards and <b>reactor fuel</b> from the refinery. Everyone can chip in; the meter is shared, so a crew finishes a relay far faster than one pilot alone.</p><p>Two finished relays in <b>neighbouring systems</b> link into a <b>jump lane</b>: along a lane you can hyperjump <b>without a jump generator</b> — your friends' small ships too. Build relays where you travel most, and the network does the jumping for you.</p>",
+      "de": "<p>Vor dem Fall hielt der Stellare Positionierungsdienst die Galaxis mit einem Netz aus Sprungrelais zusammen. Es wieder aufzubauen ist das große Werk nach dem Ende der Geschichte — und du kannst jederzeit anfangen.</p><p>Jede <b>in Betrieb genommene Spielerstation</b> lässt sich in ein Relais umbauen: Öffne sie auf der <b>Karte</b> und liefere die Materialliste persönlich ab — Metallplatten in Mengen, Platinen und <b>Reaktorbrennstoff</b> aus der Raffinerie. Alle können beisteuern; der Zähler ist gemeinsam, ein Team baut ein Relais also viel schneller fertig als ein einzelner Pilot.</p><p>Zwei fertige Relais in <b>benachbarten Systemen</b> verbinden sich zu einer <b>Sprungbahn</b>: Entlang einer Bahn springst du <b>ohne Sprunggenerator</b> — auch die kleinen Schiffe deiner Freunde. Baue Relais dort, wo du am meisten unterwegs bist, und das Netz übernimmt das Springen für dich.</p>"
+    }
+  },
+  {
     "id": "fast-travel",
     "title": {
       "en": "Getting Around",

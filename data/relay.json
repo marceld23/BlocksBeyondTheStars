@@ -1,0 +1,9 @@
+{
+  "costs": [
+    { "item": "titanium_plate", "count": 150 },
+    { "item": "iron_plate", "count": 200 },
+    { "item": "circuit_board", "count": 30 },
+    { "item": "reactor_fuel", "count": 10 }
+  ],
+  "linkRange": 500
+}

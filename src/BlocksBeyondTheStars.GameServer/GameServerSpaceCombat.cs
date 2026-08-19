@@ -2090,7 +2090,8 @@ public sealed partial class GameServer
             return;
         }
 
-        if (_ship is null || !_ship.HasModule("jump_generator"))
+        // A jump lane between the two systems substitutes for the generator (#1125): the relays carry you.
+        if ((_ship is null || !_ship.HasModule("jump_generator")) && !HasJumpLane(origin?.SystemId, system.Id))
         {
             RejectSpace(session, "@srv.travel.no_jump_generator");
             return;

@@ -13,6 +13,7 @@
   { "key": "builder_10000",  "counter": "build:any",       "target": 10000, "category": "building", "rewards": [ { "item": "metal_panel", "count": 48 }, { "item": "glass", "count": 24 } ] },
   { "key": "shipwright",     "counter": "ship:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "titanium_plate", "count": 8 } ] },
   { "key": "station_master", "counter": "station:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "circuit_board", "count": 4 } ] },
+  { "key": "relay_engineer", "counter": "relay:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "reactor_fuel", "count": 2 } ] },
 
   { "key": "first_craft",    "counter": "craft:any",       "target": 1,   "category": "crafting", "rewards": [] },
   { "key": "crafter_50",     "counter": "craft:any",       "target": 50,  "category": "crafting", "rewards": [ { "item": "circuit_board", "count": 2 } ] },

@@ -91,6 +91,14 @@ public sealed class WorldMetadata
     public int GalaxyGrownSystems { get; set; }
 
     /// <summary>
+    /// SPS relay upgrades (#1125, Track F): per commissioned player station, what has been contributed
+    /// toward its relay conversion and whether it is complete. World-shared (co-op contributable) and tiny,
+    /// so it lives in the metadata blob — an additive JSON field, no migration. Jump lanes are NOT stored:
+    /// they re-derive from the completed relays' systems + the data-driven link range on every start.
+    /// </summary>
+    public System.Collections.Generic.List<RelayStationRecord> Relays { get; set; } = new();
+
+    /// <summary>
     /// True for worlds created after ships became placed objects (#870): such a save never persisted a
     /// stamped hull, so the legacy stamp-residue cleanup must never run on it (it would delete the player's
     /// own builds beside a pad on their first landing there). False (missing) on older saves — they migrate
@@ -142,6 +150,20 @@ public sealed class StructurePlacementRecord
     public bool OnIsland { get; set; }
     public string Seat { get; set; } = "legacy";      // seat style: legacy|flat|slope|shelf|stilts|lava|island|buried|wellhead
     public string Name { get; set; } = string.Empty;  // display name (derives from rng draws AFTER the search, so it must be pinned too)
+}
+
+/// <summary>One player station's SPS relay conversion (#1125): what has been poured into it so far, and
+/// whether it is done. Keyed by the station's persisted id ("pstation:…"); contributions are per item key.
+/// The station build itself lives in its own repository row — this records only the relay meter.</summary>
+public sealed class RelayStationRecord
+{
+    public string StationId { get; set; } = string.Empty;
+
+    /// <summary>Item key → amount contributed so far (clamped to the definition's required amounts).</summary>
+    public System.Collections.Generic.Dictionary<string, int> Contributed { get; set; } = new();
+
+    /// <summary>True once every cost line is fully contributed — the station IS a relay from then on.</summary>
+    public bool Completed { get; set; }
 }
 
 /// <summary>One player claim over a spawned structure: a stable per-world key, the owner, and a display name.

@@ -286,6 +286,7 @@ public sealed partial class GameServer
         _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
+        RecomputeRelayLanes(); // #1125: jump lanes re-derive from the completed relays (never persisted)
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
@@ -743,10 +744,12 @@ public sealed partial class GameServer
             return;
         }
 
-        // A jump to a different star system is a hyperspace jump — it needs a jump generator fitted.
+        // A jump to a different star system is a hyperspace jump — it needs a jump generator fitted,
+        // UNLESS an SPS jump lane links the two systems (#1125): the relay network carries you.
         var origin = _galaxy?.FindBody(session.CurrentLocationId);
         bool hyperjump = origin is null || origin.SystemId != body.SystemId;
-        if (hyperjump && !adminBypass && (_ship is null || !_ship.HasModule("jump_generator")))
+        if (hyperjump && !adminBypass && (_ship is null || !_ship.HasModule("jump_generator"))
+            && !HasJumpLane(origin?.SystemId, body.SystemId))
         {
             Reject(session, "travel", "@srv.travel.no_jump_generator");
             return;
@@ -2733,6 +2736,7 @@ public sealed partial class GameServer
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
             case HyperjumpSystemIntent hyperjump: HandleHyperjumpSystem(session, hyperjump); break;
+            case ContributeRelayIntent relay: HandleContributeRelay(session, relay); break; // #1125
             case EnterShipIntent: EnterShipInterior(session.State.PlayerId); break;
             case ExitShipIntent: ExitShipToFlight(session.State.PlayerId); break;
             case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;
@@ -3062,6 +3066,7 @@ public sealed partial class GameServer
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
+        SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
         ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up
         BroadcastLandingPads(session); // the join claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);

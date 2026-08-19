@@ -100,4 +100,7 @@ public static class AchievementCounters
 
     /// <summary>The Guardian finale won (every player who was aboard for it).</summary>
     public const string StoryFinale = "story:finale";
+
+    /// <summary>A player station converted into an SPS relay (#1125) — counted for the completing contributor.</summary>
+    public const string RelayCommissioned = "relay:commissioned";
 }

@@ -501,6 +501,11 @@ separate unlock; admins can still disable it through server world rules.
   around it, and it commissions into a boardable station on the star map.
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
+- **SPS relay** (late game): any commissioned player station can be converted into a relay of the old
+  Stellar Positioning Service — select it on **Tab → Map** and **deliver** the bill of materials in person
+  (bulk metal plates, circuit boards, reactor fuel from the refinery). The meter is shared: friends can chip
+  in. Two finished relays in **neighbouring systems** form a **jump lane** — hyperjumps between those two
+  systems need **no jump generator**. The Codex article *SPS Relays* has the full picture.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
 

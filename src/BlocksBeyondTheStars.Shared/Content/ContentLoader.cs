@@ -88,6 +88,12 @@ public static class ContentLoader
         // Achievements are optional content: a data folder without the file just has none.
         content.SetAchievements(LoadArray<AchievementDefinition>(Path.Combine(dataDir, "achievements.json")));
 
+        // The SPS relay upgrade (#1125) is optional the same way: no relay.json → no relay feature.
+        string relayFile = Path.Combine(dataDir, "relay.json");
+        content.SetRelay(File.Exists(relayFile)
+            ? JsonSerializer.Deserialize<RelayDefinition>(File.ReadAllText(relayFile), JsonOptions)
+            : null);
+
         content.Validate();
         return content;
     }

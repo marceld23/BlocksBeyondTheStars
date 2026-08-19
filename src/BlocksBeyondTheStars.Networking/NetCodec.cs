@@ -440,6 +440,10 @@ public static class NetCodec
         // Story resolution cinematic (#1124): the ending as a shown thing — resolution, credits, epilogue.
         Register(220, typeof(StoryResolved));                // Server -> Client
         Register(221, typeof(RequestStoryResolutionIntent)); // Client -> Server
+
+        // SPS relay network (#1125): station relay meters + jump lanes, co-op contributions.
+        Register(222, typeof(RelayNetworkState));            // Server -> Client
+        Register(223, typeof(ContributeRelayIntent));        // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

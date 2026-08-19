@@ -182,6 +182,8 @@ public sealed partial class GameServer
 
     private void OnAchievementStoryFinale(PlayerSession session) => Advance(session, AchievementCounters.StoryFinale);
 
+    private void OnAchievementRelayCommissioned(PlayerSession session) => Advance(session, AchievementCounters.RelayCommissioned);
+
     // --- Test entrypoints -----------------------------------------------------------------------------
 
     /// <summary>Re-checks and pays out anything due (the join path), for tests.</summary>
