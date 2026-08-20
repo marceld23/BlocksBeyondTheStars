@@ -274,6 +274,9 @@ public sealed class NetCodecTests
         [221] = typeof(RequestStoryResolutionIntent),
         [222] = typeof(RelayNetworkState),
         [223] = typeof(ContributeRelayIntent),
+        [224] = typeof(TalkToNpcIntent),
+        [225] = typeof(NpcDialogState),
+        [226] = typeof(NpcDialogChoiceIntent),
     };
 
     [Fact]

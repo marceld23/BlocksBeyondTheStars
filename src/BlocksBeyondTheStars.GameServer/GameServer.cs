@@ -1382,6 +1382,7 @@ public sealed partial class GameServer
         Guard("SilentSessions", SweepSilentSessions); // release names/slots held by dead clients (#964)
         Guard("SweepExpiredLandedTraders", SweepExpiredLandedTraders); // P3: free pads of traders whose dwell ended on bodies nobody is on
         Guard("TickGreetings", TickGreetings); // push any LLM NPC greetings finished off-thread (item 15)
+        Guard("TickDialogRadio", TickDialogRadio); // due "they said they'd call" dialogue consequences (#1127)
         Guard("TickNpcRadio", TickNpcRadio);   // NPC radio calls (#1119): per-player 30 s trigger scans
         Guard("TickBaseLife", TickBaseLife);   // the world notices your base (#1120): settlers move in
         Guard("TickMissionTexts", TickMissionTexts); // push mission-list refreshes when L3 board texts arrive
@@ -2737,6 +2738,8 @@ public sealed partial class GameServer
             case EnterSpaceIntent: HandleEnterSpace(session); break;
             case HyperjumpSystemIntent hyperjump: HandleHyperjumpSystem(session, hyperjump); break;
             case ContributeRelayIntent relay: HandleContributeRelay(session, relay); break; // #1125
+            case TalkToNpcIntent talk: HandleTalkToNpc(session, talk); break; // #1127
+            case NpcDialogChoiceIntent dialogChoice: HandleNpcDialogChoice(session, dialogChoice); break; // #1127
             case EnterShipIntent: EnterShipInterior(session.State.PlayerId); break;
             case ExitShipIntent: ExitShipToFlight(session.State.PlayerId); break;
             case LeaveSpaceIntent leaveSpace: HandleLeaveSpace(session, leaveSpace); break;

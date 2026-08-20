@@ -105,6 +105,36 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ NPC dialogues & the pack's authored faces (#1127 + #1128, 2026-08-20, branch feat/progression-pr13-dialogs)
+PR 13 of the progression package (epic #1101), G4 + G5 — the reserved "item 15" Dialog backend finally
+built. The audit: `NpcInteractionKind.Dialog` had NO producer, NPCs could ask nothing, settlers were
+unreachable entirely (HandleNpcGreet coerces to vendor/quartermaster), and the story had no faces. Now:
+(1) **`data/dialogs.json`** (optional, achievements pattern) — node graph `DialogDefinition` (prompt →
+2–3 choices → response, `next` jump or end, `consequence`); ships settler smalltalk + known-gated vendor
+gossip. (2) **Talk interaction**: `TalkToNpcIntent` (224) fires on **E near an NPC when no station block
+is in reach** (station blocks keep priority); no dialogue → `EmitGreeting` bubble (settlers greet now
+too). Walker fully server-authoritative: `NpcDialogState` (225, **RESOLVED per-player text** — dialogue
+must never touch the shared greeting cache) → `NpcDialogChoiceIntent` (226). Next free id 227. Choice
+persistence = milestones (`dialogflag:<key>:<node>:<choice>`; once-gate `dialog:<key>:done`; a
+`keepOpen` choice flag lets a polite "another time" end the talk WITHOUT burning the once). Consequences:
+`standing:<n>` / `fragment:<key>` (npcThread hand-over mechanics) / `gift:<item>:<n>` / `radio:<lineKey>`
+(runtime pending list, fires ~90 s later through every normal radio gate, `requireKnown: false` — the NPC
+promised). The Dialog interaction records via `RecordNpcInteraction` (+1 standing weight). (3) **Authored
+characters** (#1128): `StoryDefinition.Characters` + pack `Dialogs` (registry mirrors deliberately NOT —
+the builtin is a minimal fallback like Fragments/NpcThreads); vega pack ships **Yara Senn** (settler
+elder, settlements, keepsake dialogue: story fragment vs. iron-plate gift) and **Sel-9** (android
+"quartermaster" occupying station VENDOR slots — NEVER real quartermasters: their coined name is baked
+into board mission texts, item 13!). Occupation is deterministic (seed ⊕ place ⊕ char, `oneIn`), memory
+key is GLOBAL `char:<id>` (they remember you across places — wired through NpcKeyForNpc, greeting
+NpcContext AND RecordVendorTrade), face/outfit fixed via additive `NetNpc.FaceVariant` (0 = derive as
+before). (4) Client: `NpcDialogUi` (BanditDemandUi pattern: reflow, UiNav, SetMenuOwner; [1]-[3] keys,
+Esc walks away), PlayerController E-fallback, NpcView fixed-face seed. Wiki "settlements" + manual
+updated; pack locales en/de + 12 MT (`--file/--source`), engine `dlg.*`/`ui.dialog.leave` 14 locales.
+Tests: `NpcDialogTests` (5 — walker + persistence, stage gate, elder claims slots/talks/once-per-save
+survives restart + global memory, gift path, content/keys resolve incl. consequence targets). Radio
+consequence runtime deliberately untested (needs a boarded-station fixture — the gates themselves are
+covered by NpcRadioTests).
+
 ### ★ Coloured glass & tinted lamps — the tintable set opens up (#1126, 2026-08-20, branch feat/progression-pr12-tinted-glass)
 PR 12 of the progression package (epic #1101), B4. The audit: `TintableDefaults` covered ~21 plain solids;
 glass, lights and doors were excluded, so builds read grey/metal and coloured light needed the crystal Glow

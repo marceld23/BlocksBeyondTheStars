@@ -100,7 +100,9 @@ public sealed partial class GameServer
             return; // traded at the ship's own console — not an NPC vendor
         }
 
-        RecordNpcInteraction(player, NpcKey(locationKey, "vendor"), vendor?.Name ?? string.Empty, "vendor", NpcInteractionKind.Trade, NpcPlaceFor(player));
+        // An authored character behind the counter (#1128) banks the trade on their GLOBAL memory.
+        string key = vendor is { CharacterId.Length: > 0 } ? "char:" + vendor.CharacterId : NpcKey(locationKey, "vendor");
+        RecordNpcInteraction(player, key, vendor?.Name ?? string.Empty, "vendor", NpcInteractionKind.Trade, NpcPlaceFor(player));
     }
 
     /// <summary>The nearest live NPC with the given role to a player (same world), or null.</summary>

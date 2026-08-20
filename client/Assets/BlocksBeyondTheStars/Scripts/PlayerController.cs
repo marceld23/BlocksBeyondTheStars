@@ -1541,6 +1541,27 @@ namespace BlocksBeyondTheStars.Client
 
             if (string.IsNullOrEmpty(Game.NearbyStation))
             {
+                // No station block in reach — an NPC nearby? E talks to them (#1127). Station blocks keep
+                // priority so E at a market still opens the market (vendors are usually right beside one).
+                var npcs = Game.Npcs;
+                int bestNpc = 0;
+                float bestSq = 4.5f * 4.5f;
+                for (int i = 0; i < npcs.Length; i++)
+                {
+                    var d = new Vector3(npcs[i].X, npcs[i].Y, npcs[i].Z) - transform.position;
+                    float sq = d.sqrMagnitude;
+                    if (sq < bestSq)
+                    {
+                        bestSq = sq;
+                        bestNpc = npcs[i].Id;
+                    }
+                }
+
+                if (bestNpc != 0)
+                {
+                    Game.Network?.SendTalkToNpc(bestNpc);
+                }
+
                 return;
             }
 

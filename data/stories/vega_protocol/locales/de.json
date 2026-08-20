@@ -105,5 +105,21 @@
   "lore.site.title": "Fundprotokoll",
   "npcthread.settler_legend": "Du warst ehrlich zu mir, also erzähle ich dir, was meine Großmutter mir erzählt hat. Schreib es auf — die Himmelslichter, die die Schiffe führten, und die Nacht, in der sie rot wurden. Hier, ihre Logbuchseite. Gib acht darauf.",
   "npcthread.guardian_rumor": "Unter uns? Die Konvois meiden den fernen Kartenrand. Die Alten sagen, dort draußen hält etwas noch das alte Mandat — schlafend, nicht fort. In diese Richtung hänge ich keine Missionen aus.",
-  "npcthread.network_hope": "Weißt du, was ich letzte Nacht auf dem Langband gehört habe? Ordnung. Saubere Handschläge, von Rand zu Rand. Was auch immer du und dein Schiff da draußen treiben — der Himmel klingt wieder wie früher."
+  "npcthread.network_hope": "Weißt du, was ich letzte Nacht auf dem Langband gehört habe? Ordnung. Saubere Handschläge, von Rand zu Rand. Was auch immer du und dein Schiff da draußen treiben — der Himmel klingt wieder wie früher.",
+  "chr.elder.n0": "Setz dich einen Moment, Pilot. Yara Senn — ich kam mit den Booten, vor der Stille. Du siehst aus wie jemand, der alten Signalen nachjagt.",
+  "chr.elder.n0.c_listen": "Erzähl mir von den alten Tagen.",
+  "chr.elder.n0.r_listen": "Hm. Es fragen nicht mehr viele.",
+  "chr.elder.n0.c_later": "Ein andermal, Älteste.",
+  "chr.elder.n0.r_later": "Die Geschichten halten sich. Ich auch. Komm wieder, wenn der Wind leiser ist.",
+  "chr.elder.n1": "Wir kamen als Siedler, bevor das Netz verstummte. Einige von uns haben Stücke davon bewahrt — eine beschriebene Seite, Werkzeug aus den ersten Rümpfen. Was davon soll ich dir geben?",
+  "chr.elder.n1.c_story": "Die Seite. Sie gehört zurück ins Archiv.",
+  "chr.elder.n1.r_story": "Dann nimm sie — und trag sie vorsichtig. Meine Großmutter schrieb sie in der Nacht, als die Himmelslichter rot wurden. Jetzt lebt sie in dir weiter.",
+  "chr.elder.n1.c_tools": "Werkzeug überdauert Seiten, Älteste.",
+  "chr.elder.n1.r_tools": "Gesprochen wie ein Baumeister. Hier — Platten aus den ersten Rümpfen. Sie haben einmal Vakuum gehalten; sie werden deine Wände halten.",
+  "chr.sel.n0": "Einheit Sel-9, Lager und Logistik. Mein Verzeichnis zeigt eine Abweichung: mehr Reisende, weniger Verluste. Ich habe geschlussfolgert, dass du beteiligt bist. Wirst du diese Routen weiter fliegen?",
+  "chr.sel.n0.c_help": "So ist der Plan. Ruf mich, wenn Nachschub bewegt werden muss.",
+  "chr.sel.n0.r_help": "Notiert. Ich werde rufen. Ich tue immer, was notiert ist.",
+  "chr.sel.n0.c_decline": "Ich gehe dahin, wo die Arbeit ist, Sel.",
+  "chr.sel.n0.r_decline": "Eine variable Antwort. Ich verzeichne dich als ‚Wetter'. Wetter kehrt zurück.",
+  "chr.sel.call": "Hier Sel-9. Wie notiert: Du wurdest verzeichnet, jetzt wirst du gerufen. Die Routen sind ruhiger, wo du fliegst. Weitermachen. Das ist alles."
 }

@@ -97,5 +97,21 @@
   "lore.site.title": "Saha kaydı",
   "npcthread.settler_legend": "Bana dürüst oldun, o yüzden büyükannemin anlattığını söyleyeceğim. Yaz bunu — gemileri yönlendiren gökyüzü ışıkları, kırmızıya döndükleri gece. Al, onun günlük sayfası. Sakla.",
   "npcthread.guardian_rumor": "Aramızda mı kalsın? Konvoylar haritanın uzak kenarından sakınıyor. Eski kuşaklar orada bir şeyin eski emri tuttuğunu söylüyor — uyuyor, gitmedi. O yöne görev koymuyorum.",
-  "npcthread.network_hope": "Dün gece uzun bantta ne duydun biliyor musun? Düzen. Temiz tokalaşmalar, uçtan uca. Senin ve geminin orada yaptığı şey ne olursa olsun — gökyüzü eskisi gibi ses veriyor."
+  "npcthread.network_hope": "Dün gece uzun bantta ne duydun biliyor musun? Düzen. Temiz tokalaşmalar, uçtan uca. Senin ve geminin orada yaptığı şey ne olursa olsun — gökyüzü eskisi gibi ses veriyor.",
+  "chr.elder.n0": "Bir dakika otur, pilot. Yara Senn — ben teknelerle geldim, sessizlikten önce. Eski sinyallerin peşinden koşan biri yüzünde okunuyor.",
+  "chr.elder.n0.c_listen": "Eski günlerden bahset.",
+  "chr.elder.n0.r_listen": "Hm. Hâlâ soran az kaldı.",
+  "chr.elder.n0.c_later": "Başka zaman, yaşlı.",
+  "chr.elder.n0.r_later": "Hikâyeler sürer. Ben de. Rüzgâr sakinleşince geri gel.",
+  "chr.elder.n1": "Aşiret olarak geldik, ağ susmadan önce. Bazılarımız onun parçalarını sakladı — bir yazılı sayfa, ilk gövdelerden aletler. Hangisini benden isterdin?",
+  "chr.elder.n1.c_story": "Sayfa. Arşivde olmalı geri.",
+  "chr.elder.n1.r_story": "Al o zaman — ve dikkatle taşı. Büyükannem gök ışıkları kırmızıya döndüğü gecede onu yazdı. Şimdi senin içinde yaşıyor.",
+  "chr.elder.n1.c_tools": "Aletler sayfalardan daha uzun yaşar, yaşlı.",
+  "chr.elder.n1.r_tools": "Bir yapıcı gibi konuşuyorsun. Al — ilk gövdelerin plakaları. Bir zamanlar vakum tutuyorlardı; duvarlarını tutacaklar.",
+  "chr.sel.n0": "Birim Sel-9, depo ve lojistik. Defterimde bir uyuşmazlık var: daha fazla yolcu, daha az kayıp. Senin dahil olduğunu çıktıma koydum. Bu hatlarda uçmaya devam edecek misin?",
+  "chr.sel.n0.c_help": "Plan bu. Mal taşımaya ihtiyaç olursa ara.",
+  "chr.sel.n0.r_help": "Not edildi. Arayacağım. Not edilenleri her zaman yaparım.",
+  "chr.sel.n0.c_decline": "İşim neredeyse oraya giderim, Sel.",
+  "chr.sel.n0.r_decline": "Değişken bir cevap. Seni 'hava durumu' olarak kaydedeceğim. Hava geri döner.",
+  "chr.sel.call": "Sel-9 burada. Not edildiği gibi: kaydın vardı, şimdi çağrıldın. Uçtuğun hatlar daha sessiz. Devam et. Hepsi bu."
 }

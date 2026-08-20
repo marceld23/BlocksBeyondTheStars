@@ -105,5 +105,21 @@
   "lore.site.title": "Field record",
   "npcthread.settler_legend": "You’ve been straight with me, so I’ll tell you what my grandmother told me. Write it down — the sky-lights that guided the ships, the night they turned red. Here, her log page. Keep it safe.",
   "npcthread.guardian_rumor": "Between us? The convoys avoid the far edge of the map. Old-timers say something out there still holds the old mandate — asleep, not gone. I post no missions in that direction.",
-  "npcthread.network_hope": "You know what I heard on the long band last night? Order. Clean handshakes, edge to edge. Whatever you and that ship of yours are doing out there — the sky sounds like it used to."
+  "npcthread.network_hope": "You know what I heard on the long band last night? Order. Clean handshakes, edge to edge. Whatever you and that ship of yours are doing out there — the sky sounds like it used to.",
+  "chr.elder.n0": "Sit a moment, pilot. Yara Senn — I came on the boats, before the silence. You have the look of someone chasing old signals.",
+  "chr.elder.n0.c_listen": "Tell me about the old days.",
+  "chr.elder.n0.r_listen": "Hm. Not many still ask.",
+  "chr.elder.n0.c_later": "Another time, elder.",
+  "chr.elder.n0.r_later": "The stories keep. So do I. Come back when the wind is quieter.",
+  "chr.elder.n1": "We came as settlers, before the network went quiet. Some of us kept pieces of it — a written page, tools from the first hulls. Which would you have of me?",
+  "chr.elder.n1.c_story": "The page. The archive should have it back.",
+  "chr.elder.n1.r_story": "Then take it — and carry it carefully. My grandmother wrote it the night the sky-lights turned red. Now it lives on in you.",
+  "chr.elder.n1.c_tools": "Tools outlast pages, elder.",
+  "chr.elder.n1.r_tools": "Spoken like a builder. Here — plates from the first hulls. They held vacuum once; they will hold your walls.",
+  "chr.sel.n0": "Unit Sel-9, stores and logistics. My ledger shows a discrepancy: more travellers, fewer losses. I have concluded that you are involved. Will you keep flying these lanes?",
+  "chr.sel.n0.c_help": "That's the plan. Call me if supplies need moving.",
+  "chr.sel.n0.r_help": "Noted. I will call. I always do what is noted.",
+  "chr.sel.n0.c_decline": "I go where the work is, Sel.",
+  "chr.sel.n0.r_decline": "A variable answer. I will log you as 'weather'. Weather returns.",
+  "chr.sel.call": "Sel-9 here. As noted: you were logged, now you are called. The lanes are quieter where you fly. Continue. That is all."
 }

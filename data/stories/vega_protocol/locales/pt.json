@@ -97,5 +97,21 @@
   "lore.site.title": "Registro de campo",
   "npcthread.settler_legend": "Você foi sincero comigo, então vou contar o que minha avó me contou. Anote — as luzes do céu que guiavam as naves, a noite em que ficaram vermelhas. Aqui, a página do diário dela. Guarde bem.",
   "npcthread.guardian_rumor": "Entre nós? Os comboios evitam a borda distante do mapa. Os mais velhos dizem que algo lá ainda mantém o antigo mandato — adormecido, não desaparecido. Eu não publico missões nessa direção.",
-  "npcthread.network_hope": "Sabe o que ouvi na banda longa ontem à noite? Ordem. Apertos de mão limpos, de ponta a ponta. Seja o que você e essa sua nave estiverem fazendo por aí — o céu soa como antes."
+  "npcthread.network_hope": "Sabe o que ouvi na banda longa ontem à noite? Ordem. Apertos de mão limpos, de ponta a ponta. Seja o que você e essa sua nave estiverem fazendo por aí — o céu soa como antes.",
+  "chr.elder.n0": "Sente um momento, piloto. Yara Senn — vim nos barcos, antes do silêncio. Você tem a aparência de quem persegue sinais antigos.",
+  "chr.elder.n0.c_listen": "Conte-me sobre os velhos tempos.",
+  "chr.elder.n0.r_listen": "Hm. Não são muitos que ainda perguntam.",
+  "chr.elder.n0.c_later": "Outra hora, anciã.",
+  "chr.elder.n0.r_later": "As histórias ficam. Eu também. Volte quando o vento estiver mais calmo.",
+  "chr.elder.n1": "Viemos como colonos, antes que a rede ficasse muda. Alguns de nós guardaram pedaços dela — uma página escrita, ferramentas dos primeiros cascos. Qual você quer de mim?",
+  "chr.elder.n1.c_story": "A página. O arquivo deveria ficar com ela.",
+  "chr.elder.n1.r_story": "Então leve — e carregue com cuidado. Minha avó a escreveu na noite em que as luzes do céu ficaram vermelhas. Agora ela vive em você.",
+  "chr.elder.n1.c_tools": "Ferramentas duram mais que páginas, anciã.",
+  "chr.elder.n1.r_tools": "Falado como uma construtora. Tome — chapas dos primeiros cascos. Elas já seguraram vácuo; vão segurar suas paredes.",
+  "chr.sel.n0": "Unidade Sel-9, estoques e logística. Meu livro-caixa mostra uma discrepância: mais viajantes, menos perdas. Concluí que você está envolvido. Vai continuar voando por essas rotas?",
+  "chr.sel.n0.c_help": "Esse é o plano. Me chame se suprimentos precisarem ser movidos.",
+  "chr.sel.n0.r_help": "Anotado. Vou chamar. Eu sempre faço o que está anotado.",
+  "chr.sel.n0.c_decline": "Vou onde o trabalho estiver, Sel.",
+  "chr.sel.n0.r_decline": "Resposta variável. Vou registrá-lo como 'tempo'. O tempo retorna.",
+  "chr.sel.call": "Sel-9 aqui. Constatado: você foi registrado, agora você é chamado. As rotas estão mais quietas onde você voa. Continue. Isso é tudo."
 }

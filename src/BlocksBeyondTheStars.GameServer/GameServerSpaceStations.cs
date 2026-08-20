@@ -568,6 +568,7 @@ public sealed partial class GameServer
                 npc.Name = CoinGiverName(station.Id); // the mission-giver's name matches its missions (item 13)
             }
 
+            ApplyAuthoredCharacter(npc, "station", station.Id); // #1128: a pack face may claim this slot
             _npcs.Add(npc);
             added++;
         }

@@ -97,5 +97,21 @@
   "lore.site.title": "Zapis terenowy",
   "npcthread.settler_legend": "Byłeś ze mną szczery, więc powiem ci to, co mówiła mi babcia. Zapisz to — niebieskie światła, które prowadziły statki, noc, gdy zrobiły się czerwone. Oto jej strona z dziennika. Pilnuj jej.",
   "npcthread.guardian_rumor": "Między nami? Konwoje unikają krańca mapy. Starzy mówią, że coś tam wciąż trzyma dawny mandat — śpi, nie zniknęło. Nie wysyłam tam misji.",
-  "npcthread.network_hope": "Słyszałeś wczoraj na długim paśmie? Porządek. Pewne uściski dłoni, od krawędzi do krawędzi. Cokolwiek ty i twój statek tam robicie — niebo znów brzmi jak dawniej."
+  "npcthread.network_hope": "Słyszałeś wczoraj na długim paśmie? Porządek. Pewne uściski dłoni, od krawędzi do krawędzi. Cokolwiek ty i twój statek tam robicie — niebo znów brzmi jak dawniej.",
+  "chr.elder.n0": "Usiądź chwilę, pilocie. Yara Senn — przybyłam łodziami, przed ciszą. Masz wygląd kogoś, kto goni za starymi sygnałami.",
+  "chr.elder.n0.c_listen": "Opowiedz mi o dawnych czasach.",
+  "chr.elder.n0.r_listen": "Hm. Niewielu wciąż pyta.",
+  "chr.elder.n0.c_later": "Może innym razem, starszo.",
+  "chr.elder.n0.r_later": "Opowieści trwają. Ja też. Wróć, gdy wiatr ucichnie.",
+  "chr.elder.n1": "Przybyliśmy jako osadnicy, zanim sieć ucichła. Niektórzy z nas zachowali jej fragmenty — kartkę, narzędzia z pierwszych kadłubów. Które chcesz ode mnie?",
+  "chr.elder.n1.c_story": "Kartkę. Archiwum powinno ją mieć z powrotem.",
+  "chr.elder.n1.r_story": "Weź ją — i noś ostrożnie. Moja babka napisała ją w noc, gdy niebiosa zaświeciły na czerwono. Teraz żyje dalej w tobie.",
+  "chr.elder.n1.c_tools": "Narzędzia przetrwają kartki, starszo.",
+  "chr.elder.n1.r_tools": "Mówisz jak budowniczy. Proszę — blachy z pierwszych kadłubów. Kiedyś utrzymywały próżnię; utrzymają twoje ściany.",
+  "chr.sel.n0": "Jednostka Sel-9, magazyny i logistyka. Mój rejestr pokazuje rozbieżność: więcej podróżnych, mniej strat. Wnioskuję, że masz z tym związek. Będziesz dalej latać tymi trasami?",
+  "chr.sel.n0.c_help": "Taki jest plan. Wezwij mnie, jeśli zapasy trzeba przesunąć.",
+  "chr.sel.n0.r_help": "Zanotowano. Zadzwonię. Zawsze robię to, co zanotowane.",
+  "chr.sel.n0.c_decline": "Idę tam, gdzie praca, Sel.",
+  "chr.sel.n0.r_decline": "Zmienne odpowiedzi. Zarejestruję cię jako „pogoda”. Pogoda wraca.",
+  "chr.sel.call": "Tu Sel-9. Jak zanotowano: byłeś zarejestrowany, teraz jesteś wezwany. Trasy są spokojniejsze tam, gdzie latasz. Kontynuuj. To wszystko."
 }

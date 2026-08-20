@@ -142,6 +142,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<CoreDialogueMessage>? CoreDialogueReceived;              // argument-duel node / win
         public event Action<StoryResolved>? StoryResolvedReceived;                   // #1124: play the resolution cinematic
         public event Action<RelayNetworkState>? RelayNetworkReceived;                // #1125: SPS relay meters + jump lanes
+        public event Action<NpcDialogState>? NpcDialogReceived;                      // #1127: NPC dialogue step (resolved text)
 
         // Scanning (knowledge), crashed-ship wreck repair, and player-to-player trade.
         public event Action<ScanResult>? ScanResultReceived;
@@ -248,6 +249,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Asks the server for the greeting line of the nearby NPC of this role ("vendor"/"quartermaster")
         /// when opening its interaction (item 15). The server gates on proximity and replies with an NpcGreeting.</summary>
         public void SendNpcGreet(string role) => Send(new NpcGreetIntent { Role = role });
+
+        /// <summary>Talks to an NPC in reach (#1127) — the server opens a dialogue or answers with the
+        /// ordinary greeting bubble when none applies.</summary>
+        public void SendTalkToNpc(int npcId) => Send(new TalkToNpcIntent { NpcId = npcId });
+
+        /// <summary>Picks a reply in the active NPC dialogue (#1127). The server owns the walk.</summary>
+        public void SendNpcDialogChoice(int choiceIndex) => Send(new NpcDialogChoiceIntent { ChoiceIndex = choiceIndex });
 
         /// <summary>Skips the VEGA onboarding (grants the whole stage chain server-side) — or restarts it
         /// from the intro when <paramref name="restart"/> is set (the way back after a skip).</summary>
@@ -814,6 +822,7 @@ namespace BlocksBeyondTheStars.Client
                 case CoreDialogueMessage m: CoreDialogueReceived?.Invoke(m); break;
                 case StoryResolved m: StoryResolvedReceived?.Invoke(m); break;
                 case RelayNetworkState m: RelayNetworkReceived?.Invoke(m); break;
+                case NpcDialogState m: NpcDialogReceived?.Invoke(m); break;
                 case BanditDemand m: BanditDemandReceived?.Invoke(m); break;
                 case BanditEncounterResult m: BanditResultReceived?.Invoke(m); break;
             }

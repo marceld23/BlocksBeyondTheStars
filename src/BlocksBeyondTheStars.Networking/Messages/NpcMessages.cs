@@ -38,6 +38,11 @@ public sealed class NetNpc
     public uint OutfitRgb { get; set; }
     public uint LegsRgb { get; set; }
     public bool IsRobot { get; set; }
+
+    /// <summary>Fixed avatar face seed for an authored story character (#1128) — the same face at every
+    /// place they occupy. Additive (contractless): 0 = unset, the client derives the face from id + name
+    /// as before.</summary>
+    public int FaceVariant { get; set; }
 }
 
 /// <summary>Full set of NPCs the client should currently render (server → client).</summary>

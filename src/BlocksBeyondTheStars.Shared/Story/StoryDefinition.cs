@@ -197,6 +197,36 @@ public sealed class NpcThread
     public string FragmentKey { get; set; } = string.Empty;
 }
 
+/// <summary>An authored recurring character of a story pack (#1128): a NAMED person who occupies one of the
+/// procedural NPC slots at a deterministic subset of places, keeps the same face and outfit everywhere, and
+/// remembers the player GLOBALLY (memory key "char:&lt;id&gt;", not per place). Their texts are hand-written
+/// pack locale keys; they use the general identity/greeting/dialog machinery.</summary>
+public sealed class StoryCharacter
+{
+    /// <summary>Stable character id — keys the global memory ("char:&lt;id&gt;"), face and dialogue.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>The character's proper name (a name, not a locale key — the same in every language).</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>NPC roles this character can occupy (e.g. "settler", "vendor"). NEVER "quartermaster":
+    /// a board's mission texts carry the coined giver name, which an authored name would contradict.</summary>
+    public List<string> Roles { get; set; } = new();
+
+    /// <summary>Where they appear: "settlement" | "station" | "" (both).</summary>
+    public string Places { get; set; } = string.Empty;
+
+    /// <summary>Occupation density: the character claims roughly one in this many eligible slots
+    /// (deterministic per place from the world seed — the same save always meets them at the same spots).</summary>
+    public int OneIn { get; set; } = 2;
+
+    /// <summary>True for an android character (chassis look + unit-designation naming conventions).</summary>
+    public bool Robot { get; set; }
+
+    /// <summary>Key of the pack dialogue (in <see cref="StoryDefinition.Dialogs"/>) this character carries.</summary>
+    public string DialogKey { get; set; } = string.Empty;
+}
+
 /// <summary>
 /// A story pack: identity + pacing config + the ordered beat arc. The story engine consumes this and is
 /// completely story-agnostic, so further storylines are added as more packs (see the implementation plan
@@ -257,6 +287,15 @@ public sealed class StoryDefinition
     /// <summary>NPC story threads (#1112): people who hand over a fragment or rumour on greeting. Empty packs
     /// leave the story to the narrator.</summary>
     public List<NpcThread> NpcThreads { get; set; } = new();
+
+    /// <summary>The pack's authored recurring characters (#1128). Empty packs have no faces — every NPC
+    /// stays a procedurally coined person.</summary>
+    public List<StoryCharacter> Characters { get; set; } = new();
+
+    /// <summary>The pack's own dialogues (#1127/#1128) — carried by the authored characters (matched by
+    /// <see cref="DialogDefinition.Character"/>). Active only while this pack is the save's story; the
+    /// engine-wide role dialogues live in <c>data/dialogs.json</c> instead.</summary>
+    public List<BlocksBeyondTheStars.Shared.Definitions.DialogDefinition> Dialogs { get; set; } = new();
 
     /// <summary>Epilogue title shown by the resolution cinematic (#1124) — a raw string like the beat
     /// titles. Deliberately NOT part of <see cref="Beats"/>: beats reveal by progress score and

@@ -332,6 +332,10 @@ namespace BlocksBeyondTheStars.Client
             var banditUi = root.AddComponent<BanditDemandUi>();
             banditUi.Game = boot;
 
+            // NPC dialogue panel (#1127): talk to people, pick replies, live with the consequences.
+            var dialogUi = root.AddComponent<NpcDialogUi>();
+            dialogUi.Game = boot;
+
             // "Connection lost" gate (#249): surfaces a mid-game server stop instead of silently freezing.
             var disconnect = root.AddComponent<DisconnectScreen>();
             disconnect.Game = boot;

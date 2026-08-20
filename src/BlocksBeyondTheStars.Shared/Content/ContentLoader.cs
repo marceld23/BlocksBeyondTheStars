@@ -88,6 +88,9 @@ public static class ContentLoader
         // Achievements are optional content: a data folder without the file just has none.
         content.SetAchievements(LoadArray<AchievementDefinition>(Path.Combine(dataDir, "achievements.json")));
 
+        // NPC dialogues (#1127) are optional the same way: no dialogs.json → no dialogues.
+        content.SetDialogs(LoadArray<DialogDefinition>(Path.Combine(dataDir, "dialogs.json")));
+
         // The SPS relay upgrade (#1125) is optional the same way: no relay.json → no relay feature.
         string relayFile = Path.Combine(dataDir, "relay.json");
         content.SetRelay(File.Exists(relayFile)

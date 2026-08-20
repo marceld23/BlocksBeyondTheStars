@@ -444,6 +444,11 @@ public static class NetCodec
         // SPS relay network (#1125): station relay meters + jump lanes, co-op contributions.
         Register(222, typeof(RelayNetworkState));            // Server -> Client
         Register(223, typeof(ContributeRelayIntent));        // Client -> Server
+
+        // NPC dialogues (#1127): talk to an NPC, walk a choice graph, the server owns every branch.
+        Register(224, typeof(TalkToNpcIntent));              // Client -> Server
+        Register(225, typeof(NpcDialogState));               // Server -> Client
+        Register(226, typeof(NpcDialogChoiceIntent));        // Client -> Server
     }
 
     private static void Register(byte tag, Type type)

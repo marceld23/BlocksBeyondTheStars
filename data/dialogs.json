@@ -1,0 +1,32 @@
+[
+  {
+    "key": "settler_neighbours",
+    "role": "settler",
+    "minStage": "",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.settler_neighbours.prompt",
+        "choices": [
+          { "textKey": "dlg.settler_neighbours.c_ask", "responseKey": "dlg.settler_neighbours.r_ask", "consequence": "standing:1" },
+          { "textKey": "dlg.settler_neighbours.c_bye", "responseKey": "dlg.settler_neighbours.r_bye" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "vendor_smalltalk",
+    "role": "vendor",
+    "minStage": "known",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.vendor_smalltalk.prompt",
+        "choices": [
+          { "textKey": "dlg.vendor_smalltalk.c_business", "responseKey": "dlg.vendor_smalltalk.r_business", "consequence": "standing:1" },
+          { "textKey": "dlg.vendor_smalltalk.c_rumour", "responseKey": "dlg.vendor_smalltalk.r_rumour", "consequence": "standing:1" }
+        ]
+      }
+    ]
+  }
+]

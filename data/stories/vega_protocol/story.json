@@ -87,6 +87,49 @@
     { "key": "npc_guardian_rumor", "role": "quartermaster", "minStage": "known",   "minKnowledge": 3, "textKey": "npcthread.guardian_rumor" },
     { "key": "npc_network_hope",   "role": "vendor",        "minStage": "trusted", "minKnowledge": 4, "textKey": "npcthread.network_hope" }
   ],
+  "characters": [
+    { "id": "elder", "name": "Yara Senn", "roles": [ "settler" ], "places": "settlement", "oneIn": 2, "robot": false, "dialogKey": "elder_keepsake" },
+    { "id": "sel", "name": "Sel-9", "roles": [ "vendor" ], "places": "station", "oneIn": 2, "robot": true, "dialogKey": "sel_ledger" }
+  ],
+  "dialogs": [
+    {
+      "key": "elder_keepsake",
+      "character": "elder",
+      "minStage": "",
+      "oncePerPlayer": true,
+      "nodes": [
+        {
+          "promptKey": "chr.elder.n0",
+          "choices": [
+            { "textKey": "chr.elder.n0.c_listen", "responseKey": "chr.elder.n0.r_listen", "next": 1 },
+            { "textKey": "chr.elder.n0.c_later", "responseKey": "chr.elder.n0.r_later", "consequence": "standing:1", "keepOpen": true }
+          ]
+        },
+        {
+          "promptKey": "chr.elder.n1",
+          "choices": [
+            { "textKey": "chr.elder.n1.c_story", "responseKey": "chr.elder.n1.r_story", "consequence": "fragment:frag_settler_legend" },
+            { "textKey": "chr.elder.n1.c_tools", "responseKey": "chr.elder.n1.r_tools", "consequence": "gift:iron_plate:10" }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sel_ledger",
+      "character": "sel",
+      "minStage": "",
+      "oncePerPlayer": true,
+      "nodes": [
+        {
+          "promptKey": "chr.sel.n0",
+          "choices": [
+            { "textKey": "chr.sel.n0.c_help", "responseKey": "chr.sel.n0.r_help", "consequence": "radio:chr.sel.call" },
+            { "textKey": "chr.sel.n0.c_decline", "responseKey": "chr.sel.n0.r_decline", "consequence": "standing:1" }
+          ]
+        }
+      ]
+    }
+  ],
   "epilogueTitle": "The relay network",
   "epilogueTextKey": "story.vega.beat13"
 }

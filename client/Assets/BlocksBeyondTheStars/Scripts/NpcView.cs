@@ -136,7 +136,9 @@ namespace BlocksBeyondTheStars.Client
                     // a face-feature jitter and a hair colour (some stay bald); androids keep the uniform
                     // manufactured look. Deliberately NO spacesuit: civilians stay bare-headed so suited
                     // players are recognisable at a glance (suit = player, bare face = NPC, mask = bandit).
-                    int seed = unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
+                    // An authored story character (#1128) carries a FIXED face seed so they are the same
+                    // person at every place they occupy; everyone else derives from id + name as before.
+                    int seed = nd.FaceVariant != 0 ? nd.FaceVariant : unchecked((nd.Id * 486187739) ^ StableHash(nd.Name));
                     Color? hair = !nd.IsRobot && (seed & 0x7) != 0 ? HairTones[(int)((uint)(seed >> 8) % (uint)HairTones.Length)] : (Color?)null;
                     avatar.Build(skin, outfit, outfit * 0.9f, legs, spacesuit: false, variantSeed: nd.IsRobot ? 0 : seed, hair: hair);
                     avatar.SetVisible(true);

@@ -40,11 +40,13 @@ public sealed partial class GameServer
     /// <summary>The stable memory key for a live NPC as seen by this player — mirrors the greeting
     /// pipeline's derivation (the NPC's settlement; else the receiver's boarded station).</summary>
     private string NpcKeyForNpc(PlayerSession session, ServerNpc npc)
-        => !string.IsNullOrEmpty(npc.Settlement)
-            ? NpcKey(SettlementLocationKey(npc.Settlement), npc.Role)
-            : _boardedStation.TryGetValue(session.State.PlayerId, out var stationId)
-                ? NpcKey(StationLocationKey(stationId), npc.Role)
-                : NpcKey(SettlementLocationKey(string.Empty), npc.Role);
+        => !string.IsNullOrEmpty(npc.CharacterId)
+            ? "char:" + npc.CharacterId // an authored character (#1128) remembers the player GLOBALLY
+            : !string.IsNullOrEmpty(npc.Settlement)
+                ? NpcKey(SettlementLocationKey(npc.Settlement), npc.Role)
+                : _boardedStation.TryGetValue(session.State.PlayerId, out var stationId)
+                    ? NpcKey(StationLocationKey(stationId), npc.Role)
+                    : NpcKey(SettlementLocationKey(string.Empty), npc.Role);
 
     /// <summary>Per-receiver stages for the live NPCs (#1118). Only non-strangers are listed — absence
     /// means stranger, so the common case (a fresh settlement) is an empty message.</summary>

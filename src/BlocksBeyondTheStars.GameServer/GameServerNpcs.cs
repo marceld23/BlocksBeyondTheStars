@@ -52,6 +52,7 @@ public sealed partial class GameServer
         public string Role = string.Empty;
         public string Theme = string.Empty;
         public string Settlement = string.Empty; // name of the settlement this NPC belongs to (memory/greeting key)
+        public string CharacterId = string.Empty; // authored story character occupying this slot (#1128), "" = none
         public string NameKey = string.Empty;
         public string Name = string.Empty; // coined personal name (item 12)
         public Vector3f Home;
@@ -136,6 +137,7 @@ public sealed partial class GameServer
                     npc.Name = CoinGiverName(settlement.Name); // the mission-giver's name matches its missions (item 13)
                 }
 
+                ApplyAuthoredCharacter(npc, "settlement", settlement.Name); // #1128: a pack face may claim this slot
                 _npcs.Add(npc);
             }
         }
@@ -448,5 +450,6 @@ public sealed partial class GameServer
         OutfitRgb = n.OutfitRgb,
         LegsRgb = n.LegsRgb,
         IsRobot = n.IsRobot,
+        FaceVariant = CharacterFaceVariant(n), // #1128: an authored character keeps one face everywhere
     };
 }

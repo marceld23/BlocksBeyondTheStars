@@ -97,5 +97,21 @@
   "lore.site.title": "Registro de campo",
   "npcthread.settler_legend": "Has sido sincero conmigo, así que te contaré lo que me dijo mi abuela. Escríbelo — las luces del cielo que guiaron las naves, la noche que se pusieron rojas. Aquí, su página del diario. Cuídala.",
   "npcthread.guardian_rumor": "Entre nosotros: los convoyes evitan el borde lejano del mapa. Los veteranos dicen que algo ahí aún mantiene el antiguo mandato — dormido, no desaparecido. Yo no publico misiones en esa dirección.",
-  "npcthread.network_hope": "¿Sabes lo que oí en la banda larga anoche? Orden. Apretón de manos limpio, de extremo a extremo. Sea lo que sea que tú y esa nave estén haciendo ahí fuera — el cielo suena como antes."
+  "npcthread.network_hope": "¿Sabes lo que oí en la banda larga anoche? Orden. Apretón de manos limpio, de extremo a extremo. Sea lo que sea que tú y esa nave estén haciendo ahí fuera — el cielo suena como antes.",
+  "chr.elder.n0": "Siéntate un momento, piloto. Yara Senn — vine en los barcos, antes del silencio. Tienes la mirada de quien persigue señales antiguas.",
+  "chr.elder.n0.c_listen": "Cuéntame de los viejos tiempos.",
+  "chr.elder.n0.r_listen": "Hm. Ya no muchos preguntan.",
+  "chr.elder.n0.c_later": "Otra vez, anciano.",
+  "chr.elder.n0.r_later": "Las historias permanecen. Yo también. Vuelve cuando el viento esté más tranquilo.",
+  "chr.elder.n1": "Vinimos como colonos, antes de que la red callara. Algunos guardamos pedazos de ella — una página escrita, herramientas de los primeros cascos. ¿Cuál quieres de mí?",
+  "chr.elder.n1.c_story": "La página. El archivo debería recuperarla.",
+  "chr.elder.n1.r_story": "Tómala entonces — y cuídala. Mi abuela la escribió la noche en que las luces del cielo se pusieron rojas. Ahora vive en ti.",
+  "chr.elder.n1.c_tools": "Las herramientas duran más que las páginas, anciano.",
+  "chr.elder.n1.r_tools": "Hablas como un constructor. Toma — placas de los primeros cascos. Una vez contuvieron el vacío; ahora sostendrán tus muros.",
+  "chr.sel.n0": "Unidad Sel-9, almacenes y logística. Mi libro mayor muestra una discrepancia: más viajeros, menos pérdidas. He concluido que estás involucrado. ¿Seguirás volando estas rutas?",
+  "chr.sel.n0.c_help": "Ese es el plan. Llámame si hace falta mover suministros.",
+  "chr.sel.n0.r_help": "Anotado. Llamaré. Siempre hago lo que está anotado.",
+  "chr.sel.n0.c_decline": "Voy a donde esté el trabajo, Sel.",
+  "chr.sel.n0.r_decline": "Respuesta variable. Te registraré como 'tiempo'. El tiempo vuelve.",
+  "chr.sel.call": "Sel-9 aquí. Como anotado: fuiste registrado, ahora eres llamado. Las rutas están más tranquilas donde vuelas. Continúa. Eso es todo."
 }

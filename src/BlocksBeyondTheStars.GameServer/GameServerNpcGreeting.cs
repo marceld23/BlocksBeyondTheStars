@@ -75,11 +75,12 @@ public sealed partial class GameServer
     {
         var player = session.State;
 
-        // The stable NPC key — settlement board vs. boarded-station board — matches the relationship memory key.
+        // The stable NPC key — settlement board vs. boarded-station board — matches the relationship memory
+        // key; an authored character (#1128) uses their GLOBAL key so they remember the player everywhere.
         string locationKey = NearSpaceStationVendor(player) && _boardedStation.TryGetValue(player.PlayerId, out var st)
             ? StationLocationKey(st)
             : SettlementLocationKey(npc.Settlement);
-        string npcKey = NpcKey(locationKey, npc.Role);
+        string npcKey = !string.IsNullOrEmpty(npc.CharacterId) ? "char:" + npc.CharacterId : NpcKey(locationKey, npc.Role);
 
         var rel = player.NpcMemory.TryGetValue(npcKey, out var r) ? r : null;
         int relValue = rel?.Value ?? 0;

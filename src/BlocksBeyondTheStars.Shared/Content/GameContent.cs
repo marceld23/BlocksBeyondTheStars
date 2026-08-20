@@ -158,6 +158,31 @@ public sealed class GameContent
     public void SetRelay(RelayDefinition? relay)
         => Relay = relay is { Costs.Count: > 0 } ? relay : null;
 
+    private IReadOnlyList<DialogDefinition> _dialogs = new List<DialogDefinition>();
+
+    /// <summary>Engine NPC dialogues (#1127) in authored order — empty when <c>data/dialogs.json</c> is
+    /// absent (the feature then simply does nothing). Story packs carry their own dialogues separately.</summary>
+    public IReadOnlyList<DialogDefinition> Dialogs => _dialogs;
+
+    /// <summary>Installs the dialogue table (called by the content loader). Entries without a key or any
+    /// node are dropped — a half-authored dialogue must not break every other one.</summary>
+    public void SetDialogs(IEnumerable<DialogDefinition>? dialogs)
+    {
+        var list = new List<DialogDefinition>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var d in dialogs ?? Enumerable.Empty<DialogDefinition>())
+        {
+            if (d == null || string.IsNullOrEmpty(d.Key) || d.Nodes.Count == 0 || !seen.Add(d.Key))
+            {
+                continue;
+            }
+
+            list.Add(d);
+        }
+
+        _dialogs = list;
+    }
+
     private IReadOnlyList<AchievementDefinition> _achievements = new List<AchievementDefinition>();
 
     /// <summary>Achievements in authored order (empty when <c>data/achievements.json</c> is absent — the

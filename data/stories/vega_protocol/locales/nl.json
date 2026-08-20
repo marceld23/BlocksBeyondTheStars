@@ -97,5 +97,21 @@
   "lore.site.title": "Veldverslag",
   "npcthread.settler_legend": "Je bent eerlijk tegen me geweest, dus ik vertel wat mijn oma me vertelde. Schrijf het op — de hemellichten die de schepen leidden, de nacht dat ze rood werden. Hier, haar logpagina. Bewaar het veilig.",
   "npcthread.guardian_rumor": "Tussen ons? De konvooien vermijden de verre rand van de kaart. Oudgedienden zeggen dat daar iets nog steeds het oude mandaat handhaaft — slapend, niet weg. Ik plaats geen missies die kant op.",
-  "npcthread.network_hope": "Weet je wat ik gister op de lange band hoorde? Orde. Schone handshakes, van rand tot rand. Wat jij en dat schip van je daar buiten ook doen — de hemel klinkt weer zoals vroeger."
+  "npcthread.network_hope": "Weet je wat ik gister op de lange band hoorde? Orde. Schone handshakes, van rand tot rand. Wat jij en dat schip van je daar buiten ook doen — de hemel klinkt weer zoals vroeger.",
+  "chr.elder.n0": "Ga even zitten, piloot. Yara Senn — ik kwam met de boten, voor de stilte. Je hebt de blik van iemand die oude signalen achterna zit.",
+  "chr.elder.n0.c_listen": "Vertel me over vroeger.",
+  "chr.elder.n0.r_listen": "Hm. Niet veel mensen vragen dat nog.",
+  "chr.elder.n0.c_later": "Een andere keer, oudste.",
+  "chr.elder.n0.r_later": "De verhalen blijven. Ik ook. Kom terug als de wind rustiger is.",
+  "chr.elder.n1": "We kwamen als kolonisten, voordat het netwerk stilviel. Sommigen van ons bewaarden stukken ervan — een geschreven blad, gereedschap van de eerste rompen. Welk stuk wil je van mij hebben?",
+  "chr.elder.n1.c_story": "Het blad. Het archief moet het terug hebben.",
+  "chr.elder.n1.r_story": "Neem het dan — en draag het zorgvuldig. Mijn grootmoeder schreef het de nacht dat de hemellichten rood werden. Nu leeft het voort in jou.",
+  "chr.elder.n1.c_tools": "Gereedschap blijft langer dan bladen, oudste.",
+  "chr.elder.n1.r_tools": "Dat klinkt als een bouwer. Hier — platen van de eerste rompen. Ze hielden ooit vacuüm vast; ze zullen jouw muren houden.",
+  "chr.sel.n0": "Unit Sel-9, voorraden en logistiek. Mijn boekhouding toont een afwijking: meer reizigers, minder verliezen. Ik concludeer dat jij betrokken bent. Blijf je deze banen vliegen?",
+  "chr.sel.n0.c_help": "Dat is de bedoeling. Bel me als voorraden verplaatst moeten worden.",
+  "chr.sel.n0.r_help": "Genoteerd. Ik zal bellen. Ik doe altijd wat genoteerd is.",
+  "chr.sel.n0.c_decline": "Ik ga waar het werk is, Sel.",
+  "chr.sel.n0.r_decline": "Een variabel antwoord. Ik zal je loggen als 'weer'. Weer keert terug.",
+  "chr.sel.call": "Sel-9 hier. Zoals genoteerd: je was gelogd, nu ben je opgeroepen. De banen zijn rustiger waar jij vliegt. Ga door. Dat is alles."
 }

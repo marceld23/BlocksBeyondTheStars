@@ -97,5 +97,21 @@
   "lore.site.title": "Fiche de terrain",
   "npcthread.settler_legend": "Tu m’as été franc, alors je te dis ce que ma grand-mère m’a dit. Écris-le — les lucioles qui guidaient les vaisseaux, la nuit où elles sont devenues rouges. Tiens, sa page de journal. Garde-la précieusement.",
   "npcthread.guardian_rumor": "Entre nous ? Les convois évitent le bord lointain de la carte. Les anciens disent que quelque chose là-bas tient encore le vieux mandat — endormi, pas disparu. Je ne poste aucune mission dans cette direction.",
-  "npcthread.network_hope": "Tu sais ce que j’ai entendu sur la bande longue la nuit dernière ? De l’ordre. Des poignées de main propres, d’un bout à l’autre. Quoi que toi et ton vaisseau fassiez là-dehors — le ciel a retrouvé son ancien son."
+  "npcthread.network_hope": "Tu sais ce que j’ai entendu sur la bande longue la nuit dernière ? De l’ordre. Des poignées de main propres, d’un bout à l’autre. Quoi que toi et ton vaisseau fassiez là-dehors — le ciel a retrouvé son ancien son.",
+  "chr.elder.n0": "Assieds-toi un instant, pilote. Yara Senn — je suis arrivée sur les embarcations, avant le silence. Tu as l'air de quelqu'un qui suit d'anciens signaux.",
+  "chr.elder.n0.c_listen": "Parle-moi des vieux jours.",
+  "chr.elder.n0.r_listen": "Hm. Peu de gens le demandent encore.",
+  "chr.elder.n0.c_later": "Une autre fois, aînée.",
+  "chr.elder.n0.r_later": "Les histoires restent. Moi aussi. Reviens quand le vent sera plus calme.",
+  "chr.elder.n1": "Nous sommes venus comme colons, avant que le réseau ne se taise. Certains d'entre nous ont gardé des fragments — une page écrite, des outils des premières coques. Lequel veux-tu de moi ?",
+  "chr.elder.n1.c_story": "La page. L'archive doit la récupérer.",
+  "chr.elder.n1.r_story": "Alors prends-la — et porte-la avec soin. Ma grand-mère l'a écrite la nuit où les lumières du ciel sont devenues rouges. Maintenant elle vit en toi.",
+  "chr.elder.n1.c_tools": "Les outils durent plus que les pages, aînée.",
+  "chr.elder.n1.r_tools": "Paroles de constructeur. Voilà — des plaques des premières coques. Elles ont tenu le vide autrefois ; elles tiendront tes murs.",
+  "chr.sel.n0": "Unité Sel-9, magasins et logistique. Mon registre montre une anomalie : plus de voyageurs, moins de pertes. J'ai conclu que tu es impliqué. Continueras-tu à emprunter ces voies ?",
+  "chr.sel.n0.c_help": "C'est prévu. Appelle-moi si des fournitures doivent être déplacées.",
+  "chr.sel.n0.r_help": "Noté. J'appellerai. Je fais toujours ce qui est noté.",
+  "chr.sel.n0.c_decline": "J'irai là où le travail est, Sel.",
+  "chr.sel.n0.r_decline": "Réponse variable. Je t'enregistrerai comme « météo ». La météo revient.",
+  "chr.sel.call": "Ici Sel-9. Comme noté : tu étais enregistré, maintenant tu es appelé. Les voies sont plus calmes là où tu navigues. Continue. C'est tout."
 }
