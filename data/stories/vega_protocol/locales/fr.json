@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Noté. J'appellerai. Je fais toujours ce qui est noté.",
   "chr.sel.n0.c_decline": "J'irai là où le travail est, Sel.",
   "chr.sel.n0.r_decline": "Réponse variable. Je t'enregistrerai comme « météo ». La météo revient.",
-  "chr.sel.call": "Ici Sel-9. Comme noté : tu étais enregistré, maintenant tu es appelé. Les voies sont plus calmes là où tu navigues. Continue. C'est tout."
+  "chr.sel.call": "Ici Sel-9. Comme noté : tu étais enregistré, maintenant tu es appelé. Les voies sont plus calmes là où tu navigues. Continue. C'est tout.",
+  "lore.site.shrine_song": "Les pierres ne sont gravées dans aucun alphabet que l'archive connaisse — mais tiens-toi entre elles au crépuscule et le vent les fait chanter comme des flûtes. Ceux qui ont élevé cet endroit n'ont pas écrit leur histoire. Ils l'ont accordée.",
+  "lore.site.shrine_keepers": "Les gardiens ne parlent pas des bâtisseurs. Interrogé sur qui chante ici, l'un d'eux n'a fait que pointer : vers les pierres, vers le ciel, et — après une longue pause — vers toi.",
+  "lore.site.observatory_log": "Poste d'observation 9, entrée finale : « Dôme scellé contre la poussière. Le ciel est anormal depuis trois nuits — les relais répondent dans le désordre, comme si quelque chose entre eux écoutait en premier. Envoi du journal à la base tant que la base répond encore. »",
+  "lore.site.derelict_manifest": "Manifeste de cargaison, corrigé à la main : « Eau, semences, quarante passagers. » Le quarante est barré. En dessous, en plus petit : « Trente-neuf. Elle est restée pour que le nombre de capsules fonctionne. Souviens-toi de son nom. »",
+  "lore.site.anomaly_echo": "Le scan renvoie ton propre ping — une demi-seconde en avance. L'archive le classe sous « écho, impossible » et, d'une main plus ancienne, « le ciel se souvient ». ",
+  "lore.site.anomaly_choir": "Superpose le bruit de l'anomalie et il se résout en voix — des dizaines, toutes lisant les mêmes chiffres. Balises de navigation. L'anomalie récitait depuis toujours les positions de l'ancien Service, pour personne, depuis des années."
 }

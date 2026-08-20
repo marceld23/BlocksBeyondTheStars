@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Zanotowano. Zadzwonię. Zawsze robię to, co zanotowane.",
   "chr.sel.n0.c_decline": "Idę tam, gdzie praca, Sel.",
   "chr.sel.n0.r_decline": "Zmienne odpowiedzi. Zarejestruję cię jako „pogoda”. Pogoda wraca.",
-  "chr.sel.call": "Tu Sel-9. Jak zanotowano: byłeś zarejestrowany, teraz jesteś wezwany. Trasy są spokojniejsze tam, gdzie latasz. Kontynuuj. To wszystko."
+  "chr.sel.call": "Tu Sel-9. Jak zanotowano: byłeś zarejestrowany, teraz jesteś wezwany. Trasy są spokojniejsze tam, gdzie latasz. Kontynuuj. To wszystko.",
+  "lore.site.shrine_song": "Kamienie są rzeźbione w żadnym znanym archiwum alfabecie — ale stań między nimi o zmierzchu, a wiatr zagra na nich jak na fletach. Ten, kto wzniosł to miejsce, nie napisał swojej historii. On ją nastroił.",
+  "lore.site.shrine_keepers": "Strażnicy nie mówią o budowniczych. Zapytani, kto tu śpiewa, jeden tylko wskazał: na kamienie, na niebo i — po długiej pauzie — na ciebie.",
+  "lore.site.observatory_log": "Posterunek obserwacyjny 9, wpis końcowy: „Kopuła zamknięta przed pyłem. Niebo jest nie w porządku od trzech nocy — przekaźniki odpowiadają w nieładzie, jakby coś między nimi najpierw nasłuchiwało. Wysyłam zapis do domu, póki dom jeszcze odpowiada.”",
+  "lore.site.derelict_manifest": "Manifest ładunku, poprawiony ręcznie: „Woda, nasiona, czterdzieści pasażerów.” Czterdzieści jest przekreślone. Pod tym, mniejszym pismem: „Trzydzieści dziewięć. Ona została, żeby liczba kapsuł się zgadzała. Zapamiętaj jej imię.”",
+  "lore.site.anomaly_echo": "Skan zwraca twoje własne echo — pół sekundy za wcześnie. Archiwum zapisuje to pod ‚echo, niemożliwe’ i, starszym pismem, ‚niebo pamięta’.",
+  "lore.site.anomaly_choir": "Nałóż na siebie szum anomalii, a rozdziela się na głosy — dziesiątki, wszystkie odczytujące te same liczby. Boje nawigacyjne. Anomalia recytowała pozycje dawnej Służby przez lata, dla nikogo."
 }

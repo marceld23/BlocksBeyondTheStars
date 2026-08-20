@@ -79,12 +79,23 @@ public sealed partial class GameServer
             return string.Empty;
         }
 
+        string rest = containerId.Substring("loot_".Length);
+
+        // The one-of-a-kind sites (#1129) OWN their lore voice — checked before the generic terminal
+        // sniff so the observatory's survey terminal speaks as the observatory, not as "a terminal".
+        foreach (var kind in new[] { "alien_shrine", "observatory", "derelict" })
+        {
+            if (rest.StartsWith(kind + "_", System.StringComparison.Ordinal))
+            {
+                return kind;
+            }
+        }
+
         if (containerId.Contains("_data_terminal_", System.StringComparison.Ordinal))
         {
             return "data_terminal";
         }
 
-        string rest = containerId.Substring("loot_".Length);
         foreach (var kind in new[] { "bandit_camp", "settlement", "monument", "factory", "chest", "wreck", "vault", "ruin" })
         {
             if (rest.StartsWith(kind + "_", System.StringComparison.Ordinal))

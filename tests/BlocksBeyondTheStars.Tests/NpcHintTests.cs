@@ -142,7 +142,14 @@ public sealed class NpcHintTests : IDisposable
         using (repo)
         {
             string pid = p.State.PlayerId;
-            server.SetNpcRelationshipForTest(pid, "vendor", 50); // even a trusted friend has nothing to share
+            server.SetNpcRelationshipForTest(pid, "vendor", 50); // even a trusted friend has nothing LOCAL to share
+
+            // A trusted friend now shares the galaxy's LEGENDS first (#1129) — pre-share them so this
+            // test keeps probing the local wreck/chest hints, which is what it is about.
+            while (!string.IsNullOrEmpty(server.UniqueSiteHintForTest(pid)))
+            {
+            }
+
             Assert.Equal(string.Empty, server.HintLineForTest(pid, "vendor"));
             Assert.DoesNotContain(server.PlanetPoisForTest(pid), poi => poi.Type is "wreck" or "treasure");
         }

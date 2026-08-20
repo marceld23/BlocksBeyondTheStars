@@ -105,6 +105,34 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ One-of-a-kind sites & peaceful space encounters — the galaxy's mysteries (#1129, 2026-08-20, branch feat/progression-pr14-unique-sites)
+PR 14 of the progression package (epic #1101), D6 — **the package's final PR**. The audit: the only unique
+place was the story-gated Guardian Core; space offered ambush rolls and trader cruises; nothing a player
+could tell a friend about (Justus' wish: "Alien-Schreine mit vieeelen Aliens"). Now THREE one-per-galaxy
+places + two peaceful encounters. **Site selection is galaxy-pure** (the frontier-tier model): ordinal-
+sorted landable bodies of the FIXED prefix (grown systems excluded — growth never moves a site), indexed
+by seed ⊕ site key; zero persistence for the choice. Per-world stamping mirrors vault_frontier exactly:
+`unique:<key>` placement record, legacy worlds (`!VirginAtLoad`) record a skip (nothing retroactive under
+bases), blocks written once, loot/keepers/POIs re-derived per load. The **Singing Shrine** (brick plinth,
+rune-pillar ring, green beam heart, 4 glowing crowns + SIX keeper NPCs around it — `Settlement =
+"singing-shrine"` keys their memory) with a relic cache; the **Sealed Observatory** (granite drum, glass
+dome, survey terminal). **"The Long Quiet"**: a named boardable derelict via the PLAYER-station recipe
+(ownerless SpaceStructure with code-built breached-hull cells → `_stationsById` + host-body map + star-map
+body + instance dock contact; `CanBoardStation` passes ownerless), salvage spawns on first boarding via
+`SpawnStructureLoot` (idempotent; container ids `loot_derelict_*` → its OWN lore voice — the unique kinds
+check runs BEFORE the `data_terminal` sniff in `LoreSiteOfContainer`). **Encounters** (zero new messages —
+new `CombatEntityKind.EscapePod`/`Anomaly` ride SpaceState; client renders the cube fallback, not dock-
+promptable by design): rolled once per instance (seed ⊕ instance id, 30 %), pod rescue = FLY CLOSE (14 u,
+no button — kid-friendly): reward + survivor becomes KNOWN (Value 25) + a thank-you call via PR 13's
+`_dialogRadioPending`; anomaly = `ScanSpaceEntity` branch, knowledge once per save (`anomaly:signature`
+ledger) + lore per scan (per-player dedupe inside). All peaceful — run under family/peaceful presets
+(the trader precedent), nothing gates on combat rules. Findability: trusted NPCs share each legend once
+galaxy-wide (`TryEmitUniqueSiteHint` ahead of the chest hint; names the BODY, gives a bearing when local),
+POIs `{loc}|uniquesite:<key>` + WorldMap glyphs ✶/◉. NEW wiki article "mysteries"; lore_sites +6 texts;
+manual §Mysteries. Tests: `UniqueSiteTests` (7 — seed-purity/distinct/growth-immune, shrine stamp with
+keepers+cache (seed-scan tolerates lava-world skips), hint once-per-site, derelict board+salvage+lore
+voice, pod rescue end-to-end, anomaly scan + no re-windfall, every key resolves EN+DE).
+
 ### ★ NPC dialogues & the pack's authored faces (#1127 + #1128, 2026-08-20, branch feat/progression-pr13-dialogs)
 PR 13 of the progression package (epic #1101), G4 + G5 — the reserved "item 15" Dialog backend finally
 built. The audit: `NpcInteractionKind.Dialog` had NO producer, NPCs could ask nothing, settlers were

@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Not edildi. Arayacağım. Not edilenleri her zaman yaparım.",
   "chr.sel.n0.c_decline": "İşim neredeyse oraya giderim, Sel.",
   "chr.sel.n0.r_decline": "Değişken bir cevap. Seni 'hava durumu' olarak kaydedeceğim. Hava geri döner.",
-  "chr.sel.call": "Sel-9 burada. Not edildiği gibi: kaydın vardı, şimdi çağrıldın. Uçtuğun hatlar daha sessiz. Devam et. Hepsi bu."
+  "chr.sel.call": "Sel-9 burada. Not edildiği gibi: kaydın vardı, şimdi çağrıldın. Uçtuğun hatlar daha sessiz. Devam et. Hepsi bu.",
+  "lore.site.shrine_song": "Taşlar arşivin tanıdığı hiçbir alfabeyle kazılı değil — ama alacakaranlıkta aralarında durup rüzgar estiğinde onları flüt gibi çalar. Buranın kim tarafından yapıldığı hikâyesini yazmamış. Onu akort etmişler.",
+  "lore.site.shrine_keepers": "Bekçiler yapıcıları konuşmaz. Burada kimin şarkı söylediği sorulduğunda, onlardan biri sadece işaret etti: taşlara, gökyüzüne ve — uzun bir duraklamadan sonra — sana.",
+  "lore.site.observatory_log": "Gözlem noktası 9, son kayıt: “Kubbe toza karşı kapatıldı. Gökyüzü üç gecedir yanlış — röleler sıra dışı cevap veriyor, sanki aralarında önce bir şey dinliyor. Ev hâlâ cevap verirken kaydı eve gönderiyorum.”",
+  "lore.site.derelict_manifest": "Yük manifestosu, elle düzeltilmiş: “Su, tohum stoku, kırk yolcu.” Kırk üzeri çizilmiş. Altında, daha küçük yazıyla: “Otuz dokuz. Pod sayısı tutması için o kaldı. Adını hatırla.”",
+  "lore.site.anomaly_echo": "Tarama kendi ping’ini döndürüyor — yarım saniye erken. Arşiv bunu ‘echo, impossible’ başlığıyla kayıt ediyor ve daha eski bir elde ‘gökyüzü hatırlar’ diye not düşülmüş.",
+  "lore.site.anomaly_choir": "Anomali sesini üst üste koyunca seslere çözülüyor — düzinelerce, hepsi aynı sayıları okuyor. Seyrüsefer işaretleri. Anomali yıllardır kimseye değil, eski Servis’in konumlarını hep ezberliyormuş."
 }

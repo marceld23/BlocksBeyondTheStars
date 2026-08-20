@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Anotado. Vou chamar. Eu sempre faço o que está anotado.",
   "chr.sel.n0.c_decline": "Vou onde o trabalho estiver, Sel.",
   "chr.sel.n0.r_decline": "Resposta variável. Vou registrá-lo como 'tempo'. O tempo retorna.",
-  "chr.sel.call": "Sel-9 aqui. Constatado: você foi registrado, agora você é chamado. As rotas estão mais quietas onde você voa. Continue. Isso é tudo."
+  "chr.sel.call": "Sel-9 aqui. Constatado: você foi registrado, agora você é chamado. As rotas estão mais quietas onde você voa. Continue. Isso é tudo.",
+  "lore.site.shrine_song": "As pedras não estão esculpidas em nenhum alfabeto que o arquivo conheça — mas fique entre elas ao entardecer e o vento as toca como flautas. Quem ergueu este lugar não escreveu sua história. Eles a afinaram.",
+  "lore.site.shrine_keepers": "Os guardiões não falam dos construtores. Perguntado quem canta aqui, um deles apenas apontou: para as pedras, para o céu e — depois de uma longa pausa — para você.",
+  "lore.site.observatory_log": "Posto de observação 9, entrada final: “Cúpula selada contra a poeira. O céu está errado há três noites — os relés respondem fora de ordem, como se algo entre eles escutasse primeiro. Enviando o registro para casa enquanto casa ainda responde.”",
+  "lore.site.derelict_manifest": "Manifesto de carga, corrigido à mão: “Água, estoque de sementes, quarenta passageiros.” O quarenta está riscado. Abaixo, em escrita menor: “Trinta e nove. Ela ficou para que a contagem das cápsulas funcionasse. Lembre-se do nome dela.”",
+  "lore.site.anomaly_echo": "A varredura retorna seu próprio ping — meio segundo adiantado. O arquivo classifica como ‘eco, impossível’ e, em caligrafia mais antiga, ‘o céu lembra’.",
+  "lore.site.anomaly_choir": "Sobreponha o ruído da anomalia e ele se resolve em vozes — dezenas, todas lendo os mesmos números. Faróis de navegação. A anomalia tem recitado as posições do velho Serviço o tempo todo, para ninguém, por anos."
 }

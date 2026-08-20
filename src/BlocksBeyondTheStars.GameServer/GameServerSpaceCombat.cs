@@ -26,6 +26,8 @@ public enum CombatEntityKind
     Bandit,       // humanoid robber on foot, melee variant (lone hold-ups + camp guards)
     BanditGunner, // humanoid robber on foot, ranged variant (longer damage aura + tracer visuals)
     BanditShip,   // space raider that hails the player ship and demands cargo before opening fire
+    EscapePod,    // #1129: a drifting life pod — fly close to rescue the survivor (never hostile/targetable)
+    Anomaly,      // #1129: a shimmering unknown — scan it for knowledge + a lore text (never hostile)
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -221,6 +223,20 @@ public sealed class SpaceInstance
     /// <summary>Throttle for re-broadcasting remote-pilot poses (#756): <c>HandleShipMove</c> stores a pose but
     /// never broadcast, so other players' ships only refreshed when a hostile or trader happened to move.</summary>
     public double PilotSyncTimer { get; set; }
+
+    // ---- Peaceful encounters (#1129): at most one life pod / anomaly per instance ----
+
+    /// <summary>True once this instance rolled its encounter dice (rolled exactly once per instance).</summary>
+    public bool EncounterRolled { get; set; }
+
+    /// <summary>0 = none this flight, 1 = drifting life pod, 2 = scannable anomaly.</summary>
+    public int EncounterKind { get; set; }
+
+    /// <summary>Uptime at which the encounter appears (a little into the flight, never instantly).</summary>
+    public double EncounterAt { get; set; }
+
+    /// <summary>Entity id of the live encounter object (empty = not spawned yet / resolved).</summary>
+    public string EncounterId { get; set; } = string.Empty;
 }
 
 /// <summary>A player's pose in a space instance — where their ship (or EVA suit) is + which way it faces.</summary>
@@ -645,6 +661,7 @@ public sealed partial class GameServer
 
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
+        AddDerelictToInstance(instance); // #1129: "The Long Quiet" drifts in exactly one body's space
 
         // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on — and never
         // once the Guardian core is destroyed (P6 pacification: the galaxy is at peace).
@@ -1484,6 +1501,10 @@ public sealed partial class GameServer
             // Bandit-ship ambush: in flagged systems a raider may warp in, hail the ship and demand cargo —
             // comply and it leaves, refuse and it fights (see GameServerBanditShips).
             TickBanditShips(instance, dt);
+
+            // Peaceful encounters (#1129): sometimes a life pod drifts by (fly close = rescue) or an
+            // anomaly shimmers (scan it). Never hostile — runs under every preset, like the traders.
+            TickSpaceEncounters(instance);
 
             // Remote pilots (#756): HandleShipMove only STORES poses — without a periodic re-broadcast the
             // other players' ships only refreshed when a hostile or trader happened to move (0 Hz in a

@@ -31,5 +31,12 @@
   { "key": "chest_map_scrap",  "site": "chest",         "textKey": "lore.site.chest_map_scrap",  "minKnowledge": 1, "weight": 1 },
 
   { "key": "settle_notice",    "site": "settlement",    "textKey": "lore.site.settle_notice",    "minKnowledge": 0, "weight": 2 },
-  { "key": "factory_worklog",  "site": "factory",       "textKey": "lore.site.factory_worklog",  "minKnowledge": 1, "weight": 2 }
+  { "key": "factory_worklog",  "site": "factory",       "textKey": "lore.site.factory_worklog",  "minKnowledge": 1, "weight": 2 },
+
+  { "key": "shrine_song",      "site": "alien_shrine",  "textKey": "lore.site.shrine_song",      "minKnowledge": 0, "weight": 2 },
+  { "key": "shrine_keepers",   "site": "alien_shrine",  "textKey": "lore.site.shrine_keepers",   "minKnowledge": 1, "weight": 1 },
+  { "key": "observatory_log",  "site": "observatory",   "textKey": "lore.site.observatory_log",  "minKnowledge": 0, "weight": 1 },
+  { "key": "derelict_manifest","site": "derelict",      "textKey": "lore.site.derelict_manifest","minKnowledge": 0, "weight": 1 },
+  { "key": "anomaly_echo",     "site": "anomaly",       "textKey": "lore.site.anomaly_echo",     "minKnowledge": 0, "weight": 2 },
+  { "key": "anomaly_choir",    "site": "anomaly",       "textKey": "lore.site.anomaly_choir",    "minKnowledge": 2, "weight": 1 }
 ]

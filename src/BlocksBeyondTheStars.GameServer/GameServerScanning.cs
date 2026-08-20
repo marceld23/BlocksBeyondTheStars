@@ -186,9 +186,26 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId)
             || !_spaceInstances.TryGetValue(instanceId, out var instance)
             || instance.Entities.FirstOrDefault(e => e.Id == entityId) is not { } target
-            || target.Kind != CombatEntityKind.Asteroid)
+            || target.Kind is not (CombatEntityKind.Asteroid or CombatEntityKind.Anomaly))
         {
             return Rejected(session, entityId, "ui.scan.not_scannable", "Not a scannable object.");
+        }
+
+        // An anomaly (#1129): the scan is the whole encounter — knowledge once per save per player,
+        // and the archive opens one of its lore texts (deduped per player inside the reveal).
+        if (target.Kind == CombatEntityKind.Anomaly)
+        {
+            var anomalyReadout = new ScanReadout
+            {
+                Kind = "anomaly",
+                SubjectKey = "anomaly",
+                Display = target.Name,
+                InfoKey = "ui.scan.anomaly",
+                LegacyInfo = "Readings defy the catalogue — logged for the archive.",
+            };
+            var anomalyResult = Award(session, "anomaly:signature", anomalyReadout, KnowledgeAnomaly);
+            TryRevealLoreText(session, "anomaly");
+            return anomalyResult;
         }
 
         // Asteroids break down to mineral drops; report the resource types they ultimately yield.

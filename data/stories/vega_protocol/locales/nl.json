@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Genoteerd. Ik zal bellen. Ik doe altijd wat genoteerd is.",
   "chr.sel.n0.c_decline": "Ik ga waar het werk is, Sel.",
   "chr.sel.n0.r_decline": "Een variabel antwoord. Ik zal je loggen als 'weer'. Weer keert terug.",
-  "chr.sel.call": "Sel-9 hier. Zoals genoteerd: je was gelogd, nu ben je opgeroepen. De banen zijn rustiger waar jij vliegt. Ga door. Dat is alles."
+  "chr.sel.call": "Sel-9 hier. Zoals genoteerd: je was gelogd, nu ben je opgeroepen. De banen zijn rustiger waar jij vliegt. Ga door. Dat is alles.",
+  "lore.site.shrine_song": "De stenen zijn niet in een alfabet gehouwen dat het archief kent — maar ga er bij schemer tussen staan en de wind bespeelt ze als pijpen. Wie deze plaats oprichtte schreef hun verhaal niet. Ze stemden het af.",
+  "lore.site.shrine_keepers": "De wachters spreken niet over de bouwers. Op de vraag wie hier zingt wees een van hen alleen: naar de stenen, naar de hemel, en — na een lange pauze — naar jou.",
+  "lore.site.observatory_log": "Verkenningspost 9, laatste aantekening: “Koepel afgesloten tegen het stof. De hemel is drie nachten vreemd — de relais reageren door elkaar, alsof iets ertussen eerst luistert. Stuur het logboek naar huis zolang huis nog antwoordt.”",
+  "lore.site.derelict_manifest": "Vrachtlijst, met de hand gecorrigeerd: “Water, zaden, veertig passagiers.” Het veertig is doorgestreept. Daaronder, in kleinere letters: “Negenendertig. Ze bleef zodat het aantal pods klopte. Onthoud haar naam.”",
+  "lore.site.anomaly_echo": "De scan geeft je eigen ping terug — een halve seconde te vroeg. Het archief plaatst het onder ‘echo, onmogelijk’ en, in een oudere hand, ‘de hemel herinnert zich’.",
+  "lore.site.anomaly_choir": "Leg je lagen van het anomaliegeluid over elkaar en het lost op in stemmen — tientallen, allen die dezelfde cijfers voorlezen. Navigatiebakens. De anomalie heeft al die tijd de posities van de oude Dienst opgezegd, jarenlang, tegen niemand."
 }

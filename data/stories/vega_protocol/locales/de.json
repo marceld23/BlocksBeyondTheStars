@@ -121,5 +121,11 @@
   "chr.sel.n0.r_help": "Notiert. Ich werde rufen. Ich tue immer, was notiert ist.",
   "chr.sel.n0.c_decline": "Ich gehe dahin, wo die Arbeit ist, Sel.",
   "chr.sel.n0.r_decline": "Eine variable Antwort. Ich verzeichne dich als ‚Wetter'. Wetter kehrt zurück.",
-  "chr.sel.call": "Hier Sel-9. Wie notiert: Du wurdest verzeichnet, jetzt wirst du gerufen. Die Routen sind ruhiger, wo du fliegst. Weitermachen. Das ist alles."
+  "chr.sel.call": "Hier Sel-9. Wie notiert: Du wurdest verzeichnet, jetzt wirst du gerufen. Die Routen sind ruhiger, wo du fliegst. Weitermachen. Das ist alles.",
+  "lore.site.shrine_song": "Die Steine tragen kein Alphabet, das das Archiv kennt — aber stell dich in der Dämmerung zwischen sie, und der Wind spielt sie wie Pfeifen. Wer diesen Ort errichtet hat, hat seine Geschichte nicht aufgeschrieben. Er hat sie gestimmt.",
+  "lore.site.shrine_keepers": "Die Hüter sprechen nicht über die Erbauer. Auf die Frage, wer hier singt, zeigte einer von ihnen nur: auf die Steine, auf den Himmel und — nach einer langen Pause — auf dich.",
+  "lore.site.observatory_log": "Beobachtungsposten 9, letzter Eintrag: „Kuppel gegen den Staub versiegelt. Der Himmel ist seit drei Nächten falsch — die Relais antworten in falscher Reihenfolge, als würde etwas dazwischen zuerst zuhören. Sende das Protokoll nach Hause, solange Zuhause noch antwortet.“",
+  "lore.site.derelict_manifest": "Frachtmanifest, von Hand korrigiert: „Wasser, Saatgut, vierzig Passagiere.“ Die Vierzig ist durchgestrichen. Darunter, in kleinerer Schrift: „Neununddreißig. Sie ist geblieben, damit die Kapselzahl aufgeht. Merkt euch ihren Namen.“",
+  "lore.site.anomaly_echo": "Der Scan liefert dein eigenes Ping zurück — eine halbe Sekunde zu früh. Das Archiv legt es unter ‚Echo, unmöglich' ab und, in älterer Handschrift, unter ‚der Himmel erinnert sich'.",
+  "lore.site.anomaly_choir": "Überlagere das Rauschen der Anomalie, und es löst sich in Stimmen auf — Dutzende, alle lesen dieselben Zahlen. Navigationsbaken. Die Anomalie sagt seit Jahren die Positionen des alten Dienstes auf, für niemanden."
 }

@@ -244,6 +244,7 @@ public sealed partial class GameServer
         if (_playerStationCells.TryGetValue(station.Id, out var playerCells))
         {
             StampPlayerStation(station, playerCells); // item 20 S4: the player's own build is the interior
+            SpawnDerelictLoot(station); // #1129: "The Long Quiet" holds salvage on first boarding
         }
         else
         {

@@ -165,6 +165,17 @@
     }
   },
   {
+    "id": "mysteries",
+    "title": {
+      "en": "Mysteries of the Galaxy",
+      "de": "Rätsel der Galaxis"
+    },
+    "body": {
+      "en": "<p>Some places exist <b>only once</b> in the whole galaxy. Travellers speak of a <b>shrine that sings</b>, tended by quiet keepers; of a <b>sealed observatory</b> whose dome still watches a sky that went wrong; and of a drifting wreck the charts call <b>The Long Quiet</b>. Where they are, nobody writes down — but a <b>true friend</b> among the settlers or traders will tell you, and mark your map.</p><p>Space keeps its own surprises: now and then a <b>life pod</b> drifts through a system — fly close and you save whoever is inside (they will remember you). And sometimes the sensors catch an <b>anomaly</b> no catalogue explains: <b>scan</b> it, and the archive grows a little stranger.</p><p>None of it bites. Every mystery is safe to visit on every world setting — bring curiosity, not cannons.</p>",
+      "de": "<p>Manche Orte gibt es in der ganzen Galaxis <b>nur einmal</b>. Reisende erzählen von einem <b>Schrein, der singt</b>, behütet von stillen Wächtern; von einer <b>versiegelten Sternwarte</b>, deren Kuppel noch immer einen Himmel beobachtet, der falsch wurde; und von einem treibenden Wrack, das die Karten <b>The Long Quiet</b> nennen. Wo sie liegen, schreibt niemand auf — aber ein <b>echter Freund</b> unter den Siedlern oder Händlern verrät es dir und markiert deine Karte.</p><p>Auch das All hält Überraschungen bereit: Hin und wieder treibt eine <b>Rettungskapsel</b> durch ein System — flieg nah heran, und du rettest, wer darin sitzt (man wird sich an dich erinnern). Und manchmal fangen die Sensoren eine <b>Anomalie</b> ein, die kein Katalog erklärt: <b>Scanne</b> sie, und das Archiv wird ein Stück seltsamer.</p><p>Nichts davon beißt. Jedes Rätsel ist bei jeder Welteinstellung gefahrlos zu besuchen — bring Neugier mit, keine Kanonen.</p>"
+    }
+  },
+  {
     "id": "ruins-and-treasure",
     "title": {
       "en": "Ruins & Treasure",

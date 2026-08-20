@@ -50,6 +50,17 @@ public sealed partial class GameServer
             return string.Empty;
         }
 
+        // (c) The galaxy's legends (#1129) — a FRIEND shares where a one-of-a-kind place stands. Ahead of
+        // the chest so a trusted regular eventually hears the big stories, not only the local ones.
+        if (RelationshipTier(rel) == "trusted")
+        {
+            string site = TryEmitUniqueSiteHint(session);
+            if (!string.IsNullOrEmpty(site))
+            {
+                return site;
+            }
+        }
+
         StoredContainer? best = null;
         double bestSq = double.MaxValue;
         foreach (var cont in _containers)

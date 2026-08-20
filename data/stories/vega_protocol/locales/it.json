@@ -113,5 +113,11 @@
   "chr.sel.n0.r_help": "Annotato. Chiamerò. Faccio sempre ciò che è annotato.",
   "chr.sel.n0.c_decline": "Vado dove c'è lavoro, Sel.",
   "chr.sel.n0.r_decline": "Risposta variabile. Ti registrerò come 'meteo'. Il meteo ritorna.",
-  "chr.sel.call": "Sel-9 qui. Come annotato: eri registrato, ora sei convocato. Le rotte sono più tranquille dove voli. Continua. Questo è tutto."
+  "chr.sel.call": "Sel-9 qui. Come annotato: eri registrato, ora sei convocato. Le rotte sono più tranquille dove voli. Continua. Questo è tutto.",
+  "lore.site.shrine_song": "Le pietre sono intagliate in un alfabeto che l'archivio non conosce — ma stai tra loro al crepuscolo e il vento le suona come canne. Chi ha eretto questo luogo non ha scritto la sua storia. L'ha accordata.",
+  "lore.site.shrine_keepers": "I custodi non parlano dei costruttori. A chi chiese chi canta qui, uno di loro indicò soltanto: le pietre, il cielo e — dopo una lunga pausa — te.",
+  "lore.site.observatory_log": "Posto di osservazione 9, voce finale: “Cupola sigillata contro la polvere. Il cielo è sbagliato da tre notti — i relè rispondono fuori ordine, come se qualcosa tra loro ascoltasse prima. Inoltro il registro a casa finché casa risponde ancora.”",
+  "lore.site.derelict_manifest": "Manifesto del carico, corretto a mano: “Acqua, scorte di semi, quaranta passeggeri.” Il quarantuno è cancellato. Sotto, in scrittura più piccola: “Trentanove. È rimasta così che il conteggio delle navicelle funzionasse. Ricordati il suo nome.”",
+  "lore.site.anomaly_echo": "La scansione restituisce il tuo stesso ping — mezzo secondo in anticipo. L'archivio lo classifica sotto ‘eco, impossibile’ e, in una mano più vecchia, ‘il cielo conserva memoria’.",
+  "lore.site.anomaly_choir": "Sovrapponi il rumore dell'anomalia e si risolve in voci — dozzine, tutte a leggere gli stessi numeri. Bandiere di navigazione. L'anomalia stava recitando le posizioni del vecchio Servizio da sempre, a nessuno, per anni."
 }

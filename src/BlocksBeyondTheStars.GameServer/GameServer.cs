@@ -297,6 +297,7 @@ public sealed partial class GameServer
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
         RecomputeRelayLanes(); // #1125: jump lanes re-derive from the completed relays (never persisted)
+        RegisterUniqueDerelict(); // #1129: "The Long Quiet" — the galaxy's one boardable derelict (derived)
         LoadAllBases();       // restore player-founded planet bases (Grundstein) server-wide for the travel screen
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
@@ -619,6 +620,8 @@ public sealed partial class GameServer
                 {
                     StampChests(); // rare standalone treasure caches (0-N per body)
                 }
+
+                StampUniqueSites(); // #1129: this body may carry one of the galaxy's one-of-a-kind places
             }
         }
 

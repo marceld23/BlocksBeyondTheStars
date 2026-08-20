@@ -121,5 +121,11 @@
   "chr.sel.n0.r_help": "Noted. I will call. I always do what is noted.",
   "chr.sel.n0.c_decline": "I go where the work is, Sel.",
   "chr.sel.n0.r_decline": "A variable answer. I will log you as 'weather'. Weather returns.",
-  "chr.sel.call": "Sel-9 here. As noted: you were logged, now you are called. The lanes are quieter where you fly. Continue. That is all."
+  "chr.sel.call": "Sel-9 here. As noted: you were logged, now you are called. The lanes are quieter where you fly. Continue. That is all.",
+  "lore.site.shrine_song": "The stones are carved in no alphabet the archive knows — but stand between them at dusk and the wind plays them like pipes. Whoever raised this place did not write their story. They tuned it.",
+  "lore.site.shrine_keepers": "The keepers do not speak of the builders. Asked who sings here, one of them only pointed: at the stones, at the sky, and — after a long pause — at you.",
+  "lore.site.observatory_log": "Survey post 9, final entry: “Dome sealed against the dust. The sky has been wrong for three nights — the relays answer out of order, as if something between them is listening first. Sending the log home while home still answers.”",
+  "lore.site.derelict_manifest": "Cargo manifest, hand-corrected: “Water, seed-stock, forty passengers.” The forty is crossed out. Under it, in smaller writing: “Thirty-nine. She stayed so the pod count would work. Remember her name.”",
+  "lore.site.anomaly_echo": "The scan returns your own ping — half a second early. The archive files it under ‘echo, impossible’ and, in an older hand, ‘the sky remembers’.",
+  "lore.site.anomaly_choir": "Layer the anomaly's noise and it resolves into voices — dozens, all reading the same numbers. Navigation beacons. The anomaly has been reciting the old Service's positions all along, to no one, for years."
 }

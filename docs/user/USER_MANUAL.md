@@ -644,6 +644,17 @@ separate unlock; admins can still disable it through server world rules.
   yours to build with), and what you clear stays cleared. Roughly one in three hides a small
   **relic cache** nearby.
 
+### Mysteries: one-of-a-kind places & space surprises
+- Three places exist **exactly once per galaxy**: the **Singing Shrine** (a ring of rune pillars with
+  quiet keepers living around it), the **Sealed Observatory** (a glass dome of the old Service), and
+  **The Long Quiet** — a named derelict drifting in one system's space, boardable like any station and
+  full of salvage and its ship's manifest. Where they stand, only a **Friend**-tier NPC will tell you
+  (and mark your map); the derelict shows on the star map of its system.
+- Space holds two friendly surprises: a **life pod** sometimes drifts through a system — **fly close**
+  and you rescue the survivor (a small thank-you, a new person in *People you know*, and a radio call
+  later) — and an **anomaly** no catalogue explains: **scan** it for knowledge and a field record.
+- Everything in this section is peaceful and appears under every preset — nothing here fights back.
+
 ### Bandits (robbers, camps, pirate space)
 - Bandits are **people**, not machines: you can tell one by the cloth mask over the nose and mouth
   and the scruffy jacket — not by glowing eyes, which belong to the Guardian robots.

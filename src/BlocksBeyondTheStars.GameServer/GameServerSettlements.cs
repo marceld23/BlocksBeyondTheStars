@@ -195,6 +195,8 @@ public sealed partial class GameServer
             }
         }
 
+        AppendUniqueSitePois(session, pois); // #1129: this world's one-of-a-kind place, once shared
+
         return pois;
     }
 
