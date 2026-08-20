@@ -105,6 +105,29 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Coloured glass & tinted lamps — the tintable set opens up (#1126, 2026-08-20, branch feat/progression-pr12-tinted-glass)
+PR 12 of the progression package (epic #1101), B4. The audit: `TintableDefaults` covered ~21 plain solids;
+glass, lights and doors were excluded, so builds read grey/metal and coloured light needed the crystal Glow
+craft even on actual lamps. Now **glass + all light fixtures opt in via `"tintable": true` in blocks.json**
+(torch, lantern, light_white/red/green, strip_light_cyan/warm) — the JSON opt-in deliberately does NOT join
+the shapeable set (shaped glass would need a transparent shaped mesh). NO packed-vertex change (#972-safe):
+the tint mode (TEXCOORD1.y) + RGB (TEXCOORD2.yzw) already ride every vertex, and `floraFlag = dyed ? 3 : …`
+gives dyed opaque blocks mode 3 automatically. What actually changed: (1) **transparent shader** — the glass
+branch (`tex.a ≥ 0.95`, exclusive to glass/energy-fields, so water is untouchable) now reads TEXCOORD2.yzw
+as the dye and applies the mode-3 luminance recolour at 0.75 strength so the frost survives; URP + Built-in
+both. (2) **Torch/lantern** — the cross-prop call swaps mode 7 (flame flicker, no tint) for mode 3 + the
+cell's dye when dyed: a coloured flame. (3) **Tinted lamp light** — `ClientWorld` light-source priority is
+now glow > dye-on-a-light-source > natural colour, in BOTH registry paths (live edit + chunk-store scan);
+a dye on a non-source block never becomes a lamp. Lantern (emission 0.8 < the 0.85 source threshold) dyes
+visually but still casts no light — by design. **Doors deferred**: they are animated ENTITIES (their cell
+stays air; `HandlePlace` returns before tint stamping), so door dye needs a StoredDoor schema change in all
+3 repos + a NetDoor wire field + DoorView rendering — own follow-up, and #1126's acceptance only names
+glass + lamps. Wiki: NEW Codex article "colours" (EN+DE); manual §Colour updated. Tests: 5 server
+(`TintedBlocksTests` — flags, no shapeable leak, dyed-glass craft, glow costs a crystal, doors still
+refuse) + 5 client (`TintedLampLightTests` — dye colour cast, natural kept, glow beats dye, non-source
+never lamps, bulk-scan path). Gotcha: blocks.json is JSONC (// comments) — plain json.load fails, validate
+via the real ContentLoader.
+
 ### ★ The relay network closes the loop — growth hook, traders, insights, lane display (#1125 F-2, 2026-08-20, branch feat/progression-pr11-relay-client)
 PR 11 of the progression package (epic #1101), Track F part 2 — the loop the epilogue promises is now real.
 The audit after F-1: lanes carried jumps but changed nothing else — no growth, no world reaction, and the

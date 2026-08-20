@@ -175,7 +175,11 @@ namespace BlocksBeyondTheStars.Client
             chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
             chunk.SetShape(local.X, local.Y, local.Z, shape);
 
-            int rgb = glow != 0 ? glow : (block != BlockId.AirValue && _blockLightColor != null ? _blockLightColor(block) : 0);
+            // Light colour priority (#1126): an explicit glow always wins; otherwise a block that IS a light
+            // source (base colour non-zero) casts its DYE colour when dyed — a red-dyed lamp floods red — and
+            // its natural colour when plain. A dye on a non-source block never turns it into a lamp.
+            int baseRgb = block != BlockId.AirValue && _blockLightColor != null ? _blockLightColor(block) : 0;
+            int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
             if (rgb != 0)
             {
                 _lightSources[pos] = rgb;
@@ -243,8 +247,10 @@ namespace BlocksBeyondTheStars.Client
                         int rgb = 0;
                         if (!id.IsAir)
                         {
-                            var (_, glow) = chunk.GetModifier(x, y, z);
-                            rgb = glow != 0 ? glow : (_blockLightColor != null ? _blockLightColor(id.Value) : 0);
+                            // Same priority as ApplyBlockChange (#1126): glow > dye-on-a-light-source > natural.
+                            var (tint, glow) = chunk.GetModifier(x, y, z);
+                            int baseRgb = _blockLightColor != null ? _blockLightColor(id.Value) : 0;
+                            rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
                         }
 
                         if (rgb != 0)

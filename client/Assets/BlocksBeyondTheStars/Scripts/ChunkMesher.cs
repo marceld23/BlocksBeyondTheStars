@@ -531,10 +531,14 @@ namespace BlocksBeyondTheStars.Client
                         plantJitter = Vector2.zero;
                         plantSpin = 0f;
                     }
+                    // A DYED torch/lantern (#1126) switches from the flame-flicker mode (7, which takes no
+                    // tint) to the player-dye recolour (3) carrying the cell's dye — the flame pixels tint
+                    // with the body, which reads as a coloured flame. Undyed props keep the classic flicker.
                     AddCrossPlant(verts, tris, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        new Vector3(x, y, z), plantCol, uv, plantSky, speciesTint, plantBl, plantBlDir, plantLean,
+                        new Vector3(x, y, z), plantCol, uv, plantSky, isTorchProp && dyed ? dye : speciesTint,
+                        plantBl, plantBlDir, plantLean,
                         plantJitter, plantSpin, plantH, plantW,
-                        isTorchProp ? 7f : 1f); // 7 = flame flicker (and no flora tint); 1 = flora
+                        isTorchProp ? (dyed ? 3f : 7f) : 1f); // 7 = flame flicker (no tint); 3 = dye; 1 = flora
                     continue;
                 }
 

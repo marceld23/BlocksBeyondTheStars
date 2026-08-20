@@ -279,6 +279,16 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     col = lerp(col + light * 0.16, col, isField);      // a soft white frost on glass only
                     alpha = lerp(0.72, _BaseAlpha, isField);           // milky glass vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
+
+                    // Dyed glass (#1126): only non-water faces reach this branch, and for those the mesher
+                    // writes the cell's dye into TEXCOORD2.yzw (zero when undyed — fields/water never dye).
+                    // The opaque shader's luminance recolour (mode 3), slightly gentler so the frost survives.
+                    float3 dyeT = i.water.yzw;
+                    if (dot(dyeT, float3(1.0, 1.0, 1.0)) > 0.01)
+                    {
+                        float glum = dot(col, float3(0.299, 0.587, 0.114));
+                        col = lerp(col, glum * dyeT * 1.6, 0.75);
+                    }
                 }
 
                 half4 outc = half4(col, alpha);
@@ -442,6 +452,15 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     col = lerp(col + light * 0.16, col, isField);      // a soft white frost on glass only
                     alpha = lerp(0.72, _BaseAlpha, isField);           // milky glass vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
+
+                    // Dyed glass (#1126): mirrors the URP pass — dye from TEXCOORD2.yzw, gentle luminance
+                    // recolour so the frosted look survives (zero for undyed glass, fields and water).
+                    fixed3 dyeT = i.water.yzw;
+                    if (dot(dyeT, fixed3(1.0, 1.0, 1.0)) > 0.01)
+                    {
+                        float glum = dot(col, fixed3(0.299, 0.587, 0.114));
+                        col = lerp(col, glum * dyeT * 1.6, 0.75);
+                    }
                 }
 
                 fixed4 outc = fixed4(col, alpha);

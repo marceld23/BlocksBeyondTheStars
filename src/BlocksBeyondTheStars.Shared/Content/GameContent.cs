@@ -287,9 +287,11 @@ public sealed class GameContent
 
     /// <summary>
     /// Curated building/terrain materials that the always-available Dye/Glow action may recolour. Machines,
-    /// doors, glass/ice/fluids, flora, light fixtures, ores and special blocks are deliberately excluded
-    /// (they carry their own optics/logic). A block may also opt in explicitly via <c>tintable</c> in JSON;
-    /// this only ADDS the curated defaults. Applied here so client and server derive the identical set.
+    /// doors, ice/fluids, flora, ores and special blocks are deliberately excluded (they carry their own
+    /// optics/logic). A block may also opt in explicitly via <c>tintable</c> in JSON; this only ADDS to the
+    /// curated defaults — glass and the light fixtures opt in that way (#1126: coloured glass + tinted
+    /// lamps), which makes them dyeable WITHOUT joining the shapeable set below (shaped glass would need a
+    /// transparent shaped mesh). Applied here so client and server derive the identical set.
     /// </summary>
     private static readonly HashSet<string> TintableDefaults = new(StringComparer.Ordinal)
     {
