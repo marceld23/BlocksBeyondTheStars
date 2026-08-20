@@ -505,7 +505,10 @@ separate unlock; admins can still disable it through server world rules.
   Stellar Positioning Service — select it on **Tab → Map** and **deliver** the bill of materials in person
   (bulk metal plates, circuit boards, reactor fuel from the refinery). The meter is shared: friends can chip
   in. Two finished relays in **neighbouring systems** form a **jump lane** — hyperjumps between those two
-  systems need **no jump generator**. The Codex article *SPS Relays* has the full picture.
+  systems need **no jump generator**; lane routes carry a **⇄** mark on the Map. The network changes the
+  world: relay systems **draw traders**, and on a *Growing* world a lane into one of the outermost systems
+  **grows the galaxy** beyond it. VEGA comments each first — relay, lane, growth — in the Story Log. The
+  Codex article *SPS Relays* has the full picture.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
 

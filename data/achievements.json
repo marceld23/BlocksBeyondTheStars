@@ -14,6 +14,7 @@
   { "key": "shipwright",     "counter": "ship:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "titanium_plate", "count": 8 } ] },
   { "key": "station_master", "counter": "station:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "circuit_board", "count": 4 } ] },
   { "key": "relay_engineer", "counter": "relay:commissioned", "target": 1, "category": "building", "rewards": [ { "item": "reactor_fuel", "count": 2 } ] },
+  { "key": "network_weaver", "counter": "lane:linked", "target": 1, "category": "building", "rewards": [ { "item": "circuit_board", "count": 6 } ] },
 
   { "key": "first_craft",    "counter": "craft:any",       "target": 1,   "category": "crafting", "rewards": [] },
   { "key": "crafter_50",     "counter": "craft:any",       "target": 50,  "category": "crafting", "rewards": [ { "item": "circuit_board", "count": 2 } ] },

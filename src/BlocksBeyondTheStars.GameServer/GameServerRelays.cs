@@ -25,6 +25,24 @@ public sealed partial class GameServer
     /// start (after stations + galaxy load) and whenever a relay completes.</summary>
     private readonly List<(string A, string B)> _relayLanes = new();
 
+    /// <summary>Systems holding a completed relay (F-2 world effect): a relay draws traders — the ambient
+    /// traffic level reads one step busier there. Derived alongside the lanes, never persisted.</summary>
+    private readonly HashSet<string> _relaySystems = new();
+
+    /// <summary>Speaks one of VEGA's relay-network insights (F-2) exactly once per save — the epilogue's
+    /// promise made audible as each stage of the rebuild actually happens. The once-guard persists in
+    /// <see cref="WorldMetadata.RelayInsights"/> (the caller saves metadata); kind 2 lands in the story log.</summary>
+    private void SpeakRelayInsightOnce(string stage, string textKey)
+    {
+        if (_meta.RelayInsights.Contains(stage))
+        {
+            return;
+        }
+
+        _meta.RelayInsights.Add(stage);
+        SpeakVegaLineToAll(textKey);
+    }
+
     /// <summary>The relay meter for a station, creating the record on first touch (additive metadata).</summary>
     private RelayStationRecord RelayRecordFor(string stationId)
     {
@@ -157,7 +175,9 @@ public sealed partial class GameServer
                 });
             }
 
-            RecomputeRelayLanes(announce: true);
+            SpeakRelayInsightOnce("relay", "vega.relay.first");
+            RecomputeRelayLanes(announce: true, source: session);
+            _repo.SaveMetadata(_meta); // the insight/lane once-guards changed above — persist them too
             _log.Info($"Station '{station.Name}' ({station.Id}) is now an SPS relay.");
         }
         else
@@ -175,11 +195,14 @@ public sealed partial class GameServer
 
     /// <summary>Re-derives the jump lanes from the completed relays' systems: every unordered pair of
     /// distinct relay systems within the definition's link range is a lane. With <paramref name="announce"/>
-    /// each NEWLY formed lane is broadcast (and the save's first lane advances the arc).</summary>
-    private void RecomputeRelayLanes(bool announce = false)
+    /// each NEWLY formed lane is broadcast (and the save's first lane advances the arc); a new lane also
+    /// pushes the frontier (F-2): a lane INTO an edge system grows the galaxy there, credited to
+    /// <paramref name="source"/> (the contributor who completed the relay).</summary>
+    private void RecomputeRelayLanes(bool announce = false, PlayerSession? source = null)
     {
         var before = announce ? new HashSet<(string, string)>(_relayLanes) : null;
         _relayLanes.Clear();
+        _relaySystems.Clear();
 
         var def = _content.Relay;
         if (def is null || _galaxy is null)
@@ -217,6 +240,11 @@ public sealed partial class GameServer
             }
         }
 
+        foreach (var sys in systems)
+        {
+            _relaySystems.Add(sys!.Id); // relay systems read one traffic level busier (world effect)
+        }
+
         if (before is null)
         {
             return;
@@ -225,6 +253,12 @@ public sealed partial class GameServer
         foreach (var lane in _relayLanes.Where(l => !before.Contains(l)))
         {
             RecordStoryMilestone("relay:lane"); // the save's FIRST lane advances the arc (once-key dedupes)
+            SpeakRelayInsightOnce("lane", "vega.relay.lane");
+            if (source is not null)
+            {
+                OnAchievementLaneLinked(source); // "Network Weaver" — credited to the completing contributor
+            }
+
             string nameA = _galaxy.Systems.FirstOrDefault(s => s.Id == lane.A)?.Name ?? lane.A;
             string nameB = _galaxy.Systems.FirstOrDefault(s => s.Id == lane.B)?.Name ?? lane.B;
             foreach (var s in _sessions.Values.Where(x => x.Joined))
@@ -236,6 +270,20 @@ public sealed partial class GameServer
             }
 
             _log.Info($"Jump lane established: {lane.A} <-> {lane.B}.");
+
+            // F-2: the network pushes the frontier — a lane INTO an edge system grows the galaxy there.
+            // MaybeGrowGalaxy self-guards (GalaxyGrowth option, edge check, soft cap), and a lane forms
+            // exactly once per pair, so this is a genuine "newly happened" trigger like the travel funnels.
+            if (source is not null)
+            {
+                int beforeGrowth = _galaxy.Systems.Count;
+                MaybeGrowGalaxy(source, lane.A);
+                MaybeGrowGalaxy(source, lane.B);
+                if (_galaxy.Systems.Count > beforeGrowth)
+                {
+                    SpeakRelayInsightOnce("growth", "vega.relay.growth");
+                }
+            }
         }
     }
 

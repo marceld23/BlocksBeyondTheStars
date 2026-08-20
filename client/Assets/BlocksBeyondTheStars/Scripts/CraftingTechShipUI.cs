@@ -666,7 +666,37 @@ namespace BlocksBeyondTheStars.Client
             string name = Game.KnowsSystem(sys.Id) || sys.Id == CurrentSystemId() || HasRadarArray()
                 ? sys.Name
                 : L("ui.map.system_unknown");
-            return sys.Tier >= 2 ? $"{name} · {L("ui.map.frontier")}" : name;
+            if (sys.Tier >= 2)
+            {
+                name = $"{name} · {L("ui.map.frontier")}";
+            }
+
+            // A jump lane to the CURRENT system (#1125 F-2): worth telegraphing wherever the name shows —
+            // this destination is one generator-less hop away on the relay network.
+            return HasClientLane(CurrentSystemId(), sys.Id) ? name + " ⇄" : name;
+        }
+
+        /// <summary>Whether the relay network links these two systems with a jump lane (server-reported,
+        /// unordered). False until the join snapshot arrives or when relays are absent from the data.</summary>
+        private bool HasClientLane(string systemA, string systemB)
+        {
+            var net = Game?.RelayNetwork;
+            if (net?.LaneSystemA == null || net.LaneSystemB == null
+                || string.IsNullOrEmpty(systemA) || string.IsNullOrEmpty(systemB) || systemA == systemB)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < net.LaneSystemA.Length && i < net.LaneSystemB.Length; i++)
+            {
+                if ((net.LaneSystemA[i] == systemA && net.LaneSystemB[i] == systemB)
+                    || (net.LaneSystemA[i] == systemB && net.LaneSystemB[i] == systemA))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>True when the active ship carries a radar_array module (server-reported fit).</summary>
@@ -746,7 +776,7 @@ namespace BlocksBeyondTheStars.Client
                             foreach (var sys in distant)
                             {
                                 string label = Game.KnowsSystem(sys.Id)
-                                    ? "★ " + sys.Name
+                                    ? "★ " + sys.Name + (HasClientLane(curId, sys.Id) ? " ⇄" : string.Empty)
                                     : SystemDisplayName(sys) + "  ·  " + L("ui.map.unexplored");
                                 list.Add(("sys:" + sys.Name, label, "cat_planet"));
                             }
@@ -1489,6 +1519,12 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 y += 76f;
+                if (HasClientLane(CurrentSystemId(), sys.Id))
+                {
+                    UiKit.AddText(_listContent, 8, y, 760, 24, "⇄ " + L("ui.map.lane_hint"), 16, UiKit.Cyan, TextAnchor.UpperLeft);
+                    y += 30f;
+                }
+
                 return y;
             }
 
@@ -3635,7 +3671,11 @@ namespace BlocksBeyondTheStars.Client
                 y += 64f;
                 if (crossSystem)
                 {
-                    UiKit.AddText(_detail, 8, y, 620, 24, L("ui.map.hyperjump_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    // A relay jump lane waives the generator (#1125 F-2) — say so instead of demanding one.
+                    bool lane = destSystem != null && HasClientLane(CurrentSystemId(), destSystem.Id);
+                    UiKit.AddText(_detail, 8, y, 620, 24,
+                        lane ? "⇄ " + L("ui.map.lane_hint") : L("ui.map.hyperjump_hint"),
+                        16, lane ? UiKit.Cyan : UiKit.CyanDim, TextAnchor.UpperLeft);
                     y += 30f;
                 }
             }

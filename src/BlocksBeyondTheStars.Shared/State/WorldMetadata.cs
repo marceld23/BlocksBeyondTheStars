@@ -82,6 +82,12 @@ public sealed class WorldMetadata
     public System.Collections.Generic.Dictionary<string, string> BodyPlanetTypes { get; set; } = new();
 
     /// <summary>
+    /// VEGA's relay-network insight stages already spoken ("relay" / "lane" / "growth", F-2 of #1125) —
+    /// each epilogue insight plays exactly once per save. Additive JSON field, no migration.
+    /// </summary>
+    public System.Collections.Generic.List<string> RelayInsights { get; set; } = new();
+
+    /// <summary>
     /// Growing galaxy (#1123): how many systems were appended BEYOND the description's
     /// <c>StarSystemCount</c> by frontier jumps. The galaxy is re-derived from the seed on every start,
     /// so persisting the COUNT is enough — system N is a pure function of (seed, N), and regenerating

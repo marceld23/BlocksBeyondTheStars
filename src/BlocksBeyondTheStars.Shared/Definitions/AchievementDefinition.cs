@@ -103,4 +103,7 @@ public static class AchievementCounters
 
     /// <summary>A player station converted into an SPS relay (#1125) — counted for the completing contributor.</summary>
     public const string RelayCommissioned = "relay:commissioned";
+
+    /// <summary>Two relays linked into a jump lane (#1125 F-2) — counted for the completing contributor.</summary>
+    public const string LaneLinked = "lane:linked";
 }

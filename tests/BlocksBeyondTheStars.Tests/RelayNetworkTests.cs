@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -328,6 +329,139 @@ public sealed class RelayNetworkTests : IDisposable
             CompleteRelayFree(s2, two, stationB, _content);
             Assert.True(s2.RelayCompletedForTest(stationB));
             Assert.True(s2.HasJumpLaneForTest(sysAId, sysBId));
+        }
+    }
+
+    // ---------------- F-2: world effect, growth hook, epilogue insights ----------------
+
+    private SvGameServer NewServer(string name, long seed, bool galaxyGrowth, out SqliteWorldRepository repo)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = name, Seed = seed, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        config.Rules.FreeSpaceFlight = true;
+        config.World.GalaxyGrowth = galaxyGrowth;
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        return server;
+    }
+
+    private static int TrafficRank(string level) => level switch { "None" => 0, "Rare" => 1, _ => 2 };
+
+    [Fact]
+    public void CompletedRelay_LiftsAmbientTraderTraffic_OneLevel()
+    {
+        var server = NewServer("relay_traffic", out var repo);
+        using (repo)
+        {
+            var (sysA, _) = NearestSystemPair(server);
+            string before = server.TrafficLevelForTest(sysA.Id);
+
+            var one = server.AddLocalPlayer("One");
+            TravelTo(server, one, LandableBodyOf(sysA).Id);
+            string station = BuildCommissionedStation(server, one);
+            CompleteRelayFree(server, one, station, _content);
+
+            string after = server.TrafficLevelForTest(sysA.Id);
+            Assert.NotEqual("None", after); // a relay system always sees at least the odd freighter
+            Assert.Equal(before == "Often" ? 2 : TrafficRank(before) + 1, TrafficRank(after));
+        }
+    }
+
+    [Fact]
+    public void LaneIntoAnEdgeSystem_GrowsTheGalaxy_AndSpeaksTheGrowthInsight()
+    {
+        // Find a seed whose galaxy has an EDGE system with a neighbour inside the lane link range — the
+        // scan is deterministic, so whichever seed qualifies first always qualifies.
+        float range = _content.Relay!.LinkRange;
+        for (long seed = 1; seed <= 10; seed++)
+        {
+            var server = NewServer("relay_grow_" + seed, seed, galaxyGrowth: true, out var repo);
+            using (repo)
+            {
+                // Join BOTH pilots before scanning for an edge pair: joining marks the start system known,
+                // which can itself grow the galaxy (the start body's system needn't be "sys0"-home) — and
+                // every growth moves the rim. Scanning afterwards sees the settled edge.
+                var one = server.AddLocalPlayer("One");
+                var two = server.AddLocalPlayer("Two");
+                var systems = server.Galaxy.Systems.Where(s => s.Id.StartsWith("sys", StringComparison.Ordinal)).ToList();
+                StarSystem? edge = null, partner = null;
+                foreach (var e in systems.Where(s => server.IsEdgeSystemForTest(s.Id)))
+                {
+                    foreach (var p in systems.Where(s => s.Id != e.Id))
+                    {
+                        float dx = e.MapX - p.MapX, dy = e.MapY - p.MapY;
+                        if (dx * dx + dy * dy <= range * range)
+                        {
+                            edge = e;
+                            partner = p;
+                            break;
+                        }
+                    }
+
+                    if (edge != null) break;
+                }
+
+                if (edge == null)
+                {
+                    continue; // this seed's rim is lonely — try the next one
+                }
+
+                // Pre-mark both destination systems known: the travel funnels then skip their own growth
+                // trigger ("newly known"), so any growth below is attributable to the LANE hook alone.
+                one.State.KnownSystems.Add(partner!.Id);
+                TravelTo(server, one, LandableBodyOf(partner).Id);
+                CompleteRelayFree(server, one, BuildCommissionedStation(server, one), _content);
+
+                two.State.KnownSystems.Add(edge.Id);
+                TravelTo(server, two, LandableBodyOf(edge).Id);
+                string stationB = BuildCommissionedStation(server, two);
+
+                int before = server.Galaxy.Systems.Count;
+                CompleteRelayFree(server, two, stationB, _content);
+
+                Assert.True(server.HasJumpLaneForTest(edge.Id, partner.Id));
+                Assert.True(server.Galaxy.Systems.Count > before, "a lane into the rim must grow the galaxy");
+                Assert.True(server.Metadata.GalaxyGrownSystems >= 1);
+                Assert.Contains("growth", server.Metadata.RelayInsights);
+                return;
+            }
+        }
+
+        Assert.Fail("no seed in 1..10 offers an edge system within lane range — loosen the scan");
+    }
+
+    [Fact]
+    public void RelayInsights_SpeakOncePerSave_AndTheirKeysResolve()
+    {
+        var server = NewServer("relay_insights", out var repo);
+        using (repo)
+        {
+            var (sysA, sysB) = NearestSystemPair(server);
+
+            var one = server.AddLocalPlayer("One");
+            TravelTo(server, one, LandableBodyOf(sysA).Id);
+            CompleteRelayFree(server, one, BuildCommissionedStation(server, one), _content);
+            Assert.Equal(new[] { "relay" }, server.Metadata.RelayInsights);
+
+            // The second relay forms the first lane: ONE lane insight, and the lane achievement lands on
+            // the completing contributor. The relay insight is not spoken a second time.
+            var two = server.AddLocalPlayer("Two");
+            TravelTo(server, two, LandableBodyOf(sysB).Id);
+            CompleteRelayFree(server, two, BuildCommissionedStation(server, two), _content);
+            Assert.Equal(1, server.Metadata.RelayInsights.Count(s => s == "relay"));
+            Assert.Equal(1, server.Metadata.RelayInsights.Count(s => s == "lane"));
+            Assert.True(two.State.AchievementCounters.TryGetValue("lane:linked", out int n) && n == 1);
+
+            // The insight lines actually localize — EN and DE both carry the keys.
+            foreach (var locale in new[] { GameLocale.English, GameLocale.German })
+            {
+                var loc = _content.CreateLocalizer(locale);
+                foreach (var key in new[] { "vega.relay.first", "vega.relay.lane", "vega.relay.growth" })
+                {
+                    Assert.False(loc.Get(key).StartsWith("[", StringComparison.Ordinal), key + " must resolve in " + locale);
+                }
+            }
         }
     }
 

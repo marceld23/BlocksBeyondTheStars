@@ -130,8 +130,20 @@ public sealed partial class GameServer
 
     /// <summary>Deterministic ambient-traffic level for a star system (None / Rare / Often) — stable from the
     /// world seed + system id, so no persistence is needed and a given save always feels the same. Systems
-    /// with a station are trade hubs and lean busier.</summary>
+    /// with a station are trade hubs and lean busier. A completed SPS relay (#1125 F-2) lifts the ambient
+    /// level one step — the network draws traders, the promised world effect of rebuilding it.</summary>
     private TraderTraffic TrafficFor(string systemId)
+    {
+        var ambient = AmbientTrafficFor(systemId);
+        if (ambient != TraderTraffic.Often && _relaySystems.Contains(systemId))
+        {
+            return ambient == TraderTraffic.None ? TraderTraffic.Rare : TraderTraffic.Often;
+        }
+
+        return ambient;
+    }
+
+    private TraderTraffic AmbientTrafficFor(string systemId)
     {
         if (string.IsNullOrEmpty(systemId))
         {

@@ -105,6 +105,25 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ The relay network closes the loop — growth hook, traders, insights, lane display (#1125 F-2, 2026-08-20, branch feat/progression-pr11-relay-client)
+PR 11 of the progression package (epic #1101), Track F part 2 — the loop the epilogue promises is now real.
+The audit after F-1: lanes carried jumps but changed nothing else — no growth, no world reaction, and the
+map didn't show them. Now: (1) **growth hook** — each NEWLY formed lane runs `MaybeGrowGalaxy` for both
+endpoints (self-guarding: GalaxyGrowth option, edge check, soft cap; a lane forms exactly once per pair, so
+it is a genuine "newly happened" trigger like the travel funnels). (2) **World effect** — `TrafficFor` lifts
+a completed-relay system's ambient trader traffic one level (None→Rare→Often, tracked in the lane-derived
+`_relaySystems` set, never persisted). (3) **Epilogue insights** — VEGA speaks once per save at each stage
+(`vega.relay.first`/`lane`/`growth`, kind 2 → Story Log), once-guards in the additive
+`WorldMetadata.RelayInsights` list. (4) **Map display** — lane routes carry a ⇄ tag (`SystemDisplayName`,
+sidebar Hyperspace list) and the cross-system hint swaps to `ui.map.lane_hint` ("no jump generator needed");
+same on the unknown-system hyperjump button. Plus `network_weaver` achievement on the new `lane:linked`
+counter (credited to the completing contributor), wiki article "relays" extended (traders + growth + ⇄),
+14 locales. Tests: 3 new in `RelayNetworkTests` (traffic bump, lane-into-edge grows + speaks the growth
+insight, insights once-per-save + keys resolve EN/DE + lane achievement). Gotchas: the growth test must
+create its players BEFORE scanning for an edge pair (joining marks the START system known — which needn't
+be sys0-home and can itself grow the galaxy, moving the rim) and pre-mark destination systems known so the
+travel funnels don't fire growth before the lane does.
+
 ### ★ SPS relays & jump lanes — the late-game goal begins (#1125, 2026-08-19, branch feat/progression-pr10-relays)
 PR 10 of the progression package (epic #1101), Track F part 1 (F-2/#1126 adds the growth hook + star-map
 rendering + epilogue insights). The audit: nothing sat behind the last blueprint, the H2 ore chain had no

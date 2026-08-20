@@ -184,6 +184,8 @@ public sealed partial class GameServer
 
     private void OnAchievementRelayCommissioned(PlayerSession session) => Advance(session, AchievementCounters.RelayCommissioned);
 
+    private void OnAchievementLaneLinked(PlayerSession session) => Advance(session, AchievementCounters.LaneLinked);
+
     // --- Test entrypoints -----------------------------------------------------------------------------
 
     /// <summary>Re-checks and pays out anything due (the join path), for tests.</summary>
