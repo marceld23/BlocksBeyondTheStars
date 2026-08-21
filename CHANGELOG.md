@@ -13,6 +13,146 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.18] — 2026-08-21
+
+The constellation release — and the biggest one yet. One question drove it: *what keeps you playing
+after hour five?* The whole progression epic (#1101, 28 issues, 14 feature PRs plus two audit
+rounds) ships at once. Builders get missions, whole-build share codes and coloured light; explorers
+get a map that remembers, a frontier that pays and three one-of-a-kind places; story players get
+fragments they can actually find, characters who talk back, and an **ending**. And past the ending,
+the relay network opens the true late game: convert your stations into relays, span jump lanes,
+and watch the galaxy grow at the edge because *you* linked it.
+
+**Protocol stays 3**, but this release adds seventeen new network messages (210–226: story
+objectives, explored map, share codes, relationships, story resolution, relay network, dialogues)
+— hosts and players should update **client and server together**. Saves are fully compatible: all
+new state is additive, and placed structures now *pin* their template so existing worlds never
+change shape under you.
+
+### 🏆 Progress you can see (#1102, #1103, #1104, #1105)
+
+- Late-game achievements join the tab, progress figures show how far along you actually are
+  (tech %, journey stats), and the last knowledge faucets are wired up so every activity pays
+  somewhere. Story beats award their bonus knowledge exactly once per save, tracked as milestones.
+  (PR #1130)
+
+### ⚗️ Every material earns its keep (#1106, #1107, #1108)
+
+- **Reactor fuel is a build cost** of the big end-game builds — Thunderbolt (2), Hammerhead (3),
+  Deathblock (4), the second laser cannon and the jump generator — so the reactor loop matters
+  beyond the first fill. Every metal now has at least three uses (ten new recipes), and the
+  fourteen prettiest interior-decor blocks (lights, strip lights, panels, machine blocks…) are
+  finally craftable instead of admin-only. (PR #1131)
+
+### 📖 The story lets itself be found (#1109, #1110, #1111, #1112)
+
+- Story fragments now spawn inside structures with a **pity budget** — a dry streak raises the odds,
+  so the six "pure luck" fragments are gone. A story objective chip on the HUD plus a proper story
+  reader show where you stand; 26 environmental lore texts give runes, wrecks and ruins something
+  to say; and NPCs carry story threads into their chatter. (PR #1132)
+
+### 🗺️ The map remembers (#1113, #1114)
+
+- Explored-map fog is **persisted per player**; star systems you have not visited show as
+  *Unknown system* until you enter them (or build a radar array). Discovering a named place pays
+  5 knowledge through the new Codex "Places" page. Space stations are back to normal frequency in
+  new worlds, with opt-out toggles on the structures page. (PR #1133)
+
+### 🔨 Builder goals (#1116, #1117)
+
+- Settlement mission boards now post **Build missions** — build N lights, N blocks in your own base,
+  or a specific block. And builds are shareable: the new **blueprint tool** copies a build into a
+  share code you can paste anywhere (chat included); pasting validates every cell like hand
+  placement, so no code smuggles blocks you could not place yourself. (PR #1134)
+
+### 🧑‍🚀 Living NPCs (#1118, #1119, #1120)
+
+- NPCs have identity and **relationship stages** — trade with the same vendor and they greet you as
+  a regular. NPCs now **call you on the radio** ("📻 Name (Ort)"): missions, camp hints, story
+  rumours, with a settings preference and a mission-tab section for active calls. And the world
+  notices your base: three machine blocks attract settlers, traders prefer worlds where players
+  actually live. (PRs #1135, #1157, #1163)
+
+### 🎭 Per-player game mode (#1121)
+
+- Survival and creative can mix in one world: the host plays survival while a kid plays creative.
+  `/mode <player> survival|creative|world` (moderator-gated), the settings tab shows the roster to
+  admins, and every rule the server answers is the *effective* mode of whoever is asking. (PR #1136)
+
+### 💎 The frontier pays (#1122, #1123)
+
+- The galaxy has **distance tiers** now: the further a system is from home, the richer its rare
+  ores (up to ×1.6), plus an extra vault and monument out there. And with the new **Growing
+  galaxy** world option, reaching the known edge makes new systems appear beyond it — the map
+  is no longer finite. (PR #1138)
+
+### 🎬 The ending (#1124)
+
+- Finish the story and it actually *ends*: a resolution cinematic, a credits roll, and an epilogue
+  that hands the galaxy over to the relay network. Joins catch up exactly once per save (old saves
+  included), and the Story tab lets you watch the ending again. (PR #1139)
+
+### 📡 The relay network — the loop closes (#1125)
+
+- Any commissioned player station can be converted into an **SPS relay** — expensive (titanium,
+  circuit boards, reactor fuel) and built co-op, with personal contributions counted. Two finished
+  relays in range span a **jump lane**: jumps along it need no jump generator. Every new lane can
+  grow the galaxy at both ends, relay systems see more traffic, and VEGA narrates what the network
+  becomes. Achievements `relay_engineer` and `network_weaver`; Codex chapter "Relays".
+  (PRs #1140, #1143)
+
+### 🌈 Coloured glass & tinted lamps (#1126)
+
+- Glass and every light fixture (torch, lantern, lamps, strip lights) join the **dye system** —
+  and dyed lamps cast **coloured light**, on planets and aboard ships. Frosted glass stays frosted,
+  just in colour. New Codex chapter "Colours". (Doors are entities and deliberately follow later.)
+  (PRs #1144, #1163)
+
+### 💬 Dialogues with choices — and faces you will meet again (#1127, #1128)
+
+- Press **E on an NPC to talk.** Dialogues are node graphs with choices and real consequences —
+  standing, gifts, story fragments, radio follow-ups — and your choices persist in the save. Two
+  authored characters travel the galaxy with a fixed face: **Yara Senn** in settlements and
+  **Sel-9** at station vendor counters. Settlers without a scripted dialogue at least greet you now.
+  (PRs #1146, #1157)
+
+### 🌌 One-of-a-kind sites & peaceful encounters (#1129)
+
+- Three places exist **once per galaxy**: the Singing Shrine, the Sealed Observatory, and
+  *The Long Quiet* — a named, boardable derelict with its own lore voice. Trusted NPCs share each
+  legend exactly once; keep an eye on the ✶ map glyphs. In space, two peaceful encounters: fly
+  close to a drifting **escape pod** to rescue its survivor, and **scan anomalies** for knowledge
+  and lore. All of it family-mode safe. New Codex chapter "Mysteries". (PR #1147)
+
+### 🏙️ Settlements & stations stop repeating (#1115)
+
+- The settlement and station template pools grow from one each to **four each**. Placed structures
+  pin the template they were built from, so existing worlds keep exactly the buildings they have —
+  only newly generated sites draw from the bigger pool. (PR #1148)
+
+### 🩹 Audit rounds: the epic held against its own spec (#1149–#1156, #1158–#1162)
+
+- Two full audit passes over the epic before release, every finding fixed: Sel-9's promised radio
+  call actually arrives; authored characters no longer clone into every slot of a place; Esc-skipping
+  the ending no longer pops the quit dialog; the base-settler sweep can no longer delete NPCs in
+  other worlds; the loot-crate, escape-pod, arcade and small-talk **reward farms are closed**
+  (dialog rewards cooldown, arcade validates against the real game catalogue); a share code too long
+  for chat is rejected with a message instead of silently truncated; and the vault milestone fires.
+  (PRs #1157, #1163)
+
+### 🛡️ Corrupted saves fail loudly, not weirdly (#1137, #1141, #1142)
+
+- A corrupted player row is now **rejected on load with the stored data preserved** instead of
+  half-loading into undefined behaviour; the affected player's join is refused with a localized
+  message (all 14 languages) naming the problem; and a corrupted persistence init throws
+  `InvalidDataException` instead of continuing on garbage. Thanks to community contributor
+  **ahmdkaml**, now credited for "tests & hardening" in the README and in-game credits. (#1145)
+
+### ⚡ SRP Batcher works again (#573)
+
+- All URP shaders declare their material properties in a `UnityPerMaterial` cbuffer, so the SRP
+  Batcher batches them again — fewer set-pass calls, smoother frames on planet surfaces. (PR #1100)
+
 ### 🐛 Codex: Guide and Items chapters render again (#1097)
 
 - Codex → **Guide** ("Anleitung") and **Items** showed an empty pane. One uGUI `Text` held the whole chapter,
@@ -3165,7 +3305,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...HEAD
+[2026.8.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...v2026.8.18
 [2026.8.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...v2026.8.17
 [2026.8.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...v2026.8.16
 [2026.8.15]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.14...v2026.8.15
