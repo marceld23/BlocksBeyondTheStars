@@ -8815,6 +8815,24 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-22): README "Features at a Glance" + Status rewritten to match v2026.8.18
+
+A gap analysis of README.md and the website against the shipped game found 14 systems missing from
+*both* descriptions (weather & seasons, 18 block shapes + own-form editor, blueprint codes, NPC
+standings/dialogues/radio calls/settlers, monuments & mysteries, frontier + growing galaxy + SPS lanes,
+keel→commissioning ship building, binoculars/thermal + camera, greenhouses/farming, achievements, touch
+controls, mission variety, in-game What's new, voice chat) and the website also silent on the 14
+languages, gamepad and the family-safety tooling. **README fixed in this PR:** the headline feature list is
+now grouped (Explore · Build & Create · People & Story · Together · Platforms & Languages) with a dedicated
+creative-freedom bullet ("reshape any block … draw your own forms … dye it any colour … paint your own
+textures — all inside the game"), the Status paragraph carries every missing system, the two stale locale
+lines (`en, de, fr, es + it`) say 14 languages, and the test count is 2354 (2080 + 274). **Still open:**
+the Wix site (DE master edited by Marcel in the editor, then `tools/wix-i18n` re-import for the 12
+secondary locales) — proposed texts live in the local analysis notes; and the DE/EN download lists on the
+site disagree (DE: AppImage, EN: MSI; macOS missing on both).
+
+---
+
 ## ✅ Done (2026-08-15): storage crates take a per-crate item filter — the player decides what belongs in (#1032)
 
 Feature wish: dedicate crates to specific contents (an ore crate, a food crate) so the bulk **H** stash

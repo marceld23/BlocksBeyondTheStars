@@ -40,15 +40,34 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 
 ## 🎮 Features at a Glance
 
-*   **System-Scale Flight:** Fly between unique procedurally generated planets and jump between star systems.
-*   **Complete Freedom:** Every block can be mined, reshaped, and rebuilt.
-*   **Deep Crafting:** Mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations.
-*   **Explore & Claim:** Discover rare factories with their own production terminals, salvage fallen ruins and treasure chests — and claim a factory as your own base with a rare access code.
-*   **In-Game Editors:** Design your own ships, stations, and cities block by block.
-*   **Rich Multiplayer:** Form alliances, share bases, and communicate via global radio — play solo, host a server for friends on your LAN, or create your own **[hosted world](https://play.blocksbeyondthestars.de/?lang=en)** on our official servers (set a password, list it publicly, and share it with your friends).
-*   **The VEGA Protocol:** An optional story campaign narrated by your ship's AI companion.
-*   **Windows & Linux:** Native desktop clients — no Wine/Proton needed (an experimental macOS build exists too).
-*   **Keyboard, mouse & controller:** Play with keyboard + mouse or an Xbox/XInput gamepad — both work at once, and menus are pad-navigable (controller support is experimental).
+**Explore**
+
+*   **System-scale flight:** procedurally generated star systems — each with its own sun, planets, moons and mineable asteroid belts — and **21 planet types** (airless rocks, lava fields, jungles, oceans, skylands, fungal and crystal worlds, …) with their own terrain, flora, fauna and sky. Worlds wrap east–west, so you can walk around a planet. Jump between systems; the far **frontier** is richer, and a *Growing* galaxy grows a new system every time you push past its edge.
+*   **Living worlds:** per-position **weather and seasons** (storms that drift across the land, fog, blizzards, acid rain, ember fall, ion storms, meteor showers — with real consequences and opportunities), a true day/night terminator, creatures you can scan, hunt or **tame as companions**, binoculars with thermal vision and an in-game camera with a photo album.
+*   **Places to find:** settlements and space stations with NPCs, rare **factories**, fallen ruins, treasure chests, **monuments with glowing runes**, bandit camps and pirate space — and a handful of **one-of-a-kind mysteries** per galaxy.
+
+**Build & Create**
+
+*   **Complete freedom:** every block can be mined, reshaped and rebuilt.
+*   **Build beyond cubes:** reshape any block into slabs, ramps, stairs, domes, furniture — or **draw your own forms** — dye it any colour and **paint your own 32×32 textures** on it. All inside the game. Share whole builds with friends as **blueprint codes**.
+*   **Ships, stations, bases:** lay a keel and build your own ship block by block (it flies the way you built it), deploy a station core in orbit, found planet **bases** with a life-support field, airtight rooms and teleporter pads, repair and claim wrecks — or claim a factory as your base with a rare access code.
+*   **Deep crafting:** mine, smelt, unlock blueprints, and craft everything from hover speeders to space stations; factory terminals for bulk production, greenhouses and farming, tiered gear upgrades, and 40+ achievements with rewards along the way.
+
+**People & Story**
+
+*   **The VEGA Protocol:** an optional story campaign narrated by your ship's AI companion — intro cinematic, lore fragments, Guardian machines, a two-route finale and an ending with credits.
+*   **NPCs who remember you:** trade and talk your way from *Stranger* to *Friend*, make choices in dialogues, get **radio calls** from people you know, watch settlers move into your base; missions, bounties and build jobs on the boards; bandits you can pay off or fight.
+*   **Learn as you go:** an in-game **Codex wiki**, DataQube arcade minigames, VEGA context tips and a built-in music library.
+
+**Together**
+
+*   **Rich multiplayer:** form alliances, share bases, trade with other players, talk over text **and voice chat** (push-to-talk) with tiered radio reach — play solo, host a world for friends on your LAN, or create your own **[hosted world](https://play.blocksbeyondthestars.de/?lang=en)** on our official servers (set a password, list it publicly, and share it with your friends).
+*   **Made for families:** no gore, friendly-name screening, mute and report tools, a host switch for voice chat, and peaceful/family world presets — see our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+**Platforms & Languages**
+
+*   **Windows, Linux, macOS & browser:** native Windows and Linux clients — no Wine/Proton needed — an experimental macOS build, and a play-in-your-browser version. Auto-update with an in-game *What's new?* and opt-in crash reporting.
+*   **Keyboard, mouse, controller & touch:** keyboard + mouse, an Xbox/XInput gamepad (both work at once, menus are pad-navigable) and on-screen touch controls on tablets / touch browsers (controller and touch support are experimental).
 *   **Play in your language:** the whole game is localized in **14 languages** — English, German, French, Spanish, Italian, Portuguese, Polish, Turkish, Dutch, Russian, Ukrainian, Japanese, Korean and Simplified Chinese — and community translations are welcome (see [docs/developer/TRANSLATION_GUIDE.md](docs/developer/TRANSLATION_GUIDE.md)).
 
 ## 🕹️ Ways to Play
@@ -280,7 +299,7 @@ client/                         Unity project (scripts + scaffold + Assets/Tests
 ai-backend/                     optional Python LLM service (mission/NPC/ship-AI text) — game runs without it
 tools/                          editor-export merge tools (Python) + AI asset generation (tools/ai-assets)
 data/                           data-driven content (blocks, items, recipes, blueprints, modules, planets)
-data/locales/                   localization (en, de, fr, es + community it)
+data/locales/                   localization — 14 languages (en, de, fr, es, it, pt, pl, tr, nl, ru, uk, ja, ko, zh)
 docs/user/                      player-facing manual (USER_MANUAL.md)
 docs/developer/                 architecture, design/how-it-works docs, ADRs (docs/developer/adr/) — see its README.md index
 scripts/                        build-client.ps1 (Windows) + build-client.sh (Linux) + publish scripts
@@ -394,37 +413,50 @@ it is always bound to whoever serves its page.
 
 Blocks, items, recipes, blueprints, ship modules and planets are JSON in `data/`; no code
 changes are needed to add content. Player-facing names use localization keys resolved from
-`data/locales/{en,de,fr,es}.json` (plus the in-progress community `it.json`). Validate with
+`data/locales/<lang>.json` (14 languages; EN + DE are the mandatory-complete masters). Validate with
 `BlocksBeyondTheStars.Tools validate`.
 
 ## Status
 
 A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
 moons and **asteroid belts** you can mine from the ship or on an EVA), procedurally generated
-worlds that wrap east–west (walk around the planet, seam-free), 21 planet types including exotic
-ones (skylands, fungal, corrupted, ocean, salt flats, …) with their own flora and fauna,
-swimming/diving, a survival **temperature/climate system**, **fire** you can start and put out
-(vegetation-only — nothing built ever burns), creature taming, a craftable hover
-speeder, mining → crafting → blueprints (with **tiered gear upgrades** that consume their
-predecessor) → ship building, real system-scale space flight (with jumps between systems) with
-stations, settlements and NPCs, peaceful NPC trader traffic, **bounty missions** on bandit camps
-and raider ships, rare **factories** with roster-limited
-production terminals, fallen **ruins** and **treasure chests**, **access-code claiming** that
-turns a factory into your own editable base, the
-**"VEGA Protocol" story campaign** (a swappable, story-agnostic engine with lore fragments, three
-Guardian machine types and a two-route finale) opened by a watchable **intro cinematic** and a
-staged prologue, multiplayer with per-player ships, **player
-alliances**, shared bases and trading, planet **bases + teleporter pads** with a life-support
-field and **airtight sealed rooms** (energy door, shield dome, leak warnings), material dyeing and
-colored-light building, **low-tech furniture** (bed, campfire, chairs you can actually sit on) and
-**player-paintable 32×32 block designs**, in-game customization (avatar pixel-face editor,
-content/ship/station editors), an in-game **Codex wiki + data-cube arcade minigames**, a built-in
-**music library**, the VEGA ship-AI onboarding/advisor companion, world-creation options, and an
-optional LLM backend for dynamic dialogue/mission text — all of it playable in **14 languages, from
-English and German to Japanese and Simplified Chinese**. Self-hostable dedicated server. **Native Windows and Linux**
-clients (no Wine/Proton; an experimental macOS build exists), and **opt-in automatic crash reporting**
-so problems get fixed faster.
-Currently **1739 xUnit tests pass** (1545 server/shared + 194 headless client<->server).
+worlds that wrap east–west (walk around the planet, seam-free) with a real day/night terminator,
+21 planet types including exotic ones (skylands, fungal, corrupted, ocean, salt flats, …) with their
+own flora and fauna, **per-position weather and seasons** (episodic fronts that drift across the
+world — rain, fog, blizzards, acid rain, ember fall, spore blooms, ion storms, meteor showers — with
+gameplay consequences and a weather scanner), swimming/diving, a survival **temperature/climate
+system**, **fire** you can start and put out (vegetation-only — nothing built ever burns), creature
+taming with energy-fence pens, a craftable hover speeder, mining → crafting → blueprints (with
+**tiered gear upgrades** that consume their predecessor) → ship building (**lay a keel, build the
+hull, commission it at the helm — it flies the way you built it**), real system-scale space flight
+(with jumps between systems) with stations, settlements and NPCs, peaceful NPC trader traffic,
+**NPC relationships** (standings from Stranger to Friend, dialogues with choices, **radio calls**
+from people you know, settlers who move into your base), missions, **bounty missions** on bandit
+camps and raider ships, build jobs, robbers you can pay off or fight, rare **factories** with
+roster-limited production terminals, fallen **ruins**, **treasure chests**, **monuments with
+scannable runes**, three **one-of-a-kind mystery places** per galaxy (plus life-pod rescues and
+anomalies in space), **access-code claiming** that turns a factory into your own editable base, the
+**frontier** (richer rare ores far from home) and a **growing galaxy** option, an **SPS relay
+network** of player stations that opens jump lanes, the **"VEGA Protocol" story campaign** (a
+swappable, story-agnostic engine with lore fragments, three Guardian machine types and a two-route
+finale) opened by a watchable **intro cinematic** and a staged prologue and closed by a proper
+ending, multiplayer with per-player ships, **player alliances**, shared bases and player↔player
+trading, text + **voice chat** (push-to-talk) with tiered radio reach, planet **bases + teleporter
+pads** (and a suit teleporter) with a life-support field and **airtight sealed rooms** (energy
+door, shield dome, leak warnings), greenhouses and farming, **18 craftable block shapes plus a
+form editor for your own shapes**, material dyeing in any colour and colored-light building,
+**low-tech furniture** (bed, campfire, chairs you can actually sit on), **player-paintable 32×32
+block designs** and a **blueprint tool** that shares whole builds as codes, binoculars with thermal
+vision, an in-game camera with a photo album, **40+ achievements** with rewards, in-game
+customization (avatar pixel-face/body-paint editor with outfits, content/ship/station editors), an
+in-game **Codex wiki + data-cube arcade minigames**, a built-in **music library**, the VEGA ship-AI
+onboarding/advisor companion with context tips, an in-game *What's new?*, world-creation options and
+presets (peaceful/family → dangerous), and an optional LLM backend for dynamic dialogue/mission text
+— all of it playable in **14 languages, from English and German to Japanese and Simplified
+Chinese**, with keyboard + mouse, gamepad or touch. Self-hostable dedicated server. **Native Windows
+and Linux** clients (no Wine/Proton; an experimental macOS build exists), a browser build, auto-update,
+and **opt-in automatic crash reporting** so problems get fixed faster.
+Currently **2354 xUnit tests pass** (2080 server/shared + 274 headless client<->server).
 
 See [TODO.md](TODO.md) for the current Done/Open status, the
 [user manual](docs/user/USER_MANUAL.md) for controls/mechanics/commands, and [AGENTS.md](AGENTS.md)
