@@ -4,11 +4,15 @@ The granular background-music library used by the **Tracks** music mode (see
 `docs/SOUND_DESIGN.md` §11). 23 instrumental, calm, loop-friendly sci-fi tracks generated with
 [Suno](https://suno.com/) by the project owner, plus a **variance pack** of 12 `_2` B-sides (wired
 in `ClientMusic` and **all present** — see *Variance pack* below) and the 5 dramatic **finale/boss**
-tracks (also present + wired — see the last section). All live in
-`client/Assets/Resources/music/*.mp3` (imported as **Streaming** audio so the multi-minute songs do
-not sit decompressed in memory). The player picks **Synth** (the original code-synth ambient pads) or
-**Tracks** in *Settings → Audio → Music style*; SFX/ambience are untouched and ride their own
-`SfxVolume` bus.
+tracks (also present + wired — see the last section). All live as raw MP3s in **`client/Music/*.mp3`**
+(tracked, deliberately *outside* `client/Assets/`); `scripts/sync-client-libs.{ps1,sh}` copies them to
+`client/Assets/StreamingAssets/music/` (git-ignored) on every build, and `ClientMusic` **streams each
+track on demand** with `UnityWebRequestMultimedia` — over HTTP in the browser, from disk on desktop —
+keeping only the playing/fading/prefetched clips in memory and releasing the rest (#1167). They used to be
+`Resources/music` assets, which baked all 40 songs (164 MB) into the WebGL player data file that every
+browser visitor had to download before the first frame. The player picks **Synth** (the original
+code-synth ambient pads) or **Tracks** in *Settings → Audio → Music style*; SFX/ambience are untouched and
+ride their own `SfxVolume` bus.
 
 The director ([`ClientMusic`](../../client/Assets/BlocksBeyondTheStars/Scripts/ClientMusic.cs)) maps the
 shell phase and — in-game — the world state to a **context**, then cross-fades (~2.5 s). When a
@@ -40,10 +44,14 @@ is the deliberate dramatic exception, reserved for the story finale.)
 | Planet — generic (night) | any other surface, nighttime | `music_explore_planet`(`_2`), `music_idle_default`(`_2`), `music_planet_night` |
 
 The `_2` tracks are the **variance pack** (see *Variance pack* section below). All 12 are present in
-`Resources/music/` and live in the pools today; the director skips any track whose `.mp3` is missing.
+`client/Music/` and live in the pools today; a track whose `.mp3` fails to load is dropped from its pool
+for the session.
 
-If a track file is ever missing, its context falls back to the matching synth mood, so the game
-always stays musical.
+If a track file is ever missing (or, in the browser, unreachable), its context falls back to the matching
+synth mood, so the game always stays musical. Because tracks are fetched on first use, a context's track
+starts a moment after the context is entered (instant from disk; a few seconds over a slow connection) —
+the director keeps the previous track playing until the new one has arrived, and prefetches the next
+re-roll candidate 45 s before the current track ends so the seam needs no wait.
 
 ## Tracks & Suno prompts
 
@@ -196,7 +204,7 @@ long stay no longer loops the same song. They are **deliberately a different mus
 sibling (noted per track) — not a re-roll of the same idea — so the pair genuinely alternates. Same
 general guidance as above: *instrumental, no vocals, seamless loop, calm, atmospheric sci-fi, no combat,
 no trailer drama.* Lyrics box: `[Instrumental only] [No vocals] [No lyrics] [Seamless loop]`. **All 12
-B-sides are present** in `client/Assets/Resources/music/` and live in the pools (the prompts below are
+B-sides are present** in `client/Music/` and live in the pools (the prompts below are
 kept for reference / re-generation).
 
 ### `music_planet_ice_2` — ice planet (B-side)
@@ -276,7 +284,7 @@ Instrumental ambient sci-fi exploration music for a block-based space game, seco
 **The deliberate exception to the calm-by-design library.** Five **dramatic** instrumental tracks for the
 multi-stage finale against the dormant Guardian core (see
 [STORY_IMPLEMENTATION.md](STORY_IMPLEMENTATION.md) §P6). Generated in Suno by the project owner and
-stored in `client/Assets/Resources/music/`. **Present and wired:** `ClientMusic` has the finale contexts
+stored in `client/Music/`. **Present and wired:** `ClientMusic` has the finale contexts
 (`FinaleApproach/Gauntlet/Hack/Dialogue/Resolution`) which **override every other context** and always play
 their dedicated boss track regardless of music mode. The active phase is derived from the story flags, the
 location id (the finale system is `guardian_finale*`) and the live `FinaleView`; the resolution track plays

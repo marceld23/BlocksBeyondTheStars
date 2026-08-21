@@ -1,8 +1,12 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -15,9 +19,20 @@ namespace BlocksBeyondTheStars.Client
     /// Two selectable sources (<see cref="ClientSettings.MusicMode"/>, toggled in the settings menu):
     ///   • <b>Synth</b> — the original four code-synth ambient moods (menu / planet / space / combat),
     ///     each a short bundled <c>Resources/audio/music_*</c> loop with a synthesized fallback.
-    ///   • <b>Tracks</b> — the granular AI-composed library under <c>Resources/music</c>, mapped to many
-    ///     contexts (biomes, ship interior, orbit, station, …). When several tracks fit one context the
-    ///     choice is random, and a long stay re-rolls to another fitting track at the loop seam for variety.
+    ///   • <b>Tracks</b> — the granular AI-composed library shipped as raw MP3s under
+    ///     <c>StreamingAssets/music</c> (source: <c>client/Music</c>), mapped to many contexts (biomes,
+    ///     ship interior, orbit, station, …). When several tracks fit one context the choice is random,
+    ///     and a long stay re-rolls to another fitting track at the loop seam for variety.
+    ///
+    /// Tracks are <b>streamed on demand</b> (#1167): a track is fetched with
+    /// <see cref="UnityWebRequestMultimedia"/> the first time its context comes up — over HTTP in the
+    /// browser, from disk on desktop — and the director keeps whatever is playing until the file has
+    /// arrived, then cross-fades. They used to live under <c>Resources/</c>, which baked all 40 songs
+    /// (164 MB) into the WebGL player data file that every browser visitor downloads before the first
+    /// frame. Loaded clips are released again once nothing plays them (a decoded multi-minute track is
+    /// ~80 MB of PCM in the browser), and the next re-roll candidate is prefetched shortly before the
+    /// current track ends so the seam stays seamless. A track that fails to load is dropped from its pool
+    /// and the matching synth mood takes over.
     ///
     /// Combat always uses the tense synth mood (the Tracks library is intentionally all-calm). SFX and
     /// ambience are untouched and stay on their own <see cref="ClientSettings.SfxVolume"/> bus; this bus is
@@ -45,8 +60,13 @@ namespace BlocksBeyondTheStars.Client
 
         private const float CrossfadeRate = 0.4f;   // volume units / s → ~2.5 s for a full fade
         private const float RerollLead = 3.0f;       // re-roll this many seconds before a track ends
+        private const float PrefetchLead = 45f;      // start fetching the re-roll candidate this early (browser bandwidth)
         private const float UnderwaterCutoff = 680f;  // Hz — music muffles while the head is submerged
         private const float OpenCutoff = 22000f;
+
+        /// <summary>Where the track library lives inside StreamingAssets (synced from <c>client/Music</c>
+        /// by scripts/sync-client-libs; kept OUT of <c>data/</c>, whose manifest the browser prefetches).</summary>
+        public const string MusicFolder = "music";
 
         private GameObject _bus;          // child GO carrying the two music sources + the music-only low-pass
         private AudioSource _active, _fading;
@@ -57,12 +77,22 @@ namespace BlocksBeyondTheStars.Client
         private MusicMode _mode = (MusicMode)(-1);
         private List<string> _pool;       // current Tracks-mode candidate pool (null on the synth path)
         private string _activeName;        // current clip key (so a re-roll can avoid an immediate repeat)
+        private string _fadingName;        // the clip fading out (kept loaded until it has gone quiet)
         private bool _activeLoops = true;  // single-track pools / synth loops loop in place (no re-roll)
 
         private bool _lastInGame = true;   // forces a menu-listener reconcile on the first (shell) frame
         private readonly System.Random _rng = new System.Random();
-        private readonly Dictionary<string, AudioClip> _musicCache = new();
         private readonly Dictionary<SynthMood, AudioClip> _synthCache = new();
+
+        // Streamed track library (#1167). _musicCache holds the few clips currently in use (active, fading,
+        // prefetched) — TrimMusicCache releases the rest, a decoded track is tens of MB of PCM in the browser.
+        private readonly Dictionary<string, AudioClip> _musicCache = new();
+        private readonly Dictionary<string, List<Action<AudioClip>>> _inFlight = new();
+        private readonly HashSet<string> _missingTracks = new();   // failed to load → dropped from the pools
+        private string _prefetchedName;    // the re-roll candidate fetched ahead of the current track's end
+        private string _prefetchedFor;     // …and the track it was fetched for (one prefetch per track)
+        private string _rerolledFrom;      // the track whose end-of-track re-roll was already requested
+        private int _switchSerial;         // bumps per SwitchTo; a load finishing for an older request only caches
 
         // Combat detection: hull+shield drops while in space arm a tense window.
         private float _lastIntegrity = -1f;
@@ -87,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Our own listener hears the shell screens (menu/loading). Silence any pre-existing scene
             // listener so there is exactly one active — WorldRig swaps to the world camera's in-game.
-            foreach (var al in Object.FindObjectsByType<AudioListener>())
+            foreach (var al in FindObjectsByType<AudioListener>())
             {
                 al.enabled = false;
             }
@@ -120,10 +150,23 @@ namespace BlocksBeyondTheStars.Client
                 _mode = mode;
                 SwitchTo(want, mode, game, reroll: false);
             }
-            else if (mode == MusicMode.Tracks && !_activeLoops && _active.clip != null && _active.isPlaying
-                     && _active.time >= _active.clip.length - RerollLead)
+            else if (mode == MusicMode.Tracks && !_activeLoops && _active.clip != null && _active.isPlaying)
             {
-                SwitchTo(want, mode, game, reroll: true);
+                float remaining = _active.clip.length - _active.time;
+                if (remaining <= RerollLead && _rerolledFrom != _activeName)
+                {
+                    // Once per track: if the candidate still has to download, the current track simply
+                    // runs out and the successor fades in when it arrives (no per-frame re-requests).
+                    _rerolledFrom = _activeName;
+                    SwitchTo(want, mode, game, reroll: true);
+                }
+                else if (remaining <= PrefetchLead && _pool != null && _pool.Count > 1 && _prefetchedFor != _activeName)
+                {
+                    // Fetch the re-roll candidate while the current track still plays, so the seam needs
+                    // no download wait. PickFrom prefers loaded clips, so the re-roll lands on this one.
+                    _prefetchedFor = _activeName;
+                    Prefetch(PickFrom(_pool, _activeName));
+                }
             }
 
             // Bus volume = music volume (master is applied globally by the AudioListener). Silence over splash.
@@ -133,6 +176,9 @@ namespace BlocksBeyondTheStars.Client
             if (_fading.volume <= 0f && _fading.isPlaying)
             {
                 _fading.Stop();
+                _fading.clip = null;
+                _fadingName = null;
+                TrimMusicCache(); // the faded-out track is no longer referenced — release it
             }
 
             // Underwater muffle: while in-game and the player's head is submerged, sweep the music low-pass
@@ -151,7 +197,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!inGame)
                 {
-                    foreach (var al in Object.FindObjectsByType<AudioListener>())
+                    foreach (var al in FindObjectsByType<AudioListener>())
                     {
                         al.enabled = false;
                     }
@@ -330,18 +376,54 @@ namespace BlocksBeyondTheStars.Client
         {
             string exclude = reroll ? _activeName : null;
             _context = want;
-            (_active, _fading) = (_fading, _active);
+            int serial = ++_switchSerial; // any track load still in flight for an older request only caches
 
             if (want == Context.Silent)
             {
-                _active.clip = null;
-                _activeName = null;
-                _pool = null;
-                _activeLoops = true;
+                BeginFade(null, null, null, loop: true);
                 return; // nothing plays; the old source fades out
             }
 
-            var (clip, name, pool, loop) = Resolve(want, mode, game, exclude);
+            var (track, synthClip, name, pool, loop) = Resolve(want, mode, game, exclude);
+            if (track == null)
+            {
+                BeginFade(synthClip, name, null, loop);
+                return;
+            }
+
+            if (_musicCache.TryGetValue(track, out var cached) && cached != null)
+            {
+                BeginFade(cached, track, pool, loop);
+                return;
+            }
+
+            // Not loaded yet: keep whatever is playing and fade over once the file has arrived. If the
+            // file turns out to be missing/unreachable, re-resolve — the pool has dropped it by then, so
+            // this lands on another track or the synth mood.
+            StartCoroutine(LoadTrack(track, clip =>
+            {
+                if (serial != _switchSerial)
+                {
+                    return; // a newer switch superseded this request; the clip stays cached for later
+                }
+
+                if (clip != null)
+                {
+                    BeginFade(clip, track, pool, loop);
+                }
+                else
+                {
+                    SwitchTo(want, mode, game, reroll);
+                }
+            }));
+        }
+
+        /// <summary>Swaps the sources and starts <paramref name="clip"/> on the new active one (fading up in
+        /// Update while the previous track fades down). <c>null</c> = silence.</summary>
+        private void BeginFade(AudioClip clip, string name, List<string> pool, bool loop)
+        {
+            (_active, _fading) = (_fading, _active);
+            _fadingName = _activeName;
             _pool = pool;
             _activeName = name;
             _activeLoops = loop;
@@ -352,9 +434,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 _active.Play();
             }
+
+            TrimMusicCache();
         }
 
-        private (AudioClip clip, string name, List<string> pool, bool loop) Resolve(
+        /// <summary>What should play: a library track (by name, loaded lazily by the caller), or a synth clip.</summary>
+        private (string track, AudioClip synthClip, string name, List<string> pool, bool loop) Resolve(
             Context want, MusicMode mode, GameBootstrap game, string exclude)
         {
             // The finale set-piece always plays its dedicated boss track, regardless of music mode (it is a
@@ -362,10 +447,9 @@ namespace BlocksBeyondTheStars.Client
             if (IsFinale(want))
             {
                 string trackName = FinaleTrack(want);
-                var trackClip = LoadMusic(trackName);
-                if (trackClip != null)
+                if (!_missingTracks.Contains(trackName))
                 {
-                    return (trackClip, trackName, null, true); // single looping track for the phase
+                    return (trackName, null, trackName, null, true); // single looping track for the phase
                 }
             }
 
@@ -375,13 +459,13 @@ namespace BlocksBeyondTheStars.Client
                 if (pool.Count > 0)
                 {
                     string name = PickFrom(pool, exclude);
-                    return (LoadMusic(name), name, pool, pool.Count <= 1);
+                    return (name, null, name, pool, pool.Count <= 1);
                 }
             }
 
             // Synth path: Synth mode, combat (always synth), or a Tracks pool whose files are missing.
             var mood = MoodFor(want);
-            return (SynthClip(mood), "synth:" + mood, null, true);
+            return (null, SynthClip(mood), "synth:" + mood, null, true);
         }
 
         /// <summary>The Tracks-mode candidate pool for a context, filtered to files that actually ship.</summary>
@@ -406,7 +490,7 @@ namespace BlocksBeyondTheStars.Client
                 _ => new List<string>(),
             };
 
-            names.RemoveAll(n => LoadMusic(n) == null); // drop any not bundled (e.g. an ungenerated track)
+            names.RemoveAll(_missingTracks.Contains); // drop any whose file failed to load (e.g. not shipped)
             return names;
         }
 
@@ -425,6 +509,9 @@ namespace BlocksBeyondTheStars.Client
             return list;
         }
 
+        /// <summary>Random pick from the pool, avoiding <paramref name="exclude"/>. Tracks that are already
+        /// loaded win over ones that would need a download first (so a prefetched re-roll candidate or a
+        /// recently played track starts without a wait); variety comes from the pool rotating over time.</summary>
         private string PickFrom(List<string> pool, string exclude)
         {
             if (pool.Count == 1)
@@ -436,6 +523,12 @@ namespace BlocksBeyondTheStars.Client
             if (choices.Count == 0)
             {
                 choices = pool;
+            }
+
+            var loaded = choices.FindAll(n => _musicCache.TryGetValue(n, out var c) && c != null);
+            if (loaded.Count > 0)
+            {
+                choices = loaded;
             }
 
             return choices[_rng.Next(choices.Count)];
@@ -451,15 +544,148 @@ namespace BlocksBeyondTheStars.Client
             _ => SynthMood.Planet,
         };
 
-        private AudioClip LoadMusic(string name)
+        /// <summary>Where a library track is fetched from: <c>StreamingAssets/music/&lt;name&gt;.mp3</c> —
+        /// an HTTP URL in the browser (StreamingAssets is served next to the player), a <c>file://</c> URI
+        /// on desktop / in the Editor (percent-encoded, so installs under paths with spaces work).</summary>
+        public static string TrackUrl(string name)
         {
-            if (!_musicCache.TryGetValue(name, out var clip))
+            string root = Application.streamingAssetsPath;
+            string relative = MusicFolder + "/" + name + ".mp3";
+            if (root.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || root.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                clip = Resources.Load<AudioClip>("music/" + name);
-                _musicCache[name] = clip;
+                return root.TrimEnd('/') + "/" + relative;
             }
 
-            return clip;
+            string path = Path.Combine(root, MusicFolder, name + ".mp3");
+            return new Uri(Path.GetFullPath(path)).AbsoluteUri;
+        }
+
+        /// <summary>Fetches a track (once; concurrent requests for the same name share one download) and
+        /// hands the clip to <paramref name="onDone"/> — <c>null</c> when the file is missing or unreachable,
+        /// in which case the track is dropped from the pools for this session.</summary>
+        private IEnumerator LoadTrack(string name, Action<AudioClip> onDone)
+        {
+            if (_missingTracks.Contains(name))
+            {
+                onDone(null);
+                yield break;
+            }
+
+            if (_musicCache.TryGetValue(name, out var cached) && cached != null)
+            {
+                onDone(cached);
+                yield break;
+            }
+
+            if (_inFlight.TryGetValue(name, out var waiters))
+            {
+                waiters.Add(onDone);
+                yield break;
+            }
+
+            waiters = new List<Action<AudioClip>> { onDone };
+            _inFlight[name] = waiters;
+
+            AudioClip clip = null;
+            string url = TrackUrl(name);
+            using (var request = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.MPEG))
+            {
+                // Keep the MP3 compressed in memory on desktop (multi-minute songs). The browser decodes
+                // on its side regardless; streaming playback is not a WebGL option. Order matters: the
+                // handler starts with streamAudio on, and `compressed` is rejected while it is.
+                var handler = (DownloadHandlerAudioClip)request.downloadHandler;
+                handler.streamAudio = false;
+                handler.compressed = true;
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        clip = handler.audioClip;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[Music] Track '{name}' could not be decoded: {ex.Message}");
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"[Music] Track '{name}' could not be loaded from '{url}': {request.error}");
+                }
+            }
+
+            if (clip != null)
+            {
+                clip.name = name;
+                _musicCache[name] = clip;
+                Debug.Log($"[Music] Loaded track '{name}' ({clip.length:0} s).");
+            }
+            else
+            {
+                _missingTracks.Add(name);
+            }
+
+            _inFlight.Remove(name);
+            foreach (var waiter in waiters)
+            {
+                waiter(clip);
+            }
+
+            // Nobody may be using it any more (e.g. the context moved on while it downloaded).
+            TrimMusicCache();
+        }
+
+        /// <summary>Loads a track into the cache ahead of need (the re-roll candidate); no-op if known.</summary>
+        private void Prefetch(string name)
+        {
+            if (string.IsNullOrEmpty(name) || _missingTracks.Contains(name) || _inFlight.ContainsKey(name)
+                || (_musicCache.TryGetValue(name, out var clip) && clip != null))
+            {
+                return;
+            }
+
+            _prefetchedName = name;
+            StartCoroutine(LoadTrack(name, _ => { }));
+        }
+
+        /// <summary>Releases every loaded track that is neither playing, fading out, nor the prefetched
+        /// re-roll candidate. A decoded multi-minute track is tens of MB (PCM in the browser), so the cache
+        /// must not grow with every context the player visits.</summary>
+        private void TrimMusicCache()
+        {
+            if (_musicCache.Count == 0)
+            {
+                return;
+            }
+
+            List<string> drop = null;
+            foreach (var entry in _musicCache)
+            {
+                string name = entry.Key;
+                if (name == _activeName || name == _fadingName || name == _prefetchedName || _inFlight.ContainsKey(name))
+                {
+                    continue;
+                }
+
+                (drop ??= new List<string>()).Add(name);
+            }
+
+            if (drop == null)
+            {
+                return;
+            }
+
+            foreach (string name in drop)
+            {
+                var clip = _musicCache[name];
+                _musicCache.Remove(name);
+                if (clip != null)
+                {
+                    Destroy(clip); // UnityWebRequest-created clips are plain objects, not Resources assets
+                }
+            }
         }
 
         /// <summary>The synth-mood clip: the short bundled <c>music_*</c> loop, or a synthesized fallback.</summary>

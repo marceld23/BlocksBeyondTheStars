@@ -78,7 +78,8 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Which background-music source the player prefers. <see cref="Synth"/> = the original code-synth
     /// ambient pads (the short bundled <c>music_*</c> loops with synthesized fallbacks); <see cref="Tracks"/>
-    /// = the granular AI-composed track library under <c>Resources/music</c>. SFX/ambience are unaffected.
+    /// = the granular AI-composed track library streamed on demand from <c>StreamingAssets/music</c>.
+    /// SFX/ambience are unaffected.
     /// </summary>
     public enum MusicMode { Synth, Tracks }
 

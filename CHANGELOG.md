@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎧 The browser loads five times faster — music streams on demand (#1167)
+
+- The WebGL first visit (glitch.fun and the fleet's `/play`) downloaded ~208 MB before the first
+  frame — 164 MB of it the 40-track Suno music library baked into the player data file, even though a
+  session hears three to five songs. The tracks now ship as plain MP3s next to the player and are
+  **streamed the first time their context comes up**: the first visit shrinks to roughly 40 MB (10 s
+  instead of ~50 s on a normal day, ~2 min instead of ~11 on a slow one), Glitch's "Syncing assets"
+  bar no longer stalls at 92 % on one giant file, and the browser releases tracks it is no longer
+  playing instead of keeping every decoded song in memory. A track starts a moment after you enter
+  its context (instantly from disk on desktop); the next re-roll is prefetched while the current
+  track plays. Desktop builds are unaffected apart from being a little smaller.
+
 ## [2026.8.18] — 2026-08-21
 
 The constellation release — and the biggest one yet. One question drove it: *what keeps you playing

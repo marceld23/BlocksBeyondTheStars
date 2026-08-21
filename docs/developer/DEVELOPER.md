@@ -207,7 +207,9 @@ It runs these steps:
    `BlocksBeyondTheStars.Shared`, `.WorldGeneration`, `.Networking` and `.Client.Core` (netstandard2.1) with
    their NuGet dependencies (MessagePack, LiteNetLib, …) and copies the DLLs into
    `client/Assets/Plugins/`. It also copies `data/*` (blocks, items, recipes, locales, …)
-   into `client/Assets/StreamingAssets/data/`.
+   into `client/Assets/StreamingAssets/data/`, and the background-music library `client/Music/*.mp3`
+   into `client/Assets/StreamingAssets/music/` (kept outside `Assets/` and streamed on demand by
+   `ClientMusic`, so the WebGL player data file no longer carries 164 MB of songs — #1167).
 2. **Bundle the singleplayer server** (`scripts/publish-local-server.ps1`) — publishes a
    self-contained, single-file `BlocksBeyondTheStars.GameServer` into
    `client/Assets/StreamingAssets/server/`. "Singleplayer" in the game launches this

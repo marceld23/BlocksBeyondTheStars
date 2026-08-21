@@ -50,6 +50,7 @@ src/BlocksBeyondTheStars.Launcher.Console/Cross-platform console launcher for Li
 tests/BlocksBeyondTheStars.Tests/         xUnit tests (server/shared)
 tests/BlocksBeyondTheStars.Client.Tests/  headless client<->server integration (real NetworkClient vs real GameServer)
 client/                         Unity project (incl. Assets/Tests EditMode/PlayMode suites)
+client/Music/                   background-music MP3s (outside Assets/ on purpose; synced to StreamingAssets/music and streamed on demand — #1167)
 ai-backend/                     optional Python LLM service (missions, NPC/ship-AI text); offline-safe
 tools/                          editor-export merge tools + AI asset generation (tools/ai-assets)
 data/                           data-driven JSON definitions (blocks, items, recipes, ...)

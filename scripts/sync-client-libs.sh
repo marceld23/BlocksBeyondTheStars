@@ -5,15 +5,18 @@
 #
 # Run this after changing BlocksBeyondTheStars.Shared / WorldGeneration / Networking / Client.Core,
 # then refresh the Unity Editor. DLLs land in client/Assets/Plugins; content lands in
-# client/Assets/StreamingAssets/data.
+# client/Assets/StreamingAssets/data; the music library (client/Music) lands in
+# client/Assets/StreamingAssets/music.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PLUGINS="$REPO/client/Assets/Plugins"
 STREAMING="$REPO/client/Assets/StreamingAssets/data"
+MUSIC="$REPO/client/Assets/StreamingAssets/music"
 
 mkdir -p "$PLUGINS"
 mkdir -p "$STREAMING"
+mkdir -p "$MUSIC"
 
 # "project[:framework]" — the last two are multi-target; Unity consumes their netstandard2.1
 # library flavor (the in-browser singleplayer server + managed persistence). Keep in sync with
@@ -48,6 +51,14 @@ done
 # (data/wiki/articles.json) and arcade catalogue (data/minigames/catalog.json), both read by the native UI.
 cp -r "$REPO/data/"* "$STREAMING/"
 
+# Copy the background-music library (client/Music/*.mp3, tracked) into StreamingAssets/music. It lives
+# OUTSIDE Assets/ on purpose: as a Resources asset Unity baked all 40 tracks (164 MB) into the WebGL
+# player data file that every browser visitor downloads before the first frame (#1167). As raw
+# StreamingAssets files ClientMusic streams each track on demand instead. Keep it out of
+# StreamingAssets/data — that folder's manifest is prefetched eagerly by the browser client.
+cp -f "$REPO/client/Music/"*.mp3 "$MUSIC/"
+
 echo "Synced libraries to $PLUGINS"
 echo "Synced content to $STREAMING"
+echo "Synced music to $MUSIC"
 echo "Note: if Unity reports a duplicate of a System.* assembly it already ships, delete that DLL from Plugins."

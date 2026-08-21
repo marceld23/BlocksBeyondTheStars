@@ -109,6 +109,28 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WebGL first load ≈ 208 MB → ≈ 40 MB: the music library streams on demand (#1167, 2026-08-22, branch feat/1167-webgl-music-streaming)
+The glitch.fun / `/play` first visit downloaded ~208 MB before the first frame, 193 MB of it the Brotli
+`.data` file — because `client/Assets/Resources/music/` (40 full-length Suno MP3s, 164 MB, re-encoded to
+AAC at 100 % quality) was baked into the player data. Glitch serves straight from S3 at 0.3–4 MB/s, so
+that single file took 50 s to ~11 min and their file-count "Syncing assets 92 %" overlay looked hung.
+**Done:** the MP3s moved to **`client/Music/`** (tracked, outside `Assets/` so Unity no longer imports or
+re-encodes them; excluded from Docker contexts by the `client/` rule); `scripts/sync-client-libs.{ps1,sh}`
+copy them to the git-ignored `client/Assets/StreamingAssets/music/` on every build path (release,
+webgl-only, glitch-only, local). `ClientMusic` now **streams a track on first use** with
+`UnityWebRequestMultimedia.GetAudioClip(…, AudioType.MPEG)` (`TrackUrl`: HTTP in the browser, percent-encoded
+`file://` on desktop/Editor), keeps whatever is playing until the file has arrived, cross-fades then, shares
+one download between concurrent requests, **prefetches the re-roll candidate 45 s before the current track
+ends** (`PickFrom` prefers loaded clips so the seam lands on it), and **releases clips that are no longer
+playing/fading/prefetched** (`TrimMusicCache` — the old `_musicCache` kept every decoded track forever,
+~80 MB PCM each in the browser). A track that fails to load is dropped from its pool for the session and the
+synth mood takes over, as before. Desktop keeps the compressed MP3 in memory (`DownloadHandlerAudioClip.compressed`).
+Docs: MUSIC_TRACKS.md, SOUND_DESIGN.md, NOTICES.md. **Gotchas:** keep the music OUT of `StreamingAssets/data/`
+(its manifest is prefetched eagerly by `StreamingAssetsCache`); Glitch's aegis-bridge tracks `.mp3` fetches but
+emits `game_ready` only once — verify on glitch.fun that late track loads don't re-show the overlay.
+**Follow-ups (not in this PR):** SFX import quality (119 clips at 100 %), native `Content-Encoding: br`
+instead of Unity's JS decompressor (needs a glitch-only test deploy first).
+
 ### ★ Audit round 2 — radio calls to full spec, aboard-ship lamp light, and the last farms closed (#1158–#1162, 2026-08-21, branch feat/epic-1101-audit-round2)
 Round two of the epic-#1101 audit follow-ups, per the scope decisions of 2026-08-21. **#1158 radio calls to
 FULL spec** (option c): calls are flagged (`ChatMessage.IsNpcCall`, additive contractless field) and the

@@ -143,8 +143,9 @@ the old "main-menu hook still open" gap is closed):
 
 - **Synth** — the four code-synth ambient moods (menu / planet / space / combat), each the short
   bundled `Resources/audio/music_menu|planet|space|combat.mp3` loop with a synthesized fallback.
-- **Tracks** (default) — a 23-track AI-composed Suno library under `Resources/music/*.mp3` (Streaming
-  import), mapped to many contexts: main menu, loading, ship interior, station/hub, space flight,
+- **Tracks** (default) — the AI-composed Suno library shipped as raw MP3s in `client/Music/` → synced to
+  `StreamingAssets/music/` and **streamed on demand** by `ClientMusic` (`UnityWebRequestMultimedia`; only
+  the playing/fading/prefetched clips stay in memory — #1167), mapped to many contexts: main menu, loading, ship interior, station/hub, space flight,
   and per-biome planet beds (ice / desert / lava / toxic / ocean / verdant / crystal / cave) plus a
   day/night-tinted generic idle pool. Several tracks per context → **random pick**, and a long stay
   **re-rolls** at the loop seam for variety. See `docs/MUSIC_TRACKS.md` for the full mapping + the

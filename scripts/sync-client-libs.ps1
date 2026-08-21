@@ -7,7 +7,8 @@
 .DESCRIPTION
   Run this after changing BlocksBeyondTheStars.Shared / WorldGeneration / Networking, then refresh
   the Unity Editor. DLLs land in client/Assets/Plugins; content lands in
-  client/Assets/StreamingAssets/data.
+  client/Assets/StreamingAssets/data; the music library (client/Music) lands in
+  client/Assets/StreamingAssets/music.
 #>
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -52,6 +53,16 @@ Remove-Item $temp -Recurse -Force -ErrorAction SilentlyContinue
 # which the native UI reads from StreamingAssets. See docs/developer/MINIGAMES_AND_WIKI.md.
 Copy-Item (Join-Path $repo 'data/*') $streaming -Recurse -Force
 
+# Copy the background-music library (client/Music/*.mp3, tracked) into StreamingAssets/music. It lives
+# OUTSIDE Assets/ on purpose: as a Resources asset Unity baked all 40 tracks (164 MB) into the WebGL
+# player data file that every browser visitor downloads before the first frame (#1167). As raw
+# StreamingAssets files ClientMusic streams each track on demand instead. Keep it out of
+# StreamingAssets/data — that folder's manifest is prefetched eagerly by the browser client.
+$music = Join-Path $repo 'client/Assets/StreamingAssets/music'
+New-Item -ItemType Directory -Force $music | Out-Null
+Copy-Item (Join-Path $repo 'client/Music/*.mp3') $music -Force
+
 Write-Host "Synced libraries to $plugins" -ForegroundColor Green
 Write-Host "Synced content to $streaming" -ForegroundColor Green
+Write-Host "Synced music to $music" -ForegroundColor Green
 Write-Host "Note: if Unity reports a duplicate of a System.* assembly it already ships, delete that DLL from Plugins." -ForegroundColor Yellow
