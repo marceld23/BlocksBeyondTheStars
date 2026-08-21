@@ -5,6 +5,7 @@
     "tier": "medium",
     "pack": "default",
     "weight": 1,
+    "legacyPool": true,
     "width": 9,
     "height": 6,
     "length": 9,
@@ -2185,6 +2186,6877 @@
         "z": 6,
         "kind": "marker",
         "id": "quarters"
+      }
+    ]
+  },
+  {
+    "key": "pocket_waystation",
+    "name": "Pocket Waystation",
+    "tier": "small",
+    "kind": "station",
+    "pack": "default",
+    "weight": 2,
+    "width": 7,
+    "height": 5,
+    "length": 7,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 5,
+        "kind": "marker",
+        "id": "quarters"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 5,
+        "kind": "marker",
+        "id": "heal_tank"
+      }
+    ]
+  },
+  {
+    "key": "observation_spire",
+    "name": "Observation Spire",
+    "tier": "medium",
+    "kind": "station",
+    "pack": "default",
+    "weight": 2,
+    "width": 9,
+    "height": 8,
+    "length": 9,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "lab_panel"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "steel_floor"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 6,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 6,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 6,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 6,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 7,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 4,
+        "y": 7,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "z": 2,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "z": 6,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "mission_board"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 7,
+        "kind": "marker",
+        "id": "quarters"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 7,
+        "kind": "marker",
+        "id": "greenhouse"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 4,
+        "kind": "marker",
+        "id": "npc"
+      }
+    ]
+  },
+  {
+    "key": "twin_dock_bazaar",
+    "name": "Twin-Dock Bazaar",
+    "tier": "large",
+    "kind": "station",
+    "pack": "default",
+    "weight": 2,
+    "width": 13,
+    "height": 6,
+    "length": 11,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "cargo_floor"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "iron_wall"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "metal_panel"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 8,
+        "kind": "marker",
+        "id": "mission_board"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 9,
+        "kind": "marker",
+        "id": "hangar"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 9,
+        "kind": "marker",
+        "id": "quarters"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 5,
+        "kind": "marker",
+        "id": "heal_tank"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 1,
+        "kind": "marker",
+        "id": "npc"
       }
     ]
   }

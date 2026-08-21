@@ -91,22 +91,45 @@ public sealed class GameContent
     /// <summary>Weighted, tier-matched, pack-filtered pick of a hand-designed station template — or null
     /// when no template fits (the caller then falls back to the procedural generator). <paramref name="enabledPacks"/>
     /// = null/empty means "all packs allowed".</summary>
-    public StructureTemplate? PickStationTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
-        => PickFromTier(_stationsByTier, tier, enabledPacks, rng);
+    public StructureTemplate? PickStationTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng, bool legacyOnly = false)
+        => PickFromTier(_stationsByTier, tier, enabledPacks, rng, planetType: null, legacyOnly);
 
-    /// <summary>Settlement twin of <see cref="PickStationTemplate"/>.</summary>
-    public StructureTemplate? PickSettlementTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
-        => PickFromTier(_settlementsByTier, tier, enabledPacks, rng);
+    /// <summary>Settlement twin of <see cref="PickStationTemplate"/>. <paramref name="planetType"/> lets a
+    /// template restrict itself to a set of world types (#1115); empty/null matches every template.
+    /// <paramref name="legacyOnly"/> replays a pre-#1115 structure: only <see cref="StructureTemplate.LegacyPool"/>
+    /// templates compete, which reproduces the old selection stream draw-for-draw (no layout morphs).</summary>
+    public StructureTemplate? PickSettlementTemplate(string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng, string? planetType = null, bool legacyOnly = false)
+        => PickFromTier(_settlementsByTier, tier, enabledPacks, rng, planetType, legacyOnly);
+
+    /// <summary>A settlement template by exact key (pinned replays, #1115), or null when it no longer exists.</summary>
+    public StructureTemplate? SettlementTemplateByKey(string key)
+        => _settlementsByTier.Values.SelectMany(l => l).FirstOrDefault(t => t.Key == key);
+
+    /// <summary>A station template by exact key (pinned replays, #1115), or null when it no longer exists.</summary>
+    public StructureTemplate? StationTemplateByKey(string key)
+        => _stationsByTier.Values.SelectMany(l => l).FirstOrDefault(t => t.Key == key);
 
     private static StructureTemplate? PickFromTier(
-        Dictionary<string, List<StructureTemplate>> byTier, string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng)
+        Dictionary<string, List<StructureTemplate>> byTier, string tier, IReadOnlyCollection<string>? enabledPacks, System.Random rng, string? planetType = null, bool legacyOnly = false)
     {
         if (!byTier.TryGetValue(string.IsNullOrWhiteSpace(tier) ? "medium" : tier, out var candidates) || candidates.Count == 0)
         {
             return null;
         }
 
-        bool PackAllowed(StructureTemplate t) => enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault);
+        if (legacyOnly)
+        {
+            candidates = candidates.Where(t => t.LegacyPool).ToList();
+            if (candidates.Count == 0)
+            {
+                return null; // no legacy template in this tier — exactly the pre-#1115 outcome (no draw)
+            }
+        }
+
+        bool PackAllowed(StructureTemplate t)
+            => (enabledPacks is null || enabledPacks.Count == 0 || enabledPacks.Contains(t.PackOrDefault))
+                && (t.PlanetTypes.Count == 0 || string.IsNullOrEmpty(planetType)
+                    || t.PlanetTypes.Contains(planetType!, StringComparer.OrdinalIgnoreCase));
 
         int total = 0;
         foreach (var t in candidates)

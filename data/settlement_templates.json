@@ -5,6 +5,7 @@
     "tier": "village",
     "pack": "default",
     "weight": 1,
+    "legacyPool": true,
     "width": 11,
     "height": 5,
     "length": 9,
@@ -2262,6 +2263,6709 @@
         "z": 6,
         "kind": "marker",
         "id": "loot"
+      }
+    ]
+  },
+  {
+    "key": "stone_roundhouse",
+    "name": "Roundhouse Rest",
+    "tier": "hamlet",
+    "kind": "settlement",
+    "pack": "default",
+    "weight": 2,
+    "width": 9,
+    "height": 6,
+    "length": 9,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 7,
+        "y": 1,
+        "z": 7,
+        "kind": "marker",
+        "id": "loot"
+      }
+    ]
+  },
+  {
+    "key": "stilt_hamlet",
+    "name": "Stilt Landing",
+    "tier": "village",
+    "kind": "settlement",
+    "pack": "default",
+    "weight": 2,
+    "planetTypes": [
+      "jungle",
+      "swamp",
+      "ocean",
+      "varied",
+      "fungal"
+    ],
+    "width": 13,
+    "height": 7,
+    "length": 11,
+    "cells": [
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 0,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 0,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 0,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 6,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 5,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 7,
+        "kind": "marker",
+        "id": "mission_board"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 2,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 9,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 5,
+        "kind": "marker",
+        "id": "loot"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 5,
+        "kind": "marker",
+        "id": "chest"
+      }
+    ]
+  },
+  {
+    "key": "walled_market",
+    "name": "Wallmarket",
+    "tier": "town",
+    "kind": "settlement",
+    "pack": "default",
+    "weight": 2,
+    "width": 15,
+    "height": 6,
+    "length": 13,
+    "cells": [
+      {
+        "x": 0,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 0,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 1,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 6,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 8,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 0,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 6,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 14,
+        "y": 2,
+        "z": 12,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 1,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "z": 5,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 1,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "z": 5,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 2,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 3,
+        "z": 8,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 3,
+        "z": 9,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 3,
+        "z": 10,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 13,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "stone"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 9,
+        "kind": "block",
+        "id": "door_slide"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 7,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 11,
+        "kind": "block",
+        "id": "glass"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 4,
+        "z": 11,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 4,
+        "z": 11,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 4,
+        "z": 11,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 4,
+        "z": 11,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 13,
+        "y": 4,
+        "z": 7,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 13,
+        "y": 4,
+        "z": 8,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 13,
+        "y": 4,
+        "z": 9,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 13,
+        "y": 4,
+        "z": 10,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 13,
+        "y": 4,
+        "z": 11,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 8,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 9,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 2,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 11,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 2,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 3,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 12,
+        "y": 3,
+        "z": 4,
+        "kind": "block",
+        "id": "wood_log"
+      },
+      {
+        "x": 10,
+        "y": 1,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "z": 3,
+        "kind": "marker",
+        "id": "vendor"
+      },
+      {
+        "x": 11,
+        "y": 1,
+        "z": 9,
+        "kind": "marker",
+        "id": "mission_board"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "z": 6,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 12,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 10,
+        "kind": "marker",
+        "id": "npc"
+      },
+      {
+        "x": 13,
+        "y": 1,
+        "z": 1,
+        "kind": "marker",
+        "id": "loot"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "z": 4,
+        "kind": "marker",
+        "id": "data_terminal"
       }
     ]
   }

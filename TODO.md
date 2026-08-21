@@ -105,6 +105,29 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+### ★ Structure-template pool grows to 4+4 — with template pinning so old worlds never morph (#1115, 2026-08-21, branch feat/1115-template-pool)
+Follow-up to the progression package (D3, deliberately kept out of it). The audit: both pools held ONE
+template (`river_hamlet` village, `hub_outpost` medium), so every hand-designed settlement/station was the
+same layout, and `SettlementTemplateUse`/`StationTemplateUse` sat at Rare. Now: THREE new settlements
+(`stone_roundhouse` hamlet, `stilt_hamlet` village — restricted via the new `planetTypes` field to wet/
+overgrown worlds, `walled_market` town) and THREE new stations (`pocket_waystation` small,
+`observation_spire` medium, `twin_dock_bazaar` large), authored as code-generated JSON (script run once,
+committed JSON is the truth — the ship-layout rule). Frequency Rare→Normal ONLY in the ServerConfig
+initializer (the #1114 pattern: new worlds get them, loaded saves keep their persisted/absent-field Rare).
+**The load-safety half — template PINNING**: the template pick re-rolls on EVERY load and even a pool's
+SIZE changes the rng draw pattern (a tier that gains its first template starts consuming a pick draw), so
+a grown pool would morph existing worlds' layouts under their stamped blocks. Fixes: (1)
+`StructurePlacementRecord.Template` pins each settlement's layout at stamp time ("" = procedural); (2)
+`WorldMetadata.StationTemplates` (station id → key) pins interiors at FIRST boarding; (3) `legacyPool` flag
+on the two pre-#1115 templates + `legacyOnly` picks: pre-pinning structures (record without the field /
+pre-#586 worlds / stations already boarded) replay against ONLY the legacy pool, which reproduces the old
+selection stream draw-for-draw (empty tiers stay empty and consume no draw — that is the subtle part).
+NEVER remove a template (pins break); never set legacyPool on a new one. Per-planet-type filter only
+applies to settlements (stations float in space). Tests: `StructureTemplatePoolTests` (4 — pool/tier
+coverage + every cell resolves + exactly one legacy per pool, legacyOnly returns exactly the pre-expansion
+universe, planet-type restriction, stamp→pin→restart replay). Credits #96/#97 remain open for community
+templates on top (`pack` field). Issue #1115.
+
 ### ★ One-of-a-kind sites & peaceful space encounters — the galaxy's mysteries (#1129, 2026-08-20, branch feat/progression-pr14-unique-sites)
 PR 14 of the progression package (epic #1101), D6 — **the package's final PR**. The audit: the only unique
 place was the story-gated Guardian Core; space offered ambush rolls and trader cruises; nothing a player

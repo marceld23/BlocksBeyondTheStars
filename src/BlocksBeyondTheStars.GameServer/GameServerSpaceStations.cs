@@ -433,12 +433,29 @@ public sealed partial class GameServer
         // Chance to stamp a hand-designed template from the pool (when one fits this tier + the world's
         // enabled packs) instead of generating. The roll uses its own RNG so it never disturbs the
         // procedural generator's determinism. Off use / empty sub-pool ⇒ always procedural.
+        // #1115: the picked template is PINNED per station on first stamp — the interior blocks persist,
+        // so a later, bigger pool must never re-pick a different layout under them. Stations pinned
+        // before the feature (map entry absent, void world no longer virgin) replay the LEGACY pool,
+        // which reproduces the pre-#1115 selection draw-for-draw.
         StationStructure structure;
         var roll = new System.Random(unchecked((int)(sSeed ^ (sSeed >> 32))));
         StructureTemplate? template = null;
+        bool pinned = _meta.StationTemplates.TryGetValue(station.Id, out var pinnedKey);
         if (roll.NextDouble() < _meta.Description.StationTemplateUse.Probability())
         {
-            template = _content.PickStationTemplate(station.SizeTier, _meta.Description.EnabledStructurePacks, roll);
+            template = _content.PickStationTemplate(station.SizeTier, _meta.Description.EnabledStructurePacks, roll,
+                legacyOnly: !pinned && !_worlds.Active.VirginAtLoad);
+            if (pinned)
+            {
+                // The roll's draw is consumed above (stream contract); the pinned layout wins ("" = procedural).
+                template = string.IsNullOrEmpty(pinnedKey) ? null : _content.StationTemplateByKey(pinnedKey!) ?? template;
+            }
+        }
+
+        if (!pinned)
+        {
+            _meta.StationTemplates[station.Id] = template?.Key ?? string.Empty;
+            _repo.SaveMetadata(_meta);
         }
 
         structure = template != null

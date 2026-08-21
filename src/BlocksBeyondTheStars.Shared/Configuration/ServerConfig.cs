@@ -107,13 +107,17 @@ public sealed class ServerConfig
     /// default to false, so a loaded save whose metadata predates the features stays byte-identical.
     /// Space stations are Normal here for the same reason (#1114): new galaxies get a station in most
     /// systems, while the <see cref="BlocksBeyondTheStars.Shared.World.WorldDescription.SpaceStations"/>
-    /// property keeps its Rare default so an old save whose metadata omitted the field is unchanged.</summary>
+    /// property keeps its Rare default so an old save whose metadata omitted the field is unchanged.
+    /// Template use is Normal here too (#1115): with a real pool of hand-designed layouts, new worlds
+    /// should actually show them — old saves keep the property's load-safe Rare.</summary>
     public BlocksBeyondTheStars.Shared.World.WorldDescription World { get; set; } = new()
     {
         SystemVariance = true,
         AsteroidBelts = true,
         TerrainContinents = true,
         SpaceStations = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
+        StationTemplateUse = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
+        SettlementTemplateUse = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
     };
 
     /// <summary>Optional AI mission backend level (Off keeps the game fully AI-free).</summary>

@@ -88,6 +88,14 @@ public sealed class WorldMetadata
     public System.Collections.Generic.List<string> RelayInsights { get; set; } = new();
 
     /// <summary>
+    /// Pinned station interiors (#1115): station id → template key ("" = procedurally generated), written
+    /// at the station's FIRST interior stamp. Replays use the pin, so a growing template pool never morphs
+    /// an already-boarded station's interior under its persisted blocks. Additive JSON field; a station
+    /// absent from the map replays against the legacy pool (the pre-#1115 behaviour, draw-for-draw).
+    /// </summary>
+    public System.Collections.Generic.Dictionary<string, string> StationTemplates { get; set; } = new();
+
+    /// <summary>
     /// Growing galaxy (#1123): how many systems were appended BEYOND the description's
     /// <c>StarSystemCount</c> by frontier jumps. The galaxy is re-derived from the seed on every start,
     /// so persisting the COUNT is enough — system N is a pure function of (seed, N), and regenerating
@@ -156,6 +164,11 @@ public sealed class StructurePlacementRecord
     public bool OnIsland { get; set; }
     public string Seat { get; set; } = "legacy";      // seat style: legacy|flat|slope|shelf|stilts|lava|island|buried|wellhead
     public string Name { get; set; } = string.Empty;  // display name (derives from rng draws AFTER the search, so it must be pinned too)
+
+    /// <summary>The hand-designed template this instance was stamped from (#1115), "" for procedural — or
+    /// for records from before template pinning existed, which replay against the LEGACY template pool so
+    /// a growing pool never morphs their layout under the stamped blocks.</summary>
+    public string Template { get; set; } = string.Empty;
 }
 
 /// <summary>One player station's SPS relay conversion (#1125): what has been poured into it so far, and

@@ -27,6 +27,16 @@ public sealed class StructureTemplate
     /// at selection time so a 0/negative value never makes a template unpickable by accident.</summary>
     public int Weight { get; set; } = 1;
 
+    /// <summary>Planet-type keys this template may appear on (#1115) — empty = every world. Only consulted
+    /// for settlements (stations float in space); an unknown key simply never matches, it never breaks.</summary>
+    public List<string> PlanetTypes { get; set; } = new();
+
+    /// <summary>True on the templates that existed BEFORE the pool grew (#1115: river_hamlet,
+    /// hub_outpost). Structures stamped before template pinning existed replay against ONLY these, which
+    /// reproduces the old selection stream draw-for-draw — their layouts never morph under a bigger pool.
+    /// Never set this on a new template, and never REMOVE a template either (a missing key breaks pins).</summary>
+    public bool LegacyPool { get; set; }
+
     public int Width { get; set; }
     public int Height { get; set; }
     public int Length { get; set; }

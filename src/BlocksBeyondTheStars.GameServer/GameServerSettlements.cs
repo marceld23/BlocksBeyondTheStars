@@ -275,9 +275,22 @@ public sealed partial class GameServer
             bool ruined;
             SettlementStructure structure;
 
+            // #1115: the record is consulted BEFORE the template pick — a pinned instance replays its
+            // exact template, and a pre-pinning record replays against the LEGACY pool only, which
+            // reproduces the old selection stream draw-for-draw. The template ROLL itself is stream-stable
+            // (same probability from the metadata, same draw), so hit/miss never changes on a replay.
+            var pinRec = FindPlacementRecord("settlement", i);
+            bool legacyReplay = pinRec is { Placed: true, Template.Length: 0 }  // pinned era, before pinning
+                || (pinRec is null && !_worlds.Active.VirginAtLoad);            // pre-#586 world, same deal
             var template = ir.NextDouble() < _meta.Description.SettlementTemplateUse.Probability()
-                ? _content.PickSettlementTemplate(tier, _meta.Description.EnabledStructurePacks, ir)
+                ? _content.PickSettlementTemplate(tier, _meta.Description.EnabledStructurePacks, ir, _world.Planet.Key,
+                    legacyOnly: legacyReplay)
                 : null;
+            if (pinRec is { Placed: true, Template.Length: > 0 } && template != null)
+            {
+                // The roll's draw is consumed above (stream contract); the pinned layout wins.
+                template = _content.SettlementTemplateByKey(pinRec.Template) ?? template;
+            }
 
             if (template != null)
             {
@@ -329,7 +342,7 @@ public sealed partial class GameServer
 
                 seat = "legacy";
                 name = UniqueName(SettlementDisplayName(tier, ruined, ir), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty);
             }
             else
             {
@@ -345,7 +358,7 @@ public sealed partial class GameServer
                 }
 
                 name = UniqueName(SettlementDisplayName(tier, ruined, RngFor(instSeed, "name")), usedNames);
-                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name);
+                RecordPlacement("settlement", i, origin, groundY, onIsland, seat, name, template?.Key ?? string.Empty);
             }
 
             placed.Add(new PlacedSettlement
@@ -679,7 +692,7 @@ public sealed partial class GameServer
     /// <summary>Pins where a structure instance landed (#586). Batched — call
     /// <see cref="SavePlacementRecords"/> once per stamper after its loop.</summary>
     private void RecordPlacement(string kind, int index, Vector3i origin, int groundY, bool onIsland,
-        string seat, string name)
+        string seat, string name, string template = "")
     {
         var rec = FindPlacementRecord(kind, index);
         if (rec is null)
@@ -695,6 +708,7 @@ public sealed partial class GameServer
         rec.OnIsland = onIsland;
         rec.Seat = seat;
         rec.Name = name;
+        rec.Template = template; // #1115: pin the hand-designed layout, "" = procedural
         _placementRecordsDirty = true;
     }
 
