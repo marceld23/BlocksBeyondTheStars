@@ -240,6 +240,14 @@ namespace BlocksBeyondTheStars.Client
         private void Submit(string text)
         {
             string t = (text ?? string.Empty).Trim();
+
+            // Ordinary prose is capped at the server's 200-char chat limit anyway — trim it here so what
+            // the player sends is what arrives. Share codes pass through untrimmed: the server answers
+            // over-long ones with a readable hint instead of silent garbage (#1154).
+            if (t.Length > 200 && !t.StartsWith("BBTS1-", System.StringComparison.Ordinal))
+            {
+                t = t.Substring(0, 200);
+            }
             if (t.StartsWith("/bump", System.StringComparison.OrdinalIgnoreCase))
             {
                 // Bug report: grab a screenshot first, then send it with the description. The capture
@@ -715,7 +723,9 @@ namespace BlocksBeyondTheStars.Client
             var ph = UiKit.AddText(inputGo.transform, 8, 0, LaneW - 32f, 32, L("ui.chat.send_hint"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
             _input.textComponent = txt;
             _input.placeholder = ph;
-            _input.characterLimit = 200;
+            // Room for a pasted build share code — the server refuses over-long codes with a clear hint
+            // instead of truncating, and Submit() trims ordinary prose to the 200-char chat cap (#1154).
+            _input.characterLimit = 4096;
             _input.lineType = InputField.LineType.SingleLine;
             _input.onEndEdit.AddListener(OnEndEdit);
             _inputRow.gameObject.SetActive(false);

@@ -218,6 +218,47 @@ public sealed class GameServerStoryP7P8Tests : IDisposable
         }
     }
 
+    /// <summary>#1155: opening (looting empty) a vault cache fires the save's <c>vault:first</c> milestone —
+    /// exactly once, and only for vault sites; a plain chest never counts as the vault first.</summary>
+    [Fact]
+    public void Looting_a_vault_cache_advances_the_arc_once()
+    {
+        string world = "p7p8_vault_" + Guid.NewGuid().ToString("N");
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = world, Seed = 4242, StartPlanet = "rocky", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        var p = server.AddLocalPlayer("Delver");
+        var feet = p.State.Position;
+        var cell = new Shared.Geometry.Vector3i((int)Math.Floor(feet.X) + 1, (int)Math.Floor(feet.Y), (int)Math.Floor(feet.Z));
+        int before = server.StorySnapshot.Milestones;
+
+        StoredContainer Cache(string id) => new()
+        {
+            Id = id,
+            Planet = p.CurrentLocationId,
+            Kind = "chest",
+            Position = cell,
+            Items = new List<Shared.State.ItemStack> { new("iron_plate", 1) },
+        };
+
+        server.AddContainerForTest(Cache("loot_vault_0_cache"));
+        server.LootContainer(p.State.PlayerId, "loot_vault_0_cache");
+        Assert.Equal(before + 1, server.StorySnapshot.Milestones);
+
+        // A second vault is not a new first…
+        server.AddContainerForTest(Cache("loot_vault_1_cache"));
+        server.LootContainer(p.State.PlayerId, "loot_vault_1_cache");
+        Assert.Equal(before + 1, server.StorySnapshot.Milestones);
+
+        // …and a plain chest never was one.
+        server.AddContainerForTest(Cache("loot_chest_plain"));
+        server.LootContainer(p.State.PlayerId, "loot_chest_plain");
+        Assert.Equal(before + 1, server.StorySnapshot.Milestones);
+    }
+
     public void Dispose()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

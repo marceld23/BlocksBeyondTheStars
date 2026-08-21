@@ -26,8 +26,10 @@ public sealed partial class GameServer
     /// <summary>How often ONE base is (re)checked — the scan walks the base's 17³ zone, so it round-robins.</summary>
     private const double BaseLifeScanInterval = 10.0;
 
-    /// <summary>Settler NPC ids per base id (transient — NPCs are per-world and respawn via the scan).</summary>
-    private readonly Dictionary<int, int> _baseSettlerNpcIds = new();
+    /// <summary>Settler NPC ids per base id, with the world they live on (transient — NPCs are per-world
+    /// and respawn via the scan; the world id keeps the sweep from touching same-numbered NPCs of other
+    /// worlds, #1152).</summary>
+    private readonly Dictionary<int, (string WorldId, int NpcId)> _baseSettlerNpcIds = new();
 
     private double _nextBaseLifeAt;
     private int _baseLifeCursor;
@@ -43,13 +45,19 @@ public sealed partial class GameServer
 
         _nextBaseLifeAt = _uptime + BaseLifeScanInterval;
 
-        // A dissolved base takes its settler with it.
-        foreach (var (baseId, npcId) in _baseSettlerNpcIds.ToList())
+        // A dissolved base takes its settler with it — but only ever on the settler's own world: NPC ids
+        // restart at 1 per world, so a blind remove-by-id could delete an unrelated NPC elsewhere (#1152).
+        foreach (var (baseId, settler) in _baseSettlerNpcIds.ToList())
         {
+            if (settler.WorldId != _world.LocationId)
+            {
+                continue; // that world isn't loaded — handled once it is active again
+            }
+
             if (_bases.All(b => b.Id != baseId))
             {
                 _baseSettlerNpcIds.Remove(baseId);
-                int removed = _npcs.RemoveAll(n => n.Id == npcId);
+                int removed = _npcs.RemoveAll(n => n.Id == settler.NpcId && n.Role == "settler");
                 if (removed > 0)
                 {
                     BroadcastNpcs();
@@ -64,13 +72,20 @@ public sealed partial class GameServer
         }
 
         var candidate = here[_baseLifeCursor++ % here.Count];
-        if (_baseSettlerNpcIds.ContainsKey(candidate.Id) || CountBaseMachines(candidate) < BaseSettlerMachineCount)
+        if (HasLiveBaseSettler(candidate) || CountBaseMachines(candidate) < BaseSettlerMachineCount)
         {
             return;
         }
 
         SpawnBaseSettler(candidate);
     }
+
+    /// <summary>Whether the base's settler is actually standing on the active world — a world switch clears
+    /// the NPC list, so a stale mapping must not block the respawn (#1152).</summary>
+    private bool HasLiveBaseSettler(ServerBase b)
+        => _baseSettlerNpcIds.TryGetValue(b.Id, out var s)
+            && s.WorldId == _world.LocationId
+            && _npcs.Any(n => n.Id == s.NpcId && n.Settlement == b.Name && n.Role == "settler");
 
     /// <summary>Machine-category blocks inside the base zone (base_core itself excluded).</summary>
     private int CountBaseMachines(ServerBase b)
@@ -115,7 +130,7 @@ public sealed partial class GameServer
         BroadcastNpcs();
 
         string npcKey = NpcKey(SettlementLocationKey(b.Name), "settler");
-        _baseSettlerNpcIds[b.Id] = npc.Id;
+        _baseSettlerNpcIds[b.Id] = (b.Planet, npc.Id);
 
         if (FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner)
         {
@@ -168,5 +183,5 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test seam: the settler NPC id for a base, or null when none moved in yet.</summary>
-    public int? BaseSettlerForTest(int baseId) => _baseSettlerNpcIds.TryGetValue(baseId, out int id) ? id : null;
+    public int? BaseSettlerForTest(int baseId) => _baseSettlerNpcIds.TryGetValue(baseId, out var s) ? s.NpcId : null;
 }

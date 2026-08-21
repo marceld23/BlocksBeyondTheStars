@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Rádio de maior alcance — comunicação de texto e voz com qualquer um por toda a galáxia.",
   "blueprint.galaxy_radio.name": "Rádio Galáctico",
   "blueprint.galaxy_radio.desc": "Melhora o rádio para alcance galáctico.",
+  "srv.chat.code_too_long": "Esse código de construção é longo demais para o chat — compartilhe-o com o botão \"Copiar código\" da Ferramenta de Planta.",
   "ui.chat.hint": "Enter: conversar",
   "ui.chat.send_hint": "Enter para enviar · Esc para cancelar",
   "ui.chat.report_tip": "Dica: alguém sendo maldoso? Digite /report Nome no chat ou use o botão de denúncia na lista de jogadores (ship → alliance).",

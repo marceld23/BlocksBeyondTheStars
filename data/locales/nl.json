@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Radio met het grootste bereik — tekst- en spraakcommunicatie met iedereen in het hele sterrenstelsel.",
   "blueprint.galaxy_radio.name": "Galaxieradio",
   "blueprint.galaxy_radio.desc": "Vergroot het bereik van de radio tot het hele sterrenstelsel.",
+  "srv.chat.code_too_long": "Deze bouwcode is te lang voor de chat — deel hem via de knop 'Code kopiëren' van het Blauwdrukgereedschap.",
   "ui.chat.hint": "Enter: chatten",
   "ui.chat.send_hint": "Enter om te versturen · Esc om te annuleren",
   "ui.chat.report_tip": "Tip: iemand onaardig? Typ /report Naam in de chat of gebruik de meldknop in de spelerslijst (schip → alliantie).",

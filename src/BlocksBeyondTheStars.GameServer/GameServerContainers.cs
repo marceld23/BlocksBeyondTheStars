@@ -110,14 +110,16 @@ public sealed partial class GameServer
         }
 
         container.Items = leftover;
-        if (container.Items.Count == 0)
+        if (container.Items.Count == 0 && container.Kind != "crate")
         {
             _containers.Remove(container);
             _repo.DeleteContainer(container.Id);
-            OnAchievementLoot(session); // "Treasure Hunter": a find looted empty (#1102)
+            OnAchievementLoot(session); // "Treasure Hunter": a WORLD find looted empty (#1102)
         }
         else
         {
+            // Player storage crates are not treasure: emptying one neither counts as a find nor deletes
+            // its row — the crate block still stands and must stay stashable (#1153).
             _repo.SaveContainer(container);
         }
 
@@ -131,6 +133,11 @@ public sealed partial class GameServer
             if (site.Length > 0)
             {
                 TryRevealLoreText(session, site);
+            }
+
+            if (site == "vault")
+            {
+                RecordStoryMilestone("vault:first"); // the save's first opened vault advances the arc (#1155)
             }
         }
 
@@ -264,6 +271,9 @@ public sealed partial class GameServer
     /// <summary>Test/util entrypoint: set a crate's filter as a given player (mirrors the filter intent).</summary>
     public void SetContainerFilterForTest(PlayerSession session, string containerId, string[] items)
         => HandleSetContainerFilter(session, new SetContainerFilterIntent { ContainerId = containerId, Items = items });
+
+    /// <summary>Test seam: registers a container verbatim (a world loot container or a player crate).</summary>
+    public void AddContainerForTest(StoredContainer container) => AddContainer(container);
 
     /// <summary>Places a storage crate the player just built into the world as an (empty) lootable container.</summary>
     private void PlaceCrate(Vector3i pos)

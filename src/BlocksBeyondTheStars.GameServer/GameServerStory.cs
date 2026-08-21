@@ -150,9 +150,10 @@ public sealed partial class GameServer
     }
 
     /// <summary>Records a once-per-save story milestone (#1105): the first base founded, the first station or
-    /// self-built ship commissioned, the first companion tamed, the first hyperjump, the first rune read on a
-    /// world (<c>monument:&lt;body&gt;</c>). The key is remembered in <see cref="StoryState.MilestoneKeys"/> so a
-    /// first can never be farmed by repeating it; a duplicate key is a no-op.</summary>
+    /// self-built ship commissioned, the first companion tamed, the first hyperjump, the first vault opened,
+    /// the first rune read on a world (<c>monument:&lt;body&gt;</c>). The key is remembered in
+    /// <see cref="StoryState.MilestoneKeys"/> so a first can never be farmed by repeating it; a duplicate key
+    /// is a no-op.</summary>
     public void RecordStoryMilestone(string onceKey)
     {
         if (!StoryActive || string.IsNullOrEmpty(onceKey) || !_storyState.MilestoneKeys.Add(onceKey))

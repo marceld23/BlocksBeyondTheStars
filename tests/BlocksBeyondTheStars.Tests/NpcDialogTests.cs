@@ -208,6 +208,31 @@ public sealed class NpcDialogTests : IDisposable
         }
     }
 
+    [Fact]
+    public void AuthoredCharacters_ClaimAtMostOneSlotPerPlace()
+    {
+        // Wherever a pack character is cast, their place must hold exactly ONE of them — a market with
+        // several npc markers must not spawn a row of identical Yara Senns sharing one memory (#1150).
+        // Scan seeds until a handful of claims were seen so multi-slot places get sampled too.
+        int claims = 0;
+        for (long seed = 1; seed <= 60 && claims < 6; seed++)
+        {
+            var server = NewServer($"cast_{seed}", seed, out var repo);
+            using (repo)
+            {
+                foreach (var (characterId, place, count) in server.AuthoredCastingForTest())
+                {
+                    claims++;
+                    Assert.True(count == 1, $"seed {seed}: {count}× '{characterId}' at '{place}'");
+                }
+
+                server.Stop();
+            }
+        }
+
+        Assert.True(claims > 0, "no authored character was cast across the sampled seeds");
+    }
+
     // ---------------- Content consistency ----------------
 
     [Fact]

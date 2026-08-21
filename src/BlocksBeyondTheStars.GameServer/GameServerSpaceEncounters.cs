@@ -140,7 +140,7 @@ public sealed partial class GameServer
 
             // … and a promised call once they catch their breath (PR 13's pending-call plumbing).
             _dialogRadioPending.Add((p.PlayerId, npcKey, pod.Name, place, session.CurrentLocationId,
-                "npc.call.rescue", _uptime + 150.0));
+                "npc.call.rescue", _uptime + 150.0, _uptime + DialogRadioGiveUpSeconds));
 
             Send(session, new ServerMessage
             {

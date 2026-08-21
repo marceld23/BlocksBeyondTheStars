@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Najdalszy zasięg radia — tekstowe i głosowe rozmowy z każdym w całej galaktyce.",
   "blueprint.galaxy_radio.name": "Radio Galaktyczne",
   "blueprint.galaxy_radio.desc": "Rozszerza zasięg radia na całą galaktykę.",
+  "srv.chat.code_too_long": "Ten kod budowli jest za długi na czat — udostępnij go przyciskiem „Kopiuj kod” w Narzędziu planu.",
   "ui.chat.hint": "Enter: czat",
   "ui.chat.send_hint": "Enter, by wysłać · Esc, by anulować",
   "ui.chat.report_tip": "Wskazówka: ktoś źle się zachowuje? Wpisz /report Name na czacie lub użyj przycisku zgłoś na liście graczy (statek → sojusz).",

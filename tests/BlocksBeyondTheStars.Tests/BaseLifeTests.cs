@@ -87,4 +87,91 @@ public sealed class BaseLifeTests : IDisposable
             Assert.Equal(1, server.NpcSnapshots.Count(n => n.Role == "settler"));
         }
     }
+
+    /// <summary>A second landable planet in the SAME system (quick travel without a jump generator).</summary>
+    private Shared.World.CelestialBody OtherPlanet(SvGameServer server)
+    {
+        string sys = server.Galaxy.FindBody(server.ActiveLocationId)!.SystemId;
+        return server.Galaxy.AllBodies().First(b =>
+            b.Kind is Shared.World.CelestialKind.Planet or Shared.World.CelestialKind.Moon or Shared.World.CelestialKind.AsteroidField
+            && b.SystemId == sys
+            && !string.IsNullOrEmpty(b.PlanetType)
+            && _content.GetPlanet(b.PlanetType!) is not null
+            && b.Id != server.ActiveLocationId);
+    }
+
+    /// <summary>Places a base with enough machines that the scan moves a settler in, returns its id.</summary>
+    private int FoundHomeWithSettler(SvGameServer server, BlocksBeyondTheStars.GameServer.PlayerSession owner, out Vector3i core)
+    {
+        var feet = owner.State.Position;
+        core = new Vector3i((int)Math.Floor(feet.X) + 3, (int)Math.Floor(feet.Y) + 4, (int)Math.Floor(feet.Z));
+        server.PlaceBaseForTest(owner, core);
+        int baseId = server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+        var workbench = _content.GetBlock("workbench")!.NumericId;
+        server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z), workbench, 0, 0, 0, owner.State.Name);
+        server.World.SetBlock(new Vector3i(core.X + 2, core.Y, core.Z), workbench, 0, 0, 0, owner.State.Name);
+        server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z + 1), workbench, 0, 0, 0, owner.State.Name);
+        server.ScanBaseLifeForTest();
+        Assert.NotNull(server.BaseSettlerForTest(baseId));
+        return baseId;
+    }
+
+    [Fact]
+    public void TheSettler_ComesBackAfterAWorldRoundTrip()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Wanderer");
+            int baseId = FoundHomeWithSettler(server, owner, out _);
+
+            // Travelling away clears the world's NPC list; coming home must respawn the settler — a stale
+            // id mapping must not block the scan (#1152).
+            server.SetInstantTravelForTest(true);
+            string home = owner.CurrentLocationId;
+            Assert.True(server.QuickTravelForTest("Wanderer", OtherPlanet(server).Id));
+            Assert.True(server.QuickTravelForTest("Wanderer", home));
+
+            server.ScanBaseLifeForTest();
+            int? settlerId = server.BaseSettlerForTest(baseId);
+            Assert.NotNull(settlerId);
+            Assert.Contains(server.NpcSnapshots, n => n.Id == settlerId!.Value && n.Role == "settler");
+            Assert.Equal(1, server.NpcSnapshots.Count(n => n.Role == "settler"));
+        }
+    }
+
+    [Fact]
+    public void DissolvingABase_WhileAnotherWorldIsActive_NeverTouchesThatWorldsNpcs()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Mover");
+            int baseId = FoundHomeWithSettler(server, owner, out var core);
+            string home = owner.CurrentLocationId;
+
+            // Dissolve the base (mine its core — a drill-tier block) and switch the active world BEFORE
+            // the next sweep runs — the exact ordering that used to delete a same-numbered NPC on the
+            // OTHER world (#1152: NPC ids restart at 1 per world).
+            owner.State.AboardShip = false;
+            owner.State.Inventory.SetSlot(0, new Shared.State.ItemStack("basic_drill", 1));
+            owner.State.Position = new Vector3f(core.X + 1.2f, core.Y + 0.5f, core.Z + 0.5f); // within mining reach
+            server.World.SetBlock(core, _content.GetBlock("base_core")!.NumericId, 0, 0, 0, "Mover"); // the seam founds only the entity
+            server.MineBlock("Mover", core.X, core.Y, core.Z);
+            Assert.DoesNotContain(server.BaseSnapshots, b => b.Id == baseId);
+            server.SetInstantTravelForTest(true);
+            Assert.True(server.QuickTravelForTest("Mover", OtherPlanet(server).Id));
+
+            var npcsBefore = server.NpcSnapshots.Select(n => n.Id).OrderBy(i => i).ToList();
+            server.ScanBaseLifeForTest();
+            Assert.Equal(npcsBefore, server.NpcSnapshots.Select(n => n.Id).OrderBy(i => i).ToList());
+            Assert.NotNull(server.BaseSettlerForTest(baseId)); // deferred, not deleted blindly
+
+            // Back home, the sweep cleans up on the settler's own world.
+            Assert.True(server.QuickTravelForTest("Mover", home));
+            server.ScanBaseLifeForTest();
+            Assert.Null(server.BaseSettlerForTest(baseId));
+            Assert.DoesNotContain(server.NpcSnapshots, n => n.Role == "settler");
+        }
+    }
 }

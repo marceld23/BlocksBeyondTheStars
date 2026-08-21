@@ -5398,6 +5398,15 @@ public sealed partial class GameServer
             return;
         }
 
+        // A pasted build share code would be silently cut to garbage by the chat cap — and a chat line
+        // cannot be copied back out anyway. Refuse it with a pointer to the blueprint tool's clipboard
+        // flow instead of truncating (#1154).
+        if (text.Length > 200 && text.StartsWith("BBTS1-", System.StringComparison.Ordinal))
+        {
+            Send(session, new ServerMessage { Text = "@srv.chat.code_too_long" });
+            return;
+        }
+
         if (text.Length > 200)
         {
             text = text.Substring(0, 200);

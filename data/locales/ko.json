@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "은하 전역과 문자인/음성으로 통신할 수 있는 최장거리 라디오예요.",
   "blueprint.galaxy_radio.name": "Galaxy Radio",
   "blueprint.galaxy_radio.desc": "라디오의 범위를 은하 전역으로 확장합니다.",
+  "srv.chat.code_too_long": "이 건축 코드는 채팅에 넣기에 너무 깁니다. 청사진 도구의 '코드 복사' 버튼으로 공유하세요.",
   "ui.chat.hint": "Enter: 채팅",
   "ui.chat.send_hint": "Enter로 전송 · Esc로 취소",
   "ui.chat.report_tip": "팁: 누군가 못되게 굴어요? 채팅에 /report Name을 입력하거나 플레이어 목록(선박 → 연맹)의 신고 버튼을 사용하세요.",

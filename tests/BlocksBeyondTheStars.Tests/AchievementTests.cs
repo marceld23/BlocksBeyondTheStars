@@ -47,6 +47,42 @@ public sealed class AchievementTests : IDisposable
         return server;
     }
 
+    /// <summary>#1153: a player's own storage crate is not treasure — emptying it must neither advance the
+    /// <c>loot:any</c> counter (a one-crate "Treasure Hunter" farm) nor delete its container row (the block
+    /// still stands and must stay stashable). World finds keep counting and despawning.</summary>
+    [Fact]
+    public void LootingAPlayerCrate_NeitherCountsAsAFind_NorDeletesItsRow()
+    {
+        var server = Started(out var repo, "achv_crate");
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Storer");
+            var feet = p.State.Position;
+            var cell = new Vector3i((int)Math.Floor(feet.X) + 1, (int)Math.Floor(feet.Y), (int)Math.Floor(feet.Z));
+
+            StoredContainer At(string id, string kind) => new()
+            {
+                Id = id,
+                Planet = p.CurrentLocationId,
+                Kind = kind,
+                Position = cell,
+                Items = new List<ItemStack> { new("iron_plate", 5) },
+            };
+
+            server.AddContainerForTest(At("crate_own", "crate"));
+            server.LootContainer(p.State.PlayerId, "crate_own");
+            Assert.Equal(5, p.State.Inventory.CountOf("iron_plate"));
+            Assert.False(p.State.AchievementCounters.TryGetValue("loot:any", out int n) && n > 0);
+            Assert.Contains(server.Containers, c => c.Id == "crate_own"); // row survives with the block
+
+            // A WORLD find still counts exactly once and despawns.
+            server.AddContainerForTest(At("loot_chest_wild", "chest"));
+            server.LootContainer(p.State.PlayerId, "loot_chest_wild");
+            Assert.Equal(1, p.State.AchievementCounters["loot:any"]);
+            Assert.DoesNotContain(server.Containers, c => c.Id == "loot_chest_wild");
+        }
+    }
+
     [Fact]
     public void TheDataFileLoads_AndEveryEntryIsUsable()
     {

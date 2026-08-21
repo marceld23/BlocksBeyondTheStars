@@ -72,6 +72,11 @@ namespace BlocksBeyondTheStars.Client
 
             _elapsed += Time.deltaTime;
             bool skip = Input.GetKeyDown(KeyCode.Escape);
+            if (skip)
+            {
+                Game?.MarkMenuInputHandled(); // this Esc skips the ending — don't also pop the quit prompt (#1151)
+            }
+
             if (_timeline.Done(_elapsed) || skip)
             {
                 Finish();

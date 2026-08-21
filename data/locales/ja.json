@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "銀河全体と文字・音声で通信できる、最長距離のラジオです。",
   "blueprint.galaxy_radio.name": "ギャラクシーラジオ",
   "blueprint.galaxy_radio.desc": "ラジオの射程を銀河規模に拡張します。",
+  "srv.chat.code_too_long": "この建築コードはチャットには長すぎます。設計ツールの「コードをコピー」ボタンで共有してください。",
   "ui.chat.hint": "Enter：チャット",
   "ui.chat.send_hint": "Enterで送信 · Escでキャンセル",
   "ui.chat.report_tip": "ヒント: 誰かが意地悪？チャットで /report Name と入力するか、プレイヤー一覧の報告ボタン（ship → alliance）を使ってね。",

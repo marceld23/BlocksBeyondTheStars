@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "En uzun menzilli radyo — tüm galakside metin ve sesli iletişim.",
   "blueprint.galaxy_radio.name": "Galaksi Radyosu",
   "blueprint.galaxy_radio.desc": "Radyoyu galaksi çapında menzile yükseltir.",
+  "srv.chat.code_too_long": "Bu yapı kodu sohbet için çok uzun — bunun yerine Plan Aracı'ndaki 'Kodu kopyala' düğmesiyle paylaş.",
   "ui.chat.hint": "Enter: sohbet",
   "ui.chat.send_hint": "Göndermek için Enter · İptal için Esc",
   "ui.chat.report_tip": "İpucu: biri kaba mı davrandı? Sohbete /report İsim yaz veya oyuncu listesinde rapor düğmesini kullan (gemi → ittifak).",

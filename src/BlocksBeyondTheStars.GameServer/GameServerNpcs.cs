@@ -103,6 +103,7 @@ public sealed partial class GameServer
             // settlements offer different trades (the old per-NPC theme was the human/alien look).
             string settlementTheme = SettlementTradeFor(settlement.Name);
             int vendorIndex = 0;
+            BeginAuthoredCasting(settlement.Name); // #1150: at most one authored face per place
 
             foreach (var (type, pos) in settlement.Markers)
             {

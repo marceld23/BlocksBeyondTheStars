@@ -555,6 +555,7 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
         int added = 0;
         int vendorIndex = 0;
+        BeginAuthoredCasting(station.Id); // #1150: at most one authored face per place
         foreach (var (type, pos) in station.Markers)
         {
             string? role = type switch

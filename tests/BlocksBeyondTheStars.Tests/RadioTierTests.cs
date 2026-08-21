@@ -138,6 +138,35 @@ public sealed class RadioTierTests : IDisposable
         Assert.True(GotChat(transport, dave, "galaxy broadcast"), "Dave anywhere must hear a galaxy_radio.");
     }
 
+    /// <summary>#1154: a build share code longer than the 200-char chat cap must not be silently truncated
+    /// into undecodable garbage — the sender gets a hint pointing at the blueprint tool's clipboard flow.
+    /// Short codes still flow through chat untouched.</summary>
+    [Fact]
+    public void OverlongShareCode_IsRefusedWithAHint_NotTruncated()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("radio_code", transport);
+
+        var alice = server.AddLocalPlayer("Alice");
+        var bob = server.AddLocalPlayer("Bob");
+        alice.State.Inventory.Add("comm_radio", 1, 1);
+
+        transport.Sent.Clear();
+        server.Chat("Alice", "BBTS1-B-" + new string('A', 400));
+
+        Assert.DoesNotContain(transport.Sent, s => s.Msg is ChatMessage); // no truncated garbage for anyone
+        Assert.Contains(transport.Sent, s =>
+            s.Conn == alice.ConnectionId && s.Msg is ServerMessage m && m.Text == "@srv.chat.code_too_long");
+        var en = _content.CreateLocalizer(Shared.Localization.GameLocale.English);
+        var de = _content.CreateLocalizer(Shared.Localization.GameLocale.German);
+        Assert.True(en.Has("srv.chat.code_too_long") && de.Has("srv.chat.code_too_long"));
+
+        // A code that fits the cap still travels through chat as-is.
+        transport.Sent.Clear();
+        server.Chat("Alice", "BBTS1-B-SMALL");
+        Assert.True(GotChat(transport, bob, "BBTS1-B-SMALL"), "a short share code must still flow through chat");
+    }
+
     [Fact]
     public void NoRadio_ChatIsRejected()
     {

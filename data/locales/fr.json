@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Radio à très longue portée — communications texte et voix avec tout le monde dans toute la galaxie.",
   "blueprint.galaxy_radio.name": "Radio galactique",
   "blueprint.galaxy_radio.desc": "Améliore la radio pour couvrir toute la galaxie.",
+  "srv.chat.code_too_long": "Ce code de construction est trop long pour le chat — partage-le avec le bouton « Copier le code » de l'Outil de plan.",
   "ui.chat.hint": "Entrée : discuter",
   "ui.chat.send_hint": "Entrée pour envoyer · Échap pour annuler",
   "ui.chat.report_tip": "Astuce : quelqu'un est méchant ? Tape /report Name dans le chat ou utilise le bouton de signalement dans la liste des joueurs (ship → alliance).",

@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Reichweitenstärkstes Funkgerät — Text- und Sprachfunk mit allen Spielern in der gesamten Galaxie.",
   "blueprint.galaxy_radio.name": "Galaxiefunkgerät",
   "blueprint.galaxy_radio.desc": "Rüstet das Funkgerät auf galaxieweite Reichweite auf.",
+  "srv.chat.code_too_long": "Dieser Bau-Code ist zu lang für den Chat — teile ihn stattdessen über „Code kopieren“ im Bauplan-Werkzeug.",
   "ui.chat.hint": "Enter: Chat",
   "ui.chat.send_hint": "Enter zum Senden · Esc zum Abbrechen",
   "ui.chat.report_tip": "Tipp: Jemand ist gemein? Tippe /report Name in den Chat oder nutze den Melden-Knopf in der Spielerliste (Schiff → Allianz).",

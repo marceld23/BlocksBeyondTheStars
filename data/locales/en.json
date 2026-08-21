@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "Longest-range radio — text and voice comms with everyone across the whole galaxy.",
   "blueprint.galaxy_radio.name": "Galaxy Radio",
   "blueprint.galaxy_radio.desc": "Upgrades the radio to galaxy-wide range.",
+  "srv.chat.code_too_long": "That build code is too long for chat — share it with the Blueprint Tool's Copy code button instead.",
   "ui.chat.hint": "Enter: chat",
   "ui.chat.send_hint": "Enter to send · Esc to cancel",
   "ui.chat.report_tip": "Tip: someone being mean? Type /report Name in chat or use the report button in the player list (ship → alliance).",

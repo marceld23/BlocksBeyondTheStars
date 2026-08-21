@@ -34,9 +34,16 @@ public sealed partial class GameServer
 
     /// <summary>"Later radio call" consequences waiting to fire (runtime-only — a restart drops the
     /// courtesy call, nothing of value is lost).</summary>
-    private readonly List<(string PlayerId, string NpcKey, string NpcName, string Place, string BodyId, string LineKey, double Due)> _dialogRadioPending = new();
+    private readonly List<(string PlayerId, string NpcKey, string NpcName, string Place, string BodyId, string LineKey, double Due, double GiveUpAt)> _dialogRadioPending = new();
 
     private const double DialogRadioDelaySeconds = 90.0;
+
+    /// <summary>A promised call deferred by a soft radio gate (cadence, quiet period, reach) retries this
+    /// often — the dialogue armed it exactly once, so losing it would break the promise for good (#1149).</summary>
+    private const double DialogRadioRetrySeconds = 60.0;
+
+    /// <summary>…but not forever: after this long the NPC gives up (the player stayed offline/off-radio).</summary>
+    private const double DialogRadioGiveUpSeconds = 1800.0;
 
     /// <summary>Engine dialogues plus the active story pack's own (authored characters). Order matters:
     /// pack dialogues come FIRST so a character's authored dialogue wins over any generic role match.</summary>
@@ -219,9 +226,10 @@ public sealed partial class GameServer
                 break;
 
             case "radio" when parts.Length >= 2:
-                // "I'll call you" — and a little later, they do (through every normal radio gate).
+                // "I'll call you" — and a little later, they do (through the radio gates; see the tick).
                 _dialogRadioPending.Add((session.State.PlayerId, npcKey, npc.Name, NpcPlaceFor(session.State),
-                    session.CurrentLocationId, parts[1], _uptime + DialogRadioDelaySeconds));
+                    session.CurrentLocationId, parts[1], _uptime + DialogRadioDelaySeconds,
+                    _uptime + DialogRadioGiveUpSeconds));
                 break;
         }
     }
@@ -242,20 +250,48 @@ public sealed partial class GameServer
                 continue;
             }
 
-            _dialogRadioPending.RemoveAt(i);
-            if (FindSessionByPlayerId(pending.PlayerId) is { Joined: true } owner)
+            if (_uptime >= pending.GiveUpAt)
             {
-                TryNpcRadioCall(owner, pending.NpcKey, pending.NpcName, pending.Place, pending.BodyId,
-                    "dialog:" + pending.LineKey, pending.LineKey, string.Empty, isMission: false);
+                _dialogRadioPending.RemoveAt(i); // the NPC gives up — player stayed offline/unreachable
+                continue;
+            }
+
+            // The dialogue itself was the personal contact, so the promised call skips the KNOWN gate; a
+            // soft gate (cadence, join quiet, reach) defers the one-shot instead of losing it — only the
+            // player's own preference (calls off / missions only) drops it for good (#1149).
+            var owner = FindSessionByPlayerId(pending.PlayerId);
+            bool sent = owner is { Joined: true }
+                && TryNpcRadioCall(owner, pending.NpcKey, pending.NpcName, pending.Place, pending.BodyId,
+                    "dialog:" + pending.LineKey, pending.LineKey, string.Empty, isMission: false,
+                    requireKnown: false);
+            if (sent || (owner is { Joined: true } && owner.State.NpcCallsMode != NpcCallsMode.All))
+            {
+                _dialogRadioPending.RemoveAt(i);
+            }
+            else
+            {
+                _dialogRadioPending[i] = (pending.PlayerId, pending.NpcKey, pending.NpcName, pending.Place,
+                    pending.BodyId, pending.LineKey, _uptime + DialogRadioRetrySeconds, pending.GiveUpAt);
             }
         }
     }
 
+    /// <summary>Slots an authored character already claimed in the current spawn pass of a place — a
+    /// winning place casts the character exactly once; every other eligible marker stays a regular NPC
+    /// (#1150: without this, a market with three npc markers spawned three identical Yara Senns).</summary>
+    private readonly HashSet<string> _claimedCharacterSlots = new();
+
+    /// <summary>Call before (re)spawning a place's NPCs so its authored-character claim resets with it.
+    /// Spawn order within a place is deterministic (template marker order), so the same slot wins on
+    /// every reload.</summary>
+    private void BeginAuthoredCasting(string placeKey)
+        => _claimedCharacterSlots.RemoveWhere(k => k.EndsWith("|" + placeKey, StringComparison.Ordinal));
+
     /// <summary>Lets a story pack's authored character (#1128) claim a freshly spawned NPC: a deterministic
     /// hash over (seed, place, character) picks roughly one in <see cref="StoryCharacter.OneIn"/> eligible
-    /// slots, so the same save always meets them at the same spots. The claim fixes name, face, body and
-    /// outfit — the same person everywhere — and never touches quartermasters (their coined name is baked
-    /// into their board's mission texts).</summary>
+    /// places, and within a winning place the first eligible slot in spawn order gets them (#1150). The
+    /// claim fixes name, face, body and outfit — the same person everywhere — and never touches
+    /// quartermasters (their coined name is baked into their board's mission texts).</summary>
     private void ApplyAuthoredCharacter(ServerNpc npc, string placeKind, string placeKey)
     {
         if (!StoryActive || _story is null)
@@ -277,6 +313,11 @@ public sealed partial class GameServer
             if (h % (uint)Math.Max(1, ch.OneIn) != 0)
             {
                 continue;
+            }
+
+            if (!_claimedCharacterSlots.Add(ch.Id + "|" + placeKey))
+            {
+                continue; // the place already has them — one Yara per market, one Sel-9 per bazaar (#1150)
             }
 
             var look = new Random(unchecked((int)WorldGenerator.StableHash("charlook:" + ch.Id)));
@@ -327,4 +368,20 @@ public sealed partial class GameServer
 
     /// <summary>Test seam: runs the due-radio drain immediately.</summary>
     public void TickDialogRadioForTest() => TickDialogRadio();
+
+    /// <summary>Test seam: queues a dialog-promised radio call that is due right away.</summary>
+    public void QueueDialogRadioForTest(string playerId, string npcKey, string npcName, string place,
+        string bodyId, string lineKey)
+        => _dialogRadioPending.Add((playerId, npcKey, npcName, place, bodyId, lineKey, _uptime,
+            _uptime + DialogRadioGiveUpSeconds));
+
+    /// <summary>Test/inspection: how many dialog-promised calls are still waiting to fire.</summary>
+    public int DialogRadioPendingForTest => _dialogRadioPending.Count;
+
+    /// <summary>Test/inspection: authored-character instances grouped per place on the active world.</summary>
+    public IReadOnlyList<(string CharacterId, string Place, int Count)> AuthoredCastingForTest()
+        => _npcs.Where(n => !string.IsNullOrEmpty(n.CharacterId))
+            .GroupBy(n => (n.CharacterId, n.Settlement))
+            .Select(g => (g.Key.CharacterId, g.Key.Settlement, g.Count()))
+            .ToList();
 }

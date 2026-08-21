@@ -203,6 +203,7 @@
   "item.galaxy_radio.desc": "La radio a più lunga portata: messaggi e voce con tutti in tutta la galassia.",
   "blueprint.galaxy_radio.name": "Radio galattica",
   "blueprint.galaxy_radio.desc": "Aggiorna la radio per coprire l'intera galassia.",
+  "srv.chat.code_too_long": "Questo codice di costruzione è troppo lungo per la chat: condividilo con il pulsante «Copia codice» dello Strumento Progetto.",
   "ui.chat.hint": "Invio: chat",
   "ui.chat.send_hint": "Invio per inviare · Esc per annullare",
   "ui.chat.report_tip": "Consiglio: qualcuno è cattivo? Digita /report Name in chat o usa il pulsante segnala nella lista giocatori (ship → alliance).",

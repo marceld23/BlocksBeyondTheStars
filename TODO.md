@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **1547 server + 194 client passing** (2026-08-09). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2074 server + 274 client passing** (2026-08-21). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -105,6 +105,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 
 ---
 
+**📦 2026-08-21 — progression epic #1101 CLOSED**: all 14 PRs merged (#1130–#1136, #1138–#1140, #1143,
+#1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
+playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
+
+### ★ Audit fix round — the epic's sharpest edges filed off before the playtest (#1149–#1156, 2026-08-21, branch fix/epic-1101-audit-fixes)
+A full implementation audit of epic #1101 (8 parallel per-track verification passes + a cross-cutting pass
+against the issue specs) confirmed 25/28 issues complete and surfaced a ranked bug list; this round fixes
+the top findings. **#1149** dialog-promised radio calls: `TickDialogRadio` now passes `requireKnown: false`
+(the dialogue WAS the personal contact) and a soft gate (cadence/quiet/reach) DEFERS the one-shot with a
+60-s retry (give-up after 30 min) instead of discarding it — only the player's own calls preference drops
+it; Sel-9's promised call actually arrives now. **#1150** authored characters: `_claimedCharacterSlots`
+(reset per place-spawn via `BeginAuthoredCasting`) caps a winning place at ONE instance — no more twin
+Sel-9s in a two-vendor bazaar. **#1151** ending cinematic: Esc-skip marks the press handled AND AppShell
+checks `ResolutionCinematic.Playing` (order-independent) — skipping the finale no longer pops the quit
+dialog. **#1152** base-settler sweep: the mapping now carries its world id; cleanup only acts on the
+settler's own world (NPC ids restart at 1 per world — the blind remove could delete a foreign NPC), and a
+stale mapping no longer blocks the respawn after a world round-trip. **#1153** `loot:any`: player crates
+(`Kind == "crate"`) no longer count as finds, and emptying one keeps its container row (the block still
+stands — stashing right after works again). **#1154** share codes in chat: an over-cap `BBTS1-` line is
+refused with `srv.chat.code_too_long` (14 locales) instead of silently truncated into garbage; client input
+allows the paste and trims only prose. **#1155** the missing `vault:first` story milestone fires on the
+save's first vault-cache loot. **#1156** this TODO catch-up + the wiki "colours" lantern sentence now
+matches behaviour (lanterns show colour, only lamps cast it). Tests: 7 new across NpcRadio/NpcDialog/
+BaseLife/Achievement/StoryP7P8/RadioTier suites.
+
 ### ★ Structure-template pool grows to 4+4 — with template pinning so old worlds never morph (#1115, 2026-08-21, branch feat/1115-template-pool)
 Follow-up to the progression package (D3, deliberately kept out of it). The audit: both pools held ONE
 template (`river_hamlet` village, `hub_outpost` medium), so every hand-designed settlement/station was the
@@ -185,6 +210,14 @@ Tests: `NpcDialogTests` (5 — walker + persistence, stage gate, elder claims sl
 survives restart + global memory, gift path, content/keys resolve incl. consequence targets). Radio
 consequence runtime deliberately untested (needs a boarded-station fixture — the gates themselves are
 covered by NpcRadioTests).
+
+### ★ Persistence hardening & credits — corrupted saves fail loudly, ahmdkaml credited (#1137, #1141, #1142, #1145, 2026-08-19/20, community PRs)
+The corruption arc (contributor ahmdkaml, the #1048 hardening queue): a corrupted player row is REJECTED on
+load instead of silently replaced with a fresh state — the stored bytes stay untouched for recovery (#1137);
+a client whose player row is corrupt receives a proper localized JoinRejected instead of hanging (#1141,
+locale en/de + community sync); and a corrupt persistence INIT surfaces as `InvalidDataException` instead of
+half-initialising the store (#1142). Credits: README and the in-game credits (`ui.credits.body`, 14 locales)
+list ahmdkaml under "tests & hardening" for the PR range through #1142 (#1145).
 
 ### ★ Coloured glass & tinted lamps — the tintable set opens up (#1126, 2026-08-20, branch feat/progression-pr12-tinted-glass)
 PR 12 of the progression package (epic #1101), B4. The audit: `TintableDefaults` covered ~21 plain solids;

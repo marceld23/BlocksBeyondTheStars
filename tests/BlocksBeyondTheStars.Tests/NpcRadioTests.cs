@@ -178,6 +178,53 @@ public sealed class NpcRadioTests : IDisposable
     }
 
     [Fact]
+    public void DialogPromisedCall_ReachesAStranger_AndSurvivesADeferral()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var calls = CaptureChat(client);
+            JoinAndDrain(server, client, "Newcomer");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+
+            // The dialogue promised a call while the player is still a stranger to the NPC. The join quiet
+            // period blocks the first attempt — the one-shot must be DEFERRED, never lost (#1149).
+            server.QueueDialogRadioForTest(p.State.PlayerId, "char:sel", "Sel-9", "Somewhere",
+                p.CurrentLocationId, "npc.call.board");
+            server.TickDialogRadioForTest();
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Empty(calls);
+            Assert.Equal(1, server.DialogRadioPendingForTest);
+
+            // Once the retry is due and the gates are open, the call reaches the player even though there
+            // is no relationship entry at all — the dialogue itself was the personal contact.
+            server.SkipNpcCallCooldownsForTest("Newcomer");
+            server.Tick(61.0); // past the retry delay
+            server.TickDialogRadioForTest();
+            server.Tick(0.1);
+            client.Poll();
+            var call = Assert.Single(calls);
+            Assert.Equal("📻 Sel-9 (Somewhere)", call.Sender);
+            Assert.False(string.IsNullOrWhiteSpace(call.Text));
+            Assert.Equal(0, server.DialogRadioPendingForTest);
+
+            // The player's own preference is a HARD gate: "missions only" drops a promised chit-chat call
+            // for good instead of retrying it forever.
+            p.State.NpcCallsMode = NpcCallsMode.MissionsOnly;
+            server.QueueDialogRadioForTest(p.State.PlayerId, "char:sel", "Sel-9", "Somewhere",
+                p.CurrentLocationId, "npc.call.board");
+            server.TickDialogRadioForTest();
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Single(calls);
+            Assert.Equal(0, server.DialogRadioPendingForTest);
+        }
+    }
+
+    [Fact]
     public void CallPreference_AndKnownRoster_RoundTripThroughTheirIntents()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "radio_intents"));
