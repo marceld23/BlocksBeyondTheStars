@@ -218,6 +218,15 @@ public sealed partial class GameServer
             return; // missing/implausible key — no ledger to credit against
         }
 
+        // Only games from the shipped catalogue earn knowledge (#1161): without this, a modified client
+        // could mint unbounded KP by submitting made-up keys at the curve's floor rate. Best-effort like
+        // the Creative unlock — if no catalogue is bundled at all, the old length check is the only gate.
+        var catalog = MinigameKeys();
+        if (catalog.Count > 0 && !catalog.Contains(key))
+        {
+            return;
+        }
+
         var milestones = session.State.Milestones;
         int rank = ArcadeGameRank(milestones, key);
         if (rank == 0)

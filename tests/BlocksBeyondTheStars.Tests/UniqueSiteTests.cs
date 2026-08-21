@@ -220,6 +220,11 @@ public sealed class UniqueSiteTests : IDisposable
             Assert.Equal(2, pilot.State.Inventory.CountOf("gold_ingot")); // the small thank-you
             var rel = Assert.Single(pilot.State.NpcMemory.Values.Where(r => r.Name == survivor));
             Assert.True(rel.Value >= 25, "a rescue makes you KNOWN in one act");
+
+            // Once per save (#1160): the rebuilt instance never rolls the same survivor again — no repeat
+            // pod, no repeat reward.
+            Assert.Equal(string.Empty, server.SpawnEncounterForTest("Rescuer", 1));
+            Assert.Equal(2, pilot.State.Inventory.CountOf("gold_ingot"));
             server.Stop();
         }
     }

@@ -28,6 +28,9 @@ public sealed partial class GameServer
     private const string DialogDoneMilestonePrefix = "dialog:";      // "dialog:<key>:done" — once-per-player gate
     private const string DialogFlagMilestonePrefix = "dialogflag:";  // "dialogflag:<key>:<node>:<choice>" — the persisted decision
 
+    /// <summary>A repeatable dialogue pays its relationship reward at most this often per NPC (#1162).</summary>
+    private const double DialogRewardCooldownSeconds = 3600.0;
+
     /// <summary>The dialogue each player is currently in (npc, definition, node index). Runtime-only —
     /// walking away simply abandons it; the once-flag is written when the dialogue ENDS.</summary>
     private readonly Dictionary<string, (int NpcId, DialogDefinition Dialog, int Node)> _dialogSessions = new();
@@ -150,9 +153,17 @@ public sealed partial class GameServer
         string npcKey = DialogNpcKey(session, npc);
         var p = session.State;
 
-        RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.Dialog, NpcPlaceFor(p));
+        // Repeatable smalltalk pays its relationship reward at most once per hour per NPC (#1162): the
+        // dialogue itself stays walkable any time, but spam-talking no longer farms stranger → trusted in
+        // twenty seconds. Once-per-player dialogues keep their own guard (the done-flag).
+        bool paysReward = active.Dialog.OncePerPlayer || DialogRewardOffCooldown(session, active.Dialog.Key, npcKey);
+        if (paysReward)
+        {
+            RecordNpcInteraction(p, npcKey, npc.Name, npc.Role, NpcInteractionKind.Dialog, NpcPlaceFor(p));
+        }
+
         p.Milestones.Add(DialogFlagMilestonePrefix + active.Dialog.Key + ":" + active.Node + ":" + intent.ChoiceIndex);
-        ApplyDialogConsequence(session, npc, npcKey, choice.Consequence);
+        ApplyDialogConsequence(session, npc, npcKey, choice.Consequence, paysReward);
 
         bool end = choice.Next < 0 || choice.Next >= active.Dialog.Nodes.Count;
         if (end && active.Dialog.OncePerPlayer && !choice.KeepOpen)
@@ -188,9 +199,25 @@ public sealed partial class GameServer
         });
     }
 
+    /// <summary>Whether the repeatable-dialogue reward is off cooldown for this (dialogue, NPC) — arming the
+    /// cooldown when it is (#1162). Session-scoped, mirroring the radio repeat-cooldown scale.</summary>
+    private bool DialogRewardOffCooldown(PlayerSession session, string dialogKey, string npcKey)
+    {
+        string key = dialogKey + "|" + npcKey;
+        if (session.DialogRewardCooldownUntil.TryGetValue(key, out double until) && _uptime < until)
+        {
+            return false;
+        }
+
+        session.DialogRewardCooldownUntil[key] = _uptime + DialogRewardCooldownSeconds;
+        return true;
+    }
+
     /// <summary>Applies a choice's consequence. Unknown/malformed strings are ignored — a data typo must
-    /// never break the conversation itself.</summary>
-    private void ApplyDialogConsequence(PlayerSession session, ServerNpc npc, string npcKey, string consequence)
+    /// never break the conversation itself. <paramref name="payStanding"/> false suppresses only the standing
+    /// bump (#1162, repeatable-dialogue cooldown) — gifts/fragments/calls carry their own once-guards.</summary>
+    private void ApplyDialogConsequence(PlayerSession session, ServerNpc npc, string npcKey, string consequence,
+        bool payStanding = true)
     {
         if (string.IsNullOrEmpty(consequence))
         {
@@ -200,6 +227,9 @@ public sealed partial class GameServer
         var parts = consequence.Split(':');
         switch (parts[0])
         {
+            case "standing" when !payStanding:
+                break; // on reward cooldown (#1162)
+
             case "standing" when parts.Length >= 2 && int.TryParse(parts[1], out int bump):
                 if (session.State.NpcMemory.TryGetValue(npcKey, out var rel))
                 {
@@ -377,6 +407,15 @@ public sealed partial class GameServer
 
     /// <summary>Test/inspection: how many dialog-promised calls are still waiting to fire.</summary>
     public int DialogRadioPendingForTest => _dialogRadioPending.Count;
+
+    /// <summary>Test seam: clears the repeatable-dialogue reward cooldowns (#1162), as if an hour passed.</summary>
+    public void SkipDialogRewardCooldownForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            session.DialogRewardCooldownUntil.Clear();
+        }
+    }
 
     /// <summary>Test/inspection: authored-character instances grouped per place on the active world.</summary>
     public IReadOnlyList<(string CharacterId, string Place, int Count)> AuthoredCastingForTest()

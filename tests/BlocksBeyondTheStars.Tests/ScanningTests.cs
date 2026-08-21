@@ -36,7 +36,15 @@ public sealed class ScanningTests : IDisposable
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, planet));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = planet, Seed = 4242, StartPlanet = planet, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig
+        {
+            WorldName = planet,
+            Seed = 4242,
+            StartPlanet = planet,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            DataDir = TestPaths.DataDir(), // the arcade catalogue gate (#1161) reads minigames/catalog.json
+        };
         rules?.Invoke(config.Rules);
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
@@ -369,22 +377,22 @@ public sealed class ScanningTests : IDisposable
             var p = server.AddLocalPlayer("Gamer");
 
             // First 2-star run pays 10; replaying the same game at the same rating teaches nothing (#767).
-            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 2);
+            server.ReportMinigameResultForTest("Gamer", "blockfall", rating: 2);
             Assert.Equal(10, p.State.KnowledgePoints);
-            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 2);
+            server.ReportMinigameResultForTest("Gamer", "blockfall", rating: 2);
             Assert.Equal(10, p.State.KnowledgePoints);
 
             // Improving the best rating pays only the newly-earned star; a worse re-run pays nothing.
-            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 3);
+            server.ReportMinigameResultForTest("Gamer", "blockfall", rating: 3);
             Assert.Equal(15, p.State.KnowledgePoints);
-            server.ReportMinigameResultForTest("Gamer", "asteroid_dodger", rating: 1);
+            server.ReportMinigameResultForTest("Gamer", "blockfall", rating: 1);
             Assert.Equal(15, p.State.KnowledgePoints);
 
             // A different game has its own ledger — and, as the player's SECOND game, pays 4 per star (#1104);
             // incomplete runs and missing keys never pay.
-            server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 1);
+            server.ReportMinigameResultForTest("Gamer", "laser_grid", rating: 1);
             Assert.Equal(19, p.State.KnowledgePoints);
-            server.ReportMinigameResultForTest("Gamer", "star_racer", rating: 3, completed: false);
+            server.ReportMinigameResultForTest("Gamer", "laser_grid", rating: 3, completed: false);
             Assert.Equal(19, p.State.KnowledgePoints);
             server.ReportMinigameResultForTest("Gamer", "", rating: 3);
             Assert.Equal(19, p.State.KnowledgePoints);
@@ -402,28 +410,42 @@ public sealed class ScanningTests : IDisposable
         {
             var p = server.AddLocalPlayer("Gamer");
 
-            server.ReportMinigameResultForTest("Gamer", "g1", rating: 3); // 3 × 5
-            server.ReportMinigameResultForTest("Gamer", "g2", rating: 3); // 3 × 4
-            server.ReportMinigameResultForTest("Gamer", "g3", rating: 3); // 3 × 3
-            server.ReportMinigameResultForTest("Gamer", "g4", rating: 3); // 3 × 2
-            server.ReportMinigameResultForTest("Gamer", "g5", rating: 3); // 3 × 1
-            server.ReportMinigameResultForTest("Gamer", "g6", rating: 3); // 3 × 1
+            // The real 20-game catalogue — only catalogued keys earn since #1161.
+            string[] games =
+            {
+                "blockfall", "asteroid_breaker", "circuit_weaver", "signal_tuner", "drone_rescue",
+                "cargo_sorter", "blueprint_scramble", "orbit_slingshot", "laser_grid", "micro_miner",
+                "star_memory", "glyph_decoder", "reactor_balance", "oxygen_loop", "comet_courier",
+                "docking_sim", "data_fishing", "nanobot_repair", "planet_scanner", "void_solitaire",
+            };
+
+            server.ReportMinigameResultForTest("Gamer", games[0], rating: 3); // 3 × 5
+            server.ReportMinigameResultForTest("Gamer", games[1], rating: 3); // 3 × 4
+            server.ReportMinigameResultForTest("Gamer", games[2], rating: 3); // 3 × 3
+            server.ReportMinigameResultForTest("Gamer", games[3], rating: 3); // 3 × 2
+            server.ReportMinigameResultForTest("Gamer", games[4], rating: 3); // 3 × 1
+            server.ReportMinigameResultForTest("Gamer", games[5], rating: 3); // 3 × 1
             Assert.Equal(15 + 12 + 9 + 6 + 3 + 3, p.State.KnowledgePoints);
 
             // The first game keeps its rank: a star earned there later still pays the full 5.
-            server.ReportMinigameResultForTest("Gamer", "g1", rating: 1); // already banked → 0
+            server.ReportMinigameResultForTest("Gamer", games[0], rating: 1); // already banked → 0
             Assert.Equal(48, p.State.KnowledgePoints);
-            p.State.Milestones.Remove("arcade:g1:star:3");                // pretend the third star was never banked
-            server.ReportMinigameResultForTest("Gamer", "g1", rating: 3);
+            p.State.Milestones.Remove("arcade:" + games[0] + ":star:3");      // pretend the third star was never banked
+            server.ReportMinigameResultForTest("Gamer", games[0], rating: 3);
             Assert.Equal(53, p.State.KnowledgePoints);
 
             // Twenty games in total stay far below the tree's 220-point ceiling.
-            for (int i = 7; i <= 20; i++)
+            for (int i = 6; i < 20; i++)
             {
-                server.ReportMinigameResultForTest("Gamer", "g" + i, rating: 3);
+                server.ReportMinigameResultForTest("Gamer", games[i], rating: 3);
             }
 
             Assert.Equal(53 + 14 * 3, p.State.KnowledgePoints);
+
+            // A key the catalogue never shipped mints nothing — no KP, no ledger entry (#1161).
+            server.ReportMinigameResultForTest("Gamer", "totally_made_up", rating: 3);
+            Assert.Equal(53 + 14 * 3, p.State.KnowledgePoints);
+            Assert.DoesNotContain(p.State.Milestones, m => m.Contains("totally_made_up"));
         }
     }
 
@@ -436,13 +458,13 @@ public sealed class ScanningTests : IDisposable
         using (repo)
         {
             var p = server.AddLocalPlayer("Gamer");
-            p.State.Milestones.Add("arcade:old:star:1"); // pre-#1104 ledger: one star, no rank
-            server.ReportMinigameResultForTest("Gamer", "fresh", rating: 1); // rank 1 → 5
+            p.State.Milestones.Add("arcade:blockfall:star:1"); // pre-#1104 ledger: one star, no rank
+            server.ReportMinigameResultForTest("Gamer", "laser_grid", rating: 1); // rank 1 → 5
             Assert.Equal(5, p.State.KnowledgePoints);
 
-            server.ReportMinigameResultForTest("Gamer", "old", rating: 3); // takes rank 2 → stars 2+3 pay 4 each
+            server.ReportMinigameResultForTest("Gamer", "blockfall", rating: 3); // takes rank 2 → stars 2+3 pay 4 each
             Assert.Equal(13, p.State.KnowledgePoints);
-            Assert.Contains("arcade:old:rank:2", p.State.Milestones);
+            Assert.Contains("arcade:blockfall:rank:2", p.State.Milestones);
         }
     }
 

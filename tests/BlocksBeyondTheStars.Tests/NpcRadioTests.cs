@@ -142,7 +142,10 @@ public sealed class NpcRadioTests : IDisposable
             JoinAndDrain(server, client, "Quiet");
             var p = server.Sessions[1];
 
-            server.SpawnBanditCampForTest(new Vector3f(p.State.Position.X + 60, p.State.Position.Y, p.State.Position.Z), 2);
+            // The camp sits near the quartermaster's settlement — the #1158 proximity gate must not be
+            // what silences the earlier steps.
+            var qmHome = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home;
+            server.SpawnBanditCampForTest(new Vector3f(qmHome.X + 60, qmHome.Y, qmHome.Z), 2);
             server.SkipNpcCallCooldownsForTest("Quiet");
 
             // No radio: silence.
@@ -171,6 +174,172 @@ public sealed class NpcRadioTests : IDisposable
             // Preference back to all: the call goes out.
             p.State.NpcCallsMode = NpcCallsMode.All;
             server.ScanNpcRadioForTest("Quiet");
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Single(calls);
+        }
+    }
+
+    private string EnglishLine(string key)
+        => _content.CreateLocalizer(Shared.Localization.GameLocale.English).Get(key);
+
+    [Fact]
+    public void ACampFarFromTheSettlement_DoesNotTriggerItsQuartermaster()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var calls = CaptureChat(client);
+            JoinAndDrain(server, client, "Ranger");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+            p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home;
+            p.State.NpcMemory[server.NpcKeyForTest("Ranger", "quartermaster")!] =
+                new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
+
+            // A camp 600 blocks straight up is far outside the 400-block worry radius (#1158) — vertical so
+            // no world-wrap can fold the distance back into range.
+            server.SpawnBanditCampForTest(new Vector3f(p.State.Position.X, p.State.Position.Y + 600, p.State.Position.Z), 2);
+            server.SkipNpcCallCooldownsForTest("Ranger");
+            server.ScanNpcRadioForTest("Ranger");
+            server.Tick(0.1);
+            client.Poll();
+            Assert.DoesNotContain(calls, c => c.Text == EnglishLine("npc.call.camp"));
+        }
+    }
+
+    [Fact]
+    public void ClearingACalledCamp_PaysTheFriendshipBonus_AndAThanks()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var calls = CaptureChat(client);
+            JoinAndDrain(server, client, "Hero");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+            p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home;
+            string npcKey = server.NpcKeyForTest("Hero", "quartermaster")!;
+            p.State.NpcMemory[npcKey] = new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
+
+            server.SpawnBanditCampForTest(new Vector3f(p.State.Position.X + 60, p.State.Position.Y, p.State.Position.Z), 2);
+            server.SkipNpcCallCooldownsForTest("Hero");
+            server.ScanNpcRadioForTest("Hero");
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Contains(calls, c => c.IsNpcCall && c.Text == EnglishLine("npc.call.camp"));
+            int before = p.State.NpcMemory[npcKey].Value;
+
+            // Put down every guard — the last one clears the camp and triggers the gratitude (#1158).
+            foreach (var guard in server.Bandits.ToList())
+            {
+                p.State.Position = guard.Position;
+                for (int i = 0; i < 10 && server.Bandits.Contains(guard); i++)
+                {
+                    server.AttackEntity("Hero", guard.Id);
+                }
+            }
+
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Equal(before + 5, p.State.NpcMemory[npcKey].Value); // mission weight 3 + gratitude 2
+            Assert.Contains(calls, c => c.IsNpcCall && c.Text == EnglishLine("npc.call.camp_thanks"));
+        }
+    }
+
+    [Fact]
+    public void RaidersInTheSystem_TriggerAKnownQuartermastersWarning()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var calls = CaptureChat(client);
+            JoinAndDrain(server, client, "Pilot");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+            p.State.Position = server.NpcSnapshots.First(n => n.Role == "quartermaster").Home; // key seam needs reach
+            p.State.NpcMemory[server.NpcKeyForTest("Pilot", "quartermaster")!] =
+                new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
+
+            string home = p.CurrentLocationId;
+            server.EnterSpace("Pilot");
+            server.SpawnRaiderShipForTest("Pilot");
+            p.CurrentLocationId = home; // pin the body id — reach + system lookup key off it
+
+            server.SkipNpcCallCooldownsForTest("Pilot");
+            server.ScanNpcRadioForTest("Pilot");
+            server.Tick(0.1);
+            client.Poll();
+            var call = Assert.Single(calls);
+            Assert.True(call.IsNpcCall);
+            string template = EnglishLine("npc.call.raider");
+            Assert.StartsWith(template.Substring(0, template.IndexOf("{0}", StringComparison.Ordinal)), call.Text);
+        }
+    }
+
+    [Fact]
+    public void AFoodDeliveryOnAKnownBoard_TriggersTheShortageCall()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var lines = CaptureChat(client);
+            JoinAndDrain(server, client, "Courier");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+            string settlement = server.BoardSettlementNameForTest();
+            string npcKey = server.SettlementLocationKeyForTest(settlement) + ":quartermaster";
+            p.State.NpcMemory[npcKey] = new NpcRelationship { Name = "Q", Role = "quartermaster", Value = 20 };
+
+            server.AddSettlementBoardMissionForTest(settlement, new Shared.Missions.MissionDefinition
+            {
+                Id = "food_test",
+                Title = "Pantry run",
+                Objectives = { new Shared.Missions.MissionObjective { Type = Shared.Missions.MissionObjectiveType.Deliver, Target = "berries", Required = 5 } },
+            });
+
+            server.SkipNpcCallCooldownsForTest("Courier");
+            server.ScanNpcRadioForTest("Courier");
+            server.Tick(0.1);
+            client.Poll();
+            Assert.Contains(lines, c => c.IsNpcCall && c.Text == EnglishLine("npc.call.food"));
+        }
+    }
+
+    [Fact]
+    public void AKnownVendor_SharesTheirStoryThread_OverTheRadio_Once()
+    {
+        var server = StartedWithBoard(out var repo, out var link);
+        using (repo)
+        {
+            using var client = new LoopbackClientTransport(link);
+            var calls = CaptureChat(client);
+            JoinAndDrain(server, client, "Listener");
+            var p = server.Sessions[1];
+            p.State.Inventory.Add("comm_radio", 1, 99);
+
+            // Only the VENDOR is known (the settler-legend thread lives with them: known + knowledge 1,
+            // which a fresh join satisfies) — the quartermaster stays a stranger so no camp/food call
+            // interferes.
+            string settlement = server.BoardSettlementNameForTest();
+            string vendorKey = server.SettlementLocationKeyForTest(settlement) + ":vendor";
+            p.State.NpcMemory[vendorKey] = new NpcRelationship { Name = "Mira", Role = "vendor", Value = 20 };
+
+            server.SkipNpcCallCooldownsForTest("Listener");
+            server.ScanNpcRadioForTest("Listener");
+            server.Tick(0.1);
+            client.Poll();
+            var call = Assert.Single(calls);
+            Assert.True(call.IsNpcCall);
+            Assert.Contains(p.State.Milestones, m => m.StartsWith("npcthread:", StringComparison.Ordinal));
+
+            // Told once per player: the next scan stays silent (cadence aside, the thread is burnt).
+            server.SkipNpcCallCooldownsForTest("Listener");
+            server.ScanNpcRadioForTest("Listener");
             server.Tick(0.1);
             client.Poll();
             Assert.Single(calls);

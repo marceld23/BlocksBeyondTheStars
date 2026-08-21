@@ -137,6 +137,8 @@ public sealed partial class GameServer
         var ambient = AmbientTrafficFor(systemId);
         if (ambient != TraderTraffic.Often && _relaySystems.Contains(systemId))
         {
+            // Deliberately overrides the sparse-archetype cap below (decision 2026-08-21): a relay CHANGES
+            // the system's character — even a lone giant or a belt becomes a stop on the network's routes.
             return ambient == TraderTraffic.None ? TraderTraffic.Rare : TraderTraffic.Often;
         }
 

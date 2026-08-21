@@ -103,8 +103,16 @@ namespace BlocksBeyondTheStars.Client
 
             foreach (var kv in cells)
             {
-                int glow = mods != null && mods.TryGetValue(kv.Key, out var m) ? m.Glow : 0;
-                int rgb = ChunkMesher.BlockLightColor(content, kv.Value, glow);
+                int glow = 0, tint = 0;
+                if (mods != null && mods.TryGetValue(kv.Key, out var m))
+                {
+                    glow = m.Glow;
+                    tint = m.Tint;
+                }
+
+                // Same priority as the planet path (#1126/#1159): glow > dye-on-a-light-source > natural —
+                // a red-dyed lamp aboard floods its corridor red, exactly like in a base.
+                int rgb = ChunkMesher.BlockLightColor(content, kv.Value, glow, tint);
                 if (rgb != 0)
                 {
                     lights.Add((kv.Key, rgb));

@@ -702,10 +702,14 @@ separate unlock; admins can still disable it through server world rules.
   standing. A few **recurring faces** exist out there — the same person at more than one place, and they
   remember you everywhere.
 - **The world calls you.** People you know reach out over the radio — "📻 Name (Place)" in chat: a
-  quartermaster with bandits nearby points you at the bounty, a refilled mission board gets a mention, a
-  trader landing near your base hails you. Calls need a **radio you carry** (comm = same world, system =
-  same system, galaxy = anywhere), come at most every few minutes, and never repeat themselves. The
-  **Settings → Comfort → NPC radio calls** option switches them to *missions only* or *off*.
+  quartermaster with bandits dug in **near their settlement** points you at the bounty (clearing a camp you
+  were called about earns extra gratitude), a refilled mission board gets a mention, a trader landing near
+  your base hails you, raider ships sighted in your star system draw a warning, a settlement running short
+  on food asks for a delivery, and a friend may pass along a **story rumour**. The most recent calls are
+  also listed at the top of **Tab → Missions**, so nothing drowns in chat. Calls need a **radio you carry**
+  (comm = same world, system = same system, galaxy = anywhere), come at most every few minutes, and never
+  repeat themselves. The **Settings → Comfort → NPC radio calls** option switches them to *missions only*
+  or *off*.
 - **Your base attracts life.** Trader ships prefer worlds with a founded base. Once your base holds a few
   machines (workbench, forge, …), a **settler moves in** — they know you from day one and count toward your
   people. No visitor ever damages a block.

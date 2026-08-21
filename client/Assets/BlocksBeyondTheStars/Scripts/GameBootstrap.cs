@@ -449,6 +449,12 @@ namespace BlocksBeyondTheStars.Client
         private readonly System.Collections.Generic.List<ChatMessage> _recentChat = new();
         private const int RecentChatMax = 60;
 
+        /// <summary>NPC radio calls (#1158, newest last, capped) — a call is easy to lose in chat scrollback,
+        /// so the Missions tab shows the recent ones in its own 📻 block.</summary>
+        public System.Collections.Generic.IReadOnlyList<ChatMessage> RecentNpcCalls => _recentNpcCalls;
+        private readonly System.Collections.Generic.List<ChatMessage> _recentNpcCalls = new();
+        private const int RecentNpcCallsMax = 6;
+
         /// <summary>The Instant Travel world option: when on, the travel screen may quick-travel anywhere.</summary>
         public bool InstantTravel => Rules?.InstantTravel ?? false;
 
@@ -1832,6 +1838,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 _recentChat.Add(m);
                 if (_recentChat.Count > RecentChatMax) _recentChat.RemoveAt(0);
+                if (m.IsNpcCall)
+                {
+                    _recentNpcCalls.Add(m); // mirrored into the Missions tab's 📻 block (#1158)
+                    if (_recentNpcCalls.Count > RecentNpcCallsMax) _recentNpcCalls.RemoveAt(0);
+                }
             };
             Network.ShipCombatStatusChanged += m => ShipCombat = m;
             Network.SpaceStateReceived += m =>

@@ -61,8 +61,19 @@ public sealed partial class GameServer
         return new Random(unchecked((int)(s ^ (s >> 32))));
     }
 
+    /// <summary>Save-wide ledger key: this instance's pod survivor was rescued once (#1160). Space instances
+    /// are rebuilt on every re-entry and the roll is seed-pure, so without the ledger the SAME survivor
+    /// drifted by again on every visit — repeat rewards, repeat thank-you call.</summary>
+    private static string RescueLedgerKey(SpaceInstance instance) => "rescue|" + instance.Id;
+
     private void SpawnEncounter(SpaceInstance instance)
     {
+        if (instance.EncounterKind == 1 && _meta.StampedFeatures.Contains(RescueLedgerKey(instance)))
+        {
+            instance.EncounterKind = 0; // #1160: already rescued once — the void stays quiet here
+            return;
+        }
+
         var rng = EncounterRng(instance);
         rng.Next(); // skip the roll draws consumed above
         rng.Next();
@@ -117,6 +128,9 @@ public sealed partial class GameServer
 
             instance.Entities.Remove(pod);
             instance.EncounterKind = 0;
+            instance.EncounterId = string.Empty;
+            _meta.StampedFeatures.Add(RescueLedgerKey(instance)); // #1160: once per save, survives restarts
+            _repo.SaveMetadata(_meta);
             BroadcastSpaceState(instance);
 
             // A small thank-you (never power creep) …

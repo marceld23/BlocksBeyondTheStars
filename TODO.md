@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2074 server + 274 client passing** (2026-08-21). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2080 server + 274 client passing** (2026-08-21). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -108,6 +108,27 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 **📦 2026-08-21 — progression epic #1101 CLOSED**: all 14 PRs merged (#1130–#1136, #1138–#1140, #1143,
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
+
+### ★ Audit round 2 — radio calls to full spec, aboard-ship lamp light, and the last farms closed (#1158–#1162, 2026-08-21, branch feat/epic-1101-audit-round2)
+Round two of the epic-#1101 audit follow-ups, per the scope decisions of 2026-08-21. **#1158 radio calls to
+FULL spec** (option c): calls are flagged (`ChatMessage.IsNpcCall`, additive contractless field) and the
+client mirrors the recent ones into a 📻 block atop **Tab → Missions**; camp calls gate on **proximity**
+(≤400 blocks from the settlement); clearing a CALLED camp pays a **friendship bonus** (+5 total: mission
+weight 3 + gratitude 2) plus a thank-you line; three new triggers — **raiders in your system** (hostile
+BanditShip in an instance there; planet-TYPE instance ids resolved via the relay fallback's sibling),
+**food shortage** (a food-item Deliver mission on a known board), and **story rumours** (the radio half of
+the #1112 npcThreads: peek → gates → commit, so a blocked call never burns the once-milestone; refactored
+`TryEmitNpcThread` into `PeekNpcThread`/`CommitNpcThread`). New keys npc.call.raider/food/camp_thanks +
+ui.missions.radio in all 14 locales. **#1159**: `ChunkMesher.BlockLightColor` gained the tint-aware overload
+and `ShipMeshBuilder.LightSources` + the in-chunk fallback use it — a dyed lamp aboard floods its corridor in
+its dye colour like in a base. **#1160**: pod rescues stamp `rescue|<instance>` into
+`WorldMetadata.StampedFeatures`; a rebuilt instance never re-rolls the same survivor (no repeat reward/call).
+**#1161**: minigame results are validated against `data/minigames/catalog.json` before any ledger write
+(best-effort like the Creative unlock; tests now use REAL catalogue keys and set `DataDir`). **#1162**:
+repeatable dialogues pay interaction + standing at most once per hour per NPC (session cooldown; once-per-
+player dialogues untouched). Decisions recorded: #1120 stays world-level (issue comment), the relay traffic
+lift over sparse archetypes is intentional (code comment). Manual §People-you-know updated. Tests: 6 new +
+2 extended across NpcRadio/NpcDialog/UniqueSite/Scanning suites.
 
 ### ★ Audit fix round — the epic's sharpest edges filed off before the playtest (#1149–#1156, 2026-08-21, branch fix/epic-1101-audit-fixes)
 A full implementation audit of epic #1101 (8 parallel per-track verification passes + a cross-cutting pass

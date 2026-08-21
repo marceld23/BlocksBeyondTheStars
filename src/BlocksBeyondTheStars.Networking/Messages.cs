@@ -1862,6 +1862,10 @@ public sealed class ChatMessage
 {
     public string Sender { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
+
+    /// <summary>True for a server-originated NPC radio call (#1158) — the client mirrors these into the
+    /// Missions tab's "Recent radio calls" block. Additive contractless field: old clients ignore it.</summary>
+    public bool IsNpcCall { get; set; }
 }
 
 /// <summary>One compressed voice frame, used both ways: client→server (the speaker's microphone, ~20 ms of

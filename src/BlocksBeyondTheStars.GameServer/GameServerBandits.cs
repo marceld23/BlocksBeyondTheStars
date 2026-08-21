@@ -823,7 +823,8 @@ public sealed partial class GameServer
             {
                 camp.Cleared = true;
                 MarkFeatureStamped("banditcamp:" + camp.Key + ":cleared");
-                OnCampBountyCleared(camp); // #730: every online bounty holder gets the objective completed
+                OnCampBountyCleared(camp);  // #730: every online bounty holder gets the objective completed
+                NpcRadioOnCampCleared(camp); // #1158: called-about camps pay a friendship bonus + thanks
             }
         }
     }

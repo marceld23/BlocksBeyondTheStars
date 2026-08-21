@@ -1511,6 +1511,20 @@ namespace BlocksBeyondTheStars.Client
         /// glowing ores/flora) deliberately return 0 — they keep their existing self-glow look and do NOT
         /// flood the world with propagated light. Shared by the mesher and the client light-source registry.
         /// </summary>
+        /// <summary>Light colour with the full modifier priority from #1126: glow > dye-on-a-light-source >
+        /// natural. ClientWorld applies the same rule for planet chunks; this overload brings ships, landed
+        /// ships and stations in line (#1159 — a red-dyed lamp aboard flooded its corridor white).</summary>
+        public static int BlockLightColor(GameContent content, BlockId id, int glowMod, int tintMod)
+        {
+            if (glowMod != 0)
+            {
+                return glowMod & 0xFFFFFF;
+            }
+
+            int baseRgb = BlockLightColor(content, id, 0);
+            return baseRgb != 0 && tintMod != 0 ? tintMod & 0xFFFFFF : baseRgb;
+        }
+
         public static int BlockLightColor(GameContent content, BlockId id, int glowMod)
         {
             if (glowMod != 0)
@@ -1584,8 +1598,8 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    var (_, g) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
-                    int rgb = BlockLightColor(content, id, g);
+                    var (t, g) = chunk.GetModifierLocal(WorldConstants.LocalIndex(x, y, z));
+                    int rgb = BlockLightColor(content, id, g, t); // glow > dye-on-a-light-source > natural (#1159)
                     if (rgb == 0)
                     {
                         continue;

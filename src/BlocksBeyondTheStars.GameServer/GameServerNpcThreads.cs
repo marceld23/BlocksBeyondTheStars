@@ -30,9 +30,23 @@ public sealed partial class GameServer
     /// spoken line — or empty when nothing (new) applies. Game-thread only.</summary>
     private string TryEmitNpcThread(PlayerSession session, ServerNpc npc, string npcKey)
     {
-        if (!StoryActive || _story is null || _story.NpcThreads.Count == 0)
+        if (PeekNpcThread(session, npc.Role, npcKey) is not { } thread)
         {
             return string.Empty;
+        }
+
+        CommitNpcThread(session, thread);
+        return Localize(session.Locale, thread.TextKey);
+    }
+
+    /// <summary>The first eligible, untold story thread of an NPC (by role + memory key) for this player —
+    /// WITHOUT side effects. The radio scan (#1158) peeks first so a call blocked by a radio gate never
+    /// burns the once-per-player milestone; a taker commits via <see cref="CommitNpcThread"/>.</summary>
+    private NpcThread? PeekNpcThread(PlayerSession session, string role, string npcKey)
+    {
+        if (!StoryActive || _story is null || _story.NpcThreads.Count == 0)
+        {
+            return null;
         }
 
         var p = session.State;
@@ -43,7 +57,7 @@ public sealed partial class GameServer
         foreach (var t in _story.NpcThreads)
         {
             if (string.IsNullOrEmpty(t.Key)
-                || (!string.IsNullOrEmpty(t.Role) && !string.Equals(t.Role, npc.Role, System.StringComparison.OrdinalIgnoreCase))
+                || (!string.IsNullOrEmpty(t.Role) && !string.Equals(t.Role, role, System.StringComparison.OrdinalIgnoreCase))
                 || t.MinKnowledge > knowledge
                 || StageRank(t.MinStage) > stage
                 || p.Milestones.Contains(NpcThreadMilestonePrefix + t.Key))
@@ -51,22 +65,28 @@ public sealed partial class GameServer
                 continue;
             }
 
-            p.Milestones.Add(NpcThreadMilestonePrefix + t.Key);
-            _repo.SavePlayer(p);
-
-            // A thread that carries a fragment hands it over on the spot: the reader opens with the archive
-            // text and the shared arc advances (deduped — a fragment already found elsewhere only re-reads).
-            if (!string.IsNullOrEmpty(t.FragmentKey)
-                && _story.Fragments.FirstOrDefault(f => f.Key == t.FragmentKey) is { } frag)
-            {
-                Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
-                RecordStoryFragment(frag.Key);
-            }
-
-            return Localize(session.Locale, t.TextKey);
+            return t;
         }
 
-        return string.Empty;
+        return null;
+    }
+
+    /// <summary>Marks a peeked thread told (once per player) and hands over a carried fragment: the reader
+    /// opens with the archive text and the shared arc advances (deduped — a fragment already found elsewhere
+    /// only re-reads).</summary>
+    private void CommitNpcThread(PlayerSession session, NpcThread thread)
+    {
+        var p = session.State;
+        p.Milestones.Add(NpcThreadMilestonePrefix + thread.Key);
+        _repo.SavePlayer(p);
+
+        if (!string.IsNullOrEmpty(thread.FragmentKey)
+            && _story is not null
+            && _story.Fragments.FirstOrDefault(f => f.Key == thread.FragmentKey) is { } frag)
+        {
+            Send(session, new NetFragmentRevealed { Category = frag.Category, TextKey = frag.TextKey });
+            RecordStoryFragment(frag.Key);
+        }
     }
 
     // ---------------- Test hooks ----------------

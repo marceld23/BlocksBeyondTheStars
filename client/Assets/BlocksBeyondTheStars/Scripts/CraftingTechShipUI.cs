@@ -1623,6 +1623,22 @@ namespace BlocksBeyondTheStars.Client
 
             var missions = _category == "active" ? list.Active : list.Available;
             float y = 0f;
+
+            // Recent NPC radio calls (#1158): a call is a fleeting chat line — give it a place to be found.
+            var calls = Game.RecentNpcCalls;
+            if (calls != null && calls.Count > 0)
+            {
+                UiKit.AddText(_listContent, 0, y, 780, 24, L("ui.missions.radio"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 28f;
+                for (int i = calls.Count - 1; i >= 0; i--)
+                {
+                    UiKit.AddText(_listContent, 8, y, 772, 22, $"{calls[i].Sender}: {calls[i].Text}", 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                    y += 24f;
+                }
+
+                y += 10f;
+            }
+
             foreach (var m in missions)
             {
                 string status = m.Objectives.Length > 0 ? $"{m.Objectives[0].Progress}/{m.Objectives[0].Required}" : string.Empty;

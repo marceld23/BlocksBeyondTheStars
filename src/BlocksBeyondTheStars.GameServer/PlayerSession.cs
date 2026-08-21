@@ -217,6 +217,14 @@ public sealed class PlayerSession
     /// <summary>Uptime of the next NPC radio-call trigger scan for this player (#1119).</summary>
     public double NpcCallScanAt { get; set; }
 
+    /// <summary>Camps this player was CALLED about (camp key → the caller), so clearing one pays the
+    /// promised friendship bonus (#1158). Session-scoped — the courtesy fades with a rejoin.</summary>
+    public Dictionary<string, (string NpcKey, string Name, string Place)> CalledCamps { get; } = new();
+
+    /// <summary>Per "«dialogKey»|«npcKey»": uptime before which a repeatable dialogue pays no relationship
+    /// reward again (#1162 — spam-talking must not farm standing).</summary>
+    public Dictionary<string, double> DialogRewardCooldownUntil { get; } = new();
+
     /// <summary>Uptime of the next (heavier) block-probe around the player; results cached in <see cref="VegaProbe"/>.</summary>
     public double VegaTipProbeAt { get; set; }
     public VegaTipProbe VegaProbe { get; } = new();
