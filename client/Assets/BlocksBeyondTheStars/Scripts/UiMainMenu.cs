@@ -211,18 +211,18 @@ namespace BlocksBeyondTheStars.Client
             // Final for the world saved in this browser (and the cloud copy follows on the next save), so it
             // spells that out and puts the destructive choice on the left, Cancel on the right.
             {
-                var (overlay, dlg) = UiKit.AddModalOverlay(root, 660f, 360f, 600f, 330f);
-                newWorldDlg = overlay;
-                UiKit.AddText(dlg, 30f, 24f, 540f, 36f, shell.L("ui.webgl.new_world_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-                var body = UiKit.AddText(dlg, 30f, 78f, 540f, 140f, shell.L("ui.webgl.new_world_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
-                body.horizontalOverflow = HorizontalWrapMode.Wrap;
-                UiKit.AddButton(dlg, 30f, 240f, 260f, 56f, shell.L("ui.webgl.new_world_confirm"), () =>
+                var (newWorldOverlay, newWorldPanel) = UiKit.AddModalOverlay(root, 660f, 360f, 600f, 330f);
+                newWorldDlg = newWorldOverlay;
+                UiKit.AddText(newWorldPanel, 30f, 24f, 540f, 36f, shell.L("ui.webgl.new_world_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var newWorldBody = UiKit.AddText(newWorldPanel, 30f, 78f, 540f, 140f, shell.L("ui.webgl.new_world_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
+                newWorldBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(newWorldPanel, 30f, 240f, 260f, 56f, shell.L("ui.webgl.new_world_confirm"), () =>
                 {
-                    overlay.SetActive(false);
+                    newWorldOverlay.SetActive(false);
                     shell.StartNewBrowserWorld();
                 }, "btn_exit");
-                UiKit.AddButton(dlg, 310f, 240f, 260f, 56f, shell.L("ui.action.cancel"), () => overlay.SetActive(false), "btn_settings");
-                overlay.SetActive(false);
+                UiKit.AddButton(newWorldPanel, 310f, 240f, 260f, 56f, shell.L("ui.action.cancel"), () => newWorldOverlay.SetActive(false), "btn_settings");
+                newWorldOverlay.SetActive(false);
             }
 #else
             // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent
