@@ -334,9 +334,11 @@ public sealed partial class GameServer
 
     // ---------------- Finale pacification (P6) ----------------
 
-    /// <summary>Finale win: the Guardian core is shut down — pacify the galaxy. One-way per-save: gates the
-    /// pack's planet + space machine spawns off (see <c>PlanetEnemiesActive</c> + the space spawn), despawns
-    /// live planet machines on the active world, persists, and broadcasts. The game continues afterwards.</summary>
+    /// <summary>Finale win: the Guardian core is shut down — pacify the galaxy. One-way per-save: despawns the
+    /// live planet machines on the active world (the dramatic beat), persists, and broadcasts. The game continues
+    /// afterwards under the Remnant Protocol (#1206, see <c>RemnantEra</c>): the flag no longer switches every
+    /// spawn off — the planet cap halves, refills slow down, only scan-drones remain, space waves keep only
+    /// pirate havens / the frontier-danger tier, bandit ships keep only their havens.</summary>
     private void MarkGuardianDefeated()
     {
         if (!StoryActive || _storyState.GuardianDefeated)

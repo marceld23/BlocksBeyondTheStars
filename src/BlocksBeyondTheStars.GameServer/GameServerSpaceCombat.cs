@@ -663,16 +663,21 @@ public sealed partial class GameServer
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
         AddDerelictToInstance(instance); // #1129: "The Long Quiet" drifts in exactly one body's space
 
-        // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on — and never
-        // once the Guardian core is destroyed (P6 pacification: the galaxy is at peace).
+        // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on. Once the
+        // Guardian core is destroyed the finale gauntlet stays down for good, and the ambient waves survive
+        // only where space is dangerous by its own nature — pirate havens and the opt-in frontier-danger
+        // tier (Remnant Protocol, #1206) — so the post-game galaxy is calmer, not empty.
         bool combatEnabled = Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both;
-        if (combatEnabled && !_storyState.GuardianDefeated)
+        if (combatEnabled)
         {
             // The finale system runs its own scripted ELITE gauntlet (P6 Stage 1) instead of the ambient
             // hostiles — the anchor body id (the "space:" prefix already stripped above) keys the check.
             if (IsGuardianSystemLocation(anchorId))
             {
-                SpawnGuardianGauntlet(instance);
+                if (!_storyState.GuardianDefeated)
+                {
+                    SpawnGuardianGauntlet(instance);
+                }
             }
             else
             {
@@ -687,7 +692,8 @@ public sealed partial class GameServer
                 // the fresh-start difficulty in pirate-space starts.
                 var archetype = SystemArchetypeOf(_galaxy?.FindBody(anchorId)?.SystemId);
                 int drones = ActivityCount(Rules.SpaceNpcEnemies);
-                if (archetype == SystemArchetype.Desolate)
+                bool remnantSpace = RemnantSpaceHostile(archetype, anchorId);
+                if (archetype == SystemArchetype.Desolate || !remnantSpace)
                 {
                     drones = 0;
                 }
@@ -730,7 +736,7 @@ public sealed partial class GameServer
                 }
 
                 if (Rules.AlienUfos != AlienActivity.Off && archetype != SystemArchetype.Desolate
-                    && wave.UfosKilled == 0)
+                    && remnantSpace && wave.UfosKilled == 0)
                 {
                     float uang = 2.42f + flight * 2.39996f; // roughly opposite the drone fan, rotating per flight
                     instance.Entities.Add(new CombatEntity
@@ -752,6 +758,14 @@ public sealed partial class GameServer
 
         return instance;
     }
+
+    /// <summary>Remnant Protocol (#1206): before the win every non-desolate system carries ambient hostiles;
+    /// after it only the places that are dangerous by their own nature keep them — a pirate haven, or the
+    /// full-frontier tier when the world's opt-in FrontierDanger rule is on.</summary>
+    private bool RemnantSpaceHostile(SystemArchetype archetype, string anchorBodyId)
+        => !_storyState.GuardianDefeated
+           || archetype == SystemArchetype.PirateHaven
+           || (Rules.FrontierDanger && FrontierTierForBody(anchorBodyId) >= 2);
 
     /// <summary>#741: session-scoped ambient-wave memory for one location — how many launches happened here
     /// (varies the wave layout per flight) and which ambient hostiles were destroyed (kept dead until the

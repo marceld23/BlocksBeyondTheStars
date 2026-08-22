@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Linq;
+using BlocksBeyondTheStars.GameServer;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -124,8 +125,12 @@ public sealed class GameServerStoryCombatTests : IDisposable
     }
 
     [Fact]
-    public void Defeating_the_guardian_pacifies_the_galaxy_so_no_more_planet_machines_spawn()
+    public void Defeating_the_guardian_leaves_only_remnant_drones_at_half_the_cap()
     {
+        // Remnant Protocol (#1206): the win used to switch every planet machine off for good — the saved
+        // galaxy was emptier than the threatened one. Now the live machines vanish at the moment of the win
+        // (the dramatic beat) and refill as a thinned-out remnant: half the cap (Normal + solo = 2 → 1),
+        // scan-drones only, at twice the interval.
         var server = Started("rocky", out var repo);
         using (repo)
         {
@@ -135,14 +140,16 @@ public sealed class GameServerStoryCombatTests : IDisposable
 
             server.MarkGuardianDefeatedForTest(); // win the finale → pacify the galaxy
             Assert.True(server.StorySnapshot.Defeated);
+            Assert.Empty(server.PlanetEnemies); // the live machines are gone at the moment of the win
 
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 20; i++)
             {
                 server.Tick(6.0);
                 p.State.Health = 100f;
             }
 
-            Assert.Empty(server.PlanetEnemies); // machines no longer spawn once the Guardian is down
+            Assert.Single(server.PlanetEnemies); // remnant cap = max(1, 2 / 2)
+            Assert.All(server.PlanetEnemies, e => Assert.Equal(CombatEntityKind.ScanDrone, e.Kind));
         }
     }
 

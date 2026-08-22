@@ -745,6 +745,11 @@ separate unlock; admins can still disable it through server world rules.
   the credits roll, and an epilogue that opens the door to what comes after. It's skippable (**Esc**),
   plays once on the next join for anyone who was offline at the time, and the Story tab keeps a
   **"Watch the ending again"** button once you've earned it.
+- **After the ending the galaxy is calmer, not empty.** The Guardian's machines don't vanish for good: the
+  hunter robots are gone and only a thinned-out remnant of scan-drones keeps roaming (half as many, spawning
+  half as often), space stays hostile only where it is dangerous by nature — **pirate havens** and the
+  opt-in *Frontier danger* tier — and raiders keep their havens, so the station **raider bounty** can still
+  be earned. Worlds with planet enemies *Off* (the family presets) stay peaceful as before.
 
 ### Scanning & knowledge
 - With a scanner selected, **left-click** a creature or block to scan it. Scans award **knowledge points**
