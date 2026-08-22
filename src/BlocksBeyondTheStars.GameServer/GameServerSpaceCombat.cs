@@ -114,6 +114,16 @@ public sealed class CombatEntity
     /// <summary>True when this entity is a tamed companion rather than wild fauna.</summary>
     public bool IsCompanion => OwnerId.Length > 0;
 
+    /// <summary>Companion payoff (#1210, server-only): uptime until which the pet poses "alert" (client flag),
+    /// and when its next produce drop is due (0 = not armed yet).</summary>
+    public double AlertUntil { get; set; }
+    public double NextProduceAt { get; set; }
+
+    /// <summary>Bandit side of the companion payoff (#1210, server-only): a robber stalled by a companion holds
+    /// until <see cref="StallUntil"/>; it can be stalled again from <see cref="NextStallAt"/> on.</summary>
+    public double StallUntil { get; set; }
+    public double NextStallAt { get; set; }
+
     // --- Bandit state (server-only; only meaningful on the Bandit* kinds) ---
 
     /// <summary>Where this bandit is in its hold-up script (approach → demand → fight/leave).</summary>

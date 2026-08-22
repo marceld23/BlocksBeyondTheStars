@@ -212,9 +212,9 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (_uptime < session.NextBanditAmbushAt || p.IgnoredByHostiles)
+            if (_uptime < session.NextBanditAmbushAt || p.IgnoredByHostiles || BanditWardedByCompanion(p))
             {
-                continue;
+                continue; // #1210: a bonded companion within ward range keeps robbers from picking this mark
             }
 
             session.NextBanditAmbushAt = _uptime + cooldown * (0.8 + _banditRng.NextDouble() * 0.4);
@@ -334,6 +334,11 @@ public sealed partial class GameServer
             return false;
         }
 
+        if (BanditStalledByCompanion(bandit))
+        {
+            return false; // #1210: a companion is in the way — the robber waits it out (no damage either way)
+        }
+
         MoveMode intent = MoveMode.Roam;
         Vector3f? target = null;
 
@@ -352,6 +357,13 @@ public sealed partial class GameServer
                         if (!MarkStillRobbable(mark))
                         {
                             BeginBanditLeave(bandit);
+                            changed = true;
+                            break;
+                        }
+
+                        if (BanditWardedByCompanion(mark!.State))
+                        {
+                            BeginBanditLeave(bandit); // #1210: a bonded companion at the mark's side — not worth the trouble
                             changed = true;
                             break;
                         }

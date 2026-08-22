@@ -355,12 +355,17 @@ namespace BlocksBeyondTheStars.Client
 
             if (!e.Nameplate.activeSelf) e.Nameplate.SetActive(true);
 
+            // #1210: a companion growling at a hostile in sight poses alert — amber label with a bobbing "!".
             string label = string.IsNullOrEmpty(c.CustomName) ? c.Name : c.CustomName;
+            if (c.Alerting) label = "! " + label + " !";
             if (e.NameText.text != label) e.NameText.text = label;
 
-            var col = new Color(0.6f, 0.96f, 0.8f, alpha); // friendly green-cyan, faded by distance
+            var col = c.Alerting
+                ? new Color(1f, 0.72f, 0.2f, alpha)    // alert amber
+                : new Color(0.6f, 0.96f, 0.8f, alpha); // friendly green-cyan, faded by distance
             if (e.NameText.color != col) e.NameText.color = col;
 
+            if (c.Alerting) platePos += Vector3.up * (0.15f + 0.15f * Mathf.Sin(Time.time * 8f));
             e.Nameplate.transform.position = platePos;
             if (cam != null)
             {

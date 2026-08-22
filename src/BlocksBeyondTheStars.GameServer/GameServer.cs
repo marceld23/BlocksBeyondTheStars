@@ -1393,6 +1393,7 @@ public sealed partial class GameServer
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
+            Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);

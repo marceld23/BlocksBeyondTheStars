@@ -158,6 +158,23 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Companion payoff — fetch, alert + robber stall, high-bond bandit ward, penned produce (#1210, 2026-08-22, branch feat/1210-companion-payoff)
+Sixth slice of the feature-deepening package (epic #1197). A companion was a `CombatEntity` with `DamagePerSecond = 0`
+that followed and warded machines — `Bond` was written once and only displayed. **Now** (`GameServerCompanionPayoff.cs`,
+no new persistence, no new NetCodec tag): **Fetch** — `TickDropPackets` also pours packets within `CompanionFetchRadius`
+(3× `DropPickupRadius`) of one of the player's OWN present companions (owner within leash range) into the owner's pool;
+VEGA `vega.hint.companion_fetch` once. **Alert** — 1 Hz `TickCompanionPayoff` (Guard after TickDropPackets): a hostile
+(planet machine / non-leaving bandit / aggressive awake fauna) with line of sight to a companion within 20 → owner toast
+`@srv.companion.alert:{name}` (cooldown 30 s) + additive `NetCreature.Alerting` (4 s; client: amber "! name !" nameplate
+with bob — growl sound = maintainer asset, deferred). **Distract** — Approach/Demanding robbers within 6 of the mark's
+companion stall 8 s (`CombatEntity.StallUntil`, repeat 30 s; `MoveBandit` returns early). **Bond ward** —
+`BanditWardedByCompanion` (Bond ≥ 70, companion within `CompanionWardRange`) keeps the player off the ambush roll and
+turns an approaching robber around; walk away from the pet and hold-ups are possible again. **Produce** — every 600 s a
+present companion spills its species' `DropItem` at its feet (fetch synergy; penned pets stockpile). Client: nameplate
+pose + Companions-tab payoff blurb (`ui.companions.payoff_hint`) — **client change → local Unity build**. Locales EN+DE.
+Tests: `CompanionPayoffTests` (fetch owner-only + leash, alert once per cooldown + flag, robber stall, bond ward on/off/
+far, produce drop). Docs: USER_MANUAL § Taming, CREATURE_TAMING.md. Follow-ups: B3 feed/bond tricks (#1197), growl sound.
+
 ### ★ Mission chains — authored multi-step chains at settlement boards, vendor friendship chain via dialogue + radio nudge, procedural big orders (#1212, 2026-08-22, branch feat/1212-mission-chains)
 Fifth slice of the feature-deepening package (epic #1197). `MissionDefinition` had no prerequisites / next-step /
 giver fields and the accept gate was "near board + not held". **Now:** additive schema on `MissionDefinition`

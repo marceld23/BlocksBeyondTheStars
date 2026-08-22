@@ -3057,7 +3057,10 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_detail, 8, 16, 620, 30, L("ui.companions.title"), 22, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
                 var info = UiKit.AddText(_detail, 8, 54, 620, 160, L("ui.companions.empty"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
                 info.horizontalOverflow = HorizontalWrapMode.Wrap;
-                SetContentHeight(_detail, 220);
+                // #1210: what a companion does for you (fetch / alert / produce) — the only tab change of the payoff.
+                var payoff = UiKit.AddText(_detail, 8, 54 + Mathf.Max(60f, info.preferredHeight + 12f), 620, 160, L("ui.companions.payoff_hint"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                payoff.horizontalOverflow = HorizontalWrapMode.Wrap;
+                SetContentHeight(_detail, 300);
                 return;
             }
 
