@@ -130,6 +130,15 @@ Docs: MUSIC_TRACKS.md, SOUND_DESIGN.md, NOTICES.md. **Gotchas:** keep the music 
 emits `game_ready` only once — verify on glitch.fun that late track loads don't re-show the overlay.
 **Follow-ups (not in this PR):** SFX import quality (119 clips at 100 %), native `Content-Encoding: br`
 instead of Unity's JS decompressor (needs a glitch-only test deploy first).
+**Glitch test deploy 2026-08-22 (`glitch-only.yml`, `2026.8.18-music1`, auto-activated):** `.data.unityweb`
+193.0 → **25.3 MB**, wasm 9.9 MB, music served as `audio/mpeg` on demand, data manifest unchanged. Found and
+fixed in the follow-up PR: in the browser `DownloadHandlerAudioClip.audioClip` is handed back **before the MP3
+is decoded** (`length == 0`, `loadState` still `Unloaded` — it only flips to `Loaded` later, so it is no
+"loading" signal for web-request clips); the re-roll check read length 0 as "track over" and immediately
+downloaded a second menu track. `LoadTrack` now waits for `clip.length > 0` (60 s cap; desktop clips are
+complete at once, no wait there), and the re-roll/prefetch check ignores length-0 clips. Measured in
+Chromium: decode 0.3 s, exactly one track fetch per context. Check script (Playwright, uv): loads the CDN
+or a local `http.server` copy of the build, logs `[Music]` console lines + per-file bytes.
 
 ### ★ Audit round 2 — radio calls to full spec, aboard-ship lamp light, and the last farms closed (#1158–#1162, 2026-08-21, branch feat/epic-1101-audit-round2)
 Round two of the epic-#1101 audit follow-ups, per the scope decisions of 2026-08-21. **#1158 radio calls to

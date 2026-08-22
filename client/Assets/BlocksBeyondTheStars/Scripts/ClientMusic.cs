@@ -61,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         private const float CrossfadeRate = 0.4f;   // volume units / s → ~2.5 s for a full fade
         private const float RerollLead = 3.0f;       // re-roll this many seconds before a track ends
         private const float PrefetchLead = 45f;      // start fetching the re-roll candidate this early (browser bandwidth)
+        private const float DecodeTimeoutSeconds = 60f; // browser-side MP3 decode must finish within this, else the track is skipped
         private const float UnderwaterCutoff = 680f;  // Hz — music muffles while the head is submerged
         private const float OpenCutoff = 22000f;
 
@@ -150,7 +151,8 @@ namespace BlocksBeyondTheStars.Client
                 _mode = mode;
                 SwitchTo(want, mode, game, reroll: false);
             }
-            else if (mode == MusicMode.Tracks && !_activeLoops && _active.clip != null && _active.isPlaying)
+            else if (mode == MusicMode.Tracks && !_activeLoops && _active.clip != null && _active.isPlaying
+                     && _active.clip.length > 0f) // length 0 = still decoding (browser), not "over"
             {
                 float remaining = _active.clip.length - _active.time;
                 if (remaining <= RerollLead && _rerolledFrom != _activeName)
@@ -614,6 +616,34 @@ namespace BlocksBeyondTheStars.Client
                 {
                     Debug.LogWarning($"[Music] Track '{name}' could not be loaded from '{url}': {request.error}");
                 }
+            }
+
+            // The browser decodes the MP3 asynchronously: right after the download the clip has length 0
+            // (and its loadState is not meaningful for web-request clips there — it stays Unloaded). Seen on
+            // glitch.fun: the director mistook "length 0" for "track over" and re-rolled straight into a
+            // second download. Hand the clip out only once it is really usable (length known); desktop /
+            // Editor clips are complete immediately, so this never waits there.
+            if (clip != null && clip.length <= 0f)
+            {
+                var before = clip.loadState;
+                float started = Time.realtimeSinceStartup;
+                while (clip != null && clip.length <= 0f && clip.loadState != AudioDataLoadState.Failed
+                       && Time.realtimeSinceStartup - started < DecodeTimeoutSeconds)
+                {
+                    yield return null;
+                }
+
+                if (clip != null && clip.length > 0f)
+                {
+                    Debug.Log($"[Music] Track '{name}' decoded after {Time.realtimeSinceStartup - started:0.0} s (loadState {before} → {clip.loadState}).");
+                }
+            }
+
+            if (clip != null && clip.length <= 0f)
+            {
+                Debug.LogWarning($"[Music] Track '{name}' did not finish decoding ({clip.loadState}); skipping it.");
+                Destroy(clip);
+                clip = null;
             }
 
             if (clip != null)
