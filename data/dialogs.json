@@ -15,6 +15,51 @@
     ]
   },
   {
+    "key": "vendor_favour_1",
+    "role": "vendor",
+    "minStage": "known",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.vendor_favour_1.prompt",
+        "choices": [
+          { "textKey": "dlg.vendor_favour_1.c_yes", "responseKey": "dlg.vendor_favour_1.r_yes", "consequence": "mission:chain_vendor_1" },
+          { "textKey": "dlg.vendor_favour_1.c_no", "responseKey": "dlg.vendor_favour_1.r_no" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "vendor_favour_2",
+    "role": "vendor",
+    "minStage": "known",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.vendor_favour_2.prompt",
+        "choices": [
+          { "textKey": "dlg.vendor_favour_2.c_yes", "responseKey": "dlg.vendor_favour_2.r_yes", "consequence": "mission:chain_vendor_2" },
+          { "textKey": "dlg.vendor_favour_2.c_no", "responseKey": "dlg.vendor_favour_2.r_no" }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "vendor_favour_3",
+    "role": "vendor",
+    "minStage": "trusted",
+    "oncePerPlayer": false,
+    "nodes": [
+      {
+        "promptKey": "dlg.vendor_favour_3.prompt",
+        "choices": [
+          { "textKey": "dlg.vendor_favour_3.c_yes", "responseKey": "dlg.vendor_favour_3.r_yes", "consequence": "mission:chain_vendor_3" },
+          { "textKey": "dlg.vendor_favour_3.c_no", "responseKey": "dlg.vendor_favour_3.r_no" }
+        ]
+      }
+    ]
+  },
+  {
     "key": "vendor_smalltalk",
     "role": "vendor",
     "minStage": "known",

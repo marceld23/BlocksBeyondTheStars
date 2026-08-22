@@ -701,6 +701,13 @@ separate unlock; admins can still disable it through server world rules.
   survey* (discover two plant species you have never scanned); space-station boards ask for an *asteroid
   survey* with the ship scanner. Surveys pay a few **knowledge points** on top of the item reward. The
   mission detail now names every objective ("Scan · any creature 2/3", "Deliver · Cable 0/5").
+- **Mission chains:** some jobs come in **parts** — the card and the detail say *Part 2 of 4*. Every
+  settlement board offers the four-part **"Settlement needs"** chain (iron → lights → a wildlife survey →
+  clear a bandit camp, or scout a neighbouring body on peaceful worlds); the next part appears on the
+  **same board** once you turn the previous one in, and the quartermaster gives you a **radio nudge** a
+  little later if you wandered off. After **three turn-ins at one board** a quartermaster who knows you
+  posts a two-part **big order** — a doubled delivery with the pay to match, then a large build or survey.
+  Later parts can't be taken early (the server checks), and they stay where you started them.
 
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or
@@ -713,6 +720,10 @@ separate unlock; admins can still disable it through server world rules.
   piece of the story, or make someone **call you on the radio later**. Talking itself counts toward your
   standing. A few **recurring faces** exist out there — the same person at more than one place, and they
   remember you everywhere.
+- **Favours for friends.** A vendor who **knows** you will, in conversation, ask for a favour — the
+  three-part *"A favour for a regular"* chain (crystals → a plant survey → titanium for a trusted friend).
+  Saying yes puts the job straight into **Tab → Missions**; hand it in to the **same vendor, in person**.
+  "Not today" is fine — they ask again on your next visit, and the ordinary smalltalk stays available.
 - **The world calls you.** People you know reach out over the radio — "📻 Name (Place)" in chat: a
   quartermaster with bandits dug in **near their settlement** points you at the bounty (clearing a camp you
   were called about earns extra gratitude), a refilled mission board gets a mention, a trader landing near

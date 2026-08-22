@@ -158,6 +158,33 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Mission chains — authored multi-step chains at settlement boards, vendor friendship chain via dialogue + radio nudge, procedural big orders (#1212, 2026-08-22, branch feat/1212-mission-chains)
+Fifth slice of the feature-deepening package (epic #1197). `MissionDefinition` had no prerequisites / next-step /
+giver fields and the accept gate was "near board + not held". **Now:** additive schema on `MissionDefinition`
+(`ChainId`, `Step`, `Prerequisites[]`, `NextMissionId`, `GiverRole`, `MinStage`, `Surface`, `OfferAt`) + on
+`MissionProgress` (`ChainId`, `AcceptedFrom`, `AcceptedBodyId` — `Snapshots.CloneProgress` extended); vocabulary
++ validators in `Shared/Missions/MissionChains.cs`, content validator checks every chain field and the new dialogue
+consequence `mission:<id>`. `GameServerMissionChains.cs`: ONE rule `ChainStepAvailable` (held / sibling alternative /
+prerequisites turned in / feasible alternative (lowest id) / surface: board needs a matching board + the chain's
+own place once bound, dialog only through a dialogue, radio anywhere / giver stage) — drives `SendMissionList`
+(`AvailableMissionsFor`) AND is enforced in `HandleAcceptMission`; turn-in gate `ChainTurnInAllowed` (board step at
+the bound board, dialogue step to the giver in reach); `OnChainStepTurnedIn` queues the giver's `npc.call.chain_next`
+nudge through the dialogue-promised-call queue (90 s delay, radio gates, MISSION call). **Authored:** 4-step
+"settlement needs" chain (Deliver iron → Build light → Scan creatures → Defeat camp *or* Travel `other_body` —
+alternatives share step 4, feasibility picks; camp clears also complete chain camp steps), 3-step vendor friendship
+chain surfaced by `dialogs.json` favour dialogues (`mission:chain_vendor_n`; known → trusted; picked before the
+smalltalk only while takeable, "not today" sets it aside for the session). **Procedural:** `EnsureBigOrders` — every
+3 turn-ins at one board a 2-step order (`…c{2k}`/`…c{2k+1}`, rng "bigorder", reward ×2.5, MinStage known, def
+persisted on accept like bounties). Wire: `NetMission.ChainStep/ChainLength` (additive); client card "Part 2 of 4 ·
+0/3" + detail line + Travel target label — **client change → local Unity build**. Locales EN+DE (`mission.chain.*`,
+`mission.{settlement,station}.bigorder_*`, `dlg.vendor_favour_*`, `npc.call.chain_next`, `srv.mission.chain_*`,
+`ui.missions.chain_step`, `ui.missions.traveltarget_other_body`). Tests: `MissionChainTests` (hidden → visible after
+prerequisite, server-side rejection, chain bound to its board, dialogue grant + decline, restart/snapshot keeps
+progress, per-player isolation, camp/travel alternative, `other_body` travel, big order after 3 turn-ins, radio nudge),
+`NpcDialogTests` adjusted (known vendor asks the favour first; smalltalk after declining). Docs: USER_MANUAL § Missions
++ § People you know, STORY_IMPLEMENTATION chain schema. Follow-ups: post-game "SPS survey orders" (#1197 M-c iv),
+an objective-chip line for the active chain step.
+
 ### ★ Scan missions — the dead `Scan` objective lives: survey jobs on every board, knowledge rewards, readable objective rows (#1205, 2026-08-22, branch feat/1205-scan-objective)
 Fourth slice of the feature-deepening package (epic #1197). `MissionObjectiveType.Scan` was declared (Mission.cs)
 with zero references — no generation, no validation, no progress hook, excluded from player-created missions —

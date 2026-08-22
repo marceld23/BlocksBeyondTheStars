@@ -1145,6 +1145,11 @@ public sealed class NetMission
     /// <summary>Knowledge points paid on turn-in besides the item rewards (#1205 scan missions); 0 = none.</summary>
     public int KnowledgeReward { get; set; }
 
+    /// <summary>Mission chains (#1212): 1-based step of this mission inside its chain and the chain's length
+    /// ("Part 2 of 4"); both 0 for a stand-alone mission.</summary>
+    public int ChainStep { get; set; }
+    public int ChainLength { get; set; }
+
     /// <summary>Mission-giver NPC's name (item 13) — shown as "Mission from {GiverName}"; empty if none.</summary>
     public string GiverName { get; set; } = string.Empty;
 

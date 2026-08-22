@@ -297,6 +297,9 @@ public static class StateMapper
         MissionId = m.MissionId,
         Status = m.Status,
         ObjectiveProgress = new List<int>(m.ObjectiveProgress),
+        ChainId = m.ChainId,               // #1212: a snapshot must not strand a chain mid-way
+        AcceptedFrom = m.AcceptedFrom,
+        AcceptedBodyId = m.AcceptedBodyId,
     };
 
     /// <summary>Deep-clones the per-NPC memory (item 14) so a snapshot doesn't alias the live state.</summary>

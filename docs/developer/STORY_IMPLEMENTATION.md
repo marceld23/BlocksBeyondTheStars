@@ -106,6 +106,30 @@ Beat speech reuses `ShipAiLine`. Every message is `Register()`'d in NetCodec.
 - World options: `GameRules.StoryId` + `GameRules.StoryDensity` (`--story` / `--story-density`, world-creation
   panel). Admin QA cmds: `advance_story`, `reveal_finale`, `story_status`, `reveal_lore`, `goto_core`.
 
+## Mission chains schema (#1212)
+
+Authored missions (`data/missions.json`, and a story pack's own missions once packs carry them) may form
+chains. All fields are additive — a stand-alone mission leaves them empty; the vocabulary lives in
+`Shared/Missions/MissionChains.cs` and the content validator rejects unknown values / dangling ids.
+
+| Field | Meaning |
+|---|---|
+| `chainId` | groups the steps of one chain |
+| `step` | 1-based position; two defs sharing `chainId` **and** `step` are *alternatives* — the feasible one with the lowest id is offered (e.g. `chain_needs_4a_camp` on bandit worlds, `chain_needs_4b_travel` elsewhere) |
+| `prerequisites[]` | mission ids that must be turned in first |
+| `nextMissionId` | the following step (drives the giver's `npc.call.chain_next` radio nudge after turn-in) |
+| `giverRole` | `quartermaster` (default) · `vendor` · `settler` · `character:<id>` (an authored recurring face — remembers the player globally) |
+| `minStage` | `""` · `known` · `trusted` — standing with the giver (NPC memory) |
+| `surface` | `board` (default, at a mission board) · `dialog` (handed out by a dialogue choice with consequence `mission:<id>`) · `radio` (offered anywhere) |
+| `offerAt` | `settlement` (default) · `station` · `any` — which boards offer a board step |
+
+Per-player progress (`MissionProgress`) carries `chainId`, `acceptedFrom` (the place key the chain is bound
+to — later steps are offered and turned in there) and `acceptedBodyId` (drives the relative Travel target
+`other_body`). `Persistence/Snapshots.CloneProgress` copies them. The rule itself is
+`GameServerMissionChains.ChainStepAvailable` — used for the Available list **and** enforced on accept, so a
+client cannot skip ahead. Dialogue-granted steps: a dialogue whose choices hand out a mission is only picked
+while that mission can be taken from that NPC; declining sets it aside for the session.
+
 ## Adding another storyline
 
 Add a pack under `data/stories/<id>/` — no engine edits. A pack is "story-complete" only once its beats,

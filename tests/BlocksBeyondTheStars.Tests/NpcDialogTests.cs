@@ -129,9 +129,13 @@ public sealed class NpcDialogTests : IDisposable
             server.TalkToNpcForTest(p.PlayerId, npcId);
             Assert.Null(server.ActiveDialogForTest(p.PlayerId));
 
-            // Known → the smalltalk opens.
+            // Known → the vendor first asks the regular's favour (#1212: the mission-offering dialogue wins while
+            // takeable); "not today" sets it aside for the session and the smalltalk opens.
             string key = server.NpcKeyForTest(p.PlayerId, "vendor")!;
             p.NpcMemory[key] = new NpcRelationship { Role = "vendor", Value = 20 };
+            server.TalkToNpcForTest(p.PlayerId, npcId);
+            Assert.Equal(("vendor_favour_1", 0), server.ActiveDialogForTest(p.PlayerId));
+            server.ChooseDialogForTest(p.PlayerId, 1);
             server.TalkToNpcForTest(p.PlayerId, npcId);
             Assert.Equal(("vendor_smalltalk", 0), server.ActiveDialogForTest(p.PlayerId));
             server.Stop();

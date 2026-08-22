@@ -803,6 +803,71 @@ public sealed class GameContent
                         break;
                 }
             }
+
+            // Mission chains (#1212): the chain vocabulary + every id reference must resolve at load.
+            if (mission.Step > 0 && string.IsNullOrEmpty(mission.ChainId))
+            {
+                problems.Add($"Mission '{mission.Id}' has step {mission.Step} but no chainId.");
+            }
+
+            if (!string.IsNullOrEmpty(mission.ChainId) && mission.Step <= 0)
+            {
+                problems.Add($"Mission '{mission.Id}' belongs to chain '{mission.ChainId}' but has no step (1-based).");
+            }
+
+            foreach (var pre in mission.Prerequisites)
+            {
+                if (!_missions.ContainsKey(pre))
+                {
+                    problems.Add($"Mission '{mission.Id}' prerequisite references unknown mission '{pre}'.");
+                }
+                else if (pre == mission.Id)
+                {
+                    problems.Add($"Mission '{mission.Id}' lists itself as a prerequisite.");
+                }
+            }
+
+            if (!string.IsNullOrEmpty(mission.NextMissionId) && !_missions.ContainsKey(mission.NextMissionId))
+            {
+                problems.Add($"Mission '{mission.Id}' nextMissionId references unknown mission '{mission.NextMissionId}'.");
+            }
+
+            if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidGiverRole(mission.GiverRole))
+            {
+                problems.Add($"Mission '{mission.Id}' has an unknown giverRole '{mission.GiverRole}' (quartermaster|vendor|settler|character:<id>).");
+            }
+
+            if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidStage(mission.MinStage))
+            {
+                problems.Add($"Mission '{mission.Id}' has an unknown minStage '{mission.MinStage}' (known|trusted).");
+            }
+
+            if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidSurface(mission.Surface))
+            {
+                problems.Add($"Mission '{mission.Id}' has an unknown surface '{mission.Surface}' (board|radio|dialog).");
+            }
+
+            if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidOfferAt(mission.OfferAt))
+            {
+                problems.Add($"Mission '{mission.Id}' has an unknown offerAt '{mission.OfferAt}' (settlement|station|any).");
+            }
+        }
+
+        // NPC dialogues handing out missions (#1212): the `mission:<id>` consequence must name a known mission.
+        foreach (var dialog in _dialogs)
+        {
+            foreach (var node in dialog.Nodes)
+            {
+                foreach (var choice in node.Choices)
+                {
+                    var parts = (choice.Consequence ?? string.Empty).Split(':');
+                    if (parts.Length >= 2 && parts[0] == BlocksBeyondTheStars.Shared.Missions.MissionChains.DialogConsequence
+                        && !_missions.ContainsKey(parts[1]))
+                    {
+                        problems.Add($"Dialogue '{dialog.Key}' hands out unknown mission '{parts[1]}'.");
+                    }
+                }
+            }
         }
 
         // #427: authored voxel ship layouts. The server used to turn an unknown cell id silently into hull

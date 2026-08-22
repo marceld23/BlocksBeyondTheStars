@@ -151,7 +151,8 @@ public sealed partial class GameServer
             {
                 var obj = def.Objectives[i];
                 if (obj.Type == MissionObjectiveType.Travel
-                    && (obj.Target == bodyId || string.Equals(obj.Target, bodyName, StringComparison.OrdinalIgnoreCase)))
+                    && (obj.Target == bodyId || string.Equals(obj.Target, bodyName, StringComparison.OrdinalIgnoreCase)
+                        || (obj.Target == MissionChains.TravelOtherBody && bodyId != pr.AcceptedBodyId))) // #1212: "any other body"
                 {
                     pr.ObjectiveProgress[i] = obj.Required; // arriving completes a travel objective
                 }
@@ -217,18 +218,28 @@ public sealed partial class GameServer
             return;
         }
 
-        session.State.Missions.Add(new MissionProgress
+        // #1212: a chain step is accepted only when the chain rule offers it (prerequisites turned in, the
+        // chain's own place, the giver's stage, board surface) — the same rule that hid it from the list.
+        string place = CurrentPlaceKey(session.State);
+        if (IsChainMission(def)
+            && !ChainStepAvailable(session.State, def, place, AtAnyMissionBoard(session.State), viaDialog: false, null, out var why))
         {
-            MissionId = missionId,
-            Status = MissionStatus.Active,
-            ObjectiveProgress = Enumerable.Repeat(0, def.Objectives.Count).ToList(),
-        });
+            MissionFail(session, missionId, why);
+            return;
+        }
+
+        session.State.Missions.Add(NewMissionProgress(session.State, def, place));
 
         // The board's quartermaster remembers that this player took a job from them (item 14).
         if (IsBoardMissionId(missionId))
         {
             RecordMissionAccepted(session.State, missionId, def.GiverName);
             SendNpcStandings(session); // #1118: the quartermaster's nameplate stage may just have risen
+        }
+
+        if (IsChainMission(def))
+        {
+            OnChainStepAccepted(session, def, ChainGiverKey(def, place), string.IsNullOrEmpty(def.GiverName) ? CoinGiverName(place) : def.GiverName); // #1212
         }
 
         OnBountyAccepted(session, def); // #730/#731: persist the def + reveal a camp bounty's camp on the map
@@ -257,6 +268,12 @@ public sealed partial class GameServer
         if (IsStationMission(missionId) && !NearSpaceStationMissionBoard(session.State))
         {
             MissionFail(session, missionId, "@srv.mission.return_station");
+            return;
+        }
+
+        if (IsChainMission(def) && !ChainTurnInAllowed(session.State, def, pr, out var chainWhy)) // #1212
+        {
+            MissionFail(session, missionId, chainWhy);
             return;
         }
 
@@ -340,6 +357,11 @@ public sealed partial class GameServer
         }
         RecordStoryMilestone();   // settlement helped (mission completed) → story milestone (P3)
         TryThreadMission(def);    // P7: a matching mission thread also yields a story fragment
+        if (IsChainMission(def))
+        {
+            OnChainStepTurnedIn(session, def, pr); // #1212: the giver calls about the next step a little later
+        }
+
         SendInventory(session);
         SendMissionList(session);
         _log.Info($"Player '{session.State.Name}' turned in mission '{missionId}'.");
@@ -843,6 +865,7 @@ public sealed partial class GameServer
             EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds);
             EnsureBoardWindow(player, prefix + "b", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1); // #1116: one build job beside the deliveries
             EnsureBoardWindow(player, prefix + "s", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);  // #1205: one survey job
+            EnsureBigOrders(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds, station: false); // #1212: every 3 turn-ins a 2-step big order
             EnsureCampBounties(prefix, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
         }
     }
@@ -858,6 +881,7 @@ public sealed partial class GameServer
         string prefix = $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}_";
         EnsureBoardWindow(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds);
         EnsureBoardWindow(player, prefix + "s", stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds, BoardSlotKind.StationScan, window: 1); // #1205: asteroid survey
+        EnsureBigOrders(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds, station: true); // #1212
         EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board
     }
 
@@ -913,18 +937,8 @@ public sealed partial class GameServer
         SyncCampBountyProgress(session); // held camp bounties whose camp fell while away complete here (#730)
 
         var available = new List<NetMission>();
-        foreach (var def in _missionDefs.Values)
+        foreach (var def in AvailableMissionsFor(player, currentBoardIds)) // board scoping + the chain rule (#1212)
         {
-            if (!def.Active || player.Missions.Any(m => m.MissionId == def.Id))
-            {
-                continue; // already accepted / turned in (non-repeatable) is hidden
-            }
-
-            if (IsBoardMissionId(def.Id) && !currentBoardIds.Contains(def.Id))
-            {
-                continue; // a board mission belonging to a board the player isn't standing at
-            }
-
             if (IsBoardMissionId(def.Id))
             {
                 RequestBoardMissionText(session, def); // L3: flavour text generates off-thread, refreshes when ready
@@ -988,8 +1002,25 @@ public sealed partial class GameServer
             Objectives = objectives,
             Rewards = def.Rewards.Select(r => new NetReward { Item = r.Item, Count = r.Count }).ToArray(),
             KnowledgeReward = def.KnowledgeReward,
+            ChainStep = def.Step,
+            ChainLength = IsChainMission(def) ? ChainLength(def.ChainId) : 0, // #1212: "Part 2 of 4"
             GiverName = def.GiverName,
         };
+    }
+
+    /// <summary>Number of steps in a chain = the highest step among its registered definitions (#1212).</summary>
+    private int ChainLength(string chainId)
+    {
+        int max = 0;
+        foreach (var d in _missionDefs.Values)
+        {
+            if (d.ChainId == chainId && d.Step > max)
+            {
+                max = d.Step;
+            }
+        }
+
+        return max;
     }
 
     private void MissionFail(PlayerSession session, string missionId, string reason)
