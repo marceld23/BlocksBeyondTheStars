@@ -950,7 +950,7 @@
   "ui.tech.progress": "Araştırıldı {done} / {total}",
   "ui.tech.next": "Sıradaki uygun: {name}",
   "ui.tech.next_none": "Şu an uygun bir şey yok — tarama yap, keşfet ve araştırma malzemeleri topla.",
-  "ui.tech.research_available": "Yeni araştırma hazır!",
+  "ui.tech.research_available": "Şunun için yeterli bilgi:",
   "ui.tech.tier": "Seviye",
   "ui.tech.cat_production": "Üretim",
   "ui.tech.cat_ship": "Gemi",

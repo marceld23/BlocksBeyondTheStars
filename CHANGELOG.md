@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🔬 The research toast says what it means — and the early knowledge ladder is no longer flat (#1184)
+
+- **"Enough knowledge for: X"** replaces "New research available!" on the HUD toast (all 14 languages). The
+  toast fires when a knowledge gain crosses a still-locked blueprint's threshold — prerequisites and research
+  materials may still be missing, and the old wording read as "blueprint unlocked" (a fresh multiplayer
+  session showed it burst after a few scans and two landings, although nothing had been researched).
+- **26 blueprints that cost 2–10 knowledge now cost 4–24**, same relative order, spread so no knowledge
+  value carries more than two root blueprints (`paint_tool` 4 … `oxygen_generator` 24). The ≥ 30 band from
+  #862 is unchanged, every prerequisite chain still climbs. Banked knowledge and unlocked blueprints in
+  existing saves are kept. Data + locales only.
+
 ### 🌐 Browser singleplayer survives a glitch.fun release — and can be started over (#1177, #1178, #1179, #1181)
 
 - **"New world…" in the browser menu.** The one-world browser singleplayer could never be reset — the menu

@@ -8879,6 +8879,24 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-22): research toast reworded + early knowledge ladder stretched (#1184)
+
+Multiplayer playtest 2026-08-22: after a few scans and two landings the HUD announced "New research
+available!" for blueprint after blueprint — read as "several blueprints unlocked" although nothing had been
+researched. Two causes, two data/locale-only fixes (no client code, no Unity build):
+
+- **Toast wording** — the #763 toast is threshold-only by design (prerequisites + materials ignored, so deeper
+  nodes get advertised), but the head line promised more. `ui.tech.research_available` is now "Enough
+  knowledge for:" (DE "Genug Wissen für:") in all 14 locales; the blueprint name stays on line two.
+- **Early ladder** — #767/#862 stretched the mid/late tiers but left `<= 10` alone, so 26 blueprints sat at
+  2–10 while ~10–15 knowledge arrives in the first minutes (block scan 1, creature 3, hostile 5, second-body
+  landing 5). Those 26 now cost 4–24 in the same relative order, at most two root blueprints per value
+  (`paint_tool` 4, `machete`/`shape_tool` 5, `oxygen_tank_1` 6 … `hull_plating` 23, `oxygen_generator` 24);
+  the ≥ 30 band is untouched and `BlueprintGraph_PrereqsResolve_NoCycles_CostsClimbAlongChains` still holds.
+
+Existing saves keep banked knowledge and unlocked blueprints. Actual unlocking was never automatic
+(`HandleUnlock` checks cockpit, prerequisites, materials, knowledge). Open: playtest the new first hour.
+
 ## ✅ Done (2026-08-22): README "Features at a Glance" + Status rewritten to match v2026.8.18
 
 A gap analysis of README.md and the website against the shipped game found 14 systems missing from

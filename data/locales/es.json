@@ -950,7 +950,7 @@
   "ui.tech.progress": "Investigado {done} de {total}",
   "ui.tech.next": "Siguiente asequible: {name}",
   "ui.tech.next_none": "Nada asequible ahora — escanea, explora y reúne materiales de investigación.",
-  "ui.tech.research_available": "¡Nueva investigación disponible!",
+  "ui.tech.research_available": "Conocimiento suficiente para:",
   "ui.tech.tier": "Nivel",
   "ui.tech.cat_production": "Producción",
   "ui.tech.cat_ship": "Nave",

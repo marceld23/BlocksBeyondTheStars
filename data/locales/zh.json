@@ -950,7 +950,7 @@
   "ui.tech.progress": "已研究 {done} / {total}",
   "ui.tech.next": "下一个可负担：{name}",
   "ui.tech.next_none": "目前没有可负担的——扫描、探索并收集研究材料。",
-  "ui.tech.research_available": "有新的研究可用！",
+  "ui.tech.research_available": "知识已足够研究：",
   "ui.tech.tier": "等级",
   "ui.tech.cat_production": "生产",
   "ui.tech.cat_ship": "飞船",

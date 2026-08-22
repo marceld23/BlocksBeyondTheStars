@@ -950,7 +950,7 @@
   "ui.tech.progress": "研究済み {done} / {total}",
   "ui.tech.next": "次に買えるの: {name}",
   "ui.tech.next_none": "今は買えるものがありません — スキャン、探索、研究素材を集めましょう。",
-  "ui.tech.research_available": "新しい研究が利用可能！",
+  "ui.tech.research_available": "研究に必要な知識が揃いました：",
   "ui.tech.tier": "階層",
   "ui.tech.cat_production": "生産",
   "ui.tech.cat_ship": "船",

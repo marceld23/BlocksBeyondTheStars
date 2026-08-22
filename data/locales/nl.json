@@ -950,7 +950,7 @@
   "ui.tech.progress": "Onderzocht {done} van {total}",
   "ui.tech.next": "Volgende betaalbaar: {name}",
   "ui.tech.next_none": "Niets betaalbaars nu — scan, ontdek en verzamel onderzoeksstoffen.",
-  "ui.tech.research_available": "Nieuw onderzoek beschikbaar!",
+  "ui.tech.research_available": "Genoeg kennis voor:",
   "ui.tech.tier": "Niveau",
   "ui.tech.cat_production": "Productie",
   "ui.tech.cat_ship": "Schip",

@@ -950,7 +950,7 @@
   "ui.tech.progress": "{done} von {total} erforscht",
   "ui.tech.next": "Als Nächstes möglich: {name}",
   "ui.tech.next_none": "Gerade nichts freischaltbar — scanne, erkunde und sammle Forschungsmaterial.",
-  "ui.tech.research_available": "Neue Forschung verfügbar!",
+  "ui.tech.research_available": "Genug Wissen für:",
   "ui.tech.tier": "Stufe",
   "ui.tech.cat_production": "Produktion",
   "ui.tech.cat_ship": "Schiff",

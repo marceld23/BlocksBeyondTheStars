@@ -1,17 +1,17 @@
 [
   {
     "key": "oxygen_tank_1", "nameKey": "blueprint.oxygen_tank_1.name", "descriptionKey": "blueprint.oxygen_tank_1.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 3,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 6,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 5 } ]
   },
   {
     "key": "titanium_drill", "nameKey": "blueprint.titanium_drill.name", "descriptionKey": "blueprint.titanium_drill.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 6,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 15,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
   },
   {
     "key": "field_medkit", "nameKey": "blueprint.field_medkit.name", "descriptionKey": "blueprint.field_medkit.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 5,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 12,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 6 } ]
   },
   {
@@ -31,7 +31,7 @@
   },
   {
     "key": "terrain_scanner", "nameKey": "blueprint.terrain_scanner.name", "descriptionKey": "blueprint.terrain_scanner.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 8,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 20,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 3 } ]
   },
   {
@@ -41,7 +41,7 @@
   },
   {
     "key": "radio_beacon", "nameKey": "blueprint.radio_beacon.name", "descriptionKey": "blueprint.radio_beacon.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 6,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 16,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 5 }, { "item": "cable", "count": 2 } ]
   },
   {
@@ -56,22 +56,22 @@
   },
   {
     "key": "camera", "nameKey": "blueprint.camera.name", "descriptionKey": "blueprint.camera.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 4,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 9,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 3 }, { "item": "glass", "count": 1 } ]
   },
   {
     "key": "binoculars", "nameKey": "blueprint.binoculars.name", "descriptionKey": "blueprint.binoculars.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 3,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 7,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
   },
   {
     "key": "paint_tool", "nameKey": "blueprint.paint_tool.name", "descriptionKey": "blueprint.paint_tool.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 2,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 4,
     "unlockCost": [ { "item": "berries", "count": 4 }, { "item": "iron_plate", "count": 1 } ]
   },
   {
     "key": "shape_tool", "nameKey": "blueprint.shape_tool.name", "descriptionKey": "blueprint.shape_tool.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 2,
+    "category": "Tools", "prerequisites": [], "knowledgeCost": 5,
     "unlockCost": [ { "item": "crystal", "count": 1 }, { "item": "iron_plate", "count": 1 } ]
   },
   {
@@ -81,7 +81,7 @@
   },
   {
     "key": "cargo_expansion_1", "nameKey": "blueprint.cargo_expansion_1.name", "descriptionKey": "blueprint.cargo_expansion_1.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 6,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 17,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]
   },
   {
@@ -111,12 +111,12 @@
   },
   {
     "key": "oxygen_generator", "nameKey": "blueprint.oxygen_generator.name", "descriptionKey": "blueprint.oxygen_generator.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 10,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 24,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "ice", "count": 20 }, { "item": "cable", "count": 5 } ]
   },
   {
     "key": "docking_module", "nameKey": "blueprint.docking_module.name", "descriptionKey": "blueprint.docking_module.desc",
-    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 8,
+    "category": "ShipExpansion", "prerequisites": [], "knowledgeCost": 18,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 } ]
   },
   {
@@ -131,7 +131,7 @@
   },
   {
     "key": "hull_plating", "nameKey": "blueprint.hull_plating.name", "descriptionKey": "blueprint.hull_plating.desc",
-    "category": "ShipDefense", "prerequisites": [], "knowledgeCost": 10,
+    "category": "ShipDefense", "prerequisites": [], "knowledgeCost": 23,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 10 } ]
   },
   {
@@ -226,22 +226,22 @@
   },
   {
     "key": "armor_chest", "nameKey": "blueprint.armor_chest.name", "descriptionKey": "blueprint.armor_chest.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 8,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 18,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 12 } ]
   },
   {
     "key": "armor_legs", "nameKey": "blueprint.armor_legs.name", "descriptionKey": "blueprint.armor_legs.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 6,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 13,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 9 } ]
   },
   {
     "key": "helmet", "nameKey": "blueprint.helmet.name", "descriptionKey": "blueprint.helmet.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 6,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 8 }, { "item": "glass", "count": 3 } ]
   },
   {
     "key": "oxygen_tank_2", "nameKey": "blueprint.oxygen_tank_2.name", "descriptionKey": "blueprint.oxygen_tank_2.desc",
-    "category": "Suit", "prerequisites": [ "oxygen_tank_1" ], "knowledgeCost": 10,
+    "category": "Suit", "prerequisites": [ "oxygen_tank_1" ], "knowledgeCost": 21,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 10 }, { "item": "glass", "count": 4 } ]
   },
   {
@@ -251,12 +251,12 @@
   },
   {
     "key": "suit_lamp", "nameKey": "blueprint.suit_lamp.name", "descriptionKey": "blueprint.suit_lamp.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 4,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 7,
     "unlockCost": [ { "item": "iron_plate", "count": 4 }, { "item": "glass", "count": 2 } ]
   },
   {
     "key": "suit_liner_1", "nameKey": "blueprint.suit_liner_1.name", "descriptionKey": "blueprint.suit_liner_1.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 6,
+    "category": "Suit", "prerequisites": [], "knowledgeCost": 14,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "polymer", "count": 2 } ]
   },
   {
@@ -271,7 +271,7 @@
   },
   {
     "key": "comm_radio", "nameKey": "blueprint.comm_radio.name", "descriptionKey": "blueprint.comm_radio.desc",
-    "category": "Production", "prerequisites": [], "knowledgeCost": 4,
+    "category": "Production", "prerequisites": [], "knowledgeCost": 10,
     "unlockCost": [ { "item": "copper_wire", "count": 4 }, { "item": "data_fragment", "count": 1 } ]
   },
   {
@@ -301,12 +301,12 @@
   },
   {
     "key": "machete", "nameKey": "blueprint.machete.name", "descriptionKey": "blueprint.machete.desc",
-    "category": "Weapon", "prerequisites": [], "knowledgeCost": 3,
+    "category": "Weapon", "prerequisites": [], "knowledgeCost": 5,
     "unlockCost": [ { "item": "iron_plate", "count": 3 } ]
   },
   {
     "key": "vibro_knife", "nameKey": "blueprint.vibro_knife.name", "descriptionKey": "blueprint.vibro_knife.desc",
-    "category": "Weapon", "prerequisites": [ "machete" ], "knowledgeCost": 8,
+    "category": "Weapon", "prerequisites": [ "machete" ], "knowledgeCost": 19,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 }, { "item": "cable", "count": 3 } ]
   },
   {
@@ -316,7 +316,7 @@
   },
   {
     "key": "gauss_pistol", "nameKey": "blueprint.gauss_pistol.name", "descriptionKey": "blueprint.gauss_pistol.desc",
-    "category": "Weapon", "prerequisites": [], "knowledgeCost": 4,
+    "category": "Weapon", "prerequisites": [], "knowledgeCost": 8,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]
   },
   {
@@ -346,17 +346,17 @@
   },
   {
     "key": "station_mission_board", "nameKey": "blueprint.station_mission_board.name", "descriptionKey": "blueprint.station_mission_board.desc",
-    "category": "Station", "prerequisites": [], "knowledgeCost": 8,
+    "category": "Station", "prerequisites": [], "knowledgeCost": 20,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 3 } ]
   },
   {
     "key": "station_container", "nameKey": "blueprint.station_container.name", "descriptionKey": "blueprint.station_container.desc",
-    "category": "Station", "prerequisites": [], "knowledgeCost": 5,
+    "category": "Station", "prerequisites": [], "knowledgeCost": 11,
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_plate", "count": 6 } ]
   },
   {
     "key": "door_energy", "nameKey": "blueprint.door_energy.name", "descriptionKey": "blueprint.door_energy.desc",
-    "category": "Production", "prerequisites": [], "knowledgeCost": 10,
+    "category": "Production", "prerequisites": [], "knowledgeCost": 22,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "metal_panel", "count": 4 }, { "item": "crystal", "count": 1 } ]
   }
 ]

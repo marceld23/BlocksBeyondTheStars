@@ -950,7 +950,7 @@
   "ui.tech.progress": "Досліджено {done} з {total}",
   "ui.tech.next": "Наступне доступне: {name}",
   "ui.tech.next_none": "Поки нічого недоступного — скануй, досліджуй і збирай матеріали для досліджень.",
-  "ui.tech.research_available": "Нове дослідження доступне!",
+  "ui.tech.research_available": "Достатньо знань для:",
   "ui.tech.tier": "Рівень",
   "ui.tech.cat_production": "Виробництво",
   "ui.tech.cat_ship": "Корабель",

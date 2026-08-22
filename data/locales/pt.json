@@ -950,7 +950,7 @@
   "ui.tech.progress": "Pesquisado {done} de {total}",
   "ui.tech.next": "Próximo acessível: {name}",
   "ui.tech.next_none": "Nada acessível agora — escaneie, explore e colete materiais de pesquisa.",
-  "ui.tech.research_available": "Nova pesquisa disponível!",
+  "ui.tech.research_available": "Conhecimento suficiente para:",
   "ui.tech.tier": "Nível",
   "ui.tech.cat_production": "Produção",
   "ui.tech.cat_ship": "Nave",

@@ -950,7 +950,7 @@
   "ui.tech.progress": "Researched {done} of {total}",
   "ui.tech.next": "Next affordable: {name}",
   "ui.tech.next_none": "Nothing affordable right now — scan, explore and gather research materials.",
-  "ui.tech.research_available": "New research available!",
+  "ui.tech.research_available": "Enough knowledge for:",
   "ui.tech.tier": "Tier",
   "ui.tech.cat_production": "Production",
   "ui.tech.cat_ship": "Ship",

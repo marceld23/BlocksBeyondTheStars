@@ -950,7 +950,7 @@
   "ui.tech.progress": "Zbadano {done} z {total}",
   "ui.tech.next": "Następne do zdobycia: {name}",
   "ui.tech.next_none": "Nic teraz w zasięgu — skanuj, eksploruj i zbieraj materiały badawcze.",
-  "ui.tech.research_available": "Nowe badania dostępne!",
+  "ui.tech.research_available": "Wystarczająco wiedzy na:",
   "ui.tech.tier": "Poziom",
   "ui.tech.cat_production": "Produkcja",
   "ui.tech.cat_ship": "Statek",

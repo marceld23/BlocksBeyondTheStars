@@ -950,7 +950,7 @@
   "ui.tech.progress": "연구 완료 {done}/{total}",
   "ui.tech.next": "다음으로 살 수 있는: {name}",
   "ui.tech.next_none": "지금은 구매할 수 있는 것이 없습니다 — 스캔하고 탐험하며 연구 재료를 모으세요.",
-  "ui.tech.research_available": "새 연구 가능!",
+  "ui.tech.research_available": "연구할 지식이 충분합니다:",
   "ui.tech.tier": "등급",
   "ui.tech.cat_production": "생산",
   "ui.tech.cat_ship": "우주선",
