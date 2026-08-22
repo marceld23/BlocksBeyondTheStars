@@ -109,16 +109,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
-### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated (#1187, #1188, 2026-08-22, community PRs)
-Two more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
+### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported (#1187, #1188, #1190, 2026-08-22, community PRs)
+Three more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
 item's max stack (hand-edited or corrupted save) no longer reaches the live state: the server clamps every
 loaded inventory — player inventory, ration store, legacy and fleet ship cargo — to `GameContent.MaxStackOf`
 right after loading and logs item + original count; the persistence layer stays content-agnostic (#1187,
 `InventoryClampTests`). `GameContent.Validate()` now rejects recipe inputs/outputs with an amount below 1 and
 recipes that use the same item as input and output, as hard load errors; all 231 shipped recipes already
-comply (#1188, `ContentTests`). Open from the same thread: a warn callback for unreadable user templates in
-`ContentLoader.LoadUserTemplates`, then starters 3–4 (damaged `.db` bytes, content files). README credits range
-bumped to #1188.
+comply (#1188, `ContentTests`). And a malformed editor export in the user-content folder is no longer skipped
+silently: `ContentLoader.LoadFromDirectory` takes an optional `Action<string>? warn` callback (the server wires
+`logger.Warn`), so the skipped file is named in the log while the rest of the folder still loads (#1190,
+`StructureTemplateTests`). Open from the same thread: starters 3–4 (damaged `.db` bytes, content files). README
+credits range bumped to #1190.
 
 ### ★ More varied background music: shuffle-bag picker, rests, context-aware beds, ElevenLabs `_3` tracks, generative Synth style (#1172–#1176, 2026-08-22, branch feat/music-variety)
 Analysis 2026-08-22: six long-stay biome pools (ice / desert / lava / toxic / ocean / cave) owned two ~3-min
