@@ -31,12 +31,21 @@ public sealed partial class GameServer
     private const double BanditAmbushDelayMax = 90.0;
 
     /// <summary>Whether bandit ships may operate at all: bandits on, survival, space combat live, ship
-    /// weapons usable against NPCs, and the galaxy not yet pacified. Every leg of this keeps the player
-    /// ABLE to fight back — the hard lesson from the unkillable-UFO bug.</summary>
+    /// weapons usable against NPCs. Every leg of this keeps the player ABLE to fight back — the hard lesson
+    /// from the unkillable-UFO bug. The Guardian's defeat no longer switches raiders off galaxy-wide
+    /// (that also killed the raider bounty for good, #1206) — see <see cref="BanditShipsAllowedIn"/>.</summary>
     private bool BanditShipsAllowed => BanditsActive
         && Rules.SpaceCombat is SpaceCombatMode.PvE or SpaceCombatMode.Both
-        && Rules.ShipWeapons is not (ShipWeaponMode.Off or ShipWeaponMode.MiningOnly)
-        && !_storyState.GuardianDefeated;
+        && Rules.ShipWeapons is not (ShipWeaponMode.Off or ShipWeaponMode.MiningOnly);
+
+    /// <summary>Whether bandit ships may operate in the given star system: the rules above AND the system
+    /// rolls as pirate space — AND, once the galaxy is pacified (Remnant Protocol, #1206), only a genuine
+    /// pirate haven still harbours raiders, so the post-game keeps one place where the raider bounty can
+    /// be earned without the whole galaxy staying hostile.</summary>
+    private bool BanditShipsAllowedIn(string systemId)
+        => BanditShipsAllowed
+           && BanditSystem(systemId)
+           && (!_storyState.GuardianDefeated || SystemArchetypeOf(systemId) == SystemArchetype.PirateHaven);
 
     /// <summary>Deterministic "pirate space" flag per star system (trader-traffic pattern): roughly a
     /// quarter of all systems, always the same ones for a given save. With system variance (#547) the
@@ -76,7 +85,7 @@ public sealed partial class GameServer
         {
             instance.BanditRolled = true;
             instance.BanditAmbushAt = 0;
-            if (BanditShipsAllowed && BanditSystem(SystemIdOfInstance(instance)))
+            if (BanditShipsAllowedIn(SystemIdOfInstance(instance)))
             {
                 double chance = Rules.Bandits switch
                 {
@@ -106,7 +115,7 @@ public sealed partial class GameServer
         if (instance.BanditAmbushAt > 0 && _uptime >= instance.BanditAmbushAt && instance.BanditShipId.Length == 0)
         {
             instance.BanditAmbushAt = 0;
-            if (BanditShipsAllowed)
+            if (BanditShipsAllowedIn(SystemIdOfInstance(instance)))
             {
                 SpawnBanditShip(instance);
             }
@@ -371,7 +380,7 @@ public sealed partial class GameServer
     /// with a short per-entry sector warning. Never fires where bandit ships can't spawn anyway.</summary>
     private void ShipAiBanditSectorWarning(PlayerSession session, SpaceInstance instance)
     {
-        if (!BanditShipsAllowed || !BanditSystem(SystemIdOfInstance(instance)))
+        if (!BanditShipsAllowedIn(SystemIdOfInstance(instance)))
         {
             return;
         }
@@ -414,6 +423,10 @@ public sealed partial class GameServer
 
     /// <summary>Test/util: whether a system id rolls as pirate space for this save.</summary>
     public bool BanditSystemForTest(string systemId) => BanditSystem(systemId);
+
+    public bool BanditShipsAllowedInForTest(string systemId) => BanditShipsAllowedIn(systemId);
+
+    public SystemArchetype SystemArchetypeForTest(string systemId) => SystemArchetypeOf(systemId);
 
     /// <summary>Test/util: force-spawn the bandit ship ambush in the player's current instance.</summary>
     public void SpawnBanditShipForTest(string playerId)

@@ -62,9 +62,14 @@ never the count — toggled by `GameRules.MachineWreckCoupling`.
 5. **Stage 4 — argument duel:** data-driven from the pack's `coreArguments`; a correct contradiction
    advances, a wrong pick re-presents the node (the duel can stall but never be lost). Clearing the last node
    calls `MarkGuardianDefeated`.
-6. **Pacification:** the one-way `guardianDefeated` flag gates the pack's planet + space machine spawns off
-   and despawns live machines (it does **not** touch the admin threat sliders). A death in the boss system
-   respawns the clone on the world it launched from (no death-loop).
+6. **Pacification → Remnant Protocol (#1206):** the one-way `guardianDefeated` flag despawns the live planet
+   machines at the moment of the win (the dramatic beat) and then acts as a *factor*, not a switch: the planet
+   cap halves (floor one, `PlanetEnemyCap`), refills run at twice the interval (`RemnantPaceFactor`), only
+   scan-drones spawn (`RemnantEra`); the finale gauntlet stays down; ambient space waves survive only in
+   pirate havens and the frontier-danger tier (`RemnantSpaceHostile`); bandit ships keep only pirate havens
+   (`BanditShipsAllowedIn`), so the raider bounty stays offerable. It does **not** touch the admin threat
+   sliders; PlanetEnemies *Off* still means zero. A death in the boss system respawns the clone on the world
+   it launched from (no death-loop).
 
 ## Networking (NetCodec tags)
 

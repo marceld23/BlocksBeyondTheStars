@@ -54,11 +54,31 @@ public sealed partial class GameServer
     /// <summary>Hostile creatures currently active on the surface.</summary>
     public IReadOnlyList<CombatEntity> PlanetEnemies => _planetEnemies;
 
-    /// <summary>Whether hostile planet enemies may exist given the active rules. Once the Guardian core is
-    /// destroyed (P6 pacification) no machine spawns anywhere — the galaxy is at peace.</summary>
+    /// <summary>Whether hostile planet enemies may exist given the active rules. The Guardian's defeat no
+    /// longer switches them off (#1206): see <see cref="RemnantEra"/>.</summary>
     private bool PlanetEnemiesActive => Rules.PlanetEnemies != AlienActivity.Off
-        && Rules.GameMode == GameMode.Survival
-        && !_storyState.GuardianDefeated;
+        && Rules.GameMode == GameMode.Survival;
+
+    /// <summary>"Remnant Protocol" (#1206): once the Guardian core is shut down the galaxy is calmer, not
+    /// empty. Before, <c>GuardianDefeated</c> switched every planet machine, space wave and bandit ship off
+    /// for good — the post-game world was emptier than the one the player had just saved, and the raider
+    /// bounty could never be offered again. Now the flag is a <em>factor</em>: the planet cap halves (never
+    /// below one), refills come at twice the interval, and only the leftover scan-drones roam (the walking
+    /// hunter robots are gone — lore: the drones were the explore units); space waves keep only the places
+    /// that are dangerous by their own nature (pirate havens, the opt-in frontier-danger tier) and bandit
+    /// ships keep only their havens. Peaceful/family rules (PlanetEnemies Off) stay at zero as before.</summary>
+    private bool RemnantEra => _storyState.GuardianDefeated;
+
+    /// <summary>Post-win pacing multiplier for the planet-machine spawn cadence (#1206).</summary>
+    private double RemnantPaceFactor => RemnantEra ? 2.0 : 1.0;
+
+    /// <summary>The live planet-machine cap for the given number of surface targets: the activity rule times
+    /// the players, halved (floor one) once the galaxy is pacified (#1206).</summary>
+    private int PlanetEnemyCap(int targets)
+    {
+        int cap = ActivityCount(Rules.PlanetEnemies) * targets;
+        return RemnantEra ? System.Math.Max(1, cap / 2) : cap;
+    }
 
     private void TickEnemies(double dt)
     {
@@ -91,7 +111,7 @@ public sealed partial class GameServer
             return;
         }
 
-        int cap = ActivityCount(Rules.PlanetEnemies) * targets.Count;
+        int cap = PlanetEnemyCap(targets.Count);
         if (_planetEnemies.Count >= cap)
         {
             // At the cap the timer must not bank time (#740): it used to keep accumulating here, so the
@@ -106,7 +126,7 @@ public sealed partial class GameServer
 
             _enemySpawnTimer = 0;
         }
-        else if ((_enemySpawnTimer += dt) >= (_worlds.Active.EnemyCapSeen ? _worlds.Active.EnemyNextSpawnIn : EnemySpawnInterval))
+        else if ((_enemySpawnTimer += dt) >= (_worlds.Active.EnemyCapSeen ? _worlds.Active.EnemyNextSpawnIn : EnemySpawnInterval) * RemnantPaceFactor)
         {
             _enemySpawnTimer = 0;
             _worlds.Active.EnemyNextSpawnIn = RollEnemyRefillInterval();
@@ -122,7 +142,9 @@ public sealed partial class GameServer
             {
                 if (e.Kind == CombatEntityKind.ScanDrone) { droneCount++; }
             }
-            bool asDrone = Rules.PlanetDrones && droneCount * 5 < (_planetEnemies.Count + 1) * 2;
+            // Remnant era (#1206): only the scan-drones are left; the world option PlanetDrones=false keeps
+            // its meaning (then the few remnants are walkers — still fewer and slower than before the win).
+            bool asDrone = Rules.PlanetDrones && (RemnantEra || droneCount * 5 < (_planetEnemies.Count + 1) * 2);
             SpawnPlanetEnemyNear(targets[_planetEnemies.Count % targets.Count].State, asDrone);
             BroadcastPlanetEnemies();
         }

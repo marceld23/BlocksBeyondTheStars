@@ -125,9 +125,8 @@ public sealed partial class GameServer
     /// story) AND the station's system must roll as pirate space AND the world's Danger option must not
     /// have disabled ambushes — otherwise the quest could never be completed.</summary>
     private bool ShipBountyOffered(string stationId)
-        => BanditShipsAllowed
-           && _meta.Description.Danger.DangerFactor() > 0
-           && BanditSystem(_galaxy.FindBody(stationId)?.SystemId ?? string.Empty);
+        => _meta.Description.Danger.DangerFactor() > 0
+           && BanditShipsAllowedIn(_galaxy.FindBody(stationId)?.SystemId ?? string.Empty);
 
     /// <summary>Adds the raider bounty to a station board's offers when the system qualifies.</summary>
     private void EnsureStationBounty(string idPrefix, string stationId, HashSet<string> currentBoardIds)

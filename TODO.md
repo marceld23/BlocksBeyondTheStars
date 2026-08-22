@@ -139,6 +139,25 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Remnant Protocol — the ending no longer empties the galaxy (#1206, 2026-08-22, branch feat/1206-remnant-protocol)
+Third slice of the feature-deepening package (epic #1197). `MarkGuardianDefeated` set a one-way flag that
+`PlanetEnemiesActive` (GameServerEnemies.cs), the ambient space spawn (GameServerSpaceCombat.cs) and
+`BanditShipsAllowed` (GameServerBanditShips.cs) all read as "off forever" — after the finale no machine, no
+UFO and **no bandit ship** ever spawned again, so the saved galaxy was emptier than the threatened one and the
+station raider bounty could never be offered again (`ShipBountyOffered` keys on it). **Now the flag is a
+factor:** `RemnantEra` halves the planet cap (`PlanetEnemyCap` = max(1, cap/2)), doubles the spawn cadence
+(`RemnantPaceFactor` on both the initial fill and the #740 refill roll), and spawns scan-drones only (the
+hunter robots are gone — lore: drones were the explore units; `PlanetDrones=false` keeps its meaning and then
+leaves a few walkers); the win still clears the live machines (the dramatic beat). Space: the finale gauntlet
+stays down for good, ambient waves + UFOs survive only where space is dangerous by nature —
+`RemnantSpaceHostile` = pirate haven OR (`FrontierDanger` && frontier tier ≥ 2). Bandit ships: new
+`BanditShipsAllowedIn(systemId)` (rules + pirate space + post-win only `SystemArchetype.PirateHaven`) used by
+the ambush roll, the warp-in, VEGA's sector warning and `ShipBountyOffered`. Family/peaceful rules
+(PlanetEnemies Off) stay at zero. Tests: `GameServerStoryCombatTests` pacify test rewritten to the remnant
+shape (1 drone at Normal+solo), new `RemnantProtocolTests` (two players → 2 drones from a cap of 4; Off stays
+empty; family presets; bandit havens keep raiders, other pirate space loses them). Docs: USER_MANUAL § Story,
+STORY_IMPLEMENTATION §6. Follow-up: #1213 relay "survey orders" chains build on these remnants.
+
 ### ★ Chat content filter + every village keeps its mission board (#1207, #1199, 2026-08-22, branch feat/1199-1207-board-fallback-chat-filter)
 First two slices of the feature-deepening package (epic #1197; analysis 2026-08-22). **#1199 (fix-first):**
 `SettlementGenerator.cs` rolled the 18 % village plot-skip for every plot > 0 — including **plot 1, the
