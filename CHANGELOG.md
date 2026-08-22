@@ -13,6 +13,40 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.20] — 2026-08-22
+
+The encore release. The soundtrack stops repeating itself — every track plays once before anything comes
+around again, the score takes a breath between pieces, reacts to storms, predators, deep dives and the
+star chart, and grows by eleven new tracks (51 in the library). In the browser, your singleplayer world
+now survives a glitch.fun release and can finally be started over with a **"New world…"** button. And the
+research toast says what it actually means while the early knowledge ladder gets some air.
+
+**Protocol stays 3**, no new network messages, saves untouched. The only server-side change is data
+(blueprint knowledge costs, #1184), so hosts should update to hand out the new ladder — older servers
+and new clients still connect fine.
+
+### 🎵 The music stops repeating itself (#1172, #1173, #1174, #1175, #1176)
+
+- **Shuffle bags instead of coin flips.** Every track of a context now plays once before anything repeats,
+  the all-round beds are blended into every planet's pool at a minority share (so a two-track biome no longer
+  alternates A-B-A-B while still sounding like that biome), and the music remembers what it played recently
+  across contexts. Dawn brings the sunrise track, night the nocturnal one — on every biome, not only the
+  generic planets. (#1172)
+- **The music breathes.** After a track ends on a planet, in space or aboard the parked ship, the score may
+  rest for a minute or three — only wind, rain, the biome bed and the nearby waterfall remain — before the
+  next piece fades in. The menu, loading screen, stations and the finale never go quiet. (#1173)
+- **The music listens.** A storm pulls it down under the weather, a hostile creature close by ducks and
+  darkens it, a long dive switches to the deep-water bed, the open star chart and the crafting / research
+  tabs bring their own beds, and the first landing on a planet opens with the sunrise track. (#1174)
+- **Eleven new tracks.** Third variants for the ice, desert, lava, toxic, ocean and cave planets, the
+  station hub, the menu and the loading screen, plus a second dawn and a second night piece — composed with
+  the ElevenLabs Music API (`tools/ai-assets/gen_music.py`); the library now holds 51 tracks, still streamed
+  on demand. (#1175)
+- **The Synth style is generative.** Instead of four fixed 10–24 s loops it now composes every piece fresh —
+  mode, tempo, chords, arpeggios, timbre — 40–110 s long, and every ice planet still sounds like ice (its
+  root and mode are fixed per biome). Every piece is levelled a few dB under the track library, so the Synth
+  style is never the loud one. It is also what you hear when a track file is missing. (#1176)
+
 ### 🔬 The research toast says what it means — and the early knowledge ladder is no longer flat (#1184)
 
 - **"Enough knowledge for: X"** replaces "New research available!" on the HUD toast (all 14 languages). The
@@ -47,27 +81,10 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   system after every write (shared `WebGlStorage` helper, also used by the world save), so the remembered
   name and settings no longer depend on a later world save happening to sync them. (#1179)
 
-### 🎵 The music stops repeating itself (#1172–#1176)
+### 📚 Docs
 
-- **Shuffle bags instead of coin flips.** Every track of a context now plays once before anything repeats,
-  the all-round beds are blended into every planet's pool at a minority share (so a two-track biome no longer
-  alternates A-B-A-B while still sounding like that biome), and the music remembers what it played recently
-  across contexts. Dawn brings the sunrise track, night the nocturnal one — on every biome, not only the
-  generic planets.
-- **The music breathes.** After a track ends on a planet, in space or aboard the parked ship, the score may
-  rest for a minute or three — only wind, rain, the biome bed and the nearby waterfall remain — before the
-  next piece fades in. The menu, loading screen, stations and the finale never go quiet.
-- **The music listens.** A storm pulls it down under the weather, a hostile creature close by ducks and
-  darkens it, a long dive switches to the deep-water bed, the open star chart and the crafting / research
-  tabs bring their own beds, and the first landing on a planet opens with the sunrise track.
-- **Eleven new tracks.** Third variants for the ice, desert, lava, toxic, ocean and cave planets, the
-  station hub, the menu and the loading screen, plus a second dawn and a second night piece — composed with
-  the ElevenLabs Music API (`tools/ai-assets/gen_music.py`); the library now holds 51 tracks, still streamed
-  on demand.
-- **The Synth style is generative.** Instead of four fixed 10–24 s loops it now composes every piece fresh —
-  mode, tempo, chords, arpeggios, timbre — 40–110 s long, and every ice planet still sounds like ice (its
-  root and mode are fixed per biome). Every piece is levelled a few dB under the track library, so the Synth
-  style is never the loud one. It is also what you hear when a track file is missing.
+- The on-demand music streaming from 2026.8.19 is now described everywhere the music library is
+  documented (developer docs, sound design, user manual). (#1171)
 
 ## [2026.8.19] — 2026-08-22
 
@@ -3389,7 +3406,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...HEAD
+[2026.8.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...v2026.8.20
 [2026.8.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...v2026.8.19
 [2026.8.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...v2026.8.18
 [2026.8.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...v2026.8.17
