@@ -65,6 +65,10 @@ public sealed class PlayerSession
     /// <summary>Environment.TickCount of the last accepted chat line (rate limiting).</summary>
     public int LastChatTick { get; set; }
 
+    /// <summary>Whether this session was already told once that a chat line of theirs was masked (#1207) —
+    /// the notice is sent on the first masked line only, not on every one.</summary>
+    public bool ChatMaskNoticeSent { get; set; }
+
     /// <summary>Server uptime (seconds) before which the next face change / voice frame is throttled.</summary>
     public double NextFaceChangeAt { get; set; }
     public double NextVoiceFrameAt { get; set; }

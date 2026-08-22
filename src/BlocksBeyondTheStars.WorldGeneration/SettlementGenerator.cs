@@ -268,9 +268,12 @@ public static class SettlementGenerator
                 // A village occasionally leaves a plot as an open square; a town fills them densely. The
                 // first plot is always built (so it carries the vendor / a guaranteed ruin loot cache), and
                 // a greenhouse plot is never dropped either — it was picked as one of the few this
-                // settlement gets.
+                // settlement gets. Plot 1 carries the mission board and the quartermaster (#1199): before,
+                // the same 18 % roll could drop it, leaving roughly one village in six with no board, no
+                // build jobs and no bounty. The roll is still DRAWN for plot 1 (the rng stream every later
+                // plot reads from must not shift), its result is simply ignored there.
                 bool greenhouse = greenhousePlots.Contains(plotIndex);
-                bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18;
+                bool skip = !town && !greenhouse && plotIndex > 0 && rng.NextDouble() < 0.18 && plotIndex != 1;
                 if (skip)
                 {
                     plotIndex++;

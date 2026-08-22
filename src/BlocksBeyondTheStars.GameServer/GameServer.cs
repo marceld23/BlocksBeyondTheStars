@@ -283,6 +283,16 @@ public sealed partial class GameServer
             _log.Info("Free flight enabled for this creative world.");
         }
 
+        // Chat screening (#1207) is new, so every existing save deserializes the Filtered default — that is the
+        // intended floor and needs no lift. A STRICTER launch choice (a family preset or --chat-mode safe) must
+        // still reach an existing world, though, so Safe is lifted onto a save that only carries the default.
+        if (launchRules.ChatMode == ChatMode.Safe && _config.Rules.ChatMode == ChatMode.Filtered)
+        {
+            _config.Rules.ChatMode = ChatMode.Safe;
+            _meta.RulesOverride = _config.Rules.Clone();
+            _log.Info("Safe chat mode enabled for this world by server launch rules.");
+        }
+
         _repo.SaveMetadata(_meta);
 
         _generator = new WorldGenerator(_meta.Seed, _content);
@@ -5458,6 +5468,16 @@ public sealed partial class GameServer
         }
 
         session.LastChatTick = now;
+
+        // Content screening (#1207): slurs/hate terms drop the line, profanity and personal data are masked,
+        // watch-list hits ping the operator. Sits AFTER the rate limit so a dropped line still spends the
+        // sender's chat slot, and after every slash command so commands are never "filtered".
+        if (ScreenChatLine(session, text) is not { } relayed)
+        {
+            return;
+        }
+
+        text = relayed;
         string sender = string.IsNullOrEmpty(session.State.Name) ? "Pilot" : session.State.Name;
         // Reach follows the sender's best radio tier (world / system / galaxy), not a flat game-wide broadcast.
         SendToRadioAudience(session, new ChatMessage { Sender = sender, Text = text }, DeliveryMode.ReliableOrdered);
@@ -5727,6 +5747,7 @@ public sealed partial class GameServer
             StarterTeleporter = r.StarterTeleporter,
             FrontierDanger = r.FrontierDanger,
             VoiceChatEnabled = _config.VoiceChatEnabled,
+            ChatMode = EffectiveChatMode.ToString(),
             PlayerModeNames = modeNames,
             PlayerModeValues = modeValues,
         });

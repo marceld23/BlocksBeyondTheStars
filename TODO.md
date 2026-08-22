@@ -139,6 +139,37 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Chat content filter + every village keeps its mission board (#1207, #1199, 2026-08-22, branch feat/1199-1207-board-fallback-chat-filter)
+First two slices of the feature-deepening package (epic #1197; analysis 2026-08-22). **#1199 (fix-first):**
+`SettlementGenerator.cs` rolled the 18 % village plot-skip for every plot > 0 — including **plot 1, the
+mission board** — so roughly one village in six had no board, no quartermaster, no build jobs and no camp
+bounty, and `MissionBoardTests.StartedWithBoard` had to scan seeds for one. Plot 1 is now exempt (the roll
+is still drawn, so every later plot's rng stream is unchanged; worldgen change → new worlds only, stamped
+worlds re-derive from `Placements`); new `Village_AlwaysKeepsVendorAndMissionBoard` over 60 seeds;
+STATION_SETTLEMENT_EDITOR.md said 15 %. **#1207:** `GameServer.HandleChat` relayed every line unscreened.
+New Unity-free **`Shared/Moderation/ChatScreen`** (sibling of `NameScreen`, reuses its folding): **whole-token**
+matching (a sentence cannot be substring-matched — "Assistent", "Klasse", "Dickicht" pass) after
+case/diacritic/leet/repeat folding plus a Cyrillic/Greek confusable fold; spaced-out single letters joined
+("f u c k"); a tiny hate core (≥5 chars) additionally substring-matched on the separator-collapsed line
+("h.i.t.l.e.r", "Sieg Heil"); verdicts **Block** (slurs/hate → line dropped, `@srv.chat.blocked`), **Mask**
+(profanity → `***` in place, `@srv.chat.masked` once per session), **Watch** (relayed, operator pinged,
+mixed-script lines too), **PII** (phone ≥10 digits / e-mail / link → masked in *Filtered*, dropped in
+*Safe* with `@srv.chat.pii_blocked`); allow-list escape hatch. Never silent, never logs the line (only the
+matched entry). New world rule **`GameRules.ChatMode = Open|Filtered|Safe`** (default Filtered — old saves
+deserialize the floor; `family`/`peaceful-creative` presets Safe; a Safe launch rule is lifted onto a
+Filtered save in `GameServer.Start`), operator switch **`ServerConfig.ChatFilter = Off|Mask|Strict`**
+(`BBS_CHAT_FILTER` / `--chat-filter`; never persisted) with `EffectiveChatMode` = config caps rule, list
+env vars `BBS_CHAT_BLOCKED/MASKED/WATCH/ALLOW_WORDS`, `--chat-mode`; wired AFTER the rate limit (a dropped
+line spends the slot) and after every slash command; additive `ServerRules.ChatMode` so a client can label
+the chat box later (no client change in this PR). Tests: `ChatScreenTests` (42: masks/blocks/evasions/DE
+compounds/PII/allow/operator lists), `ChatFilterTests` (9: relay+notice once, block, Off, Safe PII,
+Strict over Open rule, slash commands untouched, Safe lift, presets, EN+DE keys),
+`ServerConfigTests` (+1 env+CLI). Docs: USER_MANUAL §7, SELF_HOSTING §12, HOSTED_WORLDS. **Open /
+follow-ups (package issues):** #1208 anti-spam + auto-mute, #1209 per-player mute UI (+ the client label
+from `ServerRules.ChatMode`), #1221 screen player-written names with the same screen, #1222 arcade guest
+report; the 12 machine locales get the three `srv.chat.*` keys with the next `translate_locale.py` top-up;
+the bundled host launcher does not yet expose `--chat-filter` (env works).
+
 ### ★ More varied background music: shuffle-bag picker, rests, context-aware beds, ElevenLabs `_3` tracks, generative Synth style (#1172–#1176, 2026-08-22, branch feat/music-variety)
 Analysis 2026-08-22: six long-stay biome pools (ice / desert / lava / toxic / ocean / cave) owned two ~3-min
 tracks each, `PickFrom` had a one-track memory (strict A-B-A-B), music played 100 % of the time, the context

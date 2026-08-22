@@ -358,6 +358,11 @@ class behind plain methods, so swapping the backend later is contained.
 - **Rate limits** (fixed windows, in-memory, operator knobs): signups 5/h and logins 10/min per
   client IP (real IP via X-Forwarded-For — the app now honors forwarded headers from Caddy), save
   uploads 6/h and reports 10/h per account. Over-budget calls get HTTP 429 with a friendly text.
+- **Chat screening** (kid-facing, #1207; `Shared.Moderation.ChatScreen`, enforced by every game server
+  on the fleet): whole-word matching after case/diacritic/leet/repeat/homoglyph folding — profanity masked,
+  slurs/hate dropped, personal data (phone/e-mail/link) masked in *Filtered* and dropped in *Safe*; watch
+  hits ping the operator. On by default for every world (`GameRules.ChatMode`, family presets = Safe);
+  the fleet can force Safe everywhere with `BBS_CHAT_FILTER=strict` on the server image env.
 - **Name screening** (kid-facing, #938; shared `Shared.Moderation.NameScreen`, also enforced by the
   game server itself on direct-connect joins): two tiers, enforced on account names, world names AND
   in-game player names at the join grant.

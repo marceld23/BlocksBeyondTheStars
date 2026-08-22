@@ -1057,6 +1057,15 @@ reminds you.
 - The scrollback **fades out on its own** a few seconds after the last line (opening the chat box always
   brings the recent lines back). Prefer it always visible — or never? **Settings → Comfort → Chat
   display** offers *Fade out / Always on / Off*, and **J** hides/shows it on the spot for the session.
+- **Kept friendly by default.** The server screens every line before it is relayed: swear words are
+  replaced by `***` (you are told once per session), slurs and hate terms are not sent at all (you are
+  told), and phone numbers, e-mail addresses and links are masked — on *Safe* worlds (the family
+  presets) a line carrying them is not sent. The filter understands l33t, s-p-a-c-e-d letters, repeated
+  letters and look-alike foreign characters, but matches whole words, so everyday German words like
+  "Assistent" or "Klasse" are never touched. It never acts silently. The world admin picks *Open /
+  Filtered / Safe* per world (`--chat-mode`); the server operator can switch screening off for a private
+  family LAN or force Safe everywhere (`BBS_CHAT_FILTER`, see SELF_HOSTING.md §12). Slash commands are
+  never filtered.
 
 ### Radio reach (tiered) — text **and** voice
 Your radio determines **how far** your comms carry — text chat and voice both follow the same reach:

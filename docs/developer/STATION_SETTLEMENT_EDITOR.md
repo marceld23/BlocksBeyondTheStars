@@ -89,7 +89,7 @@ Measured from the generators (block units).
 `Plot = 8`, `Building = 6×6`, `FloorH = 4`. `Layout(tier)`:
 | Tier | Plots | Floors | Footprint (W×L) | Height | Buildings |
 |---|---|---|---|---|---|
-| village | 2×2 | 1 | **17×17** | 5 | ≤4 (each plot ~15% skipped → usually 3–4) |
+| village | 2×2 | 1 | **17×17** | 5 | ≤4 (plots 2+ skipped with 18 % each → usually 3–4; plots 0/1 = vendor + mission board are never skipped, #1199) |
 | town | 3×3 | 2 | **25×25** | 9 | ≤9 |
 
 So a village is a tiny 17×17 hamlet of 3–4 huts; a town a 25×25 block of up to nine 2-storey boxes.
@@ -101,7 +101,7 @@ between worlds).
   one door in the −Z wall, a corner ladder if multi-storey. No variation in footprint, height, **roof**
   (always flat/open-topped), shape, or per-building material.
 - Material is uniform per tier: village = the **biome surface block** (one material), town = iron/glass.
-- The only randomness: a village's 15% plot-skip (an open square), inhabitant human/alien (affects NPCs
+- The only randomness: a village's 18 % plot-skip (an open square; never the vendor/board plots), inhabitant human/alien (affects NPCs
   only, **not looks**), and the ruined decay pass (35% block removal + a little flora).
 - No streets/paths, plaza, well, walls/palisade, fences, lamps, market stalls, signage, gardens,
   chimneys, or landmark building. Alien vs human settlements look **identical**.

@@ -158,6 +158,29 @@ public sealed class ServerConfig
     /// (comma-separated) EXTENDS the defaults; a leading '=' pins an entry to whole-token matching.</summary>
     public List<string> WatchNameWords { get; set; } = new(Moderation.NameScreen.DefaultWatchWords);
 
+    /// <summary>Operator-level chat screening switch (#1207, <c>BBS_CHAT_FILTER</c> / <c>--chat-filter</c>):
+    /// <see cref="Moderation.ChatFilterLevel.Mask"/> (default) lets each world's <see cref="GameRules.ChatMode"/>
+    /// decide, <see cref="Moderation.ChatFilterLevel.Off"/> disables screening for every world on this server
+    /// (a private family LAN), <see cref="Moderation.ChatFilterLevel.Strict"/> forces the Safe mode everywhere
+    /// (a public kids' fleet). Never persisted into a save — it is the operator's, not the world's.</summary>
+    public Moderation.ChatFilterLevel ChatFilter { get; set; } = Moderation.ChatFilterLevel.Mask;
+
+    /// <summary>Chat hate/slur list — a matching line is dropped (<c>BBS_CHAT_BLOCKED_WORDS</c> EXTENDS the
+    /// defaults; whole-token matching, long entries also as substrings). See <see cref="Moderation.ChatScreen"/>.</summary>
+    public List<string> ChatBlockedWords { get; set; } = new(Moderation.ChatScreen.DefaultBlockedWords);
+
+    /// <summary>Chat profanity list — a matching word is replaced by asterisks, the line is relayed
+    /// (<c>BBS_CHAT_MASKED_WORDS</c> EXTENDS the defaults; whole-token matching).</summary>
+    public List<string> ChatMaskedWords { get; set; } = new(Moderation.ChatScreen.DefaultMaskedWords);
+
+    /// <summary>Chat watch list — a matching line is relayed but logged and pushed to <see cref="NotifyUrl"/>
+    /// (<c>BBS_CHAT_WATCH_WORDS</c> EXTENDS the defaults; whole-token matching).</summary>
+    public List<string> ChatWatchWords { get; set; } = new(Moderation.ChatScreen.DefaultWatchWords);
+
+    /// <summary>Chat allow list — tokens that never match any chat list (<c>BBS_CHAT_ALLOW_WORDS</c>); the
+    /// operator's escape hatch for a false positive in their community's language.</summary>
+    public List<string> ChatAllowWords { get; set; } = new();
+
     /// <summary>Opt-in live voice chat. When false (the default on dedicated servers) the server rejects/ignores
     /// voice frames and tells clients voice is unavailable; text chat is unaffected. Voice is relayed live and
     /// never recorded. The bundled singleplayer/host launcher may turn this on for local co-op.</summary>
@@ -502,6 +525,12 @@ public sealed class ServerConfig
                 case "voice-chat":
                     if (bool.TryParse(value, out var vc)) { VoiceChatEnabled = vc; applied.Add("voice"); }
                     break;
+                case "chat-filter":
+                    if (Enum.TryParse<Moderation.ChatFilterLevel>(value, ignoreCase: true, out var chatFilterLevel)) { ChatFilter = chatFilterLevel; applied.Add("chat-filter"); }
+                    break;
+                case "chat-mode":
+                    if (Enum.TryParse<ChatMode>(value, ignoreCase: true, out var chatModeRule)) { Rules.ChatMode = chatModeRule; applied.Add("chat-mode"); }
+                    break;
                 case "unlock-all-blueprints":
                     if (bool.TryParse(value, out var uab)) { CreativeUnlockAllBlueprints = uab; applied.Add("unlock-all-blueprints"); }
                     break;
@@ -741,6 +770,11 @@ public sealed class ServerConfig
         if (Env("BBS_NOTIFY_URL") is { } notifyUrl) { NotifyUrl = notifyUrl; applied.Add("BBS_NOTIFY_URL"); }
         if (Env("BBS_BLOCKED_WORDS") is { } blockedWords) { BlockedNameWords.AddRange(SplitNames(blockedWords)); applied.Add("BBS_BLOCKED_WORDS"); }
         if (Env("BBS_WATCH_WORDS") is { } watchWords) { WatchNameWords.AddRange(SplitNames(watchWords)); applied.Add("BBS_WATCH_WORDS"); }
+        if (Env("BBS_CHAT_FILTER") is { } chatFilterStr && Enum.TryParse<Moderation.ChatFilterLevel>(chatFilterStr, ignoreCase: true, out var chatFilter)) { ChatFilter = chatFilter; applied.Add("BBS_CHAT_FILTER"); }
+        if (Env("BBS_CHAT_BLOCKED_WORDS") is { } chatBlocked) { ChatBlockedWords.AddRange(SplitNames(chatBlocked)); applied.Add("BBS_CHAT_BLOCKED_WORDS"); }
+        if (Env("BBS_CHAT_MASKED_WORDS") is { } chatMasked) { ChatMaskedWords.AddRange(SplitNames(chatMasked)); applied.Add("BBS_CHAT_MASKED_WORDS"); }
+        if (Env("BBS_CHAT_WATCH_WORDS") is { } chatWatch) { ChatWatchWords.AddRange(SplitNames(chatWatch)); applied.Add("BBS_CHAT_WATCH_WORDS"); }
+        if (Env("BBS_CHAT_ALLOW_WORDS") is { } chatAllow) { ChatAllowWords.AddRange(SplitNames(chatAllow)); applied.Add("BBS_CHAT_ALLOW_WORDS"); }
         if (Env("BBS_VOICE") is { } voiceStr && bool.TryParse(voiceStr, out var voice)) { VoiceChatEnabled = voice; applied.Add("BBS_VOICE"); }
         if (Env("BBS_IDLE_SHUTDOWN_MINUTES") is { } idleStr && int.TryParse(idleStr, out var idle)) { IdleShutdownMinutes = idle; applied.Add("BBS_IDLE_SHUTDOWN_MINUTES"); }
         if (Env("BBS_JOIN_TOKEN_SECRET") is { } joinSecret) { JoinTokenSecret = joinSecret; applied.Add("BBS_JOIN_TOKEN_SECRET"); }
