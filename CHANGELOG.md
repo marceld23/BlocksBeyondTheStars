@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.19] — 2026-08-22
+
+The featherweight release — a small, focused follow-up to the constellation release. One thing
+changes, and it changes the browser experience completely: the WebGL player's first visit drops
+from **~208 MB to ~40 MB**, because the music library no longer ships inside the player data file
+but is streamed track by track when it is actually needed. glitch.fun and the fleet's `/play` page
+are the beneficiaries; desktop installers just get a little smaller.
+
+No server or protocol change: **protocol stays 3**, no new network messages, saves untouched.
+Hosts do not need to update for this one (but may).
+
 ### 🎧 The browser loads five times faster — music streams on demand (#1167)
 
 - The WebGL first visit (glitch.fun and the fleet's `/play`) downloaded ~208 MB before the first
@@ -23,7 +34,12 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   bar no longer stalls at 92 % on one giant file, and the browser releases tracks it is no longer
   playing instead of keeping every decoded song in memory. A track starts a moment after you enter
   its context (instantly from disk on desktop); the next re-roll is prefetched while the current
-  track plays. Desktop builds are unaffected apart from being a little smaller.
+  track plays. Desktop builds are unaffected apart from being a little smaller. (PR #1168)
+- Browser follow-up found on the first glitch.fun test deploy: the browser hands a streamed clip
+  over **before it is decoded** (length 0), which made the player think the track had already ended
+  and immediately download a second one. Streamed tracks now wait until they are really decoded
+  (60 s cap; a clip that never decodes is dropped from its pool like a missing file) — verified in
+  headless Chromium against the glitch.fun CDN copy: one fetch, no re-roll. (PR #1169)
 
 ## [2026.8.18] — 2026-08-21
 
@@ -3317,7 +3333,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...HEAD
+[2026.8.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...v2026.8.19
 [2026.8.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...v2026.8.18
 [2026.8.17]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.16...v2026.8.17
 [2026.8.16]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.15...v2026.8.16
