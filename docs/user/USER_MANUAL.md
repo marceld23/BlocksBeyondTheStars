@@ -930,6 +930,13 @@ separate unlock; admins can still disable it through server world rules.
 - A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
   (rename, release). Companions are peaceful and can't be hurt.
+- **What a companion does for you:** it **fetches** — any dropped packet it can reach (about three times your own
+  pickup reach) pours straight into *your* inventory while you are nearby; it **growls** when a hostile machine,
+  bandit or aggressive animal has line of sight to it (a toast plus an amber **"!"** nameplate for a few seconds,
+  at most once every 30 s) and a robber walking up to you **stops at the animal** for a few seconds; once its
+  **bond is high** (≥ 70) a companion at your side keeps robbers from picking you at all — wander off from it and
+  hold-ups are possible again; and every **ten minutes** a present companion **drops a little of what its kind
+  gives** (the species' drop item) at its feet — auto-picked, and a **penned** pet stockpiles it for your next visit.
 - **Energy fence pens**: craft **energy fence** pylons (`energy_fence`, workshop, no blueprint — 2 metal
   panels + 2 cable → 4) and ring in a pen: no creature — wild, tamed or hostile machine — can cross the
   humming pylons, so animals stay home and fiends stay out. Add an **energy gate** (`energy_gate`,

@@ -80,8 +80,27 @@ plus `OwnerId`/`CustomName` added to `NetCreature`.
 - Tests: `CreatureTamingTests.cs` (9) — ritual by temperament, seed variance, persistence round-trip,
   home-body binding, per-world cap, first-tame-knowledge gate. Full suite 598/598.
 
+## Companion payoff (#1210, 2026-08-22)
+
+`GameServerCompanionPayoff.cs` — three roles on top of follow + machine ward, no new persistence, one additive
+wire field (`NetCreature.Alerting`):
+- **Fetch:** `TickDropPackets` pours a packet into a player's pool when it lies within their own reach OR within
+  `CompanionFetchRadius` (3× `DropPickupRadius`) of one of THEIR present companions while the owner is within
+  `CompanionLeashRange` of that pet (owner-only; no teleporting loot across the world). First fetch → VEGA
+  `vega.hint.companion_fetch` once.
+- **Alert + distract:** 1 Hz `TickCompanionPayoff` (Guard after `TickDropPackets`): a hostile (planet machine,
+  non-leaving bandit, aggressive awake fauna) with `HasLineOfSight` to a companion within 20 → `ServerMessage
+  "@srv.companion.alert:{name}"` to the owner (per-owner cooldown 30 s) + `CombatEntity.AlertUntil` (client amber
+  "!" nameplate for 4 s; growl SOUND is a maintainer asset, not wired yet). Robbers in Approach/Demanding within
+  6 of the mark's companion stall 8 s (`StallUntil`, repeat 30 s) — `MoveBandit` returns early. Bond ≥ 70 +
+  companion within `CompanionWardRange`: `BanditWardedByCompanion` keeps the player off the ambush roll and sends
+  an approaching robber away.
+- **Produce:** every 600 s a present companion spills its species' `DropItem` at its feet (fetch picks it up; a
+  penned pet stockpiles).
+- Tests: `CompanionPayoffTests`.
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.
-- Functional roles (defend/fight/haul/gather), companion mortality, a portable/active companion that travels
-  with you, a slow "study" knowledge trickle while accompanied, and bonding perks / dye / accessories.
+- Feed/bond tricks (B3: feed intent, bond decay, tiers), riding (B4), companion mortality, a portable companion
+  that travels with you, a slow "study" knowledge trickle while accompanied, dye / accessories; the growl sound.

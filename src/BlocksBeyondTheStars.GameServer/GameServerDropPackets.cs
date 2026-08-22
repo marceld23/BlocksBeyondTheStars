@@ -246,10 +246,14 @@ public sealed partial class GameServer
         {
             SetCurrent(session); // per-player ship cursor: the cargo hold we spill into must be THEIR ship's
             bool tookAnything = false;
+            bool fetched = false;
 
             foreach (var packet in _containers.Where(c => c.Kind == DropPacketKind).ToList())
             {
-                if (WrapDistSq(session.State.Position, Center(packet.Position)) > DropPickupRadius * DropPickupRadius)
+                // #1210: a packet in the player's own reach — or in reach of one of THEIR present companions
+                // (fetch: the pet carries it over; owner-only, owner within leash range) — pours into their pool.
+                bool ownReach = WrapDistSq(session.State.Position, Center(packet.Position)) <= DropPickupRadius * DropPickupRadius;
+                if (!ownReach && !CompanionFetches(session, Center(packet.Position)))
                 {
                     continue;
                 }
@@ -282,6 +286,7 @@ public sealed partial class GameServer
                 }
 
                 tookAnything = true;
+                fetched |= !ownReach;
                 packet.Items = kept;
                 if (packet.Items.Count == 0)
                 {
@@ -299,6 +304,10 @@ public sealed partial class GameServer
             if (tookAnything)
             {
                 SendInventory(session);
+                if (fetched)
+                {
+                    ShipAiHintOnce(session, "companion_fetch"); // #1210: VEGA explains the pet's new trick once
+                }
             }
         }
 

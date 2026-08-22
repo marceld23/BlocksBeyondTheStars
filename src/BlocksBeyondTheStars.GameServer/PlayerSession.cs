@@ -233,6 +233,9 @@ public sealed class PlayerSession
     /// favour is not asked again until the next visit, so "not today" lets the ordinary smalltalk through.</summary>
     public HashSet<string> DeclinedMissionDialogs { get; } = new(StringComparer.Ordinal);
 
+    /// <summary>Uptime before which the player's companions do not growl at them again (#1210).</summary>
+    public double NextCompanionAlertAt { get; set; }
+
     /// <summary>Uptime of the next (heavier) block-probe around the player; results cached in <see cref="VegaProbe"/>.</summary>
     public double VegaTipProbeAt { get; set; }
     public VegaTipProbe VegaProbe { get; } = new();

@@ -1443,6 +1443,7 @@ public sealed partial class GameServer
             Frozen = e.FrozenTimer > 0, // held in stasis (item 36) — client tints it icy blue
             OwnerId = e.OwnerId,        // tamed companion → client draws friendly tint + nameplate
             CustomName = e.CustomName,
+            Alerting = e.IsCompanion && _uptime < e.AlertUntil, // #1210: growling at a hostile in sight
 
             Hull = e.Hull,
             HullMax = e.HullMax,

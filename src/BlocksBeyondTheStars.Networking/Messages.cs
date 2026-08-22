@@ -1615,6 +1615,10 @@ public sealed class NetCreature
     /// <summary>The owner's chosen name for a tamed companion (empty for wild fauna).</summary>
     public string CustomName { get; set; } = string.Empty;
 
+    /// <summary>Companion payoff (#1210): true for a few seconds after a companion growled at a hostile in sight —
+    /// the client draws the amber "!" nameplate pose. Always false for wild fauna.</summary>
+    public bool Alerting { get; set; }
+
     public float Hull { get; set; }
     public float HullMax { get; set; }
     public float X { get; set; }
