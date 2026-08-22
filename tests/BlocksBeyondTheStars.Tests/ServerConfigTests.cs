@@ -96,6 +96,42 @@ public sealed class ServerConfigTests
     }
 
     [Fact]
+    public void ApplyEnvironment_AndCommandLine_MapChatFilterKnobs()
+    {
+        var vars = new Dictionary<string, string?>
+        {
+            ["BBS_CHAT_FILTER"] = "strict",
+            ["BBS_CHAT_BLOCKED_WORDS"] = "zorkblat",
+            ["BBS_CHAT_MASKED_WORDS"] = "flibber, grompf",
+            ["BBS_CHAT_WATCH_WORDS"] = "qwx",
+            ["BBS_CHAT_ALLOW_WORDS"] = "arsch",
+        };
+
+        WithEnvironment(vars, () =>
+        {
+            var config = new ServerConfig();
+            var applied = config.ApplyEnvironment();
+
+            Assert.Equal(Shared.Moderation.ChatFilterLevel.Strict, config.ChatFilter);
+            Assert.Contains("zorkblat", config.ChatBlockedWords);
+            Assert.Contains("hitler", config.ChatBlockedWords); // env EXTENDS the defaults
+            Assert.Contains("flibber", config.ChatMaskedWords);
+            Assert.Contains("grompf", config.ChatMaskedWords);
+            Assert.Contains("qwx", config.ChatWatchWords);
+            Assert.Contains("arsch", config.ChatAllowWords);
+            Assert.Contains("BBS_CHAT_FILTER", applied);
+            Assert.Contains("BBS_CHAT_ALLOW_WORDS", applied);
+        });
+
+        var cli = new ServerConfig();
+        var cliApplied = cli.ApplyCommandLine(new[] { "--chat-filter", "off", "--chat-mode", "safe" });
+        Assert.Equal(Shared.Moderation.ChatFilterLevel.Off, cli.ChatFilter);
+        Assert.Equal(ChatMode.Safe, cli.Rules.ChatMode);
+        Assert.Contains("chat-filter", cliApplied);
+        Assert.Contains("chat-mode", cliApplied);
+    }
+
+    [Fact]
     public void ApplyCommandLine_OverridesSpaceRules()
     {
         var config = new ServerConfig();

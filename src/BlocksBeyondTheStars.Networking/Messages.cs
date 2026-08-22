@@ -1046,6 +1046,11 @@ public sealed class ServerRules
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
 
+    /// <summary>The EFFECTIVE chat screening mode of this world ("Open", "Filtered" or "Safe" — the world rule
+    /// after the operator's server-wide switch, #1207), so a client can label the chat box accordingly. Older
+    /// servers leave it empty.</summary>
+    public string ChatMode { get; set; } = string.Empty;
+
     /// <summary>Per-player mode overrides (#1121), parallel to <see cref="PlayerModeValues"/> — the online
     /// players' names, filled only when the RECEIVER is a world admin (they feed the Settings-tab
     /// "player modes" rows). Empty for everyone else. Note <see cref="GameMode"/> above is already the

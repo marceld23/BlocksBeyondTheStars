@@ -114,6 +114,13 @@ public enum LandingZoneProtection { Off, StartZoneOnly, All }
 /// authored pacing.</summary>
 public enum StoryDensity { Sparse, Normal, Dense }
 
+/// <summary>How the server screens text chat (#1207, kid safety). <see cref="Filtered"/> masks profanity, drops
+/// slurs/hate terms and masks personal data (phone numbers, e-mails, links); <see cref="Safe"/> additionally drops
+/// any line carrying personal data; <see cref="Open"/> relays everything as typed. The operator's
+/// <c>ServerConfig.ChatFilter</c> (<c>BBS_CHAT_FILTER</c>) can switch screening off for the whole server (private
+/// family LAN) or force Safe everywhere (public fleet) regardless of this rule.</summary>
+public enum ChatMode { Open, Filtered, Safe }
+
 /// <summary>
 /// Authoritative world rules (technical requirements / `anf_admin_einstellungen.md`).
 /// The admin sets these; the server enforces them; clients are told the active set on join.
@@ -317,6 +324,11 @@ public sealed class GameRules
         HazardLevel.Hard => 1.75f,
         _ => 1f,
     };
+
+    /// <summary>Text-chat screening for this world (#1207). Defaults to <see cref="ChatMode.Filtered"/>, so
+    /// every world — including saves from before the rule existed, which deserialize the default — screens chat
+    /// unless the operator turns it off server-wide. Family presets use <see cref="ChatMode.Safe"/>.</summary>
+    public ChatMode ChatMode { get; set; } = ChatMode.Filtered;
 
     /// <summary>Whether admin cheats may be used at all, given mode + toggles.</summary>
     public bool CheatsAllowed => AdminCheats &&

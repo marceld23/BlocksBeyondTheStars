@@ -574,9 +574,10 @@ Reports are then browsable at `http://localhost:31418/admin` (Basic Auth). The p
 feedback** dialog is unaffected — it reports to the official developers regardless of which server the
 player is on. Full endpoint/config reference: [REPORT_HOST.md](REPORT_HOST.md).
 
-## 12. Optional: moderation pings + name screening (#938)
+## 12. Optional: moderation pings, name screening (#938) + chat filter (#1207)
 
-Three more opt-in knobs for operators of public servers (all empty/off by default):
+Three opt-in knobs for operators of public servers (all empty/off by default) — plus the chat filter,
+which is ON by default and has its own switch below:
 
 - `BBS_NOTIFY_URL` — an [ntfy](https://ntfy.sh) topic URL (or any webhook accepting a plain-text
   POST). The server pings it, fire-and-forget, when a player files `/reportpaint` / `/reportshape`
@@ -592,3 +593,24 @@ Both lists ship with sensible defaults (slurs and unambiguous extremist terms bl
 number codes, serial-killer names and authority impersonation watched), so most operators never need
 to touch them. `/reportpaint`/`/reportshape` rows also land in your ReportHost inbox automatically
 when section 11 is configured.
+
+**Chat content filter (#1207, on by default).** Every chat line is screened server-side before it is
+relayed: profanity is masked (`***`, the sender is told once per session), slurs/hate terms drop the
+line (the sender is told), phone numbers / e-mail addresses / links are masked in *Filtered* and drop
+the line in *Safe*. Whole-word matching after case/diacritic/leet/repeat/homoglyph folding — German
+compounds ("Assistent", "Klasse") pass; watch-list hits are relayed but pinged to `BBS_NOTIFY_URL`.
+Nothing about the line is logged beyond the matched list entry. Knobs:
+
+- `BBS_CHAT_FILTER` / `--chat-filter` — `mask` (default: the world rule decides), `off` (no screening on
+  any world of this server — a private family LAN), `strict` (forces *Safe* on every world — a public
+  kids' fleet). Never stored in a save.
+- `--chat-mode open|filtered|safe` — the WORLD rule (`GameRules.ChatMode`, persisted with the world; the
+  `family` and `peaceful-creative` presets use `safe`). A `safe` launch rule is lifted onto an existing
+  save that still carries the `filtered` default.
+- `BBS_CHAT_BLOCKED_WORDS`, `BBS_CHAT_MASKED_WORDS`, `BBS_CHAT_WATCH_WORDS` — comma-separated EXTENSIONS
+  of the built-in lists (whole-word; blocked entries of ≥5 characters also match with separators
+  removed, e.g. "h.i.t.l.e.r"); `BBS_CHAT_ALLOW_WORDS` — words that never match (your escape hatch for a
+  false positive in your community's language).
+
+The default lists are EN+DE (`Shared/Moderation/ChatScreen.cs`); extend them for other languages via
+the env vars above. Running a private LAN for your own family and want the raw chat? `BBS_CHAT_FILTER=off`.

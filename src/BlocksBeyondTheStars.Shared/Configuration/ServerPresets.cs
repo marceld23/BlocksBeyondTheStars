@@ -22,6 +22,7 @@ public static class ServerPresets
         "peaceful-creative" => new GameRules
         {
             GameMode = GameMode.Creative,
+            ChatMode = ChatMode.Safe,
             AggressiveAliens = AlienActivity.Off,
             PassiveCreatures = true,
             Pvp = PvpMode.Off,
@@ -50,6 +51,7 @@ public static class ServerPresets
         "family" => new GameRules
         {
             GameMode = GameMode.Survival,
+            ChatMode = ChatMode.Safe,
             AggressiveAliens = AlienActivity.Off,
             Pvp = PvpMode.Off,
             WeaponMode = WeaponMode.ToolsOnly,

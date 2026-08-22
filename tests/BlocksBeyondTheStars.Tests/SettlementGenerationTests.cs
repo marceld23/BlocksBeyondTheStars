@@ -92,6 +92,21 @@ public sealed class SettlementGenerationTests
         Assert.Contains(new[] { "human", "alien" }, x => x == s.Inhabitant);
     }
 
+    /// <summary>#1199: plots 0 and 1 carry the vendor and the mission board — the two services every
+    /// inhabited settlement must have. The village plot-skip roll used to be able to drop plot 1, leaving
+    /// ~18 % of villages without a board (and therefore without a quartermaster, build jobs or bounties).</summary>
+    [Fact]
+    public void Village_AlwaysKeepsVendorAndMissionBoard()
+    {
+        var c = Content();
+        for (int seed = 1; seed <= 60; seed++)
+        {
+            var s = SettlementGenerator.Generate("village", false, seed, "stone", c);
+            Assert.True(s.Markers.Any(m => m.Type == "vendor"), $"village seed {seed} lost its vendor");
+            Assert.True(s.Markers.Any(m => m.Type == "mission_board"), $"village seed {seed} lost its mission board");
+        }
+    }
+
     [Fact]
     public void Ruined_HasNoNpcs_ButLeavesLoot()
     {

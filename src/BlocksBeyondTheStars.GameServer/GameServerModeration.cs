@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Moderation;
 using BlocksBeyondTheStars.Shared.Notifications;
 
@@ -113,6 +114,63 @@ public sealed partial class GameServer
     /// BBS_WATCH_WORDS). Shared implementation with the WorldHost gates, so a name the portal rejects is
     /// rejected on direct connect too.</summary>
     private NameScreen JoinNameScreen => _nameScreen ??= new NameScreen(_config.BlockedNameWords, _config.WatchNameWords);
+
+    private ChatScreen? _chatScreen;
+
+    /// <summary>The chat content screen (#1207), built lazily from the config lists (defaults +
+    /// BBS_CHAT_BLOCKED_WORDS / BBS_CHAT_MASKED_WORDS / BBS_CHAT_WATCH_WORDS / BBS_CHAT_ALLOW_WORDS).</summary>
+    private ChatScreen ChatContentScreen => _chatScreen ??= new ChatScreen(
+        _config.ChatBlockedWords, _config.ChatMaskedWords, _config.ChatWatchWords, _config.ChatAllowWords);
+
+    /// <summary>The chat mode actually applied: the operator's server-wide switch caps or overrides the world
+    /// rule — <c>BBS_CHAT_FILTER=off</c> opens every world (private family LAN), <c>strict</c> forces Safe on
+    /// every world (public kids' fleet), <c>mask</c> (default) leaves the decision to the world.</summary>
+    public ChatMode EffectiveChatMode => _config.ChatFilter switch
+    {
+        ChatFilterLevel.Off => ChatMode.Open,
+        ChatFilterLevel.Strict => ChatMode.Safe,
+        _ => Rules.ChatMode,
+    };
+
+    /// <summary>Screens one chat line for a sender: drops slurs/hate terms (the sender is told), masks
+    /// profanity and personal data (the sender is told once per session), pings the operator on watch-list
+    /// hits. Returns the text to relay, or <c>null</c> when the line must not be relayed. Logs the matched
+    /// list entry only — never the line.</summary>
+    private string? ScreenChatLine(PlayerSession session, string text)
+    {
+        var mode = EffectiveChatMode;
+        if (mode == ChatMode.Open)
+        {
+            return text;
+        }
+
+        var result = ChatContentScreen.Screen(text, mode);
+        string who = session.State.Name ?? "?";
+        if (result.Watch)
+        {
+            string term = result.MatchedTerm.Length > 0 ? result.MatchedTerm : "mixed-script";
+            _log.Info($"Chat watch: '{who}' used watch-listed '{term}' (relayed, verdict {result.Verdict}).");
+            NotifyOperator($"chat watch [{_meta.WorldName}]", $"Player '{who}' used watch-listed term '{term}'.", "eyes");
+        }
+
+        switch (result.Verdict)
+        {
+            case ChatVerdict.Block:
+                _log.Info($"Chat filter: dropped a line from '{who}' ({(result.Pii ? "personal data: " : "term: ")}{result.MatchedTerm}).");
+                Send(session, new ServerMessage { Text = result.Pii ? "@srv.chat.pii_blocked" : "@srv.chat.blocked" });
+                return null;
+            case ChatVerdict.Mask:
+                if (!session.ChatMaskNoticeSent)
+                {
+                    session.ChatMaskNoticeSent = true;
+                    Send(session, new ServerMessage { Text = "@srv.chat.masked" });
+                }
+
+                return result.Text;
+            default:
+                return text;
+        }
+    }
 
     /// <summary>One best-effort operator ping; never throws into the caller.</summary>
     private void NotifyOperator(string title, string message, string tags = "")
