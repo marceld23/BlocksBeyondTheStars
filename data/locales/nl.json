@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Verbinden met een server…",
   "ui.webgl.gameplay_blocked": "Browserversies kunnen deelnemen aan de online wereld, maar kunnen op dit apparaat geen lokale wereld starten.",
   "ui.webgl.need_name": "Voer eerst een naam in voordat je speelt.",
+  "ui.webgl.glitch_save_hint": "Je wereld wordt in deze browser opgeslagen. Log in op Glitch om hem bij updates en op andere apparaten te behouden.",
   "ui.menu.arcade": "Multiplayer (Arcade)",
   "ui.glitch.arcade_failed": "Kan nu niet deelnemen aan de arcade-wereld - probeer het over een moment opnieuw.",
   "ui.glitch.arcade_full": "Alle arcade-werelden zitten momenteel vol - probeer het over een paar minuten nog eens. Singleplayer is altijd beschikbaar!",

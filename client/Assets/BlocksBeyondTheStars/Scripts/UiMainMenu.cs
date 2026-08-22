@@ -136,6 +136,16 @@ namespace BlocksBeyondTheStars.Client
                 shell.StartBrowserSingleplayer();
             }, "btn_singleplayer");
 
+            if (onGlitch)
+            {
+                // glitch.fun: a guest's world lives only in this browser's storage, and every new
+                // deployment starts that storage empty (#1177) — logging in on Glitch is the one thing
+                // that carries the world across updates and devices (Cloud Save), so say so right next
+                // to the button that starts it (#1178). The column to the right of the buttons is free.
+                UiKit.AddText(root, bx + bw + 20f, spY, 760f, bh, shell.L("ui.webgl.glitch_save_hint"), 14,
+                    UiKit.CyanDim, TextAnchor.MiddleLeft);
+            }
+
             // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
             // players arriving through the portal already have host/port preconfigured, and on
             // glitch.fun there is nothing to pick at all (#221).

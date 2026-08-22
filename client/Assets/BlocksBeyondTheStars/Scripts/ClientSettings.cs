@@ -650,6 +650,15 @@ namespace BlocksBeyondTheStars.Client
 
         public static ClientSettings Load()
         {
+            // Browser builds (#1177): a new glitch.fun deployment starts with an EMPTY storage folder, while
+            // the previous deployment's settings still sit in a sibling folder under the same IDBFS mount.
+            // Adopt them first (name, language, intro-seen flag, the claim token's own backup file), so a
+            // returning player is not treated as a fresh install. No-op outside WebGL / with an override.
+            if (string.IsNullOrEmpty(StorageDirOverride) && !File.Exists(FilePath) && !File.Exists(BackupPath))
+            {
+                WebGlStorage.TryAdoptFromPreviousDeployment("client_settings.json", "player_token.txt");
+            }
+
             // Capture before touching the files: a genuine first run is the only time we auto-pick the
             // language from the OS. Returning players keep whatever they chose (even an explicit "en").
             // Any surviving file — main, backup or token — counts as an existing install.
@@ -780,6 +789,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 EnsureTokenBackup(PlayerToken);
+                WebGlStorage.Sync(); // IDBFS writes are in-memory until synced (#1179) — no-op off WebGL
             }
             catch (Exception e)
             {

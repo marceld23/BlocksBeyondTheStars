@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Connect to a server…",
   "ui.webgl.gameplay_blocked": "Browser builds can join the online realm, but cannot start a local world on this device.",
   "ui.webgl.need_name": "Please enter a name before you play.",
+  "ui.webgl.glitch_save_hint": "Your world is saved in this browser. Log in on Glitch to keep it across updates and devices.",
   "ui.menu.arcade": "Multiplayer (Arcade)",
   "ui.glitch.arcade_failed": "Could not join the arcade world right now - please try again in a moment.",
   "ui.glitch.arcade_full": "All arcade worlds are full right now - please try again in a few minutes. Singleplayer is always open!",

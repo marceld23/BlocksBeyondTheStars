@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Bir sunucuya bağlan…",
   "ui.webgl.gameplay_blocked": "Tarayıcı sürümleri çevrimiçi aleme katılabilir, ancak bu cihazda yerel bir dünya başlatamaz.",
   "ui.webgl.need_name": "Oynamadan önce lütfen bir ad gir.",
+  "ui.webgl.glitch_save_hint": "Dünyan bu tarayıcıda kaydedildi. Güncellemelerde ve cihazlar arasında saklamak için Glitch’e giriş yap.",
   "ui.menu.arcade": "Çok oyunculu (Arcade)",
   "ui.glitch.arcade_failed": "Arcade dünyasına şu an katılınamadı - lütfen biraz sonra tekrar dene.",
   "ui.glitch.arcade_full": "Tüm arcade dünyaları şu anda dolu - lütfen birkaç dakika sonra tekrar dene. Tek oyuncu her zaman açık!",

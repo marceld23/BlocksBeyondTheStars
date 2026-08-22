@@ -108,9 +108,15 @@ flavors synced into `client/Assets/Plugins`); `BrowserLocalServer` pumps `GameSe
 Unity's Update loop over the in-memory `LoopbackTransport` (the harness model from
 `ClientServerHarness`, shipped). Persistence is the managed `MemoryWorldRepository` — no native
 SQLite — whose whole world state round-trips as a gzip'd JSON snapshot blob: saved to
-`persistentDataPath` (IndexedDB, `BbsFileSync.jslib` syncfs) every 2 min/on tab-hide/on exit, and
-synced to **Glitch Cloud Save** through the WorldHost relay for logged-in glitch.fun players
-(guests stay local-only). AI level is forced Off in-browser (template texts — the LLM backend is
+`persistentDataPath` (IndexedDB, `BbsFileSync.jslib` syncfs via the shared `WebGlStorage` helper)
+every 2 min/on tab-hide/on exit, and synced to **Glitch Cloud Save** through the WorldHost relay for
+logged-in glitch.fun players (guests stay local-only). **Deployment storage migration (#1177):** Unity
+scopes `persistentDataPath` to the page URL path and glitch.fun serves every release from a new content
+path, so a new deployment starts with an empty folder under the same `/idbfs` mount. At boot
+`PreviousDeploymentStorage` (Client.Core, unit-tested) adopts the newest sibling copy of the world blob
+(+ `cloud.meta.json`) and of `client_settings.json` (+ token backup) — never overwriting, never
+deleting — so guests keep their world across releases; the menu tells glitch.fun players that a Glitch
+login keeps it across updates and devices (#1178). AI level is forced Off in-browser (template texts — the LLM backend is
 internal-only). Menu: the WebGL main menu grew a Singleplayer button. Perf note: initial worldgen
 runs synchronously behind the loading screen; chunk generation is on-demand thereafter.
 

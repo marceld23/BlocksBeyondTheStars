@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "서버에 수동으로 연결…",
   "ui.webgl.gameplay_blocked": "브라우저 빌드는 온라인 영역에 접속할 수는 있지만 이 기기에서 로컬 월드를 시작할 수는 없습니다.",
   "ui.webgl.need_name": "게임을 시작하려면 이름을 입력하세요.",
+  "ui.webgl.glitch_save_hint": "이 세계는 이 브라우저에 저장돼요. 업데이트나 기기 변경 시에도 유지하려면 Glitch에 로그인하세요.",
   "ui.menu.arcade": "멀티플레이어 (아케이드)",
   "ui.glitch.arcade_failed": "지금 아케이드 월드에 참가할 수 없습니다 — 잠시 후 다시 시도해 주세요.",
   "ui.glitch.arcade_full": "아케이드 월드가 모두 찼어요 - 몇 분 후에 다시 시도해 주세요. 싱글플레이어는 항상 이용 가능해요!",

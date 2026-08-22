@@ -3,7 +3,6 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
@@ -51,19 +50,27 @@ namespace BlocksBeyondTheStars.Client
         /// sync uploads exactly these bytes, so cloud and IndexedDB can never diverge.</summary>
         public event Action<byte[]> BlobPersisted;
 
-        public static string SaveDirectory => Path.Combine(Application.persistentDataPath, "browser-singleplayer");
-        public static string SaveBlobPath => Path.Combine(SaveDirectory, "world.blob");
+        private const string SaveFolder = "browser-singleplayer";
+        private const string BlobFile = "world.blob";
+        private const string CloudMetaFile = "cloud.meta.json"; // GlitchCloudSaves' last-synced version, next to the blob
 
-#if UNITY_WEBGL && !UNITY_EDITOR
-        [DllImport("__Internal")]
-        private static extern void BbsSyncIndexedDb();
-#endif
+        public static string SaveDirectory => Path.Combine(Application.persistentDataPath, SaveFolder);
+        public static string SaveBlobPath => Path.Combine(SaveDirectory, BlobFile);
 
-        /// <summary>Reads the locally persisted save blob, or null when this browser has none yet.</summary>
+        /// <summary>Reads the locally persisted save blob, or null when this browser has none yet.
+        /// A new glitch.fun deployment starts with an empty storage folder (#1177): before declaring this
+        /// browser save-less, adopt the world (and its cloud-version meta) the previous deployment left in
+        /// a sibling folder — no-op off WebGL, never overwrites a blob this deployment already has.</summary>
         public static byte[] LoadLocalBlob()
         {
             try
             {
+                if (!File.Exists(SaveBlobPath)
+                    && WebGlStorage.TryAdoptFromPreviousDeployment(Path.Combine(SaveFolder, BlobFile), Path.Combine(SaveFolder, CloudMetaFile)))
+                {
+                    Debug.Log("[BrowserSP] Migrated the singleplayer world from the previous deployment's storage.");
+                }
+
                 return File.Exists(SaveBlobPath) ? File.ReadAllBytes(SaveBlobPath) : null;
             }
             catch (Exception ex)
@@ -221,9 +228,7 @@ namespace BlocksBeyondTheStars.Client
                 byte[] blob = _repo.ExportSnapshotBlob();
                 Directory.CreateDirectory(SaveDirectory);
                 File.WriteAllBytes(SaveBlobPath, blob);
-#if UNITY_WEBGL && !UNITY_EDITOR
-                BbsSyncIndexedDb(); // IDBFS writes are in-memory until synced — make the save durable
-#endif
+                WebGlStorage.Sync(); // IDBFS writes are in-memory until synced — make the save durable
                 Debug.Log($"[BrowserSP] World saved ({blob.Length} B).");
                 BlobPersisted?.Invoke(blob);
             }

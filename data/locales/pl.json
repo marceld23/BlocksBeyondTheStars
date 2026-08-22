@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Połącz z serwerem…",
   "ui.webgl.gameplay_blocked": "Wersja w przeglądarce może dołączać do sieci, ale nie może uruchomić lokalnego świata na tym urządzeniu.",
   "ui.webgl.need_name": "Wpisz proszę nazwę zanim zagrasz.",
+  "ui.webgl.glitch_save_hint": "Twój świat jest zapisywany w tej przeglądarce. Zaloguj się w Glitch, aby zachować go przy aktualizacjach i na innych urządzeniach.",
   "ui.menu.arcade": "Multiplayer (Arcade)",
   "ui.glitch.arcade_failed": "Nie udało się teraz dołączyć do świata arcade — spróbuj za chwilę.",
   "ui.glitch.arcade_full": "Wszystkie światy arcade są teraz pełne — spróbuj ponownie za kilka minut. Singleplayer jest zawsze dostępny!",

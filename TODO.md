@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2080 server + 274 client passing** (2026-08-21). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2080 server + 281 client passing** (2026-08-22). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -8879,6 +8879,29 @@ derived runtime crates deliberately aren't persisted by the filter handler. HUD 
 shows **Filter on** plus the E hint; USER_MANUAL documents the workflow (and the previously missing
 **H** key row). New `ContainerFilterTests` cover whitelist enforcement, dyed-variant matching, clearing,
 input sanitising and the persistence roundtrip.
+
+---
+
+## ✅ Done (2026-08-22): browser singleplayer survives a glitch.fun release — save migration, menu hint, settings sync (#1177, #1178, #1179)
+
+**Finding:** glitch.fun serves every deployment from a new content path and Unity WebGL's
+`Application.persistentDataPath` (IDBFS) is scoped to the page URL path — the same effect that reset the
+name-claim token per release (#345). The singleplayer world blob (`browser-singleplayer/world.blob`) and
+`client_settings.json` live in that storage, so **guests** (no Glitch login) started every release on a
+fresh world; logged-in players were restored from Glitch Cloud Save. The old data is not deleted — it
+sits in a sibling folder under the same `/idbfs` mount (Unity 6 mounts one IDBFS filesystem).
+**Done:** (1) `PreviousDeploymentStorage` (Client.Core, Unity-free, 7 tests) picks the newest sibling
+copy of a file and adopts it into the current folder — never overwriting, never deleting; the Unity
+`WebGlStorage` helper wires it to `persistentDataPath` (browser builds only) and owns the IDBFS
+`syncfs` bridge. `BrowserLocalServer.LoadLocalBlob` adopts the world + `cloud.meta.json` before
+declaring the browser save-less; `ClientSettings.Load` adopts `client_settings.json` + the token backup
+before the fresh-install check. If Glitch ever serves from a different origin the scan finds nothing —
+behaviour exactly as before. (2) glitch.fun menu: a hint next to Singleplayer says the world is saved in
+this browser and that a Glitch login keeps it across updates/devices (`ui.webgl.glitch_save_hint`, EN/DE
++ machine pass for the other 12). (3) `ClientSettings.Save()` calls `WebGlStorage.Sync()` — settings no
+longer depend on a later world save to reach IndexedDB. Verified: Client.Tests 281/281, locale/content
+tests green, `dotnet format` clean, local Unity WebGL build. **Not verified live:** whether play.glitch.fun
+serves consecutive deployments from the same origin (DevTools → IndexedDB after the next release tells).
 
 ---
 

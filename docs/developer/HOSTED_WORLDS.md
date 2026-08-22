@@ -433,7 +433,11 @@ through three relayed routes, so the title token stays server-side: `GET /api/gl
 SHA-256 over the DECODED bytes, enforces the 10 MB decoded cap and `BBS_WH_GLITCH_SAVES_PER_HOUR`
 per install; a stale base answers 409 with `saveId`/`conflictId`) and `POST /api/glitch/save/resolve`
 (`keep_server` | `use_client` — Glitch's explicit optimistic-concurrency flow; nothing is silently
-overwritten, losing states stay in the slot's version history).
+overwritten, losing states stay in the slot's version history). Guests have no Cloud Save: their world
+lives only in the browser's Unity storage, which glitch.fun resets per deployment (new content path →
+new `persistentDataPath`, the #345 effect) — the client therefore migrates the previous deployment's
+world/settings from the sibling storage folder at boot (#1177) and the menu tells glitch.fun players that
+logging in keeps the world across updates and devices (#1178).
 
 Operational notes:
 

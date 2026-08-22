@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Mit Server verbinden…",
   "ui.webgl.gameplay_blocked": "Browser-Builds koennen der Online-Welt beitreten, aber auf diesem Geraet keine lokale Welt starten.",
   "ui.webgl.need_name": "Bitte gib einen Namen ein, bevor du spielst.",
+  "ui.webgl.glitch_save_hint": "Deine Welt wird in diesem Browser gespeichert. Melde dich bei Glitch an, dann bleibt sie auch nach Updates und in anderen Browsern erhalten.",
   "ui.menu.arcade": "Mehrspieler (Arcade)",
   "ui.glitch.arcade_failed": "Die Arcade-Welt konnte gerade nicht betreten werden - bitte versuch es gleich noch einmal.",
   "ui.glitch.arcade_full": "Alle Arcade-Welten sind gerade voll - versuch es in ein paar Minuten noch einmal. Der Einzelspieler-Modus ist immer frei!",

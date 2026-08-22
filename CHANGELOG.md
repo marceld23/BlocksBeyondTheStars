@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🌐 Browser singleplayer survives a glitch.fun release (#1177, #1178, #1179)
+
+- **Your world follows you to the next deployment.** Every build uploaded to glitch.fun is served from a
+  new content path, and the browser's Unity storage is scoped to that path — so guests (players without a
+  Glitch login) started every release on a fresh world. The client now adopts the singleplayer world (and
+  its cloud-version meta) the previous deployment left behind in the same browser storage, as well as the
+  settings (player name, language, intro flag). Best-effort and safe: never overwrites a world the current
+  deployment already has, never deletes the old copy. Logged-in players keep getting their world from
+  Glitch Cloud Save as before. (#1177)
+- **The menu says where your world lives.** On glitch.fun a hint next to the Singleplayer button explains
+  that the world is saved in this browser and that logging in on Glitch keeps it across updates and
+  devices — localized in all 14 languages. (#1178)
+- **Settings are flushed to IndexedDB immediately.** `ClientSettings.Save()` now syncs the browser file
+  system after every write (shared `WebGlStorage` helper, also used by the world save), so the remembered
+  name and settings no longer depend on a later world save happening to sync them. (#1179)
+
 ## [2026.8.19] — 2026-08-22
 
 The featherweight release — a small, focused follow-up to the constellation release. One thing

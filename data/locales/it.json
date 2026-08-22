@@ -1594,6 +1594,7 @@
   "ui.menu.connect_manual": "Connetti a un server…",
   "ui.webgl.gameplay_blocked": "Le build per browser possono entrare nel mondo online, ma non possono avviare un mondo locale su questo dispositivo.",
   "ui.webgl.need_name": "Inserisci un nome prima di giocare.",
+  "ui.webgl.glitch_save_hint": "Il tuo mondo è salvato in questo browser. Accedi su Glitch per conservarlo tra aggiornamenti e dispositivi.",
   "ui.menu.arcade": "Multigiocatore (Arcade)",
   "ui.glitch.arcade_failed": "Impossibile entrare ora nel mondo arcade - riprova tra un momento.",
   "ui.glitch.arcade_full": "Tutti i mondi arcade sono pieni al momento - riprova tra qualche minuto. La modalità singolo giocatore è sempre disponibile!",
