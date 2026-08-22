@@ -1142,6 +1142,9 @@ public sealed class NetMission
     public NetMissionObjective[] Objectives { get; set; } = System.Array.Empty<NetMissionObjective>();
     public NetReward[] Rewards { get; set; } = System.Array.Empty<NetReward>();
 
+    /// <summary>Knowledge points paid on turn-in besides the item rewards (#1205 scan missions); 0 = none.</summary>
+    public int KnowledgeReward { get; set; }
+
     /// <summary>Mission-giver NPC's name (item 13) — shown as "Mission from {GiverName}"; empty if none.</summary>
     public string GiverName { get; set; } = string.Empty;
 

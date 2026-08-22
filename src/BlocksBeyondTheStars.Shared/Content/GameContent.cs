@@ -795,6 +795,12 @@ public sealed class GameContent
                     case BlocksBeyondTheStars.Shared.Missions.MissionObjectiveType.Deliver:
                         RequireItem($"Mission '{mission.Id}' objective", obj.Target);
                         break;
+                    case BlocksBeyondTheStars.Shared.Missions.MissionObjectiveType.Scan:
+                        if (!BlocksBeyondTheStars.Shared.Missions.ScanTargets.IsValid(obj.Target, _blocks.ContainsKey))
+                        {
+                            problems.Add($"Mission '{mission.Id}' scan objective has an unknown target '{obj.Target}' (see ScanTargets).");
+                        }
+                        break;
                 }
             }
         }

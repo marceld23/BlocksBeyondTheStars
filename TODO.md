@@ -139,6 +139,28 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Scan missions — the dead `Scan` objective lives: survey jobs on every board, knowledge rewards, readable objective rows (#1205, 2026-08-22, branch feat/1205-scan-objective)
+Fourth slice of the feature-deepening package (epic #1197). `MissionObjectiveType.Scan` was declared (Mission.cs)
+with zero references — no generation, no validation, no progress hook, excluded from player-created missions —
+although scanning is a core loop with a ready pipeline. **Now:** shared **`ScanTargets`** grammar (Shared/Missions)
+used by the content validator, the player-mission whitelist and the hook alike: `any`, `creature:any|hostile|<id>`,
+`block:<key>` (block/tree/flora scans of that key, never a rune), `flora:any`, `tree:any`, `monument:any`,
+`microfauna:any`, `asteroid`, `anomaly`. `MissionObjective.FirstOnly` (discover = Codex first-timers only; default
+false so re-scans count — kid pacing), `MissionDefinition.KnowledgeReward` (paid at turn-in, `SendInventory`
+carries it; wire `NetMission.KnowledgeReward`, additive). Hook `OnMissionScan` fed from `GameServerScanning.Award`
+(readout kind + subject key + hostile flag + firstTime) — no scan path knows missions. Board stream `…s<slot>`
+(rng "scanmission", window 1) on every settlement AND station board, incl. the initial `StockBoard` `s0`;
+`EnsureBoardWindow` got a `BoardSlotKind` instead of the build bool. Templates: settlement *wildlife* (creature:any ×3),
+*hostile* (creature:hostile ×1, only with a hostile species on the roster), *runes* (monument:any ×1, only with
+monuments), *botany* (flora:any ×2, FirstOnly, only with ≥2 flora species); station *asteroids* (asteroid ×3) —
+world-ineligible templates are never coined (`ScanTemplateAvailable`). Client: `DetailMissions` rows now read
+"Scan · any creature 2/3" (`ObjectiveTargetLabel` for all six kinds) + a knowledge-reward line — **client
+change → local Unity build**. Locales EN+DE: `mission.settlement.scan_*`, `mission.station.scan_asteroids.*`,
+`ui.missions.objtype_travel/build/defeat/scan`, `ui.missions.scantarget.*`, `ui.missions.buildtarget_*`,
+`ui.missions.knowledge_reward`. Tests: `ScanMissionTests` (grammar matcher/validator, every settlement board offers
+an `s0` survey, wildlife progress counts re-scans + turn-in pays knowledge, FirstOnly ignores re-scans, player-created
+Scan accepted/rejected). Docs: USER_MANUAL § Missions. Follow-ups: #1212 chains use Scan as a step.
+
 ### ★ Remnant Protocol — the ending no longer empties the galaxy (#1206, 2026-08-22, branch feat/1206-remnant-protocol)
 Third slice of the feature-deepening package (epic #1197). `MarkGuardianDefeated` set a one-way flag that
 `PlanetEnemiesActive` (GameServerEnemies.cs), the ambient space spawn (GameServerSpaceCombat.cs) and

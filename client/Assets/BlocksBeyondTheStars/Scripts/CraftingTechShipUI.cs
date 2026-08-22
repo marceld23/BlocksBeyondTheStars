@@ -3856,10 +3856,21 @@ namespace BlocksBeyondTheStars.Client
                 y += Mathf.Max(64f, desc.preferredHeight + 8f);
             }
 
+            // #1205: an objective row names WHAT to do and with what ("Scan · any creature  2/3"), not just a count —
+            // with five objective kinds on the boards a bare "0/3" no longer told the player anything.
             foreach (var o in m2.Objectives)
             {
-                UiKit.AddText(_detail, 8, y, 620, 28, $"{o.Progress}/{o.Required}", 20, UiKit.CyanDim, TextAnchor.UpperLeft);
-                y += 30f;
+                var row = UiKit.AddText(_detail, 8, y, 620, 28,
+                    $"{IdLabel("ui.missions.objtype_", o.Type)} · {ObjectiveTargetLabel(o.Type, o.Target)}  {o.Progress}/{o.Required}",
+                    20, UiKit.CyanDim, TextAnchor.UpperLeft);
+                row.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += Mathf.Max(30f, row.preferredHeight + 6f);
+            }
+
+            if (m2.KnowledgeReward > 0)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 26, $"+{m2.KnowledgeReward} {L("ui.missions.knowledge_reward")}", 17, UiKit.Cyan, TextAnchor.UpperLeft);
+                y += 28f;
             }
 
             y += 10f;
@@ -4687,6 +4698,50 @@ namespace BlocksBeyondTheStars.Client
             => string.IsNullOrEmpty(id) || Game?.Localizer?.Has(prefix + id.ToLowerInvariant()) != true
                 ? id
                 : L(prefix + id.ToLowerInvariant());
+
+        /// <summary>Human-readable objective target (#1205): items by name, blocks by name, the Build groups and
+        /// the Scan grammar (<c>creature:any</c>, <c>block:&lt;key&gt;</c>, <c>asteroid</c>, …) through
+        /// <c>ui.missions.scantarget.*</c> / <c>ui.missions.buildtarget_*</c>; unknown shapes fall back to the raw key.</summary>
+        private string ObjectiveTargetLabel(string type, string target)
+        {
+            if (string.IsNullOrEmpty(target))
+            {
+                return string.Empty;
+            }
+
+            switch ((type ?? string.Empty).ToLowerInvariant())
+            {
+                case "collect":
+                case "deliver":
+                    return ItemName(target);
+                case "mine":
+                    return BlockLabel(target);
+                case "build":
+                    return Game?.Localizer?.Has("ui.missions.buildtarget_" + target) == true
+                        ? L("ui.missions.buildtarget_" + target)
+                        : BlockLabel(target);
+                case "scan":
+                {
+                    string key = "ui.missions.scantarget." + target.Replace(':', '_');
+                    if (Game?.Localizer?.Has(key) == true)
+                    {
+                        return L(key);
+                    }
+
+                    if (target.StartsWith("block:", System.StringComparison.Ordinal))
+                    {
+                        return BlockLabel(target.Substring("block:".Length));
+                    }
+
+                    return target.StartsWith("creature:", System.StringComparison.Ordinal) ? target.Substring("creature:".Length) : target;
+                }
+                default:
+                    return target;
+            }
+        }
+
+        private string BlockLabel(string blockKey)
+            => Game?.Localizer?.Has("block." + blockKey + ".name") == true ? L("block." + blockKey + ".name") : blockKey;
 
         // --- Coloured planet marks in the star map ---------------------------------------------------------
         // A player wanted to mark planets in space, each in its own colour — several at once, unlike the single

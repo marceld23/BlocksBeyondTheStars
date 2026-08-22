@@ -695,6 +695,12 @@ separate unlock; admins can still disable it through server world rules.
 - **Build jobs:** settlement boards also offer one **building assignment** — raise a shelter, light the
   camp, raise a beacon, or extend your own base. Progress counts as you **place** blocks (mining them back
   out never loses credit) and the job turns in at the board like any other.
+- **Survey jobs:** every board also offers one **scan assignment** for explorers — settlements ask you to
+  *survey the wildlife* (scan three creatures — the same herd counts), keep a *hostile watch* (scan one
+  hostile creature, from a safe distance), *read the stones* (scan a monument's runes) or run a *botany
+  survey* (discover two plant species you have never scanned); space-station boards ask for an *asteroid
+  survey* with the ship scanner. Surveys pay a few **knowledge points** on top of the item reward. The
+  mission detail now names every objective ("Scan · any creature 2/3", "Deliver · Cable 0/5").
 
 ### People you know & NPC radio calls
 - **NPCs remember you.** Trading at a stall or taking a board job raises your standing with that vendor or

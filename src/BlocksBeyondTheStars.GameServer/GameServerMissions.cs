@@ -66,6 +66,71 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Called for every scan a player performs (#1205), to advance matching Scan objectives. The
+    /// mirror of <see cref="OnBlockMined"/>: increment-only, capped at the requirement. <paramref name="firstTime"/>
+    /// is the Codex-discovery flag — objectives with <see cref="MissionObjective.FirstOnly"/> ignore re-scans.</summary>
+    private void OnMissionScan(PlayerSession session, string kind, string subjectKey, bool hostile, bool firstTime)
+    {
+        foreach (var pr in session.State.Missions)
+        {
+            if (pr.Status != MissionStatus.Active)
+            {
+                continue;
+            }
+
+            var def = GetMissionDef(pr.MissionId);
+            if (def is null)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < def.Objectives.Count && i < pr.ObjectiveProgress.Count; i++)
+            {
+                var obj = def.Objectives[i];
+                if (obj.Type != MissionObjectiveType.Scan || pr.ObjectiveProgress[i] >= obj.Required)
+                {
+                    continue;
+                }
+
+                if (obj.FirstOnly && !firstTime)
+                {
+                    continue;
+                }
+
+                if (ScanTargets.Matches(obj.Target, kind, subjectKey, hostile))
+                {
+                    pr.ObjectiveProgress[i]++;
+                }
+            }
+        }
+    }
+
+    /// <summary>Test hook: feed one scan readout into the Scan-objective hook without a scanner.</summary>
+    public void SimulateScanForTest(PlayerSession session, string kind, string subjectKey, bool hostile, bool firstTime)
+        => OnMissionScan(session, kind, subjectKey, hostile, firstTime);
+
+    /// <summary>Test hook: register a mission definition (e.g. an authored Scan mission) at runtime.</summary>
+    public void AddMissionDefForTest(MissionDefinition def) => _missionDefs[def.Id] = def;
+
+    /// <summary>Test hook: post a one-objective player mission through the real create handler; true when it
+    /// was accepted (the validation path rejects unknown targets and objective types).</summary>
+    public bool CreatePlayerMissionForTest(string playerId, string title, string target, MissionObjectiveType type, int required, string rewardItem, int rewardCount)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } session)
+        {
+            return false;
+        }
+
+        int before = _missionDefs.Values.Count(m => m.Source == MissionSource.Player);
+        HandleCreateMission(session, new CreateMissionIntent
+        {
+            Title = title,
+            Objectives = new[] { new NetMissionObjective { Type = type.ToString(), Target = target, Required = required } },
+            Rewards = new[] { new NetReward { Item = rewardItem, Count = rewardCount } },
+        });
+        return _missionDefs.Values.Count(m => m.Source == MissionSource.Player) > before;
+    }
+
     /// <summary>Called when a player lands on a body, to complete any matching Travel objective (item 31).</summary>
     private void OnPlayerTravelled(PlayerSession session, string bodyId, string bodyName)
     {
@@ -243,6 +308,11 @@ public sealed partial class GameServer
             {
                 pool.Add(reward.Item, reward.Count);
             }
+
+            if (def.KnowledgeReward > 0)
+            {
+                session.State.KnowledgePoints += def.KnowledgeReward; // #1205: SendInventory below carries it
+            }
         }
 
         // Finalize.
@@ -350,7 +420,7 @@ public sealed partial class GameServer
         {
             if (!Enum.TryParse<MissionObjectiveType>(o.Type, ignoreCase: true, out var type) ||
                 type is not (MissionObjectiveType.Collect or MissionObjectiveType.Mine
-                    or MissionObjectiveType.Deliver or MissionObjectiveType.Travel))
+                    or MissionObjectiveType.Deliver or MissionObjectiveType.Travel or MissionObjectiveType.Scan))
             {
                 MissionFail(session, "", "@srv.mission.bad_objective:" + o.Type);
                 return;
@@ -360,6 +430,7 @@ public sealed partial class GameServer
             {
                 MissionObjectiveType.Mine => _content.GetBlock(o.Target) is not null,
                 MissionObjectiveType.Travel => !string.IsNullOrWhiteSpace(o.Target), // a body id/name
+                MissionObjectiveType.Scan => ScanTargets.IsValid(o.Target, k => _content.GetBlock(k) is not null), // #1205
                 _ => _content.GetItem(o.Target) is not null,
             };
             if (!valid || o.Required < 1)
@@ -521,6 +592,76 @@ public sealed partial class GameServer
         ("base", 15, "glass", 8, "home"),                    // extend your own base — 15 blocks in its zone
     };
 
+    // Scan (survey) missions (#1205): the explorer's assignment beside the deliveries and the build job. The
+    // target is a ScanTargets expression; FirstOnly marks the "discover" flavour (new Codex entries only).
+    // A template may carry a world condition (no runes mission on a world without monuments, no hostile-watch
+    // without a hostile species) — evaluated once per coining, deterministic per world. Own slot stream
+    // ("…s<slot>", rng "scanmission"), so the gather/build rolls players already hold stay untouched.
+    private static readonly (string Target, int Count, bool FirstOnly, string Reward, int RewardN, int Knowledge, string Key)[] ScanMissionTemplates =
+    {
+        ("creature:any", 3, false, "medpack", 1, 3, "wildlife"),        // survey the wildlife — any three creature scans
+        ("creature:hostile", 1, false, "energy_cell_1", 2, 4, "hostile"), // hostile watch — one scan of a hostile species
+        ("monument:any", 1, false, "titanium_plate", 2, 4, "runes"),     // read the stones — scan a monument's runes
+        ("flora:any", 2, true, "glass", 4, 3, "botany"),                 // botany — DISCOVER two plant species
+    };
+
+    private static readonly (string Target, int Count, bool FirstOnly, string Reward, int RewardN, int Knowledge, string Key)[] StationScanMissionTemplates =
+    {
+        ("asteroid", 3, false, "data_fragment", 2, 3, "asteroids"),      // asteroid survey — three ship-scanner readings
+    };
+
+    /// <summary>Whether a scan template can be completed on this world at all (#1205) — a template that could
+    /// never finish would be a broken promise on the board.</summary>
+    private bool ScanTemplateAvailable(string key) => key switch
+    {
+        "hostile" => _speciesRoster.Any(sp => sp.Hostile),
+        "runes" => _monuments.Count > 0,
+        "botany" => _floraSpeciesByBlock.Count >= 2,
+        _ => true,
+    };
+
+    /// <summary>Deterministically coins one SCAN board mission for a slot (#1205) — same stability contract as
+    /// <see cref="BuildBoardMission"/>: rng stream "scanmission", the world-eligible templates only, settlement
+    /// boards draw from the planet pool, station boards from the space pool.</summary>
+    private MissionDefinition BuildBoardScanMission(string id, string boardKey, int slot, string giverName, bool station)
+    {
+        var rng = new System.Random(unchecked((int)WorldGenerator.StableHash($"{boardKey}:scanmission:{slot}")));
+        var pool = station ? StationScanMissionTemplates : ScanMissionTemplates;
+        var eligible = new List<(string Target, int Count, bool FirstOnly, string Reward, int RewardN, int Knowledge, string Key)>();
+        foreach (var t in pool)
+        {
+            if (ScanTemplateAvailable(t.Key) && _content.GetItem(t.Reward) is not null)
+            {
+                eligible.Add(t);
+            }
+        }
+
+        if (eligible.Count == 0)
+        {
+            if (_warnedMissionTemplates.Add("scan:none:" + (station ? "station" : "settlement")))
+            {
+                _log.Warn("No scan mission template is completable here; falling back to the wildlife survey.");
+            }
+
+            eligible.Add(ScanMissionTemplates[0]);
+        }
+
+        var tpl = eligible[rng.Next(eligible.Count)];
+        string scope = station ? "station" : "settlement";
+        return new MissionDefinition
+        {
+            Id = id,
+            Source = MissionSource.System,
+            NameKey = $"mission.{scope}.scan_{tpl.Key}.title",
+            DescriptionKey = $"mission.{scope}.scan_{tpl.Key}.desc",
+            GiverName = giverName,
+            Objectives = { new MissionObjective { Type = MissionObjectiveType.Scan, Target = tpl.Target, Required = tpl.Count, FirstOnly = tpl.FirstOnly } },
+            Rewards = { new ItemAmount(tpl.Reward, tpl.RewardN) },
+            KnowledgeReward = tpl.Knowledge,
+            Active = true,
+        };
+    }
+
     /// <summary>Deterministically coins one BUILD board mission for a slot (#1116) — same stability contract
     /// as <see cref="BuildBoardMission"/>, separate rng stream ("buildmission") and template pool.</summary>
     private MissionDefinition BuildBoardBuildMission(string id, string boardKey, int slot, string giverName)
@@ -625,12 +766,21 @@ public sealed partial class GameServer
     /// <summary>Tops a giver board up so the player always sees BoardWindow available missions: regenerates the
     /// defs for any board mission they currently hold (so it survives reload) and the next un-taken slots.
     /// Collects the ids this board currently offers into <paramref name="currentBoardIds"/>.</summary>
-    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds, bool build = false, int window = BoardWindow)
+    /// <summary>Which procedural pool a board slot stream draws from: the gather deliveries, the build job
+    /// (#1116) or the scan survey (#1205, settlement or station flavour).</summary>
+    private enum BoardSlotKind { Gather, Build, Scan, StationScan }
+
+    private void EnsureBoardWindow(PlayerState player, string idPrefix, string boardKey, HashSet<string> idSet, string giverName, HashSet<string> currentBoardIds, BoardSlotKind kind = BoardSlotKind.Gather, int window = BoardWindow)
     {
-        // NOTE (#1116): the gather parse below also sees build ids ("…b3" fails int.TryParse and is skipped),
-        // and vice versa — the two sequences share a board but never each other's slots.
-        MissionDefinition Coin(string id, int slot)
-            => build ? BuildBoardBuildMission(id, boardKey, slot, giverName) : BuildBoardMission(id, boardKey, slot, giverName);
+        // NOTE (#1116/#1205): the gather parse below also sees build/scan ids ("…b3"/"…s0" fail int.TryParse and
+        // are skipped), and vice versa — the sequences share a board but never each other's slots.
+        MissionDefinition Coin(string id, int slot) => kind switch
+        {
+            BoardSlotKind.Build => BuildBoardBuildMission(id, boardKey, slot, giverName),
+            BoardSlotKind.Scan => BuildBoardScanMission(id, boardKey, slot, giverName, station: false),
+            BoardSlotKind.StationScan => BuildBoardScanMission(id, boardKey, slot, giverName, station: true),
+            _ => BuildBoardMission(id, boardKey, slot, giverName),
+        };
 
         var taken = new HashSet<int>();
         foreach (var m in player.Missions)
@@ -691,7 +841,8 @@ public sealed partial class GameServer
             string prefix = $"settle_{(uint)WorldGenerator.StableHash(s.Name) % 100000u}_";
             string giver = CoinGiverName(s.Name);
             EnsureBoardWindow(player, prefix, s.Name, s.MissionIds, giver, currentBoardIds);
-            EnsureBoardWindow(player, prefix + "b", s.Name, s.MissionIds, giver, currentBoardIds, build: true, window: 1); // #1116: one build job beside the deliveries
+            EnsureBoardWindow(player, prefix + "b", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Build, window: 1); // #1116: one build job beside the deliveries
+            EnsureBoardWindow(player, prefix + "s", s.Name, s.MissionIds, giver, currentBoardIds, BoardSlotKind.Scan, window: 1);  // #1205: one survey job
             EnsureCampBounties(prefix, s, currentBoardIds); // #730: an uncleared camp puts a bounty on the board
         }
     }
@@ -706,6 +857,7 @@ public sealed partial class GameServer
 
         string prefix = $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}_";
         EnsureBoardWindow(player, prefix, stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds);
+        EnsureBoardWindow(player, prefix + "s", stationId, _stationMissionIds, CoinGiverName(stationId), currentBoardIds, BoardSlotKind.StationScan, window: 1); // #1205: asteroid survey
         EnsureStationBounty(prefix, stationId, currentBoardIds); // #731: pirate space puts a raider bounty on the board
     }
 
@@ -737,6 +889,15 @@ public sealed partial class GameServer
 
             idSet.Add(id);
         }
+
+        // #1205: every board opens with one survey job — settlements survey their planet, stations the belt.
+        string scanId = idPrefix + "s0";
+        if (!_missionDefs.ContainsKey(scanId))
+        {
+            _missionDefs[scanId] = BuildBoardScanMission(scanId, boardKey, 0, giverName, station: !withBuild);
+        }
+
+        idSet.Add(scanId);
     }
 
     private void SendMissionList(PlayerSession session)
@@ -826,6 +987,7 @@ public sealed partial class GameServer
             Status = pr?.Status.ToString() ?? "Available",
             Objectives = objectives,
             Rewards = def.Rewards.Select(r => new NetReward { Item = r.Item, Count = r.Count }).ToArray(),
+            KnowledgeReward = def.KnowledgeReward,
             GiverName = def.GiverName,
         };
     }

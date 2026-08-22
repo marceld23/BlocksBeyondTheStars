@@ -235,6 +235,10 @@ public sealed partial class GameServer
             p.KnowledgePoints += gained;
         }
 
+        // Scan missions (#1205): every scan — first or repeat — reaches the objective hook; the objective
+        // decides whether only discoveries count (FirstOnly). Fed from the readout, so no scan path knows missions.
+        OnMissionScan(session, readout.Kind, readout.SubjectKey, readout.ThreatKey == "ui.scan.threat.hostile", firstTime);
+
         var result = new ScanResult
         {
             Subject = readout.Display,
