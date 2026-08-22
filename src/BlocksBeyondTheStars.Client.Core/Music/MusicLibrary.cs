@@ -66,27 +66,29 @@ namespace BlocksBeyondTheStars.Client.Music
 
         /// <summary>The all-round neutral beds that may be blended into any surface biome pool.</summary>
         private static readonly string[] NeutralDay = { "music_idle_default", "music_idle_default_2", "music_explore_planet", "music_explore_planet_2" };
-        private static readonly string[] NeutralNight = { "music_planet_night", "music_idle_default", "music_idle_default_2" };
-        private static readonly string[] NeutralDawn = { "music_planet_sunrise", "music_explore_planet", "music_explore_planet_2" };
+        private static readonly string[] NeutralNight = { "music_planet_night", "music_planet_night_2", "music_idle_default", "music_idle_default_2" };
+        private static readonly string[] NeutralDawn = { "music_planet_sunrise", "music_planet_sunrise_2", "music_explore_planet", "music_explore_planet_2" };
+        private static readonly string[] GenericDawn = { "music_planet_sunrise", "music_planet_sunrise_2" };
+        private static readonly string[] GenericNight = { "music_planet_night", "music_planet_night_2" };
         /// <summary>Underground there is no sky: only the calm all-round beds, never sunrise/night.</summary>
         private static readonly string[] NeutralCave = { "music_idle_default", "music_idle_default_2" };
 
         private static readonly Dictionary<string, string[]> Primary = new()
         {
-            [Menu] = new[] { "music_main_menu", "music_main_menu_2" },
-            [Loading] = new[] { "music_loading", "music_loading_2" },
+            [Menu] = new[] { "music_main_menu", "music_main_menu_2", "music_main_menu_3" },
+            [Loading] = new[] { "music_loading", "music_loading_2", "music_loading_3" },
             [ShipInterior] = new[] { "music_ship_interior", "music_crafting_workshop", "music_research_blueprints" },
-            [Station] = new[] { "music_multiplayer_hub", "music_multiplayer_hub_2" },
+            [Station] = new[] { "music_multiplayer_hub", "music_multiplayer_hub_2", "music_multiplayer_hub_3" },
             [Space] = new[] { "music_space_orbit", "music_deep_space_lonely", "music_mystery_signal", "music_asteroid_mining", "music_cockpit_starmap" },
             [PlanetGeneric] = new[] { "music_explore_planet", "music_explore_planet_2", "music_idle_default", "music_idle_default_2" },
-            [PlanetIce] = new[] { "music_planet_ice", "music_planet_ice_2" },
-            [PlanetDesert] = new[] { "music_planet_desert", "music_planet_desert_2" },
-            [PlanetLava] = new[] { "music_planet_lava", "music_planet_lava_2" },
-            [PlanetToxic] = new[] { "music_planet_toxic", "music_planet_toxic_2" },
-            [PlanetOcean] = new[] { "music_planet_ocean", "music_planet_ocean_2" },
+            [PlanetIce] = new[] { "music_planet_ice", "music_planet_ice_2", "music_planet_ice_3" },
+            [PlanetDesert] = new[] { "music_planet_desert", "music_planet_desert_2", "music_planet_desert_3" },
+            [PlanetLava] = new[] { "music_planet_lava", "music_planet_lava_2", "music_planet_lava_3" },
+            [PlanetToxic] = new[] { "music_planet_toxic", "music_planet_toxic_2", "music_planet_toxic_3" },
+            [PlanetOcean] = new[] { "music_planet_ocean", "music_planet_ocean_2", "music_planet_ocean_3" },
             [PlanetVerdant] = new[] { "music_planet_verdant", "music_planet_verdant_2" },
             [PlanetCrystal] = new[] { "music_moon_crystal", "music_explore_planet", "music_explore_planet_2" },
-            [PlanetCave] = new[] { "music_planet_cave", "music_planet_cave_2" },
+            [PlanetCave] = new[] { "music_planet_cave", "music_planet_cave_2", "music_planet_cave_3" },
             [PlanetDeep] = new[] { "music_planet_ocean_2" },
             [StarChart] = new[] { "music_cockpit_starmap" },
             [Workshop] = new[] { "music_crafting_workshop" },
@@ -117,8 +119,8 @@ namespace BlocksBeyondTheStars.Client.Music
                 // The generic pool already holds the all-round beds; the time of day only adds its tint.
                 return phase switch
                 {
-                    DayPhase.Dawn => new[] { "music_planet_sunrise" },
-                    DayPhase.Night => new[] { "music_planet_night" },
+                    DayPhase.Dawn => GenericDawn,
+                    DayPhase.Night => GenericNight,
                     _ => Empty,
                 };
             }

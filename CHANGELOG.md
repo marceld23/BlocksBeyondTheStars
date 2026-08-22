@@ -42,11 +42,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **The music listens.** A storm pulls it down under the weather, a hostile creature close by ducks and
   darkens it, a long dive switches to the deep-water bed, the open star chart and the crafting / research
   tabs bring their own beds, and the first landing on a planet opens with the sunrise track.
-- **New tracks.** Third variants for the ice, desert, lava, toxic, ocean and cave planets, the station hub,
-  the menu and the loading screen, composed with the ElevenLabs Music API (`tools/ai-assets/gen_music.py`).
+- **Eleven new tracks.** Third variants for the ice, desert, lava, toxic, ocean and cave planets, the
+  station hub, the menu and the loading screen, plus a second dawn and a second night piece — composed with
+  the ElevenLabs Music API (`tools/ai-assets/gen_music.py`); the library now holds 51 tracks, still streamed
+  on demand.
 - **The Synth style is generative.** Instead of four fixed 10–24 s loops it now composes every piece fresh —
   mode, tempo, chords, arpeggios, timbre — 40–110 s long, and every ice planet still sounds like ice (its
-  root and mode are fixed per biome). It is also what you hear when a track file is missing.
+  root and mode are fixed per biome). Every piece is levelled a few dB under the track library, so the Synth
+  style is never the loud one. It is also what you hear when a track file is missing.
 
 ## [2026.8.19] — 2026-08-22
 

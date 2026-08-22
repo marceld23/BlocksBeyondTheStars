@@ -131,7 +131,11 @@ engine (mode / tempo / two chord phrases / two arpeggio patterns / timbre / dron
 click-free seams, planet root+mode fixed per biome), rendered over frames under a 6 ms budget, replaces the
 four `Resources/audio/music_*` loops (removed) and stays the fallback for missing tracks;
 **`tools/ai-assets/gen_music.py`** (#1175, ElevenLabs Music API: prompt or composition plan, `--make-plan`
-free, seed siblings; 192 kbps works on this account). Tests: `MusicLibraryTests`, `MusicPickerTests`,
+free, seed siblings; 192 kbps works on this account) and **11 new tracks** auditioned/approved by Marcel
+(3 trials first): `_3` for ice / desert / lava / toxic / ocean / cave / hub / menu / loading +
+`music_planet_night_2` / `music_planet_sunrise_2` (165 s each, 192 kbps, ≈ 44 MB; library = 51 tracks).
+Synth loudness (Marcel: "nicht zu laut"): `SynthComposer.Normalize` pulls every piece to RMS 0.08
+(≈ −20 LUFS, the track library sits at ≈ −13 LUFS) with a 0.6 peak cap — test-guarded. Tests: `MusicLibraryTests`, `MusicPickerTests`,
 `MusicRestPolicyTests`, `SynthComposerTests`. Docs: MUSIC_TRACKS.md, SOUND_DESIGN.md §11, NOTICES.md,
 client/Music/README.md, tools/ai-assets/README.md. **Gotchas:** the prefetch must be the bag's next pick (else
 a second browser download); a rest is a director state with no clip on either source; MP3s NEVER under

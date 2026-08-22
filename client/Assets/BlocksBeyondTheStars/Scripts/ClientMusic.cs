@@ -860,10 +860,13 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Every piece lands at the same, deliberately modest level (~7 dB under the track library) with a
+            // hard peak ceiling — the Synth style must never be the loud one.
+            float gain = SynthComposer.Normalize(data);
             var clip = AudioClip.Create(id, data.Length, 1, score.SampleRate, false);
             clip.SetData(data, 0);
             _musicCache[id] = clip;
-            Debug.Log($"[Music] Composed synth piece {spec.Mood}/{spec.Flavor ?? "-"} ({score.ModeName}, {score.Tempo:0} bpm, {score.Seconds:0} s) in {Time.realtimeSinceStartup - started:0.0} s.");
+            Debug.Log($"[Music] Composed synth piece {spec.Mood}/{spec.Flavor ?? "-"} ({score.ModeName}, {score.Tempo:0} bpm, {score.Seconds:0} s, gain {gain:0.00}) in {Time.realtimeSinceStartup - started:0.0} s.");
 
             _inFlight.Remove(id);
             foreach (var waiter in waiters)

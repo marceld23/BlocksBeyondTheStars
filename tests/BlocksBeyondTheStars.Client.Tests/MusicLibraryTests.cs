@@ -102,8 +102,8 @@ public sealed class MusicLibraryTests
     public void GenericPlanet_DayHasNoFillers_DawnAndNightAddTheirTint()
     {
         Assert.Empty(MusicLibrary.FillerTracks(MusicLibrary.PlanetGeneric, DayPhase.Day));
-        Assert.Equal(new[] { "music_planet_sunrise" }, MusicLibrary.FillerTracks(MusicLibrary.PlanetGeneric, DayPhase.Dawn));
-        Assert.Equal(new[] { "music_planet_night" }, MusicLibrary.FillerTracks(MusicLibrary.PlanetGeneric, DayPhase.Night));
+        Assert.Equal(new[] { "music_planet_sunrise", "music_planet_sunrise_2" }, MusicLibrary.FillerTracks(MusicLibrary.PlanetGeneric, DayPhase.Dawn));
+        Assert.Equal(new[] { "music_planet_night", "music_planet_night_2" }, MusicLibrary.FillerTracks(MusicLibrary.PlanetGeneric, DayPhase.Night));
     }
 
     [Theory]

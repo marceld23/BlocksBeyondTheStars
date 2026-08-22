@@ -31,8 +31,9 @@ for the generating account's plan. Background **music** comes in two player-sele
 four earlier ElevenLabs ambient loops `music_menu|planet|space|combat` were removed with it); and (2) the
 **Tracks** library of instrumental ambient tracks in `client/Music/*.mp3` (shipped under
 `StreamingAssets/music/` and streamed on demand): 40 tracks (23 base tracks + 12 `_2` B-sides + 5
-finale/boss tracks) composed with the **Suno** text-to-music service by the project owner, plus the
-`_3` tracks composed with the **ElevenLabs Music API** (`tools/ai-assets/gen_music.py`) — see
+finale/boss tracks) composed with the **Suno** text-to-music service by the project owner, plus 11 tracks
+(nine `_3` third variants + `music_planet_night_2` + `music_planet_sunrise_2`) composed with the
+**ElevenLabs Music API** (`tools/ai-assets/gen_music.py`) — 51 tracks in total; see
 `docs/developer/MUSIC_TRACKS.md` for every track's prompt, source and in-game context. All are
 AI-synthesised instrumental audio (not third-party recordings); use is governed by the **Suno** resp.
 **ElevenLabs Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay

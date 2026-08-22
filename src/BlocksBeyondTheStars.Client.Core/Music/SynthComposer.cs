@@ -335,7 +335,7 @@ namespace BlocksBeyondTheStars.Client.Music
             }
         }
 
-        /// <summary>Renders the whole piece (tests / small pieces).</summary>
+        /// <summary>Renders the whole piece (tests / small pieces). Not normalized — see <see cref="Normalize"/>.</summary>
         public static float[] RenderAll(SynthScore score)
         {
             if (score == null)
@@ -346,6 +346,52 @@ namespace BlocksBeyondTheStars.Client.Music
             var data = new float[score.TotalSamples];
             Render(score, data, 0, data.Length);
             return data;
+        }
+
+        /// <summary>Target RMS amplitude of a finished piece (≈ −22 dBFS, about −20 LUFS for these pads): the
+        /// track library sits around −13 LUFS, so a synth piece is deliberately ~7 dB quieter — pure tones read
+        /// as louder than a produced mix at equal level, and the Synth style must never jump out.</summary>
+        public const float TargetRms = 0.08f;
+
+        /// <summary>Hard ceiling for any sample after normalization (−4.4 dBFS): leaves headroom for the
+        /// cross-fade overlap of two pieces and the game's master bus.</summary>
+        public const float PeakCap = 0.6f;
+
+        /// <summary>Scales a rendered piece in place so its RMS hits <see cref="TargetRms"/> — but never lets a
+        /// sample exceed <see cref="PeakCap"/> (the peak limit wins; quiet pieces only come up, loud ones go
+        /// down). Returns the gain that was applied. A silent buffer is left alone.</summary>
+        public static float Normalize(float[] data, float targetRms = TargetRms, float peakCap = PeakCap)
+        {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            double sumSquares = 0.0;
+            float peak = 0f;
+            foreach (float v in data)
+            {
+                sumSquares += (double)v * v;
+                float a = Math.Abs(v);
+                if (a > peak)
+                {
+                    peak = a;
+                }
+            }
+
+            if (data.Length == 0 || peak <= 1e-6f)
+            {
+                return 1f;
+            }
+
+            float rms = (float)Math.Sqrt(sumSquares / data.Length);
+            float gain = Math.Min(targetRms / rms, peakCap / peak);
+            for (int i = 0; i < data.Length; i++)
+            {
+                data[i] *= gain;
+            }
+
+            return gain;
         }
 
         private static (int RootSemis, string ModeName, int[] Mode, float Octave) PlanetFlavor(string? flavor) => flavor switch

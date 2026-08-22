@@ -145,6 +145,43 @@ public sealed class SynthComposerTests
         Assert.Equal(whole, chunked);
     }
 
+    [Theory]
+    [InlineData(SynthMood.Menu, null)]
+    [InlineData(SynthMood.Planet, MusicLibrary.PlanetIce)]
+    [InlineData(SynthMood.Space, null)]
+    [InlineData(SynthMood.Combat, null)]
+    public void Normalize_LandsEveryPieceAtTheModestTargetLevel(SynthMood mood, string? flavor)
+    {
+        // The Synth style must never be the loud one (owner decision 2026-08-22): every piece is pulled to
+        // the same RMS (~7 dB under the track library) and capped in peak.
+        for (int seed = 0; seed < 6; seed++)
+        {
+            var data = SynthComposer.RenderAll(SynthComposer.Compose(mood, seed, flavor, sampleRate: 8000));
+            SynthComposer.Normalize(data);
+            double sum = 0.0;
+            float peak = 0f;
+            foreach (float v in data)
+            {
+                sum += (double)v * v;
+                peak = Math.Max(peak, Math.Abs(v));
+            }
+
+            float rms = (float)Math.Sqrt(sum / data.Length);
+            Assert.True(peak <= SynthComposer.PeakCap + 1e-4f, $"{mood}/{flavor} seed {seed}: peak {peak}");
+            Assert.True(rms <= SynthComposer.TargetRms + 1e-3f, $"{mood}/{flavor} seed {seed}: rms {rms}");
+            Assert.True(rms >= SynthComposer.TargetRms * 0.5f, $"{mood}/{flavor} seed {seed}: rms {rms} far below target (peak-capped too hard)");
+        }
+    }
+
+    [Fact]
+    public void Normalize_SilentOrEmpty_IsLeftAlone()
+    {
+        var silent = new float[100];
+        Assert.Equal(1f, SynthComposer.Normalize(silent));
+        Assert.All(silent, v => Assert.Equal(0f, v));
+        Assert.Equal(1f, SynthComposer.Normalize(Array.Empty<float>()));
+    }
+
     [Fact]
     public void Render_PastTheEnd_WritesSilence()
     {

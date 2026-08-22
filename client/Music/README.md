@@ -1,8 +1,9 @@
 # Background-music library (source of truth)
 
-The 40 Suno-generated MP3 tracks of the **Tracks** music mode. See
+The 51 MP3 tracks of the **Tracks** music mode (40 Suno-generated + 11 composed with the ElevenLabs Music
+API via `tools/ai-assets/gen_music.py`). See
 [docs/developer/MUSIC_TRACKS.md](../../docs/developer/MUSIC_TRACKS.md) for every track's prompt, context
-mapping and the pools in `ClientMusic`.
+mapping and the pools in `MusicLibrary`.
 
 This folder lives **outside `client/Assets/` on purpose** (#1167):
 

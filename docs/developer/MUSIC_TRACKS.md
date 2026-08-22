@@ -1,10 +1,12 @@
-# Background music tracks (Suno library)
+# Background music tracks (Suno + ElevenLabs library)
 
 The granular background-music library used by the **Tracks** music mode (see
 [SOUND_DESIGN.md](SOUND_DESIGN.md) §11). 23 instrumental, calm, loop-friendly sci-fi tracks generated with
 [Suno](https://suno.com/) by the project owner, plus a **variance pack** of 12 `_2` B-sides (wired
-in `ClientMusic` and **all present** — see *Variance pack* below) and the 5 dramatic **finale/boss**
-tracks (also present + wired — see the last section). All live as raw MP3s in **`client/Music/*.mp3`**
+in `MusicLibrary` and **all present** — see *Variance pack* below), the 5 dramatic **finale/boss**
+tracks (also present + wired — see the last section) and **11 tracks composed with the ElevenLabs Music
+API** (nine `_3` third variants + `music_planet_night_2` / `music_planet_sunrise_2`, #1175 — see *ElevenLabs
+additions*): **51 tracks** in total. All live as raw MP3s in **`client/Music/*.mp3`**
 (tracked, deliberately *outside* `client/Assets/`); `scripts/sync-client-libs.{ps1,sh}` copies them to
 `client/Assets/StreamingAssets/music/` (git-ignored) on every build, and `ClientMusic` **streams each
 track on demand** with `UnityWebRequestMultimedia` — over HTTP in the browser, from disk on desktop —
@@ -33,31 +35,31 @@ surface biomes, 0.3 generic, 0.25 cave, 0 elsewhere), so a two-track biome no lo
 while the biome keeps its identity (every planet of a biome uses the same pool — no per-planet
 randomisation, by decision). The time of day only changes the **filler** set: by day the all-round beds
 `music_idle_default`(`_2`) + `music_explore_planet`(`_2`); at **dawn** (local time 0.23–0.30)
-`music_planet_sunrise` + the explore pair; at **night** (< 0.23 / ≥ 0.78) `music_planet_night` + the idle pair;
-underground only the idle pair (no sky).
+`music_planet_sunrise`(`_2`) + the explore pair; at **night** (< 0.23 / ≥ 0.78) `music_planet_night`(`_2`) + the
+idle pair; underground only the idle pair (no sky).
 
 | Context | Detection | Own tracks | Fillers |
 |---|---|---|---|
-| Main menu | shell `MainMenu`/`Settings`/`Credits`/editors | `music_main_menu`, `music_main_menu_2` | — |
-| Loading screen | shell `Loading` | `music_loading`, `music_loading_2` | — |
+| Main menu | shell `MainMenu`/`Settings`/`Credits`/editors | `music_main_menu`, `music_main_menu_2`, `music_main_menu_3` | — |
+| Loading screen | shell `Loading` | `music_loading`, `music_loading_2`, `music_loading_3` | — |
 | Splash | shell `Splash`/`Studio` | *(silent — splash stings play instead)* | — |
 | Ship interior | in-game, `Aboard`, not flying | `music_ship_interior`, `music_crafting_workshop`, `music_research_blueprints` | — |
-| Station / hub | in-game, `NearVendor` or `orbital_station` | `music_multiplayer_hub`, `music_multiplayer_hub_2` | — |
+| Station / hub | in-game, `NearVendor` or `orbital_station` | `music_multiplayer_hub`, `music_multiplayer_hub_2`, `music_multiplayer_hub_3` | — |
 | Space flight | in-game, `InSpace`/`SpaceViewActive` | `music_space_orbit`, `music_deep_space_lonely`, `music_mystery_signal`, `music_asteroid_mining`, `music_cockpit_starmap` | — |
 | Star chart | in space, the flight system chart is open (`GameBootstrap.StarChartOpen`) | `music_cockpit_starmap` (loops) | — |
 | Space combat | hull+shield dropped in space (14 s) | *(synth combat mood — no Suno track)* | — |
 | Workshop | Tab menu **Crafting** tab open ≥ 30 s (on foot / aboard) | `music_crafting_workshop` (loops) | — |
 | Research | Tab menu **Tech** tab open ≥ 30 s | `music_research_blueprints` (loops) | — |
-| Planet — ice | biome `ice`/`tundra`/`glacier` | `music_planet_ice`, `music_planet_ice_2` | neutral set by time of day |
-| Planet — desert | biome `desert`/`salt_flats` | `music_planet_desert`, `music_planet_desert_2` | neutral set |
-| Planet — lava | biome `lava`/`ashen`/`volcanic` | `music_planet_lava`, `music_planet_lava_2` | neutral set |
-| Planet — toxic | biome `fungal`/`corrupted` | `music_planet_toxic`, `music_planet_toxic_2` | neutral set |
-| Planet — ocean | biome `ocean` | `music_planet_ocean`, `music_planet_ocean_2` | neutral set |
+| Planet — ice | biome `ice`/`tundra`/`glacier` | `music_planet_ice`, `music_planet_ice_2`, `music_planet_ice_3` | neutral set by time of day |
+| Planet — desert | biome `desert`/`salt_flats` | `music_planet_desert`, `music_planet_desert_2`, `music_planet_desert_3` | neutral set |
+| Planet — lava | biome `lava`/`ashen`/`volcanic` | `music_planet_lava`, `music_planet_lava_2`, `music_planet_lava_3` | neutral set |
+| Planet — toxic | biome `fungal`/`corrupted` | `music_planet_toxic`, `music_planet_toxic_2`, `music_planet_toxic_3` | neutral set |
+| Planet — ocean | biome `ocean` | `music_planet_ocean`, `music_planet_ocean_2`, `music_planet_ocean_3` | neutral set |
 | Planet — verdant | biome `jungle`/`forest`/`savanna`/`swamp` | `music_planet_verdant`, `music_planet_verdant_2` | neutral set |
 | Planet — crystal | biome contains `crystal` | `music_moon_crystal`, `music_explore_planet`, `music_explore_planet_2` | neutral set |
-| Planet — cave | on a planet, not sky-exposed | `music_planet_cave`, `music_planet_cave_2` | `music_idle_default`(`_2`) |
+| Planet — cave | on a planet, not sky-exposed | `music_planet_cave`, `music_planet_cave_2`, `music_planet_cave_3` | `music_idle_default`(`_2`) |
 | Planet — deep water | head submerged ≥ 8 s (back to the surface pool 5 s after surfacing) | `music_planet_ocean_2` (loops) | — |
-| Planet — generic | any other surface (rocky / varied / highland / skylands / asteroid) | `music_explore_planet`(`_2`), `music_idle_default`(`_2`) | `music_planet_sunrise` at dawn, `music_planet_night` at night |
+| Planet — generic | any other surface (rocky / varied / highland / skylands / asteroid) | `music_explore_planet`(`_2`), `music_idle_default`(`_2`) | `music_planet_sunrise`(`_2`) at dawn, `music_planet_night`(`_2`) at night |
 | First landing | first time a planet is walked in this session | `music_planet_sunrise` once, then the pool | — |
 
 The `_2` tracks are the **variance pack** (see *Variance pack* section below). All 12 are present in
@@ -331,6 +333,71 @@ Instrumental seamless ambient loop for a block-based sci-fi space crafting game,
 *Different angle vs `music_explore_planet`: more adventurous and forward-moving, a light recurring melodic hook — a sense of setting out rather than gentle wonder.*
 ```text
 Instrumental ambient sci-fi exploration music for a block-based space game, second variant. Adventurous forward-moving mood, light recurring melodic synth hook, soft driving arpeggios, gentle electronic percussion, warm bass, an optimistic sense of setting out across an alien world. Curious and uplifting but still calm background music. Seamless loop, no vocals, no lyrics, not dramatic, not combat music.
+```
+
+## ElevenLabs additions (#1175, 2026-08-22)
+
+Eleven tracks composed with the **ElevenLabs Music API** via `tools/ai-assets/gen_music.py` (prompt mode,
+`--length 165`, `mp3_44100_192`, instrumental forced) — three trial tracks were auditioned by the owner
+before the batch. Nine are **third variants** for the two-track pools (a different angle again, noted per
+track); two are B-sides of the neutral dawn / night fillers, which since #1172 play on every biome. Same
+general guidance as the Suno set: *instrumental, no vocals, seamless loop, calm, atmospheric sci-fi,
+not dramatic, no combat.* Regenerate with `uv run gen_music.py --prompt "<prompt>" --length 165 --format
+mp3_44100_192 --out out/music/<name>.mp3`.
+
+### `music_planet_ice_3` — ice planet at night *(very quiet, still, starlit)*
+```text
+Instrumental ambient sci-fi soundtrack for a frozen alien planet at night, third variant. Very quiet and still, deep cold drones, sparse crystalline bell tones, slow breathing pads, faint aurora shimmer, distant wind, a sense of vast starlit snowfields. Calm exploration music for a block-based space game, seamless loop, no vocals, no lyrics, no drums, no combat, no cinematic climax.
+```
+
+### `music_planet_desert_3` — desert at high noon *(heat haze, sparse, vast)*
+```text
+Instrumental ambient sci-fi music for an alien desert planet at high noon, third variant. Shimmering heat haze, very sparse and still, warm sustained synth pads, a slow distant melodic fragment, dry wind textures, faint sand-grain percussion far away, a vast empty horizon feeling. Calm exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, no drums, not combat music, no cinematic climax.
+```
+
+### `music_planet_lava_3` — lava planet at night *(glowing rivers, crackling embers)*
+```text
+Instrumental dark ambient sci-fi music for a volcanic lava planet at night, third variant. Glowing rivers of lava under a black sky, deep slow drones, soft crackling ember textures, sparse low bell tones, slowly breathing pads, quiet tension but calm, no action. Background exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, no combat drums, no cinematic climax.
+```
+
+### `music_planet_toxic_3` — spore-fog world *(luminous fog, organic pulses)*
+```text
+Instrumental ambient sci-fi music for a toxic spore-fog alien planet, third variant. Drifting luminous fog, slow pulsing organic drones, soft wet bubbling textures, gentle detuned glassy pads, a quiet mysterious melody appearing and fading, uneasy but calm and beautiful. Background exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, not horror, not combat music.
+```
+
+### `music_planet_ocean_3` — ocean at night *(bioluminescent waves, dreamy)*
+```text
+Instrumental ambient sci-fi music for an alien ocean planet at night, third variant. Bioluminescent waves under starlight, slow flowing synth pads, soft echoing bell tones, gentle wave-like swells, warm low bass, calm and dreamy sense of depth and distance. Background exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, peaceful, no combat.
+```
+
+### `music_planet_cave_3` — deep mine *(calm machinery hum, focused)*
+```text
+Instrumental ambient sci-fi music for a deep underground mine on an alien planet, third variant. Calm focused mood, low resonant drones, soft distant machinery hum, slow echoing pulses, sparse glassy tones, subtle dripping water textures, feeling of working far below the surface of a block-based world. Seamless loop, no vocals, no lyrics, not horror, not combat, no heavy drums.
+```
+
+### `music_multiplayer_hub_3` — station late shift *(electric piano, cozy)*
+```text
+Instrumental peaceful sci-fi space station music, third variant. Calm late-shift atmosphere, soft warm electric piano chords, gentle slow electronic pulse, mellow bass, distant docking-bay ambience, a relaxed sense of a quiet hub where travellers rest and trade. Cozy and hopeful background music for a block-based space game. Seamless loop, no vocals, no lyrics, no combat, not dramatic.
+```
+
+### `music_main_menu_3` — main menu *(warm, inviting, "home before the journey")*
+```text
+Instrumental main menu theme for a block-based sci-fi space exploration and crafting game, third variant. Warm and inviting, a gentle memorable synth melody over wide soft pads, slow electronic pulse, subtle starfield sparkle, a feeling of home before a long journey, hopeful and calm. Loopable game menu music, no vocals, no lyrics, not epic, not combat music.
+```
+
+### `music_loading_3` — loading screen *(patient, systems coming online)*
+```text
+Instrumental loading screen music for a sci-fi voxel space exploration game, third variant. Calm patient mood, slowly evolving synth pads, soft ticking sequencer, gentle rising tones like systems coming online, light cosmic shimmer, clean and futuristic. Seamless loop, no vocals, no lyrics, no action, no heavy drums.
+```
+
+### `music_planet_night_2` — planet at night, B-side *(lullaby fragment, nocturnal textures)*
+```text
+Instrumental calm sci-fi night ambience for an alien planet after dark, second variant. Very quiet, slow warm low pads, sparse distant chimes, soft nocturnal insect-like textures, a gentle lullaby-like melodic fragment, peaceful starlit stillness. Background exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, no combat, no dramatic climax.
+```
+
+### `music_planet_sunrise_2` — dawn, B-side *(first light, sparkling arpeggios)*
+```text
+Instrumental uplifting ambient sci-fi music for dawn on an alien planet, second variant. Soft light growing, warm rising synth pads, gentle sparkling arpeggios, a hopeful slow melody, a feeling of first light over a strange blocky landscape, emotional but subtle. Background exploration music for a block-based space game. Seamless loop, no vocals, no lyrics, no combat, no big cinematic climax.
 ```
 
 ## Finale / boss music (story "The VEGA Protocol", plan P6)
