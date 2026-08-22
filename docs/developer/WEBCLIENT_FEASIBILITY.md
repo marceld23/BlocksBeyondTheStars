@@ -73,7 +73,7 @@ server using PostgreSQL. Provider-specific deployment wiring is intentionally le
 |---|---|
 | Networking | No raw UDP in browsers → WebSocket (done). WebRTC optional later. |
 | Performance | Fewer chunks, lower view distance, simpler effects → a **Lite** profile. |
-| Load time | WebGL download + warmup; compressed asset bundles + a loading screen. |
+| Load time | WebGL download + warmup; compressed asset bundles + a loading screen. Since #1167 (2026-08-22) the first visit is ≈ 40 MB (`.data` ≈ 25 MB Brotli) — the 164 MB music library streams on demand from `StreamingAssets/music/` instead of being baked into the player data. |
 | Memory | Tighter heap; cap loaded chunks. |
 | Input | Mouse+keyboard on desktop browsers (Chrome/Edge first); pointer-lock needed. |
 | Mobile | Out of scope initially. |
@@ -91,7 +91,11 @@ server using PostgreSQL. Provider-specific deployment wiring is intentionally le
   `BrowserWebSocketClientTransport` + `BbsWebSocket.jslib`.
 - ~~MessagePack `ContractlessResolver` does not survive IL2CPP AOT.~~ **Resolved for WebGL transport
   (2026-06-29):** browser WebSocket clients use the JSON `NetCodec` envelope; native UDP remains MessagePack.
-- ~177 MB of `Resources` would have to be downloaded/streamed — shrink + bundle first.
+- ~~~177 MB of `Resources` would have to be downloaded/streamed — shrink + bundle first.~~ **Largely resolved
+  (2026-08-22, #1167):** the 40-track Suno library (164 MB of it) moved out of `Resources/` to
+  `client/Music/` → `StreamingAssets/music/` and is streamed on demand by `ClientMusic`; the WebGL `.data`
+  shrank 193 → ≈ 25 MB (Brotli), first visit ≈ 208 → ≈ 40 MB. Remaining: SFX import quality (119 clips at
+  100 %), native `Content-Encoding: br` instead of the JS decompressor — see `MUSIC_TRACKS.md` / TODO.md.
 - Serving the built WebGL files from `/play` + version negotiation so the served client matches the
   server.
 - Longer production browser soak on the official hosting target.

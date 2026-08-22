@@ -166,6 +166,16 @@ problems are caught locally instead of at release time:
      `!UNITY_EDITOR && !UNITY_WEBGL` (and take the Editor stub branch on `UNITY_EDITOR || UNITY_WEBGL`); a
      browser build has no installer/auto-updater anyway. The Editor compiling fine proves nothing about WebGL —
      a local `-buildTarget WebGL` build (or the `webgl-only.yml` dispatch) is the only real check.
+   - **Large binary assets (WebGL payload gotcha, #1167):** everything under `client/Assets/Resources/` is
+     baked into the WebGL `.data` file that every browser visitor downloads before the first frame (the
+     40-track music library alone was 164 MB → 193 MB of the ~208 MB first load). Keep big, optional or
+     rarely-needed files (music, long ambience, video) **out of `Assets/`**: track them in a repo folder
+     (e.g. `client/Music/`), let `scripts/sync-client-libs.{ps1,sh}` copy them into the git-ignored
+     `client/Assets/StreamingAssets/<folder>/`, and load them on demand at runtime (`UnityWebRequest*` —
+     HTTP in the browser, `file://` on desktop). Do **not** put them under `StreamingAssets/data/` — that
+     folder's build-generated manifest is prefetched eagerly by `StreamingAssetsCache` in the browser, which
+     would defeat the on-demand loading. Reference: [client/Music/README.md](client/Music/README.md) and
+     [docs/developer/MUSIC_TRACKS.md](docs/developer/MUSIC_TRACKS.md).
 
 ## Releases & versioning
 

@@ -109,7 +109,7 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
-### ★ WebGL first load ≈ 208 MB → ≈ 40 MB: the music library streams on demand (#1167, 2026-08-22, branch feat/1167-webgl-music-streaming)
+### ★ WebGL first load ≈ 208 MB → ≈ 40 MB: the music library streams on demand (#1167, 2026-08-22 — PR #1168 `4dbad94f` + fix PR #1169 `9445f25c`; docs follow-up PR: AGENTS "large binary assets" rule, CLIENT_SHELL_AND_ASSETS layout, WEBCLIENT_FEASIBILITY, DEVELOPER tree, LINUX_PORT, MINIGAMES_AND_WIKI, workflow comments, #1169 decode-wait + "adding a track" in MUSIC_TRACKS, NOTICES track count)
 The glitch.fun / `/play` first visit downloaded ~208 MB before the first frame, 193 MB of it the Brotli
 `.data` file — because `client/Assets/Resources/music/` (40 full-length Suno MP3s, 164 MB, re-encoded to
 AAC at 100 % quality) was baked into the player data. Glitch serves straight from S3 at 0.3–4 MB/s, so

@@ -28,8 +28,9 @@ for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. Th
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**
 for the generating account's plan. Background **music** comes in two player-selectable sets: (1) four AI-generated ambient loops
 (`music_menu`/`music_planet`/`music_space`/`music_combat`, same ElevenLabs API + terms) with
-code-synthesized fallbacks; and (2) a **Suno**-generated track library of 23 instrumental ambient
-tracks (`client/Music/*.mp3`, shipped under `StreamingAssets/music/`) composed with the **Suno** text-to-music service by
+code-synthesized fallbacks; and (2) a **Suno**-generated track library of 40 instrumental ambient
+tracks (23 base tracks + 12 `_2` B-sides + 5 finale/boss tracks; `client/Music/*.mp3`, shipped under
+`StreamingAssets/music/` and streamed on demand) composed with the **Suno** text-to-music service by
 the project owner — see `docs/developer/MUSIC_TRACKS.md` for every track's prompt and in-game context. These
 are AI-synthesised instrumental audio (not third-party recordings); use is governed by the **Suno
 Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay

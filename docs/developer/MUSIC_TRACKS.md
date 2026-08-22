@@ -1,7 +1,7 @@
 # Background music tracks (Suno library)
 
 The granular background-music library used by the **Tracks** music mode (see
-`docs/SOUND_DESIGN.md` §11). 23 instrumental, calm, loop-friendly sci-fi tracks generated with
+[SOUND_DESIGN.md](SOUND_DESIGN.md) §11). 23 instrumental, calm, loop-friendly sci-fi tracks generated with
 [Suno](https://suno.com/) by the project owner, plus a **variance pack** of 12 `_2` B-sides (wired
 in `ClientMusic` and **all present** — see *Variance pack* below) and the 5 dramatic **finale/boss**
 tracks (also present + wired — see the last section). All live as raw MP3s in **`client/Music/*.mp3`**
@@ -52,6 +52,19 @@ synth mood, so the game always stays musical. Because tracks are fetched on firs
 starts a moment after the context is entered (instant from disk; a few seconds over a slow connection) —
 the director keeps the previous track playing until the new one has arrived, and prefetches the next
 re-roll candidate 45 s before the current track ends so the seam needs no wait.
+
+Browser gotcha (#1169): in WebGL `DownloadHandlerAudioClip.audioClip` is handed back **before** the MP3 is
+decoded — the clip reports `length == 0` and its `loadState` stays `Unloaded` (it flips to `Loaded` only
+later, so it is no "still loading" signal for web-request clips). `LoadTrack` therefore waits until
+`clip.length > 0` (60 s cap; desktop/Editor clips are complete at once, so nothing waits there) before
+caching and fading a clip in, and the re-roll/prefetch check ignores length-0 clips — otherwise the
+director read "length 0" as "track over" and downloaded a second track right away. A clip that never
+decodes is dropped from its pool like a missing file.
+
+Adding a track: drop the `.mp3` into `client/Music/`, add it to the matching pool in `ClientMusic.PoolFor`,
+document prompt + context here, and add it to `NOTICES.md` if the source changes. Never put it under
+`client/Assets/` (Unity would import and bake it) or `StreamingAssets/data/` (the browser prefetches that
+folder's manifest eagerly).
 
 ## Tracks & Suno prompts
 

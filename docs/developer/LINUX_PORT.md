@@ -52,7 +52,7 @@ The critical-path Windows PowerShell scripts were ported to bash:
 
 | Script | Purpose |
 |--------|---------|
-| `sync-client-libs.sh` | Publishes netstandard2.1 shared libs into `client/Assets/Plugins/`, copies `data/` into StreamingAssets |
+| `sync-client-libs.sh` | Publishes netstandard2.1 shared libs into `client/Assets/Plugins/`, copies `data/` into `StreamingAssets/data/` and the music library `client/Music/*.mp3` into `StreamingAssets/music/` |
 | `sync-velopack-libs.sh` | Vendors Velopack runtime DLLs into Plugins |
 | `publish-local-server.sh` | Publishes GameServer for `linux-x64` into `client/Assets/StreamingAssets/server/` |
 | `build-client.sh` | Full Linux client build (prerequisites + Unity batch build + console launcher) |

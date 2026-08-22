@@ -338,6 +338,7 @@ client/Build/Windows/
     │   └── BlocksBeyondTheStars.WorldGeneration.dll ← synced worldgen
     └── StreamingAssets/
         ├── data/                             ← JSON content + locales
+        ├── music/                            ← Suno track library (from client/Music, streamed on demand)
         └── server/                           ← bundled singleplayer server
 ```
 

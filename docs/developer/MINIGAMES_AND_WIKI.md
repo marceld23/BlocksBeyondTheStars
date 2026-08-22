@@ -79,8 +79,9 @@ Menu "Codex"/"DataQubes" button
 
 ### Content (source vs runtime)
 `client/Assets/StreamingAssets/` is **git-ignored and generated** (like `client/Assets/Plugins`). The tracked
-**source** lives under repo-root **`data/`** and is copied into StreamingAssets by `scripts/sync-client-libs.ps1`
-(run it after editing, then refresh Unity). `data/` is also bundled into the dedicated-server build
+**source** lives under repo-root **`data/`** and is copied into `StreamingAssets/data/` by `scripts/sync-client-libs.ps1`
+(run it after editing, then refresh Unity; the same script also syncs the music library `client/Music/` →
+`StreamingAssets/music/`, see `MUSIC_TRACKS.md`). `data/` is also bundled into the dedicated-server build
 (`scripts/publish-server.ps1`/`.sh`), so the server gets the catalogue too:
 - `data/minigames/catalog.json` — the game catalogue (order is authoritative; see below).
 - `data/wiki/articles.json` — the Wiki articles.

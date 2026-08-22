@@ -108,7 +108,8 @@ jobs:
 
       # Shared libs + content only: the WebGL build strips the bundled native-server StreamingAssets, so no
       # publish-local-server / Velopack steps. sync-client-libs makes data/ present so the build writes the
-      # StreamingAssets manifest the browser fetches at runtime.
+      # StreamingAssets manifest the browser fetches at runtime, and copies the music library
+      # (client/Music → StreamingAssets/music) that the browser streams on demand (#1167).
       - name: Sync shared libs + content (bash)
         run: ./scripts/sync-client-libs.sh
 

@@ -148,7 +148,7 @@ the old "main-menu hook still open" gap is closed):
   the playing/fading/prefetched clips stay in memory — #1167), mapped to many contexts: main menu, loading, ship interior, station/hub, space flight,
   and per-biome planet beds (ice / desert / lava / toxic / ocean / verdant / crystal / cave) plus a
   day/night-tinted generic idle pool. Several tracks per context → **random pick**, and a long stay
-  **re-rolls** at the loop seam for variety. See `docs/MUSIC_TRACKS.md` for the full mapping + the
+  **re-rolls** at the loop seam for variety. See [MUSIC_TRACKS.md](MUSIC_TRACKS.md) for the full mapping + the
   Suno prompt of every track.
 
 Combat is inferred client-side (hull+shield drop while in space → 14 s window) and always uses the
@@ -170,7 +170,7 @@ The planned rollout has largely landed. Current state:
   melee, 5 footstep surfaces, ship & space one-shots (engine, launch/land, hyperspace, weapon/hull/
   shield/destroyed, asteroid, doors), **6×5 creature banks**, **2×5 NPC banks**, and weather/biome
   beds (wind, rain/storm, 3 thunder, per-biome ambience, lava/water). **Done.**
-- **Music:** both Synth and Suno **Tracks** modes ship (`ClientMusic`); see §11 + `docs/MUSIC_TRACKS.md`.
+- **Music:** both Synth and Suno **Tracks** modes ship (`ClientMusic`); see §11 + [MUSIC_TRACKS.md](MUSIC_TRACKS.md).
 
 Rollout history (P1–P4), all shipped:
 1. **P1 — core gameplay** (mining ×4, weapons, footsteps, place/loot/eat).
