@@ -109,8 +109,8 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
-### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported (#1187, #1188, #1190, 2026-08-22, community PRs)
-Three more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
+### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported, corrupted block palette covered (#1187, #1188, #1190, #1194, 2026-08-22, community PRs)
+Four more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
 item's max stack (hand-edited or corrupted save) no longer reaches the live state: the server clamps every
 loaded inventory — player inventory, ration store, legacy and fleet ship cargo — to `GameContent.MaxStackOf`
 right after loading and logs item + original count; the persistence layer stays content-agnostic (#1187,
@@ -119,8 +119,11 @@ recipes that use the same item as input and output, as hard load errors; all 231
 comply (#1188, `ContentTests`). And a malformed editor export in the user-content folder is no longer skipped
 silently: `ContentLoader.LoadFromDirectory` takes an optional `Action<string>? warn` callback (the server wires
 `logger.Warn`), so the skipped file is named in the log while the rest of the folder still loads (#1190,
-`StructureTemplateTests`). Open from the same thread: starters 3–4 (damaged `.db` bytes, content files). README
-credits range bumped to #1190.
+`StructureTemplateTests`). Starter 3 is closed by #1194: a hand-edited `block_palette` table (unknown block
+name, duplicate rows for one name) migrates without throwing — unknown keys fall back to air, duplicates resolve
+to the current id (`PersistenceTests`). Open from the same thread: the remaining Starter-4 validator rules
+(duplicate/empty keys, negative stack sizes, block ids beyond the atlas, planets without a spawnable surface
+block). README credits range bumped to #1194.
 
 ### ★ "Tech" tab → "Blueprints", knowledge balance + "Enough knowledge" filter (#1191, 2026-08-22, branch feat/1191-blueprints-tab)
 Analysis 2026-08-22: the research tab was the one place the game said "Technik/Tech" while every other string
