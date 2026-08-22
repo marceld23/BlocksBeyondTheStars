@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 using BlocksBeyondTheStars.WorldGeneration;
 
@@ -94,6 +95,13 @@ public sealed partial class GameServer
                 continue;
             }
 
+            // #1212: a dialogue that hands out a mission is offered only while that mission can be taken from
+            // this NPC (and not again this session once declined) — otherwise it falls through to the next match.
+            if (!DialogOffersTakeableMission(session, npcKey, d, out bool offersMission) && offersMission)
+            {
+                continue;
+            }
+
             return d;
         }
 
@@ -169,6 +177,13 @@ public sealed partial class GameServer
         if (end && active.Dialog.OncePerPlayer && !choice.KeepOpen)
         {
             p.Milestones.Add(DialogDoneMilestonePrefix + active.Dialog.Key + ":done");
+        }
+
+        // #1212: ending a mission-offering dialogue WITHOUT taking the job = "not today" for this session.
+        if (end && DialogOfferedMissions(active.Dialog).Any()
+            && !choice.Consequence.StartsWith(MissionChains.DialogConsequence + ":", StringComparison.Ordinal))
+        {
+            session.DeclinedMissionDialogs.Add(active.Dialog.Key);
         }
 
         _repo.SavePlayer(p);
@@ -261,6 +276,10 @@ public sealed partial class GameServer
                     session.CurrentLocationId, parts[1], _uptime + DialogRadioDelaySeconds,
                     _uptime + DialogRadioGiveUpSeconds));
                 break;
+
+            case MissionChains.DialogConsequence when parts.Length >= 2 && parts[1].Length > 0:
+                GrantMissionFromDialog(session, npc, npcKey, parts[1]); // #1212: the conversation IS the acceptance
+                break;
         }
     }
 
@@ -292,7 +311,8 @@ public sealed partial class GameServer
             var owner = FindSessionByPlayerId(pending.PlayerId);
             bool sent = owner is { Joined: true }
                 && TryNpcRadioCall(owner, pending.NpcKey, pending.NpcName, pending.Place, pending.BodyId,
-                    "dialog:" + pending.LineKey, pending.LineKey, string.Empty, isMission: false,
+                    "dialog:" + pending.LineKey, pending.LineKey, string.Empty,
+                    isMission: pending.LineKey == ChainRadioLineKey, // #1212: the chain nudge is a mission call
                     requireKnown: false);
             if (sent || (owner is { Joined: true } && owner.State.NpcCallsMode != NpcCallsMode.All))
             {

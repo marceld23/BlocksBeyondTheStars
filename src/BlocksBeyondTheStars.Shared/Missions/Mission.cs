@@ -88,6 +88,34 @@ public sealed class MissionDefinition
 
     /// <summary>Whether the mission is currently offered on the board.</summary>
     public bool Active { get; set; } = true;
+
+    // ---- Mission chains (#1212) — all additive; a stand-alone mission leaves them empty. See MissionChains. ----
+
+    /// <summary>Groups the steps of one chain; empty = a stand-alone mission.</summary>
+    public string ChainId { get; set; } = string.Empty;
+
+    /// <summary>1-based step inside <see cref="ChainId"/> (0 = stand-alone). Two definitions sharing ChainId AND
+    /// Step are ALTERNATIVES — the server offers the first feasible one (lowest id).</summary>
+    public int Step { get; set; }
+
+    /// <summary>Mission ids that must be turned in before this one is offered.</summary>
+    public List<string> Prerequisites { get; set; } = new();
+
+    /// <summary>The step that follows (informational — the giver's radio nudge looks for it); empty at the end.</summary>
+    public string NextMissionId { get; set; } = string.Empty;
+
+    /// <summary>Who hands the step out: quartermaster (default) | vendor | settler | character:&lt;id&gt;.</summary>
+    public string GiverRole { get; set; } = string.Empty;
+
+    /// <summary>Minimum relationship stage with the giver: "" | known | trusted.</summary>
+    public string MinStage { get; set; } = string.Empty;
+
+    /// <summary>Where the step surfaces: board (default — at a mission board) | dialog (handed out in
+    /// conversation through the <c>mission:&lt;id&gt;</c> consequence) | radio (offered anywhere).</summary>
+    public string Surface { get; set; } = string.Empty;
+
+    /// <summary>Which kind of place offers a board step: settlement (default) | station | any.</summary>
+    public string OfferAt { get; set; } = string.Empty;
 }
 
 /// <summary>Per-player progress on an accepted mission.</summary>
@@ -98,4 +126,15 @@ public sealed class MissionProgress
 
     /// <summary>Progress per objective index (parallel to the definition's objectives).</summary>
     public List<int> ObjectiveProgress { get; set; } = new();
+
+    /// <summary>Chain membership copied from the definition at accept time (#1212); empty for stand-alone missions.</summary>
+    public string ChainId { get; set; } = string.Empty;
+
+    /// <summary>The place (board location key, <c>settle_&lt;hash&gt;</c> / <c>station_&lt;hash&gt;</c>) a chain step
+    /// was taken at — the chain's later steps are offered and turned in there. Empty for stand-alone missions.</summary>
+    public string AcceptedFrom { get; set; } = string.Empty;
+
+    /// <summary>The body the player was on when a chain step was taken — drives the relative
+    /// <see cref="MissionChains.TravelOtherBody"/> travel target. Empty for stand-alone missions.</summary>
+    public string AcceptedBodyId { get; set; } = string.Empty;
 }

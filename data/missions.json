@@ -18,5 +18,116 @@
     "rewards": [ { "item": "data_fragment", "count": 1 } ],
     "repeatable": true,
     "active": true
+  },
+
+  // ---- Mission chains (#1212). Schema: chainId / step / prerequisites / nextMissionId / giverRole / minStage /
+  // surface (board|dialog|radio) / offerAt (settlement|station|any) — see Shared/Missions/MissionChains.cs.
+  // Two entries sharing chainId AND step are alternatives: the server offers the first feasible one (lowest id).
+
+  // "Settlement needs" — a 4-step chain every settlement board offers, step by step, at THAT board.
+  {
+    "id": "chain_needs_1",
+    "source": "system",
+    "nameKey": "mission.chain.needs_1.title",
+    "descriptionKey": "mission.chain.needs_1.desc",
+    "chainId": "settlement_needs", "step": 1, "nextMissionId": "chain_needs_2",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "settlement",
+    "objectives": [ { "type": "deliver", "target": "iron_ore", "required": 8 } ],
+    "rewards": [ { "item": "iron_plate", "count": 4 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "chain_needs_2",
+    "source": "system",
+    "nameKey": "mission.chain.needs_2.title",
+    "descriptionKey": "mission.chain.needs_2.desc",
+    "chainId": "settlement_needs", "step": 2, "prerequisites": [ "chain_needs_1" ], "nextMissionId": "chain_needs_3",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "settlement",
+    "objectives": [ { "type": "build", "target": "light", "required": 4 } ],
+    "rewards": [ { "item": "energy_cell_1", "count": 2 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "chain_needs_3",
+    "source": "system",
+    "nameKey": "mission.chain.needs_3.title",
+    "descriptionKey": "mission.chain.needs_3.desc",
+    "chainId": "settlement_needs", "step": 3, "prerequisites": [ "chain_needs_2" ], "nextMissionId": "chain_needs_4a_camp",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "settlement",
+    "objectives": [ { "type": "scan", "target": "creature:any", "required": 2 } ],
+    "rewards": [ { "item": "medpack", "count": 1 } ],
+    "knowledgeReward": 3,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    // Step 4, alternative A: clear a bandit camp — only feasible while an uncleared camp stands on the world.
+    "id": "chain_needs_4a_camp",
+    "source": "system",
+    "nameKey": "mission.chain.needs_4a.title",
+    "descriptionKey": "mission.chain.needs_4a.desc",
+    "chainId": "settlement_needs", "step": 4, "prerequisites": [ "chain_needs_3" ],
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "settlement",
+    "objectives": [ { "type": "defeat", "target": "bandit_camp", "required": 1 } ],
+    "rewards": [ { "item": "titanium_plate", "count": 4 }, { "item": "gold_ingot", "count": 1 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    // Step 4, alternative B (peaceful worlds / no camp left): scout a neighbouring body and report back.
+    "id": "chain_needs_4b_travel",
+    "source": "system",
+    "nameKey": "mission.chain.needs_4b.title",
+    "descriptionKey": "mission.chain.needs_4b.desc",
+    "chainId": "settlement_needs", "step": 4, "prerequisites": [ "chain_needs_3" ],
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "settlement",
+    "objectives": [ { "type": "travel", "target": "other_body", "required": 1 } ],
+    "rewards": [ { "item": "titanium_plate", "count": 3 }, { "item": "data_fragment", "count": 1 } ],
+    "knowledgeReward": 2,
+    "repeatable": false,
+    "active": true
+  },
+
+  // Vendor friendship — a 3-step chain a vendor who knows you hands out in conversation (dialogs.json,
+  // consequence "mission:<id>"); the last favour needs a trusted friend. Report back to the same vendor.
+  {
+    "id": "chain_vendor_1",
+    "source": "system",
+    "nameKey": "mission.chain.vendor_1.title",
+    "descriptionKey": "mission.chain.vendor_1.desc",
+    "chainId": "vendor_favours", "step": 1, "nextMissionId": "chain_vendor_2",
+    "giverRole": "vendor", "minStage": "known", "surface": "dialog", "offerAt": "any",
+    "objectives": [ { "type": "deliver", "target": "crystal", "required": 3 } ],
+    "rewards": [ { "item": "glass", "count": 4 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "chain_vendor_2",
+    "source": "system",
+    "nameKey": "mission.chain.vendor_2.title",
+    "descriptionKey": "mission.chain.vendor_2.desc",
+    "chainId": "vendor_favours", "step": 2, "prerequisites": [ "chain_vendor_1" ], "nextMissionId": "chain_vendor_3",
+    "giverRole": "vendor", "minStage": "known", "surface": "dialog", "offerAt": "any",
+    "objectives": [ { "type": "scan", "target": "flora:any", "required": 2 } ],
+    "rewards": [ { "item": "energy_cell_1", "count": 1 } ],
+    "knowledgeReward": 2,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "chain_vendor_3",
+    "source": "system",
+    "nameKey": "mission.chain.vendor_3.title",
+    "descriptionKey": "mission.chain.vendor_3.desc",
+    "chainId": "vendor_favours", "step": 3, "prerequisites": [ "chain_vendor_2" ],
+    "giverRole": "vendor", "minStage": "trusted", "surface": "dialog", "offerAt": "any",
+    "objectives": [ { "type": "deliver", "target": "titanium_plate", "required": 2 } ],
+    "rewards": [ { "item": "gold_ingot", "count": 1 } ],
+    "knowledgeReward": 3,
+    "repeatable": false,
+    "active": true
   }
 ]

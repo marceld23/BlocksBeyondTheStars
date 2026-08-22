@@ -212,9 +212,15 @@ public sealed partial class GameServer
             bool changed = false;
             foreach (var pr in session.State.Missions)
             {
-                if (pr.Status != MissionStatus.Active
-                    || !pr.MissionId.StartsWith("settle_", System.StringComparison.Ordinal)
-                    || !pr.MissionId.EndsWith(suffix, System.StringComparison.Ordinal))
+                if (pr.Status != MissionStatus.Active)
+                {
+                    continue;
+                }
+
+                bool thisCampsBounty = pr.MissionId.StartsWith("settle_", System.StringComparison.Ordinal)
+                    && pr.MissionId.EndsWith(suffix, System.StringComparison.Ordinal);
+                bool chainCampStep = !string.IsNullOrEmpty(pr.ChainId); // #1212: a chain's "clear the camp" step counts ANY camp
+                if (!thisCampsBounty && !chainCampStep)
                 {
                     continue;
                 }
@@ -237,7 +243,24 @@ public sealed partial class GameServer
     {
         foreach (var pr in session.State.Missions)
         {
-            if (pr.Status != MissionStatus.Active || !TryCampBountyKey(pr.MissionId, out var campKey))
+            if (pr.Status != MissionStatus.Active)
+            {
+                continue;
+            }
+
+            // #1212: a chain's "clear the camp" step (any camp) completes once no camp stands any more — covers a
+            // clear that happened while this player was offline; an online clear arrives via OnCampBountyCleared.
+            if (!string.IsNullOrEmpty(pr.ChainId))
+            {
+                if (_banditCamps.Count > 0 && _banditCamps.All(c => c.Cleared))
+                {
+                    CompleteDefeatObjectives(pr, DefeatTargetCamp);
+                }
+
+                continue;
+            }
+
+            if (!TryCampBountyKey(pr.MissionId, out var campKey))
             {
                 continue;
             }

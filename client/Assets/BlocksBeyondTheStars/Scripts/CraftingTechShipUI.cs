@@ -1685,6 +1685,11 @@ namespace BlocksBeyondTheStars.Client
             foreach (var m in missions)
             {
                 string status = m.Objectives.Length > 0 ? $"{m.Objectives[0].Progress}/{m.Objectives[0].Required}" : string.Empty;
+                if (m.ChainStep > 0)
+                {
+                    status = ChainStepLabel(m) + "  ·  " + status; // #1212: "Part 2 of 4 · 0/3"
+                }
+
                 AddCard(y, MissionText(m), "cat_mission", status, UiKit.CyanDim, "mis:" + m.Id, () => { _selected = "mis:" + m.Id; RebuildDetail(); });
                 y += 88f;
             }
@@ -3844,6 +3849,13 @@ namespace BlocksBeyondTheStars.Client
                 y += 28f;
             }
 
+            // Mission chains (#1212): which part of the chain this is.
+            if (m2.ChainStep > 0)
+            {
+                UiKit.AddText(_detail, 8, y, 620, 24, ChainStepLabel(m2), 16, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                y += 28f;
+            }
+
             // The mission's flavour/instructions. System missions send a locale key (resolved via L);
             // player-posted missions and L3 LLM board texts send display text (FreeText) shown verbatim.
             if (!string.IsNullOrEmpty(m2.Description))
@@ -4720,6 +4732,10 @@ namespace BlocksBeyondTheStars.Client
                     return Game?.Localizer?.Has("ui.missions.buildtarget_" + target) == true
                         ? L("ui.missions.buildtarget_" + target)
                         : BlockLabel(target);
+                case "travel":
+                    return Game?.Localizer?.Has("ui.missions.traveltarget_" + target) == true
+                        ? L("ui.missions.traveltarget_" + target) // #1212: the relative "other_body" target
+                        : target;
                 case "scan":
                 {
                     string key = "ui.missions.scantarget." + target.Replace(':', '_');
@@ -4742,6 +4758,10 @@ namespace BlocksBeyondTheStars.Client
 
         private string BlockLabel(string blockKey)
             => Game?.Localizer?.Has("block." + blockKey + ".name") == true ? L("block." + blockKey + ".name") : blockKey;
+
+        /// <summary>"Part 2 of 4" for a chain mission (#1212); the length falls back to the step when unknown.</summary>
+        private string ChainStepLabel(NetMission m)
+            => L("ui.missions.chain_step").Replace("{0}", m.ChainStep.ToString()).Replace("{1}", Mathf.Max(m.ChainStep, m.ChainLength).ToString());
 
         // --- Coloured planet marks in the star map ---------------------------------------------------------
         // A player wanted to mark planets in space, each in its own colour — several at once, unlike the single
