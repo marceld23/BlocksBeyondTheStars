@@ -975,6 +975,20 @@ namespace BlocksBeyondTheStars.Client
         /// writing a shared bool, so overlapping panels can no longer clobber each other's state (#413).</summary>
         public bool MenuOpen => _menuOwners.Count > 0;
 
+        // Signals the music director reads (#1174): they are written by the panels / entity views that know,
+        // so ClientMusic never has to find and poke at those components itself.
+
+        /// <summary>True while the flight system chart (<see cref="SpaceMap"/>) is open — the star-map bed.</summary>
+        public bool StarChartOpen { get; set; }
+
+        /// <summary>Lower-case name of the open Tab-menu tab ("crafting", "tech", …) or null while the menu is
+        /// closed. The music director waits a while on the crafting / tech tabs before switching beds.</summary>
+        public string MenuTabKey { get; set; }
+
+        /// <summary>Squared distance (world units) to the nearest hostile planet creature this frame, or
+        /// <see cref="float.MaxValue"/> when none is near / the player is aboard. Written by <see cref="WorldEntities"/>.</summary>
+        public float NearestHostileSqr { get; set; } = float.MaxValue;
+
         // The cursor/menu arbiter (#413): every open panel registers itself as an owner, and the cursor
         // lock state is recomputed each frame in LateUpdate from ALL owners — no panel writes
         // Cursor.lockState directly anymore, so "last close wins" can't strand a locked cursor under a

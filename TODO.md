@@ -109,6 +109,35 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ More varied background music: shuffle-bag picker, rests, context-aware beds, ElevenLabs `_3` tracks, generative Synth style (#1172–#1176, 2026-08-22, branch feat/music-variety)
+Analysis 2026-08-22: six long-stay biome pools (ice / desert / lava / toxic / ocean / cave) owned two ~3-min
+tracks each, `PickFrom` had a one-track memory (strict A-B-A-B), music played 100 % of the time, the context
+was "biome only" (no night / weather / danger / activity), and the Synth style was four 10–24 s loops.
+Decisions: rests yes; new tracks via an ElevenLabs batch after a listening test; no skip key / no
+now-playing toast; biomes keep one sound (no per-planet randomisation); Synth style upgraded.
+**Done (one PR):** the pools moved out of `ClientMusic` into the Unity-free **`MusicLibrary`** (Client.Core;
+`MusicLibraryTests` fails when a pool names a file that does not ship in `client/Music/`) with **neutral
+fillers** blended into every planet pool at a minority share (0.35 surface / 0.3 generic / 0.25 cave) and a
+**time-of-day tint of the filler set** (sunrise at dawn, `planet_night` at night, idle-only underground);
+**`MusicPicker`** = shuffle bag per pool + one shared filler bag + last-4 cross-context history, the successor
+is chosen 45 s early and prefetched so the re-roll lands on it (#1172); **`MusicRestPolicy`** rests after a
+track ends (planet 55 % / cave+deep 45 % / space 50 % / ship 30 %, 60–180 s, never menu / loading / station /
+UI beds / finale; a context change ends a rest) (#1173); **context signals** (#1174) — `GameBootstrap.
+StarChartOpen` (SpaceMap) → star-chart bed, `MenuTabKey` (GameMenu) → workshop / research beds after 30 s,
+`NearestHostileSqr` (WorldEntities) → duck 0.6 + 1.4 kHz low-pass within 20 m, `WeatherFamily` × intensity
+ducking (violent 0.55, wet/obscuring/windy 0.8), submerged ≥ 8 s → deep-water bed (hysteresis 5 s), first
+landing per session → `music_planet_sunrise` once; **`SynthComposer`** (#1176) — seeded generative ambient
+engine (mode / tempo / two chord phrases / two arpeggio patterns / timbre / drone, 22.05 kHz mono, 40–110 s,
+click-free seams, planet root+mode fixed per biome), rendered over frames under a 6 ms budget, replaces the
+four `Resources/audio/music_*` loops (removed) and stays the fallback for missing tracks;
+**`tools/ai-assets/gen_music.py`** (#1175, ElevenLabs Music API: prompt or composition plan, `--make-plan`
+free, seed siblings; 192 kbps works on this account). Tests: `MusicLibraryTests`, `MusicPickerTests`,
+`MusicRestPolicyTests`, `SynthComposerTests`. Docs: MUSIC_TRACKS.md, SOUND_DESIGN.md §11, NOTICES.md,
+client/Music/README.md, tools/ai-assets/README.md. **Gotchas:** the prefetch must be the bag's next pick (else
+a second browser download); a rest is a director state with no clip on either source; MP3s NEVER under
+`StreamingAssets/data/`; a MonoBehaviour field initializer may not reference another instance field
+(`_picker` is created in `Awake`).
+
 ### ★ WebGL first load ≈ 208 MB → ≈ 40 MB: the music library streams on demand (#1167, 2026-08-22 — PR #1168 `4dbad94f` + fix PR #1169 `9445f25c`; docs follow-up PR: AGENTS "large binary assets" rule, CLIENT_SHELL_AND_ASSETS layout, WEBCLIENT_FEASIBILITY, DEVELOPER tree, LINUX_PORT, MINIGAMES_AND_WIKI, workflow comments, #1169 decode-wait + "adding a track" in MUSIC_TRACKS, NOTICES track count)
 The glitch.fun / `/play` first visit downloaded ~208 MB before the first frame, 193 MB of it the Brotli
 `.data` file — because `client/Assets/Resources/music/` (40 full-length Suno MP3s, 164 MB, re-encoded to

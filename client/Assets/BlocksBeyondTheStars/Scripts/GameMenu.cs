@@ -186,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
+                Game.MenuTabKey = null; // the music director's "crafting/tech tab open" signal (#1174)
                 _browser = BrowserScreen.None;
                 CloseFaceEditor(); // the modal face editor is owned by the menu — don't let it linger after close
                 _ui?.OnMenuClosed(); // #1072: a located station gets a through-wall marker once the menu is gone
@@ -200,6 +201,7 @@ namespace BlocksBeyondTheStars.Client
         {
             CloseFaceEditor(); // navigating to any tab dismisses the (Character-tab) face editor overlay
             _tab = tab;
+            Game.MenuTabKey = tab.ToString().ToLowerInvariant(); // music director: crafting / tech beds (#1174)
             if (tab == Tab.Map)
             {
                 Game.Network?.SendRequestStarMap();

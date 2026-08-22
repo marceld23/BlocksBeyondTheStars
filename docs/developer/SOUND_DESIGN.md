@@ -141,18 +141,30 @@ Two **player-selectable** music sources (*Settings → Audio → Music style*,
 `ClientMusic` director (now owned by `AppShell`, so it spans **splash → menu → loading → in-game** —
 the old "main-menu hook still open" gap is closed):
 
-- **Synth** — the four code-synth ambient moods (menu / planet / space / combat), each the short
-  bundled `Resources/audio/music_menu|planet|space|combat.mp3` loop with a synthesized fallback.
-- **Tracks** (default) — the AI-composed Suno library shipped as raw MP3s in `client/Music/` → synced to
+- **Synth** — a **generative ambient engine** (`SynthComposer` in Client.Core, #1176): every piece is
+  composed fresh from a seed per mood (menu / planet / space / combat) — mode, tempo, two chord phrases,
+  arpeggio patterns, pad timbre, drone — and rendered in code over a few frames (22.05 kHz mono, 40–110 s,
+  click-free seams). Planet pieces take root + mode from the biome (all ice planets share one flavour),
+  so biomes stay recognisable while no two pieces repeat. It replaced the four fixed 10–24 s
+  `Resources/audio/music_*` loops and is also the fallback whenever a Tracks-mode file is missing.
+- **Tracks** (default) — the AI-composed library shipped as raw MP3s in `client/Music/` → synced to
   `StreamingAssets/music/` and **streamed on demand** by `ClientMusic` (`UnityWebRequestMultimedia`; only
-  the playing/fading/prefetched clips stay in memory — #1167), mapped to many contexts: main menu, loading, ship interior, station/hub, space flight,
-  and per-biome planet beds (ice / desert / lava / toxic / ocean / verdant / crystal / cave) plus a
-  day/night-tinted generic idle pool. Several tracks per context → **random pick**, and a long stay
-  **re-rolls** at the loop seam for variety. See [MUSIC_TRACKS.md](MUSIC_TRACKS.md) for the full mapping + the
-  Suno prompt of every track.
+  the playing/fading/planned clips stay in memory — #1167), mapped to many contexts by `MusicLibrary`
+  (Client.Core): main menu, loading, ship interior, station/hub, space flight, star chart, workshop /
+  research tabs, per-biome planet beds (ice / desert / lava / toxic / ocean / verdant / crystal / cave),
+  deep water and a generic idle pool. See [MUSIC_TRACKS.md](MUSIC_TRACKS.md) for the full mapping + the
+  prompt of every track.
+
+Variety (#1172–#1174): `MusicPicker` plays every track of a pool once before anything repeats (shuffle
+bag), blends the neutral all-round beds into the biome pools at a minority share (biome identity stays;
+the time of day only tints the filler set — sunrise at dawn, the nocturnal track at night) and keeps a
+short cross-context history; `MusicRestPolicy` lets the music **rest** (ambience only, 60–180 s) after a
+track ends on planets / in space / aboard, never in the menu, loading, station or finale. A storm or a
+hostile creature nearby **ducks** the music (hostile: plus a 1.4 kHz low-pass), a long dive switches to
+the deep-water bed, the first landing on a planet in a session opens with the sunrise track.
 
 Combat is inferred client-side (hull+shield drop while in space → 14 s window) and always uses the
-tense **synth** combat mood in both modes — the Suno library is intentionally all-calm. Music
+tense **synth** combat mood in both modes — the track library is intentionally all-calm. Music
 muffles underwater (low-pass), and rides `MusicVolume` while SFX/ambience stay independent on
 `SfxVolume`. The studio/title splash stings are left untouched (music is silent over the splash).
 

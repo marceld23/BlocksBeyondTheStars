@@ -26,14 +26,16 @@ are **AI-generated** with the
 **ElevenLabs** text-to-sound-effects API by the project owner — see `tools/ai-assets/gen_batch.py`
 for the exact prompts and `docs/developer/SOUND_DESIGN.md` for the catalogue. They are AI-synthesised audio
 (not third-party copyrighted recordings); use is governed by the **ElevenLabs Terms of Service**
-for the generating account's plan. Background **music** comes in two player-selectable sets: (1) four AI-generated ambient loops
-(`music_menu`/`music_planet`/`music_space`/`music_combat`, same ElevenLabs API + terms) with
-code-synthesized fallbacks; and (2) a **Suno**-generated track library of 40 instrumental ambient
-tracks (23 base tracks + 12 `_2` B-sides + 5 finale/boss tracks; `client/Music/*.mp3`, shipped under
-`StreamingAssets/music/` and streamed on demand) composed with the **Suno** text-to-music service by
-the project owner — see `docs/developer/MUSIC_TRACKS.md` for every track's prompt and in-game context. These
-are AI-synthesised instrumental audio (not third-party recordings); use is governed by the **Suno
-Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay
+for the generating account's plan. Background **music** comes in two player-selectable styles: (1) the
+**Synth** style, generated **entirely in code** at run time (`SynthComposer`, no recorded assets — the
+four earlier ElevenLabs ambient loops `music_menu|planet|space|combat` were removed with it); and (2) the
+**Tracks** library of instrumental ambient tracks in `client/Music/*.mp3` (shipped under
+`StreamingAssets/music/` and streamed on demand): 40 tracks (23 base tracks + 12 `_2` B-sides + 5
+finale/boss tracks) composed with the **Suno** text-to-music service by the project owner, plus the
+`_3` tracks composed with the **ElevenLabs Music API** (`tools/ai-assets/gen_music.py`) — see
+`docs/developer/MUSIC_TRACKS.md` for every track's prompt, source and in-game context. All are
+AI-synthesised instrumental audio (not third-party recordings); use is governed by the **Suno** resp.
+**ElevenLabs Terms of Service** for the generating account's plan. The remaining UI/feedback cues stay
 **generated procedurally in code** (`ClientMusic`, `ClientAudio`).
 
 **UI icons:** `client/Assets/Resources/icons/*.png` (41 files, incl. menu category icons, the world-map

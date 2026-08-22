@@ -15,37 +15,76 @@ code-synth ambient pads) or **Tracks** in *Settings → Audio → Music style*; 
 ride their own `SfxVolume` bus.
 
 The director ([`ClientMusic`](../../client/Assets/BlocksBeyondTheStars/Scripts/ClientMusic.cs)) maps the
-shell phase and — in-game — the world state to a **context**, then cross-fades (~2.5 s). When a
-context has several fitting tracks the choice is **random**, and a long stay **re-rolls** to another
-track at the loop seam so nothing repeats forever. **Combat** intentionally stays on the tense synth
-mood — the whole library is calm by design. (The separate **finale / boss** set — see the last section —
-is the deliberate dramatic exception, reserved for the story finale.)
+shell phase and — in-game — the world state to a **context**, then cross-fades (~2.5 s). The pools
+themselves live in the Unity-free
+[`MusicLibrary`](../../src/BlocksBeyondTheStars.Client.Core/Music/MusicLibrary.cs) (Client.Core, so a test
+guards that every referenced file ships), the next track is chosen by
+[`MusicPicker`](../../src/BlocksBeyondTheStars.Client.Core/Music/MusicPicker.cs), and rests between tracks
+by [`MusicRestPolicy`](../../src/BlocksBeyondTheStars.Client.Core/Music/MusicRestPolicy.cs) — see *How the
+director varies the music* below. **Combat** intentionally stays on the tense synth mood — the whole
+library is calm by design. (The separate **finale / boss** set — see the last section — is the deliberate
+dramatic exception, reserved for the story finale.)
 
 ## Context → track mapping
 
-| Context | Detection | Track pool (random pick) |
-|---|---|---|
-| Main menu | shell `MainMenu`/`Settings`/`Credits`/editors | `music_main_menu`, `music_main_menu_2` |
-| Loading screen | shell `Loading` | `music_loading`, `music_loading_2` |
-| Splash | shell `Splash`/`Studio` | *(silent — splash stings play instead)* |
-| Ship interior | in-game, `Aboard`, not flying | `music_ship_interior`, `music_crafting_workshop`, `music_research_blueprints` |
-| Station / hub | in-game, `NearVendor` or `orbital_station` | `music_multiplayer_hub`, `music_multiplayer_hub_2` |
-| Space flight | in-game, `InSpace`/`SpaceViewActive` | `music_space_orbit`, `music_deep_space_lonely`, `music_mystery_signal`, `music_asteroid_mining`, `music_cockpit_starmap` |
-| Space combat | hull+shield dropped in space (14 s) | *(synth combat mood — no Suno track)* |
-| Planet — ice | biome `ice`/`tundra` | `music_planet_ice`, `music_planet_ice_2` |
-| Planet — desert | biome `desert`/`salt_flats` | `music_planet_desert`, `music_planet_desert_2` |
-| Planet — lava | biome `lava`/`ashen` | `music_planet_lava`, `music_planet_lava_2` |
-| Planet — toxic | biome `fungal`/`corrupted` | `music_planet_toxic`, `music_planet_toxic_2` |
-| Planet — ocean | biome `ocean` | `music_planet_ocean`, `music_planet_ocean_2` |
-| Planet — verdant | biome `jungle`/`forest`/`savanna`/`swamp` | `music_planet_verdant`, `music_planet_verdant_2`, `music_explore_planet`, `music_explore_planet_2` |
-| Planet — crystal | biome contains `crystal` | `music_moon_crystal`, `music_explore_planet`, `music_explore_planet_2` |
-| Planet — cave | on a planet, not sky-exposed | `music_planet_cave`, `music_planet_cave_2` |
-| Planet — generic (day) | any other surface, daytime | `music_explore_planet`(`_2`), `music_idle_default`(`_2`), `music_planet_sunrise` |
-| Planet — generic (night) | any other surface, nighttime | `music_explore_planet`(`_2`), `music_idle_default`(`_2`), `music_planet_night` |
+Each context has its **own tracks** (the majority of what plays there) and — on planets — a set of
+**neutral fillers** that are blended in at a minority share (`MusicLibrary.FillerShare`, 0.35 for the
+surface biomes, 0.3 generic, 0.25 cave, 0 elsewhere), so a two-track biome no longer alternates A-B-A-B
+while the biome keeps its identity (every planet of a biome uses the same pool — no per-planet
+randomisation, by decision). The time of day only changes the **filler** set: by day the all-round beds
+`music_idle_default`(`_2`) + `music_explore_planet`(`_2`); at **dawn** (local time 0.23–0.30)
+`music_planet_sunrise` + the explore pair; at **night** (< 0.23 / ≥ 0.78) `music_planet_night` + the idle pair;
+underground only the idle pair (no sky).
+
+| Context | Detection | Own tracks | Fillers |
+|---|---|---|---|
+| Main menu | shell `MainMenu`/`Settings`/`Credits`/editors | `music_main_menu`, `music_main_menu_2` | — |
+| Loading screen | shell `Loading` | `music_loading`, `music_loading_2` | — |
+| Splash | shell `Splash`/`Studio` | *(silent — splash stings play instead)* | — |
+| Ship interior | in-game, `Aboard`, not flying | `music_ship_interior`, `music_crafting_workshop`, `music_research_blueprints` | — |
+| Station / hub | in-game, `NearVendor` or `orbital_station` | `music_multiplayer_hub`, `music_multiplayer_hub_2` | — |
+| Space flight | in-game, `InSpace`/`SpaceViewActive` | `music_space_orbit`, `music_deep_space_lonely`, `music_mystery_signal`, `music_asteroid_mining`, `music_cockpit_starmap` | — |
+| Star chart | in space, the flight system chart is open (`GameBootstrap.StarChartOpen`) | `music_cockpit_starmap` (loops) | — |
+| Space combat | hull+shield dropped in space (14 s) | *(synth combat mood — no Suno track)* | — |
+| Workshop | Tab menu **Crafting** tab open ≥ 30 s (on foot / aboard) | `music_crafting_workshop` (loops) | — |
+| Research | Tab menu **Tech** tab open ≥ 30 s | `music_research_blueprints` (loops) | — |
+| Planet — ice | biome `ice`/`tundra`/`glacier` | `music_planet_ice`, `music_planet_ice_2` | neutral set by time of day |
+| Planet — desert | biome `desert`/`salt_flats` | `music_planet_desert`, `music_planet_desert_2` | neutral set |
+| Planet — lava | biome `lava`/`ashen`/`volcanic` | `music_planet_lava`, `music_planet_lava_2` | neutral set |
+| Planet — toxic | biome `fungal`/`corrupted` | `music_planet_toxic`, `music_planet_toxic_2` | neutral set |
+| Planet — ocean | biome `ocean` | `music_planet_ocean`, `music_planet_ocean_2` | neutral set |
+| Planet — verdant | biome `jungle`/`forest`/`savanna`/`swamp` | `music_planet_verdant`, `music_planet_verdant_2` | neutral set |
+| Planet — crystal | biome contains `crystal` | `music_moon_crystal`, `music_explore_planet`, `music_explore_planet_2` | neutral set |
+| Planet — cave | on a planet, not sky-exposed | `music_planet_cave`, `music_planet_cave_2` | `music_idle_default`(`_2`) |
+| Planet — deep water | head submerged ≥ 8 s (back to the surface pool 5 s after surfacing) | `music_planet_ocean_2` (loops) | — |
+| Planet — generic | any other surface (rocky / varied / highland / skylands / asteroid) | `music_explore_planet`(`_2`), `music_idle_default`(`_2`) | `music_planet_sunrise` at dawn, `music_planet_night` at night |
+| First landing | first time a planet is walked in this session | `music_planet_sunrise` once, then the pool | — |
 
 The `_2` tracks are the **variance pack** (see *Variance pack* section below). All 12 are present in
 `client/Music/` and live in the pools today; a track whose `.mp3` fails to load is dropped from its pool
 for the session.
+
+## How the director varies the music (#1172–#1174)
+
+- **Shuffle bag** (`MusicPicker`): every track of a pool plays once, in random order, before anything
+  repeats; the track that just ended is never picked again immediately; the neutral fillers rotate in one
+  **shared bag** across all contexts, and a short history (last 4 picks) keeps a neutral that just played
+  on the surface from popping up right after entering a cave. The successor is **chosen 45 s before the
+  current track ends** and prefetched, so the re-roll lands on exactly that track (one fetch per change).
+- **Rests** (`MusicRestPolicy`): after a track ends on a planet (55 %), in a cave / under water (45 %), in
+  space (50 %) or aboard the parked ship (30 %) the music takes a breath of 60–180 s (45–120 s aboard) —
+  only the ambience beds play — then the next track fades in. Menu, loading, station, the UI beds and
+  the finale never rest. A context change ends a rest at once.
+- **Ducking**: a violent weather episode (storm / blizzard / sandstorm, by `WeatherFamily` × intensity)
+  pulls the music down to ~55 %, rain / fog / gale to ~80 %; a **hostile creature within 20 m** (on foot)
+  ducks to 60 % and darkens the music (low-pass 1.4 kHz) — a tension treatment, not a track switch. Under
+  water the existing 680 Hz muffle applies.
+- **Synth style** (`SynthComposer`, #1176): the Synth music style is no longer four fixed 10–24 s loops but
+  a seeded generative ambient engine — per piece a mode, tempo, two chord phrases (8 chords, 40–110 s), two
+  arpeggio patterns, pad timbre and drone are composed in code and rendered over a few frames; planet
+  pieces take root + mode from the biome (every ice planet is D dorian, every lava planet E aeolian, …), so
+  biomes stay recognisable while no two pieces repeat. Combat keeps its 2 Hz throb on a steady root pulse.
+  It is also the fallback whenever a Tracks-mode file is missing.
 
 If a track file is ever missing (or, in the browser, unreachable), its context falls back to the matching
 synth mood, so the game always stays musical. Because tracks are fetched on first use, a context's track
@@ -61,8 +100,10 @@ caching and fading a clip in, and the re-roll/prefetch check ignores length-0 cl
 director read "length 0" as "track over" and downloaded a second track right away. A clip that never
 decodes is dropped from its pool like a missing file.
 
-Adding a track: drop the `.mp3` into `client/Music/`, add it to the matching pool in `ClientMusic.PoolFor`,
-document prompt + context here, and add it to `NOTICES.md` if the source changes. Never put it under
+Adding a track: drop the `.mp3` into `client/Music/`, add it to the matching pool in
+`MusicLibrary` (`src/BlocksBeyondTheStars.Client.Core/Music/MusicLibrary.cs` — `MusicLibraryTests` fails
+if a pool names a file that does not ship), document prompt + context here, and add it to `NOTICES.md` if
+the source changes. Never put it under
 `client/Assets/` (Unity would import and bake it) or `StreamingAssets/data/` (the browser prefetches that
 folder's manifest eagerly).
 

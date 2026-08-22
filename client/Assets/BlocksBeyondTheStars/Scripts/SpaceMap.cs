@@ -108,6 +108,7 @@ namespace BlocksBeyondTheStars.Client
             _open = true;
             _openedFrame = Time.frameCount;
             Game.SetMenuOwner(this, true); // frees the cursor; UpdateCruise holds the ship while set (#413)
+            Game.StarChartOpen = true;     // the music director switches to the star-map bed (#1174)
             Build();
         }
 
@@ -120,6 +121,7 @@ namespace BlocksBeyondTheStars.Client
 
             _open = false;
             Game.SetMenuOwner(this, false);
+            Game.StarChartOpen = false;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);

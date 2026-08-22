@@ -4,6 +4,8 @@ Two small [uv](https://docs.astral.sh/uv/) Python tools that turn a **text descr
 game asset with AI:
 
 - **`gen_sound.py`** — text → **sound effect** via the **ElevenLabs** text-to-sound-effects API.
+- **`gen_music.py`** — text (or a composition plan) → **background-music track** via the **ElevenLabs**
+  Music API (#1175); one track per run, instrumental forced, `--make-plan` is free.
 - **`gen_image.py`** — text → **image / texture** via the **OpenAI** image API (`gpt-image-1-mini`
   is the cheapest model; the smallest API output is 1024×1024, which we downscale locally).
 
@@ -111,6 +113,23 @@ Approximate cost is printed before the call (verify at <https://openai.com/api/p
 | `--format` | `mp3_44100_128` | `output_format` |
 
 ElevenLabs bills sound effects in **credits** (≈ per second of audio) — check your plan.
+
+### `gen_music.py` options (#1175)
+
+| flag | default | notes |
+|---|---|---|
+| `--prompt` | — | text description of the track; instrumental is forced (one of `--prompt` / `--plan` / `--make-plan`) |
+| `--plan` | — | a composition-plan JSON (sections + styles + durations) to render; accepts `--seed` |
+| `--make-plan PROMPT` | — | only create a plan from PROMPT and write it to `--plan-out` — **free**, no audio |
+| `--out` | (required for audio) | output `.mp3` path |
+| `--length` | `0` | seconds (3–600); 0 lets the model choose |
+| `--seed` | — | plan mode only (the API rejects a seed with a prompt); seed siblings of one plan form a coherent family |
+| `--model` | `music_v1` | |
+| `--format` | `mp3_44100_128` | `output_format`; `mp3_44100_192` needs the Creator tier |
+
+Music generation bills **credits per generated second** — listen to a trial track before a batch. The
+background-music library lives in `client/Music/` (see `docs/developer/MUSIC_TRACKS.md` for every
+track's prompt and its pool).
 
 ## Notes
 

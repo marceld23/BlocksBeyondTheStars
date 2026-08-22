@@ -74,6 +74,7 @@ namespace BlocksBeyondTheStars.Client
             var seen = _seenScratch;
             seen.Clear();
             var cam = Camera.main; // for the floating health bars (#692)
+            Game.NearestHostileSqr = float.MaxValue; // recomputed below; the music director ducks when one is close (#1174)
             foreach (var e in Game.PlanetEnemies)
             {
                 seen.Add(e.Id);
@@ -100,6 +101,14 @@ namespace BlocksBeyondTheStars.Client
                 // holds its fire instead of staring at / shooting the hull.
                 bool playerAboard = Game.Aboard;
                 bool nearPlayer = toPlayer.sqrMagnitude < 64f;
+                if (e.Hostile && !playerAboard)
+                {
+                    float hostileSqr = (Game.PlayerPosition - scenePos).sqrMagnitude;
+                    if (hostileSqr < Game.NearestHostileSqr)
+                    {
+                        Game.NearestHostileSqr = hostileSqr;
+                    }
+                }
                 // A bandit faces you even while peaceful — it's walking up to TALK (the hold-up), not to graze.
                 Vector3 face = (e.Hostile || en.IsBandit) && nearPlayer && !playerAboard ? toPlayer : vel;
                 if (face.sqrMagnitude > 0.01f)

@@ -29,6 +29,25 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   system after every write (shared `WebGlStorage` helper, also used by the world save), so the remembered
   name and settings no longer depend on a later world save happening to sync them. (#1179)
 
+### 🎵 The music stops repeating itself (#1172–#1176)
+
+- **Shuffle bags instead of coin flips.** Every track of a context now plays once before anything repeats,
+  the all-round beds are blended into every planet's pool at a minority share (so a two-track biome no longer
+  alternates A-B-A-B while still sounding like that biome), and the music remembers what it played recently
+  across contexts. Dawn brings the sunrise track, night the nocturnal one — on every biome, not only the
+  generic planets.
+- **The music breathes.** After a track ends on a planet, in space or aboard the parked ship, the score may
+  rest for a minute or three — only wind, rain, the biome bed and the nearby waterfall remain — before the
+  next piece fades in. The menu, loading screen, stations and the finale never go quiet.
+- **The music listens.** A storm pulls it down under the weather, a hostile creature close by ducks and
+  darkens it, a long dive switches to the deep-water bed, the open star chart and the crafting / research
+  tabs bring their own beds, and the first landing on a planet opens with the sunrise track.
+- **New tracks.** Third variants for the ice, desert, lava, toxic, ocean and cave planets, the station hub,
+  the menu and the loading screen, composed with the ElevenLabs Music API (`tools/ai-assets/gen_music.py`).
+- **The Synth style is generative.** Instead of four fixed 10–24 s loops it now composes every piece fresh —
+  mode, tempo, chords, arpeggios, timbre — 40–110 s long, and every ice planet still sounds like ice (its
+  root and mode are fixed per biome). It is also what you hear when a track file is missing.
+
 ## [2026.8.19] — 2026-08-22
 
 The featherweight release — a small, focused follow-up to the constellation release. One thing
