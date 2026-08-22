@@ -109,8 +109,8 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
-### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported, corrupted block palette covered (#1187, #1188, #1190, #1194, 2026-08-22, community PRs)
-Four more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
+### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported, corrupted block palette covered, remaining content rules (#1187, #1188, #1190, #1194, #1196, 2026-08-22, community PRs)
+Five more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
 item's max stack (hand-edited or corrupted save) no longer reaches the live state: the server clamps every
 loaded inventory — player inventory, ration store, legacy and fleet ship cargo — to `GameContent.MaxStackOf`
 right after loading and logs item + original count; the persistence layer stays content-agnostic (#1187,
@@ -121,9 +121,11 @@ silently: `ContentLoader.LoadFromDirectory` takes an optional `Action<string>? w
 `logger.Warn`), so the skipped file is named in the log while the rest of the folder still loads (#1190,
 `StructureTemplateTests`). Starter 3 is closed by #1194: a hand-edited `block_palette` table (unknown block
 name, duplicate rows for one name) migrates without throwing — unknown keys fall back to air, duplicates resolve
-to the current id (`PersistenceTests`). Open from the same thread: the remaining Starter-4 validator rules
-(duplicate/empty keys, negative stack sizes, block ids beyond the atlas, planets without a spawnable surface
-block). README credits range bumped to #1194.
+to the current id (`PersistenceTests`). Starter 4 is closed by #1196: `Validate()` also rejects empty/whitespace
+keys (block, item, blueprint), `MaxStack < 1`, block numeric ids at or beyond the 256-tile client atlas (they
+would render grey), and planets whose surface block is missing or air (`ContentTests`). With that the whole
+#1048 queue is done and the issue is closed; further finds come in as their own issues. README credits range
+bumped to #1196.
 
 ### ★ "Tech" tab → "Blueprints", knowledge balance + "Enough knowledge" filter (#1191, 2026-08-22, branch feat/1191-blueprints-tab)
 Analysis 2026-08-22: the research tab was the one place the game said "Technik/Tech" while every other string
