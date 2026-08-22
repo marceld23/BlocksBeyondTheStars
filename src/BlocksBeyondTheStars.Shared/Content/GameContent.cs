@@ -407,7 +407,6 @@ public sealed class GameContent
                 continue; // explicit JSON opt-in stays
             }
 
-
             bool categorySeals = block.Category is "terrain" or "building" or "ore" or "machine" or "light";
             block.Airtight = categorySeals && block.Key != "air" && !AirtightExceptions.Contains(block.Key);
         }
@@ -602,6 +601,11 @@ public sealed class GameContent
     }
 
     /// <summary>
+    /// Mirrors client BlockTextureAtlas.Cols*Rows (16x16 tile atlas capacity).
+    /// </summary>
+    public const int AtlasTileCapacity = 256;
+
+    /// <summary>
     /// Cross-validates all references between definitions. Throws
     /// <see cref="ContentValidationException"/> if anything is inconsistent.
     /// </summary>
@@ -631,9 +635,9 @@ public sealed class GameContent
             {
                 problems.Add("Block definition has an empty or whitespace key.");
             }
-            if (block.NumericId.Value >= 256)
+            if (block.NumericId.Value >= AtlasTileCapacity)
             {
-                problems.Add($"Block '{block.Key}' has numeric ID {block.NumericId.Value} exceeding the 256-tile atlas limit.");
+                problems.Add($"Block '{block.Key}' has numeric ID {block.NumericId.Value} exceeding the {AtlasTileCapacity}-tile atlas limit.");
             }
 
             foreach (var drop in block.Drops)
@@ -658,7 +662,6 @@ public sealed class GameContent
             {
                 problems.Add($"Item '{item.Key}' has invalid MaxStack {item.MaxStack}; must be >= 1.");
             }
-
         }
 
         foreach (var recipe in _recipes.Values)
