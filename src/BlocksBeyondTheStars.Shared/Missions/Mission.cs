@@ -11,9 +11,9 @@ public enum MissionObjectiveType
     Collect,  // have N of an item in inventory/cargo
     Mine,     // mine N of a block (tracked as it happens)
     Deliver,  // hand in N of an item at the mission computer (consumed on turn-in)
-    Travel,   // reach a location (later)
-    Scan,     // scan an object (later)
-    Build,    // place a structure/module (later)
+    Travel,   // reach a location
+    Scan,     // scan something — target grammar in ScanTargets (#1205)
+    Build,    // place blocks (#1116)
     Defeat,   // drive off N foes / clear a bandit camp (event-tracked, system missions only)
 }
 
@@ -38,10 +38,16 @@ public sealed class MissionObjective
 {
     public MissionObjectiveType Type { get; set; } = MissionObjectiveType.Collect;
 
-    /// <summary>Item key / block key / location id depending on <see cref="Type"/>.</summary>
+    /// <summary>Item key / block key / location id depending on <see cref="Type"/>; for
+    /// <see cref="MissionObjectiveType.Scan"/> a <see cref="ScanTargets"/> expression.</summary>
     public string Target { get; set; } = string.Empty;
 
     public int Required { get; set; } = 1;
+
+    /// <summary>Scan objectives (#1205): when true only FIRST-TIME scans (a new Codex discovery) advance the
+    /// count — "discover two plant species"; when false (the default) every matching scan counts, so a kid can
+    /// finish "survey the wildlife" on the herd next to the village without hunting for new species.</summary>
+    public bool FirstOnly { get; set; }
 }
 
 /// <summary>
@@ -73,6 +79,10 @@ public sealed class MissionDefinition
 
     /// <summary>Reward paid to the player who completes and turns the mission in.</summary>
     public List<ItemAmount> Rewards { get; set; } = new();
+
+    /// <summary>Knowledge points paid on turn-in besides the items (#1205) — small (2–4) and used by the scan
+    /// (survey) missions, so research-minded players get research currency for research work. 0 = none.</summary>
+    public int KnowledgeReward { get; set; }
 
     public bool Repeatable { get; set; }
 
