@@ -109,6 +109,25 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Contributor onboarding: the starter issues are findable, and "you don't need Unity" is finally written down (2026-08-22, branch docs/contributor-onboarding)
+Docs-only. Outreach prep: the repo asked for contributors but never told them where to start. The README's
+contribution paragraph led with "Unity 6 / .NET 10", which reads as "you need a game engine licence" — the exact
+opposite of the truth for server, shared, world-gen, content and test work. Nothing anywhere linked the issue
+tracker's `good first issue` / `help wanted` / `localization` lists (10 / 25 / 13 open at the time of writing),
+and the "Report a Bug" nav link pointed at CONTRIBUTING.md instead of the tracker. New `## 🤝 Contribute` section
+in the README: the three label lists, a clone-build-test quickstart on the .NET 10 SDK alone, and the three
+things worth knowing before a PR (CI is free/fast/works from forks and needs no secrets; the CLA is one click but
+should be read *before* starting; every merged contributor is credited in the README and the in-game Credits
+screen). CONTRIBUTING §3 gained the same "where to start" block plus a "comment on the issue before you start"
+rule so two people don't do the same work. Two gaps closed that this repo had never stated: **who signs the CLA
+when the code was written by an AI agent** (the human who owns the GitHub account — a copyright statement only a
+person can make; the agent is still credited by name), and **how crediting actually works** — a new
+"Credits — how your name gets into the game" section documents what was until now an undocumented manual step
+(README list + `ui.credits.body` across 14 locales, added by the maintainer in a follow-up commit; contributors
+may choose a handle, project or agent name instead of a legal name). Also fixed: the canonical repo URL is
+`marceld23/BlocksBeyondTheStars` — label queries against the old `SpaceCraft` redirect silently return zero
+results, so anyone following an old link found an empty starter list.
+
 ### ★ Save-loading hardening round 2 — oversized stacks clamped on load, recipe amounts validated, unreadable user templates reported, corrupted block palette covered, remaining content rules (#1187, #1188, #1190, #1194, #1196, 2026-08-22, community PRs)
 Five more steps of the #1048 hardening queue (contributor ahmdkaml). A persisted item stack larger than its
 item's max stack (hand-edited or corrupted save) no longer reaches the live state: the server clamps every

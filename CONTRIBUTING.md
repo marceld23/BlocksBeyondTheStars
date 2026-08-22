@@ -40,6 +40,20 @@ is useful too.
 
 If you are a developer, we welcome pull requests.
 
+**Looking for something to work on?** These three lists are kept current:
+
+- 🌱 [**Good first issues**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — small and scoped; several are **pure JSON** (game balance, recipes, tech-tree wiring) and need no C# at all.
+- 🙌 [**Help wanted**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) — everything we'd be glad to hand over.
+- 🌍 [**Localization**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3Alocalization) — no code at all (see [Translating the game](#translating-the-game)).
+
+Please **comment on the issue before you start** — a short "I'm taking this" saves two people from
+doing the same work, and lets us answer questions before you've written anything. If an issue already
+has someone on it, pick another or ask whether help is wanted.
+
+**You do not need Unity for most of this.** The Unity Editor builds the playable client; the server,
+the shared code, world generation, all content data and the whole .NET test suite work with the free
+.NET 10 SDK alone — which is also all our CI uses.
+
 1. **Fork** the repo and create a branch off `main`.
 2. **Build and test** before you push:
    ```powershell
@@ -142,6 +156,25 @@ consoles.
 **How signing works.** It's one click. The first time you open a pull request, the
 **CLAassistant** bot comments with a link; you sign in with your GitHub account, accept, and
 your PR is unblocked. No paperwork, no email.
+
+**If the code was written by an AI agent.** That's welcome — this whole game was built that way, and
+[AGENTS.md](AGENTS.md) exists for it. The signature, though, has to come from the **human who owns the
+GitHub account** the pull request is opened from: the CLA is a statement about copyright, and only a
+person can make it. So if you are an agent, settle this with your operator *before* you start work,
+rather than discovering it once the PR is finished. The agent still gets named in the credits — see
+below.
+
+## Credits — how your name gets into the game
+
+Every merged contribution is credited in two places, and we add them for you; there is no form to fill in.
+
+- The **[README](README.md#contributors)** — your name, what you contributed, and a link to the PR or issue.
+- The **game's own Credits screen**, which players see in all 14 languages (localization key
+  `ui.credits.body` in `data/locales/*.json`).
+
+We add both in a short follow-up commit after your pull request is merged, so you don't have to touch
+14 translation files. If you'd rather appear under a handle, a project name, or an agent name than a
+legal name — or not at all — just say so in the pull request and that's what we'll use.
 
 ## Hosting & publishing forks
 
