@@ -120,6 +120,18 @@ comply (#1188, `ContentTests`). Open from the same thread: a warn callback for u
 `ContentLoader.LoadUserTemplates`, then starters 3–4 (damaged `.db` bytes, content files). README credits range
 bumped to #1188.
 
+### ★ "Tech" tab → "Blueprints", knowledge balance + "Enough knowledge" filter (#1191, 2026-08-22, branch feat/1191-blueprints-tab)
+Analysis 2026-08-22: the research tab was the one place the game said "Technik/Tech" while every other string
+(unlock toasts, crafting detail, achievements, VEGA) says "Bauplan/blueprint"; the tab showed the knowledge total
+only per blueprint in the detail pane, and the search + "Craftable now" strip was hard-gated to Crafting/Ship, so
+72 blueprints (knowledge 4–220) had no "what can my knowledge buy" view. Done: `ui.tab.tech` / `ui.wiki.tech` →
+"Baupläne"/"Blueprints" in all 14 locales (keys + `Mode.Tech` unchanged; `vega.s.unlock.start` and
+`srv.station.cockpit` follow); Blueprints-mode filter row shows `Knowledge: N · Data fragments: M` plus an
+**"Enough knowledge"** toggle (reuses `_craftableOnly`; hides researched nodes and those above the balance, with an
+empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before "Materials missing", and each card
+appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
+Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
+
 ### ★ More varied background music: shuffle-bag picker, rests, context-aware beds, ElevenLabs `_3` tracks, generative Synth style (#1172–#1176, 2026-08-22, branch feat/music-variety)
 Analysis 2026-08-22: six long-stay biome pools (ice / desert / lava / toxic / ocean / cave) owned two ~3-min
 tracks each, `PickFrom` had a one-track memory (strict A-B-A-B), music played 100 % of the time, the context

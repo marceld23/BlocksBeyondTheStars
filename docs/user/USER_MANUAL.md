@@ -194,9 +194,11 @@ separate unlock; admins can still disable it through server world rules.
   research N of M blueprints, Codex discoveries, story %, achievements done — and a **Journey** grid of your
   lifetime tallies (worlds visited, systems entered, blocks mined/placed, subjects scanned, missions …); the
   goals below run from the first blocks to the late game (thousands of blocks, dozens of worlds, the whole
-  tech tree, your own station or ship, the Guardian finale) and each pays an item reward. The **Tech** tab
-  header shows how much of the tree you have researched and which blueprint you could research next. Crafting/Tech/Ship are **location-bound**: Crafting to a station **block**
-  (workbench, forge, …), Tech to your ship's **cockpit**, Ship to the **workshop module** aboard. The **gate row**
+  tech tree, your own station or ship, the Guardian finale) and each pays an item reward. The **Blueprints** tab
+  header shows how much of the tree you have researched and which blueprint you could research next; its filter
+  row shows your **knowledge points** and data fragments and has an **"Enough knowledge"** toggle that hides every
+  blueprint your knowledge does not cover yet (each card also shows *Knowledge have/need*). Crafting/Blueprints/Ship are **location-bound**: Crafting to a station **block**
+  (workbench, forge, …), Blueprints to your ship's **cockpit**, Ship to the **workshop module** aboard. The **gate row**
   above the list names the block you need (with its icon), how far away the nearest one is and in which
   direction; **Show** marks it on your compass, **Craft one →** jumps to its recipe when you don't own one yet.
   Hand recipes work anywhere.
@@ -204,7 +206,7 @@ separate unlock; admins can still disable it through server world rules.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
 - **Tab availability dimming** — tabs whose context isn't met are **greyed out** (but still clickable to peek):
   **Map** needs you aboard, **Crafting** dims only when no station block is in reach (hand recipes still work),
-  **Tech** needs the cockpit, **Ship** the workshop module aboard; a dimmed tab shows the icon of the block it is
+  **Blueprints** needs the cockpit, **Ship** the workshop module aboard; a dimmed tab shows the icon of the block it is
   waiting for. While not aboard,
   the Map's travel buttons are also disabled (the world is shown but you can't quick-travel from on foot), and
   the Inventory's **Cargo Hold** transfer controls are hidden (the hold is only reachable from aboard the ship).
@@ -383,7 +385,7 @@ separate unlock; admins can still disable it through server world rules.
   blueprint). Only the data cache stays loot-only.
 - The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
-- **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Tech tab; the helm counts
+- **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Blueprints tab; the helm counts
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
 - **Tiered upgrades consume their predecessor:** where an item is a straight upgrade of another —
@@ -406,7 +408,7 @@ separate unlock; admins can still disable it through server world rules.
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.
 
 ### Building your own ship (keel → commissioning)
-- Unlock the **Shipwright** blueprint (Tech tab), craft a **Ship Keel** at a workshop and place it on open,
+- Unlock the **Shipwright** blueprint (Blueprints tab), craft a **Ship Keel** at a workshop and place it on open,
   solid ground **anywhere on a planet** — no landing pad needed. That founds a construction site (one at a
   time per player).
 - Build the hull straight onto the keel, block by block, up to **15×15 blocks and 15 high**. Blocks must

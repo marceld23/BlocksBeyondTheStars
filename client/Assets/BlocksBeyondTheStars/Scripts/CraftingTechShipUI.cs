@@ -571,6 +571,25 @@ namespace BlocksBeyondTheStars.Client
                     t.GetComponent<Image>().color = UiKit.Cyan;
                 }
             }
+            else if (_mode == Mode.Tech)
+            {
+                // Blueprints tab (#1191): the same strip carries the player's knowledge balance — the detail pane
+                // used to be the only place it showed — plus the data fragments owned (68 of 72 blueprints cost
+                // them), and an "enough knowledge" toggle that hides blueprints whose knowledge cost exceeds the
+                // balance (and the ones already researched). The balance is part of the data hash, so the strip
+                // refreshes when a scan or minigame pays out while the tab is open.
+                var know = UiKit.AddText(p, 392, 168, 470, 44,
+                    $"{L("ui.tech.knowledge")}: {Game.Knowledge}   ·   {L("item.data_fragment.name")}: {Owned("data_fragment")}",
+                    22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.FitLabel(know, 14, 22);
+                var t = UiKit.AddButton(p, 880, 168, 300, 44,
+                    (_craftableOnly ? "[x] " : "[ ] ") + L("ui.tech.enough_knowledge"),
+                    () => { _craftableOnly = !_craftableOnly; BuildHeader(); RebuildList(); });
+                if (_craftableOnly)
+                {
+                    t.GetComponent<Image>().color = UiKit.Cyan;
+                }
+            }
         }
 
         private void OnTab(int tab) => Menu?.SwitchFromUi(tab); // GameMenu owns the active tab
@@ -1285,7 +1304,8 @@ namespace BlocksBeyondTheStars.Client
             // A progression tree: order by tier (prerequisite depth) and indent each tier, so the unlock
             // chain reads top-to-bottom / left-to-right like a tech tree.
             var shown = Game.Content.Blueprints.Values
-                .Where(bp => (_category == "all" || bp.Category == _category) && MatchesSearch(L($"blueprint.{bp.Key}.name")))
+                .Where(bp => (_category == "all" || bp.Category == _category) && MatchesSearch(L($"blueprint.{bp.Key}.name"))
+                             && (!_craftableOnly || EnoughKnowledge(bp)))
                 .OrderBy(TechTier).ThenBy(bp => L($"blueprint.{bp.Key}.name"))
                 .ToList();
 
@@ -1335,12 +1355,35 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var (label, col) = TechStatus(bp);
+                // The card names the knowledge cost against the balance (#1191) so the player sees at a glance
+                // which nodes their knowledge already covers — the detail pane used to be the only place.
+                if (bp.KnowledgeCost > 0 && !Game.UnlockedBlueprints.Contains(bp.Key))
+                {
+                    label += "  ·  " + L("ui.tech.card_knowledge")
+                        .Replace("{have}", Game.Knowledge.ToString())
+                        .Replace("{need}", bp.KnowledgeCost.ToString());
+                }
+
                 AddCard(y, L($"blueprint.{bp.Key}.name"), "cat_tech", label, col, bp.Key, () => { _selected = bp.Key; RebuildDetail(); }, Mathf.Min(tier, 4) * 28f, contentKey: bp.Key);
                 y += 88f;
             }
 
+            if (_craftableOnly && shown.Count == 0)
+            {
+                // Filter on, nothing left: say so instead of leaving an empty pane under the progress header.
+                var none = UiKit.AddText(_listContent, 0, y, 760, 52, L("ui.tech.enough_knowledge_none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                none.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 56f;
+            }
+
             return y;
         }
+
+        /// <summary>The "enough knowledge" filter (#1191): not yet researched and the knowledge balance covers
+        /// the cost. Materials and prerequisites are deliberately NOT part of it — the question is "what can my
+        /// knowledge buy"; the card status still names whatever else is missing.</summary>
+        private bool EnoughKnowledge(BlueprintDefinition bp)
+            => !Game.UnlockedBlueprints.Contains(bp.Key) && Game.Knowledge >= bp.KnowledgeCost;
 
         private readonly Dictionary<string, int> _tierCache = new();
 
@@ -3925,7 +3968,15 @@ namespace BlocksBeyondTheStars.Client
                 return (L("ui.tech.locked"), new Color(0.6f, 0.6f, 0.7f));
             }
 
-            if (!HasAll(bp.UnlockCost) || Game.Knowledge < bp.KnowledgeCost)
+            // Knowledge and materials are separate gates (#1191): a node that only lacks knowledge used to read
+            // "Materials missing", sending the player to mine when they should scan. Knowledge first — it is
+            // the slower faucet, so it is the one worth naming when both are short.
+            if (Game.Knowledge < bp.KnowledgeCost)
+            {
+                return (L("ui.tech.knowledge_missing"), new Color(1f, 0.7f, 0.3f));
+            }
+
+            if (!HasAll(bp.UnlockCost))
             {
                 return (L("ui.tech.materials_missing"), new Color(1f, 0.7f, 0.3f));
             }

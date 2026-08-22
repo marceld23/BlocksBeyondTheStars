@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📘 The "Tech" tab is now "Blueprints" — with your knowledge balance and an "Enough knowledge" filter (#1191)
+
+- **Renamed.** The research tab in the ship interface (and the matching Codex chapter) is called
+  **Blueprints** in every language — which is what the game has always called the things you research there.
+  VEGA's tutorial line and the cockpit hint say so too.
+- **Knowledge at a glance.** The tab's filter row shows your **knowledge points** and the **data fragments** you
+  own; every card shows *Knowledge have/need*, and a node that only lacks knowledge now says **Knowledge
+  missing** instead of "Materials missing".
+- **"Enough knowledge" toggle.** Hides every blueprint your knowledge does not cover yet (and the ones already
+  researched), so "what can I spend my knowledge on?" is one click. Client-only; saves and servers untouched.
+
 ## [2026.8.20] — 2026-08-22
 
 The encore release. The soundtrack stops repeating itself — every track plays once before anything comes
