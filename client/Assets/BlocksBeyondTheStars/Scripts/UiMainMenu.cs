@@ -136,14 +136,37 @@ namespace BlocksBeyondTheStars.Client
                 shell.StartBrowserSingleplayer();
             }, "btn_singleplayer");
 
+            // "New world…" (#1181): the one-world browser save can be thrown away and started over. The
+            // confirmation dialog is built at the END of this block (so it draws above everything) and
+            // captured here; the button only opens it. Same name gate as Singleplayer — the fresh world
+            // keys its player on the name too.
+            GameObject newWorldDlg = null;
+            UiKit.AddButton(root, bx + bw + 16f, spY, 220f, bh, shell.L("ui.menu.new_world"), () =>
+            {
+                if (string.IsNullOrWhiteSpace(webName[0]))
+                {
+                    webWarn.text = shell.L("ui.webgl.need_name");
+                    return;
+                }
+
+                shell.PlayerName = webName[0].Trim();
+                shell.Settings.PlayerName = shell.PlayerName;
+                shell.Settings.Save();
+                if (newWorldDlg != null)
+                {
+                    newWorldDlg.SetActive(true);
+                }
+            }, "btn_settings");
+
             if (onGlitch)
             {
                 // glitch.fun: a guest's world lives only in this browser's storage, and every new
                 // deployment starts that storage empty (#1177) — logging in on Glitch is the one thing
                 // that carries the world across updates and devices (Cloud Save), so say so right next
-                // to the button that starts it (#1178). The column to the right of the buttons is free.
-                UiKit.AddText(root, bx + bw + 20f, spY, 760f, bh, shell.L("ui.webgl.glitch_save_hint"), 14,
+                // to the buttons that start it (#1178). The rest of the row is free; wrap to two lines.
+                var hint = UiKit.AddText(root, bx + bw + 252f, spY, 560f, bh, shell.L("ui.webgl.glitch_save_hint"), 14,
                     UiKit.CyanDim, TextAnchor.MiddleLeft);
+                hint.horizontalOverflow = HorizontalWrapMode.Wrap;
             }
 
             // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
@@ -183,6 +206,24 @@ namespace BlocksBeyondTheStars.Client
             }, "btn_credits");
             UiKit.AddButton(root, bx, wby + wextra + gap * 3f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
             UiKit.AddButton(root, bx, wby + wextra + gap * 4f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+
+            // --- "New world?" confirmation (#1181) — added last so it draws on top; hidden until opened ---
+            // Final for the world saved in this browser (and the cloud copy follows on the next save), so it
+            // spells that out and puts the destructive choice on the left, Cancel on the right.
+            {
+                var (overlay, dlg) = UiKit.AddModalOverlay(root, 660f, 360f, 600f, 330f);
+                newWorldDlg = overlay;
+                UiKit.AddText(dlg, 30f, 24f, 540f, 36f, shell.L("ui.webgl.new_world_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var body = UiKit.AddText(dlg, 30f, 78f, 540f, 140f, shell.L("ui.webgl.new_world_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
+                body.horizontalOverflow = HorizontalWrapMode.Wrap;
+                UiKit.AddButton(dlg, 30f, 240f, 260f, 56f, shell.L("ui.webgl.new_world_confirm"), () =>
+                {
+                    overlay.SetActive(false);
+                    shell.StartNewBrowserWorld();
+                }, "btn_exit");
+                UiKit.AddButton(dlg, 310f, 240f, 260f, 56f, shell.L("ui.action.cancel"), () => overlay.SetActive(false), "btn_settings");
+                overlay.SetActive(false);
+            }
 #else
             // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent
             // "Pilot" default meant nobody ever picked one and multiplayer names collided. The value is

@@ -734,6 +734,21 @@ namespace BlocksBeyondTheStars.Client
             StartCoroutine(BootBrowserSingleplayer());
         }
 
+        /// <summary>"New world…" from the browser menu (#1181): throws the world saved in this browser away
+        /// and starts a fresh one. The in-process host is already stopped in the menu (ReturnToMenu drained +
+        /// saved it), so the delete is final — the menu asks for confirmation first. A host that is somehow
+        /// still running is dropped WITHOUT saving, so no stop-save can resurrect the world being deleted.</summary>
+        public void StartNewBrowserWorld()
+        {
+            if (BrowserServer != null && BrowserServer.Running)
+            {
+                BrowserServer.StopAndSave(save: false);
+            }
+
+            BrowserLocalServer.ResetLocalWorld();
+            StartBrowserSingleplayer();
+        }
+
         private IEnumerator BootBrowserSingleplayer()
         {
             // Two frames so the loading screen is actually visible before the synchronous initial

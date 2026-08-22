@@ -116,8 +116,13 @@ path, so a new deployment starts with an empty folder under the same `/idbfs` mo
 `PreviousDeploymentStorage` (Client.Core, unit-tested) adopts the newest sibling copy of the world blob
 (+ `cloud.meta.json`) and of `client_settings.json` (+ token backup) — never overwriting, never
 deleting — so guests keep their world across releases; the menu tells glitch.fun players that a Glitch
-login keeps it across updates and devices (#1178). AI level is forced Off in-browser (template texts — the LLM backend is
-internal-only). Menu: the WebGL main menu grew a Singleplayer button. Perf note: initial worldgen
+login keeps it across updates and devices (#1178). **"New world…" (#1181):** the WebGL menu's reset
+(confirmation modal) runs `BrowserLocalServer.ResetLocalWorld()` — deletes the blob, arms the
+`world.reset` marker (`BrowserWorldReset`, Client.Core, unit-tested), syncs IDBFS and boots a fresh world;
+while the marker is pending, `LoadLocalBlob` skips the deployment adoption and `GlitchCloudSaves.FetchLatest`
+skips the cloud copy (the fresh world's first upload replaces it), and `PersistBlob` clears the marker once
+the new world is on disk. AI level is forced Off in-browser (template texts — the LLM backend is
+internal-only). Menu: the WebGL main menu grew a Singleplayer button (+ "New world…"). Perf note: initial worldgen
 runs synchronously behind the loading screen; chunk generation is on-demand thereafter.
 
 ## Bottom line

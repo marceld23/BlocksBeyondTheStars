@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2080 server + 281 client passing** (2026-08-22). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2080 server + 285 client passing** (2026-08-22). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -8879,6 +8879,24 @@ derived runtime crates deliberately aren't persisted by the filter handler. HUD 
 shows **Filter on** plus the E hint; USER_MANUAL documents the workflow (and the previously missing
 **H** key row). New `ContainerFilterTests` cover whitelist enforcement, dyed-variant matching, clearing,
 input sanitising and the persistence roundtrip.
+
+---
+
+## ✅ Done (2026-08-22): "New world…" in the browser menu — the one-world browser singleplayer can be started over (#1181)
+
+**Why:** the WebGL singleplayer has exactly one world per browser and always continued it; there was no
+reset anywhere — and with the first-spawn prologue gated per save (`vega:intro`) nobody could ever replay
+or retest it. **Done:** a "New world…" button next to Singleplayer (WebGL menu, same name gate) opens a
+confirmation modal (`UiKit.AddModalOverlay`, destructive choice left, Cancel right); confirm →
+`AppShell.StartNewBrowserWorld()` → `BrowserLocalServer.ResetLocalWorld()` deletes
+`browser-singleplayer/world.blob` (+ `.tmp`), arms the `world.reset` marker, syncs IDBFS and boots a fresh
+world. The marker is what makes the reset hold: `LoadLocalBlob` skips the deployment-storage adoption
+(#1177) while it is pending, `GlitchCloudSaves.FetchLatest` skips the cloud copy (the fresh world's first
+upload replaces it — a 409 resolves with `use_client` as before), and `PersistBlob` clears it the moment
+the new world is on disk. Name, settings and `cloud.meta.json` stay. Rules live in `BrowserWorldReset`
+(Client.Core, Unity-free, 4 tests). New keys `ui.menu.new_world`, `ui.webgl.new_world_{title,body,confirm}`
+(EN/DE + machine pass for 12). Verified: Client.Tests 285/285, locale/content tests green, `dotnet format`
+clean, local Unity WebGL build.
 
 ---
 

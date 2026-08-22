@@ -30,6 +30,10 @@ Last updated: 2026-08-11.
   name is additionally passed as a server admin). The same address is announced again in chat and as a
   HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
   saves) when the host quits. Friends outside your LAN need a port forward of that UDP port.
+- **Browser singleplayer (glitch.fun and the `/play` page):** one world per browser, saved in the browser
+  itself (and in Glitch Cloud Save when you are logged in on Glitch — that is what keeps it across game
+  updates and devices). **New world…** next to *Singleplayer* deletes that world after a confirmation and
+  starts over; your name and settings stay.
 - **Official Worlds (online multiplayer, beta):** the in-game portal for hosted worlds on the official
   servers — also available in the browser at [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de).
   Create a free account (no email needed), then create your own world. There are **no open public

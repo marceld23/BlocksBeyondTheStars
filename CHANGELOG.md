@@ -13,8 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🌐 Browser singleplayer survives a glitch.fun release (#1177, #1178, #1179)
+### 🌐 Browser singleplayer survives a glitch.fun release — and can be started over (#1177, #1178, #1179, #1181)
 
+- **"New world…" in the browser menu.** The one-world browser singleplayer could never be reset — the menu
+  always continued the saved world (and with it, nobody could replay the first-spawn prologue). A new
+  button next to Singleplayer asks for confirmation, then deletes the world saved in this browser and
+  starts a fresh one. It holds: a reset marker keeps the new deployment-storage migration from adopting
+  an older copy and keeps Glitch Cloud Save from restoring the cloud copy at boot — the fresh world
+  replaces it on its first save. Name, settings and the cloud-version meta stay. Localized in all 14
+  languages. (#1181)
 - **Your world follows you to the next deployment.** Every build uploaded to glitch.fun is served from a
   new content path, and the browser's Unity storage is scoped to that path — so guests (players without a
   Glitch login) started every release on a fresh world. The client now adopts the singleplayer world (and

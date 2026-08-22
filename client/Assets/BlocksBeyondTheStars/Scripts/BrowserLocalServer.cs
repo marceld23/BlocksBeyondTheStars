@@ -65,7 +65,9 @@ namespace BlocksBeyondTheStars.Client
         {
             try
             {
+                // A pending "New world" reset (#1181) must not be undone by adopting an older deployment's copy.
                 if (!File.Exists(SaveBlobPath)
+                    && !BrowserWorldReset.IsPending(SaveDirectory)
                     && WebGlStorage.TryAdoptFromPreviousDeployment(Path.Combine(SaveFolder, BlobFile), Path.Combine(SaveFolder, CloudMetaFile)))
                 {
                     Debug.Log("[BrowserSP] Migrated the singleplayer world from the previous deployment's storage.");
@@ -78,6 +80,21 @@ namespace BlocksBeyondTheStars.Client
                 Debug.LogWarning($"[BrowserSP] Could not read the local save blob: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>"New world" (#1181): deletes the world saved in this browser and arms the reset marker
+        /// that keeps the deployment migration (#1177) and the cloud fetch from bringing the old world back
+        /// until the fresh one has been persisted (<see cref="PersistBlob"/> clears it). Name, settings and
+        /// the cloud-version meta stay. Call only while no world runs — the menu does, then starts
+        /// singleplayer. Returns true when a local world existed and was deleted.</summary>
+        public static bool ResetLocalWorld()
+        {
+            bool deleted = BrowserWorldReset.Reset(SaveDirectory, BlobFile);
+            WebGlStorage.Sync(); // the delete + marker must be durable before the fresh world boots
+            Debug.Log(deleted
+                ? "[BrowserSP] Local world deleted on request — starting over."
+                : "[BrowserSP] No local world to delete — starting over (cloud copy, if any, is replaced on the next save).");
+            return deleted;
         }
 
         /// <summary>Builds and starts the in-process world. <paramref name="saveBlob"/> (from IndexedDB
@@ -228,6 +245,7 @@ namespace BlocksBeyondTheStars.Client
                 byte[] blob = _repo.ExportSnapshotBlob();
                 Directory.CreateDirectory(SaveDirectory);
                 File.WriteAllBytes(SaveBlobPath, blob);
+                BrowserWorldReset.ClearPending(SaveDirectory); // the fresh world is on disk — a pending reset (#1181) has held
                 WebGlStorage.Sync(); // IDBFS writes are in-memory until synced — make the save durable
                 Debug.Log($"[BrowserSP] World saved ({blob.Length} B).");
                 BlobPersisted?.Invoke(blob);

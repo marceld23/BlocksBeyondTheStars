@@ -67,6 +67,17 @@ namespace BlocksBeyondTheStars.Client
             _blocked = false;
             _lastVersion = LoadMeta();
 
+            // A pending "New world" reset (#1181): the player just threw the old world away — restoring
+            // the cloud copy here would undo that. Skip the fetch; the fresh world's first durable save
+            // uploads over the cloud slot through the normal version flow (a 409 resolves with
+            // use_client), and the host clears the marker once that world is persisted locally.
+            if (BrowserWorldReset.IsPending(BrowserLocalServer.SaveDirectory))
+            {
+                Debug.Log("[CloudSave] World reset pending — skipping the cloud copy; the new world replaces it on the next save.");
+                done?.Invoke(null);
+                yield break;
+            }
+
             using (var request = UnityWebRequest.Get(
                 $"{GlitchIntegration.PortalUrl}/api/glitch/save?installId={UnityWebRequest.EscapeURL(GlitchIntegration.ArcadeInstallId)}"))
             {
