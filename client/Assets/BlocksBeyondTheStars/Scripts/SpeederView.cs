@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             public Vector3 LastPos;
             public float DustTimer;
             public bool HasPos;
+            public bool Boat;                    // built from BoatCells(): wake instead of dust, no engine glow (#1215)
         }
 
         private readonly Dictionary<string, Obj> _objs = new();
@@ -39,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
 
         // The centred mesh offset (the design spans x:0..2, z:0..4) so the seat sits on the root (the driver).
         private static readonly Vector3 MeshOffset = new Vector3(-1f, -0.2f, -2f);
+        private static readonly Vector3 BoatMeshOffset = new Vector3(-1f, -0.8f, -2f);
 
         private void Update()
         {
@@ -153,14 +155,22 @@ namespace BlocksBeyondTheStars.Client
 
             t.rotation = Quaternion.Slerp(t.rotation, Quaternion.Euler(0f, yaw, 0f), 1f - Mathf.Exp(-12f * Time.deltaTime));
 
-            // Hover dust while moving, scaled by ground speed.
+            // Hover dust while moving, scaled by ground speed — a boat throws a white wake off the stern instead.
             float speed = (t.position - obj.LastPos).magnitude / Mathf.Max(1e-4f, Time.deltaTime);
             obj.LastPos = t.position;
             obj.DustTimer -= Time.deltaTime;
-            if (_fx != null && speed > 2.5f && obj.DustTimer <= 0f)
+            if (_fx != null && obj.DustTimer <= 0f)
             {
-                obj.DustTimer = 0.09f;
-                _fx.Dust(t.position + Vector3.down * 0.15f - t.forward * 0.6f, 2);
+                if (obj.Boat && speed > 1.5f)
+                {
+                    obj.DustTimer = 0.12f;
+                    _fx.Sparks(t.position + Vector3.down * 0.35f - t.forward * 1.4f, new Color(0.78f, 0.9f, 1f), 3);
+                }
+                else if (!obj.Boat && speed > 2.5f)
+                {
+                    obj.DustTimer = 0.09f;
+                    _fx.Dust(t.position + Vector3.down * 0.15f - t.forward * 0.6f, 2);
+                }
             }
 
             // Engine glow pulses with movement (idle dim, cruising bright).
@@ -187,7 +197,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var cells = SpeederCells();
+            obj.Boat = s.Kind == "boat";
+            var cells = obj.Boat ? BoatCells() : SpeederCells();
             if (cells.Count == 0)
             {
                 return;
@@ -197,7 +208,8 @@ namespace BlocksBeyondTheStars.Client
                 ? new[] { Game.ChunkMaterial, Game.ChunkMaterialTransparent }
                 : new[] { Game.ChunkMaterial };
 
-            int hull = s.HullColor != 0 ? s.HullColor : 0x9FB6D6;
+            // Unpainted default: the speeder's silver-blue, the boat's warm wood.
+            int hull = s.HullColor != 0 ? s.HullColor : (obj.Boat ? 0xB07A46 : 0x9FB6D6);
             var paint = ShipMeshBuilder.HullPaint(Game.Content,
                 new Color(((hull >> 16) & 0xFF) / 255f, ((hull >> 8) & 0xFF) / 255f, (hull & 0xFF) / 255f));
 
@@ -221,9 +233,11 @@ namespace BlocksBeyondTheStars.Client
 
             if (mesh.vertexCount > 0)
             {
-                var go = new GameObject("SpeederHull");
+                var go = new GameObject(obj.Boat ? "BoatHull" : "SpeederHull");
                 go.transform.SetParent(root.transform, false);
-                go.transform.localPosition = MeshOffset;
+                // The boat hull hangs lower so it sits IN the water (the driver floats 0.35 above the waterline,
+                // the hull bottom ~0.45 below it) instead of perching on top like a hovering sled.
+                go.transform.localPosition = obj.Boat ? BoatMeshOffset : MeshOffset;
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
                 go.AddComponent<OwnedProceduralMesh>(); // freed by the child teardown on the next recolor/rebuild
@@ -231,6 +245,11 @@ namespace BlocksBeyondTheStars.Client
             else
             {
                 Destroy(mesh); // empty grid — free the mesh instead of orphaning it
+            }
+
+            if (obj.Boat)
+            {
+                return; // no engine glow on a boat — the wake is its motion cue
             }
 
             // Engine glow at the rear (design z=0 → root-local z = -2 after centring).
@@ -277,6 +296,11 @@ namespace BlocksBeyondTheStars.Client
                     _fx.Flash(at, new Color(1f, 0.6f, 0.2f), 1.4f);
                     _fx.Sparks(at, new Color(1f, 0.55f, 0.18f), 22);
                     _fx.Sparks(at, new Color(0.3f, 0.3f, 0.3f), 14);
+                }
+                else if (fx.Kind == "splash") // a boat set onto the water (#1215)
+                {
+                    _fx.Sparks(at, new Color(0.72f, 0.88f, 1f), 18);
+                    _fx.Pulse(at, new Color(0.5f, 0.8f, 1f));
                 }
                 else // "deploy"
                 {
@@ -325,6 +349,45 @@ namespace BlocksBeyondTheStars.Client
             {
                 cells[new Vector3i(x, 1, 4)] = glass.Value;
             }
+
+            return cells;
+        }
+
+        /// <summary>The hand-authored voxel design of the boat (#1215): a 3×5 wooden hull with a pointed bow, low
+        /// gunwales, a transom and a small metal outboard motor at the stern. Same footprint as the speeder so the
+        /// centring offset and the driver seat (the root) line up; no glass, no glow. Wood first, metal fallback.</summary>
+        private Dictionary<Vector3i, BlockId> BoatCells()
+        {
+            var cells = new Dictionary<Vector3i, BlockId>();
+            var wood = BlockKey("wood_log") ?? BlockKey("wood_crate") ?? BlockKey("iron_wall") ?? BlockKey("stone");
+            var metal = BlockKey("iron_wall") ?? BlockKey("metal_panel") ?? wood;
+            if (wood == null)
+            {
+                return cells;
+            }
+
+            // Hull floor (y=0): full 3 wide from the stern to z=3, a single centre block as the bow tip.
+            for (int x = 0; x <= 2; x++)
+            for (int z = 0; z <= 3; z++)
+            {
+                cells[new Vector3i(x, 0, z)] = wood.Value;
+            }
+
+            cells[new Vector3i(1, 0, 4)] = wood.Value;
+
+            // Gunwales (y=1) along both sides, meeting at the bow post.
+            for (int z = 1; z <= 3; z++)
+            {
+                cells[new Vector3i(0, 1, z)] = wood.Value;
+                cells[new Vector3i(2, 1, z)] = wood.Value;
+            }
+
+            cells[new Vector3i(1, 1, 4)] = wood.Value;
+
+            // Transom (y=1, z=0) with the outboard motor in the middle.
+            cells[new Vector3i(0, 1, 0)] = wood.Value;
+            cells[new Vector3i(2, 1, 0)] = wood.Value;
+            cells[new Vector3i(1, 1, 0)] = metal!.Value;
 
             return cells;
         }

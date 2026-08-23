@@ -276,6 +276,7 @@ public static class StateMapper
         Fuel = s.Fuel,
         FuelMax = s.FuelMax,
         HullColor = s.HullColor,
+        Kind = s.Kind,
     };
 
     /// <summary>Copies a tamed creature so a snapshot doesn't alias the live list. The species descriptor is

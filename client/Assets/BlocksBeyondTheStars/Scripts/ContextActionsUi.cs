@@ -87,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Speeder.
             new Entry(InputAction.SpeederExit, u => u.Driving),
-            new Entry(InputAction.SpeederRefuel, u => u.Driving),
+            new Entry(InputAction.SpeederRefuel, u => u.Driving && u.Game.DrivenSpeeder.FuelMax > 0.01f), // a boat has no cell (#1215)
         };
 
         private bool OnFoot => Game != null && !Game.SpaceViewActive && Game.DrivenSpeeder == null && !Game.Spectating;

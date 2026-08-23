@@ -33,6 +33,7 @@ namespace BlocksBeyondTheStars.Client
         private AudioSource _drill;     // looping drill while mining
         private AudioSource _jet;       // looping jetpack thrust while firing
         private AudioSource _speeder;   // looping hover-speeder engine while driving
+        private AudioSource _boat;      // looping outboard-motor putter while driving a boat (#1215)
 
         // Underwater muffle: a low-pass on this GameObject filters every source on it — and ClientMusic lives
         // on the same object, so the music ducks too. Engages when the player's head is inside a fluid block.
@@ -60,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         private float _speederRefresh = -10f;
         private float _speederIntensity;
         private bool _speederBoost;
+        private bool _speederIsBoat;    // which vehicle loop SpeederTick feeds: the speeder's or the boat's
         private float _thunderTimer;
 
         // #900: sound travels slower than light — a strike schedules its rumble instead of playing it at once.
@@ -141,6 +143,15 @@ namespace BlocksBeyondTheStars.Client
             _speeder.clip = _clips.TryGetValue("vehicle_engine_loop", out var spClip) ? spClip
                 : (_clips.TryGetValue("jetpack_loop", out var jc2) ? jc2 : JetClip()); // recorded engine, else a rumble
             _speeder.Play();
+
+            // Boat (#1215): the recorded outboard putter, else the speeder's loop pitched down in Update.
+            _boat = gameObject.AddComponent<AudioSource>();
+            _boat.playOnAwake = false;
+            _boat.loop = true;
+            _boat.spatialBlend = 0f;
+            _boat.volume = 0f;
+            _boat.clip = _clips.TryGetValue("boat_engine_loop", out var boatClip) ? boatClip : _speeder.clip;
+            _boat.Play();
 
             _ok = Tone(660f, 0.12f, 0.4f);
             _err = Tone(110f, 0.20f, 0.5f);
@@ -255,10 +266,19 @@ namespace BlocksBeyondTheStars.Client
             // pitch track the throttle; boost lifts the pitch.
             if (_speeder != null && _speeder.clip != null)
             {
-                bool on = Time.time - _speederRefresh < 0.15f;
+                bool on = Time.time - _speederRefresh < 0.15f && !_speederIsBoat;
                 _speeder.volume = Mathf.MoveTowards(_speeder.volume, on ? sfx * (0.34f + 0.30f * _speederIntensity) : 0f, Time.deltaTime * 6f);
                 float targetPitch = on ? (0.78f + 0.5f * _speederIntensity) * (_speederBoost ? 1.18f : 1f) : 0.78f;
                 _speeder.pitch = Mathf.MoveTowards(_speeder.pitch, targetPitch, Time.deltaTime * 2.5f);
+            }
+
+            // Boat loop (#1215): same throttle feed, a gentler volume/pitch curve — a putter, not a turbine.
+            if (_boat != null && _boat.clip != null)
+            {
+                bool on = Time.time - _speederRefresh < 0.15f && _speederIsBoat;
+                _boat.volume = Mathf.MoveTowards(_boat.volume, on ? sfx * (0.28f + 0.26f * _speederIntensity) : 0f, Time.deltaTime * 5f);
+                float targetPitch = on ? (0.92f + 0.3f * _speederIntensity) * (_speederBoost ? 1.1f : 1f) : 0.92f;
+                _boat.pitch = Mathf.MoveTowards(_boat.pitch, targetPitch, Time.deltaTime * 2f);
             }
 
             // Underwater muffle: sweep the low-pass toward a heavy cut while the head is submerged, back to
@@ -299,25 +319,29 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Called each frame the jetpack is firing; keeps the thrust loop alive (fades out otherwise).</summary>
         public void JetTick() => _jetRefresh = Time.time;
 
-        /// <summary>One-shot startup chirp when boarding/igniting a speeder.</summary>
-        public void SpeederStart() => Cue("vehicle_startup", 0.7f);
+        /// <summary>One-shot startup chirp when boarding/igniting a speeder — or the splash of stepping into a
+        /// boat (#1215).</summary>
+        public void SpeederStart(bool boat = false) => Cue(boat ? "boat_splash" : "vehicle_startup", boat ? 0.8f : 0.7f);
 
-        /// <summary>Shuts the engine loop down + plays the power-down one-shot when dismounting.</summary>
-        public void SpeederStop()
+        /// <summary>Shuts the engine loop down + plays the power-down one-shot when dismounting (a boat gets a
+        /// quiet splash instead of a turbine spin-down).</summary>
+        public void SpeederStop(bool boat = false)
         {
             _speederRefresh = -10f;
             _speederIntensity = 0f;
             _speederBoost = false;
-            Cue("vehicle_shutdown", 0.6f);
+            _speederIsBoat = false;
+            Cue(boat ? "boat_splash" : "vehicle_shutdown", boat ? 0.45f : 0.6f);
         }
 
         /// <summary>Called each frame while driving: keeps the engine loop alive and feeds it the throttle
-        /// (0..1) + boost so its volume/pitch track the speed.</summary>
-        public void SpeederTick(float intensity, bool boost)
+        /// (0..1) + boost so its volume/pitch track the speed. <paramref name="boat"/> picks the boat loop.</summary>
+        public void SpeederTick(float intensity, bool boost, bool boat = false)
         {
             _speederRefresh = Time.time;
             _speederIntensity = Mathf.Clamp01(intensity);
             _speederBoost = boost;
+            _speederIsBoat = boat;
         }
 
         /// <summary>Synthesized jetpack thrust: a low rumble under filtered hiss (used when no recording exists).</summary>

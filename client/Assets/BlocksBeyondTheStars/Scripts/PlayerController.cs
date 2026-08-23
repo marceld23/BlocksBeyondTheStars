@@ -74,6 +74,16 @@ namespace BlocksBeyondTheStars.Client
         public float SpeederBoardRange = 3.2f;
         public float SpeederStowRange = 3.5f;
 
+        // Boat (#1215) — the water kind of the same vehicle system: slower, lazier steering, it drifts, and it
+        // floats on the water column instead of hovering over a ground raycast. Speeds come from the item's
+        // "vehicle" block in items.json when present; these are the fallbacks.
+        public float BoatMaxSpeed = 9f;
+        public float BoatBoostSpeed = 13f;
+        public float BoatAccel = 7f;
+        public float BoatTurnSpeed = 60f;        // degrees/sec, scaled by current speed
+        public float BoatFloatHeight = 0.35f;    // driver feet above the waterline
+        private const float BoatGrip = 2.5f;     // how fast the hull velocity follows the bow (lower = more drift)
+
         private const int HotbarSlots = 9;
 
         // ---- Applicability probes for device-neutral UI (#1042/#1043) --------------------------------
@@ -232,6 +242,14 @@ namespace BlocksBeyondTheStars.Client
         private float _speederSpeed;
         private bool _wasDriving;
         private float _speederCamPitch = 10f;
+
+        // Boat drive state (#1215).
+        private bool _drivingBoat;        // the vehicle we boarded is a boat (remembered for the dismount cue)
+        private Vector3 _boatVel;         // planar hull velocity — lags the bow, so the boat drifts through turns
+        private float _boatBobPhase;      // sine phase of the idle bob
+        private float _boatDrySeconds;    // how long the hull has had no water under it (aground)
+        private Vector3 _boatLastWetPos;  // last pose with water under the hull — a beached boat eases back to it
+        private bool _boatHasWetPos;
 
         // Camera feel (first-person head-bob, FOV kick, landing shake).
         private float _bobPhase;
@@ -494,7 +512,11 @@ namespace BlocksBeyondTheStars.Client
             {
                 _wasDriving = false;
                 ApplyCameraMode();
-                ClientAudio.Instance?.SpeederStop();
+                ClientAudio.Instance?.SpeederStop(_drivingBoat);
+                if (Game != null)
+                {
+                    Game.VehicleAground = false;
+                }
             }
 
             // On foot: board a speeder you own that you're standing next to (E), or pack one up (X). Checked
@@ -2163,19 +2185,28 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Arcade hover driving (car-style): W/S throttle, A/D steer, Space hop, Shift boost. Holds a
         /// fixed height over the ground, can't climb steep walls (a hard stop reports a collision), and runs on
-        /// the speeder's own energy cell (empty = no propulsion). F dismounts, R refuels.</summary>
+        /// the speeder's own energy cell (empty = no propulsion). F dismounts, R refuels.
+        /// A <b>boat</b> (#1215) is the same loop with a different vertical model and lazier handling: it floats
+        /// on the water column (<see cref="DriveBoatVertical"/>), drifts through turns, has no hop and no fuel,
+        /// and runs aground instead of crashing when it leaves the water.</summary>
         private void DriveSpeeder()
         {
+            var driven = Game.DrivenSpeeder;
+            bool boat = driven != null && driven.Kind == "boat";
             if (!_wasDriving)
             {
                 _wasDriving = true;
+                _drivingBoat = boat;
                 _speederSpeed = 0f;
-                Avatar?.SetVisible(true);   // sit visibly in the speeder
+                _boatVel = Vector3.zero;
+                _boatDrySeconds = 0f;
+                _boatHasWetPos = false;
+                Avatar?.SetVisible(true);   // sit visibly in the vehicle
                 _viewmodel?.SetVisible(false);
-                ClientAudio.Instance?.SpeederStart();
+                ClientAudio.Instance?.SpeederStart(boat);
             }
 
-            // Chase camera behind + above the speeder; mouse Y tilts it.
+            // Chase camera behind + above the vehicle; mouse Y tilts it.
             float my = InputMap.LookY() * MouseSensitivity * (InvertY ? -1f : 1f);
             _speederCamPitch = Mathf.Clamp(_speederCamPitch - my, -8f, 35f);
             if (Camera != null)
@@ -2184,45 +2215,93 @@ namespace BlocksBeyondTheStars.Client
                 Camera.transform.localEulerAngles = new Vector3(_speederCamPitch, 0f, 0f);
             }
 
-            var driven = Game.DrivenSpeeder;
-            bool outOfFuel = driven != null && driven.Fuel <= 0.01f;
+            // Speeds: the item's "vehicle" block (items.json) is the source of truth when present, the fields
+            // above are the fallback. Accel/turn stay client tuning.
+            var profile = Game.Content?.GetItem(boat ? "boat" : "speeder")?.Vehicle;
+            float cruise = profile?.MaxSpeed ?? (boat ? BoatMaxSpeed : SpeederMaxSpeed);
+            float boost = profile?.BoostSpeed ?? (boat ? BoatBoostSpeed : SpeederBoostSpeed);
+            float accel = boat ? BoatAccel : SpeederAccel;
+            float turn = boat ? BoatTurnSpeed : SpeederTurnSpeed;
+
+            // FuelMax 0 (the boat) means "never runs dry" — not "empty".
+            bool outOfFuel = driven != null && driven.FuelMax > 0.01f && driven.Fuel <= 0.01f;
 
             float throttle = InputMap.MoveY();   // W = +1, S = -1 (brake / reverse)
             float steer = InputMap.MoveX();    // A = -1, D = +1
             bool boosting = InputMap.Held(InputAction.SpeederBoost) && !outOfFuel && throttle > 0.1f;
 
             // Steering scales with speed (no pirouetting while parked).
-            float speedFrac = Mathf.Clamp01(Mathf.Abs(_speederSpeed) / SpeederMaxSpeed);
-            transform.Rotate(0f, steer * SpeederTurnSpeed * (0.35f + 0.65f * speedFrac) * Time.deltaTime, 0f);
+            float speedFrac = Mathf.Clamp01(Mathf.Abs(_speederSpeed) / cruise);
+            transform.Rotate(0f, steer * turn * (0.35f + 0.65f * speedFrac) * Time.deltaTime, 0f);
 
-            float maxSpeed = boosting ? SpeederBoostSpeed : SpeederMaxSpeed;
-            float targetSpeed = outOfFuel ? 0f : (throttle >= 0f ? throttle * maxSpeed : throttle * SpeederMaxSpeed * 0.45f);
-            _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, SpeederAccel * Time.deltaTime);
+            float maxSpeed = boosting ? boost : cruise;
+            float targetSpeed = outOfFuel ? 0f : (throttle >= 0f ? throttle * maxSpeed : throttle * cruise * 0.45f);
 
-            // Hover: hold a fixed height above whatever ground is below; sink gently over a void/edge.
             float vSpeed;
-            if (Physics.Raycast(transform.position + Vector3.up * 2.5f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
-                && hit.collider != _controller)
+            Vector3 planar;
+            if (boat)
             {
-                float targetY = hit.point.y + SpeederHoverHeight;
-                vSpeed = Mathf.Clamp((targetY - transform.position.y) * 6f, -10f, 8f);
+                bool aground = !DriveBoatVertical(out vSpeed);
+                if (aground)
+                {
+                    // Beached: no way forward, only a slow reverse off the bank, and the speed bleeds off fast.
+                    // Running aground is a nudge, not a crash — no damage, no impact report.
+                    targetSpeed = Mathf.Min(0f, throttle) * cruise * 0.3f;
+                    _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * 2.5f * Time.deltaTime);
+                }
+                else
+                {
+                    _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * Time.deltaTime);
+                }
+
+                // Drift: the hull keeps sliding the way it was going while the bow comes round.
+                _boatVel = Vector3.Lerp(_boatVel, transform.forward * _speederSpeed, 1f - Mathf.Exp(-BoatGrip * Time.deltaTime));
+                planar = _boatVel;
+                if (aground && _boatHasWetPos && _boatDrySeconds > 0.6f)
+                {
+                    // Ease back toward the last wet spot so a boat nosed onto sand slides off again by itself.
+                    Vector3 back = _boatLastWetPos - transform.position;
+                    back.y = 0f;
+                    if (back.sqrMagnitude > 0.01f)
+                    {
+                        planar += back.normalized * 1.2f;
+                    }
+                }
+
+                Game.VehicleAground = aground;
             }
             else
             {
-                vSpeed = -Gravity * 0.2f;
-            }
+                _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * Time.deltaTime);
 
-            if (InputMap.JumpDown() && !outOfFuel)
-            {
-                vSpeed = SpeederHopSpeed; // a quick hover-hop over a low obstacle
+                // Hover: hold a fixed height above whatever ground is below; sink gently over a void/edge.
+                if (Physics.Raycast(transform.position + Vector3.up * 2.5f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
+                    && hit.collider != _controller)
+                {
+                    float targetY = hit.point.y + SpeederHoverHeight;
+                    vSpeed = Mathf.Clamp((targetY - transform.position.y) * 6f, -10f, 8f);
+                }
+                else
+                {
+                    vSpeed = -Gravity * 0.2f;
+                }
+
+                if (InputMap.JumpDown() && !outOfFuel)
+                {
+                    vSpeed = SpeederHopSpeed; // a quick hover-hop over a low obstacle
+                }
+
+                planar = transform.forward * _speederSpeed;
+                Game.VehicleAground = false;
             }
 
             Vector3 before = transform.position;
-            _controller.Move((transform.forward * _speederSpeed + Vector3.up * vSpeed) * Time.deltaTime);
+            _controller.Move((planar + Vector3.up * vSpeed) * Time.deltaTime);
 
             // A hard horizontal stop at speed = ran into a wall/cliff → report the impact (server scales the hull
-            // damage from the speed and jolts the driver).
-            float wanted = Mathf.Abs(_speederSpeed);
+            // damage from the speed and jolts the driver). For the boat the intended speed is the drifting hull's,
+            // not the bow's, so a sharp turn never reads as a crash.
+            float wanted = boat ? planar.magnitude : Mathf.Abs(_speederSpeed);
             Vector3 moved = transform.position - before;
             moved.y = 0f;
             float actual = moved.magnitude / Mathf.Max(1e-4f, Time.deltaTime);
@@ -2230,20 +2309,75 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network?.SendSpeederImpact(Game.InSpeeder, wanted);
                 _speederSpeed *= 0.15f;
+                _boatVel *= 0.15f;
                 ClientAudio.Instance?.Cue("vehicle_impact", 0.85f);
             }
 
-            ClientAudio.Instance?.SpeederTick(speedFrac, boosting);
-            Game.SpeederSpeed = _speederSpeed; // publish for the vehicle HUD speed readout
+            ClientAudio.Instance?.SpeederTick(speedFrac, boosting, boat);
+            Game.SpeederSpeed = boat ? planar.magnitude * Mathf.Sign(_speederSpeed) : _speederSpeed; // vehicle HUD readout
 
             if (InputMap.Down(InputAction.SpeederExit))
             {
                 Game.Network?.SendExitSpeeder();
             }
-            else if (InputMap.Down(InputAction.SpeederRefuel))
+            else if (InputMap.Down(InputAction.SpeederRefuel) && !boat)
             {
                 Game.Network?.SendRefuelSpeeder(Game.InSpeeder);
             }
+        }
+
+        /// <summary>Boat float model (#1215): samples the water column under the hull (one below the feet up to two
+        /// above, so a swell or a step in flowing water still counts), eases the hull onto the surface +
+        /// <see cref="BoatFloatHeight"/> with a slow sine bob, and remembers the pose as the last wet one. Returns
+        /// false when there is no water within a block under the hull — aground — in which case the hull settles
+        /// onto the ground like a very low hover, so a boat can nose onto a beach and the driver can step off.
+        /// Only streamed chunks are judged: a cell the client has not received yet (#987 far-water LOD) holds the
+        /// current height and never reads as land.</summary>
+        private bool DriveBoatVertical(out float vSpeed)
+        {
+            Vector3 pos = transform.position;
+            int fx = Mathf.FloorToInt(pos.x), fz = Mathf.FloorToInt(pos.z);
+            int feet = Mathf.FloorToInt(pos.y);
+            float surface = float.NaN;
+            if (Game?.World == null || !Game.World.TryGetBlock(fx, feet, fz, out _))
+            {
+                surface = pos.y - BoatFloatHeight; // unknown terrain: hold height, don't judge
+            }
+            else
+            {
+                for (int y = feet + 2; y >= feet - 1; y--)
+                {
+                    if (BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z)) == "water")
+                    {
+                        surface = y + 1f;
+                        break;
+                    }
+                }
+            }
+
+            if (float.IsNaN(surface))
+            {
+                _boatDrySeconds += Time.deltaTime;
+                if (Physics.Raycast(pos + Vector3.up * 1.5f, Vector3.down, out var hit, 6f, ~0, QueryTriggerInteraction.Ignore)
+                    && hit.collider != _controller)
+                {
+                    vSpeed = Mathf.Clamp((hit.point.y + 0.4f - pos.y) * 6f, -6f, 4f);
+                }
+                else
+                {
+                    vSpeed = -Gravity * 0.2f;
+                }
+
+                return false;
+            }
+
+            _boatDrySeconds = 0f;
+            _boatLastWetPos = pos;
+            _boatHasWetPos = true;
+            _boatBobPhase += Time.deltaTime * 1.6f;
+            float targetY = surface + BoatFloatHeight + Mathf.Sin(_boatBobPhase) * 0.06f;
+            vSpeed = Mathf.Clamp((targetY - pos.y) * 5f, -6f, 6f);
+            return true;
         }
 
         /// <summary>Boards the nearest parked speeder the player owns within reach (on-foot E). Returns true if one

@@ -39,4 +39,9 @@ public sealed class DeployedSpeeder
 
     /// <summary>Hull paint as 0xRRGGBB (0 = default), so a player's speeder can match their ship/base colour.</summary>
     public int HullColor { get; set; }
+
+    /// <summary>Vehicle kind — the <c>vehicle.kind</c> of the item that deployed it: <c>"speeder"</c> (hover,
+    /// ground) or <c>"boat"</c> (floats on water, #1215). Empty in pre-#1215 saves and read as a speeder, so an
+    /// old record needs no migration. It decides which item packing up returns and how the client drives it.</summary>
+    public string Kind { get; set; } = string.Empty;
 }

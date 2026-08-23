@@ -135,6 +135,7 @@ ITEMS = [
     ("light_alloy", "a lightweight brushed silver alloy plate"),
     ("radio_beacon", "a sci-fi radio beacon transmitter device, a slim metal mast on a tripod base with a glowing cyan antenna ring and a blinking status light"),
     ("speeder", "a sleek futuristic single-seat hover speeder vehicle seen at a three-quarter angle, smooth silver-blue aerodynamic hull with an open cockpit seat, swept side pods and two glowing cyan engine thrusters at the rear, hovering"),
+    ("boat", "a small sturdy open motorboat seen at a three-quarter angle, warm wooden plank hull with a rounded bow, a low metal rail, a single seat and a compact grey outboard motor at the stern, sitting on calm water"),
     # Materialvielfalt — new tiers + functional alloy sinks (non-block items only).
     ("diamond", "a brilliant cut clear pale-blue diamond gemstone with sparkling facets"),
     ("diamond_drill", "a heavy-duty sci-fi mining drill tipped with a glittering blue industrial diamond bit"),

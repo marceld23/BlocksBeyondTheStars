@@ -3227,6 +3227,15 @@ public sealed partial class GameServer
         // dispenser so the low-hunger auto-feed safety net works from the first minute, not only once they craft one.
         state.Inventory.SetSlot(6, new ItemStack("berries", 5));
         state.RationStore.SetSlot(0, new ItemStack("emergency_ration", 2));
+
+        // A water world (the ocean type) hands the pilot a boat as well (#1215): the shore is right there and the
+        // speeder is hours of tech away. A plain stack, not part of the protected StarterKit — a boat is rebuildable
+        // from wood, so throwing it away is a choice the player may make.
+        if (StartBodyIsWaterWorld)
+        {
+            state.Inventory.Add("boat", 1, 1);
+        }
+
         _repo.SavePlayer(state);
         return state;
     }

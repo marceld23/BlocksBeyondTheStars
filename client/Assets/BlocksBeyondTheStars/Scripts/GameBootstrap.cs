@@ -322,6 +322,10 @@ namespace BlocksBeyondTheStars.Client
         /// while driving so the vehicle HUD can show it.</summary>
         public float SpeederSpeed;
 
+        /// <summary>True while the local player's boat (#1215) has no water under its hull (beached) — the HUD
+        /// shows the aground hint. Published by <see cref="PlayerController"/>; always false on foot / in a speeder.</summary>
+        public bool VehicleAground;
+
         /// <summary>The local player's driven speeder (null if not driving), for the HUD gauges + drive physics.</summary>
         public NetSpeeder DrivenSpeeder
         {

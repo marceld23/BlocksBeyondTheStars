@@ -102,7 +102,7 @@ namespace BlocksBeyondTheStars.Client
 
         // Hover-speeder vehicle HUD: integrity + energy gauges, speed and the drive prompt (shown while driving).
         private GameObject _speederPanel;
-        private Image _speederHull, _speederFuel;
+        private Image _speederHull, _speederFuel, _speederFuelBg;
         private Text _speederTitle, _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint;
         private Image _wreckBar, _shipRepairBar;
         private Button _wreckClaim, _shipRepairBtn;
@@ -559,6 +559,8 @@ namespace BlocksBeyondTheStars.Client
             _speederSpeed = UiKit.AddText(_speederPanel.transform, 108, 6, 220, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
             _speederHull = MakeBar(_speederPanel.transform, 12, 30, 316, 16);
             _speederHullLabel = UiKit.AddText(_speederPanel.transform, 18, 30, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            // The fuel row keeps its own background handle: a boat (FuelMax 0, #1215) hides the whole row.
+            _speederFuelBg = UiKit.AddImage(_speederPanel.transform, 12, 52, 316, 16, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
             _speederFuel = MakeBar(_speederPanel.transform, 12, 52, 316, 16);
             _speederFuelLabel = UiKit.AddText(_speederPanel.transform, 18, 52, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             _speederHint = UiKit.AddText(_speederPanel.transform, 12, 80, 316, 18, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -815,7 +817,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _speederTitle.text = loc.Get("item.speeder.name");
+            bool boat = s.Kind == "boat";
+            _speederTitle.text = loc.Get(boat ? "item.boat.name" : "item.speeder.name");
             _speederSpeed.text = $"{Mathf.RoundToInt(Mathf.Abs(Game.SpeederSpeed))} m/s";
 
             float hullFrac = s.HullMax > 0 ? s.Hull / s.HullMax : 0f;
@@ -824,17 +827,36 @@ namespace BlocksBeyondTheStars.Client
                 : (hullFrac > 0.25f ? new Color(0.95f, 0.8f, 0.3f) : new Color(0.95f, 0.35f, 0.3f));
             _speederHullLabel.text = $"{loc.Get("hud.speeder.integrity")}  {Mathf.RoundToInt(s.Hull)}";
 
-            float fuelFrac = s.FuelMax > 0 ? s.Fuel / s.FuelMax : 0f;
-            _speederFuel.fillAmount = Mathf.Clamp01(fuelFrac);
-            _speederFuel.color = fuelFrac > 0.2f ? new Color(0.4f, 0.8f, 1f) : new Color(0.95f, 0.5f, 0.2f);
-            _speederFuelLabel.text = $"{loc.Get("hud.speeder.fuel")}  {Mathf.RoundToInt(s.Fuel)}";
+            // A vehicle with no cell (the boat: FuelMax 0) shows no gauge at all rather than an empty one.
+            bool hasFuel = s.FuelMax > 0.01f;
+            if (_speederFuelBg.gameObject.activeSelf != hasFuel)
+            {
+                _speederFuelBg.gameObject.SetActive(hasFuel);
+                _speederFuel.gameObject.SetActive(hasFuel);
+                _speederFuelLabel.gameObject.SetActive(hasFuel);
+            }
+
+            if (hasFuel)
+            {
+                float fuelFrac = s.Fuel / s.FuelMax;
+                _speederFuel.fillAmount = Mathf.Clamp01(fuelFrac);
+                _speederFuel.color = fuelFrac > 0.2f ? new Color(0.4f, 0.8f, 1f) : new Color(0.95f, 0.5f, 0.2f);
+                _speederFuelLabel.text = $"{loc.Get("hud.speeder.fuel")}  {Mathf.RoundToInt(s.Fuel)}";
+            }
 
             // Key letters come from the live bindings (keyboard key or pad glyph), not hardcoded F/R.
-            string hint = $"{InputMap.Glyph(InputAction.SpeederExit)}: {loc.Get("hud.speeder.exit")}"
-                        + $"  ·  {InputMap.Glyph(InputAction.SpeederRefuel)}: {loc.Get("hud.speeder.refuel")}";
-            if (s.Fuel <= 0.01f)
+            string hint = $"{InputMap.Glyph(InputAction.SpeederExit)}: {loc.Get("hud.speeder.exit")}";
+            if (hasFuel)
             {
-                hint = loc.Get("hud.speeder.nofuel");
+                hint += $"  ·  {InputMap.Glyph(InputAction.SpeederRefuel)}: {loc.Get("hud.speeder.refuel")}";
+                if (s.Fuel <= 0.01f)
+                {
+                    hint = loc.Get("hud.speeder.nofuel");
+                }
+            }
+            else if (Game.VehicleAground)
+            {
+                hint = loc.Get("hud.boat.aground");
             }
 
             _speederHint.text = hint;

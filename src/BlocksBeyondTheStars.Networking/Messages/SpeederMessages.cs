@@ -38,6 +38,10 @@ public sealed class NetSpeeder
 
     /// <summary>Hull paint as 0xRRGGBB (0 = default).</summary>
     public int HullColor { get; set; }
+
+    /// <summary>Vehicle kind: <c>"speeder"</c> (hover, ground) or <c>"boat"</c> (floats on water, #1215).
+    /// Additive — an older client ignores it and renders a speeder. Empty reads as a speeder.</summary>
+    public string Kind { get; set; } = string.Empty;
 }
 
 /// <summary>Full set of speeders the client should show on its world (server → client). Sent on join and on any

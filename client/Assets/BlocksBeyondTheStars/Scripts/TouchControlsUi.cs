@@ -52,7 +52,7 @@ namespace BlocksBeyondTheStars.Client
         private TouchButton _fire, _flightUp, _flightDown;              // flight + EVA
         private TouchButton _land, _shipIn, _auto, _flightMap;          // helm only — swapped out in EVA
         private TouchButton _evaPlace, _evaDeploy;                      // EVA only (#1042)
-        private TouchButton _boost, _hop;                               // speeder
+        private TouchButton _boost, _hop, _fuel;                        // speeder (a boat hides hop + fuel, #1215)
         private TouchButton _prev, _next, _menu;                        // shared
         private TouchButton _slotActions;                               // opens the hotbar slot-action pie (#940)
         private TouchButton _contextActions;                            // opens the context-actions list (#1042)
@@ -222,6 +222,13 @@ namespace BlocksBeyondTheStars.Client
             SetActive(_flightCluster, flight);
             SetActive(_speederCluster, speeder);
             SetActive(_onFootCluster, onFoot);
+            if (speeder)
+            {
+                // A boat (#1215) has no hop and no cell: those two verbs would be dead buttons.
+                bool boat = Game.DrivenSpeeder.Kind == "boat";
+                SetActive(_hop.gameObject, !boat);
+                SetActive(_fuel.gameObject, !boat);
+            }
 
             // Contextual buttons (#1042): shown only while their verb applies, so a tablet never carries a
             // dead target. On foot: ROTATE with a rotatable block in hand, ATTACK with a weapon (or on the
@@ -394,9 +401,9 @@ namespace BlocksBeyondTheStars.Client
             _boost = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-140f, 150f), 130f, L("ui.touch.boost", "BOOST"));
             _hop = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-300f, 130f), 110f, L("ui.touch.jump", "JUMP"));
             var exit = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-290f, 265f), 110f, L("ui.touch.exit", "EXIT"));
-            var fuel = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.fuel", "FUEL"));
+            _fuel = MakeButton(spd, new Vector2(1f, 0f), new Vector2(-150f, 305f), 100f, L("ui.touch.fuel", "FUEL"));
             _actions.Add((InputAction.SpeederExit, exit));
-            _actions.Add((InputAction.SpeederRefuel, fuel));
+            _actions.Add((InputAction.SpeederRefuel, _fuel));
             _heldActions.Add((InputAction.SpeederBoost, _boost));
 
             // Only the on-foot cluster starts visible; Update swaps clusters with the control context. The
