@@ -296,7 +296,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else if (BlocksBeyondTheStars.Client.Portal.ReportChatCommand.TryParse(t, out string reportedName, out string reportNote))
             {
-                SubmitPlayerReport(reportedName, reportNote);
+                SubmitPlayerReport(reportedName, reportNote, t);
             }
             else if (TryMuteCommand(t))
             {
@@ -338,16 +338,22 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>
-        /// Files a player report typed as <c>/report &lt;player&gt; [note]</c> — official hosted worlds only
-        /// (same portal path as the alliance-tab report button, but with category "chat" and the reported
-        /// player's recent chat lines quoted as evidence). The outcome shows as a local-only chat line;
-        /// reports are reviewed by the operators and never auto-punish anyone.
+        /// Files a player report typed as <c>/report &lt;player&gt; [note]</c>. With a portal account it takes
+        /// the portal path (the same one the alliance-tab report button uses, category "chat", with the
+        /// reported player's recent chat lines quoted as evidence) and the outcome shows as a local-only chat
+        /// line. Without one it hands the raw line to the SERVER, which files the report itself (#1222) — that
+        /// is the arcade guest's, the LAN player's and the self-hosted world's route, and it used to be a dead
+        /// end. Either way reports are reviewed by people and never auto-punish anyone.
         /// </summary>
-        private async void SubmitPlayerReport(string reportedName, string note)
+        private async void SubmitPlayerReport(string reportedName, string note, string rawLine)
         {
+            // No portal account — an arcade guest, a LAN player, anyone on a self-hosted world: send the line
+            // to the SERVER, which files the report with the reported player's own recent chat as evidence
+            // (#1222). This used to answer "not available here", which left exactly the people with no
+            // account and no other channel with no recourse at all.
             if (string.IsNullOrEmpty(Game.HostedToken) || string.IsNullOrEmpty(Game.PortalSession))
             {
-                LocalLine(L("ui.chat.report_unavailable"));
+                Game.Network.SendChat(rawLine); // the server also answers the usage/unknown-name cases
                 return;
             }
 
@@ -646,6 +652,33 @@ namespace BlocksBeyondTheStars.Client
                         return true;
                     }
 
+                // Pause a player's chat for a few minutes (#1223) — the step between a word and a kick.
+                // NOT "/mute": that is this player's own local mute list (#1209) and never leaves the client.
+                case "/silence":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine(L("ui.cmd.usage_silence"));
+                            return true;
+                        }
+
+                        var (silenceName, minutes) = AdminChatCommand.NameAndMinutes(t);
+                        net.SendAdminCommand("silence", stringArg: silenceName, intArg: minutes);
+                        return true;
+                    }
+
+                case "/unsilence":
+                    {
+                        if (p.Length < 2)
+                        {
+                            LocalLine(L("ui.cmd.usage_unsilence"));
+                            return true;
+                        }
+
+                        net.SendAdminCommand("unsilence", stringArg: AdminChatCommand.PlayerArgument(t));
+                        return true;
+                    }
+
                 // ---- Paint moderation (#821): wipe a player's painted designs (or one by "#id") everywhere ----
                 // ("/reportpaint" is NOT handled here on purpose: like /bump it travels as chat and the server
                 // intercepts it, so reporting needs no admin role and no client plumbing. Plain "/report"
@@ -681,6 +714,7 @@ namespace BlocksBeyondTheStars.Client
             LocalLine(L("ui.admin.help_fleet"));
             LocalLine(L("ui.admin.help_story"));
             LocalLine(L("ui.admin.help_maintenance"));
+            LocalLine(L("ui.admin.help_moderation"));
         }
 
         private static bool TryF(string s, out float v)

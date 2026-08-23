@@ -1185,15 +1185,21 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
   (under your save data) as before. Each report is a `bump_<world>_<timestamp>_<n>.json` with a matching
   `.jpg` screenshot beside it.
 
-### `/report` — report a player (official hosted worlds only)
+### `/report` — report a player (everywhere, no account needed)
 - **Syntax:** `/report Player [what happened]`
-- Files a player report with the worlds portal, exactly like the report button in the ship UI's
-  Alliance tab — one command, no menu digging. The report automatically attaches the reported
-  player's **last 10 chat lines** as evidence and the **world id**, so the operators know what was
-  said and where. The outcome shows as a local-only chat line.
-- Only works while you are on an **official hosted world** (joined via the Official Worlds menu);
-  everywhere else the command explains that reporting is unavailable. Reports are **reviewed by
-  humans** — nobody is punished automatically.
+- Files a player report, exactly like the report button in the ship UI's Alliance tab — one command, no
+  menu digging. Either way the report automatically attaches the reported player's **last 10 chat lines**
+  as evidence and the **world** it happened on, so the people who read it know what was said and where.
+- **With an account** (an official hosted world joined via the Official Worlds menu) it goes to the worlds
+  portal. **Without one** — an arcade guest on glitch.fun, a LAN game, someone else's server — the
+  **server** files it instead and answers in chat. Nothing is needed for either: no radio, no equipment,
+  no account. Reporting is exactly the moment when "first go and craft something" would be the wrong
+  answer.
+- The reported player is **never told** who reported them, and nobody else sees it either.
+- Reports are **reviewed by humans** — nobody is punished automatically. A few in a row is plenty; after
+  that the command asks you to give the team a moment.
+- `/report` is not the same as `/mute Player`: mute hides someone **for you alone** and tells nobody,
+  while a report asks a human to look.
 
 ### Admin cheats (world admin / admin only)
 Type these **in the chat box** (Enter to open). They are **server-authoritative** and gated twice: the
@@ -1266,9 +1272,24 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
+| `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
+| `/unsilence Player` | Ends the pause right away |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |
 | `/paintwipe Player` (or `#designId`) | Removes that player's painted block designs **everywhere at once** (or a single design by id, taken from the report log). Wiped designs stay wiped across restarts |
 | `/mode Player survival\|creative\|world` | Per-player game mode — see *Per-player mode* below |
+
+#### `/silence` — a pause instead of a kick
+
+Between "say something" and "end their session" there used to be nothing. `/silence Player 5` gives the
+channel five minutes of quiet: the player is **told how long** it lasts, keeps playing normally, and their
+chat comes back on its own — you do not have to remember to undo it. `/unsilence Player` ends it early.
+
+It is the same pause the server applies by itself when someone floods the channel, so a player only ever
+sees one kind of "chat is paused for you" message, whether a person or the anti-spam decided it.
+
+**Note the name.** It is deliberately *not* `/mute`: **`/mute Player`** is every player's own command for
+hiding someone from their own screen (§Chat), it never reaches the server and nobody is told. One word
+must not mean two different things depending on who types it.
 
 #### Per-player mode — one world, mixed Survival and Creative
 

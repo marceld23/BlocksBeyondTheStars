@@ -35,6 +35,11 @@ public sealed class JoinRequest
     /// streams this player's terrain at this radius (clamped server-side) instead of the host config, so a wider
     /// slider extends the visible terrain on dedicated servers too. 0 (default) = let the server decide.</summary>
     public int ViewDistanceChunks { get; set; }
+
+    /// <summary>Arcade install id (glitch.fun) — the only identity a guest without a portal account has, and
+    /// therefore the only thing that makes their <c>/report</c> actionable for an operator (#1222). Additive
+    /// field on a contractless codec: older clients simply leave it empty. Never shown to other players.</summary>
+    public string? InstallId { get; set; }
 }
 
 public sealed class MoveIntent

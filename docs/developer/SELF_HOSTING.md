@@ -631,5 +631,35 @@ name screen and watch-list hits already use.
 
 Only chat is paused; the player keeps playing. **The counters and the mute live in RAM only** and are never
 written to the save: a cool-down is not a mark on the record, and a reconnect or a restart clears it. A
-watch-list hit is deliberately *not* counted — that line is relayed untouched and only pings you. There is no
-way to lift a mute in-game yet; operator `/mute` and `/unmute` are #1223.
+watch-list hit is deliberately *not* counted — that line is relayed untouched and only pings you.
+
+### An admin pauses a chat by hand (#1223)
+
+`/silence Player [Minutes]` in chat (world admin / admin, like `/kick`) applies **the same** pause: the
+player is told how long it lasts, keeps playing, and it ends on its own. `/unsilence Player` lifts it early.
+Default 10 minutes, capped at a day — anything longer is a ban decision, and bans belong on the portal where
+the world's identity lives. You get one `chat silenced [<world>]` ping per use.
+
+It is deliberately **not** called `/mute`: that word is every player's own client-side command for hiding
+someone from their own screen (#1209), it never reaches the server, and one word must not mean two different
+things depending on who types it. There is **no gateway route** for this yet — it is an in-game verb only.
+
+### Player reports without an account (#1222)
+
+`/report Player [what happened]` also works **server-side** now, for everyone who has no portal account: an
+arcade guest, a LAN player, anyone on your server. It needs no radio and no equipment (intercepted like
+`/bump`), it is capped at 3 reports per player per 10 minutes, and it files one row through the same
+ReportHost pipeline as §11 (`reportType: player-report`) plus one `player report [<world>]` ping.
+
+The row carries the reported player's **last 10 chat lines** as evidence — the relayed text, so masked words
+stay masked — and both players' arcade install ids when they have one. Those lines live in RAM per session
+(20 per player) and are copied out **only** into a report a human actually filed; nothing about them is
+persisted otherwise, and the reported player is never told.
+
+### Names and AI text are screened too (#1221)
+
+Every player-typed name — base, station, beacon label, beam pad, companion — goes through the same chat
+lists before it is stored, and so does everything the optional AI backend writes (NPC greetings, mission
+flavour). A refused name is rejected and the player asked for another; refused AI text falls back to the
+authored, localized line, which is the same path the game takes when the backend is unreachable. All of it
+follows `BBS_CHAT_FILTER`, so `off` really means off everywhere.

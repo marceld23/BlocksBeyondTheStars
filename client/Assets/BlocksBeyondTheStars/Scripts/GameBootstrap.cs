@@ -2190,9 +2190,13 @@ namespace BlocksBeyondTheStars.Client
                     try
                     {
                         Debug.Log($"Sending join request to {Host}:{Port} as {PlayerName}.");
+                        // The arcade install id travels with the join (#1222): a glitch.fun guest has no
+                        // portal account, so it is the only identity their /report can carry. Empty everywhere else.
+                        string installId = GlitchIntegration.ArcadeInstallId;
                         Network.Join(PlayerName, string.IsNullOrEmpty(Password) ? null : Password, Locale.Code(),
                             string.IsNullOrEmpty(Token) ? null : Token, ViewDistanceChunks,
-                            string.IsNullOrEmpty(HostedToken) ? null : HostedToken);
+                            string.IsNullOrEmpty(HostedToken) ? null : HostedToken,
+                            string.IsNullOrEmpty(installId) ? null : installId);
                         Network.SendAppearance(SkinRgb, TorsoRgb, ArmRgb, LegRgb, HullRgb);
                         Network.SendSetNpcCalls(Settings?.NpcCalls ?? 0); // #1119: the server initiates NPC calls, so it must know the preference
                         if (!string.IsNullOrEmpty(FacePixels))

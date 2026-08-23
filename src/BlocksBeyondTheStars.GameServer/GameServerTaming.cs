@@ -577,7 +577,14 @@ public sealed partial class GameServer
             return;
         }
 
-        tc.Name = SanitizeName(intent.Name);
+        // A companion's name travels to everyone who sees the creature, so it is screened like any other
+        // player-written name (#1221). Refused: the companion keeps the name it had.
+        if (ScreenPlayerName(session, SanitizeName(intent.Name), "companion") is not { } name)
+        {
+            return;
+        }
+
+        tc.Name = name;
         foreach (var c in _creatures.Where(c => c.CompanionId == tc.Id))
         {
             c.CustomName = tc.Name;

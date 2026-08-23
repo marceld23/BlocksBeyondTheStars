@@ -50,6 +50,33 @@ namespace BlocksBeyondTheStars.Client
             return CleanName(t.Substring(Math.Min(i, t.Length)));
         }
 
+        /// <summary>
+        /// Splits <c>/silence &lt;name&gt; [minutes]</c> (#1223). The optional minutes sit at the END, which
+        /// collides with the rule above — a name is the whole rest of the line — so the tie is broken the
+        /// only way that keeps both usable: a trailing token counts as minutes ONLY when it parses as a
+        /// number AND something is left in front of it. <c>/silence Player2</c> therefore silences Player2
+        /// for the default span, while <c>/silence mincraft Fan 30</c> silences "mincraft Fan" for 30.
+        /// Returns 0 minutes when none was given — the server applies its default.
+        /// </summary>
+        public static (string Name, int Minutes) NameAndMinutes(string? line)
+        {
+            string rest = PlayerArgument(line);
+            int lastSpace = rest.LastIndexOfAny(new[] { ' ', '\t' });
+            if (lastSpace <= 0)
+            {
+                return (rest, 0);
+            }
+
+            string tail = rest.Substring(lastSpace + 1);
+            if (!int.TryParse(tail, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out int minutes) || minutes <= 0)
+            {
+                return (rest, 0);
+            }
+
+            return (CleanName(rest.Substring(0, lastSpace)), minutes);
+        }
+
         /// <summary>Trims a typed name down to what the server stores: no surrounding whitespace, no quotes
         /// around it, no leading <c>@</c>. Order matters — <c>"@mincraft Fan"</c> has to lose the quotes
         /// before the <c>@</c> is even reachable.</summary>
