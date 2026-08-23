@@ -490,7 +490,11 @@ public sealed partial class GameServer
             return;
         }
 
-        string name = SanitizeStationName(intent.Name);
+        if (ScreenPlayerName(session, SanitizeStationName(intent.Name), "station") is not { } name)
+        {
+            return; // refused by the content screen (#1221) — the player has been told
+        }
+
         if (string.IsNullOrEmpty(name))
         {
             name = (string.IsNullOrWhiteSpace(s.OwnerId) ? "Player" : s.OwnerId) + "'s Station";

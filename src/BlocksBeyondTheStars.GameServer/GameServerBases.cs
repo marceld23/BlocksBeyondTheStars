@@ -213,7 +213,12 @@ public sealed partial class GameServer
             return;
         }
 
-        basePoint.Name = SanitizeBaseName(intent.Name);
+        if (ScreenPlayerName(session, SanitizeBaseName(intent.Name), "base") is not { } name)
+        {
+            return; // refused by the content screen (#1221) — the player has been told
+        }
+
+        basePoint.Name = name;
         _repo.SaveBase(ToStored(basePoint));
         BroadcastBasesOn(body);
         SendStarMap(session); // refresh the travel-screen badge/name + rename prefill

@@ -88,6 +88,26 @@ public sealed class PlayerSession
     /// not one per line they keep trying to send.</summary>
     public bool ChatMuteNoticeSent { get; set; }
 
+    // ---- Report evidence (#1222) ----
+    // An arcade guest has no portal account, so their report cannot carry a link to a chat log the operator
+    // can open — it has to bring the evidence with it. These lines are RAM only and die with the session;
+    // the only copy that ever leaves the process is the excerpt inside a report a human actually filed.
+
+    /// <summary>The most recent chat lines this session sent, oldest first, capped at
+    /// <see cref="MaxRecentChatLines"/>. Screened text, i.e. exactly what the other players saw.</summary>
+    public List<string> RecentChatLines { get; } = new();
+
+    /// <summary>How many of a player's lines are kept as report evidence.</summary>
+    public const int MaxRecentChatLines = 20;
+
+    /// <summary>Server uptime (seconds) of this session's recent player reports — the abuse window for
+    /// reporting itself.</summary>
+    public List<double> RecentReportsAt { get; } = new();
+
+    /// <summary>The arcade install id this client joined with (glitch.fun guests), or empty. It is the only
+    /// identity such a guest has, so a report is worth nothing to an operator without it.</summary>
+    public string InstallId { get; set; } = string.Empty;
+
     /// <summary>Server uptime (seconds) before which the next face change / voice frame is throttled.</summary>
     public double NextFaceChangeAt { get; set; }
     public double NextVoiceFrameAt { get; set; }

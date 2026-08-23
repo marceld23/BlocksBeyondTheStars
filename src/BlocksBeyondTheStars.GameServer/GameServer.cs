@@ -191,10 +191,15 @@ public sealed partial class GameServer
         _transport = transport;
         _repo = repo;
         _log = logger ?? new NullGameLogger();
-        _ai = aiProvider
-              ?? (config.AiLevel != AiLevel.Off
-                  ? new HttpAiMissionProvider(config.AiBackendUrl, timeoutSeconds: config.AiTimeoutSeconds)
-                  : new NullAiMissionProvider());
+        // Everything the AI writes for players passes the world's content screen (#1221). Wrapped HERE,
+        // at the one place the provider is chosen, so no AI call site has to remember it — including an
+        // injected test double, which is what lets the fallback be tested.
+        _ai = new ScreenedAiTextProvider(
+            aiProvider
+            ?? (config.AiLevel != AiLevel.Off
+                ? new HttpAiMissionProvider(config.AiBackendUrl, timeoutSeconds: config.AiTimeoutSeconds)
+                : new NullAiMissionProvider()),
+            ScreenAiText);
         _crashWriter = new Lazy<CrashReportWriter>(
             () => new CrashReportWriter(
                 BugReportPaths.ResolveCrashes(Path.Combine(_repo.WorldDirectory, "crashes")),
@@ -3048,6 +3053,7 @@ public sealed partial class GameServer
             CurrentLocationId = joinBody,
             Locale = NormalizeLocale(join.Locale),
             ViewDistance = join.ViewDistanceChunks,
+            InstallId = StripControlChars(join.InstallId).Trim(), // #1222: arcade guest identity, empty otherwise
             IsFleetAdmin = fleetAdmin,
             HeartbeatTracked = true, // joined over the wire → silence is meaningful (#964)
         };
@@ -4831,6 +4837,28 @@ public sealed partial class GameServer
             return;
         }
 
+        // Pausing someone's chat (#1223) — moderation, not a cheat, so the role is the gate like kick and
+        // announce. Deliberately NOT called "mute": that word already belongs to the player's own local mute
+        // list (#1209), which never reaches the server, and one word must not mean two different things
+        // depending on who typed it.
+        if (string.Equals(cmd.Command, "silence", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(cmd.Command, "unsilence", StringComparison.OrdinalIgnoreCase))
+        {
+            bool lift = string.Equals(cmd.Command, "unsilence", StringComparison.OrdinalIgnoreCase);
+            string target = (cmd.StringArg ?? string.Empty).Trim();
+            string answer = ApplyChatSilence(session, target, cmd.IntArg, lift);
+            if (answer.StartsWith("@srv.admin.usage", StringComparison.Ordinal)
+                || answer.StartsWith("@srv.admin.silence_", StringComparison.Ordinal))
+            {
+                Reject(session, "admin", answer);
+                return;
+            }
+
+            Send(session, new ServerMessage { Text = answer });
+            CheatLog(p, lift ? $"un-silenced {target}" : $"silenced {target}");
+            return;
+        }
+
         if (string.Equals(cmd.Command, "schedule_restart", StringComparison.OrdinalIgnoreCase))
         {
             int minutes = cmd.IntArg;
@@ -5417,6 +5445,25 @@ public sealed partial class GameServer
             return;
         }
 
+        // Reporting a PLAYER (#1222). Intercepted here for the same reason as the two above: a report must
+        // not require equipment. On an official world a client with a portal account posts to the portal and
+        // never reaches this — this is the path for everyone else, above all an arcade guest, whose only
+        // identity is the install id that came with their join. It also sits ABOVE the mute check on
+        // purpose: a paused chat must never take away the way to ask for help.
+        if (text.Equals("/report", System.StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("/report ", System.StringComparison.OrdinalIgnoreCase))
+        {
+            int reportNow = System.Environment.TickCount;
+            if (reportNow - session.LastChatTick < 700)
+            {
+                return; // rate limit
+            }
+
+            session.LastChatTick = reportNow;
+            HandlePlayerReport(session, text.Substring("/report".Length).Trim());
+            return;
+        }
+
         // A pasted build share code would be silently cut to garbage by the chat cap — and a chat line
         // cannot be copied back out anyway. Refuse it with a pointer to the blueprint tool's clipboard
         // flow instead of truncating (#1154).
@@ -5488,6 +5535,11 @@ public sealed partial class GameServer
         }
 
         text = relayed;
+
+        // Keep the line as report evidence (#1222) — RAM only, twenty lines per session, and the only copy
+        // that ever leaves the process is the excerpt inside a report someone actually filed.
+        NoteChatLineForEvidence(session, text);
+
         string sender = string.IsNullOrEmpty(session.State.Name) ? "Pilot" : session.State.Name;
         // Reach follows the sender's best radio tier (world / system / galaxy), not a flat game-wide broadcast.
         SendToRadioAudience(

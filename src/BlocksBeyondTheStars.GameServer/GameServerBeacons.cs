@@ -43,7 +43,9 @@ public sealed partial class GameServer
     /// by its cell (the block itself is already set + persisted by the normal place path). Broadcasts the change.</summary>
     private void PlaceBeacon(PlayerSession session, Vector3i pos, string label)
     {
-        string clean = SanitizeBeaconLabel(label);
+        // A refused label falls back to NO label rather than refusing the placement (#1221): the block is
+        // already in the world, and an empty label is a state the client renders a localized default for.
+        string clean = ScreenPlayerName(session, SanitizeBeaconLabel(label), "beacon") ?? string.Empty;
         _beacons.Add(new ServerBeacon
         {
             Id = _nextBeaconId++,
@@ -106,7 +108,12 @@ public sealed partial class GameServer
             return;
         }
 
-        beacon.Label = SanitizeBeaconLabel(intent.Label);
+        if (ScreenPlayerName(session, SanitizeBeaconLabel(intent.Label), "beacon") is not { } label)
+        {
+            return; // refused by the content screen (#1221) — the player has been told
+        }
+
+        beacon.Label = label;
         _repo.SaveBeacon(new StoredBeacon
         {
             Planet = _world.LocationId,

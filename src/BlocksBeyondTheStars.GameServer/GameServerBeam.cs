@@ -49,7 +49,9 @@ public sealed partial class GameServer
     /// its cell (the block itself is already set + persisted by the normal place path). Broadcasts the change.</summary>
     private void PlaceBeam(PlayerSession session, Vector3i pos, string name)
     {
-        string clean = SanitizeBeamName(name);
+        // Same rule as the beacon label: the pad is already placed, so a refused name simply means the
+        // pad has none (#1221).
+        string clean = ScreenPlayerName(session, SanitizeBeamName(name), "beam") ?? string.Empty;
         _beams.Add(new ServerBeam
         {
             Id = _nextBeamId++,
@@ -105,7 +107,12 @@ public sealed partial class GameServer
             return;
         }
 
-        beam.Name = SanitizeBeamName(intent.Name);
+        if (ScreenPlayerName(session, SanitizeBeamName(intent.Name), "beam") is not { } screened)
+        {
+            return; // refused by the content screen (#1221) — the player has been told
+        }
+
+        beam.Name = screened;
         _repo.SaveBeam(new StoredBeam
         {
             Planet = _world.LocationId,

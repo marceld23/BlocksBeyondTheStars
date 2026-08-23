@@ -158,6 +158,54 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Chat safety, finished — names + AI text screened, reports without an account, an admin pause (#1221 + #1222 + #1223, 2026-08-23, branch feat/1221-1222-1223-moderation)
+Fifteenth to seventeenth slices of the feature-deepening package (epic #1197), in one PR: all three ride on
+the machinery from #1207/#1208/#1209, and #1222 and #1223 share the one new thing — a per-session ring
+buffer of recent chat lines — so building them apart would have built it twice.
+
+**#1221 — everything written by a person or a model goes through the same screen.** Only the JOIN name was
+screened before; a base, a station, a beacon label, a beam pad and a companion were merely
+control-char-stripped and length-clamped, and the AI backend's greetings and mission flavour went out with
+nothing but a prompt guard behind them. All five name surfaces now run through `ScreenPlayerName`, which
+uses the **chat** lists rather than the join-name list — the acceptance criterion "German compounds pass" is
+exactly why: `NameScreen` substring-matches (right for a 24-character handle, wrong for "Dickichtlager"),
+`ChatScreen` matches whole tokens. A **masked** verdict rejects the name too, unlike in chat: a line is gone
+in a minute, a name is painted on the world, and Mask is also the verdict that carries personal data. The
+two PLACEMENT paths (beacon, beam pad) fall back to an empty label instead of refusing — the block is
+already in the world, and the client renders a localized default for an empty one. AI text is covered by
+wrapping the provider ONCE (`ScreenedAiTextProvider`) instead of patching six call sites; a refused text
+returns null, which every caller already treats as "the backend is down" and answers with the authored line.
+
+**#1222 — an arcade guest can report someone.** `/report` was client-only and gated on a portal session, so
+the players who most need it — glitch.fun guests on a public world full of strangers — got "not available
+here" and had no recourse at all. The server now intercepts `/report Player [note]` in chat **before the
+radio gate** (like `/bump`): no equipment, no account. It carries its own evidence — the reported player's
+last 10 relayed lines, from a 20-line RAM-only ring buffer per session — plus both players' arcade install
+ids, which arrive via an additive contractless `JoinRequest.InstallId` (no NetCodec tag). Capped at 3 per
+player per 10 minutes, and the whole argument is tried as a name first so a name with a space is not cut in
+half (#980). The client falls back to sending the raw line whenever it has no portal session, so there is
+one code path and the server answers the usage cases too. `ui.chat.report_unavailable` is gone — nothing is
+unavailable any more, and the glitch.fun store copy that already promised `/report` is finally true.
+
+**#1223 — a pause instead of only a kick.** `/silence Player [Minutes]` and `/unsilence Player` (admin, like
+`/kick`) set the SAME `ChatMutedUntil` the anti-spam cool-down uses, so the player gets the same explained
+notice and the server has one mute concept rather than two. Default 10 minutes, capped at a day; a fleet
+admin can never be silenced (the kick rule); applied straight on the tick thread — the kick queue exists
+only because the gateway calls it off-thread, and the optional `POST /mute` route was left out since nothing
+calls it. ⚠ **The verb had to change:** `/mute` was taken three days ago by #1209 as the player's own local
+"hide this person from me", which never reaches the server. One word must not mean two different things
+depending on who types it.
+
+Tests: `NameAndAiScreeningTests` (11) + `PlayerReportAndSilenceTests` (13). Two `*ForTest` seams:
+`ScreenAiTextForTest` (the world's verdict on AI text) and `AiProviderIsScreenedForTest` (that the wrapping
+is still there — nothing else in the game would notice a refactor dropping it), plus
+`LastPlayerReportJsonForTest`, recorded synchronously because the real send is fire-and-forget.
+⚠ Two test findings worth keeping: the FIRST player on a fresh world is its WorldAdmin (so "the other
+player" is not a non-admin), and #1208's burst window caps a talker at 6 lines per 10 s — a buffer test has
+to let time pass between lines. Locales: 15 keys EN+DE + 12 machine, one dead key removed from all 14 files.
+Docs: USER_MANUAL §Commands (`/report` rewritten, `/silence` section + admin table), SELF_HOSTING §12 (three
+new subsections). Still open: nothing in these three — the safety block now has only #1226 (docs) left.
+
 ### ★ Typing, tuning and the last two d-pad directions — the gamepad foundation (#1220 + #1211 + #1219, 2026-08-23, branch feat/1211-1219-1220-gamepad)
 Twelfth, thirteenth and fourteenth slices of the feature-deepening package (epic #1197), in one PR: all
 three edit `InputMap.cs`, `GamepadInputSource.cs` and `UiSettings.cs`, so splitting them would have cost

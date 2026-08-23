@@ -56,4 +56,28 @@ public sealed class AdminChatCommandTests
     {
         Assert.Equal(expected, AdminChatCommand.CleanName(raw));
     }
+
+    /// <summary>
+    /// "/silence &lt;name&gt; [minutes]" (#1223). The optional minutes sit at the END, which collides with
+    /// the rule that a name is the whole rest of the line — so a trailing token is minutes only when it
+    /// parses as a number AND something is left in front of it. The cases that matter are the ones where
+    /// a wrong guess silences the wrong person: a name that ENDS in a digit must stay intact.
+    /// </summary>
+    [Theory]
+    [InlineData("/silence Marcel", "Marcel", 0)]
+    [InlineData("/silence Player2", "Player2", 0)]
+    [InlineData("/silence mincraft Fan", "mincraft Fan", 0)]
+    [InlineData("/silence mincraft Fan 30", "mincraft Fan", 30)]
+    [InlineData("/silence Marcel 5", "Marcel", 5)]
+    [InlineData("/silence @Justus 15", "Justus", 15)]
+    [InlineData("/silence Marcel 0", "Marcel 0", 0)]     // zero is not a length — treat it as part of the name
+    [InlineData("/silence Marcel -5", "Marcel -5", 0)]   // …and neither is a negative one
+    [InlineData("/silence", "", 0)]
+    public void NameAndMinutes_SplitsOnlyOnARealTrailingNumber(string line, string name, int minutes)
+    {
+        var (parsedName, parsedMinutes) = AdminChatCommand.NameAndMinutes(line);
+
+        Assert.Equal(name, parsedName);
+        Assert.Equal(minutes, parsedMinutes);
+    }
 }

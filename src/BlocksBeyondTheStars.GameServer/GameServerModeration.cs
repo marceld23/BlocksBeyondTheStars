@@ -174,6 +174,87 @@ public sealed partial class GameServer
         }
     }
 
+    // ---------------- Names + AI text go through the same screen (#1221) ----------------
+    // Before this, ONLY the join name was screened. Everything else a player types and everyone else then
+    // reads — a base name, a station name, a beacon or beam-pad label, a companion's name — was merely
+    // control-char-stripped and length-clamped, and the AI backend's greetings and mission flavour went out
+    // with nothing but a prompt guard behind them. Same words, same server, same children reading them.
+
+    /// <summary>Screens a player-typed NAME. Returns the name to store, or null when it was refused — in
+    /// which case the player has already been told through <paramref name="surface"/>.
+    ///
+    /// Screened with the CHAT lists, not the join-name list, on purpose: a name screen substring-matches
+    /// (right for a 24-character handle, wrong for "Dickichtlager"), while the chat screen matches whole
+    /// tokens — and a base name is a short phrase, not a handle.
+    ///
+    /// A masked verdict is treated as a refusal too, unlike in chat. A chat line is gone in a minute; a
+    /// name is persistent and shown to everyone who walks past it, so "Basis f***" is a worse answer than
+    /// "pick another name" — and Mask is also the verdict that carries personal data, which must not be
+    /// stored at all.</summary>
+    private string? ScreenPlayerName(PlayerSession session, string clean, string surface)
+    {
+        var mode = EffectiveChatMode;
+        if (clean.Length == 0 || mode == ChatMode.Open)
+        {
+            return clean; // private LAN family world: nothing is screened anywhere
+        }
+
+        var result = ChatContentScreen.Screen(clean, mode);
+        string who = session.State.Name ?? "?";
+        if (result.Watch)
+        {
+            string term = result.MatchedTerm.Length > 0 ? result.MatchedTerm : "mixed-script";
+            _log.Info($"Name watch: '{who}' used watch-listed '{term}' in a {surface} name (allowed).");
+            NotifyOperator($"name watch [{_meta.WorldName}]",
+                $"Player '{who}' used watch-listed term '{term}' in a {surface} name.", "eyes");
+        }
+
+        if (result.Verdict == ChatVerdict.Ok)
+        {
+            return clean;
+        }
+
+        _log.Info($"Name filter: refused a {surface} name from '{who}' " +
+                  $"({(result.Pii ? "personal data: " : "term: ")}{result.MatchedTerm}).");
+        Reject(session, surface, "@srv.name.blocked");
+        return null;
+    }
+
+    /// <summary>Screens one piece of AI-written text. Returns the text to show, or null when it must not be
+    /// shown — which every AI call site already handles as "the backend gave us nothing", falling back to
+    /// the authored localized line. Wired in once by wrapping the provider (see
+    /// <see cref="ScreenedAiTextProvider"/>), so all six call sites are covered.
+    ///
+    /// Called from BACKGROUND threads (AI generation never runs on the tick): it only reads the screen and
+    /// the world rule and writes nothing, and the operator ping is fire-and-forget.</summary>
+    private string? ScreenAiText(string? text)
+    {
+        var mode = EffectiveChatMode;
+        if (string.IsNullOrWhiteSpace(text) || mode == ChatMode.Open)
+        {
+            return text;
+        }
+
+        var result = ChatContentScreen.Screen(text!, mode);
+        if (result.Watch)
+        {
+            string term = result.MatchedTerm.Length > 0 ? result.MatchedTerm : "mixed-script";
+            _log.Info($"AI text watch: watch-listed '{term}' (shown).");
+            NotifyOperator($"AI text watch [{_meta.WorldName}]",
+                $"AI-written text used watch-listed term '{term}'.", "eyes");
+        }
+
+        if (result.Verdict == ChatVerdict.Ok)
+        {
+            return text;
+        }
+
+        // Not masked and relayed like a chat line: our own backend wrote this, so the honest fallback is
+        // the line we authored ourselves rather than a starred-out sentence in an NPC's mouth.
+        _log.Warn($"AI text dropped: matched '{result.MatchedTerm}' — using the authored line instead.");
+        return null;
+    }
+
     // ---------------- Anti-spam + temporary auto-mute (#1208) ----------------
     // The 700 ms per-line limit stops a key held down; it does nothing about a burst of distinct lines, and
     // nothing at all about someone who keeps tripping the content filter. Two sliding windows close that gap
@@ -278,6 +359,76 @@ public sealed partial class GameServer
         }
     }
 
+    // ---------------- An admin pauses someone's chat by hand (#1223) ----------------
+    // Until now the only lever between "say something" and "kick" was nothing at all. This is the middle
+    // step: a few minutes of quiet, applied by a human, with the same explained notice the automatic
+    // cool-down gives — one mute concept on the server, not two.
+
+    /// <summary>Default length of an admin-applied chat pause when no number is given.</summary>
+    private const int DefaultSilenceMinutes = 10;
+
+    /// <summary>Longest chat pause an admin may set in one go — a day. Anything beyond that is a ban
+    /// decision, and bans live on the portal where the world's identity does (see the kick note above).</summary>
+    private const int MaxSilenceMinutes = 1440;
+
+    /// <summary>Pauses (or resumes) a player's chat. Returns the locale token to answer the admin with.
+    /// Runs on the tick thread — unlike the kick, there is no off-thread intake to queue behind (the
+    /// optional gateway route of #1223 is not wired: nothing calls it yet).</summary>
+    private string ApplyChatSilence(PlayerSession admin, string targetName, int minutes, bool lift)
+    {
+        if (targetName.Length == 0)
+        {
+            return "@srv.admin.usage_silence";
+        }
+
+        if (string.Equals(targetName, admin.State.Name, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return "@srv.admin.silence_self"; // reads as a bug report, exactly like kicking yourself
+        }
+
+        var target = FindJoinedSessionByName(targetName);
+        if (target is null)
+        {
+            return "@srv.admin.silence_no_target:" + targetName;
+        }
+
+        // Same rule as the kick: a world owner must not be able to silence the operator overseeing their
+        // world (#495).
+        if (target.IsFleetAdmin)
+        {
+            return "@srv.admin.silence_no_target:" + targetName;
+        }
+
+        string who = target.State.Name ?? "?";
+        if (lift)
+        {
+            target.ChatMutedUntil = 0;
+            target.ChatMuteNoticeSent = false;
+            target.RecentChatAt.Clear();
+            target.RecentFilterHitsAt.Clear();
+            Send(target, new ServerMessage { Text = "@srv.chat.unmuted" });
+            _log.Info($"Chat un-silenced: '{who}' by '{admin.State.Name}'.");
+            return "@srv.admin.unsilenced:" + who;
+        }
+
+        int span = System.Math.Clamp(minutes <= 0 ? DefaultSilenceMinutes : minutes, 1, MaxSilenceMinutes);
+        target.ChatMutedUntil = _uptime + (span * 60.0);
+        target.ChatMuteNoticeSent = false;
+        SendMuteNotice(target); // the same "chat is paused for you for N minutes" the auto-mute sends
+        _log.Info($"Chat silenced: '{who}' for {span} min by '{admin.State.Name}'.");
+        NotifyOperator($"chat silenced [{_meta.WorldName}]",
+            $"Admin '{admin.State.Name}' paused '{who}' chat for {span} minutes.", "mute");
+        return "@srv.admin.silenced:" + who;
+    }
+
+    /// <summary>Test hook: the world's verdict on one piece of AI-written text (#1221) — the text to show,
+    /// or null when the authored fallback must be used instead.</summary>
+    public string? ScreenAiTextForTest(string? text) => ScreenAiText(text);
+
+    /// <summary>Test hook: that the AI provider really is wrapped in the screen (#1221). The wrapping happens
+    /// once in the constructor, and nothing else would notice if a refactor dropped it.</summary>
+    public bool AiProviderIsScreenedForTest => _ai is ScreenedAiTextProvider;
+
     /// <summary>Test hook: whether this player's chat is currently auto-muted (#1208).</summary>
     public bool IsChatMutedForTest(string playerId)
         => FindSessionByPlayerId(playerId) is { } s && s.ChatMutedUntil > _uptime;
@@ -311,39 +462,60 @@ public sealed partial class GameServer
                              $"'{ownerName}' at {x},{y},{z} on {planet} (world '{_meta.WorldName}'). " +
                              $"Review with /{kind}wipe #{designId} (or by owner name).";
         NotifyOperator($"{kind} report [{_meta.WorldName}]", description, "triangular_flag_on_post");
+        PostReportToInbox(
+            $"{kind} report [{_meta.WorldName}]: #{designId} by '{ownerName}'",
+            description,
+            session,
+            kind + "-report",
+            new { kind, designId, ownerId, ownerName, planet, x, y, z });
+    }
 
-        var sink = CrashUploader;
-        if (sink is null || !sink.IsConfigured)
-        {
-            return;
-        }
-
+    /// <summary>Builds one report row and hands it to the inbox sink. Shared by the paint/shape reports and
+    /// the player report (#1222) so both arrive in the same shape — no <c>kind</c> at the top level, so the
+    /// inbox files it as "feedback" with a <c>reportType</c> marker for filtering.
+    ///
+    /// Returns the JSON it built even when no sink is configured (self-hosted servers have none): the row is
+    /// what the caller wants to inspect, and building it is the part that can be wrong. Sending is
+    /// fire-and-forget on a background thread — a report must never slow the tick or throw into it.</summary>
+    private string? PostReportToInbox(string title, string description, PlayerSession reporter,
+        string reportType, object report)
+    {
+        string json;
         try
         {
             var wire = new
             {
-                title = TruncateWire($"{kind} report [{_meta.WorldName}]: #{designId} by '{ownerName}'", 110),
+                title = TruncateWire(title, 110),
                 description,
                 email = string.Empty,
                 gameVersion = ServerVersionString,
                 buildNumber = string.Empty,
-                playerId = session.State.PlayerId ?? string.Empty,
-                playerName = session.State.Name ?? string.Empty,
+                playerId = reporter.State.PlayerId ?? string.Empty,
+                playerName = reporter.State.Name ?? string.Empty,
                 sessionId = string.Empty,
                 platform = "server",
                 clientTimestamp = System.DateTime.UtcNow.ToString("o"),
                 reportJson = new
                 {
                     schemaVersion = 1,
-                    reportType = kind + "-report",
+                    reportType,
                     source = "server",
                     world = _meta.WorldName,
                     serverVersion = ServerVersionString,
-                    report = new { kind, designId, ownerId, ownerName, planet, x, y, z },
+                    report,
                 },
             };
 
-            string json = JsonSerializer.Serialize(wire);
+            json = JsonSerializer.Serialize(wire);
+        }
+        catch
+        {
+            return null; // forwarding must never break the report handling or the tick
+        }
+
+        var sink = CrashUploader;
+        if (sink is { IsConfigured: true })
+        {
             _ = System.Threading.Tasks.Task.Run(() =>
             {
                 try
@@ -352,14 +524,12 @@ public sealed partial class GameServer
                 }
                 catch
                 {
-                    // one best-effort attempt; the local paint_report row remains the source of truth
+                    // one best-effort attempt; the local row / log line remains the source of truth
                 }
             });
         }
-        catch
-        {
-            // forwarding must never break the report handling or the tick
-        }
+
+        return json;
     }
 
     /// <summary>Sends the rejection to every session playing under this name and arms the close.</summary>
