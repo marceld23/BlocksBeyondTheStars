@@ -72,12 +72,17 @@ public sealed partial class GameServer
     /// pet's produce waits for the owner's visit). Owner-only by construction: only THIS session's pets count.</summary>
     private bool CompanionFetches(PlayerSession session, Vector3f packetCenter)
     {
-        float r2 = CompanionFetchRadius * CompanionFetchRadius;
         float leash2 = CompanionLeashRange * CompanionLeashRange;
         foreach (var c in _creatures)
         {
-            if (c.IsCompanion && c.OwnerId == session.State.PlayerId
-                && WrapDistSq(c.Position, packetCenter) <= r2
+            if (!c.IsCompanion || c.OwnerId != session.State.PlayerId)
+            {
+                continue;
+            }
+
+            // The reach grows with the bond (#1225) — a well-fed pet hoovers a wider circle.
+            float r = CompanionFetchRadiusFor(session.State.TamedCreatures.FirstOrDefault(t => t.Id == c.CompanionId));
+            if (WrapDistSq(c.Position, packetCenter) <= r * r
                 && WrapDistSq(c.Position, session.State.Position) <= leash2)
             {
                 return true;

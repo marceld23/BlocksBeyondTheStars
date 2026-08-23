@@ -589,6 +589,14 @@ separate unlock; admins can still disable it through server world rules.
   Two things worth knowing: it only works **while you are home** on that world, and machines appear 35–50
   blocks away from you — so a sentry is the thing that covers your back while you build, not a fence that
   clears the neighbourhood. On **Creative** or **Peaceful** worlds it stays quiet, like everything else.
+- **Visitors at the base** (Settings → world rules, world admin, **off by default** — on in the `dangerous`
+  preset): with it on, and only while **you are home**, two bandit **scouts** occasionally walk up to the
+  **edge of your zone**, stand there for about a minute, and wander off again. They **never step inside, never
+  demand anything, never damage a block and never take a thing** — they look, and that is all; your sentry
+  leaves them alone too, exactly as it leaves a robber who is still talking. Hit one and it fights like any
+  robber. Driving two of them off at your own base is the **"Guard the homestead"** bounty (on any board,
+  only offered while the option is on) and the *Not On My Doorstep* achievement. Needs the **Bandits** slider
+  on and Survival — on family and peaceful worlds the switch is not even offered.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 
@@ -924,6 +932,9 @@ separate unlock; admins can still disable it through server world rules.
   out in the frontier hit like the toughest world settings — richness and risk scale together. On
   peaceful/family worlds there are no machines at all, so those stay "richer, never more dangerous". The
   `dangerous` preset ships with it on.
+- **Visitors at the base** (Settings → world rules, world admin, off by default): bandit scouts look at a
+  founded base from its edge while the owner is home — never inside, never destructive; see § Bases. Gated
+  on the **Bandits** slider (no robbers, no scouts); the `dangerous` preset ships with it on.
 - **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 8
   systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
   telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a
@@ -978,7 +989,14 @@ separate unlock; admins can still disable it through server world rules.
   creatures need more steps — and two animals of the same kind can behave differently.
 - A companion **lives on the world you tamed it on**: it follows you there (friendly green-cyan tint + a floating
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
-  (rename, release). Companions are peaceful and can't be hurt.
+  (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt.
+- **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
+  Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each — and the
+  number buys three things: at **50** it **fetches from a wider circle** (half again as far), at **70**
+  **robbers keep away** from you while it is at your side, and at **90** it has **a nose for the place** and
+  will occasionally point out a landmark (it knows the big things — the crashed wreck — not the secrets the
+  villagers keep for friends). A pet you do not feed loses **one point a day**, but **never below 40**: a
+  holiday costs the perks, never the friendship.
 - **What a companion does for you:** it **fetches** — any dropped packet it can reach (about three times your own
   pickup reach) pours straight into *your* inventory while you are nearby; it **growls** when a hostile machine,
   bandit or aggressive animal has line of sight to it (a toast plus an amber **"!"** nameplate for a few seconds,

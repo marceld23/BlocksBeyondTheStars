@@ -289,6 +289,7 @@ public static class StateMapper
         Species = t.Species,
         SizeScale = t.SizeScale,
         Bond = t.Bond,
+        LastFedUtc = t.LastFedUtc,
         TamedAtUtc = t.TamedAtUtc,
     };
 

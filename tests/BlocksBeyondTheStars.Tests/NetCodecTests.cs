@@ -278,6 +278,7 @@ public sealed class NetCodecTests
         [225] = typeof(NpcDialogState),
         [226] = typeof(NpcDialogChoiceIntent),
         [227] = typeof(SentryShot),
+        [228] = typeof(FeedCompanionIntent),
     };
 
     [Fact]

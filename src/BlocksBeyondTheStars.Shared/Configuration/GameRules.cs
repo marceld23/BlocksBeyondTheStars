@@ -206,6 +206,13 @@ public sealed class GameRules
     /// family/peaceful setups have PlanetEnemies Off and never see it. Live-editable.</summary>
     public bool FrontierDanger { get; set; }
 
+    /// <summary>Visitors at the base (#1224, opt-in — default OFF everywhere except the `dangerous` preset):
+    /// when on, a founded base whose owner is home is occasionally looked at by two bandit scouts. They stop
+    /// at the zone edge, never enter, never demand, never damage a block, never take anything, and leave
+    /// after a minute; hit one and it fights like any robber. Needs <see cref="Bandits"/> on and Survival.
+    /// No launch lift on purpose: off is the correct reading of an old save. Live-editable.</summary>
+    public bool BaseVisitors { get; set; }
+
     /// <summary>The active story pack for a fresh save (P8 world option): a pack id (e.g. "vega_protocol"),
     /// "none" to play sandbox with no story, or empty to use the built-in default pack. Only consulted when a
     /// save has no persisted story state yet; thereafter the admin switches packs live (resets progress).</summary>

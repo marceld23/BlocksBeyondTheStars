@@ -1971,6 +1971,23 @@ namespace BlocksBeyondTheStars.Client
                 y += 96f;
             }
 
+            // Visitors at the base (#1224, opt-in): bandit scouts look at a founded base from the zone edge.
+            // Gated on the BANDITS slider, not the machine one — scouts are bandits, and with robbers off the
+            // switch would do nothing, so it is not offered then.
+            if (!string.Equals(rules?.Bandits, "Off", System.StringComparison.OrdinalIgnoreCase))
+            {
+                bool visitors = rules?.BaseVisitors ?? false;
+                var visitorsBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
+                {
+                    Game?.Network?.SendSetWorldRules(baseVisitors: visitors ? "Off" : "On");
+                    Invoke(nameof(RebuildList), 0.35f);
+                });
+                UiKit.AddText(visitorsBtn.transform, 16, 0, 520, 78, L("ui.worldopt.base_visitors"), 24, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(visitorsBtn.transform, 560, 0, 200, 78, visitors ? L("ui.toggle.on") : L("ui.toggle.off"), 22,
+                    visitors ? UiKit.Ok : UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+                y += 96f;
+            }
+
             // Per-player mode overrides (#1121): one row per online player, cycling World / Survival /
             // Creative. The server fills the roster ONLY for world admins, so the section simply is not
             // there for everyone else — same admin gating as the rule rows above, but without the noise.
@@ -2427,19 +2444,47 @@ namespace BlocksBeyondTheStars.Client
                 string sub = $"{c.SpeciesName}  ·  {L("ui.companions.home")}: {c.HomeBodyName}  ·  {L("ui.companions.bond")} {c.Bond}  ·  {state}";
                 UiKit.AddText(_listContent, 28, y + 30, 700, 22, sub, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
 
+                // Bond bar (#1225): the number finally buys something, so show where it stands and where the
+                // next step is — tick marks at the three tiers (wider fetch / bandit ward / scouting).
+                const float barW = 420f;
+                UiKit.AddImage(_listContent, 28, y + 54, barW, 6, UiKit.SolidSprite, new Color(0.1f, 0.18f, 0.3f));
+                UiKit.AddImage(_listContent, 28, y + 54, barW * Mathf.Clamp01(c.Bond / 100f), 6, UiKit.SolidSprite, UiKit.Cyan);
+                foreach (int tier in new[] { 50, 70, 90 })
+                {
+                    UiKit.AddImage(_listContent, 28 + barW * tier / 100f - 1f, y + 51, 2, 12, UiKit.SolidSprite,
+                        c.Bond >= tier ? UiKit.Ok : UiKit.CyanDim);
+                }
+
+                string tierText = c.Bond >= 90 ? L("ui.companions.tier_scout")
+                    : c.Bond >= 70 ? L("ui.companions.tier_ward")
+                    : c.Bond >= 50 ? L("ui.companions.tier_fetch")
+                    : L("ui.companions.tier_none");
+                UiKit.AddText(_listContent, 460, y + 46, 300, 22, tierText, 13, UiKit.CyanDim, TextAnchor.MiddleLeft);
+
                 string draft = _companionDraft.TryGetValue(id, out var d) ? d : c.Name;
-                var field = UiKit.AddInput(_listContent, 8, y + 56, 360, 44, draft, v => _companionDraft[id] = v, L("ui.companion.placeholder"));
+                var field = UiKit.AddInput(_listContent, 8, y + 68, 300, 44, draft, v => _companionDraft[id] = v, L("ui.companion.placeholder"));
                 field.characterLimit = 24;
                 field.lineType = InputField.LineType.SingleLine;
-                UiKit.AddButton(_listContent, 376, y + 56, 150, 44, L("ui.companions.rename"), () =>
+                UiKit.AddButton(_listContent, 316, y + 68, 130, 44, L("ui.companions.rename"), () =>
                 {
                     string nm = _companionDraft.TryGetValue(id, out var dd) ? dd : c.Name;
                     Game.Network?.SendSetCompanionName(id, nm);
                 });
-                var rel = UiKit.AddButton(_listContent, 536, y + 56, 150, 44, L("ui.companions.release"), () => Game.Network?.SendReleaseCompanion(id));
+
+                // Feed (#1225): one bait from the pack, +5 bond. Dimmed — not hidden — when it would do
+                // nothing right now, so a player can see the button exists and read why it is grey.
+                var feed = UiKit.AddButton(_listContent, 454, y + 68, 130, 44, L("ui.companions.feed"), () => Game.Network?.SendFeedCompanion(id));
+                if (!c.CanFeed)
+                {
+                    feed.interactable = false;
+                    UiKit.AddText(_listContent, 28, y + 114, 700, 18,
+                        c.Bond >= 100 ? L("ui.companions.feed_full") : L("ui.companions.feed_hint"), 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                }
+
+                var rel = UiKit.AddButton(_listContent, 592, y + 68, 130, 44, L("ui.companions.release"), () => Game.Network?.SendReleaseCompanion(id));
                 rel.GetComponent<Image>().color = new Color(0.5f, 0.22f, 0.22f);
 
-                y += 116f;
+                y += 140f;
             }
 
             return y;

@@ -155,6 +155,13 @@ public sealed partial class GameServer
                     }
 
                     break;
+                case MissionObjectiveType.Defeat when o.Target == DefeatTargetScout:
+                    if (!BaseVisitorsActive)
+                    {
+                        return false; // scouts only come when the world option is on (#1224)
+                    }
+
+                    break;
                 case MissionObjectiveType.Scan when o.Target == "creature:hostile":
                     if (!_speciesRoster.Any(sp => sp.Hostile))
                     {

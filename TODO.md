@@ -158,6 +158,48 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Base life — scouts at the gate + feed & bond (#1224 + #1225, 2026-08-23, branch feat/1224-1225-base-life)
+Eighteenth and nineteenth slices of the feature-deepening package (epic #1197), in one PR. Both were gated on
+what shipped days ago: #1224 "only after the sentry post exists" (#1214), #1225 "after the companion payoff"
+(#1210).
+
+**#1224 — "scouts at the gate" (opt-in).** `GameServerBaseLife.cs` had said in so many words that bandit
+scouting was "a later, opt-in feature"; nothing ever approached a base, so a home never felt watched. New world
+rule `GameRules.BaseVisitors` (**default OFF** everywhere, on in the `dangerous` preset; `ServerRules` wire +
+`SetWorldRulesIntent` + a world-options row **gated on the Bandits slider, not the machine one** — scouts ARE
+bandits, so with robbers off the switch would do nothing and is not offered). **No launch lift, deliberately:**
+off is the correct reading of an old save, and an existing dangerous world must not quietly grow teeth on
+update. New `BanditPhase.Scouting` in `GameServerBaseVisitors.cs`: for a base whose owner is **home** (joined,
+on that body, not `IgnoredByHostiles` — the sentry's rule, for the sentry's reason), on the bandit cooldown
+roll two scouts spawn ~40 blocks out, walk to the **zone edge**, stand a minute, leave. A step that would
+land inside the zone is **refused** (`ScoutStepBlocked`, the energy-fence rule, checked after the locomotion
+step — the full suite caught a one-tick arrival overshoot that three isolated runs had not); they never
+demand, never damage, never steal; the sentry holds fire on
+them exactly as on a robber still talking (`BanditIsFighting`). Hitting one goes through the normal path →
+Fighting; beating it credits the new `base:defended` counter (achievement *Not On My Doorstep*) and the
+**"Guard the homestead"** bounty — a one-step chain in `missions.json` (target `base_scout`) so it only appears
+while `BaseVisitorsActive`, via the #1213 feasibility arm. Toast `@srv.base.scouts` per visit, VEGA line once
+per session. RAM-only cooldown per base.
+
+**#1225 — feed & bond.** `TamedCreature.Bond` was written once at taming and read in exactly one place; its own
+doc comment said "room to grow". `FeedCompanionIntent` (**NetCodec 228** — golden list updated) spends **any**
+of the three baits (taming already hides a per-animal preference; refusing the food a child actually brought
+would be a bad second lesson) for +5 Bond, cap 100, 60 s cooldown. **Decay 1 per real day** since
+`LastFedUtc` with a **floor of 40** — where taming starts, so a holiday costs the perks and never the
+friendship — applied on join and before a feed, keyed on `LastFedUtc` so a day is never charged twice. Tiers:
+**50** fetch radius ×1.5, **70** the bandit ward (#1210, now named), **90** a scouting hint every 5 min through
+`TryEmitHint` (for a companion that can only ever be the wreck — no relationship memory; bounded on purpose).
+Companions tab: **bond bar with tier ticks**, tier caption, **Feed** button dimmed with a reason when it would
+do nothing (`NetCompanion.CanFeed`, additive). The clock is a `*ForTest` seam (`UnixMsOverrideForTest`).
+
+Tests: `BaseVisitorsTests` (6 — off by default + presets, rule off, arrival + toast + VEGA, nobody home, never
+inside the zone over a 90 s walk, hit → fight → credit) + `CompanionBondTests` (8 — +5/bait/message, any bait,
+no bait, cooldown, cap, decay + floor + whole days, fetch radius, `CanFeed` through the real wire path);
+`SentryTests` phase loop gained Scouting. ⚠ Test finding kept as a comment: a fixture "fed a day ago" is also a
+day of decay — the two tests that tripped were the fixture, not the code. Locales: 22 keys EN+DE + 12 machine.
+Docs: USER_MANUAL § Bases / § world options / § Taming, CREATURE_TAMING.md (B3 moved from deferred to done).
+Still open: on-device — a scout visit is a 15-minute wait per base, and the bond bar wants eyes on it.
+
 ### ★ Chat safety, finished — names + AI text screened, reports without an account, an admin pause (#1221 + #1222 + #1223, 2026-08-23, branch feat/1221-1222-1223-moderation)
 Fifteenth to seventeenth slices of the feature-deepening package (epic #1197), in one PR: all three ride on
 the machinery from #1207/#1208/#1209, and #1222 and #1223 share the one new thing — a per-session ring

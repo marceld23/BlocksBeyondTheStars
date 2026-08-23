@@ -126,6 +126,8 @@ public sealed partial class GameServer
             TrySpawnLoneBandit(targets);
         }
 
+        TrySpawnBaseScouts(targets); // #1224: opt-in visits at founded bases (own gates inside)
+
         bool moved = false;
         bool changed = false;
         _banditRemovals.Clear();
@@ -451,6 +453,10 @@ public sealed partial class GameServer
                         break;
                     }
 
+                case BanditPhase.Scouting:
+                    intent = ScoutIntent(bandit, dt, ref changed, out target); // #1224
+                    break;
+
                 case BanditPhase.Leaving:
                     {
                         bandit.GiveUpTimer += dt;
@@ -509,6 +515,15 @@ public sealed partial class GameServer
 
         var candidate = new Vector3f(nx, groundY, nz);
         if (EntityBlockedByShip(candidate) || BlockedByEnergyFence(bandit.Position, candidate))
+        {
+            bandit.Loco.ModeTimer = 0f;
+            return false;
+        }
+
+        // A base scout is fenced OUT of the zone exactly like the energy fence fences creatures (#1224): the
+        // step that would cross the line is refused, so the scout is never inside even for the one tick the
+        // locomotion's inertia would carry it over the edge point.
+        if (ScoutStepBlocked(bandit, candidate))
         {
             bandit.Loco.ModeTimer = 0f;
             return false;

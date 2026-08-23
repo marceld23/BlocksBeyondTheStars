@@ -42,6 +42,7 @@
   { "key": "defender_100",   "counter": "defeat:any",      "target": 100, "category": "survival", "rewards": [ { "item": "medpack", "count": 6 }, { "item": "titanium_plate", "count": 4 } ] },
   { "key": "beast_friend",   "counter": "tame:any",        "target": 1,   "category": "survival", "rewards": [ { "item": "medpack", "count": 1 } ] },
   { "key": "tamer",          "counter": "tame:any",        "target": 5,   "category": "survival", "rewards": [ { "item": "energy_cell_1", "count": 3 } ] },
+  { "key": "homestead_defended", "counter": "base:defended", "target": 2, "category": "survival", "rewards": [ { "item": "medpack", "count": 2 } ] },
 
   { "key": "helping_hand",   "counter": "mission:completed", "target": 5,  "category": "story",   "rewards": [ { "item": "energy_cell_1", "count": 2 } ] },
   { "key": "quartermasters_friend", "counter": "mission:completed", "target": 25, "category": "story", "rewards": [ { "item": "circuit_board", "count": 4 } ] },

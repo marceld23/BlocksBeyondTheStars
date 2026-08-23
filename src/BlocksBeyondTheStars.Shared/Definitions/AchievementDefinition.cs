@@ -106,4 +106,7 @@ public static class AchievementCounters
 
     /// <summary>Two relays linked into a jump lane (#1125 F-2) — counted for the completing contributor.</summary>
     public const string LaneLinked = "lane:linked";
+
+    /// <summary>A bandit scout beaten at the player's own base (#1224).</summary>
+    public const string BaseDefended = "base:defended";
 }

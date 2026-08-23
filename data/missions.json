@@ -20,6 +20,22 @@
     "active": true
   },
 
+  // "Guard the homestead" (#1224) — only offered while the "Visitors at the base" world option is on (the
+  // scouts exist only then; see GameServerBaseVisitors.cs). A one-step chain so it goes through the chain
+  // rule's feasibility check instead of being listed everywhere like the two starter jobs above.
+  {
+    "id": "homestead_guard",
+    "source": "system",
+    "nameKey": "mission.homestead_guard.name",
+    "descriptionKey": "mission.homestead_guard.desc",
+    "chainId": "homestead", "step": 1,
+    "surface": "board", "offerAt": "any",
+    "objectives": [ { "type": "defeat", "target": "base_scout", "required": 2 } ],
+    "rewards": [ { "item": "medpack", "count": 2 }, { "item": "iron_plate", "count": 6 } ],
+    "repeatable": true,
+    "active": true
+  },
+
   // ---- Mission chains (#1212). Schema: chainId / step / prerequisites / nextMissionId / giverRole / minStage /
   // surface (board|dialog|radio) / offerAt (settlement|station|any) — see Shared/Missions/MissionChains.cs.
   // Two entries sharing chainId AND step are alternatives: the server offers the first feasible one (lowest id).

@@ -115,6 +115,7 @@ public static class ServerPresets
             PlanetEnemies = AlienActivity.Frequent,
             Bandits = AlienActivity.Frequent,
             FrontierDanger = true, // #1122: the risk dial belongs on by default exactly here
+            BaseVisitors = true,   // #1224: same reasoning — the one preset that asked for teeth
             AsteroidDestruction = AsteroidDestructionMode.WeaponsAllowed,
             ShipDocking = DockingMode.RequestRequired,
             PersonalLandingZones = true,
