@@ -117,8 +117,10 @@ namespace BlocksBeyondTheStars.Client
                 RefreshLog();
             }
 
-            // Open the input with Enter (when no other panel is open).
-            if (!_typing && !Game.MenuOpen && (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            // Open the input with Enter — or, on a pad, with d-pad up: the chat box was the last thing on
+            // the HUD a controller could not reach at all (#1211/#1220). KeypadEnter stays a raw second key
+            // rather than a binding: it is the SAME key to a player, not a second one to configure.
+            if (!_typing && !Game.MenuOpen && (InputMap.Down(InputAction.OpenChat) || Input.GetKeyDown(KeyCode.KeypadEnter)))
             {
                 OpenInput();
             }
@@ -160,6 +162,36 @@ namespace BlocksBeyondTheStars.Client
             {
                 string label = Game.Localizer != null ? Game.Localizer.Get("ui.chat.hint") : "Chat";
                 Submit(TouchTextEntry.Prompt(label, string.Empty));
+                return;
+            }
+
+            if (OnScreenKeyboardUi.WantedFor())
+            {
+                // A pad has no keyboard: type the line on the on-screen grid. Like the browser-prompt path
+                // above this does not enter _typing (the grid owns the screen while it is up), but
+                // ChatTyping still goes up — it is what stops the chat overlay from fading, the context
+                // list from opening underneath and the L3/Feedback hotkeys from firing mid-sentence — and
+                // it comes back down whichever way the grid is closed.
+                var game = Game;
+                string padLabel = game.Localizer != null ? game.Localizer.Get("ui.chat.hint") : "Chat";
+                game.ChatTyping = true;
+                OnScreenKeyboardUi.Open(padLabel, string.Empty, _input != null ? _input.characterLimit : 0,
+                    text =>
+                    {
+                        if (game != null)
+                        {
+                            game.ChatTyping = false;
+                        }
+
+                        Submit(text);
+                    },
+                    () =>
+                    {
+                        if (game != null)
+                        {
+                            game.ChatTyping = false;
+                        }
+                    });
                 return;
             }
 

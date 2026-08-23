@@ -315,6 +315,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Localizer = new Localizer(locale, active ?? english, english ?? active);
+            UiKit.Localize = L; // shared UI with no screen of its own resolves through here (#1211)
             Debug.Log($"Bootstrap localizer ready for '{locale.Code()}' before the content cache.");
         }
 
@@ -491,6 +492,7 @@ namespace BlocksBeyondTheStars.Client
             Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             var locale = GameLocaleExtensions.Parse(Settings.Language);
             Localizer = Content.CreateLocalizer(locale);
+            UiKit.Localize = L;
             ContentReady = true;
 
             // A live world keeps its OWN Localizer (snapshotted at build) — push the change so the running

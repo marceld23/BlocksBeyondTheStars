@@ -28,9 +28,11 @@ namespace BlocksBeyondTheStars.Client
     /// <c>gameObject.SetActive(false)</c> (which disables this component too) and <c>canvas.enabled = false</c>
     /// (which does NOT: the GameObject stays active). Without the canvas check a hidden screen keeps pulling
     /// the selection away from whatever is actually on screen (#1198).</item>
-    /// <item>It never auto-selects a text field. A focused uGUI <c>InputField</c> swallows the navigation
-    /// axes, so a pad player dropped into one has no way back out until the on-screen keyboard lands
-    /// (#1211). Clicking or navigating into a field on purpose still works.</item>
+    /// <item>It prefers not to auto-select a text field: a form's first control is usually a field, and
+    /// landing there means the player's first stick flick edits text instead of moving. Since the on-screen
+    /// keyboard (#1211) a field is no longer a TRAP — <see cref="PadTextEntryBridge"/> keeps it deactivated
+    /// while a pad is in hand — so a screen made of nothing but fields now focuses its first one rather than
+    /// being left with no selection at all.</item>
     /// <item>It remembers WHERE the selection was and restores that position when the controls are rebuilt.
     /// Data-driven panes (the crafting list rebuilds all three panes on every pick) would otherwise snap the
     /// focus back to control #1 on every input.</item>
@@ -137,7 +139,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The control to focus: the one sitting where the selection was before the panel was
         /// rebuilt (clamped — a filtered list can get shorter), else the first control that is not a text
-        /// field.</summary>
+        /// field, and only failing that a field (see the class summary).</summary>
         private Selectable PreferredSelectable(Selectable[] all)
         {
             if (all.Length == 0)
@@ -162,7 +164,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            return null; // nothing but text fields: leave the selection alone (see the class summary)
+            return all[0]; // nothing but fields: focus one anyway — with the on-screen keyboard it is usable
         }
 
         /// <summary>This menu's currently interactable controls, in hierarchy order.</summary>

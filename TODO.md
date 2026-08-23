@@ -158,6 +158,60 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Typing, tuning and the last two d-pad directions — the gamepad foundation (#1220 + #1211 + #1219, 2026-08-23, branch feat/1211-1219-1220-gamepad)
+Twelfth, thirteenth and fourteenth slices of the feature-deepening package (epic #1197), in one PR: all
+three edit `InputMap.cs`, `GamepadInputSource.cs` and `UiSettings.cs`, so splitting them would have cost
+three Unity builds and two rebases over the same files.
+
+**#1220 — the missing axes.** `InputManager.asset` had `RightStickX/Y` and `DPadX` and nothing else, which
+is why `DefaultButtonFor(HotbarAction)` carried a comment wishing for a d-pad-down. Added `DPadY` (axis 6,
+positive = up) and `Triggers` (axis 2 — the combined XInput trigger axis). **D-pad up opens the chat**
+(new `InputAction.OpenChat`, keyboard default Return) and **d-pad down turns the held block**
+(`RotateShape`). The issue asked for *both* d-pad-down = a second ContextActions home *and* RotateShape on
+the d-pad; with up taken and left/right on the hotbar only one direction was left, so it went to the verb
+with **no** stock pad button while the context list kept L3. Both are fixed rather than rebindable — an
+axis cannot be written as a `KeyCode` — and the step is cached per frame so several screens polling the
+same action in one frame all agree. Triggers add mine/place on top of RB/LB and ship **off**: the trigger
+axis is the one reading that genuinely differs between XInput, Proton and the browser Gamepad API, and a
+pad idling at full deflection would mine on its own. Holding LB/RB (place/mine) now halves pad look speed —
+precision help for free, since those buttons *are* the careful-aiming moment.
+
+**#1211 — the on-screen keyboard.** A pad could reach every screen but not one text field: uGUI activates
+an `InputField` the moment it is selected, and a focused field swallows the navigation axes, so a pad
+player who landed on one could neither type nor leave. `OnScreenKeyboardUi` is a uGUI button grid on its
+own canvas (sorting 5000, UiNav-enabled) whose layout and every text edit live in
+`Client.Core/OnScreenKeyboardLayout.cs` — Unity-free and unit-tested. `UiKit.AddInput` attaches a
+`PadTextEntryBridge` to **every** field it builds (63 call sites), so no screen opts in: while a pad is in
+hand the bridge keeps the field deactivated each frame and **A** opens the keyboard, writing the result
+back through `field.text` so the field's own listeners fire as after typing. `ChatUi.OpenInput` takes the
+same route. `InputMap.ModalCapture` blanks `UiCancel`/`UiMenu` for every *other* screen while it is up, so
+one press of B closes exactly one thing, and `UiKit.TextFieldFocused()` reports true — the gate the rest of
+the game already uses for "the player is typing". `PlayerController`'s freeze condition learned the keyboard
+too, and the chat path raises `ChatTyping` while the grid is up: it picks letters with the *same* left stick
+that walks the player, so without that a pad would spell a word and wander off at once. QWERTY + digits + `äöüß` + a symbol page (no `<`/`>`);
+shift uppercases per character with the invariant culture so `ß` is not turned into "SS" behind the
+player's back. `UiNavFocus` may now fall back to a text field, since landing on one is no longer a trap.
+
+**#1219 — the controller page.** Dead zone, pad look speed X/Y, invert pad Y, mine/place on the triggers,
+button-name layout (Xbox / PlayStation / Nintendo, matched by physical position — the PlayStation shapes
+are spelled out because the bundled Rajdhani font is Latin-only) and a vibration switch that is **stored
+and does nothing**, with a dim line under it that says so rather than a toggle that quietly lies. Look
+sensitivity is a *multiplier* on the master sensitivity, not an absolute rate: the merged look value is
+scaled by `MouseSensitivity` on foot and by `LookSpeed` in flight, so an absolute pad rate would have to be
+divided back out at one of them. Every default is the constant the code used before, so an existing
+`client_settings.json` feels unchanged. The section says plainly when no pad is connected.
+
+Tests: `OnScreenKeyboardLayoutTests` (9, Client.Core) + `OnScreenKeyboardEditModeTests` (8) + 4 new
+`InputAbstractionEditModeTests` (d-pad verbs inert with no pad, `OpenChat` key/pad resolution, modal
+capture, controller defaults, glyph layouts) + a controller round-trip in
+`ClientSettingsPersistenceEditModeTests`; `UiNavEditModeTests` updated for the field fallback. Two named
+test seams make the pad reachable in CI at all — `InputMap.DeviceOverrideForTest` and
+`OnScreenKeyboardUi.PressForTest`, the latter being the same entry point the on-screen buttons use, so the
+tests exercise the real wiring rather than a copy.
+Locales: 24 keys EN+DE + 12 machine. Docs: INPUT_AND_CONTROLLER.md (axes, d-pad verbs, triggers, a whole
+"Text entry on a gamepad" section), USER_MANUAL § Gamepad. Still open: the on-device pass (#1227) — CI has
+no controller, so trigger axis numbers and the d-pad sign want a real pad.
+
 ### ★ Per-player mute + the base sentry post (#1209 + #1214, 2026-08-23, branch feat/1209-1214-mute-sentry)
 Tenth and eleventh slices of the feature-deepening package (epic #1197), bundled into one PR at Marcel's
 request — both touch `client/Assets`, so **one Unity build covers both**.

@@ -118,6 +118,8 @@ buttons — retuning is tracked in issue #195):
 | **RB** | Mine / attack (hold to keep mining) |
 | **LB** | Place the selected hotbar block / use the held gadget |
 | **D-pad ◄ ►** | Cycle hotbar slot |
+| **D-pad ▲** | Open the chat (with the on-screen keyboard) |
+| **D-pad ▼** | Turn the building block you are holding |
 | **(A)** | Jump (hold in air = jetpack; in water = swim up) |
 | **(X)** | Use / board / interact |
 | **(Y)** | Toggle first / third-person camera |
@@ -135,9 +137,15 @@ editors. The right stick also steers the ship in flight; the d-pad cycles the **
 (laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain keyboard-only. Verbs without a
 face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
 
-Windows that ask you to **type** (naming a beacon or a blueprint) put the controller on their buttons
-instead of into the text box, so you can confirm the suggested name with **(A)** or cancel with **(B)**.
-Typing with a controller needs the on-screen keyboard, which is still to come.
+**Typing without a keyboard.** Move to a text box and press **(A)**: an on-screen keyboard opens, and you
+pick letters with the stick and **(A)**. **ABC/abc** switches upper and lower case, **?123** shows the
+punctuation page, **(X)** deletes the last letter, **Start** is done and **(B)** cancels. It works
+everywhere text is asked for — the world name, a server address, a beacon or blueprint label, the chat —
+so a whole session really can be played with nothing but a controller. (On a tablet the device's own
+keyboard opens instead; nothing changes there.)
+
+**Aiming carefully.** Holding **LB** or **RB** — the place and mine buttons — slows the right stick to half
+speed, so lining a block up is easier without changing your normal look speed.
 
 **Editors on a controller.** The Ship Editor and the pixel (face/paint) editor have two modes, and
 **Start** swaps between them: the side panels (stick walks them, **(A)** picks) and the work surface. In
@@ -146,6 +154,14 @@ the Ship Editor's surface mode the left stick flies, the right stick looks, **LB
 the block — a crosshair in the middle of the screen shows where it will land. In the pixel editor the stick
 moves a cell cursor, **(A)** paints, **(X)** erases and **(Y)** picks up a colour. **(B)** returns to the
 panels; the hint line under the tools always says which controls are live.
+
+**Controller settings.** *Settings → Controller* has the pad's own rows: the **stick dead zone** (raise it
+if a worn stick drifts on its own), separate **look speeds left/right and up/down** as a multiplier on your
+normal sensitivity, **invert up/down for the pad only**, **mine and place on the triggers** (extra to
+LB/RB — switch it off again if your controller mines by itself, which some pads do because they report
+their triggers differently), the **button names** shown in hints (Xbox, PlayStation or Nintendo — the
+buttons themselves do not change, only what we call them), and a **vibration** switch whose setting is
+remembered but which nothing acts on yet.
 
 **Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button

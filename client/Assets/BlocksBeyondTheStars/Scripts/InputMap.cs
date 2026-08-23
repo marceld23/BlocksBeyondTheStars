@@ -25,6 +25,7 @@ namespace BlocksBeyondTheStars.Client
         RotateShape,       // cycle a held building shape's orientation (auto → the 6 up-faces) — default R
         ToggleThermal,     // infrared mode while looking through the thermal binoculars — default I
         ToggleChat,        // mute/unmute the chat scrollback overlay for this session (#636) — default J
+        OpenChat,          // open the chat input box (#1211) — default Return, pad d-pad up
         HotbarAction,      // slot actions on the selected hotbar slot (swap/colour/form) — default middle mouse
 
         // Flight / EVA (cockpit + spacewalk). Interact (dock/land/board) and ToggleThirdPerson (view) are
@@ -90,12 +91,22 @@ namespace BlocksBeyondTheStars.Client
         private static int _deviceFrame = -1;
         private static InputDeviceKind _activeDevice = InputDeviceKind.KeyboardMouse;
 
+        /// <summary>Test seam: pins <see cref="ActiveDevice"/> to a device the build machine cannot plug in,
+        /// so the gamepad-only paths (the on-screen keyboard, glyph swapping) are reachable in CI. Null in
+        /// normal play, where the answer always comes from what the player actually touched.</summary>
+        public static InputDeviceKind? DeviceOverrideForTest;
+
         /// <summary>The input family used most recently — drives which glyphs the HUD shows. Recomputed at
         /// most once per frame; sticks to the last device when neither backend is active this frame.</summary>
         public static InputDeviceKind ActiveDevice
         {
             get
             {
+                if (DeviceOverrideForTest.HasValue)
+                {
+                    return DeviceOverrideForTest.Value;
+                }
+
                 if (Time.frameCount != _deviceFrame)
                 {
                     _deviceFrame = Time.frameCount;
@@ -126,7 +137,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
-            InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.HotbarAction,
+            InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
         };
 
@@ -179,6 +190,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RotateShape => KeyCode.R,
             InputAction.ToggleThermal => KeyCode.I, // "infrared"; N was taken by the VEGA dialogue advance
             InputAction.ToggleChat => KeyCode.J,    // one of the last free letters near the movement hand
+            InputAction.OpenChat => KeyCode.Return, // the key that always opened the chat box (#1211)
             InputAction.HotbarAction => KeyCode.Mouse2, // middle click — free, and "act on what I hold" reads naturally there
             InputAction.FlightEnterInterior => KeyCode.F,
             InputAction.FlightPadChooser => KeyCode.L,
@@ -230,11 +242,25 @@ namespace BlocksBeyondTheStars.Client
 
         private static bool Injected(InputAction action) => _injectedFrame == Time.frameCount && _injected == action;
 
+        /// <summary>Set while a modal owns the pad's menu buttons — today the on-screen keyboard (#1211).
+        /// While it is true, <see cref="UiCancel"/> and <see cref="UiMenu"/> read false for EVERY caller, so
+        /// one press of B closes exactly one thing instead of the keyboard and the screen behind it in the
+        /// same frame (Update order between two MonoBehaviours is not something a screen may rely on). The
+        /// modal itself polls the physical button through <see cref="PadDown"/>, which is unaffected.</summary>
+        public static bool ModalCapture;
+
+        /// <summary>Whether <paramref name="action"/> is currently being swallowed by an open modal — true
+        /// only for the two menu verbs, and only while <see cref="ModalCapture"/> is up. Public because it
+        /// is the whole rule: a screen that wants to know why its Cancel went quiet can ask, and CI can pin
+        /// it without a pad in the machine.</summary>
+        public static bool ModalCaptures(InputAction action)
+            => ModalCapture && (action == InputAction.UiCancel || action == InputAction.UiMenu);
+
         // Discrete rebindable actions — combined across all backends so a pad button, the touch USE button, or
         // the bound key all fire the action. The keyboard resolution is unchanged (DesktopInputSource calls Key).
-        public static bool Down(InputAction action) => _desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action);
-        public static bool Held(InputAction action) => _desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action);
-        public static bool Up(InputAction action) => _desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action);
+        public static bool Down(InputAction action) => !ModalCaptures(action) && (_desktop.ActionDown(action) || _pad.ActionDown(action) || _touch.ActionDown(action) || Injected(action));
+        public static bool Held(InputAction action) => !ModalCaptures(action) && (_desktop.ActionHeld(action) || _pad.ActionHeld(action) || _touch.ActionHeld(action));
+        public static bool Up(InputAction action) => !ModalCaptures(action) && (_desktop.ActionUp(action) || _pad.ActionUp(action) || _touch.ActionUp(action));
 
         // ---- Continuous locomotion / camera / interaction core -------------------------------------------
         // Each merges the backends. Movement + look are additive (mouse delta + stick delta + touch); the
@@ -334,6 +360,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RotateShape => "ui.key.rotate_shape",
             InputAction.ToggleThermal => "ui.key.toggle_thermal",
             InputAction.ToggleChat => "ui.key.toggle_chat",
+            InputAction.OpenChat => "ui.key.open_chat",
             InputAction.HotbarAction => "ui.key.hotbar_action",
             InputAction.FlightEnterInterior => "ui.key.flight_enter_interior",
             InputAction.FlightPadChooser => "ui.key.flight_pad_chooser",
@@ -385,22 +412,33 @@ namespace BlocksBeyondTheStars.Client
             _ => null,
         };
 
-        /// <summary>Human label for a pad button (XInput names for the well-known ones, "B10"… for the rest),
-        /// or null for <see cref="KeyCode.None"/> / non-pad codes.</summary>
-        public static string PadGlyph(KeyCode button) => button switch
+        /// <summary>Human label for a pad button, or null for <see cref="KeyCode.None"/> / non-pad codes.
+        /// The wording follows the layout the player picked in the controller settings (#1219): the BUTTON
+        /// NUMBER never changes — a pad reports the same code whatever is printed on it — only the name
+        /// does, matched by PHYSICAL POSITION (JoystickButton0 is the bottom face button: Xbox A,
+        /// PlayStation Cross, Nintendo B).
+        ///
+        /// The PlayStation shapes are spelled out rather than drawn: the bundled UI font (Rajdhani) is
+        /// Latin-only, so ✕ ○ □ △ would come out as missing-glyph boxes — and glyph SPRITES would cost the
+        /// WebGL build more than a control hint is worth.</summary>
+        public static string PadGlyph(KeyCode button)
         {
-            KeyCode.JoystickButton0 => "(A)",
-            KeyCode.JoystickButton1 => "(B)",
-            KeyCode.JoystickButton2 => "(X)",
-            KeyCode.JoystickButton3 => "(Y)",
-            KeyCode.JoystickButton4 => "LB",
-            KeyCode.JoystickButton5 => "RB",
-            KeyCode.JoystickButton6 => "Back",
-            KeyCode.JoystickButton7 => "Start",
-            KeyCode.JoystickButton8 => "LS",
-            KeyCode.JoystickButton9 => "RS",
-            >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),
-            _ => null,
-        };
+            var set = GamepadInputSource.Settings != null ? GamepadInputSource.Settings.PadGlyphs : PadGlyphSet.Xbox;
+            return button switch
+            {
+                KeyCode.JoystickButton0 => set switch { PadGlyphSet.PlayStation => "(Cross)", PadGlyphSet.Nintendo => "(B)", _ => "(A)" },
+                KeyCode.JoystickButton1 => set switch { PadGlyphSet.PlayStation => "(Circle)", PadGlyphSet.Nintendo => "(A)", _ => "(B)" },
+                KeyCode.JoystickButton2 => set switch { PadGlyphSet.PlayStation => "(Square)", PadGlyphSet.Nintendo => "(Y)", _ => "(X)" },
+                KeyCode.JoystickButton3 => set switch { PadGlyphSet.PlayStation => "(Triangle)", PadGlyphSet.Nintendo => "(X)", _ => "(Y)" },
+                KeyCode.JoystickButton4 => set switch { PadGlyphSet.PlayStation => "L1", PadGlyphSet.Nintendo => "L", _ => "LB" },
+                KeyCode.JoystickButton5 => set switch { PadGlyphSet.PlayStation => "R1", PadGlyphSet.Nintendo => "R", _ => "RB" },
+                KeyCode.JoystickButton6 => set switch { PadGlyphSet.PlayStation => "Share", PadGlyphSet.Nintendo => "-", _ => "Back" },
+                KeyCode.JoystickButton7 => set switch { PadGlyphSet.PlayStation => "Options", PadGlyphSet.Nintendo => "+", _ => "Start" },
+                KeyCode.JoystickButton8 => set == PadGlyphSet.Xbox ? "LS" : "L3",
+                KeyCode.JoystickButton9 => set == PadGlyphSet.Xbox ? "RS" : "R3",
+                >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),
+                _ => null,
+            };
+        }
     }
 }

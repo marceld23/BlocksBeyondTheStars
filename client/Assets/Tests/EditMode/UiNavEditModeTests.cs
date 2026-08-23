@@ -137,8 +137,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         [Test]
         public void FocusTarget_SkipsATextFieldAndPicksTheFirstButton()
         {
-            // A focused InputField swallows the navigation axes, so auto-selecting one strands a pad player
-            // in a field they can neither type into (until #1211) nor leave.
+            // A form's first control is usually its text field, and auto-focusing that would mean the
+            // player's first stick flick edits text instead of moving between the controls.
             var canvasRoot = NewRoot("NamingModal");
             canvasRoot.AddComponent<Canvas>();
             AddField(canvasRoot, "Name");
@@ -150,16 +150,20 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
-        public void FocusTarget_IsNull_WhenTheScreenIsNothingButTextFields()
+        public void FocusTarget_FallsBackToAField_WhenTheScreenIsNothingElse()
         {
+            // Before the on-screen keyboard (#1211) this returned null, because a focused field swallowed
+            // the navigation axes and a pad player could not get back out. The bridge keeps the field
+            // deactivated on a pad now, so a form-only screen focuses its first field instead of offering
+            // the pad no selection at all.
             var canvasRoot = NewRoot("FormOnly");
             canvasRoot.AddComponent<Canvas>();
-            AddField(canvasRoot, "A");
+            var first = AddField(canvasRoot, "A");
             AddField(canvasRoot, "B");
 
             var nav = canvasRoot.AddComponent<UiNavFocus>();
 
-            Assert.IsNull(nav.FocusTarget(), "with nothing safe to focus the selection must be left alone");
+            Assert.AreSame(first, nav.FocusTarget());
         }
 
         // ---- the selection survives a rebuild -------------------------------------------------------------

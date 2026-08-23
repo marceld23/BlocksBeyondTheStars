@@ -430,7 +430,12 @@ namespace BlocksBeyondTheStars.Client
             // and yank them back up on close (#413 N4). Hold the hover position instead. A running camera
             // cinematic (#760) freezes control the same way — and by skipping the per-frame eye-pose
             // re-assert below, it leaves the camera to the cinematic's LateUpdate.
-            if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive))
+            //
+            // The on-screen keyboard (#1211) belongs in this list for a reason of its own: it picks letters
+            // with the SAME left stick that walks the player, so without this the pad would spell a word and
+            // wander off at once.
+            if (Game != null && (Game.MenuOpen || Game.ChatTyping || Game.CinematicCameraActive
+                                 || OnScreenKeyboardUi.IsOpen))
             {
                 UpdateJetpack(false);
                 if (string.IsNullOrEmpty(Game.InSpeeder) && _seatCell is null)
