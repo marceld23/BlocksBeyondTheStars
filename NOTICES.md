@@ -7,10 +7,11 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (192 files, incl. the splash intro, the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (218 files, incl. the splash intro, the
 `terrain_scan` prospecting pulse (Feature 40), the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
-the death cues `space_death`/`player_death`, the per-species creature calls `creature_call_*`
+the death cues `space_death`/`player_death`, the companion guard growl `creature_companion_growl`
+(+ `_2` second take, #1210, `gen_sound.py`), the per-species creature calls `creature_call_*`
 (incl. the `*_2` second takes of all 22 calls + the habitat calls `burble`/`sizzle`/`keen`/`thrum`,
 #879, via `tools/ai-assets/gen_sound.py`), the
 item-21 world ambiences `amb_ocean`/`amb_ashen`/`amb_fungal`/`amb_corrupted`/`amb_wind_high` + the

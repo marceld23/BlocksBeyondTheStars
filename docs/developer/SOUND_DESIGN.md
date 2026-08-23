@@ -117,6 +117,11 @@ pitch ∝ 1/Size + small random detune, so 30 assets cover every species. (A lea
 4 states = 16.) Bioluminescent/insectoid flavour can add 1–2 extra "chirp" banks later. Hooks:
 `CreatureList` positions + `AttackEntity`/hurt/death already exist.
 
+**Companion guard growl (#1210, shipped 2026-08-23):** `creature_companion_growl` + `_2` — two ElevenLabs
+takes ("short warning growl of a friendly alien pet standing guard, protective not aggressive"), played once per
+`NetCreature.Alerting` flip through the species' own timbre (`CreatureVoiceBank.Resolve`, pitch ∝ 1/Size), so a
+tiny pet yips and a titan rumbles off the same file.
+
 ## 9. NPCs (humans + aliens) — *ElevenLabs, NON-VERBAL*
 
 No speech. Short vocalisations only: **idle murmur, greet/notice, acknowledge, trade-confirm,
