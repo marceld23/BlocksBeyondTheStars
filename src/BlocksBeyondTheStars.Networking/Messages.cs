@@ -1047,6 +1047,10 @@ public sealed class ServerRules
     /// spawn as the tougher variant. Opt-in risk dial; the frontier's richness is unconditional.</summary>
     public bool FrontierDanger { get; set; }
 
+    /// <summary>Visitors-at-the-base world option (#1224): when true, bandit scouts occasionally look at a
+    /// founded base whose owner is home (zone edge only, never inside, never destructive). Opt-in.</summary>
+    public bool BaseVisitors { get; set; }
+
     /// <summary>Whether the server accepts/relays live voice chat (opt-in; default off on dedicated servers).
     /// When false the client keeps voice capture disabled and shows voice comms as unavailable.</summary>
     public bool VoiceChatEnabled { get; set; }
@@ -1098,6 +1102,9 @@ public sealed class SetWorldRulesIntent
 
     /// <summary>Frontier-danger toggle (#1122): "On"/"Off" to set it, empty to leave unchanged.</summary>
     public string FrontierDanger { get; set; } = string.Empty;
+
+    /// <summary>Visitors-at-the-base toggle (#1224): "On"/"Off" to set it, empty to leave unchanged.</summary>
+    public string BaseVisitors { get; set; } = string.Empty;
 }
 
 // --- Missions ---
@@ -1731,6 +1738,13 @@ public sealed class ReleaseCompanionIntent
     public string CompanionId { get; set; } = string.Empty;
 }
 
+/// <summary>Feeds a companion one bait item to raise its bond (#1225). The server picks whichever bait the
+/// player is carrying and answers with a refreshed companion list.</summary>
+public sealed class FeedCompanionIntent
+{
+    public string CompanionId { get; set; } = string.Empty;
+}
+
 /// <summary>A tamed companion as shown in the Companions menu — enough of its descriptor to draw a small
 /// procedural portrait, plus its name, home world and bond.</summary>
 public sealed class NetCompanion
@@ -1742,6 +1756,11 @@ public sealed class NetCompanion
     public string HomeBodyName { get; set; } = string.Empty;
     public bool Present { get; set; }                         // currently materialised near the player
     public int Bond { get; set; }
+
+    /// <summary>Whether feeding would do something right now (#1225): the player carries bait, the bond is
+    /// not already full and the animal is not still chewing the last one. Additive field — the button is
+    /// dimmed rather than failing silently, and an older server simply leaves it false.</summary>
+    public bool CanFeed { get; set; }
     public string Temperament { get; set; } = "Passive";
     public string Habitat { get; set; } = "Land";
 

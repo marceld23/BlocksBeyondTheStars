@@ -27,6 +27,9 @@ public sealed partial class GameServer
     private const string DefeatTargetShip = "bandit_ship";
     private const string DefeatTargetBandit = "bandit";
 
+    /// <summary>Defeat target of the homestead bounty (#1224): a bandit that came as a base scout.</summary>
+    private const string DefeatTargetScout = "base_scout";
+
     /// <summary>Defeat target of the post-finale survey orders (#1213): a Guardian machine — a planet
     /// drone or a hostile in space. Only counted once the Guardian is down (RemnantEra), because before
     /// that the same kills drive the story's own pacing and a mission must not double-dip on it.</summary>

@@ -1399,6 +1399,7 @@ public sealed partial class GameServer
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
             Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
+            Guard("TickCompanionScouting", TickCompanionScouting); // #1225: a deeply bonded companion shares a landmark now and then
             Guard("TickSentries", TickSentries); // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
@@ -2796,6 +2797,7 @@ public sealed partial class GameServer
             case RequestCompanionsIntent: HandleRequestCompanions(session); break;
             case SetCompanionNameIntent compName: HandleSetCompanionName(session, compName); break;
             case ReleaseCompanionIntent release: HandleReleaseCompanion(session, release); break;
+            case FeedCompanionIntent feed: HandleFeedCompanion(session, feed); break;
             case EnterSpeederIntent enterSpeeder: HandleEnterSpeeder(session, enterSpeeder); break;
             case ExitSpeederIntent: HandleExitSpeeder(session); break;
             case StowSpeederIntent stowSpeeder: HandleStowSpeeder(session, stowSpeeder); break;
@@ -3100,6 +3102,11 @@ public sealed partial class GameServer
         SendOwnedShips(session);
         SendEnvironment(session);
         PopulateCreaturesNear(state, CreatureCapPerPlayer); // seed fauna so the world feels alive on entry
+        if (ApplyBondDecay(state))
+        {
+            _repo.SavePlayer(state); // #1225: the days away are charged once, here, and written straight back
+        }
+
         SpawnCompanionsForSession(session); // re-materialise the player's pets if they joined onto their companions' home world
         SpawnSpeedersForSession(session); // re-materialise the player's deployed hover speeders on the join world
         SendCreatures(session);
@@ -5811,6 +5818,7 @@ public sealed partial class GameServer
             AutoAim = r.AutoAim,
             StarterTeleporter = r.StarterTeleporter,
             FrontierDanger = r.FrontierDanger,
+            BaseVisitors = r.BaseVisitors,
             VoiceChatEnabled = _config.VoiceChatEnabled,
             ChatMode = EffectiveChatMode.ToString(),
             PlayerModeNames = modeNames,
@@ -5878,6 +5886,11 @@ public sealed partial class GameServer
         if (!string.IsNullOrEmpty(intent.FrontierDanger))
         {
             Rules.FrontierDanger = intent.FrontierDanger.Equals("On", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (!string.IsNullOrEmpty(intent.BaseVisitors))
+        {
+            Rules.BaseVisitors = intent.BaseVisitors.Equals("On", System.StringComparison.OrdinalIgnoreCase);
         }
 
         _meta.RulesOverride = Rules.Clone(); // the world owns its rules — persist the edit

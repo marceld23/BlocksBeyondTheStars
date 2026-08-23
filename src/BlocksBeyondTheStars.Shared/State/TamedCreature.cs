@@ -34,8 +34,19 @@ public sealed class TamedCreature
     /// <summary>This individual's cosmetic size factor within its species (matches the wild animal it was).</summary>
     public float SizeScale { get; set; } = 1f;
 
-    /// <summary>Affection/bond 0..100 — starts where the taming trust ended; room to grow (perks/cosmetics).</summary>
+    /// <summary>Affection/bond 0..100 — starts where the taming trust ended and GROWS by feeding (#1225).
+    /// Three tiers hang off it: 50 a wider fetch reach, 70 the bandit ward (#1210), 90 the odd scouting
+    /// hint. It decays a point a day when the animal is not fed, but never below
+    /// <see cref="BondFloor"/> — a holiday must not undo a friendship.</summary>
     public int Bond { get; set; }
+
+    /// <summary>The lowest bond decay can reach: where a freshly tamed animal starts, so time apart can
+    /// cost the perks but never the companion itself.</summary>
+    public const int BondFloor = 40;
+
+    /// <summary>Server-stamped last feeding (unix ms); 0 = never fed since taming (then
+    /// <see cref="TamedAtUtc"/> is the clock decay counts from).</summary>
+    public long LastFedUtc { get; set; }
 
     /// <summary>Server-stamped tame time (unix ms); 0 if unknown.</summary>
     public long TamedAtUtc { get; set; }

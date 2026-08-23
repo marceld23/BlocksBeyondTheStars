@@ -192,7 +192,7 @@ public sealed partial class GameServer
     /// <summary>A bandit the sentry is allowed to shoot: one that is actually fighting. Approach and
     /// Demanding are the talk phases, Leaving is someone walking away.</summary>
     private static bool BanditIsFighting(CombatEntity b)
-        => b.IsBandit && b.BanditPhase is not (BanditPhase.Approach or BanditPhase.Demanding or BanditPhase.Leaving);
+        => b.IsBandit && b.BanditPhase is not (BanditPhase.Approach or BanditPhase.Demanding or BanditPhase.Leaving or BanditPhase.Scouting);
 
     /// <summary>A sentry finished a target. Mirrors the player kill path minus the player: there is nobody
     /// to bank loot for or hand an achievement to, so the drops land on the ground at the corpse and the

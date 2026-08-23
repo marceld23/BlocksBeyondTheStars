@@ -265,7 +265,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>World admin: live-edits the gameplay world options (empty fields = unchanged).</summary>
         public void SendSetWorldRules(string creatures = "", string planetEnemies = "", string spaceNpcs = "", string ufos = "",
             string bandits = "", string instantTravel = "", string keepInventory = "", string keepShip = "", string hazards = "",
-            string autoAim = "", string starterTeleporter = "", string frontierDanger = "")
+            string autoAim = "", string starterTeleporter = "", string frontierDanger = "", string baseVisitors = "")
             => Send(new SetWorldRulesIntent
             {
                 CreatureAbundance = creatures,
@@ -280,6 +280,7 @@ namespace BlocksBeyondTheStars.Client
                 AutoAim = autoAim,
                 StarterTeleporter = starterTeleporter,
                 FrontierDanger = frontierDanger,
+                BaseVisitors = baseVisitors,
             });
 
         /// <summary>Hyperjump into a (possibly unvisited) star system, arriving in flight mode there.</summary>
@@ -660,6 +661,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Release a companion (untame it).</summary>
         public void SendReleaseCompanion(string companionId) => Send(new ReleaseCompanionIntent { CompanionId = companionId ?? string.Empty });
+
+        /// <summary>Feeds a companion one bait item to raise its bond (#1225).</summary>
+        public void SendFeedCompanion(string companionId) => Send(new FeedCompanionIntent { CompanionId = companionId ?? string.Empty });
 
         // --- Hover speeders ---
         /// <summary>Deploy a speeder in front of the player (reuses the gadget path on the speeder item).</summary>

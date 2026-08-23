@@ -326,6 +326,10 @@ public sealed class PlayerSession
     /// fires once per world, BEFORE any bandit walks up).</summary>
     public HashSet<string> BanditBriefedWorlds { get; } = new();
 
+    /// <summary>Whether VEGA already explained base scouts (#1224) to this player this session — the toast
+    /// repeats per visit, the explanation does not.</summary>
+    public bool ScoutsVegaSaid { get; set; }
+
     // --- Heal-tank regen field (base/station life support, issue #460) ---
 
     /// <summary>Countdown to the next heal-tank proximity rescan (the regen itself applies every tick).</summary>

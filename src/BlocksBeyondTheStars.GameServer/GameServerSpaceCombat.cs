@@ -135,6 +135,9 @@ public sealed class CombatEntity
     /// <summary>Camp anchor key when this bandit guards a bandit camp (empty = lone robber). Guards leash to
     /// their camp and their deaths count toward the camp's persisted "cleared" state.</summary>
     public string CampKey { get; set; } = string.Empty;
+    /// <summary>The base this bandit came to look at as a scout (#1224), 0 = not a scout. Kept after it turns
+    /// hostile, so beating it still credits the homestead bounty.</summary>
+    public int ScoutBaseId { get; set; }
 
     /// <summary>True for the Bandit* kinds (targetable humans, not Guardian machines — no story credit).</summary>
     public bool IsBandit => Kind is CombatEntityKind.Bandit or CombatEntityKind.BanditGunner or CombatEntityKind.BanditShip;
@@ -148,6 +151,7 @@ public enum BanditPhase
     Demanding, // demand sent, waiting for the answer (or the deadline)
     Fighting,  // refused/attacked — plain hostile now
     Leaving,   // paid off or gave up — wanders away and despawns
+    Scouting,  // #1224: walks to a base's zone edge, stands there a minute, leaves — never enters, never demands
 }
 
 /// <summary>A loaded local space region (orbit / asteroid field) around a location.</summary>

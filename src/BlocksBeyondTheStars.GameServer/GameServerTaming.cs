@@ -626,6 +626,7 @@ public sealed partial class GameServer
                 HomeBodyName = BodyDisplayName(tc.HomeBodyId),
                 Present = _creatures.Any(c => c.CompanionId == tc.Id),
                 Bond = tc.Bond,
+                CanFeed = CanFeedCompanion(session, tc),
                 Temperament = sp.Temperament.ToString(),
                 Habitat = sp.Habitat.ToString(),
                 Size = sp.Size * tc.SizeScale,

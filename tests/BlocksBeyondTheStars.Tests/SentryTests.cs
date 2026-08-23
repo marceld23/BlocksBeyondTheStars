@@ -204,7 +204,7 @@ public sealed class SentryTests : IDisposable
 
             // Approach and Demanding are the talk phases: the hold-up is a conversation the player answers
             // first (#1043), and a turret must not decide it for them.
-            foreach (var phase in new[] { BanditPhase.Approach, BanditPhase.Demanding, BanditPhase.Leaving })
+            foreach (var phase in new[] { BanditPhase.Approach, BanditPhase.Demanding, BanditPhase.Leaving, BanditPhase.Scouting }) // #1224: a scout is looking, not fighting
             {
                 robber.BanditPhase = phase;
                 server.TickSentriesForTest();

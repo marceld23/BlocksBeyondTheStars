@@ -99,8 +99,17 @@ wire field (`NetCreature.Alerting`):
   penned pet stockpiles).
 - Tests: `CompanionPayoffTests`.
 
+**Feed & bond (#1225, `GameServerCompanionBond.cs`):** `FeedCompanionIntent` (NetCodec 228) spends any of the
+three bait items for +5 Bond (cap 100), 60 s per-companion cooldown (the bait is the cost; the cooldown only
+stops a double-click). Decay 1 per real day since `LastFedUtc`, floor `TamedCreature.BondFloor` = 40, applied
+on join and before a feed — keyed on `LastFedUtc`, which the decay advances by the same whole days, so a day is
+never charged twice. Tiers: 50 fetch radius ×1.5 (`CompanionFetchRadiusFor`), 70 the bandit ward (#1210), 90 a
+scouting hint every 5 min through `TryEmitHint` — which for a companion can only ever reveal the wreck (it has
+no NPC relationship memory, so the chest/legend branches never fire; bounded on purpose). `NetCompanion.CanFeed`
+drives the Companions-tab button. Tests: `CompanionBondTests`.
+
 ## Known remaining gaps / deferred (P4)
 
 - Needs a Unity client build.
-- Feed/bond tricks (B3: feed intent, bond decay, tiers), riding (B4), companion mortality, a portable companion
-  that travels with you, a slow "study" knowledge trickle while accompanied, dye / accessories.
+- Riding (B4), companion mortality, a portable companion that travels with you, a slow "study" knowledge
+  trickle while accompanied, dye / accessories. (Feed/bond — B3 — shipped with #1225.)
