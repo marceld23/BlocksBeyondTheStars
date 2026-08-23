@@ -700,6 +700,8 @@ public sealed partial class GameServer
             else
             {
                 RecordStoryMachineKill(); // planet machine destroyed → advances the story (P4: combat-as-progress)
+                OnMachineDefeated(session); // #1213: post-win only — the survey orders' Defeat step
+
                 TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
                 // #740: a destroyed machine buys an extra breather on top of the refill interval — the
                 // negative timer delays the freed slot, so a fight is followed by quiet, not reinforcements.

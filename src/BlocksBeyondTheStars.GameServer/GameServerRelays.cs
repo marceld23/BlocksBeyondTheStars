@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BlocksBeyondTheStars.Shared.Missions;
 using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -155,6 +156,7 @@ public sealed partial class GameServer
         }
 
         rec.Contributed[line.Item] = soFar + give;
+        OnRelayContributed(session, line.Item, give); // #1213: drives the survey orders' Contribute objective
         bool completed = def.Costs.All(c => rec.Contributed.TryGetValue(c.Item, out int n) && n >= c.Count);
         if (completed)
         {
@@ -289,6 +291,55 @@ public sealed partial class GameServer
 
     /// <summary>Whether a jump lane links these two systems — the jump-generator exemption used by both
     /// travel paths. Null/empty on either side (deep space, unknown origin) never matches.</summary>
+    /// <summary>Whether any boardable station still has an unfinished relay — i.e. whether a Contribute
+    /// objective (#1213) could be satisfied anywhere at all. No stations = nothing to contribute to.</summary>
+    private bool AnyRelayOpen()
+        => _playerStationCells.Values.Any(s => s.Boardable && !RelayRecordFor(s.Id).Completed);
+
+    /// <summary>Whether the galaxy still holds a system the relay network has not reached — the promise the
+    /// "survey an unlinked system" step makes (#1213).</summary>
+    private bool AnyUnlinkedSystem()
+        => _galaxy is not null && _galaxy.Systems.Any(s => !_relaySystems.Contains(s.Id));
+
+    /// <summary>Whether arriving at <paramref name="bodyId"/> satisfies an "unlinked system" travel objective
+    /// (#1213): the body's system carries no completed relay, and is not the system the job was taken in — so
+    /// the order actually sends the player somewhere new rather than completing on the spot.</summary>
+    private bool ArrivedInUnlinkedSystem(string bodyId, MissionProgress pr)
+    {
+        string arrived = _galaxy?.FindBody(bodyId)?.SystemId ?? string.Empty;
+        if (string.IsNullOrEmpty(arrived) || _relaySystems.Contains(arrived))
+        {
+            return false;
+        }
+
+        string from = string.IsNullOrEmpty(pr.AcceptedBodyId)
+            ? string.Empty
+            : _galaxy?.FindBody(pr.AcceptedBodyId)?.SystemId ?? string.Empty;
+        return arrived != from;
+    }
+
+    /// <summary>Advances any active Contribute objectives for the item just poured into a relay (#1213).
+    /// Per player, like Scan: the relay meter is shared world state, but the ORDER is the contributor's.</summary>
+    private void OnRelayContributed(PlayerSession session, string item, int count)
+    {
+        foreach (var pr in session.State.Missions)
+        {
+            if (pr.Status != MissionStatus.Active || GetMissionDef(pr.MissionId) is not { } def)
+            {
+                continue;
+            }
+
+            for (int i = 0; i < def.Objectives.Count && i < pr.ObjectiveProgress.Count; i++)
+            {
+                var obj = def.Objectives[i];
+                if (obj.Type == MissionObjectiveType.Contribute && obj.Target == item && pr.ObjectiveProgress[i] < obj.Required)
+                {
+                    pr.ObjectiveProgress[i] = Math.Min(obj.Required, pr.ObjectiveProgress[i] + count);
+                }
+            }
+        }
+    }
+
     private bool HasJumpLane(string? systemA, string? systemB)
     {
         if (string.IsNullOrEmpty(systemA) || string.IsNullOrEmpty(systemB))

@@ -15,6 +15,7 @@ public enum MissionObjectiveType
     Scan,     // scan something — target grammar in ScanTargets (#1205)
     Build,    // place blocks (#1116)
     Defeat,   // drive off N foes / clear a bandit camp (event-tracked, system missions only)
+    Contribute, // hand N of an item to a shared build — today the relay network (#1213)
 }
 
 public enum MissionStatus
@@ -116,6 +117,12 @@ public sealed class MissionDefinition
 
     /// <summary>Which kind of place offers a board step: settlement (default) | station | any.</summary>
     public string OfferAt { get; set; } = string.Empty;
+
+    /// <summary>Story flag the world must have reached before this mission is offered at all (#1213):
+    /// "" (default — no gate) | guardian_defeated. Unlike <see cref="MinStage"/>, which is about ONE
+    /// giver's opinion of the player, this is about the world: the SPS survey orders only make sense
+    /// once the Guardian is down and the relay network is the thing left to build.</summary>
+    public string RequiresStory { get; set; } = string.Empty;
 }
 
 /// <summary>Per-player progress on an accepted mission.</summary>

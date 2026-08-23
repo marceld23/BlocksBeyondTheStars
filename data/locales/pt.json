@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "Não há nada construído nessa região.",
   "srv.blueprint.cooldown": "A ferramenta de planta ainda está recarregando — tente novamente em um momento.",
   "srv.blueprint.bad_code": "Esse não é um código de construção válido.",
-  "srv.blueprint.nothing_placed": "Nada pôde ser colocado — as células de destino estão ocupadas, protegidas, ou você não tem os materiais."
+  "srv.blueprint.nothing_placed": "Nada pôde ser colocado — as células de destino estão ocupadas, protegidas, ou você não tem os materiais.",
+  "ui.missions.objtype_contribute": "Contribuir",
+  "mission.chain.relay_survey_1.title": "Ordem de Pesquisa: leituras estranhas",
+  "mission.chain.relay_survey_1.desc": "A rede de relés detectou duas anomalias lá fora e ninguém sabe o que são. Voe, escaneie-as e traga as leituras de volta a este quadro.",
+  "mission.chain.relay_survey_2.title": "Ordem de Pesquisa: além da rede",
+  "mission.chain.relay_survey_2.desc": "Um sistema ainda está escuro para nós — sem relé, sem rota, sem leituras. Vá dar uma olhada e depois retorne para relatar.",
+  "mission.chain.relay_survey_3.title": "Ordem de Pesquisa: peças para a rede",
+  "mission.chain.relay_survey_3.desc": "O próximo relé está sem placas de circuito. Traga dez para qualquer estação que esteja sendo convertida e coloque-as — então volte aqui.",
+  "mission.chain.relay_survey_4.title": "Ordem de Pesquisa: desobstruir a rota",
+  "mission.chain.relay_survey_4.desc": "Três máquinas remanescentes estão à deriva onde a nova rota deve passar. Afaste-as para que os pesquisadores possam trabalhar em paz."
 }

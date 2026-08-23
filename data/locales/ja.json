@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "その領域には何も作られていません。",
   "srv.blueprint.cooldown": "設計ツールはまだ再充電中です — 少し待ってからもう一度試してください。",
   "srv.blueprint.bad_code": "それは有効なビルドコードではありません。",
-  "srv.blueprint.nothing_placed": "何も置けませんでした — 対象のセルが占有、保護されているか、材料が不足しています。"
+  "srv.blueprint.nothing_placed": "何も置けませんでした — 対象のセルが占有、保護されているか、材料が不足しています。",
+  "ui.missions.objtype_contribute": "寄付",
+  "mission.chain.relay_survey_1.title": "調査命令：奇妙な読取",
+  "mission.chain.relay_survey_1.desc": "中継ネットが向こうで2つの異常を検出しましたが、誰も何か分かっていません。飛んで行ってそれらをスキャンし、読み取りをこのボードに持ち帰ってください。",
+  "mission.chain.relay_survey_2.title": "調査命令：ネットの外側",
+  "mission.chain.relay_survey_2.desc": "ある系はまだ我々にとって暗いままです — 中継も通路も読取もありません。様子を見に行って、報告してください。",
+  "mission.chain.relay_survey_3.title": "調査命令：ネットの部品",
+  "mission.chain.relay_survey_3.desc": "次の中継局は回路基板が不足しています。変換中のどのステーションでも回路基板を10枚持ち込み、投入してください — その後ここに戻ってください。",
+  "mission.chain.relay_survey_4.title": "調査命令：通路を開けろ",
+  "mission.chain.relay_survey_4.desc": "新しい通路が通るべき場所に3台の残存機械が漂っています。調査隊が平和に作業できるようにそれらを追い払ってください。"
 }

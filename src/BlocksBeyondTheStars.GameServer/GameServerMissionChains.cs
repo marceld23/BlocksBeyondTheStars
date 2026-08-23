@@ -108,6 +108,14 @@ public sealed partial class GameServer
         return true;
     }
 
+    /// <summary>Whether the world has reached the story point a definition asks for (#1213). Empty gate =
+    /// always satisfied, which is every mission that existed before this field did.</summary>
+    private bool StoryGateSatisfied(MissionDefinition def) => def.RequiresStory switch
+    {
+        MissionChains.StoryGuardianDefeated => _storyState.GuardianDefeated,
+        _ => true,
+    };
+
     /// <summary>World feasibility of a chain step — a step that could never finish here is never offered
     /// (the same promise the scan templates keep, #1205). "Clear the camp" needs an uncleared camp, the
     /// hostile/rune scans need their subjects.</summary>
@@ -117,6 +125,29 @@ public sealed partial class GameServer
         {
             switch (o.Type)
             {
+                case MissionObjectiveType.Defeat when o.Target == DefeatTargetMachine:
+                    // Remnant drones only exist post-win AND only where hostiles are switched on at all —
+                    // on a family preset or in creative there is nothing to defeat, so never offer it (#1206).
+                    if (!RemnantEra || !PlanetEnemiesActive)
+                    {
+                        return false;
+                    }
+
+                    break;
+                case MissionObjectiveType.Contribute:
+                    if (_content.Relay is null || !_content.Relay.Costs.Any(c => c.Item == o.Target) || !AnyRelayOpen())
+                    {
+                        return false; // nothing left to build, or the item is not on the relay's bill of materials
+                    }
+
+                    break;
+                case MissionObjectiveType.Travel when o.Target == MissionChains.TravelUnlinkedSystem:
+                    if (!AnyUnlinkedSystem())
+                    {
+                        return false; // the network already reaches everything we could send them to
+                    }
+
+                    break;
                 case MissionObjectiveType.Defeat when o.Target == DefeatTargetCamp:
                     if (!BanditsActive || !_banditCamps.Any(c => !c.Cleared))
                     {
@@ -173,6 +204,11 @@ public sealed partial class GameServer
         bool viaDialog, string? dialogGiverKey, out string reason)
     {
         reason = "@srv.mission.chain_locked";
+        if (!StoryGateSatisfied(def))
+        {
+            return false; // e.g. the SPS survey orders before the Guardian is down (#1213)
+        }
+
         if (p.Missions.Any(m => m.MissionId == def.Id))
         {
             reason = "@srv.mission.accepted";
@@ -345,6 +381,7 @@ public sealed partial class GameServer
             || _missionDefs.Values.Any(d => d.Active && d.ChainId == def.ChainId && d.Prerequisites.Contains(def.Id));
         if (!hasNext)
         {
+            RestartChainIfRepeatable(session, def);
             return;
         }
 
@@ -357,6 +394,23 @@ public sealed partial class GameServer
         _dialogRadioPending.Add((session.State.PlayerId, giverKey, giverName,
             string.IsNullOrEmpty(placeName) ? giverName : placeName, session.CurrentLocationId,
             ChainRadioLineKey, _uptime + DialogRadioDelaySeconds, _uptime + DialogRadioGiveUpSeconds));
+    }
+
+    /// <summary>A repeatable chain (<c>repeatable: true</c> on its LAST step) starts over once that step is
+    /// turned in: every progress row of the chain is dropped, so step 1 is offered again (#1213). The
+    /// endgame survey orders use this — a one-shot chain would leave the station boards quiet again, which
+    /// is the very thing the Remnant Protocol (#1206) set out to fix.
+    /// <para>Note this canNOT go through the ordinary <c>def.Repeatable</c> path in HandleTurnInMission:
+    /// that removes only THIS row, and a chain's rows are what the next run's prerequisite check reads.</para></summary>
+    private void RestartChainIfRepeatable(PlayerSession session, MissionDefinition def)
+    {
+        if (!def.Repeatable || !IsChainMission(def))
+        {
+            return;
+        }
+
+        session.State.Missions.RemoveAll(m => GetMissionDef(m.MissionId) is { } d && d.ChainId == def.ChainId);
+        _repo.SavePlayer(session.State);
     }
 
     /// <summary>The radio nudge line of a chain's next step — a MISSION call (NpcCallsMode "missions only" still gets it).</summary>
@@ -585,6 +639,10 @@ public sealed partial class GameServer
 
     /// <summary>Test/inspection: a registered mission definition (authored, board-coined or persisted), or null.</summary>
     public MissionDefinition? MissionDefForTest(string missionId) => GetMissionDef(missionId);
+
+    /// <summary>Test hook: run the repeatable-chain restart for a turned-in last step (#1213).</summary>
+    public void RestartChainIfRepeatableForTest(PlayerSession session, MissionDefinition def)
+        => RestartChainIfRepeatable(session, def);
 
     /// <summary>Test seam: the place key (settle_/station_) the player currently stands in, or empty.</summary>
     public string CurrentPlaceKeyForTest(string playerId)

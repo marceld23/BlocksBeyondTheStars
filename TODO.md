@@ -158,6 +158,39 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ "SPS Survey Orders" — the station boards have work after the ending (#1213, 2026-08-23, branch feat/1213-sps-survey-orders)
+Eighth slice of the feature-deepening package (epic #1197), and the payoff of the three before it: the Scan
+objective (#1205), the chain schema (#1212) and the Remnant Protocol (#1206). After the finale the relay
+network and the Frontier existed but **no board ever pointed at them** — machine kills only fed
+`RecordStoryMachineKill`, never a mission.
+
+**The chain** `relay_survey` (`data/missions.json`, 4 steps, `offerAt: station`): scan two anomalies → look in
+on a system the relay net has not reached → bring circuit boards to a station being converted → drive off
+three remnant machines. **Repeatable as a whole**: `repeatable: true` on the LAST step makes
+`RestartChainIfRepeatable` drop every progress row of the chain on turn-in, so step 1 comes back and the
+station boards keep something to offer. (A one-shot chain would have left them quiet again — the very thing
+#1206 set out to fix.) It deliberately does not use the ordinary `def.Repeatable` branch in
+`HandleTurnInMission`: that removes only the one row, and a chain's rows are what the next run's prerequisite
+check reads.
+
+**Schema, all additive** — `MissionDefinition.RequiresStory` (`""` | `guardian_defeated`, validated like
+`surface`/`offerAt`) gates on the WORLD rather than on one giver's opinion, and is checked first in
+`ChainStepAvailable`, so the chain is plain invisible pre-win. `MissionObjectiveType.Contribute` is
+**appended** (wire ordinals of existing types do not move) and fed from `HandleContributeRelay` via
+`OnRelayContributed`. **The issue asked for a `Deliver` here and that cannot work**: Deliver is
+inventory-checked *and consumed* at turn-in, but items poured into a relay are already gone — the objective
+would have read 0/1 forever and the turn-in failed with `@srv.mission.incomplete`.
+`MissionChains.TravelUnlinkedSystem` is satisfied by arriving in a system that holds no completed relay and is
+not the one the order was taken in.
+
+`Defeat` target `machine`: both kill sites (`GameServerEnemies`, `GameServerSpaceCombat`) now go through one
+guarded `OnMachineDefeated`, which only fires in the `RemnantEra` — pre-win those same kills drive the story's
+own pacing and a board mission must not double-dip. `ChainStepFeasible` keeps every step's promise (no
+unlinked system, no relay left to build, hostiles off → never offered). Client: **no code at all** — objective
+rows render through `IdLabel("ui.missions.objtype_", …)`, so one locale key covered it. Rides `NetMission`; no
+new message types, no NetCodec tag. `SurveyOrderTests` (9). Locales: 9 keys EN+DE + 12 machine.
+Docs: USER_MANUAL § stations/relays, STORY_IMPLEMENTATION § epilogue content.
+
 ### ★ Gamepad reaches every menu — the Tab menu's canvas was invisible to UiNav (#1198, 2026-08-23, branch fix/1198-uinav-gamepad-menus)
 Seventh slice of the feature-deepening package (epic #1197), and its fix-before-feature entry. **The bug:**
 `UiKit.CreateCanvas` returns a **scene-root** GameObject, but `GameMenu.cs` enabled `UiNav` on its own

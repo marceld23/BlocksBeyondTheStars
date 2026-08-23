@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "Non c'è nulla costruito in quella regione.",
   "srv.blueprint.cooldown": "Lo strumento progetto è ancora in ricarica — riprova tra un momento.",
   "srv.blueprint.bad_code": "Quello non è un codice di costruzione valido.",
-  "srv.blueprint.nothing_placed": "Non è stato possibile piazzare nulla — le celle bersaglio sono occupate, protette o ti mancano i materiali."
+  "srv.blueprint.nothing_placed": "Non è stato possibile piazzare nulla — le celle bersaglio sono occupate, protette o ti mancano i materiali.",
+  "ui.missions.objtype_contribute": "Contribuisci",
+  "mission.chain.relay_survey_1.title": "Ordine di ricognizione: letture strane",
+  "mission.chain.relay_survey_1.desc": "La rete di ripetitori rileva due anomalie là fuori e nessuno sa cosa siano. Vai, scannerizzale e riporta le letture a questa bacheca.",
+  "mission.chain.relay_survey_2.title": "Ordine di ricognizione: oltre la rete",
+  "mission.chain.relay_survey_2.desc": "Un sistema è ancora oscuro per noi — niente ripetitori, niente corsia, nessuna lettura. Vai a vedere e poi torna a riferire.",
+  "mission.chain.relay_survey_3.title": "Ordine di ricognizione: pezzi per la rete",
+  "mission.chain.relay_survey_3.desc": "Il prossimo ripetitore è a corto di schede elettroniche. Porta dieci schede a qualsiasi stazione in fase di conversione e riversale — poi torna qui.",
+  "mission.chain.relay_survey_4.title": "Ordine di ricognizione: libera la corsia",
+  "mission.chain.relay_survey_4.desc": "Tre macchine residue stanno vagando dove dovrebbe passare la nuova corsia. Scacciale così i rilevatori possono lavorare in pace."
 }

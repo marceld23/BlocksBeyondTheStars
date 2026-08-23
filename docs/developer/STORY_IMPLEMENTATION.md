@@ -122,6 +122,8 @@ chains. All fields are additive — a stand-alone mission leaves them empty; the
 | `minStage` | `""` · `known` · `trusted` — standing with the giver (NPC memory) |
 | `surface` | `board` (default, at a mission board) · `dialog` (handed out by a dialogue choice with consequence `mission:<id>`) · `radio` (offered anywhere) |
 | `offerAt` | `settlement` (default) · `station` · `any` — which boards offer a board step |
+| `requiresStory` | `""` (default) · `guardian_defeated` — a gate on the **world**, not on one giver's opinion of the player (#1213). Checked first in `ChainStepAvailable`, so a gated chain is simply invisible until then |
+| `repeatable` on the **last** step | restarts the WHOLE chain: `RestartChainIfRepeatable` drops every progress row of that chain on turn-in, so step 1 is offered again (#1213). It deliberately does **not** use `HandleTurnInMission`'s ordinary `def.Repeatable` branch — that removes only the one row, and a chain's rows are exactly what the next run's prerequisite check reads |
 
 Per-player progress (`MissionProgress`) carries `chainId`, `acceptedFrom` (the place key the chain is bound
 to — later steps are offered and turned in there) and `acceptedBodyId` (drives the relative Travel target
@@ -129,6 +131,29 @@ to — later steps are offered and turned in there) and `acceptedBodyId` (drives
 `GameServerMissionChains.ChainStepAvailable` — used for the Available list **and** enforced on accept, so a
 client cannot skip ahead. Dialogue-granted steps: a dialogue whose choices hand out a mission is only picked
 while that mission can be taken from that NPC; declining sets it aside for the session.
+
+### Epilogue content — "SPS Survey Orders" (#1213)
+
+The post-finale chain `relay_survey` (4 steps, `offerAt: station`, `requiresStory: guardian_defeated`) is what
+the boards have to offer once the Guardian is down, so the ending opens the endgame instead of closing it —
+the counterpart to the Remnant Protocol (#1206), which keeps the machines around to fight.
+
+Two objective mechanics arrived with it:
+
+- **`MissionObjectiveType.Contribute`** — event-tracked from `HandleContributeRelay` via `OnRelayContributed`.
+  It cannot be a `Deliver`: Deliver is inventory-checked **and consumed** at turn-in, and items poured into a
+  relay are already gone, so the objective would sit at 0 forever. Per-player, like Scan — the relay meter is
+  shared world state, but the *order* belongs to the contributor. Not offerable to player-created missions.
+- **Travel target `unlinked_system`** — satisfied by arriving in a system that holds no completed relay and is
+  not the system the order was taken in (`ArrivedInUnlinkedSystem`). Like `other_body` it is resolved server
+  side, because authored content cannot know a generated galaxy's ids.
+
+The `Defeat` target `machine` counts Guardian machines — both kill sites go through the single guarded
+`OnMachineDefeated`, which only fires in the `RemnantEra`: pre-win, the very same kills drive the story's own
+pacing (`RecordStoryMachineKill`) and a board mission must not double-dip on that.
+
+`ChainStepFeasible` keeps each step's promise: no unlinked system left, no relay left to build, or hostiles
+switched off in the world rules → that step is never offered rather than offered and unachievable.
 
 ## Adding another storyline
 

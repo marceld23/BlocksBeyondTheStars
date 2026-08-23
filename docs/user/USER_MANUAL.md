@@ -535,6 +535,13 @@ separate unlock; admins can still disable it through server world rules.
   world: relay systems **draw traders**, and on a *Growing* world a lane into one of the outermost systems
   **grows the galaxy** beyond it. VEGA comments each first — relay, lane, growth — in the Story Log. The
   Codex article *SPS Relays* has the full picture.
+- **SPS Survey Orders** (after the ending): once the Guardian is defeated, **station** mission boards start
+  posting a four-step survey chain — scan two anomalies, look in on a system the relay network has not
+  reached yet, bring circuit boards to a station that is being converted into a relay, and drive off three
+  remnant machines. Each step is handed out at a station board, one after the other, and pays materials plus
+  knowledge. **The chain starts over** once you finish it, so there is always something on the board out
+  there. Steps the world cannot offer are simply skipped — no unlinked systems left, no relay left to build,
+  or machines switched off in the world rules.
 - **Player docking**: press **K** near another player to request docking; **U** to undock. Docking is
   modal and gated by server rules + a `docking_module`.
 

@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "No hay nada construido en esa región.",
   "srv.blueprint.cooldown": "La herramienta de plano aún se está recargando — inténtalo de nuevo en un momento.",
   "srv.blueprint.bad_code": "Eso no es un código de construcción válido.",
-  "srv.blueprint.nothing_placed": "No se pudo colocar nada: las celdas objetivo están ocupadas, protegidas, o te faltan materiales."
+  "srv.blueprint.nothing_placed": "No se pudo colocar nada: las celdas objetivo están ocupadas, protegidas, o te faltan materiales.",
+  "ui.missions.objtype_contribute": "Contribuir",
+  "mission.chain.relay_survey_1.title": "Orden de sondeo: lecturas extrañas",
+  "mission.chain.relay_survey_1.desc": "La red de relés detecta dos anomalías allá afuera y nadie sabe qué son. Vuélalas, escánéalas y trae las lecturas a este tablón.",
+  "mission.chain.relay_survey_2.title": "Orden de sondeo: más allá de la red",
+  "mission.chain.relay_survey_2.desc": "Un sistema aún está en la oscuridad para nosotros — sin relé, sin carril, sin lecturas. Ve a verlo y vuelve a informar.",
+  "mission.chain.relay_survey_3.title": "Orden de sondeo: piezas para la red",
+  "mission.chain.relay_survey_3.desc": "El siguiente relé está corto de placas de circuito. Lleva diez a cualquier estación que esté siendo convertida y deposítalas — luego regresa aquí.",
+  "mission.chain.relay_survey_4.title": "Orden de sondeo: despeja el carril",
+  "mission.chain.relay_survey_4.desc": "Tres máquinas remanentes flotan donde debería pasar el nuevo carril. Expúlsalas para que los topógrafos puedan trabajar en paz."
 }

@@ -27,6 +27,11 @@ public sealed partial class GameServer
     private const string DefeatTargetShip = "bandit_ship";
     private const string DefeatTargetBandit = "bandit";
 
+    /// <summary>Defeat target of the post-finale survey orders (#1213): a Guardian machine — a planet
+    /// drone or a hostile in space. Only counted once the Guardian is down (RemnantEra), because before
+    /// that the same kills drive the story's own pacing and a mission must not double-dip on it.</summary>
+    private const string DefeatTargetMachine = "machine";
+
     /// <summary>The camp key inside a settlement camp-bounty mission id, if it is one.</summary>
     private static bool TryCampBountyKey(string missionId, out string campKey)
     {
@@ -169,6 +174,26 @@ public sealed partial class GameServer
             SyncCampBountyProgress(session);
         }
     }
+
+    /// <summary>A Guardian machine was destroyed by <paramref name="session"/> — a planet drone or a
+    /// hostile in space. Only the REMNANTS count towards mission orders (#1213): before the Guardian
+    /// falls, the very same kills drive the story's own pacing (<c>RecordStoryMachineKill</c>), and a
+    /// board mission must not double-dip on that. Both kill sites go through here so the rule lives in
+    /// one place — and so a test can exercise the gate rather than restate it.</summary>
+    private void OnMachineDefeated(PlayerSession session)
+    {
+        if (RemnantEra)
+        {
+            OnMissionDefeat(session, DefeatTargetMachine);
+        }
+    }
+
+    /// <summary>Test hook: a machine was destroyed by this player, through the same post-win gate.</summary>
+    public void SimulateMachineDefeatForTest(PlayerSession session) => OnMachineDefeated(session);
+
+    /// <summary>Test hook: items poured into a relay, driving Contribute objectives (#1213).</summary>
+    public void SimulateRelayContributionForTest(PlayerSession session, string item, int count)
+        => OnRelayContributed(session, item, count);
 
     /// <summary>Advances any active Defeat objectives matching the target key (mirrors OnBlockMined).</summary>
     private void OnMissionDefeat(PlayerSession session, string targetKey)

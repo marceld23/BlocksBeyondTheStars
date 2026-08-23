@@ -851,6 +851,11 @@ public sealed class GameContent
             {
                 problems.Add($"Mission '{mission.Id}' has an unknown offerAt '{mission.OfferAt}' (settlement|station|any).");
             }
+
+            if (!BlocksBeyondTheStars.Shared.Missions.MissionChains.IsValidRequiresStory(mission.RequiresStory))
+            {
+                problems.Add($"Mission '{mission.Id}' has an unknown requiresStory '{mission.RequiresStory}' (guardian_defeated).");
+            }
         }
 
         // NPC dialogues handing out missions (#1212): the `mission:<id>` consequence must name a known mission.

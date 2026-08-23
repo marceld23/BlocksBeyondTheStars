@@ -152,7 +152,8 @@ public sealed partial class GameServer
                 var obj = def.Objectives[i];
                 if (obj.Type == MissionObjectiveType.Travel
                     && (obj.Target == bodyId || string.Equals(obj.Target, bodyName, StringComparison.OrdinalIgnoreCase)
-                        || (obj.Target == MissionChains.TravelOtherBody && bodyId != pr.AcceptedBodyId))) // #1212: "any other body"
+                        || (obj.Target == MissionChains.TravelOtherBody && bodyId != pr.AcceptedBodyId) // #1212: "any other body"
+                        || (obj.Target == MissionChains.TravelUnlinkedSystem && ArrivedInUnlinkedSystem(bodyId, pr)))) // #1213
                 {
                     pr.ObjectiveProgress[i] = obj.Required; // arriving completes a travel objective
                 }
@@ -339,7 +340,7 @@ public sealed partial class GameServer
             _missionDefs.Remove(missionId);
             _repo.DeleteMission(missionId);
         }
-        else if (def.Repeatable)
+        else if (def.Repeatable && !IsChainMission(def))
         {
             session.State.Missions.Remove(pr); // can be accepted again
         }

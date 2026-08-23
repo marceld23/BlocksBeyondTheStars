@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "W tym regionie nic nie jest zbudowane.",
   "srv.blueprint.cooldown": "Narzędzie planu się ładuje — spróbuj za chwilę.",
   "srv.blueprint.bad_code": "To nie jest poprawny kod budowy.",
-  "srv.blueprint.nothing_placed": "Nic nie mogło być umieszczone — docelowe komórki są zajęte, chronione lub brakuje ci materiałów."
+  "srv.blueprint.nothing_placed": "Nic nie mogło być umieszczone — docelowe komórki są zajęte, chronione lub brakuje ci materiałów.",
+  "ui.missions.objtype_contribute": "Przyczyń się",
+  "mission.chain.relay_survey_1.title": "Zlecenie przekaźnika: dziwne odczyty",
+  "mission.chain.relay_survey_1.desc": "Sieć przekaźników wyłapuje dwa anomalne sygnały i nikt nie wie, czym są. Poleć, zeskanuj je i przynieś odczyty z powrotem na tę tablicę.",
+  "mission.chain.relay_survey_2.title": "Zlecenie przekaźnika: poza siecią",
+  "mission.chain.relay_survey_2.desc": "Jedien system wciąż jest dla nas ciemny — brak przekaźnika, brak pasa, brak odczytów. Poleć i sprawdź, potem wróć z raportem.",
+  "mission.chain.relay_survey_3.title": "Zlecenie przekaźnika: części do sieci",
+  "mission.chain.relay_survey_3.desc": "Następny przekaźnik brakuje płytek obwodów. Dostarcz dziesięć do dowolnej stacji, która jest remontowana, i wrzuć je tam — potem wróć tutaj.",
+  "mission.chain.relay_survey_4.title": "Zlecenie przekaźnika: oczyść pas",
+  "mission.chain.relay_survey_4.desc": "Trzy pozostałe maszyny dryfują tam, gdzie ma biec nowy pas. Odsuń je, żeby sondażyści mogli pracować w spokoju."
 }

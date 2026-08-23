@@ -27,10 +27,20 @@ public static class MissionChains
     public const string StageKnown = "known";
     public const string StageTrusted = "trusted";
 
+    /// <summary>The only <see cref="MissionDefinition.RequiresStory"/> value today (#1213): the chain
+    /// appears once the Guardian has been defeated.</summary>
+    public const string StoryGuardianDefeated = "guardian_defeated";
+
     /// <summary>Travel-objective target for chains (#1212): "land on any body other than the one you took
     /// the job on". Authored content cannot know the world's bodies, so the check is relative to
     /// <see cref="MissionProgress.AcceptedBodyId"/>.</summary>
     public const string TravelOtherBody = "other_body";
+
+    /// <summary>Travel-objective target for the post-finale survey orders (#1213): "reach a system that
+    /// the relay network has not linked yet" — i.e. a system holding no completed relay, and not the one
+    /// the job was taken in. Like <see cref="TravelOtherBody"/> it is resolved by the server, because
+    /// authored content cannot know a generated galaxy's system ids.</summary>
+    public const string TravelUnlinkedSystem = "unlinked_system";
 
     /// <summary>The dialogue consequence that hands a mission out (<c>mission:&lt;id&gt;</c>).</summary>
     public const string DialogConsequence = "mission";
@@ -43,6 +53,9 @@ public static class MissionChains
     public static bool IsValidSurface(string? surface) => string.IsNullOrEmpty(surface) || surface is SurfaceBoard or SurfaceRadio or SurfaceDialog;
 
     public static bool IsValidOfferAt(string? offerAt) => string.IsNullOrEmpty(offerAt) || offerAt is OfferAtSettlement or OfferAtStation or OfferAtAny;
+
+    /// <summary>"" (no gate) | guardian_defeated.</summary>
+    public static bool IsValidRequiresStory(string? story) => string.IsNullOrEmpty(story) || story == StoryGuardianDefeated;
 
     /// <summary>quartermaster | vendor | settler | character:&lt;id&gt; | "" (the board's quartermaster).</summary>
     public static bool IsValidGiverRole(string? role)

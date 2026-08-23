@@ -129,5 +129,69 @@
     "knowledgeReward": 3,
     "repeatable": false,
     "active": true
+  },
+
+  // ---- "SPS Survey Orders" (#1213) — the post-finale chain on STATION boards. ------------------
+  // "requiresStory": "guardian_defeated" hides the whole chain until the Guardian is down, so none of it
+  // leaks into the main story's pacing. The LAST step carries "repeatable": true, which restarts the
+  // WHOLE chain (GameServerMissionChains.RestartChainIfRepeatable) — station boards keep having
+  // something to offer after the ending, which is the point of the Remnant Protocol (#1206).
+  // Feasibility is checked per step (ChainStepFeasible): no unlinked system left, no relay left to
+  // build, or hostiles switched off → that step is simply not offered.
+  {
+    "id": "relay_survey_1",
+    "source": "system",
+    "nameKey": "mission.chain.relay_survey_1.title",
+    "descriptionKey": "mission.chain.relay_survey_1.desc",
+    "chainId": "relay_survey", "step": 1, "nextMissionId": "relay_survey_2",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "station",
+    "requiresStory": "guardian_defeated",
+    "objectives": [ { "type": "scan", "target": "anomaly", "required": 2 } ],
+    "rewards": [ { "item": "data_fragment", "count": 2 } ],
+    "knowledgeReward": 4,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "relay_survey_2",
+    "source": "system",
+    "nameKey": "mission.chain.relay_survey_2.title",
+    "descriptionKey": "mission.chain.relay_survey_2.desc",
+    "chainId": "relay_survey", "step": 2, "prerequisites": [ "relay_survey_1" ], "nextMissionId": "relay_survey_3",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "station",
+    "requiresStory": "guardian_defeated",
+    "objectives": [ { "type": "travel", "target": "unlinked_system", "required": 1 } ],
+    "rewards": [ { "item": "reactor_fuel", "count": 2 } ],
+    "knowledgeReward": 3,
+    "repeatable": false,
+    "active": true
+  },
+  {
+    "id": "relay_survey_3",
+    "source": "system",
+    "nameKey": "mission.chain.relay_survey_3.title",
+    "descriptionKey": "mission.chain.relay_survey_3.desc",
+    "chainId": "relay_survey", "step": 3, "prerequisites": [ "relay_survey_2" ], "nextMissionId": "relay_survey_4",
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "station",
+    "requiresStory": "guardian_defeated",
+    "objectives": [ { "type": "contribute", "target": "circuit_board", "required": 10 } ],
+    "rewards": [ { "item": "titanium_plate", "count": 12 } ],
+    "repeatable": false,
+    "active": true
+  },
+  {
+    // Last step: turning this in restarts the chain at step 1 (see the block comment above).
+    "id": "relay_survey_4",
+    "source": "system",
+    "nameKey": "mission.chain.relay_survey_4.title",
+    "descriptionKey": "mission.chain.relay_survey_4.desc",
+    "chainId": "relay_survey", "step": 4, "prerequisites": [ "relay_survey_3" ],
+    "giverRole": "quartermaster", "surface": "board", "offerAt": "station",
+    "requiresStory": "guardian_defeated",
+    "objectives": [ { "type": "defeat", "target": "machine", "required": 3 } ],
+    "rewards": [ { "item": "gold_ingot", "count": 2 }, { "item": "circuit_board", "count": 4 } ],
+    "knowledgeReward": 3,
+    "repeatable": true,
+    "active": true
   }
 ]

@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "Er staat niets gebouwd in dat gebied.",
   "srv.blueprint.cooldown": "Het blauwdrukgereedschap is nog aan het opladen — probeer het over een moment nog eens.",
   "srv.blueprint.bad_code": "Dat is geen geldige bouwcode.",
-  "srv.blueprint.nothing_placed": "Er kon niets worden geplaatst — de doelcellen zijn bezet, beschermd, of je mist de materialen."
+  "srv.blueprint.nothing_placed": "Er kon niets worden geplaatst — de doelcellen zijn bezet, beschermd, of je mist de materialen.",
+  "ui.missions.objtype_contribute": "Bijdragen",
+  "mission.chain.relay_survey_1.title": "Onderzoeksopdracht: vreemde metingen",
+  "mission.chain.relay_survey_1.desc": "Het relay-net pikt twee anomalieën daarbuiten op en niemand weet wat het zijn. Vlieg erheen, scan ze en breng de gegevens terug naar dit bord.",
+  "mission.chain.relay_survey_2.title": "Onderzoeksopdracht: buiten het net",
+  "mission.chain.relay_survey_2.desc": "Één systeem is nog donker voor ons — geen relay, geen lane, geen metingen. Ga kijken en rapporteer terug.",
+  "mission.chain.relay_survey_3.title": "Onderzoeksopdracht: onderdelen voor het net",
+  "mission.chain.relay_survey_3.desc": "De volgende relay heeft te weinig printplaten. Breng er tien naar een station dat wordt omgebouwd en lever ze in — kom daarna hier terug.",
+  "mission.chain.relay_survey_4.title": "Onderzoeksopdracht: maak de lane vrij",
+  "mission.chain.relay_survey_4.desc": "Drie overgebleven machines drijven waar de nieuwe lane hoort te lopen. Verdrijf ze zodat de landmeters rustig kunnen werken."
 }
