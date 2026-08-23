@@ -61,6 +61,79 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.AreEqual(KeyCode.None, GamepadInputSource.ButtonFor(InputAction.LootContainer));
         }
 
+        // ---- menu verbs (#1198) ---------------------------------------------------------------------------
+
+        [Test]
+        public void MenuVerbs_ResolveToTheKeysAndPadButtonsTheScreensUsedToPollRaw()
+        {
+            // Nine screens spelled out KeyCode.JoystickButton1 / JoystickButton7 next to their Escape / Tab
+            // check. Routing them through actions must land on exactly the same controls.
+            Assert.AreEqual(KeyCode.Escape, InputMap.DefaultKey(InputAction.UiCancel));
+            Assert.AreEqual(KeyCode.Tab, InputMap.DefaultKey(InputAction.UiMenu));
+            Assert.AreEqual(KeyCode.JoystickButton1, GamepadInputSource.ButtonFor(InputAction.UiCancel));
+            Assert.AreEqual(KeyCode.JoystickButton7, GamepadInputSource.ButtonFor(InputAction.UiMenu));
+        }
+
+        [Test]
+        public void MenuVerbs_KeepTheirKeyboardKey_EvenWhenAnOverrideIsStored()
+        {
+            // Escape and Tab must not be bindable away: a player who did could end up inside a modal with no
+            // key that leaves it. The PAD column stays rebindable.
+            var settings = new ClientSettings();
+            InputMap.Use(settings);
+
+            settings.SetBoundKey(InputAction.UiCancel.ToString(), KeyCode.Q.ToString());
+            InputMap.Use(settings);
+            Assert.IsTrue(InputMap.KeyboardLocked(InputAction.UiCancel));
+            Assert.AreEqual(KeyCode.Escape, InputMap.Key(InputAction.UiCancel), "a stored override must not win here");
+
+            settings.SetBoundPad(InputAction.UiCancel.ToString(), KeyCode.JoystickButton3.ToString());
+            Assert.AreEqual(KeyCode.JoystickButton3, GamepadInputSource.ButtonFor(InputAction.UiCancel),
+                "the pad column stays freely rebindable");
+
+            settings.SetBoundKey(InputAction.UiCancel.ToString(), "");
+            settings.SetBoundPad(InputAction.UiCancel.ToString(), "");
+            InputMap.Use(new ClientSettings()); // leave stock settings for later tests
+        }
+
+        [Test]
+        public void MenuVerbs_AreLabelled_AndOnlyTheyAreKeyboardLocked()
+        {
+            Assert.AreEqual("ui.key.ui_cancel", InputMap.LabelKey(InputAction.UiCancel));
+            Assert.AreEqual("ui.key.ui_menu", InputMap.LabelKey(InputAction.UiMenu));
+            CollectionAssert.AreEquivalent(
+                new[] { InputAction.UiCancel, InputAction.UiMenu },
+                InputMap.MenuRemappable,
+                "the menu group is exactly the two locked-keyboard actions");
+
+            foreach (var action in InputMap.Remappable)
+            {
+                Assert.IsFalse(InputMap.KeyboardLocked(action), $"{action} must stay rebindable");
+            }
+        }
+
+        [Test]
+        public void NamedPadButtons_MapOntoTheXInputLayout_AndAreInertWithNoPad()
+        {
+            Assert.AreEqual(KeyCode.JoystickButton0, GamepadInputSource.CodeOf(PadButton.A));
+            Assert.AreEqual(KeyCode.JoystickButton1, GamepadInputSource.CodeOf(PadButton.B));
+            Assert.AreEqual(KeyCode.JoystickButton2, GamepadInputSource.CodeOf(PadButton.X));
+            Assert.AreEqual(KeyCode.JoystickButton3, GamepadInputSource.CodeOf(PadButton.Y));
+            Assert.AreEqual(KeyCode.JoystickButton4, GamepadInputSource.CodeOf(PadButton.Lb));
+            Assert.AreEqual(KeyCode.JoystickButton5, GamepadInputSource.CodeOf(PadButton.Rb));
+            Assert.AreEqual(KeyCode.JoystickButton6, GamepadInputSource.CodeOf(PadButton.Back));
+            Assert.AreEqual(KeyCode.JoystickButton7, GamepadInputSource.CodeOf(PadButton.Start));
+            Assert.AreEqual(KeyCode.JoystickButton8, GamepadInputSource.CodeOf(PadButton.L3));
+            Assert.AreEqual(KeyCode.JoystickButton9, GamepadInputSource.CodeOf(PadButton.R3));
+
+            Assume.That(GamepadInputSource.Connected(), Is.False, "test host unexpectedly has a joystick");
+            Assert.IsFalse(InputMap.PadDown(PadButton.A));
+            Assert.IsFalse(InputMap.PadHeld(PadButton.Start));
+            Assert.AreEqual(0f, InputMap.PadStickX());
+            Assert.AreEqual(0f, InputMap.PadStickY());
+            Assert.AreEqual(0f, InputMap.PadDpadStep());
+        }
+
         [Test]
         public void Key_UsesDefault_WhenUnbound_AndOverride_WhenBound()
         {
@@ -136,7 +209,8 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 Assert.IsNotEmpty(InputMap.LabelKey(action), $"{action} has no ui.key.* label");
                 bool listed = System.Array.IndexOf(InputMap.Remappable, action) >= 0
                               || System.Array.IndexOf(InputMap.FlightRemappable, action) >= 0
-                              || System.Array.IndexOf(InputMap.VehicleRemappable, action) >= 0;
+                              || System.Array.IndexOf(InputMap.VehicleRemappable, action) >= 0
+                              || System.Array.IndexOf(InputMap.MenuRemappable, action) >= 0; // #1198
                 Assert.IsTrue(listed, $"{action} is missing from the settings rebind groups");
             }
         }

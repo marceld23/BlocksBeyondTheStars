@@ -40,6 +40,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("ArcadeUI");
             _canvas.sortingOrder = 55;
+            UiNav.Enable(_canvas.gameObject); // pad: stick walks the cabinets, A starts one (#1198)
             _root = (RectTransform)_canvas.transform;
 
             UiKit.AddImage(_root, 0, 0, W, H, UiKit.SolidSprite, new Color(0.02f, 0.04f, 0.08f, 0.96f));

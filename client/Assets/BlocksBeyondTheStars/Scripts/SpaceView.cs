@@ -1067,7 +1067,7 @@ namespace BlocksBeyondTheStars.Client
             if (_confirmLand)
             {
                 // Esc — or pad B (#1043): the land map is stick-navigable, so the pad needs a back-out too.
-                if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
+                if (InputMap.Down(InputAction.UiCancel))
                 {
                     Game.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                     CancelLandChooser();

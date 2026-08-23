@@ -117,8 +117,7 @@ namespace BlocksBeyondTheStars.Client
                 // The opening key toggles, Esc always closes, and pad B backs out (#940) — the pie is
                 // stick-navigable, so the pad needs an exit besides re-clicking R3. Marking the frame keeps
                 // the app shell / pause menu from ALSO acting on the same press (#413).
-                if (InputMap.Down(InputAction.HotbarAction) || Input.GetKeyDown(KeyCode.Escape)
-                    || Input.GetKeyDown(KeyCode.JoystickButton1))
+                if (InputMap.Down(InputAction.HotbarAction) || InputMap.Down(InputAction.UiCancel))
                 {
                     Game.MarkMenuInputHandled();
                     Close();

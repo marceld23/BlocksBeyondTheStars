@@ -20,6 +20,16 @@ namespace BlocksBeyondTheStars.Client
     /// d-pad (hotbar). <see cref="InputMap"/> combines it with the keyboard/mouse source, so both are always
     /// live; with no pad connected every getter here returns zero/false.
     /// </summary>
+    /// <summary>A pad button by NAME, for screens that need more of the pad than the rebindable
+    /// <see cref="InputAction"/> set covers — the ship / face editors' viewport verbs (#1198) and, later,
+    /// the minigame host (#1218). Reading these through <see cref="InputMap.PadDown"/> keeps the
+    /// XInput button numbers in this one file: before #1198 nine screens spelled out
+    /// <c>KeyCode.JoystickButton1</c> and a reader had to know that "1" means B.</summary>
+    public enum PadButton
+    {
+        A, B, X, Y, Lb, Rb, Back, Start, L3, R3,
+    }
+
     public sealed class GamepadInputSource : IInputSource
     {
         // Axis names — must match the entries appended to client/ProjectSettings/InputManager.asset.
@@ -35,7 +45,7 @@ namespace BlocksBeyondTheStars.Client
         private const KeyCode BtnLb = KeyCode.JoystickButton4;  // place block
         private const KeyCode BtnRb = KeyCode.JoystickButton5;  // mine / attack
         private const KeyCode BtnBack = KeyCode.JoystickButton6; // Back / View — VEGA continue (#1041)
-        private const KeyCode BtnStart = KeyCode.JoystickButton7; // Start / Menu (GameMenu polls it directly)
+        private const KeyCode BtnStart = KeyCode.JoystickButton7; // Start / Menu (InputAction.UiMenu, #1198)
         private const KeyCode BtnL3 = KeyCode.JoystickButton8;  // left-stick click — context-actions list (#1043)
         private const KeyCode BtnR3 = KeyCode.JoystickButton9;  // right-stick click
 
@@ -134,6 +144,38 @@ namespace BlocksBeyondTheStars.Client
         // No direct 1..9 pick on a pad — the hotbar is cycled via HotbarScroll (d-pad) instead.
         public int HotbarSlotDown() => -1;
 
+        /// <summary>The <see cref="KeyCode"/> behind a named pad button (XInput layout, see the class summary).</summary>
+        public static KeyCode CodeOf(PadButton button) => button switch
+        {
+            PadButton.A => BtnA,
+            PadButton.B => BtnB,
+            PadButton.X => BtnX,
+            PadButton.Y => BtnY,
+            PadButton.Lb => BtnLb,
+            PadButton.Rb => BtnRb,
+            PadButton.Back => BtnBack,
+            PadButton.Start => BtnStart,
+            PadButton.L3 => BtnL3,
+            PadButton.R3 => BtnR3,
+            _ => KeyCode.None,
+        };
+
+        /// <summary>A named pad button pressed this frame. False with no pad connected, like every getter here.</summary>
+        public static bool Down(PadButton button) => Connected() && Input.GetKeyDown(CodeOf(button));
+
+        /// <summary>A named pad button held this frame.</summary>
+        public static bool Held(PadButton button) => Connected() && Input.GetKey(CodeOf(button));
+
+        /// <summary>Raw left stick, deadzoned. The gameplay path does NOT use this — the project's
+        /// InputManager already folds the left stick into the shared "Horizontal"/"Vertical" axes, so
+        /// <see cref="MoveX"/> stays 0 to avoid double-counting. Screens that drive something OTHER than the
+        /// player (an editor's fly-cam, a paint cursor) need the stick on its own, and that is what these
+        /// two are for (#1198).</summary>
+        public static float RawStickX() => Connected() ? Deadzoned(Input.GetAxis("Horizontal")) : 0f;
+
+        /// <summary>Raw left stick vertical, deadzoned — see <see cref="RawStickX"/>.</summary>
+        public static float RawStickY() => Connected() ? Deadzoned(Input.GetAxis("Vertical")) : 0f;
+
         /// <summary>The player's pad-binding source (set from <see cref="InputMap.Use"/>). Null = defaults only.</summary>
         public static ClientSettings Settings;
 
@@ -156,6 +198,11 @@ namespace BlocksBeyondTheStars.Client
             // advances VEGA (#1041): the one verb a pad player presses often enough to deserve its own button.
             InputAction.ContextActions => BtnL3,
             InputAction.VegaContinue => BtnBack,
+            // Menu verbs (#1198): the two buttons nine screens already polled raw, now bound like every
+            // other action. B doubles as crouch on foot and Start as nothing else — neither is read while a
+            // screen owns the input, so the roles never collide.
+            InputAction.UiCancel => BtnB,
+            InputAction.UiMenu => BtnStart,
             _ => KeyCode.None,
         };
 

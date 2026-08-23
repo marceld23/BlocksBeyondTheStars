@@ -158,6 +158,43 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Gamepad reaches every menu — the Tab menu's canvas was invisible to UiNav (#1198, 2026-08-23, branch fix/1198-uinav-gamepad-menus)
+Seventh slice of the feature-deepening package (epic #1197), and its fix-before-feature entry. **The bug:**
+`UiKit.CreateCanvas` returns a **scene-root** GameObject, but `GameMenu.cs` enabled `UiNav` on its own
+GameObject while `CraftingTechShipUI` built all 11 tabs on a canvas of its own — so `UiNavFocus` walked a
+subtree containing none of them. The comment claimed it "covers every tab"; in fact the whole in-game menu
+was unreachable by pad. Same pattern left ArcadeUI, BlueprintToolUi, BeaconLabelUi, BeamPadUi, FaceEditor
+and ShipEditor without pad navigation.
+
+**`UiNavFocus` hardened** (`UiNav.cs`): it now respects `Canvas.enabled` (screens that hide via
+`canvas.enabled = false` keep an ACTIVE GameObject — `WikiUI` shipped this bug already, silently stealing the
+selection while hidden), never auto-selects an `InputField` (a focused field swallows the nav axes → the pad
+is stuck until #1211), and restores the **position** of the last selection after a rebuild instead of snapping
+to control #1 (crafting rebuilds all three panes on every pick). New `UiNav.SetSuspended` hands the sticks to a
+screen's 3D viewport. `WantsFocus` / `FocusTarget()` / `NoteSelection()` are the seams the tests use.
+
+**`InputAction.UiCancel` (Esc / B) + `UiMenu` (Tab / Start)** replace the nine raw `JoystickButton1/7` polls
+(ContextActionsUi, GameMenu, HotbarActionUi, PlayerInteractions, SpaceMap, SpaceView, StoryReaderUi,
+TeleporterUi, WorldMap). Their **keyboard** key is fixed (`InputMap.KeyboardLocked`) — binding Escape away can
+strand a player in a modal — while the pad column stays rebindable via a new **Menus** settings group.
+`AppShell` takes pad B in the menu phases only: in-game B is crouch and must never pop the quit dialog.
+Two gaps closed on the way: the Tab menu had **no pad close at all** (only `KeyCode.Escape` was checked), and
+the main menu / settings / world picker / editors had no pad back-out.
+
+**Both editors are now fully pad-operable** (Marcel's call — the issue only asked for open/navigate/close).
+They are pointer-native, so each gets a focus toggle instead of cursor emulation: **Start** swaps panels ↔ work
+surface. `ShipEditor` flies on the left stick, looks on the right, LB/RB down/up, L3 faster, d-pad steps the
+palette, A/X/Y place/remove/turn, and a centre reticle replaces the mouse as the picking ray's origin
+(`PickPoint()`). `FaceEditor` gets a repeat-gated **cell cursor** (A paint, X erase, Y eyedropper, LB = fill's
+Shift modifier); its Update was split into a device-specific head and a shared tool tail, so a new tool keeps
+working on both. Naming modals no longer `ActivateInputField()` on a pad — UiNav focuses their buttons instead.
+
+New `PadButton` enum + `InputMap.PadDown/PadHeld/PadStickX/Y/PadLookX/Y/PadDpadStep` keep XInput button
+numbers inside `GamepadInputSource`; the minigame host (#1218) is the next customer. Tests:
+`UiNavEditModeTests` (10, incl. the canvas-root regression) + 4 in `InputAbstractionEditModeTests`.
+Locales: 7 new keys EN+DE + 12 machine. Docs: USER_MANUAL §2, INPUT_AND_CONTROLLER.
+**On-device pad pass still open** — CI cannot test a controller (protocol #1227).
+
 ### ★ Companion payoff — fetch, alert + robber stall, high-bond bandit ward, penned produce (#1210, 2026-08-22, branch feat/1210-companion-payoff)
 Sixth slice of the feature-deepening package (epic #1197). A companion was a `CombatEntity` with `DamagePerSecond = 0`
 that followed and warded machines — `Bond` was written once and only displayed. **Now** (`GameServerCompanionPayoff.cs`,

@@ -66,7 +66,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Esc — or pad B (#1043) — closes the chart.
-            if (_open && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)) && !Game.ChatTyping)
+            if (_open && InputMap.Down(InputAction.UiCancel) && !Game.ChatTyping)
             {
                 Game.MarkMenuInputHandled(); // consumed — don't also pop the quit prompt (#413)
                 Close();

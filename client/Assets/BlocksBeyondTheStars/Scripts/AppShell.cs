@@ -1557,7 +1557,13 @@ namespace BlocksBeyondTheStars.Client
             bool fieldTypingRecent = fieldTyping || _fieldTypingPrev;
             _fieldTypingPrev = fieldTyping;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // Pad B backs out of the MENU phases too (#1198) — settings, credits, save-select and the four
+            // standalone editors had no pad exit at all. Deliberately NOT in-game: there B is crouch
+            // (GamepadInputSource.CrouchHeld), and ducking must never pop the quit dialog.
+            bool cancel = Phase == ShellPhase.InGame
+                ? Input.GetKeyDown(KeyCode.Escape)
+                : InputMap.Down(InputAction.UiCancel);
+            if (cancel)
             {
                 if (Phase == ShellPhase.InGame)
                 {

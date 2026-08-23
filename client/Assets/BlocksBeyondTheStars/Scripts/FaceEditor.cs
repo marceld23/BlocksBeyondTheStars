@@ -114,6 +114,15 @@ namespace BlocksBeyondTheStars.Client
         // and canvas both update live from the same SetPixel.
         private const int RegionCells = 32;
         private bool RegionMode => Current.ColumnLabelKeys != null && Current.ColumnLabelKeys.Length > 0;
+
+        // Gamepad (#1198): the paint canvas has no pointer, so the pad drives a CELL cursor over it.
+        // false = the tool panel owns the sticks (UiNav), true = the canvas does. Panel first, so a pad
+        // player picks a colour before drawing.
+        private bool _padCanvas;
+        private int _padCellX, _padCellY;   // cursor position in VISIBLE-canvas cell coords
+        private RectTransform _padCursor;   // outline drawn over that cell
+        private float _padStepAt;           // repeat gate, 0 = stick at rest
+        private const float PadStepFirst = 0.30f, PadStepRepeat = 0.06f;
         private int _regionCols, _regionRows;
         private int _activeRegion;
         private Text _activeRegionLabel;
@@ -236,48 +245,73 @@ namespace BlocksBeyondTheStars.Client
 
             UpdateColorWheel();
 
-            bool left = Input.GetMouseButton(0), right = Input.GetMouseButton(1);
-            bool leftDown = Input.GetMouseButtonDown(0), rightDown = Input.GetMouseButtonDown(1);
-            bool middleDown = Input.GetMouseButtonDown(2);
-            if (!left && !right && !middleDown)
+            // Which device is painting decides where the "cursor" is: the mouse pointer, or the pad's cell
+            // cursor (#1198). Everything after the split — eyedropper, fill, stroke — is shared, so a tool
+            // added here keeps working on both.
+            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            UpdatePadFocus(pad);
+            bool padCanvas = pad && _padCanvas;
+            if (padCanvas)
             {
-                if (_stroking)
-                {
-                    _stroking = false;
-                    RefreshPreview(); // a stroke ended — show it on the figure (too costly per pixel)
-                }
-
-                return;
+                StepPadCursor(); // before the idle bail-out below, or the cursor could only move while painting
             }
 
-            if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
-            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
+            RefreshPadCursor(padCanvas);
 
-            // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0].
-            float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
-            float u = Mathf.Clamp01(lp.x / w);
-            float fromTop = Mathf.Clamp01(-lp.y / h);
+            bool left, right, leftDown, rightDown, middleDown, altHeld, fillAll;
             int gx, gy;
-            if (RegionMode)
+
+            if (padCanvas)
             {
-                // The canvas shows only the active 32×32 region — map into its cell block.
-                gx = (_activeRegion % _regionCols) * RegionCells
-                    + Mathf.Clamp(Mathf.RoundToInt(u * (RegionCells - 1)), 0, RegionCells - 1);
-                gy = (_activeRegion / _regionCols) * RegionCells
-                    + Mathf.Clamp(Mathf.RoundToInt(fromTop * (RegionCells - 1)), 0, RegionCells - 1);
+                left = InputMap.PadHeld(PadButton.A);
+                right = InputMap.PadHeld(PadButton.X);
+                leftDown = InputMap.PadDown(PadButton.A);
+                rightDown = InputMap.PadDown(PadButton.X);
+                middleDown = InputMap.PadDown(PadButton.Y); // the eyedropper gets its own button on a pad
+                altHeld = false;
+                fillAll = InputMap.PadHeld(PadButton.Lb); // LB stands in for the fill tool's Shift modifier
+                if (!left && !right && !middleDown)
+                {
+                    EndStroke();
+                    return;
+                }
+
+                CellToGrid(_padCellX, _padCellY, out gx, out gy);
             }
             else
             {
-                gx = Mathf.Clamp(Mathf.RoundToInt(u * (_w - 1)), 0, _w - 1);
-                gy = Mathf.Clamp(Mathf.RoundToInt(fromTop * (_h - 1)), 0, _h - 1); // top row = gy 0
+                left = Input.GetMouseButton(0);
+                right = Input.GetMouseButton(1);
+                leftDown = Input.GetMouseButtonDown(0);
+                rightDown = Input.GetMouseButtonDown(1);
+                middleDown = Input.GetMouseButtonDown(2);
+                if (!left && !right && !middleDown)
+                {
+                    EndStroke();
+                    return;
+                }
+
+                if (!RectTransformUtility.RectangleContainsScreenPoint(_canvasRt, Input.mousePosition, null)) return;
+                if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRt, Input.mousePosition, null, out var lp)) return;
+
+                // Place() anchors the rect top-left with pivot (0,1): local x∈[0,w], y∈[-h,0].
+                float w = _canvasRt.rect.width, h = _canvasRt.rect.height;
+                float u = Mathf.Clamp01(lp.x / w);
+                float fromTop = Mathf.Clamp01(-lp.y / h);
+                CellToGrid(
+                    Mathf.Clamp(Mathf.RoundToInt(u * (CellsX - 1)), 0, CellsX - 1),
+                    Mathf.Clamp(Mathf.RoundToInt(fromTop * (CellsY - 1)), 0, CellsY - 1), // top row = gy 0
+                    out gx, out gy);
+
+                altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+                fillAll = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             }
 
             // Eyedropper: pick up the colour already under the cursor instead of painting over it. Asked for
             // by name ("ein Kopierer für benutzte Farben") — once a drawing has a dozen shades in it, finding
             // the one you used for the left eye by eye in the palette is guesswork. Besides the armed button
             // it answers to the two gestures every paint program uses: Alt+click and the middle button (#899),
-            // so it is there when a hand reaches for it without a trip to the toolbar.
-            bool altHeld = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+            // so it is there when a hand reaches for it without a trip to the toolbar. On a pad that is Y.
             if (middleDown || (leftDown && (altHeld || _picking)))
             {
                 int picked = _grid[gy * _w + gx];
@@ -294,10 +328,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (leftDown || rightDown)
                 {
-                    // Shift = replace every pixel of that colour in the region, not just the connected blob —
-                    // one gesture to recolour an outline that a fill would have to chase around corners.
-                    Fill(gx, gy, rightDown ? 0 : _brush,
-                        Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift));
+                    // Shift (pad: LB) = replace every pixel of that colour in the region, not just the
+                    // connected blob — one gesture to recolour an outline a fill would chase around corners.
+                    Fill(gx, gy, rightDown ? 0 : _brush, fillAll);
                 }
 
                 return; // armed fill never smears paint while the button stays down
@@ -310,6 +343,157 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Paint(gx, gy, right ? 0 : _brush);
+        }
+
+        /// <summary>Ends a stroke once every paint button is released — the preview is too costly to refresh
+        /// per pixel, so it lands here.</summary>
+        private void EndStroke()
+        {
+            if (_stroking)
+            {
+                _stroking = false;
+                RefreshPreview();
+            }
+        }
+
+        // ── gamepad: a cell cursor instead of a pointer (#1198) ──────────────────────────────────
+
+        /// <summary>Cells across the visible canvas — the whole grid, or one 32×32 region in region mode.</summary>
+        private int CellsX => RegionMode ? RegionCells : _w;
+
+        /// <summary>Cells down the visible canvas — see <see cref="CellsX"/>.</summary>
+        private int CellsY => RegionMode ? RegionCells : _h;
+
+        /// <summary>Maps a cell of the VISIBLE canvas onto the underlying grid: identity normally, offset by
+        /// the active region's block when the canvas is cropped to one region.</summary>
+        private void CellToGrid(int cellX, int cellY, out int gx, out int gy)
+        {
+            if (RegionMode)
+            {
+                gx = (_activeRegion % _regionCols) * RegionCells + Mathf.Clamp(cellX, 0, RegionCells - 1);
+                gy = (_activeRegion / _regionCols) * RegionCells + Mathf.Clamp(cellY, 0, RegionCells - 1);
+                return;
+            }
+
+            gx = Mathf.Clamp(cellX, 0, _w - 1);
+            gy = Mathf.Clamp(cellY, 0, _h - 1);
+        }
+
+        /// <summary>Start swaps the pad between the tool panel and the paint canvas; B leaves the canvas.
+        /// One stick cannot walk a toolbar and steer a brush at once, so exactly one of the two owns it.</summary>
+        private void UpdatePadFocus(bool pad)
+        {
+            if (_ui == null)
+            {
+                return;
+            }
+
+            if (!pad)
+            {
+                UiNav.SetSuspended(_ui.gameObject, false); // mouse in hand — the tools are always live
+                SetHint(Current.HintKey);                  // …and the hint goes back to the mouse wording
+                return;
+            }
+
+            bool was = _padCanvas;
+            if (InputMap.Down(InputAction.UiMenu))
+            {
+                _padCanvas = !_padCanvas;
+            }
+            else if (_padCanvas && InputMap.Down(InputAction.UiCancel))
+            {
+                _padCanvas = false;
+            }
+
+            if (_padCanvas && !was)
+            {
+                _padCellX = CellsX / 2; // enter at the middle of the canvas, not in a corner
+                _padCellY = CellsY / 2;
+                _padStepAt = 0f;
+            }
+
+            UiNav.SetSuspended(_ui.gameObject, _padCanvas);
+            SetHint(_padCanvas ? "ui.face.hint_pad" : "ui.face.hint_pad_panel");
+        }
+
+        /// <summary>Swaps the hint line under the tools, which tells the player which controls are live right
+        /// now — the mouse wording, or one of the two pad modes.</summary>
+        private void SetHint(string key)
+        {
+            if (_hint == null)
+            {
+                return;
+            }
+
+            string text = L(key);
+            if (_hint.text != text)
+            {
+                _hint.text = text;
+            }
+        }
+
+        /// <summary>Walks the cell cursor with the left stick, edge- then repeat-gated so a held stick steps at
+        /// a readable rate instead of crossing 32 cells in a frame — the same feel as the d-pad hotbar cycle.</summary>
+        private void StepPadCursor()
+        {
+            float sx = InputMap.PadStickX(), sy = InputMap.PadStickY();
+            bool pushed = Mathf.Abs(sx) >= 0.5f || Mathf.Abs(sy) >= 0.5f;
+            if (!pushed)
+            {
+                _padStepAt = 0f; // released → the next push steps immediately
+                return;
+            }
+
+            if (_padStepAt > 0f && Time.unscaledTime < _padStepAt)
+            {
+                return;
+            }
+
+            _padStepAt = Time.unscaledTime + (_padStepAt <= 0f ? PadStepFirst : PadStepRepeat);
+            if (Mathf.Abs(sx) >= 0.5f)
+            {
+                _padCellX = Mathf.Clamp(_padCellX + (sx > 0f ? 1 : -1), 0, CellsX - 1);
+            }
+
+            if (Mathf.Abs(sy) >= 0.5f)
+            {
+                _padCellY = Mathf.Clamp(_padCellY + (sy > 0f ? -1 : 1), 0, CellsY - 1); // grid row 0 is the TOP
+            }
+        }
+
+        /// <summary>Draws the cursor outline over the cell the pad is on (and hides it for the mouse, whose
+        /// pointer already shows where paint would land).</summary>
+        private void RefreshPadCursor(bool show)
+        {
+            if (!show)
+            {
+                if (_padCursor != null && _padCursor.gameObject.activeSelf)
+                {
+                    _padCursor.gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
+            if (_padCursor == null)
+            {
+                var go = new GameObject("PadCursor", typeof(RectTransform));
+                go.transform.SetParent(_canvasRt, false);
+                var img = go.AddComponent<Image>();
+                img.sprite = UiKit.ButtonSprite; // sliced outline — reads over any pixel colour underneath
+                img.type = Image.Type.Sliced;
+                img.color = new Color(0.45f, 0.92f, 1f, 0.75f);
+                img.raycastTarget = false;
+                _padCursor = (RectTransform)go.transform;
+            }
+
+            if (!_padCursor.gameObject.activeSelf)
+            {
+                _padCursor.gameObject.SetActive(true);
+            }
+
+            float cw = _canvasRt.rect.width / CellsX, ch = _canvasRt.rect.height / CellsY;
+            UiKit.Place(_padCursor.gameObject, _padCellX * cw, _padCellY * ch, cw, ch);
         }
 
         /// <summary>Sets one pixel (grid + display texture) and applies it. Grid row 0 is the TOP; the texture's
@@ -477,6 +661,7 @@ namespace BlocksBeyondTheStars.Client
 
             _ui = UiKit.CreateCanvas("Face Editor UI");
             _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
+            UiNav.Enable(_ui.gameObject); // pad: walk the tools/palette; Start hands the sticks to the canvas (#1198)
             var root = _ui.transform;
 
             // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is
@@ -647,6 +832,7 @@ namespace BlocksBeyondTheStars.Client
 
             _regionFrames = null;
             _activeRegionLabel = null;
+            _padCursor = null; // lived under the old canvas rect, which this rebuild destroys
 
             // Paint surface (point-filtered → crisp big pixels), always the full 512×512 — in region mode
             // it crops the shared texture to the active 32×32 face via uvRect, so every face paints at the

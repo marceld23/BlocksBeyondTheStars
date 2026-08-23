@@ -176,7 +176,7 @@ namespace BlocksBeyondTheStars.Client
             // Esc (keyboard) / B (pad) is the cancel verb of whichever window is up — the same pair every
             // other in-game modal uses. AppShell swallows the Esc anyway while a menu owner is registered;
             // MarkMenuInputHandled makes that explicit. Chat typing keeps its own Esc.
-            bool cancelKey = !Game.ChatTyping && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1));
+            bool cancelKey = !Game.ChatTyping && InputMap.Down(InputAction.UiCancel);
             if (cancelKey && (trade || dock || tradeAsk))
             {
                 Game.MarkMenuInputHandled();

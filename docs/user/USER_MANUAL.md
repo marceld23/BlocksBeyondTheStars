@@ -126,16 +126,33 @@ buttons — retuning is tracked in issue #195):
 | **Back / View** | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
 | **Start** | Open / close the gameplay menu |
 
-In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes the
-landing-pad chooser (pick a pad with the stick, **(A)** lands, **(B)** cancels), trade and docking
-requests, the bandit demand, and both maps. The right stick also steers the ship in flight; the d-pad
-cycles the **ship-systems bar** (laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain
-keyboard-only. Verbs without a face button — everything in the **L3 Actions** list — can also be given
-their own button in Settings.
+In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
+tab of the gameplay menu** (Inventory, Crafting, Tech, Ship, Map, Missions, Character, …), the Codex, the
+Arcade, the landing-pad chooser (pick a pad with the stick, **(A)** lands, **(B)** cancels), trade and
+docking requests, the bandit demand, the blueprint / beacon / transporter windows, and both maps. **(B)**
+also closes the gameplay menu itself and backs out of the main menu, Settings, the world picker and the
+editors. The right stick also steers the ship in flight; the d-pad cycles the **ship-systems bar**
+(laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain keyboard-only. Verbs without a
+face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
+
+Windows that ask you to **type** (naming a beacon or a blueprint) put the controller on their buttons
+instead of into the text box, so you can confirm the suggested name with **(A)** or cancel with **(B)**.
+Typing with a controller needs the on-screen keyboard, which is still to come.
+
+**Editors on a controller.** The Ship Editor and the pixel (face/paint) editor have two modes, and
+**Start** swaps between them: the side panels (stick walks them, **(A)** picks) and the work surface. In
+the Ship Editor's surface mode the left stick flies, the right stick looks, **LB/RB** drop and rise,
+**L3** flies faster, the d-pad steps through the palette, **(A)** places, **(X)** removes and **(Y)** turns
+the block — a crosshair in the middle of the screen shows where it will land. In the pixel editor the stick
+moves a cell cursor, **(A)** paints, **(X)** erases and **(Y)** picks up a colour. **(B)** returns to the
+panels; the hint line under the tools always says which controls are live.
 
 **Rebinding:** every control row in **Settings** has two buttons — the keyboard key and the pad button.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button
-by default but can be given one). *Reset controls* restores both keyboard and pad defaults.
+by default but can be given one). *Reset controls* restores both keyboard and pad defaults. The **Menus**
+group at the bottom (close/back, open the menu) shows its keyboard keys greyed out: **Esc** and **Tab**
+stay fixed so nobody can bind away the key that leaves a window — the pad buttons **(B)** and **Start**
+are rebindable as usual.
 
 ### Touch controls (experimental — tablet / touch browser)
 

@@ -55,8 +55,14 @@ namespace BlocksBeyondTheStars.Client
             _canvas.gameObject.SetActive(true);
 
             Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-            _input.ActivateInputField();
-            _input.Select();
+            if (InputMap.ActiveDevice != InputDeviceKind.Gamepad)
+            {
+                // A focused InputField swallows the navigation axes, so auto-activating it would strand a
+                // pad player in a field they cannot type into OR leave (#1198). On a pad, UiNav focuses the
+                // buttons instead and the suggested name is confirmed with A. Typing arrives with #1211.
+                _input.ActivateInputField();
+                _input.Select();
+            }
         }
 
         private void Update()
@@ -73,7 +79,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close(); // cancel — no callback, nothing placed/renamed
@@ -114,6 +120,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("BeaconLabelUI");
             _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60)
+            UiNav.Enable(_canvas.gameObject); // pad: reach OK / Cancel; the name field needs #1211 to type
             var root = _canvas.transform;
 
             // Dim the screen behind the modal so it reads as the focus (Place anchors top-left, 1920x1080 ref).

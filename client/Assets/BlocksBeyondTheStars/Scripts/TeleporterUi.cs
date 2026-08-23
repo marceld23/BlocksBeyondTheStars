@@ -67,7 +67,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_open) return;
 
             // Esc always closes; pad B backs out (the list is stick-navigable, so the pad needs an exit).
-            if (Time.frameCount != _openFrame && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)))
+            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();

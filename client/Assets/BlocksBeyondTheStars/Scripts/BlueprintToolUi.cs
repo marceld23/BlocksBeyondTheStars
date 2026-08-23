@@ -187,7 +187,9 @@ namespace BlocksBeyondTheStars.Client
             _canvas.gameObject.SetActive(true);
 
             Game?.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
-            if (input)
+            // A focused InputField swallows the navigation axes — see BeaconLabelUi. On a pad UiNav
+            // focuses the buttons instead, so the tool stays operable without an on-screen keyboard (#1198).
+            if (input && InputMap.ActiveDevice != InputDeviceKind.Gamepad)
             {
                 _input.ActivateInputField();
                 _input.Select();
@@ -208,7 +210,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
@@ -249,6 +251,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("BlueprintToolUI");
             _canvas.sortingOrder = 58; // above the HUD/chat, below the world map (60)
+            UiNav.Enable(_canvas.gameObject); // pad: reach the actions; the name field needs #1211 to type
             var root = _canvas.transform;
 
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));

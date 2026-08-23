@@ -50,6 +50,15 @@ namespace BlocksBeyondTheStars.Client
         VegaContinue,         // advance / dismiss the VEGA speech line — default N, pad Back
         PlanetMap,            // toggle the on-foot planet map — default M (the flight chart is FlightMap)
         ContextActions,       // open the list of currently applicable verbs — no key by default, pad LS, touch "⋯"
+
+        // Menu verbs (#1198). Nine screens used to poll KeyCode.JoystickButton1 / JoystickButton7 right next
+        // to their Escape / Tab check, which left the pad's two menu buttons outside the binding system:
+        // not remappable, and a reader had to know that "1" means B. Routing them through actions makes the
+        // pad column rebindable and leaves ONE place that says what closes a screen.
+        // Their KEYBOARD key is deliberately fixed (see <see cref="InputMap.KeyboardLocked"/>): Escape and
+        // Tab are the two keys a player must not be able to bind away — that can strand them in a modal.
+        UiCancel,             // close / step back out of a screen — Escape, pad B
+        UiMenu,               // toggle the in-game Tab menu — Tab, pad Start
     }
 
     /// <summary>
@@ -135,6 +144,19 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Disembark, InputAction.RequestTrade, InputAction.RequestDock,
         };
 
+        /// <summary>Menu verbs shown in the rebinding UI with their PAD column only (#1198). Their keyboard
+        /// key is fixed — see <see cref="KeyboardLocked"/>.</summary>
+        public static readonly InputAction[] MenuRemappable =
+        {
+            InputAction.UiCancel, InputAction.UiMenu,
+        };
+
+        /// <summary>True for actions whose keyboard key cannot be rebound. Escape closes every screen and Tab
+        /// opens the in-game menu; a player who bound either of them away could end up inside a modal with no
+        /// key that leaves it. The PAD button of these actions stays freely rebindable (#1198).</summary>
+        public static bool KeyboardLocked(InputAction action) =>
+            action == InputAction.UiCancel || action == InputAction.UiMenu;
+
         /// <summary>Points the map at the active settings (called once after <c>ClientSettings.Load()</c>).
         /// Also hands them to the gamepad backend so pad-button rebinds resolve.</summary>
         public static void Use(ClientSettings settings)
@@ -172,6 +194,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.VegaContinue => KeyCode.N,  // the key VegaPanel always used; now rebindable + reachable from pad/touch (#1041)
             InputAction.PlanetMap => KeyCode.M,     // WorldMap's historical key — same letter as FlightMap, different context (#1042)
             InputAction.ContextActions => KeyCode.None, // keyboard players have every verb on a key already; pad LS / touch "⋯"
+            InputAction.UiCancel => KeyCode.Escape, // the key every screen already closed on (#1198)
+            InputAction.UiMenu => KeyCode.Tab,      // the key that always opened the in-game menu (#1198)
             _ => KeyCode.None,
         };
 
@@ -179,7 +203,7 @@ namespace BlocksBeyondTheStars.Client
         public static KeyCode Key(InputAction action)
         {
             var def = DefaultKey(action);
-            if (_settings == null)
+            if (_settings == null || KeyboardLocked(action))
             {
                 return def;
             }
@@ -248,6 +272,38 @@ namespace BlocksBeyondTheStars.Client
             return Mathf.Abs(p) > 0.0001f ? p : _touch.HotbarScroll();
         }
 
+        // ---- Named pad buttons + raw sticks ---------------------------------------------------------------
+        // For screens that need more of the pad than the rebindable action set covers: an editor viewport
+        // where the sticks drive a camera or a paint cursor rather than the player (#1198), and later the
+        // minigame host (#1218). Everything stays behind InputMap so no screen spells out a JoystickButton
+        // number, and "no pad connected" keeps returning zero/false in one place.
+
+        /// <summary>A named pad button pressed this frame (see <see cref="PadButton"/>).</summary>
+        public static bool PadDown(PadButton button) => GamepadInputSource.Down(button);
+
+        /// <summary>A named pad button held this frame.</summary>
+        public static bool PadHeld(PadButton button) => GamepadInputSource.Held(button);
+
+        /// <summary>Left stick X on its own, deadzoned — see <see cref="GamepadInputSource.RawStickX"/>.</summary>
+        public static float PadStickX() => GamepadInputSource.RawStickX();
+
+        /// <summary>Left stick Y on its own, deadzoned.</summary>
+        public static float PadStickY() => GamepadInputSource.RawStickY();
+
+        /// <summary>Right-stick look from the PAD ALONE (already a per-frame delta). <see cref="LookX"/>
+        /// merges the mouse in; an editor viewport wants stick look without the mouse, which moves the
+        /// pointer over its panels instead.</summary>
+        public static float PadLookX() => _pad.LookX();
+
+        /// <summary>Right-stick pitch from the pad alone — see <see cref="PadLookX"/>.</summary>
+        public static float PadLookY() => _pad.LookY();
+
+        /// <summary>One repeat-gated d-pad left/right step from the pad alone: &gt;0 = left/previous,
+        /// &lt;0 = right/next, 0 while the d-pad rests or its repeat is on cooldown. Same sign convention and
+        /// the same cooldown as the hotbar cycle (<see cref="HotbarScroll"/>), minus the mouse wheel — a
+        /// screen that steps a list on the d-pad wants the gating without the wheel.</summary>
+        public static float PadDpadStep() => _pad.HotbarScroll();
+
         public static bool JumpHeld() => _desktop.JumpHeld() || _pad.JumpHeld() || _touch.JumpHeld();
         public static bool JumpDown() => _desktop.JumpDown() || _pad.JumpDown() || _touch.JumpDown();
         public static bool CrouchHeld() => _desktop.CrouchHeld() || _pad.CrouchHeld() || _touch.CrouchHeld();
@@ -293,6 +349,8 @@ namespace BlocksBeyondTheStars.Client
             InputAction.VegaContinue => "ui.key.vega_continue",
             InputAction.PlanetMap => "ui.key.planet_map",
             InputAction.ContextActions => "ui.key.context_actions",
+            InputAction.UiCancel => "ui.key.ui_cancel",
+            InputAction.UiMenu => "ui.key.ui_menu",
             _ => string.Empty,
         };
 

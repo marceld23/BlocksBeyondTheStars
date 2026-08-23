@@ -158,6 +158,12 @@ namespace BlocksBeyondTheStars.Client
                 KeyRow(ref y, action);
             }
 
+            Head(ref y, L("ui.settings.controls_menu"));
+            foreach (var action in InputMap.MenuRemappable)
+            {
+                KeyRow(ref y, action);
+            }
+
             UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
                 () => { S.KeyBindings.Clear(); S.PadBindings.Clear(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
             y += 52f;
@@ -320,9 +326,18 @@ namespace BlocksBeyondTheStars.Client
 
             float keyW = _rowW - CtrlX - 130f; // leave a 120-wide pad column + a 10 gap on the right
             string val = _rebinding == action ? L("ui.settings.press_key") : InputMap.Key(action).ToString();
-            var b = UiKit.AddButton(_content, _x + CtrlX, y, keyW, 44, val,
-                () => { _rebinding = action; _rebindingPad = null; Rebuild(); });
-            if (_rebinding == action)
+
+            // Menu verbs show their key but cannot rebind it (#1198): Escape closes every screen and Tab
+            // opens the menu, so a player who bound either away could be stuck inside a modal. Their PAD
+            // button stays freely rebindable, which is the column a pad player actually cares about.
+            bool locked = InputMap.KeyboardLocked(action);
+            System.Action rebindKey = locked ? null : () => { _rebinding = action; _rebindingPad = null; Rebuild(); };
+            var b = UiKit.AddButton(_content, _x + CtrlX, y, keyW, 44, val, rebindKey);
+            if (locked)
+            {
+                b.interactable = false;
+            }
+            else if (_rebinding == action)
             {
                 b.GetComponent<Image>().color = UiKit.Cyan;
             }

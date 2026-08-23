@@ -18,6 +18,14 @@ namespace BlocksBeyondTheStars.Client
     /// all ship stations, a hatch, lights and an engine. A side panel sets the design's name, stats and
     /// blueprint/craft costs. Save writes a ship-type bundle (ship.json + layout.json) that a developer
     /// folds into the game with tools/merge_ship.py. Self-contained on the client (no server).
+    /// <para>
+    /// On a gamepad the editor has two focus modes and <b>Start</b> swaps between them (#1198), because
+    /// one stick cannot walk a list and fly a camera at the same time. In PANEL mode
+    /// (<see cref="UiNavFocus"/> active) the sticks walk the palette and the form. In VIEWPORT mode the
+    /// left stick moves, the right stick looks, LB/RB drop and rise, the d-pad steps through the palette,
+    /// A places, X removes, Y turns the shape brush, and a centre reticle replaces the mouse pointer as
+    /// the picking ray's origin. B leaves the viewport; from the panels it leaves the editor.
+    /// </para>
     /// </summary>
     public sealed class ShipEditor : MonoBehaviour
     {
@@ -29,6 +37,16 @@ namespace BlocksBeyondTheStars.Client
         private Camera _cam;
         private GameObject _floor;
         private float _yaw, _pitch;
+
+        // Gamepad focus (#1198): false = the side panels own the sticks, true = the build viewport does.
+        // Panels first, so a pad player lands on the palette and picks a block before flying anywhere.
+        private bool _padViewport;
+        private GameObject _reticle;
+        private Text _hintLabel;
+
+        // Stick look is already a per-frame delta (GamepadInputSource scales by deltaTime); this puts it
+        // in the same range as the mouse path's 2.6 multiplier so both feel alike.
+        private const float PadLookScale = 2.6f;
 
         /// <summary>One authored cell: palette id + kind plus the in-game per-voxel modifiers (dye/glow
         /// colour 0xRRGGBB, packed shape+orientation). Elements/stations carry no modifiers.</summary>
@@ -185,6 +203,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            bool pad = InputMap.ActiveDevice == InputDeviceKind.Gamepad;
+            UpdatePadFocus(pad);
+            bool padViewport = pad && _padViewport;
+
+            // The mouse looks while RMB is held; the pad looks whenever the viewport has focus. Holding a
+            // button to look would cost a face button the editor needs for placing.
             bool flying = Input.GetMouseButton(1);
             Cursor.lockState = flying ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !flying;
@@ -195,8 +219,15 @@ namespace BlocksBeyondTheStars.Client
                 _pitch = Mathf.Clamp(_pitch - Input.GetAxis("Mouse Y") * 2.6f, -89f, 89f);
                 _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             }
+            else if (padViewport)
+            {
+                _yaw += InputMap.PadLookX() * PadLookScale;
+                _pitch = Mathf.Clamp(_pitch - InputMap.PadLookY() * PadLookScale, -89f, 89f);
+                _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+            }
 
-            float speed = (Input.GetKey(KeyCode.LeftShift) ? 30f : 14f) * Time.deltaTime;
+            bool fast = Input.GetKey(KeyCode.LeftShift) || (padViewport && InputMap.PadHeld(PadButton.L3));
+            float speed = (fast ? 30f : 14f) * Time.deltaTime;
             var move = Vector3.zero;
             if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
             if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
@@ -204,10 +235,19 @@ namespace BlocksBeyondTheStars.Client
             if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
             if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
             if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
+            if (padViewport)
+            {
+                move += _cam.transform.forward * InputMap.PadStickY();
+                move += _cam.transform.right * InputMap.PadStickX();
+                if (InputMap.PadHeld(PadButton.Rb)) move += Vector3.up;
+                if (InputMap.PadHeld(PadButton.Lb)) move += Vector3.down;
+            }
+
             _cam.transform.position += move * speed;
 
-            // Place (LMB) / remove (MMB) when not flying and not over a uGUI panel.
-            _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            // Place (LMB) / remove (MMB) when not flying and not over a uGUI panel. The pad has no pointer,
+            // so in viewport mode the panels can never be 'under' the aim and the reticle always picks.
+            _mouseOverUi = !padViewport && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
             if (_blocksLabel != null && _lastPlaced != _design.Count)
             {
                 _lastPlaced = _design.Count;
@@ -215,7 +255,20 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UpdateGhost(flying || _mouseOverUi);
-            if (!flying && !_mouseOverUi)
+            if (padViewport)
+            {
+                if (InputMap.PadDown(PadButton.A))
+                {
+                    TryPlace();
+                }
+                else if (InputMap.PadDown(PadButton.X))
+                {
+                    TryRemove();
+                }
+
+                StepPalette(InputMap.PadDpadStep());
+            }
+            else if (!flying && !_mouseOverUi)
             {
                 if (Input.GetMouseButtonDown(0))
                 {
@@ -227,14 +280,85 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Rotate the shape brush (matches the in-game place-orientation control).
-            if (!_mouseOverUi && Input.GetKeyDown(KeyCode.R))
+            // Rotate the shape brush (matches the in-game place-orientation control); Y on the pad.
+            if ((!_mouseOverUi && Input.GetKeyDown(KeyCode.R)) || (padViewport && InputMap.PadDown(PadButton.Y)))
             {
                 _brushOrient = (_brushOrient + 1) & 3;
             }
 
+            RefreshPadChrome(pad, padViewport);
+
             _view.Flush(); // upload any chunk meshes touched by this frame's edits
         }
+
+        /// <summary>Start swaps the pad between the side panels and the build viewport; B leaves the
+        /// viewport. Exactly one of the two owns the sticks at a time, so walking a list and flying the
+        /// camera never fight over the same axis (#1198). From the panels, B falls through to AppShell,
+        /// which closes the editor.</summary>
+        private void UpdatePadFocus(bool pad)
+        {
+            if (_canvas == null)
+            {
+                return; // BuildUi has not run yet
+            }
+
+            if (!pad)
+            {
+                UiNav.SetSuspended(_canvas.gameObject, false); // mouse in hand — the panels are always live
+                return;
+            }
+
+            if (InputMap.Down(InputAction.UiMenu))
+            {
+                _padViewport = !_padViewport;
+            }
+            else if (_padViewport && InputMap.Down(InputAction.UiCancel))
+            {
+                _padViewport = false;
+            }
+
+            UiNav.SetSuspended(_canvas.gameObject, _padViewport);
+        }
+
+        /// <summary>Moves the palette selection by one repeat-gated d-pad step (the pad's stand-in for
+        /// scrolling the list, which needs a pointer).</summary>
+        private void StepPalette(float step)
+        {
+            if (Mathf.Abs(step) < 0.5f || _palList == null || _palette == null || _palette.Length == 0)
+            {
+                return;
+            }
+
+            int next = _palList.Selected + (step > 0f ? -1 : 1); // >0 = left = previous, matching the hotbar
+            _palList.Select(Mathf.Clamp(next, 0, _palette.Length - 1));
+        }
+
+        /// <summary>Shows the centre reticle and the pad control hint only while the pad flies the
+        /// viewport — with a mouse the pointer IS the aim, and a crosshair would just be clutter.</summary>
+        private void RefreshPadChrome(bool pad, bool padViewport)
+        {
+            if (_reticle != null && _reticle.activeSelf != padViewport)
+            {
+                _reticle.SetActive(padViewport);
+            }
+
+            if (_hintLabel != null)
+            {
+                string key = !pad ? "ui.struct.hint" : padViewport ? "ui.struct.hint_pad" : "ui.struct.hint_pad_panel";
+                string text = L(key);
+                if (_hintLabel.text != text)
+                {
+                    _hintLabel.text = text;
+                }
+            }
+        }
+
+        /// <summary>Where the picking ray starts on screen: the mouse pointer, or the centre reticle while
+        /// the pad owns the viewport — a pad has no pointer, and a screen-centre crosshair is how every
+        /// pad-driven builder aims (#1198).</summary>
+        private Vector3 PickPoint() => _padViewport && InputMap.ActiveDevice == InputDeviceKind.Gamepad
+            ? new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f)
+            : Input.mousePosition;
 
         /// <summary>Resolves the cell a placement would land in: the floor column, or the empty cell just
         /// outside the hit face (the chunk mesh is authored in world coords, so the hit point + normal locate
@@ -242,7 +366,7 @@ namespace BlocksBeyondTheStars.Client
         private bool TryGetTargetCell(out Vector3i cell)
         {
             cell = default;
-            var ray = _cam.ScreenPointToRay(Input.mousePosition);
+            var ray = _cam.ScreenPointToRay(PickPoint());
             if (!Physics.Raycast(ray, out var hit, RaycastDist))
             {
                 return false;
@@ -266,7 +390,7 @@ namespace BlocksBeyondTheStars.Client
         private bool TryGetHitCell(out Vector3i cell)
         {
             cell = default;
-            var ray = _cam.ScreenPointToRay(Input.mousePosition);
+            var ray = _cam.ScreenPointToRay(PickPoint());
             if (!Physics.Raycast(ray, out var hit, RaycastDist) || hit.collider.gameObject == _floor)
             {
                 return false;
@@ -407,6 +531,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _canvas = UiKit.CreateCanvas("Ship Editor UI");
             _canvas.sortingOrder = 5;
+            UiNav.Enable(_canvas.gameObject); // pad: walk the palette + the form (#1198)
             var root = _canvas.transform;
 
             // Left: block/part palette (elements + stations + every placeable block), grouped by
@@ -450,6 +575,38 @@ namespace BlocksBeyondTheStars.Client
             hint.horizontalOverflow = HorizontalWrapMode.Overflow;
             hint.raycastTarget = false;
             hint.text = L("ui.struct.hint");
+            _hintLabel = hint; // RefreshPadChrome swaps this for the pad wording
+
+            BuildReticle(root);
+        }
+
+        /// <summary>The pad's aiming crosshair: two thin bars at the exact screen centre, which is where
+        /// <see cref="PickPoint"/> casts from. Hidden until the pad takes the viewport.</summary>
+        private void BuildReticle(Transform root)
+        {
+            _reticle = new GameObject("Reticle", typeof(RectTransform));
+            _reticle.transform.SetParent(root, false);
+            var rt = (RectTransform)_reticle.transform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(22f, 22f);
+            rt.anchoredPosition = Vector2.zero;
+            Bar(rt, new Vector2(22f, 2f));
+            Bar(rt, new Vector2(2f, 22f));
+            _reticle.SetActive(false);
+
+            static void Bar(RectTransform parent, Vector2 size)
+            {
+                var go = new GameObject("Bar", typeof(RectTransform));
+                go.transform.SetParent(parent, false);
+                var brt = (RectTransform)go.transform;
+                brt.anchorMin = brt.anchorMax = brt.pivot = new Vector2(0.5f, 0.5f);
+                brt.sizeDelta = size;
+                brt.anchoredPosition = Vector2.zero;
+                var img = go.AddComponent<Image>();
+                img.sprite = UiKit.SolidSprite;
+                img.color = new Color(0.45f, 0.92f, 1f, 0.85f);
+                img.raycastTarget = false;
+            }
         }
 
         private void BuildForm()
