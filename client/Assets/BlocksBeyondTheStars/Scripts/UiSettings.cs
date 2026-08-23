@@ -188,6 +188,46 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.KeyBindings.Clear(); S.PadBindings.Clear(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
             y += 52f;
 
+            // Controller (#1219). Everything here is pad-only, so say plainly when there is no pad to tune
+            // rather than letting a player wonder why the sliders do nothing.
+            Head(ref y, L("ui.settings.controller"));
+            if (!InputMap.GamepadConnected)
+            {
+                UiKit.AddText(_content, _x, y, _rowW, 40, L("ui.settings.controller_none"), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 44f;
+            }
+
+            Stepper(ref y, L("ui.settings.pad_deadzone"),
+                (S.PadDeadzone - ClientSettings.PadDeadzoneMin) / (ClientSettings.PadDeadzoneMax - ClientSettings.PadDeadzoneMin),
+                ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax,
+                () => { S.PadDeadzone = Mathf.Clamp(S.PadDeadzone - 0.05f, ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax); Rebuild(); },
+                () => { S.PadDeadzone = Mathf.Clamp(S.PadDeadzone + 0.05f, ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax); Rebuild(); },
+                Mathf.RoundToInt(S.PadDeadzone * 100f) + "%");
+            Stepper(ref y, L("ui.settings.pad_look_x"),
+                (S.PadLookX - ClientSettings.PadLookMin) / (ClientSettings.PadLookMax - ClientSettings.PadLookMin),
+                ClientSettings.PadLookMin, ClientSettings.PadLookMax,
+                () => { S.PadLookX = Mathf.Clamp(S.PadLookX - 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
+                () => { S.PadLookX = Mathf.Clamp(S.PadLookX + 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
+                S.PadLookX.ToString("0.00") + "×");
+            Stepper(ref y, L("ui.settings.pad_look_y"),
+                (S.PadLookY - ClientSettings.PadLookMin) / (ClientSettings.PadLookMax - ClientSettings.PadLookMin),
+                ClientSettings.PadLookMin, ClientSettings.PadLookMax,
+                () => { S.PadLookY = Mathf.Clamp(S.PadLookY - 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
+                () => { S.PadLookY = Mathf.Clamp(S.PadLookY + 0.25f, ClientSettings.PadLookMin, ClientSettings.PadLookMax); Rebuild(); },
+                S.PadLookY.ToString("0.00") + "×");
+            Toggle(ref y, L("ui.settings.pad_invert_y"), S.PadInvertY, () => { S.PadInvertY = !S.PadInvertY; Rebuild(); });
+            Toggle(ref y, L("ui.settings.pad_triggers"), S.PadTriggersMinePlace,
+                () => { S.PadTriggersMinePlace = !S.PadTriggersMinePlace; Rebuild(); });
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.pad_triggers_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
+            Cycle(ref y, L("ui.settings.pad_glyphs"), L("ui.settings.pad_glyphs." + S.PadGlyphs.ToString().ToLowerInvariant()),
+                () => { S.PadGlyphs = (PadGlyphSet)(((int)S.PadGlyphs + 1) % 3); Rebuild(); });
+            Toggle(ref y, L("ui.settings.pad_vibration"), S.PadVibration, () => { S.PadVibration = !S.PadVibration; Rebuild(); });
+            // An honest label beats a toggle that quietly does nothing: the choice is remembered, and the
+            // row says why nothing shakes yet.
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.pad_vibration_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
+
             Head(ref y, L("ui.settings.comfort"));
             Toggle(ref y, L("ui.settings.auto_stow"), S.AutoStowOnBoard, () => { S.AutoStowOnBoard = !S.AutoStowOnBoard; Rebuild(); });
             Toggle(ref y, L("ui.settings.show_enemy_health"), S.ShowEnemyHealthBars, () => { S.ShowEnemyHealthBars = !S.ShowEnemyHealthBars; Rebuild(); });

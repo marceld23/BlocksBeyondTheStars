@@ -43,6 +43,34 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         }
 
         [Test]
+        public void SaveThenLoad_KeepsTheControllerPage()
+        {
+            // #1219: the pad rows are plain public fields, so JsonUtility carries them — but a player who
+            // tuned their stick must not find it reset after a restart, so pin it.
+            var settings = new ClientSettings
+            {
+                PadDeadzone = 0.35f,
+                PadLookX = 1.75f,
+                PadLookY = 0.5f,
+                PadInvertY = true,
+                PadVibration = false,
+                PadGlyphs = PadGlyphSet.Nintendo,
+                PadTriggersMinePlace = true,
+            };
+            settings.Save();
+
+            var loaded = ClientSettings.Load();
+
+            Assert.AreEqual(0.35f, loaded.PadDeadzone, 0.0001f);
+            Assert.AreEqual(1.75f, loaded.PadLookX, 0.0001f);
+            Assert.AreEqual(0.5f, loaded.PadLookY, 0.0001f);
+            Assert.IsTrue(loaded.PadInvertY);
+            Assert.IsFalse(loaded.PadVibration);
+            Assert.AreEqual(PadGlyphSet.Nintendo, loaded.PadGlyphs);
+            Assert.IsTrue(loaded.PadTriggersMinePlace);
+        }
+
+        [Test]
         public void SaveThenLoad_RoundTripsAndWritesTokenBackup()
         {
             var settings = new ClientSettings { PlayerName = "Justus", PlayerToken = "token-one", MouseSensitivity = 3.5f };

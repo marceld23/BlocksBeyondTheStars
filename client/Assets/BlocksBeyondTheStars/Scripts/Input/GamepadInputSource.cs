@@ -36,6 +36,8 @@ namespace BlocksBeyondTheStars.Client
         private const string AxisRightStickX = "RightStickX";
         private const string AxisRightStickY = "RightStickY"; // inverted in the asset so up = look up (like Mouse Y)
         private const string AxisDpadX = "DPadX";
+        private const string AxisDpadY = "DPadY";        // #1220: 7th axis, positive = up (same sign rule as DPadX)
+        private const string AxisTriggers = "Triggers";  // #1220: combined XInput trigger axis — LT positive, RT negative
 
         // XInput button layout (Windows).
         private const KeyCode BtnA = KeyCode.JoystickButton0;   // jump / submit
@@ -52,12 +54,28 @@ namespace BlocksBeyondTheStars.Client
         // Tunables (see issue #195). Look is a rate (deg/sec at sensitivity 1) turned into a per-frame delta
         // so it lands in the same space as a mouse delta — the caller still multiplies by MouseSensitivity,
         // so pad turn speed also scales with that slider. Deadzone rejects stick drift at rest.
-        private const float StickDeadzone = 0.2f;
+        private const float DefaultStickDeadzone = 0.2f;
         private const float LookYawSpeed = 75f;
         private const float LookPitchSpeed = 60f;
         private const float DpadRepeatSeconds = 0.25f;
 
+        // The two shoulder buttons ARE place and mine, so "holding one" and "aiming carefully" are the same
+        // moment: while either is down the pad looks at half rate, which is the precision help #1220 asked
+        // for without spending another button on it. Mouse look is untouched (this scales the pad only).
+        private const float PrecisionLookScale = 0.5f;
+
+        // How far the combined trigger axis must travel before it counts as a press. Deliberately generous:
+        // the resting value of that axis is the one thing that differs between XInput, Proton and the
+        // browser Gamepad API, which is also why the feature ships switched off (see ClientSettings).
+        private const float TriggerThreshold = 0.5f;
+
         private float _dpadCooldownUntil;
+        private float _dpadYCooldownUntil;
+        private int _dpadYStep;
+        private int _dpadYFrame = -1;
+        private int _triggerNow;
+        private int _triggerPrev;
+        private int _triggerFrame = -1;
 
         public InputDeviceKind Kind => InputDeviceKind.Gamepad;
 
@@ -82,7 +100,25 @@ namespace BlocksBeyondTheStars.Client
             return false;
         }
 
-        private static float Deadzoned(float v) => Mathf.Abs(v) < StickDeadzone ? 0f : v;
+        /// <summary>The player's stick dead zone (#1219), clamped to a range that can neither swallow the
+        /// whole stick nor let drift through. Falls back to the shipped constant with no settings loaded.</summary>
+        private static float Deadzone => Settings != null
+            ? Mathf.Clamp(Settings.PadDeadzone, ClientSettings.PadDeadzoneMin, ClientSettings.PadDeadzoneMax)
+            : DefaultStickDeadzone;
+
+        private static float Deadzoned(float v) => Mathf.Abs(v) < Deadzone ? 0f : v;
+
+        /// <summary>Extra pad-only look scaling: the player's relative sensitivity (#1219) times the
+        /// precision slow-down while a shoulder button is held. It is RELATIVE on purpose — the two call
+        /// sites that consume the merged look value scale it by two different constants
+        /// (MouseSensitivity on foot, LookSpeed in flight), so an absolute pad rate would have to be
+        /// divided back out at one of them and would drift apart from the other.</summary>
+        private static float LookScale(float setting)
+        {
+            float sens = Settings != null ? Mathf.Clamp(setting, ClientSettings.PadLookMin, ClientSettings.PadLookMax) : 1f;
+            bool precision = Input.GetKey(BtnLb) || Input.GetKey(BtnRb);
+            return precision ? sens * PrecisionLookScale : sens;
+        }
 
         // Left stick already feeds the shared Horizontal/Vertical axes — don't double-count it here.
         public float MoveX() => 0f;
@@ -95,7 +131,8 @@ namespace BlocksBeyondTheStars.Client
                 return 0f;
             }
 
-            return Deadzoned(Input.GetAxis(AxisRightStickX)) * LookYawSpeed * Time.deltaTime;
+            return Deadzoned(Input.GetAxis(AxisRightStickX)) * LookYawSpeed * Time.deltaTime
+                   * LookScale(Settings != null ? Settings.PadLookX : 1f);
         }
 
         public float LookY()
@@ -105,7 +142,9 @@ namespace BlocksBeyondTheStars.Client
                 return 0f;
             }
 
-            return Deadzoned(Input.GetAxis(AxisRightStickY)) * LookPitchSpeed * Time.deltaTime;
+            float invert = Settings != null && Settings.PadInvertY ? -1f : 1f;
+            return Deadzoned(Input.GetAxis(AxisRightStickY)) * LookPitchSpeed * Time.deltaTime
+                   * LookScale(Settings != null ? Settings.PadLookY : 1f) * invert;
         }
 
         /// <summary>D-pad left/right cycles the hotbar, edge-/repeat-gated so a held press steps at a steady
@@ -134,12 +173,96 @@ namespace BlocksBeyondTheStars.Client
             return dx > 0f ? -1f : 1f; // right = next (<0), left = previous (>0)
         }
 
+        /// <summary>One repeat-gated d-pad up/down step: +1 up, -1 down, 0 while the d-pad rests or its
+        /// repeat is on cooldown. Same gating as the left/right hotbar cycle.
+        ///
+        /// The result is cached PER FRAME because it drives discrete actions (<see cref="ActionDown"/>):
+        /// several screens poll the same action in one frame and every read must agree, which a raw
+        /// cooldown - where the first caller consumes the step - would not give them.</summary>
+        public int DpadYStep()
+        {
+            if (_dpadYFrame == Time.frameCount)
+            {
+                return _dpadYStep;
+            }
+
+            _dpadYFrame = Time.frameCount;
+            _dpadYStep = 0;
+            if (!Connected())
+            {
+                return 0;
+            }
+
+            float dy = Deadzoned(Input.GetAxis(AxisDpadY));
+            if (Mathf.Abs(dy) < 0.5f)
+            {
+                _dpadYCooldownUntil = 0f; // released -> ready to fire immediately on next press
+                return 0;
+            }
+
+            if (Time.unscaledTime < _dpadYCooldownUntil)
+            {
+                return 0;
+            }
+
+            _dpadYCooldownUntil = Time.unscaledTime + DpadRepeatSeconds;
+            _dpadYStep = dy > 0f ? 1 : -1;
+            return _dpadYStep;
+        }
+
+        private const int TriggerMine = 1;  // RT - the negative half of the combined axis
+        private const int TriggerPlace = 2; // LT - the positive half
+
+        /// <summary>Samples the combined trigger axis once per frame and remembers the previous frame's
+        /// state, so a trigger can report a press EDGE (mine/place fires once per pull, not every frame).
+        /// Fully inert unless the player switched the option on - see <see cref="TriggerThreshold"/>.</summary>
+        private void SampleTriggers()
+        {
+            if (_triggerFrame == Time.frameCount)
+            {
+                return;
+            }
+
+            _triggerFrame = Time.frameCount;
+            _triggerPrev = _triggerNow;
+            _triggerNow = 0;
+            if (!Connected() || Settings == null || !Settings.PadTriggersMinePlace)
+            {
+                return;
+            }
+
+            float t = Input.GetAxis(AxisTriggers);
+            if (t <= -TriggerThreshold)
+            {
+                _triggerNow |= TriggerMine;
+            }
+            else if (t >= TriggerThreshold)
+            {
+                _triggerNow |= TriggerPlace;
+            }
+        }
+
+        private bool TriggerDown(int bit)
+        {
+            SampleTriggers();
+            return (_triggerNow & bit) != 0 && (_triggerPrev & bit) == 0;
+        }
+
+        private bool TriggerHeld(int bit)
+        {
+            SampleTriggers();
+            return (_triggerNow & bit) != 0;
+        }
+
         public bool JumpHeld() => Connected() && Input.GetKey(BtnA);
         public bool JumpDown() => Connected() && Input.GetKeyDown(BtnA);
         public bool CrouchHeld() => Connected() && Input.GetKey(BtnB);
-        public bool PrimaryDown() => Connected() && Input.GetKeyDown(BtnRb);
-        public bool PrimaryHeld() => Connected() && Input.GetKey(BtnRb);
-        public bool SecondaryDown() => Connected() && Input.GetKeyDown(BtnLb);
+
+        // Mine / place: the shoulder buttons always, plus the triggers once the player switches them on
+        // (#1220). The two paths are ORed, so enabling triggers ADDS a way to mine rather than moving it.
+        public bool PrimaryDown() => (Connected() && Input.GetKeyDown(BtnRb)) || TriggerDown(TriggerMine);
+        public bool PrimaryHeld() => (Connected() && Input.GetKey(BtnRb)) || TriggerHeld(TriggerMine);
+        public bool SecondaryDown() => (Connected() && Input.GetKeyDown(BtnLb)) || TriggerDown(TriggerPlace);
 
         // No direct 1..9 pick on a pad — the hotbar is cycled via HotbarScroll (d-pad) instead.
         public int HotbarSlotDown() => -1;
@@ -220,8 +343,33 @@ namespace BlocksBeyondTheStars.Client
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
         }
 
+        /// <summary>The two verbs that live on the d-pad's vertical axis (#1220). An axis cannot be
+        /// expressed as a <see cref="KeyCode"/>, so these two are NOT part of the rebinding table - they are
+        /// fixed, and the same verbs stay bindable to a face button and to a key as usual.
+        ///
+        /// Up opens the chat / on-screen keyboard, which is what makes text entry reachable at all on a pad
+        /// (#1211). Down rotates the held building shape: the issue asked both for that and for a second
+        /// home for the context-actions list, and with up taken and left/right on the hotbar there is
+        /// exactly one direction left - so it goes to the verb that has NO stock pad button, while the
+        /// context list keeps the one it already owns (L3).</summary>
+        private bool DpadActionDown(InputAction action)
+        {
+            if (action != InputAction.OpenChat && action != InputAction.RotateShape)
+            {
+                return false;
+            }
+
+            int step = DpadYStep();
+            return action == InputAction.OpenChat ? step > 0 : step < 0;
+        }
+
         public bool ActionDown(InputAction action)
         {
+            if (DpadActionDown(action))
+            {
+                return true;
+            }
+
             var b = ButtonFor(action);
             return b != KeyCode.None && Connected() && Input.GetKeyDown(b);
         }
@@ -259,8 +407,18 @@ namespace BlocksBeyondTheStars.Client
                       || Mathf.Abs(Deadzoned(Input.GetAxis("Vertical"))) > 0f
                       || Mathf.Abs(Deadzoned(Input.GetAxis(AxisRightStickX))) > 0f
                       || Mathf.Abs(Deadzoned(Input.GetAxis(AxisRightStickY))) > 0f
-                      || Mathf.Abs(Deadzoned(Input.GetAxis(AxisDpadX))) > 0f;
-            return moved;
+                      || Mathf.Abs(Deadzoned(Input.GetAxis(AxisDpadX))) > 0f
+                      || Mathf.Abs(Deadzoned(Input.GetAxis(AxisDpadY))) > 0f;
+            if (moved)
+            {
+                return true;
+            }
+
+            // The triggers count only while the player has them switched on: their RESTING value is the one
+            // reading that differs between pad families, and a pad that idles at plus/minus 1 would
+            // otherwise flip every glyph in the game to the pad set and keep it there (#1220).
+            return Settings != null && Settings.PadTriggersMinePlace
+                   && Mathf.Abs(Input.GetAxis(AxisTriggers)) >= TriggerThreshold;
         }
     }
 }

@@ -59,10 +59,21 @@ HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / Can
 - **Default conflict rule:** `FlightEnterInterior` deliberately has NO default pad button —
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
-  RB mine · d-pad ◄► hotbar / ship system · **LS = ContextActions** (the list above) · **RS = HotbarAction**
-  (slot pie) · **Back = VegaContinue** · Start = menu. LT/RT and d-pad ▲▼ are not defined as InputManager
-  axes, so those are the last free physical controls; every other action reaches the pad through the
-  context-actions list or a rebind.
+  RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
+  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **Back = VegaContinue** ·
+  Start = menu. Every other action reaches the pad through the context-actions list or a rebind.
+- **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
+  `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
+  both are still bindable to a *button* as well. Up went to chat because that is what makes text entry
+  reachable at all; down went to `RotateShape` because it is the frequent verb with no stock pad button,
+  while the context list keeps LS.
+- **Triggers (opt-in).** `Settings → Controller → mine and place on the triggers` adds RT = mine and
+  LT = place on top of RB/LB. Shipped **off**: the combined trigger axis is the one reading that genuinely
+  differs between XInput, Proton and the browser Gamepad API, and a pad that idles at full deflection would
+  otherwise mine on its own. `HadActivityThisFrame` ignores the axis while the option is off for the same
+  reason.
+- **Precision look.** While LB or RB is held, pad look runs at half speed — those buttons *are* place and
+  mine, so "holding one" and "aiming carefully" are the same moment. Mouse look is untouched.
 
 ## Retuning the gamepad (needs real hardware — issue #201)
 
@@ -73,8 +84,16 @@ The mapping targets **Xbox / XInput on Windows**. Two places hold every tunable:
    the same space as a mouse delta and the caller's sensitivity slider still scales it).
 2. **`client/ProjectSettings/InputManager.asset`** — the joystick **axes**. The left stick already feeds the
    shared `Horizontal`/`Vertical` axes (so movement is free); this project adds `RightStickX` (axis 3),
-   `RightStickY` (axis 4, inverted so up = look up) and `DPadX` (axis 5). Other pad families report
-   different axis numbers — change them here (players can fix the *buttons* themselves via rebinding).
+   `RightStickY` (axis 4, inverted so up = look up), `DPadX` (axis 5), `DPadY` (axis 6, positive = up) and
+   `Triggers` (axis 2 — the combined XInput trigger axis, LT positive / RT negative). Other pad families
+   report different axis numbers — change them here (players can fix the *buttons* themselves via
+   rebinding). If a real pad turns out to report d-pad up as negative, flip `invert` on `DPadY`; that is the
+   whole fix, and the trigger option can simply stay off until someone confirms its number on that platform.
+
+Since #1219 the dead zone and the pad look speeds are **player settings**, not constants — `Settings →
+Controller` writes `PadDeadzone`, `PadLookX/Y`, `PadInvertY`, `PadGlyphs`, `PadVibration` (stored, no-op:
+the legacy Input Manager has no rumble API) and `PadTriggersMinePlace`. Their defaults are exactly the
+values the code used before they were settings, so an existing `client_settings.json` feels unchanged.
 
 CI never compiles or runs the Unity client (`.github/workflows/ci.yml` is .NET-only), and it cannot drive a
 controller, so the pad path is validated by a **local Unity build + manual on-device test**. The
@@ -194,6 +213,30 @@ layer, added to `InputMap`'s combine exactly like the pad — no gameplay change
 - **Tap-vs-drag:** the shared EventSystem scales its `pixelDragThreshold` to ≈1 mm from `Screen.dpi` on
   touch devices (the 10 px mouse default misreads finger taps as drags in menus).
 
+## Text entry on a gamepad (#1211)
+
+A pad could reach every screen but not a single text field: uGUI activates an `InputField` the moment it is
+selected, and a focused field swallows the navigation axes — so a pad player who landed on one could neither
+type nor leave. `OnScreenKeyboardUi` (`Scripts/OnScreenKeyboardUi.cs`) is the answer: a uGUI button grid on
+its own canvas (`sortingOrder` 5000, `UiNav`-enabled), with the layout and every text edit in
+`Client.Core/OnScreenKeyboardLayout.cs` so they are unit-tested headlessly.
+
+- `UiKit.AddInput` attaches a `PadTextEntryBridge` to **every** field it builds (63 call sites), so no screen
+  opts in. While a pad is the active device the bridge keeps the field deactivated every frame (one
+  `ActivateInputField` arms a flag the field re-reads next Update), and **A on the field** opens the
+  keyboard; the result is written back through `field.text`, so the field's own `onValueChanged` listeners
+  fire exactly as they would after typing.
+- `ChatUi.OpenInput` takes the same route, and **d-pad up** opens it (`InputAction.OpenChat`).
+- While the keyboard is up, `InputMap.ModalCapture` blanks `UiCancel`/`UiMenu` for every *other* screen, so
+  one press of B closes exactly one thing; the keyboard itself reads the physical button through
+  `InputMap.PadDown`. `UiKit.TextFieldFocused()` reports true, which is the gate the rest of the game
+  already uses for "the player is typing".
+- Layout: QWERTY + digits + `äöüß`, a symbol page (no `<`/`>` — a label has no rich-text neutralising pass),
+  space / delete / done / cancel. Shift uppercases per character with the invariant culture so `ß` is left
+  alone rather than becoming "SS" and quietly costing two characters of the limit.
+- Native mobile keeps the OS keyboard and WebGL-touch keeps the browser prompt below; the keyboard is
+  wanted only when `InputMap.ActiveDevice == Gamepad`.
+
 ## Text entry on touch
 
 Native tablets (Android/iOS) need nothing — uGUI's `InputField` opens the OS soft keyboard by itself. The
@@ -212,4 +255,4 @@ and submits. On every other platform `TouchTextEntry.NeedsPrompt` is false and n
 - **Browser gamepad:** the same `GamepadInputSource` runs under WebGL, but the browser Gamepad API's axis /
   button numbering can differ from native XInput; verifying it is a playtest item (issue #203). Players can
   already fix wrong *buttons* themselves via the pad rebinding UI; wrong *axes* need an `InputManager.asset`
-  change (see "Retuning" above).
+  change (see "Retuning" above) — except the triggers, which a player can simply leave switched off.

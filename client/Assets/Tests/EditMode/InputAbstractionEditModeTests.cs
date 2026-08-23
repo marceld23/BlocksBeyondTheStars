@@ -46,8 +46,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.IsFalse(pad.PrimaryHeld());
             Assert.IsFalse(pad.SecondaryDown());
             Assert.AreEqual(-1, pad.HotbarSlotDown());
+            Assert.AreEqual(0, pad.DpadYStep());
             Assert.IsFalse(pad.HadActivityThisFrame());
             Assert.IsFalse(pad.ActionDown(InputAction.Interact));
+            Assert.IsFalse(pad.ActionDown(InputAction.OpenChat), "the d-pad verbs must be inert too (#1220)");
+            Assert.IsFalse(pad.ActionDown(InputAction.RotateShape));
         }
 
         // ---- Pure mapping tables --------------------------------------------------------------------------
@@ -222,6 +225,108 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             // KeyCode.None must not be handed to Input.GetKeyDown — an unbound action simply never fires.
             Assert.IsFalse(InputMap.Down(InputAction.ContextActions));
             Assert.IsFalse(InputMap.Held(InputAction.ContextActions));
+        }
+
+        // ---- d-pad verbs, triggers and the controller page (#1211 / #1219 / #1220) ------------------------
+
+        [Test]
+        public void OpenChat_KeepsTheEnterKey_AndLivesOnTheDPadRatherThanAFaceButton()
+        {
+            InputMap.Use(new ClientSettings());
+            // Chat opened on a raw Return before it was an action; the key must not move.
+            Assert.AreEqual(KeyCode.Return, InputMap.DefaultKey(InputAction.OpenChat));
+            Assert.AreEqual("ui.key.open_chat", InputMap.LabelKey(InputAction.OpenChat));
+
+            // No STOCK pad button: the d-pad is an axis and cannot be expressed as a KeyCode, so d-pad up
+            // fires this action from inside the gamepad source instead of through the binding table.
+            Assert.AreEqual(KeyCode.None, GamepadInputSource.ButtonFor(InputAction.OpenChat));
+
+            // …and a player can still bind it to a free face button like any other action.
+            var settings = new ClientSettings();
+            InputMap.Use(settings);
+            settings.SetBoundPad(InputAction.OpenChat.ToString(), KeyCode.JoystickButton3.ToString());
+            Assert.AreEqual(KeyCode.JoystickButton3, GamepadInputSource.ButtonFor(InputAction.OpenChat));
+            InputMap.Use(new ClientSettings());
+        }
+
+        [Test]
+        public void ModalCapture_BlanksTheMenuVerbsOnly_AndOnlyWhileItIsUp()
+        {
+            Assert.IsFalse(InputMap.ModalCapture, "nothing may leave a capture standing");
+            Assert.IsFalse(InputMap.ModalCaptures(InputAction.UiCancel));
+
+            InputMap.ModalCapture = true;
+            try
+            {
+                // One press of B must close the on-screen keyboard and NOT the screen behind it; the
+                // keyboard reads the physical button, everyone else reads the action and gets nothing.
+                Assert.IsTrue(InputMap.ModalCaptures(InputAction.UiCancel));
+                Assert.IsTrue(InputMap.ModalCaptures(InputAction.UiMenu));
+                Assert.IsFalse(InputMap.Down(InputAction.UiCancel));
+                Assert.IsFalse(InputMap.Held(InputAction.UiMenu));
+                Assert.IsFalse(InputMap.Up(InputAction.UiCancel));
+
+                // Gameplay verbs are untouched — a modal takes the two menu buttons, not the input system.
+                Assert.IsFalse(InputMap.ModalCaptures(InputAction.Interact));
+                Assert.IsFalse(InputMap.ModalCaptures(InputAction.OpenChat));
+            }
+            finally
+            {
+                InputMap.ModalCapture = false;
+            }
+
+            Assert.IsFalse(InputMap.ModalCaptures(InputAction.UiCancel));
+        }
+
+        [Test]
+        public void ControllerSettings_ShipWithTheValuesTheCodeUsedBeforeTheyWereSettings()
+        {
+            var settings = new ClientSettings();
+
+            // An existing client_settings.json has none of these fields, so JsonUtility leaves the defaults
+            // in place — they must therefore BE the old hardcoded behaviour, or every player's pad changes
+            // feel on update.
+            Assert.AreEqual(0.2f, settings.PadDeadzone, 0.0001f);
+            Assert.AreEqual(1f, settings.PadLookX, 0.0001f);
+            Assert.AreEqual(1f, settings.PadLookY, 0.0001f);
+            Assert.IsFalse(settings.PadInvertY);
+            Assert.AreEqual(PadGlyphSet.Xbox, settings.PadGlyphs);
+            Assert.IsTrue(settings.PadVibration, "stored only — nothing reads it yet");
+
+            // Triggers stay OFF: the axis number is the one reading that differs between XInput, Proton and
+            // the browser, and a pad that idles at full deflection would otherwise mine on its own.
+            Assert.IsFalse(settings.PadTriggersMinePlace);
+
+            Assert.That(ClientSettings.PadDeadzoneMin, Is.LessThan(ClientSettings.PadDeadzoneMax));
+            Assert.That(ClientSettings.PadLookMin, Is.LessThan(ClientSettings.PadLookMax));
+        }
+
+        [Test]
+        public void PadGlyphs_RenameTheSameButtonsPerLayout_MatchedByPhysicalPosition()
+        {
+            var settings = new ClientSettings();
+            InputMap.Use(settings);
+
+            Assert.AreEqual("(A)", InputMap.PadGlyph(KeyCode.JoystickButton0), "Xbox is the default");
+            Assert.AreEqual("Start", InputMap.PadGlyph(KeyCode.JoystickButton7));
+
+            settings.PadGlyphs = PadGlyphSet.PlayStation;
+            Assert.AreEqual("(Cross)", InputMap.PadGlyph(KeyCode.JoystickButton0));
+            Assert.AreEqual("(Circle)", InputMap.PadGlyph(KeyCode.JoystickButton1));
+            Assert.AreEqual("L1", InputMap.PadGlyph(KeyCode.JoystickButton4));
+
+            // Nintendo swaps the two right-hand pairs: the BOTTOM button is B there, not A.
+            settings.PadGlyphs = PadGlyphSet.Nintendo;
+            Assert.AreEqual("(B)", InputMap.PadGlyph(KeyCode.JoystickButton0));
+            Assert.AreEqual("(A)", InputMap.PadGlyph(KeyCode.JoystickButton1));
+            Assert.AreEqual("(Y)", InputMap.PadGlyph(KeyCode.JoystickButton2));
+            Assert.AreEqual("(X)", InputMap.PadGlyph(KeyCode.JoystickButton3));
+
+            // The unnamed buttons keep their numeric fallback whatever the layout says.
+            Assert.AreEqual("B12", InputMap.PadGlyph(KeyCode.JoystickButton12));
+            Assert.IsNull(InputMap.PadGlyph(KeyCode.E));
+
+            InputMap.Use(new ClientSettings());
         }
 
         [Test]

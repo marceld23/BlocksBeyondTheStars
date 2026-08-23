@@ -99,6 +99,11 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public enum WindowMode { Windowed, Borderless, Exclusive }
 
+    /// <summary>Which layout the on-screen button NAMES follow (#1219). Purely cosmetic: a pad reports the
+    /// same button numbers whatever is printed on it, so this only picks the wording, matched by physical
+    /// position — see <see cref="InputMap.PadGlyph"/>.</summary>
+    public enum PadGlyphSet { Xbox, PlayStation, Nintendo }
+
     /// <summary>
     /// Local, client-only settings (display, audio, input, comfort). These never affect the
     /// authoritative server rules (PvP, aliens, weapons stay server-decided). Persisted as JSON
@@ -241,6 +246,44 @@ namespace BlocksBeyondTheStars.Client
         // Controls
         public float MouseSensitivity = 2f;
         public bool InvertY = false;
+
+        // Controller (#1219). All of these are pad-only: with no pad connected they change nothing, and the
+        // mouse/keyboard path never reads them. The shipped values are the constants the code used before
+        // they were settings, so an existing client_settings.json behaves exactly as it did.
+        public const float PadDeadzoneMin = 0.05f;
+        public const float PadDeadzoneMax = 0.45f;
+        public const float PadLookMin = 0.25f;
+        public const float PadLookMax = 3f;
+
+        /// <summary>Stick dead zone: how far a stick must leave centre before it counts. Raise it on a worn
+        /// pad that drifts, lower it for finer aim.</summary>
+        public float PadDeadzone = 0.2f;
+
+        /// <summary>Pad look speed left/right, as a MULTIPLIER on top of <see cref="MouseSensitivity"/>
+        /// (1 = exactly the speed the pad had before this setting existed). Relative rather than absolute
+        /// because the merged look value is scaled by a different constant on foot than in flight.</summary>
+        public float PadLookX = 1f;
+
+        /// <summary>Pad look speed up/down — see <see cref="PadLookX"/>.</summary>
+        public float PadLookY = 1f;
+
+        /// <summary>Inverts the PAD's up/down look on top of the global <see cref="InvertY"/>, for players
+        /// who want a flight-style stick without inverting the mouse as well.</summary>
+        public bool PadInvertY = false;
+
+        /// <summary>Controller vibration. STORED ONLY — the game runs on the legacy Input Manager, which has
+        /// no rumble API, so nothing reads this yet. It is kept (and labelled as not-yet-working in the
+        /// settings screen) so a player's choice survives until the day rumble can be wired up.</summary>
+        public bool PadVibration = true;
+
+        /// <summary>Which pad layout the button NAMES in hints and settings rows follow.</summary>
+        public PadGlyphSet PadGlyphs = PadGlyphSet.Xbox;
+
+        /// <summary>Mine and place on the triggers as well as the shoulder buttons. OFF by default on
+        /// purpose: the trigger axis is the one reading that genuinely differs between XInput, Proton and
+        /// the browser Gamepad API, and a pad whose triggers idle at full deflection would mine
+        /// continuously. Off means a wrong axis number is a setting nobody switched on (#1220).</summary>
+        public bool PadTriggersMinePlace = false;
 
         // Voice chat. Shipped on by default; this master switch turns the whole feature off (no capture, no
         // playback). The server must also have voice enabled, and you still need a radio. Push-to-talk by

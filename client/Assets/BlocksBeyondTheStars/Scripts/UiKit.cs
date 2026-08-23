@@ -31,10 +31,30 @@ namespace BlocksBeyondTheStars.Client
         /// their own, deliberately stronger, dims.</summary>
         public const float ScrimDialog = 0.78f;
 
+        /// <summary>Resolves a locale key for shared UI that belongs to no single screen — today the gamepad
+        /// on-screen keyboard (#1211), which is opened from the menu shell AND from the in-world HUD and so
+        /// cannot reach either one's <c>Localizer</c>. Set once by <see cref="AppShell"/> (and again whenever
+        /// the language changes); falls back to the raw key, which is what every other L() here does.</summary>
+        public static System.Func<string, string> Localize;
+
+        /// <summary>Localized text for <paramref name="key"/> — see <see cref="Localize"/>.</summary>
+        public static string L(string key)
+        {
+            string text = Localize != null ? Localize(key) : null;
+            return string.IsNullOrEmpty(text) ? key : text;
+        }
+
         /// <summary>True while a uGUI text field has keyboard focus — Esc/Tab hotkey handlers must then
-        /// leave the keystroke to the field (unfocus/advance) instead of closing their screen (#413 N5).</summary>
+        /// leave the keystroke to the field (unfocus/advance) instead of closing their screen (#413 N5).
+        /// The gamepad on-screen keyboard counts as a focused field (#1211): it IS the player typing, and
+        /// every caller of this already does the right thing with that answer.</summary>
         public static bool TextFieldFocused()
         {
+            if (OnScreenKeyboardUi.IsOpen)
+            {
+                return true;
+            }
+
             var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
             if (selected == null)
             {
@@ -828,6 +848,12 @@ namespace BlocksBeyondTheStars.Client
             // WebGL on a touch device can't summon a soft keyboard — route taps through the browser prompt.
             // No-op (not even a component) everywhere else.
             TouchTextEntry.Attach(input, placeholder);
+
+            // …and a gamepad has no keyboard at all: route Submit on the field through the on-screen
+            // keyboard instead (#1211). Attached to EVERY field built here — 63 call sites across the menus,
+            // the world dialogs and the editors — so no screen has to remember to opt in. Inert on
+            // keyboard/mouse.
+            input.gameObject.AddComponent<PadTextEntryBridge>().Init(input, placeholder);
 
             return input;
         }
