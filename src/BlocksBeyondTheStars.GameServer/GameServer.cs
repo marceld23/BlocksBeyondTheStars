@@ -5470,6 +5470,14 @@ public sealed partial class GameServer
 
         session.LastChatTick = now;
 
+        // Anti-spam (#1208). The 700 ms limit above stops a held key; these two sliding windows stop a
+        // burst of distinct lines and someone who keeps tripping the content filter. An auto-muted
+        // sender's lines never reach the channel — they are told once, and the operator is pinged.
+        if (ChatMuted(session) || NoteChatLine(session))
+        {
+            return;
+        }
+
         // Content screening (#1207): slurs/hate terms drop the line, profanity and personal data are masked,
         // watch-list hits ping the operator. Sits AFTER the rate limit so a dropped line still spends the
         // sender's chat slot, and after every slash command so commands are never "filtered".

@@ -206,6 +206,7 @@
   "srv.chat.code_too_long": "That build code is too long for chat — share it with the Blueprint Tool's Copy code button instead.",
   "srv.chat.blocked": "That message wasn't sent — please keep the chat friendly.",
   "srv.chat.masked": "Some words in your message were replaced by *** — this chat is kept friendly for everyone.",
+  "srv.chat.muted_until": "You sent too many messages at once, so the chat is paused for you for {name} more minutes. Take a breath — you can keep playing.",
   "srv.chat.pii_blocked": "That message wasn't sent — please don't share phone numbers, e-mail addresses or links here.",
   "ui.chat.hint": "Enter: chat",
   "ui.chat.send_hint": "Enter to send · Esc to cancel",

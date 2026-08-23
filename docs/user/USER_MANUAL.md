@@ -1119,6 +1119,11 @@ reminds you.
   Filtered / Safe* per world (`--chat-mode`); the server operator can switch screening off for a private
   family LAN or force Safe everywhere (`BBS_CHAT_FILTER`, see SELF_HOSTING.md §12). Slash commands are
   never filtered.
+- **A pause if the chat gets out of hand.** Sending **more than 6 lines within 10 seconds**, or tripping
+  the filter **more than 3 times within 5 minutes**, pauses the chat for you for **10 minutes**. You are
+  told right away and how long it lasts — nothing else changes, you can keep playing normally, and it
+  ends by itself. Nothing is written down: reconnecting or a server restart clears it. The world's
+  operator gets a note so a grown-up can have a look.
 
 ### Radio reach (tiered) — text **and** voice
 Your radio determines **how far** your comms carry — text chat and voice both follow the same reach:

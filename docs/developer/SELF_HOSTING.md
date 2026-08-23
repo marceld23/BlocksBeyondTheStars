@@ -614,3 +614,22 @@ Nothing about the line is logged beyond the matched list entry. Knobs:
 
 The default lists are EN+DE (`Shared/Moderation/ChatScreen.cs`); extend them for other languages via
 the env vars above. Running a private LAN for your own family and want the raw chat? `BBS_CHAT_FILTER=off`.
+
+### Anti-spam + temporary auto-mute (#1208)
+
+Always on, nothing to configure. On top of the flat 700 ms per-line limit, two sliding windows end in the
+same ten-minute chat cool-down:
+
+| Trigger | Window |
+|---|---|
+| more than **6** accepted lines | 10 seconds |
+| more than **3** filter hits (a line blocked or masked) | 5 minutes |
+
+The sender is told immediately how long the pause lasts (`srv.chat.muted_until`), and you get one operator
+ping per mute through `BBS_NOTIFY_URL` (title `chat auto-mute [<world>]`, tag `mute`) — the same channel the
+name screen and watch-list hits already use.
+
+Only chat is paused; the player keeps playing. **The counters and the mute live in RAM only** and are never
+written to the save: a cool-down is not a mark on the record, and a reconnect or a restart clears it. A
+watch-list hit is deliberately *not* counted — that line is relayed untouched and only pings you. There is no
+way to lift a mute in-game yet; operator `/mute` and `/unmute` are #1223.

@@ -158,6 +158,27 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Chat anti-spam + temporary auto-mute, and the machine locales caught up (#1208, 2026-08-23, branch feat/1208-chat-antispam)
+Ninth slice of the feature-deepening package (epic #1197) — the follow-up #1207 left open. The flat 700 ms
+per-line limit only stops a held key: it did nothing about a burst of distinct lines, and nothing at all about
+someone who kept tripping the content filter. Two sliding windows now end in the same place — **> 6 accepted
+lines / 10 s** or **> 3 filter hits / 5 min** → a **10-minute** chat cool-down. The sender is told immediately
+how long it lasts (`srv.chat.muted_until`, one notice per mute, not per attempt), the operator gets one
+`NotifyOperator` ping, and only chat is paused — the player keeps playing.
+
+Everything lives in `PlayerSession` in **RAM only** and is never persisted: a cool-down is not a mark on the
+record, and a reconnect or restart clears it. A watch-list hit is deliberately not counted (that line is
+relayed untouched and only pings the operator); `NoteChatFilterHit` is called from `ScreenChatLine`'s Block
+and Mask arms, so it counts what the filter actually ACTED on. New `AdvanceUptimeForTest` fakes the clock, so
+the ten-minute expiry is tested without waiting for it. `ChatAntiSpamTests` (9).
+
+**Also in this PR: the machine-locale backlog is cleared.** `translate_locale.py` had never been run after
+#1205 / #1207 / #1210 / #1212, so the 12 machine locales were missing 81 keys — including **all**
+`ui.missions.objtype_*`, which meant every objective row in the mission log showed no type label at all in
+those languages. All 12 are now complete (`locale_report.py --check` green). Bundled here at Marcel's request;
+on its own it would have taken the fast `locale-tests` lane.
+Docs: USER_MANUAL § chat safety, SELF_HOSTING § anti-spam. Follow-up: operator `/mute` + `/unmute` is #1223.
+
 ### ★ "SPS Survey Orders" — the station boards have work after the ending (#1213, 2026-08-23, branch feat/1213-sps-survey-orders)
 Eighth slice of the feature-deepening package (epic #1197), and the payoff of the three before it: the Scan
 objective (#1205), the chain schema (#1212) and the Remnant Protocol (#1206). After the finale the relay

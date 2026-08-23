@@ -158,6 +158,7 @@ public sealed partial class GameServer
             case ChatVerdict.Block:
                 _log.Info($"Chat filter: dropped a line from '{who}' ({(result.Pii ? "personal data: " : "term: ")}{result.MatchedTerm}).");
                 Send(session, new ServerMessage { Text = result.Pii ? "@srv.chat.pii_blocked" : "@srv.chat.blocked" });
+                NoteChatFilterHit(session); // #1208: keep doing this and the channel goes quiet for a while
                 return null;
             case ChatVerdict.Mask:
                 if (!session.ChatMaskNoticeSent)
@@ -166,11 +167,124 @@ public sealed partial class GameServer
                     Send(session, new ServerMessage { Text = "@srv.chat.masked" });
                 }
 
+                NoteChatFilterHit(session); // #1208
                 return result.Text;
             default:
                 return text;
         }
     }
+
+    // ---------------- Anti-spam + temporary auto-mute (#1208) ----------------
+    // The 700 ms per-line limit stops a key held down; it does nothing about a burst of distinct lines, and
+    // nothing at all about someone who keeps tripping the content filter. Two sliding windows close that gap
+    // and both end in the same place: a ten-minute cool-down the sender is TOLD about, plus one operator ping
+    // so a human can decide whether more is needed. Counters are RAM-only (see PlayerSession).
+
+    /// <summary>More than this many accepted lines inside <see cref="SpamBurstWindowSeconds"/> is a burst.</summary>
+    private const int SpamBurstLines = 6;
+    private const double SpamBurstWindowSeconds = 10.0;
+
+    /// <summary>More than this many filter hits inside <see cref="FilterHitWindowSeconds"/> earns a mute.</summary>
+    private const int SpamFilterHits = 3;
+    private const double FilterHitWindowSeconds = 300.0;
+
+    /// <summary>How long an automatic mute lasts. Long enough to break a flood, short enough that a child who
+    /// got carried away is back in the conversation in the same session.</summary>
+    private const double ChatAutoMuteSeconds = 600.0;
+
+    /// <summary>Whether this session is currently muted. The notice normally goes out the moment the mute
+    /// starts (<see cref="AutoMuteChat"/>); this is the fallback for a mute that began some other way — and
+    /// it fires at most once per mute, so hammering Enter does not earn a wall of notices (#1208).</summary>
+    private bool ChatMuted(PlayerSession session)
+    {
+        if (session.ChatMutedUntil <= _uptime)
+        {
+            return false;
+        }
+
+        if (!session.ChatMuteNoticeSent)
+        {
+            SendMuteNotice(session);
+        }
+
+        return true;
+    }
+
+    /// <summary>Tells the sender how long the chat stays paused for them. Silence with no explanation reads
+    /// as a broken game — especially to a child — so a mute is never applied quietly.</summary>
+    private void SendMuteNotice(PlayerSession session)
+    {
+        session.ChatMuteNoticeSent = true;
+        int minutes = System.Math.Max(1, (int)System.Math.Ceiling((session.ChatMutedUntil - _uptime) / 60.0));
+        Send(session, new ServerMessage { Text = "@srv.chat.muted_until:" + minutes });
+    }
+
+    /// <summary>Records an accepted line in the burst window and mutes the sender if it tipped over. Returns
+    /// true when the line must be dropped — the line that trips the limit is itself part of the flood.</summary>
+    private bool NoteChatLine(PlayerSession session)
+    {
+        TrimWindow(session.RecentChatAt, SpamBurstWindowSeconds);
+        session.RecentChatAt.Add(_uptime);
+        if (session.RecentChatAt.Count <= SpamBurstLines)
+        {
+            return false;
+        }
+
+        AutoMuteChat(session, "flooding the channel");
+        return true;
+    }
+
+    /// <summary>Records a content-filter hit (a line that was blocked or masked) and mutes the sender when
+    /// they keep tripping it. Called from <see cref="ScreenChatLine"/>, so it counts what the filter ACTED
+    /// on — not a watch-list term, which is relayed untouched and only pings the operator.</summary>
+    private void NoteChatFilterHit(PlayerSession session)
+    {
+        TrimWindow(session.RecentFilterHitsAt, FilterHitWindowSeconds);
+        session.RecentFilterHitsAt.Add(_uptime);
+        if (session.RecentFilterHitsAt.Count > SpamFilterHits)
+        {
+            AutoMuteChat(session, "repeatedly tripping the chat filter");
+        }
+    }
+
+    /// <summary>Starts (or restarts) the cool-down and pings the operator once.</summary>
+    private void AutoMuteChat(PlayerSession session, string why)
+    {
+        session.ChatMutedUntil = _uptime + ChatAutoMuteSeconds;
+        session.RecentChatAt.Clear();
+        session.RecentFilterHitsAt.Clear();
+        SendMuteNotice(session); // straight away — the line that vanished is the one they want explained
+
+        string who = session.State.Name ?? "?";
+        int minutes = (int)(ChatAutoMuteSeconds / 60.0);
+        _log.Info($"Chat auto-mute: '{who}' muted for {minutes} min ({why}).");
+        NotifyOperator($"chat auto-mute [{_meta.WorldName}]",
+            $"Player '{who}' was muted for {minutes} minutes ({why}).", "mute");
+    }
+
+    /// <summary>Drops the timestamps that have fallen out of a sliding window.</summary>
+    private void TrimWindow(List<double> stamps, double windowSeconds)
+    {
+        double cutoff = _uptime - windowSeconds;
+        int drop = 0;
+        while (drop < stamps.Count && stamps[drop] < cutoff)
+        {
+            drop++;
+        }
+
+        if (drop > 0)
+        {
+            stamps.RemoveRange(0, drop);
+        }
+    }
+
+    /// <summary>Test hook: whether this player's chat is currently auto-muted (#1208).</summary>
+    public bool IsChatMutedForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s && s.ChatMutedUntil > _uptime;
+
+    /// <summary>Test hook: advance the server clock without running a tick, so the sliding windows and the
+    /// mute expiry can be exercised without waiting ten real minutes (#1208).</summary>
+    public void AdvanceUptimeForTest(double seconds) => _uptime += seconds;
 
     /// <summary>One best-effort operator ping; never throws into the caller.</summary>
     private void NotifyOperator(string title, string message, string tags = "")
