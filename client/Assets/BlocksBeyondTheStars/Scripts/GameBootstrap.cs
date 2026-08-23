@@ -436,6 +436,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>This player's alliance roster (mutual allies + pending requests), for the Alliances menu tab.</summary>
         public AllianceList Alliances { get; private set; } = new AllianceList();
 
+        /// <summary>This player's crew state (#1216): the crew they are in (empty CrewId = none) + open invites.</summary>
+        public CrewList Crew { get; private set; } = new CrewList();
+
+        /// <summary>Map markers + live pings visible on the current world (#1217): own + shared-by-allies/crew.
+        /// Replaced wholesale by every <see cref="MarkerList"/>; cleared on a world switch.</summary>
+        public NetMarker[] Markers { get; private set; } = System.Array.Empty<NetMarker>();
+
         /// <summary>This player's tamed-creature roster, for the Companions menu tab. Refreshed by the server.</summary>
         public CompanionList Companions { get; private set; } = new CompanionList();
 
@@ -1829,6 +1836,13 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.MissionsReceived += m => Missions = m;
             Network.AllianceListReceived += m => Alliances = m ?? new AllianceList();
+            Network.CrewListReceived += m => Crew = m ?? new CrewList();
+            Network.CrewInviteReceived += m =>
+            {
+                string t = Localizer?.Get("ui.crew.invite_from") ?? "{name} invites you to “{crew}”";
+                ShowMessage(t.Replace("{name}", m.FromName).Replace("{crew}", m.CrewName));
+            };
+            Network.MarkerListReceived += m => Markers = m?.Markers ?? System.Array.Empty<NetMarker>();
             Network.CompanionsReceived += m => Companions = m ?? new CompanionList();
             Network.SpeedersReceived += m => Speeders = m.Speeders ?? System.Array.Empty<NetSpeeder>();
             Network.SpeederFxReceived += m =>
@@ -2517,6 +2531,7 @@ namespace BlocksBeyondTheStars.Client
             NpcStandings.Clear(); // #1118: per-world NPC ids — the new world re-sends its own standings
             Containers = System.Array.Empty<NetContainer>();
             Beacons = System.Array.Empty<NetBeacon>();
+            Markers = System.Array.Empty<NetMarker>(); // per-world — the server re-sends the new body's set (#1217)
             Beams = System.Array.Empty<NetBeam>();
             Bases = System.Array.Empty<NetBase>();
             Factories = System.Array.Empty<NetFactory>();

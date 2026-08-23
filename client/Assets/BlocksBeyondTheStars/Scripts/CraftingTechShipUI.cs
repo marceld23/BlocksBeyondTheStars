@@ -95,6 +95,8 @@ namespace BlocksBeyondTheStars.Client
         // Alliances tab: the radio (Funk) input draft + the live scrollback Text (refreshed each frame so new
         // messages appear without rebuilding the pane, which would drop the input's focus while typing).
         private string _funkDraft = string.Empty;
+        private string _crewNameDraft = string.Empty; // crew create/rename input (#1216)
+        private string _crewStamp = string.Empty;     // change detector so an open Crew view refreshes itself
         private Text _funkLog;
 
         private const float W = 1920f, H = 1080f;
@@ -228,6 +230,21 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Live radio scrollback: keep the Funk view current without a rebuild (preserves typing focus).
+            if (_mode == Mode.Alliances && _category == "crew")
+            {
+                // The crew state changes under an open view (an invite answered, a member joining): rebuild
+                // when the server pushes a different roster, so the buttons always match reality (#1216).
+                var c = Game?.Crew;
+                string stamp = c == null ? string.Empty
+                    : c.CrewId + "|" + c.Name + "|" + c.OwnerId + "|" + (c.Members?.Length ?? 0) + "|" + (c.Invites?.Length ?? 0);
+                if (stamp != _crewStamp)
+                {
+                    _crewStamp = stamp;
+                    RebuildList();
+                    RebuildDetail();
+                }
+            }
+
             if (_mode == Mode.Alliances && _category == "funk" && _funkLog != null)
             {
                 _funkLog.text = ComposeFunkLog();
@@ -813,12 +830,13 @@ namespace BlocksBeyondTheStars.Client
                     break;
                 case Mode.Alliances:
                     list.Clear();
-                    if (_category != "allies" && _category != "find" && _category != "funk")
+                    if (_category != "allies" && _category != "crew" && _category != "find" && _category != "funk")
                     {
                         _category = "allies"; // the tab opens with "all" by default — land on the roster
                     }
 
                     list.Add(("allies", L("ui.alliance.cat_allies"), "cat_mission"));
+                    list.Add(("crew", L("ui.alliance.cat_crew"), "cat_target"));
                     list.Add(("find", L("ui.alliance.cat_find"), "cat_tech"));
                     list.Add(("funk", L("ui.alliance.cat_funk"), "cat_cargo"));
                     break;
@@ -2194,6 +2212,7 @@ namespace BlocksBeyondTheStars.Client
             _funkLog = null; // only the Funk view owns the live scrollback Text
             switch (_category)
             {
+                case "crew": return BuildCrewList();
                 case "find": return BuildAllianceFindList();
                 case "funk": return BuildFunkLog();
                 default: return BuildAllyList();
@@ -2235,7 +2254,16 @@ namespace BlocksBeyondTheStars.Client
                     string id = al.PartnerId;
                     string dot = al.Online ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
                     UiKit.AddText(_listContent, 8, y + 8, 560, 40, dot + AllianceName(al.PartnerName, al.PartnerId), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                    UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.alliance.end"), () => Game.Network?.SendDissolveAlliance(id));
+                    if (al.Crew)
+                    {
+                        // A crew-derived ally (#1216): there is nothing to "end" here — crew access is left
+                        // through the Crew view, and a manual alliance with the same player is a separate row.
+                        UiKit.AddText(_listContent, 600, y + 6, 150, 44, L("ui.crew.crew_tag"), 18, UiKit.CyanDim, TextAnchor.MiddleCenter);
+                    }
+                    else
+                    {
+                        UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.alliance.end"), () => Game.Network?.SendDissolveAlliance(id));
+                    }
                     y += 58f;
                 }
             }
@@ -2363,11 +2391,141 @@ namespace BlocksBeyondTheStars.Client
             return sb.ToString();
         }
 
+        /// <summary>The Crew view (#1216): open invites, then either the "found a crew" form or the member
+        /// roster with the owner's management verbs. Every button is a plain UiKit button, so the stick walks
+        /// the whole view like the rest of the menu.</summary>
+        private float BuildCrewList()
+        {
+            var crew = Game.Crew ?? new CrewList();
+            float y = 0f;
+
+            if (crew.Invites != null && crew.Invites.Length > 0)
+            {
+                y = AllianceSection(L("ui.crew.invites"), y);
+                foreach (var inv in crew.Invites)
+                {
+                    string cid = inv.CrewId;
+                    string line = L("ui.crew.invite_from").Replace("{name}", inv.FromName).Replace("{crew}", inv.CrewName);
+                    UiKit.AddText(_listContent, 8, y + 8, 420, 40, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    var acc = UiKit.AddButton(_listContent, 440, y + 6, 150, 44, L("ui.crew.accept"), () => Game.Network?.SendCrewAction("accept", cid));
+                    acc.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+                    UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.crew.decline"), () => Game.Network?.SendCrewAction("decline", cid));
+                    y += 58f;
+                }
+
+                y += 10f;
+            }
+
+            if (string.IsNullOrEmpty(crew.CrewId))
+            {
+                y = AllianceSection(L("ui.crew.title"), y);
+                UiKit.AddText(_listContent, 8, y, 760, 30, L("ui.crew.none_yet"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 34f;
+                UiKit.AddText(_listContent, 8, y, 760, 30, L("ui.crew.create_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 42f;
+                UiKit.AddInput(_listContent, 8, y, 480, 46, _crewNameDraft, v => _crewNameDraft = v, L("ui.crew.name_placeholder"));
+                var mk = UiKit.AddButton(_listContent, 500, y, 250, 46, L("ui.crew.create"), () =>
+                {
+                    Game.Network?.SendCrewAction("create", _crewNameDraft);
+                    _crewNameDraft = string.Empty;
+                });
+                mk.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+                y += 60f;
+                return y;
+            }
+
+            bool owner = crew.OwnerId == Game.LocalPlayerId;
+            int count = crew.Members?.Length ?? 0;
+            y = AllianceSection(crew.Name + "  —  " + L("ui.crew.members").Replace("{0}", count.ToString()), y);
+            foreach (var m in crew.Members ?? System.Array.Empty<NetCrewMember>())
+            {
+                string dot = m.Online ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
+                string tag = m.IsOwner ? "  ·  " + L("ui.crew.owner_tag") : string.Empty;
+                UiKit.AddText(_listContent, 8, y + 8, 560, 40, dot + AllianceName(m.Name, m.PlayerId) + tag, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                if (owner && !m.IsOwner)
+                {
+                    string target = m.PlayerId;
+                    UiKit.AddButton(_listContent, 600, y + 6, 150, 44, L("ui.crew.kick"), () => Game.Network?.SendCrewAction("kick", targetPlayerId: target));
+                }
+
+                y += 58f;
+            }
+
+            y += 10f;
+            if (owner)
+            {
+                UiKit.AddInput(_listContent, 8, y, 480, 46, _crewNameDraft, v => _crewNameDraft = v, L("ui.crew.name_placeholder"));
+                UiKit.AddButton(_listContent, 500, y, 250, 46, L("ui.crew.rename"), () =>
+                {
+                    Game.Network?.SendCrewAction("rename", _crewNameDraft);
+                    _crewNameDraft = string.Empty;
+                });
+                y += 56f;
+            }
+
+            var leave = UiKit.AddButton(_listContent, 8, y, 250, 46, L("ui.crew.leave"), () => Game.Network?.SendCrewAction("leave"));
+            leave.GetComponent<Image>().color = new Color(0.5f, 0.3f, 0.24f);
+            if (owner)
+            {
+                var dis = UiKit.AddButton(_listContent, 500, y, 250, 46, L("ui.crew.disband"), () => Game.Network?.SendCrewAction("disband"));
+                dis.GetComponent<Image>().color = new Color(0.55f, 0.25f, 0.2f);
+            }
+
+            y += 62f;
+
+            if (owner && count < 8)
+            {
+                y = AllianceSection(L("ui.crew.invite_someone"), y);
+                var inCrew = new HashSet<string>((crew.Members ?? System.Array.Empty<NetCrewMember>()).Select(m => m.PlayerId));
+                string me = Game.LocalPlayerId ?? string.Empty;
+                var players = Game.StarMap?.Players ?? System.Array.Empty<NetPlayerLocation>();
+                var seen = new HashSet<string>();
+                int shown = 0;
+                foreach (var pl in players)
+                {
+                    string id = pl.Name; // player id == name
+                    if (string.IsNullOrEmpty(id) || id == me || inCrew.Contains(id) || !seen.Add(id))
+                    {
+                        continue;
+                    }
+
+                    UiKit.AddText(_listContent, 8, y + 8, 480, 40, AllianceName(pl.Name, id), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    var b = UiKit.AddButton(_listContent, 500, y + 6, 250, 44, L("ui.crew.invite"), () => Game.Network?.SendCrewAction("invite", targetPlayerId: id));
+                    b.GetComponent<Image>().color = new Color(0.2f, 0.45f, 0.7f);
+                    y += 58f;
+                    shown++;
+                }
+
+                if (shown == 0)
+                {
+                    UiKit.AddText(_listContent, 8, y, 760, 50, L("ui.crew.nobody_to_invite"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    y += 56f;
+                }
+            }
+
+            return y;
+        }
+
+        private float DetailCrew()
+        {
+            float y = 0f;
+            UiKit.AddText(_detail, 8, y, 620, 32, L("ui.crew.title"), 24, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 44f;
+            UiKit.AddText(_detail, 8, y, 620, 340, L("ui.crew.about"), 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            y += 350f;
+            return y;
+        }
+
         private float DetailAlliances()
         {
             if (_category == "funk")
             {
                 return DetailFunk();
+            }
+
+            if (_category == "crew")
+            {
+                return DetailCrew();
             }
 
             float y = 0f;

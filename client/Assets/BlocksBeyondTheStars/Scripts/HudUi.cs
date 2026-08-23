@@ -80,6 +80,7 @@ namespace BlocksBeyondTheStars.Client
         private RectTransform _compassShip, _compassWp;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
+        private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
 
         private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; }
         private VitalRow[] _vitals;
@@ -1444,6 +1445,41 @@ namespace BlocksBeyondTheStars.Client
             for (int i = bn; i < _compassBeacons.Count; i++)
             {
                 _compassBeacons[i].gameObject.SetActive(false);
+            }
+
+            // Named markers + pings (#1217): pooled palette-coloured blips; a ping blinks so it reads as "now".
+            var markers = Game.Markers;
+            int mn = markers?.Length ?? 0;
+            for (int i = 0; i < mn; i++)
+            {
+                if (i >= _compassMarkers.Count)
+                {
+                    _compassMarkers.Add(Blip(_compassParent, Color.white, 6f));
+                }
+
+                var m = markers[i];
+                var img = _compassMarkers[i].GetComponent<Image>();
+                if (img != null)
+                {
+                    if (m.Ping)
+                    {
+                        var c = new Color(1f, 0.9f, 0.4f);
+                        c.a = 0.45f + 0.55f * Mathf.Abs(Mathf.Sin(Time.time * 5f));
+                        img.color = c;
+                    }
+                    else
+                    {
+                        img.color = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[
+                            Mathf.Clamp(m.Color, 0, BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length - 1)];
+                    }
+                }
+
+                PlaceBlip(_compassMarkers[i], true, new Vector3(m.X, m.Y, m.Z), radius);
+            }
+
+            for (int i = mn; i < _compassMarkers.Count; i++)
+            {
+                _compassMarkers[i].gameObject.SetActive(false);
             }
         }
 

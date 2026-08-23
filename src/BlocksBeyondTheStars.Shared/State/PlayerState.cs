@@ -238,6 +238,10 @@ public sealed class PlayerState
     /// on (re)join so a reload never starts the player "inside" a speeder; never meaningfully persisted.</summary>
     public string InSpeeder { get; set; } = string.Empty;
 
+    /// <summary>Named map markers this player saved (#1217) — per world, capped server-side at 8 per world.
+    /// Shared ones are shown to allies + crew on the same body while this player is online. Persisted.</summary>
+    public List<PlayerMarker> Markers { get; set; } = new();
+
     /// <summary>The ids of every ship in this player's fleet, in order — the index over the per-ship save rows
     /// (#848). Before this, only the ACTIVE ship was saved and the fleet was rebuilt from scratch on every join,
     /// so a crafted ship or a claimed wreck was silently deleted by the next load. Empty in pre-#848 saves,

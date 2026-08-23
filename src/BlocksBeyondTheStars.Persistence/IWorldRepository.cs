@@ -126,6 +126,26 @@ public sealed class StoredAlliance
     public string FormedUtc { get; set; } = string.Empty;
 }
 
+/// <summary>A persisted crew (#1216): a named group of up to 8 players (server-wide, like the alliance
+/// graph). Membership rows live in <see cref="StoredCrewMember"/>; membership implies pairwise alliance while
+/// it lasts, but the crew edges are kept separate from <see cref="StoredAlliance"/> rows on purpose.</summary>
+public sealed class StoredCrew
+{
+    public string CrewId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string OwnerId { get; set; } = string.Empty;
+    public string CreatedUtc { get; set; } = string.Empty;
+}
+
+/// <summary>One crew membership row (#1216). <see cref="JoinedUtc"/> orders members by seniority — the oldest
+/// member inherits a crew whose owner leaves.</summary>
+public sealed class StoredCrewMember
+{
+    public string CrewId { get; set; } = string.Empty;
+    public string PlayerId { get; set; } = string.Empty;
+    public string JoinedUtc { get; set; } = string.Empty;
+}
+
 /// <summary>The persisted per-save state of one active story pack (server-wide, like the alliance graph —
 /// not per-world): the progress counters, how far the ordered beat arc has been revealed, the finale flags,
 /// and the set of net fragments already found (dedupe). Stored as one JSON-blob row keyed by
@@ -439,6 +459,24 @@ public interface IWorldRepository : IDisposable
 
     /// <summary>Removes the alliance between the two players (order-independent).</summary>
     void DeleteAlliance(string playerA, string playerB);
+
+    /// <summary>Stores (inserts or replaces) a crew row, keyed by its crew id (#1216).</summary>
+    void SaveCrew(StoredCrew crew);
+
+    /// <summary>Removes a crew AND all of its membership rows.</summary>
+    void DeleteCrew(string crewId);
+
+    /// <summary>Lists every crew across the server (restored once at server start).</summary>
+    IReadOnlyList<StoredCrew> ListCrews();
+
+    /// <summary>Stores (inserts or replaces) one crew membership row, keyed by (crew, player).</summary>
+    void SaveCrewMember(StoredCrewMember member);
+
+    /// <summary>Removes one player's membership row from a crew.</summary>
+    void DeleteCrewMember(string crewId, string playerId);
+
+    /// <summary>Lists every crew membership row across the server (restored once at server start).</summary>
+    IReadOnlyList<StoredCrewMember> ListCrewMembers();
 
     /// <summary>Stores (inserts or replaces) the per-save state of one story pack, keyed by its story id.</summary>
     void SaveStoryState(StoredStoryState state);

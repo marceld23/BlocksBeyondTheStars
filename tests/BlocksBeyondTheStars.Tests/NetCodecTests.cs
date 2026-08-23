@@ -279,6 +279,11 @@ public sealed class NetCodecTests
         [226] = typeof(NpcDialogChoiceIntent),
         [227] = typeof(SentryShot),
         [228] = typeof(FeedCompanionIntent),
+        [229] = typeof(CrewActionIntent),
+        [230] = typeof(CrewList),
+        [231] = typeof(CrewInviteNotice),
+        [232] = typeof(MarkerActionIntent),
+        [233] = typeof(MarkerList),
     };
 
     [Fact]

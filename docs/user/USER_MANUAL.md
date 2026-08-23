@@ -608,7 +608,14 @@ separate unlock; admins can still disable it through server world rules.
   base's protection zone), and **cannot harm one another** even with PvP enabled. Player-built **stations are
   private** — only the owner and their allies can board them.
 - The **base core / station core** itself stays **owner-only** (an ally can't dissolve your base or rename your
-  station). Alliances are pairwise (no named groups or roles).
+  station).
+- **Crews (named groups):** the **Crew** view in the Alliances tab holds a named group of up to **8 players**.
+  Everyone in the crew counts as **allied with everyone else** — one invite instead of a web of handshakes, ideal
+  for a family or a class. The **owner** founds the crew (the name is screened like any player name), invites
+  **online** players (no join codes), can rename, remove members or disband; anyone may leave at any time, and if
+  the owner leaves, the longest-serving member takes over. Crew and manual alliances are **independent**: leaving
+  the crew keeps an alliance you formed yourself, and ending a manual alliance never cuts crew access. Crew mates
+  appear in your Allies list with a "Crew" tag (no End button — leave the crew instead).
 - Allies can **beam to each other**: a held **suit teleporter** (right-click) lists every ally standing on the
   same planet — see *Suit teleporter* below. Ships stay private: the jump is refused while your ally is
   aboard theirs.
@@ -899,6 +906,17 @@ separate unlock; admins can still disable it through server world rules.
   protected (someone else's base) or unaffordable are skipped and tallied honestly — nothing is ever forced
   into another player's build. Doors, chests, beacons and other "living" blocks don't travel in a blueprint;
   shapes and dye do (custom forms fall back to plain cubes in a world that doesn't know them).
+
+### Map markers & ping (planet map)
+- On the **planet map** (key **M**), click to set a waypoint, then **"Save marker at waypoint"** turns it into a
+  **named marker**: label (up to 24 characters, screened), one of **8 icons** (flag, home, ore, danger, water,
+  star, heart, question) and one of **6 colours**. **8 markers per world**; each row in the map's marker list
+  offers **Navigate** (sets the compass waypoint) and **Delete**.
+- A marker saved as **"Visible to allies & crew"** appears on the map and compass of every ally / crew mate on
+  the **same world** — while you are online. Private markers stay yours alone.
+- **Ping ("look here!"):** press **C** (rebindable; pad/touch: the Actions list) to drop a **pulsing pin** at
+  your crosshair for ~30 seconds, visible to your allies + crew on the world — perfect for "the entrance is
+  HERE". Rate-limited to one every few seconds; pings are never saved.
 
 ### Travel & the star map
 - Open **Tab → Map**. The system list is grouped: **Current system** at the top (its reachable worlds, plus

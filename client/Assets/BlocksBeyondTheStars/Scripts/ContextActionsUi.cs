@@ -68,6 +68,7 @@ namespace BlocksBeyondTheStars.Client
             new Entry(InputAction.DepositToCrate, u => u.OnFoot && u.Player != null && u.Player.NearCrate),
             new Entry(InputAction.RepairWreck, u => u.OnFoot && u.Player != null && u.Player.NearWreck),
             new Entry(InputAction.StowVehicle, u => u.OnFoot && u.Player != null && u.Player.NearOwnParkedSpeeder),
+            new Entry(InputAction.PingMarker, u => u.OnFoot), // "look here!" for allies + crew (#1217)
             new Entry(InputAction.PrimaryFire, u => u.OnFoot && u.Player != null && u.Player.HoldsWeapon),
             new Entry(InputAction.ToggleThermal, u => u.OnFoot && u.Player != null && u.Player.BinocularsRaised),
             new Entry(InputAction.PlanetMap, u => u.OnFoot && !u.Game.InSpace),

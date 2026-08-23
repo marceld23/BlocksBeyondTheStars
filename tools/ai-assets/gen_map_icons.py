@@ -53,6 +53,15 @@ ICONS = [
     # New (#592): the player-founded base marker — referenced by WorldMap since the Grundstein
     # feature but the icon never existed, so bases fell back to the ⌂ text glyph.
     ("map_base", "a house on a foundation slab with a flag"),
+    # Player map markers (#1217): the 8-icon safe set for named markers. Same bold white style.
+    ("map_mark_flag", "a rectangular flag on a short pole"),
+    ("map_mark_home", "a simple house with a pitched roof"),
+    ("map_mark_ore", "a mining pickaxe crossed over a rock chunk"),
+    ("map_mark_danger", "a warning triangle with an exclamation mark"),
+    ("map_mark_water", "a large water droplet above two waves"),
+    ("map_mark_star", "a five pointed star"),
+    ("map_mark_heart", "a heart symbol"),
+    ("map_mark_question", "a bold question mark in a circle"),
 ]
 
 
