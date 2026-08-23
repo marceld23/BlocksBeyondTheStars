@@ -75,6 +75,14 @@ namespace BlocksBeyondTheStars.Client.Minigames
         /// <summary>The result of the most recent finished run (valid once <see cref="State"/> is Result).</summary>
         public MinigameResult Result { get; private set; }
 
+        /// <summary>True when the running round registered a pointer callback — the cue for the host UI to give
+        /// a gamepad the virtual cursor (#1218). False between rounds (Create wires it fresh each start).</summary>
+        public bool WantsPointer => PointerCb != null;
+
+        /// <summary>True when the running round bound a press handler for <paramref name="action"/> — lets the
+        /// host UI decide whether e.g. Escape/B should be consumed as an in-game Cancel (#1218).</summary>
+        public bool HasBinding(MinigameAction action) => PressHandlers.ContainsKey(action);
+
         /// <summary>Raised exactly once per finished run, before the result overlay shows — the host UI subscribes
         /// to grant knowledge / record the highscore (mirrors the old EmbeddedBrowser <c>OnReportResult</c>).</summary>
         public event Action<MinigameResult>? OnResult;

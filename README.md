@@ -30,6 +30,13 @@ Blocks Beyond the Stars is not a traditional indie game—it is an exploration o
 
 **We'd love your help making this game better!** We made this repository Open Source not just to share our AI workflow, but to build it together with you. Whether you're a developer, an artist, a writer, or simply a player with ideas and bug reports — there's a place for you here. Big features, small fixes, balancing tweaks, fresh ideas: all are welcome, and **you don't need Unity or a game engine licence for most of it** — see **[Contribute](#-contribute)** for where to start, or just press **F1** in-game (**F2** in the browser version) to send feedback. Let's make it great together. 🚀 And if you're not the coding type — no problem at all: a single ⭐ is the easiest way to cheer Justus on and help us grow.
 
+**Made for families — safe for kids.** Mild sci-fi combat only (no blood, bandits are chased away, never
+killed; weapons default to "tools only"), no purchases, no ads, no personal data — and online play ships
+with a content filter, a one-command report path and per-player mute. Our own assessment: PEGI 7 / USK 6
+territory (no official rating yet — that needs a storefront questionnaire). The full picture for parents &
+teachers, including how to host a private family world: **[docs/user/PARENTS.md](docs/user/PARENTS.md)**
+(deutsch: [PARENTS.de.md](docs/user/PARENTS.de.md)).
+
 ## 🪐 What is it? (The Short Pitch)
 
 A block-based 3D space crafting game for Windows and Linux (with an experimental macOS build), built from day one as a persistent client/server multiplayer experience.

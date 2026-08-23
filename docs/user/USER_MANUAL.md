@@ -237,6 +237,18 @@ separate unlock; admins can still disable it through server world rules.
   Hand recipes work anywhere.
 - **Codex and DataQubes screens** — use the top-right **Close** button, **Esc**, or **Tab** to return to play.
   **< Menu** returns from the full-screen screen to the normal Tab menu.
+
+### Arcade (minigames)
+- The **DataQubes Arcade** holds 20 built-in minigames. Locked cabinets unlock through data cubes you find
+  in the world; beating your **best score** on a completed run pays **+5/+10/+15 knowledge** by rating.
+- **Keyboard:** arrows/WASD move, **Enter** confirms, **Space** is the primary action, **Shift** secondary,
+  **P** pauses, **R** restarts, **H** opens help — and the mouse plays the pointer games directly. **Esc**
+  acts as the in-game *Cancel* in games that use one; otherwise it closes the screen as usual.
+- **Gamepad — every game is playable on the pad:** left stick / D-pad steer, **(A)** confirms / acts,
+  **(B)** cancels, **(X)** secondary, **(Y)** help, **Start** pauses, **Back** restarts. In the pointer
+  games (puzzles like Star Memory, Void Solitaire, Laser Grid …) the stick glides a **cursor reticle**
+  across the board and **(A)** clicks — drags included — while the D-pad keeps serving any arrow moves.
+  The start/pause/result overlays are stick-navigable like every other menu.
 - **Tab availability dimming** — tabs whose context isn't met are **greyed out** (but still clickable to peek):
   **Map** needs you aboard, **Crafting** dims only when no station block is in reach (hand recipes still work),
   **Blueprints** needs the cockpit, **Ship** the workshop module aboard; a dimmed tab shows the icon of the block it is

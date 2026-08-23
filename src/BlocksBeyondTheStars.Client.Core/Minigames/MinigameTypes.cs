@@ -6,9 +6,9 @@ using System.Collections.Generic;
 
 namespace BlocksBeyondTheStars.Client.Minigames
 {
-    /// <summary>The abstract minigame inputs (keyboard now, gamepad later). The Unity host maps physical keys
-    /// onto these; a game only ever asks for the action, never a <c>KeyCode</c>. Mirrors the web framework's
-    /// KEYMAP (Left/Right/Up/Down/Confirm/Cancel/Pause/Restart/Help/Primary/Secondary).</summary>
+    /// <summary>The abstract minigame inputs. The Unity host maps physical keys AND gamepad state (#1218,
+    /// via <c>MinigamePadMapper</c>) onto these; a game only ever asks for the action, never a <c>KeyCode</c>.
+    /// Mirrors the web framework's KEYMAP (Left/Right/Up/Down/Confirm/Cancel/Pause/Restart/Help/Primary/Secondary).</summary>
     public enum MinigameAction
     {
         Left,
