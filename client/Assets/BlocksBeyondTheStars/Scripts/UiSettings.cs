@@ -131,6 +131,26 @@ namespace BlocksBeyondTheStars.Client
                 Cycle(ref y, L("ui.settings.push_to_talk"), S.PushToTalkKey, () => { S.PushToTalkKey = NextPttKey(S.PushToTalkKey); Rebuild(); });
             }
 
+            // Muted players (#1209) — one row each with an Unmute button, so the list is never a dead end a
+            // player can only leave by editing a file. It sits under Voice because that is where the setting
+            // used to (not) live, but it hides text chat too.
+            Head(ref y, L("ui.mute.muted_players"));
+            if (S.MutedPlayers.Count == 0)
+            {
+                UiKit.AddText(_content, _x, y, _rowW, 44, L("ui.mute.none"), 18, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 52f;
+            }
+            else
+            {
+                foreach (var who in S.MutedPlayers.ToArray()) // copy: the button mutates the list
+                {
+                    UiKit.AddText(_content, _x, y, LabelW, 44, who, 20, UiKit.TextCol, TextAnchor.MiddleLeft);
+                    UiKit.AddButton(_content, _x + CtrlX, y, _rowW - CtrlX, 44, L("ui.mute.unmute"),
+                        () => { S.Unmute(who); S.Save(); Rebuild(); });
+                    y += 52f;
+                }
+            }
+
             Head(ref y, L("ui.settings.controls"));
             Stepper(ref y, L("ui.settings.mouse_sensitivity"), (S.MouseSensitivity - 0.5f) / 5.5f, 0, 1,
                 () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },

@@ -566,6 +566,13 @@ separate unlock; admins can still disable it through server world rules.
   sliding) do NOT hold air. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
   burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
   oxygen until the hole is closed.
+- **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
+  your own base zone. It fires at hostile machines and at robbers who have **already started a fight** —
+  never at players, never at tame animals, and never at somebody walking up to talk (you always get to
+  answer a hold-up yourself). It needs neither power nor ammunition, and you can build as many as you like.
+  Two things worth knowing: it only works **while you are home** on that world, and machines appear 35–50
+  blocks away from you — so a sentry is the thing that covers your back while you build, not a fence that
+  clears the neighbourhood. On **Creative** or **Peaceful** worlds it stays quiet, like everything else.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 
@@ -582,9 +589,11 @@ separate unlock; admins can still disable it through server world rules.
   same planet — see *Suit teleporter* below. Ships stay private: the jump is refused while your ally is
   aboard theirs.
 - **Family-friendly play:** this is a game for all ages, so keep radio chat and the names you give players,
-  bases, stations, beacons and creatures friendly. You can **mute** any player you don't want to hear, and
-  the host can turn **voice chat** off entirely. See the in-game Codex chapter **House Rules** for the full
-  list.
+  bases, stations, beacons and creatures friendly. You can **mute** any player — type `/mute <name>` in the
+  chat box (`/unmute <name>` undoes it), and you will neither see their chat lines nor hear their voice.
+  Muting is yours alone: it is stored on your own device, the other player is never told, and the list is
+  under **Settings → Muted players**, where one click unmutes again. The host can turn **voice chat** off
+  entirely. See the in-game Codex chapter **House Rules** for the full list.
 
 ### Beam blocks (teleporter pads)
 - Craft a **beam block** (`beam_block`, blueprint-gated workshop recipe: titanium + cable + energy cell + crystal),

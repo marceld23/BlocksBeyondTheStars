@@ -189,6 +189,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnChat(BlocksBeyondTheStars.Networking.Messages.ChatMessage m)
         {
+            // A muted sender never reaches the scrollback (#1209). NPC radio calls are exempt: they are not
+            // people, they carry the NPC's name, and nobody can put that on the list in the first place.
+            if (!m.IsNpcCall && Settings != null && Settings.IsMuted(m.SenderId, m.Sender))
+            {
+                return;
+            }
+
             // Sender and text are neutralised first — the log parses rich text, so an unescaped chat line
             // could otherwise recolour or resize everyone's scrollback.
             Append($"<b>{ChatMarkup.RichSafe(m.Sender)}:</b> {ChatMarkup.RichSafe(m.Text)}");
@@ -259,10 +266,43 @@ namespace BlocksBeyondTheStars.Client
             {
                 SubmitPlayerReport(reportedName, reportNote);
             }
+            else if (TryMuteCommand(t))
+            {
+                // handled locally — never sent to the server (#1209)
+            }
             else if (t.Length > 0 && !TryAdminCommand(t))
             {
                 Game.Network.SendChat(t);
             }
+        }
+
+        /// <summary>Handles <c>/mute &lt;name&gt;</c> and <c>/unmute &lt;name&gt;</c>. Purely local: the list
+        /// lives in the player's own settings and the server is never told, so nobody can tell they were
+        /// muted (#1209). Returns true when the line was a mute command, so it is not relayed as chat.</summary>
+        private bool TryMuteCommand(string t)
+        {
+            bool unmute = t.StartsWith("/unmute", System.StringComparison.OrdinalIgnoreCase);
+            bool mute = !unmute && t.StartsWith("/mute", System.StringComparison.OrdinalIgnoreCase);
+            if ((!mute && !unmute) || Settings == null)
+            {
+                return false;
+            }
+
+            string who = t.Substring(unmute ? "/unmute".Length : "/mute".Length).Trim();
+            if (who.Length == 0)
+            {
+                LocalLine(L("ui.mute.usage"));
+                return true;
+            }
+
+            bool changed = unmute ? Settings.Unmute(who) : Settings.Mute(who);
+            if (changed)
+            {
+                Settings.Save();
+            }
+
+            LocalLine(L(unmute ? "ui.mute.unmuted" : "ui.mute.muted").Replace("{name}", who));
+            return true;
         }
 
         /// <summary>

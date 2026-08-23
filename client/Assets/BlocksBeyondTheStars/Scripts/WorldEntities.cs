@@ -65,6 +65,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game.Network != null)
             {
                 Game.Network.PlanetEnemyDefeated += OnDefeated;
+                Game.Network.SentryShotReceived += OnSentryShot;
                 _subscribed = true;
             }
 
@@ -207,6 +208,23 @@ namespace BlocksBeyondTheStars.Client
             {
                 ClientAudio.Instance?.At("enemy_die", en.Root.transform.position, en.Pitch * MachineJitter());
             }
+        }
+
+        /// <summary>A base sentry fired (#1214) — purely cosmetic. The damage is server-authoritative and
+        /// already carried by the enemy broadcasts, so a tracer that arrives late (or is dropped, or whose
+        /// target has already despawned) costs nothing: it is simply not drawn.</summary>
+        private void OnSentryShot(BlocksBeyondTheStars.Networking.Messages.SentryShot m)
+        {
+            if (!_enemies.TryGetValue(m.TargetId, out var target))
+            {
+                return;
+            }
+
+            var muzzle = new Vector3(m.X, m.Y, m.Z);
+            _weapons ??= FindAnyObjectByType<WeaponFx>();
+            _weapons?.Shoot(muzzle, target.Root.transform.position,
+                new Color(0.45f, 0.92f, 1f)); // the cyan the base machinery uses, not the enemies' red
+            ClientAudio.Instance?.At("sentry_shot", muzzle, 1f);
         }
 
         /// <summary>Whether a ranged attacker at <paramref name="shooter"/> has a clear sight line to the
@@ -703,6 +721,7 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.PlanetEnemyDefeated -= OnDefeated;
+                Game.Network.SentryShotReceived -= OnSentryShot;
             }
         }
     }

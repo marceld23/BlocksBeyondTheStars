@@ -449,6 +449,9 @@ public static class NetCodec
         Register(224, typeof(TalkToNpcIntent));              // Client -> Server
         Register(225, typeof(NpcDialogState));               // Server -> Client
         Register(226, typeof(NpcDialogChoiceIntent));        // Client -> Server
+
+        // Base sentry (#1214): cosmetic shot tracer.
+        Register(227, typeof(SentryShot));                   // Server -> Client
     }
 
     private static void Register(byte tag, Type type)

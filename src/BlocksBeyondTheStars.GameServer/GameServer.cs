@@ -1394,6 +1394,7 @@ public sealed partial class GameServer
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
             Guard("TickCompanionPayoff", TickCompanionPayoff); // #1210: companions growl at hostiles, stall robbers, drop produce (1 Hz)
+            Guard("TickSentries", TickSentries); // #1214: base sentry posts fire at hostiles near a home base (2 Hz)
             Guard("TickHealTanks", deltaSeconds, TickHealTanks); // base/station regen field: heal + feed + suit recharge
             Guard("TickStationsInReach", deltaSeconds, TickStationsInReach); // #1070: Tab-menu station gates follow the player
             Guard("TickVoidRescue", deltaSeconds, TickVoidRescue);
@@ -5489,7 +5490,10 @@ public sealed partial class GameServer
         text = relayed;
         string sender = string.IsNullOrEmpty(session.State.Name) ? "Pilot" : session.State.Name;
         // Reach follows the sender's best radio tier (world / system / galaxy), not a flat game-wide broadcast.
-        SendToRadioAudience(session, new ChatMessage { Sender = sender, Text = text }, DeliveryMode.ReliableOrdered);
+        SendToRadioAudience(
+            session,
+            new ChatMessage { Sender = sender, SenderId = session.State.PlayerId, Text = text }, // #1209: mute keys on the id
+            DeliveryMode.ReliableOrdered);
     }
 
     /// <summary>Live voice relay (opt-in). A thin, opaque forwarder: the server never decodes the Opus payload —

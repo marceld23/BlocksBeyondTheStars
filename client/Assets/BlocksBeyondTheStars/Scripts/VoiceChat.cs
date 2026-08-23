@@ -333,7 +333,10 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Settings != null && Settings.MutedVoicePlayers != null && Settings.MutedVoicePlayers.Contains(frame.FromPlayerId))
+            // Muted (#1209): dropped BEFORE decode, so a muted speaker costs no Opus work either. A voice
+            // frame carries only the id, so that is what is matched — passed as both arguments because a
+            // player id IS the display name today, and an entry added from a chat row would otherwise miss.
+            if (Settings != null && Settings.IsMuted(frame.FromPlayerId, frame.FromPlayerId))
             {
                 return;
             }

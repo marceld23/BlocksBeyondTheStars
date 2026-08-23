@@ -84,8 +84,16 @@ player folder — see "installer" analysis).
 The flag is `voiceChatEnabled`. The **bundled singleplayer/host launcher sets `--voice true`** automatically,
 so local hosting "just works". For standalone **dedicated** servers it stays off by default — enable it with
 `config/server.json` `"voiceChatEnabled": true`, CLI `--voice true`, or env `BBS_VOICE=true` — and only do so
-if you can moderate voice (no automated voice moderation; players mute individuals client-side and can turn
-voice off entirely).
+if you can moderate voice (there is no automated voice moderation; players mute individuals client-side and
+can turn voice off entirely).
+
+**Per-player mute (#1209).** `ClientSettings.MutedPlayers` — one list for **text and voice** — is written by
+`/mute <name>` in the chat box and by the Unmute rows under Settings → Muted players. `VoiceChat` drops a
+muted speaker's frames **before decode**, so they cost no Opus work either. It is purely local: the server is
+never told, which keeps the voice fan-out a single broadcast (per-recipient filtering there would cost
+Raspberry-Pi tick) and leaks no social signal. Entries match the id the server stamps on chat lines
+(`ChatMessage.SenderId`) *or* the display name, so the list survives ids and names diverging. The legacy
+voice-only `MutedVoicePlayers` field is folded in on load and then left empty.
 
 ## Known limitations (v1)
 

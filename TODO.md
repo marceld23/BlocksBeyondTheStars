@@ -158,6 +158,39 @@ empty-state line); `TechStatus` gained a distinct **"Knowledge missing"** before
 appends `Knowledge have/need`. Tabs are fixed 150 px + `FitLabel`, so the bar needed no change. USER_MANUAL updated.
 Out of scope (noted in the issue): the `blueprint_tool` item ("Bauplan-Werkzeug") keeps its name.
 
+### ★ Per-player mute + the base sentry post (#1209 + #1214, 2026-08-23, branch feat/1209-1214-mute-sentry)
+Tenth and eleventh slices of the feature-deepening package (epic #1197), bundled into one PR at Marcel's
+request — both touch `client/Assets`, so **one Unity build covers both**.
+
+**#1209 — mute a player, text and voice.** `ClientSettings.MutedVoicePlayers` was read by the voice mixer
+(`VoiceChat.cs:336`) and **written by nothing at all**, while USER_MANUAL and VOICE_CHAT.md both promised the
+feature. Now `MutedPlayers` is one list for text *and* voice, written by `/mute <name>` / `/unmute <name>` in
+the chat box and by the Unmute rows under **Settings → Muted players**; the legacy field is folded in on load
+so a hand-edited file cannot lose its list. Checked in `VoiceChat` (**before decode** — a muted speaker costs
+no Opus work), `ChatUi.OnChat` and the Alliances-tab Funk mirror. Additive contractless `ChatMessage.SenderId`
+(no NetCodec tag) lets the list key on a stable id while still matching the display name, so it keeps working
+against an older server and after ids and names diverge. Purely client-side by design: the server is never
+told, so the voice fan-out stays a single broadcast and muting leaks no social signal. NPC radio calls are
+exempt. The two overclaiming doc lines now describe what actually exists.
+
+**#1214 — the sentry post.** A base was scenery: no turrets anywhere, and nothing a base could do about the
+machines roaming past it. `sentry_post` (workshop, blueprint after `heal_tank`, category `machine` so it also
+counts toward the settler) is a **stateless** turret: `GameServerSentries.cs` re-derives its cells from the
+same base-zone walk `CountBaseMachines` already does, caches them per base, and fires at 2 Hz — no power
+system (#1101 rejected one), no ammunition, nothing persisted. Only bases whose owner is **joined and on that
+body** are scanned; enemies spawn 35–50 blocks from a player, so a sentry has nothing to shoot at while
+nobody is home anyway. Nearest hostile within 14 blocks with line of sight takes 6 hull; the kill path mirrors
+the player's minus the player (loot spills at the corpse, camp bookkeeping and story credit still run).
+**It never targets players, tame creatures, NPCs, or a robber still in Approach/Demanding** — the talk-first
+rule of #1043 outranks it — and it is a complete no-op on Creative/Peaceful. One new NetCodec tag (**227**,
+`SentryShot`) purely for the client tracer, drawn through the existing `WeaponFx`.
+
+**Assets shipped** (generated with the project's own tools, per [[asset-generation-approved]]): the
+`sentry_post` block tile (`gen_image.py` → `bundle_textures.py`, 64px raw RGBA — dark armoured housing with a
+cyan lens ring) and the `sentry_shot` cue (`gen_sound.py`, 0.6 s). Both listed in NOTICES.md.
+`SentryTests` (8) + `MutedPlayersEditModeTests` (7) + a `SenderId` stamping test in `ChatFilterTests`.
+Locales: 12 keys EN+DE + 12 machine. Docs: USER_MANUAL § Bases / § Family-friendly play, VOICE_CHAT.md.
+
 ### ★ Chat anti-spam + temporary auto-mute, and the machine locales caught up (#1208, 2026-08-23, branch feat/1208-chat-antispam)
 Ninth slice of the feature-deepening package (epic #1197) — the follow-up #1207 left open. The flat 700 ms
 per-line limit only stops a held key: it did nothing about a burst of distinct lines, and nothing at all about

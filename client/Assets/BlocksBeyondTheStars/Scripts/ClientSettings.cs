@@ -263,7 +263,16 @@ namespace BlocksBeyondTheStars.Client
         public List<KeyBinding> PadBindings = new List<KeyBinding>();
         /// <summary>Optional named microphone device ("" = the system default).</summary>
         public string MicrophoneDevice = "";
-        /// <summary>Player names the local player has muted (voice playback suppressed). Runtime-toggleable.</summary>
+        /// <summary>Players the local player has muted — **text chat and voice** (#1209). Entries are player
+        /// ids where the server sends one (<see cref="BlocksBeyondTheStars.Networking.Messages.ChatMessage.SenderId"/>)
+        /// and display names otherwise; both are matched, so a list built against an older server keeps working.
+        /// <para>Purely local: the server is never told. Muting therefore leaks no social signal, and the voice
+        /// fan-out stays a single broadcast (per-recipient filtering there would cost Raspberry-Pi tick).</para></summary>
+        public System.Collections.Generic.List<string> MutedPlayers = new System.Collections.Generic.List<string>();
+
+        /// <summary>Legacy name of <see cref="MutedPlayers"/> — voice only, and never written by anything until
+        /// #1209 gave muting a UI. Kept as a field so JsonUtility still reads an existing settings file; it is
+        /// folded into <see cref="MutedPlayers"/> on load and then left empty.</summary>
         public System.Collections.Generic.List<string> MutedVoicePlayers = new System.Collections.Generic.List<string>();
 
         /// <summary>Language code that drives the localizer: "en" or "de".</summary>
@@ -692,6 +701,22 @@ namespace BlocksBeyondTheStars.Client
 
             settings.UiScale = Mathf.Clamp(settings.UiScale, UiKit.UserScaleMin, UiKit.UserScaleMax);
 
+            // Migration (#1209): MutedVoicePlayers becomes MutedPlayers (voice AND text). Nothing ever wrote
+            // the old field, so in practice this list is empty — but a hand-edited settings file must not
+            // silently lose it, and losing a mute list is worse than never having had one.
+            if (settings.MutedVoicePlayers is { Count: > 0 })
+            {
+                foreach (var who in settings.MutedVoicePlayers)
+                {
+                    if (!string.IsNullOrWhiteSpace(who) && !settings.MutedPlayers.Contains(who))
+                    {
+                        settings.MutedPlayers.Add(who);
+                    }
+                }
+
+                settings.MutedVoicePlayers.Clear();
+            }
+
             // Migration (#543): until v0.9.1 there was no official feed, so every install carries an
             // empty URL and in-app updates were effectively self-host-only. An empty value now means
             // "official feed" — JsonUtility writes the stored "" over the field default, so re-default
@@ -989,6 +1014,62 @@ namespace BlocksBeyondTheStars.Client
                     Screen.SetResolution(w, h, FullScreenMode.Windowed);
                     break;
             }
+        }
+
+        // ---- Per-player mute (#1209) ------------------------------------------------------------
+        // One list, two keys. The server stamps a stable player id on chat lines and voice frames, but a
+        // player only ever SEES a display name — so an entry may be either, and both are matched. Names are
+        // compared case-insensitively; ids are opaque and compared exactly.
+
+        /// <summary>Whether lines/voice from this player should be hidden. Either argument may be empty.</summary>
+        public bool IsMuted(string playerId, string displayName)
+        {
+            if (MutedPlayers.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (var entry in MutedPlayers)
+            {
+                if (!string.IsNullOrEmpty(playerId) && entry == playerId)
+                {
+                    return true;
+                }
+
+                if (!string.IsNullOrEmpty(displayName)
+                    && string.Equals(entry, displayName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Adds a player to the mute list. Returns false when they were already on it.</summary>
+        public bool Mute(string who)
+        {
+            if (string.IsNullOrWhiteSpace(who) || IsMuted(who, who))
+            {
+                return false;
+            }
+
+            MutedPlayers.Add(who.Trim());
+            return true;
+        }
+
+        /// <summary>Removes every entry matching a player (id or name). Returns false when none did.</summary>
+        public bool Unmute(string who)
+        {
+            if (string.IsNullOrWhiteSpace(who))
+            {
+                return false;
+            }
+
+            string t = who.Trim();
+            int removed = MutedPlayers.RemoveAll(e =>
+                e == t || string.Equals(e, t, System.StringComparison.OrdinalIgnoreCase));
+            return removed > 0;
         }
     }
 }

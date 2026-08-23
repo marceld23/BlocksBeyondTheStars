@@ -61,6 +61,7 @@ namespace BlocksBeyondTheStars.Client
         public event Action<StationBoarded>? StationBoardedReceived;
         public event Action<PlanetEnemyList>? PlanetEnemiesReceived;
         public event Action<PlanetEnemyDefeated>? PlanetEnemyDefeated;
+        public event Action<SentryShot>? SentryShotReceived; // #1214: cosmetic base-turret tracer
         public event Action<CreatureList>? CreaturesReceived;
         public event Action<ContainerList>? ContainersReceived;
 
@@ -744,6 +745,7 @@ namespace BlocksBeyondTheStars.Client
                 case StationBoarded m: StationBoardedReceived?.Invoke(m); break;
                 case PlanetEnemyList m: PlanetEnemiesReceived?.Invoke(m); break;
                 case PlanetEnemyDefeated m: PlanetEnemyDefeated?.Invoke(m); break;
+                case SentryShot m: SentryShotReceived?.Invoke(m); break;
                 case CreatureList m: CreaturesReceived?.Invoke(m); break;
                 case ContainerList m: ContainersReceived?.Invoke(m); break;
                 case DropPacketList m: DropPacketsReceived?.Invoke(m); break;
