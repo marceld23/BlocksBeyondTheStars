@@ -233,6 +233,24 @@ public sealed class ChatFilterTests : IDisposable
     }
 
     [Fact]
+    public void EveryChatLine_CarriesTheSendersPlayerId()
+    {
+        // #1209: the client's mute list keys on a stable id, not on the display name a person reads. The
+        // field is additive and contractless, so an older client simply ignores it.
+        var transport = new RecordingTransport();
+        var server = NewServer("chat_senderid", transport);
+        var (alice, bob) = Pair(server);
+        transport.Sent.Clear();
+
+        Say(server, alice, "over here");
+
+        var heard = ChatTo(transport, bob).Single();
+        Assert.Equal(alice.State.Name, heard.Sender);
+        Assert.Equal(alice.State.PlayerId, heard.SenderId);
+        Assert.NotEmpty(heard.SenderId);
+    }
+
+    [Fact]
     public void Notices_HaveEnglishAndGermanText()
     {
         var en = _content.CreateLocalizer(GameLocale.English);

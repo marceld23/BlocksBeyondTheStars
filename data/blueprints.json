@@ -20,6 +20,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 }, { "item": "glass", "count": 4 } ]
   },
   {
+    "key": "sentry_post", "nameKey": "blueprint.sentry_post.name", "descriptionKey": "blueprint.sentry_post.desc",
+    "category": "Tools", "prerequisites": [ "heal_tank" ], "knowledgeCost": 30,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "circuit_board", "count": 2 }, { "item": "titanium_plate", "count": 4 } ]
+  },
+  {
     "key": "stasis_projector", "nameKey": "blueprint.stasis_projector.name", "descriptionKey": "blueprint.stasis_projector.desc",
     "category": "Tools", "prerequisites": [], "knowledgeCost": 35,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 } ]

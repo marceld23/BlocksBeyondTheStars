@@ -1875,6 +1875,20 @@ public sealed class BumpReport
 }
 
 /// <summary>A broadcast chat line (server→clients).</summary>
+/// <summary>A base sentry fired at a hostile (#1214) — purely cosmetic: the client draws a tracer from
+/// the sentry cell to the target and plays a short shot. The damage itself is server-authoritative and
+/// already reflected by the enemy/creature broadcasts, so a dropped tracer costs nothing.</summary>
+public sealed class SentryShot
+{
+    /// <summary>The firing sentry block's cell centre.</summary>
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Z { get; set; }
+
+    /// <summary>The combat entity that was hit (planet enemy or bandit).</summary>
+    public string TargetId { get; set; } = string.Empty;
+}
+
 public sealed class ChatMessage
 {
     public string Sender { get; set; } = string.Empty;
@@ -1883,6 +1897,11 @@ public sealed class ChatMessage
     /// <summary>True for a server-originated NPC radio call (#1158) — the client mirrors these into the
     /// Missions tab's "Recent radio calls" block. Additive contractless field: old clients ignore it.</summary>
     public bool IsNpcCall { get; set; }
+
+    /// <summary>The sender's stable player id (#1209). <see cref="Sender"/> is a DISPLAY name, which is
+    /// what a person reads but not what a mute list should key on. Additive and contractless: an older
+    /// server simply leaves it empty and the client falls back to matching the name.</summary>
+    public string SenderId { get; set; } = string.Empty;
 }
 
 /// <summary>One compressed voice frame, used both ways: client→server (the speaker's microphone, ~20 ms of

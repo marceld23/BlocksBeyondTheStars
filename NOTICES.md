@@ -7,10 +7,11 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (218 files, incl. the splash intro, the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (219 files, incl. the splash intro, the
 `terrain_scan` prospecting pulse (Feature 40), the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
-the death cues `space_death`/`player_death`, the companion guard growl `creature_companion_growl`
+the death cues `space_death`/`player_death`, the base sentry's shot `sentry_shot` (#1214, `gen_sound.py`),
+the companion guard growl `creature_companion_growl`
 (+ `_2` second take, #1210, `gen_sound.py`), the per-species creature calls `creature_call_*`
 (incl. the `*_2` second takes of all 22 calls + the habitat calls `burble`/`sizzle`/`keen`/`thrum`,
 #879, via `tools/ai-assets/gen_sound.py`), the
@@ -58,7 +59,7 @@ the algae-tank food `item_algae_ration`, and the player-designed-form pair
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
 
-**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, the `beam_block` teleporter pad, the material-variety set (`detoxifier`, `diamond_ore`, `insulated_wall`, the 13 metal storage blocks `iron_block`…`titanium_block`), the `algae_tank` food machine, the `heal_tank` base regen unit, the `energy_fence`/`energy_gate` creature-pen pair, the monument masonry pair (`ancient_brick`, `rune_stone`), the greenhouse farming pair (`flora_cropberry`, `hydro_tray`), the low-tech furniture batch (`bed`, `campfire`, `wood_crate`, `lantern`, `rug`, `flower_pot`), the placeable-block image fill-in (#868: `ladder`, `stairs`, `station_core`, `station_vendor`, `mission_board`, `station_container`), the factory trio (#1050: `machine_block`, `factory_pipe`, `factory_terminal`), and the planet-enemy
+**Block textures:** `client/Assets/Resources/textures/*.bytes` (raw 64x64 RGBA32 tiles, incl. the full flora set — every `flora_*` block, kelp + lily included — wood-log/tree-leaves, the Task-5 metal/rare-earth ores + alloy blocks, the item-21 `geyser_vent`, the `base_core` planet-base cornerstone, the `beam_block` teleporter pad, the material-variety set (`detoxifier`, `diamond_ore`, `insulated_wall`, the 13 metal storage blocks `iron_block`…`titanium_block`), the `algae_tank` food machine, the `heal_tank` base regen unit, the `energy_fence`/`energy_gate` creature-pen pair, the monument masonry pair (`ancient_brick`, `rune_stone`), the greenhouse farming pair (`flora_cropberry`, `hydro_tray`), the low-tech furniture batch (`bed`, `campfire`, `wood_crate`, `lantern`, `rug`, `flower_pot`), the placeable-block image fill-in (#868: `ladder`, `stairs`, `station_core`, `station_vendor`, `mission_board`, `station_container`), the factory trio (#1050: `machine_block`, `factory_pipe`, `factory_terminal`), the base `sentry_post` turret (#1214), and the planet-enemy
 `enemy_hide` chitin tile) are
 **AI-generated** with the same **OpenAI** image API (`gpt-image-1-mini`, 64px pixel-art tiles — see
 `tools/ai-assets/gen_textures.py`, bundled as raw bytes by `bundle_textures.py`), loaded into the

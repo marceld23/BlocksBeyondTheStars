@@ -1850,6 +1850,13 @@ namespace BlocksBeyondTheStars.Client
             };
             Network.ChatReceived += m =>
             {
+                // A muted sender is dropped from the Funk mirror too (#1209) — hiding a line in the chat
+                // overlay but leaving it in the Alliances tab would only move the problem one tab across.
+                if (!m.IsNpcCall && Settings != null && Settings.IsMuted(m.SenderId, m.Sender))
+                {
+                    return;
+                }
+
                 _recentChat.Add(m);
                 if (_recentChat.Count > RecentChatMax) _recentChat.RemoveAt(0);
                 if (m.IsNpcCall)
