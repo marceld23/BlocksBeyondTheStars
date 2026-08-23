@@ -33,6 +33,20 @@ namespace BlocksBeyondTheStars.Client
         /// a marker readable over any terrain colour (#592).</summary>
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f);
 
+        // Named markers + ping (#1217): the icon sprite per icon index, the editor drafts, and the panel the
+        // per-marker rows rebuild into on every Refresh.
+        private static readonly string[] MarkerIcons =
+        {
+            "map_mark_flag", "map_mark_home", "map_mark_ore", "map_mark_danger",
+            "map_mark_water", "map_mark_star", "map_mark_heart", "map_mark_question",
+        };
+
+        private RectTransform _markerPanel;
+        private string _markerDraft = string.Empty;
+        private int _markerIcon;
+        private int _markerColor;
+        private bool _markerShared = true;
+
         private void Update()
         {
             if (Game == null)
@@ -131,9 +145,56 @@ namespace BlocksBeyondTheStars.Client
             iy += 40f;
             // Truncate (not Overflow): a long POI/beacon list must not run through the legend and buttons
             // below — the last visible line simply cuts off (#592; the layout-overflow class of bug).
-            _info = UiKit.AddText(root, ix, iy, 840, 570, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
+            _info = UiKit.AddText(root, ix, iy, 840, 330, string.Empty, 20, UiKit.TextCol, TextAnchor.UpperLeft);
             _info.horizontalOverflow = HorizontalWrapMode.Wrap;
             _info.verticalOverflow = VerticalWrapMode.Truncate;
+
+            // Named markers (#1217): the editor row (save the current waypoint as a marker) and the per-marker
+            // rows below it. The rows live in their own panel so Refresh can rebuild them without touching the
+            // rest of the screen.
+            float my = iy + 340f;
+            UiKit.AddText(root, ix, my, 400, 26, L("ui.marker.title"), 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiKit.AddText(root, ix + 400, my, 440, 26, L("ui.marker.full_hint"), 13, UiKit.CyanDim, TextAnchor.MiddleRight);
+            my += 32f;
+            UiKit.AddInput(root, ix, my, 250, 42, _markerDraft, v => _markerDraft = v, L("ui.marker.label_placeholder"));
+            Button iconBtn = null;
+            iconBtn = UiKit.AddButton(root, ix + 258, my, 130, 42, L("ui.marker.icon_" + _markerIcon), () =>
+            {
+                _markerIcon = (_markerIcon + 1) % MarkerIcons.Length;
+                var t = iconBtn.GetComponentInChildren<Text>();
+                if (t != null) { t.text = L("ui.marker.icon_" + _markerIcon); }
+            });
+            Button colBtn = null;
+            colBtn = UiKit.AddButton(root, ix + 396, my, 130, 42, L(BlocksBeyondTheStars.Client.PlanetMarkerPalette.NameKeys[_markerColor]), () =>
+            {
+                _markerColor = (_markerColor + 1) % BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length;
+                var t = colBtn.GetComponentInChildren<Text>();
+                if (t != null)
+                {
+                    t.text = L(BlocksBeyondTheStars.Client.PlanetMarkerPalette.NameKeys[_markerColor]);
+                    t.color = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[_markerColor];
+                }
+            });
+            {
+                var t0 = colBtn.GetComponentInChildren<Text>();
+                if (t0 != null) { t0.color = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[_markerColor]; }
+            }
+
+            Button sharedBtn = null;
+            sharedBtn = UiKit.AddButton(root, ix + 534, my, 170, 42, L(_markerShared ? "ui.marker.shared" : "ui.marker.private"), () =>
+            {
+                _markerShared = !_markerShared;
+                var t = sharedBtn.GetComponentInChildren<Text>();
+                if (t != null) { t.text = L(_markerShared ? "ui.marker.shared" : "ui.marker.private"); }
+            });
+            var save = UiKit.AddButton(root, ix + 712, my, 128, 42, L("ui.marker.save_here"), SaveMarkerAtWaypoint);
+            save.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.36f);
+            my += 50f;
+
+            var panelGo = new GameObject("MarkerRows", typeof(RectTransform));
+            panelGo.transform.SetParent(root, false);
+            UiKit.Place(panelGo, ix, my, 840, 210);
+            _markerPanel = panelGo.GetComponent<RectTransform>();
 
             // Icon legend — every marker type the map actually draws, each tinted its ON-MAP colour so the
             // legend explains the map instead of showing everything cyan (#592). Two rows; a fixed slot
@@ -336,6 +397,35 @@ namespace BlocksBeyondTheStars.Client
                     poiLines.Append($"\n✦ {name}  —  {Mathf.RoundToInt(bd)} m");
                 }
             }
+
+            // Named markers + pings (#1217): own + shared, icon in its palette colour, label beside it.
+            if (Game.Markers != null)
+            {
+                foreach (var m in Game.Markers)
+                {
+                    if (m == null)
+                    {
+                        continue;
+                    }
+
+                    if (m.Ping)
+                    {
+                        // A ping pulses: it must jump out for its 30 seconds, then it is gone.
+                        float pulse = 34f + 6f * Mathf.Sin(Time.time * 6f);
+                        Marker(m.X, m.Z, pulse, new Color(1f, 0.9f, 0.4f), "✹", "map_mark_star");
+                        MarkerLabel(m.X, m.Z, "Ping · " + m.OwnerId, new Color(1f, 0.9f, 0.4f));
+                        continue;
+                    }
+
+                    var mc = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[Mathf.Clamp(m.Color, 0, BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length - 1)];
+                    string micon = MarkerIcons[Mathf.Clamp(m.Icon, 0, MarkerIcons.Length - 1)];
+                    Marker(m.X, m.Z, 32f, mc, "◆", micon);
+                    string mname = string.IsNullOrEmpty(m.Label) ? L("ui.marker.default") : m.Label;
+                    MarkerLabel(m.X, m.Z, mname, mc);
+                }
+            }
+
+            RefreshMarkerRows();
 
             // Player-placed beam blocks (teleporter pads): a cyan ring + the typed name beside it.
             if (Game.Beams != null)
@@ -607,6 +697,86 @@ namespace BlocksBeyondTheStars.Client
                     if (key.StartsWith("flora")) return new Color(0.34f, 0.6f, 0.32f);
                     if (key.EndsWith("_ore")) return new Color(0.55f, 0.5f, 0.42f);
                     return new Color(0.42f, 0.42f, 0.46f);
+            }
+        }
+
+        /// <summary>Saves the current click-waypoint as a named marker (#1217) with the editor's label, icon,
+        /// colour and shared flag. Without a waypoint the hint text explains the flow instead.</summary>
+        private void SaveMarkerAtWaypoint()
+        {
+            if (Game?.Network == null)
+            {
+                return;
+            }
+
+            if (!Game.Waypoint.HasValue)
+            {
+                Game.ShowMessage(L("ui.marker.none"));
+                return;
+            }
+
+            var wp = Game.Waypoint.Value;
+            Game.Network.SendMarkerSet(string.Empty, wp.x, Game.PlayerPosition.y, wp.z, _markerDraft, _markerIcon, _markerColor, _markerShared);
+            _markerDraft = string.Empty;
+        }
+
+        /// <summary>Rebuilds the per-marker rows (icon · label · distance · Navigate · Delete for own ones) —
+        /// called from Refresh, so a change the server pushes lands on the next map redraw.</summary>
+        private void RefreshMarkerRows()
+        {
+            if (_markerPanel == null)
+            {
+                return;
+            }
+
+            for (int i = _markerPanel.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_markerPanel.GetChild(i).gameObject);
+            }
+
+            var markers = Game.Markers;
+            if (markers == null || markers.Length == 0)
+            {
+                UiKit.AddText(_markerPanel, 0, 0, 840, 60, L("ui.marker.none"), 15, UiKit.CyanDim, TextAnchor.UpperLeft);
+                return;
+            }
+
+            float y = 0f;
+            string me = Game.LocalPlayerId ?? string.Empty;
+            foreach (var m in markers)
+            {
+                if (m == null || m.Ping || y > 170f)
+                {
+                    continue; // pings live on the map itself; overflow rows are simply not listed
+                }
+
+                var mc = BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors[Mathf.Clamp(m.Color, 0, BlocksBeyondTheStars.Client.PlanetMarkerPalette.Colors.Length - 1)];
+                var sprite = UiKit.Icon(MarkerIcons[Mathf.Clamp(m.Icon, 0, MarkerIcons.Length - 1)]);
+                if (sprite != null)
+                {
+                    UiKit.AddImage(_markerPanel, 0, y + 8, 24, 24, sprite, mc);
+                }
+
+                bool mine = m.OwnerId == me;
+                string label = string.IsNullOrEmpty(m.Label) ? L("ui.marker.default") : m.Label;
+                if (!mine)
+                {
+                    label += "  ·  " + L("ui.marker.by").Replace("{name}", m.OwnerId);
+                }
+
+                UiKit.AddText(_markerPanel, 32, y + 4, 430, 32, label, 16, mine ? UiKit.TextCol : UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.AddText(_markerPanel, 464, y + 4, 90, 32, $"{Mathf.RoundToInt(GroundDistance(m.X, m.Z))} m", 15, UiKit.CyanDim, TextAnchor.MiddleRight);
+                var mx = m.X;
+                var mz = m.Z;
+                UiKit.AddButton(_markerPanel, 566, y + 2, 140, 36, L("ui.marker.nav"), () => { Game.Waypoint = new Vector3(mx, 0f, mz); Refresh(); });
+                if (mine)
+                {
+                    string mid = m.Id;
+                    var del = UiKit.AddButton(_markerPanel, 714, y + 2, 120, 36, L("ui.marker.delete"), () => Game.Network?.SendMarkerRemove(mid));
+                    del.GetComponent<Image>().color = new Color(0.5f, 0.28f, 0.24f);
+                }
+
+                y += 42f;
             }
         }
 

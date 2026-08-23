@@ -531,6 +531,13 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // "Look here!" ping (#1217): a transient marker at the crosshair for allies + crew. The server
+            // owns TTL + rate limit, so mashing the key stays harmless.
+            if (InputMap.Down(InputAction.PingMarker))
+            {
+                PingAtCrosshair();
+            }
+
             if (InputMap.Down(InputAction.ToggleThirdPerson))
             {
                 ThirdPerson = !ThirdPerson;
@@ -2378,6 +2385,37 @@ namespace BlocksBeyondTheStars.Client
             float targetY = surface + BoatFloatHeight + Mathf.Sin(_boatBobPhase) * 0.06f;
             vSpeed = Mathf.Clamp((targetY - pos.y) * 5f, -6f, 6f);
             return true;
+        }
+
+        /// <summary>Sends a "look here" ping (#1217) at whatever the crosshair rests on: the aimed voxel when one
+        /// is in reach, else a physics hit up to 60 m out, else a spot a dozen metres ahead — so pointing at a
+        /// mountainside across the valley works, and pointing at the sky still pings something sensible.</summary>
+        private void PingAtCrosshair()
+        {
+            if (Game?.Network == null)
+            {
+                return;
+            }
+
+            Vector3 at;
+            if (AimBlock(out var cell, out _, includeFluids: true))
+            {
+                at = new Vector3(cell.x + 0.5f, cell.y + 0.5f, cell.z + 0.5f);
+            }
+            else if (Camera != null
+                     && Physics.Raycast(Camera.transform.position, Camera.transform.forward, out var hit, 60f, ~0, QueryTriggerInteraction.Ignore)
+                     && hit.collider != _controller)
+            {
+                at = hit.point;
+            }
+            else
+            {
+                at = transform.position + transform.forward * 12f;
+            }
+
+            Game.Network.SendMarkerPing(at.x, at.y, at.z);
+            Weapons?.Pulse(at, new Color(1f, 0.9f, 0.4f));
+            Game.ShowMessage(Game.Localizer?.Get("hud.ping.sent") ?? "Ping!");
         }
 
         /// <summary>Boards the nearest parked speeder the player owns within reach (on-foot E). Returns true if one

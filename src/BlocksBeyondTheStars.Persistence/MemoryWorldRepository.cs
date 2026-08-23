@@ -79,6 +79,8 @@ public sealed class MemoryWorldSnapshot
     public List<StoredCustomShape> CustomShapes { get; set; } = new();
     public List<StoredPaintReport> PaintReports { get; set; } = new();
     public List<StoredAlliance> Alliances { get; set; } = new();
+    public List<StoredCrew> Crews { get; set; } = new();
+    public List<StoredCrewMember> CrewMembers { get; set; } = new();
     public List<StoredStoryState> StoryStates { get; set; } = new();
     public List<StoredSpaceStructure> SpaceStructures { get; set; } = new();
     public List<StructureEditRow> StructureEdits { get; set; } = new();
@@ -122,6 +124,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
     private readonly Dictionary<int, StoredCustomShape> _customShapes = new();
     private readonly List<StoredPaintReport> _paintReports = new();
     private readonly Dictionary<(string A, string B), StoredAlliance> _alliances = new();
+    private readonly Dictionary<string, StoredCrew> _crews = new();
+    private readonly Dictionary<(string Crew, string Player), StoredCrewMember> _crewMembers = new();
     private readonly Dictionary<string, string> _storyStates = new();   // storyId → JSON
     private readonly Dictionary<string, string> _spaceStructures = new(); // id → JSON
     private readonly Dictionary<(string StructureId, int X, int Y, int Z), ushort> _structureEdits = new();
@@ -193,6 +197,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
             CustomShapes = _customShapes.Values.Select(CloneCustomShape).ToList(),
             PaintReports = _paintReports.Select(ClonePaintReport).ToList(),
             Alliances = _alliances.Values.Select(a => new StoredAlliance { PlayerA = a.PlayerA, PlayerB = a.PlayerB, FormedUtc = a.FormedUtc }).ToList(),
+            Crews = _crews.Values.Select(CloneCrew).ToList(),
+            CrewMembers = _crewMembers.Values.Select(CloneCrewMember).ToList(),
             StoryStates = _storyStates.Values.Select(json => JsonSerializer.Deserialize<StoredStoryState>(json, JsonOptions)!).ToList(),
             SpaceStructures = _spaceStructures.Values.Select(json => JsonSerializer.Deserialize<StoredSpaceStructure>(json, JsonOptions)!).ToList(),
             LocationStatuses = new Dictionary<string, string>(_locationStatuses),
@@ -272,6 +278,8 @@ public sealed class MemoryWorldRepository : IWorldRepository
         _paintDesigns.Clear();
         _paintReports.Clear();
         _alliances.Clear();
+        _crews.Clear();
+        _crewMembers.Clear();
         _storyStates.Clear();
         _spaceStructures.Clear();
         _structureEdits.Clear();
@@ -357,6 +365,16 @@ public sealed class MemoryWorldRepository : IWorldRepository
                 PlayerB = alliance.PlayerB,
                 FormedUtc = alliance.FormedUtc,
             };
+        }
+
+        foreach (var crew in snapshot.Crews)
+        {
+            _crews[crew.CrewId] = CloneCrew(crew);
+        }
+
+        foreach (var member in snapshot.CrewMembers)
+        {
+            _crewMembers[(member.CrewId, member.PlayerId)] = CloneCrewMember(member);
         }
 
         foreach (var state in snapshot.StoryStates)
@@ -1052,6 +1070,66 @@ public sealed class MemoryWorldRepository : IWorldRepository
             // Order-independent, mirroring the SQLite DELETE (the store key is already normalized).
             _alliances.Remove((playerA, playerB));
             _alliances.Remove((playerB, playerA));
+        }
+    }
+
+    // --- Crews (#1216, server-wide like the alliance graph) ---
+
+    private static StoredCrew CloneCrew(StoredCrew c)
+        => new() { CrewId = c.CrewId, Name = c.Name, OwnerId = c.OwnerId, CreatedUtc = c.CreatedUtc };
+
+    private static StoredCrewMember CloneCrewMember(StoredCrewMember m)
+        => new() { CrewId = m.CrewId, PlayerId = m.PlayerId, JoinedUtc = m.JoinedUtc };
+
+    public void SaveCrew(StoredCrew crew)
+    {
+        lock (_gate)
+        {
+            _crews[crew.CrewId] = CloneCrew(crew);
+        }
+    }
+
+    public void DeleteCrew(string crewId)
+    {
+        lock (_gate)
+        {
+            _crews.Remove(crewId);
+            foreach (var key in _crewMembers.Keys.Where(k => k.Crew == crewId).ToList())
+            {
+                _crewMembers.Remove(key);
+            }
+        }
+    }
+
+    public IReadOnlyList<StoredCrew> ListCrews()
+    {
+        lock (_gate)
+        {
+            return _crews.Values.Select(CloneCrew).ToList();
+        }
+    }
+
+    public void SaveCrewMember(StoredCrewMember member)
+    {
+        lock (_gate)
+        {
+            _crewMembers[(member.CrewId, member.PlayerId)] = CloneCrewMember(member);
+        }
+    }
+
+    public void DeleteCrewMember(string crewId, string playerId)
+    {
+        lock (_gate)
+        {
+            _crewMembers.Remove((crewId, playerId));
+        }
+    }
+
+    public IReadOnlyList<StoredCrewMember> ListCrewMembers()
+    {
+        lock (_gate)
+        {
+            return _crewMembers.Values.Select(CloneCrewMember).ToList();
         }
     }
 

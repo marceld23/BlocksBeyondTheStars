@@ -46,7 +46,9 @@ AI-synthesised instrumental audio (not third-party recordings); use is governed 
 marker set `map_*` and the VEGA avatar `icon_vega`) are **AI-generated** with the
 **OpenAI** image API (`gpt-image-1-mini`, transparent cyan line icons — see
 `tools/ai-assets/gen_icons.py`; the world-map marker set `map_*` was regenerated as bold filled
-white-ink pictograms for tintability/legibility — see `tools/ai-assets/gen_map_icons.py`); they are
+white-ink pictograms for tintability/legibility — see `tools/ai-assets/gen_map_icons.py`; the
+player-marker safe set `map_mark_flag/home/ore/danger/water/star/heart/question` (#1217) was
+generated the same way); they are
 AI-synthesised images, use governed by the OpenAI usage terms for the generating account.
 
 **Item / module icons:** `client/Assets/Resources/icons/item_*.png` (content-styled inventory icons for

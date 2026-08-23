@@ -185,6 +185,11 @@ namespace BlocksBeyondTheStars.Client
         public event Action<AllianceList>? AllianceListReceived;
         public event Action<AllianceRequestNotice>? AllianceRequestReceived;
 
+        // Crews (#1216) + map markers (#1217).
+        public event Action<CrewList>? CrewListReceived;
+        public event Action<CrewInviteNotice>? CrewInviteReceived;
+        public event Action<MarkerList>? MarkerListReceived;
+
         // Creature taming + companions: the live ritual state, the finished result, and the player's roster.
         public event Action<TameProgress>? TameProgressReceived;
         public event Action<TameResult>? TameResultReceived;
@@ -638,6 +643,24 @@ namespace BlocksBeyondTheStars.Client
         public void SendAllianceResponse(string requesterId, bool accept)
             => Send(new AllianceResponseIntent { RequesterId = requesterId ?? string.Empty, Accept = accept });
 
+        // --- Crews (#1216) ---
+        /// <summary>Runs one crew verb (create/invite/accept/decline/leave/kick/rename/disband/list). One
+        /// envelope intent for the whole feature; unused fields stay empty.</summary>
+        public void SendCrewAction(string kind, string name = "", string targetPlayerId = "")
+            => Send(new CrewActionIntent { Kind = kind ?? string.Empty, Name = name ?? string.Empty, TargetPlayerId = targetPlayerId ?? string.Empty });
+
+        // --- Map markers + ping (#1217) ---
+        /// <summary>Creates (empty id) or updates (own id) a named map marker on the current world.</summary>
+        public void SendMarkerSet(string id, float x, float y, float z, string label, int icon, int color, bool shared)
+            => Send(new MarkerActionIntent { Kind = "set", Id = id ?? string.Empty, X = x, Y = y, Z = z, Label = label ?? string.Empty, Icon = icon, Color = color, Shared = shared });
+
+        /// <summary>Deletes one of my markers.</summary>
+        public void SendMarkerRemove(string id) => Send(new MarkerActionIntent { Kind = "remove", Id = id ?? string.Empty });
+
+        /// <summary>Raises a transient "look here" ping at a world position (server-side TTL + rate limit).</summary>
+        public void SendMarkerPing(float x, float y, float z)
+            => Send(new MarkerActionIntent { Kind = "ping", X = x, Y = y, Z = z });
+
         /// <summary>Ends an existing alliance with a partner (one-sided — either side may dissolve it).</summary>
         public void SendDissolveAlliance(string partnerId) => Send(new DissolveAllianceIntent { PartnerId = partnerId ?? string.Empty });
 
@@ -813,6 +836,9 @@ namespace BlocksBeyondTheStars.Client
                 case CompanionList m: CompanionsReceived?.Invoke(m); break;
                 case SpeederList m: SpeedersReceived?.Invoke(m); break;
                 case SpeederFx m: SpeederFxReceived?.Invoke(m); break;
+                case CrewList m: CrewListReceived?.Invoke(m); break;
+                case CrewInviteNotice m: CrewInviteReceived?.Invoke(m); break;
+                case MarkerList m: MarkerListReceived?.Invoke(m); break;
                 case StoryStateMessage m: StoryStateReceived?.Invoke(m); break;
                 case NetFragmentList m: NetFragmentsReceived?.Invoke(m); break;
                 case NetFragmentRevealed m: NetFragmentRevealedReceived?.Invoke(m); break;

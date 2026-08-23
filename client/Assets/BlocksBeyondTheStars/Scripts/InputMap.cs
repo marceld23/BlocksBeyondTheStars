@@ -51,6 +51,8 @@ namespace BlocksBeyondTheStars.Client
         VegaContinue,         // advance / dismiss the VEGA speech line — default N, pad Back
         PlanetMap,            // toggle the on-foot planet map — default M (the flight chart is FlightMap)
         ContextActions,       // open the list of currently applicable verbs — no key by default, pad LS, touch "⋯"
+        PingMarker,           // "look here!" ping at the crosshair (#1217) — default C; pad/touch reach it
+                              // through the ContextActions list, like the rest of the on-foot long tail
 
         // Menu verbs (#1198). Nine screens used to poll KeyCode.JoystickButton1 / JoystickButton7 right next
         // to their Escape / Tab check, which left the pad's two menu buttons outside the binding system:
@@ -139,6 +141,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
             InputAction.PlanetMap, InputAction.VegaContinue, InputAction.ContextActions,
+            InputAction.PingMarker,
         };
 
         /// <summary>Flight / EVA actions exposed as a second rebinding group.</summary>
@@ -206,6 +209,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.VegaContinue => KeyCode.N,  // the key VegaPanel always used; now rebindable + reachable from pad/touch (#1041)
             InputAction.PlanetMap => KeyCode.M,     // WorldMap's historical key — same letter as FlightMap, different context (#1042)
             InputAction.ContextActions => KeyCode.None, // keyboard players have every verb on a key already; pad LS / touch "⋯"
+            InputAction.PingMarker => KeyCode.C,
             InputAction.UiCancel => KeyCode.Escape, // the key every screen already closed on (#1198)
             InputAction.UiMenu => KeyCode.Tab,      // the key that always opened the in-game menu (#1198)
             _ => KeyCode.None,
@@ -376,6 +380,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.VegaContinue => "ui.key.vega_continue",
             InputAction.PlanetMap => "ui.key.planet_map",
             InputAction.ContextActions => "ui.key.context_actions",
+            InputAction.PingMarker => "ui.key.ping",
             InputAction.UiCancel => "ui.key.ui_cancel",
             InputAction.UiMenu => "ui.key.ui_menu",
             _ => string.Empty,

@@ -87,6 +87,10 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                 name TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY (planet, x, y, z));
             CREATE TABLE IF NOT EXISTS alliance (
                 a TEXT NOT NULL, b TEXT NOT NULL, formed TEXT NOT NULL, PRIMARY KEY (a, b));
+            CREATE TABLE IF NOT EXISTS crew (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, owner TEXT NOT NULL, created TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS crew_member (
+                crew_id TEXT NOT NULL, player_id TEXT NOT NULL, joined TEXT NOT NULL, PRIMARY KEY (crew_id, player_id));
             CREATE TABLE IF NOT EXISTS story_state (story_id TEXT PRIMARY KEY, json TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS location_status (id TEXT PRIMARY KEY, status TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS mission (id TEXT PRIMARY KEY, json TEXT NOT NULL);
@@ -1471,6 +1475,105 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
     /// <summary>Orders a player-id pair so each alliance is stored under exactly one (a, b) key.</summary>
     private static (string A, string B) NormalizePair(string x, string y)
         => string.CompareOrdinal(x, y) <= 0 ? (x, y) : (y, x);
+
+    // --- Crews (#1216, server-wide like the alliance graph) ---
+
+    public void SaveCrew(StoredCrew crew)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO crew (id, name, owner, created) VALUES (@i, @n, @o, @c) " +
+                              "ON CONFLICT(id) DO UPDATE SET name = excluded.name, owner = excluded.owner;";
+            cmd.Parameters.AddWithValue("@i", crew.CrewId);
+            cmd.Parameters.AddWithValue("@n", crew.Name);
+            cmd.Parameters.AddWithValue("@o", crew.OwnerId);
+            cmd.Parameters.AddWithValue("@c", crew.CreatedUtc);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public void DeleteCrew(string crewId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM crew WHERE id = @i; DELETE FROM crew_member WHERE crew_id = @i;";
+            cmd.Parameters.AddWithValue("@i", crewId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredCrew> ListCrews()
+    {
+        var result = new List<StoredCrew>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT id, name, owner, created FROM crew;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredCrew
+                {
+                    CrewId = reader.GetString(0),
+                    Name = reader.GetString(1),
+                    OwnerId = reader.GetString(2),
+                    CreatedUtc = reader.GetString(3),
+                });
+            }
+        }
+
+        return result;
+    }
+
+    public void SaveCrewMember(StoredCrewMember member)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "INSERT INTO crew_member (crew_id, player_id, joined) VALUES (@c, @p, @j) " +
+                              "ON CONFLICT(crew_id, player_id) DO UPDATE SET joined = excluded.joined;";
+            cmd.Parameters.AddWithValue("@c", member.CrewId);
+            cmd.Parameters.AddWithValue("@p", member.PlayerId);
+            cmd.Parameters.AddWithValue("@j", member.JoinedUtc);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public void DeleteCrewMember(string crewId, string playerId)
+    {
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "DELETE FROM crew_member WHERE crew_id = @c AND player_id = @p;";
+            cmd.Parameters.AddWithValue("@c", crewId);
+            cmd.Parameters.AddWithValue("@p", playerId);
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    public IReadOnlyList<StoredCrewMember> ListCrewMembers()
+    {
+        var result = new List<StoredCrewMember>();
+        lock (_gate)
+        {
+            using var cmd = Connection.CreateCommand();
+            cmd.CommandText = "SELECT crew_id, player_id, joined FROM crew_member;";
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                result.Add(new StoredCrewMember
+                {
+                    CrewId = reader.GetString(0),
+                    PlayerId = reader.GetString(1),
+                    JoinedUtc = reader.GetString(2),
+                });
+            }
+        }
+
+        return result;
+    }
 
     // --- Story state (per active story pack, server-wide) ---
 

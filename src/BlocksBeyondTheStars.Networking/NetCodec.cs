@@ -292,6 +292,14 @@ public static class NetCodec
         Register(159, typeof(ReleaseCompanionIntent));   // Client -> Server (release a companion)
         Register(228, typeof(FeedCompanionIntent));      // Client -> Server (feed a companion, #1225)
 
+        // Crews + map markers (#1216 / #1217). Both features ride ONE intent envelope each (a Kind field
+        // picks the verb) so the whole pair costs five tags instead of a dozen.
+        Register(229, typeof(CrewActionIntent));         // Client -> Server (create/invite/accept/…/list)
+        Register(230, typeof(CrewList));                 // Server -> Client (crew roster + invites)
+        Register(231, typeof(CrewInviteNotice));         // Server -> Client (invite toast)
+        Register(232, typeof(MarkerActionIntent));       // Client -> Server (set/remove/ping/list)
+        Register(233, typeof(MarkerList));               // Server -> Client (visible markers + pings)
+
         // Always-available "Shape" crafting: re-form a held building material into another geometric shape
         // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.
         Register(160, typeof(ShapeCraftIntent));         // Client -> Server

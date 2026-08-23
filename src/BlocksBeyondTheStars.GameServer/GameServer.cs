@@ -317,6 +317,7 @@ public sealed partial class GameServer
         LoadPaintDesigns();   // restore the save-global paint-design registry (painted blocks reference it by id)
         LoadCustomShapes();   // …and the player-designed form registry (shaped blocks/items reference it by index)
         LoadAllAlliances();   // restore the player alliance graph server-wide (shared station/base access)
+        LoadAllCrews();       // restore the crews (#1216) — membership implies alliance while it lasts
         LoadStoryState();     // restore the per-save story progress + active story pack (server-wide, P0)
 
         // Ships are per-player now: each player loads/creates their own on join (no global ship at start).
@@ -864,6 +865,7 @@ public sealed partial class GameServer
         SendVegaObjective(session); // the story objective is per body — "a fragment is HERE" (#1110)
         SendFactories(session); // factories on this body (animated machines + production terminals)
         SendBeacons(session);
+        SendMarkers(session); // the new body's markers (#1217) — the old world's set is stale now
         SendBeams(session); // placed beam blocks (teleporter pads) on this body
         SendBases(session); // player-founded bases on this body (Grundstein markers)
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
@@ -1389,6 +1391,7 @@ public sealed partial class GameServer
             Guard("TickEnemies", deltaSeconds, TickEnemies);
             Guard("TickBandits", deltaSeconds, TickBandits);
             Guard("TickPresence", deltaSeconds, TickPresence);
+            Guard("TickMarkerPings", deltaSeconds, TickMarkerPings); // expire "look here" pings (#1217)
             Guard("TickFluids", deltaSeconds, TickFluids);
             Guard("TickFire", deltaSeconds, TickFire);
             Guard("TickWeather", deltaSeconds, TickWeather);
@@ -2501,6 +2504,7 @@ public sealed partial class GameServer
             string loc = session.CurrentLocationId;
             _sessions.Remove(connectionId);
             ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
+            ClearCrewPending(session.State.PlayerId);     // drop crew invites; let mates see the Online flag drop
             SetActiveWorld(loc);
             RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
             RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
@@ -2712,6 +2716,9 @@ public sealed partial class GameServer
             or SelectHotbarIntent or AdminCommandIntent => true,
         RequestStarMap or RequestMissions or RequestCompanionsIntent
             or RequestAllianceListIntent or RequestLandingPadsIntent => true,
+        // The crew/marker envelopes (#1216/#1217) carry reads AND writes — only the read passes a pause.
+        CrewActionIntent c => c.Kind == "list",
+        MarkerActionIntent m => m.Kind == "list",
         _ => false,
     };
 
@@ -2851,6 +2858,8 @@ public sealed partial class GameServer
             case RequestAllianceIntent allianceReq: HandleRequestAlliance(session, allianceReq); break;
             case AllianceResponseIntent allianceResp: HandleAllianceResponse(session, allianceResp); break;
             case DissolveAllianceIntent allianceDis: HandleDissolveAlliance(session, allianceDis); break;
+            case CrewActionIntent crewAction: HandleCrewAction(session, crewAction); break;
+            case MarkerActionIntent markerAction: HandleMarkerAction(session, markerAction); break;
             case StorySelectIntent storySelect: HandleStorySelect(session, storySelect); break;
             case NetFragmentFoundIntent netFrag: HandleNetFragmentFound(session, netFrag); break;
             case CoreHackIntent coreHack: HandleCoreHack(session, coreHack); break;
@@ -3126,6 +3135,8 @@ public sealed partial class GameServer
         SendBeams(session); // placed beam blocks (teleporter pads) on the join world
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
+        SendCrewList(session);     // crew roster + open invites (#1216)
+        SendMarkers(session);      // own + shared map markers on the join world (#1217)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
         SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
         ArmNpcRadioOnJoin(session); // NPC calls (#1119): quiet period first; the join scan then catches up

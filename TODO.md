@@ -109,6 +109,41 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Crews + named map markers & ping — the social pair (#1216 + #1217, 2026-08-23, branch feat/1216-1217-crews-markers)
+Slices 21 + 22 of the feature-deepening package (epic #1197), one PR — markers share "to allies **and crew**",
+so the crew primitive came first and the pair belongs together.
+
+**#1216 — crews.** Alliances are pairwise (a class of six = fifteen handshakes) and nothing ever said "we". A
+**crew** is a named group of ≤ 8 whose membership implies alliance: `AreAllied = manual pair || SameCrew`, with
+the crew edges in their **own** structures — dissolving a manual alliance never cuts crew access, leaving the
+crew never cuts a manual alliance. All 7 `AreAllied` call sites untouched; crew mates ride the alliance roster
+with an additive `NetAlliance.Crew` flag (client shows a "Crew" tag, no "End" button), so ally-beam + teleporter
+keep working. Owner-only management, anyone leaves, an owner leaving hands the crew to the longest-serving
+member; **invites only to online players, no join codes** (kid safety); one crew per player; crew names go
+through the #1221 screen. Additive `crew`/`crew_member` tables in Sqlite + PostgreSQL + Memory (incl. WebGL
+snapshot round-trip), restored at Start with defensive healing; pending invites transient, cleared on
+disconnect. Client: "Crew" view in the Alliances tab (invites, founding form, roster, owner verbs, invite
+picker), stick-navigable, self-refreshing on server pushes. Crew radio deferred (Funk stays global).
+
+**#1217 — named markers + ping.** `PlayerMarker` on the player blob (additive): label ≤ 24 (beacon sanitize +
+screen), icon 0..7 (fixed safe set), colour 0..5 (the star-map palette — its colour keys already existed),
+shared flag, **cap 8 per player per world**. Visibility per viewer: own always; shared → allies + crew **on the
+same body**, read off the owner's live state (sharing needs the owner online — deliberate: that's what the
+feature is for, and it costs no DB reads). **Ping** = transient crosshair pulse, TTL 30 s, rate 1/5 s, never
+persisted, expired by a tick. New `PingMarker` action (default **C**; pad/touch through the Actions list, the
+#1042 pattern). Client: icon+colour pins with labels, a marker list (Navigate · Delete · distance), a
+"save marker at waypoint" editor, pulsing ping pins, palette-coloured compass blips (pings blink). The 8
+`map_mark_*` icons generated in the #592 bold-white tintable style (existing set protected via the
+resumable-skip recipe); NOTICES updated. Wire: **one envelope intent per feature** — five NetCodec tags
+(229–233), golden list updated; the pause gate admits only the `list` verbs.
+
+Tests: `CrewTests` (11) + `MarkerTests` (9) — incl. leave/dissolve independence both ways, the ninth member and
+ninth marker refused, oldest-member inheritance, stranger-sees-nothing, ping rate + TTL, reloads. ⚠ Test
+finding kept as a comment: a **digit-heavy marker label** trips the name screen's leetspeak normalisation
+(correctly) — label tests use letters. Locales: 74 keys EN+DE + 12 machine. Docs: USER_MANUAL § Alliances
+(Crews) + new § Map markers & ping. Still open on-device: two-client crew flow, marker editor on pad/touch,
+ping in real co-op (rides the #1227 playtest).
+
 ### ★ Boat — a water vehicle as the second `Kind` of the speeder system (#1215, 2026-08-23, branch feat/1215-boat)
 Twentieth slice of the feature-deepening package (epic #1197). The hover speeder was the only vehicle, and water has
 no collider, so its hover raycast followed the **seabed** with the driver's head under water, draining oxygen —

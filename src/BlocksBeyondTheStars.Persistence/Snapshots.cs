@@ -110,6 +110,9 @@ public sealed class PlayerSnapshot
     /// <summary>Deployed hover speeders (packable surface vehicles) — bound to their home body, restored on reload.</summary>
     public List<DeployedSpeeder> DeployedSpeeders { get; set; } = new();
 
+    /// <summary>Named map markers (#1217) — per world, restored on reload. Absent in older saves ⇒ empty.</summary>
+    public List<PlayerMarker> Markers { get; set; } = new();
+
     /// <summary>The landing pad held on <see cref="CurrentLocationId"/> (#848), or -1 for none. Absent in
     /// pre-#848 saves, which then fall back to the first free pad exactly as before.</summary>
     public int LandingPadIndex { get; set; } = -1;
@@ -230,6 +233,7 @@ public static class StateMapper
         TamedCreatures = p.TamedCreatures.Select(CloneTamed).ToList(),
         TamedSpecies = p.TamedSpecies.ToList(),
         DeployedSpeeders = p.DeployedSpeeders.Select(CloneSpeeder).ToList(),
+        Markers = p.Markers.Select(CloneMarker).ToList(),
         LandingPadIndex = p.LandingPadIndex,
         FleetShipIds = new List<string>(p.FleetShipIds),
         ActiveShipId = p.ActiveShipId,
@@ -261,6 +265,21 @@ public static class StateMapper
 
         return copy;
     }
+
+    /// <summary>Copies a map marker so a snapshot doesn't alias the live list (#1217).</summary>
+    private static PlayerMarker CloneMarker(PlayerMarker m) => new()
+    {
+        Id = m.Id,
+        LocationId = m.LocationId,
+        X = m.X,
+        Y = m.Y,
+        Z = m.Z,
+        Label = m.Label,
+        Icon = m.Icon,
+        Color = m.Color,
+        Shared = m.Shared,
+        CreatedUtc = m.CreatedUtc,
+    };
 
     /// <summary>Copies a deployed speeder record so a snapshot doesn't alias the live list.</summary>
     private static DeployedSpeeder CloneSpeeder(DeployedSpeeder s) => new()
@@ -402,6 +421,7 @@ public static class StateMapper
         TamedCreatures = (s.TamedCreatures ?? new List<TamedCreature>()).Select(CloneTamed).ToList(),
         TamedSpecies = new HashSet<string>(s.TamedSpecies ?? new List<string>()),
         DeployedSpeeders = (s.DeployedSpeeders ?? new List<DeployedSpeeder>()).Select(CloneSpeeder).ToList(),
+        Markers = (s.Markers ?? new List<PlayerMarker>()).Select(CloneMarker).ToList(),
         LandingPadIndex = s.LandingPadIndex,
         FleetShipIds = new List<string>(s.FleetShipIds ?? new List<string>()),
         ActiveShipId = s.ActiveShipId ?? string.Empty,

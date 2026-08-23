@@ -23,6 +23,10 @@ public sealed class NetAlliance
 
     /// <summary>True while the partner is currently connected.</summary>
     public bool Online { get; set; }
+
+    /// <summary>True when this entry comes from a shared crew (#1216) rather than a manual handshake — the
+    /// client hides the "End" button for it (crew access is left through the Crew view). Additive.</summary>
+    public bool Crew { get; set; }
 }
 
 /// <summary>A pending alliance request involving the recipient — either incoming (someone asked me) or outgoing
