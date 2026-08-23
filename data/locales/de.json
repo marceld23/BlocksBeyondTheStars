@@ -206,6 +206,7 @@
   "srv.chat.code_too_long": "Dieser Bau-Code ist zu lang für den Chat — teile ihn stattdessen über „Code kopieren“ im Bauplan-Werkzeug.",
   "srv.chat.blocked": "Diese Nachricht wurde nicht gesendet — bitte bleib im Chat freundlich.",
   "srv.chat.masked": "Einige Wörter in deiner Nachricht wurden durch *** ersetzt — dieser Chat bleibt für alle freundlich.",
+  "srv.chat.muted_until": "Du hast zu viele Nachrichten auf einmal geschickt, deshalb pausiert der Chat für dich noch {name} Minuten. Durchatmen — spielen kannst du normal weiter.",
   "srv.chat.pii_blocked": "Diese Nachricht wurde nicht gesendet — bitte teile hier keine Telefonnummern, E-Mail-Adressen oder Links.",
   "ui.chat.hint": "Enter: Chat",
   "ui.chat.send_hint": "Enter zum Senden · Esc zum Abbrechen",
