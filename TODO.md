@@ -109,6 +109,41 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Arcade on gamepad + safety docs — the package closers (#1218 + #1226, 2026-08-23, branch feat/1218-1226-arcade-pad-safety)
+Slices 23 + 24 of the feature-deepening package (epic #1197) — the last code issue and the last docs issue,
+bundled per Marcel's call ("beides in einem Rutsch").
+
+**#1218 — all 20 minigames on gamepad.** `MinigameHostUI` mapped keys + mouse only; 10 games were key-driven,
+**9 pointer-only**, and `MinigameAction.Cancel` had no key at all. New `MinigamePadMapper` (Client.Core,
+engine-free): D-pad/stick → Left/Right/Up/Down with edge + repeat (0.35 s / 0.12 s, the HotbarScroll feel),
+A → Confirm+Primary, B → Cancel, X → Secondary, Y → Help, Start → Pause, Back → Restart — and the
+**host-level virtual cursor**: for a game that registered a pointer callback (`MinigameHost.WantsPointer`, new)
+the stick glides a reticle across the game's canvas and A clicks (drags included); `MinigameHost.Pointer`
+unchanged → **no per-game code**. The host feeds the mapper from the `InputMap.PadDown/PadHeld/PadStick*`
+surface (added FOR this issue back in #1220) + new raw `PadDpadX/Y` passthroughs; the reticle is a uGUI disc
+over the surface, tinted while held. **Esc = in-game Cancel** only while Playing a game that bound it, and
+**pad-B is consumed during play** — both through `MarkMenuInputHandled()` (the WorldMap pattern), so neither
+closes the Arcade mid-round. Overlays were already stick-navigable via the #1198 UiNav root.
+Tests: `MinigamePadMapperTests` (8) — fake pad sequences (edges/releases/repeat), cursor centre/glide/clamp/
+click/drag math, pointer-mode handover, Reset releases everything, a **registry sweep** (all 20 games survive
+~30 s of scripted pad mashing headless + shell verbs keep working) and the pointer-advertisement invariant for
+the 9 pointer-only games. ⚠ Sweep finding: `docking_sim` binds NO handler and registers NO pointer — it
+steers purely via `api.Held()`, which the pad reaches through press/release latching; "no Bind + no pointer"
+does NOT mean pad-unplayable. Actually WINNING each game on a pad is a human check → #1227 protocol.
+USER_MANUAL got its first real **§ Arcade** section (keyboard + pad tables).
+
+**#1226 — content statement, parents page, rating groundwork.** `docs/user/PARENTS.md` + `PARENTS.de.md`:
+the content statement (mild sci-fi combat, no blood, bandits chased away never killed, WeaponMode default
+ToolsOnly — verified in GameRules — no purchases/ads/gambling, pseudonymous by design), what online play
+involves, the built-in safeguards (#1221–#1223 filter//report//mute//silence, voice opt-in, no join codes),
+the private-family-world recommendation, data section, honest self-assessment **PEGI 7 / USK 6 territory,
+explicitly NOT a certified rating** (IARC only exists through storefronts — roadmap H4).
+`docs/developer/AGE_RATING_CHECKLIST.md`: prepared questionnaire answers (violence/fear/language/purchases/
+Users-Interact block incl. the in-game safety controls, data-safety form) + the open items for the storefront
+step. README family section gained the age paragraph + PARENTS links; the Codex **house-rules** article
+(en+de) gained the content-profile + /report paragraph. Website/itch/glitch.fun texts = the statement block in
+PARENTS.md (Marcel publishes those surfaces). Closes kid-friendly-hints stage 2.
+
 ### ★ Crews + named map markers & ping — the social pair (#1216 + #1217, 2026-08-23, branch feat/1216-1217-crews-markers)
 Slices 21 + 22 of the feature-deepening package (epic #1197), one PR — markers share "to allies **and crew**",
 so the crew primitive came first and the pair belongs together.

@@ -299,6 +299,13 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Raw left stick vertical, deadzoned — see <see cref="RawStickX"/>.</summary>
         public static float RawStickY() => Connected() ? Deadzoned(Input.GetAxis("Vertical")) : 0f;
 
+        /// <summary>D-pad X as a raw −1/0/1-ish axis (deadzoned), for the minigame host's own edge+repeat
+        /// logic (#1218) — unlike <see cref="DpadStep"/> this applies NO cooldown of its own.</summary>
+        public static float RawDpadX() => Connected() ? Deadzoned(Input.GetAxis(AxisDpadX)) : 0f;
+
+        /// <summary>D-pad Y raw (positive = up), same contract as <see cref="RawDpadX"/>.</summary>
+        public static float RawDpadY() => Connected() ? Deadzoned(Input.GetAxis(AxisDpadY)) : 0f;
+
         /// <summary>The player's pad-binding source (set from <see cref="InputMap.Use"/>). Null = defaults only.</summary>
         public static ClientSettings Settings;
 

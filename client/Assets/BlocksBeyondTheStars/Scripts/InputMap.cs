@@ -320,6 +320,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Left stick Y on its own, deadzoned.</summary>
         public static float PadStickY() => GamepadInputSource.RawStickY();
 
+        /// <summary>D-pad X as a raw axis (no cooldown) — the minigame host runs its own repeat (#1218).</summary>
+        public static float PadDpadX() => GamepadInputSource.RawDpadX();
+
+        /// <summary>D-pad Y raw (positive = up) — see <see cref="PadDpadX"/>.</summary>
+        public static float PadDpadY() => GamepadInputSource.RawDpadY();
+
         /// <summary>Right-stick look from the PAD ALONE (already a per-frame delta). <see cref="LookX"/>
         /// merges the mouse in; an editor viewport wants stick look without the mouse, which moves the
         /// pointer over its panels instead.</summary>

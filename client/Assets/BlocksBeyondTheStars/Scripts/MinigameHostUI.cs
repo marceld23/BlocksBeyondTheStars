@@ -61,6 +61,12 @@ namespace BlocksBeyondTheStars.Client
         private bool _ptrDown;
         private bool _ptrInside;
 
+        // Gamepad (#1218): the pure mapper turns named pad state into action edges + the virtual cursor;
+        // this class only feeds it InputMap reads and draws the reticle.
+        private MinigamePadMapper _pad;
+        private Image _reticle;
+        private float _sx, _sy, _sw, _sh; // the surface's current on-screen rect (set by LayoutSurface)
+
         public bool IsPlaying => _host != null;
 
         /// <summary>Builds the host UI under this component's own GameObject (a full-canvas child of
@@ -134,6 +140,7 @@ namespace BlocksBeyondTheStars.Client
             EnsureTexture(cw, ch);
             _shownState = (MinigameState)(-1);
             ResetKeyState();
+            _pad = new MinigamePadMapper(_host.Press, _host.Release, _host.Pointer); // #1218
             RefreshOverlay(force: true);
         }
 
@@ -146,6 +153,8 @@ namespace BlocksBeyondTheStars.Client
                 _host = null;
             }
 
+            _pad = null;
+            HideReticle();
             if (_built)
             {
                 gameObject.SetActive(false);
@@ -208,7 +217,83 @@ namespace BlocksBeyondTheStars.Client
                 _keyState[ai] = down;
             }
 
+            // Gamepad (#1218): named buttons + raw sticks through InputMap (no JoystickButton codes here),
+            // turned into action edges, repeats and the virtual cursor by the pure MinigamePadMapper — the
+            // same logic the headless tests drive with fake sequences.
+            if (_pad != null && InputMap.GamepadConnected)
+            {
+                var surf2 = _host.Api.Surface;
+                var frame = new PadFrame
+                {
+                    StickX = InputMap.PadStickX(),
+                    StickY = InputMap.PadStickY(),
+                    DpadX = InputMap.PadDpadX(),
+                    DpadY = InputMap.PadDpadY(),
+                    A = InputMap.PadHeld(PadButton.A),
+                    B = InputMap.PadHeld(PadButton.B),
+                    X = InputMap.PadHeld(PadButton.X),
+                    Y = InputMap.PadHeld(PadButton.Y),
+                    Start = InputMap.PadHeld(PadButton.Start),
+                    Back = InputMap.PadHeld(PadButton.Back),
+                };
+                bool cursorMode = _host.WantsPointer && _host.State == MinigameState.Playing;
+                _pad.Update(frame, Time.unscaledDeltaTime, cursorMode, surf2?.Width ?? 0, surf2?.Height ?? 0);
+
+                // While a round is running, B belongs to the GAME (Cancel), not to the menu shell — without
+                // this, the same press would also close the Arcade screen (the WorldMap consume pattern).
+                if (_host.State == MinigameState.Playing && InputMap.PadDown(PadButton.B))
+                {
+                    Game?.MarkMenuInputHandled();
+                }
+            }
+
+            // Escape = in-game Cancel, but ONLY while playing a game that actually bound it — and consumed,
+            // so the menu shell doesn't also act on the same frame. Everywhere else Escape stays the
+            // close-the-menu key it has always been.
+            if (Input.GetKeyDown(KeyCode.Escape) && _host.State == MinigameState.Playing
+                && _host.HasBinding(MinigameAction.Cancel) && !(Game?.ChatTyping ?? false))
+            {
+                _host.Press(MinigameAction.Cancel);
+                _host.Release(MinigameAction.Cancel);
+                Game?.MarkMenuInputHandled();
+            }
+
+            UpdateReticle();
             PumpPointer();
+        }
+
+        /// <summary>Draws (and places) the virtual cursor while a pad drives a pointer game: a small disc over
+        /// the surface at the mapper's canvas position, tinted while the virtual button is held.</summary>
+        private void UpdateReticle()
+        {
+            var surf = _host?.Api.Surface;
+            bool show = _pad != null && surf != null && _pad.CursorVisible && InputMap.GamepadConnected
+                        && _host.State == MinigameState.Playing;
+            if (!show)
+            {
+                HideReticle();
+                return;
+            }
+
+            if (_reticle == null)
+            {
+                _reticle = UiKit.AddImage(_region, 0, 0, 22, 22, UiKit.DiscSprite, Color.white);
+                _reticle.raycastTarget = false;
+            }
+
+            _reticle.gameObject.SetActive(true);
+            _reticle.color = _pad.CursorPressed ? new Color(0.4f, 0.9f, 1f, 0.95f) : new Color(1f, 1f, 1f, 0.85f);
+            float u = _pad.CursorX / surf.Width;
+            float v = _pad.CursorY / surf.Height;
+            UiKit.Place(_reticle.gameObject, _sx + u * _sw - 11f, _sy + v * _sh - 11f, 22, 22);
+        }
+
+        private void HideReticle()
+        {
+            if (_reticle != null)
+            {
+                _reticle.gameObject.SetActive(false);
+            }
         }
 
         private void PumpPointer()
