@@ -91,7 +91,7 @@ wire field (`NetCreature.Alerting`):
 - **Alert + distract:** 1 Hz `TickCompanionPayoff` (Guard after `TickDropPackets`): a hostile (planet machine,
   non-leaving bandit, aggressive awake fauna) with `HasLineOfSight` to a companion within 20 → `ServerMessage
   "@srv.companion.alert:{name}"` to the owner (per-owner cooldown 30 s) + `CombatEntity.AlertUntil` (client amber
-  "!" nameplate for 4 s; growl SOUND is a maintainer asset, not wired yet). Robbers in Approach/Demanding within
+  "!" nameplate for 4 s + the `creature_companion_growl` take through the species timbre). Robbers in Approach/Demanding within
   6 of the mark's companion stall 8 s (`StallUntil`, repeat 30 s) — `MoveBandit` returns early. Bond ≥ 70 +
   companion within `CompanionWardRange`: `BanditWardedByCompanion` keeps the player off the ambush roll and sends
   an approaching robber away.
@@ -103,4 +103,4 @@ wire field (`NetCreature.Alerting`):
 
 - Needs a Unity client build.
 - Feed/bond tricks (B3: feed intent, bond decay, tiers), riding (B4), companion mortality, a portable companion
-  that travels with you, a slow "study" knowledge trickle while accompanied, dye / accessories; the growl sound.
+  that travels with you, a slow "study" knowledge trickle while accompanied, dye / accessories.

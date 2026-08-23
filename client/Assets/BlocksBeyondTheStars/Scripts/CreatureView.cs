@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             public float AnswerAt; // pending call-answer time (#876) — 0 while none is scheduled
             public float NextAttack; // throttles the attack call while hostile + close
             public bool PrevHostile; // to detect the turn-hostile transition (alert)
+            public bool PrevAlerting; // to detect a companion's growl flip (#1210) — one growl per alert, not per frame
             public float PrevHull;   // to detect a hull drop (hurt)
             public Vector3 Settled;  // smoothed position (the lunge is added on top for display)
             public Vector3 PrevSettled; // last frame's smoothed position → velocity for facing
@@ -116,6 +117,7 @@ namespace BlocksBeyondTheStars.Client
                         PrevFaceDir = Vector3.forward,
                         LastTargetChange = now,
                         PrevHostile = c.Hostile,
+                        PrevAlerting = c.Alerting,
                         PrevHull = c.Hull,
                     };
                     _creatures[c.Id] = entry;
@@ -255,6 +257,14 @@ namespace BlocksBeyondTheStars.Client
                         PlayCue(entry, "_alert", 0.9f);
                     }
 
+                    // Companion payoff (#1210): the pet growls once when the server flags a hostile in its sight —
+                    // a dedicated guard-growl take (two ElevenLabs variants) through the species' own timbre.
+                    if (c.Alerting && !entry.PrevAlerting)
+                    {
+                        PlayClipCue(entry, audio.Has("creature_companion_growl_2") && Random.value < 0.5f
+                            ? "creature_companion_growl_2" : "creature_companion_growl", 0.9f);
+                    }
+
                     // No bite-lunge once the player has fled into their ship: the server stops targeting a
                     // boarded player (no proximity damage), so the render side must not keep mauling the hull.
                     if (c.Hostile && !Game.Aboard && now >= entry.NextAttack
@@ -269,6 +279,7 @@ namespace BlocksBeyondTheStars.Client
 
                 entry.PrevHull = c.Hull;
                 entry.PrevHostile = c.Hostile;
+                entry.PrevAlerting = c.Alerting;
 
                 // Floating health bar (#692): sits just above where a companion nameplate would hang, height
                 // scaled with the creature's size; companions read friendly cyan, wild fauna the health ramp.
@@ -555,13 +566,16 @@ namespace BlocksBeyondTheStars.Client
             => Mathf.Max(0, voice.Pulses - 1) * voice.PulseGapMs * 0.001f;
 
         /// <summary>Plays one of the species' combat/damage cues with its own timbre applied (#903).</summary>
-        private static void PlayCue(Entry e, string cue, float volume)
+        private static void PlayCue(Entry e, string cue, float volume) => PlayClipCue(e, e.Bank + cue, volume);
+
+        /// <summary>Plays an arbitrary clip id through this creature's own timbre + pitch (#1210 growl).</summary>
+        private static void PlayClipCue(Entry e, string clipId, float volume)
         {
-            var clip = CreatureVoiceBank.Resolve(e.Bank + cue, e.Voice, e.Echo);
+            var clip = CreatureVoiceBank.Resolve(clipId, e.Voice, e.Echo);
             if (clip != null)
             {
                 ClientAudio.Instance?.AtClip(clip, e.Root.transform.position,
-                    e.Pitch * PitchJitter(), volume * VolJitter(), e.Bank + cue);
+                    e.Pitch * PitchJitter(), volume * VolJitter(), clipId);
             }
         }
 

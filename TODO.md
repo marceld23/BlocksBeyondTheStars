@@ -173,7 +173,9 @@ turns an approaching robber around; walk away from the pet and hold-ups are poss
 present companion spills its species' `DropItem` at its feet (fetch synergy; penned pets stockpile). Client: nameplate
 pose + Companions-tab payoff blurb (`ui.companions.payoff_hint`) — **client change → local Unity build**. Locales EN+DE.
 Tests: `CompanionPayoffTests` (fetch owner-only + leash, alert once per cooldown + flag, robber stall, bond ward on/off/
-far, produce drop). Docs: USER_MANUAL § Taming, CREATURE_TAMING.md. Follow-ups: B3 feed/bond tricks (#1197), growl sound.
+far, produce drop). Docs: USER_MANUAL § Taming, CREATURE_TAMING.md. **Growl sound shipped 2026-08-23** (follow-up PR):
+`creature_companion_growl` + `_2` (ElevenLabs, `gen_sound.py`), played once per `Alerting` flip through the species
+timbre (`PlayClipCue`). Follow-ups: B3 feed/bond tricks (#1197).
 
 ### ★ Mission chains — authored multi-step chains at settlement boards, vendor friendship chain via dialogue + radio nudge, procedural big orders (#1212, 2026-08-22, branch feat/1212-mission-chains)
 Fifth slice of the feature-deepening package (epic #1197). `MissionDefinition` had no prerequisites / next-step /
