@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!_open) return;
 
-            if (Time.frameCount != _openFrame && Input.GetKeyDown(KeyCode.Escape))
+            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();
@@ -149,6 +149,7 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("BeamPadUI");
             _canvas.sortingOrder = 59; // above the HUD/chat + beacon overlay, below the world map (60)
+            UiNav.Enable(_canvas.gameObject); // pad: stick walks the destinations, A beams, B closes (#1198)
             var root = _canvas.transform;
 
             UiKit.AddPanel(root, 0, 0, 1920, 1080, new Color(0f, 0f, 0f, 0.45f));

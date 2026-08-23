@@ -64,7 +64,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Full-screen menu/browser panes must be escapable before the app shell sees Esc
                 // as "leave game", otherwise the player can get trapped behind overlapping modals.
-                if (_open && Input.GetKeyDown(KeyCode.Escape) && !Game.ChatTyping && !typingRecent)
+                if (_open && InputMap.Down(InputAction.UiCancel) && !Game.ChatTyping && !typingRecent)
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(false);
@@ -75,8 +75,8 @@ namespace BlocksBeyondTheStars.Client
                 // "Weiter" button proceeds. Also not while another modal owns the input (trade, beacon
                 // naming, dock request …): stacking the crafting menu on top of those was the root of a
                 // family of cursor-fights (#413) — the modal's own Esc/Tab handling closes it instead.
-                // Tab (keyboard) or Start (gamepad button 7) toggles the menu.
-                if ((Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.JoystickButton7))
+                // UiMenu toggles the menu: Tab on the keyboard, Start on the pad (#1198).
+                if (InputMap.Down(InputAction.UiMenu)
                     && !Game.AwaitingRespawnConfirm && !Game.ChatTyping && !typingRecent
                     && !Game.MenuInputHandledThisFrame && (_open || !Game.MenuOpen))
                 {
@@ -181,7 +181,11 @@ namespace BlocksBeyondTheStars.Client
             Game.SetMenuOwner(this, _open); // the cursor arbiter frees/locks from the owner set (#413)
             if (_open)
             {
-                UiNav.Enable(gameObject); // gamepad can drive the menu (covers every tab; inert on KB/mouse)
+                // No UiNav here (#1198): this GameObject holds no uGUI controls at all. Every screen the menu
+                // shows — CraftingTechShipUI's 11 tabs, the Codex, the Arcade, the vendor trade — builds its
+                // own UiKit.CreateCanvas SCENE-ROOT canvas and enables UiNav on that. The call that used to
+                // sit here claimed it "covers every tab" while in fact it walked an empty subtree, which is
+                // exactly why the pad could not reach the menu.
                 SwitchTo(_tab); // refresh data for the current tab
             }
             else

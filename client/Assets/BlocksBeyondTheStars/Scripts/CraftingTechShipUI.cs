@@ -429,6 +429,9 @@ namespace BlocksBeyondTheStars.Client
 
             _canvas = UiKit.CreateCanvas("CraftingTechShipUI");
             _canvas.sortingOrder = 50;
+            // The pad drives all 11 tabs. This MUST sit on the canvas, not on GameMenu's GameObject:
+            // CreateCanvas returns a scene-root object, so a UiNavFocus on the owner sees nothing (#1198).
+            UiNav.Enable(_canvas.gameObject);
             var root = _canvas.transform;
 
             // Full-screen dim backdrop — translucent so the world/HUD shows through (holographic-overlay look,

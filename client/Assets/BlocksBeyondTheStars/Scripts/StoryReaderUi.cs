@@ -84,7 +84,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            if (Time.frameCount != _openFrame && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)))
+            if (Time.frameCount != _openFrame && InputMap.Down(InputAction.UiCancel))
             {
                 Game?.MarkMenuInputHandled(); // this Esc is consumed — don't also pop the quit prompt (#413 N1)
                 Close();

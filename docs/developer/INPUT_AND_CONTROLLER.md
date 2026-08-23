@@ -87,12 +87,77 @@ in `client/Assets/Tests/EditMode/InputAbstractionEditModeTests.cs`.
 the stick/d-pad into directional nav and A/B into Submit/Cancel, so the only gap is that a mouse-built menu
 has nothing selected — this component selects (and re-selects, self-healing) the first interactable control
 while a pad is the active device, and is completely inert on keyboard/mouse. Wire it with `UiNav.Enable(root)`.
-Wired on: the main menu, the in-game (Tab/Start) menu, settings, the world picker, vendor trade, the Codex
-(Wiki), credits, the feedback dialog, the respawn prompt, the slot-action pie, the context-actions list, the
-landing-pad chooser (land map), the trade / dock prompts + trade panel, the bandit demand, the planet map and
-the flight system chart (#1043). Add the same one-liner after `UiKit.CreateCanvas` for any new interactive
-screen, and let **B** close it (see `WorldMap.Update` for the pattern). Still pointer-only: the map
-*markers* (waypoint by click) and the finale duel's IMGUI choices.
+
+> **Put it on the CANVAS, not on the owning MonoBehaviour.** `UiKit.CreateCanvas` returns a **scene-root**
+> GameObject that is never reparented, so a `UiNavFocus` sitting on the screen's owner sees none of its
+> controls — it only walks its own subtree. That was #1198: `GameMenu` enabled UiNav on its own object while
+> `CraftingTechShipUI` built the 11 tabs on a canvas of its own, so the entire in-game menu was unreachable by
+> pad while the code claimed it "covers every tab".
+
+Three rules the component enforces so it never does harm off-screen:
+
+* **It respects `Canvas.enabled`.** Screens hide two ways — `gameObject.SetActive(false)` (which disables the
+  component for you) and `canvas.enabled = false` (which does **not**: the GameObject stays active). Without
+  the check a hidden screen keeps pulling the selection off whatever is really on screen.
+* **It never auto-selects an `InputField`.** A focused field swallows the navigation axes, so a pad player
+  dropped into one is stuck until the on-screen keyboard lands (#1211). Screens that called
+  `ActivateInputField()` on open now skip that while a pad is the active device.
+* **It restores the position of the last selection after a rebuild** instead of snapping back to control #1
+  (the crafting pane rebuilds all three panels on every pick).
+
+`UiNav.SetSuspended(root, true)` hands the sticks to a screen's 3D viewport and clears the selection — used by
+the ship and face editors, where **Start** swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
+and `NoteSelection()` are the seams `UiNavEditModeTests` checks, since CI has no pad.
+
+Wired on: the main menu, the in-game (Tab/Start) menu **and all 11 of its tabs**, settings, the world picker,
+vendor trade, the Codex (Wiki), the Arcade, credits, the feedback dialog, the respawn prompt, the slot-action
+pie, the context-actions list, the landing-pad chooser (land map), the trade / dock prompts + trade panel, the
+bandit demand, the planet map, the flight system chart (#1043), the blueprint tool, the beacon-label and
+beam-pad modals, and the ship / face editors (#1198). Add the same one-liner after `UiKit.CreateCanvas` for any
+new interactive screen, and let **B** close it (see `WorldMap.Update` for the pattern). Still pointer-only: the
+map *markers* (waypoint by click) and the finale duel's IMGUI choices.
+
+### Menu verbs: `UiCancel` / `UiMenu`
+
+Nine screens used to poll `KeyCode.JoystickButton1` / `JoystickButton7` raw, right next to their `Escape` /
+`Tab` check — not rebindable, and a reader had to know that "1" means B. They now go through two actions (#1198):
+
+| Action | Keyboard | Pad | Rebindable |
+|---|---|---|---|
+| `InputAction.UiCancel` | `Escape` | **B** | pad column only |
+| `InputAction.UiMenu` | `Tab` | **Start** | pad column only |
+
+`InputMap.KeyboardLocked(action)` makes the keyboard column fixed and `UiSettings.KeyRow` renders those rows
+with a disabled key button. Escape and Tab must not be bindable away: a player who did could end up inside a
+modal with no key that leaves it.
+
+**`AppShell` is the exception.** Its shell-level cancel accepts pad B in the *menu* phases only — in
+`ShellPhase.InGame` B is crouch (`GamepadInputSource.CrouchHeld`), and ducking must never pop the quit dialog.
+The in-game screens are safe because each gates its cancel on being open, and an open screen freezes player
+control.
+
+### Named pad buttons (`PadButton`)
+
+For screens that need more of the pad than the rebindable action set covers, `InputMap.PadDown/PadHeld` take a
+`PadButton` (`A`, `B`, `X`, `Y`, `Lb`, `Rb`, `Back`, `Start`, `L3`, `R3`), and `PadStickX/Y`, `PadLookX/Y` and
+`PadDpadStep` expose the sticks and the repeat-gated d-pad **without** the mouse merged in. The XInput button
+numbers stay in `GamepadInputSource` alone. The two editors use them today; the minigame host (#1218) is next.
+
+### Editors on a pad
+
+Both standalone editors are pointer-native tools, so they get a **focus toggle** rather than a cursor
+emulation: **Start** swaps between the side panels (UiNav) and the work surface, because one stick cannot walk
+a list and steer a brush at the same time. **B** leaves the surface; from the panels it leaves the editor.
+
+| | Ship editor (`ShipEditor`) | Pixel editor (`FaceEditor`) |
+|---|---|---|
+| Aim | centre reticle (`PickPoint()`) | cell cursor, stepped + repeat-gated |
+| Left stick | fly | move the cursor |
+| Right stick | look | — |
+| A / X / Y | place / remove / turn brush | paint / erase / pick up colour |
+| LB / RB | down / up | LB = fill's "whole colour" modifier |
+| D-pad | step the palette | — |
+| L3 | fly faster | — |
 
 ## Touch controls (tablet-web)
 

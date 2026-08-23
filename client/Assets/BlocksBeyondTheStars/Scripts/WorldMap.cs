@@ -44,7 +44,7 @@ namespace BlocksBeyondTheStars.Client
             // shell left Esc alone) but had no handler of its own, leaving Esc swallowed-but-dead (#413 N6).
             // Pad B backs out too (#1043) — the map is stick-navigable, so the pad needs an exit besides
             // re-pressing its (unbound by default) map control.
-            if (_open && (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1)) && !Game.ChatTyping)
+            if (_open && InputMap.Down(InputAction.UiCancel) && !Game.ChatTyping)
             {
                 Game.MarkMenuInputHandled(); // consumed — don't also pop the quit prompt
                 Close();

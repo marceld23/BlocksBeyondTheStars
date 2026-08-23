@@ -159,7 +159,7 @@ namespace BlocksBeyondTheStars.Client
                 // The opening control toggles (not on the very frame that opened it), Esc always closes, and
                 // pad B backs out — the list is stick-navigable, so the pad needs an exit besides re-clicking LS.
                 bool toggle = Time.frameCount != _openedFrame && InputMap.Down(InputAction.ContextActions);
-                if (toggle || Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.JoystickButton1))
+                if (toggle || InputMap.Down(InputAction.UiCancel))
                 {
                     Game.MarkMenuInputHandled(); // spent here — the app shell / pause menu must not also act on it (#413)
                     Close();
