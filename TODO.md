@@ -109,6 +109,41 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Boat — a water vehicle as the second `Kind` of the speeder system (#1215, 2026-08-23, branch feat/1215-boat)
+Twentieth slice of the feature-deepening package (epic #1197). The hover speeder was the only vehicle, and water has
+no collider, so its hover raycast followed the **seabed** with the driver's head under water, draining oxygen —
+on worlds with oceans, rivers, beaches, swimming and underwater building there was no way across water.
+
+**Generalised, not duplicated.** `DeployedSpeeder.Kind` + `NetSpeeder.Kind` (additive, no new tag; empty = speeder,
+so old saves need no migration) and a `"vehicle"` block on the item def (`ItemDefinition.Vehicle`: kind / medium /
+maxSpeed / boostSpeed / seats / fuel — speeder and boat both carry one; System.Text.Json picks it up with no
+loader change). `DeploySpeeder` became `DeployVehicle(session, itemKey)` off the gadget path for both items.
+**Boat:** `boat` item (gadget tier 1), **workshop recipe without blueprint** (wood_log ×8, iron_plate ×2,
+cable ×1 — no `plank` item exists), **ocean-type start hands out a boat** (`WaterAbundance ≥ 1`; a plain stack,
+not StarterKit-protected). Launch needs a **water column ahead** (2–5 blocks, ±3 sideways, waterline within
+−6/+3 of the feet, two air cells of headroom) and sets Y = waterline + 0.3, else `@srv.boat.need_water`.
+**`FuelMax = 0` is the one number** that means "never drains": the drive tick skips the drain, refuel is refused
+(`@srv.boat.no_fuel`), the HUD hides the whole gauge row, touch hides JUMP + FUEL, the Actions list drops refuel.
+**Ashore rule** (`GameServerBoats.cs`): per move report the server checks for water within two cells under the
+driver's feet — **loaded chunks only** (#987 far-water LOD: an unloaded cell reads as air, so "not loaded" means
+"don't judge", never "ashore") — remembers the last wet pose, and after **30 consecutive dry reports** (~3 s) sets
+the driver back onto it via the existing `BeamTeleported` snap (no FX, no damage, still aboard). Lenient on purpose:
+the client grounds a beached boat itself. Kind-aware messages (`VehicleMsg`: "That isn't your boat").
+**Client:** `DriveSpeeder` branches on kind — the boat samples the water column upward from the feet (one below to
+two above), eases to surface + 0.35 with a sine bob, drifts (`_boatVel` lags the bow), no hop, slower/lazier
+(9 / 13 m/s, 60°/s, speeds read from the item's vehicle block), and **runs aground** when no water sits within a
+block under the hull: settles like a very low hover, forward bleeds off, reverse allowed, eases back to the last wet
+spot, no impact report (the impact check uses the drifting hull's speed, so a sharp turn is never a crash).
+`SpeederView.BoatCells()` wooden 3×5 hull with a pointed bow and an outboard, hull hung 0.8 below the seat so it sits
+IN the water, white wake sparks instead of dust, no engine glow, `splash` FX on launch. HUD title by kind + aground
+hint; `ClientAudio` boat loop (`boat_engine_loop`) + `boat_splash` on board/dismount.
+**Assets (generated, #1215):** `item_boat.png` (gpt-image-1-mini), `boat_engine_loop.mp3` (ElevenLabs, seamless),
+`boat_splash.mp3`; recorded in NOTICES.md. Tests: `BoatTests` (8 — content/recipe, launch on land refused, onto water
+at the waterline with no cell, never drains + refuel refused, 29 dry reports tolerated / the 30th snaps back, stow
+returns `boat`, reload keeps the kind, ocean start hands out a boat) + the 7 `SpeederTests` unchanged. Locales:
+17 keys EN+DE + 12 machine; Codex "getting around" sentence EN+DE. Docs: USER_MANUAL § Boat, SOUND_DESIGN rows.
+Deferred by the issue: submarine / two-seater / cargo once the kind abstraction has proven itself.
+
 ### ★ Contributor onboarding: the starter issues are findable, and "you don't need Unity" is finally written down (2026-08-22, branch docs/contributor-onboarding)
 Docs-only. Outreach prep: the repo asked for contributors but never told them where to start. The README's
 contribution paragraph led with "Unity 6 / .NET 10", which reads as "you need a game engine licence" — the exact

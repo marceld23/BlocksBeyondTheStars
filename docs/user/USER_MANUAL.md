@@ -88,7 +88,7 @@ Last updated: 2026-08-11.
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
-| **X** | Pack up (stow) a nearby deployed hover speeder back into its item |
+| **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
@@ -1019,6 +1019,20 @@ separate unlock; admins can still disable it through server world rules.
   and **F** dismounts. Press **X** near a parked speeder you own to **pack it back up** into the item.
 - The speeder has its **own energy tank** (driving drains it) and a **voxel hull** that takes collision damage —
   hard impacts dent it and enough damage destroys it. It persists with you across reloads (like a companion).
+
+#### Boat (water vehicle)
+- The **boat** (`boat`) is the water kind of the same system — an early-game workshop craft with **no
+  blueprint**: wood_log ×8, iron_plate ×2, cable ×1. On an **ocean** world you start with one.
+- Stand at the shore (or swim) and **use** it from the hotbar: it needs **open water in front of you** (2–5
+  blocks ahead, a little to either side) and is set onto the **waterline**; on dry land you get "you need open
+  water" and keep the item. **E** boards it from the bank or while swimming, **F** gets off, **X** packs it up.
+- While driving: **W/A/S/D** as in the speeder but slower (9 m/s, **Shift** 13), lazier steering and the hull
+  **drifts** through turns; there is **no hop** and **no energy** — the boat never runs dry and the HUD shows no
+  gauge. It keeps your **head above water** (the speeder would follow the seabed and drain your oxygen).
+- Leave the water and the boat **runs aground**: it settles onto the sand, forward speed bleeds off, you can
+  reverse off or step out — no damage. Keep driving over land anyway and after a few seconds the server sets you
+  back onto the last spot that floated. Shallow water lets you nose onto a beach to get out.
+- Hull damage, destruction and persistence match the speeder; the boat cannot be refuelled (nothing to fill).
 
 ### Craftable block shapes
 - Any held **building material** can be re-formed into a non-cube **shape** — **slab, pyramid, dome (half-sphere),

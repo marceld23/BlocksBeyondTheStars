@@ -76,6 +76,8 @@ click-on-press + hover-on-enter).
 |---|---|---|
 | footstep per surface (rock/sand/metal-deck/grass/snow) | 5 | EL |
 | jump, land, swim stroke, jetpack thrust | 4 | proc/EL |
+| hover speeder: engine loop ✓ + startup / shutdown / impact ✓ (`vehicle_*`) | 4 | EL ✓ |
+| boat (#1215): outboard putter loop ✓ (`boat_engine_loop`, seamless) + launch / board / dismount splash ✓ (`boat_splash`) | 2 | EL ✓ |
 
 ## 5. Vitals & alerts — *procedural*
 

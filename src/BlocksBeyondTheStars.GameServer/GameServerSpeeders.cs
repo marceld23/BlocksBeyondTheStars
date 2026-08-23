@@ -54,6 +54,9 @@ public sealed partial class GameServer
         public string DriverId = string.Empty;  // empty = parked
         public Vector3f LastDriverPos;          // for per-block fuel-drain accounting while driving
         public double LastGaugeSentAt;          // throttles HUD gauge pushes to the driver
+        public Vector3f LastWaterPos;           // boat: last driven pose with water under the hull (#1215)
+        public bool HasWaterPos;                // boat: LastWaterPos is valid
+        public int AshoreReports;               // boat: consecutive move reports without water under the hull
     }
 
     private List<ServerSpeeder> _speeders => _worlds.Active.Speeders;
@@ -76,6 +79,7 @@ public sealed partial class GameServer
         Fuel = s.Rec.Fuel,
         FuelMax = s.Rec.FuelMax,
         HullColor = s.Rec.HullColor,
+        Kind = VehicleKind(s.Rec),
     };
 
     private SpeederList SpeederListMessage() => new() { Speeders = _speeders.Select(ToNetSpeeder).ToArray() };
@@ -88,55 +92,84 @@ public sealed partial class GameServer
     // Deploy (from the gadget-use path) / pack up.
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>Unfolds a speeder a couple of metres in front of the player (routed from the gadget handler for
-    /// the <c>speeder</c> item). Consumes the item; refused in space. The record is persisted so the speeder
-    /// survives a reload, and reconciliation keeps it live while the owner is on this body.</summary>
-    private void DeploySpeeder(PlayerSession session)
+    /// <summary>Unfolds a vehicle in front of the player (routed from the gadget handler for the <c>speeder</c> and
+    /// <c>boat</c> items — the item's <see cref="Shared.Definitions.VehicleProperties"/> says which kind). Consumes
+    /// the item; refused in space. A ground vehicle appears a couple of metres ahead at the player's height; a
+    /// water vehicle needs a water column ahead and is set onto its waterline (#1215). The record is persisted so
+    /// the vehicle survives a reload, and reconciliation keeps it live while the owner is on this body.</summary>
+    private void DeployVehicle(PlayerSession session, string itemKey)
     {
         var p = session.State;
+        var vehicle = _content.GetItem(itemKey)?.Vehicle;
+        if (vehicle is null)
+        {
+            Reject(session, "gadget", "@srv.gadget.unknown");
+            return;
+        }
+
+        bool boat = vehicle.Kind == "boat";
         if (InSpace(p.PlayerId))
         {
-            Reject(session, "speeder", "@srv.speeder.surface_only");
+            Reject(session, "speeder", boat ? "@srv.boat.surface_only" : "@srv.speeder.surface_only");
             return;
         }
 
-        if (!p.Inventory.Has("speeder", 1))
+        if (!p.Inventory.Has(itemKey, 1))
         {
-            Reject(session, "speeder", "@srv.speeder.none");
+            Reject(session, "speeder", boat ? "@srv.boat.none" : "@srv.speeder.none");
             return;
         }
 
-        double yawRad = p.Yaw * Math.PI / 180.0;
-        float fx = (float)Math.Sin(yawRad);
-        float fz = (float)Math.Cos(yawRad);
-        int circ = _world.Circumference;
-        float x = (float)WorldConstants.WrapX(p.Position.X + fx * SpeederDeployDistance, circ);
-        float z = (float)WorldConstants.WrapZ((double)(p.Position.Z + fz * SpeederDeployDistance), circ);
+        float x, y, z;
+        if (vehicle.Medium == "water")
+        {
+            if (!TryFindBoatLaunch(p, out var launch))
+            {
+                Reject(session, "speeder", "@srv.boat.need_water");
+                return;
+            }
 
-        p.Inventory.Remove("speeder", 1);
+            (x, y, z) = (launch.X, launch.Y, launch.Z);
+        }
+        else
+        {
+            double yawRad = p.Yaw * Math.PI / 180.0;
+            float fx = (float)Math.Sin(yawRad);
+            float fz = (float)Math.Cos(yawRad);
+            int circ = _world.Circumference;
+            x = (float)WorldConstants.WrapX(p.Position.X + fx * SpeederDeployDistance, circ);
+            y = p.Position.Y;
+            z = (float)WorldConstants.WrapZ((double)(p.Position.Z + fz * SpeederDeployDistance), circ);
+        }
 
+        p.Inventory.Remove(itemKey, 1);
+
+        // FuelMax 0 = a vehicle that never drains (the boat): the drive tick skips the drain, the HUD hides
+        // the gauge, and refuelling is refused — one number, no second flag to keep in step.
+        float fuelMax = vehicle.Fuel ? SpeederFuelMax : 0f;
         var rec = new DeployedSpeeder
         {
             Id = "sp" + Guid.NewGuid().ToString("N").Substring(0, 12),
             HomeBodyId = _world.LocationId,
             X = x,
-            Y = p.Position.Y,
+            Y = y,
             Z = z,
             Yaw = p.Yaw,
             Hull = SpeederHullMax,
             HullMax = SpeederHullMax,
-            Fuel = SpeederFuelMax,
-            FuelMax = SpeederFuelMax,
+            Fuel = fuelMax,
+            FuelMax = fuelMax,
             HullColor = session.HullColor,
+            Kind = vehicle.Kind,
         };
         p.DeployedSpeeders.Add(rec);
-        _speeders.Add(new ServerSpeeder { Id = rec.Id, OwnerId = p.PlayerId, Rec = rec, LastDriverPos = new Vector3f(x, p.Position.Y, z) });
+        _speeders.Add(new ServerSpeeder { Id = rec.Id, OwnerId = p.PlayerId, Rec = rec, LastDriverPos = new Vector3f(x, y, z) });
         _repo.SavePlayer(p);
 
         SendInventory(session);
         BroadcastSpeeders();
-        BroadcastToWorld(new SpeederFx { X = x, Y = p.Position.Y, Z = z, Kind = "deploy" });
-        Send(session, new ServerMessage { Text = "@srv.speeder.deployed" });
+        BroadcastToWorld(new SpeederFx { X = x, Y = y, Z = z, Kind = boat ? "splash" : "deploy" });
+        Send(session, new ServerMessage { Text = boat ? "@srv.boat.deployed" : "@srv.speeder.deployed" });
     }
 
     /// <summary>Packs a deployed speeder back into the item (owner only, within reach, not being driven by anyone
@@ -153,7 +186,7 @@ public sealed partial class GameServer
 
         if (!string.IsNullOrEmpty(s.DriverId) && s.DriverId != p.PlayerId)
         {
-            Reject(session, "speeder", "@srv.speeder.driven");
+            Reject(session, "speeder", VehicleMsg(s.Rec, "driven"));
             return;
         }
 
@@ -164,18 +197,19 @@ public sealed partial class GameServer
 
         if (WrapDistSq(p.Position, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z)) > SpeederStowRange * SpeederStowRange)
         {
-            Reject(session, "speeder", "@srv.speeder.closer_pack");
+            Reject(session, "speeder", VehicleMsg(s.Rec, "closer_pack"));
             return;
         }
 
+        bool boat = IsBoat(s.Rec);
         p.DeployedSpeeders.RemoveAll(r => r.Id == s.Id);
         _speeders.Remove(s);
-        p.Inventory.Add("speeder", 1, 1);
+        p.Inventory.Add(VehicleItem(s.Rec), 1, 1);
         _repo.SavePlayer(p);
 
         SendInventory(session);
         BroadcastSpeeders();
-        Send(session, new ServerMessage { Text = "@srv.speeder.packed" });
+        Send(session, new ServerMessage { Text = boat ? "@srv.boat.packed" : "@srv.speeder.packed" });
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -194,13 +228,13 @@ public sealed partial class GameServer
 
         if (!string.IsNullOrEmpty(s.DriverId))
         {
-            Reject(session, "speeder", "@srv.speeder.occupied");
+            Reject(session, "speeder", VehicleMsg(s.Rec, "occupied"));
             return;
         }
 
         if (WrapDistSq(p.Position, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z)) > SpeederBoardRange * SpeederBoardRange)
         {
-            Reject(session, "speeder", "@srv.speeder.closer_board");
+            Reject(session, "speeder", VehicleMsg(s.Rec, "closer_board"));
             return;
         }
 
@@ -260,9 +294,15 @@ public sealed partial class GameServer
         float dx = p.Position.X - s.LastDriverPos.X;
         float dz = p.Position.Z - s.LastDriverPos.Z;
         float dist = (float)Math.Sqrt(dx * dx + dz * dz);
-        if (dist > 0.0001f && dist < 1000f && s.Rec.Fuel > 0f) // ignore world-wrap jumps; only drain when fuelled
+        // Ignore world-wrap jumps; only drain when fuelled — and a FuelMax of 0 (the boat) never drains.
+        if (dist > 0.0001f && dist < 1000f && s.Rec.Fuel > 0f && s.Rec.FuelMax > 0f)
         {
             s.Rec.Fuel = Math.Max(0f, s.Rec.Fuel - dist * SpeederFuelDrainPerBlock);
+        }
+
+        if (IsBoat(s.Rec))
+        {
+            TickBoatAshore(session, s); // may set the driver back onto the last water pose (#1215)
         }
 
         s.Rec.X = p.Position.X;
@@ -286,6 +326,12 @@ public sealed partial class GameServer
         if (s is null || s.OwnerId != p.PlayerId)
         {
             Reject(session, "speeder", "@srv.speeder.not_yours");
+            return;
+        }
+
+        if (s.Rec.FuelMax <= 0f)
+        {
+            Reject(session, "speeder", "@srv.boat.no_fuel"); // the boat has no cell to fill (#1215)
             return;
         }
 
@@ -411,7 +457,7 @@ public sealed partial class GameServer
 
             if (driver.State.Health <= 0f)
             {
-                RespawnPlayer(driver, "@srv.death.speeder");
+                RespawnPlayer(driver, IsBoat(s.Rec) ? "@srv.death.boat" : "@srv.death.speeder");
             }
             else
             {
@@ -425,7 +471,7 @@ public sealed partial class GameServer
         if (owner != null)
         {
             _repo.SavePlayer(owner.State);
-            Send(owner, new ServerMessage { Text = "@srv.speeder.destroyed" });
+            Send(owner, new ServerMessage { Text = VehicleMsg(s.Rec, "destroyed") });
         }
 
         BroadcastToWorld(new SpeederFx { X = pos.X, Y = pos.Y, Z = pos.Z, Kind = "explode" });
@@ -506,15 +552,19 @@ public sealed partial class GameServer
     // Test hooks.
     // ---------------------------------------------------------------------------------------------
 
-    /// <summary>Speeder states (id/owner/driver/pos/hull/fuel) for tests + inspection.</summary>
-    public IReadOnlyList<(string Id, string OwnerId, string DriverId, Vector3f Pos, float Hull, float Fuel)> SpeederSnapshots
-        => _speeders.Select(s => (s.Id, s.OwnerId, s.DriverId, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z), s.Rec.Hull, s.Rec.Fuel)).ToList();
+    /// <summary>Vehicle states (id/owner/driver/pos/hull/fuel/fuel-max/kind) for tests + inspection.</summary>
+    public IReadOnlyList<(string Id, string OwnerId, string DriverId, Vector3f Pos, float Hull, float Fuel, float FuelMax, string Kind)> SpeederSnapshots
+        => _speeders.Select(s => (s.Id, s.OwnerId, s.DriverId, new Vector3f(s.Rec.X, s.Rec.Y, s.Rec.Z), s.Rec.Hull, s.Rec.Fuel, s.Rec.FuelMax, VehicleKind(s.Rec))).ToList();
 
-    /// <summary>Number of live speeders in the active world.</summary>
+    /// <summary>Number of live vehicles (speeders + boats) in the active world.</summary>
     public int SpeederCount => _speeders.Count;
 
     /// <summary>Test/util: deploy a speeder for a player (mirrors the gadget-use path).</summary>
-    public string DeploySpeederForTest(string playerId)
+    public string DeploySpeederForTest(string playerId) => DeployVehicleForTest(playerId, "speeder");
+
+    /// <summary>Test/util: deploy a vehicle item ("speeder" / "boat") for a player (mirrors the gadget-use path).
+    /// Returns the new vehicle's id, or "" when the deploy was refused (e.g. a boat with no water ahead).</summary>
+    public string DeployVehicleForTest(string playerId, string itemKey)
     {
         if (FindSessionByPlayerId(playerId) is not { } s)
         {
@@ -522,8 +572,9 @@ public sealed partial class GameServer
         }
 
         Serve(s);
-        DeploySpeeder(s);
-        return _speeders.LastOrDefault(v => v.OwnerId == playerId)?.Id ?? string.Empty;
+        int before = _speeders.Count;
+        DeployVehicle(s, itemKey);
+        return _speeders.Count > before ? _speeders[^1].Id : string.Empty;
     }
 
     /// <summary>Test/util: board a speeder as a given player.</summary>

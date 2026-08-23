@@ -106,7 +106,8 @@ public sealed partial class GameServer
                 cooldown = WeatherScannerCooldown;
                 break;
             case "speeder":
-                DeploySpeeder(session); // unfolds a hover vehicle in front of the player (consumes the item)
+            case "boat":
+                DeployVehicle(session, item.Key); // unfolds a hover speeder / launches a boat ahead (consumes the item, #1215)
                 cooldown = SpeederDeployCooldown;
                 break;
             default:

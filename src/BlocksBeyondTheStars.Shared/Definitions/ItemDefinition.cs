@@ -39,6 +39,32 @@ public sealed class ToolProperties
 }
 
 /// <summary>
+/// Vehicle properties of a deployable vehicle item (the <c>"vehicle"</c> block in <c>data/items.json</c>, #1215):
+/// the hover speeder and the boat are two <see cref="Kind"/>s of one system. The server reads kind / medium / fuel
+/// (where it may deploy, whether driving drains a cell), the client reads the speeds for its arcade drive model.
+/// </summary>
+public sealed class VehicleProperties
+{
+    /// <summary>"speeder" (hovers over ground) or "boat" (floats on water).</summary>
+    public string Kind { get; set; } = "speeder";
+
+    /// <summary>Where it can be deployed and driven: "ground" or "water". Lava is never a medium.</summary>
+    public string Medium { get; set; } = "ground";
+
+    /// <summary>Cruise speed in blocks/s (client drive model).</summary>
+    public float MaxSpeed { get; set; } = 13f;
+
+    /// <summary>Boost speed in blocks/s (client drive model).</summary>
+    public float BoostSpeed { get; set; } = 20f;
+
+    /// <summary>Seats (1 today; reserved for a later two-seater).</summary>
+    public int Seats { get; set; } = 1;
+
+    /// <summary>Whether driving drains an onboard energy cell (the speeder) or is free (the boat).</summary>
+    public bool Fuel { get; set; } = true;
+}
+
+/// <summary>
 /// Data-driven definition of an item (material, block-in-hand, tool, consumable, component),
 /// loaded from <c>data/items.json</c>.
 /// </summary>
@@ -64,6 +90,9 @@ public sealed class ItemDefinition
 
     /// <summary>Tool properties when <see cref="Category"/> is <see cref="ItemCategory.Tool"/>.</summary>
     public ToolProperties? Tool { get; set; }
+
+    /// <summary>Vehicle properties when this gadget deploys a vehicle (speeder / boat, #1215); null otherwise.</summary>
+    public VehicleProperties? Vehicle { get; set; }
 
     /// <summary>
     /// Health change when this item is consumed (<see cref="ItemCategory.Consumable"/> only):

@@ -7,8 +7,9 @@ asset here **with its licence** before bundling it.
 
 ## Bundled assets (textures, models, audio, fonts)
 
-**Sound effects:** `client/Assets/Resources/audio/*.mp3` (219 files, incl. the splash intro, the
-`terrain_scan` prospecting pulse (Feature 40), the
+**Sound effects:** `client/Assets/Resources/audio/*.mp3` (221 files, incl. the splash intro, the
+`terrain_scan` prospecting pulse (Feature 40), the boat's outboard loop `boat_engine_loop` + `boat_splash`
+(#1215, `gen_sound.py`), the
 `jumave_sting` studio-splash whoosh-tada, the door SFX `door_slide_open`/`door_slide_close`/`door_hinge`
 the death cues `space_death`/`player_death`, the base sentry's shot `sentry_shot` (#1214, `gen_sound.py`),
 the companion guard growl `creature_companion_growl`
@@ -53,8 +54,8 @@ non-block items, ship modules, space tools, the Task-5 metal ingots + alloy/elec
 VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`, the creature-taming
 set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`, and the
 material-variety tier `item_diamond`/`item_diamond_drill`/`item_polymer`/`item_biofuel`/`item_bronze_gear`/`item_brass_fitting`,
-the algae-tank food `item_algae_ration`, and the player-designed-form pair
-`item_shape_tool`/`item_shape_stencil`) are
+the algae-tank food `item_algae_ration`, the player-designed-form pair
+`item_shape_tool`/`item_shape_stencil`, and the boat `item_boat` (#1215)) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.
