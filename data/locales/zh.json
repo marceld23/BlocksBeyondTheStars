@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "该区域内没有任何建造。",
   "srv.blueprint.cooldown": "蓝图工具仍在冷却——请稍后再试。",
   "srv.blueprint.bad_code": "那不是有效的建造代码。",
-  "srv.blueprint.nothing_placed": "没有放置任何方块——目标格子被占用、受保护，或你缺少材料。"
+  "srv.blueprint.nothing_placed": "没有放置任何方块——目标格子被占用、受保护，或你缺少材料。",
+  "ui.missions.objtype_contribute": "贡献",
+  "mission.chain.relay_survey_1.title": "勘测委托：异常读数",
+  "mission.chain.relay_survey_1.desc": "中继网捕捉到外面两个异常，没人知道那是什么。飞出去，扫描它们并把读数带回到这个公告板。",
+  "mission.chain.relay_survey_2.title": "勘测委托：网外之地",
+  "mission.chain.relay_survey_2.desc": "有一个系统我们还没探明——没有中继、没有航道、没有读数。去看看，然后回报。",
+  "mission.chain.relay_survey_3.title": "勘测委托：中继零件",
+  "mission.chain.relay_survey_3.desc": "下一座中继缺少电路板。向任何正在改造的空间站带去十块，把它们投入——然后回来报告。",
+  "mission.chain.relay_survey_4.title": "勘测委托：清理航道",
+  "mission.chain.relay_survey_4.desc": "三台残留机器漂浮在新航道应有的位置。把它们赶走，让勘测员能平静工作。"
 }

@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "O bölgede hiçbir şey inşa edilmemiş.",
   "srv.blueprint.cooldown": "Plan aracı hâlâ şarj oluyor — biraz sonra tekrar dene.",
   "srv.blueprint.bad_code": "Bu geçerli bir yapı kodu değil.",
-  "srv.blueprint.nothing_placed": "Hiçbir şey yerleştirilemedi — hedef hücreler dolu, korumalı veya malzemen yok."
+  "srv.blueprint.nothing_placed": "Hiçbir şey yerleştirilemedi — hedef hücreler dolu, korumalı veya malzemen yok.",
+  "ui.missions.objtype_contribute": "Katkıda bulun",
+  "mission.chain.relay_survey_1.title": "Araştırma emri: garip okumalar",
+  "mission.chain.relay_survey_1.desc": "Röle ağı orada iki anomali algıladı ve kimse ne olduklarını bilmiyor. Uç, tara ve okumaları bu panoya getir.",
+  "mission.chain.relay_survey_2.title": "Araştırma emri: ağın ötesi",
+  "mission.chain.relay_survey_2.desc": "Bir sistem hâlâ bize karanlık — ne röle, ne yol, ne okuma. Git bak ve sonra rapor et.",
+  "mission.chain.relay_survey_3.title": "Araştırma emri: ağ için parçalar",
+  "mission.chain.relay_survey_3.desc": "Bir sonraki rölede devre kartı eksik. Dönüştürülmekte olan herhangi bir istasyona on tane getir ve at — sonra buraya dön.",
+  "mission.chain.relay_survey_4.title": "Araştırma emri: yolu temizle",
+  "mission.chain.relay_survey_4.desc": "Yeni yolun geçmesi gereken yerde üç artık makine sürükleniyor. Anketörlerin huzur içinde çalışabilmesi için onları uzaklaştır."
 }

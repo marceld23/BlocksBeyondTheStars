@@ -1051,6 +1051,7 @@ public sealed partial class GameServer
             RecordAmbientHostileKill(instance, target); // #741: stays dead across relaunches for a while
             if (session is not null)
             {
+                OnMachineDefeated(session); // #1213: post-win only — the survey orders' Defeat step
                 TryDropPlayerMemory(session); // a chance to release a personal memory (P4)
             }
         }

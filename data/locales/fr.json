@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "Il n’y a rien de construit dans cette région.",
   "srv.blueprint.cooldown": "L’outil de plan recharge encore — réessaie dans un instant.",
   "srv.blueprint.bad_code": "Ce n’est pas un code de construction valide.",
-  "srv.blueprint.nothing_placed": "Rien n’a pu être placé — les cellules ciblées sont occupées, protégées, ou il te manque des matériaux."
+  "srv.blueprint.nothing_placed": "Rien n’a pu être placé — les cellules ciblées sont occupées, protégées, ou il te manque des matériaux.",
+  "ui.missions.objtype_contribute": "Contribuer",
+  "mission.chain.relay_survey_1.title": "Ordre de relevé : lectures étranges",
+  "mission.chain.relay_survey_1.desc": "Le réseau de relais capte deux anomalies et personne ne sait ce que c'est. Partez, scannez-les et ramenez les relevés à ce tableau.",
+  "mission.chain.relay_survey_2.title": "Ordre de relevé : au-delà du réseau",
+  "mission.chain.relay_survey_2.desc": "Un système nous est encore inconnu — pas de relais, pas de corridor, pas de relevés. Va voir et rapporte.",
+  "mission.chain.relay_survey_3.title": "Ordre de relevé : pièces pour le réseau",
+  "mission.chain.relay_survey_3.desc": "Le prochain relais manque de cartes de circuits. Apporte-en dix à n'importe quelle station en cours de conversion et verse-les — puis reviens ici.",
+  "mission.chain.relay_survey_4.title": "Ordre de relevé : dégager le corridor",
+  "mission.chain.relay_survey_4.desc": "Trois machines résiduelles dérivent là où la nouvelle voie doit passer. Repousse-les pour que les arpenteurs puissent travailler en paix."
 }

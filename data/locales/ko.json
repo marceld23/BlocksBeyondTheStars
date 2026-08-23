@@ -3541,5 +3541,14 @@
   "srv.blueprint.empty": "해당 영역에 지어진 것이 없습니다.",
   "srv.blueprint.cooldown": "청사진 도구가 아직 충전 중입니다 — 잠시 후 다시 시도하세요.",
   "srv.blueprint.bad_code": "유효한 빌드 코드가 아닙니다.",
-  "srv.blueprint.nothing_placed": "아무 것도 배치되지 않았습니다 — 목표 칸이 점유되었거나 보호되어 있거나 재료가 부족합니다."
+  "srv.blueprint.nothing_placed": "아무 것도 배치되지 않았습니다 — 목표 칸이 점유되었거나 보호되어 있거나 재료가 부족합니다.",
+  "ui.missions.objtype_contribute": "기여",
+  "mission.chain.relay_survey_1.title": "조사 지시: 이상 신호",
+  "mission.chain.relay_survey_1.desc": "중계망이 바깥에서 두 건의 이상을 감지했는데 아무도 그것이 무엇인지 몰라요. 나가서 스캔하고 판독값을 이 게시판으로 가져오세요.",
+  "mission.chain.relay_survey_2.title": "조사 지시: 망 너머",
+  "mission.chain.relay_survey_2.desc": "한 시스템은 아직 우리에게 어두워요 — 중계도, 레인도, 판독도 없어요. 가서 살펴보고 보고하세요.",
+  "mission.chain.relay_survey_3.title": "조사 지시: 망용 부품",
+  "mission.chain.relay_survey_3.desc": "다음 중계소에 회로판이 부족해요. 변환 중인 아무 역에든 회로판 10개를 가져가 투입하세요 — 그리고 여기로 돌아오세요.",
+  "mission.chain.relay_survey_4.title": "조사 지시: 레인 확보",
+  "mission.chain.relay_survey_4.desc": "새 레인이 지나가야 할 곳에 잔존 기계 세 대가 표류하고 있어요. 조사자들이 작업할 수 있게 그들을 몰아내세요."
 }
