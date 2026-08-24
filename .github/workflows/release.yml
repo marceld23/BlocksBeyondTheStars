@@ -117,7 +117,7 @@ jobs:
   # RELEASE TEST GATE: the FULL headless test suite on the exact tagged commit. ci.yml's PR check runs
   # only the fast tier (Category!=Slow), and nothing ties a tag to a green CI run on main — this job
   # closes that gap: every package/publish job (installers, itch.io, Docker image) `needs` it, so no
-  # asset ships unless all tests pass. It is the same sharded 4-runner matrix ci.yml uses (reusable
+  # asset ships unless all tests pass. It is the same sharded matrix ci.yml uses (reusable
   # tests.yml, #1067), tier full and without -warnaserror (warnings are a PR-gate concern; this gate is
   # about behaviour). Sharded it finishes well inside the ~30 min WebGL player build, so it adds no
   # wall-clock time to a release — on a single runner it took 33–36 min and, with the Docker image

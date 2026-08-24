@@ -10,7 +10,8 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 **Test:** `./scripts/run-tests.sh` — currently **2297 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
-The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
+The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
+shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
 A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
 FR/ES/PT/PL/TR/NL/RU/UK/ZH/JA/KO machine-first-pass, IT community + machine top-up (see docs/developer/TRANSLATION_GUIDE.md); commit to `main` with the
@@ -9505,6 +9506,70 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    ship interior; ship interior is water-free after landing in a sea.
 
 ---
+
+## ✅ Done (2026-08-24): CI shard imbalance — the PR gate's tail shard went from ~7:40 back to ~6 min (#1254)
+
+The 4-runner test matrix had drifted badly out of balance: over six PR runs shard 4 averaged **7:10**
+while shard 1 averaged **4:57**, and the tail shard decides when the gate goes green. Measured from the
+`.trx` artefacts of run `32776259187`, the four shards really ran **599 / 1120 / 960 / 1283** CPU-seconds
+— while `partition-tests.py` predicted all four at ~850 s. Two independent causes, both silent:
+
+* **Stale weights.** `scripts/test-shard-weights*.json` had not been refreshed since 2026-08-16, i.e.
+  before the #1197 feature batch. **35 test classes that actually run had no entry at all** and were
+  guessed at `DEFAULT_WEIGHT = 10 s` — in truth they cost **1000 s of 3962 s (25 %)** of the fast tier
+  (`NpcRadioTests` 138 s, `ScanMissionTests` 102 s, `NpcDialogTests` 76 s, `RemnantProtocolTests` 71 s,
+  `RelayNetworkTests` 69 s …).
+* **A packing bug.** Greedy packing picked the lightest shard with `loads.index(min(loads))`, and adding
+  a zero-weight class never makes a shard stop being the lightest — so *every* class whose measured
+  seconds rounded to 0 landed on the same shard: 91 classes / 804 tests versus 54 / 455 on shard 1.
+
+Fixed together, in the order that matters:
+
+* **Weights refreshed** from the full-tier `main` run `32771229720` (2350 tests, 256 fast classes /
+  4078 s + 19 classes with Slow tests / 1401 s).
+* **`CLASS_FLOOR`** (0.5 s) added to every class weight, so a near-zero class is not *free* to the packer
+  and the pile-up cannot recur. Class counts are now 66/66/66/66.
+* **`SHARD1_FIXED_COST`** (60 s) pre-loads shard 1's bin: it also restores, builds and runs `Client.Tests`
+  plus the partition cross-check, which is why it was systematically the *fastest* shard.
+* **`--weight-drift-guard`** on the PR gate: shard 1's existing verify step now also fails the build once
+  more than 5 % of the predicted load comes from classes with no measured weight. Replayed against the
+  pre-refresh state it trips at 10.1 % — exactly the drift that caused this. Off for the release gate
+  (`release.yml`); a release must not fail on bookkeeping.
+
+**And a correction, measured on the first run of this very branch.** The first attempt refreshed the
+fast weights from a *full-tier* run, following the recipe the script header had always given — and the
+gate came back at 6:51 / 4:43 / 6:50 / 7:24, barely better than before. A trx `duration` is wall clock
+under `maxParallelThreads: 4`, so it carries the contention of the run it came from: inside a full-tier
+run the ordinary tests share the thread pool with multi-minute `Slow` tests, and the seconds measured
+there mispredict the PR gate. Out-of-sample, predicting a run that was in no weight basis:
+
+| fast weights taken from | resulting spread | tail shard vs. a perfect split |
+|---|---|---|
+| one full-tier run (first attempt) | 1.53× | 118 % |
+| one fast-tier run | **1.01×** | **101 %** |
+| perfect knowledge (oracle) | 1.06× | 101 % |
+
+So each tier's numbers now come from a run of that tier — the `Slow` seconds from a full-tier run, the
+fast seconds from a PR run. `weights` already resolves a test from the LAST trx that contains it, so
+passing the full run first and the PR run second does exactly that in one command; the script header
+and DEVELOPER.md now say so instead of the old full-tier-only recipe.
+
+**What this is worth, honestly.** Class counts are even (66/66/66/66) and the partition is no longer
+guesswork, but re-packing buys back the *tail*, not the suite: at ~4100 fast-tier CPU-seconds over four
+runners even a perfect split still needs **~6:07**, against 7:24 today. The ~2 min first estimated here
+was too optimistic — it came from a replay that credited the weights with more predictive power than a
+single full-tier run has. Beyond ~6 min the only levers are more shards or cheaper tests — so
+**the matrix moved to six shards** in the same PR (Marcel's call). The repo is public, so
+`ubuntu-latest` minutes are not billed and the only real cost of a shard is one more copy of the ~90 s
+build; at eight, 40 % of every job would be that rebuild. The count now lives in exactly one place —
+the `matrix.shard` list — with `strategy.job-total` feeding it to the packer, so the two cannot drift
+apart (a mismatch would silently drop a shard's worth of tests, which `verify` could not catch).
+
+Also spotted while measuring, and left for a separate issue: three *individual* full-tier tests run
+220–282 s serially (`WorldHostPhase3Tests.Reap_Skips…`, `WebSocketTransportTests.Gateway_D…`,
+`SettlementOverhaulTests.HarshWorl…`). Since xUnit runs the tests of one class serially, a class like
+that is a hard floor no partition can undercut — that is why full-tier shard 1 took 11:15 wall for
+1332 CPU-seconds. Splitting or shortening those three is the next real win on the full tier (#1255).
 
 ## ✅ Done (2026-08-22): research toast reworded + early knowledge ladder stretched (#1184)
 

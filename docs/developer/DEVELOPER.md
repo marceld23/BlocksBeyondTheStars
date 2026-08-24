@@ -45,7 +45,7 @@ CI runs these suites **two-tiered** (`.github/workflows/ci.yml`): pull requests 
 soak tests marked `[Trait("Category", "Slow")]` for a fast gate, while every push to `main` — and
 `release.yml` before publishing — runs the complete suite. Reproduce the fast PR tier locally with
 `dotnet test --filter "Category!=Slow"`. On top of the tiering, CI **shards the server suite across a
-4-runner matrix** (#716): the suite is CPU-bound and already scales ~perfectly with cores in-process
+6-runner matrix** (#716, widened from four in #1254): the suite is CPU-bound and already scales ~perfectly with cores in-process
 (`xunit.runner.json` pins `maxParallelThreads: 4`, see #536), so the only way to go faster is more
 runners. The matrix lives in the reusable `.github/workflows/tests.yml` (#1067), called by `ci.yml`
 (PRs: fast tier + `-warnaserror` + duration guardrail; pushes to main: full tier) and by `release.yml`
@@ -54,10 +54,36 @@ and the release gate finishes in ~10 min instead of the 33–36 min a single run
 `scripts/partition-tests.py` deterministically packs test classes onto shards with **tier-aware
 weights** (`scripts/test-shard-weights.json` = fast-tier seconds, `test-shard-weights-slow.json` = the
 `Slow` tests' seconds per class; `--tier fast|full` picks the sum that matches the run) and shard 1
-cross-checks `--list-tests` output so every test provably runs on exactly one shard. Refresh the
-weights when shard durations drift apart: download the `test-results-shard-*` artifacts of a full-tier
-run (a push to main or a release), list the Slow tests, and run
-`partition-tests.py weights --trx <shard trx…> --slow-list slow.txt --write` (see the script header).
+cross-checks `--list-tests` output so every test provably runs on exactly one shard. Shard 1 also
+carries `Client.Tests` and that cross-check, and the packer pre-loads it with that fixed cost so it
+gets correspondingly less server work.
+
+The weights **decay**, and silently: a class with no entry is guessed at 10 s, so a batch of new test
+classes lets the packer keep reporting a perfectly balanced split it cannot deliver. That is exactly
+what happened after the #1197 feature batch — one shard ran 804 tests / 1283 s while another ran
+455 / 599 s, both "predicted" at ~850 s, and the PR gate's tail shard sat at ~7:40. Two guards now
+keep it honest: every class weight carries a small floor (so near-zero classes are not *free* and
+cannot all pile onto one shard), and shard 1's verify step fails the **PR** gate once more than 5 % of
+the predicted load is guesswork (`--weight-drift-guard`; off for the release gate — a release must not
+fail on bookkeeping). When it trips, or whenever shard durations drift apart, refresh the weights —
+and **take each tier's numbers from a run of that tier**: a trx duration is wall clock under
+`maxParallelThreads: 4`, so fast-tier seconds measured inside a full-tier run carry the contention of
+the multi-minute `Slow` tests running alongside and mispredict the PR gate (measured out-of-sample:
+1.53× spread from full-tier weights vs 1.01× from fast-tier weights). Download the
+`test-results-shard-*` artifacts of a full-tier run **and** of a pull request, then pass the full run
+first and the PR run second — last file wins per test, so the `Slow` classes keep their full-tier
+numbers while every fast test is overwritten by the PR measurement:
+`partition-tests.py weights --trx full/*/server.trx fast/*/server.trx --slow-list slow.txt --write`
+(see the script header). `partition-tests.py show --shards 6 --tier fast` prints the resulting
+assignment and per-shard load.
+
+Balance buys back the *tail*, not the suite: at ~4100 fast-tier CPU-seconds even a perfect partition
+still needs ~6 min over four runners. That is why #1254 also widened the matrix to **six** — the repo is
+public, so `ubuntu-latest` minutes are not billed and the only real cost of another shard is one more
+copy of the ~90 s build. Eight would spend 40 % of every job rebuilding the same assembly, so six is
+where more runners stop paying. The shard count lives in exactly one place, the `matrix.shard` list in
+`tests.yml`; `strategy.job-total` feeds it to `partition-tests.py`, so the matrix and the packer cannot
+disagree. Below ~4:30 the lever is cheaper tests, not more runners.
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
 Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at

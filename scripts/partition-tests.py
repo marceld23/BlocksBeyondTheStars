@@ -15,8 +15,9 @@ How it partitions:
     filter misses would be SILENTLY untested). Non-test classes ride along harmlessly: their
     filter tokens simply match nothing.
   * Each class gets a weight (summed trx seconds from real CI runs; unknown/new classes get a
-    default) and classes are greedy-packed onto the lightest shard. Deterministic: same inputs
-    → same assignment on every shard's runner.
+    default) plus a small per-class floor, and classes are greedy-packed onto the lightest shard.
+    Deterministic: same inputs → same assignment on every shard's runner. Shard 1 starts pre-loaded
+    with SHARD1_FIXED_COST because tests.yml also gives it Client.Tests and the verify step.
   * Weights are TIER-AWARE (#1067): scripts/test-shard-weights.json holds the fast tier (every
     test without [Trait("Category","Slow")]) and scripts/test-shard-weights-slow.json the Slow
     tests' seconds per class. `--tier fast` (PR gate, `--filter Category!=Slow`) packs on the
@@ -27,24 +28,46 @@ How it partitions:
     between namespace and method (`~` is substring matching — a bare `~FloraTests` would also
     match FloraTintTests).
 
-Safety net: `verify` cross-checks the partition against `dotnet test --list-tests` output —
-every discovered test must be matched by EXACTLY one shard's filter, so an oddly named or
-nested class (whose FQN uses `Outer+Inner`, which no token matches) fails the build loudly
-instead of silently never running. ci.yml runs this on shard 1 of every build.
+Safety nets, both on shard 1 of every build (`verify`, cross-checked against `dotnet test
+--list-tests` output):
+  * every discovered test must be matched by EXACTLY one shard's filter, so an oddly named or
+    nested class (whose FQN uses `Outer+Inner`, which no token matches) fails the build loudly
+    instead of silently never running; and
+  * `--weight-drift-guard` (PR gate only) fails once more than UNWEIGHTED_BUDGET of the predicted
+    load comes from classes with no measured weight. Stale weights do not announce themselves —
+    the packer keeps printing a perfectly balanced split while one shard runs twice as long as
+    another — so the guard is what turns "refresh the weights" from folklore into a red build.
 
-Refreshing the weights (when shard durations drift apart): download the `test-results-shard-*`
-artifacts of a FULL-tier run (a push to main or a release) and the list of Slow tests, then
+Refreshing the weights (when shard durations drift apart) — the SOURCE MATTERS, and getting it
+wrong quietly costs most of the benefit. A trx `duration` is wall clock measured under
+maxParallelThreads 4, so it carries the contention of the run it came from: in a FULL-tier run the
+ordinary tests share the thread pool with multi-minute Slow tests, and the fast-tier seconds
+measured there mispredict the PR gate badly (measured out-of-sample: a partition packed on
+full-tier fast weights left a 1.53x spread on the next PR run, one packed on fast-tier weights
+1.01x). So take each tier's numbers from a run of that tier:
 
+  * the Slow seconds from a FULL-tier run (a push to main or a release — the only place they run), and
+  * the fast seconds from a FAST-tier run (any pull request).
+
+A test present in several trx files takes its value from the LAST file given, so passing the full
+run FIRST and the fast run SECOND gives exactly that split in one command — the Slow tests keep
+their full-tier numbers (they appear nowhere else) while every fast test is overwritten by the PR
+run's measurement:
+
+  gh run download <full-tier run id> -D full/ && gh run download <PR run id> -D fast/
   dotnet test tests/BlocksBeyondTheStars.Tests --list-tests --filter Category=Slow > slow.txt
-  partition-tests.py weights --trx shard1/server.trx shard2/server.trx ... --slow-list slow.txt --write
+  partition-tests.py weights --trx full/*/server.trx fast/*/server.trx --slow-list slow.txt --write
 
-A test present in several trx files takes its value from the LAST file given (handy for
-overriding a stale class with a fresh local run).
+The same LAST-file-wins rule lets a fresh local run override a single stale class.
+
+Do not expect miracles from re-packing alone: balance buys back the tail, not the suite. At ~4100
+fast-tier CPU-seconds a PERFECTLY balanced gate still takes ~6 min over 4 runners and ~4:30 over 6
+(#1254 moved the matrix to 6). Below that the levers are cheaper tests, not packing.
 
 Usage:
-  partition-tests.py filter --shard 2 --shards 4 --tier fast   # shard 2's --filter expression
-  partition-tests.py verify --shards 4 --tier full --list-file listed.txt
-  partition-tests.py show --shards 4 --tier full               # human-readable assignment + weights
+  partition-tests.py filter --shard 2 --shards 6 --tier fast   # shard 2's --filter expression
+  partition-tests.py verify --shards 6 --tier full --list-file listed.txt [--weight-drift-guard]
+  partition-tests.py show --shards 6 --tier full               # human-readable assignment + weights
   partition-tests.py weights --trx a.trx b.trx --slow-list slow.txt [--write]
 """
 
@@ -64,6 +87,26 @@ SLOW_WEIGHTS_FILE = REPO_ROOT / "scripts" / "test-shard-weights-slow.json"
 # Weight (seconds) for classes without an entry in the weights file — roughly the suite's
 # median class cost, so brand-new test classes don't skew a shard until weights are refreshed.
 DEFAULT_WEIGHT = 10.0
+
+# Packing floor added to EVERY class weight. Not a measurement: it exists so that a class whose
+# measured seconds round to 0 is not *free* to the packer. Without it, greedy packing dumps every
+# near-zero class onto whichever shard is momentarily the lightest (adding 0 never makes it stop
+# being the lightest) — that is how one shard ended up with 91 classes / 804 tests while another
+# ran 54 / 455 even though both were predicted at ~850 s.
+CLASS_FLOOR = 0.5
+
+# Shard 1 also restores, builds and runs the small Client.Tests suite plus the partition-
+# completeness check (see tests.yml), which shards 2..N skip entirely. Pre-loading its bin with
+# that fixed cost makes the packer hand it correspondingly less server work; otherwise shard 1
+# systematically finishes minutes before the tail shard. Expressed in the same unit as the
+# weights (summed per-test seconds ≈ 3.8× wall clock at maxParallelThreads 4): ~16 s wall.
+SHARD1_FIXED_COST = 60.0
+
+# Share of the predicted load that may come from classes the weight files have never seen before
+# `verify --weight-drift-guard` fails. Weights go stale silently: a feature batch adds test classes,
+# each is guessed at DEFAULT_WEIGHT, and the packer keeps reporting a perfectly balanced partition
+# while one shard runs twice as long as another. At 5 % the guard trips well before that hurts.
+UNWEIGHTED_BUDGET = 0.05
 
 CLASS_RE = re.compile(r"^\s*(?:public|internal)?\s*(?:sealed\s+|static\s+|abstract\s+|partial\s+)*class\s+([A-Za-z_]\w*)", re.MULTILINE)
 
@@ -95,16 +138,22 @@ def load_weights(tier: str) -> dict[str, float]:
     return weights
 
 
+def weight_of(cls: str, weights: dict[str, float]) -> float:
+    """The class's packing cost: its measured seconds (or the default guess) plus the class floor."""
+    return weights.get(cls, DEFAULT_WEIGHT) + CLASS_FLOOR
+
+
 def assign(shards: int, tier: str) -> list[list[str]]:
     """Greedy bin-packing: heaviest class first onto the currently lightest shard."""
     weights = load_weights(tier)
     buckets: list[list[str]] = [[] for _ in range(shards)]
-    loads = [0.0] * shards
+    # Shard 1 starts out already loaded with the extra suite tests.yml gives it.
+    loads = [SHARD1_FIXED_COST] + [0.0] * (shards - 1)
     # Sort by (-weight, name): deterministic even among equal weights.
-    for cls in sorted(discover_classes(), key=lambda c: (-weights.get(c, DEFAULT_WEIGHT), c)):
+    for cls in sorted(discover_classes(), key=lambda c: (-weight_of(c, weights), c)):
         target = loads.index(min(loads))
         buckets[target].append(cls)
-        loads[target] += weights.get(cls, DEFAULT_WEIGHT)
+        loads[target] += weight_of(cls, weights)
     return buckets
 
 
@@ -180,11 +229,45 @@ def parse_listed_tests(list_file: Path) -> list[str]:
     return tests
 
 
-def cmd_verify(shards: int, tier: str, list_file: Path) -> int:
+def check_weight_drift(shards: int, tier: str, listed: list[str], guard: bool) -> int:
+    """Report test classes the weight files have never seen — the silent cause of shard imbalance.
+
+    Only classes that actually CONTAIN tests count: discover_classes() also picks up helpers,
+    base classes and collection markers, which legitimately never appear in a trx. The listed
+    FQNs (`Namespace.Class.Method`) give exactly the real ones.
+    """
+    weights = load_weights(tier)
+    # On the fast tier a class whose every test is Slow has no fast entry BY DESIGN (its filter
+    # matches nothing there) — it was measured, so it is not drift. Both files count as "known".
+    known = set(weights) | set(_load(SLOW_WEIGHTS_FILE))
+    classes = {fqn.rsplit(".", 2)[-2] for fqn in listed}
+    unweighted = sorted(c for c in classes if c not in known)
+    total = sum(weight_of(c, weights) for c in classes) + SHARD1_FIXED_COST
+    guessed = sum(weight_of(c, weights) for c in unweighted)
+    share = guessed / total if total else 0.0
+    if not unweighted:
+        print(f"Weights cover all {len(classes)} test classes.")
+        return 0
+    print(f"{len(unweighted)} of {len(classes)} test classes have no weight and are guessed at "
+          f"{DEFAULT_WEIGHT:.0f}s: {share:.1%} of the predicted load ({', '.join(unweighted[:12])}"
+          f"{', …' if len(unweighted) > 12 else ''})")
+    if not guard or share <= UNWEIGHTED_BUDGET:
+        # A single new test class per PR is normal — say so and move on.
+        print(f"::notice::{len(unweighted)} test class(es) without a shard weight "
+              f"({share:.1%} of the predicted load, budget {UNWEIGHTED_BUDGET:.0%}).")
+        return 0
+    print(f"::error::Shard weights are stale: {share:.1%} of the predicted load is guesswork "
+          f"(budget {UNWEIGHTED_BUDGET:.0%}). The partition reports a balanced split it cannot "
+          f"deliver — refresh scripts/test-shard-weights*.json (see partition-tests.py header).")
+    return 1
+
+
+def cmd_verify(shards: int, tier: str, list_file: Path, weight_drift_guard: bool) -> int:
     buckets = assign(shards, tier)
     tokens = [[f".{cls}." for cls in bucket] for bucket in buckets]
+    listed = parse_listed_tests(list_file)
     bad = []
-    for fqn in parse_listed_tests(list_file):
+    for fqn in listed:
         hits = [i + 1 for i, toks in enumerate(tokens) if any(t in fqn for t in toks)]
         if len(hits) != 1:
             bad.append((fqn, hits))
@@ -195,8 +278,8 @@ def cmd_verify(shards: int, tier: str, list_file: Path) -> int:
         print("Nested test classes (Outer+Inner) or a class whose name occurs as a namespace "
               "segment break the partition — rename or extend partition-tests.py.")
         return 1
-    print(f"All {len(parse_listed_tests(list_file))} listed tests map to exactly one of {shards} shards.")
-    return 0
+    print(f"All {len(listed)} listed tests map to exactly one of {shards} shards.")
+    return check_weight_drift(shards, tier, listed, weight_drift_guard)
 
 
 def main() -> int:
@@ -207,6 +290,9 @@ def main() -> int:
     parser.add_argument("--tier", choices=["fast", "full"], default="fast",
                         help="fast = PR gate (Category!=Slow), full = whole suite incl. Slow (default: fast)")
     parser.add_argument("--list-file", type=Path, help="dotnet test --list-tests output (verify)")
+    parser.add_argument("--weight-drift-guard", action="store_true",
+                        help="verify: fail when more than UNWEIGHTED_BUDGET of the predicted load "
+                             "comes from classes with no measured weight (PR gate only)")
     parser.add_argument("--trx", type=Path, nargs="+", help="trx result files to derive weights from (weights)")
     parser.add_argument("--slow-list", type=Path, help="--list-tests --filter Category=Slow output (weights)")
     parser.add_argument("--write", action="store_true", help="write the weight files instead of only printing (weights)")
@@ -229,14 +315,16 @@ def main() -> int:
     if args.command == "verify":
         if not args.list_file:
             raise SystemExit("error: verify needs --list-file")
-        return cmd_verify(args.shards, args.tier, args.list_file)
+        return cmd_verify(args.shards, args.tier, args.list_file, args.weight_drift_guard)
 
     weights = load_weights(args.tier)
     for i, bucket in enumerate(assign(args.shards, args.tier), start=1):
-        load = sum(weights.get(c, DEFAULT_WEIGHT) for c in bucket)
-        print(f"shard {i}: {len(bucket)} classes, ~{load:.0f}s weighted")
+        load = sum(weight_of(c, weights) for c in bucket) + (SHARD1_FIXED_COST if i == 1 else 0.0)
+        unweighted = sum(1 for c in bucket if c not in weights)
+        extra = f", +{SHARD1_FIXED_COST:.0f}s Client.Tests/verify" if i == 1 else ""
+        print(f"shard {i}: {len(bucket)} classes ({unweighted} unweighted), ~{load:.0f}s weighted{extra}")
         for cls in sorted(bucket):
-            print(f"    {weights.get(cls, DEFAULT_WEIGHT):7.1f}s  {cls}")
+            print(f"    {weights.get(cls, DEFAULT_WEIGHT):7.1f}s  {cls}{'' if cls in weights else '  (guessed)'}")
     return 0
 
 

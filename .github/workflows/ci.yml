@@ -18,7 +18,7 @@
 # SHARDED TEST MATRIX (#716): the server suite is CPU-bound and already scales ~perfectly with cores
 # (at maxParallelThreads 4 on the 4-vCPU runner the summed test time IS the ~11 min wall the PR gate
 # used to spend). More in-process threads would gain nothing (no more cores; xunit.runner.json pins 4
-# because of the WorldGenerator lock convoy, #536) — so the suite fans out over 4 runners instead,
+# because of the WorldGenerator lock convoy, #536) — so the suite fans out over 6 runners instead,
 # cutting the test step to ~3 min. The matrix itself lives in the reusable .github/workflows/tests.yml
 # (#1067) — shared with release.yml's gate, so the two cannot drift — and is called by `build-test`
 # below with the tier/-warnaserror/guardrail settings this workflow wants. Branch protection requires
@@ -40,7 +40,7 @@
 # and GitHub counts its skip as a pass, as before).
 #
 # LOCALES-ONLY NARROW GATE (#922): when the PR diff touches nothing but data/locales/*.json (a
-# translation PR), the 4-shard matrix and `format` are skipped and the single `locale-tests` job runs
+# translation PR), the sharded matrix and `format` are skipped and the single `locale-tests` job runs
 # the classes that can actually observe a locale edit (scripts/locale-test-filter.py: a marker scan
 # for direct locale-table readers plus hand-listed indirect consumers, found by mutating every locale
 # value and collecting the failing classes). `tests-passed` requires locale-tests' success in that
@@ -87,6 +87,7 @@ jobs:
       warnaserror: true
       nuget-cache: true
       duration-guardrail: ${{ github.event_name == 'pull_request' }}
+      weight-drift-guard: ${{ github.event_name == 'pull_request' }}
 
   # Narrow test gate for locales-only PRs (see LOCALES-ONLY NARROW GATE in the header): builds the
   # server test project once and runs only the locale-consuming classes. `verify` runs first so a
@@ -132,7 +133,7 @@ jobs:
   # Fan-in for branch protection: the ONE required check standing in for the whole test matrix.
   # Required checks must not point at matrix jobs directly (names carry the shard index, and a
   # docs-only PR would leave them "Expected — Waiting for status" forever). Passing states:
-  #   * build-test == success  → all four shards green
+  #   * build-test == success  → every shard green
   #   * build-test == skipped  → docs-only PR (the `changes` job said nondocs=false) or locales-only
   #     PR (locale-tests ran instead) — counts as pass, but ONLY when `changes` itself succeeded, so
   #     a cancelled/failed upstream can't sneak through.
