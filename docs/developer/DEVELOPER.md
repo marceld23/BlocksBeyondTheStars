@@ -54,10 +54,22 @@ and the release gate finishes in ~10 min instead of the 33–36 min a single run
 `scripts/partition-tests.py` deterministically packs test classes onto shards with **tier-aware
 weights** (`scripts/test-shard-weights.json` = fast-tier seconds, `test-shard-weights-slow.json` = the
 `Slow` tests' seconds per class; `--tier fast|full` picks the sum that matches the run) and shard 1
-cross-checks `--list-tests` output so every test provably runs on exactly one shard. Refresh the
-weights when shard durations drift apart: download the `test-results-shard-*` artifacts of a full-tier
-run (a push to main or a release), list the Slow tests, and run
+cross-checks `--list-tests` output so every test provably runs on exactly one shard. Shard 1 also
+carries `Client.Tests` and that cross-check, and the packer pre-loads it with that fixed cost so it
+gets correspondingly less server work.
+
+The weights **decay**, and silently: a class with no entry is guessed at 10 s, so a batch of new test
+classes lets the packer keep reporting a perfectly balanced split it cannot deliver. That is exactly
+what happened after the #1197 feature batch — one shard ran 804 tests / 1283 s while another ran
+455 / 599 s, both "predicted" at ~850 s, and the PR gate's tail shard sat at ~7:40. Two guards now
+keep it honest: every class weight carries a small floor (so near-zero classes are not *free* and
+cannot all pile onto one shard), and shard 1's verify step fails the **PR** gate once more than 5 % of
+the predicted load is guesswork (`--weight-drift-guard`; off for the release gate — a release must not
+fail on bookkeeping). When it trips, or whenever shard durations drift apart, refresh the weights:
+download the `test-results-shard-*` artifacts of a full-tier run (a push to main or a release), list
+the Slow tests, and run
 `partition-tests.py weights --trx <shard trx…> --slow-list slow.txt --write` (see the script header).
+`partition-tests.py show --shards 4 --tier fast` prints the resulting assignment and per-shard load.
 
 `run-tests.ps1` selects suites via `-Suites` (`Dotnet`, `ClientCore`, `UnityEdit`, `UnityPlay`, `All`); the
 Unity suites are opt-in so they don't slow the common loop, and need `Unity.exe` (pass `-UnityPath` if not at

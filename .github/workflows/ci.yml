@@ -87,6 +87,7 @@ jobs:
       warnaserror: true
       nuget-cache: true
       duration-guardrail: ${{ github.event_name == 'pull_request' }}
+      weight-drift-guard: ${{ github.event_name == 'pull_request' }}
 
   # Narrow test gate for locales-only PRs (see LOCALES-ONLY NARROW GATE in the header): builds the
   # server test project once and runs only the locale-consuming classes. `verify` runs first so a

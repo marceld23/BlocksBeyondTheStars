@@ -15,7 +15,10 @@
 # scripts/partition-tests.py deterministically packs test CLASSES onto shards (tier-aware weights from
 # real trx data: scripts/test-shard-weights.json + test-shard-weights-slow.json) and emits each shard's
 # --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a partition-completeness
-# check (--list-tests cross-check) so a class no shard filter matches can never be SILENTLY untested.
+# check (--list-tests cross-check) so a class no shard filter matches can never be SILENTLY untested;
+# the packer knows about that extra load and hands shard 1 correspondingly less server work.
+# The weights DECAY — every new test class is guessed at 10 s — so the same check also enforces a
+# ceiling on how much of the partition is guesswork (--weight-drift-guard, PR gate only).
 #
 # The caller decides what a green result means (ci.yml's `tests-passed` fan-in is the branch-protection
 # check; release.yml's package/publish/docker jobs `need` the caller job). Callers must not require the
@@ -44,6 +47,10 @@ on:
         default: false
       duration-guardrail:
         description: "Fail when any non-Slow test exceeds 120 s (fast tier only — the full tier legitimately contains Slow tests)."
+        type: boolean
+        default: false
+      weight-drift-guard:
+        description: "Fail when too much of the shard partition is guesswork (stale weights). PR gate only — a release must not be blocked by bookkeeping."
         type: boolean
         default: false
       artifact-prefix:
@@ -113,11 +120,20 @@ jobs:
       # every test that --list-tests discovers must be matched by EXACTLY one shard's filter. A test
       # class the partition misses (nested class, name colliding with a namespace segment, …) fails
       # the build here instead of silently never running on any shard.
+      #
+      # The same step carries the WEIGHT-DRIFT guard on the PR gate. The partition is only as good as
+      # scripts/test-shard-weights*.json: a class with no entry is guessed at 10 s, so a batch of new
+      # test classes lets the packer report a perfectly balanced split it cannot deliver (that is how
+      # one shard came to run 804 tests / 1283 s while another ran 455 / 599 s, both "predicted" at
+      # ~850 s). Once more than 5 % of the predicted load is guesswork the PR goes red with a pointer
+      # to the refresh command. Off for the release gate — a release must not fail on bookkeeping.
       - name: Verify shard partition covers every test
         if: matrix.shard == 1
+        env:
+          DRIFT: ${{ inputs.weight-drift-guard && '--weight-drift-guard' || '' }}
         run: |
           dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --list-tests > listed-tests.txt
-          python3 scripts/partition-tests.py verify --shards 4 --tier ${{ inputs.tier }} --list-file listed-tests.txt
+          python3 scripts/partition-tests.py verify --shards 4 --tier ${{ inputs.tier }} --list-file listed-tests.txt $DRIFT
 
       # Two-tier test gate: the fast tier skips the tests marked [Trait("Category", "Slow")] — the
       # statistical worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
