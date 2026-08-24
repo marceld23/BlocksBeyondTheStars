@@ -52,6 +52,20 @@ public static class NetCodec
     /// </summary>
     public static bool UseJsonEncoding { get; set; }
 
+    /// <summary>
+    /// Raised once when the MessagePack encoder could not build its runtime formatters and the codec switched
+    /// this process over to the JSON envelope for good (<see cref="UseJsonEncoding"/> = true). Mono's
+    /// Reflection.Emit path reads the working directory while creating MessagePack's dynamic assembly, and on
+    /// macOS that fails with <c>UnauthorizedAccessException</c> when the app was launched from a folder it may
+    /// not read; MessagePack caches that failure, so EVERY later send would throw the same way and the client
+    /// would be mute for the whole session (#1250). Every receiver decodes both formats, so falling over costs
+    /// bandwidth, not correctness. Hosts subscribe to log it.
+    /// </summary>
+    public static event Action<Exception>? MessagePackFallbackActivated;
+
+    /// <summary>Test seam for the fallback: replaces the MessagePack serializer call (null = the real one).</summary>
+    internal static Func<Type, object, byte[]>? MessagePackSerializeOverride { get; set; }
+
     // Stable tag <-> type registry. Append new messages with new ids; never reuse ids.
     private static readonly Dictionary<byte, Type> TagToType = new();
     private static readonly Dictionary<Type, byte> TypeToTag = new();
@@ -533,11 +547,41 @@ public static class NetCodec
             throw new InvalidOperationException($"Message type '{type.Name}' is not registered with NetCodec.");
         }
 
-        var body = MessagePackSerializer.Serialize(type, message, Options);
+        byte[] body;
+        try
+        {
+            body = MessagePackSerializeOverride is { } serialize
+                ? serialize(type, message)
+                : MessagePackSerializer.Serialize(type, message, Options);
+        }
+        catch (MessagePackSerializationException ex) when (IsFormatterBuildFailure(ex))
+        {
+            // The formatter factory itself is broken for this process (see MessagePackFallbackActivated) —
+            // not this message. Switch the whole codec to JSON and encode this one that way too.
+            UseJsonEncoding = true;
+            MessagePackFallbackActivated?.Invoke(ex);
+            return EncodeJson(message);
+        }
+
         var payload = new byte[body.Length + 1];
         payload[0] = tag;
         Buffer.BlockCopy(body, 0, payload, 1, body.Length);
         return payload;
+    }
+
+    /// <summary>A serialization failure rooted in the formatter cache's static initializer (the dynamic
+    /// assembly could not be created) rather than in the message being serialized.</summary>
+    private static bool IsFormatterBuildFailure(Exception ex)
+    {
+        for (var inner = ex.InnerException; inner is not null; inner = inner.InnerException)
+        {
+            if (inner is TypeInitializationException)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Encodes a tagged JSON payload for browser WebSocket clients.</summary>

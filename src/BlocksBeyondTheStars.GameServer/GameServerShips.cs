@@ -144,6 +144,7 @@ public sealed partial class GameServer
             {
                 SendShipStations(_current);
                 SendDoors(_current);
+                ReseatAfterShipSwitch(_current);
             }
         }
 
@@ -172,6 +173,32 @@ public sealed partial class GameServer
 
         BroadcastOwnedShips();
         return true;
+    }
+
+    /// <summary>
+    /// A landed switch re-anchors the NEW hull at the pad centre, so its walls sit elsewhere than the old
+    /// ship's (starter 5×7 vs hauler 7×9): a player standing aboard — or anywhere inside the new, usually
+    /// larger, footprint — was left exactly where they stood and could end up wedged in a hull cell, with
+    /// nothing on either side to push them out (#1247). Snap them to the new ship's heal-tank the way
+    /// landing and respawn do, over the RespawnNotice channel (a plain state update is discarded by the
+    /// client, #414 N17). And re-send the inventory either way: the cargo hold in it is the ACTIVE ship's,
+    /// but it is normally only refreshed when the aboard flag flips — after a switch the client kept
+    /// showing the old ship's hold until the player walked out and back in.
+    /// </summary>
+    private void ReseatAfterShipSwitch(PlayerSession session)
+    {
+        var p = session.State;
+        if (p.AboardShip || LandedBoundsContain(CurLanded, p.Position))
+        {
+            p.Position = _healTank;
+            p.RespawnPoint = _healTank;
+            p.AboardShip = true;
+            session.AwaitingSpawnAdopt = true; // #865: ignore pre-snap position reports until the client snaps
+            Send(session, new RespawnNotice { X = _healTank.X, Y = _healTank.Y, Z = _healTank.Z, Reason = "@srv.ship.switched" });
+        }
+
+        SendInventory(session);
+        SendPlayerState(session);
     }
 
     private void SendOwnedShips(PlayerSession session)

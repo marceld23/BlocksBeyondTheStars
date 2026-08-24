@@ -479,17 +479,23 @@ public sealed partial class GameServer
                 continue;
             }
 
-            var s = rec.Structure;
-            double dx = WorldConstants.WrapDeltaX(p.X - rec.Origin.X, _world.Circumference); // longitude wraps
-            if (dx >= 0 && dx <= s.Width
-                && p.Y >= rec.Origin.Y && p.Y <= rec.Origin.Y + s.Height + 1
-                && p.Z >= rec.Origin.Z && p.Z <= rec.Origin.Z + s.Length)
+            if (LandedBoundsContain(rec, p))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>Whether a position lies within ONE parked ship's bounds (the hull box plus one cell of headroom).</summary>
+    private bool LandedBoundsContain(LandedShip rec, Vector3f p)
+    {
+        var s = rec.Structure;
+        double dx = WorldConstants.WrapDeltaX(p.X - rec.Origin.X, _world.Circumference); // longitude wraps
+        return dx >= 0 && dx <= s.Width
+            && p.Y >= rec.Origin.Y && p.Y <= rec.Origin.Y + s.Height + 1
+            && p.Z >= rec.Origin.Z && p.Z <= rec.Origin.Z + s.Length;
     }
 
     /// <summary>

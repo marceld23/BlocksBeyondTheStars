@@ -72,12 +72,96 @@ public sealed partial class GameServer
         }
 
         var candidate = here[_baseLifeCursor++ % here.Count];
-        if (HasLiveBaseSettler(candidate) || CountBaseMachines(candidate) < BaseSettlerMachineCount)
+        if (HasLiveBaseSettler(candidate))
+        {
+            RehomeWedgedSettler(candidate); // the owner may have built over the settler's spot since
+            return;
+        }
+
+        if (CountBaseMachines(candidate) < BaseSettlerMachineCount)
         {
             return;
         }
 
         SpawnBaseSettler(candidate);
+    }
+
+    /// <summary>
+    /// Where the base settler lives. The first version put them at a fixed core+(2, 1, 2) with no look at
+    /// what stood there, so an owner who had built a wall, a machine or a stair on that spot got a settler
+    /// permanently wedged inside it — the leash kept walking them back into the block (#1248, a player
+    /// report). Try the classic spot first (existing bases keep their settler where it was when it is free),
+    /// then ring outwards through the base zone for the nearest column with two air cells over a floor that
+    /// is not inside a parked ship; the classic spot is the last resort when the whole zone is built solid.
+    /// </summary>
+    private Vector3f SettlerHomeNear(Vector3i core)
+    {
+        var legacy = new Vector3f(core.X + 2.5f, core.Y + 1f, core.Z + 2.5f);
+        if (StandableSpot(core.X + 2, core.Y + 1, core.Z + 2) is { } classic)
+        {
+            return classic;
+        }
+
+        for (int r = 1; r <= BaseProtectionRadius; r++)
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r || (dx == 0 && dz == 0))
+                    {
+                        continue; // ring r only — inner rings were already searched
+                    }
+
+                    // Feet from two above the core down to two below it: a raised floor, a slope or a dug-out
+                    // yard all count, a basement further down does not (the settler should be seen).
+                    for (int y = core.Y + 2; y >= core.Y - 2; y--)
+                    {
+                        if (StandableSpot(core.X + dx, y, core.Z + dz) is { } spot)
+                        {
+                            return spot;
+                        }
+                    }
+                }
+
+        return legacy;
+    }
+
+    /// <summary>The feet position for a cell a human-sized NPC can stand in: a blocking floor under two
+    /// free cells, outside every parked ship's hull (nobody moves into the owner's cockpit); null otherwise.</summary>
+    private Vector3f? StandableSpot(int x, int y, int z)
+    {
+        if (!WithinBuildHeight(y) || !IsBodyBlockingCell(x, y - 1, z) || IsBodyBlockingCell(x, y, z) || IsBodyBlockingCell(x, y + 1, z))
+        {
+            return null;
+        }
+
+        var feet = new Vector3f(x + 0.5f, y, z + 0.5f);
+        return ShipInteriorContains(new Vector3f(feet.X, y + 0.5f, feet.Z)) ? null : feet;
+    }
+
+    /// <summary>A settler whose home cell got built over since they moved in (#1248) is moved to the nearest
+    /// free spot — otherwise the leash walks them straight back into the new wall every tick.</summary>
+    private void RehomeWedgedSettler(ServerBase b)
+    {
+        if (!_baseSettlerNpcIds.TryGetValue(b.Id, out var s) || _npcs.FirstOrDefault(n => n.Id == s.NpcId && n.Role == "settler") is not { } npc)
+        {
+            return;
+        }
+
+        int hx = (int)Math.Floor(npc.Home.X), hy = (int)Math.Floor(npc.Home.Y), hz = (int)Math.Floor(npc.Home.Z);
+        if (StandableSpot(hx, hy, hz) is not null)
+        {
+            return; // the home is still a place to stand
+        }
+
+        var home = SettlerHomeNear(b.Cell);
+        if (home.Equals(npc.Home))
+        {
+            return; // nothing better in the zone — leave them rather than jitter every scan
+        }
+
+        npc.Home = home;
+        npc.Pos = home;
+        BroadcastNpcs();
     }
 
     /// <summary>Whether the base's settler is actually standing on the active world — a world switch clears
@@ -123,7 +207,7 @@ public sealed partial class GameServer
     private void SpawnBaseSettler(ServerBase b)
     {
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("base-settler:" + b.Id)));
-        var home = new Vector3f(b.Cell.X + 2.5f, b.Cell.Y + 1f, b.Cell.Z + 2.5f);
+        var home = SettlerHomeNear(b.Cell);
         var npc = MakeNpc("settler", "settlers", robotic: false, home, rng);
         npc.Settlement = b.Name; // keys the NPC memory to this base (settle_<hash of base name>)
         _npcs.Add(npc);

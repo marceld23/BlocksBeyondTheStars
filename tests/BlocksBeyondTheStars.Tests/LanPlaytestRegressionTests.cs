@@ -595,4 +595,70 @@ public sealed class LanPlaytestRegressionTests : IDisposable
             // best effort — a straggling handle on Windows must not fail the suite
         }
     }
+
+    // ---------------- #1247 (player report): switching ships while landed ----------------
+
+    [Fact]
+    public void SwitchShipWhileLanded_ReseatsThePilotAtTheNewHealTank_AndResendsTheCargo()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("switch_landed", transport);
+
+        var ann = server.AddLocalPlayer("Ann");
+        ann.State.InstantBuild = true;
+        ann.State.UnlockedBlueprints.Add("ship_hauler");
+        var (ok, haulerId) = server.CraftShip("Ann", "hauler"); // serves Ann → the ship cursor points at her
+        Assert.True(ok);
+        int starterSlots = server.Ship.Cargo.SlotCount;
+
+        // Standing aboard, right inside the starter's hull corner. The 7×9 hauler is re-anchored on the same
+        // pad centre, so its wall runs through this very spot after the switch.
+        var (origin, _) = server.LandedShipBoundsForTest("Ann");
+        var corner = new Vector3f(origin.X + 0.5f, origin.Y + 1f, origin.Z + 0.5f);
+        ann.State.Position = corner;
+        ann.State.AboardShip = true;
+        transport.Sent.Clear();
+
+        Assert.True(server.SwitchShip(haulerId));
+
+        Assert.Equal("hauler", server.Ship.ShipType);
+        Assert.Equal(server.HealTank, ann.State.Position);          // moved to the NEW ship's heal-tank…
+        Assert.Equal(server.HealTank, ann.State.RespawnPoint);
+        Assert.True(ann.State.AboardShip);
+        Assert.NotEqual(corner, ann.State.Position);
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId // …over the snap channel the client honours
+            && x.Msg is RespawnNotice r && !r.Died && r.Y == server.HealTank.Y && r.Reason == "@srv.ship.switched");
+
+        // …and the cargo hold in the inventory push is the hauler's, not the starter's (it used to stay stale
+        // until the player walked out and back in, because it is only refreshed when the aboard flag flips).
+        Assert.True(server.Ship.Cargo.SlotCount > starterSlots);
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId
+            && x.Msg is InventoryUpdate inv && inv.CargoSlotCount == server.Ship.Cargo.SlotCount);
+    }
+
+    [Fact]
+    public void SwitchShipWhileLanded_LeavesAPilotOutsideTheFootprintWhereTheyStand()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("switch_outside", transport);
+
+        var ann = server.AddLocalPlayer("Ann");
+        ann.State.InstantBuild = true;
+        ann.State.UnlockedBlueprints.Add("ship_scout");
+        var (ok, scoutId) = server.CraftShip("Ann", "scout");
+        Assert.True(ok);
+
+        var (origin, _) = server.LandedShipBoundsForTest("Ann");
+        var farOff = new Vector3f(origin.X - 40f, origin.Y, origin.Z - 40f); // well clear of any hull the pad can hold
+        ann.State.Position = farOff;
+        ann.State.AboardShip = false;
+        transport.Sent.Clear();
+
+        Assert.True(server.SwitchShip(scoutId));
+
+        Assert.Equal(farOff, ann.State.Position);
+        Assert.False(ann.State.AboardShip);
+        Assert.DoesNotContain(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is RespawnNotice);
+        Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is InventoryUpdate); // the hold still refreshes
+    }
 }

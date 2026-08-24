@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2292 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2297 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -143,6 +143,37 @@ Users-Interact block incl. the in-game safety controls, data-safety form) + the 
 step. README family section gained the age paragraph + PARENTS links; the Codex **house-rules** article
 (en+de) gained the content-profile + /report paragraph. Website/itch/glitch.fun texts = the statement block in
 PARENTS.md (Marcel publishes those surfaces). Closes kid-friendly-hints stage 2.
+
+### ★ Player-report round 2026-08-23 — ship switch reseat, settler placement, macOS codec fallback, credits (#1247 + #1248 + #1250 + #1251, 2026-08-24, branch fix/player-reports-2026-08-23)
+Two inbox reports (Lyxette on Windows, sasas on macOS, both v2026.8.20), four small fixes in one PR.
+
+**#1247 — switching ships while landed.** `SwitchShip` re-parks the new design on the same pad centre, so
+its walls sit elsewhere than the old ship's (starter 5×7 vs hauler 7×9) — the pilot was left standing where
+they were and could end up wedged in a hull cell with no unstuck logic anywhere. New `ReseatAfterShipSwitch`:
+a player aboard or anywhere inside the new footprint snaps to the new heal-tank over the `RespawnNotice`
+channel (`Died=false`, new key `srv.ship.switched`), respawn point follows; a player outside the footprint
+stays put. Either way the inventory is re-sent — the cargo hold in it is the ACTIVE ship's but was only
+refreshed when the aboard flag flipped, so the client kept showing the old ship's hold until the player
+walked out and back in (Lyxette's "Schiff B zeigt den Inhalt von Schiff A"). `ShipInteriorContains` split
+into a per-record `LandedBoundsContain`. Tests: 2 in `LanPlaytestRegressionTests`.
+**#1248 — base settler in a wall.** `SpawnBaseSettler` dropped the NPC at a fixed core+(2,1,2) with no look
+at what stood there; the leash then walked them back into whatever the owner had built. `SettlerHomeNear`:
+classic spot first, then a ring search through the base zone for a standable column (floor + 2 air, not
+inside a parked ship), legacy spot as last resort. `RehomeWedgedSettler` runs in the round-robin scan, so a
+settler that got built over later (or an existing wedged one after this ships) moves out. Test: 1 in
+`BaseLifeTests`.
+**#1250 — macOS: every network send threw.** Mono's `AssemblyBuilder` reads the cwd while MessagePack
+builds its contractless formatters; on a Mac launched from a folder the app may not read (`getcwd` EACCES)
+that failed, MessagePack cached it, and the client could not encode a single message. Two layers:
+`AppShell.PinWorkingDirectory()` sets cwd to `persistentDataPath` before anything else (desktop only, best
+effort), and `NetCodec.EncodeMessagePack` catches a `MessagePackSerializationException` rooted in a
+`TypeInitializationException`, flips `UseJsonEncoding` for the process, raises
+`MessagePackFallbackActivated` (AppShell logs it) and encodes that message as JSON — every receiver already
+decodes the envelope. Per-message failures still propagate. Test seam `MessagePackSerializeOverride`;
+2 tests in `NetCodecTests`. ⚠ Not verifiable on a Mac here — #87 is the runtest.
+**#1251 — credits.** Bastian (Linux playtest), Lyxette + sasas in README § Playtesters and `ui.credits.body`
+in all 14 locales.
+Locales: 1 key EN+DE + 12 machine, credits lines in all 14 by hand.
 
 ### ★ Crews + named map markers & ping — the social pair (#1216 + #1217, 2026-08-23, branch feat/1216-1217-crews-markers)
 Slices 21 + 22 of the feature-deepening package (epic #1197), one PR — markers share "to allies **and crew**",
