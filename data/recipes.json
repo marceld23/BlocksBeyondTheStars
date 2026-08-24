@@ -73,6 +73,17 @@
   { "key": "factory_circuit_board",   "station": "factory", "inputs": [ { "item": "gold_ore", "count": 3 }, { "item": "silver_ore", "count": 3 }, { "item": "silicate", "count": 4 } ], "outputs": [ { "item": "circuit_board", "count": 1 } ] },
   { "key": "factory_polymer",         "station": "factory", "inputs": [ { "item": "carbon", "count": 3 }, { "item": "sulfur_ore", "count": 2 } ],                           "outputs": [ { "item": "polymer", "count": 1 } ] },
   { "key": "factory_titanium_plate",  "station": "factory", "inputs": [ { "item": "titanium_ore", "count": 3 } ],                                                          "outputs": [ { "item": "titanium_plate", "count": 1 } ] },
+  // #1200 raw-ore -> part tier: the factory skips the smelt stages of the alloy / component chains at the price of
+  // more ore per step (never a better per-ore yield than the refinery route). Gives the 11 single-use ores a
+  // second consumer at a second station. Rosters are seeded per world, so these show up in NEW factories.
+  { "key": "factory_light_alloy", "station": "factory", "inputs": [ { "item": "aluminium_ore", "count": 4 }, { "item": "titanium_ore", "count": 2 } ], "outputs": [ { "item": "light_alloy", "count": 2 } ] },
+  { "key": "factory_bronze", "station": "factory", "inputs": [ { "item": "tin_ore", "count": 2 }, { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "bronze", "count": 3 } ] },
+  { "key": "factory_brass", "station": "factory", "inputs": [ { "item": "zinc_ore", "count": 2 }, { "item": "copper_ore", "count": 2 } ], "outputs": [ { "item": "brass", "count": 3 } ] },
+  { "key": "factory_power_cell", "station": "factory", "inputs": [ { "item": "lithium_ore", "count": 2 }, { "item": "cobalt_ore", "count": 2 }, { "item": "copper_ore", "count": 2 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "power_cell", "count": 1 } ] },
+  { "key": "factory_carbide", "station": "factory", "inputs": [ { "item": "tungsten_ore", "count": 3 }, { "item": "platinum_ore", "count": 3 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "carbide", "count": 1 } ] },
+  { "key": "factory_magnet", "station": "factory", "inputs": [ { "item": "neodymium_ore", "count": 3 }, { "item": "iron_ore", "count": 3 } ], "outputs": [ { "item": "magnet", "count": 4 } ] },
+  { "key": "factory_diamond", "station": "factory", "inputs": [ { "item": "diamond_ore", "count": 3 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "diamond", "count": 2 } ] },
+  { "key": "factory_reactor_fuel", "station": "factory", "inputs": [ { "item": "uranium_ore", "count": 6 }, { "item": "lead_ore", "count": 3 } ], "outputs": [ { "item": "reactor_fuel", "count": 1 } ] },
 
   { "key": "matter_forge", "station": "workshop", "requiredBlueprint": "matter_forge", "inputs": [ { "item": "metal_panel", "count": 6 }, { "item": "circuit_board", "count": 2 }, { "item": "glass", "count": 3 }, { "item": "energy_cell_1", "count": 3 } ], "outputs": [ { "item": "matter_forge", "count": 1 } ] },
 
@@ -97,11 +108,13 @@
 
   { "key": "forage_bait", "station": "hand", "inputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "berries", "count": 1 } ], "outputs": [ { "item": "forage_bait", "count": 2 } ] },
   { "key": "meat_bait",   "station": "hand", "inputs": [ { "item": "creature_meat", "count": 1 } ], "outputs": [ { "item": "meat_bait", "count": 2 } ] },
+  // #1200: curing the meat with sulfur doubles the bait per cut — sulfur's first use outside the workshop chain.
+  { "key": "meat_bait_cured", "station": "hand", "inputs": [ { "item": "creature_meat", "count": 1 }, { "item": "sulfur", "count": 1 } ], "outputs": [ { "item": "meat_bait", "count": 4 } ] },
   { "key": "nectar_lure", "station": "hand", "inputs": [ { "item": "berries", "count": 2 }, { "item": "salt", "count": 1 } ], "outputs": [ { "item": "nectar_lure", "count": 2 } ] },
 
   { "key": "suit_teleporter", "station": "workshop", "requiredBlueprint": "suit_teleporter", "inputs": [ { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "data_fragment", "count": 2 } ], "outputs": [ { "item": "suit_teleporter", "count": 1 } ] },
 
-  { "key": "oxygen_extractor", "station": "workshop", "requiredBlueprint": "oxygen_extractor", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "oxygen_extractor", "count": 1 } ] },
+  { "key": "oxygen_extractor", "station": "workshop", "requiredBlueprint": "oxygen_extractor", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 4 }, { "item": "glass", "count": 2 }, { "item": "energy_cell_1", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "oxygen_extractor", "count": 1 } ] },
 
   { "key": "stealth_suit",     "station": "workshop", "requiredBlueprint": "stealth_suit",     "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 8 }, { "item": "energy_cell_1", "count": 3 }, { "item": "polymer", "count": 2 } ], "outputs": [ { "item": "stealth_suit", "count": 1 } ] },
   { "key": "jetpack",          "station": "workshop", "requiredBlueprint": "jetpack",          "inputs": [ { "item": "titanium_plate", "count": 6 }, { "item": "cable", "count": 6 }, { "item": "energy_cell_1", "count": 3 }, { "item": "light_alloy", "count": 2 }, { "item": "polymer", "count": 2 } ], "outputs": [ { "item": "jetpack", "count": 1 } ] },
@@ -127,15 +140,20 @@
   { "key": "market_copper_to_silicate","station": "market", "marketTheme": "traders", "inputs": [ { "item": "copper_ore", "count": 3 } ],    "outputs": [ { "item": "silicate", "count": 4 } ] },
   { "key": "market_sell_crystal",      "station": "market", "marketTheme": "traders", "inputs": [ { "item": "crystal", "count": 2 } ],       "outputs": [ { "item": "titanium_ore", "count": 1 }, { "item": "iron_ore", "count": 3 } ] },
   { "key": "market_sell_gold",         "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 1 } ],   "outputs": [ { "item": "titanium_ore", "count": 6 } ] },
+  { "key": "market_sell_silver", "station": "market", "marketTheme": "traders", "inputs": [ { "item": "silver_ingot", "count": 2 } ], "outputs": [ { "item": "titanium_ore", "count": 5 } ] },
+  { "key": "market_sell_diamond", "station": "market", "marketTheme": "traders", "inputs": [ { "item": "diamond", "count": 1 } ], "outputs": [ { "item": "titanium_ore", "count": 8 } ] },
   // A rare SPS / Scout-and-Pioneer-Service access code, occasionally offered by travelling traders. Steep barter — claiming a structure is a major prize.
   { "key": "market_buy_access_code",   "station": "market", "marketTheme": "traders", "inputs": [ { "item": "gold_ingot", "count": 4 }, { "item": "crystal", "count": 4 }, { "item": "circuit_board", "count": 2 } ], "outputs": [ { "item": "access_code", "count": 1 } ] },
 
   { "key": "market_buy_iron",          "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 4 } ],      "outputs": [ { "item": "iron_ore", "count": 6 } ] },
   { "key": "market_buy_copper",        "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 3 } ],      "outputs": [ { "item": "copper_ore", "count": 4 } ] },
   { "key": "market_carbon_to_crystal", "station": "market", "marketTheme": "miners", "inputs": [ { "item": "carbon", "count": 8 } ],        "outputs": [ { "item": "crystal", "count": 1 } ] },
+  { "key": "market_buy_lead", "station": "market", "marketTheme": "miners", "inputs": [ { "item": "silicate", "count": 3 } ], "outputs": [ { "item": "lead_ore", "count": 4 } ] },
 
   { "key": "market_buy_data_fragment", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "titanium_ore", "count": 3 }, { "item": "crystal", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
   { "key": "market_data_to_circuit",   "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "circuit_board", "count": 2 } ] },
+  // #1200: researchers pay well for refined uranium — the one buyer for it outside the reactor.
+  { "key": "market_sell_uranium", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "uranium", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 2 } ] },
 
   { "key": "market_sell_meat",         "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "creature_meat", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 3 } ] },
   { "key": "market_buy_food",          "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "iron_ore", "count": 3 } ],      "outputs": [ { "item": "creature_meat", "count": 5 } ] },
@@ -172,7 +190,7 @@
   { "key": "bronze_block", "station": "workshop", "inputs": [ { "item": "bronze", "count": 2 } ], "outputs": [ { "item": "bronze_block", "count": 1 } ] },
   { "key": "brass_block",  "station": "workshop", "inputs": [ { "item": "brass", "count": 2 } ],  "outputs": [ { "item": "brass_block", "count": 1 } ] },
 
-  { "key": "workbench",   "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "steel", "count": 1 } ], "outputs": [ { "item": "workbench", "count": 1 } ] },
+  { "key": "workbench",   "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "steel", "count": 1 }, { "item": "bronze", "count": 1 } ], "outputs": [ { "item": "workbench", "count": 1 } ] },
   { "key": "forge",       "station": "workshop", "inputs": [ { "item": "stone", "count": 6 }, { "item": "iron_plate", "count": 4 } ],  "outputs": [ { "item": "forge", "count": 1 } ] },
   { "key": "steel_floor", "station": "workshop", "inputs": [ { "item": "steel", "count": 1 } ],                                      "outputs": [ { "item": "steel_floor", "count": 4 } ] },
   { "key": "metal_panel", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 } ],                                 "outputs": [ { "item": "metal_panel", "count": 4 } ] },
@@ -194,7 +212,7 @@
   { "key": "station_core", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 6 }, { "item": "circuit_board", "count": 2 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "station_core", "count": 1 } ] },
   { "key": "ship_core",   "station": "workshop", "requiredBlueprint": "ship_builder", "inputs": [ { "item": "metal_panel", "count": 8 }, { "item": "circuit_board", "count": 2 }, { "item": "energy_cell_1", "count": 2 } ], "outputs": [ { "item": "ship_core", "count": 1 } ] },
   { "key": "ship_helm",   "station": "workshop", "requiredBlueprint": "ship_builder", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "circuit_board", "count": 2 }, { "item": "glass", "count": 2 } ], "outputs": [ { "item": "ship_helm", "count": 1 } ] },
-  { "key": "ship_engine", "station": "workshop", "requiredBlueprint": "ship_builder", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "steel", "count": 2 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "ship_engine", "count": 1 } ] },
+  { "key": "ship_engine", "station": "workshop", "requiredBlueprint": "ship_builder", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "steel", "count": 2 }, { "item": "energy_cell_1", "count": 1 }, { "item": "bronze", "count": 2 } ], "outputs": [ { "item": "ship_engine", "count": 1 } ] },
   { "key": "base_core",    "station": "workshop", "inputs": [ { "item": "stone", "count": 6 }, { "item": "iron_plate", "count": 2 } ], "outputs": [ { "item": "base_core", "count": 1 } ] },
   { "key": "station_vendor",    "station": "workshop", "requiredBlueprint": "station_vendor",        "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "circuit_board", "count": 2 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "station_vendor", "count": 1 } ] },
   { "key": "mission_board",     "station": "workshop", "requiredBlueprint": "station_mission_board", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 2 } ],         "outputs": [ { "item": "mission_board", "count": 1 } ] },
@@ -209,7 +227,7 @@
   { "key": "seed_grain",   "station": "hand", "inputs": [ { "item": "grain", "count": 3 } ],       "outputs": [ { "item": "grain_seed", "count": 2 } ] },
   { "key": "seed_shroom",  "station": "hand", "inputs": [ { "item": "mushroom_cap", "count": 2 } ], "outputs": [ { "item": "shroom_seed", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
-  { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
+  { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 
   { "key": "bronze_gear",   "station": "workshop", "inputs": [ { "item": "bronze", "count": 2 } ], "outputs": [ { "item": "bronze_gear", "count": 2 } ] },
   { "key": "brass_fitting", "station": "workshop", "inputs": [ { "item": "brass", "count": 2 } ],  "outputs": [ { "item": "brass_fitting", "count": 2 } ] },
@@ -279,18 +297,18 @@
   // starboard lenses, cobalt the cyan strip, brass the warm one); panels are plated metal_panel; the machine parts
   // are geared, piped and circuit-bound. The force field is a hard-light barrier — energy-door tech, platinum emitter.
   // Each also gives one of the H2 metals a job (#1107). data_cache stays loot-only.
-  { "key": "light_white", "station": "workshop", "inputs": [ { "item": "glass", "count": 2 }, { "item": "crystal", "count": 1 }, { "item": "aluminium_ingot", "count": 1 } ], "outputs": [ { "item": "light_white", "count": 4 } ] },
+  { "key": "light_white", "station": "workshop", "inputs": [ { "item": "glass", "count": 2 }, { "item": "crystal", "count": 1 }, { "item": "aluminium_ingot", "count": 1 }, { "item": "silver_ingot", "count": 1 } ], "outputs": [ { "item": "light_white", "count": 4 } ] },
   { "key": "light_red", "station": "workshop", "inputs": [ { "item": "glass", "count": 2 }, { "item": "crystal", "count": 1 }, { "item": "aluminium_ingot", "count": 1 }, { "item": "berries", "count": 2 } ], "outputs": [ { "item": "light_red", "count": 4 } ] },
   { "key": "light_green", "station": "workshop", "inputs": [ { "item": "glass", "count": 2 }, { "item": "crystal", "count": 1 }, { "item": "aluminium_ingot", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "light_green", "count": 4 } ] },
   { "key": "strip_light_cyan", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "crystal", "count": 1 }, { "item": "cobalt_ingot", "count": 1 } ], "outputs": [ { "item": "strip_light_cyan", "count": 4 } ] },
   { "key": "strip_light_warm", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "crystal", "count": 1 }, { "item": "brass", "count": 1 } ], "outputs": [ { "item": "strip_light_warm", "count": 4 } ] },
-  { "key": "medbay_panel", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 2 }, { "item": "polymer", "count": 1 }, { "item": "tin_ingot", "count": 1 } ], "outputs": [ { "item": "medbay_panel", "count": 4 } ] },
+  { "key": "medbay_panel", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 2 }, { "item": "polymer", "count": 1 }, { "item": "tin_ingot", "count": 1 }, { "item": "silver_ingot", "count": 1 } ], "outputs": [ { "item": "medbay_panel", "count": 4 } ] },
   { "key": "lab_panel", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 2 }, { "item": "polymer", "count": 1 }, { "item": "nickel_ingot", "count": 1 } ], "outputs": [ { "item": "lab_panel", "count": 4 } ] },
   { "key": "cargo_floor", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 2 }, { "item": "zinc_ingot", "count": 1 } ], "outputs": [ { "item": "cargo_floor", "count": 4 } ] },
   { "key": "engine_panel", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 2 }, { "item": "tungsten_ingot", "count": 1 } ], "outputs": [ { "item": "engine_panel", "count": 4 } ] },
   { "key": "engine_nozzle", "station": "workshop", "inputs": [ { "item": "steel", "count": 2 }, { "item": "tungsten_ingot", "count": 1 }, { "item": "carbide", "count": 1 } ], "outputs": [ { "item": "engine_nozzle", "count": 2 } ] },
   { "key": "factory_terminal", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "cable", "count": 2 } ], "outputs": [ { "item": "factory_terminal", "count": 1 } ] },
-  { "key": "factory_pipe", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 1 }, { "item": "lead_ingot", "count": 1 } ], "outputs": [ { "item": "factory_pipe", "count": 4 } ] },
+  { "key": "factory_pipe", "station": "workshop", "inputs": [ { "item": "iron_plate", "count": 1 }, { "item": "lead_ingot", "count": 1 }, { "item": "brass_fitting", "count": 1 } ], "outputs": [ { "item": "factory_pipe", "count": 4 } ] },
   { "key": "machine_block", "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 3 }, { "item": "bronze_gear", "count": 1 }, { "item": "magnet", "count": 1 }, { "item": "cable", "count": 2 } ], "outputs": [ { "item": "machine_block", "count": 2 } ] },
   { "key": "force_field", "station": "workshop", "requiredBlueprint": "door_energy", "inputs": [ { "item": "circuit_board", "count": 1 }, { "item": "crystal", "count": 2 }, { "item": "platinum_ingot", "count": 1 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "force_field", "count": 2 } ] },
 
@@ -304,6 +322,8 @@
   { "key": "refine_steel", "station": "refinery", "inputs": [ { "item": "iron_ingot", "count": 2 }, { "item": "nickel_ingot", "count": 1 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "steel", "count": 2 } ] },
   { "key": "carbide_cobalt", "station": "refinery", "inputs": [ { "item": "tungsten_ingot", "count": 1 }, { "item": "cobalt_ingot", "count": 1 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "carbide", "count": 1 } ] },
   { "key": "power_cell_refined", "station": "refinery", "inputs": [ { "item": "energy_cell_1", "count": 2 }, { "item": "lithium", "count": 1 }, { "item": "cobalt_ingot", "count": 1 } ], "outputs": [ { "item": "power_cell", "count": 2 } ] },
+  // #1200: an irradiated alternative — refined uranium instead of lithium + cobalt (uranium's third consumer).
+  { "key": "power_cell_irradiated", "station": "refinery", "inputs": [ { "item": "energy_cell_1", "count": 2 }, { "item": "uranium", "count": 1 } ], "outputs": [ { "item": "power_cell", "count": 2 } ] },
   { "key": "magnet_sintered", "station": "refinery", "inputs": [ { "item": "neodymium", "count": 1 }, { "item": "iron_ingot", "count": 2 } ], "outputs": [ { "item": "magnet", "count": 4 } ] },
   { "key": "energy_cell_lithium", "station": "workshop", "inputs": [ { "item": "cable", "count": 1 }, { "item": "carbon_composite", "count": 1 }, { "item": "lithium", "count": 1 } ], "outputs": [ { "item": "energy_cell_1", "count": 3 } ] },
   { "key": "torch_oil", "station": "hand", "inputs": [ { "item": "biofuel", "count": 1 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "torch", "count": 6 } ] },

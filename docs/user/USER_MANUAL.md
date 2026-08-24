@@ -430,6 +430,8 @@ separate unlock; admins can still disable it through server world rules.
   blueprint). Only the data cache stays loot-only.
 - The **transmuter** (the *matter forge* block or ship module, unlocked via Tech) compacts spare terrain
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
+  With the **matter resynth** blueprint it also rebuilds titanium, silver and cobalt ore and lithium from dust
+  plus a power cell. The endgame ores (tungsten, platinum, neodymium, uranium, diamond) stay **mining-only**.
 - **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Blueprints tab; the helm counts
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.
@@ -676,6 +678,10 @@ separate unlock; admins can still disable it through server world rules.
   more input per step, fewer refining stages. The catch: each factory only makes the **1–4 items on its
   own roster**, so a recipe the menu lists may say *"Use a factory terminal that makes this"* — you'll need
   a different factory. Factory crafts **cannot be disassembled** back into their inputs.
+- Besides the basic parts (plates, panels, cable, glass, steel, energy cells, circuit boards, polymer) factories
+  run a **raw-ore tier**: light alloy, bronze, brass, power cells, carbide, magnets, diamonds and even reactor
+  fuel straight from ore — every ore has a second buyer that way. A factory's roster is fixed when its world
+  is created, so these recipes turn up in **factories of new worlds**, not in halls you have already found.
 - **Operating a terminal is public** — you don't need to own a factory to craft there. But a spawned
   factory is **read-only** (you can't mine or rebuild it) until you **claim** it: stand at the terminal
   with an **SPS access code** (see below) and press **E**. Claiming spends one code, makes the factory
@@ -830,7 +836,9 @@ separate unlock; admins can still disable it through server world rules.
 - **Vendors / market:** press **E** next to a settlement or space-station **vendor** to open the **Market**
   (the gameplay menu's Crafting tab on the *Market* category). Barter recipes there trade your raw
   resources for goods. The market is also available **aboard your ship** (Tab → Crafting → Market), via the
-  ship's trade console — so you can trade without a vendor too.
+  ship's trade console — so you can trade without a vendor too. Vendors have **themes**: miners sell iron,
+  copper and lead ore for silicate, traders buy crystal, gold and silver, researchers buy refined uranium and
+  sell data fragments and circuit boards, settlers trade food.
 
 ### Story: finding the thread
 - After the tutorial the **objective chip** keeps a quiet story pointer ("a net fragment is on this
