@@ -126,8 +126,37 @@ namespace BlocksBeyondTheStars.Client
         private bool _splashSoundDone;
         private bool _autoJoinWhenReady;
 
+        /// <summary>
+        /// Points the process working directory at a folder we own. Nothing in the client depends on the cwd
+        /// (every path is Application.*-absolute, the bundled server gets an explicit WorkingDirectory), but
+        /// Mono's Reflection.Emit reads it while MessagePack builds its runtime formatters — and on macOS
+        /// <c>getcwd()</c> fails with EACCES when the app was launched from a folder it may not read (a
+        /// Terminal sitting in a TCC-protected ~/Documents, a translocated quarantine mount). A Mac player's
+        /// first crash report was exactly that: every network send threw UnauthorizedAccessException and the
+        /// world was unplayable (#1250). Best effort — a failure here must never take the app down; the codec
+        /// has its own JSON fallback for the case the pin did not help.
+        /// </summary>
+        private static void PinWorkingDirectory()
+        {
+#if !UNITY_WEBGL
+            try
+            {
+                string dir = Application.persistentDataPath;
+                System.IO.Directory.CreateDirectory(dir);
+                System.IO.Directory.SetCurrentDirectory(dir);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[AppShell] Could not pin the working directory: {e.Message}");
+            }
+#endif
+            BlocksBeyondTheStars.Networking.NetCodec.MessagePackFallbackActivated += e =>
+                Debug.LogWarning($"[AppShell] MessagePack formatters unavailable — network encoding switched to JSON for this session: {e.GetBaseException().Message}");
+        }
+
         private void Awake()
         {
+            PinWorkingDirectory();
             MigrateRenamedPersistentData();
             Settings = ClientSettings.Load();
 

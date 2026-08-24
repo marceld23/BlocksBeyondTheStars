@@ -174,4 +174,59 @@ public sealed class BaseLifeTests : IDisposable
             Assert.DoesNotContain(server.NpcSnapshots, n => n.Role == "settler");
         }
     }
+
+    // ---------------- #1248: the settler never stands inside a wall ----------------
+
+    /// <summary>Feet cell has air at feet + head and a floor below — the settler can actually stand there.</summary>
+    private static void AssertStandable(SvGameServer server, Vector3f feet)
+    {
+        var c = new Vector3i((int)Math.Floor(feet.X), (int)Math.Floor(feet.Y), (int)Math.Floor(feet.Z));
+        Assert.True(server.World.GetBlock(c).IsAir, $"feet cell {c} is not air");
+        Assert.True(server.World.GetBlock(new Vector3i(c.X, c.Y + 1, c.Z)).IsAir, $"head cell above {c} is not air");
+        Assert.False(server.World.GetBlock(new Vector3i(c.X, c.Y - 1, c.Z)).IsAir, $"no floor under {c}");
+    }
+
+    [Fact]
+    public void TheSettler_NeverMovesIntoAWall_AndMovesOutWhenBuiltOver()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            var feet = owner.State.Position;
+            // A base on the ground, the way players build them: core at feet level, machines beside it.
+            var core = new Vector3i((int)Math.Floor(feet.X) + 3, (int)Math.Floor(feet.Y), (int)Math.Floor(feet.Z));
+            server.PlaceBaseForTest(owner, core);
+            int baseId = server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+            var workbench = _content.GetBlock("workbench")!.NumericId;
+            server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z), workbench, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(core.X - 1, core.Y, core.Z), workbench, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(core.X, core.Y, core.Z - 1), workbench, 0, 0, 0, "Homesteader");
+
+            // Lyxette's case: the owner built exactly where the settler used to be dropped (core + (2, *, 2)).
+            var wall = _content.GetBlock("iron_wall")!.NumericId;
+            for (int y = -1; y <= 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(core.X + 2, core.Y + y, core.Z + 2), wall, 0, 0, 0, "Homesteader");
+            }
+
+            server.ScanBaseLifeForTest();
+            int settlerId = server.BaseSettlerForTest(baseId)!.Value;
+            var settler = server.NpcSnapshots.Single(n => n.Id == settlerId && n.Role == "settler");
+            AssertStandable(server, settler.Home);
+            Assert.NotEqual(new Vector3f(core.X + 2.5f, core.Y + 1f, core.Z + 2.5f), settler.Home);
+
+            // Building over the home AFTER the settler moved in re-homes them on the next scan instead of
+            // leaving the leash walking them into the new wall.
+            var h = new Vector3i((int)Math.Floor(settler.Home.X), (int)Math.Floor(settler.Home.Y), (int)Math.Floor(settler.Home.Z));
+            server.World.SetBlock(h, wall, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(h.X, h.Y + 1, h.Z), wall, 0, 0, 0, "Homesteader");
+
+            server.ScanBaseLifeForTest();
+            var moved = server.NpcSnapshots.Single(n => n.Id == settlerId && n.Role == "settler");
+            Assert.NotEqual(settler.Home, moved.Home);
+            AssertStandable(server, moved.Home);
+            Assert.Equal(1, server.NpcSnapshots.Count(n => n.Role == "settler"));
+        }
+    }
 }

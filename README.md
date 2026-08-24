@@ -206,6 +206,9 @@ Community contributions we're grateful for:
 **Playtesters** — hands-on testers whose feedback shaped the game:
 
 - **Severin** — detailed hands-on playtest feedback (ship exit, in-game settings/volume, cursor after Alt-Tab, shallow-water fall damage, oxygen & iron discoverability)
+- **Bastian** — hands-on playtest of the Linux build
+- **Lyxette** — detailed in-game (F1) bug report after building a second ship: pilot wedged in the hull and stale cargo after a ship switch, base settler standing inside a wall ([#1247](https://github.com/marceld23/BlocksBeyondTheStars/issues/1247), [#1248](https://github.com/marceld23/BlocksBeyondTheStars/issues/1248))
+- **sasas** — the first real macOS crash report, which uncovered why the Mac client could not send a single network message ([#1250](https://github.com/marceld23/BlocksBeyondTheStars/issues/1250))
 
 Want to see your name here? Pick something from **[Contribute](#-contribute)** — we add every merged
 contributor to this list and to the in-game Credits screen ourselves

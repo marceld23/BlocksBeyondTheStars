@@ -622,4 +622,56 @@ public sealed class NetCodecTests
             }
         }
     }
+
+    // ---------------- #1250: a broken formatter factory must not mute the whole client ----------------
+
+    [Fact]
+    public void Encode_FallsOverToTheJsonEnvelope_WhenTheFormatterFactoryIsBroken()
+    {
+        // The macOS crash: Mono's Reflection.Emit could not create MessagePack's dynamic assembly (getcwd EACCES),
+        // the failure is cached in the resolver, and every later send throws the same TypeInitializationException.
+        Exception? reported = null;
+        Action<Exception> onFallback = e => reported = e;
+        NetCodec.MessagePackFallbackActivated += onFallback;
+        NetCodec.MessagePackSerializeOverride = (_, _) => throw new MessagePack.MessagePackSerializationException(
+            "Failed to serialize RequestStarMap value.",
+            new TypeInitializationException("FormatterCache`1", new UnauthorizedAccessException("Access to the path is denied.")));
+        try
+        {
+            var payload = NetCodec.Encode(new RequestStarMap());
+
+            Assert.True(NetCodec.UseJsonEncoding);
+            Assert.IsType<UnauthorizedAccessException>(reported?.GetBaseException());
+            Assert.Equal(255, payload[0]); // the JSON envelope tag — every receiver decodes it
+            Assert.IsType<RequestStarMap>(NetCodec.Decode(payload));
+
+            // From here on MessagePack is never consulted again for this process.
+            NetCodec.MessagePackSerializeOverride = (_, _) => throw new InvalidOperationException("MessagePack must not be used after the fallback");
+            var move = Assert.IsType<MoveIntent>(NetCodec.Decode(NetCodec.Encode(new MoveIntent { X = 3f, Yaw = 90f })));
+            Assert.Equal(3f, move.X);
+        }
+        finally
+        {
+            NetCodec.MessagePackSerializeOverride = null;
+            NetCodec.MessagePackFallbackActivated -= onFallback;
+            NetCodec.UseJsonEncoding = false;
+        }
+    }
+
+    [Fact]
+    public void Encode_KeepsMessagePack_WhenOnlyOneMessageFailsToSerialize()
+    {
+        // A per-message failure (bad payload, not a broken factory) must surface to the caller as before, and
+        // must NOT flip the codec into JSON for everyone.
+        NetCodec.MessagePackSerializeOverride = (_, _) => throw new MessagePack.MessagePackSerializationException("bad message");
+        try
+        {
+            Assert.Throws<MessagePack.MessagePackSerializationException>(() => NetCodec.Encode(new RequestStarMap()));
+            Assert.False(NetCodec.UseJsonEncoding);
+        }
+        finally
+        {
+            NetCodec.MessagePackSerializeOverride = null;
+        }
+    }
 }

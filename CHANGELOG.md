@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🛠️ Player-report round: ship switch, base settler, macOS network fallback, credits (#1247, #1248, #1250, #1251)
+
+- **Switching ships while landed** no longer leaves you inside the new hull's wall — you are moved to the new
+  ship's heal-tank — and the cargo hold shows the new ship's contents at once instead of the old ship's until
+  you stepped out and back in. Reported by **Lyxette**.
+- **Base settler** — the settler who moves into your base now picks a free spot next to the core instead of a
+  fixed one that could be inside something you built, and moves out again if you later build over it.
+  Reported by **Lyxette**.
+- **macOS** — the client pins its working directory at start-up and the network codec falls back to its JSON
+  format if the MessagePack formatters cannot be built; before, a Mac launched from a folder the app may not
+  read could not send a single network message. Reported by **sasas**.
+- **Credits** — Bastian (Linux playtest), Lyxette and sasas join the Playtesters in the README and the in-game
+  credits (all 14 languages).
+
 ### 📘 The "Tech" tab is now "Blueprints" — with your knowledge balance and an "Enough knowledge" filter (#1191)
 
 - **Renamed.** The research tab in the ship interface (and the matching Codex chapter) is called
