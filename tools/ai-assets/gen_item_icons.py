@@ -62,6 +62,7 @@ ITEMS = [
     ("creature_meat", "a juicy grilled steak of meat on a small bone"),
     ("cooked_meat", "a golden-brown roasted meat joint on a small bone with rising steam wisps, freshly cooked over a campfire"),
     ("berries", "a small cluster of round red berries with a leaf"),
+    ("grain", "a small loose handful of ripe golden wheat grains with two short ears of wheat"),
     ("toxic_gland", "a glistening wet alien organ gland"),
     ("toxic_berries", "a small cluster of round berries with a leaf"),
     ("emergency_ration", "a sealed silver foil ration food pack"),

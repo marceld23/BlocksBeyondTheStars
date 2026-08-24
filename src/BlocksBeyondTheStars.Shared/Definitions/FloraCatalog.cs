@@ -130,6 +130,11 @@ public static class FloraCatalog
         // player from seeds. Excluded from every world roster (see FloraGenerator), so the berries are edible
         // on every world; the host list is what the greenhouse beds and hydroponic trays are made of.
         new Species("flora_cropberry",   new[] { "dirt", "grass", "mud", "hydro_tray" }, Tags: FloraTag.Lush, Cultivated: true),
+        // Two more tenants for the same framework (#1204). Cultivated species MUST stay at the tail of this
+        // list: a wild species' roster id is its catalog index, so inserting above them would rename every
+        // world's plants. Grain is a tall cereal; the mushroom bed also takes to the fungal soils.
+        new Species("flora_cropgrain",   new[] { "dirt", "grass", "mud", "hydro_tray" }, Tags: FloraTag.Lush, Height: FloraHeight.Tall, Cultivated: true),
+        new Species("flora_cropshroom",  new[] { "dirt", "mud", "mycelium", "hydro_tray" }, Tags: FloraTag.Fungal, Cultivated: true),
     };
 
     /// <summary>True for a farmed crop rather than wild flora — world generation skips these entirely
@@ -145,6 +150,22 @@ public static class FloraCatalog
         }
 
         return false;
+    }
+
+    /// <summary>The farmed crops in catalog order — what a settlement or station greenhouse may grow
+    /// (<c>SettlementGenerator</c>/<c>StationGenerator</c> pick per bed from this set, deterministically).</summary>
+    public static IReadOnlyList<string> CultivatedKeys()
+    {
+        var keys = new List<string>();
+        foreach (var sp in All)
+        {
+            if (sp.Cultivated)
+            {
+                keys.Add(sp.Key);
+            }
+        }
+
+        return keys;
     }
 
     /// <summary>The set of species block keys that render as a TALL cross-billboard (an upper vegetation

@@ -404,7 +404,16 @@ public static class StationGenerator
         // plant keeps solid ground directly beneath — what the server's void-enclosure test demands before it
         // will let a plant live, or regrow, aboard a station.
         ushort tray = content.GetBlock("hydro_tray")?.NumericId.Value ?? 0;
-        ushort crop = content.GetBlock("flora_cropberry")?.NumericId.Value ?? 0;
+        // The bay grows one of the cultivated crops (#1204), fixed per station by its seed — two stations
+        // in the same system need not serve the same harvest.
+        ushort crop = 0;
+        var cropKeys = BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.CultivatedKeys();
+        if (cropKeys.Count > 0)
+        {
+            string cropKey = cropKeys[(int)((WorldGenerator.StableHash($"crop:{sizeTier}:{seed}") & 0x7fffffff) % cropKeys.Count)];
+            crop = content.GetBlock(cropKey)?.NumericId.Value ?? 0;
+        }
+
         ushort Get(int x, int y, int z) =>
             (x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < l) ? blocks[(x * h + y) * l + z] : (ushort)0;
         foreach (var m in placed)

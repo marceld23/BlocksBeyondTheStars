@@ -205,6 +205,9 @@
   // Berry seeds (#627): a handful of berries sown back gives two crops, so one greenhouse harvest is enough
   // to start your own bed. Hand recipe like the other seeds — planting food must stay reachable early.
   { "key": "seed_berry",   "station": "hand", "inputs": [ { "item": "berries", "count": 3 } ],     "outputs": [ { "item": "berry_seed", "count": 2 } ] },
+  // Grain + mushroom seeds (#1204): the same hand-sown deal — one greenhouse harvest starts your own bed.
+  { "key": "seed_grain",   "station": "hand", "inputs": [ { "item": "grain", "count": 3 } ],       "outputs": [ { "item": "grain_seed", "count": 2 } ] },
+  { "key": "seed_shroom",  "station": "hand", "inputs": [ { "item": "mushroom_cap", "count": 2 } ], "outputs": [ { "item": "shroom_seed", "count": 2 } ] },
   // The hydroponic tray the high-tech greenhouses grow crops in — the one host block that is not soil.
   { "key": "hydro_tray",   "station": "workshop", "inputs": [ { "item": "metal_panel", "count": 1 }, { "item": "glass", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "hydro_tray", "count": 2 } ] },
 

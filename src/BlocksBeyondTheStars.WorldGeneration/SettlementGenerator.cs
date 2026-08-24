@@ -231,8 +231,25 @@ public static class SettlementGenerator
         // food the player can safely eat, and falls back to the wild bush only if that block is missing.
         ushort frame = town ? B("iron_wall", wall) : B("wood_log", wall);
         ushort bed = town ? B("hydro_tray", B("dirt", wall)) : B("dirt", B("mud", wall));
-        ushort crop = B("flora_cropberry", B("flora_bush", flora));
         ushort growLight = town ? B("strip_light_warm", lamp) : B("torch", lamp);
+
+        // Each greenhouse grows ONE of the cultivated crops (#1204), picked per plot from a hash — never from
+        // `rng`: the draws below are read unconditionally so the stream must not shift, or every existing
+        // seed would re-roll its layout. A city with two or three houses gets a mixed harvest that way.
+        var cropSet = new List<ushort>();
+        foreach (var key in BlocksBeyondTheStars.Shared.Definitions.FloraCatalog.CultivatedKeys())
+        {
+            ushort id = B(key);
+            if (id != 0)
+            {
+                cropSet.Add(id);
+            }
+        }
+
+        ushort fallbackCrop = B("flora_bush", flora);
+        ushort CropFor(int plot) => cropSet.Count == 0
+            ? fallbackCrop
+            : cropSet[(int)((WorldGenerator.StableHash($"crop:{tier}:{seed}:{plot}") & 0x7fffffff) % cropSet.Count)];
 
         int w = cols * Plot + 1;
         int l = rows * Plot + 1;
@@ -298,7 +315,7 @@ public static class SettlementGenerator
 
                 if (greenhouse)
                 {
-                    StampGreenhouse(Set, ox, oz, fp, town, frame, glass, bed, crop, growLight, doorSide, rng, ruined);
+                    StampGreenhouse(Set, ox, oz, fp, town, frame, glass, bed, CropFor(plotIndex), growLight, doorSide, rng, ruined);
                 }
                 else
                 {
@@ -479,8 +496,8 @@ public static class SettlementGenerator
         return plots;
     }
 
-    /// <summary>Stamps a greenhouse: a glass house whose beds grow berry crops the player can harvest and eat.
-    /// Two builds share this shape — a village grows its berries in soil under a timber-and-glass frame with a
+    /// <summary>Stamps a greenhouse: a glass house whose beds grow one cultivated crop the player can harvest and
+    /// eat. Two builds share this shape — a village grows its crop in soil under a timber-and-glass frame with a
     /// pitched glass gable, a town/city runs hydroponic trays on two tiers under grow lights behind a flat
     /// glass ceiling. The beds are laid PERPENDICULAR to the door, so walking in puts the player in the aisle
     /// rather than in the crops, and the corner posts + a sill course keep the glass box from reading as a

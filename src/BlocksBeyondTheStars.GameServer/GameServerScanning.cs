@@ -107,6 +107,16 @@ public sealed partial class GameServer
                 readout.LegacyThreat = flora.Toxic ? "Toxic" : "Edible";
                 readout.Display = string.IsNullOrEmpty(flora.Name) ? subjectKey : flora.Name;
             }
+            else if (Shared.Definitions.FloraCatalog.IsCultivated(subjectKey))
+            {
+                // A farmed crop (#627/#1204) sits in no world roster — no coined name, never toxic — but it is
+                // still a plant: read it as edible flora under its own block name (the client localizes the key).
+                readout.Kind = "flora";
+                readout.InfoKey = hasDrops ? string.Empty : "ui.scan.flora_harvest";
+                readout.ThreatKey = "ui.scan.threat.edible";
+                readout.LegacyInfo = hasDrops ? $"Yields: {readout.LegacyInfo}" : "Harvestable flora.";
+                readout.LegacyThreat = "Edible";
+            }
             else
             {
                 readout.InfoKey = hasDrops ? string.Empty : "ui.scan.no_yield";

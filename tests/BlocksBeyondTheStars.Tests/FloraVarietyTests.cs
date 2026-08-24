@@ -41,6 +41,7 @@ public sealed class FloraVarietyTests
         {
             "flora_grasstuft", "flora_rockflower", "flora_snowbush", "flora_icereed", "flora_saltgrass",
             "flora_cinderbush", "pine_needles", "palm_frond",
+            "flora_cropgrain", "flora_cropshroom", // the two further cultivated crops (#1204)
         })
         {
             Assert.True(_content.Blocks.ContainsKey(key), $"block '{key}' must exist");
