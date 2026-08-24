@@ -9536,14 +9536,33 @@ Fixed together, in the order that matters:
   pre-refresh state it trips at 10.1 % — exactly the drift that caused this. Off for the release gate
   (`release.yml`); a release must not fail on bookkeeping.
 
-Replaying the new partition over the same runs' real per-test durations: fast tier **2.14× → 1.21×**
-spread (tail shard 1283 → 1070 CPU-s), full tier **1.20× → 1.05×**. Docs: DEVELOPER.md's sharding
-paragraph now explains the decay and the refresh cue.
+**And a correction, measured on the first run of this very branch.** The first attempt refreshed the
+fast weights from a *full-tier* run, following the recipe the script header had always given — and the
+gate came back at 6:51 / 4:43 / 6:50 / 7:24, barely better than before. A trx `duration` is wall clock
+under `maxParallelThreads: 4`, so it carries the contention of the run it came from: inside a full-tier
+run the ordinary tests share the thread pool with multi-minute `Slow` tests, and the seconds measured
+there mispredict the PR gate. Out-of-sample, predicting a run that was in no weight basis:
 
-Not done, deliberately: **more shards.** With balanced weights, 5 shards ≈ 4:55 and 6 ≈ 4:20 (vs ≈5:50
-at four), but each costs a full runner per PR — worth revisiting only if the gate becomes the bottleneck
-again. Also spotted while measuring, and left for a separate issue: three *individual* full-tier tests
-run 220–282 s serially (`WorldHostPhase3Tests.Reap_Skips…`, `WebSocketTransportTests.Gateway_D…`,
+| fast weights taken from | resulting spread | tail shard vs. a perfect split |
+|---|---|---|
+| one full-tier run (first attempt) | 1.53× | 118 % |
+| one fast-tier run | **1.01×** | **101 %** |
+| perfect knowledge (oracle) | 1.06× | 101 % |
+
+So each tier's numbers now come from a run of that tier — the `Slow` seconds from a full-tier run, the
+fast seconds from a PR run. `weights` already resolves a test from the LAST trx that contains it, so
+passing the full run first and the PR run second does exactly that in one command; the script header
+and DEVELOPER.md now say so instead of the old full-tier-only recipe.
+
+**What this is worth, honestly.** Class counts are even (66/66/66/66) and the partition is no longer
+guesswork, but re-packing buys back the *tail*, not the suite: at ~4100 fast-tier CPU-seconds over four
+runners even a perfect split still needs **~6:07**, against 7:24 today. The ~2 min first estimated here
+was too optimistic — it came from a replay that credited the weights with more predictive power than a
+single full-tier run has. Beyond ~6 min the only levers are more shards (5 ≈ 4:55, 6 ≈ 4:20, one extra
+runner each — Marcel's call, deliberately not taken here) or cheaper tests.
+
+Also spotted while measuring, and left for a separate issue: three *individual* full-tier tests run
+220–282 s serially (`WorldHostPhase3Tests.Reap_Skips…`, `WebSocketTransportTests.Gateway_D…`,
 `SettlementOverhaulTests.HarshWorl…`). Since xUnit runs the tests of one class serially, a class like
 that is a hard floor no partition can undercut — that is why full-tier shard 1 took 11:15 wall for
 1332 CPU-seconds. Splitting or shortening those three is the next real win on the full tier (#1255).

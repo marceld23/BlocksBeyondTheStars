@@ -38,14 +38,30 @@ Safety nets, both on shard 1 of every build (`verify`, cross-checked against `do
     the packer keeps printing a perfectly balanced split while one shard runs twice as long as
     another — so the guard is what turns "refresh the weights" from folklore into a red build.
 
-Refreshing the weights (when shard durations drift apart): download the `test-results-shard-*`
-artifacts of a FULL-tier run (a push to main or a release) and the list of Slow tests, then
+Refreshing the weights (when shard durations drift apart) — the SOURCE MATTERS, and getting it
+wrong quietly costs most of the benefit. A trx `duration` is wall clock measured under
+maxParallelThreads 4, so it carries the contention of the run it came from: in a FULL-tier run the
+ordinary tests share the thread pool with multi-minute Slow tests, and the fast-tier seconds
+measured there mispredict the PR gate badly (measured out-of-sample: a partition packed on
+full-tier fast weights left a 1.53x spread on the next PR run, one packed on fast-tier weights
+1.01x). So take each tier's numbers from a run of that tier:
 
+  * the Slow seconds from a FULL-tier run (a push to main or a release — the only place they run), and
+  * the fast seconds from a FAST-tier run (any pull request).
+
+A test present in several trx files takes its value from the LAST file given, so passing the full
+run FIRST and the fast run SECOND gives exactly that split in one command — the Slow tests keep
+their full-tier numbers (they appear nowhere else) while every fast test is overwritten by the PR
+run's measurement:
+
+  gh run download <full-tier run id> -D full/ && gh run download <PR run id> -D fast/
   dotnet test tests/BlocksBeyondTheStars.Tests --list-tests --filter Category=Slow > slow.txt
-  partition-tests.py weights --trx shard1/server.trx shard2/server.trx ... --slow-list slow.txt --write
+  partition-tests.py weights --trx full/*/server.trx fast/*/server.trx --slow-list slow.txt --write
 
-A test present in several trx files takes its value from the LAST file given (handy for
-overriding a stale class with a fresh local run).
+The same LAST-file-wins rule lets a fresh local run override a single stale class.
+
+Do not expect miracles from re-packing alone: at ~4100 fast-tier CPU-seconds over 4 runners a
+PERFECTLY balanced gate still takes ~6 min. Balance buys back the tail, not the suite.
 
 Usage:
   partition-tests.py filter --shard 2 --shards 4 --tier fast   # shard 2's --filter expression
