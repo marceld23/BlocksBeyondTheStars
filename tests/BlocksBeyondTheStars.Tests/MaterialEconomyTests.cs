@@ -81,6 +81,135 @@ public sealed class MaterialEconomyTests
         Assert.True(failures.Count == 0, "H2 metals short of 3 uses across 2 stations:\n" + string.Join("\n", failures));
     }
 
+    // ---------------------------------------------------------------- #1200: the generalised economy guard
+
+    /// <summary>Everything an ore block drops (the raw resources a drill brings home).</summary>
+    private HashSet<string> OreDrops()
+        => _c.Blocks.Values.Where(b => b.Category == "ore").SelectMany(b => b.Drops).Select(d => d.Item).ToHashSet();
+
+    /// <summary>Items a smelt produces: a recipe with ONE input that is an <c>*_ore</c> drop, at a real crafting
+    /// station (the market barters ore away, the factory's raw-ore tier is the bulk shortcut — neither is a smelt),
+    /// whose output is a material/component rather than a placeable or a consumable. That is the ingot/plate/wire
+    /// set plus lithium, uranium, neodymium, sulfur and diamond — not carbon composite, seeds or a ladder.</summary>
+    private HashSet<string> Smeltables()
+    {
+        var ores = OreDrops();
+        return _c.Recipes.Values
+            .Where(r => r.Station is not (CraftingStation.Market or CraftingStation.Factory)
+                && r.Inputs.Count == 1 && r.Inputs[0].Item.EndsWith("_ore", System.StringComparison.Ordinal)
+                && ores.Contains(r.Inputs[0].Item))
+            .SelectMany(r => r.Outputs).Select(o => o.Item)
+            .Where(o => !ores.Contains(o) && _c.GetItem(o) is { } item
+                && item.Category is ItemCategory.Material or ItemCategory.Component
+                && string.IsNullOrEmpty(item.PlacesBlock))
+            .ToHashSet();
+    }
+
+    private static string Describe(List<(string Where, string Station)> list)
+        => $"{list.Count} uses / {list.Select(u => u.Station).Distinct().Count()} stations ({string.Join(", ", list.Select(u => u.Where))})";
+
+    /// <summary>No ore is a dead end: every raw drop feeds at least two recipes at two different stations, so a
+    /// vein is never "mine it for the one smelt and forget it". Before #1200 eleven ores fed only their own smelt.</summary>
+    [Fact]
+    public void EveryOreDrop_HasTwoConsumers_AcrossTwoStations()
+    {
+        var uses = Uses();
+        var failures = new List<string>();
+        foreach (var ore in OreDrops().OrderBy(o => o))
+        {
+            var list = uses.TryGetValue(ore, out var l) ? l : new List<(string Where, string Station)>();
+            if (list.Count < 2 || list.Select(u => u.Station).Distinct().Count() < 2)
+            {
+                failures.Add($"{ore}: {Describe(list)}");
+            }
+        }
+
+        Assert.True(failures.Count == 0, "ore drops short of 2 consumers across 2 stations:\n" + string.Join("\n", failures));
+    }
+
+    /// <summary>Every smelted material matters past its first use: three consumers across two stations (the H2
+    /// rule, now applied to the whole smelt set instead of a hand-picked list).</summary>
+    [Fact]
+    public void EverySmeltable_HasThreeUses_AcrossTwoStations()
+    {
+        var uses = Uses();
+        var smeltables = Smeltables();
+        Assert.True(smeltables.Count >= 15, "the smelt set looks wrong: " + string.Join(", ", smeltables.OrderBy(s => s)));
+
+        var failures = new List<string>();
+        foreach (var item in smeltables.OrderBy(s => s))
+        {
+            var list = uses.TryGetValue(item, out var l) ? l : new List<(string Where, string Station)>();
+            if (list.Count < 3 || list.Select(u => u.Station).Distinct().Count() < 2)
+            {
+                failures.Add($"{item}: {Describe(list)}");
+            }
+        }
+
+        Assert.True(failures.Count == 0, "smeltables short of 3 uses across 2 stations:\n" + string.Join("\n", failures));
+    }
+
+    /// <summary>A station with fewer than three recipes is scenery. The hand and the market are exempt (free
+    /// crafting / barter have their own rules). The three food-and-chemistry stations were filled by #1203's
+    /// station packs — until that lands they may still carry a single recipe, but never none.</summary>
+    [Fact]
+    public void EveryCraftingStation_HasThreeRecipes()
+    {
+        var thinPendingStationFill = new HashSet<CraftingStation>
+        {
+            CraftingStation.Detoxifier, CraftingStation.AlgaeTank, CraftingStation.Campfire, // #1203
+        };
+        var counts = _c.Recipes.Values.GroupBy(r => r.Station).ToDictionary(g => g.Key, g => g.Count());
+        var failures = new List<string>();
+        foreach (var station in System.Enum.GetValues<CraftingStation>())
+        {
+            if (station is CraftingStation.Hand or CraftingStation.Market)
+            {
+                continue;
+            }
+
+            int count = counts.TryGetValue(station, out var c) ? c : 0;
+            int minimum = thinPendingStationFill.Contains(station) ? 1 : 3;
+            if (count < minimum)
+            {
+                failures.Add($"{station}: {count} recipes (wants {minimum})");
+            }
+        }
+
+        Assert.True(failures.Count == 0, "stations short of recipes:\n" + string.Join("\n", failures));
+    }
+
+    /// <summary>Every material is consumed somewhere, and the only components nobody consumes are the END products
+    /// on this list (worn gear, the ship's own gadgets, keys). A new material or component that lands here without a
+    /// sink is a design gap, not a whitelist candidate.</summary>
+    [Fact]
+    public void EveryMaterial_IsConsumed_AndOnlyEndProductComponentsAreNot()
+    {
+        var uses = Uses();
+        foreach (var bp in _c.Blueprints.Values)
+        {
+            foreach (var i in bp.UnlockCost)
+            {
+                uses.TryAdd(i.Item, new List<(string Where, string Station)>());
+            }
+        }
+
+        var deadMaterials = _c.Items.Values
+            .Where(i => i.Category == ItemCategory.Material && !uses.ContainsKey(i.Key))
+            .Select(i => i.Key).OrderBy(k => k).ToList();
+        Assert.True(deadMaterials.Count == 0, "materials nobody consumes: " + string.Join(", ", deadMaterials));
+
+        var endProducts = new[]
+        {
+            "ai_memory_fragment", "access_code", "suit_teleporter", "oxygen_extractor", "stealth_suit", "armor_chest",
+            "armor_legs", "helmet", "oxygen_tank_3", "suit_liner_3", "suit_lamp", "jetpack", "radar_scanner", "galaxy_radio",
+        };
+        var unconsumedComponents = _c.Items.Values
+            .Where(i => i.Category == ItemCategory.Component && !uses.ContainsKey(i.Key))
+            .Select(i => i.Key).OrderBy(k => k).ToList();
+        Assert.Equal(endProducts.OrderBy(k => k), unconsumedComponents);
+    }
+
     [Fact]
     public void RefineryVariants_OutYieldTheWorkshop_AndTheWorkshopFallbackStays()
     {

@@ -179,6 +179,33 @@ finding kept as a comment: a **digit-heavy marker label** trips the name screen'
 (Crews) + new § Map markers & ping. Still open on-device: two-client crew flow, marker editor on pad/touch,
 ping in real co-op (rides the #1227 playtest).
 
+### ★ Ore economy — every ore gets a second buyer, and a test that keeps it so (#1200, 2026-08-24, branch feat/1200-economy)
+Twenty-sixth slice of the feature-deepening package (epic #1197); pure data + tests + docs, no client build.
+Eleven ores (aluminium, cobalt, diamond, lead, lithium, neodymium, platinum, tin, tungsten, uranium, zinc) fed
+nothing but their own smelt; `silver_ingot` and `uranium` were thin; the factory's ten recipes all duplicated
+workshop/refinery outputs; `MaterialEconomyTests` checked a hand-picked list of 13 metals.
+**Recipes (`data/recipes.json`, no new items, no locale keys):** a factory **raw-ore tier** — light alloy, bronze,
+brass, power cell, carbide, magnet, diamond, reactor fuel straight from ore (more ore per step, never a better
+per-ore yield than the refinery chain; rosters are seeded per world → new factories only, the manual says so);
+market `sell_uranium` (researchers),
+`buy_lead` (miners), `sell_silver` (traders); sinks silver_ingot → medbay_panel + light_white, bronze → workbench +
+ship_engine, brass_fitting → hydro_tray + factory_pipe + oxygen_extractor, sulfur → `meat_bait_cured` (hand),
+`power_cell_irradiated` (refinery, uranium's third consumer). ⚠ The issue's `market_buy_lead` is a SOURCE, not a
+sink, and `market_sell_uranium` alone leaves uranium at two uses — hence `factory_reactor_fuel` (uranium_ore +
+lead_ore; reactor fuel as an OUTPUT is fine, #1106 only forbids it as an input), `factory_diamond` and the
+irradiated cell; `market_sell_silver` / `market_sell_diamond` give silver and diamond their second station.
+⚠ **NOT done, deliberately:** the issue's transmuter resynth of tungsten/platinum/neodymium ore collides with the
+transmuter's I1 invariant (`MatterConverterTests.Transmuter_NeverOutputs_Tier3Materials`: endgame ores stay
+mining-exclusive, "breaks the mining economy"). The invariant wins until the maintainer says otherwise; the ores
+get their second consumer from the factory tier instead, so nothing else depended on the resynth recipes.
+**Test (`MaterialEconomyTests`, generalised, hard-fail):** every ore drop ≥ 2 consumers / ≥ 2 stations; every
+smeltable (output of a non-market/factory recipe whose inputs are all ore drops) ≥ 3 / ≥ 2; every station except
+hand/market ≥ 3 recipes — detoxifier/algae tank/campfire carry a documented ≥ 1 allowance until #1203's station
+packs land; every Material-category item consumed; the un-consumed Component set is an EXACT end-product whitelist
+(14 entries). The H2 list test stays as the historical anchor. Pre-refinery progression untouched (all sink
+edits use workshop-smelted metals). Docs: USER_MANUAL factory raw-ore tier + new-worlds note, transmuter resynth
+line, market themes.
+
 ### ★ Two more crops — grain + mushroom join the berry in the greenhouse (#1204, 2026-08-24, branch feat/1204-crops)
 Twenty-fifth slice of the feature-deepening package (epic #1197); started ahead of the blueprint re-parenting
 (#1202, community-assigned) on purpose — crops touch flora/server/client and the item/block regions, never
