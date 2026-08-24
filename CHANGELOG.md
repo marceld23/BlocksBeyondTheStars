@@ -13,6 +13,155 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.21] — 2026-08-25
+
+The deepening release — 26 slices of the feature-deepening package (epic #1197) plus the #1048
+content-validation round and the latest player-report fixes, shipped in one go. Chat is safe for a
+class of strangers (filter, anti-spam, mute, `/report` for browser guests, `/silence` for admins),
+a gamepad reaches every menu, every text field and all 20 arcade games, missions grow chains and
+survey jobs, beating the Guardian no longer empties the galaxy, your base gets a sentry post and
+(opt-in) scouts at the gate, companions fetch, warn and bond, there is a boat, crews and shared map
+markers, two cultivated crops, a second buyer for every ore, and the research tab is finally called
+"Blueprints". A parents page says what the game contains.
+
+**Protocol stays 3**, so old and new still connect, and saves migrate additively (crews, markers,
+companion bond, boat kind, the new world rules). This release does add **seven new network messages**
+(sentry tracer, companion feed, crews, map markers) — update client and server together to get all of
+it; an older client on a new server simply does not see crews, markers or the sentry's shots. Hosts:
+the chat filter and anti-spam run server-side with sensible defaults (`ChatMode` Filtered, operator
+`--chat-filter` Mask) — nothing to configure unless you want Strict or Off.
+
+### 🛡️ Chat safety — filter, anti-spam, mute, report, silence, and a page for parents (#1207, #1208, #1209, #1221, #1222, #1223, #1226)
+
+- **Server-side content filter.** Every chat line runs through one screen that folds case, diacritics,
+  leet, repeats and Cyrillic/Greek look-alikes, matches whole words (German compounds pass), and masks
+  phone numbers, e-mails and links. New world rule **Chat mode** (Open / Filtered / Safe — default
+  Filtered, family presets Safe) and an operator override `--chat-filter` / `BBS_CHAT_FILTER`
+  (Off / Mask / Strict) plus `BBS_CHAT_*_WORDS` lists. Never silent: a blocked line tells the sender
+  why, and the line itself is never logged. (#1207)
+- **Anti-spam with a temporary auto-mute.** More than 6 lines in 10 s, or more than 3 filter hits in
+  5 min, pauses that sender's chat for 10 minutes — told once, with the duration; the operator gets one
+  ping; only chat pauses, the player keeps playing. RAM-only, gone on reconnect. (#1208)
+- **Mute a player — text and voice.** `/mute <name>` / `/unmute <name>` in the chat box, and an *Unmute*
+  list under Settings → Muted players. Purely client-side (the server is never told), checked before
+  the voice decode so a muted speaker costs nothing; the same list hides the player in chat and in the
+  Alliances tab's radio mirror. (#1209)
+- **Screen names and AI text.** Base, station, beacon, beam-pad and companion names now run through the
+  same screen as chat (a masked name is refused; a beacon or pad with a refused label is placed with
+  an empty one instead of getting stuck), and every text from the AI backend is screened once at the
+  provider — a refused text falls back to the authored line. (#1221)
+- **`/report Player [note]` without an account.** The server handles the report itself — no portal
+  session, no equipment — and attaches the reported player's last 10 relayed lines plus both arcade
+  install ids, so glitch.fun guests on a public world finally have recourse. Capped at 3 per 10
+  minutes. (#1222)
+- **`/silence Player [minutes]` / `/unsilence`** for admins: a chat pause (default 10 min, at most a
+  day) instead of only a kick, using the same mute the anti-spam does. Fleet admins cannot be silenced.
+  (#1223)
+- **For parents.** `docs/user/PARENTS.md` (+ `PARENTS.de.md`): what the game contains (mild sci-fi
+  combat, no blood, bandits chased off, tools-only weapons by default, no purchases, ads or
+  gambling), what online play involves, every built-in safeguard, the private-family-world
+  recommendation and an honest PEGI 7 / USK 6 self-assessment — explicitly *not* a certified rating.
+  `AGE_RATING_CHECKLIST.md` prepares the storefront questionnaire; the in-game house-rules Codex
+  article gained the content profile. (#1226)
+
+### 🎮 Gamepad — every menu, every text field, every minigame (#1198, #1211, #1218, #1219, #1220)
+
+- **The Tab menu was unreachable by pad** — the stick navigation walked a canvas that held none of the
+  11 tabs. Fixed, and the same gap closed in the Arcade, blueprint tool, beacon label, beam pad and
+  both editors. Esc/B and Tab/Start are proper actions now (keyboard key fixed so nobody strands
+  themselves in a modal, pad column rebindable), B backs out of the main menu, settings, world picker
+  and editors, and in-game B stays crouch. The ship and face editors are fully pad-operable: Start
+  swaps panels ↔ work surface, left stick flies, right stick looks, A/X/Y place/remove/turn. (#1198)
+- **D-pad up/down and the triggers** are read at last: d-pad up opens the chat, d-pad down turns the
+  held block, the triggers mine/place (ship off by default — the trigger axis is the one reading that
+  differs between XInput, Proton and the browser), and holding LB/RB halves the look speed for
+  precise aiming. (#1220)
+- **On-screen keyboard.** With a pad in hand, A on any text field (63 of them, no screen opts in)
+  opens a QWERTY grid with digits, umlauts and a symbol page; the result lands in the field as if
+  typed. One press of B closes exactly one thing. (#1211)
+- **Controller settings page.** Dead zone, pad look speed X/Y, invert Y, mine/place on the triggers,
+  Xbox / PlayStation / Nintendo button names, and a vibration switch that honestly says it does
+  nothing yet. Every default is what the code used before. (#1219)
+- **All 20 arcade games on a pad.** D-pad/stick → arrows, A confirm, B cancel, X secondary, Y help,
+  Start pause, Back restart — and for the nine pointer-only games a virtual cursor glides across the
+  canvas with A to click and drag, no per-game code. The manual gained its first real Arcade section.
+  (#1218)
+
+### 📋 Missions & endgame — scan jobs, chains, and a galaxy that survives the finale (#1199, #1205, #1206, #1212, #1213)
+
+- **The Scan objective lives.** Survey jobs on every settlement and station board (creature, block,
+  flora, tree, monument, microfauna, asteroid, anomaly), knowledge as a mission reward, and objective
+  rows that finally name their type and target ("Scan · any creature 2/3"). (#1205)
+- **Mission chains.** Settlement and vendor chains with "Part 2 of 4", dialogue choices that hand you
+  a mission, a big order every third turn-in, and a radio nudge. Additive schema, old saves untouched.
+  (#1212)
+- **Remnant Protocol.** Defeating the Guardian becomes a factor rather than a switch: half the planet
+  cap, twice the spawn pause, scan-drones only, raiders and ambushes confined to pirate havens —
+  the galaxy stays alive and the raider bounty stays earnable. (#1206)
+- **SPS Survey Orders.** After the ending, station boards post a repeatable four-step relay-survey
+  chain: scan two anomalies, visit a system the relay net hasn't reached, feed circuit boards into a
+  station being converted, drive off three remnant machines. New objective type *Contribute*. (#1213)
+- **Every village keeps its mission board** — the board plot is exempt from the plot-skip roll (new
+  worlds only). (#1199)
+
+### 🏠 Base life & companions — sentry post, scouts at the gate, fetch and bond (#1210, #1214, #1224, #1225)
+
+- **Sentry post** (workshop, blueprint after the heal tank): a stateless turret that fires at the
+  nearest hostile within 14 blocks with line of sight — no power, no ammo, nothing persisted. Never
+  targets players, tame creatures, NPCs or a robber still talking, no-op on Creative/Peaceful. Counts
+  as a machine toward your settler. (#1214)
+- **Scouts at the gate (opt-in).** New world rule *Base visitors* (off everywhere, on in the
+  dangerous preset, shown under the bandits slider): when you are home, two bandit scouts may walk
+  up to the zone edge, stand a minute and leave — never inside, never taking anything. Fight one and
+  you earn the *base defended* counter and the "Guard the homestead" bounty. Old saves stay off.
+  (#1224)
+- **Companion payoff.** A tame companion fetches dropped packets, warns of hostiles with an amber "!"
+  (and a guard growl), stalls a robber, wards off bandits at high bond and, when penned, produces its
+  species' drop every ten minutes. (#1210)
+- **Feed & bond.** Feed any of the three baits (+5 bond, cap 100, 60 s cooldown); bond decays one
+  point per real day down to 40. Tiers: 50 wider fetch, 70 the bandit ward, 90 a scouting hint every
+  five minutes. Companions tab shows a bond bar with tier ticks and a Feed button that says why it is
+  dimmed. (#1225)
+
+### 🚤 The boat (#1215)
+
+- A water vehicle as a second kind of the speeder system: workshop recipe **without a blueprint**
+  (8 wood logs, 2 iron plates, 1 cable), handed out for free on an ocean-type start. Launch needs
+  water ahead, it sits on the waterline with a bob and a wake, never burns fuel, and if you run it
+  aground for ~3 s the server sets you back onto the last wet spot. Old saves need no migration.
+  Boat item art, engine loop and splash generated with the project's own tools.
+
+### 👥 Crews and shared map markers (#1216, #1217)
+
+- **Crews.** A named group of up to 8 players whose membership implies alliance — bases, beam,
+  factories, stations, teleporter all just work. Owner invites (online players only, no join codes),
+  kicks, renames, disbands; anyone may leave; an owner leaving hands the crew to its longest-serving
+  member. New *Crew* view in the Alliances tab, persisted in additive tables. (#1216)
+- **Named map markers & ping.** Up to 8 markers per player per world with label, one of 8 icons, one
+  of 6 colours and a *shared* flag visible to allies and crew mates on the same body; a *ping* (default
+  **C**) pulses a "look here" for 30 s. Map pins, marker list with Navigate/Delete, compass blips.
+  (#1217)
+
+### 🌾 Two crops, and a second buyer for every ore (#1200, #1204)
+
+- **Grain and mushroom bed** join the cultivated flora with seeds and hand recipes that close the
+  harvest → sow loop; settlement greenhouses and station bays now grow one of several crops. (#1204)
+- **Every ore has at least two consumers and two stations:** eight factory raw-ore recipes (light
+  alloy, bronze, brass, power cell, carbide, magnet, diamond, reactor fuel), market barter for
+  uranium, lead, silver and diamond, sinks for silver, bronze, brass and sulfur — recipes only, and a
+  generalised economy test keeps it that way. (#1200)
+
+### 📘 The "Tech" tab is now "Blueprints" — with your knowledge balance and an "Enough knowledge" filter (#1191)
+
+- **Renamed.** The research tab in the ship interface (and the matching Codex chapter) is called
+  **Blueprints** in every language — which is what the game has always called the things you research
+  there. VEGA's tutorial line and the cockpit hint say so too.
+- **Knowledge at a glance.** The tab's filter row shows your **knowledge points** and the **data fragments** you
+  own; every card shows *Knowledge have/need*, and a node that only lacks knowledge now says **Knowledge
+  missing** instead of "Materials missing".
+- **"Enough knowledge" toggle.** Hides every blueprint your knowledge does not cover yet (and the ones already
+  researched), so "what can I spend my knowledge on?" is one click. Client-only; saves and servers untouched.
+
 ### 🛠️ Player-report round: ship switch, base settler, macOS network fallback, credits (#1247, #1248, #1250, #1251)
 
 - **Switching ships while landed** no longer leaves you inside the new hull's wall — you are moved to the new
@@ -27,16 +176,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **Credits** — Bastian (Linux playtest), Lyxette and sasas join the Playtesters in the README and the in-game
   credits (all 14 languages).
 
-### 📘 The "Tech" tab is now "Blueprints" — with your knowledge balance and an "Enough knowledge" filter (#1191)
+### 🧪 Content validation, save hardening, CI and docs (#1048, #1187, #1188, #1190, #1194, #1196, #1228, #1232, #1254)
 
-- **Renamed.** The research tab in the ship interface (and the matching Codex chapter) is called
-  **Blueprints** in every language — which is what the game has always called the things you research there.
-  VEGA's tutorial line and the cockpit hint say so too.
-- **Knowledge at a glance.** The tab's filter row shows your **knowledge points** and the **data fragments** you
-  own; every card shows *Knowledge have/need*, and a node that only lacks knowledge now says **Knowledge
-  missing** instead of "Materials missing".
-- **"Enough knowledge" toggle.** Hides every blueprint your knowledge does not cover yet (and the ones already
-  researched), so "what can I spend my knowledge on?" is one click. Client-only; saves and servers untouched.
+- Persisted inventory stacks are clamped to each item's max stack on load; recipes with amounts below 1
+  or that consume their own output fail validation; unreadable user templates are reported instead of
+  skipped silently; atlas bounds, stack size and surface rules are validated with migration tests; the
+  corrupted-block-palette migration is covered. Closes the #1048 content-validation round
+  (contributed by **ahmdkaml**).
+- The machine locales caught up on 81 missing keys — every objective row in the mission log has a type
+  label in all 14 languages again.
+- README and CONTRIBUTING link the starter issues, show a .NET-SDK-only quickstart and say who signs
+  the CLA when an AI agent wrote the code. (#1232)
+- The PR test gate runs on 6 balanced shards with refreshed weights and a drift guard — tail shard
+  7:36 → 5:07. (#1254)
 
 ## [2026.8.20] — 2026-08-22
 
@@ -3431,7 +3583,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...HEAD
+[2026.8.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...v2026.8.21
 [2026.8.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...v2026.8.20
 [2026.8.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...v2026.8.19
 [2026.8.18]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.17...v2026.8.18
