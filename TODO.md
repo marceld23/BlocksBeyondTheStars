@@ -10,7 +10,7 @@ keep it current when controls/features change. Last consolidated 2026-06-04.
 **Test:** `./scripts/run-tests.sh` — currently **2297 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
-The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check). The weights decay as test classes are added, so
+The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
 shard 1's verify step fails a PR once >5 % of the predicted load is guesswork (`--weight-drift-guard`) — that is the cue to refresh them (see docs/developer/DEVELOPER.md).
 A PR touching nothing but `data/locales/*.json` runs a single narrow `locale-tests` job instead of the matrix (`scripts/locale-test-filter.py`, ~140 tests).
 **Conventions:** English docs/comments; in-game text localized via locale keys — EN+DE mandatory-complete,
@@ -9558,8 +9558,12 @@ and DEVELOPER.md now say so instead of the old full-tier-only recipe.
 guesswork, but re-packing buys back the *tail*, not the suite: at ~4100 fast-tier CPU-seconds over four
 runners even a perfect split still needs **~6:07**, against 7:24 today. The ~2 min first estimated here
 was too optimistic — it came from a replay that credited the weights with more predictive power than a
-single full-tier run has. Beyond ~6 min the only levers are more shards (5 ≈ 4:55, 6 ≈ 4:20, one extra
-runner each — Marcel's call, deliberately not taken here) or cheaper tests.
+single full-tier run has. Beyond ~6 min the only levers are more shards or cheaper tests — so
+**the matrix moved to six shards** in the same PR (Marcel's call). The repo is public, so
+`ubuntu-latest` minutes are not billed and the only real cost of a shard is one more copy of the ~90 s
+build; at eight, 40 % of every job would be that rebuild. The count now lives in exactly one place —
+the `matrix.shard` list — with `strategy.job-total` feeding it to the packer, so the two cannot drift
+apart (a mismatch would silently drop a shard's worth of tests, which `verify` could not catch).
 
 Also spotted while measuring, and left for a separate issue: three *individual* full-tier tests run
 220–282 s serially (`WorldHostPhase3Tests.Reap_Skips…`, `WebSocketTransportTests.Gateway_D…`,

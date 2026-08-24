@@ -12,6 +12,8 @@
 # SHARDED TEST MATRIX (#716): the server suite (tests/BlocksBeyondTheStars.Tests) is CPU-bound and already
 # scales ~perfectly with cores in-process (xunit.runner.json pins maxParallelThreads 4 because of the
 # WorldGenerator lock convoy, #536; the runner has 4 vCPUs) — so the only way to go faster is more runners.
+# Six of them since #1254: the repo is public, so ubuntu-latest minutes are not billed, and the only
+# real cost of another shard is one more copy of the ~90 s build.
 # scripts/partition-tests.py deterministically packs test CLASSES onto shards (tier-aware weights from
 # real trx data: scripts/test-shard-weights.json + test-shard-weights-slow.json) and emits each shard's
 # --filter. Shard 1 additionally runs the small Client.Tests suite (~11 s) and a partition-completeness
@@ -63,12 +65,18 @@ permissions:
 
 jobs:
   build-test:
-    name: Build + test (shard ${{ matrix.shard }}/4)
+    name: Build + test (shard ${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false # one failing shard must not cancel the others' results
       matrix:
-        shard: [1, 2, 3, 4]
+        # The ONE place the shard count lives: `strategy.job-total` hands it to partition-tests.py
+        # below, so the matrix and the packer can no longer disagree (a mismatch would silently drop
+        # a shard's worth of tests — `verify` only checks that each test maps to exactly one of the N
+        # filters it was ASKED about). Six is where more runners stop paying: the fast tier is ~1100 s
+        # of test wall clock in total against ~90 s of fixed checkout/restore/build overhead per shard,
+        # so 6 lands at ~4:30 while 8 would spend 40 % of every job rebuilding the same assembly.
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@v5
 
@@ -133,7 +141,7 @@ jobs:
           DRIFT: ${{ inputs.weight-drift-guard && '--weight-drift-guard' || '' }}
         run: |
           dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --list-tests > listed-tests.txt
-          python3 scripts/partition-tests.py verify --shards 4 --tier ${{ inputs.tier }} --list-file listed-tests.txt $DRIFT
+          python3 scripts/partition-tests.py verify --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }} --list-file listed-tests.txt $DRIFT
 
       # Two-tier test gate: the fast tier skips the tests marked [Trait("Category", "Slow")] — the
       # statistical worldgen/simulation heavies that dominate the suite's CPU time. Full coverage is still
@@ -145,7 +153,7 @@ jobs:
           # xUnit maps [Trait("Category", ...)] to the vstest Category property.
           TIER: ${{ inputs.tier == 'fast' && 'Category!=Slow' || '' }}
         run: |
-          SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards 4 --tier ${{ inputs.tier }})"
+          SHARD_FILTER="$(python3 scripts/partition-tests.py filter --shard ${{ matrix.shard }} --shards ${{ strategy.job-total }} --tier ${{ inputs.tier }})"
           FILTER="${TIER:+$TIER&}$SHARD_FILTER"
           dotnet test tests/BlocksBeyondTheStars.Tests/BlocksBeyondTheStars.Tests.csproj --no-build -c Release --filter "$FILTER" --logger "trx;LogFileName=server.trx" --results-directory TestResults
           if [ "${{ matrix.shard }}" = "1" ]; then
