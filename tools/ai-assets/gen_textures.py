@@ -108,6 +108,10 @@ TEXTURES = [
     # as ripe, edible fruit at a glance.
     ("flora_cropberry", "cultivated berry bush heavy with plump ripe red berries among glossy green leaves, a tended crop plant, top-down"),
     ("hydro_tray", "a shallow metal hydroponics tray filled with glowing teal-green nutrient gel, small sprouting seedlings and bubbles, top-down"),
+    # Two more cultivated crops (#1204): like the berry bush these never take a world's flora hue, so each
+    # tile must read as its own kind of food across a greenhouse aisle — golden ears vs. tan mushroom caps.
+    ("flora_cropgrain", "cultivated grain crop, dense tall stalks of ripe golden wheat ears with slender green leaves, a tended cereal field plant, top-down"),
+    ("flora_cropshroom", "cultivated edible mushrooms, a tight cluster of plump tan and cream button mushroom caps with thick pale stems on dark soil, top-down"),
     # Distinct tree crowns for the new conifer + palm archetypes.
     ("pine_needles", "dense dark green pine conifer needle foliage canopy, small overlapping needles, top-down"),
     ("palm_frond", "broad green tropical palm tree fronds, long radiating feathered leaves, top-down"),

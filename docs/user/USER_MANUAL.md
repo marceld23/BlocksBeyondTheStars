@@ -683,14 +683,20 @@ separate unlock; admins can still disable it through server world rules.
   claims one factory.
 
 ### Greenhouses
-- Every village and city keeps a **greenhouse** — a glass house full of berry bushes you can walk into and
+- Every village and city keeps a **greenhouse** — a glass house full of crops you can walk into and
   harvest. A **village** grows them in soil beds under a timber-and-glass gable behind a hinged door; a
   **city** runs a two-tier **hydroponics bay** with grow lights and a sliding door, which is easy to spot at
   night. Space stations of any size above the smallest carry the same bay aboard.
-- The berries are a **crop**, not wild flora: they are safe to eat on every world, and each picked bush
-  **grows back on its bed** after a short while — so a greenhouse is a food source you can come back to.
-- Want your own? Craft **berry seeds** by hand from 3 berries and plant them on soil — or on a crafted
-  **hydroponic tray** (workshop), which lets crops root with no soil at all.
+- There are three **crops**: the **crop berry** bush (berries), **crop grain** (tall golden ears → grain, edible
+  raw but meant for cooking) and the **crop mushroom** bed (mushroom caps). Each greenhouse grows one of them —
+  which one depends on the settlement, so a city with several houses serves a mixed harvest, and two stations
+  need not grow the same thing.
+- Crops are farmed, not wild flora: they are safe to eat on every world, the scanner reads them as **Edible** under
+  their own name, and each picked plant **grows back on its bed** after a short while — so a greenhouse is a food
+  source you can come back to.
+- Want your own? Craft **seeds** by hand — 3 berries → 2 berry seeds, 3 grain → 2 grain seeds, 2 mushroom caps →
+  2 mushroom spawn — and plant them on soil (mushrooms also take mud and mycelium) — or on a crafted
+  **hydroponic tray** (workshop), which lets any crop root with no soil at all.
 
 ### Ruins & treasure chests
 - **Ruins** are the collapsed remains of fallen settlements — mostly surviving ground walls, one

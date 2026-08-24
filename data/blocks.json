@@ -165,6 +165,10 @@
   // job in the rustic village version).
   { "key": "flora_cropberry", "nameKey": "block.flora_cropberry.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 3833376, "flammable": true, "drops": [ { "item": "berries", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
   { "key": "hydro_tray",      "nameKey": "block.hydro_tray.name", "category": "machine",      "hardness": 2.4, "requiredTool": "none",  "minToolTier": 0, "emission": 0.12, "color": 4361847, "drops": [ { "item": "hydro_tray", "count": 1 } ] },
+  // Two more cultivated crops (#1204), same deal as the berry: never wild, never toxic, regrow on their bed.
+  // Grain is the cereal the campfire meals will want; the mushroom bed yields the giant-cap material.
+  { "key": "flora_cropgrain", "nameKey": "block.flora_cropgrain.name", "category": "flora",   "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 13214778, "flammable": true, "drops": [ { "item": "grain", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
+  { "key": "flora_cropshroom","nameKey": "block.flora_cropshroom.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "color": 12162154, "flammable": true, "drops": [ { "item": "mushroom_cap", "count": 2 }, { "item": "plant_fiber", "count": 1 } ] },
 
   // Low-tech furniture & survival batch (#803-#809). The bed is the pre-tech heal-tank precursor
   // (home spawn + weak heal), the campfire a warmth/light/cooking station, the wood crate the

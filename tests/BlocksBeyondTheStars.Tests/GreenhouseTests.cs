@@ -54,20 +54,27 @@ public sealed class GreenhouseTests : IDisposable
 
     private ushort Id(string key) => _content.GetBlock(key)?.NumericId.Value ?? 0;
 
+    /// <summary>Block ids of EVERY cultivated crop (#627 berry, #1204 grain + mushroom) — a greenhouse grows one
+    /// of them, which one is the generator's pick, so the structure tests accept any member of the set.</summary>
+    private HashSet<ushort> CropIds()
+        => FloraCatalog.CultivatedKeys().Select(Id).Where(id => id != 0).ToHashSet();
+
     // ---------------------------------------------------------------- #627: the cultivated crop
 
-    /// <summary>The crop must never appear in a world's flora roster. A roster entry would give it a rolled
+    /// <summary>No crop must ever appear in a world's flora roster. A roster entry would give it a rolled
     /// <c>Toxic</c> flag, and a toxic plant's berries are swapped for <c>toxic_berries</c> when it is broken —
     /// a village greenhouse would then poison the player on roughly a third of all worlds.</summary>
     [Fact]
     public void CultivatedCrop_NeverJoinsAWorldRoster()
     {
+        var crops = FloraCatalog.CultivatedKeys().ToHashSet();
+        Assert.Contains(CropKey, crops);
         foreach (var planet in _content.Planets.Values)
         {
             for (long seed = 1; seed <= 60; seed++)
             {
                 var roster = FloraGenerator.GenerateRoster(planet, seed);
-                Assert.DoesNotContain(roster, fs => fs.BlockKey == CropKey);
+                Assert.DoesNotContain(roster, fs => crops.Contains(fs.BlockKey));
             }
         }
     }
@@ -147,41 +154,46 @@ public sealed class GreenhouseTests : IDisposable
         return id == 0 ? 0 : Cells(s).Count(c => s.Get(c.X, c.Y, c.Z) == id);
     }
 
+    private int CropCount(SettlementStructure s)
+    {
+        var crops = CropIds();
+        return Cells(s).Count(c => crops.Contains(s.Get(c.X, c.Y, c.Z)));
+    }
+
     [Theory]
     [InlineData("village")]
     [InlineData("town")]
     [InlineData("city")]
-    public void EveryInhabitedSettlement_GrowsBerriesInAGreenhouse(string tier)
+    public void EveryInhabitedSettlement_GrowsACropInAGreenhouse(string tier)
     {
         for (long seed = 1; seed <= 12; seed++)
         {
             var s = SettlementGenerator.Generate(tier, ruined: false, seed, "grass", _content);
 
             Assert.Contains(s.Markers, m => m.Type == "greenhouse");
-            Assert.True(CountOf(s, CropKey) >= 4, $"{tier} (seed {seed}) should grow a bed of crops.");
+            Assert.True(CropCount(s) >= 4, $"{tier} (seed {seed}) should grow a bed of crops.");
             Assert.True(CountOf(s, "glass") >= 20, $"{tier} (seed {seed}) greenhouse should be glazed.");
         }
     }
 
-    /// <summary>Every crop must stand on a host it can regrow on — otherwise the greenhouse is harvested once
-    /// and stays bare for the rest of the save.</summary>
+    /// <summary>Every crop must stand on a host IT can regrow on — otherwise the greenhouse is harvested once
+    /// and stays bare for the rest of the save. Checked per species: the mushroom bed's soils differ from the
+    /// cereal's, and a bed made of the wrong one would pass a pooled check.</summary>
     [Theory]
     [InlineData("village")]
     [InlineData("city")]
     public void EveryCrop_StandsOnAValidHost(string tier)
     {
-        var hosts = FloraCatalog.All.First(sp => sp.Key == CropKey).Hosts
-            .Select(Id)
-            .Where(id => id != 0)
-            .ToHashSet();
-        ushort crop = Id(CropKey);
+        var hostsByCrop = FloraCatalog.All
+            .Where(sp => sp.Cultivated && Id(sp.Key) != 0)
+            .ToDictionary(sp => Id(sp.Key), sp => sp.Hosts.Select(Id).Where(id => id != 0).ToHashSet());
 
         for (long seed = 1; seed <= 8; seed++)
         {
             var s = SettlementGenerator.Generate(tier, ruined: false, seed, "grass", _content);
             foreach (var (x, y, z) in Cells(s))
             {
-                if (s.Get(x, y, z) != crop)
+                if (!hostsByCrop.TryGetValue(s.Get(x, y, z), out var hosts))
                 {
                     continue;
                 }
@@ -192,11 +204,36 @@ public sealed class GreenhouseTests : IDisposable
         }
     }
 
+    /// <summary>#1204: the greenhouse is no longer a berry monoculture — across seeds the generator hands
+    /// different settlements different crops, and a city's several houses can disagree among themselves.</summary>
+    [Fact]
+    public void Greenhouses_GrowDifferentCrops_AcrossSeeds()
+    {
+        var crops = CropIds();
+        Assert.True(crops.Count >= 3, "three cultivated crops are expected (berry, grain, mushroom)");
+
+        var seen = new HashSet<ushort>();
+        for (long seed = 1; seed <= 24; seed++)
+        {
+            var s = SettlementGenerator.Generate("city", ruined: false, seed, "grass", _content);
+            foreach (var (x, y, z) in Cells(s))
+            {
+                ushort b = s.Get(x, y, z);
+                if (crops.Contains(b))
+                {
+                    seen.Add(b);
+                }
+            }
+        }
+
+        Assert.True(seen.Count >= 2, $"24 city seeds should grow more than one kind of crop (saw {seen.Count}).");
+    }
+
     [Fact]
     public void VillageGrowsInSoilUnderTimber_CityRunsHydroponics()
     {
         var village = SettlementGenerator.Generate("village", ruined: false, 5, "grass", _content);
-        Assert.True(CountOf(village, "dirt") >= 4, "A village greenhouse grows its berries in soil beds.");
+        Assert.True(CountOf(village, "dirt") >= 4, "A village greenhouse grows its crop in soil beds.");
         Assert.True(CountOf(village, "wood_log") >= 4, "A village greenhouse is framed in timber.");
         Assert.Equal(0, CountOf(village, TrayKey));
 
@@ -243,7 +280,7 @@ public sealed class GreenhouseTests : IDisposable
         {
             var s = SettlementGenerator.Generate("town", ruined: true, seed, "grass", _content);
             Assert.DoesNotContain(s.Markers, m => m.Type == "greenhouse");
-            Assert.Equal(0, CountOf(s, CropKey));
+            Assert.Equal(0, CropCount(s));
         }
     }
 
@@ -273,13 +310,14 @@ public sealed class GreenhouseTests : IDisposable
         Assert.Contains(s.Modules, m => m.Type == "hydro");
         Assert.Contains(s.Markers, m => m.Type == "greenhouse");
 
-        ushort crop = Id(CropKey), tray = Id(TrayKey);
+        var crops = CropIds();
+        ushort tray = Id(TrayKey);
         int planted = 0;
         for (int x = 0; x < s.Width; x++)
             for (int y = 0; y < s.Height; y++)
                 for (int z = 0; z < s.Length; z++)
                 {
-                    if (s.Get(x, y, z) != crop)
+                    if (!crops.Contains(s.Get(x, y, z)))
                     {
                         continue;
                     }
@@ -290,6 +328,36 @@ public sealed class GreenhouseTests : IDisposable
                 }
 
         Assert.True(planted >= 2, $"A {tier} station's bay should actually be planted (found {planted}).");
+    }
+
+    /// <summary>#1204: the bay's crop is fixed per station by its seed, so two stations need not serve the
+    /// same harvest — and the same seed keeps the same crop.</summary>
+    [Fact]
+    public void StationBays_GrowDifferentCrops_AcrossSeeds_ButAreDeterministic()
+    {
+        var crops = CropIds();
+        var seen = new HashSet<ushort>();
+        for (long seed = 1; seed <= 30; seed++)
+        {
+            var a = StationGenerator.Generate("large", seed, _content);
+            var b = StationGenerator.Generate("large", seed, _content);
+            ushort cropA = 0, cropB = 0;
+            for (int x = 0; x < a.Width; x++)
+                for (int y = 0; y < a.Height; y++)
+                    for (int z = 0; z < a.Length; z++)
+                    {
+                        if (crops.Contains(a.Get(x, y, z))) { cropA = a.Get(x, y, z); }
+                        if (crops.Contains(b.Get(x, y, z))) { cropB = b.Get(x, y, z); }
+                    }
+
+            Assert.Equal(cropA, cropB);
+            if (cropA != 0)
+            {
+                seen.Add(cropA);
+            }
+        }
+
+        Assert.True(seen.Count >= 2, $"30 station seeds should grow more than one kind of crop (saw {seen.Count}).");
     }
 
     /// <summary>A stair shaft cut through a deck is a fall onto the room below, not a way out into space — so a
@@ -361,8 +429,8 @@ public sealed class GreenhouseTests : IDisposable
             server.Start();
 
             var marker = server.SettlementMarkers.FirstOrDefault(m => m.Type == "greenhouse");
-            var cropId = _content.GetBlock(CropKey)!.NumericId;
-            var cell = marker.Type == null ? null : FindNear(server, marker.Pos.ToBlock(), cropId.Value);
+            var crops = CropIds();
+            var cell = marker.Type == null ? null : FindNear(server, marker.Pos.ToBlock(), crops);
             if (cell is null)
             {
                 repo.Dispose();
@@ -371,6 +439,7 @@ public sealed class GreenhouseTests : IDisposable
 
             using (repo)
             {
+                ushort cropId = server.World.GetBlock(cell.Value).Value; // whichever crop this greenhouse grows
                 var player = server.AddLocalPlayer("Gardener");
                 player.State.Position = new Vector3f(cell.Value.X + 0.5f, cell.Value.Y + 0.5f, cell.Value.Z + 0.5f);
 
@@ -378,9 +447,9 @@ public sealed class GreenhouseTests : IDisposable
                 Assert.True(server.World.GetBlock(cell.Value).IsAir,
                     "A greenhouse crop must be harvestable even though the settlement around it is protected.");
 
-                // The berries land in the player's hands, and the bed grows a new bush on its own.
+                // The yield lands in the player's hands, and the bed grows the SAME crop back on its own.
                 server.TickForTest(31.0);
-                Assert.Equal(cropId.Value, server.World.GetBlock(cell.Value).Value);
+                Assert.Equal(cropId, server.World.GetBlock(cell.Value).Value);
                 return;
             }
         }
@@ -388,8 +457,8 @@ public sealed class GreenhouseTests : IDisposable
         throw new Xunit.Sdk.XunitException("No settlement greenhouse found across 40 seeds.");
     }
 
-    /// <summary>Scans a small box around a point for the first cell holding <paramref name="block"/>.</summary>
-    private static Vector3i? FindNear(SvGameServer server, Vector3i around, ushort block)
+    /// <summary>Scans a small box around a point for the first cell holding any of <paramref name="blocks"/>.</summary>
+    private static Vector3i? FindNear(SvGameServer server, Vector3i around, HashSet<ushort> blocks)
     {
         const int R = 6;
         for (int dx = -R; dx <= R; dx++)
@@ -397,7 +466,7 @@ public sealed class GreenhouseTests : IDisposable
                 for (int dz = -R; dz <= R; dz++)
                 {
                     var p = new Vector3i(around.X + dx, around.Y + dy, around.Z + dz);
-                    if (server.World.GetBlock(p).Value == block)
+                    if (blocks.Contains(server.World.GetBlock(p).Value))
                     {
                         return p;
                     }

@@ -909,6 +909,21 @@ namespace BlocksBeyondTheStars.Client
                     Speckle(ox, oy, rng, new Color(0.98f, 0.44f, 0.42f), 6); // highlight on the ripe side of a berry
                     break;
 
+                case "flora_cropgrain":
+                    // Farmed cereal (#1204): tall stalks under a band of golden ears. The other un-tinted crop, so
+                    // it has to read as grain rather than one more green bush from across the aisle.
+                    PaintBlades(ox, oy, rng, 14, Tile - 4,
+                        new Color(0.30f, 0.46f, 0.16f), new Color(0.62f, 0.66f, 0.28f));
+                    Speckle(ox, oy + Tile / 2, rng, new Color(0.86f, 0.70f, 0.24f), 18);
+                    Speckle(ox, oy + Tile / 2, rng, new Color(0.98f, 0.88f, 0.46f), 8);
+                    break;
+
+                case "flora_cropshroom":
+                    // Farmed mushrooms (#1204): plump tan caps on pale stems, no glow — the edible kind.
+                    PaintMushrooms(ox, oy, rng, new Color(0.88f, 0.84f, 0.74f),
+                        new Color(0.66f, 0.50f, 0.32f), 5);
+                    break;
+
                 case "hydro_tray":
                 {
                     // A shallow nutrient tray: a metal rim around a pool of faintly glowing growth gel.
@@ -1120,6 +1135,8 @@ namespace BlocksBeyondTheStars.Client
             "flora_kelp" => new Color(0.15f, 0.45f, 0.32f),  // deep sea-green stalk
             "flora_lily" => new Color(0.30f, 0.62f, 0.34f),  // lily-pad green
             "flora_cropberry" => new Color(0.22f, 0.58f, 0.24f), // farmed bush (#627): leafy green, berries in Decorate
+            "flora_cropgrain" => new Color(0.72f, 0.60f, 0.24f), // farmed cereal (#1204): golden ears
+            "flora_cropshroom" => new Color(0.70f, 0.58f, 0.42f), // farmed mushroom bed (#1204): tan caps
             "hydro_tray" => new Color(0.28f, 0.34f, 0.38f),      // dark tray housing; the nutrient gel glows in Decorate
             _ => null,
         };

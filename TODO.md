@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2080 server + 285 client passing** (2026-08-22). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2292 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 4-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4½ min.
@@ -178,6 +178,35 @@ finding kept as a comment: a **digit-heavy marker label** trips the name screen'
 (correctly) — label tests use letters. Locales: 74 keys EN+DE + 12 machine. Docs: USER_MANUAL § Alliances
 (Crews) + new § Map markers & ping. Still open on-device: two-client crew flow, marker editor on pad/touch,
 ping in real co-op (rides the #1227 playtest).
+
+### ★ Two more crops — grain + mushroom join the berry in the greenhouse (#1204, 2026-08-24, branch feat/1204-crops)
+Twenty-fifth slice of the feature-deepening package (epic #1197); started ahead of the blueprint re-parenting
+(#1202, community-assigned) on purpose — crops touch flora/server/client and the item/block regions, never
+`blueprints.json`. Farming had exactly one tenant: `flora_cropberry` was the only `Cultivated` species, and every
+settlement greenhouse and station bay hard-coded it.
+**Two species, no new server code for planting.** `FloraCatalog` gains `flora_cropgrain` (tall cereal, hosts
+dirt/grass/mud/hydro_tray → `grain` ×2 + fibre) and `flora_cropshroom` (cap dome, hosts dirt/mud/mycelium/hydro_tray
+→ the EXISTING `mushroom_cap` ×2 + fibre) — both `Cultivated`, both at the catalog tail (roster ids are catalog
+indices; a crop above a wild species would rename every world's plants — guarded by a test now). Host flags, roster
+exclusion, tint exemption, plant validation and the 30 s regrow all derive from the catalog, so the crops plant,
+harvest and regrow through the same paths as the berry. `grain` is a new consumable (hunger +10 raw — the meals of
+#1203 will want it cooked); seeds `grain_seed`/`shroom_seed` place the crops; hand recipes grain ×3 → 2 seeds,
+mushroom_cap ×2 → 2 spawn, so one harvest starts a bed. New `FloraCatalog.CultivatedKeys()`.
+**Greenhouses pick from the set.** `SettlementGenerator` chooses ONE crop per greenhouse plot from
+`StableHash(crop:tier:seed:plot)` — deliberately not from `rng`, whose draws are read unconditionally so the stream
+must never shift; a city's two or three houses can disagree. `StationGenerator` fixes the bay's crop per station
+seed. **Scanner:** a crop sits in no world roster, so it read as a plain block; a cultivated branch now reports
+`flora` + `ui.scan.threat.edible` under the block's own (client-localized) name.
+**Client:** `ChunkMesher` — grain in `TallFlora`, mushroom bed in `SolidFlora` with the cap dome; atlas fallback
+colours + Decorate painters for both (only used when the tile is missing).
+**Assets (generated, #1204):** `flora_cropgrain.bytes` / `flora_cropshroom.bytes` (gpt-image-1-mini via
+`gen_textures.py --only` → `bundle_textures.py --from-out` → `bake_leaf_alpha.py --key flora_cropgrain`; the mushroom
+stays solid, matching `SolidFlora`), `item_grain.png`; NOTICES updated. Seeds + mushroom_cap use block tiles.
+Tests: new `CropTests` (7 — catalog tail, block/seed/hand-recipe loop closed from the crop's own drops, hosts incl.
+tray, grain edible + poorer than berries, plant on dirt/tray/mycelium not stone, harvest yields + regrows per crop,
+scanner readout); `GreenhouseTests` generalised to "any cultivated crop" + 2 variety tests (24 city seeds / 30 station
+seeds grow ≥ 2 kinds, station pick deterministic); `Seeds_AreCraftable` + `NewFloraAndLeafBlocks_Exist` extended.
+Locales: 10 keys EN+DE + 12 machine. Docs: USER_MANUAL § Greenhouses rewritten for three crops.
 
 ### ★ Boat — a water vehicle as the second `Kind` of the speeder system (#1215, 2026-08-23, branch feat/1215-boat)
 Twentieth slice of the feature-deepening package (epic #1197). The hover speeder was the only vehicle, and water has

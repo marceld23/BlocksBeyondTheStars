@@ -187,7 +187,8 @@ public sealed class CraftingConsistencyTests
     {
         // plant_seed / crystal_seed were dead (placeable but unobtainable); a hand recipe now sources them.
         // berry_seed (#627) joins them: sown from berries so a player can start their own greenhouse bed.
-        foreach (var seed in new[] { "plant_seed", "crystal_seed", "berry_seed" })
+        // grain_seed / shroom_seed (#1204): the two further crops, sown the same way.
+        foreach (var seed in new[] { "plant_seed", "crystal_seed", "berry_seed", "grain_seed", "shroom_seed" })
         {
             Assert.Contains(_c.Recipes.Values, r => r.Outputs.Any(o => o.Item == seed));
         }

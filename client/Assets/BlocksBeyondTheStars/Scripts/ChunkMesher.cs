@@ -1325,6 +1325,7 @@ namespace BlocksBeyondTheStars.Client
         {
             "flora_fern", "flora_vine", "flora_reed", "flora_thornbush", "flora_kelp", "flora_seagrass",
             "flora_tendril", "flora_alienfern", "flora_palm", "flora_grasstuft", "flora_icereed", "flora_saltgrass",
+            "flora_cropgrain", // farmed cereal (#1204) — stands as tall as the wild grass tuft
         };
 
         // The structural / solid / glowing-cap flora that read better as solid cubes — everything else
@@ -1334,6 +1335,7 @@ namespace BlocksBeyondTheStars.Client
             "flora_cactus", "flora_crystal", "flora_succulent", "flora_mushroom", "flora_puffball",
             "flora_pitcher", "flora_glowcap", "flora_emberbloom", "flora_sporepod", "flora_glowvine",
             "flora_bulb", "flora_gasbloom", "flora_shardbloom", // item 21 V3 alien flora (bulbous/crystalline)
+            "flora_cropshroom", // farmed mushroom bed (#1204) — a cap dome like the wild mushroom
         };
 
         /// <summary>True for foliage that renders with alpha-cutout leaves (holes punched into the tile):
@@ -1431,7 +1433,7 @@ namespace BlocksBeyondTheStars.Client
         {
             "flora_cactus" or "flora_pitcher" or "flora_sporepod" or "flora_glowvine" => 8, // cylinder (columns)
             "flora_crystal" or "flora_shardbloom" or "flora_emberbloom" or "flora_frostflower" => 7, // cone (shards)
-            "flora_mushroom" or "flora_glowcap" => 3, // dome (caps)
+            "flora_mushroom" or "flora_glowcap" or "flora_cropshroom" => 3, // dome (caps)
             _ => 4, // sphere (puffball, succulent, bulb, gasbloom, …)
         };
 
