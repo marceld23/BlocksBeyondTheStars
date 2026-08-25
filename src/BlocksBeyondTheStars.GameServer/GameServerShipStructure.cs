@@ -104,10 +104,49 @@ public sealed partial class GameServer
                 new Vector3f(rec.Origin.X + cell.X + 0.5f, rec.Origin.Y + cell.Y, rec.Origin.Z + cell.Z + 0.5f)));
         }
 
-        rec.HealTank = s.MedbayCell is { } mb
-            ? new Vector3f(rec.Origin.X + mb.X + 0.5f, rec.Origin.Y + mb.Y + 1f, rec.Origin.Z + mb.Z + 0.5f)
-            : new Vector3f(rec.Origin.X + s.Width / 2 + 0.5f, rec.Origin.Y + 1f, rec.Origin.Z + s.Length / 2 + 0.5f);
+        rec.HealTank = ResolveHealTank(s, rec.Origin);
     }
+
+    /// <summary>The heal-tank / respawn spot of a parked ship. A layout ship's medbay marks the tank; the
+    /// player is put on the walkway cell BESIDE it (floor under the feet, two free cells above) rather than
+    /// on top of the block: the room's ceiling lamp hangs exactly over every station cell (#779), so a
+    /// player stood on the medbay had their head inside that lamp on every layout ship — "still in the
+    /// wall in the hauler" after the #1247 reseat (#1259). Falls back to the top of the medbay when it has
+    /// the headroom, then to the cabin centre (the code-box starter has no medbay cell at all).</summary>
+    private static Vector3f ResolveHealTank(SpaceStructure s, Vector3i origin)
+    {
+        if (s.MedbayCell is { } mb)
+        {
+            foreach (var d in HealTankSides)
+            {
+                var feet = new Vector3i(mb.X + d.X, mb.Y, mb.Z + d.Z);
+                if (StandingRoom(s, feet) && !s.Get(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir)
+                {
+                    return new Vector3f(origin.X + feet.X + 0.5f, origin.Y + feet.Y, origin.Z + feet.Z + 0.5f);
+                }
+            }
+
+            var top = new Vector3i(mb.X, mb.Y + 1, mb.Z);
+            if (StandingRoom(s, top))
+            {
+                return new Vector3f(origin.X + top.X + 0.5f, origin.Y + top.Y, origin.Z + top.Z + 0.5f);
+            }
+        }
+
+        return new Vector3f(origin.X + s.Width / 2 + 0.5f, origin.Y + 1f, origin.Z + s.Length / 2 + 0.5f);
+    }
+
+    private static readonly Vector3i[] HealTankSides =
+    {
+        new(1, 0, 0), new(-1, 0, 0), new(0, 0, 1), new(0, 0, -1),
+    };
+
+    /// <summary>Feet + head cell free — the player capsule is under two blocks tall.</summary>
+    private static bool StandingRoom(SpaceStructure s, Vector3i feet)
+        => s.Get(feet).IsAir && s.Get(new Vector3i(feet.X, feet.Y + 1, feet.Z)).IsAir;
+
+    /// <summary>Test/inspection: the world cell of a player's parked ship's structure-local origin.</summary>
+    public Vector3i ShipOriginOf(string playerId) => _worlds.Active.LandedFor(playerId).Origin;
 
     /// <summary>Removes a player's parked ship from the active world (launch into space / logout) and tells
     /// everyone on the world to despawn the object. No terrain to restore — the world was never touched.</summary>

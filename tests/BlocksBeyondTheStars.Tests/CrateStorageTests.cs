@@ -43,6 +43,7 @@ public sealed class CrateStorageTests : IDisposable
         p.State.Position = new Vector3f(0, 200, 0); // up in the air → the target cell is empty
         p.State.Inventory.Add("crate", 1, 99);
         p.State.Inventory.Add("iron_ore", 10, 99);
+        p.State.Inventory.Add("stone", 40, 99); // a placeable block — stashable since #1264
         p.State.Inventory.Add("machete", 1, 1); // a tool — must NOT be stashed
         state = p.State;
         return server;
@@ -63,11 +64,14 @@ public sealed class CrateStorageTests : IDisposable
             int machetesBefore = p.Inventory.CountOf("machete"); // (the starter kit already carries one)
             server.DepositToContainer("Builder", crate!.Id);
             Assert.Equal(0, p.Inventory.CountOf("iron_ore"));            // loose material stashed
+            Assert.Equal(0, p.Inventory.CountOf("stone"));               // blocks too — the builder's "resources" (#1264)
             Assert.Equal(machetesBefore, p.Inventory.CountOf("machete")); // tools are never stashed
             Assert.Contains(server.Containers.First(c => c.Id == crate.Id).Items, s => s.Item == "iron_ore" && s.Count == 10);
+            Assert.Contains(server.Containers.First(c => c.Id == crate.Id).Items, s => s.Item == "stone" && s.Count == 40);
 
             server.LootContainer("Builder", crate.Id);        // take it back out (G)
             Assert.Equal(10, p.Inventory.CountOf("iron_ore"));
+            Assert.Equal(40, p.Inventory.CountOf("stone"));
         }
     }
 

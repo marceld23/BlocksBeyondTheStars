@@ -169,7 +169,79 @@ public sealed partial class GameServer
     private bool HasLiveBaseSettler(ServerBase b)
         => _baseSettlerNpcIds.TryGetValue(b.Id, out var s)
             && s.WorldId == _world.LocationId
-            && _npcs.Any(n => n.Id == s.NpcId && n.Settlement == b.Name && n.Role == "settler");
+            && _npcs.Any(n => n.Id == s.NpcId && n.BaseId == b.Id && n.Role == "settler");
+
+    /// <summary>Renaming a base keeps its settler (#1262): the live NPC's display settlement and the owner's
+    /// roster entry follow the new name. Before this the scan compared the NPC's settlement to the base name,
+    /// saw "no settler" after a rename and spawned a second one under a fresh name-hash key.</summary>
+    private void RenameBaseSettler(ServerBase b, string newName)
+    {
+        foreach (var npc in _npcs)
+        {
+            if (npc.BaseId == b.Id)
+            {
+                npc.Settlement = newName;
+            }
+        }
+
+        if (FindSessionByPlayerId(b.OwnerId) is { } owner
+            && owner.State.NpcMemory.TryGetValue(BaseSettlerKey(b.Id), out var rel))
+        {
+            rel.Place = newName;
+        }
+    }
+
+    /// <summary>Pre-#1262 saves keyed the base settler by a hash of the base NAME, so every rename minted a
+    /// fresh entry — "my settler is listed three times". Moves the entry for the current name onto the
+    /// rename-proof base-id key and drops the stale name-keyed copies of the same settler.</summary>
+    private void MigrateBaseSettlerMemory(PlayerSession session)
+    {
+        var mem = session.State.NpcMemory;
+        bool changed = false;
+        foreach (var b in _bases)
+        {
+            if (b.OwnerId != session.State.PlayerId)
+            {
+                continue;
+            }
+
+            string key = BaseSettlerKey(b.Id);
+            string legacy = NpcKey(SettlementLocationKey(b.Name), "settler");
+            if (!mem.ContainsKey(key) && mem.TryGetValue(legacy, out var rel))
+            {
+                mem.Remove(legacy);
+                rel.Place = b.Name;
+                mem[key] = rel;
+                changed = true;
+            }
+        }
+
+        // Stale name-keyed copies of a settler we now know by base id: same coined name (the settler's
+        // look and name are seeded from the base id, so every duplicate carried the same name).
+        var known = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (key, rel) in mem)
+        {
+            if (key.StartsWith("base_", StringComparison.Ordinal) && rel.Role == "settler")
+            {
+                known.Add(rel.Name);
+            }
+        }
+
+        foreach (var stale in mem.Where(kv => kv.Key.StartsWith("settle_", StringComparison.Ordinal)
+                     && kv.Value.Role == "settler" && known.Contains(kv.Value.Name)).Select(kv => kv.Key).ToList())
+        {
+            mem.Remove(stale);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            _repo.SavePlayer(session.State);
+        }
+    }
+
+    /// <summary>Test entrypoint for the pre-#1262 memory migration.</summary>
+    public void MigrateBaseSettlerMemoryForTest(PlayerSession session) => MigrateBaseSettlerMemory(session);
 
     /// <summary>Machine-category blocks inside the base zone (base_core itself excluded).</summary>
     private int CountBaseMachines(ServerBase b)
@@ -209,11 +281,12 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)WorldGenerator.StableHash("base-settler:" + b.Id)));
         var home = SettlerHomeNear(b.Cell);
         var npc = MakeNpc("settler", "settlers", robotic: false, home, rng);
-        npc.Settlement = b.Name; // keys the NPC memory to this base (settle_<hash of base name>)
+        npc.Settlement = b.Name; // display name for greetings/dialogs — the memory key is the base ID (#1262)
+        npc.BaseId = b.Id;
         _npcs.Add(npc);
         BroadcastNpcs();
 
-        string npcKey = NpcKey(SettlementLocationKey(b.Name), "settler");
+        string npcKey = BaseSettlerKey(b.Id);
         _baseSettlerNpcIds[b.Id] = (b.Planet, npc.Id);
 
         if (FindSessionByPlayerId(b.OwnerId) is { Joined: true } owner)

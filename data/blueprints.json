@@ -90,6 +90,16 @@
     "unlockCost": [ { "item": "data_fragment", "count": 1 }, { "item": "iron_ingot", "count": 20 }, { "item": "cable", "count": 5 } ]
   },
   {
+    "key": "cargo_expansion_2", "nameKey": "blueprint.cargo_expansion_2.name", "descriptionKey": "blueprint.cargo_expansion_2.desc",
+    "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_1" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 10 }, { "item": "cable", "count": 8 } ]
+  },
+  {
+    "key": "cargo_expansion_3", "nameKey": "blueprint.cargo_expansion_3.name", "descriptionKey": "blueprint.cargo_expansion_3.desc",
+    "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_2" ], "knowledgeCost": 90,
+    "unlockCost": [ { "item": "data_fragment", "count": 5 }, { "item": "titanium_plate", "count": 20 }, { "item": "steel", "count": 6 }, { "item": "circuit_board", "count": 2 } ]
+  },
+  {
     "key": "refinery", "nameKey": "blueprint.refinery.name", "descriptionKey": "blueprint.refinery.desc",
     "category": "ShipExpansion", "prerequisites": [ "cargo_expansion_1" ], "knowledgeCost": 40,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 15 }, { "item": "cable", "count": 8 } ]

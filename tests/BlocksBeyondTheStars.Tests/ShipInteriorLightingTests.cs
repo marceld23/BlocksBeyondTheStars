@@ -79,6 +79,43 @@ public sealed class ShipInteriorLightingTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("ship_scout")]
+    [InlineData("ship_corvette")]
+    [InlineData("ship_hauler")]
+    [InlineData("ship_courier")]
+    [InlineData("ship_thunderbolt")]
+    [InlineData("ship_deathblock")]
+    [InlineData("ship_hammerhead")]
+    public void TheHealTank_HasStandingRoom_OnEveryShip(string? layoutKey)
+    {
+        // The heal-tank is where landing, respawn and a ship switch put the player. On every layout ship it
+        // used to sit ON the medbay block — right under the lamp the pass above hangs over each station —
+        // so the player's head was inside the lamp ("still in the wall in the hauler", #1259). Feet and head
+        // cell must be free and there must be a floor under the feet, on every ship type.
+        var server = Started(layoutKey, out var repo, out var content);
+        using (repo)
+        {
+            var s = server.BuildShipStructureForTest("Host");
+            var origin = server.ShipOriginOf("Host");
+            var tank = server.HealTank;
+            var feet = new Vector3i(
+                (int)Math.Floor(tank.X) - origin.X,
+                (int)Math.Floor(tank.Y) - origin.Y,
+                (int)Math.Floor(tank.Z) - origin.Z);
+
+            Assert.True(s.Get(feet).IsAir, $"{layoutKey ?? "box"}: heal-tank feet cell {feet} is solid");
+            Assert.True(s.Get(new Vector3i(feet.X, feet.Y + 1, feet.Z)).IsAir, $"{layoutKey ?? "box"}: heal-tank head cell above {feet} is solid");
+            Assert.False(s.Get(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir, $"{layoutKey ?? "box"}: no floor under the heal-tank spot {feet}");
+            if (s.MedbayCell is { } mb)
+            {
+                // Beside the medbay (or on it when the room is tall enough) — never across the ship.
+                Assert.True(Math.Abs(feet.X - mb.X) + Math.Abs(feet.Z - mb.Z) <= 1, $"{layoutKey}: heal-tank {feet} is not next to the medbay {mb}");
+            }
+        }
+    }
+
     [Fact]
     public void Lamps_HangClearOfTheWalkway_AndNeverDisplaceTheHull()
     {

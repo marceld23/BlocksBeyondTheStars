@@ -331,11 +331,11 @@ public sealed partial class GameServer
 
     private ShipDefinition WeightedShip(List<ShipDefinition> pool)
     {
-        int total = pool.Sum(s => System.Math.Max(1, s.CargoSlots));
+        int total = pool.Sum(s => System.Math.Max(1, _content.StartCargoSlots(s)));
         int roll = _traderRng.Next(total);
         foreach (var s in pool)
         {
-            roll -= System.Math.Max(1, s.CargoSlots);
+            roll -= System.Math.Max(1, _content.StartCargoSlots(s));
             if (roll < 0)
             {
                 return s;

@@ -52,6 +52,7 @@ public sealed partial class GameServer
         public string Role = string.Empty;
         public string Theme = string.Empty;
         public string Settlement = string.Empty; // name of the settlement this NPC belongs to (memory/greeting key)
+        public int BaseId; // the founded base this settler belongs to (#1262) — its rename-proof memory key; 0 = none
         public string CharacterId = string.Empty; // authored story character occupying this slot (#1128), "" = none
         public string NameKey = string.Empty;
         public string Name = string.Empty; // coined personal name (item 12)

@@ -130,11 +130,12 @@ public sealed class ContainerFilterTests : IDisposable
             var crate = server.Containers.First(c => c.Kind == "crate");
 
             // "machete" is a tool (never stashed → pointless on a whitelist), "no_such_item" doesn't exist,
-            // "stone" is a block (H never stashes those), and the dyed key must be stored stripped to its base.
+            // "stone" is a block (stashable since #1264, so it stays), and the dyed key must be stored
+            // stripped to its base.
             server.SetContainerFilterForTest(session, crate.Id, new[] { "iron_ore", "machete", "no_such_item", "stone", "copper_ore#tff0000" });
 
             var filter = server.Containers.First(c => c.Id == crate.Id).Filter;
-            Assert.Equal(new[] { "copper_ore", "iron_ore" }, filter.OrderBy(k => k).ToArray());
+            Assert.Equal(new[] { "copper_ore", "iron_ore", "stone" }, filter.OrderBy(k => k).ToArray());
         }
     }
 

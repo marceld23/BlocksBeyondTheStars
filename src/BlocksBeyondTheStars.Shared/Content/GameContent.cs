@@ -540,6 +540,24 @@ public sealed class GameContent
     public BlueprintDefinition? GetBlueprint(string key) => _blueprints.TryGetValue(key, out var b) ? b : null;
     public ShipModuleDefinition? GetShipModule(string key) => _shipModules.TryGetValue(key, out var m) ? m : null;
     public ShipDefinition? GetShip(string key) => _ships.TryGetValue(key, out var s) ? s : null;
+
+    /// <summary>A design's cargo capacity as built: the <c>cargo_slots</c> of its start modules. The hold is
+    /// only ever sized from modules (the server's ResizeCargo), so this is the one number that can never
+    /// disagree with it — ships.json used to carry its own <c>cargoSlots</c>, which advertised 96 for a
+    /// hauler whose hold was 72 (#1261).</summary>
+    public int StartCargoSlots(ShipDefinition ship)
+    {
+        int slots = 0;
+        foreach (var key in ship.StartModules)
+        {
+            if (GetShipModule(key) is { } m && m.Stats.TryGetValue("cargo_slots", out var s))
+            {
+                slots += (int)s;
+            }
+        }
+
+        return slots;
+    }
     public ShipLayout? GetShipLayout(string? key) => !string.IsNullOrEmpty(key) && _shipLayouts.TryGetValue(key, out var l) ? l : null;
     public PlanetType? GetPlanet(string key) => _planets.TryGetValue(key, out var p) ? p : null;
     public MissionDefinition? GetMission(string id) => _missions.TryGetValue(id, out var m) ? m : null;

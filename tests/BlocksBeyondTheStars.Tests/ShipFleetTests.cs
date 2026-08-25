@@ -116,6 +116,74 @@ public sealed class ShipFleetTests : IDisposable
         }
     }
 
+    [Fact]
+    public void CargoCapacity_IsTheModuleSum_AndExpansionTiersStack()
+    {
+        // ships.json used to advertise a `cargoSlots` the hold never used (hauler 96 vs. a real 72 — it
+        // ships with Expansion I already fitted, so building it again was refused: no upgrade path at
+        // all, #1261). The design's number IS the module sum now, and Expansion II/III stack on top.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var hauler = _content.GetShip("hauler")!;
+            Assert.Equal(72, _content.StartCargoSlots(hauler));
+            Assert.Equal(48, _content.StartCargoSlots(_content.GetShip("starter")!));
+
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.InstantBuild = true;
+            pilot.State.AboardShip = true;
+            pilot.State.UnlockedBlueprints.Add("ship_hauler");
+            var (ok, id) = server.CraftShip("Pilot", "hauler");
+            Assert.True(ok);
+            Assert.True(server.SwitchShip(id));
+            Assert.Equal(72, server.Ship.Cargo.SlotCount);
+
+            // Expansion I is pre-fitted → refused, capacity unchanged.
+            pilot.State.UnlockedBlueprints.Add("cargo_expansion_1");
+            Assert.True(server.BuildModuleForTest("Pilot", "cargo_hold_1")); // already fitted (start module)
+            Assert.Equal(72, server.Ship.Cargo.SlotCount);
+            Assert.Equal(1, server.Ship.Modules.Count(m => m == "cargo_hold_1"));
+
+            // Expansion II needs its blueprint, then adds +32; III adds +48 on top.
+            Assert.False(server.BuildModuleForTest("Pilot", "cargo_hold_2"));
+            pilot.State.UnlockedBlueprints.Add("cargo_expansion_2");
+            Assert.True(server.BuildModuleForTest("Pilot", "cargo_hold_2"));
+            Assert.Equal(104, server.Ship.Cargo.SlotCount);
+            pilot.State.UnlockedBlueprints.Add("cargo_expansion_3");
+            Assert.True(server.BuildModuleForTest("Pilot", "cargo_hold_3"));
+            Assert.Equal(152, server.Ship.Cargo.SlotCount);
+        }
+    }
+
+    [Fact]
+    public void AFleetShipThatFailsToLoad_StaysInTheIndex()
+    {
+        // A fleet row that cannot be read (corrupt, or written by a newer build) used to be pruned by the
+        // next SaveFleet — the ship was gone for good and the player was silently back in ship one (#1275).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Stop(); // persists the player; then plant an index entry with no ship row behind it
+            pilot.State.FleetShipIds.Add("ghost");
+            pilot.State.ActiveShipId = "ghost";
+            repo.SavePlayer(pilot.State);
+        }
+
+        var again = Started(out var repo2);
+        using (repo2)
+        {
+            var pilot = again.AddLocalPlayer("Pilot");
+            Assert.NotEqual("ghost", pilot.ActiveShipId); // flies ship one for now …
+            pilot.State.InstantBuild = true;
+            pilot.State.UnlockedBlueprints.Add("ship_hauler");
+            var (ok, id) = again.CraftShip("Pilot", "hauler"); // … which re-saves the fleet index
+            Assert.True(ok);
+            Assert.Contains("ghost", pilot.State.FleetShipIds); // … without losing the unreadable ship
+            Assert.Contains(id, pilot.State.FleetShipIds);
+        }
+    }
+
     public void Dispose()
     {
         try

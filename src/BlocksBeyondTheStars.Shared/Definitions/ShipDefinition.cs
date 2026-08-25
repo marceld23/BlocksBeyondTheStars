@@ -29,8 +29,6 @@ public sealed class ShipDefinition
     public int InteriorLength { get; set; } = 7;
     public int Height { get; set; } = 4;
 
-    public int CargoSlots { get; set; } = 48;
-
     /// <summary>Blueprint that must be unlocked to craft this ship (null/empty = always available).</summary>
     public string? RequiredBlueprint { get; set; }
 

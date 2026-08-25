@@ -896,6 +896,9 @@ public sealed partial class GameServer
     /// key→JSON store, so per-ship rows need no schema change; <c>PlayerState.FleetShipIds</c> is the index.</summary>
     private static string FleetShipSaveKey(string playerId, string shipId) => "ship_" + playerId + "#" + shipId;
 
+    /// <summary>Per player: fleet ids whose ship row failed to load this session (#1275) — kept in the saved index.</summary>
+    private readonly Dictionary<string, List<string>> _unloadableFleetIds = new();
+
     /// <summary>Sets up a freshly-joined player's ship: points the cursor at them, restores their whole fleet
     /// and the ship they were flying, and parks it on their (active) world. A player owns their own fleet
     /// (multiple ships via crafting/wreck-claim) with exactly one active ship.</summary>
@@ -905,6 +908,7 @@ public sealed partial class GameServer
         SetCurrent(session);
         MarkArrivedOnBody(session, session.CurrentLocationId); // the home body is a quick-travel target from the start
         RestoreFleet(session);
+        MigrateBaseSettlerMemory(session); // pre-#1262 saves: settler keyed by base NAME → duplicates per rename
         RestoreLandingPad(session);
         RecomputeShipCombatStats();
         if (_config.PlaceStarterShip)
@@ -924,15 +928,30 @@ public sealed partial class GameServer
     {
         var p = session.State;
         session.Ships.Clear();
+        var unloaded = new List<string>();
         foreach (var id in p.FleetShipIds)
         {
-            if (!string.IsNullOrEmpty(id) && !session.Ships.ContainsKey(id)
-                && _repo.LoadShip(FleetShipSaveKey(p.PlayerId, id)) is { } stored)
+            if (string.IsNullOrEmpty(id) || session.Ships.ContainsKey(id))
+            {
+                continue;
+            }
+
+            if (_repo.LoadShip(FleetShipSaveKey(p.PlayerId, id)) is { } stored)
             {
                 ClampInventory(stored.Cargo, $"ship '{id}' (owner '{p.PlayerId}') cargo");
                 session.Ships[id] = stored;
             }
+            else
+            {
+                // A row that fails to load today (corrupt, or written by a newer build) stays in the fleet
+                // index — SaveFleet used to rewrite the index from the loaded set, which made the loss
+                // permanent and silently put the player back into ship one (#1275).
+                unloaded.Add(id);
+                _log.Warn($"Fleet ship '{id}' of '{p.PlayerId}' could not be loaded — kept in the fleet index, unavailable this session.");
+            }
         }
+
+        _unloadableFleetIds[p.PlayerId] = unloaded;
 
         if (session.Ships.Count == 0)
         {
@@ -944,6 +963,13 @@ public sealed partial class GameServer
 
         if (!session.Ships.ContainsKey(session.ActiveShipId))
         {
+            if (unloaded.Contains(session.ActiveShipId))
+            {
+                // Say so instead of quietly handing over the starter — the player would otherwise think
+                // their hauler was gone (#1275).
+                Send(session, new ServerMessage { Text = Localize(session.Locale, "srv.fleet.ship_unavailable") });
+            }
+
             session.ActiveShipId = session.Ships.Keys.First(); // a dropped/unknown active id falls back to ship one
         }
     }
@@ -976,7 +1002,10 @@ public sealed partial class GameServer
     private void SaveFleet(PlayerSession session)
     {
         var p = session.State;
-        p.FleetShipIds = session.Ships.Keys.ToList();
+        // Ships whose rows failed to load this session stay in the index (#1275): never prune what we could not read.
+        p.FleetShipIds = _unloadableFleetIds.TryGetValue(p.PlayerId, out var kept) && kept.Count > 0
+            ? session.Ships.Keys.Concat(kept).Distinct().ToList()
+            : session.Ships.Keys.ToList();
         foreach (var (id, ship) in session.Ships)
         {
             _repo.SaveShip(FleetShipSaveKey(p.PlayerId, id), ship);
@@ -5330,9 +5359,11 @@ public sealed partial class GameServer
                 CraftingStation.Transmuter => NearStationBlock(player, "matter_forge"),
                 CraftingStation.AlgaeTank => NearStationBlock(player, "algae_tank"),
                 CraftingStation.Campfire => NearStationBlock(player, "campfire"),
-                // A factory's production terminal — only present inside spawned factory structures
-                // (players don't craft/place it), so factory recipes are only available at a factory.
-                CraftingStation.Factory => NearStationBlock(player, "factory_terminal"),
+                // A factory's production terminal. The terminal BLOCK is craftable since #1108 (a housing
+                // for your own halls), but only a spawned factory structure produces — gate on the structure
+                // like HandleCraft's roster check does, not on the block, or the menu lights the Factory tab
+                // up for a player-placed terminal that then refuses every recipe (#1265).
+                CraftingStation.Factory => FactoryTerminalNear(player) is not null,
                 _ => false,
             };
         }
