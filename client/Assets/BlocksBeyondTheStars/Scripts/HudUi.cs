@@ -696,7 +696,7 @@ namespace BlocksBeyondTheStars.Client
                 : baseAir ? "  (" + loc.Get("ui.hud.base_air") + ")"
                 : string.Empty;
             string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;
-            SetVital(1, oxy, Game.Oxygen, Game.Oxygen / 100f, Oxygen, true);
+            SetVital(1, oxy, Game.Oxygen, Game.Oxygen / Mathf.Max(1f, Game.SuitOxygenMax), Oxygen, true);
             // While climate control fights heat/cold/vacuum (#666) the energy bar turns stress-orange.
             SetVital(2, loc.Get("ui.hud.energy"), Game.SuitEnergy, Game.SuitEnergy / 100f,
                 Game.SuitClimateActive ? EnergyStressed : Energy, true);

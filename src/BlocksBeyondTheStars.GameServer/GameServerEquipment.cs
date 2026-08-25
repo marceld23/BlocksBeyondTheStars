@@ -10,80 +10,31 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// Suit equipment effects derived from the gear a player <b>carries</b> (no separate equip slots
 /// yet): armor damage resistance, extra oxygen capacity, scanner knowledge bonus, and the stealth
-/// field. Server-authoritative — these feed the vitals/combat/scan systems. Data-driven via the
-/// item definitions (`ArmorResistance`, `OxygenBonus`, `ScanKnowledgeMultiplier`).
+/// field. Server-authoritative — these feed the vitals/combat/scan systems. The formula itself lives in
+/// <see cref="SuitEquipment"/> (Shared) so the client's Suit tab and HUD show exactly what the server
+/// applies (#1270); data-driven via the item definitions (`ArmorResistance`, `OxygenBonus`,
+/// `ThermalInsulation`, `ScanKnowledgeMultiplier`).
 /// </summary>
 public sealed partial class GameServer
 {
     private const string StealthItem = "stealth_suit";
     private const float StealthDrainPerSecond = 3f; // suit energy spent while cloaked
-    private const float MaxArmorResistance = 0.75f;
 
     /// <summary>Total physical-damage resistance (0..0.75) from carried armor pieces.</summary>
     private float ArmorResistance(PlayerState p)
-    {
-        float sum = 0f;
-        foreach (var item in _content.Items.Values)
-        {
-            if (item.ArmorResistance > 0f && p.Inventory.Has(item.Key, 1))
-            {
-                sum += item.ArmorResistance;
-            }
-        }
+        => SuitEquipment.ArmorResistance(_content.Items.Values, key => p.Inventory.Has(key, 1));
 
-        return System.Math.Min(MaxArmorResistance, sum);
-    }
-
-    /// <summary>Maximum suit oxygen — base 100 plus the best carried tank's bonus. Tanks are tiered (I/II/III),
-    /// so only the highest bonus counts; carrying several does not stack.</summary>
+    /// <summary>Maximum suit oxygen — base 100 plus the best carried tank's bonus (tiers do not stack).</summary>
     private float MaxOxygen(PlayerState p)
-    {
-        float bonus = 0f;
-        foreach (var item in _content.Items.Values)
-        {
-            if (item.OxygenBonus > bonus && p.Inventory.Has(item.Key, 1))
-            {
-                bonus = item.OxygenBonus;
-            }
-        }
+        => SuitEquipment.MaxOxygen(_content.Items.Values, key => p.Inventory.Has(key, 1));
 
-        return 100f + bonus;
-    }
-
-    /// <summary>Hard ceiling for thermal insulation — even the best rig never makes the suit free to run.</summary>
-    private const float MaxThermalInsulation = 0.9f;
-
-    /// <summary>Best carried thermal insulation 0..0.9 (#669): the fraction of heat/cold/vacuum suit
-    /// stress the gear absorbs. Like the oxygen tanks, only the BEST piece counts — liners are tiered,
-    /// carrying several does not stack.</summary>
+    /// <summary>Best carried thermal insulation 0..0.9 (#669); only the BEST piece counts.</summary>
     private float ThermalInsulation(PlayerState p)
-    {
-        float best = 0f;
-        foreach (var item in _content.Items.Values)
-        {
-            if (item.ThermalInsulation > best && p.Inventory.Has(item.Key, 1))
-            {
-                best = item.ThermalInsulation;
-            }
-        }
-
-        return System.Math.Min(MaxThermalInsulation, best);
-    }
+        => SuitEquipment.ThermalInsulation(_content.Items.Values, key => p.Inventory.Has(key, 1));
 
     /// <summary>Best scanner knowledge multiplier from carried scanners (1 = no bonus).</summary>
     private float ScanMultiplier(PlayerState p)
-    {
-        float best = 1f;
-        foreach (var item in _content.Items.Values)
-        {
-            if (item.ScanKnowledgeMultiplier > best && p.Inventory.Has(item.Key, 1))
-            {
-                best = item.ScanKnowledgeMultiplier;
-            }
-        }
-
-        return best;
-    }
+        => SuitEquipment.ScanMultiplier(_content.Items.Values, key => p.Inventory.Has(key, 1));
 
     /// <summary>Applies armor resistance to an incoming physical-damage amount.</summary>
     private float Mitigate(PlayerState p, float damage) => damage * (1f - ArmorResistance(p));

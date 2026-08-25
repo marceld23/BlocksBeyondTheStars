@@ -74,7 +74,7 @@ Last updated: 2026-08-11.
 |---|---|
 | **W / A / S / D** | Move |
 | **Mouse** | Look |
-| **Space** | Jump — **hold in the air to fire the jetpack** (if equipped); **in water: swim up / surface** |
+| **Space** | Jump — **hold in the air to fire the jetpack** (if one is in your backpack — there is nothing to equip); **in water: swim up / surface** |
 | **Space ×2** | **Creative/Sandbox worlds only:** toggle free flight — then Space rises, Ctrl/C sinks, and you keep colliding with the world (so you can still land and build). Touching down turns it off |
 | **Ctrl / C** (hold) | Crouch/sneak — walk slower, stop at ledges instead of walking off (corners included); climb **down** ladders; descend in zero-g |
 | **Left-click** | Mine the targeted block (or **scan** it when a scanner is selected) |
@@ -371,6 +371,12 @@ separate unlock; admins can still disable it through server world rules.
 ### Inventory & cargo hold
 - Your **inventory** is your personal backpack (24 slots) — it travels with you everywhere, and its first
   nine slots are the **quick-bar** (the on-screen hotbar).
+- **Suit gear works while carried.** Armour, oxygen tanks, suit liners, the jetpack, the suit lamp and the
+  stealth suit take effect as soon as they are *anywhere* in your backpack — there is nothing to equip and
+  no slot to put them in. The Inventory's **Suit** tab lists just that gear and shows what it currently
+  gives you: **armour** (pieces add up, capped at 75 %), **maximum oxygen** and **insulation** (of tanks and
+  liners only the best one you carry counts). The same line sits at the top of the Backpack tab, and the
+  HUD oxygen bar's full mark is your real maximum.
 - Your ship's **cargo hold** is bulk storage that belongs to the ship (48 slots, growing with cargo-hold
   modules) and is shared by everyone aboard that ship.
 - **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold

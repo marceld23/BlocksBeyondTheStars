@@ -775,6 +775,7 @@ namespace BlocksBeyondTheStars.Client
                 case Mode.Inventory:
                     list.Clear();
                     list.Add(("personal", L("ui.inventory.backpack"), "cat_inventory"));
+                    list.Add(("suit", L("ui.inventory.suit"), "cat_suit")); // the backpack filtered to suit gear + its effects (#1270/#1271)
                     list.Add(("cargo", L("ui.cargo.title"), "cat_cargo"));
                     break;
                 case Mode.Missions:
@@ -1505,6 +1506,13 @@ namespace BlocksBeyondTheStars.Client
         private float BuildInventoryList()
         {
             var items = _category == "cargo" ? Game.Cargo : Game.Personal;
+            if (_category == "suit" && items != null)
+            {
+                // The Suit tab is a VIEW of the backpack (#1271): gear keeps its slots, it is just listed apart
+                // from ores and blocks — Marcel's call over real equip slots (a save-format change).
+                items = items.Where(s => Game.Content.GetItem(s.Item) is { } d && BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(d)).ToArray();
+            }
+
             float y = 0f;
 
             // Cargo transfer controls. The hold only exists while aboard the ship (in flight or in the landed
@@ -1523,6 +1531,10 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_listContent, 8, y, 752, 30, L("ui.cargo.not_aboard"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += 40f;
             }
+            else if (_category == "suit")
+            {
+                y = AddSuitStatus(y, full: true);
+            }
             else if (AboardShipNow() && _category == "personal")
             {
                 UiKit.AddButton(_listContent, 8, y, 752, 44, L("ui.cargo.stow_all"),
@@ -1530,8 +1542,19 @@ namespace BlocksBeyondTheStars.Client
                 y += 56f;
             }
 
+            if (_category == "personal")
+            {
+                y = AddSuitStatus(y, full: false); // one line, so the effect is visible without switching tabs
+            }
+
             if (items == null || items.Length == 0)
             {
+                if (_category == "suit")
+                {
+                    UiKit.AddText(_listContent, 8, y + 8, 752, 60, L("ui.suit.none"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                    return y + 76f;
+                }
+
                 UiKit.AddText(_listContent, 8, y + 8, 700, 30, "—", 22, UiKit.CyanDim, TextAnchor.UpperLeft);
                 return y + 40f;
             }
@@ -1540,6 +1563,43 @@ namespace BlocksBeyondTheStars.Client
             {
                 AddCard(y, ItemName(s.Item), IconFor(s.Item), "×" + s.Count, UiKit.CyanDim, "inv:" + s.Item, () => { _selected = "inv:" + s.Item; RebuildDetail(); }, contentKey: s.Item);
                 y += 88f;
+            }
+
+            return y;
+        }
+
+        /// <summary>The suit's current passive effects — armour, maximum oxygen, insulation — computed with the
+        /// server's own formula (<see cref="BlocksBeyondTheStars.Shared.State.SuitEquipment"/>) from what is in
+        /// the backpack. Gear "just works" while carried; nothing ever told the player so (#1270).</summary>
+        private float AddSuitStatus(float y, bool full)
+        {
+            var defs = Game.Content.Items.Values;
+            var personal = Game.Personal ?? System.Array.Empty<NetItemStack>();
+            bool Carried(string key)
+            {
+                foreach (var s in personal)
+                {
+                    if (BlocksBeyondTheStars.Shared.State.ItemKey.Base(s.Item) == key)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            int armor = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.ArmorResistance(defs, Carried) * 100f);
+            int oxygen = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(defs, Carried));
+            int insulation = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.State.SuitEquipment.ThermalInsulation(defs, Carried) * 100f);
+            string line = L("ui.suit.status_armor").Replace("{value}", armor.ToString())
+                + "   ·   " + L("ui.suit.status_oxygen").Replace("{value}", oxygen.ToString())
+                + "   ·   " + L("ui.suit.status_insulation").Replace("{value}", insulation.ToString());
+            UiKit.AddText(_listContent, 8, y, 752, 32, line, 18, UiKit.TextCol, TextAnchor.MiddleLeft);
+            y += 38f;
+            if (full)
+            {
+                UiKit.AddText(_listContent, 8, y, 752, 70, L("ui.suit.passive_hint"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
+                y += 80f;
             }
 
             return y;
@@ -4435,37 +4495,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 "weapon" => def.Tool?.Kind == ToolKind.Weapon,
                 "tool" => def.Category == ItemCategory.Tool && def.Tool?.Kind != ToolKind.Weapon,
-                "suit" => IsSuitGear(def),
+                "suit" => BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
                 "consumable" => def.Category == ItemCategory.Consumable,
-                "component" => (def.Category == ItemCategory.Component || def.Category == ItemCategory.Material) && !IsSuitGear(def),
+                "component" => (def.Category == ItemCategory.Component || def.Category == ItemCategory.Material) && !BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
                 "block" => def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock),
                 _ => true,
             };
-        }
-
-        /// <summary>Suit gear: armour / oxygen items plus the wearable suit modules (lamp, jetpack,
-        /// extractors, stealth, teleporter, comms/scanners) — so the "suit" filter shows all of them, not
-        /// just armour.</summary>
-        private static bool IsSuitGear(BlocksBeyondTheStars.Shared.Definitions.ItemDefinition def)
-        {
-            if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f)
-            {
-                return true;
-            }
-
-            switch (def.Key)
-            {
-                case "suit_lamp":
-                case "jetpack":
-                case "oxygen_extractor":
-                case "stealth_suit":
-                case "suit_teleporter":
-                case "comm_radio":
-                case "radar_scanner":
-                    return true;
-                default:
-                    return false;
-            }
         }
 
         private bool MatchesSearch(string label)
