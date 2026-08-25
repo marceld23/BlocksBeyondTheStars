@@ -117,6 +117,64 @@ public sealed class BaseLifeTests : IDisposable
     }
 
     [Fact]
+    public void RenamingTheBase_KeepsOneSettler_AndOneRosterEntry()
+    {
+        // The settler was keyed by a hash of the base NAME: after a rename the scan saw "no settler" and
+        // spawned another under the new hash — one extra NPC + roster entry per rename (#1262).
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Renamer");
+            int baseId = FoundHomeWithSettler(server, owner, out _);
+            string settlerName = owner.State.NpcMemory.Values.Single(r => r.Role == "settler").Name;
+
+            server.RenameBaseForTest(owner, "Erste Heimat");
+            server.ScanBaseLifeForTest();
+            server.RenameBaseForTest(owner, "Zweite Heimat");
+            server.ScanBaseLifeForTest();
+            server.ScanBaseLifeForTest();
+
+            Assert.Equal(1, server.NpcSnapshots.Count(n => n.Role == "settler"));
+            Assert.NotNull(server.BaseSettlerForTest(baseId));
+            var entries = owner.State.NpcMemory.Where(kv => kv.Value.Role == "settler").ToList();
+            Assert.Single(entries);
+            Assert.Equal(settlerName, entries[0].Value.Name);
+            Assert.Equal("Zweite Heimat", entries[0].Value.Place); // the roster follows the new name
+            Assert.StartsWith("base_", entries[0].Key); // keyed by base id, not by the name hash
+        }
+    }
+
+    [Fact]
+    public void PreExistingRenameDuplicates_CollapseIntoOneEntry()
+    {
+        // A save from before #1262 carries one name-keyed settler entry per rename, all with the same coined
+        // name. The join-time migration moves the current one onto the base-id key and drops the rest.
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Legacy");
+            int baseId = FoundHomeWithSettler(server, owner, out _);
+            var live = owner.State.NpcMemory.Single(kv => kv.Value.Role == "settler");
+            string baseName = server.BaseSnapshots.Single(b => b.Id == baseId).Name;
+
+            // Rebuild the pre-fix state: the entry keyed by the current name plus two stale renames.
+            owner.State.NpcMemory.Remove(live.Key);
+            owner.State.NpcMemory["settle_11111:settler"] = new Shared.State.NpcRelationship { Name = live.Value.Name, Role = "settler", Place = "Alt 1", Value = 10 };
+            owner.State.NpcMemory["settle_22222:settler"] = new Shared.State.NpcRelationship { Name = live.Value.Name, Role = "settler", Place = "Alt 2", Value = 12 };
+            owner.State.NpcMemory[$"settle_{(uint)BlocksBeyondTheStars.WorldGeneration.WorldGenerator.StableHash(baseName) % 100000u}:settler"] =
+                new Shared.State.NpcRelationship { Name = live.Value.Name, Role = "settler", Place = baseName, Value = 15 };
+
+            server.MigrateBaseSettlerMemoryForTest(owner);
+
+            var entries = owner.State.NpcMemory.Where(kv => kv.Value.Role == "settler").ToList();
+            Assert.Single(entries);
+            Assert.Equal(live.Key, entries[0].Key);
+            Assert.Equal(15, entries[0].Value.Value); // the current entry carried over, standing intact
+            Assert.Equal(baseName, entries[0].Value.Place);
+        }
+    }
+
+    [Fact]
     public void TheSettler_ComesBackAfterAWorldRoundTrip()
     {
         var server = Start(out var repo);

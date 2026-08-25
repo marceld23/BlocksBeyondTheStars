@@ -9531,6 +9531,59 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-25): player-report round 2 — Lyxette's second batch (#1259 #1260 #1261 #1262 #1263 #1264 #1265 #1266 #1275 #1276)
+
+Ten fixes from the 2026-08-25 inbox (three F1 reports + one that arrived during triage), all singleplayer
+v2026.8.21. The pattern of the round: five of the ten were not "missing features" but places where the game
+already did the right thing and either told the player the opposite or hid it.
+
+* **#1259 "still in the wall in the hauler" after the #1247 reseat.** The heal-tank anchor of every
+  *layout* ship sat ON the medbay block — exactly the cell whose ceiling lamp the #779 pass hangs over each
+  station — so the reseated player's head was inside the lamp on all seven layout ships; the parametric-box
+  starter (cabin centre, no medbay cell) was the only one that worked. `ResolveHealTank` now picks the
+  walkway cell beside the medbay (floor under the feet, two free cells above), falls back to the top of the
+  medbay when it has the headroom, then to the cabin centre. Theory test over every ship type asserts
+  feet + head clearance and a floor.
+* **#1260 stale HUD hull/shield after a ship switch.** `SwitchShip` recomputed the stats but never sent
+  `ShipCombatStatus` — Lyxette's screenshots showed the hauler's 170/140 while the server had her in the
+  starter. One send after the recompute; regression test on the recording transport.
+* **#1261 cargo capacity.** `ships.json` carried a `cargoSlots` the hold never used: capacity is the module
+  sum (`ResizeCargo`), and the hauler ships with `cargo_hold_1` pre-fitted → real 72 while the ship-info
+  panel advertised 96, and building the expansion was refused ("already built") — no upgrade path at all.
+  `cargoSlots` is gone (data + `ShipDefinition` + `merge_ship.py`); `GameContent.StartCargoSlots` is the one
+  number (trader weighting + ship-info panel). **Expansion II (+32) and III (+48)** added as
+  `cargo_hold_2/3` behind `cargo_expansion_2/3` (ShipExpansion chain 17 → 45 → 90 knowledge). Test:
+  hauler 72 → 104 → 152.
+* **#1262 base settler duplicated per rename.** The settler's NPC-memory key was a hash of the base *name*;
+  `HandleSetBaseName` never re-keyed anything, so the next base-life scan saw "no settler" and spawned a
+  second one (same seed → same name) under the new hash — one more roster entry and live NPC per rename.
+  Keyed by `ServerBase.Id` now (`base_<id>:settler`, `ServerNpc.BaseId`); a rename updates the live NPC's
+  display settlement + the roster entry's `Place`; a join-time migration moves a pre-fix entry onto the id
+  key and drops the stale name-keyed copies of the same settler. Two tests (rename twice; legacy dedup).
+* **#1263 a second ship weapon was never selectable.** `SpaceView.RebuildSystems` took the first weapon
+  module and `break`-ed — every ship starts with the basic laser, so a breaker or cannon built later was
+  fitted, paid for and invisible. One quick-bar entry per fitted weapon, labelled by module name.
+* **#1264 crates refused every placeable block.** Deposit + filter accepted only Material/Component; stone,
+  wood, sand, glass — a builder's "resources" — bounced with "no loose materials". `Block` is stashable now
+  (deposit, filter whitelist, manual, `nothing_to_stash` wording).
+* **#1265 factory terminal.** The station gate accepted the *block* (craftable since #1108, stale "players
+  don't place it" comment), so a player-placed terminal lit the Factory tab and every recipe then failed
+  the roster check. Gate = `FactoryTerminalNear` like the craft path; item text no longer says
+  "decoration". Test: a placed terminal does not light the tab.
+* **#1266 glass tooltip** promised "a clear glass pane" for a block that is frosted by design (ART_BIBLE);
+  item + block descriptions reworded (DE/EN + 12 MT).
+* **#1275 `RestoreFleet`** pruned any fleet row that failed to load (the next `SaveFleet` rewrote the index
+  from the loaded set) and silently fell back to ship one. Unreadable ids stay in the index, a warning is
+  logged and the player gets `srv.fleet.ship_unavailable`. Test plants an index entry without a row.
+* **#1276 beam arrival through a one-block floor.** The client's settle release accepted *any* collider
+  within 10 m below the snap — the room under a thin second-floor slab, in a chunk that had already meshed —
+  and gravity resumed before the slab's own chunk existed. After a server snap onto a floor cell (respawn,
+  beam pad, landing) the ground ray must hit within 1.6 m; world spawns keep the old tolerance.
+
+Locales: 13 new keys + 4 reworded ones, EN/DE by hand, the other twelve via `translate_locale.py`.
+Reply to Lyxette should also cover the four non-bugs from her batch (#1267 base air already exists,
+#1270 suit gear works from the backpack, #1268/#1269 modules, #1274 glass) — filed as follow-ups.
+
 ## ✅ Done (2026-08-24): CI shard imbalance — the PR gate's tail shard went from ~7:40 back to ~6 min (#1254)
 
 The 4-runner test matrix had drifted badly out of balance: over six PR runs shard 4 averaged **7:10**

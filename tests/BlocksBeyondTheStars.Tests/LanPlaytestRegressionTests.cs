@@ -145,6 +145,27 @@ public sealed class LanPlaytestRegressionTests : IDisposable
     }
 
     [Fact]
+    public void SwitchingShips_ResendsTheCombatStatus()
+    {
+        // SwitchShip recomputed hull/shield but never sent ShipCombatStatus, so the HUD rows kept the ship
+        // just left (a hauler's 170 while standing in the starter, #1260).
+        var transport = new RecordingTransport();
+        var server = NewServer("switch_status", transport);
+        var pilot = server.AddLocalPlayer("Pilot");
+        pilot.State.InstantBuild = true;
+        pilot.State.UnlockedBlueprints.Add("ship_hauler");
+        var (ok, id) = server.CraftShip("Pilot", "hauler");
+        Assert.True(ok);
+
+        transport.Sent.Clear();
+        Assert.True(server.SwitchShip(id));
+
+        var status = transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).OfType<ShipCombatStatus>().LastOrDefault();
+        Assert.NotNull(status);
+        Assert.Equal(170f, status!.HullMax); // the hauler's, not the starter's 100
+    }
+
+    [Fact]
     public void LandingBackOnTheSameBody_ResyncsShipMarkersDoorsAndChunks()
     {
         // The same-body landing path (RelocateToAssignedPad) used to skip the ship-placement/stations/door

@@ -79,7 +79,6 @@ def main():
         "interiorWidth": layout.get("width", 5),
         "interiorLength": layout.get("length", 7),
         "height": layout.get("height", 4),
-        "cargoSlots": ship.get("cargoSlots", 48),
         "startModules": modules,
         "layout": key,
     }

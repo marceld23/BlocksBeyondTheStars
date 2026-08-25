@@ -33,6 +33,10 @@ public sealed partial class GameServer
 
     private static string StationLocationKey(string stationId) => $"station_{(uint)WorldGenerator.StableHash(stationId) % 100000u}";
 
+    /// <summary>A founded base's settler, keyed by the base's stable id — a base NAME can change, and keying
+    /// by its hash minted a new settler (NPC + roster entry) on every rename (#1262).</summary>
+    private static string BaseSettlerKey(int baseId) => NpcKey("base_" + baseId, "settler");
+
     /// <summary>The board location id from a board mission id (strips the trailing _&lt;slot&gt;).</summary>
     private static string LocationKeyOfMission(string missionId)
     {

@@ -42,6 +42,8 @@ public sealed partial class GameServer
     private string NpcKeyForNpc(PlayerSession session, ServerNpc npc)
         => !string.IsNullOrEmpty(npc.CharacterId)
             ? "char:" + npc.CharacterId // an authored character (#1128) remembers the player GLOBALLY
+            : npc.BaseId > 0
+                ? BaseSettlerKey(npc.BaseId) // a founded base's settler: keyed by base id, rename-proof (#1262)
             : !string.IsNullOrEmpty(npc.Settlement)
                 ? NpcKey(SettlementLocationKey(npc.Settlement), npc.Role)
                 : _boardedStation.TryGetValue(session.State.PlayerId, out var stationId)

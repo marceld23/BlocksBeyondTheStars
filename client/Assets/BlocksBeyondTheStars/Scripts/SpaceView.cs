@@ -1595,26 +1595,31 @@ namespace BlocksBeyondTheStars.Client
             Game?.SetCursorOwner(this, false);
         }
 
-        /// <summary>Rebuilds the quick-bar of ship systems from the active ship's fitted modules (a weapon
-        /// laser, a tractor beam, …). Always offers at least the laser so a fresh ship can fight.</summary>
+        /// <summary>Rebuilds the quick-bar of ship systems from the active ship's fitted modules: one entry
+        /// PER fitted weapon (#1263 — the list used to stop at the first weapon it met, and every ship starts
+        /// with the basic laser, so a breaker or cannon built later was fitted, paid for and never selectable),
+        /// labelled by module name so laser ≠ breaker, plus the tractor beam. Always offers at least the
+        /// laser so a fresh ship can fight.</summary>
         private void RebuildSystems()
         {
             _systems.Clear();
             var mods = Game.ShipCombat?.Modules;
-            string weapon = null;
             if (mods != null)
             {
                 foreach (var m in mods)
                 {
-                    if (m == "ship_laser_basic" || m == "ship_cannon_1" || m == "laser_cannon_2" || m == "asteroid_breaker")
+                    if (IsWeaponModule(m))
                     {
-                        weapon = m;
-                        break;
+                        _systems.Add(new ShipSystem { Label = Loc("module." + m + ".name", m), Kind = "laser", WeaponKey = m });
                     }
                 }
             }
 
-            _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_laser", "Laser"), Kind = "laser", WeaponKey = weapon ?? FlightWeapon });
+            if (_systems.Count == 0)
+            {
+                _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_laser", "Laser"), Kind = "laser", WeaponKey = FlightWeapon });
+            }
+
             if (mods != null && System.Array.IndexOf(mods, "tractor_beam") >= 0)
             {
                 _systems.Add(new ShipSystem { Label = Loc("ui.space.sys_tractor", "Tractor"), Kind = "tractor" });
@@ -1624,6 +1629,10 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string Loc(string key, string fallback) => Game.Localizer != null ? Game.Localizer.Get(key) : fallback;
+
+        /// <summary>The ship modules the flight quick-bar can fire (mirrors the server's weapon table).</summary>
+        private static bool IsWeaponModule(string m)
+            => m == "ship_laser_basic" || m == "ship_cannon_1" || m == "laser_cannon_2" || m == "asteroid_breaker";
 
         // The tractor auto-locks (and the server pulls in) salvage from as far as the laser reaches — matches
         // the server's TractorReach so the beam never visually "hits" a drop the server then rejects as too far.

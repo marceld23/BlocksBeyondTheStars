@@ -43,6 +43,24 @@ public sealed class StationAffordanceTests : IDisposable
     }
 
     [Fact]
+    public void APlayerPlacedFactoryTerminal_DoesNotLightTheFactoryTab()
+    {
+        // The terminal block is craftable (#1108), but only a spawned factory structure produces: the gate
+        // used to accept the block, so the menu lit the Factory tab up and every recipe then failed the
+        // roster check (#1265).
+        var server = Started(placeShip: false, out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0.5f, 64f, 0.5f);
+
+            server.World.SetBlock(new Vector3i(1, 64, 0), _content.GetBlock("factory_terminal")!.NumericId);
+            Assert.DoesNotContain("factory", server.StationsInReachForTest(p.State.PlayerId).Available);
+        }
+    }
+
+    [Fact]
     public void StationsInReach_SeesAPlacedWorkbench_AndForge_OffShip()
     {
         // The client used to know only ship station markers, so a base workbench never lit the Crafting tab

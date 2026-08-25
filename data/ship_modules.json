@@ -14,6 +14,18 @@
     "stats": { "cargo_slots": 24 }
   },
   {
+    "key": "cargo_hold_2", "nameKey": "module.cargo_hold_2.name", "descriptionKey": "module.cargo_hold_2.desc",
+    "mandatory": false, "requiredBlueprint": "cargo_expansion_2",
+    "buildCost": [ { "item": "titanium_plate", "count": 60 }, { "item": "cable", "count": 24 }, { "item": "steel", "count": 6 } ],
+    "stats": { "cargo_slots": 32 }
+  },
+  {
+    "key": "cargo_hold_3", "nameKey": "module.cargo_hold_3.name", "descriptionKey": "module.cargo_hold_3.desc",
+    "mandatory": false, "requiredBlueprint": "cargo_expansion_3",
+    "buildCost": [ { "item": "titanium_plate", "count": 90 }, { "item": "cable", "count": 32 }, { "item": "steel", "count": 12 }, { "item": "circuit_board", "count": 4 } ],
+    "stats": { "cargo_slots": 48 }
+  },
+  {
     "key": "refinery", "nameKey": "module.refinery.name", "descriptionKey": "module.refinery.desc",
     "mandatory": false, "requiredBlueprint": "refinery",
     "buildCost": [ { "item": "iron_plate", "count": 50 }, { "item": "cable", "count": 10 }, { "item": "glass", "count": 6 }, { "item": "energy_cell_1", "count": 4 } ],

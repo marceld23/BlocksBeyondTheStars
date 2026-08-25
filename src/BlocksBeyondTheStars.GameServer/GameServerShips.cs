@@ -134,6 +134,12 @@ public sealed partial class GameServer
 
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
+        if (_current is { Joined: true })
+        {
+            // The HUD hull/shield rows only ever read this message — without it they kept showing the
+            // ship just left (a hauler's 170/140 while standing in the starter, #1260).
+            SendShipCombatStatus(_current);
+        }
 
         if (_shipPlaced)
         {

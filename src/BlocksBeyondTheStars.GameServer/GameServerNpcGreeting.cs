@@ -80,7 +80,9 @@ public sealed partial class GameServer
         string locationKey = NearSpaceStationVendor(player) && _boardedStation.TryGetValue(player.PlayerId, out var st)
             ? StationLocationKey(st)
             : SettlementLocationKey(npc.Settlement);
-        string npcKey = !string.IsNullOrEmpty(npc.CharacterId) ? "char:" + npc.CharacterId : NpcKey(locationKey, npc.Role);
+        string npcKey = !string.IsNullOrEmpty(npc.CharacterId) ? "char:" + npc.CharacterId
+            : npc.BaseId > 0 ? BaseSettlerKey(npc.BaseId) // a base settler is keyed by base id, rename-proof (#1262)
+            : NpcKey(locationKey, npc.Role);
 
         var rel = player.NpcMemory.TryGetValue(npcKey, out var r) ? r : null;
         int relValue = rel?.Value ?? 0;

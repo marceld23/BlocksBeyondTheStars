@@ -218,6 +218,14 @@ namespace BlocksBeyondTheStars.Client
         private float _settleTimer; // how long we've been frozen at spawn waiting for the floor to stream
         private bool _worldRevealed; // settle: has the loading overlay been dismissed for this spawn yet
         private bool _awaitingFloor;   // released on the grace timer with no floor yet — hover instead of falling
+        private bool _snapOntoFloor;   // this settle came from a server snap onto a floor cell (respawn / beam / landing)
+
+        /// <summary>How far below a server snap the ground may be before it counts as "the floor under us":
+        /// the ray starts 0.5 m up, so this allows the pad itself plus a one-block step down. A collider
+        /// further down (the room under a one-block slab, in a chunk that had already meshed) used to
+        /// release the settle freeze, and the player fell through the slab whose own chunk had not
+        /// streamed yet — Lyxette's beam pad on a thin second-floor ceiling (#1276).</summary>
+        private const float SnapFloorMaxDrop = 1.6f;
         private float _awaitFloorTimer;
 
         // View-settle gate (#390): hold the reveal until the streamed view has finished arriving AND meshing, so
@@ -339,6 +347,7 @@ namespace BlocksBeyondTheStars.Client
                 _settleTimer = 0f;
                 _worldRevealed = false;
                 _awaitingFloor = false; // the freeze owns us again; the release below re-decides
+                _snapOntoFloor = false; // a world spawn may sit a little above the terrain — any ground below counts
             }
 
             // On death the server respawns us at the ship's heal-tank — teleport the body there.
@@ -352,6 +361,7 @@ namespace BlocksBeyondTheStars.Client
                 _settleTimer = 0f;
                 _worldRevealed = false;
                 _awaitingFloor = false;
+                _snapOntoFloor = true; // heal-tank / beam pad / landing: the feet are ON a floor cell (#1276)
             }
 
             // Until the server has told us where we are, the controller must not exist as far as the
@@ -393,9 +403,12 @@ namespace BlocksBeyondTheStars.Client
                 // chunks rendered far away ("only sky") and the raycast missed the ground → frozen at spawn.
                 Game.PlayerPosition = transform.position;
 
-                // Solid ground loaded somewhere below the spawn? (the chunk's MeshCollider exists)
+                // Solid ground loaded below the spawn? (the chunk's MeshCollider exists). After a server snap
+                // onto a floor cell it has to be THAT floor — a collider metres further down is the wrong
+                // chunk answering (#1276).
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
-                                   && gHit.collider != _controller;
+                                   && gHit.collider != _controller
+                                   && (!_snapOntoFloor || gHit.distance <= SnapFloorMaxDrop);
 
                 // The streamed view has finished arriving AND meshing — so the reveal shows a populated world
                 // instead of one that visibly assembles over the next few seconds (#390). While the server is
@@ -2119,9 +2132,10 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>True when a streamed collider (terrain, ship deck, pad) sits within a short drop below us.</summary>
+        /// <summary>True when a streamed collider (terrain, ship deck, pad) sits within a short drop below us —
+        /// after a snap onto a floor cell, only the floor right under the feet counts (#1276).</summary>
         private bool ColliderBelow()
-            => Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out var hit, 10f)
+            => Physics.Raycast(transform.position + Vector3.up * 0.5f, Vector3.down, out var hit, _snapOntoFloor ? SnapFloorMaxDrop : 10f)
                && hit.collider != _controller;
 
         private void LookAround()

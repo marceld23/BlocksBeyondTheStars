@@ -147,8 +147,18 @@ public sealed partial class GameServer
     private void HandleLootContainer(PlayerSession session, LootContainerIntent intent)
         => LootContainer(session.State.PlayerId, intent.ContainerId);
 
-    /// <summary>Stashes a player's loose raw/refined materials into a nearby storage crate (Task 5 Stage 3b):
-    /// every Material/Component stack moves in (tools/weapons/equipment stay with the player). Persisted.</summary>
+    /// <summary>What a storage crate takes: materials, components and placeable blocks — the stuff you haul
+    /// and build with. Blocks were refused until #1264 ("I can only put items in, not resources"): a Luanti
+    /// player's stone, wood, sand and glass are all <c>block</c> items here. Tools, weapons, consumables
+    /// and suit gear stay with the player.</summary>
+    private static bool Stashable(Shared.Definitions.ItemDefinition? item)
+        => item?.Category is Shared.Definitions.ItemCategory.Material
+            or Shared.Definitions.ItemCategory.Component
+            or Shared.Definitions.ItemCategory.Block;
+
+    /// <summary>Stashes a player's loose raw/refined materials and blocks into a nearby storage crate (Task 5
+    /// Stage 3b): every Material/Component/Block stack moves in (tools/weapons/equipment stay with the
+    /// player). Persisted.</summary>
     public void DepositToContainer(string playerId, string containerId)
     {
         var session = FindSessionByPlayerId(playerId);
@@ -176,7 +186,7 @@ public sealed partial class GameServer
         for (int i = 0; i < inv.SlotCount; i++)
         {
             if (inv.Slots[i] is { IsEmpty: false } s
-                && _content.GetItem(s.Item)?.Category is Shared.Definitions.ItemCategory.Material or Shared.Definitions.ItemCategory.Component)
+                && Stashable(_content.GetItem(s.Item)))
             {
                 toStash[s.Item] = (toStash.TryGetValue(s.Item, out var have) ? have : 0) + s.Count;
             }
@@ -253,7 +263,7 @@ public sealed partial class GameServer
 
         container.Filter = (intent.Items ?? Array.Empty<string>())
             .Select(ItemKey.Base)
-            .Where(key => _content.GetItem(key)?.Category is Shared.Definitions.ItemCategory.Material or Shared.Definitions.ItemCategory.Component)
+            .Where(key => Stashable(_content.GetItem(key)))
             .Distinct()
             .Take(MaxFilterEntries)
             .ToList();

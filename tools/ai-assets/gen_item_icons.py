@@ -163,6 +163,8 @@ MODULES = [
     ("workshop", "a ship workshop crafting bench with tools"),
     ("cargo_hold_basic", "a small stack of ship cargo crates"),
     ("cargo_hold_1", "a large ship cargo container module"),
+    ("cargo_hold_2", "two large stacked ship cargo container modules with glowing cyan status strips"),
+    ("cargo_hold_3", "a tall triple-stack of large ship cargo container modules bound by a heavy steel frame, glowing cyan status strips"),
     ("refinery", "a ship ore refinery smelter module"),
     ("detoxifier", "a ship chemical detoxifier purifier module"),
     ("transmuter", "a ship matter transmuter module, a dark hexagonal reactor housing with a glowing violet matter-reassembly core and faint energy arcs"),

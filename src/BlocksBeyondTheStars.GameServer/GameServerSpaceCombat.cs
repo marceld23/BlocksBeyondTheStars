@@ -2095,6 +2095,20 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test hook: run the EnterSpaceIntent handler (covers the ship-interior skip path, B40).</summary>
+    /// <summary>Test entrypoint: builds a ship module for a player (mirrors <see cref="HandleBuildModule"/>;
+    /// the player must be aboard a ship with a workshop). Returns whether the module is fitted afterwards.</summary>
+    public bool BuildModuleForTest(string playerId, string moduleKey)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } s)
+        {
+            return false;
+        }
+
+        SetCurrent(s);
+        HandleBuildModule(s, new BuildShipModuleIntent { ModuleKey = moduleKey });
+        return _ship.HasModule(moduleKey);
+    }
+
     public void HandleEnterSpaceForTest(string playerId)
     {
         if (FindSessionByPlayerId(playerId) is { } s)

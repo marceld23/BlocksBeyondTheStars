@@ -219,10 +219,15 @@ public sealed partial class GameServer
         }
 
         basePoint.Name = name;
+        RenameBaseSettler(basePoint, name); // the settler + roster entry follow the name (#1262)
         _repo.SaveBase(ToStored(basePoint));
         BroadcastBasesOn(body);
         SendStarMap(session); // refresh the travel-screen badge/name + rename prefill
     }
+
+    /// <summary>Test entrypoint: the owner renames their base on the active world (mirrors the E-at-the-stone path).</summary>
+    public void RenameBaseForTest(PlayerSession session, string name)
+        => HandleSetBaseName(session, new SetBaseNameIntent { Name = name });
 
     /// <summary>Test/util entrypoint: found a base for a player at a cell on their active world (mirrors placement).</summary>
     public void PlaceBaseForTest(PlayerSession session, Vector3i pos)

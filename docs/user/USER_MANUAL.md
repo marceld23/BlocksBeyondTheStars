@@ -86,7 +86,7 @@ Last updated: 2026-08-11.
 | **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
-| **H** | Store your loose materials in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
+| **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
 | **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item |
 | **T** | Send a trade request to a nearby player |
