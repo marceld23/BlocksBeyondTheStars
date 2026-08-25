@@ -879,6 +879,19 @@ namespace BlocksBeyondTheStars.Client
 
         // Latest authoritative inventory (personal + ship cargo) for the UI.
         public NetItemStack[] Personal { get; private set; } = System.Array.Empty<NetItemStack>();
+
+        /// <summary>Maximum suit oxygen with the tanks currently carried — the HUD bar's full mark (#1270). The
+        /// bar used to divide by a flat 100, so a Tank III's 300 sat pinned at "full" until two thirds were gone.</summary>
+        public float SuitOxygenMax { get; private set; } = BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen;
+
+        private void RefreshSuitStats()
+        {
+            var personal = Personal;
+            SuitOxygenMax = Content == null
+                ? BlocksBeyondTheStars.Shared.State.SuitEquipment.BaseOxygen
+                : BlocksBeyondTheStars.Shared.State.SuitEquipment.MaxOxygen(Content.Items.Values,
+                    key => System.Array.Exists(personal, s => BlocksBeyondTheStars.Shared.State.ItemKey.Base(s.Item) == key));
+        }
         public NetItemStack[] Cargo { get; private set; } = System.Array.Empty<NetItemStack>();
 
         /// <summary>Item gains since the last HUD drain, aggregated per inventory update — the HUD
@@ -1748,6 +1761,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 Personal = m.Personal;
+                RefreshSuitStats();
                 Cargo = m.Cargo;
                 CargoSlots = m.CargoSlotCount;
                 UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());

@@ -9531,6 +9531,29 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-25): suit gear made visible — Suit tab, status line, honest texts (#1270, #1271)
+
+Lyxette's question ("if I just carry the armour in the backpack, is it on? do the effects apply?") had the
+right answer — yes, everything works while carried, there never were equip slots — and nothing in the game
+said so; the manual even claimed the jetpack fires "if equipped". Marcel's call on #1271: no real equip slots
+(a save-format change), a filter view instead.
+
+* **One formula, two readers.** The four gear effects moved from `GameServerEquipment` into
+  `Shared/State/SuitEquipment` (armour stacks to 0.75, best tank / best liner only, scan multiplier,
+  `IsSuitGear`). The server delegates to it; the client reads it for the new status line and the HUD, so the
+  numbers the player sees are the numbers the server applies. `SuitEquipmentTests` pins the formula.
+* **Inventory → Suit tab (#1271).** A third sidebar entry between Backpack and Cargo: the backpack filtered
+  to suit gear (armour, tanks, liners, jetpack, lamp, stealth suit, teleporter, comms/scanner). Gear keeps its
+  slots — it is a view, not a container. Empty state explains where to craft gear.
+* **Status line (#1270).** `Rüstung 55 % · Max. Sauerstoff 300 · Isolierung 85 %` at the top of the Suit tab
+  (with the "works while carried, armour adds up, best tank/liner counts" hint) and, as one line, at the top
+  of the Backpack tab.
+* **HUD oxygen bar** now divides by the real maximum (`SuitOxygenMax`, refreshed on every inventory update)
+  instead of a flat 100 — a Tank III's 300 sat pinned at "full" until two thirds were gone.
+* **Texts.** All twelve gear item descriptions end with "Works while carried." / "Wirkt, solange du es
+  dabeihast." (EN/DE + 12 MT); `USER_MANUAL.md`: Space row no longer says "if equipped", new "Suit gear works
+  while carried" bullet in the inventory section. 6 new `ui.suit.*` / `ui.inventory.suit` keys.
+
 ## ✅ Done (2026-08-25): player-report round 2 — Lyxette's second batch (#1259 #1260 #1261 #1262 #1263 #1264 #1265 #1266 #1275 #1276)
 
 Ten fixes from the 2026-08-25 inbox (three F1 reports + one that arrived during triage), all singleplayer
