@@ -6,6 +6,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Definitions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -50,6 +51,15 @@ public sealed class DetoxifierTests : IDisposable
         var recipe = _content.Recipes["detoxify_gland"];
         Assert.Equal("toxic_gland", recipe.Inputs[0].Item);
         Assert.Equal("creature_meat", recipe.Outputs[0].Item);
+
+        // #1203: the wash pack (toxic berries → berries, mud → water, mushroom parts → bait) is gated by bio-refining;
+        // the original gland detox stays free.
+        Assert.True(string.IsNullOrEmpty(recipe.RequiredBlueprint));
+        foreach (var key in new[] { "wash_berries", "filter_mud", "mushroom_bait" })
+        {
+            Assert.Equal(CraftingStation.Detoxifier, _content.Recipes[key].Station);
+            Assert.Equal("bio_refining", _content.Recipes[key].RequiredBlueprint);
+        }
     }
 
     [Fact]

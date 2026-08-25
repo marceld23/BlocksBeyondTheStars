@@ -57,7 +57,7 @@ VEGA ship-AI set `item_ai_memory_fragment`/`item_ai_core_mk2`/`item_ai_core_mk3`
 set `item_creature_translator`/`item_forage_bait`/`item_meat_bait`/`item_nectar_lure`, and the
 material-variety tier `item_diamond`/`item_diamond_drill`/`item_polymer`/`item_biofuel`/`item_bronze_gear`/`item_brass_fitting`,
 the algae-tank food `item_algae_ration`, the player-designed-form pair
-`item_shape_tool`/`item_shape_stencil`, the boat `item_boat` (#1215), and the farmed cereal `item_grain` (#1204)) are
+`item_shape_tool`/`item_shape_stencil`, the boat `item_boat` (#1215), the farmed cereal `item_grain` (#1204), and the campfire meals `item_hearty_stew`/`item_algae_soup`/`item_mushroom_skewer` (#1203)) are
 **AI-generated** with the same **OpenAI** image API
 (`gpt-image-1-mini`, full-colour transparent object icons — see `tools/ai-assets/gen_item_icons.py`);
 same OpenAI usage terms. Block-backed materials reuse their in-game block atlas tile instead.

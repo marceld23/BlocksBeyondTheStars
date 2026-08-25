@@ -230,5 +230,9 @@
   { "key": "lantern",     "nameKey": "item.lantern.name",     "category": "block", "maxStack": 64,   "placesBlock": "lantern",     "descriptionKey": "item.lantern.desc" },
   { "key": "rug",         "nameKey": "item.rug.name",         "category": "block", "maxStack": 64,   "placesBlock": "rug",         "descriptionKey": "item.rug.desc" },
   { "key": "flower_pot",  "nameKey": "item.flower_pot.name",  "category": "block", "maxStack": 64,   "placesBlock": "flower_pot",  "descriptionKey": "item.flower_pot.desc" },
-  { "key": "cooked_meat", "nameKey": "item.cooked_meat.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.cooked_meat.desc", "consumeHealth": 25, "consumeHunger": 60 }
+  { "key": "cooked_meat", "nameKey": "item.cooked_meat.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.cooked_meat.desc", "consumeHealth": 25, "consumeHunger": 60 },
+  // #1203 campfire meals (field_kitchen): the three best foods in the game — cooked, not foraged.
+  { "key": "hearty_stew", "nameKey": "item.hearty_stew.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.hearty_stew.desc", "consumeHealth": 30, "consumeHunger": 80 },
+  { "key": "algae_soup", "nameKey": "item.algae_soup.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.algae_soup.desc", "consumeHealth": 10, "consumeHunger": 60 },
+  { "key": "mushroom_skewer", "nameKey": "item.mushroom_skewer.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.mushroom_skewer.desc", "consumeHealth": 15, "consumeHunger": 45 }
 ]

@@ -26,7 +26,7 @@
   },
   {
     "key": "stasis_projector", "nameKey": "blueprint.stasis_projector.name", "descriptionKey": "blueprint.stasis_projector.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 35,
+    "category": "Tools", "prerequisites": [ "field_medkit" ], "knowledgeCost": 35,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 4 } ]
   },
   {
@@ -41,17 +41,17 @@
   },
   {
     "key": "creature_translator", "nameKey": "blueprint.creature_translator.name", "descriptionKey": "blueprint.creature_translator.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 30,
+    "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 30,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "titanium_plate", "count": 3 }, { "item": "cable", "count": 2 } ]
   },
   {
     "key": "radio_beacon", "nameKey": "blueprint.radio_beacon.name", "descriptionKey": "blueprint.radio_beacon.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 16,
+    "category": "Tools", "prerequisites": [ "comm_radio" ], "knowledgeCost": 16,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "iron_plate", "count": 5 }, { "item": "cable", "count": 2 } ]
   },
   {
     "key": "beam_block", "nameKey": "blueprint.beam_block.name", "descriptionKey": "blueprint.beam_block.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 45,
+    "category": "Tools", "prerequisites": [ "door_energy" ], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 } ]
   },
   {
@@ -291,17 +291,17 @@
   },
   {
     "key": "radar_scanner", "nameKey": "blueprint.radar_scanner.name", "descriptionKey": "blueprint.radar_scanner.desc",
-    "category": "Tools", "prerequisites": [], "knowledgeCost": 50,
+    "category": "Tools", "prerequisites": [ "radar_array" ], "knowledgeCost": 50,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 5 }, { "item": "cable", "count": 4 } ]
   },
   {
     "key": "suit_teleporter", "nameKey": "blueprint.suit_teleporter.name", "descriptionKey": "blueprint.suit_teleporter.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 100,
+    "category": "Suit", "prerequisites": [ "jump_generator" ], "knowledgeCost": 100,
     "unlockCost": [ { "item": "data_fragment", "count": 4 }, { "item": "titanium_plate", "count": 8 }, { "item": "cable", "count": 6 } ]
   },
   {
     "key": "oxygen_extractor", "nameKey": "blueprint.oxygen_extractor.name", "descriptionKey": "blueprint.oxygen_extractor.desc",
-    "category": "Suit", "prerequisites": [], "knowledgeCost": 45,
+    "category": "Suit", "prerequisites": [ "oxygen_tank_2" ], "knowledgeCost": 45,
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "iron_plate", "count": 10 }, { "item": "cable", "count": 5 } ]
   },
   {
@@ -351,7 +351,7 @@
   },
   {
     "key": "station_mission_board", "nameKey": "blueprint.station_mission_board.name", "descriptionKey": "blueprint.station_mission_board.desc",
-    "category": "Station", "prerequisites": [], "knowledgeCost": 20,
+    "category": "Station", "prerequisites": [ "station_container" ], "knowledgeCost": 20,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "glass", "count": 3 } ]
   },
   {
@@ -363,5 +363,21 @@
     "key": "door_energy", "nameKey": "blueprint.door_energy.name", "descriptionKey": "blueprint.door_energy.desc",
     "category": "Production", "prerequisites": [], "knowledgeCost": 22,
     "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "metal_panel", "count": 4 }, { "item": "crystal", "count": 1 } ]
+  },
+  // #1202: three research nodes that gate the station packs of #1203 (campfire meals, bio-refining, archaeology).
+  {
+    "key": "field_kitchen", "nameKey": "blueprint.field_kitchen.name", "descriptionKey": "blueprint.field_kitchen.desc",
+    "category": "Production", "prerequisites": [], "knowledgeCost": 10,
+    "unlockCost": [ { "item": "plant_fiber", "count": 4 }, { "item": "berries", "count": 2 }, { "item": "wood_log", "count": 2 } ]
+  },
+  {
+    "key": "bio_refining", "nameKey": "blueprint.bio_refining.name", "descriptionKey": "blueprint.bio_refining.desc",
+    "category": "Production", "prerequisites": [ "detoxifier" ], "knowledgeCost": 45,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "algae_ration", "count": 2 }, { "item": "glass", "count": 2 } ]
+  },
+  {
+    "key": "archaeology", "nameKey": "blueprint.archaeology.name", "descriptionKey": "blueprint.archaeology.desc",
+    "category": "Tools", "prerequisites": [ "terrain_scanner" ], "knowledgeCost": 25,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "ancient_brick", "count": 2 }, { "item": "rune_stone", "count": 1 } ]
   }
 ]

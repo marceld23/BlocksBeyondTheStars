@@ -20,7 +20,9 @@ public sealed class CraftingConsistencyTests
     /// <summary>Items a player can come by: block drops + recipe outputs + a few creature drops.</summary>
     private HashSet<string> Obtainable()
     {
-        var set = new HashSet<string> { "creature_meat", "toxic_gland" }; // fauna drops (procedural species)
+        // Runtime drops with no data-side source: fauna drops (procedural species) and the toxic berries a toxic
+        // flora species swaps in for its berries when broken (#1203 gives them a detoxifier sink).
+        var set = new HashSet<string> { "creature_meat", "toxic_gland", "toxic_berries" };
         foreach (var b in _c.Blocks.Values)
         {
             foreach (var d in b.Drops) set.Add(d.Item);
