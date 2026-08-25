@@ -178,6 +178,12 @@ public sealed partial class GameServer
         SendStarMap(session); // the player's travel-screen badge for this body lights up
         Send(session, new ServerMessage { Text = "@srv.base.founded:" + basePoint.Name });
         RecordStoryMilestone("base:first"); // the first base of the save advances the arc (#1105)
+        if (!AtmosphereBreathable)
+        {
+            // Sealed rooms + the energy door have breathed since #794 and nobody found them (#1267): VEGA
+            // explains the three rules once, on the first core founded where they matter.
+            ShipAiHintOnce(session, "base_airless");
+        }
     }
 
     /// <summary>If a base entity sits at this cell (its base_core was just mined or blasted), drop + forget it.
@@ -257,16 +263,25 @@ public sealed partial class GameServer
     private void SendBases(PlayerSession session)
         => Send(session, new BaseList { Bases = _bases.Where(b => b.Planet == session.CurrentLocationId).Select(ToNetBase).ToArray() });
 
-    private static NetBase ToNetBase(ServerBase b) => new()
+    private NetBase ToNetBase(ServerBase b)
     {
-        Id = b.Id,
-        X = b.Cell.X + 0.5f,
-        Y = b.Cell.Y,
-        Z = b.Cell.Z + 0.5f,
-        Name = b.Name,
-        OwnerId = b.OwnerId,
-        BodyId = b.Planet,
-    };
+        // The core's air readout (#1267): only meaningful on the world the base stands on — and the fill
+        // must be current even when nobody's oxygen tick asked for it (a player standing IN the cube
+        // short-circuits the sealed-room check, so the cache could otherwise sit empty forever).
+        var air = b.Planet == _world.LocationId ? RefreshBaseAir(b, broadcastOnChange: false) : null;
+        return new NetBase
+        {
+            Id = b.Id,
+            X = b.Cell.X + 0.5f,
+            Y = b.Cell.Y,
+            Z = b.Cell.Z + 0.5f,
+            Name = b.Name,
+            OwnerId = b.OwnerId,
+            BodyId = b.Planet,
+            AirCells = air?.Cells.Count ?? 0,
+            SealedRooms = air?.Rooms ?? 0,
+        };
+    }
 
     private static StoredBase ToStored(ServerBase b) => new()
     {

@@ -49,6 +49,7 @@ public sealed partial class GameServer
     {
         public string Body = string.Empty;          // world the fill was computed on
         public HashSet<Vector3i> Cells = new();     // canonical cells that hold base air
+        public int Rooms;                           // supplied (sealed + connected) pockets in the last fill
         public double ComputedAt = double.NegativeInfinity;
     }
 
@@ -78,26 +79,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (!_baseAir.TryGetValue(b.Id, out var vol))
-            {
-                _baseAir[b.Id] = vol = new BaseAirVolume();
-            }
-
-            if (vol.Body != body || _uptime - vol.ComputedAt >= SealedRoomRecomputeInterval)
-            {
-                bool wasSealed = vol.Body == body && vol.Cells.Count > 0;
-                vol.Body = body;
-                vol.ComputedAt = _uptime;
-                vol.Cells = ComputeSuppliedCells(b);
-
-                // The seal just broke (someone mined a wall, pulled a door, fire ate a plank …): warn
-                // everyone in the base's reach so the loss isn't silent — but only where it matters, i.e.
-                // when the world's own air is NOT breathable and oxygen is on (issue: Marcel 2026-08-08).
-                if (wasSealed && vol.Cells.Count == 0 && Rules.OxygenEnabled && !AtmosphereBreathable)
-                {
-                    WarnBaseAirLost(b);
-                }
-            }
+            var vol = RefreshBaseAir(b, broadcastOnChange: true);
 
             if (vol.Cells.Contains(canonical))
             {
@@ -106,6 +88,56 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>The base's supplied-air volume, recomputed when stale (see <see cref="SealedRoomRecomputeInterval"/>)
+    /// or computed for another world. With <paramref name="broadcastOnChange"/> a changed cell/room count re-sends
+    /// the base list on this body, so the core's air readout on every client stays current (#1267) — the caller
+    /// building that very list passes false.</summary>
+    private BaseAirVolume RefreshBaseAir(ServerBase b, bool broadcastOnChange)
+    {
+        string body = _world.LocationId;
+        if (!_baseAir.TryGetValue(b.Id, out var vol))
+        {
+            _baseAir[b.Id] = vol = new BaseAirVolume();
+        }
+
+        if (vol.Body != body || _uptime - vol.ComputedAt >= SealedRoomRecomputeInterval)
+        {
+            bool wasSealed = vol.Body == body && vol.Cells.Count > 0;
+            int cellsBefore = vol.Body == body ? vol.Cells.Count : -1, roomsBefore = vol.Rooms;
+            vol.Body = body;
+            vol.ComputedAt = _uptime;
+            vol.Cells = ComputeSuppliedCells(b, out vol.Rooms);
+
+            // The seal just broke (someone mined a wall, pulled a door, fire ate a plank …): warn
+            // everyone in the base's reach so the loss isn't silent — but only where it matters, i.e.
+            // when the world's own air is NOT breathable and oxygen is on (issue: Marcel 2026-08-08).
+            if (wasSealed && vol.Cells.Count == 0 && Rules.OxygenEnabled && !AtmosphereBreathable)
+            {
+                WarnBaseAirLost(b);
+            }
+
+            if (broadcastOnChange && (vol.Cells.Count != cellsBefore || vol.Rooms != roomsBefore))
+            {
+                BroadcastBasesOn(body);
+            }
+        }
+
+        return vol;
+    }
+
+    /// <summary>Test/inspection: a base's supplied air (cells, sealed rooms) on the active world, refreshed.</summary>
+    public (int Cells, int Rooms) BaseAirForTest(int baseId)
+    {
+        var b = _bases.FirstOrDefault(x => x.Id == baseId && x.Planet == _world.LocationId);
+        if (b is null)
+        {
+            return (0, 0);
+        }
+
+        var vol = RefreshBaseAir(b, broadcastOnChange: false);
+        return (vol.Cells.Count, vol.Rooms);
     }
 
     /// <summary>Shortest absolute longitude distance across the wrap seam (Y/Z use plain Math.Abs).</summary>
@@ -119,8 +151,9 @@ public sealed partial class GameServer
     /// never drag chunk generation; around an actively-used base the chunks are resident anyway (an
     /// unloaded cell reads as air, joins a fill and at worst leaks that pocket).
     /// </summary>
-    private HashSet<Vector3i> ComputeSuppliedCells(ServerBase b)
+    private HashSet<Vector3i> ComputeSuppliedCells(ServerBase b, out int rooms)
     {
+        rooms = 0;
         int circ = _world.Circumference;
         var doorCells = EnergyDoorCells();            // canonical door cell → door index
         var cellPocket = new Dictionary<Vector3i, int>();
@@ -197,6 +230,7 @@ public sealed partial class GameServer
         {
             if (p.Supplied)
             {
+                rooms++;
                 supplied.UnionWith(p.Cells);
             }
         }

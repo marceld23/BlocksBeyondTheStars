@@ -197,6 +197,41 @@ public sealed class BaseSealedRoomTests : IDisposable
     }
 
     [Fact]
+    public void TheCore_ReportsItsAir_AndVegaExplainsTheRulesOnce()
+    {
+        // The sealed-room fill was invisible (#1267): nothing showed whether a room sealed or why not. The
+        // base list now carries the supplied cells + sealed rooms (the client's aim prompt reads them), a
+        // change re-sends the list, and VEGA states the three rules once when a core is founded where they
+        // matter (rocky = toxic here).
+        var transport = new RecordingTransport();
+        var server = Start(out var repo, "sealedreadout", transport);
+        using (repo)
+        {
+            var p = BuildRoom(server, "stone", "door_energy");
+            int baseId = server.BaseSnapshots.Single().Id;
+            Assert.Contains("vega:hint:base_airless", p.State.Milestones);
+
+            TickAt(server, p, InsideBeyondCube);
+            var (cells, rooms) = server.BaseAirForTest(baseId);
+            Assert.True(cells > 0, "the stone room behind an energy door should be supplied");
+            Assert.Equal(1, rooms);
+
+            var sent = transport.Sent.Where(x => x.Item2 is BlocksBeyondTheStars.Networking.Messages.BaseList)
+                .Select(x => (BlocksBeyondTheStars.Networking.Messages.BaseList)x.Item2).Last();
+            Assert.Equal(cells, sent.Bases.Single().AirCells);
+            Assert.Equal(1, sent.Bases.Single().SealedRooms);
+
+            // A hole in the roof: the next refresh reports no room and the list goes out again with zeros.
+            server.World.SetBlock(new Vector3i(13, ShellMaxY, 0), BlockId.Air);
+            TickAt(server, p, InsideBeyondCube, halfSeconds: 8);
+            Assert.Equal((0, 0), server.BaseAirForTest(baseId));
+            var after = transport.Sent.Where(x => x.Item2 is BlocksBeyondTheStars.Networking.Messages.BaseList)
+                .Select(x => (BlocksBeyondTheStars.Networking.Messages.BaseList)x.Item2).Last();
+            Assert.Equal(0, after.Bases.Single().SealedRooms);
+        }
+    }
+
+    [Fact]
     public void MiningTheCore_KillsTheSealedRoomAirToo()
     {
         var server = Start(out var repo, "sealedcoregone");

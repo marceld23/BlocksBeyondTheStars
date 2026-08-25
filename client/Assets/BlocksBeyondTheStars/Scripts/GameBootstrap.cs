@@ -398,6 +398,9 @@ namespace BlocksBeyondTheStars.Client
         /// drives the HUD "Workbench — crafting: Tab → Crafting" prompt (#1073). Set by PlayerController.</summary>
         public string AimedStationBlock;
 
+        /// <summary>Your own base core in the crosshair (#1267) — the HUD prompt shows its air readout; null otherwise.</summary>
+        public NetBase AimedOwnBase;
+
         // --- Station affordances (#1070/#1072): the SERVER says which stations are usable right now. ---
 
         /// <summary>Lower-case CraftingStation names usable now ("workshop", "refinery", …); hand is implicit.

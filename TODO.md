@@ -9531,6 +9531,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-25): people keep personal space + the base core shows its air (#1272, #1267)
+
+Two more of Lyxette's follow-ups, both server-side with a thin client readout.
+
+* **NPC-vs-NPC separation (#1272).** Settlers and station folk walked straight into each other — only the
+  creature boids (#651) had a separation rule. `MoveNpcs` now nudges each NPC's next position away from the
+  nearest other NPC when closer than ~0.8 m (size-scaled), capped at the cruise step per tick, BEFORE the
+  world/ship path check — so a nudge into a wall is refused like any other step. Standing NPCs are nudged
+  too, so an existing pile-up drifts apart by itself. Client untouched (render-only, no colliders — by
+  design). `NpcSeparationTests` pins the pure nudge.
+* **Base air made discoverable (#1267).** The sealed-room fill (#794) was invisible: nothing showed whether
+  a room sealed or why not, and the energy-door rule was written nowhere near the doors.
+  * `NetBase` carries `AirCells` + `SealedRooms`; the fill counts supplied pockets, `RefreshBaseAir` is
+    shared by the oxygen tick and the base list, and a changed count re-sends the list on that body. The
+    list builder refreshes the fill itself — a player standing IN the cube short-circuited the sealed-room
+    check, so the cache could sit empty forever.
+  * Aiming at your own core: the HUD prompt reads `[E] Rename base · Air: 812 cells in 2 sealed room(s) ·
+    here: air` (or "No sealed room yet — airtight walls all round (roof included) and an energy door").
+    Prompt widened to 800 px.
+  * VEGA once-hint `base_airless` on founding a core where the world's air is not breathable: the three
+    rules (airtight walls incl. roof, only the energy door seals, connected to the core).
+  * Hinge/slide/wood door descriptions say they leak; Codex article "Bases on Airless Worlds" (EN/DE);
+    USER_MANUAL sealed-rooms bullet gets the "check it" sentence. Test: the room behind an energy door
+    reports cells + 1 room in the base list, a hole drops it to 0 and re-sends, the hint milestone is set.
+
 ## ✅ Done (2026-08-25): suit gear made visible — Suit tab, status line, honest texts (#1270, #1271)
 
 Lyxette's question ("if I just carry the armour in the backpack, is it on? do the effects apply?") had the

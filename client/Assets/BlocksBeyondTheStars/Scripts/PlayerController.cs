@@ -1437,6 +1437,9 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
+            Game.AimedOwnBase = AimedOwnedBase();
+
             if (!InputMap.Down(InputAction.Interact))
             {
                 return;
@@ -1663,16 +1666,23 @@ namespace BlocksBeyondTheStars.Client
         /// current base name so E can open the rename overlay. Only the owner gets the prompt; everyone sees the marker.</summary>
         private bool TryAimOwnedBase(out string bodyId, out string name)
         {
-            bodyId = string.Empty;
-            name = string.Empty;
+            var b = AimedOwnedBase();
+            bodyId = b?.BodyId ?? string.Empty;
+            name = b?.Name ?? string.Empty;
+            return b != null;
+        }
+
+        /// <summary>The base you own whose core block is in the crosshair, or null.</summary>
+        private BlocksBeyondTheStars.Networking.Messages.NetBase AimedOwnedBase()
+        {
             if (Game?.Bases == null || Game.Bases.Length == 0 || string.IsNullOrEmpty(Game.LocalPlayerId))
             {
-                return false;
+                return null;
             }
 
             if (!AimBlock(out var hit, out _))
             {
-                return false;
+                return null;
             }
 
             foreach (var b in Game.Bases)
@@ -1682,13 +1692,11 @@ namespace BlocksBeyondTheStars.Client
                     && Mathf.FloorToInt(b.Y) == hit.y
                     && Mathf.FloorToInt(b.Z) == hit.z)
                 {
-                    bodyId = b.BodyId;
-                    name = b.Name ?? string.Empty;
-                    return true;
+                    return b;
                 }
             }
 
-            return false;
+            return null;
         }
 
         private void HandleHotbar()

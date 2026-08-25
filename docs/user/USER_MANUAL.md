@@ -615,7 +615,9 @@ separate unlock; admins can still disable it through server world rules.
   field is an **air curtain** — you walk right through, the air stays in. Ordinary doors (wood, hinged,
   sliding) do NOT hold air. Chain rooms door by door to grow a whole airtight outpost; if a wall is mined or
   burns away, everyone at the base gets a **"no longer airtight"** warning and the rooms fall back to suit
-  oxygen until the hole is closed.
+  oxygen until the hole is closed. **Check it:** aim at your own core — the prompt shows how many cells and
+  sealed rooms currently have air and whether the spot you stand on does (*here: air*). VEGA explains the
+  three rules once when you found a core on a world without breathable air.
 - **Sentry post** (workshop, blueprint-gated after the Heal Tank): a small automatic turret you place inside
   your own base zone. It fires at hostile machines and at robbers who have **already started a fight** —
   never at players, never at tame animals, and never at somebody walking up to talk (you always get to

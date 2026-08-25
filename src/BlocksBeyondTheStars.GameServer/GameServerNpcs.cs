@@ -265,7 +265,7 @@ public sealed partial class GameServer
             int refY = (int)System.Math.Floor(npc.Pos.Y);
             float nextY = TryGroundFeetYAt(gx, gz, refY, out int feet) && System.Math.Abs(feet - refY) <= 2
                 ? feet : npc.Home.Y;
-            var next = new Vector3f(res.Position.X, nextY, res.Position.Z);
+            var next = SeparateFromNpcs(npc, new Vector3f(res.Position.X, nextY, res.Position.Z), moveDt);
 
             // NPCs don't wander into the player's ship — or through their building's walls/doors. The world
             // check sweeps the whole step (not just the endpoint) so an NPC can't tunnel through a one-block
@@ -292,6 +292,69 @@ public sealed partial class GameServer
                 npc.Facing = (float)System.Math.Atan2(System.Math.Cos(res.Facing), System.Math.Sin(res.Facing));
             }
         }
+    }
+
+    /// <summary>Personal space between two people, as a fraction of their combined size (a 0.92–1.08 settler
+    /// keeps ~0.8 m to the next). People used to have no separation at all — the creature boids (#651) kept
+    /// herds apart while settlers and station folk stood inside each other (#1272).</summary>
+    private const float NpcSeparationFactor = 0.8f;
+
+    /// <summary>Nudges an NPC's next position away from the nearest other NPC when they are closer than their
+    /// personal space. Applied BEFORE the world/ship path check, so a nudge into a wall is refused like any
+    /// other step. Standing NPCs are nudged too, so an existing pile-up drifts apart on its own. O(n) per NPC
+    /// against the world's short NPC list; plain coordinates (a seam-straddling pair just keeps overlapping for
+    /// a moment, like the creature flocks).</summary>
+    private Vector3f SeparateFromNpcs(ServerNpc self, Vector3f next, double dt)
+    {
+        ServerNpc? nearest = null;
+        float nearestSq = float.MaxValue;
+        foreach (var other in _npcs)
+        {
+            if (ReferenceEquals(other, self))
+            {
+                continue;
+            }
+
+            float dx = other.Pos.X - next.X, dz = other.Pos.Z - next.Z;
+            float distSq = dx * dx + dz * dz;
+            if (distSq < nearestSq)
+            {
+                nearestSq = distSq;
+                nearest = other;
+            }
+        }
+
+        if (nearest is null)
+        {
+            return next;
+        }
+
+        float sepDist = NpcSeparationFactor * 0.5f * (self.Size + nearest.Size);
+        return NudgeApart(next, nearest.Pos, sepDist, (float)(NpcProfile.CruiseSpeed * dt));
+    }
+
+    /// <summary>Pushes <paramref name="pos"/> horizontally away from <paramref name="other"/> until they are
+    /// <paramref name="sepDist"/> apart, moving at most <paramref name="maxStep"/> per call. Two bodies on exactly
+    /// the same spot pick +X so they still come apart.</summary>
+    internal static Vector3f NudgeApart(Vector3f pos, Vector3f other, float sepDist, float maxStep)
+    {
+        float dx = pos.X - other.X, dz = pos.Z - other.Z;
+        float d = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        if (d >= sepDist)
+        {
+            return pos;
+        }
+
+        float gap = sepDist - d; // how much personal space is missing (measured before the fallback below)
+        if (d < 1e-4f)
+        {
+            dx = 1f;
+            dz = 0f;
+            d = 1f;
+        }
+
+        float push = System.Math.Min(gap, System.Math.Max(0f, maxStep));
+        return new Vector3f(pos.X + dx / d * push, pos.Y, pos.Z + dz / d * push);
     }
 
     /// <summary>True if moving from <paramref name="from"/> to <paramref name="to"/> would pass through (or end
