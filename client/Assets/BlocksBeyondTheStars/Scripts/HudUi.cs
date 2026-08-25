@@ -549,7 +549,7 @@ namespace BlocksBeyondTheStars.Client
             // they are invisible is how you end up "fixing" a world nobody can see you in.
             _observer = UiKit.AddText(root, W / 2f - 160, 30, 320, 24, string.Empty, 18, UiKit.Warn,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
-            _prompt = UiKit.AddText(root, W / 2f - 160, H / 2f + 24, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _prompt = UiKit.AddText(root, W / 2f - 400, H / 2f + 24, 800, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             _hint = UiKit.AddText(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
 
@@ -778,6 +778,10 @@ namespace BlocksBeyondTheStars.Client
                         ? "ui.station.helm"
                         : $"ui.station.{Game.NearbyStation}";
                     prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
+                }
+                else if (Game.AimedOwnBase is { } ownBase)
+                {
+                    prompt = BaseAirPrompt(loc, ownBase);
                 }
                 else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
                 {
@@ -1864,6 +1868,18 @@ namespace BlocksBeyondTheStars.Client
         {
             var t = button.GetComponentInChildren<Text>();
             if (t != null) { t.text = text; }
+        }
+
+        /// <summary>Aiming at your own base core (#1267): the rename key, what the core's life-support field
+        /// covers beyond its cube (sealed rooms, #794) and whether the spot you stand on has air — the sealed-room
+        /// fill was invisible until now, so nobody knew the energy door is the one that seals.</summary>
+        private string BaseAirPrompt(BlocksBeyondTheStars.Shared.Localization.Localizer loc, BlocksBeyondTheStars.Networking.Messages.NetBase b)
+        {
+            string air = b.SealedRooms > 0
+                ? loc.Get("ui.base.air_status").Replace("{cells}", b.AirCells.ToString()).Replace("{rooms}", b.SealedRooms.ToString())
+                : loc.Get("ui.base.air_none");
+            string here = Game.LifeSupportSource == 3 ? loc.Get("ui.base.air_here_ok") : loc.Get("ui.base.air_here_no");
+            return $"{loc.Get("ui.base.rename_hint")}  ·  {air}  ·  {here}";
         }
 
         private string LootText(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

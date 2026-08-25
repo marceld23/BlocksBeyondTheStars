@@ -21,6 +21,12 @@ public sealed class NetBase
     /// <summary>The player-typed, free-form name shown on the planet map (e.g. "Home Base", "Outpost 1").</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>Cells the core's life-support field currently supplies beyond the unconditional cube — the
+    /// sealed rooms (#794) — and how many such rooms there are. Shown when aiming at your own core (#1267).
+    /// New fields on an existing contractless MessagePack message: an older client ignores them.</summary>
+    public int AirCells { get; set; }
+    public int SealedRooms { get; set; }
+
     /// <summary>Owning player's id — only the owner may rename the base (everyone sees the marker).</summary>
     public string OwnerId { get; set; } = string.Empty;
 
