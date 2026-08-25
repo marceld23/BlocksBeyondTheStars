@@ -61,6 +61,9 @@ ITEMS = [
     # Consumables (toxic ones are tinted green at runtime; base art stays natural)
     ("creature_meat", "a juicy grilled steak of meat on a small bone"),
     ("cooked_meat", "a golden-brown roasted meat joint on a small bone with rising steam wisps, freshly cooked over a campfire"),
+    ("hearty_stew", "a steaming rustic bowl of thick brown meat and grain stew with red berries, wooden spoon"),
+    ("algae_soup", "a steaming bowl of smooth bright green algae soup with a sprinkle of salt flakes"),
+    ("mushroom_skewer", "three grilled tan mushroom caps on a wooden skewer stick, lightly charred"),
     ("berries", "a small cluster of round red berries with a leaf"),
     ("grain", "a small loose handful of ripe golden wheat grains with two short ears of wheat"),
     ("toxic_gland", "a glistening wet alien organ gland"),

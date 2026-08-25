@@ -59,6 +59,11 @@
   { "key": "plasma_blaster", "station": "workshop", "requiredBlueprint": "plasma_blaster", "inputs": [ { "item": "laser_pistol", "count": 1 }, { "item": "titanium_plate", "count": 4 }, { "item": "cable", "count": 3 }, { "item": "energy_cell_1", "count": 3 }, { "item": "diamond", "count": 1 } ], "outputs": [ { "item": "plasma_blaster", "count": 1 } ] },
 
   { "key": "detoxify_gland", "station": "detoxifier", "inputs": [ { "item": "toxic_gland", "count": 1 } ], "outputs": [ { "item": "creature_meat", "count": 1 } ] },
+  // #1203 detoxifier wash (bio_refining blueprint): toxic berries become safe, mud filters to water, giant-mushroom
+  // parts (mineable, no sink before) become bait.
+  { "key": "wash_berries", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "toxic_berries", "count": 2 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "berries", "count": 2 } ] },
+  { "key": "filter_mud", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "mud", "count": 2 } ], "outputs": [ { "item": "water", "count": 1 } ] },
+  { "key": "mushroom_bait", "station": "detoxifier", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "mushroom_cap", "count": 1 }, { "item": "mushroom_stem", "count": 1 } ], "outputs": [ { "item": "forage_bait", "count": 3 } ] },
 
   // Factory recipes — produced at a spawned factory's terminal. Each consumes CHEAPER / less-rare raw
   // materials (raw ore, sand, carbon) but MORE of them than the base workshop/refinery chain, in a
@@ -154,6 +159,8 @@
   { "key": "market_data_to_circuit",   "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "data_fragment", "count": 1 } ], "outputs": [ { "item": "circuit_board", "count": 2 } ] },
   // #1200: researchers pay well for refined uranium — the one buyer for it outside the reactor.
   { "key": "market_sell_uranium", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "uranium", "count": 1 } ], "outputs": [ { "item": "data_fragment", "count": 2 } ] },
+  // #1203: researchers buy rune stones — for data fragments, never for knowledge.
+  { "key": "market_sell_rune", "station": "market", "marketTheme": "researchers", "inputs": [ { "item": "rune_stone", "count": 2 } ], "outputs": [ { "item": "data_fragment", "count": 1 } ] },
 
   { "key": "market_sell_meat",         "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "creature_meat", "count": 4 } ], "outputs": [ { "item": "iron_ore", "count": 3 } ] },
   { "key": "market_buy_food",          "station": "market", "marketTheme": "settlers", "inputs": [ { "item": "iron_ore", "count": 3 } ],      "outputs": [ { "item": "creature_meat", "count": 5 } ] },
@@ -198,7 +205,10 @@
 
   { "key": "stairs_granite",     "station": "hand",     "inputs": [ { "item": "granite", "count": 2 } ],                                  "outputs": [ { "item": "stairs", "count": 4 } ] },
   { "key": "concrete_deepslate", "station": "hand",     "inputs": [ { "item": "deepslate", "count": 4 }, { "item": "sand", "count": 1 } ], "outputs": [ { "item": "concrete", "count": 4 } ] },
+  // #1203 orphans: ancient masonry and volcanic glass get a use once you know what you are looking at (archaeology).
+  { "key": "concrete_ancient", "station": "hand", "requiredBlueprint": "archaeology", "inputs": [ { "item": "ancient_brick", "count": 2 }, { "item": "mud", "count": 1 } ], "outputs": [ { "item": "concrete", "count": 4 } ] },
   { "key": "glass_salt",         "station": "refinery", "inputs": [ { "item": "salt", "count": 1 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "glass", "count": 2 } ] },
+  { "key": "glass_obsidian", "station": "refinery", "requiredBlueprint": "archaeology", "inputs": [ { "item": "obsidian", "count": 2 } ], "outputs": [ { "item": "glass", "count": 2 } ] },
   { "key": "water_snow",         "station": "hand",     "inputs": [ { "item": "snow", "count": 2 } ],                                     "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "water_ice",          "station": "hand",     "inputs": [ { "item": "ice", "count": 2 } ],                                      "outputs": [ { "item": "water", "count": 1 } ] },
   { "key": "fiber_mycelium",     "station": "hand",     "inputs": [ { "item": "mycelium", "count": 1 } ],                                 "outputs": [ { "item": "plant_fiber", "count": 2 } ] },
@@ -240,6 +250,10 @@
   { "key": "heal_tank",    "station": "workshop",  "requiredBlueprint": "heal_tank", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "glass", "count": 4 }, { "item": "cable", "count": 3 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "heal_tank", "count": 1 } ] },
   { "key": "sentry_post",  "station": "workshop",  "requiredBlueprint": "sentry_post", "inputs": [ { "item": "metal_panel", "count": 4 }, { "item": "cable", "count": 2 }, { "item": "circuit_board", "count": 1 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "sentry_post", "count": 1 } ] },
   { "key": "algae_ration", "station": "algaetank", "inputs": [ { "item": "water", "count": 1 } ],                                        "outputs": [ { "item": "algae_ration", "count": 2 } ] },
+  // #1203 algae bio-refinery (bio_refining blueprint): the tank grows fuel, fibre and feedstock, not just rations.
+  { "key": "biofuel_algae", "station": "algaetank", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "water", "count": 1 }, { "item": "plant_fiber", "count": 2 } ], "outputs": [ { "item": "biofuel", "count": 3 } ] },
+  { "key": "fiber_algae", "station": "algaetank", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "water", "count": 2 } ], "outputs": [ { "item": "plant_fiber", "count": 3 } ] },
+  { "key": "polymer_algae", "station": "algaetank", "requiredBlueprint": "bio_refining", "inputs": [ { "item": "algae_ration", "count": 3 }, { "item": "carbon", "count": 1 } ], "outputs": [ { "item": "polymer", "count": 1 } ] },
 
   // Energy fence: contains creatures, companions and planet enemies; the gate membrane lets
   // players and NPCs walk through but still reads as a fence to fauna. No blueprint gate.
@@ -291,6 +305,15 @@
   { "key": "rug",         "station": "hand",     "inputs": [ { "item": "plant_fiber", "count": 6 } ],                                       "outputs": [ { "item": "rug", "count": 2 } ] },
   { "key": "flower_pot",  "station": "hand",     "inputs": [ { "item": "mud", "count": 2 }, { "item": "plant_fiber", "count": 1 } ],      "outputs": [ { "item": "flower_pot", "count": 1 } ] },
   { "key": "cooked_meat", "station": "campfire", "inputs": [ { "item": "creature_meat", "count": 1 } ],                                     "outputs": [ { "item": "cooked_meat", "count": 1 } ] },
+  // #1203 campfire kiln: the flame does the slow jobs — char, melt, boil — better than by hand (ice 1 → water,
+  // one log → 6 torches), and with the field-kitchen blueprint it cooks the three meals.
+  { "key": "char_wood", "station": "campfire", "inputs": [ { "item": "wood_log", "count": 2 } ], "outputs": [ { "item": "carbon", "count": 1 } ] },
+  { "key": "melt_ice", "station": "campfire", "inputs": [ { "item": "ice", "count": 1 } ], "outputs": [ { "item": "water", "count": 1 } ] },
+  { "key": "boil_salt", "station": "campfire", "inputs": [ { "item": "water", "count": 2 } ], "outputs": [ { "item": "salt", "count": 1 } ] },
+  { "key": "torch_campfire", "station": "campfire", "inputs": [ { "item": "wood_log", "count": 1 } ], "outputs": [ { "item": "torch", "count": 6 } ] },
+  { "key": "hearty_stew", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "cooked_meat", "count": 1 }, { "item": "grain", "count": 2 }, { "item": "berries", "count": 1 }, { "item": "water", "count": 1 } ], "outputs": [ { "item": "hearty_stew", "count": 1 } ] },
+  { "key": "algae_soup", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "algae_ration", "count": 2 }, { "item": "water", "count": 1 }, { "item": "salt", "count": 1 } ], "outputs": [ { "item": "algae_soup", "count": 2 } ] },
+  { "key": "mushroom_skewer", "station": "campfire", "requiredBlueprint": "field_kitchen", "inputs": [ { "item": "mushroom_cap", "count": 2 }, { "item": "mushroom_stem", "count": 1 } ], "outputs": [ { "item": "mushroom_skewer", "count": 2 } ] },
 
   // Interior decor (#1108): the blocks worldgen builds ship interiors, SPS stations and factory halls from are
   // craftable. Lights are a crystal in a glass housing (no power, like the torch — berries/fibre tint the port and

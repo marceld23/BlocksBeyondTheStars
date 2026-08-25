@@ -211,6 +211,30 @@ finding kept as a comment: a **digit-heavy marker label** trips the name screen'
 (Crews) + new § Map markers & ping. Still open on-device: two-client crew flow, marker editor on pad/touch,
 ping in real co-op (rides the #1227 playtest).
 
+### ★ Tech-tree chains + station packs — the last two content slices (#1202 + #1203, 2026-08-25, branch feat/1202-1203-content)
+Slices 27 + 28 of the feature-deepening package (epic #1197) — the content strand that had waited for a community PR
+(#1202 was handed back 2026-08-25). Data + locale + three icons; no server/client code.
+**#1202 chains.** 46 of 72 blueprints were leaves. Eight now hang off a parent (stasis_projector ← field_medkit,
+creature_translator ← terrain_scanner, radio_beacon ← comm_radio, beam_block ← door_energy, radar_scanner ←
+radar_array, suit_teleporter ← jump_generator, oxygen_extractor ← oxygen_tank_2, station_mission_board ←
+station_container — all already cost-monotonic, nothing gets more expensive, unlocked saves keep their unlocks) and
+three new nodes gate the packs: `field_kitchen` (Production, k10, no parent), `bio_refining` (← detoxifier, k45),
+`archaeology` (← terrain_scanner, k25). Their unlock costs are themselves sinks (fibre/berries/logs; data + algae
+rations + glass; data + ancient bricks + a rune stone).
+**#1203 packs.** Campfire: `char_wood`, `melt_ice` (1 → 1, hand needs 2), `boil_salt`, `torch_campfire` (one log →
+6) + three meals behind the field kitchen — `hearty_stew` (cooked meat + **grain** + berries + water; hunger 80 /
+health 30, the top of the food table — the #1204 promise that grain wants cooking), `algae_soup` (60/10),
+`mushroom_skewer` (45/15). Algae tank (bio_refining): `biofuel_algae` (out-yields the hand recipe and burns no
+berries), `fiber_algae`, `polymer_algae`. Detoxifier (bio_refining): `wash_berries` (toxic → safe, never more
+than went in), `filter_mud`, `mushroom_bait`. Orphans: `glass_obsidian` (refinery) + `concrete_ancient` (hand),
+both archaeology; `market_sell_rune` (researchers pay data fragments, never knowledge). The #1200 thin-station
+allowance in `MaterialEconomyTests` is gone — every station ≥ 3 recipes, hard. Tests: `StationPackTests` (8 —
+the eight re-parents, the three nodes gate ≥ 2 recipes each, pack sizes, meals are the best food and cooked not
+foraged, orphans all consumed, station variants out-yield hand, end-to-end stew: refused without the blueprint,
+cooked at the fire, eaten) + AlgaeTank/Detoxifier wiring extended. Icons `item_hearty_stew/algae_soup/
+mushroom_skewer` generated; NOTICES. Locales: 12 keys EN+DE + 12 machine. Docs: USER_MANUAL campfire/packs/
+research chains, wiki `farming` (en+de).
+
 ### ★ Ore economy — every ore gets a second buyer, and a test that keeps it so (#1200, 2026-08-24, branch feat/1200-economy)
 Twenty-sixth slice of the feature-deepening package (epic #1197); pure data + tests + docs, no client build.
 Eleven ores (aluminium, cobalt, diamond, lead, lithium, neodymium, platinum, tin, tungsten, uranium, zinc) fed

@@ -305,7 +305,17 @@ separate unlock; admins can still disable it through server world rules.
   those stay the heal tank's job.
 - **Campfire** (hand-crafted from logs + stone): a contained flame that never spreads. It lights the camp,
   counters the cold while you stand near it, and is a **cooking station** — with creature meat in your
-  pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals).
+  pockets, craft **cooked meat** at the fire (far more filling than raw, and it heals). The flame also does
+  the slow jobs better than your hands: char logs to carbon, melt ice to water one-for-one, boil water down
+  to salt, split one log into six torches. Research the **Field Kitchen** blueprint (cheap, no prerequisite)
+  and the fire cooks real **meals** — **hearty stew** (cooked meat + grain + berries + water; the most filling
+  food in the game), **algae soup** (rations + water + salt) and **mushroom skewers** (giant-mushroom caps on
+  a stem). Meals heal too.
+- **Algae tank & detoxifier packs** (the **Bio-Refining** blueprint, after *Detoxifier*): the tank grows
+  **biofuel**, **plant fibre** and **polymer** from water and rations; the detoxifier **washes toxic berries**
+  back into safe ones (with carbon), filters **mud to water** and turns giant-mushroom parts into **forage
+  bait**. **Archaeology** (after *Terrain Scanner*) reworks **ancient bricks** into concrete and **obsidian**
+  into glass; researchers at any market buy **rune stones** for data fragments.
 - **Wood box** (hand-crafted from logs): early-game storage sharing the crate's stash/loot keys, but it
   only holds a few kinds of material (8 stacks) — the workshop's iron crate stores everything.
 - **Storage crates — choose what goes in:** aim at a placed crate or wood box and press **E** to pick
@@ -432,6 +442,10 @@ separate unlock; admins can still disable it through server world rules.
   (sand, dirt, stone, …) into *matter dust* and synthesises it back into ore — a sink for surplus digging.
   With the **matter resynth** blueprint it also rebuilds titanium, silver and cobalt ore and lithium from dust
   plus a power cell. The endgame ores (tungsten, platinum, neodymium, uranium, diamond) stay **mining-only**.
+- **Blueprints** form **chains**: most advanced nodes build on a cheaper one (the stasis projector on the field
+  medkit, the beam pad on the energy door, the suit teleporter on the jump generator, …), so the Blueprints tab
+  reads as a tree rather than a flat list — a node lights up once its prerequisite is researched, and it is
+  never cheaper than what it builds on. Anything you had already unlocked stays unlocked.
 - **Blueprints** gate advanced recipes — research them at your ship's **cockpit** (Blueprints tab; the helm counts
   while flying) with **knowledge points** (earned by scanning) plus
   research materials; some require prerequisite blueprints.

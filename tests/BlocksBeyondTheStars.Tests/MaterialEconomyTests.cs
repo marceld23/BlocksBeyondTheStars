@@ -150,15 +150,11 @@ public sealed class MaterialEconomyTests
     }
 
     /// <summary>A station with fewer than three recipes is scenery. The hand and the market are exempt (free
-    /// crafting / barter have their own rules). The three food-and-chemistry stations were filled by #1203's
-    /// station packs — until that lands they may still carry a single recipe, but never none.</summary>
+    /// crafting / barter have their own rules). The campfire, algae tank and detoxifier were the last one-recipe
+    /// stations until #1203 filled them — no station is exempt any more.</summary>
     [Fact]
     public void EveryCraftingStation_HasThreeRecipes()
     {
-        var thinPendingStationFill = new HashSet<CraftingStation>
-        {
-            CraftingStation.Detoxifier, CraftingStation.AlgaeTank, CraftingStation.Campfire, // #1203
-        };
         var counts = _c.Recipes.Values.GroupBy(r => r.Station).ToDictionary(g => g.Key, g => g.Count());
         var failures = new List<string>();
         foreach (var station in System.Enum.GetValues<CraftingStation>())
@@ -169,7 +165,7 @@ public sealed class MaterialEconomyTests
             }
 
             int count = counts.TryGetValue(station, out var c) ? c : 0;
-            int minimum = thinPendingStationFill.Contains(station) ? 1 : 3;
+            const int minimum = 3;
             if (count < minimum)
             {
                 failures.Add($"{station}: {count} recipes (wants {minimum})");

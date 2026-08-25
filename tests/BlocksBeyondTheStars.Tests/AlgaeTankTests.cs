@@ -60,6 +60,13 @@ public sealed class AlgaeTankTests : IDisposable
         Assert.NotNull(ration);
         Assert.True(ration!.ConsumeHunger > 0f);
         Assert.Equal("water", _content.Recipes["water_ice"].Outputs[0].Item);
+
+        // #1203: with bio-refining the tank is a refinery, not a ration dispenser — every new recipe is gated.
+        foreach (var key in new[] { "biofuel_algae", "fiber_algae", "polymer_algae" })
+        {
+            Assert.Equal(CraftingStation.AlgaeTank, _content.Recipes[key].Station);
+            Assert.Equal("bio_refining", _content.Recipes[key].RequiredBlueprint);
+        }
     }
 
     [Fact]
