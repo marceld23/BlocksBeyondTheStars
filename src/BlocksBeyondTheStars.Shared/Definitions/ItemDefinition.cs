@@ -78,6 +78,12 @@ public sealed class ItemDefinition
 
     public ItemCategory Category { get; set; } = ItemCategory.Material;
 
+    /// <summary>Crafting-menu tab override (#1273): <c>"machines"</c> lists the item under Machines instead
+    /// of Blocks. Deliberately its own field — <c>BlockDefinition.Category == "machine"</c> already doubles
+    /// as the airtightness and settler-machine-count rule and contains bed/campfire, so the UI taxonomy
+    /// must not ride on it. Null = the tab follows the item category as before.</summary>
+    public string? CraftTab { get; set; }
+
     /// <summary>Stack size used when <c>data/items.json</c> omits <see cref="MaxStack"/> (and by the few
     /// call sites that have to guess for an item the registry doesn't know).</summary>
     public const int DefaultMaxStack = 1024;

@@ -10,6 +10,7 @@
   { "key": "titanium_ore", "nameKey": "block.titanium_ore.name", "category": "ore", "hardness": 7.2, "requiredTool": "drill", "minToolTier": 2, "drops": [ { "item": "titanium_ore", "count": 1 } ] },
   { "key": "data_cache",   "nameKey": "block.data_cache.name", "category": "machine",   "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "data_fragment", "count": 2 } ] },
   { "key": "glass",        "nameKey": "block.glass.name", "tintable": true, "category": "building",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass", "count": 1 } ] },
+  { "key": "glass_clear",  "nameKey": "block.glass_clear.name", "tintable": true, "category": "building",        "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "glass_clear", "count": 1 } ] },
   { "key": "iron_wall",    "nameKey": "block.iron_wall.name", "category": "building",    "hardness": 4.8, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "iron_wall", "count": 1 } ] },
   { "key": "force_field", "airtight": true,  "nameKey": "block.force_field.name", "category": "door",  "hardness": 5.0, "requiredTool": "drill", "minToolTier": 1, "drops": [ { "item": "force_field", "count": 1 } ] },
   { "key": "light_white",  "nameKey": "block.light_white.name", "tintable": true, "category": "light",  "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "light_white", "count": 1 } ] },

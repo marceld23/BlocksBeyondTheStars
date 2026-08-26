@@ -9531,6 +9531,29 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-26): a Machines crafting tab + the one clear glass (#1273, #1274)
+
+The last two of Lyxette's follow-ups, both crafting-content.
+
+* **Machines tab (#1273).** The crafting menu had no home for devices — workbench, forge, heal tank, base
+  core, beam pad, sentry, hydro tray, ship parts … all sat under *Blocks* next to stone. Marcel's call: an
+  explicit field, not `BlockDefinition.Category` (that one doubles as the airtight + settler-machine rule and
+  contains bed/campfire). `ItemDefinition.CraftTab = "machines"` on 21 items → new tab *Machines*
+  (`cat_machines` icon, generated) between Blocks and Colour; Blocks no longer lists them; the card icon
+  follows. The decorative factory housings (#1108/#1265), doors, lights, bed and campfire stay under Blocks.
+  `ContentTests.CraftTab_OnlyNamesTheMachinesTab_AndOnlyForPlaceableDevices` pins the set.
+  `tools/ai-assets/gen_one_icon.py` tops up a single UI icon without re-rolling the approved batch.
+* **Clear glass (#1274).** Plain `glass` stays frosted (ART_BIBLE rule) — `glass_clear` is the rarer,
+  blueprint-gated exception for canopies and domes: workshop, 2 glass + 1 polymer → 2 panes, blueprint
+  *Clear Glass* (Production, 24 knowledge). Building block like glass (airtight, dyeable via JSON opt-in, not
+  shapeable). Rendering: the mesher writes **-1 into TEXCOORD2.x** for it (the channel is already packed
+  for every face — no vertex-layout change) and `BlockAtlasTransparent` skips the frost + drops alpha to 0.22
+  on that sentinel in both passes; the #1126 dye recolour still applies. The water branch (tile alpha) and
+  the field branch (emission) are untouched — a low-alpha tile would have routed the pane into the water
+  depth/refraction/SSR block. Own 64×64 tile via `gen_textures.py --only glass_clear`. Tests: tintable set,
+  not shapeable, airtight building block behind its blueprint. ART_BIBLE, manual and Codex colours article
+  updated.
+
 ## ✅ Done (2026-08-25): ship modules — fitted state, per-ship fit list, and taking a module out again (#1268, #1269)
 
 Lyxette asked "how much can a ship hold?" and "can I move the breaker to the hauler?". There was no slot

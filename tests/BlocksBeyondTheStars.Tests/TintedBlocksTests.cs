@@ -53,7 +53,7 @@ public sealed class TintedBlocksTests : IDisposable
     {
         foreach (var key in new[]
         {
-            "glass", "torch", "lantern", "light_white", "light_red", "light_green",
+            "glass", "glass_clear", "torch", "lantern", "light_white", "light_red", "light_green",
             "strip_light_cyan", "strip_light_warm",
         })
         {
@@ -72,6 +72,7 @@ public sealed class TintedBlocksTests : IDisposable
     {
         // Shapeable stays the curated solid-material list: dyed glass yes, glass spheres no.
         Assert.False(_content.GetBlock("glass")!.Shapeable);
+        Assert.False(_content.GetBlock("glass_clear")!.Shapeable); // the clear variant opts in the same way (#1274)
         Assert.False(_content.GetBlock("lantern")!.Shapeable);
         Assert.True(_content.GetBlock("stone")!.Shapeable); // the curated set is untouched
     }

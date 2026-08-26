@@ -390,7 +390,9 @@ namespace BlocksBeyondTheStars.Client
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
                 bool foliage = IsFoliageBlock(content, id);
-                float leafFlag = foliage ? 1f : 0f;
+                // TEXCOORD2.x: +1 foliage cutout, -1 clear glass (#1274 — the transparent shader skips its frost
+                // on the negative sentinel; the channel is already packed for every face, so no layout change), 0 else.
+                float leafFlag = foliage ? 1f : IsClearGlass(content, id) ? -1f : 0f;
                 // Water + fire render but don't collide — you swim/sink into water and walk through (and burn
                 // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
                 // below) rather than dropping straight through it into a cave/void — you must not fall through
@@ -1449,6 +1451,7 @@ namespace BlocksBeyondTheStars.Client
             switch (def?.Key)
             {
                 case "glass": return new Vector2(0.90f, 0.0f);
+                case "glass_clear": return new Vector2(0.95f, 0.0f);
                 case "force_field": return new Vector2(0.60f, 0.0f);
                 case "energy_fence": return new Vector2(0.60f, 0.0f);
                 case "energy_gate": return new Vector2(0.60f, 0.0f);
@@ -1708,8 +1711,13 @@ namespace BlocksBeyondTheStars.Client
 
             var def = content.BlockById(id);
             // alpha-blended — see through them
-            return def?.Key is "glass" or "force_field" or "water" or "fire" or "energy_fence" or "energy_gate";
+            return def?.Key is "glass" or "glass_clear" or "force_field" or "water" or "fire" or "energy_fence" or "energy_gate";
         }
+
+        /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
+        /// (ART_BIBLE). Marked for the transparent shader via a -1 in TEXCOORD2.x.</summary>
+        private static bool IsClearGlass(GameContent content, BlockId id)
+            => !id.IsAir && content.BlockById(id)?.Key == "glass_clear";
 
         private static Color BlockColor(GameContent content, BlockId id)
         {
@@ -1740,6 +1748,7 @@ namespace BlocksBeyondTheStars.Client
                 case "titanium_ore": return new Color(0.60f, 0.62f, 0.68f);
                 case "data_cache": return new Color(0.20f, 0.70f, 0.90f);
                 case "glass": return new Color(0.70f, 0.90f, 0.95f);
+                case "glass_clear": return new Color(0.86f, 0.95f, 0.98f);
                 case "force_field": return new Color(0.35f, 0.80f, 1f);
                 case "iron_wall": return new Color(0.55f, 0.57f, 0.62f);
             }

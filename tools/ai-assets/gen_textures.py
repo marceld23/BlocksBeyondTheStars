@@ -45,6 +45,7 @@ TEXTURES = [
     ("iron_wall", "grey sci-fi metal hull plate with rivets and panel seams"),
     ("crystal", "pale glowing blue crystal facets"),
     ("glass", "clear pale blue glass pane with a faint reflection"),
+    ("glass_clear", "one single seamless sheet of perfectly clear colourless glass filling the whole image edge to edge, no frame, no grid, no bars, no window panes, uniform near-white with one very faint soft diagonal reflection streak"),
     ("lava", "dark cooled crust with glowing orange molten lava cracks"),
     ("water", "blue rippling water surface"),
     ("fire", "bright orange and yellow flames, licking tongues of fire with hot white centres, on a solid pure black background, top-down"),

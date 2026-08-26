@@ -407,7 +407,7 @@ separate unlock; admins can still disable it through server world rules.
   - **Colour** — only for a dyeable building material: the familiar swatch palette recolours the **whole
     stack** in place. **Dye** is free; **Glow** turns the stack into coloured light sources and costs **one
     crystal per block** (the button shows the cost, and the panel refuses if you're short). **Glass and the
-    light fixtures dye too**: dyed glass stays frosted, just coloured; a **dyed lamp casts light in its dye
+    light fixtures dye too**: dyed glass stays frosted, just coloured (the blueprint-gated **Clear Glass** — two glass + one polymer at the workshop — is the see-through exception for canopies and domes, and dyes too); a **dyed lamp casts light in its dye
     colour** (no crystal needed — it already is a lamp); a dyed torch burns with a coloured flame. Doors
     can't be dyed (they're moving fittings, not blocks). Under **My
     patterns** your saved paint designs (see §5 → Paint tool) apply to the stack as an **own texture** —

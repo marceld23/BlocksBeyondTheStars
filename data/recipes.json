@@ -5,6 +5,7 @@
   { "key": "cable",            "station": "workshop", "inputs": [ { "item": "copper_wire", "count": 2 }, { "item": "silicate", "count": 1 } ],     "outputs": [ { "item": "cable", "count": 1 } ] },
   { "key": "carbon_composite", "station": "workshop", "inputs": [ { "item": "carbon", "count": 2 } ],                                             "outputs": [ { "item": "carbon_composite", "count": 1 } ] },
   { "key": "glass",            "station": "workshop", "inputs": [ { "item": "silicate", "count": 3 } ],                                           "outputs": [ { "item": "glass", "count": 1 } ] },
+  { "key": "glass_clear",      "station": "workshop", "requiredBlueprint": "glass_clear", "inputs": [ { "item": "glass", "count": 2 }, { "item": "polymer", "count": 1 } ], "outputs": [ { "item": "glass_clear", "count": 2 } ] },
   { "key": "energy_cell_1",    "station": "workshop", "inputs": [ { "item": "cable", "count": 1 }, { "item": "carbon_composite", "count": 1 } ],  "outputs": [ { "item": "energy_cell_1", "count": 1 } ] },
   { "key": "medpack",          "station": "hand",     "inputs": [ { "item": "carbon", "count": 2 }, { "item": "silicate", "count": 1 } ],         "outputs": [ { "item": "medpack", "count": 1 } ] },
   { "key": "field_medkit",     "station": "workshop", "requiredBlueprint": "field_medkit", "inputs": [ { "item": "iron_plate", "count": 4 }, { "item": "cable", "count": 3 }, { "item": "silicate", "count": 3 }, { "item": "energy_cell_1", "count": 1 } ], "outputs": [ { "item": "field_medkit", "count": 1 } ] },
