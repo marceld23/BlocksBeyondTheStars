@@ -287,6 +287,9 @@ public sealed partial class GameServer
     // Derived (from built modules); recomputed on ship load and on building a module.
     private const float BaseRadarRange = 130f;
     private float _shipHullMax = BaseHull;
+
+    /// <summary>Test/inspection: the active ship's current hull maximum (design + modules).</summary>
+    public float HullMaxForTest => _shipHullMax;
     private float _shipShieldMax;
     private float _shipShieldRegen;
     private float _shipRadarRange = BaseRadarRange;
@@ -458,6 +461,7 @@ public sealed partial class GameServer
         WarnIfPoolOverflowed(session, pool); // #600: salvaged Mk2 parts that found no room are gone — say so
         SendShipCombatStatus(session);
         SendPlayerState(session); // AiCoreTier may have changed (gates the client autopilot)
+        BroadcastOwnedShips(); // the fleet message carries each ship's fit (#1268)
         ShipAiOnModuleBuilt(session, module.Key); // VEGA welcomes her new core
     }
 
@@ -2095,6 +2099,122 @@ public sealed partial class GameServer
     }
 
     /// <summary>Test hook: run the EnterSpaceIntent handler (covers the ship-interior skip path, B40).</summary>
+    /// <summary>Removes a fitted module from the active ship (#1269 — Marcel's call: uninstall with salvage,
+    /// no transfer between ships yet). Same gates as building (aboard, workshop); the hull essentials, the walk-up
+    /// stations and the basic hold stay (<see cref="ShipModuleDefinition.Removable"/>); a cargo expansion only
+    /// comes out when the hold still fits every stack without it — ResizeCargo would silently drop the rest.
+    /// Parts come back at <see cref="ShipModuleDefinition.SalvageRate"/> (per item, rounded down) into the
+    /// backpack/hold pool; nothing is refunded in free-crafting worlds (nothing was paid either).</summary>
+    private void HandleUninstallModule(PlayerSession session, UninstallShipModuleIntent intent)
+    {
+        var p = session.State;
+        var module = _content.GetShipModule(intent.ModuleKey);
+        if (module is null)
+        {
+            Reject(session, "uninstall_module", "@srv.module.unknown");
+            return;
+        }
+
+        if (!_ship.HasModule(module.Key))
+        {
+            Reject(session, "uninstall_module", "@srv.module.not_fitted");
+            return;
+        }
+
+        if (!module.Removable)
+        {
+            Reject(session, "uninstall_module", "@srv.module.not_removable");
+            return;
+        }
+
+        if (!p.AboardShip)
+        {
+            Reject(session, "uninstall_module", "@srv.module.aboard");
+            return;
+        }
+
+        if (!_ship.HasModule("workshop"))
+        {
+            Reject(session, "uninstall_module", "@srv.module.workshop");
+            return;
+        }
+
+        if (module.Stats.TryGetValue("cargo_slots", out var lostSlots) && lostSlots > 0)
+        {
+            int remaining = System.Math.Max(1, _ship.Cargo.SlotCount - (int)lostSlots);
+            int used = 0;
+            for (int i = 0; i < _ship.Cargo.SlotCount; i++)
+            {
+                if (_ship.Cargo.Slots[i] is { IsEmpty: false })
+                {
+                    used++;
+                }
+            }
+
+            if (used > remaining)
+            {
+                Send(session, new ServerMessage
+                {
+                    Text = Localize(session.Locale, "srv.module.hold_in_use").Replace("{count}", (used - remaining).ToString()),
+                });
+                return;
+            }
+        }
+
+        bool free = !Rules.CraftingCostsMaterialsFor(p.ModeOverride) || p.InstantBuild;
+        _ship.Modules.Remove(module.Key);
+
+        int recovered = 0;
+        MaterialPool? pool = null;
+        if (!free)
+        {
+            pool = new MaterialPool(_content, p, _ship);
+            foreach (var part in module.BuildCost)
+            {
+                int back = (int)System.Math.Floor(part.Count * ShipModuleDefinition.SalvageRate);
+                if (back > 0)
+                {
+                    pool.Add(part.Item, back);
+                    recovered += back;
+                }
+            }
+        }
+
+        ResizeCargo(_ship);
+        RecomputeShipCombatStats();
+
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.module.removed")
+                .Replace("{name}", LocalizedName(session.Locale, module.NameKey, module.Key))
+                .Replace("{count}", recovered.ToString()),
+        });
+        SendInventory(session);
+        if (pool is not null)
+        {
+            WarnIfPoolOverflowed(session, pool); // #600: salvaged parts that found no room are gone — say so
+        }
+
+        SendShipCombatStatus(session);
+        SendPlayerState(session); // AiCoreTier / weapons may have changed
+        BroadcastOwnedShips();
+    }
+
+    /// <summary>Test entrypoint: removes a fitted module (mirrors <see cref="HandleUninstallModule"/>). Returns
+    /// whether the module is gone afterwards.</summary>
+    public bool UninstallModuleForTest(string playerId, string moduleKey)
+    {
+        if (FindSessionByPlayerId(playerId) is not { } s)
+        {
+            return false;
+        }
+
+        SetCurrent(s);
+        bool fitted = _ship.HasModule(moduleKey);
+        HandleUninstallModule(s, new UninstallShipModuleIntent { ModuleKey = moduleKey });
+        return fitted && !_ship.HasModule(moduleKey); // "removed" — a module that was never aboard reports false
+    }
+
     /// <summary>Test entrypoint: builds a ship module for a player (mirrors <see cref="HandleBuildModule"/>;
     /// the player must be aboard a ship with a workshop). Returns whether the module is fitted afterwards.</summary>
     public bool BuildModuleForTest(string playerId, string moduleKey)

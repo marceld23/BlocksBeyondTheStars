@@ -9531,6 +9531,31 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-25): ship modules — fitted state, per-ship fit list, and taking a module out again (#1268, #1269)
+
+Lyxette asked "how much can a ship hold?" and "can I move the breaker to the hauler?". There was no slot
+budget (only "one of each", never stated), the Modules tab was a pure build catalogue that showed
+"Craftable" + a Build button for a module already aboard (the server then refused it), and the only removal
+in the codebase was the hard-coded Mk2 → Mk3 core swap. Marcel's call on #1269: uninstall with salvage, no
+transfer between ships (yet).
+
+* **Shared rule.** `ShipModuleDefinition.Removable` = not mandatory and not one of `workshop`, `medbay`,
+  `quarters`, `cargo_hold_basic` (the hull stations + the hold every ship is born with); `SalvageRate`
+  0.5 — one rule for the server (refuses) and the client (hides the button).
+* **Server.** New `UninstallShipModuleIntent` (NetCodec **234**, golden list updated). Same gates as building
+  (aboard, workshop); a cargo expansion only comes out when the remaining hold still fits every stack (else
+  `srv.module.hold_in_use` with the overflow count — `ResizeCargo` would silently drop the rest); parts come
+  back per item, floor(count × 0.5), into the backpack/hold pool; nothing in free-crafting worlds. Re-sends
+  inventory, combat status, player state and the fleet. `NetOwnedShip.Modules` carries each ship's fit; the
+  build path now broadcasts the fleet too.
+* **Client.** Modules tab: fit summary + the one-of-each/salvage rule on top, fitted modules first with a
+  **Fitted** badge (never hidden by "craftable only"); detail pane of a fitted module shows *Fitted* and a
+  **Remove (50 % salvage)** button (or "part of the hull") instead of Build. Fleet tab: each ship's fitted
+  modules, so you know which hangar ship has the breaker before switching.
+* Tests: salvage arithmetic (hull plating 20/6 → 10/3 back, hull max drops), the welded set stays, a
+  never-fitted module reports false, the hold-in-use refusal + success after emptying. 11 new locale keys
+  (EN/DE + 12 MT), USER_MANUAL bullet.
+
 ## ✅ Done (2026-08-25): people keep personal space + the base core shows its air (#1272, #1267)
 
 Two more of Lyxette's follow-ups, both server-side with a thin client readout.

@@ -212,6 +212,13 @@ public sealed class BuildShipModuleIntent
     public string ModuleKey { get; set; } = string.Empty;
 }
 
+/// <summary>Client asks to remove a fitted module from the active ship (#1269): aboard, at the workshop,
+/// non-mandatory and not a hull station; the parts come back at the salvage rate.</summary>
+public sealed class UninstallShipModuleIntent
+{
+    public string ModuleKey { get; set; } = string.Empty;
+}
+
 /// <summary>Client asks to launch into free space flight around its current location.</summary>
 public sealed class EnterSpaceIntent
 {
@@ -2078,6 +2085,10 @@ public sealed class NetOwnedShip
 
     /// <summary>False while a self-built ship is still under construction (not switchable/flyable yet).</summary>
     public bool Commissioned { get; set; } = true;
+
+    /// <summary>The ship's fitted module keys (#1268) — the Fleet tab lists what each hangar ship carries.
+    /// New field on an existing contractless MessagePack message: an older client ignores it.</summary>
+    public string[] Modules { get; set; } = System.Array.Empty<string>();
 }
 
 /// <summary>The player's owned ships and which is active (sent on join and on change).</summary>

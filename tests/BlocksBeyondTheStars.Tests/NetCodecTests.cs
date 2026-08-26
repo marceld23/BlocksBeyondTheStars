@@ -284,6 +284,7 @@ public sealed class NetCodecTests
         [231] = typeof(CrewInviteNotice),
         [232] = typeof(MarkerActionIntent),
         [233] = typeof(MarkerList),
+        [234] = typeof(UninstallShipModuleIntent),
     };
 
     [Fact]

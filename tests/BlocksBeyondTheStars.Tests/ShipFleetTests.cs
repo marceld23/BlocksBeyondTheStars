@@ -184,6 +184,70 @@ public sealed class ShipFleetTests : IDisposable
         }
     }
 
+    [Fact]
+    public void UninstallModule_SalvagesHalfTheParts_AndKeepsHullStationsAndTheBasicHold()
+    {
+        // #1269 (Marcel's call: uninstall with salvage, no transfer). The only removal before this was the
+        // hard-coded Mk2 → Mk3 core swap; everything else was welded to the ship that built it.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+            pilot.State.InstantBuild = true; // build for free …
+            pilot.State.UnlockedBlueprints.Add("hull_plating");
+            Assert.True(server.BuildModuleForTest("Pilot", "hull_plating"));
+            float armoured = server.HullMaxForTest;
+
+            pilot.State.InstantBuild = false; // … but salvage at the real rate
+            int titaniumBefore = pilot.State.Inventory.CountOf("titanium_plate");
+            int steelBefore = pilot.State.Inventory.CountOf("steel");
+            Assert.True(server.UninstallModuleForTest("Pilot", "hull_plating"));
+            Assert.False(server.Ship.HasModule("hull_plating"));
+            Assert.Equal(titaniumBefore + 10, pilot.State.Inventory.CountOf("titanium_plate")); // 20 × 0.5
+            Assert.Equal(steelBefore + 3, pilot.State.Inventory.CountOf("steel"));               // 6 × 0.5
+            Assert.True(server.HullMaxForTest < armoured, "hull max must drop with the plating");
+
+            // The hull essentials, the stations and the basic hold never come out.
+            foreach (var welded in new[] { "cockpit", "reactor", "life_support", "workshop", "medbay", "cargo_hold_basic" })
+            {
+                Assert.False(server.UninstallModuleForTest("Pilot", welded), welded);
+                Assert.True(server.Ship.HasModule(welded), welded);
+            }
+
+            // Not fitted → refused, nothing changes.
+            Assert.False(server.UninstallModuleForTest("Pilot", "shield_generator"));
+        }
+    }
+
+    [Fact]
+    public void ACargoExpansion_OnlyComesOut_WhenTheHoldStillFitsEverything()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+            pilot.State.InstantBuild = true;
+            pilot.State.UnlockedBlueprints.Add("cargo_expansion_1");
+            Assert.True(server.BuildModuleForTest("Pilot", "cargo_hold_1"));
+            Assert.Equal(72, server.Ship.Cargo.SlotCount);
+
+            // 60 distinct stacks in a 72-slot hold: without the expansion (48) twelve would have no slot.
+            for (int i = 0; i < 60; i++)
+            {
+                server.Ship.Cargo.Add("iron_ore#t" + i.ToString("x6"), 1, 1);
+            }
+
+            Assert.False(server.UninstallModuleForTest("Pilot", "cargo_hold_1"));
+            Assert.Equal(72, server.Ship.Cargo.SlotCount);
+
+            server.Ship.Cargo = new BlocksBeyondTheStars.Shared.State.Inventory(72); // emptied
+            Assert.True(server.UninstallModuleForTest("Pilot", "cargo_hold_1"));
+            Assert.Equal(48, server.Ship.Cargo.SlotCount);
+        }
+    }
+
     public void Dispose()
     {
         try

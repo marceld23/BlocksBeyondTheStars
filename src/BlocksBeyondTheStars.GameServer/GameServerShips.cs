@@ -223,7 +223,7 @@ public sealed partial class GameServer
         var list = new List<NetOwnedShip>();
         foreach (var kv in _ships)
         {
-            var entry = new NetOwnedShip { Id = kv.Key, Type = kv.Value.ShipType, Active = kv.Key == _activeShipId };
+            var entry = new NetOwnedShip { Id = kv.Key, Type = kv.Value.ShipType, Active = kv.Key == _activeShipId, Modules = kv.Value.Modules.ToArray() };
 
             // A self-built ship can't be resolved from data/ships.json client-side: its geometry-derived
             // flight stats (and the under-construction flag) ride along in the fleet message (#949).

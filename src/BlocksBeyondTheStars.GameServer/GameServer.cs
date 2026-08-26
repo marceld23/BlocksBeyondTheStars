@@ -2805,6 +2805,7 @@ public sealed partial class GameServer
             case DockResponseIntent response: HandleDockResponse(session, response); break;
             case UndockIntent: HandleUndock(session); break;
             case BuildShipModuleIntent build: HandleBuildModule(session, build); break;
+            case UninstallShipModuleIntent uninstall: HandleUninstallModule(session, uninstall); break;
             case EnterSpaceIntent: HandleEnterSpace(session); break;
             case HyperjumpSystemIntent hyperjump: HandleHyperjumpSystem(session, hyperjump); break;
             case ContributeRelayIntent relay: HandleContributeRelay(session, relay); break; // #1125
