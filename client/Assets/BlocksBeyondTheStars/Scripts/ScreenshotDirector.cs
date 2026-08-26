@@ -430,7 +430,7 @@ namespace BlocksBeyondTheStars.Client
             string repo = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..")); // dataPath = <repo>/client/Assets
             return Path.Combine(repo, "docs", "screenshots", _lang);
 #else
-            return Path.Combine(Application.persistentDataPath, "docs", "screenshots", _lang);
+            return Path.Combine(AppPaths.Root, "docs", "screenshots", _lang);
 #endif
         }
 

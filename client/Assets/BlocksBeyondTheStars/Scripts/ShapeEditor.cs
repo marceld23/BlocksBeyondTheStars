@@ -529,7 +529,7 @@ namespace BlocksBeyondTheStars.Client
             public string voxels;
         }
 
-        private static string Dir => Path.Combine(Application.persistentDataPath, "custom_shapes");
+        private static string Dir => Path.Combine(AppPaths.Root, "custom_shapes");
 
         /// <summary>Saves a form under the player's name for it (a nameless save falls back to "Form N").
         /// Saving the same NAME again overwrites that entry — editing a form and saving it should not leave

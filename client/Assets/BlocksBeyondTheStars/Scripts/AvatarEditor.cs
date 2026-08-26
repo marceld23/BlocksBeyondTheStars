@@ -554,7 +554,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                string dir = Path.Combine(Application.persistentDataPath, "avatar_exports", key);
+                string dir = Path.Combine(AppPaths.Root, "avatar_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "skin.json"), JsonUtility.ToJson(skin, true));
                 SetStatus($"{L("ui.avatar.exported")}\n{dir}");

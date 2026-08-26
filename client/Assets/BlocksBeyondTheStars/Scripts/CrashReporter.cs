@@ -64,7 +64,7 @@ namespace BlocksBeyondTheStars.Client
             _version = AppShell.Version;
             _platform = Application.platform.ToString();
             _buildGuid = Application.buildGUID ?? string.Empty;
-            _spool = new CrashReportSpool(Path.Combine(Application.persistentDataPath, "crashreports"));
+            _spool = new CrashReportSpool(Path.Combine(AppPaths.Root, "crashreports"));
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
 
             // Threaded variant so a crash on a worker thread (e.g. chunk meshing) is caught too.

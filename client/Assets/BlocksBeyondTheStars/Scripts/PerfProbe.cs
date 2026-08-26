@@ -235,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
             Quit(0);
         }
 
-        private static string SettingsPath => Path.Combine(Application.persistentDataPath, "client_settings.json");
+        private static string SettingsPath => Path.Combine(AppPaths.Root, "client_settings.json");
 
         private void BackupSettingsFile()
         {
@@ -453,7 +453,7 @@ namespace BlocksBeyondTheStars.Client
                 phases = phases.ToArray(),
             };
 
-            string dir = !string.IsNullOrEmpty(_outDir) ? _outDir : Path.Combine(Application.persistentDataPath, "perf");
+            string dir = !string.IsNullOrEmpty(_outDir) ? _outDir : Path.Combine(AppPaths.Root, "perf");
             Directory.CreateDirectory(dir);
             string featureSuffix = string.IsNullOrEmpty(_featureTag) ? "" : $"_{_featureTag}";
             string denseSuffix = _dense ? "_dense" : "";

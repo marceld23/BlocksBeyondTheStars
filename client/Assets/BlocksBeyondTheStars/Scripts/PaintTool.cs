@@ -126,7 +126,7 @@ namespace BlocksBeyondTheStars.Client
             public string pixels;
         }
 
-        private static string Dir => Path.Combine(Application.persistentDataPath, "paint_designs");
+        private static string Dir => Path.Combine(AppPaths.Root, "paint_designs");
 
         /// <summary>Saves the canvas under the player's name for it (#846); an unnamed save still falls back
         /// to the old "Design NN" numbering. Saving the same NAME again overwrites that entry, so refining a

@@ -288,7 +288,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                string dir = Path.Combine(Application.persistentDataPath, "material_exports", key);
+                string dir = Path.Combine(AppPaths.Root, "material_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "material.json"), JsonUtility.ToJson(b, true));
                 // Raw RGBA32 tile in the exact layout BlockTextureAtlas.LoadRawTextureData expects.

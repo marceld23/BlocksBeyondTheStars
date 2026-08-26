@@ -41,7 +41,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, Texture2D> _textures = new();
 
         /// <summary>The root for ALL worlds' photos (one folder per world below this).</summary>
-        public static string Root => Path.Combine(Application.persistentDataPath, "Photos");
+        public static string Root => Path.Combine(AppPaths.Root, "Photos");
 
         /// <summary>The folder this store reads/writes (the per-world directory).</summary>
         public string Directory => _dir;

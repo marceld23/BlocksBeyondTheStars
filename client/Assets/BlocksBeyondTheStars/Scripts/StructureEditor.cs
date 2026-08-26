@@ -367,7 +367,7 @@ namespace BlocksBeyondTheStars.Client
             try
             {
                 // 1) Export bundle (the "ship into the game" path via tools/merge_structure.py).
-                string dir = Path.Combine(Application.persistentDataPath, modeName + "_exports", key);
+                string dir = Path.Combine(AppPaths.Root, modeName + "_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "structure.json"), JsonUtility.ToJson(meta, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
@@ -379,7 +379,7 @@ namespace BlocksBeyondTheStars.Client
                     key = key, name = _name, tier = _tiers[_tier], kind = modeName, pack = pack, weight = weight,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
-                string userDir = Path.Combine(Application.persistentDataPath, "usercontent", modeName + "_templates");
+                string userDir = Path.Combine(AppPaths.Root, "usercontent", modeName + "_templates");
                 Directory.CreateDirectory(userDir);
                 File.WriteAllText(Path.Combine(userDir, key + ".json"), JsonUtility.ToJson(tpl, true));
 
@@ -393,7 +393,7 @@ namespace BlocksBeyondTheStars.Client
 
         private GameObject _loadPicker;
 
-        private string ExportsRoot => Path.Combine(Application.persistentDataPath,
+        private string ExportsRoot => Path.Combine(AppPaths.Root,
             (EditorMode == Mode.Station ? "station" : "settlement") + "_exports");
 
         /// <summary>Lists saved designs of the current mode and lets you load one back in to keep editing.</summary>

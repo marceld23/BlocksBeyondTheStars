@@ -31,7 +31,7 @@ namespace BlocksBeyondTheStars.Client
         public bool IsRunning => _process != null && !_process.HasExited;
 
         /// <summary>Root folder holding the singleplayer save worlds (one subfolder per world).</summary>
-        public static string SavesRoot => Path.Combine(Application.persistentDataPath, "singleplayer-saves");
+        public static string SavesRoot => Path.Combine(AppPaths.Root, "singleplayer-saves");
 
         /// <summary>Existing singleplayer world names (subfolders that contain a world.db), newest first.</summary>
         public static string[] ListWorlds()
@@ -159,12 +159,12 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            string saves = Path.Combine(Application.persistentDataPath, "singleplayer-saves");
+            string saves = Path.Combine(AppPaths.Root, "singleplayer-saves");
             string data = Path.Combine(Application.streamingAssetsPath, "data");
             // Writable folder where the in-game structure editor drops its templates; the server merges
             // them into the world-gen pools so player-built stations/towns appear in new worlds with no
             // Python merge or rebuild (StructureEditor writes <kind>_templates/<key>.json here).
-            string userContent = Path.Combine(Application.persistentDataPath, "usercontent");
+            string userContent = Path.Combine(AppPaths.Root, "usercontent");
             Directory.CreateDirectory(saves);
             Directory.CreateDirectory(userContent);
 

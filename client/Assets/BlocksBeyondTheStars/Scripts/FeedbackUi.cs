@@ -71,7 +71,7 @@ namespace BlocksBeyondTheStars.Client
             // A random id groups several reports from one sitting (varies per session; no Unity-restricted Date use).
             _sessionId = Guid.NewGuid().ToString("N");
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
-            _spool = new FeedbackSpool(Path.Combine(Application.persistentDataPath, "feedback"));
+            _spool = new FeedbackSpool(Path.Combine(AppPaths.Root, "feedback"));
 
             if (_uploader.IsConfigured)
             {

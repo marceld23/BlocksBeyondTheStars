@@ -687,7 +687,7 @@ namespace BlocksBeyondTheStars.Client
             // Secondary portal dialogs (#268-#270).
             PortalTermsResult cachedTerms = null; // rules text+version change per deployment — fetch once
             string cachedTermsLang = null;        // …but re-fetch after the player switched language (#970)
-            string saveBackupDir = System.IO.Path.Combine(Application.persistentDataPath, "portal_saves");
+            string saveBackupDir = System.IO.Path.Combine(AppPaths.Root, "portal_saves");
             var warnCol = new Color(1f, 0.55f, 0.4f);
 
             void CloseModal()
