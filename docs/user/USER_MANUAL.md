@@ -470,6 +470,13 @@ separate unlock; admins can still disable it through server world rules.
   Ship tab — aboard, at the workshop module.
   Each cargo-hold module adds slots to the shared **cargo hold** (see *Inventory & cargo hold* above); the
   Cargo tab shows the current used/total capacity.
+- **What's fitted, and taking it out again:** the Modules tab lists your active ship's fit at the top and
+  marks fitted modules **Fitted** (one of each per ship — there is no slot budget); the Fleet tab shows each
+  hangar ship's modules. Any module except the hull essentials (cockpit, reactor, life support), the stations
+  (workshop, medbay, quarters) and the basic hold can be **removed** from its detail pane — aboard, at the
+  workshop — and gives back **50 %** of its parts (per part, rounded down). A cargo expansion only comes out
+  while the remaining hold still fits everything stored in it. Moving a module to another ship means removing
+  it here and building it there.
 - **Reactor fuel** (uranium + lead at the refinery) is a **one-time build cost** of the big things: the three
   capital ships (Thunderbolt 2, Hammerhead 3, Deathblock 4), the heavy laser cannon and the jump generator ignite
   their reactors with it once. Nothing burns fuel while running — every device carries its own energy cell.

@@ -1453,10 +1453,18 @@ namespace BlocksBeyondTheStars.Client
 
             if (_category == "all" || _category == "modules")
             {
+                if (_category == "modules")
+                {
+                    y = AddFitSummary(y); // what the active ship carries + the one-of-each rule (#1268)
+                }
+
                 // Same reachability ordering as the craft list (#826): buildable → materials missing →
-                // blueprint locked, simpler modules first inside each tier.
+                // blueprint locked, simpler modules first inside each tier. Fitted modules come first —
+                // the tab used to be a pure build catalogue that showed "Craftable" for a module already
+                // aboard, with a Build button the server then refused (#1268).
                 var modules = Game.Content.ShipModules.Values.Where(m => !m.Mandatory)
-                    .OrderBy(m => ReachTier(m.RequiredBlueprint, m.BuildCost))
+                    .OrderByDescending(ModuleFitted)
+                    .ThenBy(m => ReachTier(m.RequiredBlueprint, m.BuildCost))
                     .ThenBy(m => m.BuildCost.Count)
                     .ThenBy(m => Game.Content.MaxInputDepth(m.BuildCost))
                     .ThenBy(m => m.BuildCost.Sum(c => c.Count));
@@ -1467,14 +1475,17 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    bool fitted = ModuleFitted(m);
                     bool can = HasAll(m.BuildCost) && BlueprintOk(m.RequiredBlueprint);
-                    if (_craftableOnly && !can)
+                    if (_craftableOnly && !can && !fitted)
                     {
                         continue;
                     }
 
-                    AddCard(y, L($"module.{m.Key}.name"), "cat_modules", can ? L("ui.craft.ready") : L("ui.craft.blocked"),
-                        can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f), "mod:" + m.Key, () => { _selected = "mod:" + m.Key; RebuildDetail(); }, contentKey: m.Key);
+                    string badge = fitted ? L("ui.ship.installed") : can ? L("ui.craft.ready") : L("ui.craft.blocked");
+                    var badgeColor = fitted ? UiKit.Cyan : can ? UiKit.Ok : new Color(1f, 0.5f, 0.5f);
+                    AddCard(y, L($"module.{m.Key}.name"), "cat_modules", badge, badgeColor,
+                        "mod:" + m.Key, () => { _selected = "mod:" + m.Key; RebuildDetail(); }, contentKey: m.Key);
                     y += 88f;
                 }
             }
@@ -1500,6 +1511,41 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            return y;
+        }
+
+        /// <summary>Whether the ACTIVE ship carries this module (the combat status streams its fit).</summary>
+        private bool ModuleFitted(BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition m)
+            => Game.ShipCombat?.Modules != null && System.Array.IndexOf(Game.ShipCombat.Modules, m.Key) >= 0;
+
+        /// <summary>Localised, comma-joined names of a module list (mandatory hull essentials skipped).</summary>
+        private string FitList(string[] modules)
+        {
+            var names = new List<string>();
+            foreach (var key in modules ?? System.Array.Empty<string>())
+            {
+                if (Game.Content.GetShipModule(key) is { Mandatory: false })
+                {
+                    names.Add(L($"module.{key}.name"));
+                }
+            }
+
+            return names.Count == 0 ? L("ui.ship.fitted_none") : L("ui.ship.fitted").Replace("{list}", string.Join(", ", names));
+        }
+
+        /// <summary>The active ship's fit + the one-of-each rule at the top of the Modules tab (#1268): the
+        /// question "how much can a ship hold?" had no answer because there is no slot budget — only
+        /// "one of each" — and nothing ever said so.</summary>
+        private float AddFitSummary(float y)
+        {
+            var t = UiKit.AddText(_listContent, 8, y, 752, 52, FitList(Game.ShipCombat?.Modules), 18, UiKit.TextCol, TextAnchor.UpperLeft);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 56f;
+            var rule = UiKit.AddText(_listContent, 8, y, 752, 48,
+                L("ui.ship.module_rule").Replace("{pct}", Mathf.RoundToInt(BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition.SalvageRate * 100f).ToString()),
+                16, UiKit.CyanDim, TextAnchor.UpperLeft);
+            rule.horizontalOverflow = HorizontalWrapMode.Wrap;
+            y += 56f;
             return y;
         }
 
@@ -3581,6 +3627,11 @@ namespace BlocksBeyondTheStars.Client
                     y += 36f;
                 }
 
+                // What this ship carries (#1268) — so you know which hangar ship has the breaker before switching.
+                var fit = UiKit.AddText(_detail, 8, y, 620, 60, FitList(s.Modules), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                fit.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 66f;
+
                 // An un-commissioned construction can't be switched to — it isn't a ship yet (#950).
                 if (!s.Active && s.Commissioned)
                 {
@@ -3607,6 +3658,33 @@ namespace BlocksBeyondTheStars.Client
                     var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
                     t.horizontalOverflow = HorizontalWrapMode.Wrap;
                     y += 84f;
+                }
+
+                if (ModuleFitted(m))
+                {
+                    // Already aboard (#1268): no Build button (the server refused it anyway) — instead the way
+                    // out, with the salvage share (#1269). Hull essentials, stations and the basic hold stay.
+                    UiKit.AddText(_detail, 8, y, 620, 26, L("ui.ship.installed"), 20, UiKit.Cyan, TextAnchor.UpperLeft, FontStyle.Bold);
+                    y += 32f;
+                    if (!m.Removable)
+                    {
+                        UiKit.AddText(_detail, 8, y, 620, 26, L("ui.ship.not_removable"), 18, UiKit.CyanDim, TextAnchor.UpperLeft);
+                        y += 30f;
+                        return y;
+                    }
+
+                    if (!ShipBuildOkNow())
+                    {
+                        UiKit.AddText(_detail, 8, y, 620, 26, NeedStationText("shipbuild"), 18, new Color(1f, 0.8f, 0.4f), TextAnchor.UpperLeft);
+                        y += 30f;
+                    }
+
+                    string pct = Mathf.RoundToInt(BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition.SalvageRate * 100f).ToString();
+                    var remove = UiKit.AddButton(_detail, 8, y, 320, 56, L("ui.action.uninstall").Replace("{pct}", pct),
+                        () => { Game.Network.SendUninstallModule(m.Key); });
+                    SetInteractable(remove, ShipBuildOkNow());
+                    y += 70f;
+                    return y;
                 }
 
                 y = CostBlock(m.BuildCost, m.RequiredBlueprint, y);

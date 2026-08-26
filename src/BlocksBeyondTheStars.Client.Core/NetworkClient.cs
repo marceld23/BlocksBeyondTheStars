@@ -426,6 +426,8 @@ namespace BlocksBeyondTheStars.Client
         // --- Free space flight & combat (M19) ---
         public void SendBuildModule(string moduleKey) => Send(new BuildShipModuleIntent { ModuleKey = moduleKey });
 
+        public void SendUninstallModule(string moduleKey) => Send(new UninstallShipModuleIntent { ModuleKey = moduleKey });
+
         public void SendEnterSpace() => Send(new EnterSpaceIntent());
 
         public void SendEnterShip() => Send(new EnterShipIntent());

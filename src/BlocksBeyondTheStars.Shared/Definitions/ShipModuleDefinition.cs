@@ -20,6 +20,16 @@ public sealed class ShipModuleDefinition
     /// <summary>Whether this module is mandatory and cannot be removed (cockpit, power, life support).</summary>
     public bool Mandatory { get; set; }
 
+    /// <summary>Share of a removed module's build cost that comes back as parts (per item, rounded down) —
+    /// the same rate as disassembling an item (#1269).</summary>
+    public const float SalvageRate = 0.5f;
+
+    /// <summary>Modules that never come out again: the hull essentials (<see cref="Mandatory"/>), the walk-up
+    /// stations that are part of the parked hull (workshop, medbay, quarters) and the basic hold every ship
+    /// is born with. Everything else — weapons, expansions, generators, arrays, AI cores — is removable
+    /// with salvage (#1269). One rule for server (refuses) and client (hides the button).</summary>
+    public bool Removable => !Mandatory && Key is not ("workshop" or "medbay" or "quarters" or "cargo_hold_basic");
+
     /// <summary>Resources consumed to build the module.</summary>
     public List<ItemAmount> BuildCost { get; set; } = new();
 
