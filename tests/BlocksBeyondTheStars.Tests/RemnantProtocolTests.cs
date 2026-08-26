@@ -48,13 +48,22 @@ public sealed class RemnantProtocolTests : IDisposable
         return server;
     }
 
-    private static void TickSurface(SvGameServer server, PlayerSession p, int ticks)
+    private static void TickSurface(SvGameServer server, PlayerSession p, int ticks, double dt = 6.0)
     {
         for (int i = 0; i < ticks; i++)
         {
-            server.Tick(6.0);
+            server.Tick(dt);
             p.State.Health = 100f;
         }
+    }
+
+    /// <summary>A player standing on the surface — the only kind the machine spawner counts as a target.</summary>
+    private static PlayerSession OnTheSurface(SvGameServer server, string name)
+    {
+        var p = server.AddLocalPlayer(name);
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(0, 64, 0);
+        return p;
     }
 
     [Fact]
@@ -93,6 +102,34 @@ public sealed class RemnantProtocolTests : IDisposable
 
             Assert.Equal(2, server.PlanetEnemies.Count); // max(1, 4 / 2)
             Assert.All(server.PlanetEnemies, e => Assert.Equal(CombatEntityKind.ScanDrone, e.Kind));
+        }
+    }
+
+    [Fact]
+    public void AfterTheWin_MachinesRefillAtTwiceTheInterval()
+    {
+        // The other half of "calmer, not empty" (#1206): the post-win cap is asserted above, the PACE here.
+        // A fresh world ramps to its cap every EnemySpawnInterval (5 s); once the Guardian is down the very
+        // same cadence is doubled, so a pacified world is still empty where a live one already has a machine.
+        var before = Started("remnant_pace_pre", null, out var repoA);
+        using (repoA)
+        {
+            var p = OnTheSurface(before, "Ada");
+            TickSurface(before, p, 2, 3.0); // 6 s ≥ 5 s
+            Assert.NotEmpty(before.PlanetEnemies);
+        }
+
+        var after = Started("remnant_pace_post", null, out var repoB);
+        using (repoB)
+        {
+            var p = OnTheSurface(after, "Ben");
+            after.MarkGuardianDefeatedForTest();
+
+            TickSurface(after, p, 2, 3.0); // 6 s — one full interval before the win, half of one now
+            Assert.Empty(after.PlanetEnemies);
+
+            TickSurface(after, p, 2, 3.0); // 12 s ≥ 10 s
+            Assert.NotEmpty(after.PlanetEnemies);
         }
     }
 
@@ -143,22 +180,38 @@ public sealed class RemnantProtocolTests : IDisposable
                 server.Ship.CurrentLocationId = pilot.CurrentLocationId;
                 server.EnterSpace("Pilot");
                 string systemId = server.SpaceSystemIdForTest(pilot.State.PlayerId);
-                if (systemId.Length == 0 || !server.BanditSystemForTest(systemId))
+                bool startIsPirateSpace = systemId.Length > 0 && server.BanditSystemForTest(systemId);
+                bool startIsHaven = startIsPirateSpace && server.SystemArchetypeForTest(systemId) == SystemArchetype.PirateHaven;
+                if (startIsPirateSpace)
                 {
-                    continue;
+                    Assert.True(server.BanditShipsAllowedInForTest(systemId), "pirate space harbours raiders before the win");
                 }
 
-                bool haven = server.SystemArchetypeForTest(systemId) == SystemArchetype.PirateHaven;
-                Assert.True(server.BanditShipsAllowedInForTest(systemId), "pirate space harbours raiders before the win");
-
                 server.MarkGuardianDefeatedForTest();
-                Assert.Equal(haven, server.BanditShipsAllowedInForTest(systemId));
-                sawHaven |= haven;
-                sawNonHavenPirateSpace |= !haven;
+
+                if (startIsPirateSpace)
+                {
+                    Assert.Equal(startIsHaven, server.BanditShipsAllowedInForTest(systemId));
+                    sawNonHavenPirateSpace |= !startIsHaven;
+                }
+
+                // The POSITIVE claim, which the start-system scan alone rarely reaches: a genuine haven —
+                // anywhere in this galaxy — still harbours raiders after the win, so the bounty stays earnable.
+                foreach (var sys in server.Galaxy.Systems)
+                {
+                    if (server.SystemArchetypeForTest(sys.Id) != SystemArchetype.PirateHaven)
+                    {
+                        continue;
+                    }
+
+                    Assert.True(server.BanditShipsAllowedInForTest(sys.Id), "a pirate haven keeps its raiders after the win");
+                    sawHaven = true;
+                }
             }
         }
 
         Assert.True(sawNonHavenPirateSpace, "expected at least one non-haven pirate-space start system in 40 seeds");
+        Assert.True(sawHaven, "expected at least one pirate haven across 40 start galaxies");
     }
 
     public void Dispose()

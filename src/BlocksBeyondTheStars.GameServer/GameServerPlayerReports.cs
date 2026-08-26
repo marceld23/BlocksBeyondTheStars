@@ -46,8 +46,8 @@ public sealed partial class GameServer
     ///
     /// A line the filter BLOCKED never gets here at all, and that is deliberate: it was never said to
     /// anyone, and copying it into a report would re-transmit exactly the content the filter refused. That
-    /// player is not invisible either — a blocked line already pings the operator on its own (#1207) and
-    /// three of them earn an automatic mute (#1208).</summary>
+    /// player is not invisible either — a blocked line is logged server-side (#1207) and repeated hits earn
+    /// an automatic mute that does ping the operator (#1208).</summary>
     private static void NoteChatLineForEvidence(PlayerSession session, string text)
     {
         session.RecentChatLines.Add(text);

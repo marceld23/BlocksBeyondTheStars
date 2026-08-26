@@ -47,21 +47,27 @@ public sealed class MissionBoardTests : IDisposable
         return server;
     }
 
-    /// <summary>Finds a world whose settlement has a mission board (offers settlement missions).</summary>
+    /// <summary>A world whose settlement has a mission board. Since #1199 plot 1 ALWAYS carries the board, so
+    /// this no longer scans seeds for one — it asserts it: every inhabited settlement must have a board, and
+    /// only a world that rolled nothing but ruins (which have no board by design) is skipped.</summary>
     private SvGameServer StartedWithBoard(out SqliteWorldRepository repo)
     {
-        for (long seed = 1; seed <= 60; seed++)
+        for (long seed = 1; seed <= 8; seed++)
         {
             var server = Start(seed, out repo);
-            if (server.SettlementMissionIds.Count > 0)
+            if (server.InhabitedSettlementCount == 0)
             {
-                return server;
+                repo.Dispose();
+                continue; // ruins only (or no settlement at all) on this world — nothing to claim about it
             }
 
-            repo.Dispose();
+            Assert.True(server.SettlementMissionIds.Count > 0,
+                $"seed {seed}: an inhabited settlement must carry a mission board (#1199)");
+            Assert.Contains(server.SettlementMarkers, m => m.Type == "mission_board");
+            return server;
         }
 
-        throw new Xunit.Sdk.XunitException("No settlement with a mission board found across 60 seeds.");
+        throw new Xunit.Sdk.XunitException("No inhabited settlement in 8 seeds — the generator stopped placing them.");
     }
 
     private static Vector3f BoardPos(SvGameServer server)

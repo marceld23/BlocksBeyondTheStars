@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.State;
@@ -12,10 +13,12 @@ namespace BlocksBeyondTheStars.GameServer;
 /// <summary>
 /// Named map markers + ping (#1217). Markers are per player per world (cap
 /// <see cref="MarkerMaxPerWorld"/>), persisted on the owner's player blob, and — when flagged shared — shown
-/// to players the owner is allied or crewed with while both stand on the same body. Because shared markers are
-/// read straight off the owner's live <c>PlayerState</c>, sharing needs the owner ONLINE — which matches what
-/// the feature is for ("come to me, the copper is here"), keeps every read out of the database, and means an
-/// offline player's map presence disappears with them.
+/// to players the owner is allied or crewed with while both stand on the same body. Shared markers stay visible
+/// while their owner is OFFLINE (#1293): the family meeting point must not vanish when the kid logs off. They
+/// are served from a server-side RAM index (<see cref="_sharedMarkers"/>, body → owner → markers) seeded once
+/// from the persisted player store and then kept current on every marker edit, join and disconnect — so no read
+/// hits the database on the hot path. The view is re-sent whenever the audience changes: alliance formed or
+/// dissolved, crew joined/left/kicked/disbanded, and when a player leaves a world (their pings go with them).
 ///
 /// <para>Pings are the transient cousin: a "look here" pulse at the crosshair with a
 /// <see cref="PingTtlSeconds"/>-second lifetime and a per-player rate limit, visible to the same audience,
@@ -42,6 +45,12 @@ public sealed partial class GameServer
 
     private readonly List<ServerPing> _pings = new();
     private readonly Dictionary<string, double> _nextPingAt = new();
+
+    /// <summary>Shared markers of EVERY known player, online or not: body id → owner id → that owner's shared
+    /// markers on the body (#1293). Seeded lazily from the player store (<see cref="EnsureSharedMarkerIndex"/>),
+    /// then maintained by <see cref="IndexSharedMarkers"/> on every marker edit, join and disconnect.</summary>
+    private readonly Dictionary<string, Dictionary<string, List<PlayerMarker>>> _sharedMarkers = new();
+    private bool _sharedMarkersSeeded;
 
     // ---------------------------------------------------------------------------------------------
     // The one intent envelope.
@@ -112,6 +121,7 @@ public sealed partial class GameServer
         existing.Color = Math.Clamp(intent.Color, 0, MarkerColorCount - 1);
         existing.Shared = intent.Shared;
         _repo.SavePlayer(p);
+        IndexSharedMarkers(p);
         BroadcastMarkersOn(loc);
     }
 
@@ -126,6 +136,7 @@ public sealed partial class GameServer
 
         p.Markers.Remove(marker);
         _repo.SavePlayer(p);
+        IndexSharedMarkers(p);
         BroadcastMarkersOn(marker.LocationId);
     }
 
@@ -190,8 +201,92 @@ public sealed partial class GameServer
     // Visibility + sync.
     // ---------------------------------------------------------------------------------------------
 
+    /// <summary>Seeds <see cref="_sharedMarkers"/> from the persisted player store, once per server lifetime.
+    /// Runs on the first marker read (i.e. the first join), so a big fleet world pays the cost exactly once.
+    /// Online players are indexed from their live state, which wins over a stored blob. A corrupted blob is
+    /// skipped, not fatal — markers are not worth refusing a join over.</summary>
+    private void EnsureSharedMarkerIndex()
+    {
+        if (_sharedMarkersSeeded)
+        {
+            return;
+        }
+
+        _sharedMarkersSeeded = true;
+        int offlineOwners = 0;
+        foreach (var id in _repo.ListPlayerIds())
+        {
+            if (FindSessionByPlayerId(id) is not null)
+            {
+                continue; // indexed from the live state below
+            }
+
+            try
+            {
+                if (_repo.LoadPlayer(id) is { } stored && stored.Markers.Any(m => m.Shared))
+                {
+                    IndexSharedMarkers(stored);
+                    offlineOwners++;
+                }
+            }
+            catch (InvalidDataException ex)
+            {
+                _log.Warn($"Marker index: skipped player '{id}' (unreadable save: {ex.Message}).");
+            }
+        }
+
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined)
+            {
+                IndexSharedMarkers(s.State);
+            }
+        }
+
+        if (offlineOwners > 0)
+        {
+            _log.Info($"Marker index: {offlineOwners} offline player(s) with shared markers.");
+        }
+    }
+
+    /// <summary>(Re)indexes one player's shared markers: drops every entry of theirs, then adds the current
+    /// shared set per body. Called on marker set/remove, join and disconnect — never per tick.</summary>
+    private void IndexSharedMarkers(PlayerState p)
+    {
+        string owner = p.PlayerId;
+        foreach (var kv in _sharedMarkers.ToList())
+        {
+            kv.Value.Remove(owner);
+            if (kv.Value.Count == 0)
+            {
+                _sharedMarkers.Remove(kv.Key);
+            }
+        }
+
+        foreach (var m in p.Markers)
+        {
+            if (!m.Shared || string.IsNullOrEmpty(m.LocationId))
+            {
+                continue;
+            }
+
+            if (!_sharedMarkers.TryGetValue(m.LocationId, out var byOwner))
+            {
+                _sharedMarkers[m.LocationId] = byOwner = new Dictionary<string, List<PlayerMarker>>();
+            }
+
+            if (!byOwner.TryGetValue(owner, out var list))
+            {
+                byOwner[owner] = list = new List<PlayerMarker>();
+            }
+
+            list.Add(m);
+        }
+    }
+
     /// <summary>Everything ONE player should see on their current world: their own markers, the shared markers
-    /// of online players they are allied or crewed with on the same body, and the live pings of that circle.</summary>
+    /// of players they are allied or crewed with on the same body (online or not), and the live pings of that
+    /// circle.</summary>
     private MarkerList MarkersFor(PlayerSession viewer)
     {
         string me = viewer.State.PlayerId;
@@ -202,36 +297,29 @@ public sealed partial class GameServer
             return new MarkerList();
         }
 
-        foreach (var s in _sessions.Values)
+        EnsureSharedMarkerIndex();
+
+        foreach (var m in viewer.State.Markers)
         {
-            if (!s.Joined || s.CurrentLocationId != loc)
+            if (m.LocationId == loc)
             {
-                continue;
+                result.Add(ToNetMarker(me, m));
             }
+        }
 
-            string owner = s.State.PlayerId;
-            bool mine = owner == me;
-            if (!mine && !AreAllied(me, owner))
+        if (_sharedMarkers.TryGetValue(loc, out var byOwner))
+        {
+            foreach (var kv in byOwner)
             {
-                continue;
-            }
-
-            foreach (var m in s.State.Markers)
-            {
-                if (m.LocationId == loc && (mine || m.Shared))
+                string owner = kv.Key;
+                if (owner == me || !AreAllied(me, owner))
                 {
-                    result.Add(new NetMarker
-                    {
-                        Id = m.Id,
-                        OwnerId = owner,
-                        X = m.X,
-                        Y = m.Y,
-                        Z = m.Z,
-                        Label = m.Label,
-                        Icon = m.Icon,
-                        Color = m.Color,
-                        Shared = m.Shared,
-                    });
+                    continue;
+                }
+
+                foreach (var m in kv.Value)
+                {
+                    result.Add(ToNetMarker(owner, m));
                 }
             }
         }
@@ -256,6 +344,19 @@ public sealed partial class GameServer
         return new MarkerList { Markers = result.ToArray() };
     }
 
+    private static NetMarker ToNetMarker(string owner, PlayerMarker m) => new()
+    {
+        Id = m.Id,
+        OwnerId = owner,
+        X = m.X,
+        Y = m.Y,
+        Z = m.Z,
+        Label = m.Label,
+        Icon = m.Icon,
+        Color = m.Color,
+        Shared = m.Shared,
+    };
+
     private void SendMarkers(PlayerSession session) => Send(session, MarkersFor(session));
 
     /// <summary>Re-sends the marker view to every joined player on the given body (each gets their own
@@ -265,6 +366,63 @@ public sealed partial class GameServer
         foreach (var s in _sessions.Values)
         {
             if (s.Joined && s.CurrentLocationId == locationId)
+            {
+                SendMarkers(s);
+            }
+        }
+    }
+
+    /// <summary>Re-sends the marker view to each of the given players that is online — the audience of a
+    /// shared marker just changed (alliance formed/dissolved, crew membership moved, #1293). Called from the
+    /// alliance and crew files; duplicates in the list are harmless.</summary>
+    private void RefreshMarkersFor(IEnumerable<string> playerIds)
+    {
+        foreach (var id in playerIds.Distinct())
+        {
+            if (FindSessionByPlayerId(id) is { } s && s.Joined)
+            {
+                SendMarkers(s);
+            }
+        }
+    }
+
+    /// <summary>A player joined: their loaded state is the truth for their shared markers (the seed may have
+    /// read an older blob, or none at all for a brand-new player). No-op before the first seed — the seed
+    /// itself indexes every joined session.</summary>
+    private void OnMarkerOwnerJoined(PlayerSession session)
+    {
+        if (_sharedMarkersSeeded)
+        {
+            IndexSharedMarkers(session.State);
+        }
+    }
+
+    /// <summary>A player left a world (travel, respawn elsewhere, or disconnect): their pings are a shout that
+    /// stops with them, so drop them and re-send the view to everyone still on that world (#1293). Their SHARED
+    /// markers stay — the index carries them while the owner is away; on a disconnect it is refreshed from the
+    /// state that was just saved. Call AFTER the session has moved (or been removed) so the leaver is not
+    /// counted among the remaining players.</summary>
+    private void OnMarkerOwnerLeftWorld(PlayerSession session, string oldLocationId, bool disconnected)
+    {
+        string me = session.State.PlayerId;
+        if (disconnected)
+        {
+            _nextPingAt.Remove(me);
+            if (_sharedMarkersSeeded)
+            {
+                IndexSharedMarkers(session.State);
+            }
+        }
+
+        int dropped = _pings.RemoveAll(p => p.OwnerId == me);
+        if (string.IsNullOrEmpty(oldLocationId) || (dropped == 0 && !disconnected))
+        {
+            return; // a plain world switch with no live ping changes nothing for the players left behind
+        }
+
+        foreach (var s in _sessions.Values)
+        {
+            if (s.Joined && s != session && s.CurrentLocationId == oldLocationId)
             {
                 SendMarkers(s);
             }

@@ -61,6 +61,11 @@ public sealed partial class GameServer
 
     private List<ServerSpeeder> _speeders => _worlds.Active.Speeders;
 
+    /// <summary>The "that isn't yours" reject in the vehicle's own wording (#1301): <c>@srv.boat.not_yours</c> for a
+    /// boat, <c>@srv.speeder.not_yours</c> otherwise. An unknown id (null) has no kind to speak of — the speeder
+    /// wording is the generic one.</summary>
+    private static string NotYoursKey(ServerSpeeder? s) => s is null ? "@srv.speeder.not_yours" : VehicleMsg(s.Rec, "not_yours");
+
     // ---------------------------------------------------------------------------------------------
     // Snapshots / sync.
     // ---------------------------------------------------------------------------------------------
@@ -180,7 +185,7 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "@srv.speeder.not_yours");
+            Reject(session, "speeder", NotYoursKey(s));
             return;
         }
 
@@ -222,7 +227,7 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "@srv.speeder.not_yours");
+            Reject(session, "speeder", NotYoursKey(s));
             return;
         }
 
@@ -325,7 +330,7 @@ public sealed partial class GameServer
         var s = _speeders.FirstOrDefault(v => v.Id == intent.SpeederId);
         if (s is null || s.OwnerId != p.PlayerId)
         {
-            Reject(session, "speeder", "@srv.speeder.not_yours");
+            Reject(session, "speeder", NotYoursKey(s));
             return;
         }
 

@@ -596,8 +596,8 @@ when section 11 is configured.
 
 **Chat content filter (#1207, on by default).** Every chat line is screened server-side before it is
 relayed: profanity is masked (`***`, the sender is told once per session), slurs/hate terms drop the
-line (the sender is told), phone numbers / e-mail addresses / links are masked in *Filtered* and drop
-the line in *Safe*. Whole-word matching after case/diacritic/leet/repeat/homoglyph folding — German
+line (the sender is told), phone numbers (10+ digits) / e-mail addresses / links / social `@handles`
+(3–32 characters, #1296) are masked in *Filtered* and drop the line in *Safe*. Whole-word matching after case/diacritic/leet/repeat/homoglyph folding — German
 compounds ("Assistent", "Klasse") pass; watch-list hits are relayed but pinged to `BBS_NOTIFY_URL`.
 Nothing about the line is logged beyond the matched list entry. Knobs:
 
@@ -630,8 +630,10 @@ ping per mute through `BBS_NOTIFY_URL` (title `chat auto-mute [<world>]`, tag `m
 name screen and watch-list hits already use.
 
 Only chat is paused; the player keeps playing. **The counters and the mute live in RAM only** and are never
-written to the save: a cool-down is not a mark on the record, and a reconnect or a restart clears it. A
-watch-list hit is deliberately *not* counted — that line is relayed untouched and only pings you.
+written to the save: a cool-down is not a mark on the record, and a server restart clears it. Since #1294
+the mute is keyed by player id, so leaving and rejoining does *not* lift it — the cool-down simply runs out.
+A watch-list hit is deliberately *not* counted — that line is relayed untouched and only pings you. A
+*blocked* line is logged but does not ping you by itself; the ping comes with the auto-mute.
 
 ### An admin pauses a chat by hand (#1223)
 

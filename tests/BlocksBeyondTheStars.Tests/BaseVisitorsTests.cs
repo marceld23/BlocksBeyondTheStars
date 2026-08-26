@@ -57,9 +57,11 @@ public sealed class BaseVisitorsTests : IDisposable
         public void Dispose() { }
     }
 
-    /// <summary>A Survival world with robbers on and machines off, nothing else stamped — so the only bandits
-    /// that can ever appear are the ones a test asks for.</summary>
-    private SvGameServer NewServer(string name, RecordingTransport transport, bool visitors)
+    /// <summary>A Survival world with robbers on, nothing else stamped, and no world tick — so the only bandits
+    /// that can ever appear are the ones a test asks for. Machines default to on because scouts need them on
+    /// (#1297: no sentry without hostiles, no scouts without a sentry to answer them); they still never spawn
+    /// here since no test runs the enemy tick.</summary>
+    private SvGameServer NewServer(string name, RecordingTransport transport, bool visitors, AlienActivity enemies = AlienActivity.Normal)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -74,7 +76,7 @@ public sealed class BaseVisitorsTests : IDisposable
             PlaceBanditCamps = false,
             ViewDistanceChunks = 1,
         };
-        config.Rules.PlanetEnemies = AlienActivity.Off;
+        config.Rules.PlanetEnemies = enemies;
         config.Rules.Bandits = AlienActivity.Normal;
         config.Rules.BaseVisitors = visitors;
         var server = new SvGameServer(config, _content, transport, repo);
@@ -121,6 +123,23 @@ public sealed class BaseVisitorsTests : IDisposable
     {
         var transport = new RecordingTransport();
         var server = NewServer("visitors_off", transport, visitors: false);
+        var owner = Owner(server);
+        var (baseId, _) = FoundBase(server, owner);
+
+        Assert.False(server.SpawnScoutsForTest(baseId));
+        server.TrySpawnBaseScoutsForTest();
+
+        Assert.Empty(Scouts(server));
+        Assert.DoesNotContain(MessagesTo(transport, owner), m => m.StartsWith("@srv.base.scouts", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PlanetEnemiesOff_NobodyComes_EvenWithTheRuleOn()
+    {
+        // #1297: the sentry post is gated on PlanetEnemies, so with machines off a base could be visited but
+        // never answer. Scouts need BOTH robbers and machines on; the client hides the option on the same pair.
+        var transport = new RecordingTransport();
+        var server = NewServer("visitors_no_machines", transport, visitors: true, enemies: AlienActivity.Off);
         var owner = Owner(server);
         var (baseId, _) = FoundBase(server, owner);
 

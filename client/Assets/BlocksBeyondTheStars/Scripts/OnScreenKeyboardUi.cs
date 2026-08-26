@@ -42,10 +42,13 @@ namespace BlocksBeyondTheStars.Client
         private string _title = string.Empty;
         private string _text = string.Empty;
         private int _maxLength;
+        private bool _mask;                                          // password / PIN: preview shows bullets (#1289)
+        private KeyboardContentKind _kind = KeyboardContentKind.Text; // number fields drop letters (#1289)
         private bool _shift;
         private KeyboardPage _page = KeyboardPage.Letters;
         private System.Action<string> _onDone;
         private System.Action _onCancel;
+        private GameObject _restoreSelection; // the field that opened us; reselected on Done / Cancel (#1289)
 
         /// <summary>True while the keyboard owns the input. Read by <see cref="UiKit.TextFieldFocused"/>,
         /// so every existing "am I typing?" check covers it without knowing this class exists.</summary>
@@ -53,9 +56,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Opens the keyboard over everything else. <paramref name="onDone"/> receives the finished
         /// text; <paramref name="onCancel"/> (optional) runs when the player backs out instead. Opening it a
-        /// second time replaces the first — the last caller wins rather than stacking two keyboards.</summary>
+        /// second time replaces the first — the last caller wins rather than stacking two keyboards.
+        /// <paramref name="mask"/> shows bullets instead of the text (passwords, PINs); <paramref name="kind"/>
+        /// filters the keys a number field will take; <paramref name="restoreSelection"/> is reselected when
+        /// the keyboard closes through Done or Cancel, so the pad lands back on the field it came from (#1289).</summary>
         public static void Open(string title, string initial, int maxLength, System.Action<string> onDone,
-            System.Action onCancel = null)
+            System.Action onCancel = null, bool mask = false, KeyboardContentKind kind = KeyboardContentKind.Text,
+            GameObject restoreSelection = null)
         {
             if (_instance == null)
             {
@@ -68,7 +75,7 @@ namespace BlocksBeyondTheStars.Client
                 _instance = go.AddComponent<OnScreenKeyboardUi>();
             }
 
-            _instance.Show(title, initial, maxLength, onDone, onCancel);
+            _instance.Show(title, initial, maxLength, onDone, onCancel, mask, kind, restoreSelection);
         }
 
         /// <summary>Closes the keyboard without accepting the text (no callback runs).</summary>
@@ -88,17 +95,30 @@ namespace BlocksBeyondTheStars.Client
             && InputMap.ActiveDevice == InputDeviceKind.Gamepad;
 
         private void Show(string title, string initial, int maxLength, System.Action<string> onDone,
-            System.Action onCancel)
+            System.Action onCancel, bool mask, KeyboardContentKind kind, GameObject restoreSelection)
         {
             Teardown();
             _title = title ?? string.Empty;
             _text = initial ?? string.Empty;
             _maxLength = maxLength;
+            _mask = mask;
+            _kind = kind;
             _onDone = onDone;
             _onCancel = onCancel;
+            _restoreSelection = restoreSelection;
             _shift = false;
             _page = KeyboardPage.Letters;
             InputMap.ModalCapture = true;
+
+            // Drop the current selection BEFORE the grid exists: while the submitting field stayed selected,
+            // the keyboard's UiNavFocus saw "a valid control is focused" and never claimed the first key, so
+            // the sticks wandered over the dialog behind us and A re-opened the keyboard from the field (#1289).
+            var es = EventSystem.current;
+            if (es != null)
+            {
+                es.SetSelectedGameObject(null);
+            }
+
             Build();
         }
 
@@ -133,7 +153,21 @@ namespace BlocksBeyondTheStars.Client
             _preview = null;
             _onDone = null;
             _onCancel = null;
+            _restoreSelection = null;
             InputMap.ModalCapture = false;
+        }
+
+        /// <summary>Hands the pad selection back to the field that opened the keyboard (Done / Cancel only —
+        /// a bare Dismiss is another screen taking over, and it decides where focus goes). The field's own
+        /// bridge keeps it deactivated on a pad, so this only positions the cursor; it does not start typing.</summary>
+        private void RestoreSelection()
+        {
+            var target = _restoreSelection;
+            var es = EventSystem.current;
+            if (target != null && es != null && target.activeInHierarchy)
+            {
+                es.SetSelectedGameObject(target);
+            }
         }
 
         private void Build()
@@ -242,8 +276,11 @@ namespace BlocksBeyondTheStars.Client
             BuildContent();
         }
 
-        /// <summary>Test seam: the text currently on the preview line. CI cannot click a key.</summary>
+        /// <summary>Test seam: the text currently being edited. CI cannot click a key.</summary>
         public static string TextForTest => _instance != null ? _instance._text : null;
+
+        /// <summary>Test seam: what the preview line actually SHOWS (bullets for a password field, #1289).</summary>
+        public static string PreviewForTest => _instance != null && _instance._preview != null ? _instance._preview.text : null;
 
         /// <summary>Test seam: does exactly what pressing that key on the grid does, commands included —
         /// the same entry point the buttons use, so a test exercises the real wiring rather than a copy.</summary>
@@ -285,7 +322,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _text = OnScreenKeyboardLayout.Apply(_text, key, _maxLength);
+            _text = OnScreenKeyboardLayout.Apply(_text, key, _maxLength, _kind);
             RefreshPreview();
         }
 
@@ -293,7 +330,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (_preview != null)
             {
-                _preview.text = _text + "_";
+                _preview.text = OnScreenKeyboardLayout.Preview(_text, _mask) + "_";
             }
         }
 
@@ -301,6 +338,7 @@ namespace BlocksBeyondTheStars.Client
         {
             var done = _onDone;
             string text = _text;
+            RestoreSelection();
             Teardown();
             done?.Invoke(text);
         }
@@ -308,6 +346,7 @@ namespace BlocksBeyondTheStars.Client
         private void Cancel()
         {
             var cancelled = _onCancel;
+            RestoreSelection();
             Teardown();
             cancelled?.Invoke();
         }
@@ -394,7 +433,32 @@ namespace BlocksBeyondTheStars.Client
                     {
                         field.text = text;
                     }
-                });
+                },
+                mask: IsMasked(field),
+                kind: KindOf(field),
+                restoreSelection: field.gameObject);
+        }
+
+        /// <summary>Password and PIN fields must not echo on the big preview line (#1289).</summary>
+        private static bool IsMasked(InputField field) =>
+            field.contentType == InputField.ContentType.Password
+            || field.contentType == InputField.ContentType.Pin
+            || field.inputType == InputField.InputType.Password;
+
+        /// <summary>The keyboard's content kind for a field: the <c>text</c> setter bypasses uGUI's own
+        /// character validation, so the filter has to happen on the keyboard side (#1289).</summary>
+        private static KeyboardContentKind KindOf(InputField field)
+        {
+            switch (field.contentType)
+            {
+                case InputField.ContentType.IntegerNumber:
+                case InputField.ContentType.Pin:
+                    return KeyboardContentKind.Integer;
+                case InputField.ContentType.DecimalNumber:
+                    return KeyboardContentKind.Decimal;
+                default:
+                    return KeyboardContentKind.Text;
+            }
         }
 
         private void LateUpdate()

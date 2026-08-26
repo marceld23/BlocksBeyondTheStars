@@ -86,26 +86,136 @@ public sealed partial class GameServer
         return MissionChains.StageRank(RelationshipTier(value)) >= MissionChains.StageRank(def.MinStage);
     }
 
-    /// <summary>All prerequisites turned in. <paramref name="boundPlace"/> is where the chain was started (the
-    /// latest prerequisite's AcceptedFrom) — empty when the chain is not bound to a place yet.</summary>
-    private static bool ChainPrerequisitesMet(PlayerState p, MissionDefinition def, out string boundPlace)
+    /// <summary>Guards the prerequisite walk against a mis-authored prerequisite cycle.</summary>
+    private const int MaxChainSkipDepth = 8;
+
+    /// <summary>All prerequisites turned in — or SKIPPED (#1291), see <see cref="ChainPrerequisiteSatisfied"/>.
+    /// <paramref name="boundPlace"/> is where the chain was started (the latest prerequisite's AcceptedFrom) —
+    /// empty when the chain is not bound to a place yet.</summary>
+    private bool ChainPrerequisitesMet(PlayerState p, MissionDefinition def, out string boundPlace)
     {
-        boundPlace = string.Empty;
+        string bound = string.Empty;
         foreach (var id in def.Prerequisites)
         {
-            var done = p.Missions.FirstOrDefault(m => m.MissionId == id && m.Status == MissionStatus.TurnedIn);
-            if (done is null)
+            if (!ChainPrerequisiteSatisfied(p, id, ref bound, 0))
             {
+                boundPlace = bound;
                 return false;
             }
+        }
 
+        boundPlace = bound;
+        return true;
+    }
+
+    /// <summary>Whether one prerequisite id no longer blocks the chain: it is turned in, or it is a step that
+    /// can never be finished on this world / for this player and is therefore SKIPPED (#1291).
+    /// <para>A skipped step counts as satisfied only once ITS own prerequisites are satisfied, so the chain
+    /// still runs in order — it just steps over the parts this world cannot offer instead of dead-ending
+    /// (the survey orders stalled after step 2 on every world without a player relay station, and again with
+    /// hostiles switched off). A step the player currently HOLDS is never skipped: they are working on it.</para></summary>
+    private bool ChainPrerequisiteSatisfied(PlayerState p, string id, ref string boundPlace, int depth)
+    {
+        var done = p.Missions.FirstOrDefault(m => m.MissionId == id && m.Status == MissionStatus.TurnedIn);
+        if (done is not null)
+        {
             if (!string.IsNullOrEmpty(done.AcceptedFrom))
             {
                 boundPlace = done.AcceptedFrom;
             }
+
+            return true;
+        }
+
+        if (depth >= MaxChainSkipDepth || p.Missions.Any(m => m.MissionId == id))
+        {
+            return false; // cyclic authoring, or the player is holding this very step right now
+        }
+
+        if (GetMissionDef(id) is not { Active: true } skipped)
+        {
+            return false;
+        }
+
+        if (ChainStepFeasible(skipped))
+        {
+            return false; // it CAN be finished here — the player simply has not finished it yet
+        }
+
+        foreach (var pre in skipped.Prerequisites)
+        {
+            if (!ChainPrerequisiteSatisfied(p, pre, ref boundPlace, depth + 1))
+            {
+                return false;
+            }
         }
 
         return true;
+    }
+
+    /// <summary>The steps that can actually follow <paramref name="def"/> on this world (#1291): its declared
+    /// successors, and — for a successor that is infeasible here and therefore skipped — that successor's own
+    /// successors, recursively. Empty means the chain ends here for this player.</summary>
+    private List<MissionDefinition> FeasibleNextSteps(MissionDefinition def)
+    {
+        var found = new List<MissionDefinition>();
+        var seen = new HashSet<string>(StringComparer.Ordinal) { def.Id };
+        var pending = new Queue<MissionDefinition>();
+        EnqueueSuccessors(def);
+
+        while (pending.Count > 0)
+        {
+            var next = pending.Dequeue();
+            if (ChainStepFeasible(next))
+            {
+                found.Add(next);
+            }
+            else
+            {
+                EnqueueSuccessors(next); // skipped — whatever follows IT is the real next step
+            }
+        }
+
+        return found;
+
+        void EnqueueSuccessors(MissionDefinition from)
+        {
+            if (!string.IsNullOrEmpty(from.NextMissionId) && GetMissionDef(from.NextMissionId) is { Active: true } declared
+                && seen.Add(declared.Id))
+            {
+                pending.Enqueue(declared);
+            }
+
+            foreach (var d in _missionDefs.Values)
+            {
+                if (d.Active && d.ChainId == from.ChainId && d.Prerequisites.Contains(from.Id) && seen.Add(d.Id))
+                {
+                    pending.Enqueue(d);
+                }
+            }
+        }
+    }
+
+    /// <summary>Whether a chain restarts after <paramref name="def"/> was turned in and nothing feasible
+    /// follows (#1291): either this step itself is the repeatable one, or the repeatable last step is among
+    /// the ones this world skips — a skipped finale must not swallow the repeat trigger, which is the only
+    /// thing keeping the station boards stocked after the ending.</summary>
+    private bool ChainRestartsAfter(MissionDefinition def)
+    {
+        if (def.Repeatable)
+        {
+            return true;
+        }
+
+        foreach (var d in _missionDefs.Values)
+        {
+            if (d.Active && d.Repeatable && d.ChainId == def.ChainId && d.Step > def.Step && !ChainStepFeasible(d))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Whether the world has reached the story point a definition asks for (#1213). Empty gate =
@@ -163,9 +273,9 @@ public sealed partial class GameServer
 
                     break;
                 case MissionObjectiveType.Scan when o.Target == "creature:hostile":
-                    if (!_speciesRoster.Any(sp => sp.Hostile))
+                    if (!HostileScanFeasible)
                     {
-                        return false;
+                        return false; // no hostile species, or the world's rules keep them off entirely (#1303)
                     }
 
                     break;
@@ -313,7 +423,8 @@ public sealed partial class GameServer
     }
 
     /// <summary>Progress entry for a freshly accepted mission — chain steps remember their chain and where
-    /// they were taken (the place binds the chain, the body drives the <c>other_body</c> travel target).</summary>
+    /// they were taken (the place binds the chain, the body drives the <c>other_body</c> travel target, and
+    /// the resolved SYSTEM the <c>unlinked_system</c> one — a station board's body id is unresolvable, #1291).</summary>
     private MissionProgress NewMissionProgress(PlayerState p, MissionDefinition def, string acceptedFrom)
         => new()
         {
@@ -323,6 +434,7 @@ public sealed partial class GameServer
             ChainId = def.ChainId,
             AcceptedFrom = IsChainMission(def) ? acceptedFrom : string.Empty,
             AcceptedBodyId = IsChainMission(def) ? p.CurrentLocationId : string.Empty,
+            AcceptedSystemId = IsChainMission(def) ? SystemOfLocation(p.CurrentLocationId) : string.Empty,
         };
 
     /// <summary>Accept-time bookkeeping for a chain step: the giver remembers the player (friendship grows
@@ -384,9 +496,9 @@ public sealed partial class GameServer
     /// radio gates, the player's NpcCallsMode and the 90 s delay, and gives up if the player stays away.</summary>
     private void OnChainStepTurnedIn(PlayerSession session, MissionDefinition def, MissionProgress pr)
     {
-        bool hasNext = !string.IsNullOrEmpty(def.NextMissionId)
-            || _missionDefs.Values.Any(d => d.Active && d.ChainId == def.ChainId && d.Prerequisites.Contains(def.Id));
-        if (!hasNext)
+        // #1291: only a step that is FEASIBLE here counts as "next" — otherwise the giver promises a call
+        // about an order this world can never hand out, and the chain quietly stalls at the last real step.
+        if (FeasibleNextSteps(def).Count == 0)
         {
             RestartChainIfRepeatable(session, def);
             return;
@@ -411,7 +523,7 @@ public sealed partial class GameServer
     /// that removes only THIS row, and a chain's rows are what the next run's prerequisite check reads.</para></summary>
     private void RestartChainIfRepeatable(PlayerSession session, MissionDefinition def)
     {
-        if (!def.Repeatable || !IsChainMission(def))
+        if (!IsChainMission(def) || !ChainRestartsAfter(def))
         {
             return;
         }
@@ -650,6 +762,20 @@ public sealed partial class GameServer
     /// <summary>Test hook: run the repeatable-chain restart for a turned-in last step (#1213).</summary>
     public void RestartChainIfRepeatableForTest(PlayerSession session, MissionDefinition def)
         => RestartChainIfRepeatable(session, def);
+
+    /// <summary>Test hook: the post-turn-in chain bookkeeping (nudge the giver, or restart a chain whose
+    /// remaining steps this world cannot offer, #1291).</summary>
+    public void ChainStepTurnedInForTest(PlayerSession session, MissionDefinition def, MissionProgress pr)
+        => OnChainStepTurnedIn(session, def, pr);
+
+    /// <summary>Test/inspection: the ids of the steps that can still follow a turned-in step here (#1291) —
+    /// empty when the chain ends for this player on this world.</summary>
+    public IReadOnlyList<string> FeasibleNextStepsForTest(string missionId)
+        => GetMissionDef(missionId) is { } def ? FeasibleNextSteps(def).Select(d => d.Id).ToList() : new List<string>();
+
+    /// <summary>Test/inspection: whether a chain step could be completed on this world at all (#1212).</summary>
+    public bool ChainStepFeasibleForTest(string missionId)
+        => GetMissionDef(missionId) is { } def && ChainStepFeasible(def);
 
     /// <summary>Test seam: the place key (settle_/station_) the player currently stands in, or empty.</summary>
     public string CurrentPlaceKeyForTest(string playerId)

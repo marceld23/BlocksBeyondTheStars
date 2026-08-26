@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Missions;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -138,6 +139,86 @@ public sealed class SentryTests : IDisposable
             server.TickSentriesForTest();
 
             Assert.Equal(full, server.PlanetEnemies.Single().Hull);
+        }
+    }
+
+    // ---------------- a kill is credited to the owner (#1292) ----------------
+
+    [Fact]
+    public void ASentryFinishingAScout_CreditsTheOwner_CounterAndMissionStep()
+    {
+        var server = Start(out var repo, c => c.Rules.BaseVisitors = true);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            int baseId = FoundBaseWithSentry(server, owner, out var sentry);
+
+            // A "guard the homestead" step with the real Defeat target, offered over the radio so the test
+            // needs no mission board (the chain tests use the same shape).
+            var def = new MissionDefinition
+            {
+                Id = "test_homestead_guard",
+                Source = MissionSource.System,
+                NameKey = "mission.homestead_guard.name",
+                DescriptionKey = "mission.homestead_guard.desc",
+                ChainId = "test_homestead",
+                Step = 1,
+                Surface = MissionChains.SurfaceRadio,
+                Objectives = { new MissionObjective { Type = MissionObjectiveType.Defeat, Target = "base_scout", Required = 2 } },
+                Active = true,
+            };
+            server.AddMissionDefForTest(def);
+            server.AcceptMission("Homesteader", def.Id);
+            var progress = owner.State.Missions.Single(m => m.MissionId == def.Id);
+
+            Assert.True(server.SpawnScoutsForTest(baseId));
+            var scout = server.Bandits.First(b => b.ScoutBaseId == baseId);
+
+            // The owner hit it (#1224): it stands its ground and fights — and the sentry may now answer.
+            scout.Position = Near(sentry, 4f);
+            scout.Hostile = true;
+            scout.BanditPhase = BanditPhase.Fighting;
+
+            for (int i = 0; i < 64 && server.Bandits.Contains(scout); i++)
+            {
+                server.TickSentriesForTest();
+            }
+
+            Assert.DoesNotContain(scout, server.Bandits);
+
+            // The turret's kill is the owner's credit: the counter and the mission step both move.
+            var list = server.AchievementListForTest(owner);
+            Assert.Equal(1, list.Counters.TryGetValue("base:defended", out int n) ? n : 0);
+            Assert.Equal(1, progress.ObjectiveProgress[0]);
+        }
+    }
+
+    [Fact]
+    public void ASentryFinishingACampGuard_SpillsItsLoot_AndClearsTheCamp()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            owner.State.AboardShip = false;
+            FoundBaseWithSentry(server, owner, out var sentry);
+
+            // A one-guard camp somewhere out of the way; the guard itself has come to the base. Camp guards
+            // spawn hostile and outside the talk phases, so they are always fair game for the turret.
+            string campKey = server.SpawnBanditCampForTest(Near(sentry, 30f), guards: 1);
+            var guard = server.Bandits.Single(b => b.CampKey == campKey);
+            guard.Position = Near(sentry, 4f);
+            Assert.False(server.BanditCampClearedForTest(campKey));
+
+            for (int i = 0; i < 64 && server.Bandits.Contains(guard); i++)
+            {
+                server.TickSentriesForTest();
+            }
+
+            Assert.DoesNotContain(guard, server.Bandits);
+            Assert.True(server.BanditCampClearedForTest(campKey), "the last guard fell — the camp is cleared, whoever fired");
+            Assert.Contains(server.DropPackets, p => p.Items.Any(s => s.Item == "iron_plate" && s.Count == 2)); // loot on the ground, not lost
         }
     }
 

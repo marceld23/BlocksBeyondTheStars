@@ -286,6 +286,68 @@ public sealed class ChatAntiSpamTests : IDisposable
         Assert.Equal(2, MuteNoticesTo(transport, alice));
     }
 
+    // ---------------- the mute follows the player, not the socket (#1294) ----------------
+
+    /// <summary>Drops the player's connection and lets them join again under the same name — a fresh session,
+    /// the same player id.</summary>
+    private static BlocksBeyondTheStars.GameServer.PlayerSession Rejoin(SvGameServer server, string name)
+    {
+        server.DisconnectLocalPlayerForTest(name);
+        var again = server.AddLocalPlayer(name);
+        again.State.Inventory.Add("comm_radio", 1, 1);
+        return again;
+    }
+
+    [Fact]
+    public void AnAutoMute_SurvivesLeavingAndRejoining_AndIsExplainedOnceMore()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("spam_rejoin", transport);
+        var (alice, bob) = Pair(server);
+        transport.Sent.Clear();
+
+        for (int i = 0; i < 7; i++)
+        {
+            Say(server, alice, "line " + i);
+        }
+
+        Assert.True(server.IsChatMutedForTest(alice.State.PlayerId));
+
+        var alice2 = Rejoin(server, "Alice");
+        transport.Sent.Clear();
+
+        Assert.True(server.IsChatMutedForTest(alice2.State.PlayerId));
+        Say(server, alice2, "back, can I talk?");
+        Say(server, alice2, "hello?");
+
+        Assert.Empty(ChatTo(transport, bob));
+        Assert.Equal(1, MuteNoticesTo(transport, alice2)); // told once more in the new session — not once per line
+    }
+
+    [Fact]
+    public void AnAutoMute_StillExpiresAfterARejoin()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("spam_rejoin_expiry", transport);
+        var (alice, bob) = Pair(server);
+
+        for (int i = 0; i < 7; i++)
+        {
+            Say(server, alice, "line " + i);
+        }
+
+        var alice2 = Rejoin(server, "Alice");
+        server.AdvanceUptimeForTest(599.0);
+        Assert.True(server.IsChatMutedForTest(alice2.State.PlayerId));
+
+        server.AdvanceUptimeForTest(2.0);
+        Assert.False(server.IsChatMutedForTest(alice2.State.PlayerId));
+
+        transport.Sent.Clear();
+        Say(server, alice2, "sorry about that");
+        Assert.Contains(ChatTo(transport, bob), c => c.Text == "sorry about that");
+    }
+
     // ---------------- the notice is readable ----------------
 
     [Fact]

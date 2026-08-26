@@ -301,9 +301,32 @@ public sealed partial class GameServer
     private bool AnyUnlinkedSystem()
         => _galaxy is not null && _galaxy.Systems.Any(s => !_relaySystems.Contains(s.Id));
 
+    /// <summary>The location-id prefix of a boarded station's own void world (<c>station:&lt;id&gt;</c>) —
+    /// the value <see cref="PlayerState.CurrentLocationId"/> carries while a player stands on a station.</summary>
+    private const string StationLocationIdPrefix = "station:";
+
+    /// <summary>The star system a location id belongs to (#1291). A station board's location id is
+    /// <c>station:&lt;id&gt;</c>, which <c>Galaxy.FindBody</c> cannot resolve — it has to go through the same
+    /// station→system mapping the relay meter uses; anything else is a plain celestial body.</summary>
+    private string SystemOfLocation(string locationId)
+    {
+        if (string.IsNullOrEmpty(locationId))
+        {
+            return string.Empty;
+        }
+
+        return locationId.StartsWith(StationLocationIdPrefix, System.StringComparison.Ordinal)
+            ? RelaySystemOf(locationId[StationLocationIdPrefix.Length..])
+            : _galaxy?.FindBody(locationId)?.SystemId ?? string.Empty;
+    }
+
     /// <summary>Whether arriving at <paramref name="bodyId"/> satisfies an "unlinked system" travel objective
     /// (#1213): the body's system carries no completed relay, and is not the system the job was taken in — so
-    /// the order actually sends the player somewhere new rather than completing on the spot.</summary>
+    /// the order actually sends the player somewhere new rather than completing on the spot.
+    /// <para>#1291: the "taken in" system comes from <see cref="MissionProgress.AcceptedSystemId"/>, which is
+    /// resolved at accept time. Deriving it from the accepted BODY silently never fired, because the chain is
+    /// only takeable at a station board, whose location id no body lookup resolves. Rows written before that
+    /// field existed fall back to the old body-derived value.</para></summary>
     private bool ArrivedInUnlinkedSystem(string bodyId, MissionProgress pr)
     {
         string arrived = _galaxy?.FindBody(bodyId)?.SystemId ?? string.Empty;
@@ -312,9 +335,11 @@ public sealed partial class GameServer
             return false;
         }
 
-        string from = string.IsNullOrEmpty(pr.AcceptedBodyId)
-            ? string.Empty
-            : _galaxy?.FindBody(pr.AcceptedBodyId)?.SystemId ?? string.Empty;
+        string from = !string.IsNullOrEmpty(pr.AcceptedSystemId)
+            ? pr.AcceptedSystemId
+            : string.IsNullOrEmpty(pr.AcceptedBodyId)
+                ? string.Empty
+                : _galaxy?.FindBody(pr.AcceptedBodyId)?.SystemId ?? string.Empty;
         return arrived != from;
     }
 
@@ -407,8 +432,26 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Test/inspection: the star system a location id belongs to — including a boarded station's
+    /// <c>station:&lt;id&gt;</c> world (#1291).</summary>
+    public string SystemOfLocationForTest(string locationId) => SystemOfLocation(locationId);
+
+    /// <summary>Test/inspection: whether any boardable station still has an unfinished relay (#1213).</summary>
+    public bool AnyRelayOpenForTest() => AnyRelayOpen();
+
     public bool RelayCompletedForTest(string stationId)
         => _meta.Relays.FirstOrDefault(r => r.StationId == stationId)?.Completed ?? false;
+
+    /// <summary>Test hook: leaves the galaxy in the state a fully built-out relay network has — every
+    /// boardable station's relay finished, which is exactly when the survey orders' Contribute step can no
+    /// longer be finished by anyone (#1291).</summary>
+    public void CompleteEveryRelayForTest()
+    {
+        foreach (var s in _playerStationCells.Values.Where(s => s.Boardable))
+        {
+            RelayRecordFor(s.Id).Completed = true;
+        }
+    }
 
     public bool HasJumpLaneForTest(string systemA, string systemB) => HasJumpLane(systemA, systemB);
 

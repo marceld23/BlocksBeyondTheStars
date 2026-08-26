@@ -37,13 +37,15 @@ only (no wagering, no chance-based rewards; VoidSolitaire is a card layout, not 
 everywhere; the game itself is free.)
 
 **Online interaction (the "Users Interact" block)**
-- Free-text chat: yes (text; voice opt-in, host can disable server-wide).
+- Free-text chat: yes (text; voice is push-to-talk, listening on by default for LAN games and off on
+  hosted worlds, host can disable server-wide).
 - User-generated content shared with others: names (player/base/beacon/creature/crew/marker), block
   builds, paint designs, photo notes.
 - Controls that exist in-game (list these in the questionnaire's "safety measures" field):
-  chat/name content filter with operator levels incl. Strict (#1221), `/report` for every player incl.
-  browser guests with operator inbox (#1222/#1208), local `/mute`, operator `/silence` (#1223),
-  voice chat opt-in + host kill-switch, no join codes (crews invite online players only, #1216),
+  chat/name content filter with operator levels incl. Strict (#1207, names + AI text #1221), anti-spam
+  auto-mute (#1208), `/report` for every player incl. browser guests with operator inbox (#1222), local
+  `/mute` (#1209), operator `/silence` (#1223), voice chat push-to-talk + host kill-switch, no join codes
+  (crews invite online players only, #1216),
   official hosted worlds carry a moderated report inbox.
 - Location sharing: **no**. Personal information: **no** (pseudonymous player name only, no e-mail).
 

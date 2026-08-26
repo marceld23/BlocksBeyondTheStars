@@ -43,8 +43,10 @@ spielt zusammen.
 
 Auf einem Mehrspieler-Server kann Ihr Kind anderen Spielern begegnen. Das heißt:
 
-- **Text-Chat und optionaler Sprach-Chat mit Fremden** (auf öffentlichen Servern). Sprache ist
-  **Opt-in** (man tritt ihr per Knopf bei), und ein Server-Betreiber kann sie ganz abschalten.
+- **Text-Chat und optionaler Sprach-Chat mit Fremden** (auf öffentlichen Servern). Niemand sendet aus
+  Versehen: **Sprechen geht nur per gehaltener Taste** (Push-to-Talk), *Zuhören* ist in einem
+  lokalen/LAN-Spiel standardmäßig an und lässt sich unter Einstellungen → Sprache abschalten. Öffentlich
+  gehostete Welten starten ohne Sprach-Chat, und jeder Server-Betreiber kann ihn ganz abschalten.
 - **Nutzererzeugte Inhalte:** Spieler tippen Namen (für sich, Basen, Baken, Kreaturen, Crews,
   Kartenmarker), bauen frei mit Blöcken und können Designs malen. Alles Getippte und Gebaute können
   andere auf diesem Server sehen.

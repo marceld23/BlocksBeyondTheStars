@@ -129,4 +129,58 @@ public sealed class OnScreenKeyboardLayoutTests
         Assert.False(OnScreenKeyboardLayout.IsCommand("a"));
         Assert.True(OnScreenKeyboardLayout.IsCommand(OnScreenKeyboardLayout.Space));
     }
+
+    [Fact]
+    public void Preview_MasksEveryCharacter_ForAPasswordField()
+    {
+        // The preview line is big and readable from across the room — a portal password must not echo (#1289).
+        Assert.Equal("•••••", OnScreenKeyboardLayout.Preview("hunt2", mask: true));
+        Assert.Equal("hunt2", OnScreenKeyboardLayout.Preview("hunt2", mask: false));
+        Assert.Equal(string.Empty, OnScreenKeyboardLayout.Preview(null, mask: true));
+    }
+
+    [Fact]
+    public void IntegerKind_TakesDigitsAndALeadingMinus_AndDropsEverythingElse()
+    {
+        const KeyboardContentKind kind = KeyboardContentKind.Integer;
+        string text = OnScreenKeyboardLayout.Apply(string.Empty, "-", 0, kind);
+        text = OnScreenKeyboardLayout.Apply(text, "4", 0, kind);
+        text = OnScreenKeyboardLayout.Apply(text, "a", 0, kind);      // letter: dropped like uGUI's validation
+        text = OnScreenKeyboardLayout.Apply(text, "-", 0, kind);      // minus in the middle: dropped
+        text = OnScreenKeyboardLayout.Apply(text, ".", 0, kind);      // no decimals on an integer field
+        text = OnScreenKeyboardLayout.Apply(text, OnScreenKeyboardLayout.Space, 0, kind);
+        text = OnScreenKeyboardLayout.Apply(text, "2", 0, kind);
+
+        Assert.Equal("-42", text);
+
+        // Backspace is a command and always works, whatever the kind.
+        Assert.Equal("-4", OnScreenKeyboardLayout.Apply(text, OnScreenKeyboardLayout.Backspace, 0, kind));
+    }
+
+    [Fact]
+    public void DecimalKind_AllowsExactlyOnePoint()
+    {
+        const KeyboardContentKind kind = KeyboardContentKind.Decimal;
+        string text = OnScreenKeyboardLayout.Apply("3", ".", 0, kind);
+        text = OnScreenKeyboardLayout.Apply(text, "1", 0, kind);
+        text = OnScreenKeyboardLayout.Apply(text, ".", 0, kind); // second point: dropped
+        text = OnScreenKeyboardLayout.Apply(text, "4", 0, kind);
+
+        Assert.Equal("3.14", text);
+        Assert.False(OnScreenKeyboardLayout.Accepts(kind, "3.1", "."));
+        Assert.False(OnScreenKeyboardLayout.Accepts(kind, "3", "-"));
+    }
+
+    [Fact]
+    public void TextKind_AcceptsEverything_SoTheDefaultPathIsUnchanged()
+    {
+        foreach (string key in new[] { "a", "Z", "ß", "@", " ", "-", ".", OnScreenKeyboardLayout.Space })
+        {
+            Assert.True(OnScreenKeyboardLayout.Accepts(KeyboardContentKind.Text, "anything", key));
+        }
+
+        Assert.Equal(
+            OnScreenKeyboardLayout.Apply("ab", "c", 0),
+            OnScreenKeyboardLayout.Apply("ab", "c", 0, KeyboardContentKind.Text));
+    }
 }

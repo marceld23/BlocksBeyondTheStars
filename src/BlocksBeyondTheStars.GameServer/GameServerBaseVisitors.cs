@@ -21,11 +21,17 @@ namespace BlocksBeyondTheStars.GameServer;
 /// block and never take a thing — the kid-friendly line of #1197 holds. Hit one and it fights like any
 /// robber; drive them off and the homestead bounty + the <c>base:defended</c> counter credit it.
 ///
-/// Gated four ways, each on purpose: the rule (default OFF everywhere but the <c>dangerous</c> preset),
-/// <see cref="BanditsActive"/> (scouts ARE bandits — no robbers, no scouts), Survival (inside BanditsActive),
-/// and the owner being home on that body — the same "no private war on an empty world" rule the sentry
-/// (#1214) uses. No launch-rule lift: the default is off, so an old save deserialising the missing field to
-/// <c>false</c> is already right, and an existing dangerous world must not quietly grow teeth on update.
+/// Gated five ways, each on purpose: the rule (default OFF everywhere but the <c>dangerous</c> preset),
+/// <see cref="BanditsActive"/> (scouts ARE bandits — no robbers, no scouts), <see cref="PlanetEnemiesActive"/>
+/// (#1297: the sentry post that answers a visit is gated on it, and a world that switched hostiles off has
+/// asked for nothing to approach the base), Survival (inside both), and the owner being home on that body —
+/// the same "no private war on an empty world" rule the sentry (#1214) uses.
+///
+/// <para><b>Deliberately NO <c>GameServer.Start</c> lift</b> for this rule (decision recorded in #1297).
+/// Save-baked <c>RulesOverride</c> replaces the launch rules wholesale, so a new default rule normally needs
+/// an explicit lift there — but this one defaults to <c>false</c>: an old save deserialising the missing field
+/// to <c>false</c> is already right, and an existing <c>dangerous</c> world must not quietly grow teeth on
+/// update. A player who wants visitors on an old world turns the option on in the world options.</para>
 /// </summary>
 public sealed partial class GameServer
 {
@@ -52,8 +58,10 @@ public sealed partial class GameServer
     /// <summary>Uptime of the next possible visit per base id (RAM only: a visit is not a mark on the save).</summary>
     private readonly Dictionary<int, double> _nextScoutVisitAt = new();
 
-    /// <summary>Whether a scout visit may happen on this world at all right now.</summary>
-    private bool BaseVisitorsActive => Rules.BaseVisitors && BanditsActive;
+    /// <summary>Whether a scout visit may happen on this world at all right now: the rule, robbers on, AND
+    /// planet hostiles on (#1297) — with <c>PlanetEnemies Off</c> the sentry stays silent, so scouts would
+    /// arrive at a base that cannot answer them. The client hides the world-options row on the same pair.</summary>
+    private bool BaseVisitorsActive => Rules.BaseVisitors && BanditsActive && PlanetEnemiesActive;
 
     /// <summary>Per-tick: rolls one visit at most, for a base whose owner is home. Called from
     /// <see cref="TickBandits"/> next to the lone-robber spawner so the two share the gates and the tick.</summary>

@@ -127,6 +127,57 @@ public sealed class ChatScreenTests
         Assert.True(r.Pii);
     }
 
+    // ---------------- @handles (#1296) ----------------
+
+    [Theory]
+    [InlineData("add me @kid123", "@kid123")]
+    [InlineData("insta: @justus.plays.blocks ok?", "@justus.plays.blocks")]
+    [InlineData("schreib mir @Max_2014.", "@Max_2014")]
+    public void Filtered_MasksSocialHandles(string line, string handle)
+    {
+        var r = Screen.Screen(line, ChatMode.Filtered);
+
+        Assert.Equal(ChatVerdict.Mask, r.Verdict);
+        Assert.True(r.Pii);
+        Assert.Equal("handle", r.MatchedTerm);
+        Assert.DoesNotContain(handle, r.Text);
+        Assert.Equal(line.Length, r.Text.Length);
+    }
+
+    [Fact]
+    public void Safe_BlocksSocialHandles()
+    {
+        var r = Screen.Screen("add me @kid123", ChatMode.Safe);
+
+        Assert.Equal(ChatVerdict.Block, r.Verdict);
+        Assert.True(r.Pii);
+        Assert.Equal("handle", r.MatchedTerm);
+    }
+
+    [Fact]
+    public void AnEmailAddress_IsStillAnEmail_NotAHandle()
+    {
+        var r = Screen.Screen("mail me at kid@example.com pls", ChatMode.Safe);
+
+        Assert.Equal(ChatVerdict.Block, r.Verdict);
+        Assert.True(r.Pii);
+        Assert.Equal("email", r.MatchedTerm);
+    }
+
+    [Theory]
+    [InlineData("@")]
+    [InlineData("@ 5")]
+    [InlineData("@1")]
+    [InlineData("Treffen @ 5 Uhr")]
+    [InlineData("wir treffen uns @12")]
+    public void AtSignsThatAreNotHandles_PassInSafe(string line)
+    {
+        var r = Screen.Screen(line, ChatMode.Safe);
+
+        Assert.Equal(ChatVerdict.Ok, r.Verdict);
+        Assert.False(r.Pii);
+    }
+
     [Theory]
     [InlineData("version 2026.8.20 is live")]
     [InlineData("coords 1234 64 -567")]

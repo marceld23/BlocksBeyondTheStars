@@ -84,7 +84,7 @@ public sealed partial class GameServer
 
             foreach (var cell in _sentryCells[b.Id])
             {
-                enemiesChanged |= FireSentry(cell);
+                enemiesChanged |= FireSentry(cell, b);
             }
         }
 
@@ -127,8 +127,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>One sentry's shot. Returns true when a planet enemy's state changed, so the caller can
-    /// broadcast once for the whole pass rather than once per shot.</summary>
-    private bool FireSentry(Vector3i cell)
+    /// broadcast once for the whole pass rather than once per shot. <paramref name="home"/> is the base the
+    /// sentry belongs to — its owner is the person a kill is credited to.</summary>
+    private bool FireSentry(Vector3i cell, ServerBase home)
     {
         var muzzle = new Vector3f(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
         if (NearestSentryTarget(muzzle) is not { } target)
@@ -144,7 +145,7 @@ public sealed partial class GameServer
             return true;
         }
 
-        KillBySentry(target, cell);
+        KillBySentry(target, cell, home);
         return true;
     }
 
@@ -194,10 +195,15 @@ public sealed partial class GameServer
     private static bool BanditIsFighting(CombatEntity b)
         => b.IsBandit && b.BanditPhase is not (BanditPhase.Approach or BanditPhase.Demanding or BanditPhase.Leaving or BanditPhase.Scouting);
 
-    /// <summary>A sentry finished a target. Mirrors the player kill path minus the player: there is nobody
-    /// to bank loot for or hand an achievement to, so the drops land on the ground at the corpse and the
-    /// world-level consequences (camp bookkeeping, story credit) still happen.</summary>
-    private void KillBySentry(CombatEntity target, Vector3i sentryCell)
+    /// <summary>A sentry finished a target. Mirrors the player kill path with the base OWNER standing in for
+    /// the shooter (#1292): the drops land on the ground at the corpse (no inventory to bank into), the
+    /// world-level consequences (camp bookkeeping, story credit, the post-kill spawn grace) happen exactly as
+    /// for a player kill, and the owner's session takes the mission credit — Defeat objectives for bandits /
+    /// machines, and for a base scout the homestead bounty + <c>base:defended</c>. What is NOT mirrored is the
+    /// generic "defeat" achievement: the player did not land the blow, and a turret farming that counter would
+    /// cheapen it. The owner is looked up by id rather than passed in from the tick because
+    /// <see cref="OwnerIsHome"/> only proves they are joined; the session object is what the credit needs.</summary>
+    private void KillBySentry(CombatEntity target, Vector3i sentryCell, ServerBase home)
     {
         _planetEnemies.Remove(target);
         _bandits.Remove(target);
@@ -206,13 +212,27 @@ public sealed partial class GameServer
         SpillToGround(target.Position.ToBlock(), target.Loot);
         BroadcastToWorld(new PlanetEnemyDefeated { Id = target.Id });
 
+        var owner = _sessions.Values.FirstOrDefault(s => s.Joined && s.State.PlayerId == home.OwnerId);
         if (target.IsBandit)
         {
             OnBanditKilled(target); // camps still clear — no story credit, bandits are people
+            if (owner is not null)
+            {
+                OnMissionDefeat(owner, DefeatTargetBandit); // #730: the bounty counts the drive-off, whoever fired
+                OnScoutDefeated(owner, target); // #1224: a beaten base scout credits the homestead bounty
+            }
         }
         else
         {
             RecordStoryMachineKill();
+            if (owner is not null)
+            {
+                OnMachineDefeated(owner); // #1213: post-win only — the survey orders' Defeat step
+            }
+
+            // #740: a destroyed machine buys the same breather as a player kill — a defended base is followed
+            // by quiet, not by reinforcements the sentry then has to shoot again.
+            _enemySpawnTimer = System.Math.Min(_enemySpawnTimer, -EnemyKillSpawnGrace);
         }
 
         _log.Info($"Sentry at {sentryCell.X},{sentryCell.Y},{sentryCell.Z} destroyed '{target.Name}' ({target.Id}).");

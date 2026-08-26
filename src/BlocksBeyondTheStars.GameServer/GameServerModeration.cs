@@ -273,12 +273,60 @@ public sealed partial class GameServer
     /// got carried away is back in the conversation in the same session.</summary>
     private const double ChatAutoMuteSeconds = 600.0;
 
-    /// <summary>Whether this session is currently muted. The notice normally goes out the moment the mute
-    /// starts (<see cref="AutoMuteChat"/>); this is the fallback for a mute that began some other way — and
-    /// it fires at most once per mute, so hammering Enter does not earn a wall of notices (#1208).</summary>
+    /// <summary>Active chat mutes, player id → server uptime (seconds) at which the mute ends (#1294). RAM only,
+    /// never persisted: a mute is a cool-down, not a mark on the record — but it is keyed by PLAYER, not by
+    /// session, so leaving and rejoining (a ten-second detour on glitch.fun) does not lift it. Expired entries
+    /// are pruned whenever a mute is written; there is no per-tick scan. Tick-thread only, like the sessions.</summary>
+    private readonly Dictionary<string, double> _chatMutes = new(System.StringComparer.Ordinal);
+
+    /// <summary>Server uptime (seconds) until which this player's chat lines are dropped; 0 = not muted. This is
+    /// the SERVER's mute (automatic cool-down or an admin's /silence) — unrelated to the per-player mute a client
+    /// applies to someone else's lines (#1209).</summary>
+    private double ChatMutedUntil(PlayerSession session)
+        => _chatMutes.TryGetValue(session.State.PlayerId, out double until) ? until : 0;
+
+    /// <summary>Starts (or restarts) a mute for this player and drops the entries that have run out — the
+    /// dictionary only ever holds the players muted right now.</summary>
+    private void SetChatMute(PlayerSession session, double until)
+    {
+        PruneExpiredChatMutes();
+        _chatMutes[session.State.PlayerId] = until;
+    }
+
+    private void ClearChatMute(string playerId) => _chatMutes.Remove(playerId);
+
+    private void PruneExpiredChatMutes()
+    {
+        if (_chatMutes.Count == 0)
+        {
+            return;
+        }
+
+        List<string>? expired = null;
+        foreach (var (playerId, until) in _chatMutes)
+        {
+            if (until <= _uptime)
+            {
+                (expired ??= new List<string>()).Add(playerId);
+            }
+        }
+
+        if (expired is not null)
+        {
+            foreach (var playerId in expired)
+            {
+                _chatMutes.Remove(playerId);
+            }
+        }
+    }
+
+    /// <summary>Whether this player is currently muted. The notice normally goes out the moment the mute
+    /// starts (<see cref="AutoMuteChat"/>); this is the fallback for a mute that began some other way — or in
+    /// an earlier session of the same player (#1294) — and it fires at most once per mute AND session, so
+    /// hammering Enter does not earn a wall of notices (#1208).</summary>
     private bool ChatMuted(PlayerSession session)
     {
-        if (session.ChatMutedUntil <= _uptime)
+        if (ChatMutedUntil(session) <= _uptime)
         {
             return false;
         }
@@ -296,7 +344,7 @@ public sealed partial class GameServer
     private void SendMuteNotice(PlayerSession session)
     {
         session.ChatMuteNoticeSent = true;
-        int minutes = System.Math.Max(1, (int)System.Math.Ceiling((session.ChatMutedUntil - _uptime) / 60.0));
+        int minutes = System.Math.Max(1, (int)System.Math.Ceiling((ChatMutedUntil(session) - _uptime) / 60.0));
         Send(session, new ServerMessage { Text = "@srv.chat.muted_until:" + minutes });
     }
 
@@ -331,7 +379,7 @@ public sealed partial class GameServer
     /// <summary>Starts (or restarts) the cool-down and pings the operator once.</summary>
     private void AutoMuteChat(PlayerSession session, string why)
     {
-        session.ChatMutedUntil = _uptime + ChatAutoMuteSeconds;
+        SetChatMute(session, _uptime + ChatAutoMuteSeconds);
         session.RecentChatAt.Clear();
         session.RecentFilterHitsAt.Clear();
         SendMuteNotice(session); // straight away — the line that vanished is the one they want explained
@@ -389,6 +437,15 @@ public sealed partial class GameServer
         var target = FindJoinedSessionByName(targetName);
         if (target is null)
         {
+            // Lifting a mute does not need the player to be here (#1294): the mute outlives their session, so
+            // the admin's undo must too. PlayerId == name (see FindJoinedSessionByName), matched the same way.
+            if (lift && FindChatMuteKeyByName(targetName) is { } offlineId)
+            {
+                ClearChatMute(offlineId);
+                _log.Info($"Chat un-silenced: '{offlineId}' (offline) by '{admin.State.Name}'.");
+                return "@srv.admin.unsilenced:" + offlineId;
+            }
+
             return "@srv.admin.silence_no_target:" + targetName;
         }
 
@@ -402,7 +459,7 @@ public sealed partial class GameServer
         string who = target.State.Name ?? "?";
         if (lift)
         {
-            target.ChatMutedUntil = 0;
+            ClearChatMute(target.State.PlayerId);
             target.ChatMuteNoticeSent = false;
             target.RecentChatAt.Clear();
             target.RecentFilterHitsAt.Clear();
@@ -412,7 +469,7 @@ public sealed partial class GameServer
         }
 
         int span = System.Math.Clamp(minutes <= 0 ? DefaultSilenceMinutes : minutes, 1, MaxSilenceMinutes);
-        target.ChatMutedUntil = _uptime + (span * 60.0);
+        SetChatMute(target, _uptime + (span * 60.0));
         target.ChatMuteNoticeSent = false;
         SendMuteNotice(target); // the same "chat is paused for you for N minutes" the auto-mute sends
         _log.Info($"Chat silenced: '{who}' for {span} min by '{admin.State.Name}'.");
@@ -429,9 +486,25 @@ public sealed partial class GameServer
     /// once in the constructor, and nothing else would notice if a refactor dropped it.</summary>
     public bool AiProviderIsScreenedForTest => _ai is ScreenedAiTextProvider;
 
-    /// <summary>Test hook: whether this player's chat is currently auto-muted (#1208).</summary>
+    /// <summary>The mute-table key (player id) held under this name, case-insensitively, or null. Used for the
+    /// offline /unsilence; an expired entry does not count, so the admin gets "no such player" instead of a
+    /// phantom success.</summary>
+    private string? FindChatMuteKeyByName(string name)
+    {
+        foreach (var (playerId, until) in _chatMutes)
+        {
+            if (until > _uptime && string.Equals(playerId, name, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return playerId;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Test hook: whether this player's chat is currently muted (#1208, #1223) — online or not (#1294).</summary>
     public bool IsChatMutedForTest(string playerId)
-        => FindSessionByPlayerId(playerId) is { } s && s.ChatMutedUntil > _uptime;
+        => _chatMutes.TryGetValue(playerId, out double until) && until > _uptime;
 
     /// <summary>Test hook: advance the server clock without running a tick, so the sliding windows and the
     /// mute expiry can be exercised without waiting ten real minutes (#1208).</summary>

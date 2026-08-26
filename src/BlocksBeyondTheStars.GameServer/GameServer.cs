@@ -799,6 +799,7 @@ public sealed partial class GameServer
 
         LoadWorld(body.PlanetType, body.Id); // loads/initialises the destination + sets the Active cursor
         session.CurrentLocationId = body.Id;
+        OnMarkerOwnerLeftWorld(session, oldLoc, disconnected: false); // the players left behind lose this player's pings (#1293)
         if (hyperjump && !session.Spectating)
         {
             OnAchievementHyperjump(session);        // "Jump Pilot" (#1102)
@@ -2022,6 +2023,7 @@ public sealed partial class GameServer
             PlaceLandedShip();
         }
 
+        OnMarkerOwnerLeftWorld(session, session.CurrentLocationId, disconnected: false); // pings die with the clone (#1293)
         session.CurrentLocationId = homeLoc;
         MarkArrivedOnBody(session, homeLoc); // respawned onto this body → keep it a quick-travel target
         p.Position = _shipPlaced ? _healTank : p.RespawnPoint;
@@ -2534,6 +2536,7 @@ public sealed partial class GameServer
             _sessions.Remove(connectionId);
             ClearAlliancePending(session.State.PlayerId); // drop transient requests; refresh online allies' rosters
             ClearCrewPending(session.State.PlayerId);     // drop crew invites; let mates see the Online flag drop
+            OnMarkerOwnerLeftWorld(session, loc, disconnected: true); // pings vanish, shared markers stay indexed (#1293)
             SetActiveWorld(loc);
             RemoveLandedShip(session); // the parked ship object leaves with its owner (ship-as-object)
             RemoveConstructionSite(session); // the half-built hull despawns too — it lives on in the fleet save
@@ -3166,6 +3169,7 @@ public sealed partial class GameServer
         SendBases(session); // player-founded bases on the join world (Grundstein markers)
         SendAllianceList(session); // the player's alliance roster (shared station/base access + Funk tab)
         SendCrewList(session);     // crew roster + open invites (#1216)
+        OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         SendMarkers(session);      // own + shared map markers on the join world (#1217)
         SendStoryStateOnJoin(session); // story meter + per-player beat catch-up (P0)
         SendRelayNetwork(session); // SPS relay meters + jump lanes (#1125)
@@ -3427,6 +3431,7 @@ public sealed partial class GameServer
         session.AwaitingSpawnAdopt = true; // #865: drop pre-snap position reports until the client is here
         ApplyCreativeGrants(session); // singleplayer "Creative" world: unlock-all / all-ships / starter kit
         GrantStarterTeleporter(session); // StarterTeleporter world rule (#1056): hand out the device on join
+        OnMarkerOwnerJoined(session); // the loaded state is the truth for this player's shared markers (#1293)
         return session;
     }
 
@@ -4705,11 +4710,15 @@ public sealed partial class GameServer
         // "disassemblable" (else mined ore could be reversed into matter dust + an energy cell).
         // Factory recipes deliberately consume MORE cheap raw than the base recipe, so disassembling
         // a factory-made item must never refund that surplus (craft cheap-bulk → disassemble for more).
+        // Campfire recipes are cooking / rendering (char wood → carbon, boil water → salt), not
+        // construction — without this exclusion mined and harvested drops that a campfire recipe happens
+        // to output would "disassemble" into wood or water at any workbench (#1298).
         RecipeDefinition? recipe = null;
         int perCraft = 1;
         foreach (var r in _content.Recipes.Values)
         {
-            if (r.Station is CraftingStation.Market or CraftingStation.Transmuter or CraftingStation.Factory)
+            if (r.Station is CraftingStation.Market or CraftingStation.Transmuter or CraftingStation.Factory
+                or CraftingStation.Campfire)
             {
                 continue;
             }
@@ -4752,6 +4761,14 @@ public sealed partial class GameServer
             {
                 salvage.Add(new ItemAmount(input.Item, recovered));
             }
+        }
+
+        // Recipes whose every input floors to zero at the recovery rate (berries, skewers, seeds …) would
+        // otherwise consume the item for nothing — refuse up front so the player keeps it (#1298).
+        if (salvage.Count == 0)
+        {
+            Reject(session, "disassemble", "@srv.disassemble.nothing");
+            return;
         }
 
         if (!pool.CanFit(salvage))

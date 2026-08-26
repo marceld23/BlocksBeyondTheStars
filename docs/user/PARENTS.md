@@ -38,8 +38,10 @@ generated planets, mine resources, craft gear, build ships and bases, tame creat
 
 When playing on a multiplayer server, your child can meet other players. That means:
 
-- **Text chat and optional voice chat with strangers** (on public servers). Voice is **opt-in** (push a
-  button to join it), and a server host can disable voice entirely.
+- **Text chat and optional voice chat with strangers** (on public servers). Nobody transmits by accident:
+  **talking is push-to-talk** (hold a key), while *listening* is on by default on a local/LAN game and can
+  be switched off in Settings → Voice. Public hosted worlds ship with voice off, and any server host can
+  disable it entirely.
 - **User-generated content:** players type names (for themselves, bases, beacons, creatures, crews, map
   markers), build freely with blocks, and can paint designs. Anything typed or built can be seen by
   others on that server.

@@ -169,6 +169,11 @@ public sealed class StructurePlacementRecord
     /// for records from before template pinning existed, which replay against the LEGACY template pool so
     /// a growing pool never morphs their layout under the stamped blocks.</summary>
     public string Template { get; set; } = string.Empty;
+
+    /// <summary>Factory records only (#1299): the recipe roster this factory offers, frozen at first stamp so a
+    /// growing factory recipe set never re-rolls what an existing (possibly claimed) factory makes. Null on
+    /// records from before roster pinning — the loader freezes the current roll into it once.</summary>
+    public System.Collections.Generic.List<string>? Roster { get; set; }
 }
 
 /// <summary>One player station's SPS relay conversion (#1125): what has been poured into it so far, and
