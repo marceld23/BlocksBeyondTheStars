@@ -107,7 +107,7 @@ namespace BlocksBeyondTheStars.Client
     /// <summary>
     /// Local, client-only settings (display, audio, input, comfort). These never affect the
     /// authoritative server rules (PvP, aliens, weapons stay server-decided). Persisted as JSON
-    /// in <c>Application.persistentDataPath/client_settings.json</c>. See
+    /// in <c>AppPaths.Root/client_settings.json</c>. See
     /// <c>docs/developer/CLIENT_SHELL_AND_ASSETS.md</c>.
     /// </summary>
     /// <summary>One saved avatar outfit (#1047): a named copy of everything the Avatar Designer produces for a
@@ -682,7 +682,7 @@ namespace BlocksBeyondTheStars.Client
         public static string LoadNoticeKey = "";
 
         private static string StorageDir => string.IsNullOrEmpty(StorageDirOverride)
-            ? Application.persistentDataPath
+            ? AppPaths.Root
             : StorageDirOverride;
 
         private static string FilePath => Path.Combine(StorageDir, "client_settings.json");

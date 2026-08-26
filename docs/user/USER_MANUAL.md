@@ -65,6 +65,15 @@ Last updated: 2026-08-11.
 - On a **new world**, the ship AI **VEGA** boots up and walks you through the first hour (see §5 →
   VEGA) — her opening narration is staged like a scene (letterbox, an orbit shot of your landed ship);
   **Esc** skips it. Veteran saves get a one-line "systems online" instead.
+- **Portable data folder** (portable zip, USB stick, several profiles): by default the game keeps its
+  settings, singleplayer saves, photos and exports in your user profile (Windows:
+  `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\`). To keep them next to the game
+  instead, create a text file named **`portable_data_dir.txt`** in the same folder as the game executable
+  (macOS: next to the `.app`). Leave it **empty** to use a `userdata` folder next to the executable, or write
+  one line with the folder you want — absolute (`D:\Games\BBTS\data`) or relative to the executable
+  (`..\BBTS-Data`); `%ENV%` variables are expanded, `#` lines are comments. Existing data is **not** moved
+  automatically — copy the old folder over once if you want to keep it. A folder that cannot be written falls
+  back to the default with a warning in `Player.log`. Not available in the browser version.
 
 ---
 

@@ -161,7 +161,7 @@ namespace BlocksBeyondTheStars.Client
 
             _loading = true;
             Exception failure = null;
-            string cacheDir = Path.Combine(Application.persistentDataPath, CacheFolder, DataFolder);
+            string cacheDir = Path.Combine(AppPaths.Root, CacheFolder, DataFolder);
             yield return DownloadRemoteData(cacheDir, ex => failure = ex);
 
             if (failure == null)

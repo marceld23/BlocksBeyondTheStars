@@ -17,7 +17,7 @@ namespace BlocksBeyondTheStars.Client
     /// (the same simulation the fleet and desktop run), pumped from Unity's Update loop over the
     /// in-memory <see cref="LoopbackTransport"/> — no child process, no sockets, so it works under
     /// WebGL/WASM. Persistence is the fully managed <see cref="MemoryWorldRepository"/>; every server
-    /// save flushes the world as a gzip'd snapshot blob to <see cref="Application.persistentDataPath"/>
+    /// save flushes the world as a gzip'd snapshot blob to <see cref="AppPaths.Root"/>
     /// (IndexedDB in the browser) and raises <see cref="BlobPersisted"/> for the optional cloud sync.
     /// Desktop singleplayer keeps its child-process model (ADR 0005); this component is the WebGL path.
     /// </summary>
@@ -54,7 +54,7 @@ namespace BlocksBeyondTheStars.Client
         private const string BlobFile = "world.blob";
         private const string CloudMetaFile = "cloud.meta.json"; // GlitchCloudSaves' last-synced version, next to the blob
 
-        public static string SaveDirectory => Path.Combine(Application.persistentDataPath, SaveFolder);
+        public static string SaveDirectory => Path.Combine(AppPaths.Root, SaveFolder);
         public static string SaveBlobPath => Path.Combine(SaveDirectory, BlobFile);
 
         /// <summary>Reads the locally persisted save blob, or null when this browser has none yet.

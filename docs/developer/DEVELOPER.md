@@ -518,6 +518,10 @@ silently misbehaves*. Check them in this order:
 
 **Where to look when debugging the built player:** the player log is at
 `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\Player.log`.
+The persistent-data root (settings, `singleplayer-saves/`, `usercontent/`, exports, spools, photos) is the
+same folder — unless a `portable_data_dir.txt` next to the executable redirects it (#1285): every consumer
+goes through `AppPaths.Root`; the marker parsing lives Unity-free in `Client.Core/PortableDataDir.cs`
+(`PortableDataDirTests`). Never use `Application.persistentDataPath` directly in new client code.
 Add a `Debug.Log` before the guard that might fail (e.g. log the layer index or whether
 `Shader.Find` returned null) and rebuild.
 

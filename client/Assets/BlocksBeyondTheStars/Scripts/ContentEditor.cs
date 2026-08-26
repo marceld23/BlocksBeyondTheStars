@@ -258,7 +258,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                string dir = Path.Combine(Application.persistentDataPath, "content_exports", key);
+                string dir = Path.Combine(AppPaths.Root, "content_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "content.json"), JsonUtility.ToJson(b, true));
                 SetStatus($"{L("ui.content.exported")}\n{dir}");

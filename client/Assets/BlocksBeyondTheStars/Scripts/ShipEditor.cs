@@ -832,7 +832,7 @@ namespace BlocksBeyondTheStars.Client
 
             try
             {
-                string dir = Path.Combine(Application.persistentDataPath, "ship_exports", key);
+                string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "ship.json"), JsonUtility.ToJson(ship, true));
                 File.WriteAllText(Path.Combine(dir, "layout.json"), JsonUtility.ToJson(layout, true));
@@ -856,7 +856,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var keys = new List<string>();
-            string root = Path.Combine(Application.persistentDataPath, "ship_exports");
+            string root = Path.Combine(AppPaths.Root, "ship_exports");
             if (Directory.Exists(root))
             {
                 foreach (var d in Directory.GetDirectories(root))
@@ -897,7 +897,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
         private void LoadDesign(string key)
         {
-            string dir = Path.Combine(Application.persistentDataPath, "ship_exports", key);
+            string dir = Path.Combine(AppPaths.Root, "ship_exports", key);
             string layoutPath = Path.Combine(dir, "layout.json");
             if (!File.Exists(layoutPath))
             {

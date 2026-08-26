@@ -141,7 +141,7 @@ namespace BlocksBeyondTheStars.Client
 #if !UNITY_WEBGL
             try
             {
-                string dir = Application.persistentDataPath;
+                string dir = AppPaths.Root;
                 System.IO.Directory.CreateDirectory(dir);
                 System.IO.Directory.SetCurrentDirectory(dir);
             }

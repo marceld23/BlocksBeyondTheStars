@@ -145,6 +145,16 @@ step. README family section gained the age paragraph + PARENTS links; the Codex 
 (en+de) gained the content-profile + /report paragraph. Website/itch/glitch.fun texts = the statement block in
 PARENTS.md (Marcel publishes those surfaces). Closes kid-friendly-hints stage 2.
 
+### ★ Portable data folder — `portable_data_dir.txt` next to the executable (#1285, 2026-08-26, branch feat/1285-portable-data-dir)
+The portable zip stored everything in `%LOCALAPPDATA%\..\LocalLow\…` like the installed game. Now an optional
+marker file next to the executable redirects the whole persistent-data root: `AppPaths.Root` (new, Unity side)
+replaces every direct `Application.persistentDataPath` use in the client (settings, token, saves, usercontent,
+portal_saves, spools, Photos, clips, perf, docs, all editor exports); the marker rules (first non-comment line,
+relative → exe folder, `%ENV%`, quotes, BOM, empty = `userdata`) live Unity-free in
+`Client.Core/PortableDataDir.cs` with `PortableDataDirTests`. Unwritable target → default + warning. The
+"Spacecraft" rename migration and WebGL storage adoption stay on Unity's own folder by design. Docs:
+USER_MANUAL §1, DEVELOPER.md (debugging paragraph), CHANGELOG. UNRELEASED.
+
 ### ★ Player-report round 2026-08-23 — ship switch reseat, settler placement, macOS codec fallback, credits (#1247 + #1248 + #1250 + #1251, 2026-08-24, branch fix/player-reports-2026-08-23)
 Two inbox reports (Lyxette on Windows, sasas on macOS, both v2026.8.20), four small fixes in one PR.
 

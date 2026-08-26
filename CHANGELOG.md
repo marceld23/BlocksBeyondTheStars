@@ -13,6 +13,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Added
+- 💾 **Portable data folder** — an optional `portable_data_dir.txt` next to the game executable redirects the
+  whole persistent-data root (settings, name token, singleplayer saves, user content, exports, spools, photos)
+  to the folder it names (empty file = `userdata` next to the executable; relative paths anchor at the
+  executable, `%ENV%` expanded, `#` comments). Without the file nothing changes; an unwritable target falls
+  back to the default with a `Player.log` warning. Not for the browser build. (#1285)
+
 ## [2026.8.21] — 2026-08-25
 
 The deepening release — 26 slices of the feature-deepening package (epic #1197) plus the #1048
