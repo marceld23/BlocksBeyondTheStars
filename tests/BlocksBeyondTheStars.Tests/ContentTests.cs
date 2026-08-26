@@ -27,6 +27,53 @@ public class ContentTests
     }
 
     [Fact]
+    public void CraftTab_OnlyNamesTheMachinesTab_AndOnlyForPlaceableDevices()
+    {
+        // #1273: the Machines crafting tab is an explicit per-item field, not BlockDefinition.Category (which
+        // doubles as the airtight/settler rule). Every tagged item must place a block that is a device.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var tagged = content.Items.Values.Where(i => i.CraftTab != null).ToList();
+        Assert.NotEmpty(tagged);
+        foreach (var item in tagged)
+        {
+            Assert.Equal("machines", item.CraftTab);
+            Assert.False(string.IsNullOrEmpty(item.PlacesBlock), $"{item.Key}: a Machines-tab item must place a block");
+            var block = content.GetBlock(item.PlacesBlock!);
+            Assert.NotNull(block);
+            Assert.Contains(block!.Category, new[] { "machine", "door", "light" });
+        }
+
+        // The everyday stations sit in the tab; the decorative factory housings (#1108/#1265) do not.
+        foreach (var key in new[] { "workbench", "forge", "heal_tank", "base_core", "beam_block" })
+        {
+            Assert.Equal("machines", content.GetItem(key)!.CraftTab);
+        }
+
+        foreach (var key in new[] { "factory_terminal", "machine_block", "factory_pipe", "bed", "campfire", "stone" })
+        {
+            Assert.Null(content.GetItem(key)!.CraftTab);
+        }
+    }
+
+    [Fact]
+    public void ClearGlass_IsAnAirtightTintableBuildingBlock_BehindABlueprint()
+    {
+        // #1274: the deliberate exception to "glass is frosted" — a second, rarer block, not a shader toggle
+        // on the old one. Same building rules (airtight, dyeable, not shapeable), gated by its own blueprint.
+        var content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+        var block = content.GetBlock("glass_clear");
+        Assert.NotNull(block);
+        Assert.Equal("building", block!.Category);
+        Assert.True(block.Airtight);
+        Assert.True(block.Tintable);
+        Assert.Equal("glass_clear", content.GetItem("glass_clear")!.PlacesBlock);
+        var recipe = content.GetRecipe("glass_clear");
+        Assert.NotNull(recipe);
+        Assert.Equal("glass_clear", recipe!.RequiredBlueprint);
+        Assert.NotNull(content.GetBlueprint("glass_clear"));
+    }
+
+    [Fact]
     public void BlockIds_AreDeterministicAndAirIsZero()
     {
         var a = Load();

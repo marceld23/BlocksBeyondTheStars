@@ -755,6 +755,7 @@ namespace BlocksBeyondTheStars.Client
                     list.Add(("consumable", L("ui.craft.cat_consumable"), "cat_medicine"));
                     list.Add(("component", L("ui.craft.cat_components"), "cat_components"));
                     list.Add(("block", L("ui.craft.cat_blocks"), "cat_blocks"));
+                    list.Add(("machine", L("ui.craft.cat_machines"), "cat_machines")); // devices that DO something (#1273)
                     list.Add(("color", L("ui.craft.cat_color"), "cat_blocks"));
                     list.Add(("shape", L("ui.craft.cat_shape"), "cat_blocks"));
                     list.Add(("market", L("ui.craft.cat_market"), "cat_cargo"));
@@ -4576,7 +4577,8 @@ namespace BlocksBeyondTheStars.Client
                 "suit" => BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
                 "consumable" => def.Category == ItemCategory.Consumable,
                 "component" => (def.Category == ItemCategory.Component || def.Category == ItemCategory.Material) && !BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(def),
-                "block" => def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock),
+                "machine" => def.CraftTab == "machines",
+                "block" => (def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock)) && def.CraftTab != "machines",
                 _ => true,
             };
         }
@@ -4933,6 +4935,7 @@ namespace BlocksBeyondTheStars.Client
             if (def.Category == ItemCategory.Tool) return "cat_tools";
             if (def.Category == ItemCategory.Consumable) return "cat_medicine";
             if (def.ArmorResistance > 0f || def.OxygenBonus > 0f || def.ThermalInsulation > 0f) return "cat_suit";
+            if (def.CraftTab == "machines") return "cat_machines";
             if (def.Category == ItemCategory.Block || !string.IsNullOrEmpty(def.PlacesBlock)) return "cat_blocks";
             return "cat_components";
         }

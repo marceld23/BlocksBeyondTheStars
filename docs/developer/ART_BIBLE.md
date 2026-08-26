@@ -22,7 +22,9 @@ geometric detail.
 2. **No photorealism, no cheap pixel look.** 64×64 tiles, point-filtered, with per-pixel grain and
    darkened tile edges (`BlockTextureAtlas.PaintTile`).
 3. **Glass is milky/frosted, never clear** — base `(0.82, 0.91, 0.95)`, you can tell it's glass
-   (`BlockTextureAtlas.BaseColor`, project rule).
+   (`BlockTextureAtlas.BaseColor`, project rule). The one deliberate exception is the rarer, blueprint-gated
+   **`glass_clear`** (#1274) for cockpit canopies and observation domes: a faint look-through pane the
+   transparent shader picks out by a `-1` in `TEXCOORD2.x`. Plain `glass` stays frosted.
 4. **Everything is code-built.** No scene authoring, no prefabs, no Shader Graph; hand-written
    dual-pipeline shaders, force-included in GraphicsSettings.
 5. **Linear color space** with sRGB-authored constants converted at the script→shader boundary via

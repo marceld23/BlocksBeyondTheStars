@@ -49,6 +49,7 @@ ICONS = [
     ("cat_medicine", "a medical cross inside a circle"),
     ("cat_components", "a microchip circuit board"),
     ("cat_blocks", "a stack of three cubes"),
+    ("cat_machines", "a cog wheel with a small lightning bolt at its centre"),
     ("cat_modules", "a hexagonal ship module segment"),
     ("cat_fleet", "two small spaceships side by side"),
     ("cat_buildship", "a rocket with a plus sign"),

@@ -285,6 +285,11 @@
     "unlockCost": [ { "item": "data_fragment", "count": 3 }, { "item": "titanium_plate", "count": 2 } ]
   },
   {
+    "key": "glass_clear", "nameKey": "blueprint.glass_clear.name", "descriptionKey": "blueprint.glass_clear.desc",
+    "category": "Production", "prerequisites": [], "knowledgeCost": 24,
+    "unlockCost": [ { "item": "data_fragment", "count": 2 }, { "item": "glass", "count": 8 }, { "item": "polymer", "count": 2 } ]
+  },
+  {
     "key": "comm_radio", "nameKey": "blueprint.comm_radio.name", "descriptionKey": "blueprint.comm_radio.desc",
     "category": "Production", "prerequisites": [], "knowledgeCost": 10,
     "unlockCost": [ { "item": "copper_wire", "count": 4 }, { "item": "data_fragment", "count": 1 } ]

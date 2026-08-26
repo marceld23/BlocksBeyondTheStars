@@ -130,7 +130,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 if (tex.a < 0.95)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
-                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas).
+                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas);
+                    // clear GLASS keeps a full-alpha tile and is picked out below by its TEXCOORD2.x sentinel.
                     alpha = tex.a;
 
                     float mode = i.water.x;
@@ -274,10 +275,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 else
                 {
                     // Plain glass (no emission) reads as a frosted, milky pane — clearly glass, not an open hole
-                    // — while emissive energy fields stay an airy, see-through curtain.
+                    // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
+                    // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
+                    // negative value on that channel — and skips the frost for a faint, look-through pane.
+                    float isClear = saturate(-i.water.x);              // 1 for glass_clear, 0 for everything else
                     float isField = saturate(emission * 4.0);          // ~0 for glass, ~1 for energy fields
-                    col = lerp(col + light * 0.16, col, isField);      // a soft white frost on glass only
-                    alpha = lerp(0.72, _BaseAlpha, isField);           // milky glass vs. see-through field
+                    col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
+                    alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
 
                     // Dyed glass (#1126): only non-water faces reach this branch, and for those the mesher
@@ -392,7 +396,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 if (tex.a < 0.95)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
-                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas).
+                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas);
+                    // clear GLASS keeps a full-alpha tile and is picked out below by its TEXCOORD2.x sentinel.
                     alpha = tex.a;
 
                     float mode = i.water.x;
@@ -447,10 +452,13 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 else
                 {
                     // Plain glass (no emission) reads as a frosted, milky pane — clearly glass, not an open hole
-                    // — while emissive energy fields stay an airy, see-through curtain.
+                    // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
+                    // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
+                    // negative value on that channel — and skips the frost for a faint, look-through pane.
+                    float isClear = saturate(-i.water.x);              // 1 for glass_clear, 0 for everything else
                     float isField = saturate(emission * 4.0);          // ~0 for glass, ~1 for energy fields
-                    col = lerp(col + light * 0.16, col, isField);      // a soft white frost on glass only
-                    alpha = lerp(0.72, _BaseAlpha, isField);           // milky glass vs. see-through field
+                    col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
+                    alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
 
                     // Dyed glass (#1126): mirrors the URP pass — dye from TEXCOORD2.yzw, gentle luminance

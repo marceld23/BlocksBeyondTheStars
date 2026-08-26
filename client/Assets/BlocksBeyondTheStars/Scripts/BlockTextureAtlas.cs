@@ -1108,6 +1108,7 @@ namespace BlocksBeyondTheStars.Client
             "titanium_ore" => new Color(0.58f, 0.60f, 0.66f),
             "data_cache" => new Color(0.18f, 0.40f, 0.55f),
             "glass" => new Color(0.82f, 0.91f, 0.95f), // milky/frosted, not clear (you can tell it's glass)
+            "glass_clear" => new Color(0.90f, 0.96f, 0.99f), // the clear exception (#1274) — near-white; the shader drops its alpha
             "force_field" => new Color(0.35f, 0.80f, 1f),
             "iron_wall" => new Color(0.55f, 0.57f, 0.62f),
             "strip_light_cyan" => new Color(0.22f, 0.26f, 0.30f), // dark housing; the bright band is painted in Decorate
