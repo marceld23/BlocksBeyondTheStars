@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Je hebt dat blok niet.",
   "srv.place.no_ship_interior": "Je kunt niet in het schip bouwen.",
   "srv.place.not_empty": "Doel is niet leeg.",
+  "srv.fluid.quench_obsidian": "De lava sist en versteent tot obsidiaan.",
+  "srv.fluid.quench_basalt": "De lavastroom koelt af tot basalt.",
   "srv.place.not_placeable": "Item kan niet geplaatst worden.",
   "srv.place.pad_reserved": "Landingsplatformen zijn gereserveerd — je kunt er niet op bouwen.",
   "srv.place.plant_enclosed": "Planten kun je alleen in een station plaatsen, nooit tegen de open ruimte.",

@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Nie masz tego bloku.",
   "srv.place.no_ship_interior": "Nie możesz budować wewnątrz statku.",
   "srv.place.not_empty": "Cel nie jest pusty.",
+  "srv.fluid.quench_obsidian": "Lawa syczy i twardnieje w obsydian.",
+  "srv.fluid.quench_basalt": "Strumień lawy stygnie i zamienia się w bazalt.",
   "srv.place.not_placeable": "Przedmiotu nie można postawić.",
   "srv.place.pad_reserved": "Lądowiska są zarezerwowane — nie możesz tu budować.",
   "srv.place.plant_enclosed": "Rośliny można sadzić tylko wewnątrz stacji, nigdy na otwartej przestrzeni.",

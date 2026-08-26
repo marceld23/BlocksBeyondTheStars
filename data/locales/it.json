@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Non hai quel blocco.",
   "srv.place.no_ship_interior": "Non puoi costruire dentro la nave.",
   "srv.place.not_empty": "La destinazione non è vuota.",
+  "srv.fluid.quench_obsidian": "La lava sfrigola e si indurisce in ossidiana.",
+  "srv.fluid.quench_basalt": "La colata di lava si raffredda in basalto.",
   "srv.place.not_placeable": "L'oggetto non può essere posizionato.",
   "srv.place.pad_reserved": "I piazzali di atterraggio sono riservati — non puoi costruirci sopra.",
   "srv.place.plant_enclosed": "Le piante si possono mettere solo dentro una stazione, mai verso lo spazio aperto.",

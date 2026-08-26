@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Tu n'as pas ce bloc.",
   "srv.place.no_ship_interior": "Tu ne peux pas construire à l'intérieur du vaisseau.",
   "srv.place.not_empty": "La cible n'est pas vide.",
+  "srv.fluid.quench_obsidian": "La lave siffle et durcit en obsidienne.",
+  "srv.fluid.quench_basalt": "Le flux de lave refroidit en basalte.",
   "srv.place.not_placeable": "Cet objet ne peut pas être placé.",
   "srv.place.pad_reserved": "Les pads d'atterrissage sont réservés — tu ne peux pas construire dessus.",
   "srv.place.plant_enclosed": "Les plantes ne peuvent être placées que dans une station, jamais face à l'espace ouvert.",

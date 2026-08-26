@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "O blok sende yok.",
   "srv.place.no_ship_interior": "Geminin içinde inşa edemezsin.",
   "srv.place.not_empty": "Hedef boş değil.",
+  "srv.fluid.quench_obsidian": "Lav köpürür ve obsidiane dönüşür.",
+  "srv.fluid.quench_basalt": "Lav akışı soğur ve bazalta dönüşür.",
   "srv.place.not_placeable": "Öğe yerleştirilemiyor.",
   "srv.place.pad_reserved": "İniş platformları ayrılmış — üzerine inşa edemezsin.",
   "srv.place.plant_enclosed": "Bitkiler yalnızca bir istasyonun içinde yerleştirilebilir, açık uzaya karşı asla.",

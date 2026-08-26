@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "そのブロックを持っていません。",
   "srv.place.no_ship_interior": "船の内部には建築できません。",
   "srv.place.not_empty": "対象は空いていません。",
+  "srv.fluid.quench_obsidian": "溶岩がシューッと冷えて黒曜石になった。",
+  "srv.fluid.quench_basalt": "溶岩の流れが冷えて玄武岩になった。",
   "srv.place.not_placeable": "そのアイテムは設置できません。",
   "srv.place.pad_reserved": "着陸パッドは予約されています — その上には建てられません。",
   "srv.place.plant_enclosed": "植物はステーション内にしか置けません、開けた宇宙の側には置けません。",

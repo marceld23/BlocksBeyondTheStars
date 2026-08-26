@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Diesen Block hast du nicht.",
   "srv.place.no_ship_interior": "Im Schiff kannst du nicht bauen.",
   "srv.place.not_empty": "Das Zielfeld ist nicht frei.",
+  "srv.fluid.quench_obsidian": "Die Lava zischt und erstarrt zu Obsidian.",
+  "srv.fluid.quench_basalt": "Der Lavastrom erkaltet zu Basalt.",
   "srv.place.not_placeable": "Dieser Gegenstand lässt sich nicht platzieren.",
   "srv.place.pad_reserved": "Landeplätze sind reserviert — darauf kannst du nicht bauen.",
   "srv.place.plant_enclosed": "Pflanzen dürfen nur innerhalb einer Station stehen, nie am offenen Weltraum.",

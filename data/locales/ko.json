@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "해당 블록을 가지고 있지 않습니다.",
   "srv.place.no_ship_interior": "우주선 내부에는 건설할 수 없습니다.",
   "srv.place.not_empty": "대상이 비어 있지 않습니다.",
+  "srv.fluid.quench_obsidian": "용암이 쉬익하고 굳어 흑요석이 되었어요.",
+  "srv.fluid.quench_basalt": "용암 흐름이 식어 현무암이 되었어요.",
   "srv.place.not_placeable": "아이템을 배치할 수 없습니다.",
   "srv.place.pad_reserved": "착륙 패드는 예약되어 있습니다 — 그 위에는 건설할 수 없습니다.",
   "srv.place.plant_enclosed": "식물은 우주역 내부에만 놓을 수 있으며, 열린 공간에는 놓을 수 없습니다.",
