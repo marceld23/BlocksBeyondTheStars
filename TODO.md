@@ -9627,6 +9627,30 @@ said so; the manual even claimed the jetpack fires "if equipped". Marcel's call 
   dabeihast." (EN/DE + 12 MT); `USER_MANUAL.md`: Space row no longer says "if equipped", new "Suit gear works
   while carried" bullet in the inventory section. 6 new `ui.suit.*` / `ui.inventory.suit` keys.
 
+## ✅ Done (2026-08-26): clear cockpit front screens + water quenches lava (#1283, #1284)
+
+Two follow-ups from Lyxette's reports, one PR.
+
+* **#1283 — the cockpit front screen is clear glass on every ship.** `glass_clear` (#1274) existed but no
+  ship used it. Rule for the seven layout ships: a glass cell on or ahead of the cockpit row (forward = +Z)
+  with nothing of the ship in front of it (no layout cell at z+1) is the front screen → `glass_clear`; side
+  strips (another wall/glass cell at z+1) and the rear stay frosted. Corvette 6, courier 4, deathblock 10,
+  hammerhead 10, hauler 5 (its only glass), scout 4, thunderbolt 5 cells. The parametric box starter's front
+  window band and its raised two-cell canopy use `glass_clear` too. No element-id change — `glass_clear` is
+  a real block key, so the layout validator already accepts it. Theory test over all eight ship types:
+  ≥ 1 clear pane, nothing but air/canopy in front of it, side windows still frosted (hauler excepted).
+* **#1284 — water meets lava, for sources too (Marcel: option b).** The #477 contact rule fired only in
+  `FillFluid` (a FLOWING fluid entering a cell); a placed water block was a source, fluids only ever enter
+  air, so water and lava sat side by side forever. Now the **lava** solidifies wherever water touches it:
+  a lava **source** → **obsidian**, a **flowing** lava cell → **basalt**. Checked when a fluid is placed
+  (`QuenchPlacedFluid`: water INTO a lava cell quenches the pool it replaced — the placed cell becomes
+  obsidian and no water remains; water BESIDE lava stays water and hardens the neighbours; a placed lava
+  source beside water hardens itself) and whenever a lava/water cell is woken in `TickFluids` (mining
+  nearby, a placed block, an arriving flow — this is what catches worldgen adjacencies). An entering lava
+  tongue in `FillFluid` now cools to basalt, entering water still chills to obsidian. Toasts
+  `srv.fluid.quench_obsidian` / `quench_basalt` (EN/DE + 12 MT). Four `FluidTests`: onto a pool, beside a
+  pool, woken worldgen adjacency, flowing tongue → basalt. USER_MANUAL bullets for both.
+
 ## ✅ Done (2026-08-25): player-report round 2 — Lyxette's second batch (#1259 #1260 #1261 #1262 #1263 #1264 #1265 #1266 #1275 #1276)
 
 Ten fixes from the 2026-08-25 inbox (three F1 reports + one that arrived during triage), all singleplayer

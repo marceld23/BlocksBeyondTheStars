@@ -379,7 +379,7 @@
    "y": 2,
    "z": 6,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 1,
@@ -512,7 +512,7 @@
    "y": 2,
    "z": 6,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 2,
@@ -596,7 +596,7 @@
    "y": 6,
    "z": 5,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 3,
@@ -680,7 +680,7 @@
    "y": 2,
    "z": 6,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 3,
@@ -764,7 +764,7 @@
    "y": 6,
    "z": 5,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 4,
@@ -848,7 +848,7 @@
    "y": 2,
    "z": 6,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 4,

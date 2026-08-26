@@ -156,6 +156,7 @@ public sealed partial class GameServer
 
         var wall = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
         var glass = _content.GetBlock("glass")?.NumericId ?? wall;
+        var glassClear = _content.GetBlock("glass_clear")?.NumericId ?? glass; // the cockpit's front screen (#1283)
         var dark = _content.GetBlock("carbon")?.NumericId ?? _content.GetBlock("basalt")?.NumericId ?? wall;
         var lightW = _content.GetBlock("light_white")?.NumericId ?? glass;
         var lightR = _content.GetBlock("light_red")?.NumericId ?? lightW;
@@ -282,7 +283,9 @@ public sealed partial class GameServer
                     // old stamped box ship), so the cabin has proper windows to see out of.
                     bool frontWin = z == halfZ * 2 && y == 2 && x > 0 && x < halfX * 2;
                     bool sideWin = (x == 0 || x == halfX * 2) && y == 2 && z > 0 && z < halfZ * 2;
-                    s.Set(new Vector3i(x, y, z), frontWin || sideWin ? glass : wall);
+                    // The front band is the cockpit screen: clear glass so you can see out (#1283); side
+                    // windows keep the frosted look (the ART_BIBLE "no clear holes in walls" rule).
+                    s.Set(new Vector3i(x, y, z), frontWin ? glassClear : sideWin ? glass : wall);
                 }
 
         // The rear hatch gets a real door (server-authoritative slide door at the opening's centre column).
@@ -356,8 +359,8 @@ public sealed partial class GameServer
         }
 
         // Raised glass cockpit canopy on top toward the front.
-        s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 1), glass);
-        s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 2), glass);
+        s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 1), glassClear);
+        s.Set(new Vector3i(cx, height + 1, halfZ * 2 - 2), glassClear);
 
         FinishShipStructure(s, persistEdits);
         return s;

@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "Você não tem esse bloco.",
   "srv.place.no_ship_interior": "Você não pode construir dentro da nave.",
   "srv.place.not_empty": "O alvo não está vazio.",
+  "srv.fluid.quench_obsidian": "A lava chia e endurece em obsidiana.",
+  "srv.fluid.quench_basalt": "O fluxo de lava esfria e vira basalto.",
   "srv.place.not_placeable": "Item não pode ser colocado.",
   "srv.place.pad_reserved": "Plataformas de pouso são reservadas — você não pode construir sobre uma.",
   "srv.place.plant_enclosed": "Plantas só podem ser colocadas dentro de uma estação, nunca voltadas para o espaço aberto.",

@@ -324,6 +324,10 @@ separate unlock; admins can still disable it through server world rules.
   **Filter on** at such a crate; select nothing in the dialog (or hit *Allow everything*) to go back to
   accepting it all. Dyed or re-formed variants of a chosen material count as that material.
 - **Armor**: each piece (chest/legs/helmet) adds resistance, summed and capped (~75%).
+- **Water meets lava**: lava hardens wherever water touches it — a lava **pool** (a source) turns to
+  **obsidian**, a flowing lava **tongue** cools to **basalt**. Place water onto a lava pool and the pool is
+  quenched to obsidian in place; place it beside lava and the neighbouring lava crusts over while the water
+  stays. Water flowing into lava still chills to obsidian at the contact face.
 
 ### Fire
 - **What burns:** plants, wood and leaves. Grass and the ground itself never catch, so a fire stays in
@@ -465,6 +469,8 @@ separate unlock; admins can still disable it through server world rules.
   and refinery/transmuter-synthesised ore can't be disassembled.
 
 ### Ship, modules, building
+- Every ship's **cockpit front screen is clear glass** — you look out forward through it; the side and rear
+  windows keep the frosted look. Self-built ships choose per pane (`glass` vs. `glass_clear`).
 - A ship is a set of fitted **modules** (cockpit, reactor, life support, workshop, medbay, cargo holds,
   refinery, detoxifier, transmuter, …). Modules enable on-board stations and cargo capacity. Build/expand from the
   Ship tab — aboard, at the workshop module.

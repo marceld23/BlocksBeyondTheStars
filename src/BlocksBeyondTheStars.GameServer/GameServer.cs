@@ -4342,6 +4342,7 @@ public sealed partial class GameServer
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
+            QuenchPlacedFluid(session, pos, blockDef.NumericId.Value, existing.Value); // water on/beside lava → rock (#1284)
         }
         else if (intoFluid)
         {

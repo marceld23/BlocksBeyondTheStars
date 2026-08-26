@@ -116,6 +116,54 @@ public sealed class ShipInteriorLightingTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("ship_scout")]
+    [InlineData("ship_corvette")]
+    [InlineData("ship_hauler")]
+    [InlineData("ship_courier")]
+    [InlineData("ship_thunderbolt")]
+    [InlineData("ship_deathblock")]
+    [InlineData("ship_hammerhead")]
+    public void TheCockpitFrontScreen_IsClearGlass_OnEveryShip(string? layoutKey)
+    {
+        // #1283: only the pane you look OUT of forward is clear glass; side windows keep the frosted look.
+        var server = Started(layoutKey, out var repo, out var content);
+        using (repo)
+        {
+            var s = server.BuildShipStructureForTest("Host");
+            var clear = content.GetBlock("glass_clear")!.NumericId;
+            var frosted = content.GetBlock("glass")!.NumericId;
+
+            int clearCells = 0, frostedCells = 0;
+            for (int x = -6; x < s.Width + 6; x++)
+                for (int y = 0; y < s.Height + 3; y++)
+                    for (int z = -2; z < s.Length + 3; z++)
+                    {
+                        var p = new Vector3i(x, y, z);
+                        var b = s.Get(p);
+                        if (b.Equals(clear))
+                        {
+                            clearCells++;
+                            // Forward-facing: nothing but air or more canopy stands in front of a clear pane (forward = +Z) —
+                            // the box starter's raised canopy is two clear cells in a row.
+                            var front = s.Get(new Vector3i(x, y, z + 1));
+                            Assert.True(front.IsAir || front.Equals(clear), $"{layoutKey ?? "box"}: clear pane at {p} has hull in front of it");
+                        }
+                        else if (b.Equals(frosted))
+                        {
+                            frostedCells++;
+                        }
+                    }
+
+            Assert.True(clearCells > 0, $"{layoutKey ?? "box"}: no clear front screen");
+            if (layoutKey != "ship_hauler")
+            {
+                Assert.True(frostedCells > 0, $"{layoutKey ?? "box"}: side windows should stay frosted"); // the hauler only has a front band
+            }
+        }
+    }
+
     [Fact]
     public void Lamps_HangClearOfTheWalkway_AndNeverDisplaceTheHull()
     {

@@ -36,13 +36,113 @@ public sealed partial class GameServer
     private HashSet<Vector3i> _activeFluid => _worlds.Active.ActiveFluid;
     private HashSet<Vector3i> _fallingFluid => _worlds.Active.FallingFluid;
     private double _sinceFluid { get => _worlds.Active.SinceFluid; set => _worlds.Active.SinceFluid = value; }
-    private ushort _waterId, _lavaId, _obsidianId;
+    private ushort _waterId, _lavaId, _obsidianId, _basaltId;
 
     private void InitFluids()
     {
         _waterId = _content.GetBlock("water")?.NumericId.Value ?? 0;
         _lavaId = _content.GetBlock("lava")?.NumericId.Value ?? 0;
         _obsidianId = _content.GetBlock("obsidian")?.NumericId.Value ?? 0;
+        _basaltId = _content.GetBlock("basalt")?.NumericId.Value ?? 0;
+    }
+
+    // --- Water meets lava (#477 decision 4, completed by #1284) -------------------------------------------
+    // The contact rule used to live ONLY in FillFluid, i.e. it fired for a FLOWING fluid entering a cell next
+    // to the other fluid. A placed water block (a source) beside or on lava, or a worldgen lake against a lava
+    // pocket, never flowed anywhere — and fluids only ever enter AIR — so the two sat side by side forever
+    // (Lyxette, 2026-08-26). Now the LAVA solidifies whenever it touches water, wherever the contact comes from:
+    //   * a lava SOURCE (untracked) → obsidian — the glassy crust a bottomless pool grows,
+    //   * a FLOWING lava cell (tracked level) → basalt — the cooled rock of a quenched flow.
+    // Water stays water. Sources are checked when placed and whenever they are woken (mining nearby, a placed
+    // block, a flow arriving), which is also what catches worldgen adjacencies.
+
+    /// <summary>If the lava cell at <paramref name="pos"/> touches water, it hardens in place — obsidian for a
+    /// source, basalt for a flowing cell — and the neighbours are woken. Returns the crust block id, 0 if the
+    /// cell is not lava or touches no water.</summary>
+    private ushort QuenchLava(Vector3i pos)
+    {
+        if (_world.GetBlock(pos).Value != _lavaId || !TouchesOtherFluid(pos, _lavaId))
+        {
+            return 0;
+        }
+
+        ushort crust = _fluidLevel.ContainsKey(pos) ? _basaltId : _obsidianId;
+        if (crust == 0)
+        {
+            return 0;
+        }
+
+        _world.SetBlock(pos, new BlockId(crust));
+        UntrackFluid(pos);
+        BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = crust });
+        WakeNeighbors(pos);
+        return crust;
+    }
+
+    /// <summary>Quenches every lava cell around a water cell. Returns the crust ids produced (0 = none) as a
+    /// (obsidian, basalt) count pair so the caller can word its toast.</summary>
+    private (int Obsidian, int Basalt) CrustLavaAround(Vector3i waterPos)
+    {
+        int obsidian = 0, basalt = 0;
+        foreach (var n in new[]
+        {
+            new Vector3i(waterPos.X + 1, waterPos.Y, waterPos.Z), new Vector3i(waterPos.X - 1, waterPos.Y, waterPos.Z),
+            new Vector3i(waterPos.X, waterPos.Y, waterPos.Z + 1), new Vector3i(waterPos.X, waterPos.Y, waterPos.Z - 1),
+            new Vector3i(waterPos.X, waterPos.Y + 1, waterPos.Z), new Vector3i(waterPos.X, waterPos.Y - 1, waterPos.Z),
+        })
+        {
+            ushort crust = QuenchLava(n);
+            if (crust != 0 && crust == _basaltId)
+            {
+                basalt++;
+            }
+            else if (crust != 0)
+            {
+                obsidian++;
+            }
+        }
+
+        return (obsidian, basalt);
+    }
+
+    /// <summary>A just-placed water/lava source meets the other fluid (#1284). Water placed INTO a lava cell (the
+    /// #851 displace rule) quenches the pool it replaced: the placed cell itself becomes obsidian and no water
+    /// remains. Water placed BESIDE lava stays water and hardens the lava around it; a placed lava source beside
+    /// water hardens itself. The player is told what happened.</summary>
+    private void QuenchPlacedFluid(PlayerSession session, Vector3i pos, ushort placedId, ushort displacedId)
+    {
+        ushort opposite = placedId == _waterId ? _lavaId : placedId == _lavaId ? _waterId : (ushort)0;
+        if (opposite == 0 || _obsidianId == 0)
+        {
+            return;
+        }
+
+        if (displacedId == opposite)
+        {
+            _world.SetBlock(pos, new BlockId(_obsidianId));
+            UntrackFluid(pos);
+            BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _obsidianId });
+            WakeNeighbors(pos);
+            Send(session, new ServerMessage { Text = "@srv.fluid.quench_obsidian" });
+            return;
+        }
+
+        if (placedId == _waterId)
+        {
+            var (obsidian, basalt) = CrustLavaAround(pos);
+            if (obsidian > 0)
+            {
+                Send(session, new ServerMessage { Text = "@srv.fluid.quench_obsidian" });
+            }
+            else if (basalt > 0)
+            {
+                Send(session, new ServerMessage { Text = "@srv.fluid.quench_basalt" });
+            }
+        }
+        else if (QuenchLava(pos) != 0)
+        {
+            Send(session, new ServerMessage { Text = "@srv.fluid.quench_obsidian" });
+        }
     }
 
     private bool IsFluid(ushort id) => id != 0 && (id == _waterId || id == _lavaId);
@@ -152,7 +252,16 @@ public sealed partial class GameServer
 
             if (id == _lavaId)
             {
+                if (QuenchLava(pos) != 0)
+                {
+                    continue; // touched water: it is rock now (#1284)
+                }
+
                 IgniteFlammableNeighbors(pos); // active/flowing lava sets adjacent plants/wood alight (item 30)
+            }
+            else if (id == _waterId)
+            {
+                CrustLavaAround(pos); // a woken water cell hardens the lava it touches (#1284)
             }
 
             bool isSource = !_fluidLevel.ContainsKey(pos);
@@ -286,14 +395,16 @@ public sealed partial class GameServer
 
     private void FillFluid(Vector3i pos, BlockId kind, byte level, bool falling)
     {
-        // Water meets lava (#477, decision #6): the entering flow chills to OBSIDIAN at the contact face
-        // instead of interleaving with the other fluid — dig a channel from a pond into a volcano crater
-        // and a glassy crust grows where the two touch. Waking the neighbours lets the crust propagate.
-        if (_obsidianId != 0 && TouchesOtherFluid(pos, kind.Value))
+        // Water meets lava (#477, decision #6): the entering flow solidifies at the contact face instead of
+        // interleaving with the other fluid — dig a channel from a pond into a volcano crater and a glassy
+        // crust grows where the two touch. Entering WATER chills to obsidian; an entering LAVA tongue is a
+        // flowing cell and cools to basalt (#1284). Waking the neighbours lets the crust propagate.
+        ushort crust = kind.Value == _lavaId && _basaltId != 0 ? _basaltId : _obsidianId;
+        if (crust != 0 && TouchesOtherFluid(pos, kind.Value))
         {
-            _world.SetBlock(pos, new BlockId(_obsidianId));
+            _world.SetBlock(pos, new BlockId(crust));
             UntrackFluid(pos);
-            BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = _obsidianId });
+            BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = crust });
             WakeNeighbors(pos);
             return;
         }

@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "You do not have that block.",
   "srv.place.no_ship_interior": "You can't build inside the ship.",
   "srv.place.not_empty": "Target is not empty.",
+  "srv.fluid.quench_obsidian": "The lava hisses and hardens to obsidian.",
+  "srv.fluid.quench_basalt": "The lava flow cools to basalt.",
   "srv.place.not_placeable": "Item cannot be placed.",
   "srv.place.pad_reserved": "Landing pads are reserved — you can't build on one.",
   "srv.place.plant_enclosed": "Plants can only be placed inside a station, never against open space.",

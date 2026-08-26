@@ -673,7 +673,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 2,
@@ -911,7 +911,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 3,
@@ -1548,7 +1548,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 5,
@@ -1856,7 +1856,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 6,
@@ -1982,7 +1982,7 @@
    "y": 5,
    "z": 13,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 7,
@@ -2108,7 +2108,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 7,
@@ -2234,7 +2234,7 @@
    "y": 5,
    "z": 13,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 8,
@@ -2500,7 +2500,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 8,
@@ -3067,7 +3067,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 10,
@@ -3326,7 +3326,7 @@
    "y": 2,
    "z": 14,
    "kind": "block",
-   "id": "glass"
+   "id": "glass_clear"
   },
   {
    "x": 11,

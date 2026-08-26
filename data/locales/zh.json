@@ -3574,6 +3574,8 @@
   "srv.place.no_block": "你没有该方块。",
   "srv.place.no_ship_interior": "你不能在飞船内部建造。",
   "srv.place.not_empty": "目标位置不为空。",
+  "srv.fluid.quench_obsidian": "岩浆嘶嘶冷却成黑曜石。",
+  "srv.fluid.quench_basalt": "熔岩流冷却成玄武岩。",
   "srv.place.not_placeable": "该物品不可放置。",
   "srv.place.pad_reserved": "着陆台已被保留 — 你不能在其上建造。",
   "srv.place.plant_enclosed": "植物只能放在站内，不能面向外部空间。",

@@ -292,6 +292,127 @@ public sealed class FluidTests : IDisposable
         }
     }
 
+    /// <summary>Two isolated cells high in the air column, a player in reach with the given items.</summary>
+    private static BlocksBeyondTheStars.GameServer.PlayerSession Builder(SvGameServer server, params (string Item, int Count)[] items)
+    {
+        var p = server.AddLocalPlayer("Builder");
+        p.State.AboardShip = false;
+        p.State.Position = new Vector3f(0.5f, 132f, 0.5f);
+        foreach (var (item, count) in items)
+        {
+            p.State.Inventory.Add(item, count, 64);
+        }
+
+        return p;
+    }
+
+    [Fact]
+    public void WaterPlacedOntoALavaPool_QuenchesItToObsidian()
+    {
+        // Lyxette (2026-08-26): water placed onto lava simply replaced it (the #851 displace rule) and the two
+        // sat side by side forever — the #477 contact rule only fired for FLOWING fluid. A lava SOURCE that
+        // water lands on is quenched to obsidian in place; no water remains (#1284).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var lava = _content.GetBlock("lava")!.NumericId.Value;
+            var obsidian = _content.GetBlock("obsidian")!.NumericId.Value;
+            var pool = new Vector3i(0, 130, 0);
+            var other = new Vector3i(1, 130, 0);
+            server.World.SetBlock(pool, new BlockId(lava));
+            server.World.SetBlock(other, new BlockId(lava));
+            Builder(server, ("water", 4));
+
+            server.PlaceBlock("Builder", pool.X, pool.Y, pool.Z, "water");
+
+            Assert.Equal(obsidian, server.World.GetBlock(pool).Value);
+            Assert.Equal(lava, server.World.GetBlock(other).Value); // the pool next to it was never touched by water
+        }
+    }
+
+    [Fact]
+    public void WaterPlacedBesideLava_HardensTheLavaToObsidian_AndStaysWater()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var lava = _content.GetBlock("lava")!.NumericId.Value;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            var obsidian = _content.GetBlock("obsidian")!.NumericId.Value;
+            var lavaPos = new Vector3i(1, 130, 0);
+            var waterPos = new Vector3i(0, 130, 0);
+            server.World.SetBlock(lavaPos, new BlockId(lava));
+            Builder(server, ("water", 4));
+
+            server.PlaceBlock("Builder", waterPos.X, waterPos.Y, waterPos.Z, "water");
+
+            Assert.Equal(obsidian, server.World.GetBlock(lavaPos).Value);
+            Assert.Equal(water, server.World.GetBlock(waterPos).Value);
+        }
+    }
+
+    [Fact]
+    public void AWokenLavaPool_BesideWorldgenWater_CrustsToObsidian()
+    {
+        // Worldgen adjacency (cave lake against a lava pocket): nothing is placed, but the moment either cell is
+        // woken — here the water, as mining next to it would — the lava side hardens.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var lava = _content.GetBlock("lava")!.NumericId.Value;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            var obsidian = _content.GetBlock("obsidian")!.NumericId.Value;
+            var lavaPos = new Vector3i(0, 130, 0);
+            var waterPos = new Vector3i(1, 130, 0);
+            server.World.SetBlock(lavaPos, new BlockId(lava));
+            server.World.SetBlock(waterPos, new BlockId(water));
+
+            server.RegisterFluidSource(waterPos); // wake it
+            for (int i = 0; i < 4; i++)
+            {
+                server.TickForTest(0.3);
+            }
+
+            Assert.Equal(obsidian, server.World.GetBlock(lavaPos).Value);
+            Assert.Equal(water, server.World.GetBlock(waterPos).Value);
+        }
+    }
+
+    [Fact]
+    public void AFlowingLavaTongue_ReachingWater_CoolsToBasalt()
+    {
+        // Option (b): only a SOURCE makes obsidian — a flowing tongue that meets water cools to basalt.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var lava = _content.GetBlock("lava")!.NumericId.Value;
+            var water = _content.GetBlock("water")!.NumericId.Value;
+            var basalt = _content.GetBlock("basalt")!.NumericId.Value;
+            var stone = _content.GetBlock("stone")!.NumericId.Value;
+
+            // A floor, a lava source at one end, water two cells away: the tongue flows one cell and touches it.
+            for (int x = -1; x <= 3; x++)
+            {
+                server.World.SetBlock(new Vector3i(x, 129, 0), new BlockId(stone));
+            }
+
+            var source = new Vector3i(0, 130, 0);
+            var gap = new Vector3i(1, 130, 0);
+            var pond = new Vector3i(2, 130, 0);
+            server.World.SetBlock(source, new BlockId(lava));
+            server.World.SetBlock(pond, new BlockId(water));
+            server.RegisterFluidSource(source);
+
+            for (int i = 0; i < 6; i++)
+            {
+                server.TickForTest(0.3);
+            }
+
+            Assert.Equal(basalt, server.World.GetBlock(gap).Value); // the entering flow, not the source, solidified
+            Assert.Equal(water, server.World.GetBlock(pond).Value);
+        }
+    }
+
     public void Dispose()
     {
         try
