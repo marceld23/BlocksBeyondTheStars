@@ -13,51 +13,192 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Added
-- 💾 **Portable data folder** — an optional `portable_data_dir.txt` next to the game executable redirects the
-  whole persistent-data root (settings, name token, singleplayer saves, user content, exports, spools, photos)
-  to the folder it names (empty file = `userdata` next to the executable; relative paths anchor at the
-  executable, `%ENV%` expanded, `#` comments). Without the file nothing changes; an unwritable target falls
-  back to the default with a `Player.log` warning. Not for the browser build. (#1285)
-- 🔇 **Mute from the Alliances tab** — every player row (Find players, Allies, Crew) carries a Mute/Unmute
-  button; same list as Settings → Muted players and `/mute`. (#1290)
-- 🛡️ **Chat screen catches social handles** — `@name` (3–32 characters) counts as personal information like
-  phone numbers, e-mails and links: masked in Filtered, dropped in Safe. (#1296)
+## [2026.8.22] — 2026-08-26
 
-### Changed
-- 🗺️ **Shared map markers stay while their owner is offline** — the family meeting point no longer vanishes
+The outfitter release — and, more than any release before it, **one player's release**. Between 25 and
+26 August, **Lyxette** sent in four reports from her singleplayer world: nine bugs, a fall-through on a
+beam pad, seven "why can I not see what my gear does?" observations and one honest question about lava
+and water. That became 20 issues, and every single one of them is fixed or built in this release.
+
+So: everything you carry finally says what it does. Suit gear has always worked from anywhere in the
+backpack and nothing ever said so — now there is an **Inventory → Suit** tab that shows exactly which
+passive gear is doing the work, and every piece of it ends its description with "Works while carried."
+Ship modules stop pretending to be a build catalogue: fitted ones say **Fitted**, come first, are listed
+per ship on the Fleet tab, and — new — can be **taken back out** at 50 % salvage. The crafting menu grows
+a **Machines** tab so Blocks is blocks again, glass gets one rare, blueprint-gated **clear** exception
+(and every cockpit's forward pane is made of it), water quenches lava on contact, your base core tells you
+how much air it holds, and nobody stands inside anybody else any more.
+
+Alongside Lyxette's twenty: the tech tree finally chains instead of standing in eight separate columns,
+every workstation has at least three things to make, the game can run out of a portable folder, and a full
+completeness audit of the deepening package closed seventeen more issues.
+
+**Protocol stays 3** and saves migrate additively. This release adds **one new network message**
+(uninstall a ship module, tag 234) and a few additive fields (a ship's fitted modules, the base core's air
+counts) — an older client on a new server simply cannot remove modules and does not see the air readout.
+Hosts: content data changes (blueprints, recipes, ship layouts, cargo module tiers) and two save-shape
+rules move server-side (base settlers are keyed by base id and deduped on join; factory rosters are pinned
+at first stamp), so update the server to hand out the new ladder.
+
+### 🎒 Suit gear and ship modules you can actually see (#1270, #1271, #1268, #1269)
+
+All four asked for by **Lyxette**.
+
+- **Inventory → Suit.** A filter view of the backpack showing only suit gear (armour plates, oxygen tanks,
+  thermal liners, scanners, the jetpack) — the gear keeps its normal slots, nothing is equipped or locked
+  away. A status line sums it up: *Armour x % · Max. oxygen n · Insulation y %*, plus a one-line version on
+  the Backpack tab. The four effects (armour stacks up to 0.75, best tank and best liner only, scan
+  multiplier) now live in one shared `SuitEquipment` that client and server both read, so the number on the
+  screen is the number the server uses. (#1270)
+- **"Works while carried."** Twelve gear descriptions end with that sentence in all 14 languages, and the
+  manual no longer claims the jetpack fires "if equipped" — there are no equip slots and never were. (#1271)
+- **The HUD oxygen bar uses your real maximum.** It divided by a flat 100 regardless of the tank you were
+  carrying. (#1271)
+- **Ship modules: Fitted, and one place that says how much fits.** The Modules tab used to offer *Build* for
+  a module already aboard (which the server then refused) and had no answer to "how much can this ship
+  hold?". Now fitted modules come first with a **Fitted** badge, a fit summary explains the one-of-each rule
+  and the salvage rate, and the **Fleet tab lists each hangar ship's fitted modules**. (#1268)
+- **Uninstall with salvage.** Any non-mandatory module that is not part of the hull (workshop, medbay,
+  quarters and the basic hold stay welded in) can be removed at the ship workshop for **50 % of its parts
+  back**. A cargo expansion only comes out while the remaining hold still fits every stack — otherwise the
+  button says so instead of eating your cargo. No transfer between ships yet. (#1269)
+
+### 🔨 Building & crafting — a Machines tab, one clear glass, and lava that hardens (#1273, #1274, #1283, #1284)
+
+All four from **Lyxette**'s reports as well.
+
+- **A "Machines" crafting tab.** 21 device items (terminals, tanks, refiners, scanners, the sentry post and
+  friends) moved out of Blocks into their own tab with its own icon. Factory housings, doors, lights, beds
+  and the campfire stay under Blocks. (#1273)
+- **`glass_clear` — the one exception to frosted glass.** Rarer and blueprint-gated (Production, 24
+  knowledge): 2 glass + 1 polymer at the workshop makes 2 panes. It builds like glass — airtight, dyeable —
+  but it is genuinely see-through (alpha 0.22, no frost) and it is not shapeable. Regular glass stays
+  frosted by design. (#1274)
+- **Every cockpit has a clear windscreen.** On all seven layout ships (and the box starter) the forward
+  pane(s) — glass on or ahead of the cockpit row with nothing of the ship in front of it — are now
+  `glass_clear`. Side and rear windows stay frosted, so the ship still reads as a ship from outside. (#1283)
+- **Water quenches lava, from a bucket too.** Lyxette put a water block next to lava and watched the two
+  sit there side by side forever: the #477 contact rule only ever fired for *flowing* fluid. Now lava
+  hardens wherever water touches it — source lava to **obsidian**, flowing lava to **basalt** (her call) —
+  on placement, on every woken cell, and where a lava tongue tries to flow in. Placed lava beside water
+  hardens itself. (#1284)
+
+### 🏠 Bases and the people in them (#1267, #1272)
+
+Both from **Lyxette**, who could not find the sealed-room air system that had been in the game since #782.
+
+- **The base core tells you how much air it holds.** Aiming at your own core shows *"Air: n cells in k
+  sealed room(s)"* (or *"No sealed room yet"* with a hint), a **here: air** overlay, and the rename key. A
+  VEGA once-hint fires when you found a core on a non-breathable world, door descriptions now say whether a
+  hinge, slide or wooden door leaks, and there is a new Codex article, *Bases on Airless Worlds*. (#1267)
+- **People keep their personal space.** NPCs nudge apart when they come closer than about 0.8 m to each
+  other — settlers, traders, guards, standing NPCs included. Only creature flocks had separation before, so
+  a settlement's residents used to stack into one another. (#1272)
+
+### 🐞 Ten bugs from Lyxette's world (#1259 – #1266, #1275, #1276)
+
+All played on v2026.8.21, Windows singleplayer:
+
+- 🛏️ **Heal-tank head in the ceiling lamp.** Every layout ship put its heal tank *on* the medbay block, right
+  under the #779 lamp — the starter was fine, the hauler was not. It now picks the walkway cell beside the
+  medbay first. (#1259)
+- 🚀 **Switching ships left the old hull/shield on the HUD** — the combat status was never re-sent. (#1260)
+- 📦 **Cargo numbers were a lie, and there was no upgrade path.** `cargoSlots` in `ships.json` was dead data
+  (the hold is the sum of the fitted modules), so the hauler advertised 96 and had 72. One number now
+  (`StartCargoSlots`), plus two new tiers: **cargo_hold_2** (+32) and **cargo_hold_3** (+48) behind the
+  matching expansions. (#1261)
+- 👤 **Renaming a base spawned a duplicate settler** — the settler was keyed by a hash of the base *name*.
+  Now keyed by the base id; existing saves are deduped on join. (#1262)
+- 🔫 **A second weapon module was never selectable** — the space quick-bar stopped at the first one. Every
+  fitted weapon gets its own entry now, labelled by module name. (#1263)
+- 🧰 **Crates refused blocks.** They accepted only materials and components, so every placeable block
+  bounced. (#1264)
+- 🏭 **The Factory tab lit up but every craft failed** — the station gate accepted the craftable terminal
+  *block* instead of the real factory terminal. (#1265)
+- 🪟 **The glass tooltip promised a clear pane** for glass that is frosted by design. (Now there is a clear
+  glass too — see #1274.) (#1266)
+- 🛰️ **A fleet with one unreadable row silently dropped you back to ship one.** Ids are kept, a warning is
+  logged and you get a *ship unavailable* notice. (#1275)
+- ✨ **Beaming in could drop you through a one-block slab** whose chunk had not meshed yet — the settle
+  release accepted any collider within 10 m; after a server floor snap the ground ray must now hit within
+  1.6 m. (#1276)
+
+### 🌱 Content — the tech tree chains up, every station has something to make (#1202, #1203)
+
+- **Eight leaf blueprints now hang off a parent** instead of sitting in the tree unconnected (all
+  cost-monotonic, nothing was removed), and three new research nodes were added whose unlock costs are
+  material sinks in themselves: **Field kitchen** (10 knowledge), **Archaeology** (25) and **Bio-refining**
+  (45). (#1202)
+- **No more one-recipe workstations** — every station now offers at least three things. The campfire gets a
+  kiln side (char wood → carbon, melt ice → water, boil salt, six torches from a log) and, behind Field
+  kitchen, three real meals: **hearty stew**, **algae soup** and **mushroom skewer**. The algae tank refines
+  (biofuel, plant fibre, polymer) and the detoxifier washes toxic berries edible, filters mud into water and
+  turns mushroom parts into forage bait. Obsidian melts back into glass, ancient brick makes concrete and
+  researchers buy rune stones — four items that previously had no use at all. (#1203)
+
+### 💾 Portable data folder (#1285)
+
+- An optional `portable_data_dir.txt` next to the game executable redirects the whole persistent-data root
+  (settings, name token, singleplayer saves, user content, exports, spools, photos) to the folder it names
+  — empty file = `userdata` next to the executable; relative paths anchor at the executable, `%ENV%` is
+  expanded, `#` starts a comment. Without the file nothing changes; an unwritable target falls back to the
+  default with a `Player.log` warning. Not for the browser build.
+
+### 🔇 Moderation and map (#1290, #1293, #1294, #1295, #1296, #1297)
+
+- **Mute from the Alliances tab** — every player row (Find players, Allies, Crew) carries a Mute/Unmute
+  button; same list as Settings → Muted players and `/mute`. (#1290)
+- **Shared map markers stay while their owner is offline** — the family meeting point no longer vanishes
   when the kid logs off; the list refreshes the moment an alliance forms or ends, a crew changes, or a
   player leaves the world (their pings go with them). (#1293)
-- 🔇 **Chat mutes survive a reconnect** — an automatic cool-down or an admin `/silence` is tied to the
-  player, not the connection; `/unsilence` also works while the player is away. Still RAM-only. (#1294)
-- 🐾 **Feeding happens in person** — the companion must be on your world within six blocks; the Feed
-  button greys out otherwise. (#1295)
-- 🏭 **Factory rosters are pinned** — what a factory makes is frozen in its placement record at first stamp,
-  so a growing recipe set only reaches factories stamped after the change; existing (and claimed) factories
-  keep their roster. (#1299)
+- **Chat mutes survive a reconnect** — an automatic cool-down or an admin `/silence` is tied to the player,
+  not the connection; `/unsilence` also works while the player is away. Still RAM-only. (#1294)
+- **The chat screen catches social handles** — `@name` (3–32 characters) counts as personal information like
+  phone numbers, e-mails and links: masked in Filtered, dropped in Safe. (#1296)
+- **Feeding happens in person** — the companion must be on your world within six blocks; the Feed button
+  greys out otherwise. (#1295)
+- **Scouts at the gate need Bandits and Planet enemies** — with hostiles off the option is hidden and nobody
+  comes. (#1297)
+
+### 🔎 Completeness audit of the deepening package (#1287 – #1303)
+
+A read-only audit of all 28 merged slices of epic #1197 — one reviewer per area over the implementing
+commits, the issue acceptance bullets, a data cross-check and the tests — found four real bugs, a set of
+unmet acceptance bullets, and test holes exactly where the bugs sat. This is the whole follow-up round:
+
+- 🎮 **The pad reticle in pointer minigames was invisible** — the virtual cursor's disc was drawn at the
+  corner for every position, so the nine pointer-driven arcade games were blind on a gamepad. (#1287)
+- 🎮 **B / Esc in a minigame round no longer closes the whole Tab menu.** (#1288)
+- ⌨️ **On-screen keyboard** masks password and PIN fields with bullets, accepts digits only in number fields,
+  and hands focus back to the field it was opened from. (#1289)
+- 📋 **SPS survey orders** — "travel to a system without a relay" now really excludes the system the order
+  was taken in (the station's system was never resolved), and a chain step that is impossible on this world
+  (no station with an open relay left to build on, hostiles off) is skipped instead of stalling the chain.
+  (#1291)
+- 🛡️ **Sentry kills count for the base owner** — a scout the sentry finishes still counts towards *Guard the
+  homestead* and the base-defended tally; bandit and machine bounty steps progress too. (#1292)
+- 🔧 **Disassembly** no longer turns campfire outputs (carbon, salt) back into wood or water, and an item that
+  would salvage nothing is kept instead of vanishing. (#1298)
+- 🏭 **Factory rosters are pinned** in the placement record at first stamp, so a growing recipe set only
+  reaches factories stamped after the change; existing (and claimed) factories keep what they made. (#1299)
 - ⚖️ **Factory balance** — `factory_diamond` takes 4 ore, `factory_light_alloy` 6 aluminium ore (never a
   better per-ore yield than the refinery route), and researchers pay 1 data fragment per uranium bar. (#1300)
-- 🚪 **Scouts at the gate need Bandits and Planet enemies** — with hostiles off the option is hidden and
-  nobody comes; the rule stays off on old worlds until you switch it on. (#1297)
+- ⛵ **Boat** — "that isn't your boat" says *boat*, the ashore snap-back only returns you to a spot the boat
+  was actually seen floating, and it arms the same post-teleport guard as other server moves. (#1301)
+- 📖 **Docs** — `/report` works for browser guests, blocked chat lines do not ping the operator by
+  themselves, voice is push-to-talk (listening on for LAN games, off on hosted worlds), and the manual links
+  the parents page. (#1302)
+- 🧪 **Tests** — every fix above carries its own, plus refill ×2 and "a haven keeps its raiders" (#1206), the
+  validator problem string and the hostile-scan gate (#1205), the camp-sync target filter (#1212), name
+  screening for station/beam/crew/marker (#1221), sentry vs. camp guard, boat unloaded-chunk and lava, and
+  `MissionBoardTests` asserts instead of scanning seeds. (#1303)
 
-### Fixed
-- 🎮 **Pad reticle in pointer minigames is visible** — the virtual cursor's disc was drawn at the corner for
-  every position; the nine pointer-driven arcade games were blind on a gamepad. (#1287)
-- 🎮 **B / Esc in a minigame round no longer closes the whole menu.** (#1288)
-- ⌨️ **On-screen keyboard** masks password fields with bullets, only accepts digits in number fields and
-  hands focus back to the field it was opened from. (#1289)
-- 📋 **SPS Survey Orders** — "travel to a system without a relay" now really excludes the system the order
-  was taken in (the station's system was never resolved), and a chain step that is impossible on this world
-  (no player station with an open relay, hostiles off) is skipped instead of stalling the chain. (#1291)
-- 🛡️ **Sentry kills count for the base owner** — a scout the sentry finishes still counts towards
-  *Guard the homestead* and the base-defended tally; bandit/machine bounty steps progress too. (#1292)
-- 🔧 **Disassembly** — campfire outputs (carbon, salt) are no longer "disassemblable" into wood or water, and
-  an item that would salvage nothing is kept instead of vanishing. (#1298)
-- ⛵ **Boat** — "that isn't your boat" says boat, the ashore snap-back only returns you to a spot the boat was
-  actually seen floating, and it arms the same post-teleport guard as other server moves. (#1301)
-- 📖 Docs: `/report` works for browser guests, blocked chat lines do not ping the operator by themselves,
-  voice is push-to-talk (listening on for LAN games, off on hosted worlds), the manual links the parents
-  page. (#1302)
+The gamepad fixes still want an on-device pass (#1227).
+
+### 🙏 Thanks
+
+**Lyxette** — twenty issues in two days, every one of them precise enough to fix from the report alone,
+and half of them things nobody on the inside had noticed were missing. This release is largely yours.
 
 ## [2026.8.21] — 2026-08-25
 
@@ -3629,7 +3770,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...HEAD
+[2026.8.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...v2026.8.22
 [2026.8.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...v2026.8.21
 [2026.8.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...v2026.8.20
 [2026.8.19]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.18...v2026.8.19
