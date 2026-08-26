@@ -79,8 +79,19 @@ public sealed class NameAndAiScreeningTests : IDisposable
             => new() { Title = "A delivery", Description = _text };
     }
 
+    /// <summary>Keeps the server's info lines. The operator ping itself is an HTTP post through
+    /// <c>AdminNotifier</c> (unconfigured in tests), so the "Name watch" log line written right beside it is
+    /// what a test can see of a watch-list hit.</summary>
+    private sealed class CapturingLogger : IGameLogger
+    {
+        public List<string> Infos { get; } = new();
+        public void Info(string message) => Infos.Add(message);
+        public void Warn(string message) { }
+        public void Error(string message) { }
+    }
+
     private SvGameServer NewServer(string name, RecordingTransport transport,
-        Action<ServerConfig>? configure = null, IAiMissionProvider? ai = null)
+        Action<ServerConfig>? configure = null, IAiMissionProvider? ai = null, IGameLogger? log = null)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var config = new ServerConfig
@@ -92,10 +103,39 @@ public sealed class NameAndAiScreeningTests : IDisposable
             PlaceStarterShip = false,
         };
         configure?.Invoke(config);
-        var server = new SvGameServer(config, _content, transport, repo, logger: null, aiProvider: ai);
+        var server = new SvGameServer(config, _content, transport, repo, logger: log, aiProvider: ai);
         server.Start();
         _repos.Add(repo);
         return server;
+    }
+
+    /// <summary>How many watch-list pings the operator was sent for names on the given surface.</summary>
+    private static int WatchPingsFor(CapturingLogger log, string surface)
+        => log.Infos.Count(l => l.StartsWith("Name watch:", StringComparison.Ordinal) && l.Contains($"in a {surface} name"));
+
+    /// <summary>A watch-listed term: relayed/stored as it is, but the operator is told (see ChatScreen.DefaultWatchWords).</summary>
+    private const string WatchName = "Camp Adolf";
+
+    /// <summary>Commissions a boardable station for the pilot (mirrors PlanetBaseAndStationMapTests).</summary>
+    private static string CommissionStation(SvGameServer server, PlayerSession pilot)
+    {
+        string playerId = pilot.State.PlayerId;
+        server.EnterSpace(playerId);
+        pilot.State.InEva = true;
+        pilot.State.InstantBuild = true;
+
+        server.DeployStationCoreForTest(playerId);
+        string id = server.OwnedStationIdForTest(playerId)!;
+        for (int i = 1; i <= 11; i++)
+        {
+            server.HandleStructureEditForTest(playerId,
+                new StructureEditIntent { StructureId = id, X = i, Y = 0, Z = 0, Mine = false, ItemKey = "iron_wall" });
+        }
+
+        server.HandleStructureEditForTest(playerId,
+            new StructureEditIntent { StructureId = id, X = 0, Y = 1, Z = 0, Mine = false, ItemKey = "door_slide" });
+        Assert.True(server.StationIsBoardableForTest(id));
+        return id;
     }
 
     /// <summary>A player up in the air (so the target cell is empty and within reach) holding the two blocks
@@ -216,6 +256,117 @@ public sealed class NameAndAiScreeningTests : IDisposable
 
         Assert.Equal(1, server.BeaconCount);
         Assert.Equal(string.Empty, server.BeaconSnapshots.Single().Label);
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+    }
+
+    [Fact]
+    public void StationName_IsScreened_AndAWatchTermPingsTheOperator()
+    {
+        var transport = new RecordingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("station_name", transport, c => c.Rules.FreeSpaceFlight = true, log: log);
+        var owner = server.AddLocalPlayer("Owner");
+        string id = CommissionStation(server, owner);
+        server.SetStationNameForTest(owner, id, "Fort Alpha");
+        Assert.Equal("Fort Alpha", server.Galaxy.FindBody(id)!.Name);
+
+        transport.Sent.Clear();
+        server.SetStationNameForTest(owner, id, "h.i.t.l.e.r station");
+
+        Assert.Equal("Fort Alpha", server.Galaxy.FindBody(id)!.Name);
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+        Assert.Equal(0, WatchPingsFor(log, "station"));
+
+        server.SetStationNameForTest(owner, id, WatchName);
+
+        Assert.Equal(WatchName, server.Galaxy.FindBody(id)!.Name); // stored as typed…
+        Assert.Equal(1, WatchPingsFor(log, "station"));            // …and the operator hears of it
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+    }
+
+    [Fact]
+    public void BeamPadLabel_IsScreened_OnPlacement_AndOnRename()
+    {
+        // Same rule as the beacon: the pad is already in the world when its label is screened, so a refused
+        // label leaves the pad standing with none. A refused RENAME keeps the old label.
+        var transport = new RecordingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("beam_label", transport, log: log);
+        var owner = Builder(server);
+        owner.State.Inventory.Add("beam_block", 1, 16);
+
+        transport.Sent.Clear();
+        server.PlaceBlock("Builder", 1, 200, 0, "beam_block", "h.i.t.l.e.r pad");
+
+        Assert.Equal(1, server.BeamCount);
+        Assert.Equal(string.Empty, server.BeamSnapshots.Single().Name);
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+
+        int id = server.BeamSnapshots.Single().Id;
+        server.SetBeamNameForTest(owner, id, "Nordlager");
+        Assert.Equal("Nordlager", server.BeamSnapshots.Single().Name);
+
+        server.SetBeamNameForTest(owner, id, "h.i.t.l.e.r pad");
+        Assert.Equal("Nordlager", server.BeamSnapshots.Single().Name);
+        Assert.Equal(2, NoticesTo(transport, owner, "@srv.name.blocked"));
+        Assert.Equal(0, WatchPingsFor(log, "beam"));
+
+        server.SetBeamNameForTest(owner, id, WatchName);
+        Assert.Equal(WatchName, server.BeamSnapshots.Single().Name);
+        Assert.Equal(1, WatchPingsFor(log, "beam"));
+        Assert.Equal(2, NoticesTo(transport, owner, "@srv.name.blocked"));
+    }
+
+    [Fact]
+    public void CrewName_IsScreened_OnCreate_AndOnRename()
+    {
+        var transport = new RecordingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("crew_name", transport, log: log);
+        var owner = Builder(server);
+
+        transport.Sent.Clear();
+        Assert.Equal(string.Empty, server.CrewActionForTest("Builder", "create", "h.i.t.l.e.r crew"));
+
+        Assert.Empty(server.CrewSnapshots); // nothing was founded
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+
+        string crewId = server.CrewActionForTest("Builder", "create", "Sternenbande");
+        Assert.Equal("Sternenbande", server.CrewSnapshots.Single().Name);
+
+        server.CrewActionForTest("Builder", "rename", "h.i.t.l.e.r crew");
+        Assert.Equal("Sternenbande", server.CrewSnapshots.Single().Name);
+        Assert.Equal(crewId, server.CrewSnapshots.Single().Id);
+        Assert.Equal(2, NoticesTo(transport, owner, "@srv.name.blocked"));
+        Assert.Equal(0, WatchPingsFor(log, "crew"));
+
+        server.CrewActionForTest("Builder", "rename", WatchName);
+        Assert.Equal(WatchName, server.CrewSnapshots.Single().Name);
+        Assert.Equal(1, WatchPingsFor(log, "crew"));
+        Assert.Equal(2, NoticesTo(transport, owner, "@srv.name.blocked"));
+    }
+
+    [Fact]
+    public void MarkerLabel_IsScreened_AndARefusedLabelRefusesTheMarker()
+    {
+        // Unlike a beacon or a beam pad nothing exists yet when the label is screened, so a refused label
+        // simply means no marker.
+        var transport = new RecordingTransport();
+        var log = new CapturingLogger();
+        var server = NewServer("marker_label", transport, log: log);
+        var owner = Builder(server);
+
+        transport.Sent.Clear();
+        Assert.Equal(0, server.SetMarkerForTest("Builder", 10, 64, 10, "h.i.t.l.e.r was here"));
+
+        Assert.Empty(server.VisibleMarkersForTest("Builder"));
+        Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
+        Assert.Equal(0, WatchPingsFor(log, "marker"));
+
+        Assert.Equal(1, server.SetMarkerForTest("Builder", 10, 64, 10, WatchName));
+
+        Assert.Equal(WatchName, server.VisibleMarkersForTest("Builder").Single().Label);
+        Assert.Equal(1, WatchPingsFor(log, "marker"));
         Assert.Equal(1, NoticesTo(transport, owner, "@srv.name.blocked"));
     }
 

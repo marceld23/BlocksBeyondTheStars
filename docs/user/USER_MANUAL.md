@@ -9,7 +9,10 @@ chat/admin commands. This is a living document.
 > localized — English, German, French and Spanish are complete, further community translations such as
 > Italian are in progress.)
 
-Last updated: 2026-08-11.
+Last updated: 2026-08-26.
+
+> **Parents and teachers:** what the game contains, who your child can meet online and which switches you
+> hold are summarised on the [parents page](PARENTS.md) ([Deutsch](PARENTS.de.md)).
 
 ---
 
@@ -148,7 +151,9 @@ face button — everything in the **L3 Actions** list — can also be given thei
 
 **Typing without a keyboard.** Move to a text box and press **(A)**: an on-screen keyboard opens, and you
 pick letters with the stick and **(A)**. **ABC/abc** switches upper and lower case, **?123** shows the
-punctuation page, **(X)** deletes the last letter, **Start** is done and **(B)** cancels. It works
+punctuation page, **(X)** deletes the last letter, **Start** is done and **(B)** cancels. Password fields
+show bullets instead of letters, number fields accept only digits, and when you are done the focus lands
+back on the box you came from. It works
 everywhere text is asked for — the world name, a server address, a beacon or blueprint label, the chat —
 so a whole session really can be played with nothing but a controller. (On a tablet the device's own
 keyboard opens instead; nothing changes there.)
@@ -474,8 +479,9 @@ separate unlock; admins can still disable it through server world rules.
   Fitting the `ai_core_mk3` module **replaces** the fitted Mk2 and returns half its materials as salvage.
   (Your starter gear — basic drill, scrap pistol — is deliberately chain-free.)
 - **Disassemble** (at a workshop): break a crafted item back into ~50 % of its recipe inputs. In the
-  Inventory detail pane, select the item and press **Disassemble** (shows what it recovers). Raw resources
-  and refinery/transmuter-synthesised ore can't be disassembled.
+  Inventory detail pane, select the item and press **Disassemble** (shows what it recovers). Raw resources,
+  refinery/transmuter-synthesised ore and campfire produce (charcoal, salt, meals) can't be disassembled, and
+  an item that would recover nothing (berries, seeds, a skewer) is simply kept — nothing ever vanishes.
 
 ### Ship, modules, building
 - Every ship's **cockpit front screen is clear glass** — you look out forward through it; the side and rear
@@ -647,14 +653,19 @@ separate unlock; admins can still disable it through server world rules.
   Two things worth knowing: it only works **while you are home** on that world, and machines appear 35–50
   blocks away from you — so a sentry is the thing that covers your back while you build, not a fence that
   clears the neighbourhood. On **Creative** or **Peaceful** worlds it stays quiet, like everything else.
+  A sentry's kill **counts for you**: bandit and machine bounty steps progress, a scout it finishes still
+  counts towards *Guard the homestead* and the base-defended tally, and the drops land on the ground where
+  the target fell. Only the plain "defeat" achievement stays yours to earn by hand.
 - **Visitors at the base** (Settings → world rules, world admin, **off by default** — on in the `dangerous`
   preset): with it on, and only while **you are home**, two bandit **scouts** occasionally walk up to the
   **edge of your zone**, stand there for about a minute, and wander off again. They **never step inside, never
   demand anything, never damage a block and never take a thing** — they look, and that is all; your sentry
   leaves them alone too, exactly as it leaves a robber who is still talking. Hit one and it fights like any
   robber. Driving two of them off at your own base is the **"Guard the homestead"** bounty (on any board,
-  only offered while the option is on) and the *Not On My Doorstep* achievement. Needs the **Bandits** slider
-  on and Survival — on family and peaceful worlds the switch is not even offered.
+  only offered while the option is on) and the *Not On My Doorstep* achievement. Needs **both** the
+  **Bandits** slider and **Planet enemies** on, plus Survival — with hostiles off the sentry post is silent,
+  so no scouts come either, and the switch is not even offered. An update never turns it on for you: on
+  worlds from before the option existed it stays off until you flip it yourself.
 - On **Tab → Map**, a world where you have a base (or a station orbiting it) is **marked** and its details note
   *"You have a base/station here"*; you can also rename the base from there.
 
@@ -681,8 +692,9 @@ separate unlock; admins can still disable it through server world rules.
   bases, stations, beacons and creatures friendly. You can **mute** any player — type `/mute <name>` in the
   chat box (`/unmute <name>` undoes it), and you will neither see their chat lines nor hear their voice.
   Muting is yours alone: it is stored on your own device, the other player is never told, and the list is
-  under **Settings → Muted players**, where one click unmutes again. The host can turn **voice chat** off
-  entirely. See the in-game Codex chapter **House Rules** for the full list.
+  under **Settings → Muted players**, where one click unmutes again. You can also mute or unmute a player
+  straight from their row on the **Alliances tab** (Find players, Allies and Crew lists) — same list, same
+  rule. The host can turn **voice chat** off entirely. See the in-game Codex chapter **House Rules** for the full list.
 
 ### Beam blocks (teleporter pads)
 - Craft a **beam block** (`beam_block`, blueprint-gated workshop recipe: titanium + cable + energy cell + crystal),
@@ -724,8 +736,10 @@ separate unlock; admins can still disable it through server world rules.
   a different factory. Factory crafts **cannot be disassembled** back into their inputs.
 - Besides the basic parts (plates, panels, cable, glass, steel, energy cells, circuit boards, polymer) factories
   run a **raw-ore tier**: light alloy, bronze, brass, power cells, carbide, magnets, diamonds and even reactor
-  fuel straight from ore — every ore has a second buyer that way. A factory's roster is fixed when its world
-  is created, so these recipes turn up in **factories of new worlds**, not in halls you have already found.
+  fuel straight from ore — every ore has a second buyer that way. A factory's roster is **pinned the first
+  time its hall is stamped** and stored with the world, so recipes added in a later update turn up only in
+  factories stamped after that update — a hall you have already found (or claimed) keeps making exactly what
+  it made before.
 - **Operating a terminal is public** — you don't need to own a factory to craft there. But a spawned
   factory is **read-only** (you can't mine or rebuild it) until you **claim** it: stand at the terminal
   with an **SPS access code** (see below) and press **E**. Claiming spends one code, makes the factory
@@ -983,7 +997,9 @@ separate unlock; admins can still disable it through server world rules.
   star, heart, question) and one of **6 colours**. **8 markers per world**; each row in the map's marker list
   offers **Navigate** (sets the compass waypoint) and **Delete**.
 - A marker saved as **"Visible to allies & crew"** appears on the map and compass of every ally / crew mate on
-  the **same world** — while you are online. Private markers stay yours alone.
+  the **same world** — **also while you are offline**, so the family meeting point does not vanish when you
+  log off. The list refreshes on its own the moment an alliance forms or ends or a crew changes. Private
+  markers stay yours alone.
 - **Ping ("look here!"):** press **C** (rebindable; pad/touch: the Actions list) to drop a **pulsing pin** at
   your crosshair for ~30 seconds, visible to your allies + crew on the world — perfect for "the entrance is
   HERE". Rate-limited to one every few seconds; pings are never saved.
@@ -1079,7 +1095,9 @@ separate unlock; admins can still disable it through server world rules.
   name), re-appears whenever you return, and is hidden elsewhere. Manage them in the **Companions** menu tab
   (rename, **feed**, release — each with a **bond bar**). Companions are peaceful and can't be hurt.
 - **Feed & bond:** every companion has a **bond** (0–100; a fresh tame starts around 40–60). **Feed** it from the
-  Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each — and the
+  Companions tab — any bait (forage, meat or nectar) will do, one meal a minute, **+5 bond** each. Feeding
+  happens **in person**: the animal has to be on your world within about six blocks of you, otherwise the
+  Feed button is greyed out — and the
   number buys three things: at **50** it **fetches from a wider circle** (half again as far), at **70**
   **robbers keep away** from you while it is at your side, and at **90** it has **a nose for the place** and
   will occasionally point out a landmark (it knows the big things — the crashed wreck — not the secrets the

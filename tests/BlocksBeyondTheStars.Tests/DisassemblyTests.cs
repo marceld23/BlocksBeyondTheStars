@@ -77,6 +77,51 @@ public sealed class DisassemblyTests : IDisposable
         }
     }
 
+    [Theory]
+    [InlineData("carbon")] // campfire char_wood outputs carbon — a mined/harvested drop, not a built item
+    [InlineData("salt")]   // campfire boil_salt outputs salt
+    public void Disassemble_RefusesCampfireOutputs_RawDropsStayRaw(string itemKey)
+    {
+        // #1298: cooking / rendering recipes must not make raw drops look "disassemblable" (carbon → wood at
+        // any workbench). The item stays put and nothing is refunded.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Tinker");
+            p.State.Inventory.Remove(itemKey, p.State.Inventory.CountOf(itemKey));
+            p.State.Inventory.Remove("wood_log", p.State.Inventory.CountOf("wood_log"));
+            p.State.Inventory.Remove("water", p.State.Inventory.CountOf("water"));
+            p.State.Inventory.Add(itemKey, 2, 99);
+
+            server.Disassemble("Tinker", itemKey);
+
+            Assert.Equal(2, p.State.Inventory.CountOf(itemKey));
+            Assert.Equal(0, p.State.Inventory.CountOf("wood_log"));
+            Assert.Equal(0, p.State.Inventory.CountOf("water"));
+        }
+    }
+
+    [Theory]
+    [InlineData("berries")]         // wash_berries (detoxifier, x2 out): every input floors to 0 at 50 % recovery
+    [InlineData("mushroom_skewer")] // campfire recipe — excluded from the producer scan altogether
+    public void Disassemble_WithNothingToSalvage_KeepsTheItem(string itemKey)
+    {
+        // #1298: before, the item was consumed and the player got nothing back.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Tinker");
+            p.State.Inventory.Remove(itemKey, p.State.Inventory.CountOf(itemKey));
+            p.State.Inventory.Add(itemKey, 1, 99);
+            int before = p.State.Inventory.Slots.Sum(s => s?.Count ?? 0);
+
+            server.Disassemble("Tinker", itemKey);
+
+            Assert.Equal(1, p.State.Inventory.CountOf(itemKey));
+            Assert.Equal(before, p.State.Inventory.Slots.Sum(s => s?.Count ?? 0)); // and nothing appeared either
+        }
+    }
+
     [Fact]
     public void Disassemble_RequiresAWorkshop()
     {

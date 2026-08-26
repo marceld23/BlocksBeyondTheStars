@@ -164,5 +164,62 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
 
             Assert.AreEqual(1, keyboards, "the last caller wins; two stacked keyboards would trap the pad");
         }
+
+        [Test]
+        public void OnAPad_APasswordField_ShowsBulletsOnThePreview_ButWritesTheRealTextBack()
+        {
+            // The portal / server password dialogs (#1289): the keyboard's preview line is big and readable
+            // from the couch, so it must mask exactly like the field itself does.
+            InputMap.DeviceOverrideForTest = InputDeviceKind.Gamepad;
+            var field = UiKit.AddInput(_root.transform, 0f, 0f, 300f, 40f, string.Empty, null, "Password");
+            field.contentType = InputField.ContentType.Password;
+
+            field.GetComponent<PadTextEntryBridge>().OnSubmit(null);
+            OnScreenKeyboardUi.PressForTest("a");
+            OnScreenKeyboardUi.PressForTest("b");
+            OnScreenKeyboardUi.PressForTest("c");
+
+            Assert.AreEqual("abc", OnScreenKeyboardUi.TextForTest);
+            Assert.AreEqual("•••_", OnScreenKeyboardUi.PreviewForTest, "bullets plus the caret, never the letters");
+
+            OnScreenKeyboardUi.PressForTest(OnScreenKeyboardLayout.Done);
+            Assert.AreEqual("abc", field.text);
+        }
+
+        [Test]
+        public void OnAPad_AnIntegerField_DropsLettersAndKeepsDigits()
+        {
+            // The text setter bypasses uGUI's characterValidation, so the keyboard filters itself (#1289).
+            InputMap.DeviceOverrideForTest = InputDeviceKind.Gamepad;
+            var field = UiKit.AddInput(_root.transform, 0f, 0f, 300f, 40f, string.Empty, null, "Port");
+            field.contentType = InputField.ContentType.IntegerNumber;
+
+            field.GetComponent<PadTextEntryBridge>().OnSubmit(null);
+            OnScreenKeyboardUi.PressForTest("2");
+            OnScreenKeyboardUi.PressForTest("x");
+            OnScreenKeyboardUi.PressForTest(OnScreenKeyboardLayout.Space);
+            OnScreenKeyboardUi.PressForTest("5");
+            OnScreenKeyboardUi.PressForTest(".");
+
+            Assert.AreEqual("25", OnScreenKeyboardUi.TextForTest);
+            Assert.AreEqual("25_", OnScreenKeyboardUi.PreviewForTest, "a number field is not a password — no masking");
+
+            OnScreenKeyboardUi.PressForTest(OnScreenKeyboardLayout.Done);
+            Assert.AreEqual("25", field.text);
+        }
+
+        [Test]
+        public void APlainTextField_IsNeitherMaskedNorFiltered()
+        {
+            InputMap.DeviceOverrideForTest = InputDeviceKind.Gamepad;
+            var field = UiKit.AddInput(_root.transform, 0f, 0f, 300f, 40f, string.Empty, null, "Name");
+
+            field.GetComponent<PadTextEntryBridge>().OnSubmit(null);
+            OnScreenKeyboardUi.PressForTest("a");
+            OnScreenKeyboardUi.PressForTest("1");
+
+            Assert.AreEqual("a1_", OnScreenKeyboardUi.PreviewForTest);
+            OnScreenKeyboardUi.PressForTest(OnScreenKeyboardLayout.Cancel);
+        }
     }
 }

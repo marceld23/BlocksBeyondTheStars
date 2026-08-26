@@ -20,7 +20,8 @@ namespace BlocksBeyondTheStars.GameServer;
 ///
 /// Factories are <b>protected</b> (read-only) until claimed with an access code (see the claiming feature).
 /// Like settlements they re-derive deterministically from the seed each session, so the per-world list is
-/// rebuilt on load; re-stamping their (protected) blocks is idempotent.
+/// rebuilt on load; re-stamping their (protected) blocks is idempotent. The roster is pinned in the factory's
+/// placement record at first stamp (#1299), so a later, larger factory recipe set only reaches NEW factories.
 /// </summary>
 public sealed partial class GameServer
 {
@@ -108,26 +109,31 @@ public sealed partial class GameServer
             var ir = new System.Random(unchecked((int)(instSeed ^ (instSeed >> 32))));
 
             // The roster: a seeded subset of the factory recipes — between one and a handful, never all.
+            // This is only the roll for a factory that has no pinned roster yet; the RNG draws stay so the
+            // structure / placement / name lanes below keep their seeds (see ResolveFactoryRoster, #1299).
             int rosterSize = 1 + ir.Next(0, System.Math.Min(4, factoryRecipes.Count));
             var roster = factoryRecipes.OrderBy(_ => ir.Next()).Take(rosterSize).ToList();
-
-            var structure = FactoryGenerator.Generate(instSeed, roster.Count, _content);
 
             // #586: pinned record → legacy re-derive → guaranteed search (fresh worlds). Factories re-derive
             // every load, so the record is what keeps them attached to their stamped halls (and their claims,
             // whose keys embed the origin) when the search algorithm evolves.
+            var rec = FindPlacementRecord("factory", i);
+            if (rec is not null && !rec.Placed)
+            {
+                continue;
+            }
+
+            // #1299: a pinned roster wins over this load's roll (the recipe set may have grown since); a record
+            // from before roster pinning freezes the current roll once. The machine count follows the roster.
+            roster = ResolveFactoryRoster(rec, roster, factoryRecipes);
+            var structure = FactoryGenerator.Generate(instSeed, roster.Count, _content);
+
             Vector3i origin;
             int groundY;
             string seat;
             string name;
-            var rec = FindPlacementRecord("factory", i);
             if (rec is not null)
             {
-                if (!rec.Placed)
-                {
-                    continue;
-                }
-
                 origin = new Vector3i(rec.X, rec.GroundY, rec.Z);
                 groundY = rec.GroundY;
                 seat = rec.Seat;
@@ -159,6 +165,8 @@ public sealed partial class GameServer
                 name = UniqueName(FactoryName(RngFor(instSeed, "name")), usedNames);
                 RecordPlacement("factory", i, origin, groundY, onIsland: false, seat, name);
             }
+
+            PinFactoryRoster(FindPlacementRecord("factory", i), roster);
 
             placed.Add((new PlacedSettlement
             {
@@ -233,6 +241,35 @@ public sealed partial class GameServer
         }
 
         _log.Info($"Stamped {_factories.Count} factory(ies) on '{_world.LocationId}'.");
+    }
+
+    /// <summary>The roster a factory instance offers (#1299): the pinned one from its placement record when
+    /// present (minus recipe keys that no longer exist), otherwise this load's seeded roll. A pinned roster
+    /// whose every key vanished falls back to the roll as well — a factory with nothing to make is scenery.</summary>
+    private static List<string> ResolveFactoryRoster(StructurePlacementRecord? rec, List<string> rolled,
+        List<string> factoryRecipes)
+    {
+        if (rec?.Roster is null || rec.Roster.Count == 0)
+        {
+            return rolled;
+        }
+
+        var kept = rec.Roster.Where(factoryRecipes.Contains).Distinct().ToList();
+        return kept.Count > 0 ? kept : rolled;
+    }
+
+    /// <summary>Freezes a factory's roster into its placement record the first time it is stamped with one —
+    /// new factories at stamp time, factories from before #1299 on their first load after it. Never overwrites
+    /// an existing pin (claimed factories are player property; what they make must not drift).</summary>
+    private void PinFactoryRoster(StructurePlacementRecord? rec, List<string> roster)
+    {
+        if (rec is null || rec.Roster is { Count: > 0 })
+        {
+            return;
+        }
+
+        rec.Roster = roster.ToList();
+        _placementRecordsDirty = true;
     }
 
     /// <summary>True when a cell lies inside any stamped factory's footprint — used by the mine/place guards to

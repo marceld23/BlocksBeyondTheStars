@@ -70,8 +70,10 @@ public sealed class PlayerSession
     public bool ChatMaskNoticeSent { get; set; }
 
     // ---- Anti-spam (#1208). All of this lives in RAM only and is never persisted: a temporary auto-mute is a
-    // cool-down, not a mark on the record, and a reconnect is allowed to clear it. Both lists are trimmed to
-    // their window on every line, so they hold a handful of entries at most.
+    // cool-down, not a mark on the record. The sliding windows are per session (a reconnect starts them fresh);
+    // the mute deadline itself is NOT on the session — it is keyed by player id on the server (#1294), so a
+    // muted player who leaves and rejoins is still muted. Both lists are trimmed to their window on every line,
+    // so they hold a handful of entries at most.
 
     /// <summary>Server uptime (seconds) of the recently accepted chat lines — the burst window.</summary>
     public List<double> RecentChatAt { get; } = new();
@@ -79,13 +81,9 @@ public sealed class PlayerSession
     /// <summary>Server uptime (seconds) of the recent content-filter hits (a blocked or masked line).</summary>
     public List<double> RecentFilterHitsAt { get; } = new();
 
-    /// <summary>Server uptime (seconds) until which this session's chat lines are dropped; 0 = not muted.
-    /// This is the SERVER's automatic cool-down — unrelated to the per-player mute a client will apply to
-    /// someone else's lines (#1209).</summary>
-    public double ChatMutedUntil { get; set; }
-
     /// <summary>Whether the sender was already told about the mute currently in force — one notice per mute,
-    /// not one per line they keep trying to send.</summary>
+    /// not one per line they keep trying to send. Per session on purpose: a player who rejoins while still
+    /// muted is told again on their first blocked line, because the earlier notice is gone with the old client.</summary>
     public bool ChatMuteNoticeSent { get; set; }
 
     // ---- Report evidence (#1222) ----

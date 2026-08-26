@@ -149,8 +149,10 @@ public sealed partial class GameServer
         bool? wet = BoatOverWater(p.Position);
         if (wet != false)
         {
-            // Over water, or unloaded (don't judge): this is a good pose to come back to.
-            if (wet == true || !s.HasWaterPos)
+            // Only a pose JUDGED wet is a good pose to come back to. An unloaded probe chunk is "don't judge":
+            // it neither counts as ashore nor becomes the snap-back target (#1301) — the previous water pose
+            // stands, or none is known yet and the rule stays disarmed until the boat is seen floating.
+            if (wet == true)
             {
                 s.LastWaterPos = p.Position;
                 s.HasWaterPos = true;
@@ -176,6 +178,7 @@ public sealed partial class GameServer
         s.Rec.Y = p.Position.Y;
         s.Rec.Z = p.Position.Z;
         s.LastDriverPos = p.Position;
+        session.AwaitingSpawnAdopt = true; // #865: the client keeps streaming its ashore pose for a beat — it must not drag the boat back
         SendPlayerState(session);
         // The plain "the server moved you" the client already understands (it snaps the body, #beam); no FX.
         Send(session, new BeamTeleported { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z });
@@ -189,6 +192,11 @@ public sealed partial class GameServer
     /// <summary>Test/util: the persisted vehicle kind of a live vehicle ("speeder" / "boat"), or "" if unknown.</summary>
     public string VehicleKindForTest(string vehicleId)
         => _speeders.Find(v => v.Id == vehicleId) is { } s ? VehicleKind(s.Rec) : string.Empty;
+
+    /// <summary>Test/util: the last pose a live boat was judged to be floating at (the ashore snap-back target),
+    /// and whether one is known at all.</summary>
+    public (bool Known, Vector3f Pos) BoatWaterPosForTest(string vehicleId)
+        => _speeders.Find(v => v.Id == vehicleId) is { } s ? (s.HasWaterPos, s.LastWaterPos) : (false, default);
 
     /// <summary>Test/util: whether the start planet hands out a boat on first join.</summary>
     public bool StartBodyIsWaterWorldForTest => StartBodyIsWaterWorld;

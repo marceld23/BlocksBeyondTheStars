@@ -41,7 +41,7 @@ public sealed class MissionChainTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private ServerConfig Config(string name, long seed, bool settlements = true) => new()
+    private ServerConfig Config(string name, long seed, bool settlements = true, bool banditCamps = true) => new()
     {
         WorldName = name,
         Seed = seed,
@@ -50,15 +50,16 @@ public sealed class MissionChainTests : IDisposable
         PlaceStarterShip = false,
         PlaceSettlements = settlements,
         PlaceWrecks = false,
+        PlaceBanditCamps = banditCamps,
         AiLevel = AiLevel.Off,
         DataDir = TestPaths.DataDir(),
     };
 
-    private SvGameServer Start(string name, long seed, out SqliteWorldRepository repo, out LoopbackLink link, bool settlements = true)
+    private SvGameServer Start(string name, long seed, out SqliteWorldRepository repo, out LoopbackLink link, bool settlements = true, bool banditCamps = true)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         link = new LoopbackLink();
-        var server = new SvGameServer(Config(name, seed, settlements), _content, new LoopbackServerTransport(link), repo);
+        var server = new SvGameServer(Config(name, seed, settlements, banditCamps), _content, new LoopbackServerTransport(link), repo);
         server.Start();
         return server;
     }
@@ -297,6 +298,67 @@ public sealed class MissionChainTests : IDisposable
                 server.AcceptMission("Hero", "chain_needs_4b_travel");
                 Assert.Equal(MissionStatus.Active, Progress(p, "chain_needs_4b_travel").Status);
             }
+        }
+    }
+
+    [Fact]
+    public void ChainCampStep_TakenElsewhere_IsNotCreditedByLandingOnAPacifiedWorld()
+    {
+        // #1303: the "all camps are down" sweep completed the Defeat objectives of ANY active chain row. A
+        // step taken at another settlement — on another world — was therefore handed out for a fight this
+        // player never had, simply by landing somewhere whose camps had long since fallen.
+        var server = Start("campstep", 4242, out var repo, out _, settlements: false, banditCamps: false);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Ranger");
+
+            // Clear this world's only camp BEFORE any order is in the log, so nothing is credited on the kill.
+            string campKey = server.SpawnBanditCampForTest(new Vector3f(40, 70, 40), guards: 1);
+            foreach (var guard in server.Bandits.ToList())
+            {
+                p.State.Position = guard.Position;
+                for (int i = 0; i < 40 && server.Bandits.Contains(guard); i++)
+                {
+                    server.AttackEntity("Ranger", guard.Id);
+                }
+            }
+
+            Assert.True(server.BanditCampClearedForTest(campKey));
+
+            var def = new MissionDefinition
+            {
+                Id = "test_chain_camp",
+                Source = MissionSource.System,
+                NameKey = "mission.chain.needs_4a.title",
+                DescriptionKey = "mission.chain.needs_4a.desc",
+                ChainId = "test_camp_chain",
+                Step = 1,
+                Surface = MissionChains.SurfaceRadio, // returnable anywhere — keeps this test off a board
+                Objectives = { new MissionObjective { Type = MissionObjectiveType.Defeat, Target = "bandit_camp", Required = 1 } },
+                Active = true,
+            };
+            server.AddMissionDefForTest(def);
+
+            // The step as another settlement's board would have written it: bound to a DIFFERENT world.
+            p.State.Missions.Add(new MissionProgress
+            {
+                MissionId = def.Id,
+                ChainId = def.ChainId,
+                Status = MissionStatus.Active,
+                ObjectiveProgress = { 0 },
+                AcceptedBodyId = "another-world",
+            });
+            var pr = Progress(p, def.Id);
+
+            // The turn-in path runs the sweep first; it must leave this row alone, so the turn-in fails.
+            server.TurnInMission("Ranger", def.Id);
+            Assert.Equal(0, pr.ObjectiveProgress[0]);
+            Assert.Equal(MissionStatus.Active, pr.Status);
+
+            // The same row taken HERE still gets the credit a clear during the player's absence earns.
+            pr.AcceptedBodyId = p.State.CurrentLocationId;
+            server.TurnInMission("Ranger", def.Id);
+            Assert.Equal(MissionStatus.TurnedIn, Progress(p, def.Id).Status);
         }
     }
 

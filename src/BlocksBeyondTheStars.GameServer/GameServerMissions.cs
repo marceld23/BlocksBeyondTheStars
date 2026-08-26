@@ -633,15 +633,24 @@ public sealed partial class GameServer
         ("asteroid", 3, false, "data_fragment", 2, 3, "asteroids"),      // asteroid survey — three ship-scanner readings
     };
 
+    /// <summary>Whether a "scan a hostile creature" objective can be met here at all (#1303): the world's
+    /// species roster must hold a hostile species AND the rules must actually put hostiles out there — with
+    /// <c>PlanetEnemies Off</c> or outside Survival the hostile wildlife stands down, so a "hostile watch"
+    /// order would be a promise the world cannot keep.</summary>
+    private bool HostileScanFeasible => PlanetEnemiesActive && _speciesRoster.Any(sp => sp.Hostile);
+
     /// <summary>Whether a scan template can be completed on this world at all (#1205) — a template that could
     /// never finish would be a broken promise on the board.</summary>
     private bool ScanTemplateAvailable(string key) => key switch
     {
-        "hostile" => _speciesRoster.Any(sp => sp.Hostile),
+        "hostile" => HostileScanFeasible,
         "runes" => _monuments.Count > 0,
         "botany" => _floraSpeciesByBlock.Count >= 2,
         _ => true,
     };
+
+    /// <summary>Test/inspection: whether a scan board template would be offered on this world (#1205/#1303).</summary>
+    public bool ScanTemplateAvailableForTest(string key) => ScanTemplateAvailable(key);
 
     /// <summary>Deterministically coins one SCAN board mission for a slot (#1205) — same stability contract as
     /// <see cref="BuildBoardMission"/>: rng stream "scanmission", the world-eligible templates only, settlement

@@ -11,6 +11,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
@@ -77,16 +78,26 @@ public sealed class CompanionBondTests : IDisposable
         return server;
     }
 
-    /// <summary>A player with a companion at the given bond, fed (or tamed) right now.</summary>
+    /// <summary>A player with a companion at the given bond, fed (or tamed) right now — and the animal itself
+    /// standing beside them, because feeding is done at arm's length (#1295).</summary>
     private static (PlayerSession Keeper, TamedCreature Pet) KeeperWithPet(SvGameServer server, int bond, long lastFed = Now)
     {
         var keeper = server.AddLocalPlayer("Keeper");
         keeper.State.AboardShip = false;
+        var pet = PetRecord(server, "c1", server.ActiveLocationId, bond, lastFed);
+        keeper.State.TamedCreatures.Add(pet);
+        server.SpawnCompanionsForTest(keeper.State.PlayerId);
+        PetEntity(server, keeper).Position = keeper.State.Position; // habitat placement is not the thing under test
+        return (keeper, pet);
+    }
+
+    private static TamedCreature PetRecord(SvGameServer server, string id, string homeBodyId, int bond, long lastFed)
+    {
         var sp = server.SpeciesRoster.First();
-        var pet = new TamedCreature
+        return new TamedCreature
         {
-            Id = "c1",
-            HomeBodyId = server.ActiveLocationId,
+            Id = id,
+            HomeBodyId = homeBodyId,
             Name = "Flöckchen",
             SpeciesId = sp.Id,
             Species = sp,
@@ -95,9 +106,11 @@ public sealed class CompanionBondTests : IDisposable
             TamedAtUtc = Now - (30 * Day),
             LastFedUtc = lastFed,
         };
-        keeper.State.TamedCreatures.Add(pet);
-        return (keeper, pet);
     }
+
+    /// <summary>The live entity of the keeper's (single) materialised companion.</summary>
+    private static CombatEntity PetEntity(SvGameServer server, PlayerSession keeper)
+        => server.CompanionEntitiesForTest(keeper.State.PlayerId).Single();
 
     private static IEnumerable<string> MessagesTo(RecordingTransport t, PlayerSession who)
         => t.Sent.Where(s => s.Conn == who.ConnectionId).Select(s => s.Msg).OfType<ServerMessage>().Select(m => m.Text);
@@ -162,6 +175,42 @@ public sealed class CompanionBondTests : IDisposable
 
         Assert.Equal(45, pet.Bond);
         Assert.Contains("@srv.companion.no_food", RejectionsTo(transport, keeper));
+    }
+
+    [Fact]
+    public void Feeding_NeedsTheAnimalBesideYou_NotAcrossTheBaseOrOnAnotherWorld()
+    {
+        // #1295: the Companions tab lists every pet, but the meal is handed over in person. A pet that has
+        // wandered off, or one whose home is another body (so it has no entity here at all), cannot be fed —
+        // and the bait stays in the pack.
+        var transport = new RecordingTransport();
+        var server = NewServer("bond_reach", transport, out _);
+        var (keeper, pet) = KeeperWithPet(server, bond: 45, lastFed: Now - 120_000);
+        keeper.State.Inventory.Add("forage_bait", 2, 16);
+
+        // Same world, 20 blocks away: too far.
+        var here = keeper.State.Position;
+        PetEntity(server, keeper).Position = new Vector3f(here.X + 20f, here.Y, here.Z);
+        transport.Sent.Clear();
+        server.FeedCompanionForTest("Keeper", "c1");
+        Assert.Equal(45, pet.Bond);
+        Assert.Equal(2, keeper.State.Inventory.CountOf("forage_bait"));
+        Assert.Contains("@srv.companion.too_far", RejectionsTo(transport, keeper));
+
+        // Back within reach: the same meal goes through.
+        PetEntity(server, keeper).Position = new Vector3f(here.X + 4f, here.Y, here.Z);
+        server.FeedCompanionForTest("Keeper", "c1");
+        Assert.Equal(50, pet.Bond);
+        Assert.Equal(1, keeper.State.Inventory.CountOf("forage_bait"));
+
+        // A second pet whose home is another body is never materialised here — not in reach either.
+        var away = PetRecord(server, "c2", "some-other-moon", bond: 45, lastFed: Now - 120_000);
+        keeper.State.TamedCreatures.Add(away);
+        transport.Sent.Clear();
+        server.FeedCompanionForTest("Keeper", "c2");
+        Assert.Equal(45, away.Bond);
+        Assert.Equal(1, keeper.State.Inventory.CountOf("forage_bait"));
+        Assert.Contains("@srv.companion.too_far", RejectionsTo(transport, keeper));
     }
 
     [Fact]
@@ -271,6 +320,16 @@ public sealed class CompanionBondTests : IDisposable
         pet.Bond = 100;
         server.RenameCompanionForTest("Keeper", "c1", "Flöckchen");
         Assert.False(LastRoster(transport, keeper).CanFeed);
+
+        // Pet out of reach (#1295): grey too, with bond room and bait in the pack.
+        pet.Bond = 45;
+        var here = keeper.State.Position;
+        PetEntity(server, keeper).Position = new Vector3f(here.X + 20f, here.Y, here.Z);
+        server.RenameCompanionForTest("Keeper", "c1", "Flöckchen");
+        Assert.False(LastRoster(transport, keeper).CanFeed);
+        PetEntity(server, keeper).Position = here;
+        server.RenameCompanionForTest("Keeper", "c1", "Flöckchen");
+        Assert.True(LastRoster(transport, keeper).CanFeed);
     }
 
     public void Dispose()

@@ -57,7 +57,7 @@ public readonly struct ChatScreenResult
     /// operator should be told. Orthogonal to the verdict — a masked line can also be a watch hit.</summary>
     public bool Watch { get; }
 
-    /// <summary>The verdict was (also) driven by personal data (phone number, e-mail, link).</summary>
+    /// <summary>The verdict was (also) driven by personal data (phone number, e-mail, link, @handle).</summary>
     public bool Pii { get; }
 }
 
@@ -72,8 +72,8 @@ public readonly struct ChatScreenResult
 /// <item><b>Mask list</b> — plain profanity: the word is replaced by asterisks, the line is relayed.</item>
 /// <item><b>Watch list</b> — ambiguous extremist codes: relayed, operator notified (never silent, never blocking).</item>
 /// <item><b>Allow list</b> — tokens that never match anything (operator escape hatch for false positives).</item>
-/// <item><b>PII</b> — phone numbers, e-mail addresses and links are masked in <see cref="Shared.Configuration.ChatMode.Filtered"/>
-/// and block the line in <see cref="Shared.Configuration.ChatMode.Safe"/>.</item>
+/// <item><b>PII</b> — phone numbers, e-mail addresses, links and social @handles are masked in
+/// <see cref="Shared.Configuration.ChatMode.Filtered"/> and block the line in <see cref="Shared.Configuration.ChatMode.Safe"/>.</item>
 /// </list>
 /// The filter is never silent: a blocked or masked line always produces a notice to the sender (the server does
 /// that), and nothing about the line content is logged beyond the matched list entry.
@@ -123,6 +123,13 @@ public sealed class ChatScreen
     private static readonly Regex LinkPattern = new(
         @"(?:https?://\S+|www\.\S+|discord\.gg/\S+|\b[\w\-]+(?:\.[\w\-]+)*\.(?:com|net|org|de|io|gg|tv|me|ly|app|xyz|info|eu|ch|at)\b(?:/\S*)?)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeout);
+
+    // Social handles (#1296): "@" plus 3..32 handle characters — the Discord/Instagram name a child gets asked
+    // for. Not preceded by a word character (that '@' belongs to an e-mail address, which EmailPattern owns) and
+    // not cut short inside a longer run. A lone "@", "@ 5" (German "at five o'clock") and "@1" never match; a
+    // sentence-ending dot after the handle is fine.
+    private static readonly Regex HandlePattern = new(@"(?<!\w)@(?!\.)[A-Za-z0-9_.]{2,31}[A-Za-z0-9_](?![A-Za-z0-9_])",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant, RegexTimeout);
 
     private readonly HashSet<string> _blocked = new(StringComparer.Ordinal);
     private readonly List<string> _blockedLong = new();
@@ -274,7 +281,7 @@ public sealed class ChatScreen
         // 4) Personal data: masked in Filtered, a hard stop in Safe.
         bool pii = false;
         string piiKind = string.Empty;
-        foreach (var (pattern, kind) in new[] { (PhonePattern, "phone"), (EmailPattern, "email"), (LinkPattern, "link") })
+        foreach (var (pattern, kind) in new[] { (PhonePattern, "phone"), (EmailPattern, "email"), (LinkPattern, "link"), (HandlePattern, "handle") })
         {
             MatchCollection matches;
             try

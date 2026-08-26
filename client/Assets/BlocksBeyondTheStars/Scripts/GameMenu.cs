@@ -64,7 +64,10 @@ namespace BlocksBeyondTheStars.Client
 
                 // Full-screen menu/browser panes must be escapable before the app shell sees Esc
                 // as "leave game", otherwise the player can get trapped behind overlapping modals.
-                if (_open && InputMap.Down(InputAction.UiCancel) && !Game.ChatTyping && !typingRecent)
+                // MenuInputHandledThisFrame: a minigame round consumes B / Esc as its own Cancel (#1288) —
+                // the host runs earlier in the frame (DefaultExecutionOrder) and marks the press.
+                if (_open && InputMap.Down(InputAction.UiCancel) && !Game.ChatTyping && !typingRecent
+                    && !Game.MenuInputHandledThisFrame)
                 {
                     Game.MarkMenuInputHandled();
                     SetOpen(false);

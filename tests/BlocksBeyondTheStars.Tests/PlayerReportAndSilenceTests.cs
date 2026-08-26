@@ -372,6 +372,67 @@ public sealed class PlayerReportAndSilenceTests : IDisposable
         Assert.False(server.IsChatMutedForTest("Bob"));
     }
 
+    // ---------------- the pause follows the player, not the socket (#1294) ----------------
+
+    [Fact]
+    public void APause_SurvivesLeavingAndRejoining()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("silence_rejoin", transport);
+        var (alice, _) = Pair(server);
+        var admin = server.AddLocalPlayer("Chef");
+        admin.State.Role = PlayerRole.Admin;
+
+        Admin(server, admin, "silence", "Bob", 5);
+        Assert.True(server.IsChatMutedForTest("Bob"));
+
+        server.DisconnectLocalPlayerForTest("Bob");
+        Assert.True(server.IsChatMutedForTest("Bob")); // still on the books while they are away
+
+        var bob2 = server.AddLocalPlayer("Bob");
+        bob2.State.Inventory.Add("comm_radio", 1, 1);
+        transport.Sent.Clear();
+
+        Say(server, bob2, "back, can anyone hear me");
+        Assert.Empty(ChatTo(transport, alice));
+        Assert.Contains(MessagesTo(transport, bob2), m => m.StartsWith("@srv.chat.muted_until:", StringComparison.Ordinal));
+
+        server.AdvanceUptimeForTest(5 * 60 + 1);
+        Assert.False(server.IsChatMutedForTest("Bob"));
+
+        transport.Sent.Clear();
+        Say(server, bob2, "now?");
+        Assert.Equal(new[] { "now?" }, ChatTo(transport, alice).Select(c => c.Text));
+    }
+
+    [Fact]
+    public void AnAdmin_CanLiftAPauseWhileThePlayerIsAway()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("silence_offline_lift", transport);
+        var (alice, _) = Pair(server);
+        var admin = server.AddLocalPlayer("Chef");
+        admin.State.Role = PlayerRole.Admin;
+
+        Admin(server, admin, "silence", "Bob", 30);
+        server.DisconnectLocalPlayerForTest("Bob");
+        transport.Sent.Clear();
+
+        Admin(server, admin, "unsilence", "bob"); // case-insensitive, like every name lookup
+        Assert.Contains("@srv.admin.unsilenced:Bob", MessagesTo(transport, admin));
+        Assert.False(server.IsChatMutedForTest("Bob"));
+
+        // Lifting a pause nobody holds is still "no such player" — no phantom success.
+        Admin(server, admin, "unsilence", "Nobody");
+        Assert.Contains("@srv.admin.silence_no_target:Nobody", RejectionsTo(transport, admin));
+
+        var bob2 = server.AddLocalPlayer("Bob");
+        bob2.State.Inventory.Add("comm_radio", 1, 1);
+        transport.Sent.Clear();
+        Say(server, bob2, "free again");
+        Assert.Equal(new[] { "free again" }, ChatTo(transport, alice).Select(c => c.Text));
+    }
+
     public void Dispose()
     {
         foreach (var repo in _repos)

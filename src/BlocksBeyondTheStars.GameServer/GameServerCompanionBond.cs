@@ -69,10 +69,38 @@ public sealed partial class GameServer
         return null;
     }
 
-    /// <summary>Whether the Feed button should be live: bait in the pack, bond not already full, and the
-    /// last meal long enough ago. Sent per companion so the button can be dimmed instead of failing.</summary>
+    /// <summary>How close the animal has to be to be fed (#1295) — the same arm's length as the enemy attack
+    /// reach: you hand the food over, you do not post it to another planet.</summary>
+    private const float CompanionFeedRange = 6f;
+
+    /// <summary>Whether the companion is materialised on the player's current body and within
+    /// <see cref="CompanionFeedRange"/> of them (#1295). A pet on another world, still despawned, or standing
+    /// across the base is not in reach — the Companions tab lists it, but feeding is a thing you do beside it.</summary>
+    private bool CompanionWithinFeedReach(PlayerSession session, TamedCreature tc)
+    {
+        if (session.CurrentLocationId != _world.LocationId || InSpace(session.State.PlayerId))
+        {
+            return false;
+        }
+
+        foreach (var c in _creatures)
+        {
+            if (c.CompanionId == tc.Id)
+            {
+                return WrapDistSq(c.Position, session.State.Position) <= CompanionFeedRange * CompanionFeedRange;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Whether the Feed button should be live: the animal in reach, bait in the pack, bond not
+    /// already full, and the last meal long enough ago. Sent per companion so the button can be dimmed instead
+    /// of failing. The reach half is a snapshot from when the roster was last sent (join, feed, rename, …),
+    /// so the server-side check in <see cref="HandleFeedCompanion"/> stays the authority.</summary>
     private bool CanFeedCompanion(PlayerSession session, TamedCreature tc)
         => tc.Bond < 100
+           && CompanionWithinFeedReach(session, tc)
            && CarriedCompanionFood(session) is not null
            && NowUnixMs() - tc.LastFedUtc >= (long)(FeedCooldownSeconds * 1000);
 
@@ -86,6 +114,14 @@ public sealed partial class GameServer
         }
 
         ApplyBondDecay(tc); // count the time apart BEFORE the meal, or a feed would paper over it silently
+
+        // #1295: the animal has to be here. Checked first — "too far" is the reason a player can act on, and
+        // the bait/cooldown answers would be misleading for a pet that is on another planet.
+        if (!CompanionWithinFeedReach(session, tc))
+        {
+            Reject(session, "companion", "@srv.companion.too_far");
+            return;
+        }
 
         if (tc.Bond >= 100)
         {
@@ -232,6 +268,16 @@ public sealed partial class GameServer
         if (FindSessionByPlayerId(playerId) is { } s)
         {
             HandleFeedCompanion(s, new FeedCompanionIntent { CompanionId = companionId });
+        }
+    }
+
+    /// <summary>Test seam: materialises the player's home-world companions beside them right now, as a join
+    /// would (#1295) — a test that adds a <see cref="TamedCreature"/> record by hand has no entity otherwise.</summary>
+    public void SpawnCompanionsForTest(string playerId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            SpawnCompanionsForSession(s);
         }
     }
 

@@ -278,9 +278,13 @@ public sealed partial class GameServer
 
             // #1212: a chain's "clear the camp" step (any camp) completes once no camp stands any more — covers a
             // clear that happened while this player was offline; an online clear arrives via OnCampBountyCleared.
+            // #1303: only for a step that actually CARRIES a camp objective, and only on the world the step was
+            // taken on. Without both filters, merely landing on a long-since-pacified world handed a settlement's
+            // "drive the bandits out" step to a player who never fought for it.
             if (!string.IsNullOrEmpty(pr.ChainId))
             {
-                if (_banditCamps.Count > 0 && _banditCamps.All(c => c.Cleared))
+                if (HasCampObjective(pr) && ChainStepTakenOnThisWorld(pr)
+                    && _banditCamps.Count > 0 && _banditCamps.All(c => c.Cleared))
                 {
                     CompleteDefeatObjectives(pr, DefeatTargetCamp);
                 }
@@ -303,6 +307,18 @@ public sealed partial class GameServer
             }
         }
     }
+
+    /// <summary>Whether a progress row's mission actually asks for a bandit camp to be cleared (#1303) — the
+    /// "all camps are down" sweep must not touch a chain step that is about something else entirely.</summary>
+    private bool HasCampObjective(MissionProgress pr)
+        => GetMissionDef(pr.MissionId) is { } def
+           && def.Objectives.Any(o => o.Type == MissionObjectiveType.Defeat && o.Target == DefeatTargetCamp);
+
+    /// <summary>Whether a chain step was taken on the world the player is standing on (#1303). The camps the
+    /// sweep looks at are THIS world's, so crediting a step accepted on another world would hand it out for
+    /// someone else's fight. Rows written before the body was recorded keep the old, permissive behaviour.</summary>
+    private bool ChainStepTakenOnThisWorld(MissionProgress pr)
+        => string.IsNullOrEmpty(pr.AcceptedBodyId) || pr.AcceptedBodyId == _world.LocationId;
 
     /// <summary>Sets every matching Defeat objective of one mission to its required count.</summary>
     private bool CompleteDefeatObjectives(MissionProgress pr, string targetKey)

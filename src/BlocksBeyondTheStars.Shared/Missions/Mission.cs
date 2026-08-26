@@ -144,4 +144,12 @@ public sealed class MissionProgress
     /// <summary>The body the player was on when a chain step was taken — drives the relative
     /// <see cref="MissionChains.TravelOtherBody"/> travel target. Empty for stand-alone missions.</summary>
     public string AcceptedBodyId { get; set; } = string.Empty;
+
+    /// <summary>The star system the step was taken in, resolved by the server at accept time (#1291) —
+    /// drives the relative <see cref="MissionChains.TravelUnlinkedSystem"/> travel target. It cannot be
+    /// derived from <see cref="AcceptedBodyId"/>, because a station board's location id is
+    /// <c>station:&lt;id&gt;</c>, which the galaxy's body lookup does not resolve. Empty for stand-alone
+    /// missions and for rows written before this field existed (those keep the old body-derived
+    /// behaviour).</summary>
+    public string AcceptedSystemId { get; set; } = string.Empty;
 }

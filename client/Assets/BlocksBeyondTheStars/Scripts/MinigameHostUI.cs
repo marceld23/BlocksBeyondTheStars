@@ -18,6 +18,10 @@ namespace BlocksBeyondTheStars.Client
     /// Mounted into the Arcade play region by <see cref="ArcadeUI"/>; on a finished run it reports
     /// <c>(key, score, rating, completed)</c> through <see cref="OnReport"/> (the same path the browser used).
     /// </summary>
+    // Runs before the default-ordered menu shell (GameMenu, ArcadeUI): PumpInput marks B / Esc as consumed
+    // during a round via MarkMenuInputHandled, and that flag is per Time.frameCount, so the host must set it
+    // BEFORE the shell reads it in the same frame (#1288).
+    [DefaultExecutionOrder(-50)]
     public sealed class MinigameHostUI : MonoBehaviour
     {
         public GameBootstrap Game;
@@ -283,8 +287,8 @@ namespace BlocksBeyondTheStars.Client
 
             _reticle.gameObject.SetActive(true);
             _reticle.color = _pad.CursorPressed ? new Color(0.4f, 0.9f, 1f, 0.95f) : new Color(1f, 1f, 1f, 0.85f);
-            float u = _pad.CursorX / surf.Width;
-            float v = _pad.CursorY / surf.Height;
+            float u = Mathf.Clamp01(_pad.CursorX / surf.Width);
+            float v = Mathf.Clamp01(_pad.CursorY / surf.Height);
             UiKit.Place(_reticle.gameObject, _sx + u * _sw - 11f, _sy + v * _sh - 11f, 22, 22);
         }
 
@@ -375,6 +379,13 @@ namespace BlocksBeyondTheStars.Client
             float x = _rx + (availW - dw) * 0.5f;
             float y = _ry + HudH + (availH - dh) * 0.5f;
             UiKit.Place(_surfaceRt.gameObject, x, y, dw, dh);
+
+            // Remember the rect: the pad reticle maps the mapper's canvas position onto it (#1287 — these
+            // were never assigned before, so the cursor sat at the region's top-left for every position).
+            _sx = x;
+            _sy = y;
+            _sw = dw;
+            _sh = dh;
         }
 
         private void UpdateHud()

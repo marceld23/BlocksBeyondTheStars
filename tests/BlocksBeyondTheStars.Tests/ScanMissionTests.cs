@@ -36,7 +36,7 @@ public sealed class ScanMissionTests : IDisposable
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private SvGameServer Start(string name, long seed, out SqliteWorldRepository repo, bool settlements = true)
+    private SvGameServer Start(string name, long seed, out SqliteWorldRepository repo, bool settlements = true, Action<ServerConfig>? tune = null)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -51,6 +51,7 @@ public sealed class ScanMissionTests : IDisposable
             PlaceWrecks = false,
             DataDir = TestPaths.DataDir(),
         };
+        tune?.Invoke(config);
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -99,9 +100,59 @@ public sealed class ScanMissionTests : IDisposable
     [Fact]
     public void Content_ScanMissionWithUnknownBlockTarget_IsReported()
     {
-        // The shipped content has no scan mission with a broken target; the validator rule itself is exercised
-        // through the grammar check above and this end-to-end sanity check of the shipped data.
-        _content.Validate(); // throws on a broken reference — the shipped data (incl. the new validator rule) must load clean
+        _content.Validate(); // the shipped data (incl. the scan-target rule) must load clean
+
+        // …and a broken scan target is REPORTED, with the message an author has to act on (#1303: the rule
+        // had no asserting test, so a silently dropped problem string would have gone unnoticed).
+        var ex = Assert.Throws<ContentValidationException>(() => new GameContent(
+            blocks: Array.Empty<BlockDefinition>(),
+            items: Array.Empty<ItemDefinition>(),
+            recipes: Array.Empty<RecipeDefinition>(),
+            blueprints: Array.Empty<BlueprintDefinition>(),
+            shipModules: Array.Empty<ShipModuleDefinition>(),
+            locales: new Dictionary<Shared.Localization.GameLocale, Dictionary<string, string>>(),
+            planets: null,
+            missions: new[]
+            {
+                new MissionDefinition
+                {
+                    Id = "broken_survey",
+                    Source = MissionSource.System,
+                    Objectives = { new MissionObjective { Type = MissionObjectiveType.Scan, Target = "block:unobtainium", Required = 1 } },
+                    Active = true,
+                },
+            }).Validate());
+
+        Assert.Contains("Mission 'broken_survey' scan objective has an unknown target 'block:unobtainium' (see ScanTargets).",
+            ex.Problems);
+    }
+
+    [Fact]
+    public void HostileWatchTemplate_IsOnlyOfferedWhereHostilesActuallyRoam()
+    {
+        // #1303: the board must not promise a hostile scan on a world whose rules keep the wildlife
+        // peaceful — the same promise every other scan template keeps (#1205).
+        var survival = Start("scan_gate_on", 4242, out var repoOn, settlements: false);
+        using (repoOn)
+        {
+            Assert.Equal(survival.SpeciesRoster.Any(sp => sp.Hostile), survival.ScanTemplateAvailableForTest("hostile"));
+            Assert.True(survival.ScanTemplateAvailableForTest("wildlife")); // the ungated templates are untouched
+        }
+
+        var peaceful = Start("scan_gate_off", 4242, out var repoOff, settlements: false,
+            tune: c => c.Rules.PlanetEnemies = AlienActivity.Off);
+        using (repoOff)
+        {
+            Assert.False(peaceful.ScanTemplateAvailableForTest("hostile"));
+            Assert.True(peaceful.ScanTemplateAvailableForTest("wildlife"));
+        }
+
+        var creative = Start("scan_gate_creative", 4242, out var repoCreative, settlements: false,
+            tune: c => c.Rules.GameMode = GameMode.Creative);
+        using (repoCreative)
+        {
+            Assert.False(creative.ScanTemplateAvailableForTest("hostile"));
+        }
     }
 
     // ---------------- boards ----------------

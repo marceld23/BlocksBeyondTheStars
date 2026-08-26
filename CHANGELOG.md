@@ -19,6 +19,45 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   to the folder it names (empty file = `userdata` next to the executable; relative paths anchor at the
   executable, `%ENV%` expanded, `#` comments). Without the file nothing changes; an unwritable target falls
   back to the default with a `Player.log` warning. Not for the browser build. (#1285)
+- 🔇 **Mute from the Alliances tab** — every player row (Find players, Allies, Crew) carries a Mute/Unmute
+  button; same list as Settings → Muted players and `/mute`. (#1290)
+- 🛡️ **Chat screen catches social handles** — `@name` (3–32 characters) counts as personal information like
+  phone numbers, e-mails and links: masked in Filtered, dropped in Safe. (#1296)
+
+### Changed
+- 🗺️ **Shared map markers stay while their owner is offline** — the family meeting point no longer vanishes
+  when the kid logs off; the list refreshes the moment an alliance forms or ends, a crew changes, or a
+  player leaves the world (their pings go with them). (#1293)
+- 🔇 **Chat mutes survive a reconnect** — an automatic cool-down or an admin `/silence` is tied to the
+  player, not the connection; `/unsilence` also works while the player is away. Still RAM-only. (#1294)
+- 🐾 **Feeding happens in person** — the companion must be on your world within six blocks; the Feed
+  button greys out otherwise. (#1295)
+- 🏭 **Factory rosters are pinned** — what a factory makes is frozen in its placement record at first stamp,
+  so a growing recipe set only reaches factories stamped after the change; existing (and claimed) factories
+  keep their roster. (#1299)
+- ⚖️ **Factory balance** — `factory_diamond` takes 4 ore, `factory_light_alloy` 6 aluminium ore (never a
+  better per-ore yield than the refinery route), and researchers pay 1 data fragment per uranium bar. (#1300)
+- 🚪 **Scouts at the gate need Bandits and Planet enemies** — with hostiles off the option is hidden and
+  nobody comes; the rule stays off on old worlds until you switch it on. (#1297)
+
+### Fixed
+- 🎮 **Pad reticle in pointer minigames is visible** — the virtual cursor's disc was drawn at the corner for
+  every position; the nine pointer-driven arcade games were blind on a gamepad. (#1287)
+- 🎮 **B / Esc in a minigame round no longer closes the whole menu.** (#1288)
+- ⌨️ **On-screen keyboard** masks password fields with bullets, only accepts digits in number fields and
+  hands focus back to the field it was opened from. (#1289)
+- 📋 **SPS Survey Orders** — "travel to a system without a relay" now really excludes the system the order
+  was taken in (the station's system was never resolved), and a chain step that is impossible on this world
+  (no player station with an open relay, hostiles off) is skipped instead of stalling the chain. (#1291)
+- 🛡️ **Sentry kills count for the base owner** — a scout the sentry finishes still counts towards
+  *Guard the homestead* and the base-defended tally; bandit/machine bounty steps progress too. (#1292)
+- 🔧 **Disassembly** — campfire outputs (carbon, salt) are no longer "disassemblable" into wood or water, and
+  an item that would salvage nothing is kept instead of vanishing. (#1298)
+- ⛵ **Boat** — "that isn't your boat" says boat, the ashore snap-back only returns you to a spot the boat was
+  actually seen floating, and it arms the same post-teleport guard as other server moves. (#1301)
+- 📖 Docs: `/report` works for browser guests, blocked chat lines do not ping the operator by themselves,
+  voice is push-to-talk (listening on for LAN games, off on hosted worlds), the manual links the parents
+  page. (#1302)
 
 ## [2026.8.21] — 2026-08-25
 

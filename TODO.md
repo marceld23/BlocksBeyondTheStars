@@ -110,6 +110,47 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Epic #1197 completeness audit — 17 follow-ups in one round (#1287–#1303, 2026-08-26, branch fix/1197-audit-followups)
+A read-only audit of all 28 merged package slices (one reviewer per area over the implementing commits,
+issue acceptance bullets, data cross-checks and the tests) found four real bugs, a handful of unmet acceptance
+bullets and test holes exactly where the bugs sat. Marcel accepted every recommendation; the 17 issues were
+filed and worked in one worktree. UNRELEASED until the next tag.
+
+**Client (needs the Unity build).** #1287 `MinigameHostUI.LayoutSurface` never assigned `_sx/_sy/_sw/_sh` —
+the pad reticle sat at (−11, −11) for every position, so the nine pointer minigames were blind on a pad
+(the virtual cursor itself worked). #1288 `GameMenu`'s `UiCancel` branch ignored `MenuInputHandledThisFrame`
+(only the `UiMenu` branch checked it) → B/Esc in a round closed the whole Tab menu; fixed + `DefaultExecutionOrder(-50)`
+on the host so the consume flag is set first. #1289 on-screen keyboard: `KeyboardContentKind` in Client.Core
+(Password/Pin → `•` preview, Integer/Decimal → digit filter), `Show()` deselects the field so the keyboard's
+`UiNavFocus` can claim focus, Done/Cancel reselect it. #1290 Mute/Unmute button per player row on the
+Alliances tab (Find / Allies / Crew). #1297 (client half) the BaseVisitors row hides when Bandits OR
+PlanetEnemies is off.
+
+**Server.** #1291 `ArrivedInUnlinkedSystem` compared against `AcceptedBodyId = station:<id>` which
+`FindBody` never resolves → the "not the system you took the order in" exclusion was dead; progress rows now
+carry `AcceptedSystemId`, and infeasible chain steps are skipped so `relay_survey` no longer dead-ends without
+a player station / with hostiles off. #1292 `KillBySentry` credits the base owner (scout counter, Defeat
+objectives, spawn-timer grace). #1293 shared markers are served from a RAM index seeded once from the player
+store → visible while the owner is offline; rebroadcast on alliance/crew change and on world leave/disconnect
+(pings die with the leaver). #1294 chat mutes keyed by player id (RAM-only) survive a reconnect; `/unsilence`
+works for an offline player. #1295 feeding needs the companion within 6 blocks on the same body
+(`@srv.companion.too_far`, `CanFeed` dims the button). #1296 `@handle` PII kind in `ChatScreen`.
+#1297 (server half) scouts need `BanditsActive && PlanetEnemiesActive`; the deliberate no-Start-lift for
+`BaseVisitors` is recorded in the class doc. #1298 disassembly skips Campfire producers (carbon/salt stay raw)
+and refuses when salvage is empty (`@srv.disassemble.nothing`). #1299 factory rosters pinned in the placement
+record (`StructurePlacementRecord.Roster`, frozen on first load for old records) — the "new factories only"
+claim in recipes.json/USER_MANUAL was false: `StampFactories` re-rolled every load from the grown recipe set.
+#1300 balance: `factory_diamond` 4 ore, `factory_light_alloy` 6 aluminium ore, `market_sell_uranium` 1 fragment
+per bar. #1301 boat `not_yours` key wired, unjudged poses never become `LastWaterPos`, snap-back arms
+`AwaitingSpawnAdopt`.
+
+**Docs (#1302)** HOSTED_WORLDS `/report` for guests, SELF_HOSTING blocked-line/mute wording, PARENTS voice
+wording (push-to-talk, listening on for LAN), USER_MANUAL → PARENTS link, checklist issue refs.
+**Tests (#1303)** every fix above carries its test; plus refill ×2 + "haven keeps raiders" (#1206), validator
+problem string + hostile-template gate (#1205), camp-sync target filter (#1212), per-surface name screening
+(station, beam, crew, marker), sentry vs camp guard, boat unloaded-chunk/lava, `MissionBoardTests` asserts.
+Playtest of the pad fixes stays with #1227.
+
 ### ★ Arcade on gamepad + safety docs — the package closers (#1218 + #1226, 2026-08-23, branch feat/1218-1226-arcade-pad-safety)
 Slices 23 + 24 of the feature-deepening package (epic #1197) — the last code issue and the last docs issue,
 bundled per Marcel's call ("beides in einem Rutsch").

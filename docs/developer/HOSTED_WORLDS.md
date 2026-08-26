@@ -452,8 +452,9 @@ Operational notes:
   `BBS_WH_MAX_ACTIVE` budget all apply (2 arcade worlds on a budget of 10). Their player cap is
   `BBS_WH_GLITCH_MAX_PLAYERS` (instance env `BBS_MAX_PLAYERS`, applied on the next container start).
 - Worlds are persistent by design (returning players = retention = payout); griefing recourse is
-  the admin stop/wake + install bans. In-game `/report` does NOT work for arcade guests (it needs a
-  portal session) — known v0.7.8 limitation.
+  the admin stop/wake + install bans. In-game `/report <name> [note]` works for arcade guests too since
+  #1222: the server intercepts it (no portal session needed), attaches the last chat lines it relayed and
+  both install ids, and files it through the ReportHost pipeline (`reportType: player-report`).
 - Guest bookkeeping stores only Glitch's pseudonymous install id + the assigned player name
   (`glitch_guest`/`glitch_ban` tables); bans are managed on `/admin`.
 - Build/publish: **the release pipeline mirrors every tagged release to glitch.fun automatically**

@@ -16,6 +16,21 @@ namespace BlocksBeyondTheStars.Client
         Symbols,
     }
 
+    /// <summary>What kind of text the target field takes — the on-screen keyboard's mirror of a uGUI
+    /// <c>InputField.contentType</c> (#1289). The Unity side maps the field's type onto this; the filter and
+    /// the preview masking live here so they are tested headlessly.</summary>
+    public enum KeyboardContentKind
+    {
+        /// <summary>Anything goes (names, labels, chat, addresses).</summary>
+        Text,
+
+        /// <summary>Whole numbers: digits, plus a leading minus.</summary>
+        Integer,
+
+        /// <summary>Decimal numbers: digits, one decimal point, plus a leading minus.</summary>
+        Decimal,
+    }
+
     /// <summary>
     /// The key layout and the text edits of the gamepad on-screen keyboard (#1211) — the whole model, with
     /// no Unity in it, so the part that can actually be wrong (which key produces what, where the character
@@ -142,6 +157,71 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return text + insert;
+        }
+
+        /// <summary>
+        /// <see cref="Apply(string?, string, int)"/> with the field's content kind (#1289): a literal key the
+        /// kind does not accept is dropped silently, the same way uGUI's own character validation swallows a
+        /// letter typed into a number field. Commands (backspace, shift, page, done, cancel) always pass;
+        /// space is a literal and so is filtered too.
+        /// </summary>
+        public static string Apply(string? text, string key, int maxLength, KeyboardContentKind kind)
+        {
+            text ??= string.Empty;
+            if (!Accepts(kind, text, key))
+            {
+                return text;
+            }
+
+            return Apply(text, key, maxLength);
+        }
+
+        /// <summary>Whether <paramref name="key"/> may be appended to <paramref name="text"/> for a field of
+        /// this kind. Numbers: digits anywhere, '-' only as the first character, '.' only once and only for
+        /// <see cref="KeyboardContentKind.Decimal"/>. Commands other than <see cref="Space"/> always pass.</summary>
+        public static bool Accepts(KeyboardContentKind kind, string? text, string key)
+        {
+            if (string.IsNullOrEmpty(key) || kind == KeyboardContentKind.Text)
+            {
+                return true;
+            }
+
+            if (IsCommand(key))
+            {
+                return key != Space; // a number has no spaces in it
+            }
+
+            text ??= string.Empty;
+            if (key.Length != 1)
+            {
+                return false;
+            }
+
+            char c = key[0];
+            if (c >= '0' && c <= '9')
+            {
+                return true;
+            }
+
+            if (c == '-')
+            {
+                return text.Length == 0;
+            }
+
+            if (c == '.' && kind == KeyboardContentKind.Decimal)
+            {
+                return text.IndexOf('.') < 0;
+            }
+
+            return false;
+        }
+
+        /// <summary>The text to show on the preview line: the text itself, or one bullet per character when
+        /// the field is a password / PIN (#1289 — the preview is large and readable from across the room).</summary>
+        public static string Preview(string? text, bool mask)
+        {
+            text ??= string.Empty;
+            return mask ? new string('•', text.Length) : text;
         }
     }
 }

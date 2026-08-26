@@ -321,6 +321,7 @@ public static class StateMapper
         ChainId = m.ChainId,               // #1212: a snapshot must not strand a chain mid-way
         AcceptedFrom = m.AcceptedFrom,
         AcceptedBodyId = m.AcceptedBodyId,
+        AcceptedSystemId = m.AcceptedSystemId, // #1291: the survey orders' "not where you took it" check
     };
 
     /// <summary>Deep-clones the per-NPC memory (item 14) so a snapshot doesn't alias the live state.</summary>

@@ -2097,9 +2097,11 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Visitors at the base (#1224, opt-in): bandit scouts look at a founded base from the zone edge.
-            // Gated on the BANDITS slider, not the machine one — scouts are bandits, and with robbers off the
-            // switch would do nothing, so it is not offered then.
-            if (!string.Equals(rules?.Bandits, "Off", System.StringComparison.OrdinalIgnoreCase))
+            // Gated on BOTH the bandits slider (scouts are bandits — with robbers off the switch would do
+            // nothing) AND planet enemies (#1297): on peaceful/family worlds the sentry post stays silent,
+            // so scouts must not arrive there either — same rule as the frontier-danger row above.
+            if (!string.Equals(rules?.Bandits, "Off", System.StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(rules?.PlanetEnemies, "Off", System.StringComparison.OrdinalIgnoreCase))
             {
                 bool visitors = rules?.BaseVisitors ?? false;
                 var visitorsBtn = UiKit.AddButton(_listContent, 0, y, 780, 78, string.Empty, () =>
@@ -2360,7 +2362,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     string id = al.PartnerId;
                     string dot = al.Online ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
-                    UiKit.AddText(_listContent, 8, y + 8, 560, 40, dot + AllianceName(al.PartnerName, al.PartnerId), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    UiKit.AddText(_listContent, 8, y + 8, 400, 40, dot + AllianceName(al.PartnerName, al.PartnerId), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                    MuteButton(420, y + 6, 170, id, al.PartnerName);
                     if (al.Crew)
                     {
                         // A crew-derived ally (#1216): there is nothing to "end" here — crew access is left
@@ -2387,6 +2390,45 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return y;
+        }
+
+        /// <summary>A Mute / Unmute toggle for one player row on the Alliances tab (#1290). Reads and writes the
+        /// same <see cref="ClientSettings.MutedPlayers"/> list the Settings screen and <c>/mute</c> use, saves,
+        /// and rebuilds the list so the label flips. Player id == display name in this game, but both are
+        /// matched on unmute so an entry added under either spelling goes away.</summary>
+        private void MuteButton(float x, float y, float w, string playerId, string displayName)
+        {
+            var s = Menu?.Settings;
+            if (s == null || string.IsNullOrEmpty(playerId))
+            {
+                return;
+            }
+
+            bool muted = s.IsMuted(playerId, displayName);
+            var b = UiKit.AddButton(_listContent, x, y, w, 44, L(muted ? "ui.mute.unmute" : "ui.mute.mute"), () =>
+            {
+                bool changed;
+                if (muted)
+                {
+                    changed = s.Unmute(playerId);
+                    changed |= s.Unmute(displayName);
+                }
+                else
+                {
+                    changed = s.Mute(playerId);
+                }
+
+                if (changed)
+                {
+                    s.Save();
+                }
+
+                RebuildList();
+            });
+            if (muted)
+            {
+                b.GetComponent<Image>().color = new Color(0.5f, 0.3f, 0.24f); // a muted row shows warm, like other "undo" buttons
+            }
         }
 
         /// <summary>The "find players" picker: online players you can still propose an alliance to (self, current
@@ -2416,17 +2458,24 @@ namespace BlocksBeyondTheStars.Client
 
                 // On official hosted worlds a "report player" button sits next to each name — kids need a
                 // one-tap way to flag misbehaviour (reviewed by the operators; nobody is auto-punished).
+                // Every row also carries a Mute / Unmute toggle (#1290) — the same list the Settings screen
+                // and /mute edit, so a loud stranger can be silenced right where their name shows up.
                 bool canReport = !string.IsNullOrEmpty(Game.HostedToken) && !string.IsNullOrEmpty(Game.PortalSession);
-                float nameW = canReport ? 340 : 480;
+                float nameW = canReport ? 220 : 300;
                 UiKit.AddText(_listContent, 8, y + 8, nameW, 40, AllianceName(p.Name, id), 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-                var btn = UiKit.AddButton(_listContent, canReport ? 360 : 500, y + 6, canReport ? 220 : 250, 44,
+                var btn = UiKit.AddButton(_listContent, canReport ? 236 : 320, y + 6, canReport ? 180 : 230, 44,
                     L("ui.alliance.propose"), () => Game.Network?.SendRequestAlliance(id));
                 btn.GetComponent<Image>().color = new Color(0.2f, 0.45f, 0.7f);
                 if (canReport)
                 {
                     Button reportBtn = null;
-                    reportBtn = UiKit.AddButton(_listContent, 592, y + 6, 160, 44, L("ui.portal.report"), () => ReportPlayer(id, reportBtn));
+                    reportBtn = UiKit.AddButton(_listContent, 424, y + 6, 160, 44, L("ui.portal.report"), () => ReportPlayer(id, reportBtn));
                     reportBtn.GetComponent<Image>().color = new Color(0.55f, 0.25f, 0.2f);
+                    MuteButton(592, y + 6, 160, id, p.Name);
+                }
+                else
+                {
+                    MuteButton(560, y + 6, 190, id, p.Name);
                 }
 
                 y += 58f;
@@ -2548,7 +2597,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 string dot = m.Online ? "<color=#52E0A0>●</color> " : "<color=#6A7480>●</color> ";
                 string tag = m.IsOwner ? "  ·  " + L("ui.crew.owner_tag") : string.Empty;
-                UiKit.AddText(_listContent, 8, y + 8, 560, 40, dot + AllianceName(m.Name, m.PlayerId) + tag, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddText(_listContent, 8, y + 8, 400, 40, dot + AllianceName(m.Name, m.PlayerId) + tag, 22, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+                if (m.PlayerId != Game.LocalPlayerId)
+                {
+                    MuteButton(420, y + 6, 170, m.PlayerId, m.Name); // (#1290) — never offered on yourself
+                }
+
                 if (owner && !m.IsOwner)
                 {
                     string target = m.PlayerId;

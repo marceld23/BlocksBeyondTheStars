@@ -257,6 +257,7 @@ public sealed partial class GameServer
 
         NotifyCrew(crew, "@srv.crew.joined:" + session.State.Name);
         RefreshCrewAndAllianceRosters(crew);
+        RefreshMarkersFor(crew.Members.Keys); // the newcomer and the crew now share each other's markers (#1293)
     }
 
     private void LeaveCrew(PlayerSession session)
@@ -276,7 +277,7 @@ public sealed partial class GameServer
             DropCrew(crew);
             Send(session, new ServerMessage { Text = "@srv.crew.disbanded:" + crew.Name });
             SendCrewList(session);
-            return;
+            return; // a crew of one shared nothing with anyone — no marker view changes (#1293)
         }
 
         if (crew.OwnerId == me)
@@ -291,6 +292,7 @@ public sealed partial class GameServer
         SendCrewList(session);
         RefreshAllianceRoster(me);
         RefreshCrewAndAllianceRosters(crew);
+        RefreshMarkersFor(crew.Members.Keys.Append(me)); // the leaver and the crew stop sharing markers (#1293)
     }
 
     private void KickFromCrew(PlayerSession session, string targetId)
@@ -319,6 +321,7 @@ public sealed partial class GameServer
 
         NotifyCrew(crew, "@srv.crew.left:" + NameOf(targetId));
         RefreshCrewAndAllianceRosters(crew);
+        RefreshMarkersFor(crew.Members.Keys.Append(targetId)); // the kicked player and the crew stop sharing markers (#1293)
     }
 
     private void RenameCrew(PlayerSession session, string rawName)
@@ -375,6 +378,8 @@ public sealed partial class GameServer
                 RefreshAllianceRoster(m);
             }
         }
+
+        RefreshMarkersFor(members); // every former member loses the others' shared markers (#1293)
     }
 
     private void RemoveMember(ServerCrew crew, string playerId)
