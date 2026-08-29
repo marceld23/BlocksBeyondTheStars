@@ -13,6 +13,26 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧹 Audit leftovers — sand, drop packets, pad touchdown and creature physics (#1367)
+
+- **Falling sand no longer rests on a tuft of grass, a torch or a flame** — it crushes the prop (its drop lands on top
+  of the settled block; a flame is put out) and falls on to the real ground. A doorway holds a falling block up like a
+  player does; an animal the block lands on steps aside instead of being buried.
+- **Weather snow that slid off a ledge still melts**, sand dropped on a thawing drift comes down with it, and a sand
+  block you placed keeps your name after it has fallen (grief reports).
+- **A kill over a meadow leaves the loot packet in the grass, on the ground** — not floating a cell above it — and
+  a quit/shutdown save writes every expiring packet's exact age (up to 30 s of ageing used to be lost).
+- **`/tp pad N` lands on top of a paved pad**, a months-old save no longer parks its ship on its own ghost hull for one
+  session, and the "dug out" rescue announces itself once per entombment instead of every second when the pad is walled
+  in too.
+- **Creatures**: a titan is no longer hauled onto a tree crown because of a tuft of grass in its column; nothing in view
+  pops out at the far leash (the 70/110-block prune respects your view distance); a bird whose perch is dug away falls
+  and takes off again; an animal never jumps into a low ceiling; falls have a terminal speed (no more 2.7-block snaps);
+  walkers no longer step down onto lava; a swimmer beside a cliff overhang keeps swimming instead of steering out of
+  its lake.
+- **Walled base areas**: the fence check works across the world's north–south seam, and the fill is refreshed when
+  something changes inside the base's box rather than on every spawn attempt.
+
 ### 📮 Report inbox — polling for answers never blocks a real report (#1352)
 
 - **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll

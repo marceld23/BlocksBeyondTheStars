@@ -225,8 +225,9 @@ public sealed partial class GameServer
     /// is displaced like a placed block displaces it (#851). Wakes what depended on the vacated cell — the
     /// granular column above (cascade) and any fluid around it — and keeps the landed block active so it can
     /// keep sinking when it came to rest on fluid. The block's owner (#490) and a weather-snow deposit's melt
-    /// entry travel with it; the props it fell through (<paramref name="crushed"/>) are destroyed first, and a
-    /// creature standing in the landing cell is told to step aside (#1357).</summary>
+    /// entry travel with it; the props it fell through (<paramref name="crushed"/>) are destroyed once it has
+    /// landed (their drops settle on top of it), and a creature standing in the landing cell is told to step
+    /// aside (#1357).</summary>
     private void SettleGranular(Vector3i from, Vector3i to, BlockId id, List<Vector3i> crushed)
     {
         var (tint, glow) = _world.GetModifier(from);

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2545 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2567 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -9655,6 +9655,36 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-29): low-priority audit leftovers — granular landings, drop packets, pad touchdown, creature physics (#1367)
+
+The small server findings of the 2026-08-29 audit of #1310–#1345 that the medium/high PRs left out, shipped together:
+
+* **Granular blocks** — the landing follows the colliding rule (`GranularPassable` = `!IsCollidingBlock`): a falling
+  block crushes small flora / torch / lantern / ladder on the way (drops spilled on top of the settled block, a flame put
+  out) and falls on; a doorway cell, an NPC and a player hold it up; a creature it lands on gets `NudgeCreatureBodyChecks`
+  and steps aside. Snow melt calls `OnSupportRemoved` (sand on a thawing drift comes down); a weather-snow deposit that
+  falls carries its melt entry (`MoveWeatherDeposit`); the settled block keeps its `#490` owner (`GetBlockAttribution`).
+* **Drop packets** — `Fall`/`SettleDropCell` use the colliding rule (a kill over grass leaves the bundle in the grass, not a
+  cell above); `SaveAll` checkpoints every expiring packet on every resident world (`CheckpointLootPackets`); the
+  checkpoint counter is per world (`LoadedWorld.SinceLootCheckpoint`).
+* **Pad touchdown** — `/tp pad N` targets `PadSurfaceY`; `PlaceLandedShip` runs `CleanLegacyStampResidueOnce` on a
+  median-based origin BEFORE reading the raised surface; the entombment rescue fires once per episode
+  (`PlayerSession.EntombedRescueSpot`) instead of every second into the same walled-in pad spot.
+* **Creatures** — `StandableAt`/`IsSupportCell` use the colliding rule (props pass, canopy solid); the far prune is
+  `Max(70|110, MaxStreamRadiusBlocks)`; a perched flier whose perch went falls and then `TakingOff`; a jump/climb needs a
+  clear body column at the landing height (`riseBlocked`); `VerticalMotion.TerminalSpeed` = 25 b/s; lava under the next
+  feet cell is a wall for non-lava species (`LavaUnderFeet`); the swimmer gate reads its own column at its own feet;
+  `PreviewStep` hands `nextFeet` through `StepBlocked` → `StepBlockedByTerrain` and `ResolveVertical` (one probe per
+  column change instead of three).
+* **Wall fill (#1315/#1347)** — cached levels are invalidated by `ServerWorld.BlockSet` (new event) and hand-operated door
+  toggles inside the box (`MarkBaseWallsDirty`), backed by an 8 s interval instead of 1.5 s; the reach test wraps Z like X
+  (`WrapAbsZ`).
+* Skipped on purpose: the client-side `PlaceFluidAim` gate for door/torch in hand belongs to the client issue's PR.
+* Tests: `GranularBlockTests` (+6), `DropLootTests` (+2), `PadSpawnTests` (+3), `CreatureMotionArenaTests` (+5),
+  `CreatureBuildRespectTests` (+3), `BaseWalledYardTests` (+2), `VerticalMotionTests` (+1).
 
 ---
 
