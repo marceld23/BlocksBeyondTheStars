@@ -105,7 +105,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _speederPanel;
         private Image _speederHull, _speederFuel, _speederFuelBg;
         private Text _speederTitle, _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint;
-        private Image _wreckBar, _shipRepairBar;
+        private Image _wreckBar, _shipRepairBar, _shipRepairTrack;
         private Button _wreckClaim, _shipRepairBtn;
 
         // Damage feedback (B21): a red screen flash + a cause label when health drops.
@@ -543,6 +543,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Toast / indicators / prompts / hint.
             _toast = UiKit.AddText(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _toast.supportRichText = false; // carries developer/player text (reply toasts, chat echoes) — shown verbatim (#1368)
             _inSpace = UiKit.AddText(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // Observer badge (issue #487). Top centre, always-on while the mode is active: an admin who forgets
@@ -611,7 +612,7 @@ namespace BlocksBeyondTheStars.Client
             // back + refill EVA-carved hull cells with one click, paid in metal (docs/developer/SHIP_REPAIR.md).
             _shipRepairPanel = Panel(root, W - 260f, 300, 250, 120).gameObject;
             _shipRepairTitle = UiKit.AddText(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
+            _shipRepairTrack = UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
             _shipRepairBar = UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, UiKit.Cyan);
             _shipRepairBar.type = Image.Type.Filled;
             _shipRepairBar.fillMethod = Image.FillMethod.Horizontal;
@@ -1821,9 +1822,10 @@ namespace BlocksBeyondTheStars.Client
             // case; the hull bar and its numbers only appear while the hull itself is short.
             bool hullShort = sr.HullMax > 0f && sr.Hull < sr.HullMax;
             _shipRepairBar.gameObject.SetActive(hullShort);
+            _shipRepairTrack.gameObject.SetActive(hullShort); // the empty track sat behind the breach text (#1368)
             _shipRepairProg.text = hullShort
                 ? $"{loc.Get("ui.shiprepair.hull")}  {(int)sr.Hull}/{(int)sr.HullMax}"
-                : string.Format(loc.Get("ui.shiprepair.cells_missing"), sr.MissingCells);
+                : string.Format(loc.Get(sr.MissingCells == 1 ? "ui.shiprepair.cells_missing_one" : "ui.shiprepair.cells_missing"), sr.MissingCells); // singular for one ("1 Hüllenzelle fehlt", #1368)
             if (hullShort)
             {
                 _shipRepairBar.fillAmount = Mathf.Clamp01(sr.Hull / sr.HullMax);

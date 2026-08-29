@@ -146,12 +146,16 @@ public sealed partial class GameServer
     }
 
     /// <summary>Pushes the current own-ship repair readout so the client can offer "Repair ship".</summary>
-    private void SendShipRepairStatus(PlayerSession session)
+    private void SendShipRepairStatus(PlayerSession session) => Send(session, BuildShipRepairStatus(session));
+
+    /// <summary>The own-ship repair readout: hull, breach count + the breach cells themselves (structure-local,
+    /// capped — the client outlines them in the world while the panel is up, #1368), affordability and the
+    /// material summary. Also clears the downed flag once a lost ship is whole again.</summary>
+    private ShipRepairStatus BuildShipRepairStatus(PlayerSession session)
     {
         if (!TryGetOwnShipStructure(session.State.PlayerId, out var live, out _))
         {
-            Send(session, new ShipRepairStatus { Hull = _ship.Hull, HullMax = _shipHullMax, NeedsRepair = false });
-            return;
+            return new ShipRepairStatus { Hull = _ship.Hull, HullMax = _shipHullMax, NeedsRepair = false };
         }
 
         var design = OwnShipDesignReference(session.State.PlayerId);
@@ -167,7 +171,10 @@ public sealed partial class GameServer
             Send(session, new ServerMessage { Text = "@srv.repair.done" });
         }
 
-        Send(session, new ShipRepairStatus
+        // The breach cells, in the same order the repair walks them; bounded so a gutted custom hull can't
+        // turn the readout into a multi-KB message (the count above stays honest).
+        var listed = EnumerateShipRepairCells(live, design).Take(ShipRepairStatus.MaxListedMissingCells).Select(c => c.Cell).ToList();
+        return new ShipRepairStatus
         {
             Hull = _ship.Hull,
             HullMax = _shipHullMax,
@@ -175,7 +182,11 @@ public sealed partial class GameServer
             NeedsRepair = missing > 0 || _ship.Hull < _shipHullMax,
             CanAfford = free || pool.Has(cost),
             Needs = string.Join(",", cost.OrderByDescending(c => c.Count).Select(c => $"{c.Item}:{c.Count}")),
-        });
+            StructureId = live.Id,
+            MissingX = listed.Select(c => c.X).ToArray(),
+            MissingY = listed.Select(c => c.Y).ToArray(),
+            MissingZ = listed.Select(c => c.Z).ToArray(),
+        };
     }
 
     private void HandleRepairShip(PlayerSession session, RepairShipIntent intent)
@@ -377,6 +388,20 @@ public sealed partial class GameServer
 
         Serve(session);
         _ship.Hull = System.Math.Max(0f, System.Math.Min(_shipHullMax, hull));
+    }
+
+    /// <summary>Test hook: the repair readout exactly as the cockpit would receive it (null when the player
+    /// is unknown) — pins the listed breach cells to the live structure (#1368).</summary>
+    public ShipRepairStatus? ShipRepairStatusForTest(string playerId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return null;
+        }
+
+        Serve(session);
+        return BuildShipRepairStatus(session);
     }
 
     /// <summary>Test hook: number of missing design cells on the player's live ship structure (-1 if none here).</summary>

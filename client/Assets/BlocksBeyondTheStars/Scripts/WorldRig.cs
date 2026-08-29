@@ -515,6 +515,10 @@ namespace BlocksBeyondTheStars.Client
             miningFx.Camera = cam;
             miningFx.Player = pc; // the outline asks the player rig for the very cell a click would take (#1353)
 
+            // Missing hull cells of the parked ship, outlined in the world while the repair panel is up (#1368).
+            var hullBreach = root.AddComponent<HullBreachView>();
+            hullBreach.Game = boot;
+
             // Flora spawn/regrow cue: a growing sprout marks a harvested cell while its plant regrows.
             var floraGrowthFx = root.AddComponent<FloraGrowthFx>();
             floraGrowthFx.Game = boot;

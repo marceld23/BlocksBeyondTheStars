@@ -2313,6 +2313,7 @@
   "ui.shiprepair.hint": "Am Cockpit. Benötigt:",
   "ui.shiprepair.cells": "Hüllenzellen",
   "ui.shiprepair.cells_missing": "{0} Hüllenzellen fehlen",
+  "ui.shiprepair.cells_missing_one": "1 Hüllenzelle fehlt",
   "ui.hud.loot": "G: plündern",
   "ui.loot.out_of_reach": "Der Vorrat ist außer Reichweite — geh näher heran.",
   "ui.dock.title": "Andock-Anfrage",
