@@ -1192,6 +1192,26 @@ namespace BlocksBeyondTheStars.Client
                 && Game.Content?.GetItem(held)?.Tool?.Kind == BlocksBeyondTheStars.Shared.Definitions.ToolKind.Drill;
         }
 
+        /// <summary>True if the selected hotbar item places a block — the aim ray then stops at a fluid surface
+        /// so the block can be set INTO the water/lava cell (#1310).</summary>
+        private bool HeldItemPlacesBlock()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            return !string.IsNullOrEmpty(held)
+                && !string.IsNullOrEmpty(Game.Content?.GetItem(held)?.PlacesBlock);
+        }
+
+        /// <summary>True if the selected hotbar tool can mine water/lava by the block data (kind + tier — the
+        /// server applies the same rule, so the client never offers a target it would then reject) (#1310).</summary>
+        private bool HeldToolMinesFluids()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            var tool = string.IsNullOrEmpty(held) ? null : Game.Content?.GetItem(held)?.Tool;
+            var lava = Game.Content?.GetBlock("lava");
+            return tool != null && lava != null && lava.Mineable
+                && tool.Kind == lava.RequiredTool && tool.Tier >= lava.MinToolTier;
+        }
+
         /// <summary>True if the selected hotbar item is a handheld scanner (its primary action scans).</summary>
         private bool HoldingScanner()
         {
@@ -3149,7 +3169,11 @@ namespace BlocksBeyondTheStars.Client
             // is exactly the "I aim at the next block and nothing happens" bug (B32). The voxel grid is the source
             // of truth and always in sync, so this never silently fails when a block is in front of you.
             // Parked ship OBJECTS (ship-as-object) live outside the world grid, so the march tests them too.
-            if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip))
+            // Water/lava surfaces are targets too (#1310) — for a placeable item (the block displaces the fluid,
+            // #851) and for a tool that can actually mine a fluid (a tier-3 drill: mining beam, diamond drill);
+            // anything else keeps aiming through them, so a basic drill still reaches the rock under a pond.
+            if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip,
+                    fluidSurfaces: mine ? HeldToolMinesFluids() : HeldItemPlacesBlock()))
             {
                 return;
             }
@@ -3246,8 +3270,14 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Like <see cref="AimBlock"/>, but the march also targets the cells of parked ship OBJECTS
         /// (ship-as-object): whichever solid cell the ray reaches first wins. <paramref name="ship"/> is set
-        /// when the hit belongs to a parked ship — mine/place then route to a structure edit.</summary>
-        private bool AimTarget(out Vector3Int hitCell, out Vector3Int placeCell, out LandedShipModel ship)
+        /// when the hit belongs to a parked ship — mine/place then route to a structure edit.
+        /// With <paramref name="fluidSurfaces"/> (#1310) the ray also stops at a water/lava cell it ENTERS from
+        /// a non-fluid cell — i.e. at the fluid's surface or side — and offers that very cell as both the hit
+        /// and the place cell: a placed block displaces the fluid (#851) and a tier-3 drill mines it, which is
+        /// what the block data has promised all along. Over an open lava lake the old march found no target at
+        /// all. A ray that STARTS inside fluid (the player is swimming) keeps passing through, so building on
+        /// the seabed from under water is unchanged.</summary>
+        private bool AimTarget(out Vector3Int hitCell, out Vector3Int placeCell, out LandedShipModel ship, bool fluidSurfaces = false)
         {
             hitCell = default;
             placeCell = default;
@@ -3270,14 +3300,23 @@ namespace BlocksBeyondTheStars.Client
             float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
             float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
 
+            bool prevFluid = IsFluidBlock(Game.World.GetBlock(x, y, z)); // the eye's own cell: swimming → pass through
             float t = 0f;
             for (int i = 0; i < 80 && t <= Reach; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
-                if (!id.IsAir && !IsFluidBlock(id))
+                bool fluid = !id.IsAir && IsFluidBlock(id);
+                if (!id.IsAir && !fluid)
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = new Vector3Int(px, py, pz);
+                    return true;
+                }
+
+                if (fluid && fluidSurfaces && !prevFluid)
+                {
+                    hitCell = new Vector3Int(x, y, z);
+                    placeCell = hitCell; // into the fluid cell itself — the server displaces it (#851)
                     return true;
                 }
 
@@ -3289,6 +3328,7 @@ namespace BlocksBeyondTheStars.Client
                     return true;
                 }
 
+                prevFluid = fluid;
                 px = x; py = y; pz = z;
                 if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
                 else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }

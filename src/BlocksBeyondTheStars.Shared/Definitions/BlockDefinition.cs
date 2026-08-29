@@ -74,6 +74,15 @@ public sealed class BlockDefinition
     public bool Flammable { get; set; }
 
     /// <summary>
+    /// Whether this block is loose material that FALLS when its support goes (#1319 — sand, ash, snow): the
+    /// server settles it instantly onto the next support below, sinks it one cell per fluid step through
+    /// water/lava (replacing the fluid), and leaves a carved form of it in place. Set in <c>data/blocks.json</c>.
+    /// Only ever woken by a mutation (mining, placing, burning, a retracting fluid) — generated overhangs stay
+    /// until touched, so worldgen and its determinism are untouched.
+    /// </summary>
+    public bool Granular { get; set; }
+
+    /// <summary>
     /// Whether this block holds air as a wall of a sealed base room (#794). Airtight blocks are what the
     /// base's sealed-room life-support fill stops against; everything else leaks. Defaults are derived by
     /// the content registry from the category — terrain/building/ore/machine/light seal (natural rock
