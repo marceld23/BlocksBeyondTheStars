@@ -16,6 +16,11 @@ public static class Protocol
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;
+
+    /// <summary>Longest player name the server keeps on join (anything longer is truncated, control characters
+    /// stripped). Client name fields cap their input at this so the name a player typed — and stored in the
+    /// settings — is the identity the server actually uses (#1368).</summary>
+    public const int MaxPlayerNameLength = 24;
 }
 
 /// <summary>Network delivery guarantees, mapped onto transport channels.</summary>
