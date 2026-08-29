@@ -2290,6 +2290,7 @@
   "ui.shiprepair.repair": "Repair ship",
   "ui.shiprepair.hint": "At the cockpit. Needs:",
   "ui.shiprepair.cells": "hull cells",
+  "ui.shiprepair.cells_missing": "{0} hull cells missing",
   "ui.hud.loot": "G: loot",
   "ui.loot.out_of_reach": "The cache is out of reach — move closer.",
   "ui.dock.title": "Docking request",

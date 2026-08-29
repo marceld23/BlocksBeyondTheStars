@@ -1495,7 +1495,13 @@ namespace BlocksBeyondTheStars.Client
             dist = 0f;
             if (blip == null) return;
             if (!active) { blip.gameObject.SetActive(false); return; }
-            float dx = target.x - Game.PlayerPosition.x, dz = target.z - Game.PlayerPosition.z;
+            // #1307: `target` is canonical world space, but the player transform runs UNBOUNDED as it laps the
+            // world — measure against the copy of the target nearest the player (the SceneX/SceneZ mapping every
+            // other world object already uses). Subtracting raw coordinates flipped the bearing and added a whole
+            // circumference to the distance the moment either side sat across a seam (">3000 m" to a ship a few
+            // blocks away, on a 10128-block world).
+            var near = Game.ScenePos(target.x, target.y, target.z);
+            float dx = near.x - Game.PlayerPosition.x, dz = near.z - Game.PlayerPosition.z;
             dist = Mathf.Sqrt(dx * dx + dz * dz);
             float ang = (Mathf.Atan2(dx, dz) * Mathf.Rad2Deg - Game.PlayerYaw) * Mathf.Deg2Rad;
             // Log-scaled radius (#592): the old linear dist*1.2 pinned everything past ~37 m to the rim,
@@ -1809,8 +1815,19 @@ namespace BlocksBeyondTheStars.Client
             if (!show) return;
 
             _shipRepairTitle.text = loc.Get("ui.shiprepair.title");
-            _shipRepairBar.fillAmount = sr.HullMax > 0f ? Mathf.Clamp01(sr.Hull / sr.HullMax) : 1f;
-            _shipRepairProg.text = $"{loc.Get("ui.shiprepair.hull")}  {(int)sr.Hull}/{(int)sr.HullMax}";
+
+            // #1313: a full hull with missing design cells used to sit under a FULL hull bar — a "repair" panel
+            // that showed 100/100 and said nothing about what was wrong. Lead with the breach count in that
+            // case; the hull bar and its numbers only appear while the hull itself is short.
+            bool hullShort = sr.HullMax > 0f && sr.Hull < sr.HullMax;
+            _shipRepairBar.gameObject.SetActive(hullShort);
+            _shipRepairProg.text = hullShort
+                ? $"{loc.Get("ui.shiprepair.hull")}  {(int)sr.Hull}/{(int)sr.HullMax}"
+                : string.Format(loc.Get("ui.shiprepair.cells_missing"), sr.MissingCells);
+            if (hullShort)
+            {
+                _shipRepairBar.fillAmount = Mathf.Clamp01(sr.Hull / sr.HullMax);
+            }
 
             // List the materials the full repair needs (item:count pairs from the server), localized.
             string needs = string.Empty;
@@ -1828,7 +1845,9 @@ namespace BlocksBeyondTheStars.Client
                 needs = "  " + string.Join(", ", parts);
             }
 
-            string cells = sr.MissingCells > 0 ? $"  ({sr.MissingCells} {loc.Get("ui.shiprepair.cells")})" : string.Empty;
+            // The breach count already leads the panel when the hull is full — only repeat it next to the
+            // materials while the top line is busy showing hull numbers.
+            string cells = hullShort && sr.MissingCells > 0 ? $"  ({sr.MissingCells} {loc.Get("ui.shiprepair.cells")})" : string.Empty;
             _shipRepairHint.text = loc.Get("ui.shiprepair.hint") + needs + cells;
 
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
