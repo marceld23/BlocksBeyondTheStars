@@ -10,10 +10,13 @@ to be fast. A test that blows the budget belongs in the Slow tier ([Trait("Categ
 or needs a real fix — without this check the fast tier silently decays back to a slow one (it
 grew from ~6 to ~15 min once before anyone noticed).
 
-The budget is generous on purpose: trx durations are wall-clock, and parallel worldgen/sim tests
-inflate the measured time of perfectly fast async tests (thread-pool contention — a 9 ms test has
-measured 37 s inside the full suite), so borderline values are normal and only order-of-magnitude
-offenders should trip this.
+The budget is generous on purpose, because a trx duration is not the work the test did. xunit runs
+the assembly through ONE FIFO queue (MaxConcurrencySyncContext, maxParallelThreads: 4) into which
+every test collection is posted up front, so an await that really yields — any real I/O — has its
+continuation queued behind all collections that have not started yet and only resumes once the
+queue has drained. The test is billed for that wait: #1362 measured 134 s for two 1 ms HTTP
+requests, and a 9 ms test has measured 37 s. Borderline values are therefore normal and only
+order-of-magnitude offenders should trip this.
 
 Usage: check-test-durations.py --max-seconds 120 TestResults/*.trx
 """
@@ -55,6 +58,9 @@ def main() -> int:
             print(f"  {seconds:7.1f}s  {name}")
         print("Tag them [Trait(\"Category\", \"Slow\")] (full runs on main/release still cover them) "
               "or make them faster.")
+        print("If the test does real I/O and the time is not its own, it is waiting for xunit's parallel "
+              "queue (#1362): put it in [Collection(RealTimeSensitiveCollection.Name)] instead of "
+              "marking it Slow.")
         return 1
 
     print(f"All {total} tests within the {args.max_seconds:.0f}s fast-tier budget.")

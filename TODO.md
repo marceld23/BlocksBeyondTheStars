@@ -110,6 +110,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ The "80 s HTTP request" was xunit's parallel queue, not the network (#1362, 2026-08-29, branch fix/1362-xunit-queue-latency)
+A ReportHost HTTP test measured 34 s / 82 s / 134 s for a loopback request that takes a millisecond, and
+the 134 s failed the fast-tier duration guardrail. It was never HTTP: with `maxParallelThreads` set, xunit
+serves the whole assembly from one FIFO queue and posts every collection into it up front, so an `await`
+that really yields has its continuation queued behind every collection that has not started yet and only
+resumes once the queue drains — the test is billed for the wait. The shard-5 trx proves it: during the
+82.5 s "request" the runner finished 170 other tests at 4.0/4 average concurrency, so **no CI time was
+ever lost** (that shard: 131 s wall clock for 498 test-seconds = 3.8 average concurrency) — the damage was
+a false positive on the guardrail. The suite already had the cure — `RealTimeSensitiveCollection`
+(`DisableParallelization`, i.e. the runner's sequential phase where that queue is empty), used by three
+other I/O classes; `ReportHostHttpTests` simply never joined it. It does now, the fixture reports request
+time and queue wait as two numbers instead of one, and a threshold assertion fails if the class ever
+leaves the collection. The mechanism is written down where people meet it: the collection's own doc
+comment, docs/developer/SERVER_TESTING.md, the guardrail script and tests.yml.
+
 ### ★ Epic #1197 completeness audit — 17 follow-ups in one round (#1287–#1303, 2026-08-26, branch fix/1197-audit-followups)
 A read-only audit of all 28 merged package slices (one reviewer per area over the implementing commits,
 issue acceptance bullets, data cross-checks and the tests) found four real bugs, a handful of unmet acceptance

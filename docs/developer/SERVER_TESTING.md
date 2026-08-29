@@ -100,3 +100,15 @@ first-PR traps:
   clean `dotnet build -warnaserror` (see AGENTS.md "Local verification after changes").
 - The suite pins `maxParallelThreads: 4` ([xunit.runner.json](../../tests/BlocksBeyondTheStars.Tests/xunit.runner.json))
   — heavy worldgen tests funnel through shared caches; don't "fix" a slow local run by raising it.
+- **A test that does real I/O belongs in `[Collection(RealTimeSensitiveCollection.Name)]`.** With
+  `maxParallelThreads` set, xunit serves the whole assembly from one FIFO queue and posts every
+  collection into it up front, so an `await` that actually yields (an HTTP round trip, a socket
+  read, a real-time server loop) has its continuation queued *behind every collection that has not
+  started yet*. It resumes when the queue drains — near the end of the shard — and the test is
+  billed for the wait, even though nothing is stuck and the runner stayed busy the whole time.
+  That is how a 1 ms loopback request came to be measured as 134 s and failed the duration
+  guardrail (#1362). The
+  [collection](../../tests/BlocksBeyondTheStars.Tests/RealTimeSensitiveCollection.cs) is declared
+  `DisableParallelization`, so its classes run in the runner's sequential phase where the queue is
+  empty; it costs a few seconds of serial window. Marking such a test `Slow` instead would hide
+  the symptom and drop the coverage from every PR.
