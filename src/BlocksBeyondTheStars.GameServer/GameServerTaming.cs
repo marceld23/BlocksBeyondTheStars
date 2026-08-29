@@ -550,19 +550,15 @@ public sealed partial class GameServer
         var res = LocomotionController.FollowStep(
             c.Loco, profile, c.Position, owner.State.Position, CompanionFollowDistance, moveDt, Hash(c.Id, "wander"));
         c.Loco = res.State;
-        var next = AdjustHabitatHeight(sp, res.Position, res.VertWave, profile, moveDt);
+
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even
         // when its owner steps out through the gate membrane (that is the point of the pen). Walls stop them
         // like they stop wild fauna (#855) — a pet used to walk straight through the player's own base.
-        if (EntityBlockedByShip(next) || BlockedByEnergyFence(c.Position, next)
-            || CreaturePathBlocked(sp, c.Position, next))
-        {
-            c.Loco.ModeTimer = 0f;
-        }
-        else
-        {
-            c.Position = next;
-        }
+        // They keep their freedom from the TERRAIN gate (a pet must be able to follow its owner up and down
+        // anything), but run the same vertical mechanics (#1331): a walker pet jumps the doorstep and falls
+        // off the porch, a flier pet perches beside a resting owner.
+        ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), res.Position, res.VertWave, profile, moveDt,
+            res.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, res.Moving, terrainGates: false);
     }
 
     // ---------------------------------------------------------------------------------------------

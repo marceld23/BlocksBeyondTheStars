@@ -123,42 +123,51 @@ public static class CreatureBehaviour
     }
 
     /// <summary>
-    /// Whether a roaming step from one terrain column into another is blocked for this creature (#648).
-    /// Creatures have no colliders — their Y is snapped to the habitat height every tick — so without
-    /// this gate cliffs are climbed in a single-tick teleport, land animals march along the seabed and
-    /// water animals strand ashore. Blocked steps are handled like the ship-hull barrier: the caller
-    /// discards the move and re-rolls a heading, so nothing can ever get stuck.
+    /// Whether a roaming step from one terrain column into another is blocked for this creature (#648,
+    /// reworked per motion class in #1331). Creatures have no colliders, so without this gate cliffs would be
+    /// climbed in a single step, land animals would march along the seabed and water animals strand ashore.
+    /// Blocked steps are handled like the ship-hull barrier: the caller steers around or re-rolls a heading,
+    /// so nothing can ever get stuck.
     /// <list type="bullet">
-    /// <item><b>Land</b>: the surface may step by at most 2 blocks (1 for a <see cref="CreatureBodyPlan.Titan"/>,
-    /// matching its spawn flatness gate), and the target column's water must be wadeable (≤ 1 deep).</item>
-    /// <item><b>Water</b>: a creature that is in water never steps into a dry column (an already-stranded
-    /// individual keeps its legacy freedom so it can still wander at all).</item>
-    /// <item>Fliers, cave and lava dwellers and amphibians are unaffected.</item>
+    /// <item><b>Walkers / crawlers</b>: the ground may rise by at most <see cref="CreatureMotion.StepUpLimit"/>
+    /// (one block — a jump for walkers, a slow climb-over for crawlers and giants; two is a wall, as for the
+    /// player) and drop by at most <see cref="CreatureMotion.StepDownLimit"/> (a real fall: walkers 3, crawlers
+    /// 2, giants 1). The target column's water must be wadeable (≤ 1 deep) unless the animal is amphibious.</item>
+    /// <item><b>Swimmers</b>: a creature that is in water never steps into a dry column (an already-stranded
+    /// individual keeps its legacy freedom so it can still wander at all); amphibians may leave.</item>
+    /// <item><b>Fliers and hoverers</b> are unaffected.</item>
     /// </list>
     /// Depths are in water cells (surface − bed); pass 0 for a dry column.
     /// </summary>
     public static bool TerrainStepBlocked(
-        CreatureHabitat habitat,
-        CreatureBodyPlan bodyPlan,
-        int curSurfaceY,
-        int nextSurfaceY,
+        MotionClass motion,
+        bool giant,
+        bool amphibious,
+        int curFeetY,
+        int nextFeetY,
         int curWaterDepth,
         int nextWaterDepth)
     {
-        switch (habitat)
+        switch (motion)
         {
-            case CreatureHabitat.Land:
-                int limit = bodyPlan == CreatureBodyPlan.Titan ? 1 : 2;
-                if (System.Math.Abs(nextSurfaceY - curSurfaceY) > limit)
+            case MotionClass.Walker:
+            case MotionClass.Crawler:
+                int rise = nextFeetY - curFeetY;
+                if (rise > CreatureMotion.StepUpLimit(motion))
                 {
-                    return true; // cliff — a soft wall in both directions (no climbing, no plunging)
+                    return true; // too high to jump or haul over — a wall
                 }
 
-                return nextWaterDepth > 1; // wading is fine, swimming is not
-            case CreatureHabitat.Water:
-                return curWaterDepth > 0 && nextWaterDepth <= 0; // never leave the water body
+                if (-rise > CreatureMotion.StepDownLimit(motion, giant))
+                {
+                    return true; // too far to drop — a cliff edge
+                }
+
+                return !amphibious && nextWaterDepth > 1; // wading is fine, swimming is not (amphibians swim)
+            case MotionClass.Swimmer:
+                return !amphibious && curWaterDepth > 0 && nextWaterDepth <= 0; // never leave the water body
             default:
-                return false;
+                return false; // fliers + hoverers
         }
     }
 

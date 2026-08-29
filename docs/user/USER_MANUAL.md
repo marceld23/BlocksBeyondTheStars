@@ -1080,6 +1080,11 @@ separate unlock; admins can still disable it through server world rules.
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
   Flora regrows when its host block survives.
+- **Every animal moves the way its body says.** Walkers jump one-block ledges (like you) and are stopped by
+  two; crawlers (legless, serpentine or many-legged things) haul over one block and never jump; giants
+  step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
+  flushes when you get close; gas sacs and medusae just hover. Everything on the ground falls if you dig
+  its floor away. The scan readout names the type ("Walks and jumps", "Crawls", "Flies, perches to rest"…).
 - **Individuals of a kind vary in size.** Within any one species/type, each plant, tree or animal gets its
   own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's

@@ -321,21 +321,53 @@ despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mi
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
 
-**Terrain-aware roaming (#648, extended by #650–#654):** creatures have no colliders — their Y is
-kept by the server — so movement is gated per step instead (`CreatureBehaviour.TerrainStepBlocked`,
-the same discard mechanic as the ship hull and energy fences): land walkers accept at most a
-2-block ground step (titans 1, mirroring their spawn gate) and never enter water deeper than
-1 cell; water species never step out of their water body; fliers, cave/lava dwellers and amphibians
-are unaffected. Ground heights come from **real blocks** (#650 — a nearest-standable-cell probe via
-`GetBlockIfLoaded`, generator fallback for unloaded columns), so fauna honours player walls, dug
-pits and built floors, and land walkers **ease** toward the ground at a capped vertical rate (#652;
-fliers ease toward hover — no contour-pen terrain tracing; hoppers keep the snap, their pop is the
-motion, and their stride pulses with it, #654). A blocked step first **probes alternative headings**
-(±35°/±70°/±110°, #651) and only re-rolls when boxed in — contour/wall following with the
-never-stuck property intact. Social species run the full boids trio (#639/#651): cohesion,
-size-scaled separation, and heading alignment for schoolers. Hurting a creature (or a skittish bolt)
-**startles** same-species kin within 12 blocks for 4 s (#653): non-retaliators flee the nearest
-player, retaliators charge, and fleeing prey jinks off the straight escape ray.
+**Motion classes (#1331–#1334):** every species moves in one of five mechanical classes,
+**derived from the traits it already has** (`CreatureMotion.ClassOf` — no generator roll, so
+pre-existing worlds keep their species bit-for-bit): **Swimmer** (water species), **Flier** (winged
+air species), **Hoverer** (air medusae, gas sacs, drifters — and the odd floating land grazer),
+**Crawler** (legless, slitherers, and anything with ≥ 6 legs), **Walker** (everything else with
+legs). Amphibians are Swimmers while their feet are in water and Walkers/Crawlers ashore (one cell
+of hysteresis). Habitat still decides WHERE a species lives and spawns; the class decides HOW its
+Y is resolved each tick (`GameServer.ResolveVertical`, state in `CombatEntity.Vert`):
+
+- **Walkers and crawlers run under gravity** — `20 × GravityFactor`, the player's constant — via the
+  pure `VerticalMotion` state machine (Shared). A dug-away floor or a step down is a real fall. A
+  **walker jumps** a one-block ledge exactly like the player (`√(2gh)`, h = 1.25 blocks, higher on
+  light worlds), launching *before* it steps over so the body never clips the lip; a **crawler
+  hauls itself up** in place at 2.5 blocks/s and never leaves the ground; **giants** (titan plan or
+  Size ≥ 2) step one block and never jump either. Two blocks is a wall for all of them; drops of up
+  to 3 (walkers) / 2 (crawlers) / 1 (giants) are taken. Hopper-style walkers hop for real on their
+  vertical-life beat (the controller's stride pulse rides the same wave, #654); a startled **ground
+  bird** (winged land walker) bounds in long flat arcs under 0.4 g. An airborne creature that never
+  finds ground is snapped to its probe after 2 s — the never-stuck guarantee.
+- **Fliers** cruise at their hover band over the **real** ground (a player roof counts), swooping on
+  their wave; when the controller pauses or sleep begins and there is something standable within
+  reach (canopy tops count, canopy interiors do not) they **land and perch** — and sleep on the
+  ground — then take off again when the pause ends, on any hunt/flee intent (a skittish bird flushes
+  when the player nears), or when hurt. A perched bird whose branch is removed falls and re-launches.
+- **Hoverers** never land and never sink: the buoyant band eases at 2 blocks/s (a gas sac visibly lags
+  the terrain), asleep they simply hold altitude.
+- **Swimmers** porpoise their local water column as before.
+
+The wire carries the class and vertical state as additive `NetCreature` fields (`Motion`,
+`Airborne`, `Perched`, `VertVel`); the client integrates jump arcs locally between the 2 Hz updates
+and animates per class (wings beat only in the air, perched wings fold, legs tuck mid-jump, a
+landing squash, crawler undulation). The scan readout lists the class as a species trait.
+
+**Terrain-aware roaming (#648, extended by #650–#654):** creatures have no colliders, so movement
+is gated per step (`CreatureBehaviour.TerrainStepBlocked`, keyed on the motion class since #1331,
+the same discard mechanic as the ship hull and energy fences): ground movers take the rises/drops
+above and never enter water deeper than 1 cell (amphibians excepted); water species never step out
+of their water body; fliers and hoverers are unaffected. Ground heights come from **real blocks**
+(#650 — a nearest-standable-cell probe via `GetBlockIfLoaded`, generator fallback for unloaded
+columns; a cave dweller with no cell near its depth holds that depth), so fauna honours player
+walls, dug pits and built floors. A blocked step first **probes alternative headings**
+(±35°/±70°/±110°, #651; a detour never starts a climb) and only re-rolls when boxed in —
+contour/wall following with the never-stuck property intact. Social species run the full boids trio
+(#639/#651): cohesion, size-scaled separation, and heading alignment for schoolers. Hurting a
+creature (or a skittish bolt) **startles** same-species kin within 12 blocks for 4 s (#653):
+non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off the straight
+escape ray.
 
 ---
 

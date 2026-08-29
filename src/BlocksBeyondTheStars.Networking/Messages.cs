@@ -1677,6 +1677,22 @@ public sealed class NetCreature
     /// a newer client falls back to hashing the trait tuple when a legacy server sends 0, so the wire
     /// tag is unchanged either way.</summary>
     public int VoiceSeed { get; set; }
+
+    /// <summary>The species' motion class (#1333): "walker" | "crawler" | "flier" | "hoverer" | "swimmer" —
+    /// for an amphibian the class in effect right now. Additive field; an older client ignores it and a
+    /// newer client treats a legacy server's empty value as a grounded walker.</summary>
+    public string Motion { get; set; } = "walker";
+
+    /// <summary>In the air right now: a walker mid-jump/fall, or a flier that is not perched. Drives the
+    /// client's wing flap / leg tuck and its local ballistic Y integration. Additive.</summary>
+    public bool Airborne { get; set; }
+
+    /// <summary>A flier sitting on the ground (#1332) — wings folded, legs down. Additive.</summary>
+    public bool Perched { get; set; }
+
+    /// <summary>Vertical velocity (blocks/s, +up) while a ground class is airborne, so the client can integrate
+    /// the jump arc between the ~2 Hz position updates instead of smearing it. 0 otherwise. Additive.</summary>
+    public float VertVel { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>
