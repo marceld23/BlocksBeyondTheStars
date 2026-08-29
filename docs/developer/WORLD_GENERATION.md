@@ -308,7 +308,9 @@ live by `GameServerCreatures.cs`.
   roaming members drift gently toward nearby kin so groups stay loosely together.
 - **Per biome:** on multi-biome worlds each species gets a **biome affinity** (`rng.Next(biomeCount)`,
   or −1 = anywhere). Spawning prefers biome natives, then falls back to any species — roughly
-  **one-plus native species per biome** plus the biome-agnostic ones.
+  **one-plus native species per biome** plus the biome-agnostic ones. A biome with fewer than **two**
+  eligible species skips the native pass outright (`CreatureBehaviour.BiomePassStarved`, #1325) —
+  otherwise every spawn in that region was its single native, and a base there drowned in one species.
   Natives are tinted ~45 % toward their biome's anchor hue, so region A's fauna reads green-ish and
   region B's violet-ish on the same world.
 
@@ -316,7 +318,15 @@ live by `GameServerCreatures.cs`.
 world reaches ~25–45, backstopped by a safety ceiling of 64 — #470), ring placement 18–45 blocks out
 (two rotors: the ring slot advances on every attempt, the species on success), habitat gates (water animals only in
 water columns, cave animals only in caves; titans additionally need a 3×3 level-ground clearance),
-despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mid-approach). Only
+despawn beyond 70 blocks (titans 110 — a landmark animal must not evaporate mid-approach). **No
+monoculture (#1325):** each species may hold at most a **share** of the live cap — 40 %, never below 3,
+never below cap ÷ roster size — a herd counts its members against it and spawns partially (as against
+the world cap), and a species OVER its share (the cap shrank, an older save) sheds its farthest members
+that are out of sight of every player (> 40 blocks) until it is back at the share. Every placement —
+the ring leader and each herd member — runs the one reject list `SpawnSpotClear`: habitat, the parked-ship
+volume (**body-aware** for large species: the hull margin grows by `Size × 0.5`, #1320), body cells (#855),
+titan flatness, the large-body volume (#750) and a founded base's **sealed rooms** (`InSealedBaseRoom`,
+the cached air fill — #1314: nothing spawns inside a room the player has made airtight). Only
 **awake, hostile** creatures deal damage — sleepers never attack — and the day/night cycle gates
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
@@ -361,13 +371,19 @@ above and never enter water deeper than 1 cell (amphibians excepted); water spec
 of their water body; fliers and hoverers are unaffected. Ground heights come from **real blocks**
 (#650 — a nearest-standable-cell probe via `GetBlockIfLoaded`, generator fallback for unloaded
 columns; a cave dweller with no cell near its depth holds that depth), so fauna honours player
-walls, dug pits and built floors. A blocked step first **probes alternative headings**
-(±35°/±70°/±110°, #651; a detour never starts a climb) and only re-rolls when boxed in —
-contour/wall following with the never-stuck property intact. Social species run the full boids trio
-(#639/#651): cohesion, size-scaled separation, and heading alignment for schoolers. Hurting a
-creature (or a skittish bolt) **startles** same-species kin within 12 blocks for 4 s (#653):
-non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off the straight
-escape ray.
+walls, dug pits and built floors; a creature's OWN column probe is species-aware (#1320): a large land
+body needs its whole collision height of headroom (a two-cell hollow under a floor is not "standable"
+for a titan) and looks ±24 cells for real ground before trusting the noise surface (the ±6 window fell
+back to the pre-excavation height and floated animals over fresh pits). **Sleepers** rest in place but
+re-validate their body every tick (#1320 — a wall or floor built through a sleeping herd used to leave
+the bodies embedded until dawn): an embedded sleeper is roused and stepped aside to the nearest clear
+spot within 6 blocks (same level first), or despawns when boxed in on every side. A blocked step first
+**probes alternative headings** (±35°/±70°/±110°, #651; a detour never starts a climb) and only
+re-rolls when boxed in — contour/wall following with the never-stuck property intact. Social species
+run the full boids trio (#639/#651): cohesion, size-scaled separation, and heading alignment for
+schoolers. Hurting a creature (or a skittish bolt) **startles** same-species kin within 12 blocks for
+4 s (#653): non-retaliators flee the nearest player, retaliators charge, and fleeing prey jinks off
+the straight escape ray.
 
 ---
 

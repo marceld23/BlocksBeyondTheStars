@@ -13,6 +13,32 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🤖 The Guardian machines show their circuits (#1337, #1338)
+
+- **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
+  The planet robot and its hovering scan-drone rendered as an 8–18 % black shape (a flat 0.13 tint under the
+  lit shader) and the space drone / UFO used the black `carbon` coal tile without the ambient lift the planet
+  entities have had since #711 — hard to see against dark ground, caves and the night sky, and grimmer than the
+  story needs. All of them now wear one new `enemy_robot` tile (#1338): dark-grey bolted panels with etched
+  circuit-board traces, coarse enough to survive thin limbs, no lights. The glowing **red eyes, dome and threat
+  lights stay** — red is still the Guardian signal (#601). The finale cruiser puts the same plating on its dark
+  spine and engine blocks so the gauntlet reads as one machine family; its pale iron hull is unchanged.
+- The tile carries its own brightness (the entity loaders do not lift tiles the way creatures do), so it was
+  desaturated and lifted before bundling; without the tile the same greys render flat. The unused pre-retheme
+  `enemy_hide` tile is gone. Lore docs no longer call the machines "black".
+
+### ⏸️ The feedback dialog holds the world too (#1330)
+
+- **F1 (F2 in the browser) now pauses like the Esc menu.** The player feedback dialog froze your controls
+  but not the world: hunger kept draining, night kept falling and creatures kept hunting while you typed a
+  bug report. Opening it now asks the server for the same hold the pause menu uses — in singleplayer the
+  world stops right there (and saves, as every hold does); with others joined it only counts as "this
+  player is in a menu" until everyone else is too (#973). Closing the form — Esc, Cancel or the auto-close
+  after a successful send — lets the world run again. The screenshot is still taken before the hold, so it
+  shows live play.
+- Under the hood the Esc menu and the dialog share one `WorldHoldIntent` (intent, release and the 15 s
+  keep-alive the server sweeps dead clients by), so the rule has exactly one copy — and a unit test.
+
 ### 🕹️ Play solo in the browser without an account (#1321, #1322, #1323)
 
 - **Portal landing page:** play.blocksbeyondthestars.de now leads with a player-name field and **"▶ Play
@@ -29,6 +55,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   `player_name` is now persisted like a typed one, and the menu prefills its name field from the saved
   world when the settings are empty.
 - **Docs:** README, user manual and the hosted-worlds notes no longer claim browser play is "online only".
+### 💬 The developers can answer your F1 report inside the game (#1327, #1328, #1329)
+
+- **Every report now has a reply thread.** An answer shows up as a HUD line plus a window with the conversation
+  and "Fixed in version …" once the fix shipped; when the developers ask a follow-up question, the same window lets you answer right
+  there (up to three answers per report). The game only asks for replies while it remembers a report you sent
+  in the last 90 days — a game that never sent feedback contacts nothing. Works on desktop, on play.bbts.de and
+  in the glitch.fun arcade (where answers follow your Glitch install across releases). Operators get a
+  conversation view + reply form on the ReportHost detail page and `POST /api/reports/{id}/replies` for scripts;
+  reports sent by older game versions are answerable too (the reply key is derived from the stored player id).
 
 ## [2026.8.22] — 2026-08-26
 

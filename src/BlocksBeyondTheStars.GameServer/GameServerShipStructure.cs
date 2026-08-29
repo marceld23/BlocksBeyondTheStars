@@ -541,10 +541,14 @@ public sealed partial class GameServer
     /// True if a position is inside (or right against) a parked ship, so creatures and settlement
     /// NPCs can be kept from walking into the player's ship. Uses a small margin around the bounds;
     /// positions above the hull (flying creatures) are allowed to pass over.
+    /// <paramref name="bodyRadius"/> widens the horizontal margin by an entity's own footprint (#1320):
+    /// the server tracks a single point, so a titan whose centre sat 0.6 blocks outside the hull passed
+    /// the plain test while its 2–3-block body filled the cabin.
     /// </summary>
-    private bool EntityBlockedByShip(Vector3f p)
+    private bool EntityBlockedByShip(Vector3f p, float bodyRadius = 0f)
     {
-        const float m = 0.5f;
+        const float vm = 0.5f;
+        float m = vm + bodyRadius;
         foreach (var rec in _worlds.Active.LandedShips.Values)
         {
             if (!rec.Placed)
@@ -555,7 +559,7 @@ public sealed partial class GameServer
             var s = rec.Structure;
             double dx = WorldConstants.WrapDeltaX(p.X - rec.Origin.X, _world.Circumference);
             if (dx >= -m && dx <= s.Width + m
-                && p.Y >= rec.Origin.Y - 1 - m && p.Y <= rec.Origin.Y + s.Height + m
+                && p.Y >= rec.Origin.Y - 1 - vm && p.Y <= rec.Origin.Y + s.Height + vm
                 && p.Z >= rec.Origin.Z - m && p.Z <= rec.Origin.Z + s.Length + m)
             {
                 return true;
@@ -571,12 +575,14 @@ public sealed partial class GameServer
     /// (keeping the original height). Lets an entity that got enclosed — e.g. the ship was parked or grown
     /// over a wandering creature — be pushed back out of the cabin instead of staying stuck inside. Returns
     /// false (and leaves <paramref name="outside"/> = <paramref name="p"/>) when the position is clear of
-    /// every parked ship.
+    /// every parked ship. <paramref name="bodyRadius"/> is the same footprint widening as in
+    /// <see cref="EntityBlockedByShip"/> (#1320), so a large body is pushed until it is clear of the hull.
     /// </summary>
-    private bool TryPushOutsideShip(Vector3f p, out Vector3f outside)
+    private bool TryPushOutsideShip(Vector3f p, out Vector3f outside, float bodyRadius = 0f)
     {
-        const float m = 0.5f;
+        const float vm = 0.5f;
         const float clear = 0.05f; // step a hair past the margin so the result is unambiguously outside
+        float m = vm + bodyRadius;
         foreach (var rec in _worlds.Active.LandedShips.Values)
         {
             if (!rec.Placed)
@@ -588,7 +594,7 @@ public sealed partial class GameServer
             double dx = WorldConstants.WrapDeltaX(p.X - rec.Origin.X, _world.Circumference);
             double dz = p.Z - rec.Origin.Z;
             if (dx < -m || dx > s.Width + m
-                || p.Y < rec.Origin.Y - 1 - m || p.Y > rec.Origin.Y + s.Height + m
+                || p.Y < rec.Origin.Y - 1 - vm || p.Y > rec.Origin.Y + s.Height + vm
                 || dz < -m || dz > s.Length + m)
             {
                 continue; // not inside this ship

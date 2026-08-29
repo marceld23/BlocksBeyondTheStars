@@ -3384,6 +3384,33 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Lit material textured with a bundled block texture (white-ish tint so the texture reads).</summary>
         private static Material LitTex(string texKey, Color tint, float tile = 2f) => Lit(tint, LoadTex(texKey), new Vector2(tile, tile));
 
+        /// <summary>Hull material of the Guardian machines (drone, UFO, cruiser dark blocks): the grey
+        /// circuit-plating tile the planet robots wear (#1337/#1338) — tinted near 1 because the tile is authored
+        /// at its final greys and <see cref="LoadTex"/> does not brighten — with the same ambient floor/fill the
+        /// planet entities got in #711. Before, these hulls used the black <c>carbon</c> coal tile at a dark tint
+        /// and LitColor's default 0.35 floor, so the shadow side sank to a black silhouette. Falls back to the
+        /// plain <c>iron_wall</c> hull plate at a darker tint if the tile is missing (stripped build).</summary>
+        private static Material GuardianPlating(Color tint)
+        {
+            var tex = LoadTex("enemy_robot");
+            return GuardianLift(tex != null
+                ? Lit(tint, tex, new Vector2(2f, 2f))
+                : Lit(tint * 0.5f, LoadTex("iron_wall"), new Vector2(2f, 2f)));
+        }
+
+        /// <summary>The entity ambient floor + fill (<c>WorldEntities.EntityFloor/EntityFill</c>) on a LitColor
+        /// material — no-op on the Unlit fallback.</summary>
+        private static Material GuardianLift(Material m)
+        {
+            if (m.HasProperty("_Floor"))
+            {
+                m.SetFloat("_Floor", 0.62f);
+                m.SetFloat("_Fill", 0.3f);
+            }
+
+            return m;
+        }
+
         /// <summary>A real station model: an iron hull hub with a glass viewport collar, docking arms with end
         /// pods, solar wings and a beacon mast — textured (iron/carbon/glass), not a flat cube.</summary>
         private GameObject BuildStationModel(Transform parent)
@@ -3413,13 +3440,14 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
-        /// <summary>A real drone model: an angular carbon body with a glowing red sensor eye and side pods.</summary>
+        /// <summary>A real drone model: an angular grey circuit-plated body with a glowing red sensor eye and
+        /// side pods (Guardian plating, #1337).</summary>
         private GameObject BuildDroneModel(Transform parent)
         {
             var root = new GameObject("Drone");
             root.transform.SetParent(parent, false);
-            var body = LitTex("carbon", new Color(0.55f, 0.5f, 0.58f));
-            var trim = LitTex("iron_wall", new Color(0.6f, 0.5f, 0.55f));
+            var body = GuardianPlating(new Color(0.95f, 0.95f, 0.97f));
+            var trim = GuardianLift(LitTex("iron_wall", new Color(0.6f, 0.5f, 0.55f)));
 
             Cube("Core", root.transform, Vector3.zero, new Vector3(1.3f, 0.9f, 1.3f), body);
             Cube("Eye", root.transform, new Vector3(0f, 0f, 0.8f), new Vector3(0.45f, 0.45f, 0.4f), Unlit(new Color(1f, 0.25f, 0.2f)));
@@ -3430,15 +3458,15 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
-        /// <summary>A real UFO model: a chunky dark-gunmetal saucer with a hostile glowing red-orange dome, a
-        /// deep underside hull and big red threat lights — reads as a menacing enemy, not the old flat, pale-green
-        /// "peaceful" disc that was hard to see.</summary>
+        /// <summary>A real UFO model: a chunky grey circuit-plated saucer (Guardian plating, #1337) with a hostile
+        /// glowing red-orange dome, a deep underside hull and big red threat lights — reads as a clearly visible
+        /// enemy, not the old flat, pale-green "peaceful" disc (nor the near-black gunmetal that followed it).</summary>
         private GameObject BuildUfoModel(Transform parent)
         {
             var root = new GameObject("Ufo");
             root.transform.SetParent(parent, false);
 
-            var hull = LitTex("carbon", new Color(0.30f, 0.31f, 0.36f)); // dark gunmetal
+            var hull = GuardianPlating(new Color(0.92f, 0.92f, 0.95f)); // dark-grey circuit plating (the tile carries the greys)
 
             // Upper + lower dishes form a taller, more readable saucer silhouette than the old single flat disc.
             var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -3454,7 +3482,7 @@ namespace BlocksBeyondTheStars.Client
             underside.transform.SetParent(root.transform, false);
             underside.transform.localPosition = new Vector3(0f, -0.32f, 0f);
             underside.transform.localScale = new Vector3(1.7f, 0.3f, 1.7f);
-            underside.GetComponent<Renderer>().sharedMaterial = LitTex("iron_wall", new Color(0.2f, 0.2f, 0.24f));
+            underside.GetComponent<Renderer>().sharedMaterial = GuardianPlating(new Color(0.55f, 0.55f, 0.58f)); // darker underside, same plating
 
             var dome = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             dome.name = "Dome";
@@ -3509,13 +3537,15 @@ namespace BlocksBeyondTheStars.Client
             return root;
         }
 
-        /// <summary>A real cruiser model: an elongated iron hull with a glass bridge and twin glowing engines.</summary>
+        /// <summary>A real cruiser model: an elongated iron hull with a glass bridge and twin glowing engines. Its
+        /// dark spine + engine blocks wear the Guardian circuit plating (#1337) so the finale gauntlet reads as one
+        /// machine family; the pale iron hull stays as it was.</summary>
         private GameObject BuildCruiserModel(Transform parent)
         {
             var root = new GameObject("Cruiser");
             root.transform.SetParent(parent, false);
             var hull = LitTex("iron_wall", new Color(0.7f, 0.55f, 0.55f));
-            var dark = LitTex("carbon", new Color(0.6f, 0.5f, 0.5f));
+            var dark = GuardianPlating(new Color(0.8f, 0.78f, 0.8f));
 
             Cube("Hull", root.transform, Vector3.zero, new Vector3(2f, 1.2f, 5f), hull);
             Cube("Spine", root.transform, new Vector3(0f, 0.8f, -0.5f), new Vector3(0.8f, 0.6f, 3f), dark);

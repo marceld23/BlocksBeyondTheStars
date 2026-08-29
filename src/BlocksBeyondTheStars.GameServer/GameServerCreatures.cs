@@ -44,6 +44,17 @@ public sealed partial class GameServer
     private const float CreatureWakeDistance = 4f;             // a sleeping creature stirs awake when a player comes this close
     private const double CreatureWakeSeconds = 9.0;            // ...and then stays roused (alert/active) for this long
 
+    // #1325: no single species may fill the world — a share of the live cap per species (a herd counts its
+    // members against it and spawns partially, exactly as it already does against the world cap), floored
+    // so a tiny cap still allows a herd, and never below cap/roster so a short roster can still reach the cap.
+    private const float SpeciesShareOfCap = 0.4f;
+    private const int SpeciesShareMin = 3;
+    private const float CreatureCrowdDespawnRange = 40f;       // an over-share member this far from every player wanders off
+
+    // #1320: a sleeper whose body ends up inside blocks is roused + moved to the nearest clear spot within
+    // this many blocks (same level first) — or despawns when boxed in on every side.
+    private const int SleeperRelocateRadius = 6;
+
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
     private readonly Dictionary<string, CreatureSpecies> _speciesById = new();
@@ -198,12 +209,15 @@ public sealed partial class GameServer
 
         // #900: in a storm, a blizzard or an ion squall the wildlife hunkers down — same movement code,
         // just a slower clock, so herds visibly settle while the weather rages and pick up again after.
-        MoveCreatures(targets, dt * WeatherCreatureActivity());
+        if (MoveCreatures(targets, dt * WeatherCreatureActivity()))
+        {
+            BroadcastCreatures(); // a boxed-in sleeper was removed (#1320)
+        }
 
         // Despawn creatures that drifted far from every player so the cap frees up and fauna keeps
         // appearing around players as they explore — life is spread across the whole planet, not just
         // stuck at the start area. (Travel clears creatures entirely via ResetWorldRuntimeState.)
-        if (PruneFarCreatures(targets))
+        if (PruneFarCreatures(targets, cap))
         {
             BroadcastCreatures();
         }
@@ -384,10 +398,13 @@ public sealed partial class GameServer
         int z = (int)System.Math.Floor(player.Position.Z) + dz;
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
         int biome = _generator.BiomeIndexAt(_world.Planet, x, z);
+        int share = SpeciesShare(cap);
 
         // Two passes: first only species native to this biome (so a multi-biome world shows different fauna in
         // different regions), then any species — so a biome never goes empty if none of its natives fit here.
-        for (int pass = 0; pass < 2; pass++)
+        // A biome with a single native skips the native pass outright (#1325): otherwise every spawn in that
+        // region was that one species, and a base there drowned in a monoculture up to the world cap.
+        for (int pass = CreatureBehaviour.BiomePassStarved(_speciesRoster, biome) ? 1 : 0; pass < 2; pass++)
         {
             for (int n = 0; n < _speciesRoster.Length; n++)
             {
@@ -395,6 +412,11 @@ public sealed partial class GameServer
                 if (pass == 0 && sp.BiomeAffinity >= 0 && sp.BiomeAffinity != biome)
                 {
                     continue; // not native to this biome (relaxed on the second pass)
+                }
+
+                if (WildCountOf(sp.Id) >= share)
+                {
+                    continue; // this species already holds its share of the world (#1325) — let another fill the cap
                 }
 
                 float y;
@@ -446,31 +468,7 @@ public sealed partial class GameServer
                 }
 
                 var pos = new Vector3f(px + 0.5f, y, pz + 0.5f);
-                if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos))
-                {
-                    // Reject the SAME volume the movement barrier guards (not just the tight interior box), so a
-                    // creature never spawns in the thin shell where it would immediately be frozen against the hull.
-                    continue; // never spawn inside (or clipping into) a landed ship
-                }
-
-                if (CreatureBodyBlocked(sp, pos))
-                {
-                    continue; // its body would materialise inside a wall / ruin masonry (#855)
-                }
-
-                // Titans need level ground (#638): a 3×3 clearance whose surface stays within ±1 of the
-                // centre column, so a six-block giant doesn't materialise half-buried in a cliff face —
-                // creatures have no colliders, so the spawn spot is the only terrain check they ever get.
-                if (sp.BodyPlan == CreatureBodyPlan.Titan && !TitanGroundClear(px, pz, surface))
-                {
-                    continue;
-                }
-
-                // A big body must actually FIT (#750): flatness alone let titans materialise inside
-                // ruin rooms (stamped floors are perfectly flat) — the only other spatial gate was a
-                // single 1×1 column with two air cells, for bodies that render ~5×10×11 blocks.
-                if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
-                    && !LargeBodyFits(sp, px, (int)System.Math.Floor(y), pz))
+                if (!SpawnSpotClear(sp, pos, px, pz, surface))
                 {
                     continue;
                 }
@@ -484,6 +482,78 @@ public sealed partial class GameServer
 
         return false;
     }
+
+    /// <summary>The one reject list every spawn placement runs — the ring leader and each herd member
+    /// alike (#1314: the two used to drift apart, and a gate added to one leaked through the other):
+    /// habitat, the parked-ship volume (body-aware for large species, #1320), the body cells (#855), titan
+    /// flatness (#638), the large-body volume (#750) and — new — a founded base's SEALED rooms (#1314): the
+    /// spawner never consulted the base systems, so a room the player had made airtight still filled with
+    /// wildlife. <see cref="InSealedBaseRoom"/> is a cached set lookup, effectively free.</summary>
+    private bool SpawnSpotClear(CreatureSpecies sp, Vector3f pos, int px, int pz, int surface)
+    {
+        if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos, CreatureShipMargin(sp)))
+        {
+            // Reject the SAME volume the movement barrier guards (not just the tight interior box), so a
+            // creature never spawns in the thin shell where it would immediately be frozen against the hull.
+            return false; // never spawn inside (or clipping into) a landed ship
+        }
+
+        if (CreatureBodyBlocked(sp, pos))
+        {
+            return false; // its body would materialise inside a wall / ruin masonry (#855)
+        }
+
+        // Titans need level ground (#638): a 3×3 clearance whose surface stays within ±1 of the
+        // centre column, so a six-block giant doesn't materialise half-buried in a cliff face —
+        // creatures have no colliders, so the spawn spot is the only terrain check they ever get.
+        if (sp.BodyPlan == CreatureBodyPlan.Titan && !TitanGroundClear(px, pz, surface))
+        {
+            return false;
+        }
+
+        // A big body must actually FIT (#750): flatness alone let titans materialise inside
+        // ruin rooms (stamped floors are perfectly flat) — the only other spatial gate was a
+        // single 1×1 column with two air cells, for bodies that render ~5×10×11 blocks.
+        if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
+            && !LargeBodyFits(sp, px, (int)System.Math.Floor(pos.Y), pz))
+        {
+            return false;
+        }
+
+        // #1314: nothing spawns inside a base's sealed rooms — the volume the air fill already knows.
+        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
+        return !InSealedBaseRoom(cell);
+    }
+
+    /// <summary>How many live wild individuals of one species a world may hold (#1325): a share of the
+    /// live cap, floored at <see cref="SpeciesShareMin"/> (a herd must still be possible on a sparse
+    /// world) and never below cap ÷ roster size (a two-species world must still reach its cap).</summary>
+    private int SpeciesShare(int cap)
+    {
+        int roster = System.Math.Max(1, _speciesRoster.Length);
+        int share = (int)System.Math.Ceiling(cap * SpeciesShareOfCap);
+        return System.Math.Max(SpeciesShareMin, System.Math.Max(share, (cap + roster - 1) / roster));
+    }
+
+    /// <summary>Live WILD individuals of one species (companions never count, as with the world cap).</summary>
+    private int WildCountOf(string speciesId)
+    {
+        int n = 0;
+        foreach (var c in _creatures)
+        {
+            if (!c.IsCompanion && c.SpeciesId == speciesId)
+            {
+                n++;
+            }
+        }
+
+        return n;
+    }
+
+    /// <summary>The footprint radius a species adds to the parked-ship guard (#1320): large species keep
+    /// their body clear of the hull, small fauna keeps the plain point test (fliers still cross over).</summary>
+    private static float CreatureShipMargin(CreatureSpecies sp)
+        => sp.Size >= LargeBodySize && sp.Habitat != CreatureHabitat.Air ? sp.Size * 0.5f : 0f;
 
     /// <summary>3×3 flatness gate for titan spawns (#638): every neighbouring column's ground must sit
     /// within ±1 block of the centre's. Reads REAL blocks (#650), so a titan neither materialises against
@@ -513,7 +583,8 @@ public sealed partial class GameServer
     private void SpawnGroupAround(CreatureSpecies sp, int x, int z, int cap)
     {
         int group = System.Math.Clamp(sp.SocialGroupSize, 1, 5);
-        for (int k = 1; k < group && WildCreatureCount < cap; k++)
+        int share = SpeciesShare(cap);
+        for (int k = 1; k < group && WildCreatureCount < cap && WildCountOf(sp.Id) < share; k++)
         {
             // Golden-angle bearings with alternating radii — spread out, not a neat ring.
             double a = k * 2.399963;
@@ -553,24 +624,15 @@ public sealed partial class GameServer
             }
             else
             {
-                if (sp.BodyPlan == CreatureBodyPlan.Titan && !TitanGroundClear(mx, mz, surface))
-                {
-                    continue; // herd members need the same level ground the leader did
-                }
-
                 y = sp.Habitat == CreatureHabitat.Air ? surface + 4f : GroundFeetYAt(mx, mz, surface + 1); // real ground (#650)
-
-                if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
-                    && !LargeBodyFits(sp, mx, (int)System.Math.Floor(y), mz))
-                {
-                    continue; // herd members get the leader's body-volume check too (#750)
-                }
             }
 
+            // Herd members run the leader's full reject list (#638/#750/#855/#1314): the herd stays smaller
+            // rather than planting a member inside a wall, a ship, or a sealed base room.
             var pos = new Vector3f(mx + 0.5f, y, mz + 0.5f);
-            if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos) || CreatureBodyBlocked(sp, pos))
+            if (!SpawnSpotClear(sp, pos, mx, mz, surface))
             {
-                continue; // the herd stays smaller rather than planting a member inside a wall (#855)
+                continue;
             }
 
             SpawnCreature(sp, pos);
@@ -658,12 +720,15 @@ public sealed partial class GameServer
     private ushort BlockValueAt(Vector3f at)
         => _world.GetBlock(new Vector3i((int)System.Math.Floor(at.X), (int)System.Math.Floor(at.Y), (int)System.Math.Floor(at.Z))).Value;
 
-    /// <summary>Advances every creature: hunters approach, skittish flee, the rest wander; sleepers rest.</summary>
-    private void MoveCreatures(List<PlayerSession> targets, double dt)
+    private readonly List<CombatEntity> _creatureEvictions = new(); // boxed-in sleepers removed after the move loop (#1320)
+
+    /// <summary>Advances every creature: hunters approach, skittish flee, the rest wander; sleepers rest.
+    /// Returns true when a creature was REMOVED (a boxed-in sleeper, #1320) so the caller re-broadcasts.</summary>
+    private bool MoveCreatures(List<PlayerSession> targets, double dt)
     {
         if (_creatures.Count == 0)
         {
-            return;
+            return false;
         }
 
         double moveDt = System.Math.Min(dt, CreatureMoveDtCap);
@@ -677,9 +742,16 @@ public sealed partial class GameServer
                 continue;
             }
 
+            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
+            {
+                continue;
+            }
+
             // Safety net: a wild creature that somehow ended up inside a parked ship (ship placed/grown over it,
             // an old save, a numeric edge) is pushed back out of the hull this tick instead of being stuck inside.
-            if (TryPushOutsideShip(creature.Position, out var ejected))
+            // Body-aware for large species (#1320): a sleeping titan herd lay with its centres a block outside
+            // the hull and its bodies filling the cabin — the point test never saw it.
+            if (TryPushOutsideShip(creature.Position, out var ejected, CreatureShipMargin(sp)))
             {
                 creature.Position = ejected;
                 continue;
@@ -704,11 +776,6 @@ public sealed partial class GameServer
             if (creature.AwakeOverrideTimer > 0)
             {
                 creature.AwakeOverrideTimer = System.Math.Max(0, creature.AwakeOverrideTimer - dt);
-            }
-
-            if (!_speciesById.TryGetValue(creature.SpeciesId, out var sp))
-            {
-                continue;
             }
 
             // A provoked territorial creature hunts like an aggressor until it calms down.
@@ -760,6 +827,16 @@ public sealed partial class GameServer
             var motion = EffectiveMotion(creature, sp);
             if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0)
             {
+                // #1320: a sleeper skips every collision gate on the movement path, so a player building a
+                // wall or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night.
+                // Re-validate the body BEFORE the vertical resolve (which would otherwise hop it onto the new
+                // wall): rouse + step aside to the nearest clear spot, or despawn when boxed in. A few block
+                // reads per sleeper per tick — far cheaper than the movement path an awake animal runs.
+                if (DisplaceEmbeddedSleeper(creature, sp))
+                {
+                    continue;
+                }
+
                 creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
                     asleep: true, MoveMode.Roam, moving: false);
                 continue;
@@ -833,6 +910,19 @@ public sealed partial class GameServer
             ApplyCreatureStep(creature, sp, motion, stepped, res.VertWave, profile, moveDt, intent, res.Moving,
                 terrainGates: true);
         }
+
+        if (_creatureEvictions.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var gone in _creatureEvictions)
+        {
+            _creatures.Remove(gone);
+        }
+
+        _creatureEvictions.Clear();
+        return true;
     }
 
     /// <summary>
@@ -908,9 +998,9 @@ public sealed partial class GameServer
     private bool StepBlocked(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f cand,
         bool needsRise, bool terrainGates)
     {
-        if (EntityBlockedByShip(cand) || BlockedByEnergyFence(cur, cand))
+        if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand))
         {
-            return true;
+            return true; // body-aware hull guard for large species (#1320)
         }
 
         if (terrainGates && StepBlockedByTerrain(sp, motion, cur, cand))
@@ -945,6 +1035,78 @@ public sealed partial class GameServer
         bool belowWet = _creatureWaterId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).Value == _creatureWaterId;
         c.Vert.InWater = feetWet || (c.Vert.InWater && belowWet);
         return CreatureMotion.EffectiveClass(sp, c.Vert.InWater);
+    }
+
+    /// <summary>The sleeper's body check (#1320). False when the body sits clear of every colliding block.
+    /// Otherwise the creature is roused (<see cref="CreatureWakeSeconds"/>) and stepped to the nearest
+    /// clear standable spot within <see cref="SleeperRelocateRadius"/> — or, boxed in on every side, queued
+    /// for removal (the caller drops it after the loop; the list can't change mid-iteration).</summary>
+    private bool DisplaceEmbeddedSleeper(CombatEntity creature, CreatureSpecies sp)
+    {
+        if (!CreatureBodyBlocked(sp, creature.Position))
+        {
+            return false;
+        }
+
+        if (TryFindClearSpotNear(sp, creature.Position, out var clear))
+        {
+            creature.Position = clear;
+            creature.AwakeOverrideTimer = CreatureWakeSeconds; // it wakes up and walks off, like a creature you bump
+        }
+        else
+        {
+            _creatureEvictions.Add(creature);
+        }
+
+        return true;
+    }
+
+    private static readonly (int Dx, int Dz)[] RelocateDirs =
+    {
+        (1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1),
+    };
+
+    /// <summary>The nearest spot around <paramref name="from"/> where the species can actually stand: rings
+    /// of 1..<see cref="SleeperRelocateRadius"/> blocks in eight directions, each column probed for a REAL
+    /// standable feet cell with the species' own headroom, then the body, ship and large-body gates the
+    /// spawner uses. Spots on the creature's own level (±1) are tried first, so an animal steps ASIDE out
+    /// of a wall before it would climb onto the floor built over it. Never falls back to the noise
+    /// surface — no real floor, no relocation.</summary>
+    private bool TryFindClearSpotNear(CreatureSpecies sp, Vector3f from, out Vector3f spot)
+    {
+        int ox = (int)System.Math.Floor(from.X), oz = (int)System.Math.Floor(from.Z);
+        int refY = (int)System.Math.Floor(from.Y);
+        float margin = CreatureShipMargin(sp);
+        bool large = sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land;
+        int headroom = CreatureHeadroom(sp);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            int vertical = pass == 0 ? 1 : SleeperRelocateRadius;
+            for (int r = 1; r <= SleeperRelocateRadius; r++)
+            {
+                foreach (var (dx, dz) in RelocateDirs)
+                {
+                    int x = ox + dx * r, z = oz + dz * r;
+                    if (!TryGroundFeetYAt(x, z, refY, headroom, vertical, out int feet))
+                    {
+                        continue;
+                    }
+
+                    var cand = new Vector3f(x + 0.5f, feet, z + 0.5f);
+                    if (CreatureBodyBlocked(sp, cand) || EntityBlockedByShip(cand, margin)
+                        || (large && !LargeBodyFits(sp, x, feet, z)))
+                    {
+                        continue;
+                    }
+
+                    spot = cand;
+                    return true;
+                }
+            }
+        }
+
+        spot = from;
+        return false;
     }
 
     private const float CreaturePanicRadius = 12f;    // how far a startle (#653) spreads to same-species kin
@@ -1108,7 +1270,9 @@ public sealed partial class GameServer
     /// surface for unloaded columns.</summary>
     private int GroundFeetFor(CreatureSpecies sp, int x, int z, int refY)
     {
-        if (TryGroundFeetYAt(x, z, refY, out int feet))
+        // Species-aware headroom + the wide real-ground scan (#1320), so a titan never "stands" in a two-cell
+        // hollow and a fresh pit is found before the noise surface is trusted.
+        if (TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet))
         {
             return feet;
         }
@@ -1224,20 +1388,44 @@ public sealed partial class GameServer
     private int GroundFeetYAt(int x, int z, int refY)
         => TryGroundFeetYAt(x, z, refY, out int feet) ? feet : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
 
-    /// <summary>Like <see cref="GroundFeetYAt"/> but reports whether a REAL standable cell was found, so
-    /// callers that must never snap to the noise surface (settlement NPCs standing on stamped floors that
-    /// the generator knows nothing about) can keep their current Y when the column is unloaded/blocked.</summary>
+    /// <summary>The species-aware feet snap for a creature's own column (#1320): a large body needs its
+    /// whole height of headroom, not the two cells a mouse gets — the plain probe read a two-cell hollow
+    /// under a floor as "standable" for a ten-block titan and held its body inside the floor above. Also
+    /// looks further for REAL ground before trusting the noise surface: the ±6 window fell back to the
+    /// generator's pre-excavation height, which floated a creature over a freshly dug pit.</summary>
+    private int GroundFeetYAt(CreatureSpecies sp, int x, int z, int refY)
+        => TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), maxScan: CreatureWideGroundScan, out int feet)
+            ? feet
+            : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
+
+    private const int CreatureGroundScan = 6;      // the legacy ±window every feet probe scans first
+    private const int CreatureWideGroundScan = 24; // ...and how far a creature's own column keeps looking (#1320)
+
+    /// <summary>Cells of headroom a species' feet cell must offer: its collision body for large land species
+    /// (mirrors <see cref="LargeBodyColumnOpen"/>/<see cref="CreatureBodyBlocked"/>), feet + head otherwise.</summary>
+    private static int CreatureHeadroom(CreatureSpecies sp)
+        => sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land ? CreatureBodyHeight(sp) : CreatureBodyMinHeight;
+
+    /// <summary>Like <see cref="GroundFeetYAt(int, int, int)"/> but reports whether a REAL standable cell was
+    /// found, so callers that must never snap to the noise surface (settlement NPCs standing on stamped floors
+    /// that the generator knows nothing about) can keep their current Y when the column is unloaded/blocked.</summary>
     private bool TryGroundFeetYAt(int x, int z, int refY, out int feetY)
+        => TryGroundFeetYAt(x, z, refY, CreatureBodyMinHeight, CreatureGroundScan, out feetY);
+
+    /// <summary>Scans outward from <paramref name="refY"/> — downward first at equal distance, so a creature
+    /// under a player bridge keeps the ground instead of snapping onto the deck — for a feet cell with
+    /// <paramref name="headroom"/> air cells, up to <paramref name="maxScan"/> cells away.</summary>
+    private bool TryGroundFeetYAt(int x, int z, int refY, int headroom, int maxScan, out int feetY)
     {
-        for (int r = 0; r <= 6; r++)
+        for (int r = 0; r <= maxScan; r++)
         {
-            if (StandableAt(x, refY - r, z))
+            if (StandableAt(x, refY - r, z, headroom))
             {
                 feetY = refY - r;
                 return true;
             }
 
-            if (r > 0 && StandableAt(x, refY + r, z))
+            if (r > 0 && StandableAt(x, refY + r, z, headroom))
             {
                 feetY = refY + r;
                 return true;
@@ -1249,13 +1437,25 @@ public sealed partial class GameServer
     }
 
     /// <summary>Whether feet placed at <paramref name="y"/> stand on something real: solid (non-water)
-    /// support below, air at feet and head height. Uses the no-load block read.</summary>
-    private bool StandableAt(int x, int y, int z)
+    /// support below, air from the feet up through <paramref name="headroom"/> cells. Uses the no-load
+    /// block read.</summary>
+    private bool StandableAt(int x, int y, int z, int headroom = CreatureBodyMinHeight)
     {
         var below = _world.GetBlockIfLoaded(new Vector3i(x, y - 1, z));
-        return !below.IsAir && below.Value != _creatureWaterId
-            && _world.GetBlockIfLoaded(new Vector3i(x, y, z)).IsAir
-            && _world.GetBlockIfLoaded(new Vector3i(x, y + 1, z)).IsAir;
+        if (below.IsAir || below.Value == _creatureWaterId)
+        {
+            return false;
+        }
+
+        for (int dy = 0; dy < headroom; dy++)
+        {
+            if (!_world.GetBlockIfLoaded(new Vector3i(x, y + dy, z)).IsAir)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private const float GroupCohesionRange = 24f;   // kin within this count toward the group centre (#639)
@@ -1343,19 +1543,25 @@ public sealed partial class GameServer
     {
         foreach (var creature in _creatures)
         {
-            if (!creature.IsCompanion && TryPushOutsideShip(creature.Position, out var outside))
+            if (creature.IsCompanion)
+            {
+                continue;
+            }
+
+            float margin = _speciesById.TryGetValue(creature.SpeciesId, out var sp) ? CreatureShipMargin(sp) : 0f;
+            if (TryPushOutsideShip(creature.Position, out var outside, margin))
             {
                 creature.Position = outside;
             }
         }
     }
 
-    /// <summary>Spawns a wild creature of the first roster species at an exact position, bypassing the spawn
-    /// habitat/ship checks. Test-only — lets a test plant a creature inside a parked ship to prove it is
-    /// evicted. Returns the new creature's id.</summary>
-    public string SpawnCreatureAtForTest(Vector3f at)
+    /// <summary>Spawns a wild creature of the first roster species (or <paramref name="speciesId"/>) at an
+    /// exact position, bypassing the spawn habitat/ship checks. Test-only — lets a test plant a creature
+    /// inside a parked ship to prove it is evicted. Returns the new creature's id.</summary>
+    public string SpawnCreatureAtForTest(Vector3f at, string? speciesId = null)
     {
-        SpawnCreature(_speciesRoster[0], at);
+        SpawnCreature(speciesId is null ? _speciesRoster[0] : _speciesById[speciesId], at);
         return _creatures[^1].Id;
     }
 
@@ -1373,6 +1579,16 @@ public sealed partial class GameServer
         c.Loco.ModeTimer = seconds;
         c.Loco.Speed = 0f;
     }
+
+    /// <summary>The spawner's full reject list for the first roster species at a spot (#1314 seam).</summary>
+    public bool SpawnSpotClearForTest(Vector3f at)
+    {
+        int x = (int)System.Math.Floor(at.X), z = (int)System.Math.Floor(at.Z);
+        return SpawnSpotClear(_speciesRoster[0], at, x, z, _generator.SurfaceHeight(_world.Planet, x, z));
+    }
+
+    /// <summary>The per-species share of this world's live cap for one player on foot (#1325 seam).</summary>
+    public int SpeciesShareForTest() => SpeciesShare(System.Math.Min(WorldCreatureCap(1), CreatureHardCap));
 
     /// <summary>The movement profile for a species id (falls back to a default if somehow unknown).</summary>
     private LocomotionProfile ProfileFor(string speciesId)
@@ -1679,8 +1895,12 @@ public sealed partial class GameServer
 
     /// <summary>Removes creatures farther than <see cref="CreatureDespawnRange"/> from every player
     /// (titans keep a wider leash — <see cref="TitanDespawnRange"/> — so the huge silhouette you are
-    /// walking toward doesn't vanish). Returns true if any were removed (caller re-broadcasts).</summary>
-    private bool PruneFarCreatures(List<PlayerSession> targets)
+    /// walking toward doesn't vanish). Then the crowding pass (#1325): a species OVER its share of
+    /// <paramref name="cap"/> (the cap shrank, or a pre-share save) sheds its farthest members that are
+    /// out of sight of every player — beyond <see cref="CreatureCrowdDespawnRange"/>, not provoked — until
+    /// it is back at its share, so the mix can recover while the player stays at their base. Returns true
+    /// if any were removed (caller re-broadcasts).</summary>
+    private bool PruneFarCreatures(List<PlayerSession> targets, int cap)
     {
         float maxSq = CreatureDespawnRange * CreatureDespawnRange;
         float titanSq = TitanDespawnRange * TitanDespawnRange;
@@ -1697,6 +1917,32 @@ public sealed partial class GameServer
             var nearest = NearestPlayerPosition(targets, c.Position);
             return nearest is not { } np || WrapDistSq(np, c.Position) > limitSq;
         });
+
+        int share = SpeciesShare(System.Math.Min(cap, CreatureHardCap));
+        float crowdSq = CreatureCrowdDespawnRange * CreatureCrowdDespawnRange;
+        foreach (var sp in _speciesRoster)
+        {
+            int over = WildCountOf(sp.Id) - share;
+            if (over <= 0)
+            {
+                continue;
+            }
+
+            // Farthest-from-any-player first, out-of-sight members only — the animals in view stay put.
+            var shed = _creatures
+                .Where(c => !c.IsCompanion && c.SpeciesId == sp.Id && c.ProvokeTimer <= 0)
+                .Select(c => (Creature: c, DistSq: NearestPlayerPosition(targets, c.Position) is { } np ? WrapDistSq(np, c.Position) : double.MaxValue))
+                .Where(t => t.DistSq > crowdSq)
+                .OrderByDescending(t => t.DistSq)
+                .Take(over)
+                .ToList();
+            foreach (var (creature, _) in shed)
+            {
+                _creatures.Remove(creature);
+                removed++;
+            }
+        }
+
         return removed > 0;
     }
 

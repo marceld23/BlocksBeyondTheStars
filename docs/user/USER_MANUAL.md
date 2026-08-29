@@ -1079,7 +1079,9 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
-  Flora regrows when its host block survives.
+  Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
+  (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
+  an animal you wall or floor in while it sleeps wakes up and steps clear.
 - **Every animal moves the way its body says.** Walkers jump one-block ledges (like you) and are stopped by
   two; crawlers (legless, serpentine or many-legged things) haul over one block and never jump; giants
   step but never jump; fliers land to rest and to sleep and take off again when disturbed — a skittish bird
@@ -1317,6 +1319,21 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
 - Audio is relayed **live through the server and never recorded**. Use a **headset** to avoid echo.
 - *On a standalone **dedicated** server, the admin must enable voice (`voiceChatEnabled` / `--voice true` /
   `BBS_VOICE=true`); local hosting enables it automatically.*
+
+### Player feedback (**F1**; **F2** in the browser) — and the developers' answers
+- Press **F1** (F2 in browser builds) during play to send a bug report or a wish: a title, a description
+  and an optional e-mail. A screenshot and a small technical snapshot (player name, version, position,
+  stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
+  later start.
+- **The developers can answer you in the game.** When they reply to one of your reports, a line shows
+  on the HUD and a window opens with the conversation — what you reported, their answer, and
+  "Fixed in version …" when the fix has shipped. **OK** (or Esc) closes it; you see each answer once.
+- When the developers **ask you a question**, the same window has an answer box: type your answer and
+  press **Send answer** — it is stored with your report (up to three answers per report). Never put
+  personal data in there.
+- Answers are only fetched while the game remembers a report you sent in the last 90 days; a game that
+  never sent feedback contacts nothing. In the browser (play.bbts.de or the glitch.fun arcade) this
+  works the same way; the arcade ties answers to your Glitch install, so they follow you across releases.
 
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump Description of the problem`

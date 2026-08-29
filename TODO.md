@@ -219,6 +219,34 @@ step. README family section gained the age paragraph + PARENTS links; the Codex 
 (en+de) gained the content-profile + /report paragraph. Website/itch/glitch.fun texts = the statement block in
 PARENTS.md (Marcel publishes those surfaces). Closes kid-friendly-hints stage 2.
 
+### ★ The feedback dialog (F1/F2) holds the world like the Esc menu (#1330, 2026-08-29, branch feat/1330-feedback-dialog-pause)
+Asked in singleplayer: "the game should pause as soon as F1/F2 opens the feedback form." It did not — `FeedbackUi`
+only registered as a menu owner (`SetMenuOwner`: controls frozen, cursor freed) and never sent the `PauseIntent`
+the Esc menu has sent since #612/#908/#973, so hunger, daylight and creatures carried on behind the form.
+**Fix:** the dialog now sends the same hold on open (after the screenshot capture, so the shot still shows live
+play), the release on every close path (Esc, Cancel, auto-close after a send), and repeats the intent every 15 s
+while open — the keep-alive the server sweeps dead-behind-a-menu clients by. No server or protocol change: the
+server already decides per #973 (alone → the world stops and saves; with others joined it only counts as "in a
+menu" until everyone agrees), and `BumpReport` — the `/bump` snapshot the send fires — was already on the paused
+allow-list (#995). The cadence moved out of `AppShell` into a pure `Client.Core` `WorldHoldIntent`
+(`Hold`/`Release`/`Tick`/`Forget`) shared by both menus; `AppShell` forgets its hold silently when the world is
+left, so a stale keep-alive can never put the NEXT world to sleep. Six headless tests (`WorldHoldIntentTests`).
+Deliberately NOT done: holding behind every other panel (inventory, crafting, maps …) — a separate design question.
+Docs: `docs/developer/PLAYER_FEEDBACK.md`, CHANGELOG.
+
+### ★ Guardian machines: grey circuit plating instead of flat black (#1337 + #1338, 2026-08-29, branch feat/guardian-plating-1337)
+Marcel: "the robot, drone and ship-guardian enemies are completely black — make them grey/dark grey with a metal-plate,
+circuit-board pattern; the eyes stay red." Root cause: `WorldEntities.EnsureMaterials` tinted the plating 0.13 (joints
+0.08) — LitColor turns that into an 8–18 % black silhouette — and the `enemy_robot` tile the code already tried to load
+was never made (only the pre-retheme `enemy_hide` alien hide was bundled). The space drone/UFO used the black `carbon`
+coal tile at dark tints without the #711 floor/fill lift. **Fix:** one new AI tile `enemy_robot` (`gen_textures.py`,
+desaturated 70 % + lifted to ~0.40 mean before bundling — unlike `CreatureBuilder`, the entity loaders do not brighten
+tiles, so the tile carries the final greys and the tints sit near 1: plating 0.95, joints 0.55, plain trim 0.52); flat
+dark-grey fallback when the tile is absent. `SpaceView.GuardianPlating()` puts the same tile + the entity floor/fill on
+the drone core, UFO saucer/underside and the cruiser's dark spine/engines (its iron hull unchanged); red eyes/dome/threat
+lights untouched. `enemy_hide.bytes` deleted; lore docs (`LORE_STRUCTURE`, `STORY_VEGA_PROTOCOL_CONCEPT`) say "grey"
+instead of "black"; NOTICES tile list updated. Client-only — needs the Unity build; no locale text mentions the colour.
+
 ### ★ Portable data folder — `portable_data_dir.txt` next to the executable (#1285, 2026-08-26, branch feat/1285-portable-data-dir)
 The portable zip stored everything in `%LOCALAPPDATA%\..\LocalLow\…` like the installed game. Now an optional
 marker file next to the executable redirects the whole persistent-data root: `AppPaths.Root` (new, Unity side)
@@ -9615,6 +9643,39 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): fauna respects player builds — sleepers, sealed rooms, no monoculture (#1320, #1314, #1325)
+
+Lyxette's reports 5 + 6 ("Kreaturen Spawn", "Elephant im Kühlschrank") and the round-3 base complaint, one
+server-only PR. Root of the "they spawn endlessly in my base" feeling was never the spawn spot alone.
+
+* **Embedded sleepers step clear (#1320).** A sleeping creature skipped every collision gate on the movement
+  path, so a walkway or wall built through a sleeping herd left the bodies in the masonry all night. Sleepers
+  now re-validate their body every tick (a handful of block reads): an embedded one is roused and stepped
+  aside to the nearest clear spot within 6 blocks — same level first, so it steps out of a wall rather than
+  climbing onto the floor built over it — or despawns when boxed in on every side.
+* **Feet snap honours body height + looks further for real ground (#1320).** `StandableAt` accepted a two-cell
+  hollow under a floor for a ten-block titan and held its body inside the floor above; a creature's own column
+  probe now demands the species' collision height of headroom (large land species) and scans ±24 cells before
+  falling back to the generator's pre-excavation surface (which floated animals over fresh pits).
+* **Body-aware ship guard (#1320, "Elephant im Kühlschrank").** `EntityBlockedByShip`/`TryPushOutsideShip` were
+  point-in-box with a 0.5 margin — a titan herd asleep with its centres a block outside the hull filled the
+  cabin. The margin now grows by the species' footprint radius (`Size × 0.5`) for large species at spawn, per
+  step, in the per-tick push-out and in the placement sweep; small fauna keeps the plain test.
+* **No spawns in sealed base rooms (#1314).** The spawner never consulted the base systems. Every placement —
+  ring leader and each herd member — now runs one reject list (`SpawnSpotClear`) that ends with
+  `InSealedBaseRoom` (the cached air fill, effectively free). Walls and materials still change nothing for
+  open-topped yards — that is #1315.
+* **No monoculture (#1325).** 6 → 12 → 36 animals at one base, all one species: a random biome affinity per
+  species + a native-first pass left his swamp with exactly one native, titan herds added 2–4 per spawn,
+  nothing capped a species' share, and nothing despawns while the player stays. Now: per-species share of the
+  live cap (40 %, ≥ 3, ≥ cap ÷ roster) that herds spawn partially against; a biome with fewer than two
+  eligible species skips the native pass (`CreatureBehaviour.BiomePassStarved`); an over-share species sheds its
+  farthest out-of-sight members (> 40 blocks, not provoked). Rosters and saves untouched — only selection changes.
+* Tests: `CreatureBuildRespectTests` (10) — biome-pass starvation, share + herd + crowding, sealed-room seam,
+  walled-in / boxed-in sleeper, titan under a slab, pillar removal, titan beside the hull.
+
+---
+
 ## ✅ Done (2026-08-29): the compass, the crouch and an honest repair panel (#1307, #1308, #1309, #1313)
 
 Lyxette's third round of reports (2026-08-27) — the client-only quartet, all four in one PR. Server-side
@@ -9660,6 +9721,31 @@ else the menu opens a one-time "What is your name?" modal (`BrowserNamePromptPen
 (`BrowserLocalServer.PeekSavedPlayerName`). New keys `ui.webgl.name_prompt_*` EN+DE. **Docs (#1323):**
 README ×2, USER_MANUAL, HOSTED_WORLDS, WEBCLIENT_FEASIBILITY. Needs the next WebGL release for the client
 half; the portal half ships with the next WorldHost image.
+
+---
+
+## ✅ Done (2026-08-29): the way back — developer answers and follow-up questions reach the reporter in-game (#1327, #1328, #1329)
+
+Until now the F1 inbox was a dead end: an operator could flip a report's status or delete it, and every
+answer to a player was a manual e-mail — which most reports do not even carry. Now each report has a
+**reply thread**. **ReportHost** (#1327): `report_reply` table + `reply_key` / `fixed_in_version` columns
+(added in place on older databases), statuses `waiting_for_player` / `player_replied`, a detail-page
+conversation view with an answer/question form and a "fixed in version" field, `POST /api/reports/{id}/replies`
+for scripts, and three player routes behind the write key + limiter + CORS: `GET /api/replies?key=`
+(threads with unread dev entries), `POST /api/replies/ack`, `POST /api/replies` (max 3 player answers per
+report, ntfy ping). The **reply key** is a one-way hash of the install secret (`Shared/Feedback/FeedbackReplyKey`)
+— derived from `playerId` for older clients and back-filled once at startup, so existing reporters (e.g.
+Lyxette's) become answerable as soon as they update. **Client** (#1328): every report carries `replyKey`
+(desktop/play.* from the name-claim token, glitch.fun arcade from the install id, so answers follow the
+player across deployments), accepted uploads are remembered in `feedback/sent.json` (`SentReportsLog`, the
+poll gate — an install that never sent feedback makes zero requests), `FeedbackReplyClient` polls 12 s after
+the world loads and every 10 min, and `FeedbackUi` shows a HUD line + modal with the thread, OK acknowledges,
+a pending question adds an answer box. WebGL runs the same flow over `UnityWebRequest`. **Docs + wording**
+(#1329): REPORT_HOST.md, PLAYER_FEEDBACK.md, USER_MANUAL.md, `ui.feedback.hint` now says the developers may
+answer in-game and that a typed answer is stored with the report; 14 new `ui.feedback.reply.*` keys EN/DE
+(+ machine first-pass for the other locales). Tests: 9 new ReportHost tests (key derivation/back-fill,
+ownership, ack scoping, reply limit, delete/prune cascade, legacy-schema migration, page encoding) + 8 new
+client tests (key, sent log, reply client against a local `HttpListener`).
 
 ---
 

@@ -5,9 +5,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
+using BlocksBeyondTheStars.Shared.Feedback;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,6 +31,18 @@ namespace BlocksBeyondTheStars.Client
     ///   • the existing <c>/bump</c> message (<see cref="NetworkClient.SendBumpReport"/>) so the server also
     ///     writes its rich local snapshot (inventory/position/surroundings) when on an own/singleplayer server.
     ///
+    /// While the dialog is open the world is HELD exactly like behind the Esc menu (#1330): the same server intent
+    /// (<see cref="NetworkClient.SendPause"/>, group decision per #973 — a lone writer in multiplayer pauses nobody
+    /// else) with the same keep-alive, so typing a report in singleplayer no longer costs hunger, daylight or a
+    /// creature sneaking up behind the form. The screenshot is taken BEFORE the hold, so it still shows live play.
+    ///
+    /// <b>Reply inbox (#1328).</b> The same component is the receiving end of the channel: every report carries a
+    /// one-way <c>replyKey</c> (<see cref="FeedbackReplyKey"/>), successfully sent reports are remembered in
+    /// <see cref="SentReportsLog"/>, and — ONLY while that memory holds a recent report — the client asks the inbox
+    /// for developer answers shortly after the world loads and every <see cref="PollIntervalSeconds"/>. An answer
+    /// shows as a HUD line plus a modal with the thread; a developer <i>question</i> adds an input so the player
+    /// can answer from inside the game. Shown entries are acknowledged so they appear once.
+    ///
     /// Wired by <see cref="WorldRig"/> next to <see cref="HudUi"/> / <see cref="ChatUi"/>.
     /// </summary>
     public sealed class FeedbackUi : MonoBehaviour
@@ -38,10 +52,20 @@ namespace BlocksBeyondTheStars.Client
 
         private const float W = 1920f, H = 1080f;
 
+        /// <summary>How often the inbox is asked for replies while playing (only with recent sent reports).</summary>
+        public const float PollIntervalSeconds = 600f;
+
+        /// <summary>Delay before the first poll after the world loads — keep the startup network quiet.</summary>
+        public const float FirstPollDelaySeconds = 12f;
+
         private FeedbackUploader _uploader;
         private FeedbackSpool _spool;
+        private FeedbackReplyClient _replies;
+        private SentReportsLog _sentLog;
+        private string _replyKey = string.Empty;
         private string _sessionId = string.Empty;
-        private string _pendingJson; // the in-flight dialog send's body, spooled if the upload fails
+        private string _pendingJson;  // the in-flight dialog send's body, spooled if the upload fails
+        private string _pendingTitle; // the title of that send, remembered next to the inbox id on success
 
         // Dialog (built lazily on first open).
         private Canvas _dialogCanvas;
@@ -55,6 +79,32 @@ namespace BlocksBeyondTheStars.Client
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
 
+        // The dialog's "hold the world while I'm open" request — one class shared with the Esc menu so the
+        // intent, the release and the 15 s keep-alive the server sweeps dead clients by (#973) have one copy.
+        private WorldHoldIntent _worldHoldOrNull;
+
+        private WorldHoldIntent WorldHold =>
+            _worldHoldOrNull ??= new WorldHoldIntent(paused => Game?.Network?.SendPause(paused));
+
+        // Reply inbox state.
+        private float _nextPollAt = -1f;         // < 0 = polling off (no API key)
+        private bool _polling;                   // a poll request is in flight (task or WebGL coroutine)
+        private Task<FeedbackReplyResult> _pollTask;
+        private Task<FeedbackReplyResult> _answerTask;
+        private readonly Queue<FeedbackReplyThread> _inbox = new Queue<FeedbackReplyThread>();
+        private readonly HashSet<string> _inboxIds = new HashSet<string>();
+        private readonly object _replyOwner = new object(); // its own menu owner — independent of the F1 dialog
+
+        // Reply window (built lazily).
+        private Canvas _replyCanvas;
+        private GameObject _replyOverlay;
+        private Text _replyTitle, _replyBody, _replyStatus, _answerLabel;
+        private InputField _answerInput;
+        private Button _replyOkBtn, _replyAnswerBtn;
+        private FeedbackReplyThread _shown;
+        private bool _replyOpen;
+        private bool _answering;
+
         /// <summary>The key that opens the feedback dialog: F2 in browser builds (F1 would fight the browser's
         /// own help shortcut), F1 everywhere else.</summary>
         public static KeyCode Hotkey =>
@@ -66,17 +116,39 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
 
+        private static long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
         private void Start()
         {
             // A random id groups several reports from one sitting (varies per session; no Unity-restricted Date use).
             _sessionId = Guid.NewGuid().ToString("N");
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
             _spool = new FeedbackSpool(Path.Combine(AppPaths.Root, "feedback"));
+            _replies = new FeedbackReplyClient(FeedbackReplyClient.EndpointFor(FeedbackUploader.DefaultEndpoint), BugReportBuildSecrets.ApiKey);
+            _sentLog = new SentReportsLog(Path.Combine(AppPaths.Root, "feedback", "sent.json"));
+            _replyKey = ComputeReplyKey();
 
             if (_uploader.IsConfigured)
             {
                 FlushSpool(); // deliver what an earlier session couldn't (bounded attempts, see FeedbackSpool)
+                _nextPollAt = Time.unscaledTime + FirstPollDelaySeconds;
             }
+        }
+
+        /// <summary>The install's reply-thread credential: a one-way hash of the install secret. Desktop and
+        /// play.* builds hash the name-claim token (stable per install — the <c>/play/</c> path never changes);
+        /// the glitch.fun arcade hashes the Glitch install id instead, because the browser-local token there
+        /// resets with every deployment (#1177) while the install id follows the player across deployments
+        /// and browsers. Whoever learns the key can read replies — never claim a name.</summary>
+        private string ComputeReplyKey()
+        {
+            string secret = GlitchIntegration.ArcadeInstallId; // empty everywhere except the arcade
+            if (string.IsNullOrEmpty(secret) && Settings != null)
+            {
+                secret = Settings.PlayerToken;
+            }
+
+            return FeedbackReplyKey.Derive(secret);
         }
 
         private void Update()
@@ -101,6 +173,9 @@ namespace BlocksBeyondTheStars.Client
                 Close();
             }
 
+            // Keep telling the server we are still here while the dialog holds the world (no-op while closed).
+            WorldHold.Tick(Time.realtimeSinceStartup);
+
             // Marshal the background upload result back onto the main thread.
             if (_uploadTask != null && _uploadTask.IsCompleted)
             {
@@ -111,6 +186,8 @@ namespace BlocksBeyondTheStars.Client
                 catch (Exception e) { result = new FeedbackUploadResult { Error = e.GetType().Name }; }
                 OnUploadFinished(result);
             }
+
+            TickReplyInbox(canLaunch);
         }
 
         // --- Open / close ----------------------------------------------------------------------------------
@@ -144,16 +221,22 @@ namespace BlocksBeyondTheStars.Client
             // dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
             // save/restore the prior state by hand (#413).
             Game.SetMenuOwner(this, true);
+
+            // Hold the world like the Esc menu does (#1330) — after the screenshot, so the shot shows live play.
+            // The server decides what it means (#973): alone, the world stops right here; with others joined it
+            // only counts as "this player is in a menu" until everyone else is too.
+            WorldHold.Hold(Time.realtimeSinceStartup);
         }
 
         private void Close()
         {
-            CancelInvoke();
+            CancelInvoke(nameof(Close));
             _open = false;
             _sending = false;
             _shotJpg = null;
             if (_dialog != null) _dialog.SetActive(false);
 
+            WorldHold.Release(); // every close path ends here (Esc, Cancel, the auto-close after a send) — sends once
             Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
         }
 
@@ -252,6 +335,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 string json = FeedbackUploader.Serialize(report, jpg);
                 _pendingJson = json;
+                _pendingTitle = string.IsNullOrEmpty(title) ? Shorten(desc, 60) : title;
 #if UNITY_WEBGL && !UNITY_EDITOR
                 // WASM has neither sockets nor threads — HttpClient/Task.Run can't run in the browser, so
                 // the WebGL player posts the identical body via UnityWebRequest on a coroutine.
@@ -274,12 +358,15 @@ namespace BlocksBeyondTheStars.Client
         {
             _sending = false;
             string body = _pendingJson;
+            string title = _pendingTitle ?? string.Empty;
             _pendingJson = null;
+            _pendingTitle = null;
 
             if (result != null && result.Ok)
             {
                 if (_status != null) { _status.text = L("ui.feedback.sent"); _status.color = UiKit.Ok; }
                 Game?.ShowMessage(L("ui.feedback.sent"));
+                RememberSent(result.ReportId, title);
                 Invoke(nameof(Close), 1.2f);
             }
             else if (result != null && result.StatusCode >= 400 && result.StatusCode < 500)
@@ -304,6 +391,26 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Remembers an accepted report so the reply poll has a reason to run (#1328). The inbox id is
+        /// what the poll's threads are keyed by in the UI; a missing id (legacy backend) just means no memory.</summary>
+        private void RememberSent(string reportId, string title)
+        {
+            if (_sentLog == null || string.IsNullOrEmpty(reportId))
+            {
+                return;
+            }
+
+            if (_sentLog.Record(reportId, title, NowUnix()))
+            {
+                WebGlStorage.Sync(); // browser: make the memory durable across reloads (no-op elsewhere)
+            }
+
+            if (_nextPollAt >= 0f)
+            {
+                _nextPollAt = Mathf.Min(_nextPollAt, Time.unscaledTime + PollIntervalSeconds);
+            }
+        }
+
         private FeedbackReport BuildReport(string title, string desc, string email)
         {
             var report = new FeedbackReport
@@ -315,6 +422,7 @@ namespace BlocksBeyondTheStars.Client
                 BuildNumber = Application.buildGUID ?? string.Empty,
                 PlayerId = Settings != null ? Settings.PlayerToken : string.Empty,
                 PlayerName = Settings != null && !string.IsNullOrEmpty(Settings.PlayerName) ? Settings.PlayerName : (Game != null ? Game.PlayerName : string.Empty),
+                ReplyKey = _replyKey,
                 SessionId = _sessionId,
                 Platform = Application.platform.ToString(),
                 ClientTimestamp = DateTime.UtcNow.ToString("o"),
@@ -406,6 +514,303 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 #endif
+
+        // --- Reply inbox (#1328) ---------------------------------------------------------------------------
+
+        private void TickReplyInbox(bool canLaunch)
+        {
+            // Marshal background results onto the main thread.
+            if (_pollTask != null && _pollTask.IsCompleted)
+            {
+                var task = _pollTask;
+                _pollTask = null;
+                _polling = false;
+                FeedbackReplyResult result;
+                try { result = task.Result; }
+                catch (Exception e) { result = new FeedbackReplyResult { Error = e.GetType().Name }; }
+                OnPollFinished(result);
+            }
+
+            if (_answerTask != null && _answerTask.IsCompleted)
+            {
+                var task = _answerTask;
+                _answerTask = null;
+                FeedbackReplyResult result;
+                try { result = task.Result; }
+                catch (Exception e) { result = new FeedbackReplyResult { Error = e.GetType().Name }; }
+                OnAnswerFinished(result);
+            }
+
+            // Scheduled poll — only ever fires with an API key, a key of our own and recent sent reports.
+            if (_nextPollAt >= 0f && Time.unscaledTime >= _nextPollAt && !_polling)
+            {
+                _nextPollAt = Time.unscaledTime + PollIntervalSeconds;
+                StartPoll();
+            }
+
+            // Show the next queued thread as soon as nothing else owns the screen.
+            if (!_replyOpen && !_open && canLaunch && _inbox.Count > 0)
+            {
+                ShowThread(_inbox.Dequeue());
+            }
+
+            if (_replyOpen && !_answering && Input.GetKeyDown(KeyCode.Escape))
+            {
+                Game.MarkMenuInputHandled();
+                AcknowledgeAndClose();
+            }
+        }
+
+        private void StartPoll()
+        {
+            if (_replies == null || !_replies.IsConfigured || string.IsNullOrEmpty(_replyKey) || _sentLog == null)
+            {
+                return;
+            }
+
+            if (!_sentLog.ShouldPoll(NowUnix()))
+            {
+                return; // nothing sent recently → no request at all (no phone-home without a reason)
+            }
+
+            _polling = true;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(FeedbackWebGlTransport.Request(_replies.FetchUrl(_replyKey, 0), "GET", null, (res, body) =>
+            {
+                _polling = false;
+                var result = new FeedbackReplyResult { Ok = res.Ok, StatusCode = res.StatusCode, Error = res.Error };
+                if (res.Ok)
+                {
+                    result.Threads.AddRange(FeedbackReplyClient.ParseThreads(body));
+                }
+
+                OnPollFinished(result);
+            }));
+#else
+            var replies = _replies;
+            string key = _replyKey;
+            _pollTask = Task.Run(() => replies.Fetch(key, 0));
+#endif
+        }
+
+        private void OnPollFinished(FeedbackReplyResult result)
+        {
+            if (result == null || !result.Ok)
+            {
+                if (result != null && result.Error.Length > 0)
+                {
+                    Debug.Log($"[Feedback] reply poll skipped: {result.Error}");
+                }
+
+                return;
+            }
+
+            FeedbackReplyThread first = null;
+            foreach (var thread in result.Threads)
+            {
+                if (thread.UnseenIds.Count == 0 || !_inboxIds.Add(thread.ReportId))
+                {
+                    continue; // nothing new, or already queued/shown this session
+                }
+
+                _inbox.Enqueue(thread);
+                first ??= thread;
+            }
+
+            if (first != null)
+            {
+                Game?.ShowMessage(string.Format(L("ui.feedback.reply.toast"), first.Title));
+            }
+        }
+
+        private void ShowThread(FeedbackReplyThread thread)
+        {
+            if (thread == null || Game == null)
+            {
+                return;
+            }
+
+            EnsureReplyDialog();
+            _shown = thread;
+            _replyOpen = true;
+            _answering = false;
+
+            _replyTitle.text = string.Format(L("ui.feedback.reply.report"), thread.Title.Length > 0 ? thread.Title : "…");
+            _replyBody.text = ThreadText(thread);
+            _replyStatus.text = string.Empty;
+            _replyStatus.color = UiKit.CyanDim;
+            _answerInput.text = string.Empty;
+
+            bool canAnswer = thread.AwaitsAnswer;
+            _answerLabel.gameObject.SetActive(canAnswer);
+            _answerInput.gameObject.SetActive(canAnswer);
+            _replyAnswerBtn.gameObject.SetActive(canAnswer);
+            _replyOkBtn.interactable = true;
+            _replyAnswerBtn.interactable = true;
+
+            _replyOverlay.SetActive(true);
+            WorldHold.Hold(Time.realtimeSinceStartup); // reading/answering holds the world like the F1 dialog (#1330)
+            Game.SetMenuOwner(_replyOwner, true);
+        }
+
+        /// <summary>The thread as one readable block: who said what, oldest first, plus the "fixed in" line.</summary>
+        private string ThreadText(FeedbackReplyThread thread)
+        {
+            var sb = new StringBuilder();
+            foreach (var reply in thread.Replies)
+            {
+                string who = reply.IsDev
+                    ? (reply.IsQuestion ? L("ui.feedback.reply.dev_question") : L("ui.feedback.reply.dev"))
+                    : L("ui.feedback.reply.you");
+                sb.Append(who).Append(' ').Append(reply.Text.Trim()).Append("\n\n");
+            }
+
+            if (!string.IsNullOrEmpty(thread.FixedInVersion))
+            {
+                sb.Append(string.Format(L("ui.feedback.reply.fixed_in"), thread.FixedInVersion));
+            }
+
+            return Shorten(sb.ToString().TrimEnd(), 1400);
+        }
+
+        private void EnsureReplyDialog()
+        {
+            if (_replyOverlay != null)
+            {
+                return;
+            }
+
+            _replyCanvas = UiKit.CreateCanvas("FeedbackReplyDialog");
+            _replyCanvas.sortingOrder = 61; // above the F1 dialog, which it never overlaps in practice
+            UiNav.Enable(_replyCanvas.gameObject);
+
+            const float pw = 900f, ph = 660f;
+            var (overlay, panel) = UiKit.AddModalOverlay(_replyCanvas.transform, (W - pw) / 2f, (H - ph) / 2f, pw, ph);
+            _replyOverlay = overlay;
+            const float m = 36f, innerW = pw - 2f * m;
+
+            UiKit.AddText(panel, m, 22, innerW, 34, L("ui.feedback.reply.title"), 26, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _replyTitle = UiKit.AddText(panel, m, 66, innerW, 26, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _replyTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _replyTitle.verticalOverflow = VerticalWrapMode.Truncate;
+
+            _replyBody = UiKit.AddText(panel, m, 100, innerW, 296, string.Empty, 16, UiKit.TextCol, TextAnchor.UpperLeft);
+            _replyBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _replyBody.verticalOverflow = VerticalWrapMode.Truncate;
+
+            _answerLabel = UiKit.AddText(panel, m, 404, innerW, 20, L("ui.feedback.reply.answer_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _answerInput = UiKit.AddInput(panel, m, 426, innerW, 110, string.Empty, null, L("ui.feedback.reply.answer_placeholder"), 1500);
+            _answerInput.lineType = InputField.LineType.MultiLineNewline;
+            if (_answerInput.textComponent != null) _answerInput.textComponent.alignment = TextAnchor.UpperLeft;
+
+            _replyStatus = UiKit.AddText(panel, m, 546, innerW, 24, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            _replyOkBtn = UiKit.AddButton(panel, m, 582, 400, 56, L("ui.feedback.reply.ok"), AcknowledgeAndClose, "btn_join");
+            _replyAnswerBtn = UiKit.AddButton(panel, m + 428, 582, 400, 56, L("ui.feedback.reply.send"), OnAnswerClicked, "btn_feedback");
+
+            _replyOverlay.SetActive(false);
+        }
+
+        /// <summary>OK / Esc: the entries were shown, so acknowledge them (fire-and-forget) and close.</summary>
+        private void AcknowledgeAndClose()
+        {
+            if (_answering)
+            {
+                return;
+            }
+
+            AckShown();
+            CloseReply();
+        }
+
+        private void AckShown()
+        {
+            if (_shown == null || _shown.UnseenIds.Count == 0 || _replies == null || !_replies.IsConfigured)
+            {
+                return;
+            }
+
+            var ids = new List<long>(_shown.UnseenIds);
+            _shown.UnseenIds.Clear(); // never ack twice
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(FeedbackWebGlTransport.Request(_replies.AckUrl, "POST", FeedbackReplyClient.AckBody(_replyKey, ids), (r, b) => { }));
+#else
+            var replies = _replies;
+            string key = _replyKey;
+            _ = Task.Run(() => replies.Ack(key, ids));
+#endif
+        }
+
+        private void CloseReply()
+        {
+            CancelInvoke(nameof(CloseReply));
+            _replyOpen = false;
+            _answering = false;
+            _shown = null;
+            if (_replyOverlay != null) _replyOverlay.SetActive(false);
+            WorldHold.Release();
+            Game?.SetMenuOwner(_replyOwner, false);
+        }
+
+        private void OnAnswerClicked()
+        {
+            if (_answering || _shown == null)
+            {
+                return;
+            }
+
+            string text = ((_answerInput != null ? _answerInput.text : null) ?? string.Empty).Trim();
+            if (text.Length < 2)
+            {
+                _replyStatus.text = L("ui.feedback.reply.need_text");
+                _replyStatus.color = UiKit.Warn;
+                return;
+            }
+
+            _answering = true;
+            _replyOkBtn.interactable = false;
+            _replyAnswerBtn.interactable = false;
+            _replyStatus.text = L("ui.feedback.sending");
+            _replyStatus.color = UiKit.CyanDim;
+
+            string reportId = _shown.ReportId;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            StartCoroutine(FeedbackWebGlTransport.Request(_replies.AnswerUrl, "POST", FeedbackReplyClient.AnswerBody(_replyKey, reportId, text),
+                (res, body) => OnAnswerFinished(new FeedbackReplyResult { Ok = res.Ok, StatusCode = res.StatusCode, Error = res.Error })));
+#else
+            var replies = _replies;
+            string key = _replyKey;
+            _answerTask = Task.Run(() => replies.Answer(key, reportId, text));
+#endif
+        }
+
+        private void OnAnswerFinished(FeedbackReplyResult result)
+        {
+            _answering = false;
+            if (!_replyOpen)
+            {
+                return;
+            }
+
+            if (result != null && result.Ok)
+            {
+                _replyStatus.text = L("ui.feedback.reply.answer_sent");
+                _replyStatus.color = UiKit.Ok;
+                Game?.ShowMessage(L("ui.feedback.reply.answer_sent"));
+                AckShown();
+                Invoke(nameof(CloseReply), 1.2f);
+            }
+            else
+            {
+                _replyStatus.text = L("ui.feedback.reply.failed");
+                _replyStatus.color = UiKit.Warn;
+                _replyOkBtn.interactable = true;
+                _replyAnswerBtn.interactable = true;
+            }
+        }
+
+        private static string Shorten(string s, int max)
+            => string.IsNullOrEmpty(s) || s.Length <= max ? s ?? string.Empty : s.Substring(0, max) + "…";
 
         // --- Screenshot ------------------------------------------------------------------------------------
 

@@ -1043,6 +1043,7 @@ namespace BlocksBeyondTheStars.Client
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
             _confirmQuit = false;
+            WorldHold.Forget(); // the world is gone — a stale keep-alive must not put the NEXT one to sleep
             if (_quitDialog != null)
             {
                 UnityEngine.Object.Destroy(_quitDialog);
@@ -1087,28 +1088,33 @@ namespace BlocksBeyondTheStars.Client
         /// </summary>
         private void SetWorldPaused(bool paused)
         {
-            _nextPauseKeepAlive = paused ? Time.realtimeSinceStartup + PauseKeepAliveSeconds : 0f;
-            Boot()?.Network?.SendPause(paused);
+            if (paused)
+            {
+                WorldHold.Hold(Time.realtimeSinceStartup);
+            }
+            else
+            {
+                WorldHold.Release();
+            }
         }
 
-        /// <summary>How often the held intent is re-sent while the menu stays open. Behind an open menu the
-        /// client sends nothing else at all — no movement, no pose — so this repeat is the server's only proof
-        /// that the game is still alive, and the one thing that lets it drop a player who crashed mid-pause
-        /// instead of leaving the world frozen for everybody else (#973, heartbeat from #964).</summary>
-        private const float PauseKeepAliveSeconds = 15f;
+        /// <summary>The menu's hold request, with the keep-alive the server relies on: behind an open menu this
+        /// repeat is what lets it drop a player who crashed mid-pause instead of leaving the world frozen for
+        /// everybody else (#973, heartbeat from #964). The feedback dialog holds through the same class (#1330).</summary>
+        private BlocksBeyondTheStars.Client.WorldHoldIntent _worldHoldOrNull;
 
-        private float _nextPauseKeepAlive;
+        private BlocksBeyondTheStars.Client.WorldHoldIntent WorldHold =>
+            _worldHoldOrNull ??= new BlocksBeyondTheStars.Client.WorldHoldIntent(paused => Boot()?.Network?.SendPause(paused));
 
         /// <summary>Re-sends the pause intent on the keep-alive cadence for as long as the menu session lasts.</summary>
         private void TickPauseKeepAlive()
         {
-            if (!_confirmQuit || Time.realtimeSinceStartup < _nextPauseKeepAlive)
+            if (!_confirmQuit)
             {
-                return;
+                return; // belt and braces — the hold is only ever opened with the menu session
             }
 
-            _nextPauseKeepAlive = Time.realtimeSinceStartup + PauseKeepAliveSeconds;
-            Boot()?.Network?.SendPause(true);
+            WorldHold.Tick(Time.realtimeSinceStartup);
         }
 
         private void CancelQuit()
