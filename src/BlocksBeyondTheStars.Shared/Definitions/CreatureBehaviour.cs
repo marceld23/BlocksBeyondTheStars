@@ -162,6 +162,26 @@ public static class CreatureBehaviour
         }
     }
 
+    /// <summary>Whether the spawner's biome-native pass would starve a spot (#1325): fewer than two roster
+    /// species are native to (or agnostic of) <paramref name="biome"/>. With a 9-species roster spread over
+    /// several biomes a region can easily have exactly ONE native, and the native-first pass then turned
+    /// every spawn around a base in that region into the same species — 36 of one kind at a swamp base.
+    /// A starved spot skips straight to the any-species pass so the region still gets variety.</summary>
+    public static bool BiomePassStarved(System.Collections.Generic.IReadOnlyList<CreatureSpecies> roster, int biome)
+    {
+        int eligible = 0;
+        for (int i = 0; i < roster.Count; i++)
+        {
+            int affinity = roster[i].BiomeAffinity;
+            if (affinity < 0 || affinity == biome)
+            {
+                eligible++;
+            }
+        }
+
+        return eligible < 2;
+    }
+
     /// <summary>Blends a heading toward a target heading by fraction <paramref name="t"/> (0..1) along the
     /// SHORT way around the circle (#651 — school/flock alignment). Pure and wrap-safe, so ±π seams never
     /// produce a spin the long way round.</summary>

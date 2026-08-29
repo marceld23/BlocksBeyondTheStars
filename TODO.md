@@ -9582,6 +9582,39 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): fauna respects player builds — sleepers, sealed rooms, no monoculture (#1320, #1314, #1325)
+
+Lyxette's reports 5 + 6 ("Kreaturen Spawn", "Elephant im Kühlschrank") and the round-3 base complaint, one
+server-only PR. Root of the "they spawn endlessly in my base" feeling was never the spawn spot alone.
+
+* **Embedded sleepers step clear (#1320).** A sleeping creature skipped every collision gate on the movement
+  path, so a walkway or wall built through a sleeping herd left the bodies in the masonry all night. Sleepers
+  now re-validate their body every tick (a handful of block reads): an embedded one is roused and stepped
+  aside to the nearest clear spot within 6 blocks — same level first, so it steps out of a wall rather than
+  climbing onto the floor built over it — or despawns when boxed in on every side.
+* **Feet snap honours body height + looks further for real ground (#1320).** `StandableAt` accepted a two-cell
+  hollow under a floor for a ten-block titan and held its body inside the floor above; a creature's own column
+  probe now demands the species' collision height of headroom (large land species) and scans ±24 cells before
+  falling back to the generator's pre-excavation surface (which floated animals over fresh pits).
+* **Body-aware ship guard (#1320, "Elephant im Kühlschrank").** `EntityBlockedByShip`/`TryPushOutsideShip` were
+  point-in-box with a 0.5 margin — a titan herd asleep with its centres a block outside the hull filled the
+  cabin. The margin now grows by the species' footprint radius (`Size × 0.5`) for large species at spawn, per
+  step, in the per-tick push-out and in the placement sweep; small fauna keeps the plain test.
+* **No spawns in sealed base rooms (#1314).** The spawner never consulted the base systems. Every placement —
+  ring leader and each herd member — now runs one reject list (`SpawnSpotClear`) that ends with
+  `InSealedBaseRoom` (the cached air fill, effectively free). Walls and materials still change nothing for
+  open-topped yards — that is #1315.
+* **No monoculture (#1325).** 6 → 12 → 36 animals at one base, all one species: a random biome affinity per
+  species + a native-first pass left his swamp with exactly one native, titan herds added 2–4 per spawn,
+  nothing capped a species' share, and nothing despawns while the player stays. Now: per-species share of the
+  live cap (40 %, ≥ 3, ≥ cap ÷ roster) that herds spawn partially against; a biome with fewer than two
+  eligible species skips the native pass (`CreatureBehaviour.BiomePassStarved`); an over-share species sheds its
+  farthest out-of-sight members (> 40 blocks, not provoked). Rosters and saves untouched — only selection changes.
+* Tests: `CreatureBuildRespectTests` (10) — biome-pass starvation, share + herd + crowding, sealed-room seam,
+  walled-in / boxed-in sleeper, titan under a slab, pillar removal, titan beside the hull.
+
+---
+
 ## ✅ Done (2026-08-29): the compass, the crouch and an honest repair panel (#1307, #1308, #1309, #1313)
 
 Lyxette's third round of reports (2026-08-27) — the client-only quartet, all four in one PR. Server-side
