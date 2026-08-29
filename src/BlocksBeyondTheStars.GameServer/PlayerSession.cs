@@ -123,6 +123,11 @@ public sealed class PlayerSession
     /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
     public double NextInventoryFullHintAt { get; set; }
 
+    /// <summary>Where the entombment rescue last moved this player during the CURRENT episode of being sealed
+    /// in (#1367), or null when they are out in the open. A rescue whose destination is the same blocked spot
+    /// as last time is skipped instead of re-teleporting and re-announcing every second.</summary>
+    public Shared.Geometry.Vector3f? EntombedRescueSpot { get; set; }
+
     /// <summary>Loot banked from asteroids / salvage drops that has not been announced yet (#1317): item key +
     /// how much went to the backpack and to the cargo hold. Flushed as ONE "+n … → hold" toast per cooldown.</summary>
     public List<(string Item, int ToBackpack, int ToCargo)> PendingLootToast { get; } = new();

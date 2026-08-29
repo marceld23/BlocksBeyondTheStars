@@ -149,6 +149,102 @@ public sealed class PadSpawnTests : IDisposable
         }
     }
 
+    [Fact]
+    public void TpPad_LandsOnTopOfThePaving()
+    {
+        var server = Started(out var repo, "tppad", ship: false);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            for (int y = py + 1; y <= py + 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(px, y, pz), concrete);
+            }
+
+            var p = server.AddLocalPlayer("Admin");
+            var pad = server.TeleportTargetsForTest(p.State.PlayerId).First(t => t.Kind == "pad" && t.Number == 1);
+            Assert.Equal(py + 3 + 2, (int)Math.Floor(pad.Position.Y)); // the old target was median + 2 = inside the concrete (#1367)
+            Assert.False(Entombed(server, pad.Position));
+        }
+    }
+
+    [Fact]
+    public void ALegacyStampedHull_IsCleanedBeforeTheTouchdownHeightIsRead()
+    {
+        // Where the ship parks and what the pad's median is are deterministic from the seed — probe them.
+        int px, py, pz;
+        string location;
+        var probe = Started(out var probeRepo, "residueprobe", ship: true);
+        using (probeRepo)
+        {
+            (px, py, pz) = probe.LandingPadForTest(0);
+            location = probe.World.LocationId;
+            probe.AddLocalPlayer("Pilot");
+            var (origin, _) = probe.LandedShipBoundsForTest("Pilot");
+            Assert.Equal(py + 1, origin.Y);
+        }
+
+        // A pre-ship-as-object save: born without the clean flag, with the old stamped hull persisted as a world
+        // block edit two cells over the pad's median — inside today's ship volume AND inside the touchdown scan.
+        var setup = Started(out var setupRepo, "residuelegacy", ship: true);
+        setup.Stop();
+        using (setupRepo)
+        {
+            var meta = setupRepo.LoadMetadata()!;
+            meta.CreatedWithShipObjects = false;
+            setupRepo.SaveMetadata(meta);
+            setupRepo.SetBlock(location, new Vector3i(px, py + 2, pz), _content.GetBlock("iron_wall")!.NumericId.Value);
+        }
+
+        var legacy = Started(out var repo, "residuelegacy", ship: true);
+        using (repo)
+        {
+            legacy.AddLocalPlayer("Pilot");
+            var (origin, _) = legacy.LandedShipBoundsForTest("Pilot");
+            Assert.Equal(py + 1, origin.Y); // on the median — the ghost hull was cleaned BEFORE the raised surface was read (#1367)
+            Assert.True(legacy.World.GetBlock(new Vector3i(px, py + 2, pz)).IsAir);
+        }
+    }
+
+    [Fact]
+    public void TheRescue_FiresOncePerEntombment_WhenThePadFallbackIsWalledInToo()
+    {
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, "entombedpad", ship: false, transport);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            for (int y = py + 1; y <= py + 270; y++)
+            {
+                server.World.SetBlock(new Vector3i(px, y, pz), concrete); // a tower over the pad taller than the dig-out ever looks
+            }
+
+            var p = server.AddLocalPlayer("Buried");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(px + 0.5f, py - 6, pz + 0.5f); // sealed in the rock under the pad, the tower above
+            Assert.True(Entombed(server, p.State.Position));
+
+            for (int i = 0; i < 4; i++)
+            {
+                server.RunVoidRescueForTest(); // four seconds of rescue ticks
+            }
+
+            int Rescues() => transport.Sent.OfType<RespawnNotice>().Count(n => n.Reason == "@srv.misc.dug_out");
+            Assert.Equal(1, Rescues()); // one rescue per episode (#1367) — not one per second into the same blocked spot
+            Assert.Equal(py + 8 + 2, (int)Math.Floor(p.State.Position.Y)); // the pad fallback, itself inside the tower
+            Assert.True(Entombed(server, p.State.Position));
+
+            // The player digs themselves out: the episode ends, and nothing more is announced.
+            server.World.SetBlock(new Vector3i(px, py + 10, pz), BlocksBeyondTheStars.Shared.Primitives.BlockId.Air);
+            server.World.SetBlock(new Vector3i(px, py + 11, pz), BlocksBeyondTheStars.Shared.Primitives.BlockId.Air);
+            server.RunVoidRescueForTest();
+            Assert.False(Entombed(server, p.State.Position));
+            Assert.Equal(1, Rescues());
+        }
+    }
+
     public void Dispose()
     {
         try

@@ -82,8 +82,10 @@ public sealed partial class GameServer
         for (int i = 0; i < _landingPads.Count; i++)
         {
             var pad = _landingPads[i];
+            // #1367: the real ground over the pad (a paved yard raises it), never the generated median alone —
+            // "/tp pad 1" used to drop the admin into their own concrete and leave the rescue to dig them out.
             list.Add(new TeleportTarget("pad", i + 1, $"pad{i + 1}",
-                new Vector3f(pad.CenterX + 0.5f, pad.CenterY + 2f, pad.CenterZ + 0.5f)));
+                new Vector3f(pad.CenterX + 0.5f, PadSurfaceY(pad.CenterX, pad.CenterZ) + 2f, pad.CenterZ + 0.5f)));
         }
 
         // Settlements split into two numbering series, because "village" and "ruin" are different places to
