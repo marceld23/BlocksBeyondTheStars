@@ -682,4 +682,76 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.DoesNotContain(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is RespawnNotice);
         Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is InventoryUpdate); // the hold still refreshes
     }
+
+    // ---------------- #1346: the ship blip survives a death respawn ----------------
+
+    /// <summary>Since #1308 the client clears its ship marker on EVERY WorldReset; a reset that is not followed
+    /// by a ShipPlacement leaves the HUD without blip, distance, map marker and thermal blob.</summary>
+    private static void AssertShipPlacementFollowsTheReset(RecordingTransport transport, PlayerSession session)
+    {
+        var msgs = transport.Sent.Where(x => x.Conn == session.ConnectionId).Select(x => x.Msg).ToList();
+        int reset = msgs.FindIndex(m => m is WorldReset);
+        int placement = msgs.FindIndex(m => m is ShipPlacement);
+        Assert.True(reset >= 0, "a death away from the ship's world must reset the world");
+        Assert.True(placement > reset, "…and re-arm the ship marker AFTER that reset (#1346)");
+    }
+
+    [Fact]
+    public void DyingInSpace_ResendsTheShipPlacement_AfterTheWorldReset()
+    {
+        // RecoverToShip sent the WorldReset without the SendShipPlacement every travel/join reset has — the
+        // blip was gone until the next landing or rejoin.
+        var transport = new RecordingTransport();
+        var server = NewServer("death_blip_ship", transport);
+        var host = server.AddLocalPlayer("Host");
+        server.EnterSpace("Host"); // die away from the surface → the RecoverToShip (world-transition) path
+        transport.Sent.Clear();
+
+        server.KillPlayerForTest(host, "@srv.death.wildlife");
+
+        Assert.True(host.State.AboardShip);
+        AssertShipPlacementFollowsTheReset(transport, host);
+    }
+
+    [Fact]
+    public void DyingInSpace_AndWakingAtTheHomeTank_ResendsTheShipPlacement_Too()
+    {
+        // The heal-tank respawn (TryCustomRespawn, full world transition) had the same gap.
+        var transport = new RecordingTransport();
+        var server = NewServer("death_blip_home", transport);
+        var host = server.AddLocalPlayer("Host");
+        server.SetInstantTravelForTest(true);
+
+        // A real galaxy body (the fresh start world runs under its legacy planet-type key, which the home
+        // spawn cannot resolve to a body), reached by a real travel so the ship record carries its id.
+        var body = server.Galaxy.AllBodies().First(b =>
+            b.Kind == CelestialKind.Planet
+            && !string.IsNullOrEmpty(b.PlanetType)
+            && _content.GetPlanet(b.PlanetType!) is not null
+            && b.Id != host.CurrentLocationId);
+        server.RequestLandingPadsForTest(host, host.CurrentLocationId);
+        server.Ship.Modules.Add("jump_generator");
+        Assert.True(server.QuickTravelForTest("Host", body.Id));
+
+        // A heal tank just outside the parked hull becomes the home spawn.
+        var (origin, size) = server.LandedShipBoundsForTest("Host");
+        var tank = new Vector3i((int)origin.X + (int)size.X + 3, (int)origin.Y, (int)origin.Z);
+        server.World.SetBlock(tank, _content.GetBlock("heal_tank")!.NumericId);
+        host.State.AboardShip = false;
+        host.State.Position = new Vector3f(tank.X + 1.5f, tank.Y, tank.Z + 0.5f);
+        server.SetSpawnPoint(host.State.PlayerId, tank.X, tank.Y, tank.Z);
+        Assert.Equal(body.Id, host.State.CustomSpawnBodyId);
+
+        host.State.Position = server.HealTank;
+        host.State.AboardShip = true;
+        server.EnterSpace("Host");
+        transport.Sent.Clear();
+
+        server.KillPlayerForTest(host, "@srv.death.wildlife"); // deferred: home vs ship (#462)
+        server.ChooseRespawn(host.State.PlayerId, useCustomSpawn: true);
+
+        Assert.Equal(body.Id, host.CurrentLocationId);
+        Assert.False(host.State.AboardShip); // woke at the home tank, on foot
+        AssertShipPlacementFollowsTheReset(transport, host);
+    }
 }

@@ -243,6 +243,39 @@ public sealed class DropLootTests : IDisposable
         }
     }
 
+    [Fact]
+    public void FreshLootMergedIntoAnAgingPacket_RestartsItsTimer()
+    {
+        // #1350: the merge kept the OLD packet's LifetimeLeft — a second kill beside a 4:50-old bundle put the
+        // fresh meat into it, and everything vanished ten seconds later.
+        var server = Started(out var repo, "merge-timer");
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Settler");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0.5f, SurfaceTopY(server, 0, 0) + 1, 0.5f); // far from the packet (no pickup)
+            int top = SurfaceTopY(server, 30, 30);
+            var origin = new Vector3i(30, top + 1, 30);
+            server.SpillToGroundForTest(origin, "iron_ore", 3, creatureLoot: true);
+            for (int i = 0; i < 29; i++)
+            {
+                server.Tick(10.0); // 290 s with a player on the world: ten seconds left
+            }
+
+            var aging = Assert.Single(server.DropPackets);
+            Assert.InRange(aging.LifetimeLeft, 1.0, 20.0);
+
+            server.SpillToGroundForTest(origin, "iron_ore", 2, creatureLoot: true); // a second kill next to it
+            var merged = Assert.Single(server.DropPackets); // merged into the bundle, not a new one
+            Assert.Equal(aging.Id, merged.Id);
+            Assert.Equal(5, merged.Items.Single(s => s.Item == "iron_ore").Count);
+            Assert.InRange(merged.LifetimeLeft, 290.0, 300.0);
+
+            server.Tick(20.0); // the old expiry passes…
+            Assert.Single(server.DropPackets); // …and the bundle is still there
+        }
+    }
+
     // ---------------- #1317: the stow toast ----------------
 
     private SvGameServer SpaceServer(string world, RecordingTransport transport, out SqliteWorldRepository repo)

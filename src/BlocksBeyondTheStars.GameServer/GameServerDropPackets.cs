@@ -99,6 +99,13 @@ public sealed partial class GameServer
         foreach (var amount in pending)
         {
             var packet = FindOrCreatePacket(cell, amount.Item, creatureLoot);
+            if (creatureLoot)
+            {
+                // #1350: fresh loot merged into an aging packet used to inherit ITS timer — a kill next to a
+                // 4:50-old bundle vanished with it ten seconds later. The merge restarts the clock instead.
+                packet.LifetimeLeft = System.Math.Max(packet.LifetimeLeft, LootPacketLifetime);
+            }
+
             var stack = packet.Items.FirstOrDefault(s => s.Item == amount.Item);
             if (stack is null)
             {

@@ -424,6 +424,130 @@ public sealed class CreatureTamingTests : IDisposable
         Assert.True(d1 < d0, "a companion that has fallen behind should move toward its owner");
     }
 
+    // ---------------- #1348: a pet under a cliff waits ----------------
+
+    private static int MaxTopY(SvGameServer server, int cx, int cz, int r)
+    {
+        int max = int.MinValue;
+        for (int dx = -r; dx <= r; dx++)
+        {
+            for (int dz = -r; dz <= r; dz++)
+            {
+                max = System.Math.Max(max, SurfaceTopY(server, cx + dx, cz + dz));
+            }
+        }
+
+        return max;
+    }
+
+    private void Fill(SvGameServer server, int x0, int y0, int z0, int x1, int y1, int z1)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int x = x0; x <= x1; x++)
+        {
+            for (int y = y0; y <= y1; y++)
+            {
+                for (int z = z0; z <= z1; z++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, z), stone);
+                }
+            }
+        }
+    }
+
+    /// <summary>A tamed land companion of the wanted shape on a stone corridor floating above every natural
+    /// feature: pad radius 8 at <paramref name="padY"/>, 3-high rims on the −X and both Z sides, and a ledge
+    /// of <paramref name="ledgeHeight"/> filling the +X half from dx = 1. The pet stands at dx = −2.5, its
+    /// owner on the ledge at dx = +6.5 — past the follow distance, inside the leash.</summary>
+    private BlocksBeyondTheStars.GameServer.CombatEntity PetBelowALedge(SvGameServer server, int cx, int cz, int legs, int ledgeHeight, out int padY)
+    {
+        var p = Ranger(server);
+        server.Tick(6.0);
+        var target = FirstWild(server, CreatureTemperament.Passive);
+        Assert.True(TameNearest(server, p, target));
+        var pet = Assert.Single(server.CompanionEntitiesForTest("Ranger"));
+        var sp = server.SpeciesRoster.First(s => s.Id == pet.SpeciesId);
+        sp.Habitat = CreatureHabitat.Land;
+        sp.Legs = legs;
+        sp.LocoStyle = legs == 0 ? LocomotionStyle.Slitherer : LocomotionStyle.Strider;
+        sp.HasWings = false;
+        sp.HasGasSac = false;
+        sp.Size = 1f;
+        sp.BodyPlan = CreatureBodyPlan.Standard;
+
+        padY = MaxTopY(server, cx, cz, 10) + 8;
+        Fill(server, cx - 8, padY, cz - 8, cx + 8, padY, cz + 8);                    // the pad
+        Fill(server, cx + 1, padY + 1, cz - 8, cx + 8, padY + ledgeHeight, cz + 8);   // the ledge / cliff
+        Fill(server, cx - 8, padY + 1, cz - 8, cx - 8, padY + 3, cz + 8);             // rim behind the pet…
+        Fill(server, cx - 8, padY + 1, cz - 8, cx + 8, padY + 3, cz - 8);             // …and along both sides
+        Fill(server, cx - 8, padY + 1, cz + 8, cx + 8, padY + 3, cz + 8);
+
+        pet.Position = new Vector3f(cx - 2.5f, padY + 1, cz + 0.5f);
+        pet.Vert = default;
+        p.State.Position = new Vector3f(cx + 6.5f, padY + 1 + ledgeHeight, cz + 0.5f);
+        return pet;
+    }
+
+    [Fact]
+    public void AWalkerPet_UnderAThreeBlockCliff_WaitsInsteadOfHoppingInPlace()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            const int cx = 200, cz = 200;
+            var pet = PetBelowALedge(server, cx, cz, legs: 4, ledgeHeight: 3, out int padY);
+            for (int i = 0; i < 60; i++)
+            {
+                server.Tick(0.1);
+                var live = server.CompanionEntitiesForTest("Ranger").Single();
+                Assert.False(live.Vert.Airborne, $"a walker pet must not jump at a cliff it cannot clear (tick {i})");
+                Assert.Equal(padY + 1, live.Position.Y, 1);
+                Assert.True(live.Position.X < cx + 1f, $"it must stay below the cliff (x {live.Position.X:F2})");
+            }
+
+            Assert.Same(pet, server.CompanionEntitiesForTest("Ranger").Single());
+        }
+    }
+
+    [Fact]
+    public void ACrawlerPet_UnderAThreeBlockCliff_NeverLevitatesUpIt()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            const int cx = -200, cz = 200;
+            PetBelowALedge(server, cx, cz, legs: 0, ledgeHeight: 3, out int padY);
+            for (int i = 0; i < 60; i++)
+            {
+                server.Tick(0.1);
+                var live = server.CompanionEntitiesForTest("Ranger").Single();
+                Assert.Equal(0f, live.Vert.ClimbTargetY);
+                Assert.Equal(padY + 1, live.Position.Y, 1);
+                Assert.True(live.Position.X < cx + 1f, $"it must stay below the cliff (x {live.Position.X:F2})");
+            }
+        }
+    }
+
+    [Fact]
+    public void AWalkerPet_StillJumpsAOneBlockLedge_ToFollow()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            const int cx = 200, cz = -200;
+            PetBelowALedge(server, cx, cz, legs: 4, ledgeHeight: 1, out int padY);
+            bool crossed = false;
+            for (int i = 0; i < 120 && !crossed; i++)
+            {
+                server.Tick(0.1);
+                var live = server.CompanionEntitiesForTest("Ranger").Single();
+                crossed = live.Position.X >= cx + 1.2f && System.Math.Abs(live.Position.Y - (padY + 2)) < 0.05f;
+            }
+
+            Assert.True(crossed, "a one-block ledge is still taken (Q1a) — only the cliff is refused");
+        }
+    }
+
     public void Dispose()
     {
         try

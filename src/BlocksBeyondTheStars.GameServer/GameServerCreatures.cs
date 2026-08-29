@@ -6,6 +6,7 @@ using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using BlocksBeyondTheStars.WorldGeneration;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -49,11 +50,15 @@ public sealed partial class GameServer
     // so a tiny cap still allows a herd, and never below cap/roster so a short roster can still reach the cap.
     private const float SpeciesShareOfCap = 0.4f;
     private const int SpeciesShareMin = 3;
-    private const float CreatureCrowdDespawnRange = 40f;       // an over-share member this far from every player wanders off
+    private const float CreatureCrowdDespawnRange = 40f;       // an over-share member at least this far from every player wanders off (#1356: and past every player's streaming radius)
 
     // #1320: a sleeper whose body ends up inside blocks is roused + moved to the nearest clear spot within
     // this many blocks (same level first) — or despawns when boxed in on every side.
     private const int SleeperRelocateRadius = 6;
+
+    // #1357: an awake creature re-validates its own body cells this often (sleepers do it every tick — they
+    // run nothing else), so one walled in by the player steps out instead of standing in the block for good.
+    private const double AwakeBodyCheckInterval = 2.0;
 
     private CreatureSpecies[] _speciesRoster = System.Array.Empty<CreatureSpecies>();
     private readonly List<PlayerSession> _creatureTargets = new(); // reused per tick (no per-tick LINQ alloc)
@@ -832,18 +837,28 @@ public sealed partial class GameServer
             // falls through to normal temperament-driven behaviour (skittish ones flee, hunters seek, others
             // just wander).
             var motion = EffectiveMotion(creature, sp);
-            if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0)
+            bool asleep = !SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0;
+
+            // #1320: a sleeper skips every collision gate on the movement path, so a player building a wall
+            // or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night. Re-validate
+            // the body BEFORE the vertical resolve (which would otherwise hop it onto the new wall): rouse +
+            // step aside to the nearest clear spot, or despawn when boxed in. A few block reads per sleeper
+            // per tick — far cheaper than the movement path an awake animal runs.
+            // #1357: an AWAKE animal walled in by the player never checked its own cell either — the swept
+            // step check samples only the cells ahead, so every step out of the block read as blocked and a
+            // cathemeral grazer stood inside the masonry for good. Same check, rate-limited per creature.
+            if (asleep || _uptime >= creature.NextBodyCheckAt)
             {
-                // #1320: a sleeper skips every collision gate on the movement path, so a player building a
-                // wall or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night.
-                // Re-validate the body BEFORE the vertical resolve (which would otherwise hop it onto the new
-                // wall): rouse + step aside to the nearest clear spot, or despawn when boxed in. A few block
-                // reads per sleeper per tick — far cheaper than the movement path an awake animal runs.
-                if (DisplaceEmbeddedSleeper(creature, sp))
+                creature.NextBodyCheckAt = _uptime + AwakeBodyCheckInterval;
+                if (DisplaceEmbeddedCreature(creature, sp))
                 {
                     continue;
                 }
+            }
 
+            // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332).
+            if (asleep)
+            {
                 creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
                     asleep: true, MoveMode.Roam, moving: false);
                 continue;
@@ -950,7 +965,15 @@ public sealed partial class GameServer
         if (!hold)
         {
             var cand = PreviewStep(sp, motion, cur, stepped, out bool needsRise, out int riseFeet);
-            if (StepBlocked(c, sp, motion, cur, cand, needsRise, terrainGates))
+
+            // #1348: a ground mover never STARTS a jump or a climb for a rise past its step-up limit. Wild
+            // fauna is already walled by the terrain gate; a companion keeps its freedom from that gate
+            // (water, drops — it must follow its owner down anything) but not from this one — without it a
+            // walker pet under a cliff hopped in place for as long as the owner stood above, and a crawler
+            // pet levitated straight up the wall (BeginClimb to the cliff top). Blocked, it waits at the
+            // base like any animal; the leash teleport remains the fallback.
+            bool riseTooHigh = needsRise && riseFeet - (int)System.Math.Floor(cur.Y) > CreatureMotion.StepUpLimit(motion);
+            if (riseTooHigh || StepBlocked(c, sp, motion, cur, cand, needsRise, terrainGates))
             {
                 // Creatures don't walk into the player's ship — hold position at the hull. Energy fences pen
                 // them in the same way, and terrain gates (#648) reuse the exact same mechanic. Instead of only
@@ -1044,11 +1067,12 @@ public sealed partial class GameServer
         return CreatureMotion.EffectiveClass(sp, c.Vert.InWater);
     }
 
-    /// <summary>The sleeper's body check (#1320). False when the body sits clear of every colliding block.
-    /// Otherwise the creature is roused (<see cref="CreatureWakeSeconds"/>) and stepped to the nearest
-    /// clear standable spot within <see cref="SleeperRelocateRadius"/> — or, boxed in on every side, queued
-    /// for removal (the caller drops it after the loop; the list can't change mid-iteration).</summary>
-    private bool DisplaceEmbeddedSleeper(CombatEntity creature, CreatureSpecies sp)
+    /// <summary>The embedded-body check (#1320 sleepers, #1357 awake creatures too). False when the body sits
+    /// clear of every colliding block. Otherwise the creature is roused (<see cref="CreatureWakeSeconds"/>)
+    /// and stepped to the nearest clear standable spot within <see cref="SleeperRelocateRadius"/> — or, boxed
+    /// in on every side, queued for removal (the caller drops it after the loop; the list can't change
+    /// mid-iteration).</summary>
+    private bool DisplaceEmbeddedCreature(CombatEntity creature, CreatureSpecies sp)
     {
         if (!CreatureBodyBlocked(sp, creature.Position))
         {
@@ -1066,6 +1090,22 @@ public sealed partial class GameServer
         }
 
         return true;
+    }
+
+    /// <summary>A block the player just placed may have landed inside an awake creature's body (#1357): every
+    /// creature whose body column holds the cell re-validates on its next tick instead of waiting out
+    /// <see cref="AwakeBodyCheckInterval"/> — and before the vertical resolve could hop it onto the new block.</summary>
+    private void NudgeCreatureBodyChecks(Vector3i cell)
+    {
+        foreach (var c in _creatures)
+        {
+            int x = (int)System.Math.Floor(c.Position.X), y = (int)System.Math.Floor(c.Position.Y), z = (int)System.Math.Floor(c.Position.Z);
+            if (z == cell.Z && cell.Y >= y && cell.Y < y + CreatureBodyMaxHeight
+                && WorldConstants.WrapDeltaX(x - cell.X, _world.Circumference) == 0)
+            {
+                c.NextBodyCheckAt = 0;
+            }
+        }
     }
 
     private static readonly (int Dx, int Dz)[] RelocateDirs =
@@ -1419,20 +1459,34 @@ public sealed partial class GameServer
     private bool TryGroundFeetYAt(int x, int z, int refY, out int feetY)
         => TryGroundFeetYAt(x, z, refY, CreatureBodyMinHeight, CreatureGroundScan, out feetY);
 
-    /// <summary>Scans outward from <paramref name="refY"/> — downward first at equal distance, so a creature
-    /// under a player bridge keeps the ground instead of snapping onto the deck — for a feet cell with
-    /// <paramref name="headroom"/> air cells, up to <paramref name="maxScan"/> cells away.</summary>
+    /// <summary>The feet cell a body at <paramref name="refY"/> comes to rest on (#1349): first DOWNWARD —
+    /// the reference cell itself, then everything below it that can be reached by falling, i.e. until the
+    /// scan meets the first supporting block — so a creature over a fresh pit finds the pit floor, never the
+    /// storey above it (the old nearest-in-either-direction probe lifted a ground-floor animal through the
+    /// ceiling when a deep pit opened under it). Only when nothing below is standable (entombed, the floor
+    /// removed under a low ceiling) does it look UPWARD for the nearest standable cell — the one recovery a
+    /// creature makes by being lifted. Both directions reach <paramref name="maxScan"/> cells; a feet cell
+    /// needs <paramref name="headroom"/> air cells.</summary>
     private bool TryGroundFeetYAt(int x, int z, int refY, int headroom, int maxScan, out int feetY)
     {
         for (int r = 0; r <= maxScan; r++)
         {
-            if (StandableAt(x, refY - r, z, headroom))
+            int y = refY - r;
+            if (StandableAt(x, y, z, headroom))
             {
-                feetY = refY - r;
+                feetY = y;
                 return true;
             }
 
-            if (r > 0 && StandableAt(x, refY + r, z, headroom))
+            if (IsSupportCell(x, y, z))
+            {
+                break; // a supporting block — nothing deeper can be reached by falling
+            }
+        }
+
+        for (int r = 1; r <= maxScan; r++)
+        {
+            if (StandableAt(x, refY + r, z, headroom))
             {
                 feetY = refY + r;
                 return true;
@@ -1443,13 +1497,20 @@ public sealed partial class GameServer
         return false;
     }
 
+    /// <summary>Whether a cell carries feet: anything but air and water (lava included — a lava dweller's
+    /// column is handled before the probe). No-load read.</summary>
+    private bool IsSupportCell(int x, int y, int z)
+    {
+        var id = _world.GetBlockIfLoaded(new Vector3i(x, y, z));
+        return !id.IsAir && id.Value != _creatureWaterId;
+    }
+
     /// <summary>Whether feet placed at <paramref name="y"/> stand on something real: solid (non-water)
     /// support below, air from the feet up through <paramref name="headroom"/> cells. Uses the no-load
     /// block read.</summary>
     private bool StandableAt(int x, int y, int z, int headroom = CreatureBodyMinHeight)
     {
-        var below = _world.GetBlockIfLoaded(new Vector3i(x, y - 1, z));
-        if (below.IsAir || below.Value == _creatureWaterId)
+        if (!IsSupportCell(x, y - 1, z))
         {
             return false;
         }
@@ -1926,7 +1987,12 @@ public sealed partial class GameServer
         });
 
         int share = SpeciesShare(System.Math.Min(cap, CreatureHardCap));
-        float crowdSq = CreatureCrowdDespawnRange * CreatureCrowdDespawnRange;
+
+        // #1356: "out of sight" is the players' real streaming radius, not a fixed 40 blocks — at the 8-chunk
+        // view distance a herd 50 m out on a plain is in plain view, and a member vanishing there was exactly
+        // the pop-out reported. Whatever the widest view among the players streams stays put.
+        float crowdRange = System.Math.Max(CreatureCrowdDespawnRange, MaxStreamRadiusBlocks(targets));
+        float crowdSq = crowdRange * crowdRange;
         foreach (var sp in _speciesRoster)
         {
             int over = WildCountOf(sp.Id) - share;
@@ -1935,9 +2001,10 @@ public sealed partial class GameServer
                 continue;
             }
 
-            // Farthest-from-any-player first, out-of-sight members only — the animals in view stay put.
+            // Farthest-from-any-player first, out-of-sight members only — the animals in view stay put, and so
+            // does a hunter mid-charge (#1356: a Seek intent is a live hunt/approach, not just a provoked one).
             var shed = _creatures
-                .Where(c => !c.IsCompanion && c.SpeciesId == sp.Id && c.ProvokeTimer <= 0)
+                .Where(c => !c.IsCompanion && c.SpeciesId == sp.Id && c.ProvokeTimer <= 0 && c.Loco.Mode != MoveMode.Seek)
                 .Select(c => (Creature: c, DistSq: NearestPlayerPosition(targets, c.Position) is { } np ? WrapDistSq(np, c.Position) : double.MaxValue))
                 .Where(t => t.DistSq > crowdSq)
                 .OrderByDescending(t => t.DistSq)
@@ -1951,6 +2018,19 @@ public sealed partial class GameServer
         }
 
         return removed > 0;
+    }
+
+    /// <summary>The farthest block any of these players streams (#1356): their widest view radius in chunks,
+    /// plus the player's own chunk, in blocks. Anything inside it may be on screen.</summary>
+    private float MaxStreamRadiusBlocks(List<PlayerSession> targets)
+    {
+        int chunks = 0;
+        foreach (var s in targets)
+        {
+            chunks = System.Math.Max(chunks, EffectiveViewRadius(s));
+        }
+
+        return (chunks + 1) * WorldConstants.ChunkSize;
     }
 
     private Vector3f? NearestPlayerPosition(List<PlayerSession> targets, Vector3f from)

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2488 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2545 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -9721,6 +9721,58 @@ Three follow-ups from the 2026-08-29 client audit of #1328, #1310 and #1322. Cli
   local world although the name had just been adopted from the newer cloud one. `FetchLatest(done, markSeen)`
   — the peek passes `markSeen: false` and touches neither `_lastVersion` nor the meta file. The version rule
   itself moved to Client.Core (`CloudSaveVersions.CloudWins`) with a peek-then-boot test (`CloudSaveVersionsTests`).
+---
+
+## ✅ Done (2026-08-29): server audit after the round-3 merges — eight follow-ups (#1346 #1347 #1348 #1349 #1350 #1356 #1357 #1358, branch fix/audit-0829-server)
+
+A code audit of the six round-3 PRs (#1324–#1345) before their release. Server only, no Unity build, no new
+locale keys.
+
+* **Ship blip after a death (#1346, HIGH, regression from #1308).** The client clears its ship marker on every
+  `WorldReset`; `RecoverToShip` and the heal-tank `TryCustomRespawn` sent the reset without a
+  `SendShipPlacement` → no blip, distance, map marker or thermal blob until the next landing. Both paths now
+  send the placement right after the landed-ship list, like the travel/join resets. Tests: two death paths
+  in `LanPlaytestRegressionTests` (ship + home-tank respawn) assert the placement follows the reset.
+* **Walled-base fill walks the terrain (#1347, HIGH).** `ComputeReachableFromOutside` flooded ONE horizontal
+  slice and read natural terrain as masonry: every hollow within a base's 97×97 reach box was "fenced in" —
+  no land spawns in any valley around a base. The fill now steps ±1 like a walker (up onto a supported cell,
+  down through a free one; 2+ is a wall), seeds the boundary at the level AND at every supported cell within
+  ±12, keeps the original same-level pass-through (the boundary is rarely on the yard's level), memoises block
+  reads in a scratch box, budget 60k with fail-open on exhaustion. Same (base, level) cache. Tests: a terraced
+  bowl on REAL jungle terrain — open with a core in it, fenced by a 2-high ring on the plateau, open again
+  with a 1-high edge; the four floating-slab tests keep passing unchanged.
+* **Sliding gates are walls (#1358).** The fill counted a door as wall only while shut; a player standing at
+  their yard's sliding gate held it open (OpenRange 4.5, auto-close) and the fill read a gap. Proximity doors
+  (slide, energy) count as walls in any state — they open only for players and close by themselves; hand
+  doors keep the open/shut rule. Test: sliding gate + player beside it → still fenced.
+* **Pets under a cliff (#1348).** Companions skip the terrain gate, so `PreviewStep` reported a 3–10-block
+  rise as "needs rise": a walker pet was launched every tick (hopping in place), a crawler/giant pet got
+  `BeginClimb` to the cliff top and levitated. `ApplyCreatureStep` now refuses to start a jump/climb for a
+  rise past `StepUpLimit` (1) — for everyone; wild fauna was already gated — and the pet waits at the base
+  (steer-around / re-roll; the leash teleport stays the fallback). Tests: walker + crawler pet below a 3-block
+  cliff (never airborne / never climbing, Y constant), walker still jumps a 1-block ledge to follow.
+* **Ground probe prefers the floor below (#1349).** `TryGroundFeetYAt` took the NEAREST standable cell in
+  ±24, so a pit ≥ 5 deep under a ground-floor animal lifted it through the ceiling onto the storey above.
+  It now scans downward first through everything reachable by falling (stopping at the first supporting
+  block) and looks upward only when nothing below is standable (the entombed recovery). Arena tests: pit →
+  falls into it; no floor at all → still lifted.
+* **Loot merge keeps the freshest timer (#1350).** Creature loot merged into an aging packet inherited its
+  `LifetimeLeft` (10 s left → the new kill vanished with it). Merge sets `Max(existing, LootPacketLifetime)`.
+  Test: 290 s old packet + second kill → full lifetime again, survives the old expiry.
+* **Crowding despawn out of sight, never a hunter (#1356).** The shed distance was a fixed 40 blocks while the
+  view distance goes to 8 chunks (128) — animals popped out 50 m away in plain view — and only
+  `ProvokeTimer <= 0` was excluded. "Out of sight" is now the widest joined player's streaming radius
+  (`(view chunks + 1) × 16`, at least 40), and a creature in `Seek` mode (a live hunt/approach) is never shed.
+  Note: the unconditional far-prune at 70 (titans 110) is untouched — with an 8-chunk view the crowd pass
+  simply never fires and the 70-block leash does the shedding. Tests: 8-chunk view keeps the far herd, 1-chunk
+  view sheds it, a Seek member survives.
+* **Awake creatures leave a wall (#1357).** The embedded-body check ran in the sleeper branch only. It now runs
+  for awake creatures too, every 2 s per creature (`NextBodyCheckAt`) and immediately when a player places a
+  block into a creature's body column (`NudgeCreatureBodyChecks` from `HandlePlace`) — so the sideways
+  step-aside wins over the vertical resolve hopping it onto the wall. Test: paused cathemeral grazer, two stone
+  blocks placed through it → clear and stepped aside within a second.
+* Playtest: hollows/valleys around Lyxette's varied-world base should show land animals again while his walled
+  yard stays quiet; watch pets at cliffs and the 70-block far-prune pop-out on a plain (not in scope here).
 
 ---
 
