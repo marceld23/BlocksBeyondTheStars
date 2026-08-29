@@ -194,9 +194,59 @@ public static class ReportHostPages
     /// <summary>Collapses whitespace so the two wordings compare cleanly.</summary>
     private static string Normalize(string s) => string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null)
+    /// <summary>Where a report's reply key came from — decides what the detail page promises about reaching
+    /// the player (#1369).</summary>
+    public enum ReplyKeyOrigin
+    {
+        /// <summary>No key: nothing written here can reach anyone.</summary>
+        None,
+
+        /// <summary>The client sent the key with the report — the key it polls with.</summary>
+        SentByClient,
+
+        /// <summary>Derived from the stored player id at ingest/back-fill (report filed before the reply
+        /// channel). A desktop / play.* install polls with the same value; a glitch.fun arcade install does
+        /// NOT (it hashes its Glitch install id, the player id there was the browser-local token).</summary>
+        DerivedFromPlayerId,
+    }
+
+    /// <summary>Classifies <paramref name="r"/>'s reply key. "Sent by the client" means the stored payload
+    /// carries a <c>replyKey</c> node — the only way a key other than the player-id derivation gets in.</summary>
+    public static ReplyKeyOrigin KeyOrigin(BugReportRecord r)
+    {
+        if (r.ReplyKey.Length == 0)
+        {
+            return ReplyKeyOrigin.None;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(r.ReportJson);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("replyKey", out var sent)
+                && sent.ValueKind == JsonValueKind.String
+                && sent.GetString() == r.ReplyKey)
+            {
+                return ReplyKeyOrigin.SentByClient;
+            }
+        }
+        catch (JsonException)
+        {
+            // unreadable payload — fall through to the derivation check
+        }
+
+        return r.ReplyKey == BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.Derive(r.PlayerId)
+            ? ReplyKeyOrigin.DerivedFromPlayerId
+            : ReplyKeyOrigin.SentByClient; // passed through a /bump forward (#1359) — the client's own key
+    }
+
+    /// <summary>The Unity platform string of every browser build (play.* and the glitch.fun arcade alike).</summary>
+    private const string WebGlPlatform = "WebGLPlayer";
+
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null)
     {
         replies ??= Array.Empty<ReplyRecord>();
+        string csrfField = csrf?.HiddenField() ?? string.Empty;
         var sb = new StringBuilder();
         string when = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).ToString("yyyy-MM-dd HH:mm:ss");
         sb.Append($"<p><a href='/admin'>&larr; back to list</a></p>");
@@ -225,11 +275,27 @@ public static class ReportHostPages
         // Reply thread (#1327): what the player sees in the game, plus the form to add to it. Only reports
         // that carry a reply key can reach a player (server crash reports have none).
         sb.Append("<div class='card'><h2>Conversation with the player</h2>");
-        if (r.ReplyKey.Length == 0)
+        var origin = KeyOrigin(r);
+        if (origin == ReplyKeyOrigin.None)
         {
             sb.Append("<p class='hint'>This report carries no reply key (no player id) — nothing you write here can reach a player.</p>");
         }
-        else if (replies.Count == 0)
+        else if (origin == ReplyKeyOrigin.DerivedFromPlayerId && r.Platform == WebGlPlatform)
+        {
+            // A browser report from before the reply channel: the key was derived from the browser-local
+            // token, which the glitch.fun arcade never polls with (#1369) — only a play.* install would.
+            sb.Append("<p class='hint'><b>No in-game reply possible (probably).</b> This browser report was filed before the reply channel " +
+                      "existed, so its reply key was derived from the browser-local player id. A glitch.fun arcade install polls with a " +
+                      "different key (its Glitch install id) and will never see an answer written here — reach the reporter through the " +
+                      "old channel instead. Only a play.* install would match this key.</p>");
+        }
+        else if (origin == ReplyKeyOrigin.DerivedFromPlayerId)
+        {
+            sb.Append("<p class='hint'>Reply key derived from the player id (report filed before the reply channel). A desktop install " +
+                      "matches it once the player runs a build with the in-game reply inbox; if the answer never turns <i>read</i>, use the old channel.</p>");
+        }
+
+        if (origin != ReplyKeyOrigin.None && replies.Count == 0)
         {
             sb.Append("<p class='hint'>No replies yet. An answer shows up in the player's game on their next start (or within ~10 minutes while playing); " +
                       "a <b>question</b> also lets them answer from inside the game.</p>");
@@ -248,7 +314,7 @@ public static class ReportHostPages
             sb.Append($"<p class='sub'>Fixed in version: <b>{E(r.FixedInVersion)}</b> (shown to the player with the thread)</p>");
         }
 
-        sb.Append($"<form method='post' action='/admin/report/{r.Id}/reply' class='replyform'>");
+        sb.Append($"<form method='post' action='/admin/report/{r.Id}/reply' class='replyform'>{csrfField}");
         sb.Append("<textarea name='text' rows='4' maxlength='5000' placeholder='Answer, or a follow-up question. Never ask for personal data — the audience includes children.'></textarea>");
         sb.Append("<label><input type='checkbox' name='question' value='1'> this is a question (status → waiting_for_player; the player can answer in-game)</label>");
         sb.Append($"<label>fixed in version <input type='text' name='fixed_in_version' value='{E(r.FixedInVersion)}' placeholder='e.g. 2026.8.23' size='14'></label>");
@@ -257,10 +323,10 @@ public static class ReportHostPages
         sb.Append("<div class='card actions'>");
         foreach (var s in BugReportStatus.All)
         {
-            sb.Append($"<form method='post' action='/admin/report/{r.Id}/status'><input type='hidden' name='status' value='{s}'><button{(s == r.Status ? " disabled" : "")}>mark {s}</button></form>");
+            sb.Append($"<form method='post' action='/admin/report/{r.Id}/status'>{csrfField}<input type='hidden' name='status' value='{s}'><button{(s == r.Status ? " disabled" : "")}>mark {s}</button></form>");
         }
 
-        sb.Append($"<form method='post' action='/admin/report/{r.Id}/delete' onsubmit=\"return confirm('Delete this report permanently?')\"><button class='danger'>delete</button></form>");
+        sb.Append($"<form method='post' action='/admin/report/{r.Id}/delete' onsubmit=\"return confirm('Delete this report permanently?')\">{csrfField}<button class='danger'>delete</button></form>");
         sb.Append("</div>");
 
         return Shell($"Report {r.Id[..8]} — Blocks Beyond the Stars", sb.ToString());

@@ -24,13 +24,14 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
 | `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson`) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
-| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth | Triage from scripts/CI |
+| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI |
 | `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete (incl. screenshot + reply thread) |
-| `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
-| `GET /api/replies?key=&since=` | header `x-bugreport-key` | **Client poll**: threads of this reply key with unread developer entries (CORS on) |
+| `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth, JSON content type | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
+| `GET /api/replies?key=&since=&ids=` | header `x-bugreport-key` | **Client poll**: threads of this reply key with unread developer entries, plus `gone` for the remembered `ids` the key can no longer read (CORS on) |
 | `POST /api/replies/ack` `{"key","replyIds":[]}` | header `x-bugreport-key` | Client marks shown developer entries read |
 | `POST /api/replies` `{"key","reportId","text"}` | header `x-bugreport-key` | The player's in-game answer to a question (max 3 per report) |
 | `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, reply thread + form, delete |
+| `POST /admin/report/{id}/reply`, `/status`, `/delete` | admin Basic Auth + `csrf` form field | The detail page's forms (see *Admin CSRF guard* below) |
 | `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button) |
 | `GET /healthz` | none | Liveness |
 
@@ -99,9 +100,13 @@ report to `waiting_for_player`. `POST /api/reports/{id}/replies` is the JSON twi
 
 **Player side (all gated by the write key + a per-reply-key limiter — `BBS_REPORTS_REPLY_PER_MINUTE`, *not* the
 per-IP ingest limiter, see #1352 — CORS-enabled for browser builds):**
-`GET /api/replies?key=…&since=…` returns
-`{ items: [ { reportId, title, status, fixedInVersion, createdUnix, replies: [ { id, author, text, isQuestion, createdUnix, seen } ], unseenIds: [] } ] }`
-— only threads with an unread developer entry (created after `since`, unix seconds, optional).
+`GET /api/replies?key=…&since=…&ids=…` returns
+`{ items: [ { reportId, title, status, fixedInVersion, createdUnix, replies: [ { id, author, text, isQuestion, createdUnix, seen } ], unseenIds: [] } ], gone: [] }`
+— only threads with an unread developer entry (created after `since`, unix seconds, optional). `ids` (optional,
+comma-separated, at most 50) are the report ids the client still remembers in its `sent.json`; `gone` lists the
+ones among them this key can no longer read — deleted, pruned by retention, or stored under a different key —
+and the client forgets them on the spot (`SentReportsLog.Forget`, #1369), so a deleted report is not polled for
+up to 90 days. Only ids the client named are ever reported, so nothing is enumerable.
 `POST /api/replies/ack` marks those ids read (scoped to the key — foreign ids are ignored). `POST /api/replies`
 appends the player's answer: requires the key to own the report, at least one developer entry to answer
 (no unsolicited threads), and at most **3** player answers per report (`409 reply_limit`); it flips the status
@@ -110,6 +115,35 @@ and HTML-encoded on render — it is hostile input like everything else a player
 
 **Read API.** `GET /api/reports/{id}` now includes `fixedInVersion` and `replies` (the key itself is never
 exposed). Delete and retention pruning remove threads with their report.
+
+**Arcade reports filed before the reply channel cannot be answered in-game.** The glitch.fun arcade client
+hashes its *Glitch install id* into the reply key (the browser-local `PlayerToken` there resets with every
+deployment, #1177), but such a report's stored `playerId` IS that browser-local token — so the key the inbox
+back-filled from it is one the arcade install never polls with. That is not repairable after the fact (the
+inbox never learns the install id). The detail page recognises the case — a `WebGLPlayer` report whose key was
+derived from the player id rather than sent by the client (`ReportHostPages.KeyOrigin`) — and says **"No
+in-game reply possible"**: answer those reporters through the old channel (the e-mail on the report, the
+portal, itch/Discord). Desktop reports from before the channel are fine: there the player id is the same
+token the client hashes. A play.* browser report from that era would match too, but the page cannot tell
+the two browser origins apart and errs on the side of the warning.
+
+## Admin CSRF guard (#1369)
+
+The admin UI sits behind Basic Auth, and a browser re-sends Basic credentials on **any** request to the
+origin — including a form auto-submitted by a page the operator happens to have open elsewhere. Since #1327 a
+form POST can put text in front of a player, so every admin form carries a token a foreign page cannot know:
+
+- `AdminCsrf` draws **one random 32-byte token per process** at start-up. `ReportHostPages.Detail` renders it
+  as a hidden `csrf` field in every form (reply, each status button, delete).
+- `POST /admin/report/{id}/reply`, `/status` and `/delete` compare the submitted field with the token
+  (fixed-time, `BasicAuth.TokenEquals`) **after** the Basic-Auth check and answer **403** on a mismatch — the
+  token is a second factor, never a substitute for the credentials.
+- The scriptable JSON routes (`PATCH /api/reports/{id}`, `POST /api/reports/{id}/replies`) instead require an
+  `application/json` content type (**415** otherwise): an HTML form can only send urlencoded, multipart or
+  `text/plain` bodies, so a forged form cannot reach them. Scripts already send JSON; nothing changes for them.
+- No cookie, no per-session table on purpose: the inbox is one process for one operator. A container restart
+  merely makes an already-open detail page's next submit fail with 403 — reload the page and try again. Running
+  several replicas behind one hostname would need a shared token (not supported; the inbox is a single container).
 
 ## Running it
 
@@ -199,8 +233,8 @@ names.
 | Payload parsing/validation | `src/BlocksBeyondTheStars.ReportHost/ReportIngest.cs` |
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
-| Rate limiter / Basic Auth | `IngestRateLimiter.cs` / `BasicAuth.cs` |
-| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) |
+| Rate limiter / Basic Auth / admin CSRF token | `IngestRateLimiter.cs` / `BasicAuth.cs` / `AdminCsrf.cs` |
+| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) · `ReportHostReplyLifecycleTests.cs` (`gone` marker; admin CSRF + JSON gate on a second host with the admin UI on) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
 
 The admin pages HTML-encode every stored string — report content is hostile input rendered in the

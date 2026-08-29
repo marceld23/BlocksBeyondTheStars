@@ -628,6 +628,99 @@ public sealed class ReportHostTests : IDisposable
         Assert.False(BasicAuth.IsAuthorized(Header("admin", ""), "admin", ""));
     }
 
+    // ---------------- #1369: gone marker, derived-key hint, CSRF field ----------------
+
+    private static string PayloadFor(string playerId, string platform, string? replyKey = null)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["title"] = "Hat eaten by door",
+            ["description"] = "The door on my ship eats my hat.",
+            ["gameVersion"] = "2026.8.22",
+            ["playerId"] = playerId,
+            ["playerName"] = "Justus",
+            ["platform"] = platform,
+            ["reportJson"] = new Dictionary<string, object?> { ["scene"] = "planet" },
+        };
+        if (replyKey != null)
+        {
+            body["replyKey"] = replyKey;
+        }
+
+        return JsonSerializer.Serialize(body);
+    }
+
+    [Fact]
+    public void MissingReports_NamesForeignDeletedAndUnknownIds_NeverTheKeysOwn_AndCapsTheQuery()
+    {
+        var store = NewStore();
+        string key = KeyFor("token-abc");
+        string owned = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 1);
+        string foreign = store.Add(ReportIngest.Parse(PayloadFor("token-xyz", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 2);
+        string deleted = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 3);
+        Assert.True(store.Delete(deleted));
+
+        var gone = store.MissingReports(key, new[] { owned, foreign, deleted, "unknown", "", owned });
+        Assert.Equal(new[] { foreign, deleted, "unknown" }, gone);
+
+        // A key that cannot read anything sees everything gone; a retention prune retires a report the same way.
+        Assert.Equal(new[] { owned }, store.MissingReports("not-a-key", new[] { owned }));
+        Assert.Equal(2, store.Prune(retentionDays: 1, nowUnix: 1 + 2 * 86400)); // owned + foreign
+        Assert.Equal(new[] { owned }, store.MissingReports(key, new[] { owned }));
+
+        // At most 50 ids per poll are looked at — the client remembers no more than that.
+        var many = Enumerable.Range(0, ReportStore.MaxGoneQueryIds + 10).Select(i => "id" + i).ToArray();
+        Assert.Equal(ReportStore.MaxGoneQueryIds, store.MissingReports(key, many).Count);
+    }
+
+    [Fact]
+    public void DetailPage_SaysNoInGameReplyForOldArcadeReports_AndEveryFormCarriesTheCsrfToken()
+    {
+        var store = NewStore();
+        var csrf = new AdminCsrf("tok-for-the-test");
+
+        // A browser report filed before the reply channel: key derived from the browser-local player id —
+        // the glitch.fun arcade never polls with it.
+        string oldArcade = store.Add(ReportIngest.Parse(PayloadFor("browser-token", "WebGLPlayer"), new ReportHostConfig(), out _)!, nowUnix: 1);
+        Assert.Equal(ReportHostPages.ReplyKeyOrigin.DerivedFromPlayerId, ReportHostPages.KeyOrigin(store.Get(oldArcade)!));
+        string html = ReportHostPages.Detail(store.Get(oldArcade)!, store.ListReplies(oldArcade), csrf);
+        Assert.Contains("No in-game reply possible", html);
+
+        // An old desktop report: the same derivation, but a desktop install DOES poll with it — a softer hint.
+        string oldDesktop = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 2);
+        html = ReportHostPages.Detail(store.Get(oldDesktop)!, store.ListReplies(oldDesktop), csrf);
+        Assert.DoesNotContain("No in-game reply possible", html);
+        Assert.Contains("Reply key derived from the player id", html);
+
+        // A report that carried its key (any platform): no caveat at all.
+        string current = store.Add(ReportIngest.Parse(PayloadFor("browser-token", "WebGLPlayer", KeyFor("glitch-install-id")), new ReportHostConfig(), out _)!, nowUnix: 3);
+        Assert.Equal(ReportHostPages.ReplyKeyOrigin.SentByClient, ReportHostPages.KeyOrigin(store.Get(current)!));
+        html = ReportHostPages.Detail(store.Get(current)!, store.ListReplies(current), csrf);
+        Assert.DoesNotContain("No in-game reply possible", html);
+        Assert.DoesNotContain("derived from the player id", html);
+        Assert.Contains("No replies yet", html);
+
+        // No key at all (a crash from a server): the existing wording.
+        string crash = store.Add(ReportIngest.Parse(CrashPayload(), new ReportHostConfig(), out _)!, nowUnix: 4);
+        Assert.Equal(ReportHostPages.ReplyKeyOrigin.None, ReportHostPages.KeyOrigin(store.Get(crash)!));
+        Assert.Contains("no reply key", ReportHostPages.Detail(store.Get(crash)!, store.ListReplies(crash), csrf));
+
+        // Every form on the page — reply, one per status button, delete — carries the token; without a
+        // guard instance (older callers, tests) no field is rendered.
+        int forms = html.Split("<form method='post'").Length - 1;
+        Assert.Equal(1 + BugReportStatus.All.Length + 1, forms);
+        Assert.Equal(forms, html.Split(csrf.HiddenField()).Length - 1);
+        Assert.DoesNotContain("name='csrf'", ReportHostPages.Detail(store.Get(current)!, store.ListReplies(current)));
+
+        // The guard itself: fixed-time compare, nothing empty ever matches, a fresh instance is 64 hex chars.
+        Assert.True(csrf.IsValid("tok-for-the-test"));
+        Assert.False(csrf.IsValid("tok-for-the-tesT"));
+        Assert.False(csrf.IsValid(""));
+        Assert.False(csrf.IsValid(null));
+        Assert.Matches("^[0-9a-f]{64}$", new AdminCsrf().Token);
+        Assert.NotEqual(new AdminCsrf().Token, new AdminCsrf().Token);
+    }
+
     public void Dispose()
     {
         foreach (var store in _stores)

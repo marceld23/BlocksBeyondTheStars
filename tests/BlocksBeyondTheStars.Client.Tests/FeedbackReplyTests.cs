@@ -311,6 +311,86 @@ public sealed class FeedbackReplyTests : IDisposable
         Assert.Equal(4, tracker.ShownCount);
     }
 
+    // ---------------- #1369: gone marker + the answer box follows the thread ----------------
+
+    [Fact]
+    public void Fetch_NamesTheRememberedReports_AndForgetsTheOnesTheInboxCallsGone()
+    {
+        string key = FeedbackReplyKey.Derive("token-abc");
+        _responseJson = "{\"items\":[],\"gone\":[\"r2\",\"r3\",\"\",7]}";
+        var client = new FeedbackReplyClient(Endpoint, "test-key");
+
+        // Duplicates and blanks are dropped from the query; the inbox's answer is parsed as-is (strings only).
+        var result = client.Fetch(key, 0, new[] { "r1", "r2", "", "r3", "r2" });
+        Assert.True(result.Ok);
+        Assert.Contains("&ids=" + Uri.EscapeDataString("r1,r2,r3"), _lastPathAndQuery);
+        Assert.Equal(new List<string> { "r2", "r3" }, result.Gone);
+
+        // No remembered ids → no ids parameter at all; an inbox without the field (older build) retires nothing.
+        _responseJson = "{\"items\":[]}";
+        result = client.Fetch(key, 0, Array.Empty<string>());
+        Assert.DoesNotContain("ids=", _lastPathAndQuery);
+        Assert.Empty(result.Gone);
+        Assert.Empty(FeedbackReplyClient.ParseGone("{\"gone\":\"nope\"}"));
+        Assert.Empty(FeedbackReplyClient.ParseGone("{not json"));
+        Assert.Empty(FeedbackReplyClient.ParseGone(null));
+
+        // The client never names more than the inbox looks at.
+        var many = new List<string>();
+        for (int i = 0; i < FeedbackReplyClient.MaxKnownIds + 10; i++)
+        {
+            many.Add("id" + i);
+        }
+
+        string url = client.FetchUrl(key, 0, many);
+        Assert.Contains("id" + (FeedbackReplyClient.MaxKnownIds - 1), url);
+        Assert.DoesNotContain("id" + FeedbackReplyClient.MaxKnownIds + "%2C", url);
+        Assert.DoesNotContain("id" + (FeedbackReplyClient.MaxKnownIds + 9), url);
+
+        // What FeedbackUi does with the answer: the gone reports leave the sent log, and once the last one
+        // is gone the poll gate closes — persistently.
+        string path = Path.Combine(_tempDir, "feedback", "sent.json");
+        var log = new SentReportsLog(path);
+        const long now = 1_800_000_000;
+        log.Record("r1", "one", now);
+        log.Record("r2", "two", now);
+        foreach (string gone in new[] { "r2", "never-known" })
+        {
+            log.Forget(gone);
+        }
+
+        Assert.Equal("r1", Assert.Single(log.List(now)).Id);
+        log.Forget("r1");
+        Assert.False(log.ShouldPoll(now));
+        Assert.False(new SentReportsLog(path).ShouldPoll(now));
+    }
+
+    [Fact]
+    public void AwaitsAnswer_FollowsTheThread_NotTheStatus()
+    {
+        static FeedbackReplyEntry Dev(long id, bool question) => new FeedbackReplyEntry { Id = id, Author = "dev", Text = "…", IsQuestion = question };
+        static FeedbackReplyEntry Player(long id) => new FeedbackReplyEntry { Id = id, Author = "player", Text = "…" };
+
+        // The operator flipped the status by hand while the question is still open — the box stays.
+        var thread = new FeedbackReplyThread { ReportId = "r1", Status = "triaged" };
+        thread.Replies.Add(Dev(1, question: true));
+        Assert.True(thread.AwaitsAnswer);
+
+        // Answered → nothing to answer, whatever the status says.
+        thread.Replies.Add(Player(2));
+        thread.Status = "waiting_for_player";
+        Assert.False(thread.AwaitsAnswer);
+
+        // A follow-up question after the answer re-opens it; a plain answer after it closes it again.
+        thread.Replies.Add(Dev(3, question: true));
+        Assert.True(thread.AwaitsAnswer);
+        thread.Replies.Add(Dev(4, question: false));
+        Assert.False(thread.AwaitsAnswer);
+
+        // An empty thread never asks for anything.
+        Assert.False(new FeedbackReplyThread { Status = "waiting_for_player" }.AwaitsAnswer);
+    }
+
     public void Dispose()
     {
         _running = false;

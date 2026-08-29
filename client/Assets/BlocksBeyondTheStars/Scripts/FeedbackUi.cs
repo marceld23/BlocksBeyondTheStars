@@ -576,15 +576,25 @@ namespace BlocksBeyondTheStars.Client
                 return; // nothing sent recently → no request at all (no phone-home without a reason)
             }
 
+            // The ids we still remember ride along (#1369): the inbox names the ones it no longer has for
+            // our key as `gone`, and OnPollFinished forgets them — otherwise a deleted or pruned report
+            // would be polled for up to 90 days.
+            var known = new List<string>();
+            foreach (var sent in _sentLog.List(NowUnix()))
+            {
+                known.Add(sent.Id);
+            }
+
             _polling = true;
 #if UNITY_WEBGL && !UNITY_EDITOR
-            StartCoroutine(FeedbackWebGlTransport.Request(_replies.FetchUrl(_replyKey, 0), "GET", null, (res, body) =>
+            StartCoroutine(FeedbackWebGlTransport.Request(_replies.FetchUrl(_replyKey, 0, known), "GET", null, (res, body) =>
             {
                 _polling = false;
                 var result = new FeedbackReplyResult { Ok = res.Ok, StatusCode = res.StatusCode, Error = res.Error };
                 if (res.Ok)
                 {
                     result.Threads.AddRange(FeedbackReplyClient.ParseThreads(body));
+                    result.Gone.AddRange(FeedbackReplyClient.ParseGone(body));
                 }
 
                 OnPollFinished(result);
@@ -592,7 +602,7 @@ namespace BlocksBeyondTheStars.Client
 #else
             var replies = _replies;
             string key = _replyKey;
-            _pollTask = Task.Run(() => replies.Fetch(key, 0));
+            _pollTask = Task.Run(() => replies.Fetch(key, 0, known));
 #endif
         }
 
@@ -606,6 +616,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return;
+            }
+
+            // Reports the inbox no longer has for our key are forgotten, so the poll gate closes once the
+            // last remembered report is gone (#1369).
+            foreach (string goneId in result.Gone)
+            {
+                _sentLog?.Forget(goneId);
             }
 
             FeedbackReplyThread first = null;

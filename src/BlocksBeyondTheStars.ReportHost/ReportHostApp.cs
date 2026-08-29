@@ -23,6 +23,11 @@ public static class ReportHostApp
         var limiter = new IngestRateLimiter(config.IngestPerMinute);
         var replyLimiter = new IngestRateLimiter(config.ReplyPerMinute);
 
+        // One random token per process, rendered into every admin form and required on every admin form
+        // POST (#1369): Basic credentials ride along on any cross-site request the browser makes, and since
+        // #1327 a forged form submit could put text in front of a player.
+        var csrf = new AdminCsrf();
+
         var builder = WebApplication.CreateBuilder(args);
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole();
@@ -106,6 +111,25 @@ public static class ReportHostApp
 
             ctx.Response.Headers.WWWAuthenticate = "Basic realm=\"BBS ReportHost\", charset=\"UTF-8\"";
             return Results.Text("Unauthorized.\n", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        // Admin FORM gate (#1369): the submitted hidden field must be this process's CSRF token. Null = OK.
+        IResult? GuardAdminForm(IFormCollection form)
+        {
+            return csrf.IsValid(form[AdminCsrf.FieldName].ToString())
+                ? null
+                : Results.Text("Forbidden — the form's CSRF token does not match this inbox (reload the page and try again).\n",
+                    statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        // Admin JSON gate (#1369): the scriptable routes only take a real JSON body. An HTML form can post
+        // urlencoded, multipart or text/plain — never application/json — so a forged <form> cannot reach
+        // them even though the browser attaches the Basic credentials. Null = OK.
+        static IResult? GuardAdminJson(HttpContext ctx)
+        {
+            return ctx.Request.HasJsonContentType()
+                ? null
+                : Results.Json(new { error = "json_body_required" }, statusCode: StatusCodes.Status415UnsupportedMediaType);
         }
 
         // One reply-thread entry as JSON (shared by the read API and the client's poll).
@@ -353,6 +377,11 @@ public static class ReportHostApp
                 return denied;
             }
 
+            if (GuardAdminJson(ctx) is { } notJson)
+            {
+                return notJson;
+            }
+
             string status;
             try
             {
@@ -387,6 +416,9 @@ public static class ReportHostApp
 
         // The client's poll: every thread of this key with an unread developer entry. `since` (unix seconds,
         // optional) narrows to entries created after that point — the client passes its last poll time.
+        // `ids` (comma-separated, optional, #1369) are the report ids the client still remembers; the ones
+        // this key can no longer read (deleted, pruned, or never its own) come back as `gone`, so the
+        // client forgets them instead of polling for up to 90 days for a report that no longer exists.
         app.MapGet("/api/replies", (HttpContext ctx) =>
         {
             if (GuardPlayerRoute(ctx) is { } denied)
@@ -402,7 +434,12 @@ public static class ReportHostApp
 
             long since = long.TryParse(ctx.Request.Query["since"], out var s) ? s : 0;
             var threads = store.UnreadThreads(key, since);
-            return Results.Json(new { items = threads.Select(t => ThreadJson(t)).ToArray() });
+            string[] asked = ctx.Request.Query["ids"].ToString()
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(id => id.Length <= 64)
+                .ToArray();
+            var gone = asked.Length > 0 ? store.MissingReports(key, asked) : new List<string>();
+            return Results.Json(new { items = threads.Select(t => ThreadJson(t)).ToArray(), gone });
         });
 
         // Marks developer entries as read once the client showed them. Scoped to the key inside the store.
@@ -512,6 +549,11 @@ public static class ReportHostApp
                 return denied;
             }
 
+            if (GuardAdminJson(ctx) is { } notJson)
+            {
+                return notJson;
+            }
+
             string text;
             bool question;
             string? fixedIn;
@@ -591,7 +633,7 @@ public static class ReportHostApp
             }
 
             return store.Get(id) is { } record
-                ? Results.Content(ReportHostPages.Detail(record, store.ListReplies(id)), "text/html; charset=utf-8")
+                ? Results.Content(ReportHostPages.Detail(record, store.ListReplies(id), csrf), "text/html; charset=utf-8")
                 : Results.NotFound();
         });
 
@@ -605,6 +647,11 @@ public static class ReportHostApp
             }
 
             var form = await ctx.Request.ReadFormAsync();
+            if (GuardAdminForm(form) is { } forged)
+            {
+                return forged;
+            }
+
             string text = form["text"].ToString().Trim();
             bool question = form["question"].ToString() == "1";
             string fixedIn = form["fixed_in_version"].ToString().Trim();
@@ -645,6 +692,11 @@ public static class ReportHostApp
             }
 
             var form = await ctx.Request.ReadFormAsync();
+            if (GuardAdminForm(form) is { } forged)
+            {
+                return forged;
+            }
+
             string status = form["status"].ToString();
             if (!BugReportStatus.IsValid(status) || !store.SetStatus(id, status))
             {
@@ -654,11 +706,17 @@ public static class ReportHostApp
             return Results.Redirect($"/admin/report/{id}");
         });
 
-        app.MapPost("/admin/report/{id}/delete", (HttpContext ctx, string id) =>
+        app.MapPost("/admin/report/{id}/delete", async (HttpContext ctx, string id) =>
         {
             if (GuardAdmin(ctx) is { } denied)
             {
                 return denied;
+            }
+
+            var form = await ctx.Request.ReadFormAsync();
+            if (GuardAdminForm(form) is { } forged)
+            {
+                return forged;
             }
 
             store.Delete(id);

@@ -68,8 +68,14 @@ world loads ──► FeedbackUi.Start: replyKey = SHA256("bbs-reply:" + secret)
   previous glitch.fun deployment like the settings file.
 - **Display**: `FeedbackUi` owns a second modal (own menu owner, so it never fights the F1 dialog): title,
   the thread as "Developers: … / Developers ask: … / You answered: …", the fixed-in line; **OK** acknowledges
-  the shown ids (fire-and-forget) and the next queued thread follows. When the newest developer entry is a
-  question (`waiting_for_player`), an answer box + **Send answer** appear; the answer posts, acks, closes.
+  the shown ids (fire-and-forget) and the next queued thread follows. When the newest entry of the thread is a
+  developer question (no player answer after it — derived from the thread, not from the report's status, so an
+  operator who flips the status by hand does not hide the box, #1369), an answer box + **Send answer** appear;
+  the answer posts, acks, closes.
+- **Forgetting**: every poll names the report ids `sent.json` still holds (`ids=`), and the inbox answers with
+  the ones this key can no longer read (deleted, pruned, or stored under a different key) as `gone`; those
+  leave `sent.json` at once (`SentReportsLog.Forget`), so a deleted report is not polled for up to 90 days
+  (#1369).
   Threads are queued while another menu/chat/death prompt owns the screen. Strings: `ui.feedback.reply.*`.
 - Failures are silent (one log line); a 4xx never retries the same request. A `429` on a poll is the reply
   key's **own** per-minute budget (`BBS_REPORTS_REPLY_PER_MINUTE`, 30 by default) — never the network's report
