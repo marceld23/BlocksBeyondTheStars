@@ -47,6 +47,30 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   now ask for the same fluid-aware target as the click — and the tool check reads the definition of the
   fluid actually under the crosshair (water and lava separately) instead of assuming lava stands for both.
 
+### 🔧 Server audit — the round-3 fixes, sharpened (#1346, #1347, #1348, #1349, #1350, #1356, #1357, #1358)
+
+- **The ship blip survives dying** (#1346): a death in space, inside the ship or on another body respawned you
+  at the heal tank without the HUD ship marker, distance, map marker and thermal blob — the client clears the
+  marker on every world reset since #1308 and the two death-respawn paths never re-sent the placement.
+- **Land animals around a base in a valley again** (#1347): the walled-yard fill read natural terrain as
+  masonry, so no land animal spawned in any hollow within 48 blocks of a founded base. The fill now walks the
+  terrain like an animal does — one block up or down is a step, two is a wall — so only real walls fence.
+- **A sliding gate is a wall even while it stands open for you** (#1358): standing at your yard's sliding door
+  no longer lets the wildlife spawn inside — proximity doors open only for players and close on their own.
+- **Pets wait at a cliff** (#1348): a walker companion under a ledge it cannot jump hopped in place for as long
+  as you stood above; a crawler companion levitated straight up the wall. Both now wait at the base (the leash
+  still brings them along when you walk on); one-block steps are still taken.
+- **Animals fall into a pit dug under them instead of rising through the ceiling** (#1349): the ground probe
+  preferred the nearest floor in either direction, lifting a ground-floor animal onto the storey above.
+- **Fresh creature loot no longer expires with an old bundle** (#1350): a kill next to an almost-expired loot
+  packet merged into it and vanished with it seconds later; the merge now restarts the five-minute clock.
+- **No pop-out at the edge of view** (#1356): the crowding despawn shed animals 40 blocks out — in plain sight
+  at larger view distances — and could remove a hunter mid-charge; it now respects the widest joined
+  player's view distance and never sheds a creature that is hunting.
+- **An awake animal walled in by a block steps out** (#1357): only sleepers re-checked their body cells; a
+  cathemeral grazer built into a wall stood in it for good. Every creature checks every two seconds, and at
+  once when a block is placed into it.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
