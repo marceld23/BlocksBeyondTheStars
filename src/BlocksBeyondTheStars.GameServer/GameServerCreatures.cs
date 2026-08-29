@@ -522,7 +522,14 @@ public sealed partial class GameServer
 
         // #1314: nothing spawns inside a base's sealed rooms — the volume the air fill already knows.
         var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
-        return !InSealedBaseRoom(cell);
+        if (InSealedBaseRoom(cell))
+        {
+            return false;
+        }
+
+        // #1315: nor inside a WALLED area of a base — an open-topped yard the outside-in fill cannot reach.
+        // Ground-bound life only: a flier spawns above the wall, a cave dweller below it.
+        return sp.Habitat is CreatureHabitat.Air or CreatureHabitat.Cave || !InWalledBaseArea(cell);
     }
 
     /// <summary>How many live wild individuals of one species a world may hold (#1325): a share of the

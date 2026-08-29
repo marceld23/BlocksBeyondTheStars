@@ -9643,6 +9643,27 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): walled base areas keep the wildlife out (#1315)
+
+Lyxette's "they spawn inside my walls — and the walls are too high for them" (round 3). Server + data.
+
+* **Outside-in fill (`GameServerBaseWalls.cs`).** Neither existing predicate answered "is this spot fenced
+  in?": the sealed-room fill wants a roof, the radius-8 cube is the griefing guard and too small for any ring
+  spot. Now: seed every boundary column of the base's 97×97 reach box at the candidate's feet level, flood
+  inward through passable cells (the creature body gate's own colliding rule — fluids and props pass), and
+  everything the fill never reaches is enclosed. One fill per (base, level) answers every yard and courtyard;
+  cached on the air fill's 1.5 s interval, bounded (24 levels per base, 12k-cell budget), fail-open on
+  unloaded columns. **Shut doors count as walls** (a deliberate divergence from the air model).
+* **Gate:** `SpawnSpotClear` rejects walled cells for ground-bound species; fliers (spawn above the wall) and
+  cave dwellers (below it) stay ungated; hostile machines untouched on purpose (that is the sentry post's job).
+* **Told where players read it** (acceptance): the `base_core` block description (EN+DE), a once-per-player
+  VEGA hint on founding a base (`vega.hint.base_walls`), and a paragraph in the Codex base article.
+* Tests: `BaseWalledYardTests` (4) — ring fenced/gap opens/roofless level semantics, shut vs. open gate,
+  no core → no fence, land spawn rejected while a flier passes; the #1314 sealed-room test now expects a
+  roof-holed room to stay closed until a wall opens.
+
+---
+
 ## ✅ Done (2026-08-29): fluids — aim at water and lava, slow lava, and sand that falls (#1310, #1316, #1319)
 
 Lyxette's round-3 fluid reports; client + server + data. Unity build required (aim march changed).

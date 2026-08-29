@@ -297,7 +297,8 @@ public sealed class CreatureBuildRespectTests : IDisposable
             Assert.False(server.SpawnSpotClearForTest(inside), "a spawn candidate inside the sealed room must be rejected");
             Assert.True(server.SpawnSpotClearForTest(new Vector3f(24.5f, oy, 0.5f)), "open air beside the room stays spawnable");
 
-            // Knock a hole in the roof: the pocket leaks, the fill empties, and the spot is spawnable again.
+            // Knock a hole in the roof: the pocket leaks and the air fill empties — but the WALLS still stand,
+            // so the walled-area rule (#1315) keeps the spot closed: a roofless yard is exactly its case.
             server.World.SetBlock(new Vector3i(13, oy + 3, 0), BlocksBeyondTheStars.Shared.Primitives.BlockId.Air);
             for (int i = 0; i < 6; i++)
             {
@@ -305,7 +306,18 @@ public sealed class CreatureBuildRespectTests : IDisposable
                 server.TickForTest(0.5);
             }
 
-            Assert.True(server.SpawnSpotClearForTest(inside), "an unsealed room is ordinary terrain to the spawner");
+            Assert.Equal((0, 0), server.BaseAirForTest(baseId));
+            Assert.False(server.SpawnSpotClearForTest(inside), "unsealed but still walled in — the yard rule holds (#1315)");
+
+            // Open the wall at the spawn's own level: now the outside-in fill reaches it and it is ordinary terrain.
+            server.RemoveBlockForTest(15, oy, 0);
+            for (int i = 0; i < 6; i++)
+            {
+                p.State.Position = inside;
+                server.TickForTest(0.5);
+            }
+
+            Assert.True(server.SpawnSpotClearForTest(inside), "a gap in the wall lets the spawner (and the animals) in");
         }
     }
 

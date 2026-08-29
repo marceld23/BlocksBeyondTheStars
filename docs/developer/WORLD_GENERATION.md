@@ -325,8 +325,12 @@ the world cap), and a species OVER its share (the cap shrank, an older save) she
 that are out of sight of every player (> 40 blocks) until it is back at the share. Every placement —
 the ring leader and each herd member — runs the one reject list `SpawnSpotClear`: habitat, the parked-ship
 volume (**body-aware** for large species: the hull margin grows by `Size × 0.5`, #1320), body cells (#855),
-titan flatness, the large-body volume (#750) and a founded base's **sealed rooms** (`InSealedBaseRoom`,
-the cached air fill — #1314: nothing spawns inside a room the player has made airtight). Only
+titan flatness, the large-body volume (#750), a founded base's **sealed rooms** (`InSealedBaseRoom`,
+the cached air fill — #1314: nothing spawns inside a room the player has made airtight) and its **walled
+areas** (`InWalledBaseArea`, `GameServerBaseWalls.cs` — #1315): an outside-in flood from the boundary of
+the base's 97×97 reach box at the candidate's feet level through passable cells; whatever it never reaches
+is fenced in, roof or no roof. Cached per (base, level) on the air fill's interval, fail-open on unloaded
+columns, shut doors count as walls; fliers and cave dwellers stay ungated, hostile machines are out of scope. Only
 **awake, hostile** creatures deal damage — sleepers never attack — and the day/night cycle gates
 which species are awake. Bite + aggro ranges grow gently with species size past 2 (bite capped at
 the player's own 6-block attack reach).
