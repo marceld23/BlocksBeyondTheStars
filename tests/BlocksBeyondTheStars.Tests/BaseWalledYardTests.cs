@@ -31,7 +31,7 @@ public sealed class BaseWalledYardTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer Started(out SqliteWorldRepository repo, string world)
+    private SvGameServer Started(out SqliteWorldRepository repo, string world, string planet = "jungle")
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -39,7 +39,7 @@ public sealed class BaseWalledYardTests : IDisposable
         {
             WorldName = world,
             Seed = 4242,
-            StartPlanet = "jungle", // a full roster for the spawn-seam checks
+            StartPlanet = planet, // jungle: a full roster for the spawn-seam checks
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
             PlaceSettlements = false,
@@ -206,6 +206,155 @@ public sealed class BaseWalledYardTests : IDisposable
 
             sp.Habitat = CreatureHabitat.Air;
             Assert.True(server.SpawnSpotClearForTest(new Vector3f(Cx + 2.5f, padY + 5, Cz + 0.5f)), "a flier does not care about walls");
+        }
+    }
+
+    // ---------------- #1358: a proximity door is a wall whatever it shows ----------------
+
+    [Fact]
+    public void ASlidingGate_KeepsTheYardClosed_WhileThePlayerStandsAtIt()
+    {
+        var server = Started(out var repo, "slidegate");
+        using (repo)
+        {
+            var (p, padY) = Yard(server);
+            int feet = padY + 1;
+
+            // The same 1-wide gateway as the wooden-door test, filled with a sliding door.
+            server.RemoveBlockForTest(Cx + Ring, padY + 1, Cz);
+            server.RemoveBlockForTest(Cx + Ring, padY + 2, Cz);
+            p.State.Inventory.Add("door_slide", 2, 16);
+            p.State.Position = new Vector3f(Cx + Ring + 1.5f, feet, Cz + 0.5f);
+            server.PlaceBlock("Builder", Cx + Ring, padY + 1, Cz, "door_slide");
+            var door = server.DoorSnapshots.Single(d => d.Kind == "slide");
+
+            // The player stays right at the gate: the proximity tick holds it OPEN…
+            Settle(server);
+            Assert.True(server.DoorSnapshots.Single(d => d.Id == door.Id).Open, "sanity: a player beside a sliding door opens it");
+            // …and it still reads as wall — it opens only for players and closes by itself, no animal passes it.
+            Assert.True(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz), "an open sliding gate is no gap for the wildlife (#1358)");
+        }
+    }
+
+    // ---------------- #1347: real terrain is not masonry ----------------
+
+    /// <summary>A terraced bowl in a terraced plateau, built on REAL generated terrain at the ring's centre:
+    /// Chebyshev ring k from the centre carries its top at H−3 (k ≤ 1, the bowl floor), H−2 (k = 2), H−1
+    /// (k = 3), H (k = 4…7, the plateau), H−1 (k = 8), H−2 (k = 9) and H−3 (k = 10); beyond that the natural
+    /// ground stays. Every ring differs from its neighbours by exactly one block, so a walking animal — and the
+    /// walking fill — can get in and out; each top sits on four blocks of stone (a tree's air pockets below
+    /// don't matter) and everything above it is cleared. H is the highest natural cell within 30 blocks, so
+    /// nothing nearby towers over the plateau. Returns H.</summary>
+    /// <summary>The first of a few fixed candidate centres whose 25×25 surroundings are dry ground (no fluid at
+    /// the top of any sampled column) — the seed's start area at (40, 40) turned out to be open sea.</summary>
+    private (int Cx, int Cz) LandSpot(SvGameServer server)
+    {
+        foreach (var (cx, cz) in new[] { (40, 40), (-120, 80), (200, -160), (-260, -220), (340, 300), (-400, 120) })
+        {
+            bool dry = true;
+            for (int dx = -12; dx <= 12 && dry; dx += 2)
+                for (int dz = -12; dz <= 12 && dry; dz += 2)
+                {
+                    int top = SurfaceTopY(server, cx + dx, cz + dz);
+                    var key = _content.BlockById(server.World.GetBlock(new Vector3i(cx + dx, top, cz + dz)))?.Key;
+                    dry = key is not ("water" or "lava");
+                }
+
+            if (dry)
+            {
+                return (cx, cz);
+            }
+        }
+
+        throw new InvalidOperationException("no dry 25×25 spot among the candidates — pick another seed/planet");
+    }
+
+    private int TerracedBowl(SvGameServer server, int cx, int cz)
+    {
+        var stone = _content.GetBlock("stone")!.NumericId;
+        int h = MaxTopY(server, cx, cz, 30);
+        for (int dx = -10; dx <= 10; dx++)
+            for (int dz = -10; dz <= 10; dz++)
+            {
+                int k = System.Math.Max(System.Math.Abs(dx), System.Math.Abs(dz));
+                int top = k switch
+                {
+                    <= 1 => h - 3,
+                    2 => h - 2,
+                    3 => h - 1,
+                    <= 7 => h,
+                    8 => h - 1,
+                    9 => h - 2,
+                    _ => h - 3,
+                };
+                for (int y = top - 4; y <= top; y++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, y, cz + dz), stone);
+                }
+
+                for (int y = top + 1; y <= h + 8; y++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, y, cz + dz), BlockId.Air);
+                }
+            }
+
+        return h;
+    }
+
+    [Fact]
+    public void ABaseInAHollow_LeavesTheHollowOpen_UntilARealWallRingsIt()
+    {
+        // The first fill flooded ONE horizontal slice and treated natural terrain as a wall: a spawn candidate
+        // on the floor of any hollow within a base's reach had a closed solid contour at its own level and read
+        // as "fenced in" — no land animal around a base built in a valley.
+        var server = Started(out var repo, "hollow", planet: "desert"); // dry land, gentle relief
+        using (repo)
+        {
+            var (cx, cz) = LandSpot(server);
+            int h = TerracedBowl(server, cx, cz);
+            int floorFeet = h - 2; // the bowl floor's feet cell (floor top at h − 3)
+
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(cx - 1.5f, floorFeet, cz + 0.5f);
+            p.State.Inventory.Add("base_core", 2, 16);
+            server.PlaceBlock("Builder", cx, floorFeet, cz, "base_core"); // founded on the bowl floor
+            Assert.Single(server.BaseSnapshots);
+
+            Assert.False(server.InWalledBaseAreaForTest(cx + 1, floorFeet, cz), "a terraced hollow is open ground, not a yard (#1347)");
+            var (reachable, failOpen) = server.WalledFillForTest(cx + 1, floorFeet, cz);
+            Assert.False(failOpen, $"the fill must not run out of budget on real jungle terrain ({reachable} cells)");
+            Assert.False(server.InWalledBaseAreaForTest(cx + 5, h + 1, cz), "the plateau above it is open too");
+            Assert.False(server.InWalledBaseAreaForTest(cx, h, cz + 2), "a one-block terrain step is no wall");
+
+            // A 2-high stone ring on the plateau (k = 6, flat ground on both sides) encloses the bowl…
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dx = -6; dx <= 6; dx++)
+                for (int dz = -6; dz <= 6; dz++)
+                {
+                    if (System.Math.Abs(dx) == 6 || System.Math.Abs(dz) == 6)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, h + 1, cz + dz), stone);
+                        server.World.SetBlock(new Vector3i(cx + dx, h + 2, cz + dz), stone);
+                    }
+                }
+
+            Settle(server);
+            Assert.True(server.InWalledBaseAreaForTest(cx + 1, floorFeet, cz), "a 2-high wall ring on real ground fences the hollow in");
+            Assert.False(server.InWalledBaseAreaForTest(cx + 9, h - 1, cz), "outside the ring the terraces stay open");
+
+            // …while the same ring one block high is a garden edge the animals step over.
+            for (int dx = -6; dx <= 6; dx++)
+                for (int dz = -6; dz <= 6; dz++)
+                {
+                    if (System.Math.Abs(dx) == 6 || System.Math.Abs(dz) == 6)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, h + 2, cz + dz), BlockId.Air);
+                    }
+                }
+
+            Settle(server);
+            Assert.False(server.InWalledBaseAreaForTest(cx + 1, floorFeet, cz), "a one-block raised edge is no fence");
         }
     }
 
