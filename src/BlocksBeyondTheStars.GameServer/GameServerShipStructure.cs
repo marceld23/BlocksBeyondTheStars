@@ -51,7 +51,7 @@ public sealed partial class GameServer
         var rec = CurLanded;
 
         var pad = PlayerPad(_current);
-        int y0 = PadGroundY(pad.CenterX, pad.CenterZ);
+        int y0 = PadSurfaceY(pad.CenterX, pad.CenterZ); // median, raised over whatever the player built on the pad (#1318)
 
         var s = BuildShipStructure(playerId);
         if (s.Cells.Count == 0)

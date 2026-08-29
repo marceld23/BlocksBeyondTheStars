@@ -1,0 +1,161 @@
+// Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
+using System.Linq;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Networking.Transport;
+using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Configuration;
+using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
+using Xunit;
+using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
+
+namespace BlocksBeyondTheStars.Tests;
+
+/// <summary>
+/// Touchdown height (#1318): a player landed "suddenly underground" and was dug out a second later. A
+/// 75-seed probe found no case where the pad's generated spread entombs anyone — the pads are nudged flat
+/// and levelled to the median at generation. What the median ignores is what the player BUILT over the pad
+/// since (Lyxette paved his landing site): the ship and the spawn now sit on the real ground, never below it,
+/// and the rescue notice — a toast the next message overwrote — also lands in the chat scrollback.
+/// </summary>
+public sealed class PadSpawnTests : IDisposable
+{
+    private readonly string _root;
+    private readonly GameContent _content;
+
+    public PadSpawnTests()
+    {
+        _root = Path.Combine(Path.GetTempPath(), "bbts_padspawn_" + Guid.NewGuid().ToString("N"));
+        _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+    }
+
+    private sealed class RecordingTransport : IServerTransport
+    {
+        public event Action<int>? ClientConnected;
+        public event Action<int>? ClientDisconnected;
+        public event Action<int, byte[]>? PayloadReceived;
+        public readonly List<object> Sent = new();
+        public void Start(int port) { }
+        public void Send(int connectionId, byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
+        public void Broadcast(byte[] payload, DeliveryMode mode) { if (NetCodec.Decode(payload) is { } m) Sent.Add(m); }
+        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
+        public void Stop() { }
+        public void Dispose() { }
+    }
+
+    private SvGameServer Started(out SqliteWorldRepository repo, string world, bool ship, IServerTransport? transport = null)
+    {
+        repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
+        var config = new ServerConfig
+        {
+            WorldName = world,
+            Seed = 31,
+            StartPlanet = "rocky",
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = ship,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+        };
+        var server = new SvGameServer(config, _content, transport ?? new LoopbackServerTransport(new LoopbackLink()), repo);
+        server.Start();
+        return server;
+    }
+
+    private static bool CellSolid(SvGameServer server, int x, int y, int z) => !server.World.GetBlock(new Vector3i(x, y, z)).IsAir;
+
+    private static bool Entombed(SvGameServer server, Vector3f pos)
+    {
+        int x = (int)Math.Floor(pos.X), y = (int)Math.Floor(pos.Y), z = (int)Math.Floor(pos.Z);
+        return CellSolid(server, x, y, z) && CellSolid(server, x, y + 1, z);
+    }
+
+    [Fact]
+    public void APavedPad_WithoutAShip_SpawnsThePlayerOnTopOfThePaving()
+    {
+        var server = Started(out var repo, "paved", ship: false);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            for (int y = py + 1; y <= py + 3; y++)
+            {
+                server.World.SetBlock(new Vector3i(px, y, pz), concrete); // three courses over the pad centre
+            }
+
+            var p = server.AddLocalPlayer("Newcomer");
+            var pos = p.State.Position;
+            Assert.False(Entombed(server, pos), $"the spawn must not sit inside the paving (at {pos})");
+            Assert.Equal(py + 3 + 2, (int)Math.Floor(pos.Y)); // the old spawn was median + 2 = inside the concrete
+        }
+    }
+
+    [Fact]
+    public void APavedPad_WithAShip_ParksTheShipOnThePaving_AndThePilotAboveIt()
+    {
+        var server = Started(out var repo, "pavedship", ship: true);
+        using (repo)
+        {
+            var (px, py, pz) = server.LandingPadForTest(0);
+            var concrete = _content.GetBlock("concrete")!.NumericId;
+            for (int dx = -4; dx <= 4; dx++)
+                for (int dz = -4; dz <= 4; dz++)
+                    for (int y = py + 1; y <= py + 2; y++)
+                    {
+                        server.World.SetBlock(new Vector3i(px + dx, y, pz + dz), concrete); // a 9×9 paved yard, two high
+                    }
+
+            var p = server.AddLocalPlayer("Host");
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+            Assert.Equal(py + 2 + 1, origin.Y); // the hull's first layer sits ON the paving, not inside it
+            Assert.False(Entombed(server, p.State.Position), $"the pilot must not spawn inside the paving (at {p.State.Position})");
+        }
+    }
+
+    [Fact]
+    public void AnUntouchedPad_KeepsTheOldTouchdownHeight()
+    {
+        var server = Started(out var repo, "plain", ship: false);
+        using (repo)
+        {
+            var (_, py, _) = server.LandingPadForTest(0);
+            var p = server.AddLocalPlayer("Newcomer");
+            Assert.Equal(py + 2, (int)Math.Floor(p.State.Position.Y)); // exactly what every existing save expects
+        }
+    }
+
+    [Fact]
+    public void TheDugOutRescue_AlsoLandsInTheChat()
+    {
+        var transport = new RecordingTransport();
+        var server = Started(out var repo, "rescue", ship: false, transport);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Buried");
+            p.State.AboardShip = false;
+            var (px, py, pz) = server.LandingPadForTest(0);
+            p.State.Position = new Vector3f(px + 0.5f, py - 6, pz + 0.5f); // sealed in the rock under the pad
+            Assert.True(Entombed(server, p.State.Position));
+
+            server.RunVoidRescueForTest();
+
+            Assert.False(Entombed(server, p.State.Position));
+            Assert.Contains(transport.Sent, m => m is RespawnNotice n && n.Reason == "@srv.misc.dug_out");
+            var chat = transport.Sent.OfType<ServerMessage>().Select(m => m.Text).ToList();
+            Assert.Contains("You were stuck in the rock — dug out.", chat); // plain text → chat scrollback, not just the toast
+        }
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (Directory.Exists(_root)) Directory.Delete(_root, recursive: true);
+        }
+        catch { }
+    }
+}
