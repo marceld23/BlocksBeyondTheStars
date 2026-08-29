@@ -3,8 +3,9 @@
 # of game releases, and its image only needs rebuilding when the service itself changes.
 #
 # Two entry points:
-#   * push to main touching ReportHost files — builds AND publishes to GHCR as :latest + :sha-<short>,
-#     so a VPS deploy can `docker compose pull` the current state of main.
+#   * push to main touching ReportHost files (or the Shared library it references — the reply key
+#     formula lives there, #1369) — builds AND publishes to GHCR as :latest + :sha-<short>, so a VPS
+#     deploy can `docker compose pull` the current state of main.
 #   * workflow_dispatch — build it by hand from the Actions tab (build-validate by default; set `push`
 #     to publish, with a tag of your choice).
 
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "src/BlocksBeyondTheStars.ReportHost/**"
+      - "src/BlocksBeyondTheStars.Shared/**"
       - "Dockerfile.reports"
       - ".github/workflows/reports-image.yml"
   workflow_dispatch:
