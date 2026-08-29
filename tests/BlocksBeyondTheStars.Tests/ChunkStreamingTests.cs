@@ -31,7 +31,10 @@ public sealed class ChunkStreamingTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private int ChunksLoadedAfterOneTick(string name, int budget, double timeBudgetMs = 0)
+    /// <summary>Chunks the streamer SENT to a fresh player in exactly one pass. Counts sends, not cache loads:
+    /// the touchdown height reads the pad's real blocks at join (#1318), so the player's own chunk is already
+    /// resident when the first pass runs — a load delta would miss that guaranteed first send.</summary>
+    private int ChunksStreamedAfterOneTick(string name, int budget, double timeBudgetMs = 0)
     {
         var repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -47,10 +50,10 @@ public sealed class ChunkStreamingTests : IDisposable
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
-        server.AddLocalPlayer("Streamer");
-        int before = server.World.LoadedChunkCount;
+        var streamer = server.AddLocalPlayer("Streamer");
+        int before = streamer.SentChunks.Count;
         server.TickForTest(0.1); // exactly one streaming pass
-        int delta = server.World.LoadedChunkCount - before;
+        int delta = streamer.SentChunks.Count - before;
         repo.Dispose();
         return delta;
     }
@@ -60,8 +63,8 @@ public sealed class ChunkStreamingTests : IDisposable
     {
         // A bigger per-tick budget sends (and so caches) more new chunks in a single streaming pass — that is the
         // knob that keeps the wider default view from thawing in slowly at the horizon.
-        int small = ChunksLoadedAfterOneTick("budget_small", 4);
-        int large = ChunksLoadedAfterOneTick("budget_large", 20);
+        int small = ChunksStreamedAfterOneTick("budget_small", 4);
+        int large = ChunksStreamedAfterOneTick("budget_large", 20);
 
         Assert.True(small <= 4, $"one tick must not stream more than the budget (got {small} for budget 4)");
         Assert.True(large > small, $"a larger budget should fill faster (large={large}, small={small})");
@@ -74,8 +77,8 @@ public sealed class ChunkStreamingTests : IDisposable
         // singleplayer): a burst of synchronous first-visit generations must not stall the frame. A
         // near-zero budget is spent after the first send, so exactly one guaranteed chunk goes out —
         // while the same count budget without a time budget streams the full per-tick allowance.
-        int unbudgeted = ChunksLoadedAfterOneTick("timebudget_off", 16);
-        int budgeted = ChunksLoadedAfterOneTick("timebudget_on", 16, timeBudgetMs: 0.000001);
+        int unbudgeted = ChunksStreamedAfterOneTick("timebudget_off", 16);
+        int budgeted = ChunksStreamedAfterOneTick("timebudget_on", 16, timeBudgetMs: 0.000001);
 
         Assert.True(budgeted >= 1, "a spent time budget must still stream at least one chunk (no starvation)");
         Assert.True(budgeted < unbudgeted, $"the time budget should cut the pass short (budgeted={budgeted}, unbudgeted={unbudgeted})");
