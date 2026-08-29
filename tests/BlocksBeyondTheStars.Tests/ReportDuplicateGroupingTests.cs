@@ -42,7 +42,9 @@ public sealed class ReportDuplicateGroupingTests
             Status: status,
             ScreenshotFile: screenshot,
             ReportJson: source == "server" ? "{\"snapshot\":{}}" : "{}",
-            CreatedUnix: createdUnix);
+            CreatedUnix: createdUnix,
+            ReplyKey: "",
+            FixedInVersion: "");
 
     /// <summary>The real shape of a pair, taken from a live report: the server forward wraps the player's own
     /// wording as "[feedback] &lt;title&gt; — &lt;description&gt;", so the client row's text is a substring.</summary>

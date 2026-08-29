@@ -9678,6 +9678,31 @@ half; the portal half ships with the next WorldHost image.
 
 ---
 
+## ✅ Done (2026-08-29): the way back — developer answers and follow-up questions reach the reporter in-game (#1327, #1328, #1329)
+
+Until now the F1 inbox was a dead end: an operator could flip a report's status or delete it, and every
+answer to a player was a manual e-mail — which most reports do not even carry. Now each report has a
+**reply thread**. **ReportHost** (#1327): `report_reply` table + `reply_key` / `fixed_in_version` columns
+(added in place on older databases), statuses `waiting_for_player` / `player_replied`, a detail-page
+conversation view with an answer/question form and a "fixed in version" field, `POST /api/reports/{id}/replies`
+for scripts, and three player routes behind the write key + limiter + CORS: `GET /api/replies?key=`
+(threads with unread dev entries), `POST /api/replies/ack`, `POST /api/replies` (max 3 player answers per
+report, ntfy ping). The **reply key** is a one-way hash of the install secret (`Shared/Feedback/FeedbackReplyKey`)
+— derived from `playerId` for older clients and back-filled once at startup, so existing reporters (e.g.
+Lyxette's) become answerable as soon as they update. **Client** (#1328): every report carries `replyKey`
+(desktop/play.* from the name-claim token, glitch.fun arcade from the install id, so answers follow the
+player across deployments), accepted uploads are remembered in `feedback/sent.json` (`SentReportsLog`, the
+poll gate — an install that never sent feedback makes zero requests), `FeedbackReplyClient` polls 12 s after
+the world loads and every 10 min, and `FeedbackUi` shows a HUD line + modal with the thread, OK acknowledges,
+a pending question adds an answer box. WebGL runs the same flow over `UnityWebRequest`. **Docs + wording**
+(#1329): REPORT_HOST.md, PLAYER_FEEDBACK.md, USER_MANUAL.md, `ui.feedback.hint` now says the developers may
+answer in-game and that a typed answer is stored with the report; 14 new `ui.feedback.reply.*` keys EN/DE
+(+ machine first-pass for the other locales). Tests: 9 new ReportHost tests (key derivation/back-fill,
+ownership, ack scoping, reply limit, delete/prune cascade, legacy-schema migration, page encoding) + 8 new
+client tests (key, sent log, reply client against a local `HttpListener`).
+
+---
+
 ## ✅ Done (2026-08-26): a Machines crafting tab + the one clear glass (#1273, #1274)
 
 The last two of Lyxette's follow-ups, both crafting-content.

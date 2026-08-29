@@ -32,6 +32,10 @@ public sealed class ParsedReport
     /// <summary>reportJson.kind when present (e.g. <c>tick-fault</c>, <c>unhandled-exception</c>).</summary>
     public string Kind = string.Empty;
 
+    /// <summary>The reporter's reply-thread credential (#1327): the client's <c>replyKey</c> when it sent a
+    /// well-formed one, otherwise empty (the store then derives it from <see cref="PlayerId"/>).</summary>
+    public string ReplyKey = string.Empty;
+
     /// <summary>The full original payload minus the screenshot, as compact JSON.</summary>
     public string ReportJson = "{}";
 
@@ -106,6 +110,14 @@ public static class ReportIngest
             }
 
             report.Category = report.Kind.Length > 0 ? "crash" : "feedback";
+
+            // Reply-thread credential (#1327): only a syntactically valid key is kept — anything else is
+            // treated as "not sent" so the store derives one from the player id instead.
+            string replyKey = Str(root, "replyKey", BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.Length + 1);
+            if (BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.IsWellFormed(replyKey))
+            {
+                report.ReplyKey = replyKey;
+            }
 
             ExtractScreenshot(root, config, report);
             report.ReportJson = WithoutScreenshot(root);
