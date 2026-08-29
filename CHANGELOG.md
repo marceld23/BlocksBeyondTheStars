@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🤖 The Guardian machines show their circuits (#1337, #1338)
+
+- **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
+  The planet robot and its hovering scan-drone rendered as an 8–18 % black shape (a flat 0.13 tint under the
+  lit shader) and the space drone / UFO used the black `carbon` coal tile without the ambient lift the planet
+  entities have had since #711 — hard to see against dark ground, caves and the night sky, and grimmer than the
+  story needs. All of them now wear one new `enemy_robot` tile (#1338): dark-grey bolted panels with etched
+  circuit-board traces, coarse enough to survive thin limbs, no lights. The glowing **red eyes, dome and threat
+  lights stay** — red is still the Guardian signal (#601). The finale cruiser puts the same plating on its dark
+  spine and engine blocks so the gauntlet reads as one machine family; its pale iron hull is unchanged.
+- The tile carries its own brightness (the entity loaders do not lift tiles the way creatures do), so it was
+  desaturated and lifted before bundling; without the tile the same greys render flat. The unused pre-retheme
+  `enemy_hide` tile is gone. Lore docs no longer call the machines "black".
+
 ### ⏸️ The feedback dialog holds the world too (#1330)
 
 - **F1 (F2 in the browser) now pauses like the Esc menu.** The player feedback dialog froze your controls

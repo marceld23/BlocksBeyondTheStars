@@ -201,6 +201,19 @@ left, so a stale keep-alive can never put the NEXT world to sleep. Six headless 
 Deliberately NOT done: holding behind every other panel (inventory, crafting, maps …) — a separate design question.
 Docs: `docs/developer/PLAYER_FEEDBACK.md`, CHANGELOG.
 
+### ★ Guardian machines: grey circuit plating instead of flat black (#1337 + #1338, 2026-08-29, branch feat/guardian-plating-1337)
+Marcel: "the robot, drone and ship-guardian enemies are completely black — make them grey/dark grey with a metal-plate,
+circuit-board pattern; the eyes stay red." Root cause: `WorldEntities.EnsureMaterials` tinted the plating 0.13 (joints
+0.08) — LitColor turns that into an 8–18 % black silhouette — and the `enemy_robot` tile the code already tried to load
+was never made (only the pre-retheme `enemy_hide` alien hide was bundled). The space drone/UFO used the black `carbon`
+coal tile at dark tints without the #711 floor/fill lift. **Fix:** one new AI tile `enemy_robot` (`gen_textures.py`,
+desaturated 70 % + lifted to ~0.40 mean before bundling — unlike `CreatureBuilder`, the entity loaders do not brighten
+tiles, so the tile carries the final greys and the tints sit near 1: plating 0.95, joints 0.55, plain trim 0.52); flat
+dark-grey fallback when the tile is absent. `SpaceView.GuardianPlating()` puts the same tile + the entity floor/fill on
+the drone core, UFO saucer/underside and the cruiser's dark spine/engines (its iron hull unchanged); red eyes/dome/threat
+lights untouched. `enemy_hide.bytes` deleted; lore docs (`LORE_STRUCTURE`, `STORY_VEGA_PROTOCOL_CONCEPT`) say "grey"
+instead of "black"; NOTICES tile list updated. Client-only — needs the Unity build; no locale text mentions the colour.
+
 ### ★ Portable data folder — `portable_data_dir.txt` next to the executable (#1285, 2026-08-26, branch feat/1285-portable-data-dir)
 The portable zip stored everything in `%LOCALAPPDATA%\..\LocalLow\…` like the installed game. Now an optional
 marker file next to the executable redirects the whole persistent-data root: `AppPaths.Root` (new, Unity side)
