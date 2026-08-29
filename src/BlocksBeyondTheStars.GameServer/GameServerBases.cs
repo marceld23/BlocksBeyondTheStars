@@ -184,6 +184,8 @@ public sealed partial class GameServer
             // explains the three rules once, on the first core founded where they matter.
             ShipAiHintOnce(session, "base_airless");
         }
+
+        ShipAiHintOnce(session, "base_walls"); // #1315: the fence rule, told where the player can act on it
     }
 
     /// <summary>If a base entity sits at this cell (its base_core was just mined or blasted), drop + forget it.
@@ -199,6 +201,7 @@ public sealed partial class GameServer
 
         _bases.Remove(basePoint);
         ForgetBaseAir(basePoint.Id); // the life-support field (cube + sealed rooms) dies with the core
+        ForgetBaseWalls(basePoint.Id); // ...and so does the fence rule (#1315)
         _repo.DeleteBase(body, pos.X, pos.Y, pos.Z);
         BroadcastBasesOn(body);
         if (FindSessionByPlayerId(basePoint.OwnerId) is { } owner)
