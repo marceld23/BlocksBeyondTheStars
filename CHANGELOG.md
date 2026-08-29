@@ -334,6 +334,9 @@ channel, and the WorldHost image for the portal's solo entry.
 - The report-host test fixture no longer looks like an 80-second network stall. It was xunit's parallel queue,
   not I/O: one in-process ReportHost per test class, every request timed, and the loopback HTTP tests moved into
   a real-time-sensitive collection so the slow first Kestrel start stays off the fast-tier clock.
+- **The browser build compiles again.** The WebGL report transport (#1339) parsed the inbox answer with
+  `System.Text.Json`, which Unity's runtime does not ship; only the release-tag WebGL build compiles that file, so no
+  PR build caught it. It reads the one field it needs with `JsonUtility` now (#1377).
 
 ## [2026.8.22] — 2026-08-26
 
