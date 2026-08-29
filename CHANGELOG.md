@@ -22,6 +22,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   (`BBS_REPORTS_REPLY_PER_MINUTE`, 30/min per reply key); the per-IP limit guards report submission only.
   Operators: redeploy the ReportHost image.
 
+### 🌐 Portal — the French name field says what it means (#1354)
+
+- **Locale text inside form attributes is encoded.** The solo-name field's placeholder *"Comment veux-tu qu'on
+  t'appelle ?"* was pasted raw into a single-quoted attribute, so the French landing page showed a mangled
+  field; the same pattern sat on the account, password, recovery-code and world-password fields. All of them
+  go through a small attribute encoder now, and a test renders every portal page in all 14 languages and
+  fails on the first attribute a translation breaks.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**

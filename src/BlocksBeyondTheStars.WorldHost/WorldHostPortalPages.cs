@@ -43,6 +43,18 @@ public static class WorldHostPortalPages
     /// <summary>The game website's entry point for a language (empty when the operator turned the link
     /// off). Only English has its own configured entry point; every other language falls back to the
     /// main URL — which is what the site itself does.</summary>
+    /// <summary>Attribute-safe text. The pages quote attributes with single quotes, and locale strings
+    /// carry apostrophes (French <c>qu'on t'appelle</c>) — pasted raw they end the attribute early and the
+    /// rest of the sentence turns into stray attributes (#1354). Encodes the five characters that can break
+    /// out of or alter an attribute value. Text nodes deliberately stay unencoded: translations carry
+    /// inline markup (<c>&lt;b&gt;</c>) on purpose, so this is for attributes only.</summary>
+    public static string Attr(string text) => text
+        .Replace("&", "&amp;", StringComparison.Ordinal)
+        .Replace("\"", "&quot;", StringComparison.Ordinal)
+        .Replace("'", "&#39;", StringComparison.Ordinal)
+        .Replace("<", "&lt;", StringComparison.Ordinal)
+        .Replace(">", "&gt;", StringComparison.Ordinal);
+
     internal static string WebsiteUrl(WorldHostConfig? config, string lang)
     {
         if (config is null || string.IsNullOrWhiteSpace(config.WebsiteUrl))
@@ -101,7 +113,7 @@ public static class WorldHostPortalPages
  <input type='hidden' name='singleplayer' value='1'>
  <input type='hidden' name='lang' value='{t.Lang}'>
  <label for='solo-name'>{t.T("landing.solo.name")}</label>
- <input id='solo-name' name='player_name' autocomplete='nickname' spellcheck='false' placeholder='{t.T("landing.solo.namePlaceholder")}' maxlength='24'>
+ <input id='solo-name' name='player_name' autocomplete='nickname' spellcheck='false' placeholder='{Attr(t.T("landing.solo.namePlaceholder"))}' maxlength='24'>
  <div id='solo-msg' role='status' aria-live='polite' aria-atomic='true'></div>
  <button type='submit' class='playnow'>{t.T("landing.solo.play")}</button>
 </form>
@@ -121,9 +133,9 @@ public static class WorldHostPortalPages
  <form class='card' id='su-form' novalidate>
   <h2>{t.T("landing.createAccount")}</h2>
   <label for='su-name'>{t.T("landing.accountName")}</label>
-  <input id='su-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' placeholder='{t.T("landing.accountNamePlaceholder")}' maxlength='24'>
+  <input id='su-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' placeholder='{Attr(t.T("landing.accountNamePlaceholder"))}' maxlength='24'>
   <label for='su-pass'>{t.T("landing.password")}</label>
-  <input id='su-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{t.T("landing.passwordPlaceholder")}'>
+  <input id='su-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{Attr(t.T("landing.passwordPlaceholder"))}'>
   <p class='hint'>{t.T("landing.signup.hint")}</p>
   <label class='consent'><input type='checkbox' id='su-accept'> <span>{t.T("landing.signup.consent", ("rules", rulesLink))}</span></label>
   <button type='submit'>{t.T("landing.createAccount")}</button>
@@ -148,9 +160,9 @@ public static class WorldHostPortalPages
     <label for='rc-name'>{t.T("landing.accountName")}</label>
     <input id='rc-name' name='account' autocomplete='username' autocapitalize='none' spellcheck='false' maxlength='24'>
     <label for='rc-code'>{t.T("landing.recover.code")}</label>
-    <input id='rc-code' name='code' autocomplete='off' autocapitalize='characters' spellcheck='false' placeholder='{t.T("landing.recover.codePlaceholder")}' maxlength='12'>
+    <input id='rc-code' name='code' autocomplete='off' autocapitalize='characters' spellcheck='false' placeholder='{Attr(t.T("landing.recover.codePlaceholder"))}' maxlength='12'>
     <label for='rc-pass'>{t.T("landing.recover.newPassword")}</label>
-    <input id='rc-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{t.T("landing.passwordPlaceholder")}'>
+    <input id='rc-pass' name='new-password' type='password' autocomplete='new-password' placeholder='{Attr(t.T("landing.passwordPlaceholder"))}'>
     <button type='submit'>{t.T("landing.recover.submit")}</button>
   </form>
   <form id='li-terms' novalidate hidden>
@@ -278,7 +290,7 @@ document.getElementById('li-recover-toggle').addEventListener('click', function(
  <details>
   <summary>{t.T("worlds.new.protect")}</summary>
   <label for='w-pass'>{t.T("landing.password")}</label>
-  <input id='w-pass' type='password' placeholder='{t.T("worlds.new.passwordPlaceholder")}' maxlength='24' autocomplete='new-password'>
+  <input id='w-pass' type='password' placeholder='{Attr(t.T("worlds.new.passwordPlaceholder"))}' maxlength='24' autocomplete='new-password'>
   <label for='w-pass2'>{t.T("worlds.new.repeat")}</label>
   <input id='w-pass2' type='password' maxlength='24' autocomplete='new-password'>
   <p class='hint'>{t.T("worlds.new.hint")}</p>

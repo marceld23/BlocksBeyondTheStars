@@ -9662,6 +9662,22 @@ after world start meant 15 silent 429s — and a real F1 report from that networ
 
 ---
 
+## ✅ Done (2026-08-29): portal attributes encode locale text — the French solo-name placeholder renders again (#1354)
+
+Follow-up to #1321. `WorldHostPortalPages` emits `placeholder='…'` (solo name, account name, password ×2, recovery
+code, world password) with the locale string pasted verbatim into a single-quoted attribute; `fr.json` says
+*"Comment veux-tu qu'on t'appelle ?"*, so the attribute ended at `qu` and the rest became stray attributes — a
+mangled field on the French landing page.
+
+* **`WorldHostPortalPages.Attr(text)`** encodes `& " ' < >` (ampersand first) and wraps every attribute that
+  carries locale text — six sites; text nodes stay raw on purpose (translations carry `<b>` markup).
+* Tests (3): the encoder round-trips through `WebUtility.HtmlDecode`; the solo-name placeholder round-trips for
+  all 14 languages; and a generic guard renders landing / worlds / rules / impressum / privacy in every language
+  and asserts every start tag parses (no stray quote or angle bracket inside any attribute) — it fails on the
+  French page without the fix. ⚠ Needs a WorldHost image redeploy (`worldhost-image.yml`).
+
+---
+
 ## ✅ Done (2026-08-29): touchdown on the real ground over a pad, and a rescue you can read (#1318)
 
 Lyxette's "landed and was suddenly underground" (round 3). Server only.
