@@ -5464,6 +5464,7 @@ public sealed partial class GameServer
                 _repo.SavePlayer(session.State);
             }
 
+            CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
             _repo.SaveMetadata(_meta);
         });
     }

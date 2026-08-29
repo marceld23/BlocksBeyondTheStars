@@ -254,6 +254,9 @@ internal sealed class LoadedWorld
     /// <summary>Throttle for the snow accumulation/melt pass.</summary>
     public double SinceWeatherDeposit { get; set; }
 
+    /// <summary>Seconds since this world's expiring drop packets were last checkpointed to the store (#1312, per world since #1367).</summary>
+    public double SinceLootCheckpoint { get; set; }
+
     /// <summary>This body's size class (asteroid/moon/planet), set on load — seeds the per-world gravity band.</summary>
     public WorldConstants.WorldSizeClass SizeClass { get; set; } = WorldConstants.WorldSizeClass.Planet;
 

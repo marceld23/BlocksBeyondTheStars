@@ -349,6 +349,52 @@ public sealed class DropLootTests : IDisposable
         }
     }
 
+    // ---------------- #1367: the colliding rule + the shutdown checkpoint ----------------
+
+    [Fact]
+    public void AKillOverGrass_LeavesThePacketInTheGrass_NotACellAboveIt()
+    {
+        var server = Started(out var repo, "grass");
+        using (repo)
+        {
+            server.AddLocalPlayer("Hunter").State.AboardShip = false;
+            const int x = 12, z = 12;
+            int top = SurfaceTopY(server, x, z);
+            server.World.SetBlock(new Vector3i(x, top + 1, z), _content.GetBlock("flora_fern")!.NumericId); // a meadow tuft on the ground
+
+            server.SpillToGroundForTest(new Vector3i(x, top + 8, z), "iron_ore", 2, creatureLoot: true);
+
+            var packet = Assert.Single(server.DropPackets);
+            Assert.Equal(top + 1, packet.Position.Y); // in the grass, on the ground — the old rule stopped on the tuft
+        }
+    }
+
+    [Fact]
+    public void TheShutdownSave_WritesALootPacketsExactAge()
+    {
+        const string world = "shutdown";
+        var server = Started(out var repo, world);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Settler");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0.5f, SurfaceTopY(server, 0, 0) + 1, 0.5f);
+            int top = SurfaceTopY(server, 30, 30);
+            server.SpillToGroundForTest(new Vector3i(30, top + 1, 30), "iron_ore", 3, creatureLoot: true);
+
+            server.Tick(10.0); // ten seconds of ageing — well short of the 30 s checkpoint
+            Assert.InRange(Assert.Single(server.DropPackets).LifetimeLeft, 289.0, 291.0);
+            server.SaveAllForTest(); // the shutdown / checkpoint save
+        }
+
+        var reloaded = Started(out var repo2, world);
+        using (repo2)
+        {
+            reloaded.AddLocalPlayer("Settler").State.AboardShip = false;
+            Assert.InRange(Assert.Single(reloaded.DropPackets).LifetimeLeft, 280.0, 291.0); // not the 300 the spill wrote
+        }
+    }
+
     public void Dispose()
     {
         try

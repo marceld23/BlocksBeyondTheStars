@@ -70,7 +70,9 @@ public sealed partial class GameServer
     /// leave the bundle hanging at the flier's altitude.</summary>
     private const int DropFallScan = 32;
 
-    private double _sinceLootCheckpoint;
+    // Per world (#1367): a server-global counter let one world's checkpoint tick reset another's, so a packet
+    // could go a whole lifetime between writes.
+    private double _sinceLootCheckpoint { get => _worlds.Active.SinceLootCheckpoint; set => _worlds.Active.SinceLootCheckpoint = value; }
 
     /// <summary>A creature-loot packet (expires) vs. a mining/other packet (never does). The two kinds never
     /// merge, so a loot spill can never drag mining overflow to its grave.</summary>
@@ -230,7 +232,9 @@ public sealed partial class GameServer
     /// entombed). Falls back to the origin — a packet is collected by proximity, not by line of sight.
     /// A free cell then FALLS (#1311): down through air to the first cell with something under it — solid or
     /// fluid, so a kill over a lake leaves the bundle on the surface, not on the seabed. An air kill used to
-    /// leave the packet hanging at the flier's altitude ("Blöcke hängen überall im Himmel").</summary>
+    /// leave the packet hanging at the flier's altitude ("Blöcke hängen überall im Himmel"). "Free" and
+    /// "something under it" follow the colliding rule (#1367): grass, a torch or a ladder is neither a wall nor
+    /// a floor, so a kill over a meadow leaves the bundle IN the grass on the ground, not a cell above it.</summary>
     private Vector3i SettleDropCell(Vector3i origin)
     {
         for (int dy = 0; dy <= 2; dy++)
@@ -241,7 +245,7 @@ public sealed partial class GameServer
                 break;
             }
 
-            if (_world.GetBlock(cell).IsAir)
+            if (DropCellFree(cell))
             {
                 return Fall(cell);
             }
@@ -250,15 +254,19 @@ public sealed partial class GameServer
         return origin;
     }
 
-    /// <summary>The lowest air cell in the column at or below <paramref name="cell"/> within
-    /// <see cref="DropFallScan"/> whose cell below is not air (solid or fluid). Runs out of scan → stays.</summary>
+    /// <summary>A cell a packet may lie in: air or a walk-through prop (small flora, torch, lantern, ladder);
+    /// fluids and real blocks are not (<see cref="IsCollidingBlock"/>, the walking body's rule).</summary>
+    private bool DropCellFree(Vector3i cell) => !IsCollidingBlock(_world.GetBlock(cell), fluidsPass: false, foliagePasses: false);
+
+    /// <summary>The lowest free cell in the column at or below <paramref name="cell"/> within
+    /// <see cref="DropFallScan"/> whose cell below is a real block or a fluid. Runs out of scan → stays.</summary>
     private Vector3i Fall(Vector3i cell)
     {
         var at = cell;
         for (int i = 0; i < DropFallScan; i++)
         {
             var below = new Vector3i(at.X, at.Y - 1, at.Z);
-            if (!WithinBuildHeight(below.Y) || !_world.GetBlock(below).IsAir)
+            if (!WithinBuildHeight(below.Y) || !DropCellFree(below))
             {
                 return at;
             }
@@ -403,6 +411,23 @@ public sealed partial class GameServer
         }
 
         return removed;
+    }
+
+    /// <summary>Writes every creature-loot packet's remaining lifetime on every resident world (#1367) — the
+    /// shutdown/checkpoint save used to leave up to one <see cref="LootLifetimeCheckpoint"/> of ageing behind.
+    /// Called inside <c>SaveAll</c>'s transaction.</summary>
+    private void CheckpointLootPackets()
+    {
+        foreach (var world in _worlds.Loaded)
+        {
+            foreach (var packet in world.Containers)
+            {
+                if (packet.Kind == DropPacketKind && IsLootPacket(packet))
+                {
+                    _repo.SaveContainer(packet);
+                }
+            }
+        }
     }
 
     private static NetDropPacket ToNetDropPacket(StoredContainer c)
