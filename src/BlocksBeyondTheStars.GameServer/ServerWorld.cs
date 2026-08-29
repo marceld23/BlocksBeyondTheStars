@@ -65,6 +65,10 @@ public sealed class ServerWorld
 
     public int LoadedChunkCount => _loaded.Count;
 
+    /// <summary>Raised after every <see cref="SetBlock"/> with the canonical cell (#1367) — the hook for caches
+    /// that key on the block grid (the walled-base fill invalidates the levels whose box the cell lies in).</summary>
+    public event System.Action<Vector3i>? BlockSet;
+
     /// <summary>Whether a chunk is currently resident in the cache (canonicalized like the cache keys). For
     /// tests/diagnostics — e.g. asserting far-chunk eviction by <see cref="UnloadFarChunks"/>.</summary>
     public bool IsChunkLoaded(ChunkCoord coord) => _loaded.ContainsKey(WorldConstants.CanonicalChunk(coord, Circumference));
@@ -143,6 +147,7 @@ public sealed class ServerWorld
         chunk.SetModifier(local.X, local.Y, local.Z, tint, glow);
         chunk.SetShape(local.X, local.Y, local.Z, shape);
         _repo.SetBlock(LocationId, world, block.Value, tint, glow, shape, owner);
+        BlockSet?.Invoke(world);
         return previous;
     }
 

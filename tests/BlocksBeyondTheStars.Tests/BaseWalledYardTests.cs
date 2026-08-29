@@ -358,6 +358,71 @@ public sealed class BaseWalledYardTests : IDisposable
         }
     }
 
+    // ---------------- #1367: the fill is cached until something changes; the box wraps north–south too ----------------
+
+    [Fact]
+    public void TheWallFill_IsReused_UntilSomethingChangesInsideTheBox()
+    {
+        var server = Started(out var repo, "wallcache");
+        using (repo)
+        {
+            var (_, padY) = Yard(server);
+            int feet = padY + 1;
+            Assert.True(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz));
+            int fills = server.WalledLevelComputesForTest(Cx + 2, feet, Cz);
+            Assert.Equal(1, fills);
+
+            Settle(server); // 2 s — past the old 1.5 s interval, at which every spawn attempt used to recompute
+            Assert.True(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz));
+            Assert.Equal(fills, server.WalledLevelComputesForTest(Cx + 2, feet, Cz)); // nothing changed — the fill is reused
+
+            server.RemoveBlockForTest(Cx + Ring, padY + 1, Cz); // a block inside the box changes → refreshed at once
+            server.RemoveBlockForTest(Cx + Ring, padY + 2, Cz);
+            Assert.False(server.InWalledBaseAreaForTest(Cx + 2, feet, Cz), "the gap is seen without waiting for any interval");
+            Assert.Equal(fills + 1, server.WalledLevelComputesForTest(Cx + 2, feet, Cz));
+        }
+    }
+
+    [Fact]
+    public void AYardAcrossTheLatitudeSeam_IsStillFencedIn()
+    {
+        var server = Started(out var repo, "seamyard");
+        using (repo)
+        {
+            int half = BlocksBeyondTheStars.Shared.World.WorldConstants.LatitudePeriodFor(server.World.Circumference) / 2;
+            int cx = 40, cz = half - 2; // the core two blocks south of the seam; the ring straddles it
+            var stone = _content.GetBlock("stone")!.NumericId;
+            int padY = MaxTopY(server, cx, cz, 12) + 8;
+            for (int dx = -10; dx <= 10; dx++)
+                for (int dz = -10; dz <= 10; dz++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, padY, cz + dz), stone);
+                }
+
+            for (int dx = -Ring; dx <= Ring; dx++)
+                for (int dz = -Ring; dz <= Ring; dz++)
+                {
+                    if (System.Math.Abs(dx) == Ring || System.Math.Abs(dz) == Ring)
+                    {
+                        server.World.SetBlock(new Vector3i(cx + dx, padY + 1, cz + dz), stone);
+                        server.World.SetBlock(new Vector3i(cx + dx, padY + 2, cz + dz), stone);
+                    }
+                }
+
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(cx - 1.5f, padY + 1, cz + 0.5f);
+            p.State.Inventory.Add("base_core", 2, 16);
+            server.PlaceBlock("Builder", cx, padY + 1, cz, "base_core");
+            Assert.Single(server.BaseSnapshots);
+
+            int feet = padY + 1;
+            Assert.True(server.InWalledBaseAreaForTest(cx + 2, feet, cz + 4), "across the seam, still inside the ring: fenced in (#1367)");
+            Assert.True(server.InWalledBaseAreaForTest(cx - 3, feet, cz - 2), "the near side too");
+            Assert.False(server.InWalledBaseAreaForTest(cx + 9, feet, cz + 3), "outside the ring across the seam is open");
+        }
+    }
+
     public void Dispose()
     {
         try

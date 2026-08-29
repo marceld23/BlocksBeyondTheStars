@@ -294,6 +294,7 @@ public sealed partial class GameServer
         }
 
         door.Open = !door.Open;
+        MarkBaseWallsDirty(_world, door.Pos.ToBlock()); // #1367: a shut gate is a wall to the fill, an open one a gap
         BroadcastDoors();
     }
 

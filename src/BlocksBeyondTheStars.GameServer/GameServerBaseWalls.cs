@@ -26,7 +26,8 @@ namespace BlocksBeyondTheStars.GameServer;
 /// "fenced in" and no land animal spawned in it. The query's own level additionally passes through any
 /// non-colliding cell (the original rule, kept): the boundary is 48 blocks out and rarely on the yard's
 /// level, so the fill needs to cross lower ground to get there at all.</item>
-/// <item>Cached per (base, feet level) like <c>_baseAir</c>: the same recompute interval, a bounded budget,
+/// <item>Cached per (base, feet level) like <c>_baseAir</c>: invalidated by a block set or a gate toggled inside
+/// the box (#1367, with <see cref="WalledRecomputeInterval"/> as the backstop), a bounded budget,
 /// <see cref="ServerWorld.GetBlockIfLoaded"/> so an idle base never drags chunk generation. <b>Fail-open</b>:
 /// an unloaded column reads as air, the fill leaks in, the spawn is allowed — the same direction the air
 /// system fails; a fill that runs out of budget answers "open" for everything at that level as well.</item>
@@ -51,16 +52,61 @@ public sealed partial class GameServer
     /// <summary>Levels cached per base before the stalest are dropped (a hilly base is queried at a few dozen feet levels).</summary>
     private const int WalledLevelsPerBase = 24;
 
+    /// <summary>Seconds a level's fill is trusted without a change inside its box (#1367). The air system's
+    /// 1.5 s was shorter than the 1.5–4 s between spawn attempts, so nearly every attempt recomputed; a block
+    /// set or a gate toggled inside the box marks the level dirty instead, so the interval only backs that up.</summary>
+    private const double WalledRecomputeInterval = 8.0;
+
     /// <summary>One base's reachable-from-outside set at one feet level (everything else in the box is enclosed).</summary>
     private sealed class WalledLevel
     {
         public string Body = string.Empty;
+        public Vector3i Center;   // the base core — the fill's box is the reach cube around it
+        public int FeetY;
         public HashSet<Vector3i> Reachable = new();
         public bool FailOpen; // the fill ran out of budget — nothing at this level reads as enclosed
+        public bool Dirty = true; // a block changed / a gate toggled inside the box since the last fill
         public double ComputedAt = double.NegativeInfinity;
+        public int Computes; // fills run for this level (test seam)
     }
 
     private readonly Dictionary<(int BaseId, int FeetY), WalledLevel> _baseWalls = new();
+
+    /// <summary>Fills computed so far (test seam for the cache behaviour, #1367).</summary>
+    public int WalledFillComputesForTest { get; private set; }
+
+    /// <summary>Marks every cached level whose fill box holds <paramref name="cell"/> for recomputation (#1367):
+    /// called for every block set on a resident world and for every hand-operated gate toggled. A level's box is
+    /// the base's reach cube, clipped to the walking band around its feet level (plus the one-row margins).</summary>
+    private void MarkBaseWallsDirty(ServerWorld world, Vector3i cell)
+    {
+        if (_baseWalls.Count == 0)
+        {
+            return;
+        }
+
+        int circ = world.Circumference;
+        var canonical = WorldConstants.CanonicalBlock(cell, circ);
+        foreach (var level in _baseWalls.Values)
+        {
+            if (level.Dirty || level.Body != world.LocationId)
+            {
+                continue;
+            }
+
+            if (System.Math.Abs(WorldConstants.WrapDeltaX(canonical.X - level.Center.X, circ)) <= SealedRoomMaxReach
+                && System.Math.Abs(WorldConstants.WrapDeltaZ(canonical.Z - level.Center.Z, circ)) <= SealedRoomMaxReach
+                && System.Math.Abs(canonical.Y - level.FeetY) <= WalledFillBand + 1
+                && System.Math.Abs(canonical.Y - level.Center.Y) <= SealedRoomMaxReach + 1)
+            {
+                level.Dirty = true;
+            }
+        }
+    }
+
+    /// <summary>Shortest absolute latitude distance across the north–south seam (#1367: the reach test wrapped
+    /// X only, so a base near the seam got a truncated box and its yards failed open).</summary>
+    private int WrapAbsZ(int dz) => System.Math.Abs(WorldConstants.WrapDeltaZ(dz, _world.Circumference));
 
     /// <summary>Scratch classification of the fill's box (one byte per cell, reused across fills).</summary>
     private byte[]? _wallScratch;
@@ -79,7 +125,7 @@ public sealed partial class GameServer
             if (b.Planet != body
                 || WrapAbs(canonical.X - b.Cell.X) > SealedRoomMaxReach
                 || System.Math.Abs(canonical.Y - b.Cell.Y) > SealedRoomMaxReach
-                || System.Math.Abs(canonical.Z - b.Cell.Z) > SealedRoomMaxReach)
+                || WrapAbsZ(canonical.Z - b.Cell.Z) > SealedRoomMaxReach)
             {
                 continue;
             }
@@ -110,15 +156,38 @@ public sealed partial class GameServer
             _baseWalls[key] = level = new WalledLevel();
         }
 
-        if (level.Body != body || _uptime - level.ComputedAt >= SealedRoomRecomputeInterval)
+        if (level.Body != body || level.Dirty || level.Center != b.Cell || _uptime - level.ComputedAt >= WalledRecomputeInterval)
         {
             level.Body = body;
+            level.Center = b.Cell;
+            level.FeetY = feetY;
             level.ComputedAt = _uptime;
             level.Reachable = ComputeReachableFromOutside(b, feetY, out bool failOpen);
             level.FailOpen = failOpen;
+            level.Dirty = false;
+            level.Computes++;
+            WalledFillComputesForTest++;
         }
 
         return level;
+    }
+
+    /// <summary>Test seam (#1367): how many times the fill for the level a cell lies on has been computed for
+    /// the first base in reach — WITHOUT refreshing it. 0 when no level is cached there.</summary>
+    public int WalledLevelComputesForTest(int x, int y, int z)
+    {
+        var canonical = WorldConstants.CanonicalBlock(new Vector3i(x, y, z), _world.Circumference);
+        foreach (var b in _bases)
+        {
+            if (b.Planet == _world.LocationId && WrapAbs(canonical.X - b.Cell.X) <= SealedRoomMaxReach
+                && System.Math.Abs(canonical.Y - b.Cell.Y) <= SealedRoomMaxReach
+                && WrapAbsZ(canonical.Z - b.Cell.Z) <= SealedRoomMaxReach)
+            {
+                return _baseWalls.TryGetValue((b.Id, canonical.Y), out var level) ? level.Computes : 0;
+            }
+        }
+
+        return 0;
     }
 
     // Scratch cell classes: bits 0–1 = free (unknown / free / solid), bits 2–3 = carries feet (unknown / yes / no).
@@ -328,7 +397,7 @@ public sealed partial class GameServer
         {
             if (b.Planet == _world.LocationId && WrapAbs(canonical.X - b.Cell.X) <= SealedRoomMaxReach
                 && System.Math.Abs(canonical.Y - b.Cell.Y) <= SealedRoomMaxReach
-                && System.Math.Abs(canonical.Z - b.Cell.Z) <= SealedRoomMaxReach)
+                && WrapAbsZ(canonical.Z - b.Cell.Z) <= SealedRoomMaxReach)
             {
                 var level = RefreshBaseWalls(b, canonical.Y);
                 return (level.Reachable.Count, level.FailOpen);

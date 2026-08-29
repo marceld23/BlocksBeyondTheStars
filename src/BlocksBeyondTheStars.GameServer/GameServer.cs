@@ -570,6 +570,8 @@ public sealed partial class GameServer
         InitFlora();
         LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
         LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
+        var resident = world.World;
+        resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
         // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
