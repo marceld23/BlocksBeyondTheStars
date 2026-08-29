@@ -84,7 +84,11 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 // block top). The amplitude factor is corner-smoothed by the mesher (open water 1, lake
                 // 0.25, river/bank 0) and further flattened into the foam band, so shared block corners
                 // displace identically — no cracks — and the shoreline stays flush with the terrain.
-                float amp = 0.12 * v.water.z * (1.0 - saturate(v.water.y));
+                // Only REAL water waves (#1374): TEXCOORD2.x carries the water-body mode (1..4) on water
+                // faces, but on every other block those same channels carry the flora/hull/dye tint — so a
+                // dyed pane's blue channel used to be read as a wave amplitude and the glass physically bobbed.
+                // Water always writes a positive mode, so this gate can never exclude water.
+                float amp = v.water.x > 0.5 ? 0.12 * v.water.z * (1.0 - saturate(v.water.y)) : 0.0;
                 if (amp > 0.0005)
                 {
                     float t = _Time.y;
@@ -126,12 +130,19 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float nightFloor = saturate(0.6 - dot(light, float3(0.299, 0.587, 0.114)));
                 col += albedo * float3(0.10, 0.13, 0.20) * nightFloor * shade;
 
+                // What makes a face WATER is a see-through tile — but that alone is not enough, and trusting
+                // it alone was the bug behind #1372/#1373: clear glass shipped with a fully transparent tile
+                // (the image model read "perfectly clear glass" as an alpha channel) and fire carries a real
+                // flame cutout, so both fell into the water branch and were rendered as a pond — animated
+                // refraction, SSR and a forced opaque composite. Pick them out explicitly, before the branch.
+                float isClear = saturate(-i.water.x);     // 1 for glass_clear (the mesher writes -1, #1274)
+                float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
+
                 float alpha;
-                if (tex.a < 0.95)
+                if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
-                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas);
-                    // clear GLASS keeps a full-alpha tile and is picked out below by its TEXCOORD2.x sentinel.
+                    // and through it while swimming.
                     alpha = tex.a;
 
                     float mode = i.water.x;
@@ -278,11 +289,14 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
                     // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
                     // negative value on that channel — and skips the frost for a faint, look-through pane.
-                    float isClear = saturate(-i.water.x);              // 1 for glass_clear, 0 for everything else
-                    float isField = saturate(emission * 4.0);          // ~0 for glass, ~1 for energy fields
                     col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
                     alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
+                    // A field whose tile carries a CUTOUT keeps its own silhouette (#1373): fire is a flame
+                    // shape, not a square curtain. The energy fields' tiles are fully opaque, so this is a
+                    // no-op for them, and glass ignores tile alpha entirely — a bad glass tile can no longer
+                    // change how the pane reads, it only ever routes through here.
+                    alpha = lerp(alpha, min(alpha, tex.a), isField);
 
                     // Dyed glass (#1126): only non-water faces reach this branch, and for those the mesher
                     // writes the cell's dye into TEXCOORD2.yzw (zero when undyed — fields/water never dye).
@@ -354,7 +368,9 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 // Same water motion as the URP pass: down-only crossed sines scaled by the corner-
                 // smoothed amplitude factor (open 1, lake 0.25, river/bank 0) and flattened into the
                 // foam band — shared corners displace identically, the shoreline stays flush.
-                float amp = 0.12 * v.water.z * (1.0 - saturate(v.water.y));
+                // Gated on the water mode like the URP pass (#1374) — on a dyed pane those channels carry the
+                // dye, not a wave, and the glass used to bob. Water always writes a positive mode.
+                float amp = v.water.x > 0.5 ? 0.12 * v.water.z * (1.0 - saturate(v.water.y)) : 0.0;
                 if (amp > 0.0005)
                 {
                     float t = _Time.y;
@@ -392,12 +408,16 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float nightFloor = saturate(0.6 - dot(light, fixed3(0.299, 0.587, 0.114)));
                 col += albedo * fixed3(0.10, 0.13, 0.20) * nightFloor * shade;
 
+                // Same water test as the URP pass (#1372/#1373): a see-through tile alone does not make a face
+                // water — clear glass and the fire cutout have one too and must not take this branch.
+                float isClear = saturate(-i.water.x);     // 1 for glass_clear (mesher writes -1, #1274)
+                float isField = saturate(emission * 4.0); // ~1 for fire + energy fields, 0 for water and glass
+
                 float alpha;
-                if (tex.a < 0.95)
+                if (tex.a < 0.95 && isClear < 0.5 && isField < 0.5)
                 {
                     // Water: a clear blue body (no milky frost), alpha straight from the tile, so you see into
-                    // and through it while swimming. The tile alpha is < 1 only for water (set by the atlas);
-                    // clear GLASS keeps a full-alpha tile and is picked out below by its TEXCOORD2.x sentinel.
+                    // and through it while swimming.
                     alpha = tex.a;
 
                     float mode = i.water.x;
@@ -455,11 +475,12 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                     // — while emissive energy fields stay an airy, see-through curtain. Clear glass (#1274,
                     // the canopy/dome exception) arrives with TEXCOORD2.x = -1 from the mesher — the only
                     // negative value on that channel — and skips the frost for a faint, look-through pane.
-                    float isClear = saturate(-i.water.x);              // 1 for glass_clear, 0 for everything else
-                    float isField = saturate(emission * 4.0);          // ~0 for glass, ~1 for energy fields
                     col = lerp(col + light * 0.16 * (1.0 - isClear), col, isField); // the white frost on frosted glass only
                     alpha = lerp(lerp(0.72, 0.22, isClear), _BaseAlpha, isField);   // milky / clear pane vs. see-through field
                     alpha = saturate(alpha + emission * 0.15);
+                    // A field with a CUTOUT tile keeps its silhouette (#1373 — fire is flame-shaped); the energy
+                    // fields' tiles are opaque, so this is a no-op for them.
+                    alpha = lerp(alpha, min(alpha, tex.a), isField);
 
                     // Dyed glass (#1126): mirrors the URP pass — dye from TEXCOORD2.yzw, gentle luminance
                     // recolour so the frosted look survives (zero for undyed glass, fields and water).

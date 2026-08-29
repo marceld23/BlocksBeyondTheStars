@@ -26,8 +26,17 @@ RES = REPO / "client" / "Assets" / "Resources" / "textures"
 OUT = Path("out/textures")
 
 
-def to_raw(img: Image.Image) -> bytes:
+def to_raw(img: Image.Image, *, opaque: bool = False) -> bytes:
     img = img.convert("RGBA").resize((TILE, TILE), Image.NEAREST).transpose(Image.FLIP_TOP_BOTTOM)
+    if opaque:
+        # BLOCK tiles must ship fully opaque. The block shaders read a tile's alpha as a MEANING, not as
+        # translucency: BlockAtlas clips foliage on it, and BlockAtlasTransparent used to treat "alpha < 1"
+        # as "this face is water". A model that answers a prompt like "perfectly clear glass" with a
+        # transparent PNG therefore does not produce see-through glass, it produces a pane rendered as a
+        # pond (#1372). The cutouts that are genuinely wanted are punched in afterwards by a deliberate,
+        # separate step — bake_leaf_alpha.py for foliage, bundle_fire.py for the flame — never by the
+        # image model. Billboard sets (avatar/creature/microfauna) are not block tiles and keep their alpha.
+        img.putalpha(255)
     return img.tobytes()
 
 
@@ -55,7 +64,7 @@ def main() -> None:
             print(f"{prefix}{png.stem}: out/png -> raw {TILE*TILE*4} bytes")
     elif args.from_out:
         for png in sorted(OUT.glob("*.png")):
-            (RES / f"{png.stem}.bytes").write_bytes(to_raw(Image.open(png)))
+            (RES / f"{png.stem}.bytes").write_bytes(to_raw(Image.open(png), opaque=True))
             count += 1
             print(f"{png.stem}: out/png -> raw {TILE*TILE*4} bytes")
     else:
@@ -64,7 +73,7 @@ def main() -> None:
             if len(data) == TILE * TILE * 4:
                 print(f"{f.name}: already raw, skip")
                 continue
-            f.write_bytes(to_raw(Image.open(BytesIO(data))))
+            f.write_bytes(to_raw(Image.open(BytesIO(data)), opaque=True))
             count += 1
             print(f"{f.name}: PNG -> raw {TILE*TILE*4} bytes")
 
