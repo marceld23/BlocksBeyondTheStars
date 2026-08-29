@@ -13,6 +13,40 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧹 Audit leftovers — reply window, browser name prompt, creature view, repair panel (#1368)
+
+- **The whole developer answer is readable.** The reply window used to cut a thread at 1,400 characters with no
+  scrollbar and no hint; it now scrolls, however long the conversation gets, and shows developer and player text
+  exactly as written (no stray `<b>` or `<color>` formatting from a tag someone typed). The HUD toast does the same.
+- **F1 and Esc in the same frame no longer leave a stuck dialog** that held the world with no key able to close it.
+- **Browser solo entry**: the "What's your name?" prompt and the menu's name field are one and the same — Cancel no
+  longer leaves the field empty while Singleplayer would have started with the name typed in the prompt; both cap at
+  the server's 24-character limit so the name you keep is the name you play as; the prompt waits its turn behind the
+  "What's new?" notes after an update instead of hiding under them; and the menu no longer re-reads the whole saved
+  world on every rebuild just to find your name (a visible hitch with a large world).
+- **Doors and torches are no longer offered on water or lava.** The server refused a door in any fluid cell and a torch
+  in water; the crosshair now skips those cells with such an item in hand instead of bouncing a reject toast.
+- **Creatures**: a winged giant no longer floats through its hop (the client uses the server's own ground-bird rule for
+  the glide instead of "has wings"); a perched bird whose perch is dug away falls with its wings out — the server reports
+  the fall as such — and the per-creature animator lookup that ran every frame is done once.
+- **Repair panel**: the missing hull cells are outlined on the parked ship in hologram blue while the panel shows
+  breaches, so you can walk straight to the holes; "1 Hüllenzelle fehlt" reads singular; the empty bar track no
+  longer sits behind the breach text when the hull itself is full.
+
+### 🧭 Compass wrap, stale ship blip, crouch edge, honest repair panel (#1307, #1308, #1309, #1313)
+
+- **The compass honours the world's wrap** (#1307): across a longitude/latitude seam every blip — ship, waypoint,
+  beacons, markers — flipped its bearing and the distance line jumped by a whole circumference (">3000 m" to a ship a
+  few blocks away). Every marker is now measured against the same nearest-copy position all other world objects use.
+- **No stale ship blip** (#1308): after leaving for a new world the compass kept pointing at the previous landing site,
+  because nothing ever cleared the old placement. A world change clears it; a real placement re-arrives right after.
+- **Crouching reaches the edge** (#1309): sneaking stopped half a block before a drop, in the middle of the last block
+  — building an outer wall face from its top needed scaffolding. The sneak probe is now a short look ahead plus this
+  frame's step, so the capsule overhangs the edge the way sneaking does in every voxel builder.
+- **An honest repair panel** (#1313): one missing hull cell on a full hull raised a "SHIP REPAIR" panel with a full
+  Hull 100/100 bar and no word about what was wrong. With the hull full the panel now leads with the breach count and
+  hides the bar; the bar and its numbers only appear while the hull itself is short.
+
 ### 📮 Report inbox leftovers — deleted reports are forgotten, the answer box stays, admin forms are guarded (#1369)
 
 - **A report the developers deleted is no longer polled for three months.** The game asks the inbox about the

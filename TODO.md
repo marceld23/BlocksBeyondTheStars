@@ -9658,6 +9658,46 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): low-priority audit leftovers — reply window, browser name prompt, creature view, repair panel, changelog (#1368)
+
+The low-severity Unity-client findings of the 2026-08-29 audit of #1307–#1345 that the medium/high fix PRs left out.
+One PR, local Unity build.
+
+* **Reply window (#1328/#1330)** — the world hold was already in place since #1339 (`ShowThread` → `WorldHold.Hold`,
+  `CloseReply` → `Release`, `Tick` in `Update`; F1 and the reply window are mutually exclusive menu owners) — verified,
+  nothing to add. The thread body is now a scrollable stack of `UiTextChunks` pieces (`BuildReplyBodyScroll` /
+  `SetReplyBody`, the credits/what's-new ScrollRect pattern) instead of a 1400-character `Shorten` + `Truncate`;
+  the body chunks, the report title and the HUD toast run with `supportRichText = false` (developer/player text is
+  shown verbatim). `OpenRoutine` bails out after `WaitForEndOfFrame` when `Close()` already ran (hotkey + Esc in one
+  frame used to show the dialog with `_open == false`, holding the world with no way to close it).
+* **Browser solo entry (#1321/#1322)** — the name prompt mirrors every keystroke into the menu field
+  (`SetTextWithoutNotify`), so Cancel leaves the field showing the name Singleplayer would use; every name field
+  (`UiMainMenu`: menu, prompt, connect dialog, reserved-name prompt) caps at the new shared
+  `Protocol.MaxPlayerNameLength` (24 — the server's join cap now reads the same constant). The prompt defers while
+  the What's-new modal is open (`AppShell.WhatsNewOpen`; the flag stays pending and `AppShell.Update` rebuilds the
+  menu once the modal closes; an auto-opening modal over an already-showing prompt re-arms it via
+  `BrowserNamePromptShowing`). `BrowserLocalServer.PeekSavedPlayerName` goes through the new
+  `BlobPeekCache` (Client.Core; stamp = path + length + last-write ticks; a missing blob is never cached; `ResetLocalWorld`
+  invalidates) — `BlobPeekCacheTests` (6). `PlayerController.PlaceFluidAim` mirrors `HandlePlace`'s fluid-cell
+  refusals from the block data: a `door`-category block is never aimed at a fluid, a torch not at water (lava stays).
+* **Creature view (#1332/#1333)** — `NetCreature.Glides` (additive) carries the server's `CreatureMotion.Glides`
+  predicate; `CreatureView` uses it (× `VerticalMotion.GlideGravityScale`) instead of `HasWings`, so a winged giant no
+  longer extrapolates at 0.4 g. A perched flier whose perch went (#1367 fall) is reported by `ToNetCreature` from the
+  actual vertical state (`Airborne = true, Perched = false, VertVel`); the client also unfolds on `Perched && VertVel < 0`
+  for older servers. `CreatureAnimator` is cached on the entry. Tests: `NetCreature_GlidesFlag_RoundTrips…`,
+  `Flier_WhosePerchGoes_Falls_ThenTakesOffAgain` now pins the wire flags (`NetCreatureForTest` hook).
+* **Repair panel (#1313)** — `ShipRepairStatus` carries `StructureId` + `MissingX/Y/Z` (additive, ≤ 256 cells;
+  `BuildShipRepairStatus` on the server, `ShipRepairStatusForTest` hook, `ShipRepairStatus_ListsTheBreachCells…` +
+  codec round-trip). New `HullBreachView` (WorldRig) draws one inset hologram box per cell on the parked ship
+  (placement-ghost look, Cloud shader, one mesh rebuilt only when a new readout arrives, follows the ship's nearest
+  world copy; the space scene is left alone). `ui.shiprepair.cells_missing_one` (EN+DE) picked for a count of 1; the
+  bar track hides with the bar. `AuditLowLeftoversTests` guard the locale pair, the name caps and the verbatim texts.
+* **Docs** — CHANGELOG Unreleased gained the missing #1307/#1308/#1309/#1313 section and the #1368 section.
+* **Playtest**: the breach outlines on a carved starter ship (on foot, at the pad); a long developer answer scrolling;
+  browser name prompt after an update (What's-new first, then the prompt).
+
+---
+
 ## ✅ Done (2026-08-29): low-priority audit leftovers — reports that vanish are forgotten, the answer box follows the thread, admin CSRF, image filter, texture tool (#1369)
 
 The low-severity ReportHost / workflow / tooling findings of the 2026-08-29 audit that #1361 left out:
