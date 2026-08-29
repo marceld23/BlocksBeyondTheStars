@@ -9582,6 +9582,30 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): the compass, the crouch and an honest repair panel (#1307, #1308, #1309, #1313)
+
+Lyxette's third round of reports (2026-08-27) — the client-only quartet, all four in one PR. Server-side
+follow-ups (fauna vs. player builds, ground drops, fluids, falling blocks, the pad spawn) are their own packages.
+
+* **Compass honours the world wrap (#1307).** `HudUi.PlaceBlip` subtracted a canonical target from the
+  player's *unbounded* scene transform, so across a longitude/latitude seam every blip (ship, waypoint, beacons,
+  markers) flipped its bearing and the distance line jumped by a whole circumference — ">3000 m" to a ship a few
+  blocks away on a 10128-block world. Now measured against `Game.ScenePos(target)`, the same nearest-copy
+  mapping every other world object uses.
+* **No stale ship blip (#1308).** `ShipPosition` was only ever *set* (on `ShipPlacement`) and the server sends
+  nothing when no ship is placed on the new world, so the compass kept pointing at the previous landing site.
+  `OnWorldReset` clears it like it already clears the waypoint; a real placement re-arrives right after.
+* **Crouching reaches the edge (#1309).** The sneak edge-stop probed at `radius + 0.15` = 0.5 blocks ahead of
+  the centre, i.e. it fired in the middle of the last block — building an outer wall face from its top needed
+  scaffolding. The probe is now a short `SneakEdgeProbe` (0.08) plus this frame's step, so the capsule overhangs
+  the edge the way sneaking does in every voxel builder; the per-axis + diagonal-corner rules are unchanged.
+* **Honest ship-repair panel (#1313).** One missing design cell on a full hull raised a "SHIP REPAIR" panel with
+  a full **Hull 100/100** bar and no word about what was wrong. With the hull full the top line now leads with
+  the breach count (`ui.shiprepair.cells_missing`, EN+DE) and the bar is hidden; the bar and its numbers only
+  appear while the hull itself is short.
+
+---
+
 ## ✅ Done (2026-08-26): a Machines crafting tab + the one clear glass (#1273, #1274)
 
 The last two of Lyxette's follow-ups, both crafting-content.

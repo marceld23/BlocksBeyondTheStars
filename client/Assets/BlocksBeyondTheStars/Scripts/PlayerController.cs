@@ -172,6 +172,7 @@ namespace BlocksBeyondTheStars.Client
         private const float StandHeight = 1.8f;
         private const float CrouchHeight = 1.2f;
         private const float CrouchSpeedMul = 0.4f;
+        private const float SneakEdgeProbe = 0.08f; // how far past the centre the sneak edge-stop looks for floor (#1309)
         private static readonly Vector3 CrouchEye = new Vector3(0f, 1.0f, 0f);
         private bool _crouched;
         private float _crouchT; // 0 = standing, 1 = fully crouched (eases the camera; the collider snaps)
@@ -2847,7 +2848,14 @@ namespace BlocksBeyondTheStars.Client
                 return true;
             }
 
-            Vector3 ahead = transform.position + horizontalDir.normalized * (_controller.radius + 0.15f);
+            // #1309: probe just past the CENTRE, not past the capsule's rim. At radius + 0.15 the sample sat
+            // 0.5 blocks ahead, so the stop fired as soon as the centre came within half a block of the edge —
+            // i.e. in the middle of the last block, which made building an outer wall face from its top
+            // impossible without scaffolding. A short probe lets the capsule overhang the edge the way
+            // sneaking does in every other voxel builder, while the feet still keep their footing. The probe
+            // also covers THIS frame's step, so a long frame cannot carry the centre past the edge unseen.
+            float reach = SneakEdgeProbe + horizontalDir.magnitude * Time.deltaTime;
+            Vector3 ahead = transform.position + horizontalDir.normalized * reach;
             return IsSolidKey(BlockKeyAt(ahead - Vector3.up * 0.5f))
                 || IsSolidKey(BlockKeyAt(ahead - Vector3.up * 1.2f));
         }

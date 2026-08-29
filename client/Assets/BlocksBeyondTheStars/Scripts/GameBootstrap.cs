@@ -2558,6 +2558,11 @@ namespace BlocksBeyondTheStars.Client
             PendingSpeederFx.Clear(); // queued one-shot FX would play at old-world coordinates
             Waypoint = null; // a map-click waypoint is old-world coordinates too — without this the HUD
                              // compass kept pointing at a meaningless spot on every next planet (#592)
+            // #1308: the landed-ship position is old-world coordinates as well, and the server sends NO
+            // ShipPlacement when no ship is placed on the new world (observer, unplaced fleet ship) — so the
+            // compass kept its blip + distance line on the PREVIOUS landing site. Clear it; a real placement
+            // re-arrives right after this reset whenever there is one.
+            ShipPosition = null;
             SpaceWaypointId = null; // the space waypoint is scoped to the space layout it was set in —
             SpaceWaypointPos = null; // a new world means a new system view, so it dies with it (#597)
 
