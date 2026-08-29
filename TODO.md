@@ -9759,6 +9759,39 @@ The small server findings of the 2026-08-29 audit of #1310–#1345 that the medi
 
 ---
 
+## ✅ Done (2026-08-29): the cockpit canopy stopped being water — clear glass, fire and dyed panes leave the water branch (#1372, #1373, #1374)
+
+Reported in play: a slow wobbling warp on every ship's clear cockpit glass, the same from inside and outside,
+and the pane was not really see-through.
+
+* **#1372 — clear glass rendered as water.** `client/Assets/Resources/textures/glass_clear.bytes` shipped with
+  3844 of its 4096 pixels at alpha 0: the image model answered the generator prompt "perfectly clear colourless
+  glass" (`tools/ai-assets/gen_textures.py`) with a *transparent* PNG, and nothing in the bundling flattened it.
+  `BlockAtlasTransparent` decides "am I water?" from tile alpha (`tex.a < 0.95`), so every canopy took the water
+  branch — where `mode = -1` matches no wave mode but still passes the `_Sc_ScreenFx > 0.5 && mode < 3.5` gate,
+  giving the pane the animated refraction (`_Time.y` sines on `SampleSceneColor` — the visible wobble), the
+  14-step SSR march, the depth tint and a final `alpha = 1.0` that made it opaque. `Cull Off` is why it looked
+  identical from both sides. The `-1` sentinel from #1274 sits in the `else` and was never reached. Note that
+  TODO's own #1274 entry predicted exactly this ("a low-alpha tile would have routed the pane into the water
+  depth/refraction/SSR block") — the shader guard was documented, the generated tile walked around it.
+* **#1373 — fire took the same branch.** `fire.bytes` carries a genuine flame cutout (3338/4096 at alpha 0),
+  which is wanted, so it cannot be fixed by flattening. Emissive blocks now route to the energy-field path and
+  the field alpha is clamped by the tile's own alpha, so the flame keeps its silhouette instead of becoming an
+  opaque warping square. The energy fields' tiles are opaque, so that clamp is a no-op for them.
+* **#1374 — dyed panes bobbed.** The vertex shader computed the water wave amplitude from TEXCOORD2.z with no
+  water check, but on non-water faces those channels carry the flora/hull/dye tint — so a blue-dyed pane read
+  its own dye as a wave height and sagged/oscillated by up to 0.12 blocks. Gated on `water.x > 0.5`; water
+  always writes mode 1..4, so real water is untouched.
+
+Fix in both SubShaders (URP + Built-in RP): compute `isClear` / `isField` *before* the water branch and exclude
+both from it. Belt and braces on the asset side too — the tile is flattened to opaque, and
+`tools/ai-assets/bundle_textures.py` now flattens block-tile alpha on bundling (the wanted cutouts are punched
+afterwards by `bake_leaf_alpha.py` for foliage and `bundle_fire.py` for the flame, never by the image model).
+`BlockTileAlphaTests` pins both: every bundled block tile is opaque except the named deliberate cutouts, and
+the transparent shader's blocks specifically. Verified failing on the old tile before the fix.
+
+---
+
 ## ✅ Done (2026-08-29): ReportHostHttpTests share one in-process host — the first Kestrel start no longer lands on a test's clock (#1362)
 
 The first Kestrel host a test process starts costs 84–134 s on the Linux CI runners (under a second locally); with one host per test that cost hit whichever test ran first and blew the 120 s fast-tier budget on PR #1360. Now `IClassFixture<ReportHostHttpFixture>` starts the host once per class; tests keep their ingest-limiter isolation via `TrustProxy = true` + a per-test `X-Forwarded-For` address; the client is disposed before the host stops; `HostStartup_IsReportedForTheCiLogAsync` writes Create / StartAsync / first-request milliseconds into the test output. The cause of the slow first start is still open in #1362.

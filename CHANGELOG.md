@@ -82,6 +82,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **Walled base areas**: the fence check works across the world's north–south seam, and the fill is refreshed when
   something changes inside the base's box rather than on every spawn attempt.
 
+### 🪟 Cockpit glass is glass again — no more wobble on the canopy (#1372, #1373, #1374)
+
+- **Every ship's cockpit canopy was being rendered as water.** A clear pane had a slow rippling warp on it,
+  identical from inside and outside, and you could not really see through it. The clear-glass tile shipped with
+  a fully transparent alpha channel — the image model answered "perfectly clear glass" with a see-through PNG —
+  and the block shader reads a see-through tile as *"this face is water"*. So the canopy ran the whole water
+  path: animated refraction, screen-space reflections, and an opaque final composite. Clear glass is now picked
+  out of that branch explicitly, the tile ships opaque, and a test keeps block tiles from acquiring stray alpha.
+- **Fire is flame-shaped again.** Fire's tile carries a real cutout, so it fell into the same water branch and
+  came out as an opaque, warping square. Emissive blocks now take the energy-field path and keep their own
+  silhouette.
+- **Dyed glass and force fields no longer bob.** The water wave displacement read a dyed pane's blue channel as
+  a wave height, so a blue-dyed pane physically sagged and oscillated. The displacement is gated on real water.
+
 ### 📮 Report inbox — polling for answers never blocks a real report (#1352)
 
 - **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll
