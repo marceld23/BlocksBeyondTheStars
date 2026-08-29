@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.ReportHost;
+using BlocksBeyondTheStars.Shared.Feedback;
 using Xunit;
 
 namespace BlocksBeyondTheStars.Tests;
@@ -10,9 +11,16 @@ namespace BlocksBeyondTheStars.Tests;
 /// Every in-game F1 report reaches the inbox twice by design — the client posts to /api/bugreport itself, and
 /// the game server forwards its /bump snapshot to the same endpoint. The admin list must show one row per
 /// report instead of double-counting, while ingest and the read API keep both records.
+/// <para>
+/// The two halves do NOT share a player id (#1359): the client row carries the install token, the server
+/// forward the player name — which is why the fixture below stamps them differently, exactly like production.
+/// </para>
 /// </summary>
 public sealed class ReportDuplicateGroupingTests
 {
+    /// <summary>What the client-direct row carries as <c>playerId</c>: the install's name-claim token.</summary>
+    private const string Token = "417de473e6b84861afaf0c0ffee0badd";
+
     private static BugReportRecord Row(
         string id,
         string title,
@@ -22,8 +30,9 @@ public sealed class ReportDuplicateGroupingTests
         string screenshot = "",
         string status = "new",
         string category = "feedback",
-        string playerId = "Pilot",
-        string version = "2026.7.22")
+        string playerName = "Pilot",
+        string version = "2026.7.22",
+        string replyKey = "")
         => new(
             Id: id,
             Title: title,
@@ -31,8 +40,9 @@ public sealed class ReportDuplicateGroupingTests
             Email: "",
             GameVersion: version,
             BuildNumber: "",
-            PlayerId: playerId,
-            PlayerName: "Pilot",
+            // The real shape: the server forward's player id is the NAME, the client row's is the token.
+            PlayerId: source == "server" ? playerName : Token,
+            PlayerName: playerName,
             SessionId: "",
             Platform: "",
             ClientTimestamp: "",
@@ -43,11 +53,12 @@ public sealed class ReportDuplicateGroupingTests
             ScreenshotFile: screenshot,
             ReportJson: source == "server" ? "{\"snapshot\":{}}" : "{}",
             CreatedUnix: createdUnix,
-            ReplyKey: "",
+            ReplyKey: replyKey,
             FixedInVersion: "");
 
     /// <summary>The real shape of a pair, taken from a live report: the server forward wraps the player's own
-    /// wording as "[feedback] &lt;title&gt; — &lt;description&gt;", so the client row's text is a substring.</summary>
+    /// wording as "[feedback] &lt;title&gt; — &lt;description&gt;", so the client row's text is a substring —
+    /// and the two rows carry different player ids (token vs. name), which must not keep them apart.</summary>
     [Fact]
     public void TheTwoRowsOfOneReport_CollapseIntoOneGroup()
     {
@@ -59,10 +70,43 @@ public sealed class ReportDuplicateGroupingTests
                 1000, source: "server", screenshot: "bump_1.jpg"),
         };
 
+        Assert.NotEqual(rows[0].PlayerId, rows[1].PlayerId); // the #1359 trap: ids differ by design
+
         var groups = ReportHostPages.GroupDuplicates(rows);
 
         Assert.Single(groups);
         Assert.Equal(2, groups[0].Count);
+    }
+
+    /// <summary>A #1359 client passes its reply key through /bump, so both halves carry the same key — the
+    /// exact identity, which wins over the name (here the player renamed between the two uploads).</summary>
+    [Fact]
+    public void HalvesWithTheSameReplyKey_PairEvenWhenTheNameDiffers()
+    {
+        string key = FeedbackReplyKey.Derive("install-secret");
+        var rows = new[]
+        {
+            Row("client1", "Lampe", "Die Helmlampe geht im Wasser aus.", 1000, playerName: "Pilot", replyKey: key),
+            Row("server1", "Bump [w]: [feedback] Lampe — Die Helmlampe geht im Wasser aus.",
+                "[feedback] Lampe — Die Helmlampe geht im Wasser aus.", 1001, source: "server", playerName: "Justus", replyKey: key),
+        };
+
+        Assert.Single(ReportHostPages.GroupDuplicates(rows));
+    }
+
+    /// <summary>Two installs never share a key: same name, same wording, same second — still two reports when
+    /// both halves carry keys that differ (e.g. two kids both called "Pilot" on two machines).</summary>
+    [Fact]
+    public void DifferentReplyKeys_NeverPair()
+    {
+        var rows = new[]
+        {
+            Row("a", "Absturz", "Das Spiel ist abgestürzt.", 1000, replyKey: FeedbackReplyKey.Derive("machine-1")),
+            Row("b", "Bump [w]: [feedback] Absturz — Das Spiel ist abgestürzt.", "[feedback] Absturz — Das Spiel ist abgestürzt.",
+                1000, source: "server", replyKey: FeedbackReplyKey.Derive("machine-2")),
+        };
+
+        Assert.Equal(2, ReportHostPages.GroupDuplicates(rows).Count);
     }
 
     [Fact]
@@ -95,12 +139,25 @@ public sealed class ReportDuplicateGroupingTests
     {
         var rows = new[]
         {
-            Row("a", "Absturz", "Das Spiel ist abgestürzt.", 1000, playerId: "Justus"),
-            Row("b", "Absturz", "Das Spiel ist abgestürzt.", 1001, playerId: "Severin"),
-            Row("c", "Absturz", "Das Spiel ist abgestürzt.", 1001, playerId: "Justus", version: "2026.7.21"),
+            Row("a", "Absturz", "Das Spiel ist abgestürzt.", 1000, playerName: "Justus"),
+            Row("b", "Absturz", "Das Spiel ist abgestürzt.", 1001, playerName: "Severin"),
+            Row("c", "Absturz", "Das Spiel ist abgestürzt.", 1001, playerName: "Justus", version: "2026.7.21"),
         };
 
         Assert.Equal(3, ReportHostPages.GroupDuplicates(rows).Count);
+    }
+
+    [Fact]
+    public void RowsWithoutAnyReporterIdentity_StayApart()
+    {
+        // No key and no name on either side — nothing to prove they are the same reporter.
+        var rows = new[]
+        {
+            Row("a", "x", "Der Bohrer bohrt nicht.", 1000, playerName: ""),
+            Row("b", "Bump: [feedback] x — Der Bohrer bohrt nicht.", "[feedback] x — Der Bohrer bohrt nicht.", 1000, source: "server", playerName: ""),
+        };
+
+        Assert.Equal(2, ReportHostPages.GroupDuplicates(rows).Count);
     }
 
     [Fact]

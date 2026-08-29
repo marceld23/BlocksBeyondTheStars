@@ -9954,6 +9954,25 @@ half; the portal half ships with the next WorldHost image.
 
 ---
 
+## ✅ Done (2026-08-29): one F1 report, one inbox row — pair-collapsing never matched, server rows carried guessable reply keys (#1359)
+
+Every in-game F1 report reaches the ReportHost twice by design (client-direct POST + the server's `/bump`
+forward with snapshot and screenshot), and `ReportHostPages.GroupDuplicates` (#618) was meant to show the
+pair as one admin row. It compared `PlayerId` — which the halves never share: the client sends the install
+token (`Settings.PlayerToken`), the server forwards `PlayerState.PlayerId`, i.e. the player NAME. Checked
+against the live inbox: 0 of 32 client rows paired, all failing on that one field (Δt 0–3 s, text check
+passes); the unit test had used "Pilot" on both sides. Knock-on for the reply channel (#1327): server rows got
+`reply_key = Derive(playerName)` — unreachable for the client (it polls `Derive(token)`), guessable from a
+public name, and the admin list links exactly that row as primary, so an answer typed there never arrived.
+**Fix:** `IsSameReport` pairs by reply key when both halves carry one, else by player name (never by id);
+`BumpReport.ReplyKey` (additive MessagePack field) carries the client's key through `/bump`, the server
+forwards it verbatim when well-formed (never derives one — it only holds the name); `ReportStore` no longer
+derives keys for `source == "server"` rows (insert + back-fill) and `RevokeNameDerivedServerKeys()` blanks the
+ones already stamped, once at startup. Docs: REPORT_HOST.md. Tests: production-shaped grouping fixture
+(token vs. name) + key/name identity cases, store tests for server rows/back-fill/revoke, bump forward
+carries/omits the key. Needs the ReportHost image redeploy that #1327 needs anyway, before the next client
+release.
+
 ## ✅ Done (2026-08-29): the way back — developer answers and follow-up questions reach the reporter in-game (#1327, #1328, #1329)
 
 Until now the F1 inbox was a dead end: an operator could flip a report's status or delete it, and every
