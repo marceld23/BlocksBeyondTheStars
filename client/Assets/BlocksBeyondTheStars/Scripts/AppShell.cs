@@ -267,13 +267,16 @@ namespace BlocksBeyondTheStars.Client
             byte[] blob = BrowserLocalServer.LoadLocalBlob();
             if (GlitchCloudSaves.Enabled)
             {
+                // A peek only: the boot behind this does its own fetch, and it must still see the cloud
+                // version as new — marking it synced here made that boot start from the older local blob
+                // while the name had just been adopted from the newer cloud world (#1355).
                 yield return GlitchCloudSaves.FetchLatest(cloudBlob =>
                 {
                     if (cloudBlob != null)
                     {
                         blob = cloudBlob;
                     }
-                });
+                }, markSeen: false);
             }
 
             string saved = BlocksBeyondTheStars.Persistence.MemoryWorldSnapshotPeek.SolePlayerId(blob);
