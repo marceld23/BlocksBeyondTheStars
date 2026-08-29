@@ -47,6 +47,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   now ask for the same fluid-aware target as the click — and the tool check reads the definition of the
   fluid actually under the crosshair (water and lava separately) instead of assuming lava stands for both.
 
+### 📬 One F1 report, one inbox row — and answers that actually arrive (#1359)
+
+- **The report inbox no longer lists every F1 report twice.** Each in-game report reaches the inbox on two
+  paths by design (straight from the game, and as the server's rich `/bump` snapshot with the screenshot), and
+  the admin list was meant to fold the pair into one row since #618 — but it compared a field the two halves
+  never agreed on (the game sends the install token as its player id, the server the player name), so not one
+  report ever paired. The list now recognises the halves by their shared reply key, or by player name for
+  older builds.
+- **A developer answer reaches you from either half.** The `/bump` snapshot now carries the same reply key as
+  the direct upload, so an answer typed on the richer row (the one with the screenshot) arrives in-game like any
+  other — before, it would have been stored under a key derived from your player name that your game never
+  asks for. The inbox stops minting such name-derived keys for server rows (a public name must not unlock a
+  thread) and clears the ones it had already made.
 ### 🔧 Server audit — the round-3 fixes, sharpened (#1346, #1347, #1348, #1349, #1350, #1356, #1357, #1358)
 
 - **The ship blip survives dying** (#1346): a death in space, inside the ship or on another body respawned you

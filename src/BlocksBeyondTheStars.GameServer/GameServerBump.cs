@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Persistence;
+using BlocksBeyondTheStars.Shared.Feedback;
 using BlocksBeyondTheStars.Shared.Geometry;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -99,7 +100,7 @@ public sealed partial class GameServer
             image = null;
         }
 
-        HandleBump(session, SanitizeBumpDescription(report.Description), image, report.ClientVersion);
+        HandleBump(session, SanitizeBumpDescription(report.Description), image, report.ClientVersion, report.ReplyKey);
     }
 
     /// <summary>Bounds + cleans a client-supplied bump description before it is written to the log and a
@@ -124,7 +125,7 @@ public sealed partial class GameServer
         return sb.ToString().Trim();
     }
 
-    private void HandleBump(PlayerSession session, string description, byte[]? image = null, string clientVersion = "")
+    private void HandleBump(PlayerSession session, string description, byte[]? image = null, string clientVersion = "", string replyKey = "")
     {
         // Everything below reads through the ACTIVE world cursor — _world, _meta, _creatures, _npcs,
         // _generator. A bump can arrive while that cursor points at somebody else's planet (the tick loop
@@ -141,7 +142,7 @@ public sealed partial class GameServer
 
         try
         {
-            CaptureBump(session, description, image, clientVersion);
+            CaptureBump(session, description, image, clientVersion, replyKey);
         }
         finally
         {
@@ -152,7 +153,7 @@ public sealed partial class GameServer
         }
     }
 
-    private void CaptureBump(PlayerSession session, string description, byte[]? image, string clientVersion)
+    private void CaptureBump(PlayerSession session, string description, byte[]? image, string clientVersion, string replyKey)
     {
         var p = session.State;
         var (systemName, planetName) = ActiveLocationNames();
@@ -344,7 +345,7 @@ public sealed partial class GameServer
             // (#380) is best-effort and may not run for older/native builds, so this is the only reliable way
             // the picture reaches the inbox. The local file above stays the source of truth; this send is one
             // best-effort attempt with no retry queue.
-            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot, hasImage ? image : null, imageName, clientVersion);
+            ForwardBumpSnapshot(description, p.PlayerId, p.Name, snapshot, hasImage ? image : null, imageName, clientVersion, replyKey);
         }
         catch (Exception e)
         {
@@ -364,8 +365,11 @@ public sealed partial class GameServer
     /// it shows in the admin detail view. No-op when no sink is configured; never throws into the tick.
     /// The report's <c>gameVersion</c> is the reporter's client build (<paramref name="clientVersion"/>) when
     /// the client sent one — so the inbox shows the player's build, not the server's — and falls back to the
-    /// server version for older clients / the text-only <c>/bump</c>.</summary>
-    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot, byte[]? image, string? imageName, string clientVersion = "")
+    /// server version for older clients / the text-only <c>/bump</c>. The reporter's <paramref name="replyKey"/>
+    /// (#1359) is passed through when it is well-formed — the forwarded row then shares the direct upload's
+    /// thread credential, so the inbox pairs the two rows and answers on either one reach the player; it is
+    /// never derived here, because the only id the server holds is the public player name.</summary>
+    private void ForwardBumpSnapshot(string description, string playerId, string playerName, object snapshot, byte[]? image, string? imageName, string clientVersion = "", string replyKey = "")
     {
         var sink = CrashUploader;
         if (sink is null || !sink.IsConfigured)
@@ -389,6 +393,7 @@ public sealed partial class GameServer
                 sessionId = string.Empty,
                 platform = "server",
                 clientTimestamp = DateTime.UtcNow.ToString("o"),
+                replyKey = FeedbackReplyKey.IsWellFormed(replyKey) ? replyKey : string.Empty,
                 // The screenshot (when the client sent one) as base64, matching the F1 wire contract the
                 // ReportHost already decodes (ReportIngest.ExtractScreenshot reads screenshot.base64 +
                 // mimeType). Null when there is no image → the ingest simply skips it. Oversized shots were

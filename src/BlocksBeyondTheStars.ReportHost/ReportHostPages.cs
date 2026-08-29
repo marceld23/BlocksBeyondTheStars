@@ -116,9 +116,13 @@ public static class ReportHostPages
     /// report. Grouping happens at RENDER time only — ingest still stores both rows (it must never drop a player
     /// report) and the read API still returns both.
     /// </para>
-    /// Rows pair up when they were stamped within <see cref="DuplicateWindowSeconds"/> of each other and one
-    /// description contains the other: the server forward wraps the player's text as
+    /// Rows pair up when they were stamped within <see cref="DuplicateWindowSeconds"/> of each other, belong to
+    /// the same reporter and one description contains the other: the server forward wraps the player's text as
     /// <c>[feedback] &lt;title&gt; — &lt;description&gt;</c>, so the client row's text is a substring of it.
+    /// "Same reporter" is NOT the player id (#1359): the client row carries the install token, the server
+    /// forward the player name, so the two halves never agreed on it and nothing ever paired. It is the reply
+    /// key when both halves carry one (a #1359 client passes the same key through <c>/bump</c>), and the player
+    /// name otherwise (older client or server builds).
     /// </summary>
     public static List<List<BugReportRecord>> GroupDuplicates(IReadOnlyList<BugReportRecord> items)
     {
@@ -159,7 +163,7 @@ public static class ReportHostPages
 
         // Only the two halves of ONE report pair up — never a client report with an unrelated crash, and never
         // two rows from different players/builds that happen to collide in time.
-        if (a.Category != b.Category || a.GameVersion != b.GameVersion || a.PlayerId != b.PlayerId)
+        if (a.Category != b.Category || a.GameVersion != b.GameVersion || !SameReporter(a, b))
         {
             return false;
         }
@@ -172,6 +176,19 @@ public static class ReportHostPages
         }
 
         return da.Contains(db, StringComparison.Ordinal) || db.Contains(da, StringComparison.Ordinal);
+    }
+
+    /// <summary>Whether two rows come from the same reporter — by reply key when both carry one (exact: two
+    /// installs never share a key), by player name otherwise. Never by player id, which the two halves of one
+    /// report do not share (install token vs. player name, #1359).</summary>
+    private static bool SameReporter(BugReportRecord a, BugReportRecord b)
+    {
+        if (a.ReplyKey.Length > 0 && b.ReplyKey.Length > 0)
+        {
+            return a.ReplyKey == b.ReplyKey;
+        }
+
+        return a.PlayerName.Length > 0 && a.PlayerName == b.PlayerName;
     }
 
     /// <summary>Collapses whitespace so the two wordings compare cleanly.</summary>

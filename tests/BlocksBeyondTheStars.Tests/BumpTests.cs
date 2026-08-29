@@ -92,7 +92,8 @@ public sealed class BumpTests : IDisposable
         server.CrashUploader = sink;
 
         var image = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 9, 8, 7, 6, 5 };
-        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] jetpack stuck in ceiling", Image = image, ClientVersion = "0.8.3" }), DeliveryMode.ReliableOrdered);
+        string replyKey = BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.Derive("install-secret");
+        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] jetpack stuck in ceiling", Image = image, ClientVersion = "0.8.3", ReplyKey = replyKey }), DeliveryMode.ReliableOrdered);
         server.Tick(0.1);
 
         // The send runs on a background task — wait for the sink, not a fixed sleep.
@@ -106,6 +107,9 @@ public sealed class BumpTests : IDisposable
             // gameVersion is the reporter's client build (not the server's), so the inbox shows the
             // player's version — the whole point of BumpReport.ClientVersion (issue #389).
             Assert.Equal("0.8.3", doc.RootElement.GetProperty("gameVersion").GetString());
+            // The reporter's reply key passes through untouched (#1359), so the inbox can pair this row with
+            // the client-direct upload and route an answer on either one to the player.
+            Assert.Equal(replyKey, doc.RootElement.GetProperty("replyKey").GetString());
 
             var reportJson = doc.RootElement.GetProperty("reportJson");
             Assert.Equal("bump", reportJson.GetProperty("reportType").GetString());
@@ -145,7 +149,26 @@ public sealed class BumpTests : IDisposable
         // A text-only /bump (ChatIntent) carries no client version, so gameVersion falls back to the
         // server's version — never left empty.
         Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("gameVersion").GetString()));
+        // ...and no reply key: the server must never derive one from the player name (#1359).
+        Assert.Equal("", doc.RootElement.GetProperty("replyKey").GetString());
         Assert.Equal(1, server.BumpsWritten);
+    }
+
+    [Fact]
+    public void BumpReport_WithMalformedReplyKey_ForwardsAnEmptyKey()
+    {
+        var (server, client, _) = StartWorld();
+        var sink = new ForwardSink();
+        server.CrashUploader = sink;
+
+        // Whatever a tampered client puts in the field, only a well-formed key (64 lowercase hex) is passed on —
+        // the ReportHost would ignore anything else anyway, and an empty key means "not answerable here".
+        client.Send(NetCodec.Encode(new BumpReport { Description = "[feedback] odd key", ReplyKey = "not-a-key" }), DeliveryMode.ReliableOrdered);
+        server.Tick(0.1);
+
+        Assert.True(sink.Sent.Wait(TimeSpan.FromSeconds(10)), "bump was not forwarded to the sink");
+        using var doc = System.Text.Json.JsonDocument.Parse(sink.LastJson!);
+        Assert.Equal("", doc.RootElement.GetProperty("replyKey").GetString());
     }
 
     [Fact]

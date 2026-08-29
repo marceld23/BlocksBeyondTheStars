@@ -29,7 +29,8 @@ namespace BlocksBeyondTheStars.Client
     ///     WebGL, where HttpClient/threads don't exist) — reaches the devs on any server, even someone else's
     ///     dedicated server;
     ///   • the existing <c>/bump</c> message (<see cref="NetworkClient.SendBumpReport"/>) so the server also
-    ///     writes its rich local snapshot (inventory/position/surroundings) when on an own/singleplayer server.
+    ///     writes its rich local snapshot (inventory/position/surroundings) when on an own/singleplayer server —
+    ///     carrying the same reply key as the direct upload, so the inbox can pair the two rows (#1359).
     ///
     /// While the dialog is open the world is HELD exactly like behind the Esc menu (#1330): the same server intent
     /// (<see cref="NetworkClient.SendPause"/>, group decision per #973 — a lone writer in multiplayer pauses nobody
@@ -325,9 +326,11 @@ namespace BlocksBeyondTheStars.Client
             var report = BuildReport(title, desc, email);
             byte[] jpg = _shotJpg;
 
-            // Path A — rich server snapshot via the existing /bump pipeline (meaningful on own/SP servers).
+            // Path A — rich server snapshot via the existing /bump pipeline (meaningful on own/SP servers). The
+            // reply key rides along (#1359) so the server's forwarded row carries the same thread credential as
+            // the direct upload below: the inbox pairs the two rows by it, and an answer on either one reaches us.
             string serverNote = string.IsNullOrEmpty(title) ? desc : title + " — " + desc;
-            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>(), AppShell.Version);
+            Game?.Network?.SendBumpReport("[feedback] " + serverNote, jpg ?? Array.Empty<byte>(), AppShell.Version, _replyKey);
 
             // Path B — client-direct upload to the report inbox. The body is serialized ONCE here on the
             // main thread; only the POST leaves the game loop.

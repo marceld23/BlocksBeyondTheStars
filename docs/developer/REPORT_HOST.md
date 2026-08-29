@@ -81,10 +81,15 @@ pulls and shows (see [PLAYER_FEEDBACK](PLAYER_FEEDBACK.md)).
 **Who may read a thread — the reply key.** The client sends `replyKey` with each report: lowercase-hex
 `SHA256("bbs-reply:" + <install secret>)` (`Shared/Feedback/FeedbackReplyKey.cs`, shared by client and
 inbox). The secret is the install's name-claim token (desktop, play.*) or the Glitch install id (arcade);
-the key is one-way, so a leaked key reads replies but can never claim a name. A report that arrives
-**without** a well-formed key (pre-#1327 client) gets one derived from its `playerId` at ingest, and
-`BackfillReplyKeys()` does the same once at startup for rows stored before the feature — older reporters
-become answerable as soon as they update. Server crash reports carry no player id → no key → the admin
+the key is one-way, so a leaked key reads replies but can never claim a name. A **client-direct** report
+that arrives **without** a well-formed key (pre-#1327 client) gets one derived from its `playerId` at
+ingest, and `BackfillReplyKeys()` does the same once at startup for rows stored before the feature — older
+reporters become answerable as soon as they update. **Server forwards** (`reportJson.source == "server"`:
+`/bump`, paint/shape reports, crashes) are the exception (#1359): their `playerId` is the public player
+**name**, and a key derived from that would be guessable by anyone who knows the name — and is never what
+the client polls with. Such a row carries only the key the client passed through `/bump`
+(`BumpReport.ReplyKey`, #1359 clients) or none at all; `RevokeNameDerivedServerKeys()` blanks the
+name-derived keys older stores had already stamped, once at startup. A row without a key → the admin
 page says so instead of offering a form. `PUT`-style overwrite/clear: `ReportStore.SetReplyKey` (no HTTP
 route on purpose).
 
@@ -148,7 +153,17 @@ reports.example.com {
   `screenshot` node (base64 JPG), so it stores + shows in the admin detail view exactly like an F1
   screenshot — the server forward is the reliable path for it, since the client-direct F1 upload may not
   run on older builds. Oversized shots are dropped upstream (2 MB cap) / by the ReportHost base64 cap,
-  keeping the report either way. The local `bumps/` file stays authoritative.
+  keeping the report either way. The reporter's `replyKey` rides along as a top-level node when the client
+  sent one with the `/bump` (#1359), so both halves of one report share the thread credential. The local
+  `bumps/` file stays authoritative.
+- **One F1 report = two rows, one admin row** — an in-game F1 report reaches the inbox twice by design
+  (client-direct + server forward; see above). Ingest keeps both (it must never drop a player report) and the
+  read API returns both; only the admin list collapses the pair (`ReportHostPages.GroupDuplicates`) into one
+  row with a `+1` link to the other half: same category and version, stamped within 8 s, one description
+  containing the other, and the **same reporter** — by reply key when both halves carry one, by player
+  **name** otherwise. Not by `playerId`: the client row carries the install token, the server row the
+  player name, so the two never agree (the original #618 check compared exactly that and never paired a
+  single report in production — #1359).
 - **`/reportpaint` / `/reportshape` reports** (#938) — any server with a configured sink also forwards
   each in-game paint/shape report to the inbox, shaped like a `/bump` (no `reportJson.kind` → category
   *feedback*, `source: "server"`) with `reportJson.reportType: "paint-report"` / `"shape-report"` and

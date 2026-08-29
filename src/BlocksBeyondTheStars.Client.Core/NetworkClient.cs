@@ -380,13 +380,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Sends a <c>/bump</c> bug report with an optional in-game screenshot (JPG bytes). The server
         /// persists a rich snapshot of the reporter's situation and writes the image alongside it. The
         /// caller passes the client's build version so a forwarded report shows the reporter's build rather
-        /// than the server's (see <see cref="BumpReport.ClientVersion"/>).</summary>
-        public void SendBumpReport(string description, byte[] image, string clientVersion = "")
+        /// than the server's (see <see cref="BumpReport.ClientVersion"/>), and its reply key so the forwarded
+        /// row shares the reporter's thread credential (see <see cref="BumpReport.ReplyKey"/>, #1359).</summary>
+        public void SendBumpReport(string description, byte[] image, string clientVersion = "", string replyKey = "")
             => Send(new BumpReport
             {
                 Description = description ?? string.Empty,
                 Image = image ?? Array.Empty<byte>(),
                 ClientVersion = clientVersion ?? string.Empty,
+                ReplyKey = replyKey ?? string.Empty,
             });
 
         // Admin/cheat console (server validates IsAdmin + the CheatsAllowed rule and replies with a ServerMessage).

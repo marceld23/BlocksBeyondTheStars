@@ -1919,6 +1919,13 @@ public sealed class BumpReport
     /// server's. Empty from older clients (and the text-only <c>/bump</c>), in which case the server falls
     /// back to its own version. MessagePack is contractless, so this extra field is backward compatible.</summary>
     public string ClientVersion { get; set; } = string.Empty;
+
+    /// <summary>The reporter's reply-thread credential (#1359): the same one-way hash of the install secret
+    /// the client sends on its direct F1 upload (<c>Shared/Feedback/FeedbackReplyKey</c>). The server forwards
+    /// it verbatim so the inbox can pair the two rows of one report and route an answer on either row to the
+    /// player; the server never sees the secret itself. Empty from older clients and the text-only
+    /// <c>/bump</c>. MessagePack is contractless, so the extra field is backward compatible.</summary>
+    public string ReplyKey { get; set; } = string.Empty;
 }
 
 /// <summary>A broadcast chat line (server→clients).</summary>

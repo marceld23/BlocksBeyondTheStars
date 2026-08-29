@@ -43,6 +43,14 @@ public static class ReportHostApp
             log.LogInformation("Back-filled reply keys for {Count} pre-existing report(s).", backfilled);
         }
 
+        // Server forwards that got a key derived from the player NAME (guessable, and never what the client
+        // polls with — #1359) lose it again. Idempotent — a no-op once repaired.
+        int revoked = store.RevokeNameDerivedServerKeys();
+        if (revoked > 0)
+        {
+            log.LogInformation("Revoked name-derived reply keys on {Count} server-forwarded report(s).", revoked);
+        }
+
         log.LogInformation(
             "ReportHost on {Bind}:{Port} — ingest {Ingest}, read API {Read}, admin UI {Admin}, retention {Retention}, pruned {Pruned} at start.",
             config.BindAddress, config.Port,

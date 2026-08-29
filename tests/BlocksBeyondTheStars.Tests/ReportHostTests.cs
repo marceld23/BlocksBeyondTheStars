@@ -342,6 +342,82 @@ public sealed class ReportHostTests : IDisposable
         Assert.Equal(0, store.BackfillReplyKeys());
     }
 
+    /// <summary>What the game server forwards for a /bump (GameServerBump.ForwardBumpSnapshot): the player id
+    /// is the player NAME, and the reply key is whatever the client passed through — or nothing.</summary>
+    private static string ServerBumpPayload(string replyKey = "") => JsonSerializer.Serialize(new Dictionary<string, object?>
+    {
+        ["title"] = "Bump [Minecraft]: [feedback] Hat eaten by door — The door on my ship eats my hat.",
+        ["description"] = "[feedback] Hat eaten by door — The door on my ship eats my hat.",
+        ["email"] = "",
+        ["gameVersion"] = "0.4.2",
+        ["playerId"] = "Justus",
+        ["playerName"] = "Justus",
+        ["platform"] = "server",
+        ["replyKey"] = replyKey,
+        ["reportJson"] = new Dictionary<string, object?>
+        {
+            ["schemaVersion"] = 1,
+            ["reportType"] = "bump",
+            ["source"] = "server",
+            ["snapshot"] = new Dictionary<string, object?>(),
+        },
+    });
+
+    /// <summary>#1359: a server forward's player id is the public player name — deriving a key from it would
+    /// hand anyone who knows the name the reply thread, and the client never polls with it anyway. Only a key
+    /// the client passed through /bump is kept.</summary>
+    [Fact]
+    public void ServerForward_NeverGetsAKeyDerivedFromThePlayerName_ButKeepsAPassedThroughOne()
+    {
+        var store = NewStore();
+        var config = new ReportHostConfig();
+
+        string bare = store.Add(ReportIngest.Parse(ServerBumpPayload(), config, out _)!, nowUnix: 1);
+        Assert.Equal("", store.Get(bare)!.ReplyKey);
+
+        string key = KeyFor("token-abc");
+        string keyed = store.Add(ReportIngest.Parse(ServerBumpPayload(key), config, out _)!, nowUnix: 2);
+        Assert.Equal(key, store.Get(keyed)!.ReplyKey);
+
+        // The client-direct half of the same report keeps its derived key — that is the reporter's own secret.
+        string client = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 2);
+        Assert.Equal(key, store.Get(client)!.ReplyKey);
+    }
+
+    [Fact]
+    public void BackfillReplyKeys_SkipsServerForwards()
+    {
+        var store = NewStore();
+        var config = new ReportHostConfig();
+        string server = store.Add(ReportIngest.Parse(ServerBumpPayload(), config, out _)!, nowUnix: 1);
+        string client = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 1);
+        Assert.True(store.SetReplyKey(client, ""));
+
+        Assert.Equal(1, store.BackfillReplyKeys());
+        Assert.Equal(KeyFor("token-abc"), store.Get(client)!.ReplyKey);
+        Assert.Equal("", store.Get(server)!.ReplyKey);
+    }
+
+    /// <summary>Rows the pre-#1359 store already stamped with a name-derived key are repaired once at startup;
+    /// a key the client passed through, and every client-direct row, stay untouched.</summary>
+    [Fact]
+    public void RevokeNameDerivedServerKeys_ClearsOnlyDerivedKeysOnServerRows()
+    {
+        var store = NewStore();
+        var config = new ReportHostConfig();
+
+        string derived = store.Add(ReportIngest.Parse(ServerBumpPayload(), config, out _)!, nowUnix: 1);
+        Assert.True(store.SetReplyKey(derived, KeyFor("Justus"))); // what the old store did
+        string passedThrough = store.Add(ReportIngest.Parse(ServerBumpPayload(KeyFor("token-abc")), config, out _)!, nowUnix: 2);
+        string client = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 3);
+
+        Assert.Equal(1, store.RevokeNameDerivedServerKeys());
+        Assert.Equal("", store.Get(derived)!.ReplyKey);
+        Assert.Equal(KeyFor("token-abc"), store.Get(passedThrough)!.ReplyKey);
+        Assert.Equal(KeyFor("token-abc"), store.Get(client)!.ReplyKey);
+        Assert.Equal(0, store.RevokeNameDerivedServerKeys());
+    }
+
     [Fact]
     public void DevReply_ShowsUpForOwnerOnly_QuestionFlipsStatus_AckHidesIt()
     {

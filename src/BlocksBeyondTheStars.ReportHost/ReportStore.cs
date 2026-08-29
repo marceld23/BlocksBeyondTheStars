@@ -145,7 +145,8 @@ public sealed class ReportStore : IDisposable
     /// <summary>Stores a parsed report (and its screenshot file, when present) and returns the new id.
     /// <paramref name="nowUnix"/> is injectable for tests; production passes the current time. A report
     /// that came without a <c>replyKey</c> (pre-#1327 client) gets one derived from its player id, so
-    /// the reporter can still receive answers once they update.</summary>
+    /// the reporter can still receive answers once they update — except a server forward (#1359): its
+    /// player id is the public player NAME, and a key derived from that would be guessable.</summary>
     public string Add(ParsedReport report, long nowUnix)
     {
         string id = Guid.NewGuid().ToString("N");
@@ -157,7 +158,9 @@ public sealed class ReportStore : IDisposable
             File.WriteAllBytes(Path.Combine(_screenshotsDir, screenshotFile), report.ScreenshotBytes);
         }
 
-        string replyKey = report.ReplyKey.Length > 0 ? report.ReplyKey : FeedbackReplyKey.Derive(report.PlayerId);
+        string replyKey = report.ReplyKey.Length > 0 ? report.ReplyKey
+            : report.Source == ServerSource ? string.Empty
+            : FeedbackReplyKey.Derive(report.PlayerId);
 
         lock (_gate)
         {
@@ -193,9 +196,14 @@ public sealed class ReportStore : IDisposable
         return id;
     }
 
+    /// <summary><c>reportJson.source</c> of a game server's forward (<c>/bump</c>, paint/shape reports, crashes).
+    /// Such rows identify the player by NAME, not by the install secret — see <see cref="Add"/>.</summary>
+    public const string ServerSource = "server";
+
     /// <summary>One-time migration for rows stored before the reply channel existed: derives the reply
     /// key from the stored player id with the client's own formula. Idempotent (only touches rows with
-    /// an empty key); returns how many rows were filled. Called at startup.</summary>
+    /// an empty key); returns how many rows were filled. Called at startup. Server forwards are skipped
+    /// for the reason given on <see cref="Add"/> (#1359).</summary>
     public int BackfillReplyKeys()
     {
         lock (_gate)
@@ -203,7 +211,8 @@ public sealed class ReportStore : IDisposable
             var pending = new List<(string Id, string PlayerId)>();
             using (var select = _db.CreateCommand())
             {
-                select.CommandText = "SELECT id, player_id FROM bugreport WHERE reply_key = '' AND player_id != '';";
+                select.CommandText = "SELECT id, player_id FROM bugreport WHERE reply_key = '' AND player_id != '' AND source != $server;";
+                select.Parameters.AddWithValue("$server", ServerSource);
                 using var reader = select.ExecuteReader();
                 while (reader.Read())
                 {
@@ -221,6 +230,42 @@ public sealed class ReportStore : IDisposable
             }
 
             return pending.Count;
+        }
+    }
+
+    /// <summary>One-time repair for server-forwarded rows (#1359): before the fix, a forward without a reply
+    /// key got one derived from its player id — for a server row that is the public player NAME, i.e. a key
+    /// anyone who knows the name can compute (and the client never polls with it). Blanks exactly those keys;
+    /// a key the client passed through <c>/bump</c> does not equal the name derivation and stays. Idempotent;
+    /// returns how many rows were cleared. Called at startup after <see cref="BackfillReplyKeys"/>.</summary>
+    public int RevokeNameDerivedServerKeys()
+    {
+        lock (_gate)
+        {
+            var derived = new List<string>();
+            using (var select = _db.CreateCommand())
+            {
+                select.CommandText = "SELECT id, player_id, reply_key FROM bugreport WHERE source = $server AND reply_key != '';";
+                select.Parameters.AddWithValue("$server", ServerSource);
+                using var reader = select.ExecuteReader();
+                while (reader.Read())
+                {
+                    if (reader.GetString(2) == FeedbackReplyKey.Derive(reader.GetString(1)))
+                    {
+                        derived.Add(reader.GetString(0));
+                    }
+                }
+            }
+
+            foreach (string id in derived)
+            {
+                using var update = _db.CreateCommand();
+                update.CommandText = "UPDATE bugreport SET reply_key = '' WHERE id = $id;";
+                update.Parameters.AddWithValue("$id", id);
+                update.ExecuteNonQuery();
+            }
+
+            return derived.Count;
         }
     }
 
