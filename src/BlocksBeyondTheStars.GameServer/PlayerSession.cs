@@ -123,6 +123,13 @@ public sealed class PlayerSession
     /// mining can overflow on every block of a burst; one warning per few seconds says it just as well.</summary>
     public double NextInventoryFullHintAt { get; set; }
 
+    /// <summary>Loot banked from asteroids / salvage drops that has not been announced yet (#1317): item key +
+    /// how much went to the backpack and to the cargo hold. Flushed as ONE "+n … → hold" toast per cooldown.</summary>
+    public List<(string Item, int ToBackpack, int ToCargo)> PendingLootToast { get; } = new();
+
+    /// <summary>Server uptime (seconds) before which the next loot toast is held back (#1317).</summary>
+    public double NextLootToastAt { get; set; }
+
     /// <summary>Token bucket for the per-connection message-rate gate (anti-flood). Refilled by wall clock.</summary>
     public double MsgBudget { get; set; } = 60.0;
     public int LastMsgRefillTick { get; set; }

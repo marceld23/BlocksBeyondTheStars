@@ -72,7 +72,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             CREATE TABLE IF NOT EXISTS container (
                 id TEXT PRIMARY KEY, planet TEXT NOT NULL, kind TEXT NOT NULL,
                 x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL, json TEXT NOT NULL,
-                filter TEXT NOT NULL DEFAULT '');
+                filter TEXT NOT NULL DEFAULT '', lifetime DOUBLE PRECISION NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS door (
                 planet TEXT NOT NULL, x INTEGER NOT NULL, y INTEGER NOT NULL, z INTEGER NOT NULL,
                 kind TEXT NOT NULL, axisx INTEGER NOT NULL, PRIMARY KEY (planet, x, y, z));
@@ -144,6 +144,8 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             TryExecute("ALTER TABLE paint_design ADD COLUMN IF NOT EXISTS owner_name TEXT NOT NULL DEFAULT '';");
             // Per-container stash filter (#1032): '' = no filter, which is what every pre-existing crate keeps.
             TryExecute("ALTER TABLE container ADD COLUMN IF NOT EXISTS filter TEXT NOT NULL DEFAULT '';");
+            // Creature-loot drop packets expire (#1312): remaining lifetime in seconds, 0 = never.
+            TryExecute("ALTER TABLE container ADD COLUMN IF NOT EXISTS lifetime DOUBLE PRECISION NOT NULL DEFAULT 0;");
         }
         // 42P01/42P07 = the stored schema no longer matches what Initialize expects (undefined/duplicate
         // relation). Deliberately NOT 42601 (syntax_error) — that is a bug in our SQL, not a broken save.
@@ -590,10 +592,11 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json, filter) " +
-                              "VALUES (@id, @p, @k, @x, @y, @z, @json, @filter) " +
+            cmd.CommandText = "INSERT INTO container (id, planet, kind, x, y, z, json, filter, lifetime) " +
+                              "VALUES (@id, @p, @k, @x, @y, @z, @json, @filter, @lifetime) " +
                               "ON CONFLICT(id) DO UPDATE SET planet=excluded.planet, kind=excluded.kind, " +
-                              "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json, filter=excluded.filter;";
+                              "x=excluded.x, y=excluded.y, z=excluded.z, json=excluded.json, filter=excluded.filter, " +
+                              "lifetime=excluded.lifetime;";
             cmd.Parameters.AddWithValue("@id", container.Id);
             cmd.Parameters.AddWithValue("@p", container.Planet);
             cmd.Parameters.AddWithValue("@k", container.Kind);
@@ -602,6 +605,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("@z", container.Position.Z);
             cmd.Parameters.AddWithValue("@json", json);
             cmd.Parameters.AddWithValue("@filter", filter);
+            cmd.Parameters.AddWithValue("@lifetime", container.LifetimeLeft);
             cmd.ExecuteNonQuery();
         }
     }
@@ -612,7 +616,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT id, kind, x, y, z, json, filter FROM container WHERE planet = @p;";
+            cmd.CommandText = "SELECT id, kind, x, y, z, json, filter, lifetime FROM container WHERE planet = @p;";
             cmd.Parameters.AddWithValue("@p", planet);
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -628,6 +632,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                     Filter = filterJson.Length == 0
                         ? new List<string>()
                         : JsonSerializer.Deserialize<List<string>>(filterJson, JsonOptions) ?? new List<string>(),
+                    LifetimeLeft = reader.GetDouble(7),
                 });
             }
         }

@@ -20,6 +20,11 @@ public sealed class StoredContainer
     /// <summary>Base item keys allowed into this container on a stash (#1032). Empty = everything allowed
     /// (the pre-filter behaviour, and what every container saved before this shipped deserializes to).</summary>
     public List<string> Filter { get; set; } = new();
+
+    /// <summary>Seconds of player-present uptime left before a creature-loot drop packet expires (#1312);
+    /// 0 = never, which is every crate, capsule and mining-overflow packet — and every packet saved before
+    /// this shipped. Checkpointed to the store every so often, not per tick.</summary>
+    public double LifetimeLeft { get; set; }
 }
 
 /// <summary>A player-built door, persisted by its world cell so it survives the deterministic door rebuild.</summary>

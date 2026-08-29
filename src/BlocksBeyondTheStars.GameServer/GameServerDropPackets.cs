@@ -57,6 +57,25 @@ public sealed partial class GameServer
     /// packet, cheap enough that a full inventory standing on one costs nothing.</summary>
     private const double DropPacketSweepInterval = 0.25;
 
+    /// <summary>How long a CREATURE-LOOT packet lies around (#1312), in seconds of uptime with a player on the
+    /// world. Maintainer decision: only creature kills expire — the meat-and-gland carpet around a base is
+    /// renewable; mining overflow keeps the #853 promise that nothing is ever destroyed.</summary>
+    private const double LootPacketLifetime = 300.0;
+
+    /// <summary>How often a loot packet's remaining lifetime is written back to the store. Per tick would be
+    /// one SQLite write per packet per tick; a restart mid-lifetime resumes within this much.</summary>
+    private const double LootLifetimeCheckpoint = 30.0;
+
+    /// <summary>How far below a spill origin a packet falls looking for support (#1311): an air kill used to
+    /// leave the bundle hanging at the flier's altitude.</summary>
+    private const int DropFallScan = 32;
+
+    private double _sinceLootCheckpoint;
+
+    /// <summary>A creature-loot packet (expires) vs. a mining/other packet (never does). The two kinds never
+    /// merge, so a loot spill can never drag mining overflow to its grave.</summary>
+    private static bool IsLootPacket(StoredContainer c) => c.LifetimeLeft > 0;
+
     /// <summary>Ground drop packets on the active world (tests + inspection).</summary>
     public IReadOnlyList<StoredContainer> DropPackets
         => _containers.Where(c => c.Kind == DropPacketKind).ToList();
@@ -67,7 +86,7 @@ public sealed partial class GameServer
     /// dyed/glowing/shaped variant (composite <c>ItemKey</c>) keeps its own stack instead of dissolving into
     /// the plain material.
     /// </summary>
-    private void SpillToGround(Vector3i origin, IEnumerable<ItemAmount> items)
+    private void SpillToGround(Vector3i origin, IEnumerable<ItemAmount> items, bool creatureLoot = false)
     {
         var pending = items.Where(i => i.Count > 0 && !string.IsNullOrEmpty(i.Item)).ToList();
         if (pending.Count == 0)
@@ -79,7 +98,7 @@ public sealed partial class GameServer
         bool changed = false;
         foreach (var amount in pending)
         {
-            var packet = FindOrCreatePacket(cell, amount.Item);
+            var packet = FindOrCreatePacket(cell, amount.Item, creatureLoot);
             var stack = packet.Items.FirstOrDefault(s => s.Item == amount.Item);
             if (stack is null)
             {
@@ -109,7 +128,7 @@ public sealed partial class GameServer
     /// <see cref="WarnIfPoolOverflowed"/> for events that cannot be refused after the fact (a creature is
     /// already dead, a wreck already burst). Nothing is lost; the player is still told where it went.
     /// </summary>
-    private void SpillPoolOverflow(PlayerSession session, MaterialPool pool, Vector3i origin)
+    private void SpillPoolOverflow(PlayerSession session, MaterialPool pool, Vector3i origin, bool creatureLoot = false)
     {
         var leftovers = pool.TakeLeftovers();
         if (leftovers.Count == 0)
@@ -117,7 +136,7 @@ public sealed partial class GameServer
             return;
         }
 
-        SpillToGround(origin, leftovers);
+        SpillToGround(origin, leftovers, creatureLoot);
         NotifyDropped(session);
     }
 
@@ -135,10 +154,11 @@ public sealed partial class GameServer
     }
 
     /// <summary>The packet a spill of <paramref name="item"/> at <paramref name="cell"/> belongs in: the
-    /// nearest one within <see cref="DropMergeRadius"/> that already carries the key or still has a free
-    /// stack slot. Falls back to a new packet — or, at the world cap, to the nearest packet at ANY distance
-    /// (a bounded pile beats destroying the items).</summary>
-    private StoredContainer FindOrCreatePacket(Vector3i cell, string item)
+    /// nearest one OF THE SAME KIND (loot vs. mining — #1312, the kinds never mix) within
+    /// <see cref="DropMergeRadius"/> that already carries the key or still has a free stack slot. Falls back
+    /// to a new packet — or, at that kind's cap, to the nearest packet of the kind at ANY distance (a bounded
+    /// pile beats destroying the items).</summary>
+    private StoredContainer FindOrCreatePacket(Vector3i cell, string item, bool creatureLoot)
     {
         var center = Center(cell);
         StoredContainer? best = null;
@@ -147,7 +167,7 @@ public sealed partial class GameServer
 
         foreach (var c in _containers)
         {
-            if (c.Kind != DropPacketKind)
+            if (c.Kind != DropPacketKind || IsLootPacket(c) != creatureLoot)
             {
                 continue;
             }
@@ -180,16 +200,17 @@ public sealed partial class GameServer
                 Kind = DropPacketKind,
                 Position = cell,
                 Items = new List<ItemStack>(),
+                LifetimeLeft = creatureLoot ? LootPacketLifetime : 0,
             };
 
             _containers.Add(packet);
             return packet;
         }
 
-        // At the cap: pour into the nearest packet regardless of distance and stack budget. Items are never
-        // destroyed — the world just stops growing new bundles.
+        // At the cap: pour into the nearest packet of the kind regardless of distance and stack budget. Items
+        // are never destroyed — the world just stops growing new bundles.
         return _containers
-            .Where(c => c.Kind == DropPacketKind)
+            .Where(c => c.Kind == DropPacketKind && IsLootPacket(c) == creatureLoot)
             .OrderBy(c => WrapDistSq(center, Center(c.Position)))
             .First();
     }
@@ -199,7 +220,10 @@ public sealed partial class GameServer
 
     /// <summary>Where a packet actually comes to rest: the mined cell itself when it is free, otherwise the
     /// first free cell above it (a spill from a block broken under water/inside a wall must not end up
-    /// entombed). Falls back to the origin — a packet is collected by proximity, not by line of sight.</summary>
+    /// entombed). Falls back to the origin — a packet is collected by proximity, not by line of sight.
+    /// A free cell then FALLS (#1311): down through air to the first cell with something under it — solid or
+    /// fluid, so a kill over a lake leaves the bundle on the surface, not on the seabed. An air kill used to
+    /// leave the packet hanging at the flier's altitude ("Blöcke hängen überall im Himmel").</summary>
     private Vector3i SettleDropCell(Vector3i origin)
     {
         for (int dy = 0; dy <= 2; dy++)
@@ -212,11 +236,30 @@ public sealed partial class GameServer
 
             if (_world.GetBlock(cell).IsAir)
             {
-                return cell;
+                return Fall(cell);
             }
         }
 
         return origin;
+    }
+
+    /// <summary>The lowest air cell in the column at or below <paramref name="cell"/> within
+    /// <see cref="DropFallScan"/> whose cell below is not air (solid or fluid). Runs out of scan → stays.</summary>
+    private Vector3i Fall(Vector3i cell)
+    {
+        var at = cell;
+        for (int i = 0; i < DropFallScan; i++)
+        {
+            var below = new Vector3i(at.X, at.Y - 1, at.Z);
+            if (!WithinBuildHeight(below.Y) || !_world.GetBlock(below).IsAir)
+            {
+                return at;
+            }
+
+            at = below;
+        }
+
+        return at;
     }
 
     private static Vector3f Center(Vector3i cell) => new(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f);
@@ -235,13 +278,14 @@ public sealed partial class GameServer
             return;
         }
 
+        double elapsed = _worlds.Active.SinceDropSweep;
         _worlds.Active.SinceDropSweep = 0;
         if (!_containers.Any(c => c.Kind == DropPacketKind))
         {
             return;
         }
 
-        bool anyRemoved = false;
+        bool anyRemoved = AgeLootPackets(elapsed);
         foreach (var session in JoinedInActiveWorld())
         {
             SetCurrent(session); // per-player ship cursor: the cargo hold we spill into must be THEIR ship's
@@ -317,6 +361,43 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>Burns <paramref name="elapsed"/> seconds off every creature-loot packet on the active world
+    /// (#1312) — only while a player is actually on it, so a world nobody visits keeps its packets — removing
+    /// the ones that ran out and checkpointing the rest every <see cref="LootLifetimeCheckpoint"/>. Returns
+    /// true if any packet was removed (caller re-broadcasts).</summary>
+    private bool AgeLootPackets(double elapsed)
+    {
+        if (elapsed <= 0 || !JoinedInActiveWorld().Any())
+        {
+            return false;
+        }
+
+        _sinceLootCheckpoint += elapsed;
+        bool checkpoint = _sinceLootCheckpoint >= LootLifetimeCheckpoint;
+        if (checkpoint)
+        {
+            _sinceLootCheckpoint = 0;
+        }
+
+        bool removed = false;
+        foreach (var packet in _containers.Where(c => c.Kind == DropPacketKind && IsLootPacket(c)).ToList())
+        {
+            packet.LifetimeLeft -= elapsed;
+            if (packet.LifetimeLeft <= 0)
+            {
+                _containers.Remove(packet);
+                _repo.DeleteContainer(packet.Id);
+                removed = true;
+            }
+            else if (checkpoint)
+            {
+                _repo.SaveContainer(packet);
+            }
+        }
+
+        return removed;
+    }
+
     private static NetDropPacket ToNetDropPacket(StoredContainer c)
     {
         var top = c.Items.OrderByDescending(s => s.Count).FirstOrDefault();
@@ -345,7 +426,8 @@ public sealed partial class GameServer
     /// throttle (the sweep is otherwise only reachable through a timed <see cref="Tick"/>).</summary>
     public void SweepDropPacketsForTest() => TickDropPackets(DropPacketSweepInterval);
 
-    /// <summary>Test hook: drop items on the ground exactly as a full-inventory mine would.</summary>
-    public void SpillToGroundForTest(Vector3i origin, string item, int count)
-        => SpillToGround(origin, item, count);
+    /// <summary>Test hook: drop items on the ground exactly as a full-inventory mine would — or, with
+    /// <paramref name="creatureLoot"/>, as a creature kill with a full pack (an expiring packet, #1312).</summary>
+    public void SpillToGroundForTest(Vector3i origin, string item, int count, bool creatureLoot = false)
+        => SpillToGround(origin, new[] { new ItemAmount(item, count) }, creatureLoot);
 }

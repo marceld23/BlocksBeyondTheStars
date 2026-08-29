@@ -1092,8 +1092,20 @@ public sealed partial class GameServer
         else if (session is not null)
         {
             var pool = new MaterialPool(_content, session.State, _ship);
+            var backpackBefore = target.Loot.Select(l => session.State.Inventory.CountOf(l.Item)).ToList();
+            var cargoBefore = target.Loot.Select(l => _ship.Cargo.CountOf(l.Item)).ToList();
             BankLoot(session, pool, target.Loot); // target is already destroyed — warn rather than lose it silently
             SendInventory(session);
+
+            // #1317: say where the ore went. The pool fills the backpack first and the hold after, and until
+            // now neither path said a word — "what happens after I break it?" was a support question.
+            for (int i = 0; i < target.Loot.Count; i++)
+            {
+                var l = target.Loot[i];
+                QueueLootToast(session, l.Item,
+                    toBackpack: System.Math.Max(0, session.State.Inventory.CountOf(l.Item) - backpackBefore[i]),
+                    toCargo: System.Math.Max(0, _ship.Cargo.CountOf(l.Item) - cargoBefore[i]));
+            }
         }
 
         BroadcastToInstance(instance, new SpaceEntityDestroyed { Id = target.Id });
@@ -1354,7 +1366,7 @@ public sealed partial class GameServer
                 continue;
             }
 
-            if (StowDrop(instance, drop))
+            if (StowDrop(instance, drop, FindSessionByPlayerId(playerId)))
             {
                 changed = true;
             }
@@ -1374,8 +1386,9 @@ public sealed partial class GameServer
     }
 
     /// <summary>Stows one salvage drop's loot into the ship's cargo hold (until full), removing the drop when it
-    /// is emptied. Returns true if anything was stowed (cargo full ⇒ false, loot stays floating).</summary>
-    private bool StowDrop(SpaceInstance instance, CombatEntity drop)
+    /// is emptied. Returns true if anything was stowed (cargo full ⇒ false, loot stays floating). With a
+    /// <paramref name="collector"/> the stowed amounts are announced (#1317).</summary>
+    private bool StowDrop(SpaceInstance instance, CombatEntity drop, PlayerSession? collector = null)
     {
         bool stowed = false;
         var leftover = new List<ItemAmount>();
@@ -1386,6 +1399,10 @@ public sealed partial class GameServer
             if (notStowed < item.Count)
             {
                 stowed = true;
+                if (collector is not null)
+                {
+                    QueueLootToast(collector, item.Item, toBackpack: 0, toCargo: item.Count - notStowed);
+                }
             }
 
             if (notStowed > 0)
@@ -1401,6 +1418,55 @@ public sealed partial class GameServer
         }
 
         return stowed;
+    }
+
+    private const double LootToastCooldown = 1.5; // one "+n Ore → cargo hold" toast per burst of fragments (#1317)
+
+    /// <summary>Queues a "+n Item → destination" line for the player (#1317) and sends it right away unless a
+    /// toast went out within <see cref="LootToastCooldown"/> — then it merges into the pending batch, which
+    /// <see cref="FlushLootToast"/> sends from the space tick. A burst of asteroid fragments reads as one
+    /// summed line instead of a dozen flashes.</summary>
+    private void QueueLootToast(PlayerSession session, string item, int toBackpack, int toCargo)
+    {
+        if (toBackpack <= 0 && toCargo <= 0)
+        {
+            return; // nothing banked (full hold): the existing "full" warning speaks, no misleading "+n"
+        }
+
+        var pending = session.PendingLootToast;
+        int at = pending.FindIndex(p => p.Item == item);
+        if (at >= 0)
+        {
+            var cur = pending[at];
+            pending[at] = (item, cur.ToBackpack + toBackpack, cur.ToCargo + toCargo);
+        }
+        else
+        {
+            pending.Add((item, toBackpack, toCargo));
+        }
+
+        FlushLootToast(session);
+    }
+
+    /// <summary>Sends the pending loot line once the cooldown allows: one <c>@srv.space.loot_to_*</c> token whose
+    /// <c>{name}</c> argument is the summed "+12 Iron ore, +3 Copper ore" list, localized server-side.</summary>
+    private void FlushLootToast(PlayerSession session)
+    {
+        if (session.PendingLootToast.Count == 0 || _uptime < session.NextLootToastAt)
+        {
+            return;
+        }
+
+        bool anyBackpack = session.PendingLootToast.Any(p => p.ToBackpack > 0);
+        bool anyCargo = session.PendingLootToast.Any(p => p.ToCargo > 0);
+        string key = anyBackpack && anyCargo ? "srv.space.loot_to_both"
+            : anyCargo ? "srv.space.loot_to_cargo"
+            : "srv.space.loot_to_backpack";
+        string list = string.Join(", ", session.PendingLootToast
+            .Select(p => $"+{p.ToBackpack + p.ToCargo} {ItemDisplayName(session, p.Item)}"));
+        session.PendingLootToast.Clear();
+        session.NextLootToastAt = _uptime + LootToastCooldown;
+        Send(session, new ServerMessage { Text = "@" + key + ":" + list });
     }
 
     private const float TractorPullRange = 30f; // a manual quick-bar tractor sweep reaches further than the passive pull
@@ -1439,7 +1505,7 @@ public sealed partial class GameServer
                 return;
             }
 
-            if (!StowDrop(instance, drop))
+            if (!StowDrop(instance, drop, session))
             {
                 RejectSpace(session, Localize(session?.Locale ?? "en", "space.tractor.cargo_full"));
                 return;
@@ -1513,6 +1579,7 @@ public sealed partial class GameServer
                 {
                     SetCurrent(collector); // module check + cargo below resolve to this pilot's ship
                     CollectSalvage(instance, TractorRange, collectorId);
+                    FlushLootToast(collector); // #1317: a batch held back by the cooldown goes out now
                 }
             }
 

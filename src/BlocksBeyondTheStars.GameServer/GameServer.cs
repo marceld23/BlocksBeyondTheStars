@@ -3971,7 +3971,7 @@ public sealed partial class GameServer
     /// (<see cref="MaterialPool.CanFit"/>) wherever the action can still be refused.
     /// </para>
     /// </summary>
-    private void BankLoot(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> drops, Vector3i? spillAt = null)
+    private void BankLoot(PlayerSession session, MaterialPool pool, IEnumerable<ItemAmount> drops, Vector3i? spillAt = null, bool creatureLoot = false)
     {
         foreach (var drop in drops)
         {
@@ -3980,7 +3980,9 @@ public sealed partial class GameServer
 
         if (spillAt is { } cell)
         {
-            SpillPoolOverflow(session, pool, cell);
+            // #1312: a creature's drop spills as an EXPIRING loot packet; everything else (mining, wrecks,
+            // machines) keeps the #853 promise and lies there until someone comes back for it.
+            SpillPoolOverflow(session, pool, cell, creatureLoot);
             return;
         }
 
