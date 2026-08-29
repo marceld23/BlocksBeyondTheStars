@@ -68,13 +68,21 @@ namespace BlocksBeyondTheStars.Client
             const float bx = 90f, bw = 440f, bh = 54f, gap = 62f;
             float by = 322f;
 #if UNITY_WEBGL && !UNITY_EDITOR
-            // Browser build: a slimmed "enter your name and play" screen. There is no singleplayer,
-            // host, editors or quit in the browser (no local filesystem, no bundled server, and quitting
-            // a browser tab is meaningless). The server is preconfigured via Glitch/URL params, so the
-            // primary action just joins it; "Connect to a server…" stays as a manual fallback. A name is
-            // required so players never join the public realm anonymously. The whole block is guarded so
-            // the native client (the #else below) is byte-for-byte unchanged.
+            // Browser build: a slimmed "enter your name and play" screen. No host, editors or quit in the
+            // browser (no bundled server process, and quitting a tab is meaningless) — but singleplayer
+            // exists: the REAL server runs in-process (BrowserLocalServer). Which button leads depends on
+            // how the page was opened: a portal deep-link preconfigures a server to join, glitch.fun offers
+            // its arcade, and a bare /play page has nothing to join, so Singleplayer takes the top (#1322).
+            // "Connect to a server…" stays as the manual fallback. A name is required so players never
+            // join the public realm anonymously. The whole block is guarded so the native client (the
+            // #else below) is byte-for-byte unchanged.
             string[] webName = { shell.PlayerName };
+            if (string.IsNullOrWhiteSpace(webName[0]))
+            {
+                // No name in the settings (fresh browser, settings lost) but a world on disk: its one player
+                // IS this player — the name is the save key — so offer it instead of an empty field (#1322).
+                webName[0] = BrowserLocalServer.PeekSavedPlayerName() ?? "";
+            }
             // Accented like the native menu: the name gates every play action (#221); panel edges flush
             // with the button column, content inset — see the native branch below.
             UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
@@ -90,32 +98,40 @@ namespace BlocksBeyondTheStars.Client
             // built an empty, serverless world rig), and the manual server picker stays hidden.
             bool onGlitch = GlitchIntegration.ArcadeInstallId.Length > 0 && GlitchIntegration.PortalUrl.Length > 0;
 
+            // A bare /play page (no deep-linked server, not glitch.fun) has nothing for "Play" to dial —
+            // it used to aim at 127.0.0.1 and fail — so that button is not built there at all (#1322).
+            bool bareMenu = !onGlitch && !GlitchIntegration.TryGetConfiguredServer(out _, out _, out _);
+
             // On glitch.fun the singleplayer entry leads and the arcade drops to second place, labeled
             // "Multiplayer (Arcade)": store visitors should discover the in-browser world first (first
-            // live feedback said the arcade hid that singleplayer exists). Portal /play deep-links keep
-            // the join button on top — there the player explicitly chose a server to join.
+            // live feedback said the arcade hid that singleplayer exists). The bare /play menu leads with
+            // singleplayer for the same reason. Portal /play deep-links keep the join button on top —
+            // there the player explicitly chose a server to join.
             float joinY = onGlitch ? wby + gap : wby;
-            float spY = onGlitch ? wby : wby + gap;
-            UiKit.AddButton(root, bx, joinY, bw, bh, shell.L(onGlitch ? "ui.menu.arcade" : "ui.menu.play"), () =>
+            float spY = onGlitch || bareMenu ? wby : wby + gap;
+            if (!bareMenu)
             {
-                if (string.IsNullOrWhiteSpace(webName[0]))
+                UiKit.AddButton(root, bx, joinY, bw, bh, shell.L(onGlitch ? "ui.menu.arcade" : "ui.menu.play"), () =>
                 {
-                    webWarn.text = shell.L("ui.webgl.need_name");
-                    return;
-                }
+                    if (string.IsNullOrWhiteSpace(webName[0]))
+                    {
+                        webWarn.text = shell.L("ui.webgl.need_name");
+                        return;
+                    }
 
-                shell.PlayerName = webName[0].Trim();
-                shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
-                shell.Settings.Save();
-                if (onGlitch)
-                {
-                    shell.RetryArcadeJoin();
-                }
-                else
-                {
-                    shell.StartJoin();
-                }
-            }, "btn_join");
+                    shell.PlayerName = webName[0].Trim();
+                    shell.Settings.PlayerName = shell.PlayerName; // remember the identity across sessions
+                    shell.Settings.Save();
+                    if (onGlitch)
+                    {
+                        shell.RetryArcadeJoin();
+                    }
+                    else
+                    {
+                        shell.StartJoin();
+                    }
+                }, "btn_join");
+            }
 
             // In-browser singleplayer: the REAL authoritative server runs in-process (LoopbackTransport,
             // MemoryWorldRepository) — one persistent world per browser, synced to the Glitch cloud when
@@ -171,11 +187,12 @@ namespace BlocksBeyondTheStars.Client
 
             // The manual server picker only helps when /play was opened WITHOUT a deep-linked server —
             // players arriving through the portal already have host/port preconfigured, and on
-            // glitch.fun there is nothing to pick at all (#221).
-            float wextra = 0f;
-            if (!onGlitch && !GlitchIntegration.TryGetConfiguredServer(out _, out _, out _))
+            // glitch.fun there is nothing to pick at all (#221). On the bare menu it takes the row the
+            // join button would have had.
+            float nextY = wby + (bareMenu ? gap : gap * 2f);
+            if (bareMenu)
             {
-                UiKit.AddButton(root, bx, wby + gap * 2f, bw, bh, shell.L("ui.menu.connect_manual"), () =>
+                UiKit.AddButton(root, bx, nextY, bw, bh, shell.L("ui.menu.connect_manual"), () =>
                 {
                     if (connect != null)
                     {
@@ -183,7 +200,7 @@ namespace BlocksBeyondTheStars.Client
                         connect.SetActive(true);
                     }
                 }, "btn_join");
-                wextra = gap;
+                nextY += gap;
             }
 
             // "My Worlds / Account" (#272): one click back to the worlds portal the game was served
@@ -191,7 +208,7 @@ namespace BlocksBeyondTheStars.Client
             // The portal's Play button deep-links back into /play, which closes the round-trip; the
             // portal page itself stays the browser home for signup/create/manage (HOSTED_WORLDS.md:
             // the WebGL menu never grows a server picker).
-            UiKit.AddButton(root, bx, wby + wextra + gap * 2f, bw, bh, shell.L("ui.menu.my_worlds"), () =>
+            UiKit.AddButton(root, bx, nextY, bw, bh, shell.L("ui.menu.my_worlds"), () =>
             {
                 // Prefer the baked portal origin: on glitch.fun the page origin is play.glitch.fun,
                 // where /worlds does not exist — and pointing arcade players at OUR portal is exactly
@@ -204,8 +221,8 @@ namespace BlocksBeyondTheStars.Client
                         : PortalClient.DefaultPortalUrl; // local file test builds → the official portal
                 Application.OpenURL(portalUrl + "/worlds");
             }, "btn_credits");
-            UiKit.AddButton(root, bx, wby + wextra + gap * 3f, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
-            UiKit.AddButton(root, bx, wby + wextra + gap * 4f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
+            UiKit.AddButton(root, bx, nextY + gap, bw, bh, shell.L("ui.menu.settings"), shell.OpenSettings, "btn_settings");
+            UiKit.AddButton(root, bx, nextY + gap * 2f, bw, bh, shell.L("ui.menu.credits"), () => shell.GoTo(ShellPhase.Credits), "btn_credits");
 
             // --- "New world?" confirmation (#1181) — added last so it draws on top; hidden until opened ---
             // Final for the world saved in this browser (and the cloud copy follows on the next save), so it
@@ -223,6 +240,39 @@ namespace BlocksBeyondTheStars.Client
                 }, "btn_exit");
                 UiKit.AddButton(newWorldPanel, 310f, 240f, 260f, 56f, shell.L("ui.action.cancel"), () => newWorldOverlay.SetActive(false), "btn_settings");
                 newWorldOverlay.SetActive(false);
+            }
+
+            // --- "What is your name?" (#1322) — a deep-linked singleplayer start that found no name anywhere
+            // (URL, settings, saved world). One field, one button, shown once; replaces the old silent
+            // "Explorer" fallback that baked a placeholder identity into the browser's one world. Built
+            // last so it draws above everything; the shell's flag is consumed here so a later menu rebuild
+            // (settings → back) does not re-open it.
+            if (shell.BrowserNamePromptPending)
+            {
+                shell.BrowserNamePromptPending = false;
+                var (nameOverlay, namePanel) = UiKit.AddModalOverlay(root, 660f, 340f, 600f, 360f);
+                UiKit.AddText(namePanel, 30f, 24f, 540f, 36f, shell.L("ui.webgl.name_prompt_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+                var nameBody = UiKit.AddText(namePanel, 30f, 72f, 540f, 90f, shell.L("ui.webgl.name_prompt_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
+                nameBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+                var nameInput = UiKit.AddInput(namePanel, 30f, 170f, 540f, 46f, webName[0], v => webName[0] = v, shell.L("ui.menu.connect_name"));
+                var nameWarn = UiKit.AddText(namePanel, 30f, 222f, 540f, 22f, "", 14,
+                    new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
+                UiKit.AddButton(namePanel, 30f, 270f, 260f, 56f, shell.L("ui.webgl.name_prompt_go"), () =>
+                {
+                    if (string.IsNullOrWhiteSpace(webName[0]))
+                    {
+                        nameWarn.text = shell.L("ui.webgl.need_name");
+                        return;
+                    }
+
+                    shell.PlayerName = webName[0].Trim();
+                    shell.Settings.PlayerName = shell.PlayerName;
+                    shell.Settings.Save();
+                    nameOverlay.SetActive(false);
+                    shell.StartBrowserSingleplayer();
+                }, "btn_singleplayer");
+                UiKit.AddButton(namePanel, 310f, 270f, 260f, 56f, shell.L("ui.action.cancel"), () => nameOverlay.SetActive(false), "btn_settings");
+                nameInput.ActivateInputField();
             }
 #else
             // Pilot name on the menu itself (#221): play actions require a chosen name — the old silent

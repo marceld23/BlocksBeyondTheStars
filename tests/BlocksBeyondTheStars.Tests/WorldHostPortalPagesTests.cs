@@ -525,6 +525,71 @@ public sealed class WorldHostPortalPagesTests
         Assert.Contains("https://www.example.org/spiel", WorldHostPortalPages.Landing(own, "en"));
     }
 
+    // ---------------- Solo entry: play in the browser without an account or a world (#1321) ----------------
+
+    [Fact]
+    public void Landing_OffersSoloBrowserPlay_BeforeTheAccountCards()
+    {
+        // The in-browser singleplayer existed for weeks without a single link to it: every visitor met
+        // "create account / sign in" and concluded they had to create a world to play.
+        string html = WorldHostPortalPages.Landing(Config);
+        Assert.Contains("<form class='card solo' id='solo-form' method='get' action='/play/' novalidate>", html);
+        Assert.Contains("name='singleplayer' value='1'", html);
+        Assert.Contains("id='solo-name' name='player_name'", html);
+        Assert.Contains("Sofort im Browser spielen", html);
+        Assert.True(html.IndexOf("id='solo-form'", StringComparison.Ordinal)
+            < html.IndexOf("id='su-name'", StringComparison.Ordinal),
+            "the solo entry must come before the account cards");
+    }
+
+    [Theory]
+    [InlineData("de")]
+    [InlineData("en")]
+    [InlineData("ja")]
+    public void Landing_SoloEntry_CarriesThePageLanguage_IntoTheBrowserClient(string lang)
+    {
+        // /play reads ?lang= for its loading shell — a GET form only sends what its fields carry.
+        string html = WorldHostPortalPages.Landing(Config, lang);
+        Assert.Contains($"name='lang' value='{lang}'", html);
+    }
+
+    [Fact]
+    public void Landing_SoloEntry_RemembersTheName_AndRefusesAnEmptyOne()
+    {
+        // Same localStorage key as My Worlds, so both paths share one identity; an empty submit is blocked
+        // with focus on the field (#574 pattern) — the browser world keys its player on that name.
+        string html = WorldHostPortalPages.Landing(Config, "en");
+        Assert.Contains("localStorage.getItem('bbs_player_name')", html);
+        Assert.Contains("localStorage.setItem('bbs_player_name', name)", html);
+        Assert.Contains("m.textContent = L.needName; n.focus();", html);
+        Assert.Contains("\"needName\":\"Please enter your player name first.\"", html);
+        Assert.Contains("for='solo-name'", html);
+        Assert.Contains("<div id='solo-msg' role='status' aria-live='polite' aria-atomic='true'></div>", html);
+    }
+
+    [Fact]
+    public void Landing_DescribesBothPaths_SoloAndWithFriends()
+    {
+        string de = WorldHostPortalPages.Landing(Config);
+        Assert.Contains("Spiel sofort solo im Browser", de);
+        Assert.Contains("Mit Freunden spielen — so funktioniert's", de);
+
+        string en = WorldHostPortalPages.Landing(Config, "en");
+        Assert.Contains("Play solo right in your browser", en);
+        Assert.Contains("Playing with friends — how it works", en);
+    }
+
+    [Fact]
+    public void Worlds_LinksToSoloPlay_WithTheNameAndLanguage_AndInTheEmptyState()
+    {
+        // A player who signed up only to play alone must not have to create a hosted world.
+        string html = WorldHostPortalPages.Worlds(Config, "en");
+        Assert.Contains("id='solo-link' href='/play/?singleplayer=1&amp;lang=en'", html);
+        Assert.Contains("'&player_name='+encodeURIComponent(n)", html);
+        Assert.Contains("${L.noWorlds} <a href='${esc(soloUrl())}'>${L.soloLink}</a>", html);
+        Assert.Contains("\"soloLink\":\"Just want to play alone?", html);
+    }
+
     // ---------------- Play button: deep-link + grant rendering order (#252) ----------------
 
     [Fact]

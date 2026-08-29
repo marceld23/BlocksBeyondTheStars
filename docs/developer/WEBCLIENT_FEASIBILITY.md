@@ -125,6 +125,17 @@ the new world is on disk. AI level is forced Off in-browser (template texts — 
 internal-only). Menu: the WebGL main menu grew a Singleplayer button (+ "New world…"). Perf note: initial worldgen
 runs synchronously behind the loading screen; chunk generation is on-demand thereafter.
 
+**Entry points and the player name (#1321, #1322):** the portal landing page and My Worlds link
+`/play/?singleplayer=1&player_name=<name>&lang=<code>` (a GET form with a remembered name), so the solo path
+needs neither an account nor a hosted world. The name matters because it IS the player id (`LoadPlayer(name)`,
+every owner field) and there is no rename: a deep-linked `player_name` is persisted to the settings; a
+`?singleplayer=1` start with no name anywhere first peeks at the blob it is about to restore (local, or the
+newer Glitch cloud copy) — `MemoryWorldSnapshotPeek.SolePlayerId` (Persistence, unit-tested, streams the JSON
+instead of deserializing the world) — and adopts that player when the world has exactly one, otherwise the
+menu opens a one-time "What is your name?" modal (`AppShell.BrowserNamePromptPending`). The menu's name field
+prefills from the same peek when the settings hold no name. On a bare `/play/` (no `server_host`, no glitch
+`install_id`) Singleplayer leads and the Play button is not built at all — it could only dial 127.0.0.1.
+
 ## Bottom line
 
 Treat the browser client as a **hosted Lite** path, not a replacement for the native desktop build. The largest

@@ -9606,6 +9606,30 @@ follow-ups (fauna vs. player builds, ground drops, fluids, falling blocks, the p
 
 ---
 
+## ✅ Done (2026-08-29): play solo in the browser without an account — portal entry, bare-/play menu, name prompt (#1321, #1322, #1323)
+
+The portal at play.blocksbeyondthestars.de only ever offered *Create account / Sign in*, and the sole way
+into `/play/` was a hosted world's Play button — so every "play in your browser" visitor concluded they had
+to sign up and create a world, although the same WebGL build has run a full in-process singleplayer since
+v0.7.8 (`?singleplayer=1`). Nothing linked to it; README and manual even still said "browser play is online
+only". **Portal (#1321):** the landing leads with a player-name field + "▶ Play now" — a plain GET form into
+`/play/?singleplayer=1&player_name=…&lang=…` (no-JS safe; name remembered under the `bbs_player_name` key
+My Worlds shares, empty submit blocked with focus), sub-line and "playing with friends — how it works"
+retitled, My Worlds links the same URL (also in the empty state); new keys in all 14 portal locales
+(EN/DE hand-written, rest machine first-pass; `landing.sub` / `landing.how.title` re-translated), 5 new
+`WorldHostPortalPagesTests`. **Client (#1322):** on a bare `/play/` (no `server_host`, no glitch
+`install_id`) Singleplayer leads and the Play button is not built (it dialed 127.0.0.1); the `"Explorer"`
+fallback is gone — a deep-linked start without a name runs `AppShell.ResolveBrowserPlayerNameThenStart`:
+peek the blob about to be restored (local or newer cloud copy) with the new Unity-free
+`MemoryWorldSnapshotPeek.SolePlayerId` (Persistence, streams the JSON, 6 tests) and adopt a sole player,
+else the menu opens a one-time "What is your name?" modal (`BrowserNamePromptPending`); a deep-linked
+`player_name` is persisted to the settings; the menu prefills its name field from the same peek
+(`BrowserLocalServer.PeekSavedPlayerName`). New keys `ui.webgl.name_prompt_*` EN+DE. **Docs (#1323):**
+README ×2, USER_MANUAL, HOSTED_WORLDS, WEBCLIENT_FEASIBILITY. Needs the next WebGL release for the client
+half; the portal half ships with the next WorldHost image.
+
+---
+
 ## ✅ Done (2026-08-26): a Machines crafting tab + the one clear glass (#1273, #1274)
 
 The last two of Lyxette's follow-ups, both crafting-content.

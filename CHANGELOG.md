@@ -13,6 +13,23 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🕹️ Play solo in the browser without an account (#1321, #1322, #1323)
+
+- **Portal landing page:** play.blocksbeyondthestars.de now leads with a player-name field and **"▶ Play
+  now"** — singleplayer in the browser, no account, no hosted world, no instance to wake. The account cards
+  and the "playing with friends" steps follow below; *My worlds* links the same solo entry (also in its
+  "no world yet" state). The name is remembered in the browser and handed to the game, because the browser
+  world keys its player on it. All fourteen portal languages.
+- **WebGL menu on a bare `/play` page:** Singleplayer comes first and the dead *Play* button (it could
+  only dial 127.0.0.1) is gone; *Connect to a server…* stays as the manual fallback. Portal deep-links and
+  glitch.fun keep their layouts.
+- **No more silent "Explorer":** a `?singleplayer=1` start that knows no name first looks at the world it
+  is about to restore — a world with exactly one player belongs to that player (second device, Glitch
+  cloud save) and is adopted — and otherwise asks once, *"What is your name?"*. A deep-linked
+  `player_name` is now persisted like a typed one, and the menu prefills its name field from the saved
+  world when the settings are empty.
+- **Docs:** README, user manual and the hosted-worlds notes no longer claim browser play is "online only".
+
 ## [2026.8.22] — 2026-08-26
 
 The outfitter release — and, more than any release before it, **one player's release**. Between 25 and

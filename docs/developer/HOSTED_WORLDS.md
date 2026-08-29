@@ -126,7 +126,15 @@ through Caddy.
   `/play/?auto_join=1&player_name=…&server_host=<wssUrl>&hosted_token=…&world_id=…&lang=…` — the
   client reads `hosted_token`/`world_id` from the page URL (`GlitchIntegration` →
   `AppShell.HostedToken`) so the instance's token gate admits the browser join, and the WebGL
-  loading shell uses `lang` for its own two words. The portal pages themselves are fully localized
+  loading shell uses `lang` for its own two words. **Solo entry (#1321):** the landing page leads with a
+  player-name field + "Play now" — a plain GET form into `/play/?singleplayer=1&player_name=…&lang=…`
+  (works without JavaScript; the name is remembered under the `bbs_player_name` localStorage key My
+  Worlds shares) — and My Worlds links the same URL, so nobody has to create an account or a hosted
+  world to play alone. The client reads `singleplayer` (boot straight into the in-browser world) and
+  `player_name` (persisted to the settings like a typed name) from the page URL; on a **bare** `/play/`
+  (no `server_host`, no glitch `install_id`) the WebGL menu leads with Singleplayer and builds no Play
+  button (nothing to dial), and a deep-linked start without any known name adopts the saved world's
+  sole player or asks once — never the old silent "Explorer" (#1322). The portal pages themselves are fully localized
   into **every language the game ships** (German default, `?lang=<code>`, header picker + footer
   links, `bbs_lang` cookie — text in `src/BlocksBeyondTheStars.WorldHost/Locales/<code>.json`,
   embedded in the assembly, English as the per-key fallback) and carry the game logo + website

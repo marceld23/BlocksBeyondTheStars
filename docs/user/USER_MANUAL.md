@@ -33,12 +33,16 @@ Last updated: 2026-08-26.
   name is additionally passed as a server admin). The same address is announced again in chat and as a
   HUD toast once you are in ("Hosting — friends can join at ip:port"). The session ends (and the world
   saves) when the host quits. Friends outside your LAN need a port forward of that UDP port.
-- **Browser singleplayer (glitch.fun and the `/play` page):** one world per browser, saved in the browser
-  itself (and in Glitch Cloud Save when you are logged in on Glitch — that is what keeps it across game
-  updates and devices). **New world…** next to *Singleplayer* deletes that world after a confirmation and
-  starts over; your name and settings stay.
+- **Browser singleplayer (play.blocksbeyondthestars.de, glitch.fun and any `/play` page):** no account, no
+  download — type a player name on the portal's start page and press **Play now**. One world per browser,
+  saved in the browser itself (and in Glitch Cloud Save when you are logged in on Glitch — that is what
+  keeps it across game updates and devices). **The name you pick is your player in that world** — choose it
+  once and keep it; a different name later is a new player starting from scratch. The game asks for a
+  name once if it does not know one yet, and recognises the saved world's player when you come back on
+  another device. **New world…** next to *Singleplayer* deletes that world after a confirmation and starts
+  over; your name and settings stay.
 - **Official Worlds (online multiplayer, beta):** the in-game portal for hosted worlds on the official
-  servers — also available in the browser at [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de).
+  servers — the same site, [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de), further down.
   Create a free account (no email needed), then create your own world. There are **no open public
   servers** — every world belongs to a player. To play with friends: set a **join password**, then
   **list the world publicly** (world's **Manage** dialog → *"List publicly"*; only password-protected
