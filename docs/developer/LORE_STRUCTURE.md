@@ -62,7 +62,7 @@ natural worlds and ecosystems. Protection became extermination.
 
 ### A3. The war and the fall
 When humans and SPS ships arrived in numbers at the prepared systems, the Guardian struck. Its units — the
-**UFO drones** in space, the **black three-eyed robots** on planet surfaces, and the **black flying
+**UFO drones** in space, the **grey three-eyed robots** on planet surfaces, and the **grey flying
 scan-drones** — had been built to explore and protect; under the Guardian they became hunters. They attacked
 SPS ships, destroyed outposts, prevented settlements, and killed humans, believing they were protecting the
 worlds. In the end the SPS was completely destroyed.
@@ -116,7 +116,7 @@ beats/fragments declare which facts they touch.
 - **C5 — The Guardian core (*Wächter-KI*) misread its mandate** — tasked to protect the biomes, it judged
   **humans = disruptors** and turned protection into extermination.
 - **C6 — The machines are the Guardian's units.** Three types, one origin (built to explore/protect, turned
-  to hunting): **UFO drones (space)**, **black three-eyed robots (planet surface)**, **black flying
+  to hunting): **UFO drones (space)**, **grey three-eyed robots (planet surface)**, **grey flying
   scan-drones (planet, hovering)**.
 - **C7 — VEGA** was the SPS ships' AI *and* a steward part of the old network, with the directive **protect
   humans**; she turned against the network.
@@ -159,8 +159,8 @@ cleanly restored; the machines are alive; one player is the unique chosen one.
 | **The player** | a clone grown from an imprint | agency real, origin engineered; learns what they are over the arc (A6) |
 | **The heal-tank** | clone vessel / respawn | quiet before the C10/C17 reveal |
 | **UFO drones** | space enemy [exists] | ex space probes/security; now patrol faulty, attack ships, follow old commands |
-| **Black three-eyed robots** | planet ground enemy [exists, retheme] | ex surface guardians/scanners; three eyes = sensor modules; ground-hugging hunters |
-| **Black flying scan-drones** | planet hovering enemy [new] | monitor biomes, scan players, alert units — "observe, evaluate, exterminate" |
+| **Grey three-eyed robots** | planet ground enemy [exists, retheme] | ex surface guardians/scanners; three eyes = sensor modules; ground-hugging hunters; grey circuit-plated armour with red sensor eyes (#1337) |
+| **Grey flying scan-drones** | planet hovering enemy [new] | monitor biomes, scan players, alert units — "observe, evaluate, exterminate" |
 | **Settlers / vendors / quartermasters** | survivor NPCs [exists] | isolated descendants; legends, fear of the machines, rumours/coordinates |
 | **Net fragments** | story find [proposed] | text-only shards of the old network / SPS data / VEGA memory (§E2) |
 | **Dataqubes** | knowledge find [exists] | mini-games → knowledge; **separate** from net fragments |

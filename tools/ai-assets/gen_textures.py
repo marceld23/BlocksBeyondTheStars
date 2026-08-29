@@ -196,6 +196,11 @@ TEXTURES = [
     ("machine_block", "a heavy sci-fi industrial machine housing, dark grey armoured metal casing with rivets, bolted seams, ventilation slits and a small amber indicator light, front view"),
     ("factory_pipe", "an industrial factory pipe duct, a thick riveted olive-grey metal pipe with flanged joints and a pressure valve, front view"),
     ("factory_terminal", "a sci-fi factory production terminal, a dark metal console with a glowing cyan holographic screen showing production graphs, buttons and a status light, front view"),
+    # Guardian machines (#1338): the plating tile WorldEntities/SpaceView load for the robot, scan-drone,
+    # space drone, UFO and cruiser hulls — grey circuit-board armour, no lights (the red eyes are separate).
+    # Post-processed before bundling (the entity loaders do NOT brighten tiles like CreatureBuilder does):
+    # desaturated 70 % and lifted v' = 1 - (1 - v) * 0.76 so the plates sit at ~0.40 mean grey.
+    ("enemy_robot", "dark grey armoured sci-fi robot plating with bolted panel seams and etched light-grey circuit-board traces and solder pads, matte metal, coarse large panels, no lights, no glow, no colour"),
 ]
 
 

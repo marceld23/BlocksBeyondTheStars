@@ -52,10 +52,10 @@ what can we rebuild?"
 
 - **UFO drones (space)** **[exists]** — ex SPS-network probes/security; faulty IFF, kill-on-sight; red dome =
   fault/warning. Mechanically unchanged; the story gives them *why*.
-- **Black three-eyed ground robots (planet)** **[exists, retheme]** — the existing **walking** planet enemy
+- **Grey three-eyed ground robots (planet)** **[exists, retheme]** — the existing **walking** planet enemy
   ([GameServerEnemies.cs](../../src/BlocksBeyondTheStars.GameServer/GameServerEnemies.cs)) re-skinned from
-  organic aliens into a Guardian robot (three eyes = sensor modules); keeps its ground-hugging AI.
-- **Black flying scan-drones (planet)** **[new]** — an **added** hovering planet enemy: monitor biomes, scan
+  organic aliens into a Guardian robot (three eyes = sensor modules; grey circuit-plated armour, red eyes — #1337); keeps its ground-hugging AI.
+- **Grey flying scan-drones (planet)** **[new]** — an **added** hovering planet enemy: monitor biomes, scan
   players, alert units ("observe, evaluate, exterminate"). The ground counterpart of the space UFO.
 - **Organic fauna stays organic** **[exists]** — the life the Guardian *protects*; **not** story enemies. The
   machines guard the wildlife and hunt the humans.

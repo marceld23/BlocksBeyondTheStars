@@ -7,8 +7,8 @@ using UnityEngine;
 namespace BlocksBeyondTheStars.Client
 {
     /// <summary>
-    /// Renders planet enemies as the story's **black three-eyed Guardian robots** (retheme) at the positions
-    /// the server reports (<c>GameBootstrap.PlanetEnemies</c>) — a hunched dark-metal body with grasping arms,
+    /// Renders planet enemies as the story's **grey, circuit-plated three-eyed Guardian robots** (retheme) at the positions
+    /// the server reports (<c>GameBootstrap.PlanetEnemies</c>) — a hunched dark-grey armoured body with grasping arms,
     /// digitigrade legs, antenna-like sensor spikes and a row of three glowing RED sensor "eyes" (the red
     /// lights the settlers fear). Self-animated like <see cref="PlayerAvatar"/>/creatures: a speed-driven
     /// stalk cycle, an idle sweep, a swipe lunge when hostile and close, a hurt flinch on hull drops, and
@@ -657,10 +657,14 @@ namespace BlocksBeyondTheStars.Client
             go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
-        /// <summary>Shared materials for the black Guardian robot (story retheme): dark metal plating (lit +
+        /// <summary>Shared materials for the Guardian robot (story retheme): grey circuit-plated armour (lit +
         /// tinted, casts shadows via LitColor's URP pass), darker joints, mid-grey metal trim (the limbs,
         /// antennae + feet that used to be bone/horn), and unlit glowing RED sensor "eyes" — the three red
-        /// lights the settlers fear. An optional <c>enemy_robot</c> plating tile is used if present.</summary>
+        /// lights the settlers fear. The <c>enemy_robot</c> tile (#1338) carries the plating look AND its
+        /// brightness: unlike <c>CreatureBuilder</c>, this loader does not lift tiles toward white, so the
+        /// tile is authored at its final greys and the plating tint stays near 1. Before #1337 the plating
+        /// was a flat 0.13 tint — on screen an 8–18 % black silhouette that vanished against dark ground
+        /// and the night sky. Without the tile (a stripped build) the same greys are used flat.</summary>
         private static void EnsureMaterials()
         {
             if (_hideMat != null)
@@ -670,16 +674,19 @@ namespace BlocksBeyondTheStars.Client
 
             var lit = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             var unlit = Shader.Find("Unlit/Color") ?? lit;
-            var plateTex = LoadTex("enemy_robot"); // optional metal-plating tile (flat dark if absent)
-            _hideMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.13f, 0.14f, 0.16f)) });      // dark plating
-            _hideDarkMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.08f, 0.085f, 0.10f)) }); // darker joints
-            if (plateTex != null)
+            var plateTex = LoadTex("enemy_robot"); // circuit-plating tile (flat dark grey if absent)
+            bool tiled = plateTex != null;
+            var plating = tiled ? new Color(0.95f, 0.95f, 0.97f) : new Color(0.40f, 0.41f, 0.44f); // dark-grey plates (tile shows through)
+            var joints = tiled ? new Color(0.55f, 0.55f, 0.58f) : new Color(0.22f, 0.22f, 0.25f);  // near-black joints keep the two-tone
+            _hideMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(plating) });
+            _hideDarkMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(joints) });
+            if (tiled)
             {
                 _hideMat.mainTexture = plateTex;
                 _hideDarkMat.mainTexture = plateTex;
             }
 
-            _clawMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.34f, 0.36f, 0.40f)) }); // metal trim / antennae / feet
+            _clawMat = WithFill(new Material(lit) { color = ShaderColor.Srgb(new Color(0.52f, 0.54f, 0.58f)) }); // plain metal trim / antennae / feet
             _eyeMat = new Material(unlit) { color = ShaderColor.Srgb(new Color(1f, 0.18f, 0.14f)) };             // glowing red sensors (bloom picks it up)
         }
 
