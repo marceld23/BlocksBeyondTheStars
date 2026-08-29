@@ -16,7 +16,10 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
         public Camera Camera;
-        public float Reach = 6f;
+
+        /// <summary>The local player rig — the outline asks it for the exact cell the next click would target
+        /// (voxel, parked-ship cell or, with the right tool/item held, a water/lava cell) (#1353).</summary>
+        public PlayerController Player;
 
         private GameObject _outline;
         private Material _outlineMat;
@@ -74,58 +77,28 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Marches the voxel grid (Amanatides &amp; Woo) along the aim ray and returns the first
-        /// targetable cell within <see cref="Reach"/> — mirroring <c>PlayerController.AimTarget</c> so the
-        /// selection box highlights EXACTLY the block the mine/place click would hit (voxel world OR a parked
-        /// ship cell). Reading the world directly instead of <see cref="Physics.Raycast"/> is what kills the
-        /// "black outline flickers in the air" glitch: the old ray could snap the box onto a creature/ship/
-        /// speeder collider hovering in mid-air, linger on a just-mined cell whose collider hadn't re-baked
-        /// yet, or blink off for a frame while a chunk collider was mid-rebuild (the same B32 desync the drill
-        /// already side-steps). The march sees none of that — it only knows the authoritative block data.</summary>
+        /// <summary>The cell the selection box sits on: <see cref="PlayerController.AimOutlineCell"/>, i.e. the
+        /// SAME voxel march the mine/place click uses (voxel world OR a parked ship cell, and since #1353 a
+        /// water/lava cell whenever the held tool can mine it or the held item would be placed into it) —
+        /// so the highlight can never disagree with the accepted target. This used to be a private copy of
+        /// the march that skipped fluids unconditionally: aiming at lava with a mining beam showed no box, or
+        /// the box sat on the rock BEHIND the lava while the click hit the lava. Reading the world directly
+        /// instead of <see cref="Physics.Raycast"/> is what kills the "black outline flickers in the air"
+        /// glitch: a ray could snap the box onto a creature/ship/speeder collider hovering in mid-air, linger
+        /// on a just-mined cell whose collider hadn't re-baked yet, or blink off for a frame while a chunk
+        /// collider was mid-rebuild (the same B32 desync the drill side-steps).</summary>
         private bool AimVoxel(out int bx, out int by, out int bz)
         {
             bx = by = bz = 0;
-            if (Game?.World == null || Camera == null)
+            if (Player == null || !Player.AimOutlineCell(out var cell))
             {
                 return false;
             }
 
-            Vector3 o = Camera.transform.position;
-            Vector3 dir = Camera.transform.forward;
-            int x = Mathf.FloorToInt(o.x), y = Mathf.FloorToInt(o.y), z = Mathf.FloorToInt(o.z);
-
-            int sx = dir.x >= 0 ? 1 : -1, sy = dir.y >= 0 ? 1 : -1, sz = dir.z >= 0 ? 1 : -1;
-            float invx = Mathf.Abs(dir.x) > 1e-6f ? 1f / Mathf.Abs(dir.x) : float.PositiveInfinity;
-            float invy = Mathf.Abs(dir.y) > 1e-6f ? 1f / Mathf.Abs(dir.y) : float.PositiveInfinity;
-            float invz = Mathf.Abs(dir.z) > 1e-6f ? 1f / Mathf.Abs(dir.z) : float.PositiveInfinity;
-            float tMaxX = float.IsInfinity(invx) ? float.PositiveInfinity : (dir.x > 0 ? (x + 1 - o.x) : (o.x - x)) * invx;
-            float tMaxY = float.IsInfinity(invy) ? float.PositiveInfinity : (dir.y > 0 ? (y + 1 - o.y) : (o.y - y)) * invy;
-            float tMaxZ = float.IsInfinity(invz) ? float.PositiveInfinity : (dir.z > 0 ? (z + 1 - o.z) : (o.z - z)) * invz;
-
-            float t = 0f;
-            for (int i = 0; i < 80 && t <= Reach; i++)
-            {
-                var id = Game.World.GetBlock(x, y, z);
-                if ((!id.IsAir && !IsFluid(id)) || !Game.LandedShipBlockAt(x, y, z, out _, out _).IsAir)
-                {
-                    bx = x; by = y; bz = z;
-                    return true;
-                }
-
-                if (tMaxX <= tMaxY && tMaxX <= tMaxZ) { x += sx; t = tMaxX; tMaxX += invx; }
-                else if (tMaxY <= tMaxZ) { y += sy; t = tMaxY; tMaxY += invy; }
-                else { z += sz; t = tMaxZ; tMaxZ += invz; }
-            }
-
-            return false;
-        }
-
-        /// <summary>Water/lava are passed through when aiming (no collider — you swim/sink into them), matching
-        /// the mine/place march so the box never sits on a fluid you cannot target.</summary>
-        private bool IsFluid(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
-        {
-            var key = Game?.Content?.BlockById(id)?.Key;
-            return key is "water" or "lava";
+            bx = cell.x;
+            by = cell.y;
+            bz = cell.z;
+            return true;
         }
 
         private int _crackX, _crackY, _crackZ;
