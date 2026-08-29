@@ -19,8 +19,10 @@ import base64
 import os
 import sys
 import time
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
@@ -198,10 +200,38 @@ TEXTURES = [
     ("factory_terminal", "a sci-fi factory production terminal, a dark metal console with a glowing cyan holographic screen showing production graphs, buttons and a status light, front view"),
     # Guardian machines (#1338): the plating tile WorldEntities/SpaceView load for the robot, scan-drone,
     # space drone, UFO and cruiser hulls — grey circuit-board armour, no lights (the red eyes are separate).
-    # Post-processed before bundling (the entity loaders do NOT brighten tiles like CreatureBuilder does):
-    # desaturated 70 % and lifted v' = 1 - (1 - v) * 0.76 so the plates sit at ~0.40 mean grey.
+    # Post-processed by `guardian_plating` (see POST_PROCESS) before the tile is written, since the entity
+    # loaders do NOT brighten tiles like CreatureBuilder does: desaturated 70 % and lifted
+    # v' = 1 - (1 - v) * 0.76 so the plates sit at ~0.40 mean grey.
     ("enemy_robot", "dark grey armoured sci-fi robot plating with bolted panel seams and etched light-grey circuit-board traces and solder pads, matte metal, coarse large panels, no lights, no glow, no colour"),
 ]
+
+if TYPE_CHECKING:
+    from PIL import Image
+
+
+def guardian_plating(img: Image.Image) -> Image.Image:
+    """The Guardian plating post-process (#1338, made reproducible in #1369).
+
+    Desaturates by 70 % (blend towards the luminance with weight 0.7) and lifts every RGB channel
+    towards white with v' = 1 - (1 - v) * 0.76, alpha untouched. Applied to the 64 px tile right after
+    the resize, so out/textures/enemy_robot.png — and therefore `bundle_textures.py --from-out` — carries
+    the processed plates that the committed .bytes tile shows.
+    """
+    from PIL import ImageEnhance
+
+    rgba = img.convert("RGBA")
+    rgb = ImageEnhance.Color(rgba.convert("RGB")).enhance(1.0 - 0.70)
+    lifted = rgb.point(lambda v: round(255 - (255 - v) * 0.76))
+    lifted.putalpha(rgba.getchannel("A"))
+    return lifted
+
+
+# Per-tile post-processing applied to the generated 64 px tile before it is saved (key -> function).
+# Anything not listed here is written as generated.
+POST_PROCESS: dict[str, Callable[[Image.Image], Image.Image]] = {
+    "enemy_robot": guardian_plating,
+}
 
 
 def main() -> None:
@@ -219,7 +249,8 @@ def main() -> None:
     print(f"[tex] {len(textures)} textures")
     if args.dry_run:
         for i, (key, desc) in enumerate(textures, 1):
-            print(f"  {i:2d}. {key:16s} {desc}")
+            post = f"  [post: {POST_PROCESS[key].__name__}]" if key in POST_PROCESS else ""
+            print(f"  {i:2d}. {key:16s} {desc}{post}")
         return
 
     load_dotenv()
@@ -252,6 +283,8 @@ def main() -> None:
                     model="gpt-image-1-mini", prompt=prompt, size="1024x1024", quality="low", n=1)
                 raw = base64.b64decode(resp.data[0].b64_json)
                 img = Image.open(BytesIO(raw)).convert("RGBA").resize((64, 64), Image.NEAREST)
+                if block in POST_PROCESS:
+                    img = POST_PROCESS[block](img)
                 img.save(out)
                 done += 1
                 ok = True

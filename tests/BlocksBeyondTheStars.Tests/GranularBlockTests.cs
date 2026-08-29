@@ -283,6 +283,133 @@ public sealed class GranularBlockTests : IDisposable
         return reach;
     }
 
+    // ---------------- #1367: the landing follows the colliding rule ----------------
+
+    [Fact]
+    public void SandFallingOntoFlora_CrushesIt_DropsItsYield_AndLandsOnTheGround()
+    {
+        var server = Started(out var repo, "crushflora");
+        using (repo)
+        {
+            Floor(server, 120);
+            server.World.SetBlock(new Vector3i(0, 121, 0), Id("flora_fern")); // a fern on the floor — no collider
+            server.World.SetBlock(new Vector3i(0, 126, 0), Id("sand"));
+            server.WakeGranularForTest(0, 126, 0);
+            Steps(server, 2);
+
+            Assert.Equal(Id("sand").Value, server.World.GetBlock(new Vector3i(0, 121, 0)).Value); // on the floor, not a cell above it
+            Assert.True(server.World.GetBlock(new Vector3i(0, 126, 0)).IsAir);
+            var packet = Assert.Single(server.DropPackets);
+            Assert.Contains(packet.Items, s => s.Item == "plant_fiber" && s.Count == 2); // the fern's own drop
+            Assert.Equal(122, packet.Position.Y); // lying on top of the settled sand
+        }
+    }
+
+    [Fact]
+    public void SandFallingThroughAFlame_PutsItOut_AndFallsOn()
+    {
+        var server = Started(out var repo, "crushfire");
+        using (repo)
+        {
+            Floor(server, 120);
+            server.World.SetBlock(new Vector3i(0, 123, 0), Id("fire"));
+            server.World.SetBlock(new Vector3i(0, 127, 0), Id("sand"));
+            server.WakeGranularForTest(0, 127, 0);
+            Steps(server, 2);
+
+            Assert.Equal(Id("sand").Value, server.World.GetBlock(new Vector3i(0, 121, 0)).Value);
+            Assert.True(server.World.GetBlock(new Vector3i(0, 123, 0)).IsAir, "the flame is put out on the way down");
+            Assert.Empty(server.DropPackets); // fire drops nothing
+        }
+    }
+
+    [Fact]
+    public void AFallingBlock_WaitsAboveADoorway_InsteadOfLandingInTheGate()
+    {
+        var server = Started(out var repo, "doorway");
+        using (repo)
+        {
+            Floor(server, 120);
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(2.5f, 121f, 0.5f);
+            p.State.Inventory.Add("door_wood", 2, 16);
+            server.PlaceBlock("Builder", 0, 121, 0, "door_wood");
+            Assert.Contains(server.DoorSnapshots, d => d.Kind == "wood"); // the settlements bring their own doors
+
+            server.World.SetBlock(new Vector3i(0, 127, 0), Id("sand"));
+            server.WakeGranularForTest(0, 127, 0);
+            Steps(server, 3);
+
+            Assert.Equal(Id("sand").Value, server.World.GetBlock(new Vector3i(0, 127, 0)).Value); // held up — the doorway is occupied
+            for (int y = 121; y <= 126; y++)
+            {
+                Assert.True(server.World.GetBlock(new Vector3i(0, y, 0)).IsAir, $"y={y} must stay clear");
+            }
+        }
+    }
+
+    [Fact]
+    public void ASettledBlock_KeepsItsBuildersAttribution()
+    {
+        var server = Started(out var repo, "owner");
+        using (repo)
+        {
+            Floor(server, 120);
+            var p = server.AddLocalPlayer("Builder");
+            p.State.AboardShip = false;
+            p.State.Position = new Vector3f(0.5f, 132f, 0.5f);
+            p.State.Inventory.Add("sand", 4, 64);
+            server.PlaceBlock("Builder", 0, 130, 0, "sand");
+            Steps(server, 2);
+
+            var landed = new Vector3i(0, 121, 0);
+            Assert.Equal(Id("sand").Value, server.World.GetBlock(landed).Value);
+            Assert.Equal(p.State.PlayerId, repo.GetBlockAttribution(server.World.LocationId, landed)?.Owner); // #490 survives the fall
+        }
+    }
+
+    [Fact]
+    public void WeatherSnowThatFalls_KeepsItsMeltEntry_AndStillMelts()
+    {
+        var server = Started(out var repo, "snowfall");
+        using (repo)
+        {
+            Floor(server, 120);
+            server.World.SetBlock(new Vector3i(0, 125, 0), Id("stone")); // a ledge
+            server.DepositWeatherSnowForTest(0, 126, 0);                 // a blizzard's drift on it
+            Assert.Contains(new Vector3i(0, 126, 0), server.WeatherDepositCellsForTest);
+
+            server.RemoveBlockForTest(0, 125, 0); // the ledge is mined away — the drift comes down
+            Steps(server, 2);
+            Assert.Equal(Id("snow").Value, server.World.GetBlock(new Vector3i(0, 121, 0)).Value);
+            Assert.Contains(new Vector3i(0, 121, 0), server.WeatherDepositCellsForTest);
+            Assert.DoesNotContain(new Vector3i(0, 126, 0), server.WeatherDepositCellsForTest);
+
+            server.MeltWeatherSnowForTest();
+            Assert.True(server.World.GetBlock(new Vector3i(0, 121, 0)).IsAir, "the fallen drift still thaws");
+            Assert.Empty(server.WeatherDepositCellsForTest);
+        }
+    }
+
+    [Fact]
+    public void SandOnAMeltingDrift_ComesDownWithTheThaw()
+    {
+        var server = Started(out var repo, "thaw");
+        using (repo)
+        {
+            Floor(server, 120);
+            server.DepositWeatherSnowForTest(0, 121, 0);
+            server.World.SetBlock(new Vector3i(0, 122, 0), Id("sand")); // dropped on the drift, at rest
+
+            server.MeltWeatherSnowForTest();
+            Steps(server, 2);
+
+            Assert.Equal(Id("sand").Value, server.World.GetBlock(new Vector3i(0, 121, 0)).Value);
+            Assert.True(server.World.GetBlock(new Vector3i(0, 122, 0)).IsAir);
+        }
+    }
+
     public void Dispose()
     {
         try

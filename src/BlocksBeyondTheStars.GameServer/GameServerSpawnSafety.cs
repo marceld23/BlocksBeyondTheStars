@@ -256,6 +256,17 @@ public sealed partial class GameServer
             if (IsEntombed(p.Position))
             {
                 var freed = DigOutUpwards(p.Position) ?? SafeSpawnPoint(p.PlayerId);
+                // #1367: when the pad fallback is walled in as well (a build higher than the touchdown scan over
+                // the pad), the rescue used to fire every second — teleport, toast and chat line — into the same
+                // blocked spot for as long as the player stayed sealed in. One rescue per entombment episode: a
+                // destination that is itself entombed and the same as last time is left alone until the player
+                // (or the world) changes something; a new destination is a new rescue.
+                if (s.EntombedRescueSpot is { } last && last.ToBlock() == freed.ToBlock() && IsEntombed(freed))
+                {
+                    continue;
+                }
+
+                s.EntombedRescueSpot = freed;
                 p.Position = freed;
                 s.AwaitingSpawnAdopt = true; // #865: the client's stale stream must not drag them back in
                 _log.Warn($"Player '{p.Name}' was sealed inside blocks; moved to {freed}.");
@@ -266,6 +277,8 @@ public sealed partial class GameServer
                 SendPlayerState(s);
                 continue;
             }
+
+            s.EntombedRescueSpot = null; // out in the open again — the episode is over
 
             if (!IsInVoid(p.Position))
             {

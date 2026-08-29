@@ -101,6 +101,38 @@ public sealed class ShipRepairTests : IDisposable
     }
 
     [Fact]
+    public void ShipRepairStatus_ListsTheBreachCells_AndClearsThemOnceRepaired()
+    {
+        // #1368: the readout carries the missing design cells (structure-local) so the client can outline every
+        // breach in the world while the panel is up — the same cells the per-cell repair accepts.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var player = server.AddLocalPlayer("Host");
+            var hole = server.CarveFirstShipCellForTest("Host");
+
+            var status = server.ShipRepairStatusForTest("Host");
+            Assert.NotNull(status);
+            Assert.True(status!.NeedsRepair);
+            Assert.Equal(1, status.MissingCells);
+            Assert.Equal("ship:Host", status.StructureId);
+            Assert.Equal(new[] { hole.X }, status.MissingX);
+            Assert.Equal(new[] { hole.Y }, status.MissingY);
+            Assert.Equal(new[] { hole.Z }, status.MissingZ);
+
+            player.State.Inventory.Add(hole.Item, 1, 99);
+            Assert.True(server.RepairShipForTest("Host", new RepairShipIntent { Mode = "cell", X = hole.X, Y = hole.Y, Z = hole.Z }));
+
+            var after = server.ShipRepairStatusForTest("Host");
+            Assert.NotNull(after);
+            Assert.Equal(0, after!.MissingCells);
+            Assert.Empty(after.MissingX);
+            Assert.Empty(after.MissingY);
+            Assert.Empty(after.MissingZ);
+        }
+    }
+
+    [Fact]
     public void RepairShipAll_RefillsCarvedHull_AndHull_Together()
     {
         var server = Started(out var repo);

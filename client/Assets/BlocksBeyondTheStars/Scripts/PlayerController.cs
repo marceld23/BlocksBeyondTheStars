@@ -1245,8 +1245,28 @@ namespace BlocksBeyondTheStars.Client
             BlocksBeyondTheStars.Shared.Definitions.BlockDefinition fluid)
             => fluid != null && fluid.Mineable && tool.Kind == fluid.RequiredTool && tool.Tier >= fluid.MinToolTier;
 
-        /// <summary>Both fluids when the held item places a block (the block displaces either, #851), else none.</summary>
-        private FluidAim PlaceFluidAim() => HeldItemPlacesBlock() ? FluidAim.Both : FluidAim.None;
+        /// <summary>Both fluids when the held item places a block (the block displaces either, #851) — minus what
+        /// the server refuses in a fluid cell (#1368, mirroring <c>HandlePlace</c>): a door is an entity that
+        /// needs an air cell (never offered over water or lava — the block data's <c>door</c> category), and a
+        /// torch is an open flame (not offered over water; lava is accepted). Without the gate the client
+        /// aimed the door/torch at the fluid, the server rejected, and the player got a reject toast.</summary>
+        private FluidAim PlaceFluidAim()
+        {
+            string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
+            string placesKey = string.IsNullOrEmpty(held) ? null : Game.Content?.GetItem(held)?.PlacesBlock;
+            if (string.IsNullOrEmpty(placesKey))
+            {
+                return FluidAim.None;
+            }
+
+            var block = Game.Content.GetBlock(placesKey);
+            if (block != null && string.Equals(block.Category, "door", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return FluidAim.None;
+            }
+
+            return block != null && block.Key == "torch" ? FluidAim.Lava : FluidAim.Both;
+        }
 
         /// <summary>The cell the selection outline belongs on (#1353): the very target the next click would take
         /// — mine with the held tool (including the fluids it can mine) or place the held block (into a fluid) —

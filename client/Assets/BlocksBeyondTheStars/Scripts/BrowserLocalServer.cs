@@ -85,8 +85,12 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The name of the one player saved in this browser's local world, or null (no world,
         /// unreadable, or not exactly one player). The menu prefills its name field from this when the
         /// settings hold no name (#1322): the name IS the player id, so nothing else gets a returning
-        /// player back into their own world.</summary>
-        public static string PeekSavedPlayerName() => MemoryWorldSnapshotPeek.SolePlayerId(LoadLocalBlob());
+        /// player back into their own world. Cached per blob version (#1368) — the menu asks on every build,
+        /// and reading + gunzipping a multi-MB blob each time was a visible hitch.</summary>
+        public static string PeekSavedPlayerName()
+            => _peekCache.Get(SaveBlobPath, () => MemoryWorldSnapshotPeek.SolePlayerId(LoadLocalBlob()));
+
+        private static readonly BlobPeekCache _peekCache = new BlobPeekCache();
 
         /// <summary>"New world" (#1181): deletes the world saved in this browser and arms the reset marker
         /// that keeps the deployment migration (#1177) and the cloud fetch from bringing the old world back
@@ -96,6 +100,7 @@ namespace BlocksBeyondTheStars.Client
         public static bool ResetLocalWorld()
         {
             bool deleted = BrowserWorldReset.Reset(SaveDirectory, BlobFile);
+            _peekCache.Invalidate(); // the blob is gone — the saved-name peek must not answer from memory
             WebGlStorage.Sync(); // the delete + marker must be durable before the fresh world boots
             Debug.Log(deleted
                 ? "[BrowserSP] Local world deleted on request — starting over."

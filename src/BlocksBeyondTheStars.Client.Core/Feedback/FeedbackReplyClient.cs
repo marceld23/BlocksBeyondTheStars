@@ -37,21 +37,22 @@ namespace BlocksBeyondTheStars.Client.Feedback
         /// <summary>The developer entries the client must acknowledge once it showed them.</summary>
         public List<long> UnseenIds { get; } = new List<long>();
 
-        /// <summary>True when the newest developer entry is a question the player can answer from the game
-        /// (the inbox's <c>waiting_for_player</c> state).</summary>
+        /// <summary>True when the player can answer from the game: the newest entry of the thread is a
+        /// developer question (nothing from the player after it). Derived from the thread alone, NOT from
+        /// <see cref="Status"/> (#1369): an operator who flips the status by hand to <c>triaged</c> while the
+        /// question is still open used to make the answer box vanish — and the inbox accepts an answer in
+        /// any status as long as a developer entry exists.</summary>
         public bool AwaitsAnswer
         {
             get
             {
-                for (int i = Replies.Count - 1; i >= 0; i--)
+                if (Replies.Count == 0)
                 {
-                    if (Replies[i].IsDev)
-                    {
-                        return Replies[i].IsQuestion && Status == "waiting_for_player";
-                    }
+                    return false;
                 }
 
-                return false;
+                var last = Replies[Replies.Count - 1];
+                return last.IsDev && last.IsQuestion; // a player entry after the question means it was answered
             }
         }
     }
@@ -65,6 +66,10 @@ namespace BlocksBeyondTheStars.Client.Feedback
 
         /// <summary>Threads returned by <see cref="FeedbackReplyClient.Fetch"/> (empty for the other calls).</summary>
         public List<FeedbackReplyThread> Threads { get; } = new List<FeedbackReplyThread>();
+
+        /// <summary>Of the report ids the poll asked about, the ones the inbox no longer has for this key
+        /// (deleted, pruned, or never readable with it) — the caller forgets them (#1369).</summary>
+        public List<string> Gone { get; } = new List<string>();
     }
 
     /// <summary>
@@ -114,9 +119,37 @@ namespace BlocksBeyondTheStars.Client.Feedback
 
         // ---------------- Wire helpers (shared with the WebGL transport) ----------------
 
-        /// <summary>The poll URL for a key: <c>{endpoint}?key=…&amp;since=…</c>.</summary>
-        public string FetchUrl(string replyKey, long sinceUnix)
-            => $"{_endpoint}?key={Uri.EscapeDataString(replyKey ?? string.Empty)}&since={Math.Max(0, sinceUnix)}";
+        /// <summary>Upper bound on the remembered ids one poll names — matches the inbox's cap.</summary>
+        public const int MaxKnownIds = 50;
+
+        /// <summary>The poll URL for a key: <c>{endpoint}?key=…&amp;since=…</c>, plus <c>&amp;ids=a,b,c</c> when the
+        /// caller names the report ids it still remembers (#1369) — the inbox answers with the ones it no
+        /// longer has for this key as <c>gone</c>.</summary>
+        public string FetchUrl(string replyKey, long sinceUnix, IEnumerable<string>? knownReportIds = null)
+        {
+            var sb = new StringBuilder(_endpoint)
+                .Append("?key=").Append(Uri.EscapeDataString(replyKey ?? string.Empty))
+                .Append("&since=").Append(Math.Max(0, sinceUnix));
+
+            if (knownReportIds != null)
+            {
+                var ids = new List<string>();
+                foreach (string id in knownReportIds)
+                {
+                    if (!string.IsNullOrEmpty(id) && !ids.Contains(id) && ids.Count < MaxKnownIds)
+                    {
+                        ids.Add(id);
+                    }
+                }
+
+                if (ids.Count > 0)
+                {
+                    sb.Append("&ids=").Append(Uri.EscapeDataString(string.Join(",", ids)));
+                }
+            }
+
+            return sb.ToString();
+        }
 
         public string AckUrl => _endpoint + "/ack";
 
@@ -218,10 +251,48 @@ namespace BlocksBeyondTheStars.Client.Feedback
             return threads;
         }
 
+        /// <summary>Parses the poll response's <c>gone</c> list (#1369) — the report ids the inbox no longer
+        /// has for this key. Tolerant like <see cref="ParseThreads"/>: anything malformed yields an empty
+        /// list, so an older inbox without the field forgets nothing.</summary>
+        public static List<string> ParseGone(string? json)
+        {
+            var gone = new List<string>();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return gone;
+            }
+
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind != JsonValueKind.Object ||
+                    !doc.RootElement.TryGetProperty("gone", out var items) || items.ValueKind != JsonValueKind.Array)
+                {
+                    return gone;
+                }
+
+                foreach (var item in items.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(item.GetString()))
+                    {
+                        gone.Add(item.GetString()!);
+                    }
+                }
+            }
+            catch
+            {
+                // malformed body — nothing is gone
+            }
+
+            return gone;
+        }
+
         // ---------------- Blocking calls (desktop; run on a background task) ----------------
 
-        /// <summary>Asks for threads with unread developer entries. Blocking; never throws.</summary>
-        public FeedbackReplyResult Fetch(string replyKey, long sinceUnix = 0)
+        /// <summary>Asks for threads with unread developer entries; <paramref name="knownReportIds"/> (the
+        /// reports this install still remembers) come back as <see cref="FeedbackReplyResult.Gone"/> when the
+        /// inbox no longer has them. Blocking; never throws.</summary>
+        public FeedbackReplyResult Fetch(string replyKey, long sinceUnix = 0, IEnumerable<string>? knownReportIds = null)
         {
             var result = new FeedbackReplyResult();
             if (!Preflight(result, replyKey))
@@ -229,7 +300,11 @@ namespace BlocksBeyondTheStars.Client.Feedback
                 return result;
             }
 
-            Send(result, HttpMethod.Get, FetchUrl(replyKey, sinceUnix), null, body => result.Threads.AddRange(ParseThreads(body)));
+            Send(result, HttpMethod.Get, FetchUrl(replyKey, sinceUnix, knownReportIds), null, body =>
+            {
+                result.Threads.AddRange(ParseThreads(body));
+                result.Gone.AddRange(ParseGone(body));
+            });
             return result;
         }
 

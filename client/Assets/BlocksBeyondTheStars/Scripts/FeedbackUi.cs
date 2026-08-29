@@ -96,10 +96,18 @@ namespace BlocksBeyondTheStars.Client
         private readonly FeedbackReplyTracker _inboxTracker = new FeedbackReplyTracker(); // by reply id (#1351)
         private readonly object _replyOwner = new object(); // its own menu owner — independent of the F1 dialog
 
-        // Reply window (built lazily).
+        // Reply window (built lazily). The thread body is a scrollable stack of UiTextChunks pieces (#1368):
+        // developer answers and the player's own replies are unbounded data-driven text, and one uGUI Text
+        // silently drops its mesh past ~16k glyphs (#1097) — the old 1400-character cut + Truncate hid the
+        // rest of a long thread with no hint that there was more.
         private Canvas _replyCanvas;
         private GameObject _replyOverlay;
-        private Text _replyTitle, _replyBody, _replyStatus, _answerLabel;
+        private Text _replyTitle, _replyStatus, _answerLabel;
+        private ScrollRect _replyBodyScroll;
+        private RectTransform _replyBodyContent;
+        private readonly List<Text> _replyBodyChunks = new List<Text>();
+        private float _replyBodyW; // viewport width the chunk Texts wrap at (set when the scroll is built)
+        private const float ReplyBodyH = 296f, ReplyBodyScrollbarW = 12f, ReplyBodyGutter = 8f;
         private InputField _answerInput;
         private Button _replyOkBtn, _replyAnswerBtn;
         private FeedbackReplyThread _shown;
@@ -211,6 +219,14 @@ namespace BlocksBeyondTheStars.Client
             // Capture at end of frame, before the dialog is shown and before MenuOpen hides the HUD: the shot
             // is the full frame WITH the HUD but WITHOUT this dialog (the requested look).
             yield return new WaitForEndOfFrame();
+            if (!_open)
+            {
+                // Closed in the very frame it was opened (the hotkey and Esc together): Close() already ran, so
+                // building the dialog now would show it with _open == false — holding the world with no Esc
+                // able to close it (#1368). Nothing to show, nothing to hold.
+                yield break;
+            }
+
             _shotJpg = TryCaptureJpg();
 
             EnsureDialog();
@@ -576,15 +592,25 @@ namespace BlocksBeyondTheStars.Client
                 return; // nothing sent recently → no request at all (no phone-home without a reason)
             }
 
+            // The ids we still remember ride along (#1369): the inbox names the ones it no longer has for
+            // our key as `gone`, and OnPollFinished forgets them — otherwise a deleted or pruned report
+            // would be polled for up to 90 days.
+            var known = new List<string>();
+            foreach (var sent in _sentLog.List(NowUnix()))
+            {
+                known.Add(sent.Id);
+            }
+
             _polling = true;
 #if UNITY_WEBGL && !UNITY_EDITOR
-            StartCoroutine(FeedbackWebGlTransport.Request(_replies.FetchUrl(_replyKey, 0), "GET", null, (res, body) =>
+            StartCoroutine(FeedbackWebGlTransport.Request(_replies.FetchUrl(_replyKey, 0, known), "GET", null, (res, body) =>
             {
                 _polling = false;
                 var result = new FeedbackReplyResult { Ok = res.Ok, StatusCode = res.StatusCode, Error = res.Error };
                 if (res.Ok)
                 {
                     result.Threads.AddRange(FeedbackReplyClient.ParseThreads(body));
+                    result.Gone.AddRange(FeedbackReplyClient.ParseGone(body));
                 }
 
                 OnPollFinished(result);
@@ -592,7 +618,7 @@ namespace BlocksBeyondTheStars.Client
 #else
             var replies = _replies;
             string key = _replyKey;
-            _pollTask = Task.Run(() => replies.Fetch(key, 0));
+            _pollTask = Task.Run(() => replies.Fetch(key, 0, known));
 #endif
         }
 
@@ -606,6 +632,13 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return;
+            }
+
+            // Reports the inbox no longer has for our key are forgotten, so the poll gate closes once the
+            // last remembered report is gone (#1369).
+            foreach (string goneId in result.Gone)
+            {
+                _sentLog?.Forget(goneId);
             }
 
             FeedbackReplyThread first = null;
@@ -642,7 +675,6 @@ namespace BlocksBeyondTheStars.Client
             _answering = false;
 
             _replyTitle.text = string.Format(L("ui.feedback.reply.report"), thread.Title.Length > 0 ? thread.Title : "…");
-            _replyBody.text = ThreadText(thread);
             _replyStatus.text = string.Empty;
             _replyStatus.color = UiKit.CyanDim;
             _answerInput.text = string.Empty;
@@ -655,11 +687,46 @@ namespace BlocksBeyondTheStars.Client
             _replyAnswerBtn.interactable = true;
 
             _replyOverlay.SetActive(true);
+            SetReplyBody(ThreadText(thread)); // after activation — the chunk heights are measured against live rects
             WorldHold.Hold(Time.realtimeSinceStartup); // reading/answering holds the world like the F1 dialog (#1330)
             Game.SetMenuOwner(_replyOwner, true);
         }
 
-        /// <summary>The thread as one readable block: who said what, oldest first, plus the "fixed in" line.</summary>
+        /// <summary>Fills the scrollable body with the thread text: one plain (non-rich) Text per
+        /// <see cref="UiTextChunks"/> piece, stacked top-down, the content sized to the sum so the viewport can
+        /// scroll to the very end; the scroll starts at the top (#1368).</summary>
+        private void SetReplyBody(string text)
+        {
+            foreach (var old in _replyBodyChunks)
+            {
+                if (old != null)
+                {
+                    Destroy(old.gameObject);
+                }
+            }
+
+            _replyBodyChunks.Clear();
+
+            float textW = _replyBodyW - ReplyBodyScrollbarW - ReplyBodyGutter;
+            float y = 0f;
+            foreach (var chunk in UiTextChunks.Split(text))
+            {
+                var t = UiKit.AddText(_replyBodyContent, 0f, y, textW, 20f, chunk, 16, UiKit.TextCol, TextAnchor.UpperLeft);
+                t.horizontalOverflow = HorizontalWrapMode.Wrap;
+                t.verticalOverflow = VerticalWrapMode.Overflow;
+                t.supportRichText = false; // developer/player text is shown verbatim — no <color>/<b> interpretation
+                float h = Mathf.Ceil(t.preferredHeight) + 2f;
+                t.rectTransform.sizeDelta = new Vector2(textW, h);
+                y += h;
+                _replyBodyChunks.Add(t);
+            }
+
+            _replyBodyContent.sizeDelta = new Vector2(0f, Mathf.Max(ReplyBodyH, y + 8f));
+            _replyBodyScroll.verticalNormalizedPosition = 1f;
+        }
+
+        /// <summary>The thread as one readable block: who said what, oldest first, plus the "fixed in" line.
+        /// Unbounded — the body renders it chunked and scrollable (#1368).</summary>
         private string ThreadText(FeedbackReplyThread thread)
         {
             var sb = new StringBuilder();
@@ -676,7 +743,7 @@ namespace BlocksBeyondTheStars.Client
                 sb.Append(string.Format(L("ui.feedback.reply.fixed_in"), thread.FixedInVersion));
             }
 
-            return Shorten(sb.ToString().TrimEnd(), 1400);
+            return sb.ToString().TrimEnd();
         }
 
         private void EnsureReplyDialog()
@@ -699,10 +766,9 @@ namespace BlocksBeyondTheStars.Client
             _replyTitle = UiKit.AddText(panel, m, 66, innerW, 26, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             _replyTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
             _replyTitle.verticalOverflow = VerticalWrapMode.Truncate;
+            _replyTitle.supportRichText = false; // the report title is player text (#1368)
 
-            _replyBody = UiKit.AddText(panel, m, 100, innerW, 296, string.Empty, 16, UiKit.TextCol, TextAnchor.UpperLeft);
-            _replyBody.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _replyBody.verticalOverflow = VerticalWrapMode.Truncate;
+            BuildReplyBodyScroll(panel, m, 100f, innerW, ReplyBodyH);
 
             _answerLabel = UiKit.AddText(panel, m, 404, innerW, 20, L("ui.feedback.reply.answer_label"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             _answerInput = UiKit.AddInput(panel, m, 426, innerW, 110, string.Empty, null, L("ui.feedback.reply.answer_placeholder"), 1500);
@@ -715,6 +781,42 @@ namespace BlocksBeyondTheStars.Client
             _replyAnswerBtn = UiKit.AddButton(panel, m + 428, 582, 400, 56, L("ui.feedback.reply.send"), OnAnswerClicked, "btn_feedback");
 
             _replyOverlay.SetActive(false);
+        }
+
+        /// <summary>The thread body's vertical ScrollRect (the credits/what's-new pattern): a masked viewport
+        /// with a near-transparent hit surface for the wheel, a top-anchored content rect the chunk Texts stack
+        /// on, and a permanent scrollbar along the right edge (#1368).</summary>
+        private void BuildReplyBodyScroll(Transform panel, float x, float y, float w, float h)
+        {
+            var viewGo = new GameObject("ReplyBodyScroll", typeof(RectTransform));
+            viewGo.transform.SetParent(panel, false);
+            UiKit.Place(viewGo, x, y, w, h);
+            _replyBodyW = w;
+
+            _replyBodyScroll = viewGo.AddComponent<ScrollRect>();
+            _replyBodyScroll.horizontal = false;
+            _replyBodyScroll.vertical = true;
+            _replyBodyScroll.movementType = ScrollRect.MovementType.Clamped;
+            _replyBodyScroll.scrollSensitivity = 28f;
+            viewGo.AddComponent<RectMask2D>();
+
+            var hit = viewGo.AddComponent<Image>();
+            hit.sprite = UiKit.SolidSprite;
+            hit.color = new Color(0f, 0f, 0f, 0.001f);
+
+            var contentGo = new GameObject("Content", typeof(RectTransform));
+            _replyBodyContent = (RectTransform)contentGo.transform;
+            _replyBodyContent.SetParent(viewGo.transform, false);
+            _replyBodyContent.anchorMin = new Vector2(0f, 1f);
+            _replyBodyContent.anchorMax = new Vector2(1f, 1f);
+            _replyBodyContent.pivot = new Vector2(0.5f, 1f);
+            _replyBodyContent.anchoredPosition = Vector2.zero;
+            _replyBodyContent.sizeDelta = new Vector2(0f, h);
+
+            _replyBodyScroll.viewport = (RectTransform)viewGo.transform;
+            _replyBodyScroll.content = _replyBodyContent;
+
+            UiKit.AddVerticalScrollbar(panel, _replyBodyScroll, x + w - ReplyBodyScrollbarW, y, ReplyBodyScrollbarW, h);
         }
 
         /// <summary>OK / Esc: the entries were shown, so acknowledge them (fire-and-forget) and close.</summary>

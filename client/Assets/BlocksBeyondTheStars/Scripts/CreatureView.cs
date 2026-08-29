@@ -51,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
             public TextMesh NameText;    // the label's text component (updated on rename)
             public GameObject Zzz;       // floating "z z z" shown above a sleeping (off-phase) creature
             public TextMesh ZzzText;     // the sleep label's text component
+            public CreatureAnimator Animator; // the rig's animator, looked up once at build (#1368) — not per frame
         }
 
         private readonly Dictionary<string, Entry> _creatures = new Dictionary<string, Entry>();
@@ -119,6 +120,7 @@ namespace BlocksBeyondTheStars.Client
                         PrevHostile = c.Hostile,
                         PrevAlerting = c.Alerting,
                         PrevHull = c.Hull,
+                        Animator = root.GetComponent<CreatureAnimator>(),
                     };
                     _creatures[c.Id] = entry;
                 }
@@ -144,9 +146,10 @@ namespace BlocksBeyondTheStars.Client
                     // A jump arc lasts ~0.7 s — barely one position update — so linear extrapolation would
                     // smear every hop into a bump. Integrate the server's launch velocity under the world's
                     // gravity instead (#1333; the micro-fauna hop already does this locally): a ground bird
-                    // glides under reduced gravity like the server's model.
+                    // glides under reduced gravity like the server's model — by the server's own predicate on
+                    // the wire (#1368), so a winged giant (which never glides there) is not floated here.
                     float g = 20f * Mathf.Max(0.3f, Game.Environment != null ? Game.Environment.GravityFactor : 1f);
-                    if (c.HasWings) g *= 0.4f;
+                    if (c.Glides) g *= VerticalMotion.GlideGravityScale;
                     float t = Mathf.Min(since, 0.6f);
                     predicted.y = entry.Target.y + c.VertVel * t - 0.5f * g * t * t;
                 }
@@ -212,10 +215,13 @@ namespace BlocksBeyondTheStars.Client
                 // Motion class + vertical state for the animator (#1333): wings only beat in the air, legs tuck
                 // mid-jump, a perched flier folds up, crawlers undulate. Cheap per-frame set; the animator
                 // detects the transitions itself (landing squash).
-                var animator = entry.Root.GetComponent<CreatureAnimator>();
-                if (animator != null)
+                if (entry.Animator != null)
                 {
-                    animator.SetMotion(c.Motion, c.Airborne, c.Perched);
+                    // A perched flier whose perch was dug away is falling (#1368): a current server already reports
+                    // it airborne; an older one still says "perched" but sends the fall velocity — either way the
+                    // wings unfold for the drop instead of a folded bird sliding down.
+                    bool airborne = c.Airborne || (c.Perched && c.VertVel < -0.01f);
+                    entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne);
                 }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)

@@ -253,8 +253,14 @@ namespace BlocksBeyondTheStars.Client
         private bool _autoSingleplayerWhenReady;
 
         /// <summary>Set when a deep-linked singleplayer start still needs a name; the WebGL menu consumes it
-        /// and opens the name prompt on top of itself (#1322).</summary>
+        /// and opens the name prompt on top of itself (#1322) — unless the What's-new modal is up, in which
+        /// case it stays set and <see cref="Update"/> rebuilds the menu once that modal closes (#1368).</summary>
         public bool BrowserNamePromptPending;
+
+        /// <summary>True while the WebGL menu shows the name prompt (#1368): if the one-shot What's-new modal
+        /// wants to open meanwhile, the prompt is re-armed and the menu rebuilt so it comes back AFTER the
+        /// modal instead of sitting buried under it.</summary>
+        public bool BrowserNamePromptShowing;
 
         /// <summary><c>?singleplayer=1</c> arrived without a name — none in the URL, the settings or an
         /// arcade session (#1322). The name IS the player id, so before asking we look at the world we are
@@ -1144,6 +1150,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Closes the "What's new?" dialog (its Back button).</summary>
         public void CloseWhatsNew() => _whatsNewOpen = false;
+
+        /// <summary>Whether the "What's new?" dialog is (about to be) shown — the WebGL name prompt defers to it (#1368).</summary>
+        public bool WhatsNewOpen => _whatsNewOpen;
         private GameObject _uiSettings;
         private GameObject _uiCredits;
         private GameObject _uiEditors;
@@ -1476,6 +1485,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_uiMenu);
                 _uiMenu = null;
+                BrowserNamePromptShowing = false; // the prompt went with the menu (#1368)
             }
 
             // Startup update notice (#543): once the menu is up and the quiet check found a version,
@@ -1507,6 +1517,16 @@ namespace BlocksBeyondTheStars.Client
                     Settings.Save();
                     if (seen.Length > 0 && WhatsNew.Entries.Count > 0)
                     {
+                        if (BrowserNamePromptShowing && _uiMenu != null)
+                        {
+                            // The name prompt is already up (#1368): re-arm it and rebuild the menu, so it
+                            // returns once the release notes are closed instead of hiding under them.
+                            BrowserNamePromptShowing = false;
+                            BrowserNamePromptPending = true;
+                            Destroy(_uiMenu);
+                            _uiMenu = null;
+                        }
+
                         OpenWhatsNew();
                     }
                 }
@@ -1520,6 +1540,15 @@ namespace BlocksBeyondTheStars.Client
             {
                 Destroy(_uiWhatsNew);
                 _uiWhatsNew = null;
+            }
+
+            // A deferred name prompt (#1368): the menu was built while the What's-new modal was up and skipped
+            // the prompt (the flag stayed set). Now that the modal is closed, rebuild the menu — the new build
+            // consumes the flag and asks.
+            if (Phase == ShellPhase.MainMenu && BrowserNamePromptPending && !_whatsNewOpen && _uiMenu != null)
+            {
+                Destroy(_uiMenu);
+                _uiMenu = null;
             }
 
             if (Phase == ShellPhase.Loading && _uiLoading == null)

@@ -30,7 +30,7 @@ public sealed partial class GameServer
     private const string ShipId = "default";
     private const float MaxReach = 8f;
     private const int HotbarSlots = 9;
-    private const int MaxPlayerNameLength = 24; // client-supplied names are capped to this on join
+    private const int MaxPlayerNameLength = Protocol.MaxPlayerNameLength; // client-supplied names are capped to this on join (the client fields cap at the same, #1368)
 
     // Vertical build band: client-driven block edits and chunk streaming are clamped to this Y range so a
     // spoofed position can't make the server generate/persist chunks at arbitrary heights — otherwise a cheat
@@ -570,6 +570,8 @@ public sealed partial class GameServer
         InitFlora();
         LoadFloraRegrow(); // restore persisted harvest regrowths so a restart doesn't strand bare cells
         LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
+        var resident = world.World;
+        resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
         // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
@@ -5464,6 +5466,7 @@ public sealed partial class GameServer
                 _repo.SavePlayer(session.State);
             }
 
+            CheckpointLootPackets(); // #1367: expiring drop packets carry their exact age across a shutdown
             _repo.SaveMetadata(_meta);
         });
     }

@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2545 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2567 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -9655,6 +9655,107 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-29): low-priority audit leftovers — reply window, browser name prompt, creature view, repair panel, changelog (#1368)
+
+The low-severity Unity-client findings of the 2026-08-29 audit of #1307–#1345 that the medium/high fix PRs left out.
+One PR, local Unity build.
+
+* **Reply window (#1328/#1330)** — the world hold was already in place since #1339 (`ShowThread` → `WorldHold.Hold`,
+  `CloseReply` → `Release`, `Tick` in `Update`; F1 and the reply window are mutually exclusive menu owners) — verified,
+  nothing to add. The thread body is now a scrollable stack of `UiTextChunks` pieces (`BuildReplyBodyScroll` /
+  `SetReplyBody`, the credits/what's-new ScrollRect pattern) instead of a 1400-character `Shorten` + `Truncate`;
+  the body chunks, the report title and the HUD toast run with `supportRichText = false` (developer/player text is
+  shown verbatim). `OpenRoutine` bails out after `WaitForEndOfFrame` when `Close()` already ran (hotkey + Esc in one
+  frame used to show the dialog with `_open == false`, holding the world with no way to close it).
+* **Browser solo entry (#1321/#1322)** — the name prompt mirrors every keystroke into the menu field
+  (`SetTextWithoutNotify`), so Cancel leaves the field showing the name Singleplayer would use; every name field
+  (`UiMainMenu`: menu, prompt, connect dialog, reserved-name prompt) caps at the new shared
+  `Protocol.MaxPlayerNameLength` (24 — the server's join cap now reads the same constant). The prompt defers while
+  the What's-new modal is open (`AppShell.WhatsNewOpen`; the flag stays pending and `AppShell.Update` rebuilds the
+  menu once the modal closes; an auto-opening modal over an already-showing prompt re-arms it via
+  `BrowserNamePromptShowing`). `BrowserLocalServer.PeekSavedPlayerName` goes through the new
+  `BlobPeekCache` (Client.Core; stamp = path + length + last-write ticks; a missing blob is never cached; `ResetLocalWorld`
+  invalidates) — `BlobPeekCacheTests` (6). `PlayerController.PlaceFluidAim` mirrors `HandlePlace`'s fluid-cell
+  refusals from the block data: a `door`-category block is never aimed at a fluid, a torch not at water (lava stays).
+* **Creature view (#1332/#1333)** — `NetCreature.Glides` (additive) carries the server's `CreatureMotion.Glides`
+  predicate; `CreatureView` uses it (× `VerticalMotion.GlideGravityScale`) instead of `HasWings`, so a winged giant no
+  longer extrapolates at 0.4 g. A perched flier whose perch went (#1367 fall) is reported by `ToNetCreature` from the
+  actual vertical state (`Airborne = true, Perched = false, VertVel`); the client also unfolds on `Perched && VertVel < 0`
+  for older servers. `CreatureAnimator` is cached on the entry. Tests: `NetCreature_GlidesFlag_RoundTrips…`,
+  `Flier_WhosePerchGoes_Falls_ThenTakesOffAgain` now pins the wire flags (`NetCreatureForTest` hook).
+* **Repair panel (#1313)** — `ShipRepairStatus` carries `StructureId` + `MissingX/Y/Z` (additive, ≤ 256 cells;
+  `BuildShipRepairStatus` on the server, `ShipRepairStatusForTest` hook, `ShipRepairStatus_ListsTheBreachCells…` +
+  codec round-trip). New `HullBreachView` (WorldRig) draws one inset hologram box per cell on the parked ship
+  (placement-ghost look, Cloud shader, one mesh rebuilt only when a new readout arrives, follows the ship's nearest
+  world copy; the space scene is left alone). `ui.shiprepair.cells_missing_one` (EN+DE) picked for a count of 1; the
+  bar track hides with the bar. `AuditLowLeftoversTests` guard the locale pair, the name caps and the verbatim texts.
+* **Docs** — CHANGELOG Unreleased gained the missing #1307/#1308/#1309/#1313 section and the #1368 section.
+* **Playtest**: the breach outlines on a carved starter ship (on foot, at the pad); a long developer answer scrolling;
+  browser name prompt after an update (What's-new first, then the prompt).
+
+---
+
+## ✅ Done (2026-08-29): low-priority audit leftovers — reports that vanish are forgotten, the answer box follows the thread, admin CSRF, image filter, texture tool (#1369)
+
+The low-severity ReportHost / workflow / tooling findings of the 2026-08-29 audit that #1361 left out:
+
+* **`gone` marker (#1327/#1328)** — `GET /api/replies` takes `ids=` (the report ids the client's `sent.json` still
+  holds, ≤ 50) and answers `gone: […]` for the ones the key can no longer read (`ReportStore.MissingReports`: deleted,
+  pruned, or stored under another key); `FeedbackReplyClient.Fetch(key, since, knownIds)` / `ParseGone` carry it and
+  `FeedbackUi.OnPollFinished` calls `SentReportsLog.Forget` — the previously dead method — so a deleted report is no
+  longer polled 6×/h for 90 days. Only named ids are ever reported (nothing enumerable).
+* **Answer box follows the thread** — `FeedbackReplyThread.AwaitsAnswer` = the newest entry is a developer question
+  (no player entry after it), no longer `Status == "waiting_for_player"`; an operator flipping the status by hand to
+  `triaged` no longer hides the box (the inbox accepts the answer in any status).
+* **Admin CSRF** — `AdminCsrf`: one random per-process token, hidden `csrf` field in every detail-page form, fixed-time
+  check on `/admin/report/{id}/reply|status|delete` → 403 on mismatch; the JSON admin routes (`PATCH /api/reports/{id}`,
+  `POST /api/reports/{id}/replies`) require `application/json` (415) so a `text/plain` form cannot smuggle a body.
+* **Pre-#1327 arcade reports** — not repairable (the inbox never learns the Glitch install id); documented in
+  REPORT_HOST.md, and the detail page says "No in-game reply possible" for a `WebGLPlayer` report whose key was
+  derived from the player id (`ReportHostPages.KeyOrigin`), a softer hint for old desktop rows.
+* **`reports-image.yml`** now also triggers on `src/BlocksBeyondTheStars.Shared/**` (the reply-key formula lives
+  there); `worldhost-image.yml` already had the path.
+* **`gen_textures.py`** — the Guardian plating post-process (desaturate 70 %, lift `v' = 1 − (1 − v)·0.76`) is
+  `guardian_plating()` in a `POST_PROCESS` table applied to the 64 px tile before it is written, so `--only enemy_robot`
+  + `bundle_textures.py --from-out` reproduce the committed tile. No texture regenerated.
+* Tests: `ReportHostReplyLifecycleTests` (gone over HTTP on the shared host) + `ReportHostAdminCsrfTests` (own host
+  with admin on: token in every form, 403 without it, 415 for text/plain JSON), `ReportHostTests` (+2: store
+  `MissingReports` incl. prune + cap, page hints + CSRF field), `FeedbackReplyTests` (+2: ids/gone round trip +
+  `Forget`, `AwaitsAnswer` by thread). ⚠ Needs a ReportHost image redeploy (`reports-image.yml`); the client half
+  ships with the next release.
+
+---
+
+## ✅ Done (2026-08-29): low-priority audit leftovers — granular landings, drop packets, pad touchdown, creature physics (#1367)
+
+The small server findings of the 2026-08-29 audit of #1310–#1345 that the medium/high PRs left out, shipped together:
+
+* **Granular blocks** — the landing follows the colliding rule (`GranularPassable` = `!IsCollidingBlock`): a falling
+  block crushes small flora / torch / lantern / ladder on the way (drops spilled on top of the settled block, a flame put
+  out) and falls on; a doorway cell, an NPC and a player hold it up; a creature it lands on gets `NudgeCreatureBodyChecks`
+  and steps aside. Snow melt calls `OnSupportRemoved` (sand on a thawing drift comes down); a weather-snow deposit that
+  falls carries its melt entry (`MoveWeatherDeposit`); the settled block keeps its `#490` owner (`GetBlockAttribution`).
+* **Drop packets** — `Fall`/`SettleDropCell` use the colliding rule (a kill over grass leaves the bundle in the grass, not a
+  cell above); `SaveAll` checkpoints every expiring packet on every resident world (`CheckpointLootPackets`); the
+  checkpoint counter is per world (`LoadedWorld.SinceLootCheckpoint`).
+* **Pad touchdown** — `/tp pad N` targets `PadSurfaceY`; `PlaceLandedShip` runs `CleanLegacyStampResidueOnce` on a
+  median-based origin BEFORE reading the raised surface; the entombment rescue fires once per episode
+  (`PlayerSession.EntombedRescueSpot`) instead of every second into the same walled-in pad spot.
+* **Creatures** — `StandableAt`/`IsSupportCell` use the colliding rule (props pass, canopy solid); the far prune is
+  `Max(70|110, MaxStreamRadiusBlocks)`; a perched flier whose perch went falls and then `TakingOff`; a jump/climb needs a
+  clear body column at the landing height (`riseBlocked`); `VerticalMotion.TerminalSpeed` = 25 b/s; lava under the next
+  feet cell is a wall for non-lava species (`LavaUnderFeet`); the swimmer gate reads its own column at its own feet;
+  `PreviewStep` hands `nextFeet` through `StepBlocked` → `StepBlockedByTerrain` and `ResolveVertical` (one probe per
+  column change instead of three).
+* **Wall fill (#1315/#1347)** — cached levels are invalidated by `ServerWorld.BlockSet` (new event) and hand-operated door
+  toggles inside the box (`MarkBaseWallsDirty`), backed by an 8 s interval instead of 1.5 s; the reach test wraps Z like X
+  (`WrapAbsZ`).
+* Skipped on purpose: the client-side `PlaceFluidAim` gate for door/torch in hand belongs to the client issue's PR.
+* Tests: `GranularBlockTests` (+6), `DropLootTests` (+2), `PadSpawnTests` (+3), `CreatureMotionArenaTests` (+5),
+  `CreatureBuildRespectTests` (+3), `BaseWalledYardTests` (+2), `VerticalMotionTests` (+1).
 
 ---
 

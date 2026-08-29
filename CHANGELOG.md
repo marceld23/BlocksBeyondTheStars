@@ -13,6 +13,75 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧹 Audit leftovers — reply window, browser name prompt, creature view, repair panel (#1368)
+
+- **The whole developer answer is readable.** The reply window used to cut a thread at 1,400 characters with no
+  scrollbar and no hint; it now scrolls, however long the conversation gets, and shows developer and player text
+  exactly as written (no stray `<b>` or `<color>` formatting from a tag someone typed). The HUD toast does the same.
+- **F1 and Esc in the same frame no longer leave a stuck dialog** that held the world with no key able to close it.
+- **Browser solo entry**: the "What's your name?" prompt and the menu's name field are one and the same — Cancel no
+  longer leaves the field empty while Singleplayer would have started with the name typed in the prompt; both cap at
+  the server's 24-character limit so the name you keep is the name you play as; the prompt waits its turn behind the
+  "What's new?" notes after an update instead of hiding under them; and the menu no longer re-reads the whole saved
+  world on every rebuild just to find your name (a visible hitch with a large world).
+- **Doors and torches are no longer offered on water or lava.** The server refused a door in any fluid cell and a torch
+  in water; the crosshair now skips those cells with such an item in hand instead of bouncing a reject toast.
+- **Creatures**: a winged giant no longer floats through its hop (the client uses the server's own ground-bird rule for
+  the glide instead of "has wings"); a perched bird whose perch is dug away falls with its wings out — the server reports
+  the fall as such — and the per-creature animator lookup that ran every frame is done once.
+- **Repair panel**: the missing hull cells are outlined on the parked ship in hologram blue while the panel shows
+  breaches, so you can walk straight to the holes; "1 Hüllenzelle fehlt" reads singular; the empty bar track no
+  longer sits behind the breach text when the hull itself is full.
+
+### 🧭 Compass wrap, stale ship blip, crouch edge, honest repair panel (#1307, #1308, #1309, #1313)
+
+- **The compass honours the world's wrap** (#1307): across a longitude/latitude seam every blip — ship, waypoint,
+  beacons, markers — flipped its bearing and the distance line jumped by a whole circumference (">3000 m" to a ship a
+  few blocks away). Every marker is now measured against the same nearest-copy position all other world objects use.
+- **No stale ship blip** (#1308): after leaving for a new world the compass kept pointing at the previous landing site,
+  because nothing ever cleared the old placement. A world change clears it; a real placement re-arrives right after.
+- **Crouching reaches the edge** (#1309): sneaking stopped half a block before a drop, in the middle of the last block
+  — building an outer wall face from its top needed scaffolding. The sneak probe is now a short look ahead plus this
+  frame's step, so the capsule overhangs the edge the way sneaking does in every voxel builder.
+- **An honest repair panel** (#1313): one missing hull cell on a full hull raised a "SHIP REPAIR" panel with a full
+  Hull 100/100 bar and no word about what was wrong. With the hull full the panel now leads with the breach count and
+  hides the bar; the bar and its numbers only appear while the hull itself is short.
+
+### 📮 Report inbox leftovers — deleted reports are forgotten, the answer box stays, admin forms are guarded (#1369)
+
+- **A report the developers deleted is no longer polled for three months.** The game asks the inbox about the
+  reports it still remembers; the ones that are gone (deleted, expired, or filed by an older browser build under
+  a key the game cannot read) are forgotten on the spot, and the polling stops once none are left.
+- **The answer box no longer disappears when the developers re-file your report.** Whether you can answer now
+  follows the conversation itself — the newest entry is a developer question you have not answered — instead of
+  the report's status label, which an operator may change by hand.
+- **Operators**: the admin forms carry a CSRF token (403 without it) and the JSON admin routes require a JSON
+  content type; the detail page says "No in-game reply possible" for arcade reports filed before the reply
+  channel existed (their reply key cannot match — answer those through the old channel). The ReportHost image
+  also rebuilds when the shared reply-key code changes. Redeploy the ReportHost image.
+- **Tooling**: `gen_textures.py` now applies the documented Guardian-plating post-process itself, so the tile can
+  be regenerated reproducibly.
+
+### 🧹 Audit leftovers — sand, drop packets, pad touchdown and creature physics (#1367)
+
+- **Falling sand no longer rests on a tuft of grass, a torch or a flame** — it crushes the prop (its drop lands on top
+  of the settled block; a flame is put out) and falls on to the real ground. A doorway holds a falling block up like a
+  player does; an animal the block lands on steps aside instead of being buried.
+- **Weather snow that slid off a ledge still melts**, sand dropped on a thawing drift comes down with it, and a sand
+  block you placed keeps your name after it has fallen (grief reports).
+- **A kill over a meadow leaves the loot packet in the grass, on the ground** — not floating a cell above it — and
+  a quit/shutdown save writes every expiring packet's exact age (up to 30 s of ageing used to be lost).
+- **`/tp pad N` lands on top of a paved pad**, a months-old save no longer parks its ship on its own ghost hull for one
+  session, and the "dug out" rescue announces itself once per entombment instead of every second when the pad is walled
+  in too.
+- **Creatures**: a titan is no longer hauled onto a tree crown because of a tuft of grass in its column; nothing in view
+  pops out at the far leash (the 70/110-block prune respects your view distance); a bird whose perch is dug away falls
+  and takes off again; an animal never jumps into a low ceiling; falls have a terminal speed (no more 2.7-block snaps);
+  walkers no longer step down onto lava; a swimmer beside a cliff overhang keeps swimming instead of steering out of
+  its lake.
+- **Walled base areas**: the fence check works across the world's north–south seam, and the fill is refreshed when
+  something changes inside the base's box rather than on every spawn attempt.
+
 ### 📮 Report inbox — polling for answers never blocks a real report (#1352)
 
 - **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll

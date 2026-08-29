@@ -60,6 +60,11 @@ public static class VerticalMotion
     /// <summary>Seconds between voluntary bounds (startled ground birds, flee hops).</summary>
     public const float BoundCooldown = 1.2f;
 
+    /// <summary>Terminal fall speed (blocks/s, #1367). Unclamped, a fall that ran to the 2 s timeout reached ~40
+    /// blocks/s and its last step was ~2.7 blocks — a visible snap at the 15 Hz creature tick. 25 blocks/s is
+    /// reached after ~1.25 s at base gravity and keeps every step under two blocks.</summary>
+    public const float TerminalSpeed = 25f;
+
     /// <summary>Effective gravity for a world: the base constant scaled by its gravity factor (asteroids ~0.4,
     /// heavy worlds up to 1.6), clamped so a degenerate factor can't stall or slam anything.</summary>
     public static float Gravity(float gravityFactor)
@@ -118,7 +123,7 @@ public static class VerticalMotion
             // peak by ~v·dt/2 and a 1.25-block jump could fall a hair short of a 1-block ledge at 15 Hz.
             float ga = g * gravityScale;
             float y = curY + s.VertVel * ft - 0.5f * ga * ft * ft;
-            s.VertVel -= ga * ft;
+            s.VertVel = System.Math.Max(-TerminalSpeed, s.VertVel - ga * ft); // drag caps the fall (#1367)
             if (s.VertVel <= 0f && y <= groundY)
             {
                 Land(ref s);

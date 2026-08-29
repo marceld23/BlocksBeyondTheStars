@@ -505,6 +505,32 @@ public sealed class ReportStore : IDisposable
         }
     }
 
+    /// <summary>Upper bound on the ids one poll may ask about (the client remembers at most 50 sent reports).</summary>
+    public const int MaxGoneQueryIds = 50;
+
+    /// <summary>The "gone" half of the client's poll (#1369): of the report ids the client still remembers,
+    /// the ones that are NOT a report this key can read — deleted, pruned by retention, or stored under
+    /// a different key (an arcade report filed before the reply channel). The client forgets those and
+    /// stops polling for them. Only ids the caller named are ever reported, so nothing is enumerable;
+    /// a malformed key makes every id gone (it can read nothing). Capped at <see cref="MaxGoneQueryIds"/>.</summary>
+    public List<string> MissingReports(string replyKey, IEnumerable<string> reportIds)
+    {
+        var gone = new List<string>();
+        bool keyOk = FeedbackReplyKey.IsWellFormed(replyKey);
+        lock (_gate)
+        {
+            foreach (string id in reportIds.Where(i => !string.IsNullOrEmpty(i)).Distinct().Take(MaxGoneQueryIds))
+            {
+                if (!keyOk || !OwnsLocked(replyKey, id))
+                {
+                    gone.Add(id);
+                }
+            }
+        }
+
+        return gone;
+    }
+
     /// <summary>Marks developer entries as read. Scoped to the key: ids belonging to other players' reports
     /// are silently ignored (reply ids are guessable integers). Returns how many rows changed.</summary>
     public int AckReplies(string replyKey, IEnumerable<long> replyIds, long nowUnix)

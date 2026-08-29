@@ -51,7 +51,6 @@ public sealed partial class GameServer
         var rec = CurLanded;
 
         var pad = PlayerPad(_current);
-        int y0 = PadSurfaceY(pad.CenterX, pad.CenterZ); // median, raised over whatever the player built on the pad (#1318)
 
         var s = BuildShipStructure(playerId);
         if (s.Cells.Count == 0)
@@ -62,11 +61,18 @@ public sealed partial class GameServer
         }
 
         rec.Structure = s;
+
+        // Pre-object saves carry the old stamped hull as world block edits — on the generated median, where the
+        // stamp always sat. Clean that up BEFORE reading the raised surface (#1367): the residue is exactly the
+        // kind of "built over the pad" block PadSurfaceY honours, and reading it first lifted a months-old save's
+        // ship onto its own ghost hull for one session.
+        rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, PadGroundY(pad.CenterX, pad.CenterZ) + 1, pad.CenterZ - s.Length / 2);
+        CleanLegacyStampResidueOnce(rec, pad);
+
+        int y0 = PadSurfaceY(pad.CenterX, pad.CenterZ); // median, raised over whatever the player built on the pad (#1318)
         // The structure sits ON the levelled pad surface (origin.y = first cell layer above the ground).
         rec.Origin = new Vector3i(pad.CenterX - s.Width / 2, y0 + 1, pad.CenterZ - s.Length / 2);
         DeriveLandedAnchors(rec);
-
-        CleanLegacyStampResidueOnce(rec, pad); // pre-object saves carry the old stamped hull as world block edits
 
         rec.Placed = true;
         _log.Info($"Ship parked at ({rec.Origin.X}, {rec.Origin.Y}, {rec.Origin.Z}) — {s.Cells.Count} cells, {rec.Stations.Count} stations.");

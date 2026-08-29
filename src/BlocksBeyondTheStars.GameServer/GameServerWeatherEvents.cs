@@ -270,15 +270,38 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                _world.SetBlock(cell, new BlockId(_weatherSnowId));
-                // Weather-placed blocks are still block edits, so clients MUST be told or they'd only
-                // see the snow after a chunk reload.
-                BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = _weatherSnowId });
-                deposits[cell] = DepositMeltSeconds;
-                _repo.SaveWeatherDeposit(_world.LocationId, cell, _weatherSnowId, DepositMeltSeconds);
+                DepositSnowAt(cell, deposits);
                 placed++;
             }
         }
+    }
+
+    /// <summary>Lays one weather-snow block and tracks it for the melt pass (memory + save row).</summary>
+    private void DepositSnowAt(Vector3i cell, Dictionary<Vector3i, double> deposits)
+    {
+        _world.SetBlock(cell, new BlockId(_weatherSnowId));
+        // Weather-placed blocks are still block edits, so clients MUST be told or they'd only
+        // see the snow after a chunk reload.
+        BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = _weatherSnowId });
+        deposits[cell] = DepositMeltSeconds;
+        _repo.SaveWeatherDeposit(_world.LocationId, cell, _weatherSnowId, DepositMeltSeconds);
+    }
+
+    /// <summary>Carries a weather-snow deposit's melt entry along with the block when it settles (#1367): snow is
+    /// granular now, and a deposit that fell off a ledge used to lose its entry (the melt pass looked for snow at
+    /// the OLD cell, found none, and dropped the row) — fallen snow never melted. No-op for anything that is not
+    /// a tracked deposit.</summary>
+    private void MoveWeatherDeposit(Vector3i from, Vector3i to, ushort block)
+    {
+        var deposits = _worlds.Active.WeatherDeposits;
+        if (!deposits.Remove(from, out double timer))
+        {
+            return;
+        }
+
+        deposits[to] = timer;
+        _repo.DeleteWeatherDeposit(_world.LocationId, from);
+        _repo.SaveWeatherDeposit(_world.LocationId, to, block, timer);
     }
 
     /// <summary>Finds the air cell resting on the first solid block below the player's level in this
@@ -316,7 +339,7 @@ public sealed partial class GameServer
     /// <summary>Melts weather snow once the air turns warm (or the world stopped snowing long enough),
     /// bounded to the same per-pass budget. Only cells in the deposit table are ever removed, so a
     /// player's own snow blocks are untouchable here.</summary>
-    private void MeltSnow(Dictionary<Vector3i, double> deposits)
+    private void MeltSnow(Dictionary<Vector3i, double> deposits, bool force = false)
     {
         if (deposits.Count == 0)
         {
@@ -324,7 +347,7 @@ public sealed partial class GameServer
         }
 
         bool warm = CurrentTemperature(_weatherState, _dayFraction) > 2f;
-        bool overCap = deposits.Count > MaxDepositsPerWorld;
+        bool overCap = deposits.Count > MaxDepositsPerWorld || force;
         if (!warm && !overCap)
         {
             return; // still freezing and within budget — the snow stays
@@ -355,9 +378,24 @@ public sealed partial class GameServer
             {
                 _world.SetBlock(cell, new BlockId(0));
                 BroadcastToWorld(new BlockChanged { X = cell.X, Y = cell.Y, Z = cell.Z, Block = 0 });
+                OnSupportRemoved(cell); // #1367: sand someone dropped on the drift comes down with the thaw
             }
         }
     }
+
+    /// <summary>Test seam: lays a tracked weather-snow block at a cell exactly as a blizzard would.</summary>
+    public void DepositWeatherSnowForTest(int x, int y, int z)
+    {
+        _weatherIdsResolved = true;
+        _weatherSnowId = _content.GetBlock("snow")?.NumericId.Value ?? 0;
+        DepositSnowAt(new Vector3i(x, y, z), _worlds.Active.WeatherDeposits);
+    }
+
+    /// <summary>Test seam: one melt pass with the thaw forced (every tracked deposit within the pass budget goes).</summary>
+    public void MeltWeatherSnowForTest() => MeltSnow(_worlds.Active.WeatherDeposits, force: true);
+
+    /// <summary>Test seam: the cells the melt pass currently tracks on the active world.</summary>
+    public IReadOnlyCollection<Vector3i> WeatherDepositCellsForTest => _worlds.Active.WeatherDeposits.Keys;
 
     // ---------------- Forecast (the weather scanner gadget) ----------------
 

@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Client.Portal;
+using BlocksBeyondTheStars.Networking;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -87,7 +88,9 @@ namespace BlocksBeyondTheStars.Client
             // with the button column, content inset — see the native branch below.
             UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
             UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, webName[0], v => webName[0] = v);
+            // Capped at the server's join limit (#1368): a longer name was truncated server-side, so the settings
+            // remembered a name that was not the player's actual id.
+            var webNameInput = UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, webName[0], v => webName[0] = v, maxLength: Protocol.MaxPlayerNameLength);
             var webWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             float wby = by + 112f;
@@ -246,15 +249,24 @@ namespace BlocksBeyondTheStars.Client
             // (URL, settings, saved world). One field, one button, shown once; replaces the old silent
             // "Explorer" fallback that baked a placeholder identity into the browser's one world. Built
             // last so it draws above everything; the shell's flag is consumed here so a later menu rebuild
-            // (settings → back) does not re-open it.
-            if (shell.BrowserNamePromptPending)
+            // (settings → back) does not re-open it. While the What's-new modal is up the prompt waits (#1368):
+            // the flag stays set and the shell rebuilds the menu — prompt included — once that modal closes,
+            // instead of both opening in the same menu frame with the prompt buried underneath.
+            if (shell.BrowserNamePromptPending && !shell.WhatsNewOpen)
             {
                 shell.BrowserNamePromptPending = false;
+                shell.BrowserNamePromptShowing = true;
                 var (nameOverlay, namePanel) = UiKit.AddModalOverlay(root, 660f, 340f, 600f, 360f);
                 UiKit.AddText(namePanel, 30f, 24f, 540f, 36f, shell.L("ui.webgl.name_prompt_title"), 24, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
                 var nameBody = UiKit.AddText(namePanel, 30f, 72f, 540f, 90f, shell.L("ui.webgl.name_prompt_body"), 16, UiKit.TextCol, TextAnchor.UpperLeft);
                 nameBody.horizontalOverflow = HorizontalWrapMode.Wrap;
-                var nameInput = UiKit.AddInput(namePanel, 30f, 170f, 540f, 46f, webName[0], v => webName[0] = v, shell.L("ui.menu.connect_name"));
+                // The prompt edits the SAME name the menu field shows (#1368): every keystroke is mirrored into the
+                // field, so Cancel leaves the menu showing exactly the name Singleplayer would start with.
+                var nameInput = UiKit.AddInput(namePanel, 30f, 170f, 540f, 46f, webName[0], v =>
+                {
+                    webName[0] = v;
+                    webNameInput.SetTextWithoutNotify(v);
+                }, shell.L("ui.menu.connect_name"), maxLength: Protocol.MaxPlayerNameLength);
                 var nameWarn = UiKit.AddText(namePanel, 30f, 222f, 540f, 22f, "", 14,
                     new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
                 UiKit.AddButton(namePanel, 30f, 270f, 260f, 56f, shell.L("ui.webgl.name_prompt_go"), () =>
@@ -268,10 +280,15 @@ namespace BlocksBeyondTheStars.Client
                     shell.PlayerName = webName[0].Trim();
                     shell.Settings.PlayerName = shell.PlayerName;
                     shell.Settings.Save();
+                    shell.BrowserNamePromptShowing = false;
                     nameOverlay.SetActive(false);
                     shell.StartBrowserSingleplayer();
                 }, "btn_singleplayer");
-                UiKit.AddButton(namePanel, 310f, 270f, 260f, 56f, shell.L("ui.action.cancel"), () => nameOverlay.SetActive(false), "btn_settings");
+                UiKit.AddButton(namePanel, 310f, 270f, 260f, 56f, shell.L("ui.action.cancel"), () =>
+                {
+                    shell.BrowserNamePromptShowing = false;
+                    nameOverlay.SetActive(false);
+                }, "btn_settings");
                 nameInput.ActivateInputField();
             }
 #else
@@ -284,7 +301,7 @@ namespace BlocksBeyondTheStars.Client
             // The panel's outer edges sit exactly on the button column (bx..bx+bw); content insets instead.
             UiKit.AddPanel(root, bx, by - 10f, bw, 100f, new Color(0.12f, 0.45f, 0.62f, 0.22f));
             UiKit.AddText(root, bx + 16f, by, bw - 32f, 24f, shell.L("ui.menu.connect_name"), 17, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, natName[0], v => natName[0] = v);
+            UiKit.AddInput(root, bx + 16f, by + 30f, bw - 32f, 46f, natName[0], v => natName[0] = v, maxLength: Protocol.MaxPlayerNameLength); // the server's join cap (#1368)
             var natWarn = UiKit.AddText(root, bx, by + 80f, bw, 22f, "", 14,
                 new Color(1f, 0.55f, 0.4f), TextAnchor.MiddleLeft, FontStyle.Bold);
             float nby = by + 112f;
@@ -365,7 +382,7 @@ namespace BlocksBeyondTheStars.Client
             connect = connectOverlay;
             UiKit.AddText(dlg, 30f, 24f, 540f, 30f, shell.L("ui.menu.connect_title"), 22, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             UiKit.AddText(dlg, 30f, 80f, 540f, 22f, shell.L("ui.menu.connect_name"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            dlgName = UiKit.AddInput(dlg, 30f, 106f, 540f, 38f, name[0], v => name[0] = v);
+            dlgName = UiKit.AddInput(dlg, 30f, 106f, 540f, 38f, name[0], v => name[0] = v, maxLength: Protocol.MaxPlayerNameLength);
             UiKit.AddText(dlg, 30f, 160f, 540f, 22f, shell.L("ui.menu.connect_host"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
             UiKit.AddInput(dlg, 30f, 186f, 540f, 38f, host[0], v => host[0] = v);
             UiKit.AddText(dlg, 30f, 240f, 540f, 22f, shell.L("ui.menu.connect_port"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
@@ -1682,7 +1699,7 @@ namespace BlocksBeyondTheStars.Client
                 hint.horizontalOverflow = HorizontalWrapMode.Wrap;
 
                 string[] nm = { string.Empty };
-                UiKit.AddInput(dlg, 30f, 132f, 640f, 40f, nm[0], v => nm[0] = v);
+                UiKit.AddInput(dlg, 30f, 132f, 640f, 40f, nm[0], v => nm[0] = v, maxLength: Protocol.MaxPlayerNameLength);
                 UiKit.AddButton(dlg, 30f, 192f, 320f, 54f, shell.L("ui.portal.play"), () =>
                 {
                     if (string.IsNullOrWhiteSpace(nm[0]))
