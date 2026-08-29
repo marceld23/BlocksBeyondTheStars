@@ -137,7 +137,19 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 entry.Target = pos;
-                var predicted = entry.Target + entry.TargetVel * Mathf.Min(now - entry.LastTargetChange, 0.3f);
+                float since = now - entry.LastTargetChange;
+                var predicted = entry.Target + entry.TargetVel * Mathf.Min(since, 0.3f);
+                if (c.Airborne && (c.Motion == "walker" || c.Motion == "crawler"))
+                {
+                    // A jump arc lasts ~0.7 s — barely one position update — so linear extrapolation would
+                    // smear every hop into a bump. Integrate the server's launch velocity under the world's
+                    // gravity instead (#1333; the micro-fauna hop already does this locally): a ground bird
+                    // glides under reduced gravity like the server's model.
+                    float g = 20f * Mathf.Max(0.3f, Game.Environment != null ? Game.Environment.GravityFactor : 1f);
+                    if (c.HasWings) g *= 0.4f;
+                    float t = Mathf.Min(since, 0.6f);
+                    predicted.y = entry.Target.y + c.VertVel * t - 0.5f * g * t * t;
+                }
                 // Smoothly chase the (extrapolated) authoritative position; a visible lunge toward the
                 // player is added on top during an attack so attacks read clearly.
                 entry.Settled = Vector3.Lerp(entry.Settled, predicted, dt * 8f);
@@ -171,7 +183,8 @@ namespace BlocksBeyondTheStars.Client
                 if (vel.sqrMagnitude > 1e-5f)
                 {
                     entry.FaceDir = Vector3.Slerp(entry.FaceDir, vel.normalized, 1f - Mathf.Exp(-8f * dt));
-                    bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase);
+                    bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase)
+                        || c.Motion == "hoverer"; // a buoyant body has no nose to pitch either (#1333)
                     float targetPitch = 0f, targetRoll = 0f;
                     if (!medusa)
                     {
@@ -194,6 +207,15 @@ namespace BlocksBeyondTheStars.Client
                         entry.Root.transform.rotation = Quaternion.LookRotation(entry.FaceDir, Vector3.up)
                             * Quaternion.Euler(-entry.PitchDeg, 0f, entry.RollDeg);
                     }
+                }
+
+                // Motion class + vertical state for the animator (#1333): wings only beat in the air, legs tuck
+                // mid-jump, a perched flier folds up, crawlers undulate. Cheap per-frame set; the animator
+                // detects the transitions itself (landing squash).
+                var animator = entry.Root.GetComponent<CreatureAnimator>();
+                if (animator != null)
+                {
+                    animator.SetMotion(c.Motion, c.Airborne, c.Perched);
                 }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)

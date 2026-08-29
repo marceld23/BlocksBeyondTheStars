@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2297 server + 412 client passing** (2026-08-24). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2437 server (non-Slow tier) + 419 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -150,6 +150,39 @@ wording (push-to-talk, listening on for LAN), USER_MANUAL → PARENTS link, chec
 problem string + hostile-template gate (#1205), camp-sync target filter (#1212), per-surface name screening
 (station, beam, crew, marker), sentry vs camp guard, boat unloaded-chunk/lava, `MissionBoardTests` asserts.
 Playtest of the pad fixes stays with #1227.
+
+### ★ Creatures move the way their bodies say — motion classes, gravity, jumps, perching (#1331 #1332 #1333 #1334, 2026-08-29, branch feat/creature-locomotion-classes)
+Marcel asked how fauna moves and wanted it realistic *per type*: fliers that land, walkers that jump like the
+player (unless giants), crawlers that never jump. The analysis found there was no "type" at all — `Habitat`
+picked a Y rule, `LocoStyle` a rhythm, and the vertical axis was a pure kinematic snap: no gravity, no
+vertical velocity, no airborne state, no jump, no landing (the Hopper's "hop" was a clamped sine on the floor;
+fliers slept mid-air and flapped forever). Nine decisions (Q1–Q9) taken, then everything in one PR:
+- **`MotionClass {Walker, Crawler, Flier, Hoverer, Swimmer}`** (`CreatureMotion.ClassOf`, Shared) — derived from
+  the traits a species already has, **no generator roll**, so existing worlds keep their species bit-for-bit.
+  Legless / slitherers / ≥ 6 legs = crawlers (Q2); titans and Size ≥ 2 are giants (Q3); amphibians swap
+  Swimmer ↔ Walker at the waterline with one cell of hysteresis (#1334); winged land walkers are ground birds (Q7).
+- **`VerticalMotion` state machine** (Shared, pure, `CombatEntity.Vert`): gravity `20 × GravityFactor` (Q9), exact
+  ballistic step, a walker jump of 1.25 blocks (`√2gh`, higher on light worlds) that launches *before* the step so
+  the body never clips the lip, a crawler/giant haul-over at 2.5 b/s, real hopper hops on the vertical-life beat,
+  ground-bird bounds under 0.4 g, and a 2 s airborne timeout that snaps to the probe (never stuck).
+  Gates (`TerrainStepBlocked` now keyed on the class): up 1 / down 3-2-1 (walker/crawler/giant), two blocks is a
+  wall like for the player (Q1a/Q1b). Cave, lava and amphibian ground movers got the gate + easing they never had.
+- **Fliers land, perch, take off** (#1332): pause or sleep + a standable cell within hover + 2 (canopy tops yes,
+  interiors no) → descend at 4 b/s → perched under gravity → take off on the pause ending, any hunt/flee intent
+  (skittish birds flush when the player nears, Q4), damage or waking. **Hoverers never land** (Q5). Hover altitude
+  now reads the REAL ground (a player roof counts). Companions inherit the vertical model (no terrain gate).
+- **Wire + client** (#1333): additive `NetCreature.Motion/Airborne/Perched/VertVel`; `CreatureView` integrates
+  jump arcs locally between 2 Hz updates and skips pitch for hoverers; `CreatureAnimator.SetMotion` — wings beat
+  only in the air (perched: folded 70°), legs tuck 35° mid-jump, a 0.18 s landing squash, crawler undulation +
+  1.8× scuttle for 6/8 legs. Scan readout gains a `ui.scan.motion.*` trait (EN + DE).
+- **Bug found on the way:** the water gate read the *generator's* pond under a real floor, so a creature on any
+  platform/bridge over water was walled at the first column above it (`WaterDepthAtFeet` now requires the water
+  to reach the feet). And the old swept body check sampled up-steps at the low Y — the ledge's own block read as
+  a wall, so land fauna practically never climbed anything; the raised-height sweep fixes that too.
+- Tests: `VerticalMotionTests` (8 pure), `CreatureMotionTests` (7: derivation table + roster invariants over all
+  planets × 40 seeds), `CreatureMotionArenaTests` (9 arena tests on floating stone pads: 1-block jump, 2-block
+  wall, crawler haul, giant step, gravity fall, flier perch + flush, hoverer band, ground-bird bound, amphibian
+  waterline), gate table rewritten, `NetCodec` round trip. Docs: WORLD_GENERATION.md §7, USER_MANUAL § Creatures.
 
 ### ★ Arcade on gamepad + safety docs — the package closers (#1218 + #1226, 2026-08-23, branch feat/1218-1226-arcade-pad-safety)
 Slices 23 + 24 of the feature-deepening package (epic #1197) — the last code issue and the last docs issue,

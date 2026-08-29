@@ -94,6 +94,10 @@ public sealed class CombatEntity
     /// planet fauna AND planet enemies. Server-only; a default value initialises itself on first step.</summary>
     public LocomotionState Loco;
 
+    /// <summary>Vertical mechanics state for planet fauna (#1331): jump/fall velocity, airborne flag, a flier's
+    /// perch phase, an amphibian's water hysteresis. Server-only; a default value is "grounded".</summary>
+    public VerticalState Vert;
+
     /// <summary>True once this hostile has noticed the ship (entered aggro range) and the "spotted" warning has
     /// been raised. Cleared again when it loses the ship, so re-engaging warns afresh. Server-only.</summary>
     public bool Spotted { get; set; }

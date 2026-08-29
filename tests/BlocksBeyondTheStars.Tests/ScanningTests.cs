@@ -199,11 +199,12 @@ public sealed class ScanningTests : IDisposable
             Assert.Equal("creature", result.Kind);
             // Habitat / activity / temperament as keys the client localizes — these used to be raw C# enum
             // names, so the German build read "Forest · Nocturnal · Territorial".
-            Assert.Equal(4, result.TraitKeys.Length);
+            Assert.Equal(5, result.TraitKeys.Length);
             Assert.StartsWith("ui.scan.habitat.", result.TraitKeys[0]);
-            Assert.StartsWith("ui.scan.activity.", result.TraitKeys[1]);
-            Assert.StartsWith("ui.scan.temperament.", result.TraitKeys[2]);
-            Assert.StartsWith("ui.scan.voice.", result.TraitKeys[3]); // the species' call, named (#907)
+            Assert.StartsWith("ui.scan.motion.", result.TraitKeys[1]); // how it moves — the motion class (#1333)
+            Assert.StartsWith("ui.scan.activity.", result.TraitKeys[2]);
+            Assert.StartsWith("ui.scan.temperament.", result.TraitKeys[3]);
+            Assert.StartsWith("ui.scan.voice.", result.TraitKeys[4]); // the species' call, named (#907)
             Assert.Contains(result.ThreatKey, new[] { "ui.scan.threat.safe", "ui.scan.threat.provokable", "ui.scan.threat.hostile" });
 
             // The coined species name is remembered at scan time: species are generated PER WORLD, so it

@@ -819,22 +819,26 @@ public sealed partial class GameServer
                 creature.AwakeOverrideTimer = CreatureWakeSeconds;
             }
 
-            // Sleepers rest in place during their off-phase — only their habitat Y is kept (a sleeping flier
-            // still hovers), no roaming or hunting. A roused sleeper falls through to normal temperament-driven
-            // behaviour (skittish ones flee, hunters seek, others just wander).
+            // Sleepers rest in place during their off-phase — only their vertical state runs (#1331/#1332: a
+            // sleeping walker still falls if its floor is dug away, a sleeping flier lands and sleeps on the
+            // ground when there is any, a hoverer holds its altitude), no roaming or hunting. A roused sleeper
+            // falls through to normal temperament-driven behaviour (skittish ones flee, hunters seek, others
+            // just wander).
+            var motion = EffectiveMotion(creature, sp);
             if (!SpeciesActive(sp) && creature.AwakeOverrideTimer <= 0)
             {
                 // #1320: a sleeper skips every collision gate on the movement path, so a player building a
                 // wall or floor THROUGH a sleeping herd left the bodies embedded in the masonry all night.
-                // Re-validate the body BEFORE the feet snap (which would otherwise hop it onto the new wall):
-                // rouse + step aside to the nearest clear spot, or despawn when boxed in. A few block reads
-                // per sleeper per tick — far cheaper than the movement path an awake animal runs.
+                // Re-validate the body BEFORE the vertical resolve (which would otherwise hop it onto the new
+                // wall): rouse + step aside to the nearest clear spot, or despawn when boxed in. A few block
+                // reads per sleeper per tick — far cheaper than the movement path an awake animal runs.
                 if (DisplaceEmbeddedSleeper(creature, sp))
                 {
                     continue;
                 }
 
-                creature.Position = AdjustHabitatHeight(sp, creature.Position, 0f, profile, moveDt);
+                creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
+                    asleep: true, MoveMode.Roam, moving: false);
                 continue;
             }
 
@@ -857,7 +861,8 @@ public sealed partial class GameServer
                     // well past the ring, so combat is unaffected; only the overlap goes away.
                     if (dist <= System.Math.Max(CreatureStopRange, sp.Size * 0.9f))
                     {
-                        creature.Position = AdjustHabitatHeight(sp, creature.Position, 0f, profile, moveDt);
+                        creature.Position = ResolveVertical(creature, sp, motion, creature.Position, 0f, profile, moveDt,
+                            asleep: false, MoveMode.Seek, moving: false);
                         continue;
                     }
 
@@ -899,35 +904,11 @@ public sealed partial class GameServer
                 stepped = GroupSteer(creature, sp, stepped, moveDt, profile);
             }
 
-            // Follow the world as they roam: land/lava walkers track the ground (hoppers pop up), fliers hover +
-            // swoop, swimmers porpoise through the water column — driven by the per-creature vertical wave.
-            var next = AdjustHabitatHeight(sp, stepped, res.VertWave, profile, moveDt);
-
-            // Creatures don't walk into the player's ship — hold position at the hull. Energy fences
-            // pen them in the same way, and terrain gates (#648) reuse the exact same mechanic. Instead of
-            // only re-rolling a random heading, a blocked creature first probes alternative headings around
-            // the obstacle (#651) — so it slides along cliff bases, walls and fence lines like an animal
-            // skirting an obstacle. Only when every probe is blocked too does it fall back to the re-roll,
-            // which preserves the "nothing can ever get stuck" property.
-            if (EntityBlockedByShip(next, CreatureShipMargin(sp)) || BlockedByEnergyFence(creature.Position, next)
-                || StepBlockedByTerrain(sp, creature.Position, next)
-                || CreaturePathBlocked(sp, creature.Position, next))
-            {
-                if (TrySteerAround(creature, sp, res.Position, res.VertWave, profile, moveDt,
-                        out var detour, out float detourHeading))
-                {
-                    creature.Loco.Heading = detourHeading;
-                    creature.Position = detour;
-                }
-                else
-                {
-                    creature.Loco.ModeTimer = 0f; // boxed in — re-roll a fresh heading next tick
-                }
-            }
-            else
-            {
-                creature.Position = next;
-            }
+            // Apply the horizontal step through every barrier (ship, fence, terrain gate, body sweep) and then
+            // the class's vertical mechanics (#1331): walkers jump ledges and fall, crawlers haul over, fliers
+            // land and take off, hoverers drift, swimmers porpoise.
+            ApplyCreatureStep(creature, sp, motion, stepped, res.VertWave, profile, moveDt, intent, res.Moving,
+                terrainGates: true);
         }
 
         if (_creatureEvictions.Count == 0)
@@ -942,6 +923,118 @@ public sealed partial class GameServer
 
         _creatureEvictions.Clear();
         return true;
+    }
+
+    /// <summary>
+    /// One creature's movement step (#1331): the horizontal move from the locomotion controller is checked
+    /// against the ship hull, energy fences, the terrain gate (wild fauna only) and the swept body check; a
+    /// blocked step steers around (#651) or re-rolls; a ground mover facing a one-block rise first jumps or
+    /// climbs in place and only steps over once its feet are up (so the body never clips the ledge); then the
+    /// class's vertical mechanics resolve the Y at the accepted spot. Shared by wild fauna and companions.
+    /// </summary>
+    private void ApplyCreatureStep(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f stepped,
+        float vertWave, in LocomotionProfile prof, double dt, MoveMode intent, bool moving, bool terrainGates)
+    {
+        var cur = c.Position;
+        float targetX = cur.X, targetZ = cur.Z;
+
+        // A flier coming down onto a perch or sitting on one does not walk (#1332).
+        bool hold = motion == MotionClass.Flier && c.Vert.Flight is FlightPhase.Landing or FlightPhase.Perched;
+        if (!hold)
+        {
+            var cand = PreviewStep(sp, motion, cur, stepped, out bool needsRise, out int riseFeet);
+            if (StepBlocked(c, sp, motion, cur, cand, needsRise, terrainGates))
+            {
+                // Creatures don't walk into the player's ship — hold position at the hull. Energy fences pen
+                // them in the same way, and terrain gates (#648) reuse the exact same mechanic. Instead of only
+                // re-rolling a random heading, a blocked creature first probes alternative headings around the
+                // obstacle (#651) — so it slides along cliff bases, walls and fence lines like an animal
+                // skirting an obstacle. Only when every probe is blocked too does it fall back to the re-roll,
+                // which preserves the "nothing can ever get stuck" property.
+                c.Vert.ClimbTargetY = 0f; // whatever it was hauling toward is off the table
+                if (TrySteerAround(c, sp, motion, stepped, terrainGates, out var detour, out float detourHeading))
+                {
+                    c.Loco.Heading = detourHeading;
+                    targetX = detour.X;
+                    targetZ = detour.Z;
+                }
+                else
+                {
+                    c.Loco.ModeTimer = 0f; // boxed in — re-roll a fresh heading next tick
+                }
+            }
+            else if (needsRise)
+            {
+                // A one-block ledge ahead: get the feet up FIRST — a walker jumps, a crawler or giant hauls
+                // itself up in place — and step over on a later tick once the body clears the lip.
+                if (!c.Vert.Airborne && c.Vert.ClimbTargetY <= 0f)
+                {
+                    if (CreatureMotion.CanJump(sp))
+                    {
+                        VerticalMotion.Launch(ref c.Vert, LedgeJumpImpulse(sp));
+                    }
+                    else
+                    {
+                        VerticalMotion.BeginClimb(ref c.Vert, riseFeet);
+                    }
+                }
+            }
+            else
+            {
+                c.Vert.ClimbTargetY = 0f; // no rise ahead any more (heading changed) — don't finish a pointless haul
+                targetX = cand.X;
+                targetZ = cand.Z;
+            }
+        }
+
+        c.Position = ResolveVertical(c, sp, motion, new Vector3f(targetX, cur.Y, targetZ), vertWave, prof, dt,
+            asleep: false, intent, moving);
+    }
+
+    /// <summary>Every barrier a step must pass (#1331): ship hull, energy fence, the terrain gate (wild fauna;
+    /// companions keep their freedom to follow the owner anywhere), and the swept body check — swept at the
+    /// RAISED height when the step is a ledge the animal will have climbed first, so the ledge's own block
+    /// doesn't read as a wall the way it used to.</summary>
+    private bool StepBlocked(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f cand,
+        bool needsRise, bool terrainGates)
+    {
+        if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand))
+        {
+            return true; // body-aware hull guard for large species (#1320)
+        }
+
+        if (terrainGates && StepBlockedByTerrain(sp, motion, cur, cand))
+        {
+            return true;
+        }
+
+        var from = needsRise ? new Vector3f(cur.X, cand.Y, cur.Z) : cur;
+        return CreaturePathBlocked(sp, from, cand, motion == MotionClass.Flier && c.Vert.Flight == FlightPhase.Flying);
+    }
+
+    /// <summary>The jump that clears a one-block ledge on this world (Q9: lighter worlds jump higher, exactly
+    /// like the player's); a gliding ground bird gets the same height under its reduced airborne gravity.</summary>
+    private float LedgeJumpImpulse(CreatureSpecies sp)
+    {
+        float g = VerticalMotion.Gravity(_gravityFactor) * (CreatureMotion.Glides(sp) ? VerticalMotion.GlideGravityScale : 1f);
+        return VerticalMotion.ImpulseFor(g, VerticalMotion.JumpHeightFor(_gravityFactor));
+    }
+
+    /// <summary>The motion class in effect for a creature right now (#1334): amphibians swim while their feet
+    /// are in water and walk/crawl ashore, with one cell of hysteresis so a shoreline animal doesn't flicker
+    /// between the two; everyone else keeps the class its body implies.</summary>
+    private MotionClass EffectiveMotion(CombatEntity c, CreatureSpecies sp)
+    {
+        if (sp.Habitat != CreatureHabitat.Amphibian)
+        {
+            return CreatureMotion.ClassOf(sp);
+        }
+
+        int x = (int)System.Math.Floor(c.Position.X), y = (int)System.Math.Floor(c.Position.Y), z = (int)System.Math.Floor(c.Position.Z);
+        bool feetWet = _creatureWaterId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, y, z)).Value == _creatureWaterId;
+        bool belowWet = _creatureWaterId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, y - 1, z)).Value == _creatureWaterId;
+        c.Vert.InWater = feetWet || (c.Vert.InWater && belowWet);
+        return CreatureMotion.EffectiveClass(sp, c.Vert.InWater);
     }
 
     /// <summary>The sleeper's body check (#1320). False when the body sits clear of every colliding block.
@@ -1045,9 +1138,10 @@ public sealed partial class GameServer
     /// <summary>Probes alternative headings around a blocked step (#651): the intended step length swung
     /// ±35°/±70°/±110° off the blocked heading (side order fixed per individual, so a herd doesn't wheel in
     /// unison), first candidate that passes every barrier wins and becomes the new heading — contour/wall
-    /// following. Returns false when all probes are blocked (caller falls back to the heading re-roll).</summary>
-    private bool TrySteerAround(CombatEntity c, CreatureSpecies sp, Vector3f stepped, float vertWave,
-        in LocomotionProfile prof, double dt, out Vector3f detour, out float heading)
+    /// following. A detour never takes a ledge (an animal skirting an obstacle follows the contour, it doesn't
+    /// start a climb sideways). Returns false when all probes are blocked (caller falls back to the re-roll).</summary>
+    private bool TrySteerAround(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f stepped,
+        bool terrainGates, out Vector3f detour, out float heading)
     {
         detour = default;
         heading = 0f;
@@ -1065,16 +1159,14 @@ public sealed partial class GameServer
             for (int s = 0; s < 2; s++)
             {
                 float h = baseHeading + off * (s == 0 ? side : -side);
-                var cand = new Vector3f(
+                var swung = new Vector3f(
                     c.Position.X + (float)System.Math.Cos(h) * len,
                     c.Position.Y,
                     c.Position.Z + (float)System.Math.Sin(h) * len);
-                var adjusted = AdjustHabitatHeight(sp, cand, vertWave, prof, dt);
-                if (!EntityBlockedByShip(adjusted, CreatureShipMargin(sp)) && !BlockedByEnergyFence(c.Position, adjusted)
-                    && !StepBlockedByTerrain(sp, c.Position, adjusted)
-                    && !CreaturePathBlocked(sp, c.Position, adjusted))
+                var cand = PreviewStep(sp, motion, c.Position, swung, out bool needsRise, out _);
+                if (!needsRise && !StepBlocked(c, sp, motion, c.Position, cand, false, terrainGates))
                 {
-                    detour = adjusted;
+                    detour = cand;
                     heading = h;
                     return true;
                 }
@@ -1084,16 +1176,51 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Feeds the world's column data (ground heights + water depths) into the pure
-    /// <see cref="CreatureBehaviour.TerrainStepBlocked"/> gate (#648). Only consulted when the step
-    /// actually crosses a column boundary, and only for the habitats the gate cares about — so the
-    /// extra world queries stay off the common same-column tick. Ground heights come from REAL blocks
-    /// (#650), so player-built walls read as impassable steps and dug ramps as walkable ones.</summary>
-    private bool StepBlockedByTerrain(CreatureSpecies sp, Vector3f cur, Vector3f next)
+    /// <summary>
+    /// The Y a step candidate is evaluated at (#1331), without touching any state: for a ground mover heading
+    /// into a higher column that is the ledge's feet cell (it will have jumped or climbed before it steps
+    /// over — <paramref name="needsRise"/> tells the caller the feet are still below it); otherwise the
+    /// current Y (fliers, hoverers and swimmers ease in place; a drop is taken by falling after the step).
+    /// </summary>
+    private Vector3f PreviewStep(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f stepped,
+        out bool needsRise, out int riseFeet)
     {
-        if (sp.Habitat != CreatureHabitat.Land && sp.Habitat != CreatureHabitat.Water)
+        needsRise = false;
+        riseFeet = 0;
+        if (!CreatureMotion.IsGroundBound(motion))
         {
-            return false; // fliers, cave/lava dwellers and amphibians keep their existing freedom
+            return new Vector3f(stepped.X, cur.Y, stepped.Z);
+        }
+
+        int cx = (int)System.Math.Floor(cur.X), cz = (int)System.Math.Floor(cur.Z);
+        int nx = (int)System.Math.Floor(stepped.X), nz = (int)System.Math.Floor(stepped.Z);
+        if (cx == nx && cz == nz)
+        {
+            return new Vector3f(stepped.X, cur.Y, stepped.Z);
+        }
+
+        int refY = (int)System.Math.Floor(cur.Y);
+        int nextFeet = GroundFeetFor(sp, nx, nz, refY);
+        if (nextFeet > cur.Y)
+        {
+            riseFeet = nextFeet;
+            needsRise = VerticalMotion.IsBelow(cur.Y, nextFeet);
+            return new Vector3f(stepped.X, nextFeet, stepped.Z);
+        }
+
+        return new Vector3f(stepped.X, cur.Y, stepped.Z);
+    }
+
+    /// <summary>Feeds the world's column data (real ground heights + water depths) into the pure
+    /// <see cref="CreatureBehaviour.TerrainStepBlocked"/> gate (#648, per motion class since #1331). Only
+    /// consulted when the step actually crosses a column boundary, and only for the classes the gate cares
+    /// about — so the extra world queries stay off the common same-column tick. Ground heights come from
+    /// REAL blocks (#650), so player-built walls read as impassable steps and dug ramps as walkable ones.</summary>
+    private bool StepBlockedByTerrain(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next)
+    {
+        if (!CreatureMotion.IsGroundBound(motion) && motion != MotionClass.Swimmer)
+        {
+            return false; // fliers and hoverers keep their freedom
         }
 
         int cx = (int)System.Math.Floor(cur.X), cz = (int)System.Math.Floor(cur.Z);
@@ -1104,24 +1231,53 @@ public sealed partial class GameServer
         }
 
         int refY = (int)System.Math.Floor(cur.Y);
-        int curFeet = GroundFeetYAt(cx, cz, refY);
-        int nextFeet = GroundFeetYAt(nx, nz, refY);
+        int curFeet = GroundFeetFor(sp, cx, cz, refY);
+        int nextFeet = GroundFeetFor(sp, nx, nz, refY);
 
         // A large body treats a filled column as a wall (#750): ground-height deltas alone made ruin
         // walls invisible to fauna (NPCs have PathBlockedByWorld; creatures had nothing), so titans
         // pathed straight through masonry and bit the player from inside rooms. Titan-scale only, so
         // the extra block reads stay off the common path.
-        if (sp.Size >= LargeBodySize && sp.Habitat == CreatureHabitat.Land
+        if (sp.Size >= LargeBodySize && CreatureMotion.IsGroundBound(motion)
             && !LargeBodyColumnOpen(sp, nx, nextFeet, nz))
         {
             return true;
         }
 
-        int curDepth = _generator.TryGetWaterSurface(_world.Planet, cx, cz, out int curTop, out int curBed)
-            ? curTop - curBed : 0;
-        int nextDepth = _generator.TryGetWaterSurface(_world.Planet, nx, nz, out int nextTop, out int nextBed)
-            ? nextTop - nextBed : 0;
-        return CreatureBehaviour.TerrainStepBlocked(sp.Habitat, sp.BodyPlan, curFeet, nextFeet, curDepth, nextDepth);
+        int curDepth = WaterDepthAtFeet(cx, cz, curFeet);
+        int nextDepth = WaterDepthAtFeet(nx, nz, nextFeet);
+        return CreatureBehaviour.TerrainStepBlocked(motion, CreatureMotion.IsGiant(sp), CreatureMotion.IsAmphibious(sp),
+            curFeet, nextFeet, curDepth, nextDepth);
+    }
+
+    /// <summary>The generator's water depth in a column, but only when that water actually reaches the
+    /// creature's feet: a real floor built ABOVE a pond (a bridge, a floating platform, a filled-in shore)
+    /// is dry ground, not a swim — the old gate read the pond underneath and walled the animal at the
+    /// first column over water.</summary>
+    private int WaterDepthAtFeet(int x, int z, int feetY)
+    {
+        if (!_generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed))
+        {
+            return 0;
+        }
+
+        return top >= feetY - 1 ? top - bed : 0;
+    }
+
+    /// <summary>The feet cell a ground mover of this species stands on in a column, nearest to
+    /// <paramref name="refY"/>: real blocks first (#650); a cave dweller with no standable cell near its depth
+    /// holds that depth (it never pops up to the noise surface); everyone else falls back to the generator
+    /// surface for unloaded columns.</summary>
+    private int GroundFeetFor(CreatureSpecies sp, int x, int z, int refY)
+    {
+        // Species-aware headroom + the wide real-ground scan (#1320), so a titan never "stands" in a two-cell
+        // hollow and a fresh pit is found before the noise surface is trusted.
+        if (TryGroundFeetYAt(x, z, refY, CreatureHeadroom(sp), CreatureWideGroundScan, out int feet))
+        {
+            return feet;
+        }
+
+        return sp.Habitat == CreatureHabitat.Cave ? refY : _generator.SurfaceHeight(_world.Planet, x, z) + 1;
     }
 
     private const float CreatureSweepStep = 0.25f; // swept-step sampling distance (same as the NPC path check)
@@ -1140,15 +1296,19 @@ public sealed partial class GameServer
     /// walkable step and lets the rendered body clip into it. Checks the creature's own column from the feet cell
     /// up through its body height; flying species pass through tree canopies (they hover inside them).</summary>
     private bool CreatureBodyBlocked(CreatureSpecies sp, Vector3f pos)
+        => CreatureBodyBlocked(sp, pos, foliagePasses: sp.Habitat == CreatureHabitat.Air);
+
+    /// <summary>Body check with an explicit canopy rule (#1332): a flier in the air weaves through tree crowns,
+    /// but a flier coming down to PERCH treats the canopy as solid — it sits on a crown, never inside one.</summary>
+    private bool CreatureBodyBlocked(CreatureSpecies sp, Vector3f pos, bool foliagePasses)
     {
         int x = (int)System.Math.Floor(pos.X);
         int y = (int)System.Math.Floor(pos.Y);
         int z = (int)System.Math.Floor(pos.Z);
-        bool flier = sp.Habitat == CreatureHabitat.Air;
         int height = CreatureBodyHeight(sp);
         for (int dy = 0; dy < height; dy++)
         {
-            if (IsCollidingCellIfLoaded(x, y + dy, z, foliagePasses: flier))
+            if (IsCollidingCellIfLoaded(x, y + dy, z, foliagePasses))
             {
                 return true;
             }
@@ -1161,6 +1321,9 @@ public sealed partial class GameServer
     /// <see cref="CreatureSweepStep"/> of a block, so a fast animal can't tunnel through a one-block-thin wall
     /// between two ticks. Mirrors <c>PathBlockedByWorld</c>, which fixed exactly this for NPCs.</summary>
     private bool CreaturePathBlocked(CreatureSpecies sp, Vector3f from, Vector3f to)
+        => CreaturePathBlocked(sp, from, to, foliagePasses: sp.Habitat == CreatureHabitat.Air);
+
+    private bool CreaturePathBlocked(CreatureSpecies sp, Vector3f from, Vector3f to, bool foliagePasses)
     {
         float dx = to.X - from.X, dy = to.Y - from.Y, dz = to.Z - from.Z;
         float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
@@ -1168,7 +1331,7 @@ public sealed partial class GameServer
         for (int s = 1; s <= steps; s++)
         {
             float f = s / (float)steps;
-            if (CreatureBodyBlocked(sp, new Vector3f(from.X + dx * f, from.Y + dy * f, from.Z + dz * f)))
+            if (CreatureBodyBlocked(sp, new Vector3f(from.X + dx * f, from.Y + dy * f, from.Z + dz * f), foliagePasses))
             {
                 return true;
             }
@@ -1405,6 +1568,18 @@ public sealed partial class GameServer
     /// <summary>Runs the placement-time eviction sweep directly (no tick) so a test can isolate it.</summary>
     public void EvictWildlifeFromShipsForTest() => EvictWildlifeFromShips();
 
+    /// <summary>Test-only: puts a creature's locomotion controller into a roam PAUSE for <paramref name="seconds"/>
+    /// (as if it had rolled one), so a test can trigger the behaviour a pause drives — a flier landing to
+    /// rest (#1332) — without waiting for the seeded roll.</summary>
+    public void PauseCreatureForTest(string id, float seconds)
+    {
+        var c = _creatures.First(x => x.Id == id);
+        c.Loco.Initialized = true;
+        c.Loco.Mode = MoveMode.Pause;
+        c.Loco.ModeTimer = seconds;
+        c.Loco.Speed = 0f;
+    }
+
     /// <summary>The spawner's full reject list for the first roster species at a spot (#1314 seam).</summary>
     public bool SpawnSpotClearForTest(Vector3f at)
     {
@@ -1433,102 +1608,223 @@ public sealed partial class GameServer
 
     private const float CreatureFlyAltitude = 5f; // how high above the ground fliers hover
 
-    /// <summary>Habitat Y-snap for a one-off placement (spawn / teleport) — no vertical-life wave.</summary>
-    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p)
-        => AdjustHabitatHeight(sp, p, 0f, default, double.PositiveInfinity);
+    private const float FlierDescendRate = 4f;   // blocks/s a landing flier comes down at (#1332)
+    private const float FlierClimbRate = 5f;     // blocks/s a flier climbs back to its hover band
+    private const float FlierCruiseRate = 4f;    // blocks/s the hover target is eased at (#652)
+    private const float HovererEaseRate = 2f;    // slower — a gas sac lags the terrain instead of tracing it
+    private const float LandHovererHeight = 0.8f; // a floating land grazer rides this far above its feet
+    private const float PerchReach = 2f;         // a perch may sit this far below the hover band's floor
+    private const float TakeOffSettle = 0.3f;    // within this of the hover target → cruising again
 
-    /// <summary>Keeps a creature's Y suited to its habitat as it roams: land walkers track the REAL ground
-    /// (#650 — dug pits and built floors included) at a capped vertical rate (#652 — no more stair-step
-    /// teleports; hoppers keep the snap, their pop IS the motion), fliers ease toward hover + swoop, swimmers
-    /// porpoise the water column. <paramref name="vertWave"/> is the creature's own vertical-life wave
-    /// (sin, ∈ [-1,1]) and <paramref name="prof"/> supplies its amplitude. <paramref name="dt"/> drives the
-    /// vertical easing — pass <see cref="double.PositiveInfinity"/> for a one-off placement snap.</summary>
-    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p, float vertWave, in LocomotionProfile prof, double dt)
+    /// <summary>Habitat Y-snap for a one-off placement (spawn / teleport / companion re-place): the pure
+    /// habitat height with no easing and no vertical state — fliers at their hover, swimmers mid-column,
+    /// ground movers on the real feet cell.</summary>
+    private Vector3f AdjustHabitatHeight(CreatureSpecies sp, Vector3f p)
     {
-        int surface = _generator.SurfaceHeight(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z));
+        int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
+        int surface = _generator.SurfaceHeight(_world.Planet, x, z);
         switch (sp.Habitat)
         {
             case CreatureHabitat.Air:
-                // Hover above the ground at the species' own altitude (#637 — 0 = the legacy default), the
-                // gliders/drifters swooping on their own wave. Altitude is EASED (#652), so a flier glides
-                // over gullies and boulders instead of tracing every terrain dimple like a contour pen.
                 float hover = sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
-                float airTarget = surface + hover + prof.VertAmp * vertWave;
-                return new Vector3f(p.X, EaseY(p.Y, airTarget, dt, rate: 4.0, snapBeyond: 24f), p.Z);
+                return new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover, p.Z);
             case CreatureHabitat.Water:
-                // Use the LOCAL water column (sea or upland pond) — not just the global sea level — so swimmers
-                // stay submerged in the upland lakes they were spawned in, not only the deep sea.
-                if (_generator.TryGetWaterSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
-                        out int waterTopY, out int seabedY)
-                    && waterTopY > seabedY + 1)
-                {
-                    float lo = seabedY + 1f, hi = waterTopY - 0.5f;
-                    // Porpoise up and down the water column on the creature's OWN vertical wave (per-species freq,
-                    // decorrelated) instead of one shared global sine. Clamped to the column, so shallow water
-                    // just keeps them low.
-                    float target = lo + (hi - lo) * (0.5f + 0.45f * vertWave);
-                    return new Vector3f(p.X, target, p.Z);
-                }
-
-                return new Vector3f(p.X, surface + 1f, p.Z); // no water in this column → rest on the bed
-            case CreatureHabitat.Cave:
-                // Stay down in the caves: re-find the cave floor at the new column; if it wandered out from under
-                // any cave, hold its current depth rather than popping up to the surface.
-                int caveY = FindCaveFloorY((int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z), surface);
-                return caveY >= 0 ? new Vector3f(p.X, caveY, p.Z) : p;
+                return new Vector3f(p.X, WaterColumnY(x, z, 0f, surface), p.Z);
             case CreatureHabitat.Lava:
-                // #470/F4: stay in the melt (crater pool / lava sea / flow) the way swimmers stay in water —
-                // the old land snap to surface+1 put lava dwellers into the air above their own habitat.
-                if (_generator.TryGetLavaSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
-                        out int lavaTop, out _))
-                {
-                    return new Vector3f(p.X, lavaTop, p.Z);
-                }
-
-                return new Vector3f(p.X, surface + 1f, p.Z); // wandered onto dry rock → crawl on it
+                return _generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _)
+                    ? new Vector3f(p.X, lavaTop, p.Z)
+                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)), p.Z);
             case CreatureHabitat.Amphibian:
-                // #470/F8: hold the water-surface cell instead of stepping out onto the bank — the land snap
-                // to surface+1 undid the careful water placement on the very first move tick (upland ponds
-                // fill flush with the ground, so surface+1 is the air cell ABOVE the water).
-                if (_generator.TryGetWaterSurface(_world.Planet, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
-                        out int ampTop, out _))
-                {
-                    return new Vector3f(p.X, ampTop, p.Z);
-                }
-
-                return new Vector3f(p.X, surface + 1f, p.Z); // genuinely ashore → waddle on land
+                return _generator.TryGetWaterSurface(_world.Planet, x, z, out int ampTop, out _)
+                    ? new Vector3f(p.X, ampTop, p.Z)
+                    : new Vector3f(p.X, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)), p.Z);
             default:
-                // Land creatures follow the REAL ground (#650): player floors, dug ramps and pit bottoms,
-                // falling back to the generator surface where no blocks are loaded. Poppers (hoppers, floaty
-                // drifters) keep the snap — their vertical wave IS the motion; everyone else eases toward the
-                // ground at a capped rate (#652) so slopes read as walking, not stair-step teleports. The
-                // #648 gates bound every legal step to ≤2 blocks of relief, which is what makes easing safe.
-                int feet = GroundFeetYAt(sp, (int)System.Math.Floor(p.X), (int)System.Math.Floor(p.Z),
-                    (int)System.Math.Floor(p.Y)); // species-aware headroom + wide real-ground scan (#1320)
-                if (prof.VertAmp > 0f)
-                {
-                    float pop = System.Math.Max(0f, prof.VertAmp * vertWave);
-                    return new Vector3f(p.X, feet + pop, p.Z);
-                }
-
-                return new Vector3f(p.X, EaseY(p.Y, feet, dt, rate: 6.0, snapBeyond: 4f), p.Z);
+                return new Vector3f(p.X, GroundFeetFor(sp, x, z, (int)System.Math.Floor(p.Y)), p.Z);
         }
     }
 
-    /// <summary>Moves a Y toward its habitat target at a capped vertical rate (#652). Snaps outright for
-    /// one-off placements (infinite <paramref name="dt"/>) and whenever the gap exceeds
-    /// <paramref name="snapBeyond"/> (spawn, teleport, shove — easing across such a gap would look like
-    /// levitation and could lag through terrain).</summary>
-    private static float EaseY(float cur, float target, double dt, double rate, float snapBeyond)
+    /// <summary>
+    /// The per-tick vertical mechanics (#1331/#1332/#1334) at an accepted X/Z: which of the five motion
+    /// classes the creature moves in decides how its Y is found. Ground movers run under gravity (real
+    /// jumps, real falls, a slow haul for the ones that can't jump), fliers cruise / land / perch / take off,
+    /// hoverers drift on a buoyant ease, swimmers porpoise their water column. <paramref name="vertWave"/> is
+    /// the creature's own vertical-life wave (sin ∈ [-1,1]); <paramref name="prof"/> supplies its amplitude.
+    /// Mutates the creature's <see cref="CombatEntity.Vert"/> state.
+    /// </summary>
+    private Vector3f ResolveVertical(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f p, float vertWave,
+        in LocomotionProfile prof, double dt, bool asleep, MoveMode intent, bool moving)
     {
-        float d = target - cur;
-        if (double.IsPositiveInfinity(dt) || System.Math.Abs(d) > snapBeyond)
+        int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
+        int surface = _generator.SurfaceHeight(_world.Planet, x, z);
+        switch (motion)
         {
-            return target;
+            case MotionClass.Swimmer:
+                c.Vert.Airborne = false;
+                return new Vector3f(p.X, WaterColumnY(x, z, vertWave, surface,
+                    holdY: sp.Habitat == CreatureHabitat.Amphibian ? p.Y : null), p.Z);
+
+            case MotionClass.Hoverer:
+                {
+                    // Buoyant (Q5): never lands, never sinks — asleep it simply holds its band. The target eases
+                    // slowly, so a gas sac visibly lags the terrain instead of contour-tracing it.
+                    c.Vert.Airborne = false;
+                    float baseY = sp.Habitat == CreatureHabitat.Air
+                        ? GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - HoverOf(sp))) + HoverOf(sp)
+                        : GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)) + LandHovererHeight;
+                    float target = baseY + prof.VertAmp * vertWave;
+                    return new Vector3f(p.X, VerticalMotion.Ease(p.Y, target, dt, HovererEaseRate, 24f), p.Z);
+                }
+
+            case MotionClass.Flier:
+                return new Vector3f(p.X, ResolveFlier(c, sp, p, vertWave, prof, dt, asleep, intent), p.Z);
+
+            default:
+                {
+                    // Walker / crawler. Lava dwellers in the melt swim it like water; ashore they walk the rock.
+                    if (sp.Habitat == CreatureHabitat.Lava
+                        && _generator.TryGetLavaSurface(_world.Planet, x, z, out int lavaTop, out _))
+                    {
+                        c.Vert.Airborne = false;
+                        return new Vector3f(p.X, lavaTop, p.Z);
+                    }
+
+                    float g = VerticalMotion.Gravity(_gravityFactor);
+                    int groundY = GroundFeetFor(sp, x, z, (int)System.Math.Floor(p.Y));
+                    if (!asleep && moving && !c.Vert.Airborne && c.Vert.ClimbTargetY <= 0f)
+                    {
+                        if (sp.LocoStyle == LocomotionStyle.Hopper && CreatureMotion.CanJump(sp)
+                            && VerticalMotion.HopBeat(ref c.Vert, vertWave))
+                        {
+                            // A hopper's beat is a real ballistic hop now (#1331) — the stride pulse in the
+                            // controller rides the same wave, so hop and stride stay in step.
+                            VerticalMotion.Launch(ref c.Vert, VerticalMotion.ImpulseFor(g, VerticalMotion.JumpHeightFor(_gravityFactor, VerticalMotion.HopHeight)));
+                        }
+                        else if (intent == MoveMode.Flee && CreatureMotion.Glides(sp) && c.Vert.JumpCooldown <= 0f)
+                        {
+                            // A startled ground bird bounds (#1334): the ledge jump under glide gravity → a long, flat arc.
+                            VerticalMotion.Launch(ref c.Vert, LedgeJumpImpulse(sp));
+                            c.Vert.JumpCooldown = VerticalMotion.BoundCooldown;
+                        }
+                    }
+                    else if (!moving)
+                    {
+                        c.Vert.LastWave = vertWave; // keep the beat detector current so a resumed hopper doesn't fire on stale sign
+                    }
+
+                    float riseRate = motion == MotionClass.Crawler ? VerticalMotion.ClimbRate : VerticalMotion.StepUpRate;
+                    float gravityScale = CreatureMotion.Glides(sp) ? VerticalMotion.GlideGravityScale : 1f;
+                    return new Vector3f(p.X, VerticalMotion.Ground(ref c.Vert, p.Y, groundY, g, dt, riseRate, gravityScale), p.Z);
+                }
+        }
+    }
+
+    private static float HoverOf(CreatureSpecies sp) => sp.HoverAltitude > 0f ? sp.HoverAltitude : CreatureFlyAltitude;
+
+    /// <summary>
+    /// A flier's vertical life (#1332): cruise at its hover band over the REAL ground (a player roof counts),
+    /// swooping on its own wave; come down to a perch when the controller pauses or sleep begins and there is
+    /// something to sit on within reach; sit under gravity (a removed branch drops it); climb back out when
+    /// the pause ends, on any hunt/flee intent (a skittish bird flushes when the player nears), when hurt, or
+    /// when roused from sleep.
+    /// </summary>
+    private float ResolveFlier(CombatEntity c, CreatureSpecies sp, Vector3f p, float vertWave, in LocomotionProfile prof,
+        double dt, bool asleep, MoveMode intent)
+    {
+        int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
+        float hover = HoverOf(sp);
+        float airTarget = GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - hover)) + hover + prof.VertAmp * vertWave;
+        bool mustFly = intent is MoveMode.Seek or MoveMode.Flee || c.PanicTimer > 0 || c.ProvokeTimer > 0;
+        bool wantsDown = !mustFly && (asleep || c.Loco.Mode == MoveMode.Pause);
+        ref var v = ref c.Vert;
+        switch (v.Flight)
+        {
+            case FlightPhase.Landing:
+                if (!wantsDown)
+                {
+                    v.Flight = FlightPhase.TakingOff;
+                    goto case FlightPhase.TakingOff;
+                }
+
+                v.Airborne = false;
+                float y = VerticalMotion.Ease(p.Y, v.PerchY, dt, FlierDescendRate, 24f);
+                if (System.Math.Abs(y - v.PerchY) < 1e-3f)
+                {
+                    v.Flight = FlightPhase.Perched;
+                }
+
+                return y;
+
+            case FlightPhase.Perched:
+                if (!wantsDown)
+                {
+                    v.Flight = FlightPhase.TakingOff;
+                    v.Airborne = false;
+                    goto case FlightPhase.TakingOff;
+                }
+
+                // Sitting: plain gravity — if the perch is dug away it falls to the next floor and sits there.
+                return VerticalMotion.Ground(ref v, p.Y, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)),
+                    VerticalMotion.Gravity(_gravityFactor), dt);
+
+            case FlightPhase.TakingOff:
+                v.Airborne = false;
+                float up = VerticalMotion.Ease(p.Y, airTarget, dt, FlierClimbRate, 24f);
+                if (System.Math.Abs(up - airTarget) <= TakeOffSettle)
+                {
+                    v.Flight = FlightPhase.Flying;
+                }
+
+                return up;
+
+            default:
+                v.Airborne = false;
+                if (wantsDown && TryPerchSpot(sp, p, hover, out float perchY))
+                {
+                    v.Flight = FlightPhase.Landing;
+                    v.PerchY = perchY;
+                    return VerticalMotion.Ease(p.Y, perchY, dt, FlierDescendRate, 24f);
+                }
+
+                return VerticalMotion.Ease(p.Y, airTarget, dt, FlierCruiseRate, 24f);
+        }
+    }
+
+    /// <summary>A standable feet cell under a flier within its hover band plus <see cref="PerchReach"/>, read
+    /// from real blocks, where its body fits with the canopy counted as SOLID (a bird sits on a crown, never
+    /// inside it). False over a pit, deep water or an unloaded column — the flier keeps hovering.</summary>
+    private bool TryPerchSpot(CreatureSpecies sp, Vector3f p, float hover, out float perchY)
+    {
+        int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
+        perchY = 0f;
+        if (!TryGroundFeetYAt(x, z, (int)System.Math.Floor(p.Y - hover), out int feet) || feet > p.Y
+            || p.Y - feet > hover + PerchReach)
+        {
+            return false;
         }
 
-        float maxStep = (float)(rate * dt);
-        return System.Math.Abs(d) <= maxStep ? target : cur + System.Math.Sign(d) * maxStep;
+        if (CreatureBodyBlocked(sp, new Vector3f(p.X, feet, p.Z), foliagePasses: false))
+        {
+            return false;
+        }
+
+        perchY = feet;
+        return true;
+    }
+
+    /// <summary>The Y inside a column's LOCAL water body (sea or upland pond — not just the global sea level,
+    /// so swimmers stay in the lakes they spawned in): porpoising on the creature's own wave, clamped to the
+    /// column (shallow water just keeps them low). A dry column rests on the bed (or holds
+    /// <paramref name="holdY"/> when given — an amphibian in a player-made pool the generator knows nothing about).</summary>
+    private float WaterColumnY(int x, int z, float vertWave, int surface, float? holdY = null)
+    {
+        if (_generator.TryGetWaterSurface(_world.Planet, x, z, out int waterTopY, out int seabedY)
+            && waterTopY > seabedY + 1)
+        {
+            float lo = seabedY + 1f, hi = waterTopY - 0.5f;
+            return lo + (hi - lo) * (0.5f + 0.45f * vertWave);
+        }
+
+        return holdY ?? surface + 1f;
     }
 
     /// <summary>Finds a standable cave floor (an air pocket on solid ground, with headroom) in a column, scanning
@@ -1676,8 +1972,25 @@ public sealed partial class GameServer
     {
         _speciesById.TryGetValue(e.SpeciesId, out var sp);
         bool asleep = sp != null && !SpeciesActive(sp) && e.AwakeOverrideTimer <= 0 && !e.IsCompanion; // roused or companion → not asleep
+
+        // Motion class + vertical state on the wire (#1333, additive): a walker is airborne mid-jump/fall (with
+        // its velocity so the client can integrate the arc between updates), a flier is airborne unless perched,
+        // a hoverer always is; swimmers never.
+        var motion = sp is null ? MotionClass.Walker : CreatureMotion.EffectiveClass(sp, e.Vert.InWater);
+        bool airborne = motion switch
+        {
+            MotionClass.Flier => e.Vert.Flight != FlightPhase.Perched,
+            MotionClass.Hoverer => true,
+            MotionClass.Swimmer => false,
+            _ => e.Vert.Airborne,
+        };
         return new NetCreature
         {
+            Motion = CreatureMotion.Key(motion),
+            Airborne = airborne,
+            Perched = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched,
+            VertVel = CreatureMotion.IsGroundBound(motion) && e.Vert.Airborne ? e.Vert.VertVel : 0f,
+
             Id = e.Id,
             SpeciesId = e.SpeciesId,
             NameKey = sp?.NameKey ?? "creature.generic.name",

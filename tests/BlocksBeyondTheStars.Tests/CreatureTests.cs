@@ -667,55 +667,67 @@ public sealed class CreatureTests : IDisposable
     // ---------------- Terrain gates (#648, pure) ----------------
 
     [Fact]
-    public void TerrainGate_LandWalker_TreatsCliffsAsSoftWalls_BothDirections()
+    public void TerrainGate_Walker_JumpsOneBlock_TwoIsAWall_AndDropsUpToThree()
     {
-        // A standard ground walker steps at most 2 surface blocks per column — steeper is a wall,
-        // uphill and downhill alike (the Y-snap would otherwise teleport it up/down the face).
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 66, 0, 0));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 62, 0, 0));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 67, 0, 0));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 34, 0, 0));
+        // #1331 (Q1a/Q1b): a walker takes a one-block rise (by jumping) and two is a wall — exactly the
+        // player's reach; downhill it drops up to three blocks (a real fall), four is a cliff edge.
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 65, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 66, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 61, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 60, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 34, 0, 0));
     }
 
     [Fact]
-    public void TerrainGate_Titan_NeedsTheGentleSlopes_ItsSpawnGateDemands()
+    public void TerrainGate_Giant_StepsOne_NeverTwo_AndDropsOnlyOne()
     {
-        // Titans mirror their 3×3 ±1 spawn flatness gate (#638) while roaming: a step of 1 is fine,
-        // 2 is already a wall — a six-block giant must never stair-step a rock face.
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Titan, 64, 65, 0, 0));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Titan, 64, 66, 0, 0));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Titan, 64, 62, 0, 0));
+        // Giants (titans and Size ≥ 2) mirror the 3×3 ±1 spawn flatness gate (#638) while roaming: a step of
+        // 1 is fine (hauled, never jumped), 2 is a wall, and they won't drop more than 1 either.
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, true, false, 64, 65, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, true, false, 64, 66, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, true, false, 64, 63, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, true, false, 64, 62, 0, 0));
     }
 
     [Fact]
-    public void TerrainGate_LandWalker_WadesButNeverSwims()
+    public void TerrainGate_Crawler_ClimbsOne_DropsTwo()
     {
-        // Ankle-deep water (1 cell) is wadeable; anything deeper would put the animal on the seabed.
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 64, 0, 1));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Standard, 64, 64, 0, 2));
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Land, CreatureBodyPlan.Titan, 64, 64, 1, 8));
+        // Crawlers never jump: one block is a slow haul-over, two is a wall; they drop at most two.
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Crawler, false, false, 64, 65, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Crawler, false, false, 64, 66, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Crawler, false, false, 64, 62, 0, 0));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Crawler, false, false, 64, 61, 0, 0));
     }
 
     [Fact]
-    public void TerrainGate_WaterSpecies_NeverLeavesItsWaterBody()
+    public void TerrainGate_GroundMovers_WadeButNeverSwim_UnlessAmphibious()
+    {
+        // Ankle-deep water (1 cell) is wadeable; anything deeper would put the animal on the seabed —
+        // except for an amphibian, which swims it (#1334).
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 64, 0, 1));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, false, 64, 64, 0, 2));
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Crawler, false, false, 64, 64, 1, 8));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Walker, false, true, 64, 64, 0, 8));
+    }
+
+    [Fact]
+    public void TerrainGate_Swimmer_NeverLeavesItsWaterBody_AmphibianMay()
     {
         // In water → dry column is blocked (no more medusae/schools stranding on the beach); moving
         // between wet columns is free; an already-stranded individual keeps its legacy freedom so it
-        // is never wedged in place.
-        Assert.True(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Water, CreatureBodyPlan.Medusa, 60, 64, 3, 0));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Water, CreatureBodyPlan.Medusa, 60, 60, 3, 2));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Water, CreatureBodyPlan.Standard, 64, 64, 0, 0));
+        // is never wedged in place; an amphibian legitimately crosses the shoreline.
+        Assert.True(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 60, 64, 3, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 60, 60, 3, 2));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, false, 64, 64, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Swimmer, false, true, 60, 64, 3, 0));
     }
 
     [Fact]
-    public void TerrainGate_FliersCaveLavaAndAmphibians_AreUnaffected()
+    public void TerrainGate_FliersAndHoverers_AreUnaffected()
     {
-        // Air medusae/gliders swoop over any relief, cave dwellers hug their own floor, lava dwellers
-        // stay in the melt and amphibians legitimately cross the shoreline — no gate for any of them.
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Air, CreatureBodyPlan.Medusa, 64, 120, 0, 0));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Cave, CreatureBodyPlan.Standard, 64, 20, 0, 0));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Lava, CreatureBodyPlan.Standard, 64, 90, 0, 0));
-        Assert.False(CreatureBehaviour.TerrainStepBlocked(CreatureHabitat.Amphibian, CreatureBodyPlan.Standard, 64, 64, 4, 0));
+        // Gliders swoop over any relief and gas sacs drift over it — no gate for either.
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Flier, false, false, 64, 120, 0, 0));
+        Assert.False(CreatureBehaviour.TerrainStepBlocked(MotionClass.Hoverer, false, false, 64, 20, 0, 0));
     }
 
     // ---------------- Real-block terrain, panic & alignment (#650/#651/#652/#653) ----------------

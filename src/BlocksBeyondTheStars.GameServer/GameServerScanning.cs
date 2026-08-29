@@ -52,6 +52,7 @@ public sealed partial class GameServer
             readout.TraitKeys = new[]
             {
                 "ui.scan.habitat." + sp.Habitat.ToString().ToLowerInvariant(),
+                "ui.scan.motion." + Shared.Definitions.CreatureMotion.Key(Shared.Definitions.CreatureMotion.ClassOf(sp)), // #1333
                 "ui.scan.activity." + sp.Activity.ToString().ToLowerInvariant(),
                 "ui.scan.temperament." + sp.Temperament.ToString().ToLowerInvariant(),
                 Shared.Definitions.CreatureVoices.DescriptorKey(voice),

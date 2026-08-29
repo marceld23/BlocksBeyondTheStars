@@ -330,6 +330,34 @@ public sealed class NetCodecTests
     }
 
     [Fact]
+    public void NetCreature_MotionFields_RoundTrip_AndDefaultToAGroundedWalker()
+    {
+        // #1333: the motion class + vertical state are ADDITIVE fields on the creature list — a legacy
+        // NetCreature (no fields) must read as a grounded walker, and a populated one must survive the trip.
+        var legacy = new NetCreature();
+        Assert.Equal("walker", legacy.Motion);
+        Assert.False(legacy.Airborne);
+        Assert.False(legacy.Perched);
+        Assert.Equal(0f, legacy.VertVel);
+
+        var list = new CreatureList
+        {
+            Creatures = new[]
+            {
+                new NetCreature { Id = "c1", Motion = "flier", Airborne = false, Perched = true },
+                new NetCreature { Id = "c2", Motion = "walker", Airborne = true, VertVel = 7.07f },
+            },
+        };
+        var decoded = Assert.IsType<CreatureList>(NetCodec.Decode(NetCodec.Encode(list)));
+        Assert.Equal("flier", decoded.Creatures[0].Motion);
+        Assert.True(decoded.Creatures[0].Perched);
+        Assert.False(decoded.Creatures[0].Airborne);
+        Assert.Equal("walker", decoded.Creatures[1].Motion);
+        Assert.True(decoded.Creatures[1].Airborne);
+        Assert.Equal(7.07f, decoded.Creatures[1].VertVel, 3);
+    }
+
+    [Fact]
     public void JoinRequest_PreservesFieldsThroughMessagePackRoundTrip()
     {
         var original = new JoinRequest
