@@ -962,9 +962,10 @@ public sealed partial class GameServer
 
         // A flier coming down onto a perch or sitting on one does not walk (#1332).
         bool hold = motion == MotionClass.Flier && c.Vert.Flight is FlightPhase.Landing or FlightPhase.Perched;
+        int? groundHint = null; // the accepted target column's feet cell, when PreviewStep already found it (#1367)
         if (!hold)
         {
-            var cand = PreviewStep(sp, motion, cur, stepped, out bool needsRise, out int riseFeet);
+            var cand = PreviewStep(sp, motion, cur, stepped, out bool needsRise, out int riseFeet, out int? nextFeet);
 
             // #1348: a ground mover never STARTS a jump or a climb for a rise past its step-up limit. Wild
             // fauna is already walled by the terrain gate; a companion keeps its freedom from that gate
@@ -973,7 +974,13 @@ public sealed partial class GameServer
             // pet levitated straight up the wall (BeginClimb to the cliff top). Blocked, it waits at the
             // base like any animal; the leash teleport remains the fallback.
             bool riseTooHigh = needsRise && riseFeet - (int)System.Math.Floor(cur.Y) > CreatureMotion.StepUpLimit(motion);
-            if (riseTooHigh || StepBlocked(c, sp, motion, cur, cand, needsRise, terrainGates))
+            // #1367: nor does it start one without head clearance — the swept step samples only the cells
+            // AHEAD at the raised height, so under a low ceiling (a 2-high tunnel with a 1-block step) the
+            // animal launched in its own column and sat with its head in the roof for half a second. The
+            // body column at the landing height, right where it stands, must be clear first; otherwise the
+            // rise is a wall like any other.
+            bool riseBlocked = needsRise && !riseTooHigh && CreatureBodyBlocked(sp, new Vector3f(cur.X, riseFeet, cur.Z));
+            if (riseTooHigh || riseBlocked || StepBlocked(c, sp, motion, cur, cand, needsRise, terrainGates, nextFeet))
             {
                 // Creatures don't walk into the player's ship — hold position at the hull. Energy fences pen
                 // them in the same way, and terrain gates (#648) reuse the exact same mechanic. Instead of only
@@ -1014,11 +1021,12 @@ public sealed partial class GameServer
                 c.Vert.ClimbTargetY = 0f; // no rise ahead any more (heading changed) — don't finish a pointless haul
                 targetX = cand.X;
                 targetZ = cand.Z;
+                groundHint = nextFeet; // the step is taken as previewed — the probe need not run a third time
             }
         }
 
         c.Position = ResolveVertical(c, sp, motion, new Vector3f(targetX, cur.Y, targetZ), vertWave, prof, dt,
-            asleep: false, intent, moving);
+            asleep: false, intent, moving, groundHint);
     }
 
     /// <summary>Every barrier a step must pass (#1331): ship hull, energy fence, the terrain gate (wild fauna;
@@ -1026,14 +1034,14 @@ public sealed partial class GameServer
     /// RAISED height when the step is a ledge the animal will have climbed first, so the ledge's own block
     /// doesn't read as a wall the way it used to.</summary>
     private bool StepBlocked(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f cand,
-        bool needsRise, bool terrainGates)
+        bool needsRise, bool terrainGates, int? nextFeet = null)
     {
         if (EntityBlockedByShip(cand, CreatureShipMargin(sp)) || BlockedByEnergyFence(cur, cand))
         {
             return true; // body-aware hull guard for large species (#1320)
         }
 
-        if (terrainGates && StepBlockedByTerrain(sp, motion, cur, cand))
+        if (terrainGates && StepBlockedByTerrain(sp, motion, cur, cand, nextFeet))
         {
             return true;
         }
@@ -1210,8 +1218,8 @@ public sealed partial class GameServer
                     c.Position.X + (float)System.Math.Cos(h) * len,
                     c.Position.Y,
                     c.Position.Z + (float)System.Math.Sin(h) * len);
-                var cand = PreviewStep(sp, motion, c.Position, swung, out bool needsRise, out _);
-                if (!needsRise && !StepBlocked(c, sp, motion, c.Position, cand, false, terrainGates))
+                var cand = PreviewStep(sp, motion, c.Position, swung, out bool needsRise, out _, out int? nextFeet);
+                if (!needsRise && !StepBlocked(c, sp, motion, c.Position, cand, false, terrainGates, nextFeet))
                 {
                     detour = cand;
                     heading = h;
@@ -1228,12 +1236,15 @@ public sealed partial class GameServer
     /// into a higher column that is the ledge's feet cell (it will have jumped or climbed before it steps
     /// over — <paramref name="needsRise"/> tells the caller the feet are still below it); otherwise the
     /// current Y (fliers, hoverers and swimmers ease in place; a drop is taken by falling after the step).
+    /// <paramref name="nextFeet"/> hands the target column's feet cell on to the gate and the vertical resolve
+    /// (#1367) so one column change probes the ground once, not three times; null when nothing was probed.
     /// </summary>
     private Vector3f PreviewStep(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f stepped,
-        out bool needsRise, out int riseFeet)
+        out bool needsRise, out int riseFeet, out int? nextFeet)
     {
         needsRise = false;
         riseFeet = 0;
+        nextFeet = null;
         if (!CreatureMotion.IsGroundBound(motion))
         {
             return new Vector3f(stepped.X, cur.Y, stepped.Z);
@@ -1247,12 +1258,13 @@ public sealed partial class GameServer
         }
 
         int refY = (int)System.Math.Floor(cur.Y);
-        int nextFeet = GroundFeetFor(sp, nx, nz, refY);
-        if (nextFeet > cur.Y)
+        int feet = GroundFeetFor(sp, nx, nz, refY);
+        nextFeet = feet;
+        if (feet > cur.Y)
         {
-            riseFeet = nextFeet;
-            needsRise = VerticalMotion.IsBelow(cur.Y, nextFeet);
-            return new Vector3f(stepped.X, nextFeet, stepped.Z);
+            riseFeet = feet;
+            needsRise = VerticalMotion.IsBelow(cur.Y, feet);
+            return new Vector3f(stepped.X, feet, stepped.Z);
         }
 
         return new Vector3f(stepped.X, cur.Y, stepped.Z);
@@ -1262,8 +1274,9 @@ public sealed partial class GameServer
     /// <see cref="CreatureBehaviour.TerrainStepBlocked"/> gate (#648, per motion class since #1331). Only
     /// consulted when the step actually crosses a column boundary, and only for the classes the gate cares
     /// about — so the extra world queries stay off the common same-column tick. Ground heights come from
-    /// REAL blocks (#650), so player-built walls read as impassable steps and dug ramps as walkable ones.</summary>
-    private bool StepBlockedByTerrain(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next)
+    /// REAL blocks (#650), so player-built walls read as impassable steps and dug ramps as walkable ones.
+    /// <paramref name="knownNextFeet"/> is the target column's probe when the caller already ran it (#1367).</summary>
+    private bool StepBlockedByTerrain(CreatureSpecies sp, MotionClass motion, Vector3f cur, Vector3f next, int? knownNextFeet = null)
     {
         if (!CreatureMotion.IsGroundBound(motion) && motion != MotionClass.Swimmer)
         {
@@ -1279,7 +1292,7 @@ public sealed partial class GameServer
 
         int refY = (int)System.Math.Floor(cur.Y);
         int curFeet = GroundFeetFor(sp, cx, cz, refY);
-        int nextFeet = GroundFeetFor(sp, nx, nz, refY);
+        int nextFeet = knownNextFeet ?? GroundFeetFor(sp, nx, nz, refY);
 
         // A large body treats a filled column as a wall (#750): ground-height deltas alone made ruin
         // walls invisible to fauna (NPCs have PathBlockedByWorld; creatures had nothing), so titans
@@ -1291,11 +1304,38 @@ public sealed partial class GameServer
             return true;
         }
 
-        int curDepth = WaterDepthAtFeet(cx, cz, curFeet);
+        // #1367: only water was gated — a walker stepped down (≤ 3 blocks) onto the crust of a lava column
+        // like onto any floor. The melt is a wall for everything that does not live in it.
+        if (CreatureMotion.IsGroundBound(motion) && sp.Habitat != CreatureHabitat.Lava && LavaUnderFeet(nx, nextFeet, nz))
+        {
+            return true;
+        }
+
+        // The creature's OWN column is read at its own feet (#1367), not at the probe's answer: in a water
+        // column under an overhang the probe finds the ledge above the surface, which reads as dry ground
+        // (depth 0) and let a swimmer steer out of its lake instead of along the shore.
+        int curDepth = WaterDepthAtFeet(cx, cz, refY);
         int nextDepth = WaterDepthAtFeet(nx, nz, nextFeet);
         return CreatureBehaviour.TerrainStepBlocked(motion, CreatureMotion.IsGiant(sp), CreatureMotion.IsAmphibious(sp),
             curFeet, nextFeet, curDepth, nextDepth);
     }
+
+    /// <summary>Whether feet at <paramref name="feetY"/> in a column would rest on lava (real block, no-load read).</summary>
+    private bool LavaUnderFeet(int x, int feetY, int z)
+        => _creatureLavaId != 0 && _world.GetBlockIfLoaded(new Vector3i(x, feetY - 1, z)).Value == _creatureLavaId;
+
+    /// <summary>Test seam (#1367): the terrain gate's verdict for a creature stepping to <paramref name="next"/>
+    /// from where it stands, in its current motion class.</summary>
+    public bool TerrainStepBlockedForTest(string creatureId, Vector3f next)
+    {
+        var c = _creatures.First(x => x.Id == creatureId);
+        var sp = _speciesById[c.SpeciesId];
+        return StepBlockedByTerrain(sp, EffectiveMotion(c, sp), c.Position, next);
+    }
+
+    /// <summary>Test seam: the generator's water body in a column of the active world (surface top, bed), or null.</summary>
+    public (int Top, int Bed)? WaterSurfaceForTest(int x, int z)
+        => _generator.TryGetWaterSurface(_world.Planet, x, z, out int top, out int bed) ? (top, bed) : null;
 
     /// <summary>The generator's water depth in a column, but only when that water actually reaches the
     /// creature's feet: a real floor built ABOVE a pond (a bridge, a floating platform, a filled-in shore)
@@ -1497,17 +1537,21 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Whether a cell carries feet: anything but air and water (lava included — a lava dweller's
-    /// column is handled before the probe). No-load read.</summary>
+    /// <summary>Whether a cell carries feet: a colliding block or lava (a lava dweller's column is handled
+    /// before the probe) — not air, not water, and since #1367 not a walk-through prop either (a tuft of grass
+    /// carries nobody; the same rule <see cref="CreatureBodyBlocked"/> and the wall fill read). Canopy counts:
+    /// a bird sits on a crown. No-load read.</summary>
     private bool IsSupportCell(int x, int y, int z)
     {
         var id = _world.GetBlockIfLoaded(new Vector3i(x, y, z));
-        return !id.IsAir && id.Value != _creatureWaterId;
+        return id.Value != _creatureWaterId && IsCollidingBlock(id, fluidsPass: false, foliagePasses: false);
     }
 
     /// <summary>Whether feet placed at <paramref name="y"/> stand on something real: solid (non-water)
-    /// support below, air from the feet up through <paramref name="headroom"/> cells. Uses the no-load
-    /// block read.</summary>
+    /// support below, and nothing a body collides with from the feet up through <paramref name="headroom"/>
+    /// cells (#1367: small flora, a torch or a ladder in the column passes — a titan's eight-cell headroom
+    /// used to fail on one tuft of grass, and the wide scan then hauled it onto the nearest tree crown; a
+    /// canopy or a fluid still blocks). Uses the no-load block read.</summary>
     private bool StandableAt(int x, int y, int z, int headroom = CreatureBodyMinHeight)
     {
         if (!IsSupportCell(x, y - 1, z))
@@ -1517,7 +1561,7 @@ public sealed partial class GameServer
 
         for (int dy = 0; dy < headroom; dy++)
         {
-            if (!_world.GetBlockIfLoaded(new Vector3i(x, y + dy, z)).IsAir)
+            if (IsCollidingBlock(_world.GetBlockIfLoaded(new Vector3i(x, y + dy, z)), fluidsPass: false, foliagePasses: false))
             {
                 return false;
             }
@@ -1720,7 +1764,7 @@ public sealed partial class GameServer
     /// Mutates the creature's <see cref="CombatEntity.Vert"/> state.
     /// </summary>
     private Vector3f ResolveVertical(CombatEntity c, CreatureSpecies sp, MotionClass motion, Vector3f p, float vertWave,
-        in LocomotionProfile prof, double dt, bool asleep, MoveMode intent, bool moving)
+        in LocomotionProfile prof, double dt, bool asleep, MoveMode intent, bool moving, int? groundHint = null)
     {
         int x = (int)System.Math.Floor(p.X), z = (int)System.Math.Floor(p.Z);
         int surface = _generator.SurfaceHeight(_world.Planet, x, z);
@@ -1757,7 +1801,7 @@ public sealed partial class GameServer
                     }
 
                     float g = VerticalMotion.Gravity(_gravityFactor);
-                    int groundY = GroundFeetFor(sp, x, z, (int)System.Math.Floor(p.Y));
+                    int groundY = groundHint ?? GroundFeetFor(sp, x, z, (int)System.Math.Floor(p.Y)); // #1367: reuse the step's probe
                     if (!asleep && moving && !c.Vert.Airborne && c.Vert.ClimbTargetY <= 0f)
                     {
                         if (sp.LocoStyle == LocomotionStyle.Hopper && CreatureMotion.CanJump(sp)
@@ -1830,9 +1874,18 @@ public sealed partial class GameServer
                     goto case FlightPhase.TakingOff;
                 }
 
-                // Sitting: plain gravity — if the perch is dug away it falls to the next floor and sits there.
-                return VerticalMotion.Ground(ref v, p.Y, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)),
+                // Sitting: plain gravity — if the perch is dug away it falls to the next floor, and once it has
+                // landed there it takes off again (#1332 as decided, #1367): a bird whose branch went does not
+                // simply sit on the ground below; it flushes and looks for a perch afresh.
+                bool wasAirborne = v.Airborne;
+                float sit = VerticalMotion.Ground(ref v, p.Y, GroundFeetYAt(x, z, (int)System.Math.Floor(p.Y)),
                     VerticalMotion.Gravity(_gravityFactor), dt);
+                if (wasAirborne && !v.Airborne)
+                {
+                    v.Flight = FlightPhase.TakingOff;
+                }
+
+                return sit;
 
             case FlightPhase.TakingOff:
                 v.Airborne = false;
@@ -1970,8 +2023,13 @@ public sealed partial class GameServer
     /// if any were removed (caller re-broadcasts).</summary>
     private bool PruneFarCreatures(List<PlayerSession> targets, int cap)
     {
-        float maxSq = CreatureDespawnRange * CreatureDespawnRange;
-        float titanSq = TitanDespawnRange * TitanDespawnRange;
+        // #1367 (decided): the far leash is view-aware like the crowding pass (#1356) — at the 8-chunk view
+        // distance a herd 90 blocks out is on screen, and the unconditional 70-block prune popped it out.
+        float stream = MaxStreamRadiusBlocks(targets);
+        float maxRange = System.Math.Max(CreatureDespawnRange, stream);
+        float titanRange = System.Math.Max(TitanDespawnRange, stream);
+        float maxSq = maxRange * maxRange;
+        float titanSq = titanRange * titanRange;
         int removed = _creatures.RemoveAll(c =>
         {
             if (c.IsCompanion)

@@ -142,4 +142,22 @@ public sealed class VerticalMotionTests
 
         Assert.True(Ticks(gGlide) > Ticks(gFull) * 1.3f, "the glide arc must last noticeably longer");
     }
+
+    [Fact]
+    public void Fall_IsCappedAtTerminalSpeed()
+    {
+        // #1367: unclamped, a fall that ran to the 2 s timeout reached ~40 b/s — a 2.7-block last step at 15 Hz.
+        var s = new VerticalState();
+        float y = 1000f, maxStep = 0f;
+        for (int i = 0; i < 28; i++) // 1.87 s: just short of the never-stuck timeout
+        {
+            float before = y;
+            y = VerticalMotion.Ground(ref s, y, 0f, G, Dt);
+            maxStep = System.Math.Max(maxStep, before - y);
+        }
+
+        Assert.True(s.Airborne);
+        Assert.Equal(-VerticalMotion.TerminalSpeed, s.VertVel, 3);
+        Assert.True(maxStep <= VerticalMotion.TerminalSpeed * (float)Dt + 0.05f, $"the largest step was {maxStep:F2} blocks");
+    }
 }

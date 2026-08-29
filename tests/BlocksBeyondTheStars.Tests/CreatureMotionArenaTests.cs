@@ -465,4 +465,201 @@ public sealed class CreatureMotionArenaTests : IDisposable
             Assert.Equal(padY + 5, c.Position.Y, 2); // on the upper floor
         }
     }
+
+    // ---------------- #1367: creature physics leftovers ----------------
+
+    [Fact]
+    public void Flier_WhosePerchGoes_Falls_ThenTakesOffAgain()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Birder");
+            p.State.AboardShip = false;
+            Force(server, CreatureHabitat.Air, legs: 2, LocomotionStyle.Glider, CreatureTemperament.Passive, wings: true, hover: 4f);
+
+            const int cx = -180, cz = 180;
+            int padY = MaxTopY(server, cx, cz, 8) + 12;
+            for (int y = padY - 8; y <= padY - 5; y++)
+            {
+                BuildPad(server, cx, cz, 6, y); // a thick floor under the perch (the probe must find IT, not the terrain)
+            }
+
+            BuildPad(server, cx, cz, 6, padY); // the perch
+            p.State.Position = new Vector3f(cx + 20, padY + 1, cz);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, padY + 5, cz + 0.5f));
+            server.TickForTest(0.1);
+            server.PauseCreatureForTest(id, 30f);
+            var c = server.Creatures.First(x => x.Id == id);
+            for (int i = 0; i < 60 && c.Vert.Flight != FlightPhase.Perched; i++)
+            {
+                server.TickForTest(0.1);
+                c = server.Creatures.First(x => x.Id == id);
+            }
+
+            Assert.Equal(FlightPhase.Perched, c.Vert.Flight);
+
+            // The perch is dug away under it.
+            server.World.SetBlock(new Vector3i((int)Math.Floor(c.Position.X), padY, (int)Math.Floor(c.Position.Z)), BlockId.Air);
+            bool fell = false, tookOff = false;
+            float highestAfterTakeOff = float.MinValue;
+            for (int i = 0; i < 60; i++)
+            {
+                server.TickForTest(0.1);
+                c = server.Creatures.First(x => x.Id == id);
+                fell |= c.Vert.Airborne;
+                tookOff |= c.Vert.Flight == FlightPhase.TakingOff;
+                if (tookOff)
+                {
+                    highestAfterTakeOff = Math.Max(highestAfterTakeOff, c.Position.Y);
+                }
+            }
+
+            Assert.True(fell, "it must fall when the perch goes");
+            Assert.True(tookOff, "…and take off once it has landed (#1332 as decided), not sit on the floor below");
+            Assert.True(highestAfterTakeOff >= padY - 4 + 1.5f, $"it must have climbed off the lower floor (highest {highestAfterTakeOff:F2}, lower feet {padY - 4})");
+        }
+    }
+
+    [Fact]
+    public void Walker_NeverJumpsALedge_UnderALowCeiling()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Strider, CreatureTemperament.Aggressive);
+            var p = server.AddLocalPlayer("Bait");
+            p.State.AboardShip = false;
+            const int cx = 60, cz = -120;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            BuildLedge(server, cx, cz, 8, padY, fromDx: 1, height: 1);
+            var stone = _content.GetBlock("stone")!.NumericId;
+            for (int dx = -8; dx <= 8; dx++)
+            {
+                for (int dz = -8; dz <= 8; dz++)
+                {
+                    // A 2-high tunnel whose roof follows the floor up one block past the step: the swept step
+                    // check sees clear cells AHEAD at the raised height, only the roof right over the animal is low.
+                    server.World.SetBlock(new Vector3i(cx + dx, padY + (dx <= 0 ? 3 : 4), cz + dz), stone);
+                }
+            }
+
+            p.State.Position = new Vector3f(cx + 5.5f, padY + 2, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 1.5f, padY + 1, cz + 0.5f));
+            for (int i = 0; i < 100; i++)
+            {
+                server.TickForTest(0.1);
+                var c = server.Creatures.First(x => x.Id == id);
+                Assert.False(c.Vert.Airborne, $"it must not launch into the roof (tick {i})");
+                Assert.True(c.Position.Y <= padY + 1.01f, $"its head must stay out of the roof (Y {c.Position.Y:F2} at tick {i})");
+            }
+        }
+    }
+
+    [Fact]
+    public void Walker_NeverStepsOntoLava()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Strider, CreatureTemperament.Aggressive);
+            var p = server.AddLocalPlayer("Bait");
+            p.State.AboardShip = false;
+            const int cx = -60, cz = -120;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            var lava = _content.GetBlock("lava")!.NumericId;
+            for (int dx = 1; dx <= 8; dx++)
+            {
+                for (int dz = -8; dz <= 8; dz++)
+                {
+                    server.World.SetBlock(new Vector3i(cx + dx, padY, cz + dz), lava); // the +X half of the pad is a melt, flush with the floor
+                }
+            }
+
+            server.World.SetBlock(new Vector3i(cx + 5, padY, cz), _content.GetBlock("stone")!.NumericId); // the bait's own island
+            p.State.Position = new Vector3f(cx + 5.5f, padY + 1, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx - 1.5f, padY + 1, cz + 0.5f));
+            for (int i = 0; i < 100; i++)
+            {
+                server.TickForTest(0.1);
+                var c = server.Creatures.First(x => x.Id == id);
+                Assert.True(c.Position.X < cx + 1f, $"a walker must not step onto lava (X {c.Position.X:F2} at tick {i})");
+            }
+        }
+    }
+
+    [Fact]
+    public void Titan_StandsAmongGrassTufts_InsteadOfBeingHauledOntoThem()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Watcher");
+            p.State.AboardShip = false;
+            Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Grazer, size: 4f, plan: CreatureBodyPlan.Titan);
+
+            const int cx = 240, cz = -240;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            var fern = _content.GetBlock("flora_fern")!.NumericId;
+            server.World.SetBlock(new Vector3i(cx, padY + 2, cz), fern); // tufts inside the titan's eight-cell headroom
+            server.World.SetBlock(new Vector3i(cx, padY + 5, cz), fern);
+            p.State.Position = new Vector3f(cx + 14, padY + 1, cz);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f));
+            server.PauseCreatureForTest(id, 30f);
+
+            for (int i = 0; i < 20; i++)
+            {
+                server.TickForTest(0.1);
+            }
+
+            var c = Assert.Single(server.Creatures, x => x.Id == id);
+            Assert.Equal(padY + 1, c.Position.Y, 2); // on the floor — the old probe read the tufts as a wall and lifted it onto the upper one
+            Assert.False(c.Vert.Airborne);
+        }
+    }
+
+    [Fact]
+    public void ASwimmerUnderAnOverhang_StillReadsItsOwnColumnAsWater()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            Force(server, CreatureHabitat.Water, legs: 0, LocomotionStyle.Schooler);
+
+            // A generated water column at least three deep, and a dry column anywhere (the gate compares depths only).
+            (int X, int Z, int Top, int Bed)? wet = null;
+            (int X, int Z)? dry = null;
+            for (int x = -800; x < 800 && (wet is null || dry is null); x += 16)
+            {
+                for (int z = -400; z < 400 && (wet is null || dry is null); z += 16)
+                {
+                    var w = server.WaterSurfaceForTest(x, z);
+                    if (w is { } s && s.Top - s.Bed >= 3 && wet is null)
+                    {
+                        wet = (x, z, s.Top, s.Bed);
+                    }
+
+                    if (w is null && dry is null)
+                    {
+                        dry = (x, z);
+                    }
+                }
+            }
+
+            Assert.NotNull(wet);
+            Assert.NotNull(dry);
+            var (wx, wz, top, _) = wet!.Value;
+            var stone = _content.GetBlock("stone")!.NumericId;
+            server.World.SetBlock(new Vector3i(wx, top + 3, wz), stone); // a ledge over the water — the probe's "nearest standable cell"
+            server.World.SetBlock(new Vector3i(wx, top + 4, wz), BlockId.Air);
+            server.World.SetBlock(new Vector3i(wx, top + 5, wz), BlockId.Air);
+            string id = server.SpawnCreatureAtForTest(new Vector3f(wx + 0.5f, top - 1, wz + 0.5f));
+
+            Assert.True(server.TerrainStepBlockedForTest(id, new Vector3f(dry!.Value.X + 0.5f, top - 1, dry.Value.Z + 0.5f)),
+                "a swimmer must never leave its water body — the old gate read the ledge above as its dry feet (#1367)");
+        }
+    }
 }

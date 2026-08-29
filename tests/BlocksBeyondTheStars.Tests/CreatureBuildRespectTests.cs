@@ -583,6 +583,89 @@ public sealed class CreatureBuildRespectTests : IDisposable
         }
     }
 
+    // ---------------- #1367: the far leash is view-aware; a falling block nudges the animal it buries ----------------
+
+    /// <summary>A sleeper on a pad 100 blocks from the player: past the fixed 70-block leash, inside an 8-chunk
+    /// view (#1367). Returns its id.</summary>
+    private string FarSleeper(SvGameServer server, int viewChunks)
+    {
+        var p = server.AddLocalPlayer("Watcher");
+        p.State.AboardShip = false;
+        p.ViewDistance = viewChunks;
+        Force(server, 0, titan: false, nocturnal: true);
+        server.SetDayFractionForTest(0.5);
+
+        const int cx = -100, cz = 100;
+        int padY = System.Math.Max(MaxTopY(server, cx, cz, 6), MaxTopY(server, cx + 100, cz, 6)) + 8;
+        BuildPad(server, cx, cz, 4, padY);
+        BuildPad(server, cx + 100, cz, 4, padY);
+        p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
+        return server.SpawnCreatureAtForTest(new Vector3f(cx + 100.5f, padY + 1, cz + 0.5f));
+    }
+
+    [Fact]
+    public void TheFarPrune_KeepsAnAnimalThePlayerCanSee()
+    {
+        var server = Started("farview", out var repo);
+        using (repo)
+        {
+            string id = FarSleeper(server, viewChunks: 8); // 288 blocks streamed: the far pad is on screen
+            Ticks(server, 3);
+            Assert.Contains(server.Creatures, c => c.Id == id);
+        }
+    }
+
+    [Fact]
+    public void TheFarPrune_StillShedsAnAnimalBeyondTheView()
+    {
+        var server = Started("farblind", out var repo);
+        using (repo)
+        {
+            string id = FarSleeper(server, viewChunks: 1); // 64 blocks streamed: 100 out is neither in view nor within the leash
+            Ticks(server, 3);
+            Assert.DoesNotContain(server.Creatures, c => c.Id == id);
+        }
+    }
+
+    [Fact]
+    public void AFallingBlock_NudgesTheAnimalItLandsOn_ToStepAside()
+    {
+        var server = Started("sandfall", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Digger");
+            p.State.AboardShip = false;
+            Force(server, 0, titan: false, nocturnal: false);
+            server.SetDayFractionForTest(0.5);
+
+            const int cx = -80, cz = -80;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            p.State.Position = new Vector3f(cx + 6.5f, padY + 1, cz + 0.5f);
+
+            var planted = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(planted);
+            server.PauseCreatureForTest(id, 30f);
+            Ticks(server, 2);
+            Assert.Equal(planted.X, server.Creatures.Single(c => c.Id == id).Position.X);
+
+            // Sand woken eight cells over its head: only players, NPCs and doorways hold a block up — an animal is
+            // buried and told to re-check its body at once (#1357 via #1367).
+            var sand = _content.GetBlock("sand")!.NumericId;
+            server.World.SetBlock(new Vector3i(cx, padY + 9, cz), sand);
+            server.WakeGranularForTest(cx, padY + 9, cz);
+            Ticks(server, 2, 0.3); // one settle step
+            Assert.Equal(sand.Value, server.World.GetBlock(new Vector3i(cx, padY + 1, cz)).Value);
+
+            Ticks(server, 5); // one second
+            var live = server.Creatures.Single(c => c.Id == id);
+            Assert.True(ColumnClear(server, live.Position, 2),
+                $"the animal must step out of the sand (at {live.Position.X:F1}/{live.Position.Y:F1}/{live.Position.Z:F1})");
+            Assert.True(System.Math.Abs(live.Position.X - planted.X) >= 0.9f || System.Math.Abs(live.Position.Z - planted.Z) >= 0.9f,
+                "it must have stepped ASIDE, not been hopped onto the sand");
+        }
+    }
+
     public void Dispose()
     {
         try
