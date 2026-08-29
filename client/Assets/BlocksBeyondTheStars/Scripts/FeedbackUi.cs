@@ -29,6 +29,11 @@ namespace BlocksBeyondTheStars.Client
     ///   • the existing <c>/bump</c> message (<see cref="NetworkClient.SendBumpReport"/>) so the server also
     ///     writes its rich local snapshot (inventory/position/surroundings) when on an own/singleplayer server.
     ///
+    /// While the dialog is open the world is HELD exactly like behind the Esc menu (#1330): the same server intent
+    /// (<see cref="NetworkClient.SendPause"/>, group decision per #973 — a lone writer in multiplayer pauses nobody
+    /// else) with the same keep-alive, so typing a report in singleplayer no longer costs hunger, daylight or a
+    /// creature sneaking up behind the form. The screenshot is taken BEFORE the hold, so it still shows live play.
+    ///
     /// Wired by <see cref="WorldRig"/> next to <see cref="HudUi"/> / <see cref="ChatUi"/>.
     /// </summary>
     public sealed class FeedbackUi : MonoBehaviour
@@ -54,6 +59,13 @@ namespace BlocksBeyondTheStars.Client
         private bool _sending;
         private byte[] _shotJpg;                 // screenshot captured when the dialog opened
         private Task<FeedbackUploadResult> _uploadTask;
+
+        // The dialog's "hold the world while I'm open" request — one class shared with the Esc menu so the
+        // intent, the release and the 15 s keep-alive the server sweeps dead clients by (#973) have one copy.
+        private WorldHoldIntent _worldHoldOrNull;
+
+        private WorldHoldIntent WorldHold =>
+            _worldHoldOrNull ??= new WorldHoldIntent(paused => Game?.Network?.SendPause(paused));
 
         /// <summary>The key that opens the feedback dialog: F2 in browser builds (F1 would fight the browser's
         /// own help shortcut), F1 everywhere else.</summary>
@@ -101,6 +113,9 @@ namespace BlocksBeyondTheStars.Client
                 Close();
             }
 
+            // Keep telling the server we are still here while the dialog holds the world (no-op while closed).
+            WorldHold.Tick(Time.realtimeSinceStartup);
+
             // Marshal the background upload result back onto the main thread.
             if (_uploadTask != null && _uploadTask.IsCompleted)
             {
@@ -144,6 +159,11 @@ namespace BlocksBeyondTheStars.Client
             // dialog opened over (e.g. the landing-pad chooser) keeps its free cursor without us having to
             // save/restore the prior state by hand (#413).
             Game.SetMenuOwner(this, true);
+
+            // Hold the world like the Esc menu does (#1330) — after the screenshot, so the shot shows live play.
+            // The server decides what it means (#973): alone, the world stops right here; with others joined it
+            // only counts as "this player is in a menu" until everyone else is too.
+            WorldHold.Hold(Time.realtimeSinceStartup);
         }
 
         private void Close()
@@ -154,6 +174,7 @@ namespace BlocksBeyondTheStars.Client
             _shotJpg = null;
             if (_dialog != null) _dialog.SetActive(false);
 
+            WorldHold.Release(); // every close path ends here (Esc, Cancel, the auto-close after a send) — sends once
             Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
         }
 

@@ -186,6 +186,21 @@ step. README family section gained the age paragraph + PARENTS links; the Codex 
 (en+de) gained the content-profile + /report paragraph. Website/itch/glitch.fun texts = the statement block in
 PARENTS.md (Marcel publishes those surfaces). Closes kid-friendly-hints stage 2.
 
+### ★ The feedback dialog (F1/F2) holds the world like the Esc menu (#1330, 2026-08-29, branch feat/1330-feedback-dialog-pause)
+Asked in singleplayer: "the game should pause as soon as F1/F2 opens the feedback form." It did not — `FeedbackUi`
+only registered as a menu owner (`SetMenuOwner`: controls frozen, cursor freed) and never sent the `PauseIntent`
+the Esc menu has sent since #612/#908/#973, so hunger, daylight and creatures carried on behind the form.
+**Fix:** the dialog now sends the same hold on open (after the screenshot capture, so the shot still shows live
+play), the release on every close path (Esc, Cancel, auto-close after a send), and repeats the intent every 15 s
+while open — the keep-alive the server sweeps dead-behind-a-menu clients by. No server or protocol change: the
+server already decides per #973 (alone → the world stops and saves; with others joined it only counts as "in a
+menu" until everyone agrees), and `BumpReport` — the `/bump` snapshot the send fires — was already on the paused
+allow-list (#995). The cadence moved out of `AppShell` into a pure `Client.Core` `WorldHoldIntent`
+(`Hold`/`Release`/`Tick`/`Forget`) shared by both menus; `AppShell` forgets its hold silently when the world is
+left, so a stale keep-alive can never put the NEXT world to sleep. Six headless tests (`WorldHoldIntentTests`).
+Deliberately NOT done: holding behind every other panel (inventory, crafting, maps …) — a separate design question.
+Docs: `docs/developer/PLAYER_FEEDBACK.md`, CHANGELOG.
+
 ### ★ Portable data folder — `portable_data_dir.txt` next to the executable (#1285, 2026-08-26, branch feat/1285-portable-data-dir)
 The portable zip stored everything in `%LOCALAPPDATA%\..\LocalLow\…` like the installed game. Now an optional
 marker file next to the executable redirects the whole persistent-data root: `AppPaths.Root` (new, Unity side)

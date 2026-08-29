@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ⏸️ The feedback dialog holds the world too (#1330)
+
+- **F1 (F2 in the browser) now pauses like the Esc menu.** The player feedback dialog froze your controls
+  but not the world: hunger kept draining, night kept falling and creatures kept hunting while you typed a
+  bug report. Opening it now asks the server for the same hold the pause menu uses — in singleplayer the
+  world stops right there (and saves, as every hold does); with others joined it only counts as "this
+  player is in a menu" until everyone else is too (#973). Closing the form — Esc, Cancel or the auto-close
+  after a successful send — lets the world run again. The screenshot is still taken before the hold, so it
+  shows live play.
+- Under the hood the Esc menu and the dialog share one `WorldHoldIntent` (intent, release and the 15 s
+  keep-alive the server sweeps dead clients by), so the rule has exactly one copy — and a unit test.
+
 ### 🕹️ Play solo in the browser without an account (#1321, #1322, #1323)
 
 - **Portal landing page:** play.blocksbeyondthestars.de now leads with a player-name field and **"▶ Play
