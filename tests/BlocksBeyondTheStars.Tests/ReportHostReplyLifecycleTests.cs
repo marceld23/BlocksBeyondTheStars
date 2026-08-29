@@ -24,6 +24,7 @@ namespace BlocksBeyondTheStars.Tests;
 /// longer read (deleted, pruned, never its own) so the client forgets them instead of polling for up to
 /// 90 days for a report that no longer exists.
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // loopback requests are billed the parallel queue wait otherwise (#1362)
 public sealed class ReportHostReplyLifecycleTests : IClassFixture<ReportHostHttpFixture>
 {
     private static int _nextClientIp;
@@ -185,6 +186,7 @@ public sealed class ReportHostAdminHttpFixture : IAsyncLifetime
 /// browser send the Basic credentials, but not the token. The scriptable JSON routes refuse anything a
 /// browser form could send (they need a JSON content type).
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // loopback requests are billed the parallel queue wait otherwise (#1362)
 public sealed class ReportHostAdminCsrfTests : IClassFixture<ReportHostAdminHttpFixture>
 {
     private readonly ReportHostAdminHttpFixture _host;
