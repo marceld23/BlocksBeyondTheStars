@@ -5,9 +5,9 @@
 using System;
 using System.Collections;
 using System.Text;
-using System.Text.Json;
 using BlocksBeyondTheStars.Build;
 using BlocksBeyondTheStars.Client.Feedback;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace BlocksBeyondTheStars.Client
@@ -78,19 +78,24 @@ namespace BlocksBeyondTheStars.Client
                 return string.Empty;
             }
 
+            // System.Text.Json is not part of Unity's runtime (the WebGL build is the only one that compiles
+            // this file, so the desktop players never noticed) — JsonUtility reads the one field we need.
             try
             {
-                using var doc = JsonDocument.Parse(body);
-                return doc.RootElement.ValueKind == JsonValueKind.Object
-                       && doc.RootElement.TryGetProperty("bugReportId", out var id)
-                       && id.ValueKind == JsonValueKind.String
-                    ? id.GetString() ?? string.Empty
-                    : string.Empty;
+                var dto = JsonUtility.FromJson<IngestResponse>(body);
+                return dto?.bugReportId ?? string.Empty;
             }
             catch
             {
                 return string.Empty;
             }
+        }
+
+        [Serializable]
+        private sealed class IngestResponse
+        {
+            // Field name = the inbox's JSON property (JsonUtility maps by name, no attributes).
+            public string bugReportId;
         }
     }
 }
