@@ -4,6 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Text.RegularExpressions;
 using BlocksBeyondTheStars.Shared.Localization;
 using BlocksBeyondTheStars.WorldHost;
 using Xunit;
@@ -710,5 +713,75 @@ public sealed class WorldHostPortalPagesTests
         Assert.Equal("public, max-age=31536000, immutable", PlayPage.CacheControlFor("WebGL.wasm.br", hasVersionQuery: true));
         Assert.Equal("no-cache", PlayPage.CacheControlFor("WebGL.wasm.br", hasVersionQuery: false));
         Assert.Equal("no-cache", PlayPage.CacheControlFor("index.html", hasVersionQuery: true));
+    }
+
+    // ---------------- Attribute encoding (#1354) ----------------
+
+    /// <summary>Text that trips a single-quoted attribute: apostrophe, quotes, ampersand, angle brackets.</summary>
+    private const string HostileAttr = "qu'on t'appelle \"vraiment\" & <b>bold</b>";
+
+    [Fact]
+    public void Attr_EncodesEveryCharacterThatCanBreakAnAttribute()
+    {
+        string encoded = WorldHostPortalPages.Attr(HostileAttr);
+        Assert.DoesNotContain("'", encoded);
+        Assert.DoesNotContain("\"", encoded);
+        Assert.DoesNotContain("<", encoded);
+        Assert.DoesNotContain(">", encoded);
+        Assert.Equal(HostileAttr, WebUtility.HtmlDecode(encoded)); // round-trips through the browser's decoder
+        Assert.Equal("&amp;amp;", WorldHostPortalPages.Attr("&amp;")); // & is encoded first, so nothing double-decodes
+    }
+
+    [Fact]
+    public void Landing_SoloNamePlaceholder_RoundTripsInEveryLanguage()
+    {
+        // The French placeholder is "Comment veux-tu qu'on t'appelle ?" — pasted raw into placeholder='…'
+        // it ended the attribute at "qu" and the page showed a mangled field (#1354).
+        var placeholder = new Regex(@"<input id='solo-name'[^>]*\splaceholder='(?<text>[^']*)'", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+        foreach (var locale in PortalLocales.Supported)
+        {
+            string code = locale.Code();
+            string html = WorldHostPortalPages.Landing(Config, code);
+            var match = placeholder.Match(html);
+            Assert.True(match.Success, $"{code}: solo-name placeholder attribute not found");
+            Assert.Equal(PortalLocales.For(code).T("landing.solo.namePlaceholder"), WebUtility.HtmlDecode(match.Groups["text"].Value));
+        }
+    }
+
+    /// <summary>A start tag whose attributes all parse: bare, single-quoted or double-quoted values with no
+    /// stray quote or angle bracket inside. Anything a locale string broke out of fails this shape.</summary>
+    private static readonly Regex WellFormedTag = new(
+        @"^<[a-zA-Z][a-zA-Z0-9]*(\s+[a-zA-Z_:][a-zA-Z0-9_:.-]*(=('[^'<>]*'|""[^""<>]*""|[^\s'""<>=]+))?)*\s*/?>$",
+        RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+
+    private static readonly Regex StartTag = new(@"<[a-zA-Z][^>]*>", RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+    private static readonly Regex ScriptStyleComment = new(@"<script\b[\s\S]*?</script>|<style\b[\s\S]*?</style>|<!--[\s\S]*?-->",
+        RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(1));
+
+    [Fact]
+    public void EveryPage_EveryLanguage_HasNoAttributeBrokenByLocaleText()
+    {
+        var broken = new List<string>();
+        foreach (var locale in PortalLocales.Supported)
+        {
+            string code = locale.Code();
+            var pages = new Dictionary<string, string>
+            {
+                ["landing"] = WorldHostPortalPages.Landing(Config, code),
+                ["worlds"] = WorldHostPortalPages.Worlds(Config, code),
+                ["rules"] = WorldHostPortalPages.Rules(Config, code),
+                ["impressum"] = WorldHostPortalPages.Impressum(Config, code),
+                ["privacy"] = WorldHostPortalPages.Privacy(Config, code),
+            };
+            foreach (var (name, html) in pages)
+            {
+                string markup = ScriptStyleComment.Replace(html, string.Empty);
+                broken.AddRange(StartTag.Matches(markup).Select(m => m.Value)
+                    .Where(tag => !WellFormedTag.IsMatch(tag))
+                    .Select(tag => $"{code}/{name}: {tag}"));
+            }
+        }
+
+        Assert.Empty(broken);
     }
 }

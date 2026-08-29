@@ -58,7 +58,8 @@ $page.items | ForEach-Object { "{0}  {1}  {2}" -f $_.createdAt, $_.category, $_.
 | `BBS_REPORTS_READ_KEY` | *(empty = read API off)* | Independently rotatable key for pull scripts / CI |
 | `BBS_REPORTS_ADMIN_USER` / `BBS_REPORTS_ADMIN_PASSWORD` | *(empty = admin UI off)* | Basic-Auth credentials for `/admin` and the mutating API |
 | `BBS_REPORTS_MAX_BODY_BYTES` | `4000000` | Kestrel request cap (fits report + ~1.5 MB screenshot) |
-| `BBS_REPORTS_INGEST_PER_MINUTE` | `10` | Per-IP fixed-window rate limit (`0` = off) |
+| `BBS_REPORTS_INGEST_PER_MINUTE` | `10` | Per-IP fixed-window rate limit for `POST /api/bugreport` only (`0` = off) |
+| `BBS_REPORTS_REPLY_PER_MINUTE` | `30` | Per-**reply-key** fixed-window rate limit for the player reply routes `/api/replies*` (`0` = off) — separate from ingest on purpose (#1352): every install polls for answers, so a LAN class behind one NAT must never spend the report budget on polls |
 | `BBS_REPORTS_RETENTION_DAYS` | `0` (keep forever) | Prune reports + screenshots after N days — reports can carry an e-mail, so this is also a privacy lever |
 | `BBS_REPORTS_TRUST_PROXY` | `false` | Rate-limit on the first `X-Forwarded-For` entry — only behind a trusted proxy |
 
@@ -91,7 +92,8 @@ route on purpose).
 checkbox and a *fixed in version* field. A plain answer leaves the status alone; a **question** flips the
 report to `waiting_for_player`. `POST /api/reports/{id}/replies` is the JSON twin for scripts.
 
-**Player side (all gated by the write key + the per-IP limiter, CORS-enabled for browser builds):**
+**Player side (all gated by the write key + a per-reply-key limiter — `BBS_REPORTS_REPLY_PER_MINUTE`, *not* the
+per-IP ingest limiter, see #1352 — CORS-enabled for browser builds):**
 `GET /api/replies?key=…&since=…` returns
 `{ items: [ { reportId, title, status, fixedInVersion, createdUnix, replies: [ { id, author, text, isQuestion, createdUnix, seen } ], unseenIds: [] } ] }`
 — only threads with an unread developer entry (created after `since`, unix seconds, optional).
@@ -176,13 +178,14 @@ names.
 
 | Concern | File |
 |---|---|
-| Wiring / endpoints | `src/BlocksBeyondTheStars.ReportHost/Program.cs` |
+| Entry point (env → store → run) | `src/BlocksBeyondTheStars.ReportHost/Program.cs` |
+| Wiring / endpoints | `src/BlocksBeyondTheStars.ReportHost/ReportHostApp.cs` (`Create(config, store, notifier, args)` — the tests start the same app in-process) |
 | Config (env) | `src/BlocksBeyondTheStars.ReportHost/ReportHostConfig.cs` |
 | Payload parsing/validation | `src/BlocksBeyondTheStars.ReportHost/ReportIngest.cs` |
 | SQLite + screenshot store | `src/BlocksBeyondTheStars.ReportHost/ReportStore.cs` |
 | Admin pages (server-rendered) | `src/BlocksBeyondTheStars.ReportHost/ReportHostPages.cs` |
 | Rate limiter / Basic Auth | `IngestRateLimiter.cs` / `BasicAuth.cs` |
-| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` |
+| Tests | `tests/BlocksBeyondTheStars.Tests/ReportHostTests.cs` (store, parsing, pages) · `ReportHostHttpTests.cs` (the real app over HTTP on a loopback port: reply routes, limiter split) |
 | Image / compose | `Dockerfile.reports` / `docker-compose.reports.yml` |
 
 The admin pages HTML-encode every stored string — report content is hostile input rendered in the
@@ -192,4 +195,11 @@ operator's browser.
 
 Reports may include an optional player e-mail plus a screenshot. Use `BBS_REPORTS_RETENTION_DAYS` for
 automatic expiry, and the admin UI's delete (or `DELETE /api/reports/{id}`) for individual removal —
-deletion always removes the screenshot file too.
+deletion always removes the screenshot file too (and the reply thread).
+
+The player-facing wording lives on the portal privacy page (`WorldHostPortalPages.Privacy`, #1329): the
+`privacy.summary.reports` paragraph in all 14 portal locales plus the German authoritative sections 2 and 5
+describe what an in-game report carries, the one-way reply key, in-game answers, retention ("kept until we
+delete them — no automatic expiry at the moment", which matches the official inbox's `RETENTION_DAYS=0`
+default) and deletion on request via the legal e-mail address. If you enable retention on the official
+inbox, update that paragraph.

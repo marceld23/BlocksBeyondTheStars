@@ -4,7 +4,8 @@
 namespace BlocksBeyondTheStars.ReportHost;
 
 /// <summary>
-/// Fixed-window per-key (client IP) rate limiter for the ingest endpoint. A window is one minute; the
+/// Fixed-window per-key rate limiter — keyed by client IP for the ingest endpoint, by reply key for the
+/// player reply routes (#1352). A window is one minute; the
 /// count resets when the minute rolls over. Simple by design — the goal is blunting scripted floods,
 /// not fairness — and time is injected so tests can drive the window edge deterministically.
 /// </summary>

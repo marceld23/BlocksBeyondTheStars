@@ -13,6 +13,31 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📮 Report inbox — polling for answers never blocks a real report (#1352)
+
+- **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll
+  shared the inbox's per-IP report limit (10/min), so 25 installs on one school network polling after world
+  start ate the budget — and an F1 report from that network in the same minute was bounced (kept in the
+  client's spool and re-sent later, but delayed). The reply routes now have their own per-install budget
+  (`BBS_REPORTS_REPLY_PER_MINUTE`, 30/min per reply key); the per-IP limit guards report submission only.
+  Operators: redeploy the ReportHost image.
+
+### 🌐 Portal — the French name field says what it means (#1354)
+
+- **Locale text inside form attributes is encoded.** The solo-name field's placeholder *"Comment veux-tu qu'on
+  t'appelle ?"* was pasted raw into a single-quoted attribute, so the French landing page showed a mangled
+  field; the same pattern sat on the account, password, recovery-code and world-password fields. All of them
+  go through a small attribute encoder now, and a test renders every portal page in all 14 languages and
+  fails on the first attribute a translation breaks.
+
+### 🔒 Privacy page — what an in-game report stores, and how to have it deleted (#1329)
+
+- The portal privacy page now describes the F1 (F2 in the browser) reports and the in-game reply channel in
+  all 14 languages: what a report carries, that the reply key is a one-way hash of your installation (never
+  your password or e-mail), that developer answers appear in the game and your typed answer is stored with
+  the report, that reports stay until we delete them (no automatic expiry) and are not touched by deleting a
+  portal account — and that an e-mail to the address on the page gets them removed.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
