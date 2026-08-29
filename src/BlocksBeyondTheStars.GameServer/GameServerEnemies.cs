@@ -682,7 +682,7 @@ public sealed partial class GameServer
         var pool = new MaterialPool(_content, p, _ship);
         // The kill already happened, so the loot cannot be refused — a full inventory drops it at the fallen
         // enemy's feet instead of losing it (#853).
-        BankLoot(session, pool, target.Loot, spillAt: target.Position.ToBlock());
+        BankLoot(session, pool, target.Loot, spillAt: target.Position.ToBlock(), creatureLoot: isCreature);
         SendInventory(session);
         OnAchievementDefeat(session);
         if (isCreature)

@@ -9610,6 +9610,30 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): drops and loot — packets fall, creature loot expires, the hold says thank you (#1311, #1312, #1317)
+
+Lyxette's round-3 drop reports, server + locale only.
+
+* **Ground packets fall (#1311).** `SettleDropCell` only ever probed UPWARD (the mined cell, else the first
+  free cell above), so a flier killed in the air left its bundle hanging at that altitude — "Blöcke hängen
+  überall im Himmel". A free cell now falls through air (≤ 32 cells) to the first cell with something under it,
+  solid OR fluid, so a kill over a lake leaves the bundle on the surface. The "spilled inside a wall" case still
+  surfaces upward first.
+* **Creature loot expires, mining overflow never (#1312).** Maintainer decision, deliberately asymmetric: #853
+  promised that nothing is ever destroyed — that promise stays for mining/wreck/machine overflow. A creature's
+  drop that found no room spills as a LOOT packet with a 5-minute lifetime (`StoredContainer.LifetimeLeft`,
+  new `lifetime` column in SQLite + PostgreSQL, JSON in memory), counted only while a player is on the world,
+  checkpointed every 30 s so a restart resumes rather than resets. Loot and mining packets never merge and
+  have separate 64-packet caps, so a loot spill can never drag mining overflow to its grave.
+* **The hold says where the ore went (#1317).** Breaking a small asteroid (backpack first, hold after) and
+  tractoring a salvage drop were both silent. One `@srv.space.loot_to_{backpack|cargo|both}:{name}` toast per
+  1.5 s burst window, summed per item and localized server-side ("+12 Eisenerz → Frachtraum"); a full hold
+  keeps its existing warning and gets no misleading "+n".
+* Tests: `DropLootTests` (8) — fall, entombed surfacing, expiry vs. mining neighbour, never-merge, restart
+  resume, creature kill with a full pack, both toast paths.
+
+---
+
 ## ✅ Done (2026-08-29): fauna respects player builds — sleepers, sealed rooms, no monoculture (#1320, #1314, #1325)
 
 Lyxette's reports 5 + 6 ("Kreaturen Spawn", "Elephant im Kühlschrank") and the round-3 base complaint, one
