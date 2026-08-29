@@ -10,6 +10,7 @@ using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -382,6 +383,86 @@ public sealed class CreatureMotionArenaTests : IDisposable
 
             Assert.True(server.Creatures.First(x => x.Id == wet).Vert.InWater, "in the pool it swims (#1334)");
             Assert.False(server.Creatures.First(x => x.Id == dry).Vert.InWater, "ashore it walks");
+        }
+    }
+
+    // ---------------- #1349: the ground probe prefers the floor below ----------------
+
+    /// <summary>A grazer holding still on a pad under a stone ceiling (feet cells padY+1..+3 free, slab at
+    /// padY+4, upper-floor feet at padY+5); the player well outside. Returns the creature id.</summary>
+    private string GrazerUnderACeiling(SvGameServer server, int cx, int cz, int padY)
+    {
+        var p = server.AddLocalPlayer("Digger");
+        p.State.AboardShip = false;
+        Force(server, CreatureHabitat.Land, legs: 4, LocomotionStyle.Grazer);
+        BuildPad(server, cx, cz, 6, padY);
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int dx = -6; dx <= 6; dx++)
+        {
+            for (int dz = -6; dz <= 6; dz++)
+            {
+                server.World.SetBlock(new Vector3i(cx + dx, padY + 4, cz + dz), stone); // the ceiling / upper floor
+            }
+        }
+
+        p.State.Position = new Vector3f(cx + 14, padY + 1, cz);
+        string id = server.SpawnCreatureAtForTest(new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f));
+        server.PauseCreatureForTest(id, 30f);
+        server.TickForTest(0.1);
+        server.TickForTest(0.1);
+        Assert.Equal(padY + 1, server.Creatures.First(x => x.Id == id).Position.Y, 2);
+        return id;
+    }
+
+    [Fact]
+    public void APitDugUnderAGroundFloorAnimal_DropsItIntoThePit_NotThroughTheCeiling()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            const int cx = 240, cz = 240;
+            int padY = MaxTopY(server, cx, cz, 8) + 8;
+            string id = GrazerUnderACeiling(server, cx, cz, padY);
+
+            // A six-deep pit under its feet: the upper floor (+4) is now the NEAREST standable cell, the pit
+            // floor (−6) the right one.
+            var stone = _content.GetBlock("stone")!.NumericId;
+            server.World.SetBlock(new Vector3i(cx, padY - 6, cz), stone);
+            server.World.SetBlock(new Vector3i(cx, padY, cz), BlockId.Air);
+
+            for (int i = 0; i < 30; i++)
+            {
+                server.TickForTest(0.1);
+                var c = server.Creatures.First(x => x.Id == id);
+                Assert.True(c.Position.Y <= padY + 1.01f, $"it must never rise (Y {c.Position.Y:F2} at tick {i}) — the old probe lifted it through the ceiling");
+            }
+
+            var landed = server.Creatures.First(x => x.Id == id);
+            Assert.Equal(padY - 5, landed.Position.Y, 2);
+            Assert.False(landed.Vert.Airborne);
+        }
+    }
+
+    [Fact]
+    public void AnAnimalWithNoFloorBelowAtAll_StillRecoversUpward()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            // The pad floats more than a full scan (24) above the terrain, so once its floor is gone nothing
+            // below is standable — the upward fallback (the entombed-recovery path) must still lift it.
+            const int cx = -240, cz = 240;
+            int padY = MaxTopY(server, cx, cz, 8) + 30;
+            string id = GrazerUnderACeiling(server, cx, cz, padY);
+
+            server.World.SetBlock(new Vector3i(cx, padY, cz), BlockId.Air);
+            for (int i = 0; i < 30; i++)
+            {
+                server.TickForTest(0.1);
+            }
+
+            var c = server.Creatures.First(x => x.Id == id);
+            Assert.Equal(padY + 5, c.Position.Y, 2); // on the upper floor
         }
     }
 }

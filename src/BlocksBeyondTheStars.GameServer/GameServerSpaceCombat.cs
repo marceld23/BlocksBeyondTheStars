@@ -82,6 +82,10 @@ public sealed class CombatEntity
     /// ignore it (they charge instead). Server-only, never persisted.</summary>
     public double PanicTimer { get; set; }
 
+    /// <summary>Server uptime at which this creature next re-validates that its body sits clear of every
+    /// colliding block (#1357; sleepers check every tick regardless). Server-only, never persisted.</summary>
+    public double NextBodyCheckAt { get; set; }
+
     /// <summary>What this entity drops when destroyed.</summary>
     public List<ItemAmount> Loot { get; set; } = new();
 

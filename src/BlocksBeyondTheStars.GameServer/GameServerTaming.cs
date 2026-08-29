@@ -554,9 +554,11 @@ public sealed partial class GameServer
         // Companions respect energy fences like wild fauna do — a penned companion stays penned even
         // when its owner steps out through the gate membrane (that is the point of the pen). Walls stop them
         // like they stop wild fauna (#855) — a pet used to walk straight through the player's own base.
-        // They keep their freedom from the TERRAIN gate (a pet must be able to follow its owner up and down
-        // anything), but run the same vertical mechanics (#1331): a walker pet jumps the doorstep and falls
-        // off the porch, a flier pet perches beside a resting owner.
+        // They keep their freedom from the TERRAIN gate (a pet must be able to follow its owner down anything
+        // and across water), but run the same vertical mechanics (#1331): a walker pet jumps the doorstep and
+        // falls off the porch, a flier pet perches beside a resting owner — and, like everyone, never starts a
+        // jump or climb for a rise past the one-block step-up limit (#1348): under a cliff it waits at the
+        // base instead of hopping in place or levitating up the wall; the leash above catches up later.
         ApplyCreatureStep(c, sp, EffectiveMotion(c, sp), res.Position, res.VertWave, profile, moveDt,
             res.State.Mode == MoveMode.Seek ? MoveMode.Seek : MoveMode.Roam, res.Moving, terrainGates: false);
     }

@@ -212,37 +212,92 @@ public sealed class CreatureBuildRespectTests : IDisposable
         }
     }
 
+    /// <summary>The crowding arena (#1325/#1356): two sleeping animals beside the player and share + 5 more on a
+    /// pad 50 blocks out — inside the 70-block despawn leash, beyond the 40-block crowd range, and in or out
+    /// of the player's view depending on <paramref name="viewChunks"/>. Returns the near pair and the far ids.</summary>
+    private (string NearA, string NearB, List<string> Far, string SpeciesId) CrowdedArena(SvGameServer server, int viewChunks)
+    {
+        var p = server.AddLocalPlayer("Settler");
+        p.State.AboardShip = false;
+        p.ViewDistance = viewChunks; // the streaming radius the "out of sight" rule keys on (#1356)
+        var sp0 = Force(server, 0, titan: false, nocturnal: true);
+        server.SetDayFractionForTest(0.5);
+
+        const int cx = 0, cz = 0;
+        int padY = MaxTopY(server, cx, cz, 60) + 8;
+        BuildPad(server, cx, cz, 6, padY);
+        BuildPad(server, cx + 50, cz, 6, padY);
+        p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
+
+        int share = server.SpeciesShareForTest();
+        string nearA = server.SpawnCreatureAtForTest(new Vector3f(cx + 2.5f, padY + 1, cz + 0.5f));
+        string nearB = server.SpawnCreatureAtForTest(new Vector3f(cx - 2.5f, padY + 1, cz + 0.5f));
+        var far = new List<string>();
+        for (int i = 0; i < share + 5; i++)
+        {
+            far.Add(server.SpawnCreatureAtForTest(new Vector3f(cx + 50 - 4 + i % 8 + 0.5f, padY + 1, cz - 4 + i / 8 + 0.5f)));
+        }
+
+        return (nearA, nearB, far, sp0.Id);
+    }
+
     [Fact]
     public void AnOverShareSpecies_ShedsItsOutOfSightMembers_AndKeepsThoseInView()
     {
         var server = Started("crowd", out var repo);
         using (repo)
         {
-            var p = server.AddLocalPlayer("Settler");
-            p.State.AboardShip = false;
-            var sp0 = Force(server, 0, titan: false, nocturnal: true);
-            server.SetDayFractionForTest(0.5);
-
-            const int cx = 0, cz = 0;
-            int padY = MaxTopY(server, cx, cz, 60) + 8;
-            BuildPad(server, cx, cz, 6, padY);
-            BuildPad(server, cx + 50, cz, 6, padY); // 50 blocks out: out of sight (40), inside the despawn leash (70)
-            p.State.Position = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
-
+            // A one-chunk view streams 32 blocks: the far pad at 50 is out of sight.
+            var (nearA, nearB, _, speciesId) = CrowdedArena(server, viewChunks: 1);
             int share = server.SpeciesShareForTest();
-            string nearA = server.SpawnCreatureAtForTest(new Vector3f(cx + 2.5f, padY + 1, cz + 0.5f));
-            string nearB = server.SpawnCreatureAtForTest(new Vector3f(cx - 2.5f, padY + 1, cz + 0.5f));
-            for (int i = 0; i < share + 5; i++)
-            {
-                server.SpawnCreatureAtForTest(new Vector3f(cx + 50 - 4 + i % 8 + 0.5f, padY + 1, cz - 4 + i / 8 + 0.5f));
-            }
 
             Ticks(server, 3);
 
-            var ofSp0 = server.Creatures.Where(c => !c.IsCompanion && c.SpeciesId == sp0.Id).ToList();
+            var ofSp0 = server.Creatures.Where(c => !c.IsCompanion && c.SpeciesId == speciesId).ToList();
             Assert.Equal(share, ofSp0.Count);
             Assert.Contains(ofSp0, c => c.Id == nearA);
             Assert.Contains(ofSp0, c => c.Id == nearB);
+        }
+    }
+
+    [Fact]
+    public void TheCrowdingPass_NeverShedsAnAnimalInsideThePlayersView()
+    {
+        // #1356: the shed distance was a fixed 40 blocks while the view distance goes to 8 chunks — on a
+        // plain the player watched animals 50 m away simply pop out of existence.
+        var server = Started("crowdview", out var repo);
+        using (repo)
+        {
+            var (_, _, far, speciesId) = CrowdedArena(server, viewChunks: 8); // 144 blocks streamed: the far pad is in plain view
+            int share = server.SpeciesShareForTest();
+
+            Ticks(server, 3);
+
+            var ofSp0 = server.Creatures.Where(c => !c.IsCompanion && c.SpeciesId == speciesId).ToList();
+            Assert.Equal(share + 7, ofSp0.Count); // over its share, but nothing in view is shed
+            Assert.All(far, id => Assert.Contains(ofSp0, c => c.Id == id));
+        }
+    }
+
+    [Fact]
+    public void TheCrowdingPass_NeverShedsAHunterMidCharge()
+    {
+        var server = Started("crowdhunt", out var repo);
+        using (repo)
+        {
+            var (_, _, far, speciesId) = CrowdedArena(server, viewChunks: 1);
+            int share = server.SpeciesShareForTest();
+
+            // One far member is charging (a live Seek intent — the sleepers' controller is never stepped, so
+            // the mode sticks); it must be passed over even though it is the farthest thing out there.
+            var hunter = server.Creatures.Single(c => c.Id == far[^1]);
+            hunter.Loco.Mode = MoveMode.Seek;
+
+            Ticks(server, 3);
+
+            var ofSp0 = server.Creatures.Where(c => !c.IsCompanion && c.SpeciesId == speciesId).ToList();
+            Assert.Equal(share, ofSp0.Count);
+            Assert.Contains(ofSp0, c => c.Id == hunter.Id);
         }
     }
 
@@ -481,6 +536,50 @@ public sealed class CreatureBuildRespectTests : IDisposable
 
             var s = server.Creatures.Single(c => c.Id == tiny);
             Assert.Equal(beside.X, s.Position.X, 2); // a small animal a block from the hull is nobody's problem
+        }
+    }
+
+    // ---------------- #1357: awake creatures vs walls ----------------
+
+    [Fact]
+    public void AnAwakeGrazerWalledIn_StepsAsideWithinSeconds()
+    {
+        // The body check ran for sleepers only: an awake (cathemeral) animal walled in by the player never
+        // re-checked its own cells, and every step out of the block read as blocked.
+        var server = Started("awakewall", out var repo);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Mason");
+            p.State.AboardShip = false;
+            p.State.Inventory.Add("stone", 8, 64);
+            Force(server, 0, titan: false, nocturnal: false); // cathemeral: awake at the noon the clock is pinned to
+            server.SetDayFractionForTest(0.5);
+
+            const int cx = 80, cz = -40;
+            int padY = MaxTopY(server, cx, cz, 10) + 8;
+            BuildPad(server, cx, cz, 8, padY);
+            p.State.Position = new Vector3f(cx + 4.5f, padY + 1, cz + 0.5f); // within build reach of the animal
+
+            var planted = new Vector3f(cx + 0.5f, padY + 1, cz + 0.5f);
+            string id = server.SpawnCreatureAtForTest(planted);
+            server.PauseCreatureForTest(id, 30f); // a roam pause: it holds still while the wall goes up through it
+            Ticks(server, 2);
+            var live = server.Creatures.Single(c => c.Id == id);
+            Assert.Equal(0.0, live.AwakeOverrideTimer);
+            Assert.Equal(planted.X, live.Position.X);
+
+            // The player builds a wall THROUGH the standing animal: its feet and head cells.
+            server.PlaceBlock("Mason", cx, padY + 1, cz, "stone");
+            server.PlaceBlock("Mason", cx, padY + 2, cz, "stone");
+            Assert.False(ColumnClear(server, planted, 2), "sanity: the wall now runs through the body");
+
+            Ticks(server, 5); // one second
+            live = server.Creatures.Single(c => c.Id == id);
+            Assert.True(ColumnClear(server, live.Position, 2),
+                $"an awake animal must leave the masonry (at {live.Position.X:F1}/{live.Position.Y:F1}/{live.Position.Z:F1})");
+            Assert.True(System.Math.Abs(live.Position.X - planted.X) >= 0.9f || System.Math.Abs(live.Position.Z - planted.Z) >= 0.9f,
+                "it must have stepped ASIDE, not been hopped onto the wall");
+            Assert.Equal(padY + 1, live.Position.Y, 2);
         }
     }
 

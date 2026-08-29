@@ -4350,6 +4350,7 @@ public sealed partial class GameServer
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = blockDef.NumericId.Value, Tint = placeTint, Glow = placeGlow, Shape = placeShape });
+        NudgeCreatureBodyChecks(pos); // #1357: an animal the block landed in steps aside on its next tick
         if (IsFluid(blockDef.NumericId.Value))
         {
             RegisterFluidSource(pos); // placed water/lava starts flowing
