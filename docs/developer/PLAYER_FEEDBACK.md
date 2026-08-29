@@ -9,6 +9,15 @@ snapshot. (The key is advertised in the on-foot HUD controls hint, `ui.hud.hint`
 cruise hint, `ui.space.controls`, via the `{feedback_key}` placeholder — it works in both modes;
 only menus/chat/death-prompt block it.)
 
+**The world is held while the dialog is open (#1330).** Opening the form sends the same `PauseIntent` the
+Esc menu sends (see the pause notes on #612/#908/#973): in singleplayer the world stops — and saves — the
+moment the dialog appears, so typing a report costs no hunger, daylight or a creature sneaking up; with
+other players joined it only counts as "this player is in a menu" until everyone else is too. Every close
+path (Esc, Cancel, the auto-close after a send) releases it. Both menus drive this through one pure
+`WorldHoldIntent` (`Client.Core`), which also repeats the intent every 15 s — the keep-alive the server
+uses to drop a client that died behind its menu. The screenshot is captured *before* the hold, so it still
+shows live play; the `/bump` snapshot is on the server's paused allow-list (`PausedMayHandle`, #995).
+
 This is deliberately **player-facing** and separate from the developer `/bump` chat command (which still
 exists and produces the rich local diagnostic snapshot — see [BUG_REPORTS](BUG_REPORTS.md) if present, or
 `GameServerBump.cs`).
@@ -20,6 +29,7 @@ F1  (F2 on WebGL)
    │  capture full-frame JPG  (HUD visible, dialog NOT yet shown)
    ▼
 FeedbackUi dialog  (title, description, optional e-mail, privacy hint)
+   │  world HELD from here (PauseIntent — same hold as the Esc menu, keep-alive every 15 s; released on close, #1330)
    │  Send  (body serialized ONCE on the main thread)
    ├──────────────► HTTPS POST ──►  reports.blocksbeyondthestars.de/api/bugreport
    │                desktop: FeedbackUploader.UploadRawJson on a background Task
