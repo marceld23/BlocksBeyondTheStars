@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2437 server (non-Slow tier) + 419 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2488 server (non-Slow tier) + 419 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -9640,6 +9640,25 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
    footprint so nothing seeps up. Leave landing at the seabed (so it *can* land underwater) unless the user
    prefers dry-land preference (see questions). Tests: collider excludes fluids; fluid won't enter a stamped
    ship interior; ship interior is water-free after landing in a sea.
+
+---
+
+## ✅ Done (2026-08-29): reply polling no longer spends the report budget — a class behind one NAT can poll and still report (#1352)
+
+Follow-up to #1327. `GET /api/replies` and `POST /api/replies/ack` went through `GuardPlayerRoute`, which shared
+the **per-IP ingest limiter (10/min)** with `POST /api/bugreport`: 25 installs behind one school NAT polling ~12 s
+after world start meant 15 silent 429s — and a real F1 report from that network in the same minute bounced too
+(spooled and re-sent later; delayed, not lost).
+
+* **Own limiter for the reply routes**, keyed by *reply key* (`BBS_REPORTS_REPLY_PER_MINUTE`, default 30 — a real
+  client needs one poll per 10 min plus an ack) via `GuardReplyKey`; the per-IP ingest limiter now guards report
+  submission only. Malformed keys are rejected before they can occupy a counter.
+* **Routes moved from `Program.cs` into `ReportHostApp.Create(config, store, notifier, args)`** so the test suite
+  can start the real app in-process on a loopback port; the entry point only reads the environment and runs it.
+* Tests: `ReportHostHttpTests` (4, real HTTP) — 30 keys behind one IP all poll and a report still lands while the
+  ingest limiter stays on; the reply limiter is per key, not per IP; poll → ack → answer end to end (CORS header
+  included); write key still required. Docs: REPORT_HOST.md (config, code map), PLAYER_FEEDBACK.md.
+  ⚠ Needs a ReportHost image redeploy (`reports-image.yml`).
 
 ---
 

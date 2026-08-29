@@ -71,7 +71,10 @@ world loads ──► FeedbackUi.Start: replyKey = SHA256("bbs-reply:" + secret)
   the shown ids (fire-and-forget) and the next queued thread follows. When the newest developer entry is a
   question (`waiting_for_player`), an answer box + **Send answer** appear; the answer posts, acks, closes.
   Threads are queued while another menu/chat/death prompt owns the screen. Strings: `ui.feedback.reply.*`.
-- Failures are silent (one log line); a 4xx never retries the same request.
+- Failures are silent (one log line); a 4xx never retries the same request. A `429` on a poll is the reply
+  key's **own** per-minute budget (`BBS_REPORTS_REPLY_PER_MINUTE`, 30 by default) — never the network's report
+  budget: the reply routes do not touch the per-IP ingest limiter, so a class of 30 behind one NAT can all
+  poll and still file a report (#1352).
 
 ### Why client-direct for the web upload
 

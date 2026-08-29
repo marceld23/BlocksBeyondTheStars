@@ -53,6 +53,12 @@ public sealed class ReportHostConfig
     /// the in-game dialog is hand-typed — while blunting scripted floods.</summary>
     public int IngestPerMinute { get; set; } = 10;
 
+    /// <summary>Rate limit for the player reply routes (<c>/api/replies*</c>) per reply key per minute
+    /// (fixed window; <c>0</c> = off). Separate from <see cref="IngestPerMinute"/> on purpose (#1352):
+    /// every install polls for answers, so a LAN class behind one NAT must not spend the per-IP report
+    /// budget on polls — and a leaked key still cannot hammer the inbox.</summary>
+    public int ReplyPerMinute { get; set; } = 30;
+
     /// <summary>Days to keep reports; 0 (default) keeps them forever. Pruning also removes the screenshot
     /// file (reports carry an optional e-mail, so retention is a privacy lever, not just disk hygiene).</summary>
     public int RetentionDays { get; set; }
@@ -87,6 +93,7 @@ public sealed class ReportHostConfig
         if (Env("BBS_REPORTS_ADMIN_PASSWORD") is { } adminPass) { c.AdminPassword = adminPass; }
         if (Env("BBS_REPORTS_MAX_BODY_BYTES") is { } mbStr && long.TryParse(mbStr, out var mb)) { c.MaxBodyBytes = mb; }
         if (Env("BBS_REPORTS_INGEST_PER_MINUTE") is { } rlStr && int.TryParse(rlStr, out var rl)) { c.IngestPerMinute = rl; }
+        if (Env("BBS_REPORTS_REPLY_PER_MINUTE") is { } rpStr && int.TryParse(rpStr, out var rp)) { c.ReplyPerMinute = rp; }
         if (Env("BBS_REPORTS_RETENTION_DAYS") is { } rdStr && int.TryParse(rdStr, out var rd)) { c.RetentionDays = rd; }
         if (Env("BBS_REPORTS_TRUST_PROXY") is { } tpStr && bool.TryParse(tpStr, out var tp)) { c.TrustProxy = tp; }
         if (Env("BBS_REPORTS_NOTIFY_URL") is { } notifyUrl) { c.NotifyUrl = notifyUrl; }

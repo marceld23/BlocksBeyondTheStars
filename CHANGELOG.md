@@ -13,6 +13,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📮 Report inbox — polling for answers never blocks a real report (#1352)
+
+- **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll
+  shared the inbox's per-IP report limit (10/min), so 25 installs on one school network polling after world
+  start ate the budget — and an F1 report from that network in the same minute was bounced (kept in the
+  client's spool and re-sent later, but delayed). The reply routes now have their own per-install budget
+  (`BBS_REPORTS_REPLY_PER_MINUTE`, 30/min per reply key); the per-IP limit guards report submission only.
+  Operators: redeploy the ReportHost image.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
