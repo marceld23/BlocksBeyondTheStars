@@ -9658,6 +9658,37 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): low-priority audit leftovers — reports that vanish are forgotten, the answer box follows the thread, admin CSRF, image filter, texture tool (#1369)
+
+The low-severity ReportHost / workflow / tooling findings of the 2026-08-29 audit that #1361 left out:
+
+* **`gone` marker (#1327/#1328)** — `GET /api/replies` takes `ids=` (the report ids the client's `sent.json` still
+  holds, ≤ 50) and answers `gone: […]` for the ones the key can no longer read (`ReportStore.MissingReports`: deleted,
+  pruned, or stored under another key); `FeedbackReplyClient.Fetch(key, since, knownIds)` / `ParseGone` carry it and
+  `FeedbackUi.OnPollFinished` calls `SentReportsLog.Forget` — the previously dead method — so a deleted report is no
+  longer polled 6×/h for 90 days. Only named ids are ever reported (nothing enumerable).
+* **Answer box follows the thread** — `FeedbackReplyThread.AwaitsAnswer` = the newest entry is a developer question
+  (no player entry after it), no longer `Status == "waiting_for_player"`; an operator flipping the status by hand to
+  `triaged` no longer hides the box (the inbox accepts the answer in any status).
+* **Admin CSRF** — `AdminCsrf`: one random per-process token, hidden `csrf` field in every detail-page form, fixed-time
+  check on `/admin/report/{id}/reply|status|delete` → 403 on mismatch; the JSON admin routes (`PATCH /api/reports/{id}`,
+  `POST /api/reports/{id}/replies`) require `application/json` (415) so a `text/plain` form cannot smuggle a body.
+* **Pre-#1327 arcade reports** — not repairable (the inbox never learns the Glitch install id); documented in
+  REPORT_HOST.md, and the detail page says "No in-game reply possible" for a `WebGLPlayer` report whose key was
+  derived from the player id (`ReportHostPages.KeyOrigin`), a softer hint for old desktop rows.
+* **`reports-image.yml`** now also triggers on `src/BlocksBeyondTheStars.Shared/**` (the reply-key formula lives
+  there); `worldhost-image.yml` already had the path.
+* **`gen_textures.py`** — the Guardian plating post-process (desaturate 70 %, lift `v' = 1 − (1 − v)·0.76`) is
+  `guardian_plating()` in a `POST_PROCESS` table applied to the 64 px tile before it is written, so `--only enemy_robot`
+  + `bundle_textures.py --from-out` reproduce the committed tile. No texture regenerated.
+* Tests: `ReportHostReplyLifecycleTests` (gone over HTTP on the shared host) + `ReportHostAdminCsrfTests` (own host
+  with admin on: token in every form, 403 without it, 415 for text/plain JSON), `ReportHostTests` (+2: store
+  `MissingReports` incl. prune + cap, page hints + CSRF field), `FeedbackReplyTests` (+2: ids/gone round trip +
+  `Forget`, `AwaitsAnswer` by thread). ⚠ Needs a ReportHost image redeploy (`reports-image.yml`); the client half
+  ships with the next release.
+
+---
+
 ## ✅ Done (2026-08-29): low-priority audit leftovers — granular landings, drop packets, pad touchdown, creature physics (#1367)
 
 The small server findings of the 2026-08-29 audit of #1310–#1345 that the medium/high PRs left out, shipped together:

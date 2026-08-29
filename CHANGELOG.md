@@ -13,6 +13,21 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📮 Report inbox leftovers — deleted reports are forgotten, the answer box stays, admin forms are guarded (#1369)
+
+- **A report the developers deleted is no longer polled for three months.** The game asks the inbox about the
+  reports it still remembers; the ones that are gone (deleted, expired, or filed by an older browser build under
+  a key the game cannot read) are forgotten on the spot, and the polling stops once none are left.
+- **The answer box no longer disappears when the developers re-file your report.** Whether you can answer now
+  follows the conversation itself — the newest entry is a developer question you have not answered — instead of
+  the report's status label, which an operator may change by hand.
+- **Operators**: the admin forms carry a CSRF token (403 without it) and the JSON admin routes require a JSON
+  content type; the detail page says "No in-game reply possible" for arcade reports filed before the reply
+  channel existed (their reply key cannot match — answer those through the old channel). The ReportHost image
+  also rebuilds when the shared reply-key code changes. Redeploy the ReportHost image.
+- **Tooling**: `gen_textures.py` now applies the documented Guardian-plating post-process itself, so the tile can
+  be regenerated reproducibly.
+
 ### 🧹 Audit leftovers — sand, drop packets, pad touchdown and creature physics (#1367)
 
 - **Falling sand no longer rests on a tuft of grass, a torch or a flame** — it crushes the prop (its drop lands on top
