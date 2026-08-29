@@ -9716,7 +9716,7 @@ already did the right thing and either told the player the opposite or hid it.
   medbay when it has the headroom, then to the cabin centre. Theory test over every ship type asserts
   feet + head clearance and a floor.
 * **#1260 stale HUD hull/shield after a ship switch.** `SwitchShip` recomputed the stats but never sent
-  `ShipCombatStatus` — Lyxette's screenshots showed the hauler's 170/140 while the server had her in the
+  `ShipCombatStatus` — Lyxette's screenshots showed the hauler's 170/140 while the server had him in the
   starter. One send after the recompute; regression test on the recording transport.
 * **#1261 cargo capacity.** `ships.json` carried a `cargoSlots` the hold never used: capacity is the module
   sum (`ResizeCargo`), and the hauler ships with `cargo_hold_1` pre-fitted → real 72 while the ship-info
@@ -9752,7 +9752,7 @@ already did the right thing and either told the player the opposite or hid it.
   beam pad, landing) the ground ray must hit within 1.6 m; world spawns keep the old tolerance.
 
 Locales: 13 new keys + 4 reworded ones, EN/DE by hand, the other twelve via `translate_locale.py`.
-Reply to Lyxette should also cover the four non-bugs from her batch (#1267 base air already exists,
+Reply to Lyxette should also cover the four non-bugs from his batch (#1267 base air already exists,
 #1270 suit gear works from the backpack, #1268/#1269 modules, #1274 glass) — filed as follow-ups.
 
 ## ✅ Done (2026-08-24): CI shard imbalance — the PR gate's tail shard went from ~7:40 back to ~6 min (#1254)

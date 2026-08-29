@@ -16,7 +16,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 ## [2026.8.22] — 2026-08-26
 
 The outfitter release — and, more than any release before it, **one player's release**. Between 25 and
-26 August, **Lyxette** sent in four reports from her singleplayer world: nine bugs, a fall-through on a
+26 August, **Lyxette** sent in four reports from his singleplayer world: nine bugs, a fall-through on a
 beam pad, seven "why can I not see what my gear does?" observations and one honest question about lava
 and water. That became 20 issues, and every single one of them is fixed or built in this release.
 
@@ -79,7 +79,7 @@ All four from **Lyxette**'s reports as well.
   `glass_clear`. Side and rear windows stay frosted, so the ship still reads as a ship from outside. (#1283)
 - **Water quenches lava, from a bucket too.** Lyxette put a water block next to lava and watched the two
   sit there side by side forever: the #477 contact rule only ever fired for *flowing* fluid. Now lava
-  hardens wherever water touches it — source lava to **obsidian**, flowing lava to **basalt** (her call) —
+  hardens wherever water touches it — source lava to **obsidian**, flowing lava to **basalt** (his call) —
   on placement, on every woken cell, and where a lava tongue tries to flow in. Placed lava beside water
   hardens itself. (#1284)
 
