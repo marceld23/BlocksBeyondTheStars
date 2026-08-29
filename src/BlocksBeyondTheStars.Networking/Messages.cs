@@ -507,6 +507,20 @@ public sealed class ShipRepairStatus
 
     /// <summary>Compact "item:count,item:count" summary of the full repair cost (for the HUD hint).</summary>
     public string Needs { get; set; } = string.Empty;
+
+    /// <summary>The live structure the missing cells below belong to ("ship:&lt;playerId&gt;") — the client maps
+    /// them into the world through that structure's origin. Additive (#1368); empty from an older server.</summary>
+    public string StructureId { get; set; } = string.Empty;
+
+    /// <summary>Structure-local coordinates of the missing design hull cells (parallel arrays, at most
+    /// <see cref="MaxListedMissingCells"/> of them — <see cref="MissingCells"/> stays the true count) so the
+    /// client can outline every breach in the world while the repair panel is up (#1368). Additive.</summary>
+    public int[] MissingX { get; set; } = System.Array.Empty<int>();
+    public int[] MissingY { get; set; } = System.Array.Empty<int>();
+    public int[] MissingZ { get; set; } = System.Array.Empty<int>();
+
+    /// <summary>Upper bound on the listed breach cells — a fully wrecked custom hull can have thousands.</summary>
+    public const int MaxListedMissingCells = 256;
 }
 
 /// <summary>Client scans a subject with the handheld scanner (creature species id / block key).</summary>
@@ -1690,9 +1704,16 @@ public sealed class NetCreature
     /// <summary>A flier sitting on the ground (#1332) — wings folded, legs down. Additive.</summary>
     public bool Perched { get; set; }
 
-    /// <summary>Vertical velocity (blocks/s, +up) while a ground class is airborne, so the client can integrate
-    /// the jump arc between the ~2 Hz position updates instead of smearing it. 0 otherwise. Additive.</summary>
+    /// <summary>Vertical velocity (blocks/s, +up) while airborne — a ground class mid-jump/fall, or a perched
+    /// flier whose perch went (#1368) — so the client can integrate the arc between the ~2 Hz position updates
+    /// instead of smearing it. 0 otherwise. Additive.</summary>
     public float VertVel { get; set; }
+
+    /// <summary>The server's ground-bird predicate (<c>CreatureMotion.Glides</c>: wings ∧ land ∧ can jump — no
+    /// giants, no air species): this walker falls under reduced gravity while airborne, so the client's local
+    /// arc integration uses the same glide factor the server does (#1368). Additive; a legacy server sends
+    /// false, which is also what it simulates.</summary>
+    public bool Glides { get; set; }
 }
 
 /// <summary>Snapshot of live creatures (fauna) near the player on the planet surface.</summary>

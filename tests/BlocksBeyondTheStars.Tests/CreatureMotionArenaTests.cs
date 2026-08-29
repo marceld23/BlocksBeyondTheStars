@@ -508,6 +508,16 @@ public sealed class CreatureMotionArenaTests : IDisposable
                 server.TickForTest(0.1);
                 c = server.Creatures.First(x => x.Id == id);
                 fell |= c.Vert.Airborne;
+                if (c.Vert.Airborne && c.Vert.Flight == FlightPhase.Perched)
+                {
+                    // The wire reports the ACTUAL state while it drops (#1368): airborne with its fall velocity,
+                    // not "perched" — the client would otherwise draw a folded bird sliding down.
+                    var wire = server.NetCreatureForTest(id);
+                    Assert.True(wire.Airborne, "a falling perched flier must read as airborne on the wire");
+                    Assert.False(wire.Perched, "…and not as perched");
+                    Assert.Equal(c.Vert.VertVel, wire.VertVel, 3);
+                }
+
                 tookOff |= c.Vert.Flight == FlightPhase.TakingOff;
                 if (tookOff)
                 {

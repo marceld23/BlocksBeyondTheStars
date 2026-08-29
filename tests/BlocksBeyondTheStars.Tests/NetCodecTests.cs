@@ -358,6 +358,57 @@ public sealed class NetCodecTests
     }
 
     [Fact]
+    public void NetCreature_GlidesFlag_RoundTrips_AndDefaultsToFalse()
+    {
+        // #1368: the server's ground-bird predicate rides along as an ADDITIVE flag so the client's local arc
+        // integration uses the same glide factor — a legacy creature reads as a non-glider.
+        Assert.False(new NetCreature().Glides);
+
+        var list = new CreatureList
+        {
+            Creatures = new[]
+            {
+                new NetCreature { Id = "bird", Motion = "walker", HasWings = true, Glides = true, Airborne = true, VertVel = 5f },
+                new NetCreature { Id = "titan", Motion = "walker", HasWings = true, Glides = false },
+            },
+        };
+        var decoded = Assert.IsType<CreatureList>(NetCodec.Decode(NetCodec.Encode(list)));
+        Assert.True(decoded.Creatures[0].Glides);
+        Assert.False(decoded.Creatures[1].Glides);
+        Assert.True(decoded.Creatures[1].HasWings); // wings alone no longer imply the glide
+    }
+
+    [Fact]
+    public void ShipRepairStatus_MissingCellList_RoundTrips_AndDefaultsToEmpty()
+    {
+        // #1368: the breach cells are ADDITIVE parallel arrays on the repair readout — a legacy status carries
+        // none (the client then highlights nothing), a populated one survives the trip with its structure id.
+        var legacy = new ShipRepairStatus();
+        Assert.Equal(string.Empty, legacy.StructureId);
+        Assert.Empty(legacy.MissingX);
+        Assert.Empty(legacy.MissingY);
+        Assert.Empty(legacy.MissingZ);
+
+        var status = new ShipRepairStatus
+        {
+            Hull = 100f,
+            HullMax = 100f,
+            MissingCells = 2,
+            NeedsRepair = true,
+            StructureId = "ship:Host",
+            MissingX = new[] { 1, 4 },
+            MissingY = new[] { 0, 2 },
+            MissingZ = new[] { 7, 3 },
+        };
+        var decoded = Assert.IsType<ShipRepairStatus>(NetCodec.Decode(NetCodec.Encode(status)));
+        Assert.Equal("ship:Host", decoded.StructureId);
+        Assert.Equal(new[] { 1, 4 }, decoded.MissingX);
+        Assert.Equal(new[] { 0, 2 }, decoded.MissingY);
+        Assert.Equal(new[] { 7, 3 }, decoded.MissingZ);
+        Assert.Equal(2, decoded.MissingCells);
+    }
+
+    [Fact]
     public void JoinRequest_PreservesFieldsThroughMessagePackRoundTrip()
     {
         var original = new JoinRequest

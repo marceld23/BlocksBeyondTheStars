@@ -1680,6 +1680,10 @@ public sealed partial class GameServer
     /// <summary>Runs the placement-time eviction sweep directly (no tick) so a test can isolate it.</summary>
     public void EvictWildlifeFromShipsForTest() => EvictWildlifeFromShips();
 
+    /// <summary>Test-only: the creature exactly as the next creature broadcast would carry it — lets a test
+    /// pin the wire's motion flags (airborne / perched / glide) to the simulated state (#1368).</summary>
+    public NetCreature NetCreatureForTest(string id) => ToNetCreature(_creatures.First(x => x.Id == id));
+
     /// <summary>Test-only: puts a creature's locomotion controller into a roam PAUSE for <paramref name="seconds"/>
     /// (as if it had rolled one), so a test can trigger the behaviour a pause drives — a flier landing to
     /// rest (#1332) — without waiting for the seeded roll.</summary>
@@ -2122,9 +2126,13 @@ public sealed partial class GameServer
         // its velocity so the client can integrate the arc between updates), a flier is airborne unless perched,
         // a hoverer always is; swimmers never.
         var motion = sp is null ? MotionClass.Walker : CreatureMotion.EffectiveClass(sp, e.Vert.InWater);
+        // A perched flier whose perch was dug away is falling under plain gravity (#1367): its phase is still
+        // Perched, but the wire reports the ACTUAL vertical state — airborne with its fall velocity — so the
+        // client unfolds the wings and integrates the drop instead of drawing a folded bird sliding down (#1368).
+        bool perchedFalling = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && e.Vert.Airborne;
         bool airborne = motion switch
         {
-            MotionClass.Flier => e.Vert.Flight != FlightPhase.Perched,
+            MotionClass.Flier => e.Vert.Flight != FlightPhase.Perched || perchedFalling,
             MotionClass.Hoverer => true,
             MotionClass.Swimmer => false,
             _ => e.Vert.Airborne,
@@ -2133,8 +2141,9 @@ public sealed partial class GameServer
         {
             Motion = CreatureMotion.Key(motion),
             Airborne = airborne,
-            Perched = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched,
-            VertVel = CreatureMotion.IsGroundBound(motion) && e.Vert.Airborne ? e.Vert.VertVel : 0f,
+            Perched = motion == MotionClass.Flier && e.Vert.Flight == FlightPhase.Perched && !perchedFalling,
+            VertVel = (CreatureMotion.IsGroundBound(motion) || perchedFalling) && e.Vert.Airborne ? e.Vert.VertVel : 0f,
+            Glides = sp is not null && CreatureMotion.Glides(sp), // the client's glide factor follows the server's rule (#1368)
 
             Id = e.Id,
             SpeciesId = e.SpeciesId,
