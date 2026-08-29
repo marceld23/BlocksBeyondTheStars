@@ -673,6 +673,76 @@ public sealed class ReportHostTests : IDisposable
         Assert.Equal(ReportStore.MaxGoneQueryIds, store.MissingReports(key, many).Count);
     }
 
+    /// <summary>The server's /bump forward of the same report, exactly as it lands in production: the player
+    /// id is the NAME, no reply key, the description wraps the player's wording, and the snapshot carries the
+    /// screenshot — which is why the admin list links to this half.</summary>
+    private static string ServerForwardPayloadFor(string playerName)
+    {
+        var body = new Dictionary<string, object?>
+        {
+            ["title"] = $"Bump [World]: [feedback] Hat eaten by door — The door on my ship eats my hat.",
+            ["description"] = "[feedback] Hat eaten by door — The door on my ship eats my hat.",
+            ["gameVersion"] = "2026.8.22",
+            ["playerId"] = playerName,
+            ["playerName"] = playerName,
+            ["platform"] = "WindowsPlayer",
+            ["reportJson"] = new Dictionary<string, object?> { ["source"] = "server", ["snapshot"] = new Dictionary<string, object?>() },
+            ["screenshot"] = new Dictionary<string, object?>
+            {
+                ["fileName"] = "bump.jpg",
+                ["mimeType"] = "image/jpeg",
+                ["base64"] = Convert.ToBase64String(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3 }),
+            },
+        };
+        return JsonSerializer.Serialize(body);
+    }
+
+    /// <summary>#1378: a report filed before the reply channel is a pair whose screenshot half carries no reply
+    /// key (the #1359 repair blanks name-derived keys on server rows). Opening THAT half must still show the
+    /// pair's thread, and an answer written on it must land on the keyed half — the only one a game polls.</summary>
+    [Fact]
+    public void PairedScreenshotRow_ShowsTheClientHalfsThread_AndReceivesRepliesThere()
+    {
+        var store = NewStore();
+        string client = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 100);
+        string server = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Justus"), new ReportHostConfig(), out _)!, nowUnix: 101);
+
+        var clientRow = store.Get(client)!;
+        var serverRow = store.Get(server)!;
+        Assert.NotEmpty(clientRow.ReplyKey);
+        Assert.Empty(serverRow.ReplyKey); // the production shape after #1359
+
+        // Resolution: the key-less half hands over to its keyed partner; the keyed half owns itself; an
+        // unrelated key-less row (another player, same minute) stays its own owner.
+        var around = store.Around(serverRow.CreatedUnix, ReportHostPages.DuplicateWindowSeconds);
+        Assert.Equal(client, ReportHostPages.ThreadOwner(serverRow, around).Id);
+        Assert.Equal(client, ReportHostPages.ThreadOwner(clientRow, around).Id);
+        string stranger = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Pilot"), new ReportHostConfig(), out _)!, nowUnix: 102);
+        var strangerRow = store.Get(stranger)!;
+        Assert.Equal(stranger, ReportHostPages.ThreadOwner(strangerRow, store.Around(102, ReportHostPages.DuplicateWindowSeconds)).Id);
+
+        // The answer is stored on the client half; the screenshot half's page renders it and says where it lives.
+        long replyId = store.AddDevReply(client, "Fixed — thanks for the hat.", isQuestion: false, nowUnix: 200);
+        Assert.True(replyId > 0);
+        store.SetFixedInVersion(client, "2026.8.23");
+        Assert.Empty(store.ListReplies(server));
+
+        // Re-resolve after the write — records are snapshots (the routes resolve per request anyway).
+        var owner = ReportHostPages.ThreadOwner(serverRow, store.Around(serverRow.CreatedUnix, ReportHostPages.DuplicateWindowSeconds));
+        string html = ReportHostPages.Detail(serverRow, store.ListReplies(owner.Id), null, owner);
+        Assert.Contains("Fixed — thanks for the hat.", html);
+        Assert.Contains("Fixed in version: <b>2026.8.23</b>", html);
+        Assert.Contains($"/admin/report/{client}'>client row</a>", html);
+        Assert.DoesNotContain("no reply key", html);
+        Assert.DoesNotContain("No replies yet", html);
+        Assert.Contains($"action='/admin/report/{server}/reply'", html); // the route resolves the owner again
+
+        // Opened on its own half nothing changes: no hand-over hint.
+        html = ReportHostPages.Detail(clientRow, store.ListReplies(client), null, owner);
+        Assert.DoesNotContain("conversation lives on the paired", html);
+        Assert.Contains("Fixed — thanks for the hat.", html);
+    }
+
     [Fact]
     public void DetailPage_SaysNoInGameReplyForOldArcadeReports_AndEveryFormCarriesTheCsrfToken()
     {

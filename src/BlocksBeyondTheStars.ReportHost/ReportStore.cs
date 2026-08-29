@@ -362,6 +362,28 @@ public sealed class ReportStore : IDisposable
         }
     }
 
+    /// <summary>Every row stamped within <paramref name="windowSeconds"/> of <paramref name="createdUnix"/> —
+    /// the candidates for the other half of a report pair (#1378); the caller applies the pairing rule.</summary>
+    public List<BugReportRecord> Around(long createdUnix, long windowSeconds)
+    {
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "SELECT * FROM bugreport WHERE created_unix BETWEEN $from AND $to ORDER BY created_unix, id;";
+            cmd.Parameters.AddWithValue("$from", createdUnix - windowSeconds);
+            cmd.Parameters.AddWithValue("$to", createdUnix + windowSeconds);
+
+            var items = new List<BugReportRecord>();
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                items.Add(ReadRecord(reader));
+            }
+
+            return items;
+        }
+    }
+
     public bool SetStatus(string id, string status)
     {
         if (!BugReportStatus.IsValid(status))

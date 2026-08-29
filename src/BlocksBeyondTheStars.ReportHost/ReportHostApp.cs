@@ -39,6 +39,10 @@ public static class ReportHostApp
 
         long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+        // The half of a report pair that owns the conversation (#1378) — see ReportHostPages.ThreadOwner.
+        BugReportRecord ThreadOwnerOf(BugReportRecord r)
+            => ReportHostPages.ThreadOwner(r, store.Around(r.CreatedUnix, ReportHostPages.DuplicateWindowSeconds));
+
         int prunedAtStart = store.Prune(config.RetentionDays, NowUnix());
         // Reports stored before the reply channel (#1327) get their reply key derived from the player id they
         // already carry, so their reporters can be answered too. Idempotent — a no-op after the first start.
@@ -575,7 +579,15 @@ public static class ReportHostApp
                 return Results.BadRequest(new { error = "empty_text" });
             }
 
-            long replyId = store.AddDevReply(id, text, question, NowUnix());
+            // The thread lives on the keyed half of the pair (#1378) — answering the screenshot row of an old
+            // report must not store the text where no game can read it.
+            if (store.Get(id) is not { } target)
+            {
+                return Results.NotFound();
+            }
+
+            var owner = ThreadOwnerOf(target);
+            long replyId = store.AddDevReply(owner.Id, text, question, NowUnix());
             if (replyId < 0)
             {
                 return Results.NotFound();
@@ -583,10 +595,10 @@ public static class ReportHostApp
 
             if (fixedIn != null)
             {
-                store.SetFixedInVersion(id, fixedIn);
+                store.SetFixedInVersion(owner.Id, fixedIn);
             }
 
-            return Results.Json(new { ok = true, replyId }, statusCode: StatusCodes.Status201Created);
+            return Results.Json(new { ok = true, replyId, reportId = owner.Id }, statusCode: StatusCodes.Status201Created);
         });
 
         // ---------------- Admin UI (Basic Auth; server-rendered, no script) ----------------
@@ -632,9 +644,13 @@ public static class ReportHostApp
                 return denied;
             }
 
-            return store.Get(id) is { } record
-                ? Results.Content(ReportHostPages.Detail(record, store.ListReplies(id), csrf), "text/html; charset=utf-8")
-                : Results.NotFound();
+            if (store.Get(id) is not { } record)
+            {
+                return Results.NotFound();
+            }
+
+            var owner = ThreadOwnerOf(record);
+            return Results.Content(ReportHostPages.Detail(record, store.ListReplies(owner.Id), csrf, owner), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to
@@ -656,14 +672,21 @@ public static class ReportHostApp
             bool question = form["question"].ToString() == "1";
             string fixedIn = form["fixed_in_version"].ToString().Trim();
 
-            if (text.Length > 0 && store.AddDevReply(id, text, question, NowUnix()) < 0)
+            if (store.Get(id) is not { } record)
             {
                 return Results.NotFound();
             }
 
-            if (store.Get(id) is { } record && fixedIn != record.FixedInVersion)
+            // Same resolution as the detail page (#1378): the reply goes to the half that carries the key.
+            var owner = ThreadOwnerOf(record);
+            if (text.Length > 0 && store.AddDevReply(owner.Id, text, question, NowUnix()) < 0)
             {
-                store.SetFixedInVersion(id, fixedIn);
+                return Results.NotFound();
+            }
+
+            if (fixedIn != owner.FixedInVersion)
+            {
+                store.SetFixedInVersion(owner.Id, fixedIn);
             }
 
             return Results.Redirect($"/admin/report/{id}");

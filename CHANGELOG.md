@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📬 Report inbox — the screenshot half of a pair shows the pair's conversation (#1378)
+
+- **Opening a report from the admin list showed an empty conversation** although the developers had answered.
+  The list links each pair to its richer half — the server's `/bump` row with the screenshot — and for reports
+  filed before the reply channel that half carries no reply key (the #1359 repair blanks name-derived keys on
+  purpose), so its page said "no in-game reply possible" while the answers sat on the client row behind the
+  small `+1` link. Whichever half you open now, the page shows the pair's one thread and says where it lives;
+  the reply form, `POST /admin/report/{id}/reply` and `POST /api/reports/{id}/replies` all write to the half
+  that carries the key (the API answer names it as `reportId`), so an answer is never stored where no game
+  can read it. Operators: redeploy the ReportHost image.
+
 ## [2026.8.23] — 2026-08-29
 
 The menagerie release. Animals stopped sliding along the ground and started **moving like animals**:
