@@ -52,6 +52,10 @@ public sealed class EnemyMovementTests : IDisposable
         config.Rules.FreeSpaceFlight = true;
         config.Rules.SpaceCombat = SpaceCombatMode.PvE; // hostile NPCs only spawn with combat enabled
         config.Rules.SpaceNpcEnemies = AlienActivity.Normal;
+        // Wildlife off: creatures share the entity-id counter with the machines, and a machine's id seeds its
+        // locomotion (the scan-drone's strafe phase in particular) — so any change to the creature spawner
+        // shifted which id the first fiend got and flipped the hunt assertion below (#1325 did exactly that).
+        config.Rules.CreatureAbundance = AlienActivity.Off;
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;

@@ -1079,7 +1079,9 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Creatures
 - Fauna spawn near players (habitat-gated), with temperaments; hostile creatures show visible attacks.
-  Flora regrows when its host block survives.
+  Flora regrows when its host block survives. Nothing spawns inside a **sealed room** of a founded base
+  (the same airtight rooms the base core supplies with air), no single species fills the whole area, and
+  an animal you wall or floor in while it sleeps wakes up and steps clear.
 - **Individuals of a kind vary in size.** Within any one species/type, each plant, tree or animal gets its
   own size (most near the normal size, the occasional runt or giant) — a wood is a mix of saplings and tall
   trees with varying crown widths, a herd has small and large animals. The variation is cosmetic (a creature's
