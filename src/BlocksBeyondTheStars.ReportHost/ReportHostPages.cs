@@ -34,7 +34,7 @@ public static class ReportHostPages
 
         sb.Append("<form method='get' action='/admin' class='filters'>");
         sb.Append("<select name='status'><option value=''>all statuses</option>");
-        foreach (var s in new[] { BugReportStatus.New, BugReportStatus.Triaged, BugReportStatus.Done })
+        foreach (var s in BugReportStatus.All)
         {
             sb.Append($"<option value='{s}'{(s == status ? " selected" : "")}>{s}</option>");
         }
@@ -177,8 +177,9 @@ public static class ReportHostPages
     /// <summary>Collapses whitespace so the two wordings compare cleanly.</summary>
     private static string Normalize(string s) => string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    public static string Detail(BugReportRecord r)
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null)
     {
+        replies ??= Array.Empty<ReplyRecord>();
         var sb = new StringBuilder();
         string when = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).ToString("yyyy-MM-dd HH:mm:ss");
         sb.Append($"<p><a href='/admin'>&larr; back to list</a></p>");
@@ -204,8 +205,40 @@ public static class ReportHostPages
 
         sb.Append("<div class='card'><h2>Report JSON</h2><pre>").Append(E(Pretty(r.ReportJson))).Append("</pre></div>");
 
+        // Reply thread (#1327): what the player sees in the game, plus the form to add to it. Only reports
+        // that carry a reply key can reach a player (server crash reports have none).
+        sb.Append("<div class='card'><h2>Conversation with the player</h2>");
+        if (r.ReplyKey.Length == 0)
+        {
+            sb.Append("<p class='hint'>This report carries no reply key (no player id) — nothing you write here can reach a player.</p>");
+        }
+        else if (replies.Count == 0)
+        {
+            sb.Append("<p class='hint'>No replies yet. An answer shows up in the player's game on their next start (or within ~10 minutes while playing); " +
+                      "a <b>question</b> also lets them answer from inside the game.</p>");
+        }
+
+        foreach (var reply in replies)
+        {
+            string who = reply.Author == ReplyRecord.AuthorDev ? (reply.IsQuestion ? "You asked" : "You") : "Player";
+            string stamp = DateTimeOffset.FromUnixTimeSeconds(reply.CreatedUnix).ToString("yyyy-MM-dd HH:mm");
+            string seen = reply.Author == ReplyRecord.AuthorDev ? (reply.SeenUnix > 0 ? " · read" : " · unread") : string.Empty;
+            sb.Append($"<div class='reply reply-{E(reply.Author)}'><div class='sub'>{who} · {stamp} UTC{seen}</div><pre>{E(reply.Text)}</pre></div>");
+        }
+
+        if (r.FixedInVersion.Length > 0)
+        {
+            sb.Append($"<p class='sub'>Fixed in version: <b>{E(r.FixedInVersion)}</b> (shown to the player with the thread)</p>");
+        }
+
+        sb.Append($"<form method='post' action='/admin/report/{r.Id}/reply' class='replyform'>");
+        sb.Append("<textarea name='text' rows='4' maxlength='5000' placeholder='Answer, or a follow-up question. Never ask for personal data — the audience includes children.'></textarea>");
+        sb.Append("<label><input type='checkbox' name='question' value='1'> this is a question (status → waiting_for_player; the player can answer in-game)</label>");
+        sb.Append($"<label>fixed in version <input type='text' name='fixed_in_version' value='{E(r.FixedInVersion)}' placeholder='e.g. 2026.8.23' size='14'></label>");
+        sb.Append("<button>send to player</button></form></div>");
+
         sb.Append("<div class='card actions'>");
-        foreach (var s in new[] { BugReportStatus.New, BugReportStatus.Triaged, BugReportStatus.Done })
+        foreach (var s in BugReportStatus.All)
         {
             sb.Append($"<form method='post' action='/admin/report/{r.Id}/status'><input type='hidden' name='status' value='{s}'><button{(s == r.Status ? " disabled" : "")}>mark {s}</button></form>");
         }
@@ -257,6 +290,13 @@ public static class ReportHostPages
  button:disabled {{ opacity:.45; cursor:default; }}
  button.danger {{ background:#4a1d24; border-color:#7c2f3c; }}
  .st-new {{ color:#ffd479; }} .st-triaged {{ color:#7fb4ff; }} .st-done {{ color:#77dd9a; }}
+ .st-waiting_for_player {{ color:#c9a2ff; }} .st-player_replied {{ color:#ff9f6e; }}
+ .reply {{ margin:.5rem 0; padding:.5rem .7rem; border-radius:6px; background:#0e1428; border-left:3px solid #33406a; }}
+ .reply-dev {{ border-left-color:#7fb4ff; }} .reply-player {{ border-left-color:#ff9f6e; }}
+ .reply pre {{ background:transparent; padding:0; }}
+ .replyform {{ display:flex; flex-direction:column; gap:.5rem; margin-top:.6rem; }}
+ .replyform textarea, .replyform input[type=text] {{ background:#0e1428; color:#dbe4ff; border:1px solid #33406a; border-radius:6px; padding:.4rem .6rem; font:inherit; }}
+ .replyform button {{ align-self:flex-start; }}
  .dup {{ background:#26314f; border-radius:4px; padding:0 .3rem; font-size:.8rem; text-decoration:none; }}
 </style></head><body>
 {body}

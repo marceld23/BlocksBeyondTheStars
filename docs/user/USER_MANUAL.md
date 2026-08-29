@@ -1315,6 +1315,21 @@ The **widest** radio you carry sets your reach. Without any radio you can't tran
 - *On a standalone **dedicated** server, the admin must enable voice (`voiceChatEnabled` / `--voice true` /
   `BBS_VOICE=true`); local hosting enables it automatically.*
 
+### Player feedback (**F1**; **F2** in the browser) — and the developers' answers
+- Press **F1** (F2 in browser builds) during play to send a bug report or a wish: a title, a description
+  and an optional e-mail. A screenshot and a small technical snapshot (player name, version, position,
+  stats) travel with it to the developers' inbox. No connection? The report is queued and sent on a
+  later start.
+- **The developers can answer you in the game.** When they reply to one of your reports, a line shows
+  on the HUD and a window opens with the conversation — what you reported, their answer, and
+  "Fixed in version …" when the fix has shipped. **OK** (or Esc) closes it; you see each answer once.
+- When the developers **ask you a question**, the same window has an answer box: type your answer and
+  press **Send answer** — it is stored with your report (up to three answers per report). Never put
+  personal data in there.
+- Answers are only fetched while the game remembers a report you sent in the last 90 days; a game that
+  never sent feedback contacts nothing. In the browser (play.bbts.de or the glitch.fun arcade) this
+  works the same way; the arcade ties answers to your Glitch install, so they follow you across releases.
+
 ### `/bump` — debug snapshot + screenshot (any player, no radio needed)
 - **Syntax:** `/bump Description of the problem`
 - Writes a detailed JSON snapshot of your current situation (player state **and inventory**, environment,

@@ -708,7 +708,8 @@ namespace BlocksBeyondTheStars.Client
             // returning player is not treated as a fresh install. No-op outside WebGL / with an override.
             if (string.IsNullOrEmpty(StorageDirOverride) && !File.Exists(FilePath) && !File.Exists(BackupPath))
             {
-                WebGlStorage.TryAdoptFromPreviousDeployment("client_settings.json", "player_token.txt");
+                // feedback/sent.json = the "which reports did I send" memory that gates reply polling (#1328).
+                WebGlStorage.TryAdoptFromPreviousDeployment("client_settings.json", "player_token.txt", "feedback/sent.json");
             }
 
             // Capture before touching the files: a genuine first run is the only time we auto-pick the

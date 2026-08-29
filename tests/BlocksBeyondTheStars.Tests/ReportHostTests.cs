@@ -298,6 +298,221 @@ public sealed class ReportHostTests : IDisposable
         Assert.Equal(1, counts[BugReportStatus.Done]);
     }
 
+    // ---------------- Reply threads (#1327) ----------------
+
+    private static string KeyFor(string secret) => BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.Derive(secret);
+
+    [Fact]
+    public void ReplyKey_IsDerivedFromPlayerId_WhenClientSentNone_AndKeptWhenSent()
+    {
+        var store = NewStore();
+        var config = new ReportHostConfig();
+
+        // Old client: playerId only → the store derives the key with the shared formula.
+        string legacy = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 1);
+        Assert.Equal(KeyFor("token-abc"), store.Get(legacy)!.ReplyKey);
+
+        // New client: sends its own key → stored verbatim; a malformed one is ignored (derived instead).
+        string sent = KeyFor("some-other-secret");
+        string withKey = FeedbackPayload().Replace("\"playerId\":\"token-abc\"", $"\"playerId\":\"token-abc\",\"replyKey\":\"{sent}\"");
+        Assert.Equal(sent, store.Get(store.Add(ReportIngest.Parse(withKey, config, out _)!, nowUnix: 2))!.ReplyKey);
+
+        string bad = FeedbackPayload().Replace("\"playerId\":\"token-abc\"", "\"playerId\":\"token-abc\",\"replyKey\":\"NOT-A-KEY\"");
+        Assert.Equal(KeyFor("token-abc"), store.Get(store.Add(ReportIngest.Parse(bad, config, out _)!, nowUnix: 3))!.ReplyKey);
+
+        // A crash report without a player id gets no key at all — nothing can be routed to a player.
+        Assert.Equal("", store.Get(store.Add(ReportIngest.Parse(CrashPayload(), config, out _)!, nowUnix: 4))!.ReplyKey);
+    }
+
+    [Fact]
+    public void BackfillReplyKeys_FillsOnlyEmptyRows_AndIsIdempotent()
+    {
+        var store = NewStore();
+        var parsed = ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!;
+        parsed.ReplyKey = KeyFor("explicit");
+        string kept = store.Add(parsed, nowUnix: 1);
+
+        // Simulate a pre-#1327 row: key column empty although a player id is present.
+        string legacy = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 2);
+        Assert.True(store.SetReplyKey(legacy, ""));
+
+        Assert.Equal(1, store.BackfillReplyKeys());
+        Assert.Equal(KeyFor("token-abc"), store.Get(legacy)!.ReplyKey);
+        Assert.Equal(KeyFor("explicit"), store.Get(kept)!.ReplyKey);
+        Assert.Equal(0, store.BackfillReplyKeys());
+    }
+
+    [Fact]
+    public void DevReply_ShowsUpForOwnerOnly_QuestionFlipsStatus_AckHidesIt()
+    {
+        var store = NewStore();
+        string key = KeyFor("token-abc");
+        string id = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 1);
+
+        // Nothing to pull before an answer exists.
+        Assert.Empty(store.UnreadThreads(key));
+
+        long answer = store.AddDevReply(id, "Thanks — fixed!", isQuestion: false, nowUnix: 10);
+        Assert.True(answer > 0);
+        Assert.Equal(BugReportStatus.New, store.Get(id)!.Status); // a plain answer leaves the status alone
+        Assert.Equal(-1, store.AddDevReply("missing", "x", false, 10));
+
+        var threads = store.UnreadThreads(key);
+        Assert.Single(threads);
+        Assert.Equal(id, threads[0].Report.Id);
+        Assert.Single(threads[0].Replies);
+        Assert.Equal(ReplyRecord.AuthorDev, threads[0].Replies[0].Author);
+
+        // Another install's key sees nothing; a malformed key sees nothing.
+        Assert.Empty(store.UnreadThreads(KeyFor("someone-else")));
+        Assert.Empty(store.UnreadThreads("garbage"));
+
+        // A question flips the report to waiting_for_player.
+        long question = store.AddDevReply(id, "Does it happen without the helmet?", isQuestion: true, nowUnix: 11);
+        Assert.Equal(BugReportStatus.WaitingForPlayer, store.Get(id)!.Status);
+
+        // Ack: only the owner's key can mark entries read; afterwards the thread drops out of the poll.
+        Assert.Equal(0, store.AckReplies(KeyFor("someone-else"), new[] { answer, question }, 20));
+        Assert.Single(store.UnreadThreads(key));
+        Assert.Equal(2, store.AckReplies(key, new[] { answer, question, 999L }, 20));
+        Assert.Empty(store.UnreadThreads(key));
+        Assert.All(store.ListReplies(id), r => Assert.True(r.SeenUnix > 0));
+
+        // since filter: entries created at/before `since` don't qualify.
+        long late = store.AddDevReply(id, "one more", false, 30);
+        Assert.Empty(store.UnreadThreads(key, sinceUnix: 30));
+        Assert.Single(store.UnreadThreads(key, sinceUnix: 29));
+        Assert.True(late > 0);
+    }
+
+    [Fact]
+    public void PlayerReply_RequiresOwnership_AnExistingDevEntry_AndRespectsTheLimit()
+    {
+        var store = NewStore();
+        string key = KeyFor("token-abc");
+        string id = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 1);
+
+        Assert.Equal(-2, store.AddPlayerReply(key, id, "hello?", 5));             // nothing to answer yet
+        store.AddDevReply(id, "Does it happen without the helmet?", true, 10);
+        Assert.Equal(-1, store.AddPlayerReply(KeyFor("other"), id, "yes", 11));  // not the owner
+        Assert.Equal(-1, store.AddPlayerReply(key, "missing", "yes", 11));
+
+        Assert.True(store.AddPlayerReply(key, id, "Yes, also without it.", 12) > 0);
+        Assert.Equal(BugReportStatus.PlayerReplied, store.Get(id)!.Status);
+        Assert.True(store.AddPlayerReply(key, id, "second", 13) > 0);
+        Assert.True(store.AddPlayerReply(key, id, "third", 14) > 0);
+        Assert.Equal(-3, store.AddPlayerReply(key, id, "fourth", 15));          // MaxPlayerRepliesPerReport
+
+        var thread = store.ListReplies(id);
+        Assert.Equal(4, thread.Count);
+        Assert.Equal(3, thread.Count(r => r.Author == ReplyRecord.AuthorPlayer));
+        Assert.All(thread.Where(r => r.Author == ReplyRecord.AuthorPlayer), r => Assert.True(r.SeenUnix > 0));
+    }
+
+    [Fact]
+    public void FixedInVersion_RoundTrips()
+    {
+        var store = NewStore();
+        string id = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 1);
+        Assert.Equal("", store.Get(id)!.FixedInVersion);
+        Assert.True(store.SetFixedInVersion(id, " 2026.8.23 "));
+        Assert.Equal("2026.8.23", store.Get(id)!.FixedInVersion);
+        Assert.False(store.SetFixedInVersion("missing", "1"));
+    }
+
+    [Fact]
+    public void Delete_AndPrune_RemoveReplyThreads()
+    {
+        var store = NewStore();
+        var config = new ReportHostConfig();
+        string deleted = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 0);
+        string pruned = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 1);
+        string kept = store.Add(ReportIngest.Parse(FeedbackPayload(), config, out _)!, nowUnix: 100 * 86400);
+        foreach (var id in new[] { deleted, pruned, kept })
+        {
+            store.AddDevReply(id, "hi", false, 5);
+        }
+
+        Assert.True(store.Delete(deleted));
+        Assert.Empty(store.ListReplies(deleted));
+
+        Assert.Equal(1, store.Prune(retentionDays: 30, nowUnix: 100 * 86400));
+        Assert.Empty(store.ListReplies(pruned));
+        Assert.Single(store.ListReplies(kept));
+    }
+
+    [Fact]
+    public void ExistingDatabase_GetsReplyColumnsAdded()
+    {
+        // A pre-#1327 schema (no reply_key / fixed_in_version, no report_reply table) must open and work.
+        string dir = System.IO.Path.Combine(_root, Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(dir);
+        string db = System.IO.Path.Combine(dir, "reports.db");
+        using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={db}"))
+        {
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = """
+                CREATE TABLE bugreport(
+                    id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+                    email TEXT NOT NULL DEFAULT '', game_version TEXT NOT NULL DEFAULT '', build_number TEXT NOT NULL DEFAULT '',
+                    player_id TEXT NOT NULL DEFAULT '', player_name TEXT NOT NULL DEFAULT '', session_id TEXT NOT NULL DEFAULT '',
+                    platform TEXT NOT NULL DEFAULT '', client_timestamp TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'feedback',
+                    source TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new',
+                    screenshot_file TEXT NOT NULL DEFAULT '', report_json TEXT NOT NULL DEFAULT '{}', created_unix INTEGER NOT NULL);
+                INSERT INTO bugreport(id, description, player_id, created_unix) VALUES('old1', 'legacy row', 'token-old', 5);
+                """;
+            cmd.ExecuteNonQuery();
+        }
+
+        var store = new ReportStore(new ReportHostConfig(), db);
+        _stores.Add(store);
+        var legacy = store.Get("old1");
+        Assert.NotNull(legacy);
+        Assert.Equal("", legacy!.ReplyKey);
+        Assert.Equal(1, store.BackfillReplyKeys());
+        Assert.Equal(KeyFor("token-old"), store.Get("old1")!.ReplyKey);
+        Assert.True(store.AddDevReply("old1", "welcome back", false, 6) > 0);
+        Assert.Single(store.UnreadThreads(KeyFor("token-old")));
+    }
+
+    [Fact]
+    public void Status_AcceptsTheReplyStates()
+    {
+        Assert.True(BugReportStatus.IsValid(BugReportStatus.WaitingForPlayer));
+        Assert.True(BugReportStatus.IsValid(BugReportStatus.PlayerReplied));
+        Assert.Equal(5, BugReportStatus.All.Length);
+
+        var store = NewStore();
+        string id = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 1);
+        Assert.True(store.SetStatus(id, BugReportStatus.WaitingForPlayer));
+        var (waiting, _) = store.Query(status: BugReportStatus.WaitingForPlayer);
+        Assert.Single(waiting);
+    }
+
+    [Fact]
+    public void DetailPage_RendersThread_EncodesHostileText_AndOffersTheForm()
+    {
+        var store = NewStore();
+        string id = store.Add(ReportIngest.Parse(FeedbackPayload(), new ReportHostConfig(), out _)!, nowUnix: 1);
+        store.AddDevReply(id, "Does it happen <b>always</b>?", true, 2);
+        store.AddPlayerReply(KeyFor("token-abc"), id, "<script>alert(1)</script> yes", 3);
+        store.SetFixedInVersion(id, "2026.8.23");
+
+        string html = ReportHostPages.Detail(store.Get(id)!, store.ListReplies(id));
+        Assert.Contains("Conversation with the player", html);
+        Assert.Contains("&lt;script&gt;alert(1)&lt;/script&gt; yes", html);
+        Assert.DoesNotContain("<script>alert(1)</script>", html);
+        Assert.Contains("Does it happen &lt;b&gt;always&lt;/b&gt;?", html);
+        Assert.Contains($"/admin/report/{id}/reply", html);
+        Assert.Contains("2026.8.23", html);
+        Assert.Contains("mark waiting_for_player", html);
+
+        // A key-less report says so instead of offering a thread that can never reach anyone.
+        string crashId = store.Add(ReportIngest.Parse(CrashPayload(), new ReportHostConfig(), out _)!, nowUnix: 4);
+        Assert.Contains("no reply key", ReportHostPages.Detail(store.Get(crashId)!, store.ListReplies(crashId)));
+    }
+
     // ---------------- Rate limiter ----------------
 
     [Fact]

@@ -41,6 +41,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   `player_name` is now persisted like a typed one, and the menu prefills its name field from the saved
   world when the settings are empty.
 - **Docs:** README, user manual and the hosted-worlds notes no longer claim browser play is "online only".
+### 💬 The developers can answer your F1 report inside the game (#1327, #1328, #1329)
+
+- **Every report now has a reply thread.** An answer shows up as a HUD line plus a window with the conversation
+  and "Fixed in version …" once the fix shipped; when the developers ask a follow-up question, the same window lets you answer right
+  there (up to three answers per report). The game only asks for replies while it remembers a report you sent
+  in the last 90 days — a game that never sent feedback contacts nothing. Works on desktop, on play.bbts.de and
+  in the glitch.fun arcade (where answers follow your Glitch install across releases). Operators get a
+  conversation view + reply form on the ReportHost detail page and `POST /api/reports/{id}/replies` for scripts;
+  reports sent by older game versions are answerable too (the reply key is derived from the stored player id).
 
 ## [2026.8.22] — 2026-08-26
 

@@ -1,12 +1,16 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using BlocksBeyondTheStars.Shared.Feedback;
 using Microsoft.Data.Sqlite;
 
 namespace BlocksBeyondTheStars.ReportHost;
 
 /// <summary>One stored bug report. <c>ScreenshotFile</c> is the bare file name inside the store's
-/// screenshots/ folder ("" = no screenshot); the image bytes never live in the database.</summary>
+/// screenshots/ folder ("" = no screenshot); the image bytes never live in the database.
+/// <c>ReplyKey</c> is the reporter's pull credential for the reply thread (#1327; "" = none — the
+/// report came without a player id, e.g. a server crash) and <c>FixedInVersion</c> the operator's
+/// "shipped in" note shown to the player with the replies.</summary>
 public sealed record BugReportRecord(
     string Id,
     string Title,
@@ -25,16 +29,45 @@ public sealed record BugReportRecord(
     string Status,
     string ScreenshotFile,
     string ReportJson,
-    long CreatedUnix);
+    long CreatedUnix,
+    string ReplyKey,
+    string FixedInVersion);
 
-/// <summary>Triage states a report moves through in the admin UI.</summary>
+/// <summary>One entry of a report's reply thread: written by the developer (<see cref="AuthorDev"/> —
+/// an answer, or a follow-up question when <c>IsQuestion</c>) or by the player answering from inside
+/// the game (<see cref="AuthorPlayer"/>). <c>SeenUnix</c> is set once the player's client acknowledged
+/// a developer entry (0 = unread); player entries are "seen" by definition.</summary>
+public sealed record ReplyRecord(
+    long Id,
+    string ReportId,
+    string Author,
+    string Text,
+    bool IsQuestion,
+    long CreatedUnix,
+    long SeenUnix)
+{
+    public const string AuthorDev = "dev";
+    public const string AuthorPlayer = "player";
+}
+
+/// <summary>A report together with its reply thread, as the client's poll returns it.</summary>
+public sealed record ReportThread(BugReportRecord Report, IReadOnlyList<ReplyRecord> Replies);
+
+/// <summary>Triage states a report moves through in the admin UI. <see cref="WaitingForPlayer"/> is set
+/// automatically when the developer asks a follow-up question, <see cref="PlayerReplied"/> when the
+/// player answers it (#1327) — both are ordinary states the operator can leave by hand.</summary>
 public static class BugReportStatus
 {
     public const string New = "new";
     public const string Triaged = "triaged";
+    public const string WaitingForPlayer = "waiting_for_player";
+    public const string PlayerReplied = "player_replied";
     public const string Done = "done";
 
-    public static bool IsValid(string status) => status is New or Triaged or Done;
+    /// <summary>Every state, in the order the admin UI lists them.</summary>
+    public static readonly string[] All = { New, Triaged, WaitingForPlayer, PlayerReplied, Done };
+
+    public static bool IsValid(string status) => status is New or Triaged or WaitingForPlayer or PlayerReplied or Done;
 }
 
 /// <summary>
@@ -45,6 +78,10 @@ public static class BugReportStatus
 /// </summary>
 public sealed class ReportStore : IDisposable
 {
+    /// <summary>How many answers a player may post per report — enough for a real back-and-forth, small
+    /// enough that a stolen reply key cannot turn a thread into a spam channel (#1327).</summary>
+    public const int MaxPlayerRepliesPerReport = 3;
+
     private readonly Lock _gate = new();
     private readonly SqliteConnection _db;
     private readonly string _screenshotsDir;
@@ -83,14 +120,32 @@ public sealed class ReportStore : IDisposable
                 status TEXT NOT NULL DEFAULT 'new',
                 screenshot_file TEXT NOT NULL DEFAULT '',
                 report_json TEXT NOT NULL DEFAULT '{}',
-                created_unix INTEGER NOT NULL);
+                created_unix INTEGER NOT NULL,
+                reply_key TEXT NOT NULL DEFAULT '',
+                fixed_in_version TEXT NOT NULL DEFAULT '');
             CREATE INDEX IF NOT EXISTS idx_bugreport_created ON bugreport(created_unix, id);
             CREATE INDEX IF NOT EXISTS idx_bugreport_status ON bugreport(status);
+            CREATE TABLE IF NOT EXISTS report_reply(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id TEXT NOT NULL,
+                author TEXT NOT NULL,
+                text TEXT NOT NULL DEFAULT '',
+                is_question INTEGER NOT NULL DEFAULT 0,
+                created_unix INTEGER NOT NULL,
+                seen_unix INTEGER NOT NULL DEFAULT 0);
+            CREATE INDEX IF NOT EXISTS idx_report_reply_report ON report_reply(report_id, id);
             """);
+
+        // Databases created before the reply channel (#1327) lack the two columns — add them in place.
+        EnsureColumn("reply_key", "TEXT NOT NULL DEFAULT ''");
+        EnsureColumn("fixed_in_version", "TEXT NOT NULL DEFAULT ''");
+        Exec("CREATE INDEX IF NOT EXISTS idx_bugreport_reply_key ON bugreport(reply_key);");
     }
 
     /// <summary>Stores a parsed report (and its screenshot file, when present) and returns the new id.
-    /// <paramref name="nowUnix"/> is injectable for tests; production passes the current time.</summary>
+    /// <paramref name="nowUnix"/> is injectable for tests; production passes the current time. A report
+    /// that came without a <c>replyKey</c> (pre-#1327 client) gets one derived from its player id, so
+    /// the reporter can still receive answers once they update.</summary>
     public string Add(ParsedReport report, long nowUnix)
     {
         string id = Guid.NewGuid().ToString("N");
@@ -102,15 +157,17 @@ public sealed class ReportStore : IDisposable
             File.WriteAllBytes(Path.Combine(_screenshotsDir, screenshotFile), report.ScreenshotBytes);
         }
 
+        string replyKey = report.ReplyKey.Length > 0 ? report.ReplyKey : FeedbackReplyKey.Derive(report.PlayerId);
+
         lock (_gate)
         {
             using var cmd = _db.CreateCommand();
             cmd.CommandText = """
                 INSERT INTO bugreport(id, title, description, email, game_version, build_number, player_id,
                     player_name, session_id, platform, client_timestamp, category, source, kind, status,
-                    screenshot_file, report_json, created_unix)
+                    screenshot_file, report_json, created_unix, reply_key, fixed_in_version)
                 VALUES ($id, $title, $desc, $email, $gv, $bn, $pid, $pname, $sid, $plat, $cts, $cat, $src,
-                    $kind, 'new', $shot, $json, $created);
+                    $kind, 'new', $shot, $json, $created, $rkey, '');
                 """;
             cmd.Parameters.AddWithValue("$id", id);
             cmd.Parameters.AddWithValue("$title", report.Title);
@@ -129,10 +186,42 @@ public sealed class ReportStore : IDisposable
             cmd.Parameters.AddWithValue("$shot", screenshotFile);
             cmd.Parameters.AddWithValue("$json", report.ReportJson);
             cmd.Parameters.AddWithValue("$created", nowUnix);
+            cmd.Parameters.AddWithValue("$rkey", replyKey);
             cmd.ExecuteNonQuery();
         }
 
         return id;
+    }
+
+    /// <summary>One-time migration for rows stored before the reply channel existed: derives the reply
+    /// key from the stored player id with the client's own formula. Idempotent (only touches rows with
+    /// an empty key); returns how many rows were filled. Called at startup.</summary>
+    public int BackfillReplyKeys()
+    {
+        lock (_gate)
+        {
+            var pending = new List<(string Id, string PlayerId)>();
+            using (var select = _db.CreateCommand())
+            {
+                select.CommandText = "SELECT id, player_id FROM bugreport WHERE reply_key = '' AND player_id != '';";
+                using var reader = select.ExecuteReader();
+                while (reader.Read())
+                {
+                    pending.Add((reader.GetString(0), reader.GetString(1)));
+                }
+            }
+
+            foreach (var (id, playerId) in pending)
+            {
+                using var update = _db.CreateCommand();
+                update.CommandText = "UPDATE bugreport SET reply_key = $key WHERE id = $id;";
+                update.Parameters.AddWithValue("$key", FeedbackReplyKey.Derive(playerId));
+                update.Parameters.AddWithValue("$id", id);
+                update.ExecuteNonQuery();
+            }
+
+            return pending.Count;
+        }
     }
 
     public BugReportRecord? Get(string id)
@@ -245,8 +334,240 @@ public sealed class ReportStore : IDisposable
         }
     }
 
-    /// <summary>Deletes a report AND its screenshot file (reports may carry an e-mail — deletion must not
-    /// leave partial personal data behind).</summary>
+    /// <summary>Overwrites a report's reply key ("" detaches it from every player — an operator lever for a
+    /// key that leaked, and the test hook for simulating pre-#1327 rows).</summary>
+    public bool SetReplyKey(string id, string replyKey)
+    {
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "UPDATE bugreport SET reply_key = $k WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$k", replyKey ?? string.Empty);
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+    }
+
+    /// <summary>Records the version a report's fix shipped in ("" clears it). Shown to the player with the
+    /// reply thread; not a status change on its own.</summary>
+    public bool SetFixedInVersion(string id, string version)
+    {
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "UPDATE bugreport SET fixed_in_version = $v WHERE id = $id;";
+            cmd.Parameters.AddWithValue("$v", (version ?? string.Empty).Trim());
+            cmd.Parameters.AddWithValue("$id", id);
+            return cmd.ExecuteNonQuery() == 1;
+        }
+    }
+
+    // ---------------- Reply threads (#1327) ----------------
+
+    /// <summary>Appends a developer entry (answer, or follow-up question when <paramref name="isQuestion"/>).
+    /// A question flips the report to <see cref="BugReportStatus.WaitingForPlayer"/>; a plain answer leaves
+    /// the status alone. Returns the reply id, or -1 when the report does not exist.</summary>
+    public long AddDevReply(string reportId, string text, bool isQuestion, long nowUnix)
+    {
+        lock (_gate)
+        {
+            if (!ExistsLocked(reportId))
+            {
+                return -1;
+            }
+
+            long id = InsertReplyLocked(reportId, ReplyRecord.AuthorDev, text, isQuestion, nowUnix);
+            if (isQuestion)
+            {
+                SetStatusLocked(reportId, BugReportStatus.WaitingForPlayer);
+            }
+
+            return id;
+        }
+    }
+
+    /// <summary>Appends the player's answer, after checking the key owns the report, a developer entry exists
+    /// to answer (no unsolicited threads) and the per-report limit is not exhausted. Flips the status to
+    /// <see cref="BugReportStatus.PlayerReplied"/>. Returns the reply id, or a negative code: -1 = no such
+    /// report for this key, -2 = nothing to answer yet, -3 = limit reached.</summary>
+    public long AddPlayerReply(string replyKey, string reportId, string text, long nowUnix)
+    {
+        lock (_gate)
+        {
+            if (!OwnsLocked(replyKey, reportId))
+            {
+                return -1;
+            }
+
+            if (CountRepliesLocked(reportId, ReplyRecord.AuthorDev) == 0)
+            {
+                return -2;
+            }
+
+            if (CountRepliesLocked(reportId, ReplyRecord.AuthorPlayer) >= MaxPlayerRepliesPerReport)
+            {
+                return -3;
+            }
+
+            long id = InsertReplyLocked(reportId, ReplyRecord.AuthorPlayer, text, isQuestion: false, nowUnix);
+            SetStatusLocked(reportId, BugReportStatus.PlayerReplied);
+            return id;
+        }
+    }
+
+    /// <summary>The whole thread of one report, oldest first.</summary>
+    public List<ReplyRecord> ListReplies(string reportId)
+    {
+        lock (_gate)
+        {
+            return ListRepliesLocked(reportId);
+        }
+    }
+
+    /// <summary>The client's poll: every report owned by <paramref name="replyKey"/> that still has an
+    /// unread developer entry, each with its full thread. Reports are returned oldest first; only
+    /// threads with an unread developer entry created after <paramref name="sinceUnix"/> qualify.</summary>
+    public List<ReportThread> UnreadThreads(string replyKey, long sinceUnix = 0)
+    {
+        if (!FeedbackReplyKey.IsWellFormed(replyKey))
+        {
+            return new List<ReportThread>();
+        }
+
+        lock (_gate)
+        {
+            var reports = new List<BugReportRecord>();
+            using (var cmd = _db.CreateCommand())
+            {
+                cmd.CommandText = """
+                    SELECT * FROM bugreport
+                    WHERE reply_key = $key AND id IN (
+                        SELECT report_id FROM report_reply
+                        WHERE author = 'dev' AND seen_unix = 0 AND created_unix > $since)
+                    ORDER BY created_unix ASC, id ASC
+                    LIMIT 50;
+                    """;
+                cmd.Parameters.AddWithValue("$key", replyKey);
+                cmd.Parameters.AddWithValue("$since", sinceUnix);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    reports.Add(ReadRecord(reader));
+                }
+            }
+
+            return reports.Select(r => new ReportThread(r, ListRepliesLocked(r.Id))).ToList();
+        }
+    }
+
+    /// <summary>Marks developer entries as read. Scoped to the key: ids belonging to other players' reports
+    /// are silently ignored (reply ids are guessable integers). Returns how many rows changed.</summary>
+    public int AckReplies(string replyKey, IEnumerable<long> replyIds, long nowUnix)
+    {
+        if (!FeedbackReplyKey.IsWellFormed(replyKey))
+        {
+            return 0;
+        }
+
+        lock (_gate)
+        {
+            int changed = 0;
+            foreach (long id in replyIds.Distinct().Take(200))
+            {
+                using var cmd = _db.CreateCommand();
+                cmd.CommandText = """
+                    UPDATE report_reply SET seen_unix = $now
+                    WHERE id = $id AND author = 'dev' AND seen_unix = 0
+                      AND report_id IN (SELECT id FROM bugreport WHERE reply_key = $key);
+                    """;
+                cmd.Parameters.AddWithValue("$now", nowUnix);
+                cmd.Parameters.AddWithValue("$id", id);
+                cmd.Parameters.AddWithValue("$key", replyKey);
+                changed += cmd.ExecuteNonQuery();
+            }
+
+            return changed;
+        }
+    }
+
+    private bool ExistsLocked(string reportId)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM bugreport WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$id", reportId);
+        return cmd.ExecuteScalar() != null;
+    }
+
+    private bool OwnsLocked(string replyKey, string reportId)
+    {
+        if (!FeedbackReplyKey.IsWellFormed(replyKey))
+        {
+            return false;
+        }
+
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM bugreport WHERE id = $id AND reply_key = $key;";
+        cmd.Parameters.AddWithValue("$id", reportId);
+        cmd.Parameters.AddWithValue("$key", replyKey);
+        return cmd.ExecuteScalar() != null;
+    }
+
+    private int CountRepliesLocked(string reportId, string author)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM report_reply WHERE report_id = $id AND author = $a;";
+        cmd.Parameters.AddWithValue("$id", reportId);
+        cmd.Parameters.AddWithValue("$a", author);
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    private long InsertReplyLocked(string reportId, string author, string text, bool isQuestion, long nowUnix)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO report_reply(report_id, author, text, is_question, created_unix, seen_unix)
+            VALUES ($r, $a, $t, $q, $c, $s);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("$r", reportId);
+        cmd.Parameters.AddWithValue("$a", author);
+        cmd.Parameters.AddWithValue("$t", text);
+        cmd.Parameters.AddWithValue("$q", isQuestion ? 1 : 0);
+        cmd.Parameters.AddWithValue("$c", nowUnix);
+        // Player entries need no acknowledgement — the player wrote them.
+        cmd.Parameters.AddWithValue("$s", author == ReplyRecord.AuthorPlayer ? nowUnix : 0L);
+        return Convert.ToInt64(cmd.ExecuteScalar());
+    }
+
+    private void SetStatusLocked(string reportId, string status)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "UPDATE bugreport SET status = $status WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$status", status);
+        cmd.Parameters.AddWithValue("$id", reportId);
+        cmd.ExecuteNonQuery();
+    }
+
+    private List<ReplyRecord> ListRepliesLocked(string reportId)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT id, report_id, author, text, is_question, created_unix, seen_unix FROM report_reply WHERE report_id = $id ORDER BY id ASC;";
+        cmd.Parameters.AddWithValue("$id", reportId);
+        var list = new List<ReplyRecord>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new ReplyRecord(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3),
+                reader.GetInt64(4) != 0, reader.GetInt64(5), reader.GetInt64(6)));
+        }
+
+        return list;
+    }
+
+    // ---------------- Delete / retention ----------------
+
+    /// <summary>Deletes a report, its reply thread AND its screenshot file (reports may carry an e-mail —
+    /// deletion must not leave partial personal data behind).</summary>
     public bool Delete(string id)
     {
         var record = Get(id);
@@ -257,6 +578,13 @@ public sealed class ReportStore : IDisposable
 
         lock (_gate)
         {
+            using (var replies = _db.CreateCommand())
+            {
+                replies.CommandText = "DELETE FROM report_reply WHERE report_id = $id;";
+                replies.Parameters.AddWithValue("$id", id);
+                replies.ExecuteNonQuery();
+            }
+
             using var cmd = _db.CreateCommand();
             cmd.CommandText = "DELETE FROM bugreport WHERE id = $id;";
             cmd.Parameters.AddWithValue("$id", id);
@@ -268,7 +596,8 @@ public sealed class ReportStore : IDisposable
     }
 
     /// <summary>Removes reports older than <paramref name="retentionDays"/> (0 = keep forever) including
-    /// their screenshot files; returns how many were pruned. Called at startup and after each ingest.</summary>
+    /// their reply threads and screenshot files; returns how many were pruned. Called at startup and after
+    /// each ingest.</summary>
     public int Prune(int retentionDays, long nowUnix)
     {
         if (retentionDays <= 0)
@@ -291,6 +620,13 @@ public sealed class ReportStore : IDisposable
                 {
                     screenshots.Add(reader.GetString(0));
                 }
+            }
+
+            using (var replies = _db.CreateCommand())
+            {
+                replies.CommandText = "DELETE FROM report_reply WHERE report_id IN (SELECT id FROM bugreport WHERE created_unix < $cutoff);";
+                replies.Parameters.AddWithValue("$cutoff", cutoff);
+                replies.ExecuteNonQuery();
             }
 
             using var cmd = _db.CreateCommand();
@@ -372,7 +708,29 @@ public sealed class ReportStore : IDisposable
         Status: r.GetString(r.GetOrdinal("status")),
         ScreenshotFile: r.GetString(r.GetOrdinal("screenshot_file")),
         ReportJson: r.GetString(r.GetOrdinal("report_json")),
-        CreatedUnix: r.GetInt64(r.GetOrdinal("created_unix")));
+        CreatedUnix: r.GetInt64(r.GetOrdinal("created_unix")),
+        ReplyKey: r.GetString(r.GetOrdinal("reply_key")),
+        FixedInVersion: r.GetString(r.GetOrdinal("fixed_in_version")));
+
+    /// <summary>Adds a column to <c>bugreport</c> when an older database lacks it (SQLite has no
+    /// ADD COLUMN IF NOT EXISTS).</summary>
+    private void EnsureColumn(string column, string definition)
+    {
+        using (var check = _db.CreateCommand())
+        {
+            check.CommandText = "PRAGMA table_info(bugreport);";
+            using var reader = check.ExecuteReader();
+            while (reader.Read())
+            {
+                if (string.Equals(reader.GetString(1), column, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+        }
+
+        Exec($"ALTER TABLE bugreport ADD COLUMN {column} {definition};");
+    }
 
     private void Exec(string sql)
     {

@@ -24,9 +24,13 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
 | `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson`) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
-| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|done"}` | admin Basic Auth | Triage from scripts/CI |
-| `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete (incl. screenshot) |
-| `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, delete |
+| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth | Triage from scripts/CI |
+| `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete (incl. screenshot + reply thread) |
+| `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
+| `GET /api/replies?key=&since=` | header `x-bugreport-key` | **Client poll**: threads of this reply key with unread developer entries (CORS on) |
+| `POST /api/replies/ack` `{"key","replyIds":[]}` | header `x-bugreport-key` | Client marks shown developer entries read |
+| `POST /api/replies` `{"key","reportId","text"}` | header `x-bugreport-key` | The player's in-game answer to a question (max 3 per report) |
+| `GET /admin`, `/admin/report/{id}` | admin Basic Auth | Server-rendered admin UI: list, filters, detail, screenshot, status buttons, reply thread + form, delete |
 | `GET /admin/export?status=&category=` | admin Basic Auth | One-click JSON file download of everything matching the filters (the UI's "Download JSON" button) |
 | `GET /healthz` | none | Liveness |
 
@@ -66,6 +70,39 @@ database), `429` on rate limit, `413` past the body cap.
 Incoming reports are bucketed at ingest: `category` = `crash` when the payload's `reportJson.kind` is
 set (as `CrashReportWriter` does), otherwise `feedback`; `source`/`kind` are lifted out of
 `reportJson` for filtering.
+
+## Reply threads — answering players in-game (#1327)
+
+Every report row has a **reply thread** (`report_reply`: `author dev|player`, `text`, `is_question`,
+`seen_unix`) and two extra columns: `reply_key` and `fixed_in_version`. The thread is what the game client
+pulls and shows (see [PLAYER_FEEDBACK](PLAYER_FEEDBACK.md)).
+
+**Who may read a thread — the reply key.** The client sends `replyKey` with each report: lowercase-hex
+`SHA256("bbs-reply:" + <install secret>)` (`Shared/Feedback/FeedbackReplyKey.cs`, shared by client and
+inbox). The secret is the install's name-claim token (desktop, play.*) or the Glitch install id (arcade);
+the key is one-way, so a leaked key reads replies but can never claim a name. A report that arrives
+**without** a well-formed key (pre-#1327 client) gets one derived from its `playerId` at ingest, and
+`BackfillReplyKeys()` does the same once at startup for rows stored before the feature — older reporters
+become answerable as soon as they update. Server crash reports carry no player id → no key → the admin
+page says so instead of offering a form. `PUT`-style overwrite/clear: `ReportStore.SetReplyKey` (no HTTP
+route on purpose).
+
+**Operator side.** The detail page shows the conversation and a form: a textarea, a *this is a question*
+checkbox and a *fixed in version* field. A plain answer leaves the status alone; a **question** flips the
+report to `waiting_for_player`. `POST /api/reports/{id}/replies` is the JSON twin for scripts.
+
+**Player side (all gated by the write key + the per-IP limiter, CORS-enabled for browser builds):**
+`GET /api/replies?key=…&since=…` returns
+`{ items: [ { reportId, title, status, fixedInVersion, createdUnix, replies: [ { id, author, text, isQuestion, createdUnix, seen } ], unseenIds: [] } ] }`
+— only threads with an unread developer entry (created after `since`, unix seconds, optional).
+`POST /api/replies/ack` marks those ids read (scoped to the key — foreign ids are ignored). `POST /api/replies`
+appends the player's answer: requires the key to own the report, at least one developer entry to answer
+(no unsolicited threads), and at most **3** player answers per report (`409 reply_limit`); it flips the status
+to `player_replied` and pings `BBS_REPORTS_NOTIFY_URL` like a new report. Text is capped like a description
+and HTML-encoded on render — it is hostile input like everything else a player types.
+
+**Read API.** `GET /api/reports/{id}` now includes `fixedInVersion` and `replies` (the key itself is never
+exposed). Delete and retention pruning remove threads with their report.
 
 ## Running it
 

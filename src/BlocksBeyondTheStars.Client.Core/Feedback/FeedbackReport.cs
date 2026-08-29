@@ -39,6 +39,11 @@ namespace BlocksBeyondTheStars.Client.Feedback
         /// <summary>The in-game player name (shown to other players; not personal data on its own).</summary>
         public string PlayerName { get; set; } = string.Empty;
 
+        /// <summary>The reply-thread credential (#1328): a one-way hash of the install secret
+        /// (<c>FeedbackReplyKey.Derive</c>), so developer answers can be pulled for exactly this install
+        /// without the secret itself ever being used as a credential. Empty when the install has no secret.</summary>
+        public string ReplyKey { get; set; } = string.Empty;
+
         /// <summary>A random id for this play session, to group several reports from one sitting.</summary>
         public string SessionId { get; set; } = string.Empty;
 

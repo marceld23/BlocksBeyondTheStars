@@ -42,6 +42,37 @@ FeedbackUi dialog  (title, description, optional e-mail, privacy hint)
                                                             └──► same snapshot (minus image) ──► report inbox
 ```
 
+### The way back: developer replies in the game (#1328)
+
+```
+world loads ──► FeedbackUi.Start: replyKey = SHA256("bbs-reply:" + secret)   secret = PlayerToken (desktop, play.*)
+                                                                             │        Glitch install id (arcade)
+   after 12 s, then every 10 min, ONLY while feedback/sent.json holds a report < 90 days old:
+   GET reports.../api/replies?key=<replyKey>   ──► { items: [ thread with unread dev entries … ] }
+        │ desktop: FeedbackReplyClient (HttpClient, background Task)   WebGL: UnityWebRequest coroutine
+        ▼
+   HUD line "The developers replied to your report: <title>"  +  modal (thread, "Fixed in version …")
+        ├── OK / Esc ─────────► POST /api/replies/ack { key, replyIds }          (shown once, never again)
+        └── question pending ─► answer box ─► POST /api/replies { key, reportId, text } ─► ack
+```
+
+- **The reply key** (`Shared/Feedback/FeedbackReplyKey.cs`) is sent with every report (`FeedbackReport.ReplyKey`).
+  It is one-way, so the inbox can hand replies to exactly this install without the install secret ever
+  being used as a credential. Desktop and play.bbts.de hash `ClientSettings.PlayerToken` (stable — the
+  `/play/` path never changes); the glitch.fun arcade hashes `GlitchIntegration.ArcadeInstallId`, because the
+  browser-local token there resets with every deployment (#1177) while the install id follows the player.
+  The inbox derives the same key from `playerId` for reports sent by older clients, so those stay answerable.
+- **`feedback/sent.json`** (`SentReportsLog`, Client.Core) remembers `{ id, title, sentUnix }` per accepted
+  upload (the inbox's `bugReportId`), pruned at 90 days / 50 entries. It is the poll gate: an install that never
+  sent feedback makes **zero** requests. Browser builds flush it with `WebGlStorage.Sync()` and adopt it from a
+  previous glitch.fun deployment like the settings file.
+- **Display**: `FeedbackUi` owns a second modal (own menu owner, so it never fights the F1 dialog): title,
+  the thread as "Developers: … / Developers ask: … / You answered: …", the fixed-in line; **OK** acknowledges
+  the shown ids (fire-and-forget) and the next queued thread follows. When the newest developer entry is a
+  question (`waiting_for_player`), an answer box + **Send answer** appear; the answer posts, acks, closes.
+  Threads are queued while another menu/chat/death prompt owns the screen. Strings: `ui.feedback.reply.*`.
+- Failures are silent (one log line); a 4xx never retries the same request.
+
 ### Why client-direct for the web upload
 
 The web POST is sent **from the client**, not relayed through the game server, so feedback reaches the
@@ -73,6 +104,11 @@ dedicated servers** — off by default (no phone-home), opt-in via the config/en
 | Payload model | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackReport.cs` |
 | HTTP uploader (testable, no Unity) | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackUploader.cs` |
 | Bounded offline retry queue | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackSpool.cs` |
+| Reply key derivation (shared with the inbox) | `src/BlocksBeyondTheStars.Shared/Feedback/FeedbackReplyKey.cs` |
+| Sent-reports memory = the poll gate | `src/BlocksBeyondTheStars.Client.Core/Feedback/SentReportsLog.cs` |
+| Reply poll / ack / answer client (testable, no Unity) | `src/BlocksBeyondTheStars.Client.Core/Feedback/FeedbackReplyClient.cs` |
+| Tests (reply key, sent log, reply client vs local `HttpListener`) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackReplyTests.cs` |
+| WebGL transport (POST + generic JSON request) | `client/Assets/BlocksBeyondTheStars/Scripts/FeedbackWebGlTransport.cs` |
 | Tests (local `HttpListener` endpoint) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackUploaderTests.cs` |
 | Tests (spool life cycle) | `tests/BlocksBeyondTheStars.Client.Tests/FeedbackSpoolTests.cs` |
 | UI + capture + dual send | `client/Assets/BlocksBeyondTheStars/Scripts/FeedbackUi.cs` |

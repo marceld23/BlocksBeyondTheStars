@@ -32,6 +32,14 @@ var log = app.Logger;
 long NowUnix() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
 int prunedAtStart = store.Prune(config.RetentionDays, NowUnix());
+// Reports stored before the reply channel (#1327) get their reply key derived from the player id they
+// already carry, so their reporters can be answered too. Idempotent — a no-op after the first start.
+int backfilled = store.BackfillReplyKeys();
+if (backfilled > 0)
+{
+    log.LogInformation("Back-filled reply keys for {Count} pre-existing report(s).", backfilled);
+}
+
 log.LogInformation(
     "ReportHost on {Bind}:{Port} — ingest {Ingest}, read API {Read}, admin UI {Admin}, retention {Retention}, pruned {Pruned} at start.",
     config.BindAddress, config.Port,
@@ -89,9 +97,21 @@ IResult? GuardAdmin(HttpContext ctx)
     return Results.Text("Unauthorized.\n", statusCode: StatusCodes.Status401Unauthorized);
 }
 
+// One reply-thread entry as JSON (shared by the read API and the client's poll).
+static object ReplyJson(ReplyRecord reply) => new
+{
+    id = reply.Id,
+    author = reply.Author,
+    text = reply.Text,
+    isQuestion = reply.IsQuestion,
+    createdUnix = reply.CreatedUnix,
+    seen = reply.SeenUnix > 0,
+};
+
 // The read API's item shape — matches the planned puller contract (camelCase, ISO createdAt, parsed
-// reportJson, relative screenshotUrl or null).
-object ToItem(BugReportRecord r)
+// reportJson, relative screenshotUrl or null). The single-report endpoint adds the reply thread;
+// the reply key itself is never exposed (it is the player's credential).
+object ToItem(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null)
 {
     JsonElement reportJson;
     try
@@ -125,20 +145,59 @@ object ToItem(BugReportRecord r)
         createdAt = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).UtcDateTime.ToString("o"),
         screenshotUrl = r.ScreenshotFile.Length > 0 ? $"/api/reports/{r.Id}/screenshot" : null,
         reportJson,
+        fixedInVersion = r.FixedInVersion,
+        replies = replies?.Select(x => ReplyJson(x)).ToArray(),
     };
 }
 
-// CORS, ingest only: the WebGL client posts feedback cross-origin (from play.* / glitch.fun pages),
-// which needs the OPTIONS preflight answered and the POST response readable. Any origin is fine —
-// the endpoint already requires the write key and rate-limits, so this widens nothing else.
+// The player-facing reply routes (#1327) share the ingest gates: the baked-in write key (spam gate,
+// not a secret), the per-IP limiter, and a well-formed reply key. Returns null when the request may
+// proceed. The key is read from the query (GET) or the JSON body (POST) by the caller.
+IResult? GuardPlayerRoute(HttpContext ctx)
+{
+    if (config.WriteKey.Length == 0)
+    {
+        return Results.Json(new { error = "ingest_not_configured" }, statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
+    if (!BasicAuth.TokenEquals(ctx.Request.Headers["x-bugreport-key"].ToString(), config.WriteKey))
+    {
+        return Results.Json(new { error = "forbidden" }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    if (!limiter.Allow(ClientIp(ctx), NowUnix()))
+    {
+        return Results.Json(new { error = "rate_limited" }, statusCode: StatusCodes.Status429TooManyRequests);
+    }
+
+    return null;
+}
+
+// One thread as the client's poll returns it: the report's title/status/fixed-in line, the whole
+// conversation, and the ids the client must acknowledge once shown.
+object ThreadJson(ReportThread thread) => new
+{
+    reportId = thread.Report.Id,
+    title = thread.Report.Title,
+    status = thread.Report.Status,
+    fixedInVersion = thread.Report.FixedInVersion,
+    createdUnix = thread.Report.CreatedUnix,
+    replies = thread.Replies.Select(x => ReplyJson(x)).ToArray(),
+    unseenIds = thread.Replies.Where(x => x.Author == ReplyRecord.AuthorDev && x.SeenUnix == 0).Select(x => x.Id).ToArray(),
+};
+
+// CORS, player-facing routes only: the WebGL client posts feedback and polls its reply threads
+// cross-origin (from play.* / glitch.fun pages), which needs the OPTIONS preflight answered and the
+// responses readable. Any origin is fine — every one of these routes already requires the write key
+// and rate-limits, so this widens nothing else.
 app.Use(async (ctx, next) =>
 {
-    if (ctx.Request.Path == "/api/bugreport")
+    if (ctx.Request.Path == "/api/bugreport" || ctx.Request.Path.StartsWithSegments("/api/replies"))
     {
         ctx.Response.Headers.AccessControlAllowOrigin = "*";
         if (HttpMethods.IsOptions(ctx.Request.Method))
         {
-            ctx.Response.Headers.AccessControlAllowMethods = "POST, OPTIONS";
+            ctx.Response.Headers.AccessControlAllowMethods = "GET, POST, OPTIONS";
             ctx.Response.Headers.AccessControlAllowHeaders = "content-type, x-bugreport-key";
             ctx.Response.Headers.AccessControlMaxAge = "86400";
             ctx.Response.StatusCode = StatusCodes.Status204NoContent;
@@ -232,7 +291,7 @@ app.MapGet("/api/reports", (HttpContext ctx) =>
 
     var (items, hasMore) = store.Query(sinceUnix, Opt(q["status"]), Opt(q["category"]), Opt(q["source"]), limit, afterCreated, afterId);
     string? nextCursor = hasMore && items.Count > 0 ? $"{items[^1].CreatedUnix}:{items[^1].Id}" : null;
-    return Results.Json(new { items = items.Select(ToItem).ToArray(), nextCursor, hasMore });
+    return Results.Json(new { items = items.Select(r => ToItem(r)).ToArray(), nextCursor, hasMore });
 });
 
 app.MapGet("/api/reports/{id}", (HttpContext ctx, string id) =>
@@ -242,7 +301,7 @@ app.MapGet("/api/reports/{id}", (HttpContext ctx, string id) =>
         return denied;
     }
 
-    return store.Get(id) is { } record ? Results.Json(ToItem(record)) : Results.NotFound();
+    return store.Get(id) is { } record ? Results.Json(ToItem(record, store.ListReplies(id))) : Results.NotFound();
 });
 
 app.MapGet("/api/reports/{id}/screenshot", (HttpContext ctx, string id) =>
@@ -297,6 +356,170 @@ app.MapDelete("/api/reports/{id}", (HttpContext ctx, string id) =>
     return store.Delete(id) ? Results.NoContent() : Results.NotFound();
 });
 
+// ---------------- Reply threads (#1327): player pull + answer, operator post ----------------
+
+// The client's poll: every thread of this key with an unread developer entry. `since` (unix seconds,
+// optional) narrows to entries created after that point — the client passes its last poll time.
+app.MapGet("/api/replies", (HttpContext ctx) =>
+{
+    if (GuardPlayerRoute(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    string key = ctx.Request.Query["key"].ToString();
+    if (!BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.IsWellFormed(key))
+    {
+        return Results.BadRequest(new { error = "invalid_key" });
+    }
+
+    long since = long.TryParse(ctx.Request.Query["since"], out var s) ? s : 0;
+    var threads = store.UnreadThreads(key, since);
+    return Results.Json(new { items = threads.Select(t => ThreadJson(t)).ToArray() });
+});
+
+// Marks developer entries as read once the client showed them. Scoped to the key inside the store.
+app.MapPost("/api/replies/ack", async (HttpContext ctx) =>
+{
+    if (GuardPlayerRoute(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    string key;
+    var ids = new List<long>();
+    try
+    {
+        using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
+        var root = doc.RootElement;
+        key = root.TryGetProperty("key", out var k) && k.ValueKind == JsonValueKind.String ? k.GetString() ?? "" : "";
+        if (root.TryGetProperty("replyIds", out var arr) && arr.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var el in arr.EnumerateArray())
+            {
+                if (el.ValueKind == JsonValueKind.Number && el.TryGetInt64(out long id))
+                {
+                    ids.Add(id);
+                }
+            }
+        }
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest(new { error = "invalid_json" });
+    }
+
+    if (!BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.IsWellFormed(key))
+    {
+        return Results.BadRequest(new { error = "invalid_key" });
+    }
+
+    int acked = store.AckReplies(key, ids, NowUnix());
+    return Results.Json(new { ok = true, acked });
+});
+
+// The player's answer to a developer question, typed in the game's reply dialog. Same text cap as a
+// report description; bounded per report so a leaked key cannot flood the inbox.
+app.MapPost("/api/replies", async (HttpContext ctx) =>
+{
+    if (GuardPlayerRoute(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    string key, reportId, text;
+    try
+    {
+        using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
+        var root = doc.RootElement;
+        static string Str(JsonElement o, string name)
+            => o.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+        key = Str(root, "key");
+        reportId = Str(root, "reportId");
+        text = Str(root, "text").Trim();
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest(new { error = "invalid_json" });
+    }
+
+    if (!BlocksBeyondTheStars.Shared.Feedback.FeedbackReplyKey.IsWellFormed(key))
+    {
+        return Results.BadRequest(new { error = "invalid_key" });
+    }
+
+    if (text.Length == 0)
+    {
+        return Results.BadRequest(new { error = "empty_text" });
+    }
+
+    if (text.Length > config.MaxDescriptionLength)
+    {
+        text = text[..config.MaxDescriptionLength];
+    }
+
+    long replyId = store.AddPlayerReply(key, reportId, text, NowUnix());
+    switch (replyId)
+    {
+        case -1:
+            return Results.NotFound(new { error = "not_found" });
+        case -2:
+            return Results.Json(new { error = "nothing_to_answer" }, statusCode: StatusCodes.Status409Conflict);
+        case -3:
+            return Results.Json(new { error = "reply_limit" }, statusCode: StatusCodes.Status409Conflict);
+    }
+
+    var report = store.Get(reportId);
+    log.LogInformation("Player replied on report {Id} (reply {ReplyId}).", reportId, replyId);
+    notifier.Post("Player replied",
+        $"{report?.Title}\n(player '{report?.PlayerName}') — /admin/report/{reportId}", "speech_balloon");
+    return Results.Json(new { ok = true, replyId }, statusCode: StatusCodes.Status201Created);
+});
+
+// Operator answer / follow-up question — the scriptable twin of the admin form below.
+// Body: { "text": "...", "question": bool, "fixedInVersion": "2026.8.23" (optional) }.
+app.MapPost("/api/reports/{id}/replies", async (HttpContext ctx, string id) =>
+{
+    if (GuardAdmin(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    string text;
+    bool question;
+    string? fixedIn;
+    try
+    {
+        using var doc = await JsonDocument.ParseAsync(ctx.Request.Body);
+        var root = doc.RootElement;
+        text = root.TryGetProperty("text", out var t) && t.ValueKind == JsonValueKind.String ? (t.GetString() ?? "").Trim() : "";
+        question = root.TryGetProperty("question", out var q) && q.ValueKind == JsonValueKind.True;
+        fixedIn = root.TryGetProperty("fixedInVersion", out var f) && f.ValueKind == JsonValueKind.String ? f.GetString() : null;
+    }
+    catch (JsonException)
+    {
+        return Results.BadRequest(new { error = "invalid_json" });
+    }
+
+    if (text.Length == 0)
+    {
+        return Results.BadRequest(new { error = "empty_text" });
+    }
+
+    long replyId = store.AddDevReply(id, text, question, NowUnix());
+    if (replyId < 0)
+    {
+        return Results.NotFound();
+    }
+
+    if (fixedIn != null)
+    {
+        store.SetFixedInVersion(id, fixedIn);
+    }
+
+    return Results.Json(new { ok = true, replyId }, statusCode: StatusCodes.Status201Created);
+});
+
 // ---------------- Admin UI (Basic Auth; server-rendered, no script) ----------------
 
 app.MapGet("/admin", (HttpContext ctx) =>
@@ -341,8 +564,35 @@ app.MapGet("/admin/report/{id}", (HttpContext ctx, string id) =>
     }
 
     return store.Get(id) is { } record
-        ? Results.Content(ReportHostPages.Detail(record), "text/html; charset=utf-8")
+        ? Results.Content(ReportHostPages.Detail(record, store.ListReplies(id)), "text/html; charset=utf-8")
         : Results.NotFound();
+});
+
+// The reply form on the detail page: an answer, or a follow-up question (flips the status to
+// waiting_for_player), plus the optional "fixed in version" note the player sees with the thread.
+app.MapPost("/admin/report/{id}/reply", async (HttpContext ctx, string id) =>
+{
+    if (GuardAdmin(ctx) is { } denied)
+    {
+        return denied;
+    }
+
+    var form = await ctx.Request.ReadFormAsync();
+    string text = form["text"].ToString().Trim();
+    bool question = form["question"].ToString() == "1";
+    string fixedIn = form["fixed_in_version"].ToString().Trim();
+
+    if (text.Length > 0 && store.AddDevReply(id, text, question, NowUnix()) < 0)
+    {
+        return Results.NotFound();
+    }
+
+    if (store.Get(id) is { } record && fixedIn != record.FixedInVersion)
+    {
+        store.SetFixedInVersion(id, fixedIn);
+    }
+
+    return Results.Redirect($"/admin/report/{id}");
 });
 
 app.MapGet("/admin/report/{id}/screenshot", (HttpContext ctx, string id) =>
