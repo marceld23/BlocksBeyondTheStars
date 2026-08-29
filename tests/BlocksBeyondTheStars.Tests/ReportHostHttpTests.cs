@@ -21,13 +21,9 @@ using Xunit.Abstractions;
 namespace BlocksBeyondTheStars.Tests;
 
 /// <summary>
-/// One in-process ReportHost for the whole <see cref="ReportHostHttpTests"/> class (#1362). On the Linux
-/// CI runners the very first HTTP request a test process makes has taken 34–134 s (under a second
-/// locally) while the host's Create/StartAsync measured well under a second — with one host per test that
-/// cost landed on whichever test ran first and blew the 120 s fast-tier budget. So the host starts once
-/// per class and makes that first request itself, off every test's clock; the timings are kept so
-/// <see cref="ReportHostHttpTests.HostStartup_IsReportedForTheCiLogAsync"/> can put them into the test log
-/// where the CI artifact keeps them.
+/// One in-process ReportHost for the whole <see cref="ReportHostHttpTests"/> class — the host's
+/// <c>Create</c> is the one genuinely expensive step (~1 s on the runners: builder, DI container, route
+/// table, SQLite open), so it is paid once per class instead of once per test.
 /// </summary>
 public sealed class ReportHostHttpFixture : IAsyncLifetime
 {
@@ -47,11 +43,30 @@ public sealed class ReportHostHttpFixture : IAsyncLifetime
     /// <summary>Milliseconds <c>StartAsync</c> took (Kestrel bind + host start).</summary>
     public long StartMs { get; private set; }
 
-    /// <summary>Milliseconds the process's first HTTP request took (made by the fixture, see class remarks).</summary>
+    /// <summary>Milliseconds the process's first HTTP request itself took, measured off xunit's
+    /// synchronization context (see <see cref="SendMeasuredAsync"/>).</summary>
     public long WarmupMs { get; private set; }
+
+    /// <summary>Milliseconds that same request then waited to be let back onto an xunit worker thread.
+    /// This is the number that reached 82 s in #1362; with <see cref="RealTimeSensitiveCollection"/>
+    /// keeping the class out of the parallel queue it is ~0, and a regression shows up here first.</summary>
+    public long WarmupQueueWaitMs { get; private set; }
 
     /// <summary>Status of that warm-up request (200 when the host answered a well-formed poll).</summary>
     public int WarmupStatus { get; private set; }
+
+    /// <summary>
+    /// Sends a request and reports how long the REQUEST took, measured on the thread the response arrived
+    /// on. The <c>ConfigureAwait(false)</c> is the point: it stops the stopwatch before the continuation is
+    /// handed back to xunit's scheduler, so the caller can see the two costs apart (#1362 — while they were
+    /// one number, a 1 ms request looked like 82 s).
+    /// </summary>
+    public static async Task<(HttpResponseMessage Response, long RequestMs)> SendMeasuredAsync(HttpClient client, HttpRequestMessage request)
+    {
+        var sw = Stopwatch.StartNew();
+        var response = await client.SendAsync(request).ConfigureAwait(false);
+        return (response, sw.ElapsedMilliseconds);
+    }
 
     public async Task InitializeAsync()
     {
@@ -80,15 +95,20 @@ public sealed class ReportHostHttpFixture : IAsyncLifetime
 
         Client = new HttpClient { BaseAddress = new Uri(_app.Urls.First()) };
 
-        // The process's first HTTP request is the suspect for the 34–134 s a CI run spent inside one test
-        // (#1362): make it here, off every test's clock, and keep its time for the probe test's log line.
+        // The process's first request also warms the HTTP stack (JIT, socket engine, route table), so it is
+        // made here rather than on some test's clock. Its two costs — the request, and the wait for an
+        // xunit worker thread afterwards — are recorded apart for the CI log (#1362).
         sw.Restart();
         using var warmup = new HttpRequestMessage(HttpMethod.Get, "/api/replies?key=" + FeedbackReplyKey.Derive("fixture-warm-up"));
         warmup.Headers.Add("x-bugreport-key", WriteKey);
         warmup.Headers.Add("X-Forwarded-For", "10.0.0.0");
-        using var response = await Client.SendAsync(warmup);
-        WarmupMs = sw.ElapsedMilliseconds;
-        WarmupStatus = (int)response.StatusCode;
+        var (warmupResponse, requestMs) = await SendMeasuredAsync(Client, warmup);
+        using (warmupResponse)
+        {
+            WarmupMs = requestMs;
+            WarmupQueueWaitMs = Math.Max(0, sw.ElapsedMilliseconds - requestMs);
+            WarmupStatus = (int)warmupResponse.StatusCode;
+        }
     }
 
     public async Task DisposeAsync()
@@ -113,7 +133,14 @@ public sealed class ReportHostHttpFixture : IAsyncLifetime
 /// in-process on a loopback port. Covers the player reply routes end to end (issue #1327 had only
 /// store-level tests) and the limiter split of issue #1352 — polling for answers must never spend the
 /// per-IP budget a real F1 report from the same NAT needs.
+///
+/// <para>The class belongs in <see cref="RealTimeSensitiveCollection"/> and must stay there: #1362 was
+/// this class missing it. Its loopback round trips are 1 ms of work whose continuation, in the parallel
+/// suite, waits behind every collection that has not started yet — 34 s, 82 s and 134 s were measured,
+/// and the 134 s failed the fast-tier duration guardrail on a test whose two requests were plain
+/// 403s.</para>
 /// </summary>
+[Collection(RealTimeSensitiveCollection.Name)] // 1 ms loopback requests, billed at up to 134 s in the parallel queue (#1362)
 public sealed class ReportHostHttpTests : IClassFixture<ReportHostHttpFixture>
 {
     private const string WriteKey = ReportHostHttpFixture.WriteKey;
@@ -136,18 +163,17 @@ public sealed class ReportHostHttpTests : IClassFixture<ReportHostHttpFixture>
 
     private static int _processRequests;
 
-    /// <summary>Every request of the class goes through here (#1362): a CI run spent 34–134 s inside one
-    /// test whose two requests are plain 403s while the host start proved fast — so each request is timed
-    /// and written to the test output with its process-wide sequence number (the first request a process
-    /// makes is a suspect of its own), and anything over a second is flagged <c>SLOW</c>.</summary>
+    /// <summary>Every request of the class goes through here: it logs the request's own time and, next to
+    /// it, the time the continuation then waited for an xunit worker thread. Keeping the two apart is what
+    /// #1362 was missing — one stopwatch around <c>SendAsync</c> reported 82 s for a 1 ms request.</summary>
     private async Task<HttpResponseMessage> TimedSendAsync(HttpRequestMessage request)
     {
         int seq = Interlocked.Increment(ref _processRequests);
         var sw = Stopwatch.StartNew();
-        var response = await _host.Client.SendAsync(request);
-        sw.Stop();
-        string flag = sw.ElapsedMilliseconds >= 1000 ? "SLOW " : string.Empty;
-        _output.WriteLine($"{flag}request #{seq}: {request.Method} {request.RequestUri} → {(int)response.StatusCode} in {sw.ElapsedMilliseconds} ms");
+        var (response, requestMs) = await ReportHostHttpFixture.SendMeasuredAsync(_host.Client, request);
+        long queueMs = Math.Max(0, sw.ElapsedMilliseconds - requestMs);
+        string flag = requestMs >= 1000 || queueMs >= 1000 ? "SLOW " : string.Empty;
+        _output.WriteLine($"{flag}request #{seq}: {request.Method} {request.RequestUri} → {(int)response.StatusCode} in {requestMs} ms (+{queueMs} ms xunit queue)");
         return response;
     }
 
@@ -205,11 +231,18 @@ public sealed class ReportHostHttpTests : IClassFixture<ReportHostHttpFixture>
     [Fact]
     public async Task HostStartup_IsReportedForTheCiLogAsync()
     {
-        // No budget assertion — the point is the number in the log: the process's first HTTP request has
-        // taken 34–134 s on the Linux CI runners and under a second locally, and the cause is still open
-        // (#1362). The fixture made that request; this line puts its cost on record next to the host's.
         Assert.Equal(HttpStatusCode.OK, await PollAsync(KeyFor("startup-probe")));
-        _output.WriteLine($"ReportHost host: Create {_host.CreateMs} ms, StartAsync {_host.StartMs} ms, process-first request {_host.WarmupMs} ms → {_host.WarmupStatus}");
+        _output.WriteLine($"ReportHost host: Create {_host.CreateMs} ms, StartAsync {_host.StartMs} ms, "
+            + $"process-first request {_host.WarmupMs} ms → {_host.WarmupStatus}, xunit queue wait {_host.WarmupQueueWaitMs} ms");
+
+        // The regression guard for #1362: take this class out of RealTimeSensitiveCollection and the
+        // fixture's first request is posted behind every collection that has not started yet again, so
+        // this wait goes back to tens of seconds — which is how a 1 ms request once cost a test 134 s and
+        // failed the fast-tier guardrail. The threshold sits far above any real scheduling hiccup and far
+        // below the values the bug produced.
+        Assert.True(_host.WarmupQueueWaitMs < 20_000,
+            $"The fixture's first request waited {_host.WarmupQueueWaitMs} ms for an xunit worker thread — "
+            + $"this class must stay in the {RealTimeSensitiveCollection.Name} collection (#1362).");
     }
 
     // ---------------- #1352: polling never spends the ingest budget ----------------

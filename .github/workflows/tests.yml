@@ -162,10 +162,14 @@ jobs:
 
       # Fast-tier duration guardrail (PRs only — the full run legitimately contains Slow tests): fail when
       # any non-Slow test exceeds the per-test budget, so the fast tier cannot silently decay again (it once
-      # crept from ~6 to ~15 min unnoticed). Offenders belong in the Slow tier or need a real fix. The
-      # budget is deliberately loose: trx durations are wall-clock, and parallel CPU-heavy tests inflate
-      # innocent awaiting tests via thread-pool contention (a 9 ms test has measured 37 s inside the full
-      # suite) — 120 s only trips on order-of-magnitude offenders, which is exactly the decay this guards.
+      # crept from ~6 to ~15 min unnoticed). Offenders belong in the Slow tier or need a real fix.
+      # The budget is deliberately loose because a trx duration is NOT the work a test did: xunit runs the
+      # assembly through ONE FIFO queue (MaxConcurrencySyncContext) that already holds every collection
+      # which has not started yet, so an await that really yields — any real I/O — resumes only once that
+      # queue has drained, and the test is billed for the wait (#1362: 134 s measured for two 1 ms
+      # requests; a 9 ms test has measured 454 s). 120 s only trips on order-of-magnitude offenders, which
+      # is exactly the decay this guards. An I/O test that keeps tripping it belongs in
+      # RealTimeSensitiveCollection (DisableParallelization), not in the Slow tier.
       - name: Check fast-tier test durations
         if: inputs.duration-guardrail
         run: python3 scripts/check-test-durations.py --max-seconds 120 TestResults/*.trx
