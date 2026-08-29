@@ -9643,6 +9643,12 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): ReportHostHttpTests share one in-process host — the first Kestrel start no longer lands on a test's clock (#1362)
+
+The first Kestrel host a test process starts costs 84–134 s on the Linux CI runners (under a second locally); with one host per test that cost hit whichever test ran first and blew the 120 s fast-tier budget on PR #1360. Now `IClassFixture<ReportHostHttpFixture>` starts the host once per class; tests keep their ingest-limiter isolation via `TrustProxy = true` + a per-test `X-Forwarded-For` address; the client is disposed before the host stops; `HostStartup_IsReportedForTheCiLogAsync` writes Create / StartAsync / first-request milliseconds into the test output. The cause of the slow first start is still open in #1362.
+
+---
+
 ## ✅ Done (2026-08-29): reply polling no longer spends the report budget — a class behind one NAT can poll and still report (#1352)
 
 Follow-up to #1327. `GET /api/replies` and `POST /api/replies/ack` went through `GuardPlayerRoute`, which shared
