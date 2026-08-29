@@ -13,185 +13,63 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🧹 Audit leftovers — reply window, browser name prompt, creature view, repair panel (#1368)
+## [2026.8.23] — 2026-08-29
 
-- **The whole developer answer is readable.** The reply window used to cut a thread at 1,400 characters with no
-  scrollbar and no hint; it now scrolls, however long the conversation gets, and shows developer and player text
-  exactly as written (no stray `<b>` or `<color>` formatting from a tag someone typed). The HUD toast does the same.
-- **F1 and Esc in the same frame no longer leave a stuck dialog** that held the world with no key able to close it.
-- **Browser solo entry**: the "What's your name?" prompt and the menu's name field are one and the same — Cancel no
-  longer leaves the field empty while Singleplayer would have started with the name typed in the prompt; both cap at
-  the server's 24-character limit so the name you keep is the name you play as; the prompt waits its turn behind the
-  "What's new?" notes after an update instead of hiding under them; and the menu no longer re-reads the whole saved
-  world on every rebuild just to find your name (a visible hitch with a large world).
-- **Doors and torches are no longer offered on water or lava.** The server refused a door in any fluid cell and a torch
-  in water; the crosshair now skips those cells with such an item in hand instead of bouncing a reject toast.
-- **Creatures**: a winged giant no longer floats through its hop (the client uses the server's own ground-bird rule for
-  the glide instead of "has wings"); a perched bird whose perch is dug away falls with its wings out — the server reports
-  the fall as such — and the per-creature animator lookup that ran every frame is done once.
-- **Repair panel**: the missing hull cells are outlined on the parked ship in hologram blue while the panel shows
-  breaches, so you can walk straight to the holes; "1 Hüllenzelle fehlt" reads singular; the empty bar track no
-  longer sits behind the breach text when the hull itself is full.
+The menagerie release. Animals stopped sliding along the ground and started **moving like animals**:
+a derived motion class per species — walker, crawler, flier, hoverer, swimmer — and real vertical
+physics underneath it. Walkers jump a one-block ledge the way you do, crawlers and giants haul
+themselves over without leaving the ground, two blocks is a wall, a drop is a fall with a terminal
+speed, birds land to rest and take off when disturbed, hoverers never touch down at all. Nothing was
+re-rolled, so every species in your world kept its identity — it just learned how it moves.
 
-### 🧭 Compass wrap, stale ship blip, crouch edge, honest repair panel (#1307, #1308, #1309, #1313)
+The other half of the release is a **conversation**. Since #618 you could send us a report with F1;
+now we can answer it, in the game, in the world you sent it from — with a follow-up question if we
+need one, and a "Fixed in version …" once the fix has shipped. And because a report should not need
+an account to exist, the browser portal grew a **Play now** button: a name, one click, singleplayer
+in the browser, no account, no hosted world.
 
-- **The compass honours the world's wrap** (#1307): across a longitude/latitude seam every blip — ship, waypoint,
-  beacons, markers — flipped its bearing and the distance line jumped by a whole circumference (">3000 m" to a ship a
-  few blocks away). Every marker is now measured against the same nearest-copy position all other world objects use.
-- **No stale ship blip** (#1308): after leaving for a new world the compass kept pointing at the previous landing site,
-  because nothing ever cleared the old placement. A world change clears it; a real placement re-arrives right after.
-- **Crouching reaches the edge** (#1309): sneaking stopped half a block before a drop, in the middle of the last block
-  — building an outer wall face from its top needed scaffolding. The sneak probe is now a short look ahead plus this
-  frame's step, so the capsule overhangs the edge the way sneaking does in every voxel builder.
-- **An honest repair panel** (#1313): one missing hull cell on a full hull raised a "SHIP REPAIR" panel with a full
-  Hull 100/100 bar and no word about what was wrong. With the hull full the panel now leads with the breach count and
-  hides the bar; the bar and its numbers only appear while the hull itself is short.
+Underneath both: **Lyxette's round 3.** Fifteen more reports from his singleplayer world — the compass
+across the world seam, a ship blip that outlived the world it belonged to, crouching that stopped half
+a block early, drop packets that hung in the air, wildlife spawning inside his walls, a ship that
+parked in his own paved landing pad, water and lava you could not even aim at. All fifteen are in.
+On top of that a full audit of everything merged this week (three rounds, ~35 further points), the
+Guardian machines out of flat black and into grey circuit plating, and one long-standing oddity finally
+explained: every cockpit canopy in the game was being rendered as **water**.
 
-### 📮 Report inbox leftovers — deleted reports are forgotten, the answer box stays, admin forms are guarded (#1369)
+Protocol stays 3, saves migrate. Operators: the **ReportHost image must be redeployed** for the reply
+channel, and the WorldHost image for the portal's solo entry.
 
-- **A report the developers deleted is no longer polled for three months.** The game asks the inbox about the
-  reports it still remembers; the ones that are gone (deleted, expired, or filed by an older browser build under
-  a key the game cannot read) are forgotten on the spot, and the polling stops once none are left.
-- **The answer box no longer disappears when the developers re-file your report.** Whether you can answer now
-  follows the conversation itself — the newest entry is a developer question you have not answered — instead of
-  the report's status label, which an operator may change by hand.
-- **Operators**: the admin forms carry a CSRF token (403 without it) and the JSON admin routes require a JSON
-  content type; the detail page says "No in-game reply possible" for arcade reports filed before the reply
-  channel existed (their reply key cannot match — answer those through the old channel). The ReportHost image
-  also rebuilds when the shared reply-key code changes. Redeploy the ReportHost image.
-- **Tooling**: `gen_textures.py` now applies the documented Guardian-plating post-process itself, so the tile can
-  be regenerated reproducibly.
+### 🐾 Creatures move like animals — motion classes and real vertical physics (#1331, #1332, #1333, #1334)
 
-### 🧹 Audit leftovers — sand, drop packets, pad touchdown and creature physics (#1367)
+- **Every species now has a motion class** — Walker, Crawler, Flier, Hoverer or Swimmer — derived from
+  what the species already is, with no generator roll, so no creature in an existing world changed
+  identity. The scan readout names the class.
+- **Gravity, jumps and landings replace the old Y snap.** Until now a land animal was simply pinned to
+  the surface height under it: no gravity, no jump, no landing. A pure vertical-motion state machine
+  drives all of it now. A walker *jumps* a one-block ledge like the player does (launching before the
+  step, not after it); a crawler or a giant hauls itself over the same step without leaving the ground;
+  two blocks is a wall for both. Step off an edge and it is a real fall.
+- **Fliers land.** A bird comes down to rest and to sleep, and takes off again when something disturbs
+  it. **Hoverers never come down.** An amphibian swaps its class at the waterline. A winged land walker
+  bounds in flat arcs instead of gliding.
+- The client integrates the jump arc locally from additive network fields and runs a per-class animator —
+  wings fold on the ground, legs tuck in flight, a landing squashes, a crawler undulates.
+- Two long-standing gates fell out of the work: the water gate read the generator's pond *under* a real
+  floor, so fauna was walled out of any platform built over water; and the swept body check sampled
+  up-steps at the low Y, so land fauna could never climb a one-block step at all.
 
-- **Falling sand no longer rests on a tuft of grass, a torch or a flame** — it crushes the prop (its drop lands on top
-  of the settled block; a flame is put out) and falls on to the real ground. A doorway holds a falling block up like a
-  player does; an animal the block lands on steps aside instead of being buried.
-- **Weather snow that slid off a ledge still melts**, sand dropped on a thawing drift comes down with it, and a sand
-  block you placed keeps your name after it has fallen (grief reports).
-- **A kill over a meadow leaves the loot packet in the grass, on the ground** — not floating a cell above it — and
-  a quit/shutdown save writes every expiring packet's exact age (up to 30 s of ageing used to be lost).
-- **`/tp pad N` lands on top of a paved pad**, a months-old save no longer parks its ship on its own ghost hull for one
-  session, and the "dug out" rescue announces itself once per entombment instead of every second when the pad is walled
-  in too.
-- **Creatures**: a titan is no longer hauled onto a tree crown because of a tuft of grass in its column; nothing in view
-  pops out at the far leash (the 70/110-block prune respects your view distance); a bird whose perch is dug away falls
-  and takes off again; an animal never jumps into a low ceiling; falls have a terminal speed (no more 2.7-block snaps);
-  walkers no longer step down onto lava; a swimmer beside a cliff overhang keeps swimming instead of steering out of
-  its lake.
-- **Walled base areas**: the fence check works across the world's north–south seam, and the fill is refreshed when
-  something changes inside the base's box rather than on every spawn attempt.
+### 💬 The developers can answer your F1 report inside the game (#1327, #1328, #1329)
 
-### 🪟 Cockpit glass is glass again — no more wobble on the canopy (#1372, #1373, #1374)
-
-- **Every ship's cockpit canopy was being rendered as water.** A clear pane had a slow rippling warp on it,
-  identical from inside and outside, and you could not really see through it. The clear-glass tile shipped with
-  a fully transparent alpha channel — the image model answered "perfectly clear glass" with a see-through PNG —
-  and the block shader reads a see-through tile as *"this face is water"*. So the canopy ran the whole water
-  path: animated refraction, screen-space reflections, and an opaque final composite. Clear glass is now picked
-  out of that branch explicitly, the tile ships opaque, and a test keeps block tiles from acquiring stray alpha.
-- **Fire is flame-shaped again.** Fire's tile carries a real cutout, so it fell into the same water branch and
-  came out as an opaque, warping square. Emissive blocks now take the energy-field path and keep their own
-  silhouette.
-- **Dyed glass and force fields no longer bob.** The water wave displacement read a dyed pane's blue channel as
-  a wave height, so a blue-dyed pane physically sagged and oscillated. The displacement is gated on real water.
-
-### 📮 Report inbox — polling for answers never blocks a real report (#1352)
-
-- **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll
-  shared the inbox's per-IP report limit (10/min), so 25 installs on one school network polling after world
-  start ate the budget — and an F1 report from that network in the same minute was bounced (kept in the
-  client's spool and re-sent later, but delayed). The reply routes now have their own per-install budget
-  (`BBS_REPORTS_REPLY_PER_MINUTE`, 30/min per reply key); the per-IP limit guards report submission only.
-  Operators: redeploy the ReportHost image.
-
-### 🌐 Portal — the French name field says what it means (#1354)
-
-- **Locale text inside form attributes is encoded.** The solo-name field's placeholder *"Comment veux-tu qu'on
-  t'appelle ?"* was pasted raw into a single-quoted attribute, so the French landing page showed a mangled
-  field; the same pattern sat on the account, password, recovery-code and world-password fields. All of them
-  go through a small attribute encoder now, and a test renders every portal page in all 14 languages and
-  fails on the first attribute a translation breaks.
-
-### 🔒 Privacy page — what an in-game report stores, and how to have it deleted (#1329)
-
-- The portal privacy page now describes the F1 (F2 in the browser) reports and the in-game reply channel in
-  all 14 languages: what a report carries, that the reply key is a one-way hash of your installation (never
-  your password or e-mail), that developer answers appear in the game and your typed answer is stored with
-  the report, that reports stay until we delete them (no automatic expiry) and are not touched by deleting a
-  portal account — and that an e-mail to the address on the page gets them removed.
-
-### 🌊 Outline, held drill and placement ghost agree with the click on water and lava (#1353)
-
-- **What you highlight is what you hit.** Since water and lava became aimable, the click stopped at a fluid
-  but the selection box, the held drill and the slab/stair ghost still marched through it: aiming at lava
-  with a mining beam showed no box (or one on the rock behind), a diamond drill held on lava never finished
-  the cell (its second hit went to the rock behind), and a held slab showed no ghost over water. All three
-  now ask for the same fluid-aware target as the click — and the tool check reads the definition of the
-  fluid actually under the crosshair (water and lava separately) instead of assuming lava stands for both.
-
-### 📬 One F1 report, one inbox row — and answers that actually arrive (#1359)
-
-- **The report inbox no longer lists every F1 report twice.** Each in-game report reaches the inbox on two
-  paths by design (straight from the game, and as the server's rich `/bump` snapshot with the screenshot), and
-  the admin list was meant to fold the pair into one row since #618 — but it compared a field the two halves
-  never agreed on (the game sends the install token as its player id, the server the player name), so not one
-  report ever paired. The list now recognises the halves by their shared reply key, or by player name for
-  older builds.
-- **A developer answer reaches you from either half.** The `/bump` snapshot now carries the same reply key as
-  the direct upload, so an answer typed on the richer row (the one with the screenshot) arrives in-game like any
-  other — before, it would have been stored under a key derived from your player name that your game never
-  asks for. The inbox stops minting such name-derived keys for server rows (a public name must not unlock a
-  thread) and clears the ones it had already made.
-### 🔧 Server audit — the round-3 fixes, sharpened (#1346, #1347, #1348, #1349, #1350, #1356, #1357, #1358)
-
-- **The ship blip survives dying** (#1346): a death in space, inside the ship or on another body respawned you
-  at the heal tank without the HUD ship marker, distance, map marker and thermal blob — the client clears the
-  marker on every world reset since #1308 and the two death-respawn paths never re-sent the placement.
-- **Land animals around a base in a valley again** (#1347): the walled-yard fill read natural terrain as
-  masonry, so no land animal spawned in any hollow within 48 blocks of a founded base. The fill now walks the
-  terrain like an animal does — one block up or down is a step, two is a wall — so only real walls fence.
-- **A sliding gate is a wall even while it stands open for you** (#1358): standing at your yard's sliding door
-  no longer lets the wildlife spawn inside — proximity doors open only for players and close on their own.
-- **Pets wait at a cliff** (#1348): a walker companion under a ledge it cannot jump hopped in place for as long
-  as you stood above; a crawler companion levitated straight up the wall. Both now wait at the base (the leash
-  still brings them along when you walk on); one-block steps are still taken.
-- **Animals fall into a pit dug under them instead of rising through the ceiling** (#1349): the ground probe
-  preferred the nearest floor in either direction, lifting a ground-floor animal onto the storey above.
-- **Fresh creature loot no longer expires with an old bundle** (#1350): a kill next to an almost-expired loot
-  packet merged into it and vanished with it seconds later; the merge now restarts the five-minute clock.
-- **No pop-out at the edge of view** (#1356): the crowding despawn shed animals 40 blocks out — in plain sight
-  at larger view distances — and could remove a hunter mid-charge; it now respects the widest joined
-  player's view distance and never sheds a creature that is hunting.
-- **An awake animal walled in by a block steps out** (#1357): only sleepers re-checked their body cells; a
-  cathemeral grazer built into a wall stood in it for good. Every creature checks every two seconds, and at
-  once when a block is placed into it.
-
-### 🤖 The Guardian machines show their circuits (#1337, #1338)
-
-- **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
-  The planet robot and its hovering scan-drone rendered as an 8–18 % black shape (a flat 0.13 tint under the
-  lit shader) and the space drone / UFO used the black `carbon` coal tile without the ambient lift the planet
-  entities have had since #711 — hard to see against dark ground, caves and the night sky, and grimmer than the
-  story needs. All of them now wear one new `enemy_robot` tile (#1338): dark-grey bolted panels with etched
-  circuit-board traces, coarse enough to survive thin limbs, no lights. The glowing **red eyes, dome and threat
-  lights stay** — red is still the Guardian signal (#601). The finale cruiser puts the same plating on its dark
-  spine and engine blocks so the gauntlet reads as one machine family; its pale iron hull is unchanged.
-- The tile carries its own brightness (the entity loaders do not lift tiles the way creatures do), so it was
-  desaturated and lifted before bundling; without the tile the same greys render flat. The unused pre-retheme
-  `enemy_hide` tile is gone. Lore docs no longer call the machines "black".
-
-### ⏸️ The feedback dialog holds the world too (#1330)
-
-- **F1 (F2 in the browser) now pauses like the Esc menu.** The player feedback dialog froze your controls
-  but not the world: hunger kept draining, night kept falling and creatures kept hunting while you typed a
-  bug report. Opening it now asks the server for the same hold the pause menu uses — in singleplayer the
-  world stops right there (and saves, as every hold does); with others joined it only counts as "this
-  player is in a menu" until everyone else is too (#973). Closing the form — Esc, Cancel or the auto-close
-  after a successful send — lets the world run again. The screenshot is still taken before the hold, so it
-  shows live play.
-- Under the hood the Esc menu and the dialog share one `WorldHoldIntent` (intent, release and the 15 s
-  keep-alive the server sweeps dead clients by), so the rule has exactly one copy — and a unit test.
+- **Every report now has a reply thread.** An answer shows up as a HUD line plus a window with the conversation
+  and "Fixed in version …" once the fix shipped; when the developers ask a follow-up question, the same window lets you answer right
+  there (up to three answers per report). The game only asks for replies while it remembers a report you sent
+  in the last 90 days — a game that never sent feedback contacts nothing. Works on desktop, on play.bbts.de and
+  in the glitch.fun arcade (where answers follow your Glitch install across releases). Operators get a
+  conversation view + reply form on the ReportHost detail page and `POST /api/reports/{id}/replies` for scripts;
+  reports sent by older game versions are answerable too (the reply key is derived from the stored player id).
+- **A second answer on the same report shows up too (#1351).** Once you had acknowledged a reply, a later
+  answer or follow-up question on that report stayed hidden until the next world restart; the game now
+  tracks the individual replies it has shown, so every new one opens the window again.
 
 ### 🕹️ Play solo in the browser without an account (#1321, #1322, #1323)
 
@@ -213,18 +91,249 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   the cloud world to adopt its player name, and that peek marked the cloud version as "already synced" —
   so the boot right behind it fell back to the older local world. The peek is side-effect free now; the
   boot receives the newer cloud copy again.
-### 💬 The developers can answer your F1 report inside the game (#1327, #1328, #1329)
 
-- **Every report now has a reply thread.** An answer shows up as a HUD line plus a window with the conversation
-  and "Fixed in version …" once the fix shipped; when the developers ask a follow-up question, the same window lets you answer right
-  there (up to three answers per report). The game only asks for replies while it remembers a report you sent
-  in the last 90 days — a game that never sent feedback contacts nothing. Works on desktop, on play.bbts.de and
-  in the glitch.fun arcade (where answers follow your Glitch install across releases). Operators get a
-  conversation view + reply form on the ReportHost detail page and `POST /api/reports/{id}/replies` for scripts;
-  reports sent by older game versions are answerable too (the reply key is derived from the stored player id).
-- **A second answer on the same report shows up too (#1351).** Once you had acknowledged a reply, a later
-  answer or follow-up question on that report stayed hidden until the next world restart; the game now
-  tracks the individual replies it has shown, so every new one opens the window again.
+### 🌊 Aim at water and lava — and blocks that fall (#1310, #1316, #1319)
+
+- **A fluid is a thing you can point at.** Aiming stops at a water or lava cell you enter from outside it,
+  as long as you hold something placeable or a fluid-capable tool (a tier-3 drill) — so you can finally fill
+  a hole, cap a lava vent or scoop a fluid cell instead of the crosshair sailing straight through to the rock
+  behind. A ray that *starts* inside a fluid still passes through, so swimming is unchanged.
+- **Lava flows at half speed.** It now sits out every other fluid step, so a breached vent gives you time to
+  react instead of racing you; the water quench still fires the moment lava wakes.
+- **Sand, ash and snow fall.** Granular blocks settle instantly through air and sink one cell per step through
+  a fluid (replacing it). They are only woken by something that actually happened — a block mined or placed,
+  a blaster shot, a doused fire, a retracting fluid, or another falling block — so nothing churns in the
+  background. Carved shapes survive the fall, dye, glow and paint travel with the block, ship interiors are
+  untouched, and a block will not drop on a player standing in the landing cell: it waits.
+
+### 🧱 Walled base areas keep the wildlife out (#1315)
+
+- **Build a wall around your yard and the wildlife stays outside it.** Within a founded base's reach the
+  server floods inward from the boundary of the base box through everything an animal could walk through
+  (a shut door counts as a wall); anything the flood never reaches is enclosed, and no ground-bound species
+  spawns there. Fliers, cave dwellers and hostile machines are deliberately not gated — a wall is not a roof
+  and a fence does not stop a Guardian.
+- The rule is told where you actually read it: in the base core's description, in VEGA's hint when you found
+  a base, and in the Codex base article (EN + DE).
+- **A sliding gate is a wall even while it stands open for you** (#1358): a proximity door opens only for
+  players and closes on its own, so standing at your own gate does not let anything in.
+- **Land animals around a base in a valley again** (#1347): the first version of the fill read natural terrain
+  as masonry, so no land animal spawned in any hollow within 48 blocks of a founded base. The fill walks the
+  terrain the way an animal does now — one block up or down is a step, two is a wall — so only real walls fence.
+- The fence check works across the world's north–south seam, and the fill is refreshed when something changes
+  inside the base box rather than on every spawn attempt (#1367).
+
+### 🦌 Fauna respects what you built (#1320, #1314, #1325)
+
+- **Nothing sleeps inside your wall any more** (#1320). A sleeping animal re-checks the cells its body occupies
+  every tick and steps aside to the nearest clear spot — or despawns if it is boxed in completely. The ground
+  probe demands a large species' real collision height in headroom and scans ±24 cells for actual ground before
+  falling back to the terrain noise, and the "don't spawn in the parked ship" guard grows with the footprint of
+  big animals, in every path that can move one (spawn, step, steer, push-out, placement sweep).
+- **Nothing spawns inside a sealed room** (#1314). One reject list now covers the herd leader and every member
+  of the herd, ending with the sealed-room check — so a herd cannot squeeze in behind its leader either.
+- **No more monoculture** (#1325). Each species gets a share of the live creature cap (40 %, at least 3), herds
+  spawn partially against it, a biome with fewer than two eligible species skips the native pass instead of
+  filling the world with the one it has, and a species over its share sheds its farthest out-of-sight members.
+- **An awake animal walled in by a block steps out** (#1357): only sleepers used to re-check their body cells,
+  so a cathemeral grazer built into a wall stood in it for good. Every creature checks every two seconds now,
+  and at once when a block is placed into it.
+
+### 📦 Drops land, creature loot expires, and the hold says where the ore went (#1311, #1312, #1317)
+
+- **A drop packet falls.** A drop that appeared in mid-air (a kill over a ravine, a block mined out from under
+  itself) now falls up to 32 cells to the first cell with something solid or a fluid under it, instead of hanging
+  where it was born. A packet created inside solid rock still surfaces upward first.
+- **Creature loot has a lifetime.** Overflow from a kill spills as a loot packet that expires after five minutes
+  — aged only while somebody is actually on the world, and checkpointed every 30 s so a quit does not reset the
+  clock. Loot and mining packets never merge and have their own caps; **mining overflow stays immortal**, exactly
+  as promised in #853.
+- **The hold says where the ore went.** Banked asteroid ore and tractored salvage now raise one throttled,
+  server-localized "+n Item → backpack / cargo hold" toast (EN + DE) instead of vanishing silently into storage.
+- **Fresh creature loot no longer expires with an old bundle** (#1350): a kill next to an almost-expired packet
+  merged into it and vanished with it seconds later; the merge restarts the five-minute clock.
+- **A kill over a meadow leaves the loot in the grass, on the ground** — not floating a cell above it — and a
+  quit or shutdown save writes every expiring packet's exact age (up to 30 s of ageing used to be lost) (#1367).
+
+### 🛬 Touchdown on the real ground over a landing pad (#1318)
+
+- **A ship no longer parks inside your own floor.** A 75-seed probe found no entombed pad spawn from generated
+  terrain — pads are nudged flat and levelled to the median height. What the median ignored were the *real blocks
+  a player built over the pad*: Lyxette paved his landing site, and ship and spawn ended up inside his own floor
+  until the rescue dug him out. The pad surface is now the median raised over whatever really stands on the
+  footprint (up to 8 cells) and never lowered, and every path uses it — ship placement, both pad spawns, the
+  new-player spawn and the rescue fallback.
+- **The dug-out rescue is readable.** The "we dug you out" / "we caught your fall" notice is mirrored into chat
+  as plain localized text; the HUD toast has no lifetime and the next message simply overwrote it. It announces
+  itself once per entombment rather than every second when the pad is walled in too (#1367).
+- **`/tp pad N` lands on top of a paved pad**, and a months-old save no longer parks its ship on its own ghost
+  hull for one session (#1367).
+
+### 🧭 Compass wrap, stale ship blip, crouch edge, honest repair panel (#1307, #1308, #1309, #1313)
+
+- **The compass honours the world's wrap** (#1307): across a longitude/latitude seam every blip — ship, waypoint,
+  beacons, markers — flipped its bearing and the distance line jumped by a whole circumference (">3000 m" to a ship a
+  few blocks away). Every marker is now measured against the same nearest-copy position all other world objects use.
+- **No stale ship blip** (#1308): after leaving for a new world the compass kept pointing at the previous landing site,
+  because nothing ever cleared the old placement. A world change clears it; a real placement re-arrives right after.
+- **The ship blip survives dying** (#1346): a death in space, inside the ship or on another body respawned you
+  at the heal tank without the HUD ship marker, distance, map marker and thermal blob — the client clears the
+  marker on every world reset since #1308 and the two death-respawn paths never re-sent the placement.
+- **Crouching reaches the edge** (#1309): sneaking stopped half a block before a drop, in the middle of the last block
+  — building an outer wall face from its top needed scaffolding. The sneak probe is now a short look ahead plus this
+  frame's step, so the capsule overhangs the edge the way sneaking does in every voxel builder.
+- **An honest repair panel** (#1313): one missing hull cell on a full hull raised a "SHIP REPAIR" panel with a full
+  Hull 100/100 bar and no word about what was wrong. With the hull full the panel now leads with the breach count and
+  hides the bar; the bar and its numbers only appear while the hull itself is short. The missing cells are outlined on
+  the parked ship in hologram blue while the panel is up, so you can walk straight to the holes (#1368).
+
+### 🤖 The Guardian machines show their circuits (#1337, #1338)
+
+- **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
+  The planet robot and its hovering scan-drone rendered as an 8–18 % black shape (a flat 0.13 tint under the
+  lit shader) and the space drone / UFO used the black `carbon` coal tile without the ambient lift the planet
+  entities have had since #711 — hard to see against dark ground, caves and the night sky, and grimmer than the
+  story needs. All of them now wear one new `enemy_robot` tile (#1338): dark-grey bolted panels with etched
+  circuit-board traces, coarse enough to survive thin limbs, no lights. The glowing **red eyes, dome and threat
+  lights stay** — red is still the Guardian signal (#601). The finale cruiser puts the same plating on its dark
+  spine and engine blocks so the gauntlet reads as one machine family; its pale iron hull is unchanged.
+- The tile carries its own brightness (the entity loaders do not lift tiles the way creatures do), so it was
+  desaturated and lifted before bundling; without the tile the same greys render flat. The unused pre-retheme
+  `enemy_hide` tile is gone. Lore docs no longer call the machines "black".
+
+### 🪟 Cockpit glass is glass again — no more wobble on the canopy (#1372, #1373, #1374)
+
+- **Every ship's cockpit canopy was being rendered as water.** A clear pane had a slow rippling warp on it,
+  identical from inside and outside, and you could not really see through it. The clear-glass tile shipped with
+  a fully transparent alpha channel — the image model answered "perfectly clear glass" with a see-through PNG —
+  and the block shader reads a see-through tile as *"this face is water"*. So the canopy ran the whole water
+  path: animated refraction, screen-space reflections, and an opaque final composite. Clear glass is now picked
+  out of that branch explicitly, the tile ships opaque, and a test keeps block tiles from acquiring stray alpha.
+- **Fire is flame-shaped again.** Fire's tile carries a real cutout, so it fell into the same water branch and
+  came out as an opaque, warping square. Emissive blocks now take the energy-field path and keep their own
+  silhouette.
+- **Dyed glass and force fields no longer bob.** The water wave displacement read a dyed pane's blue channel as
+  a wave height, so a blue-dyed pane physically sagged and oscillated. The displacement is gated on real water.
+
+### ⏸️ The feedback dialog holds the world too (#1330)
+
+- **F1 (F2 in the browser) now pauses like the Esc menu.** The player feedback dialog froze your controls
+  but not the world: hunger kept draining, night kept falling and creatures kept hunting while you typed a
+  bug report. Opening it now asks the server for the same hold the pause menu uses — in singleplayer the
+  world stops right there (and saves, as every hold does); with others joined it only counts as "this
+  player is in a menu" until everyone else is too (#973). Closing the form — Esc, Cancel or the auto-close
+  after a successful send — lets the world run again. The screenshot is still taken before the hold, so it
+  shows live play.
+- Under the hood the Esc menu and the dialog share one `WorldHoldIntent` (intent, release and the 15 s
+  keep-alive the server sweeps dead clients by), so the rule has exactly one copy — and a unit test.
+- **F1 and Esc in the same frame no longer leave a stuck dialog** that held the world with no key able to
+  close it (#1368).
+
+### 🌊 Outline, held drill and placement ghost agree with the click on water and lava (#1353)
+
+- **What you highlight is what you hit.** Since water and lava became aimable, the click stopped at a fluid
+  but the selection box, the held drill and the slab/stair ghost still marched through it: aiming at lava
+  with a mining beam showed no box (or one on the rock behind), a diamond drill held on lava never finished
+  the cell (its second hit went to the rock behind), and a held slab showed no ghost over water. All three
+  now ask for the same fluid-aware target as the click — and the tool check reads the definition of the
+  fluid actually under the crosshair (water and lava separately) instead of assuming lava stands for both.
+- **Doors and torches are no longer offered on water or lava** (#1368). The server refused a door in any fluid
+  cell and a torch in water; the crosshair now skips those cells with such an item in hand instead of bouncing
+  a reject toast.
+
+### 📬 One F1 report, one inbox row — and answers that actually arrive (#1359)
+
+- **The report inbox no longer lists every F1 report twice.** Each in-game report reaches the inbox on two
+  paths by design (straight from the game, and as the server's rich `/bump` snapshot with the screenshot), and
+  the admin list was meant to fold the pair into one row since #618 — but it compared a field the two halves
+  never agreed on (the game sends the install token as its player id, the server the player name), so not one
+  report ever paired. The list now recognises the halves by their shared reply key, or by player name for
+  older builds.
+- **A developer answer reaches you from either half.** The `/bump` snapshot now carries the same reply key as
+  the direct upload, so an answer typed on the richer row (the one with the screenshot) arrives in-game like any
+  other — before, it would have been stored under a key derived from your player name that your game never
+  asks for. The inbox stops minting such name-derived keys for server rows (a public name must not unlock a
+  thread) and clears the ones it had already made.
+
+### 📮 Report inbox — polling for answers never blocks a real report (#1352)
+
+- **A whole class behind one NAT can poll for developer answers and still send a bug report.** The reply poll
+  shared the inbox's per-IP report limit (10/min), so 25 installs on one school network polling after world
+  start ate the budget — and an F1 report from that network in the same minute was bounced (kept in the
+  client's spool and re-sent later, but delayed). The reply routes now have their own per-install budget
+  (`BBS_REPORTS_REPLY_PER_MINUTE`, 30/min per reply key); the per-IP limit guards report submission only.
+  Operators: redeploy the ReportHost image.
+
+### 📮 Report inbox leftovers — deleted reports are forgotten, the answer box stays, admin forms are guarded (#1369)
+
+- **A report the developers deleted is no longer polled for three months.** The game asks the inbox about the
+  reports it still remembers; the ones that are gone (deleted, expired, or filed by an older browser build under
+  a key the game cannot read) are forgotten on the spot, and the polling stops once none are left.
+- **The answer box no longer disappears when the developers re-file your report.** Whether you can answer now
+  follows the conversation itself — the newest entry is a developer question you have not answered — instead of
+  the report's status label, which an operator may change by hand.
+- **The whole developer answer is readable** (#1368). The reply window used to cut a thread at 1,400 characters
+  with no scrollbar and no hint; it now scrolls, however long the conversation gets, and shows developer and
+  player text exactly as written (no stray `<b>` or `<color>` formatting from a tag someone typed). The HUD
+  toast does the same.
+- **Operators**: the admin forms carry a CSRF token (403 without it) and the JSON admin routes require a JSON
+  content type; the detail page says "No in-game reply possible" for arcade reports filed before the reply
+  channel existed (their reply key cannot match — answer those through the old channel). The ReportHost image
+  also rebuilds when the shared reply-key code changes. Redeploy the ReportHost image.
+- **Tooling**: `gen_textures.py` now applies the documented Guardian-plating post-process itself, so the tile can
+  be regenerated reproducibly.
+
+### 🌐 Portal — the French name field says what it means (#1354)
+
+- **Locale text inside form attributes is encoded.** The solo-name field's placeholder *"Comment veux-tu qu'on
+  t'appelle ?"* was pasted raw into a single-quoted attribute, so the French landing page showed a mangled
+  field; the same pattern sat on the account, password, recovery-code and world-password fields. All of them
+  go through a small attribute encoder now, and a test renders every portal page in all 14 languages and
+  fails on the first attribute a translation breaks.
+- **Browser solo entry** (#1368): the "What's your name?" prompt and the menu's name field are one and the same —
+  Cancel no longer leaves the field empty while Singleplayer would have started with the name typed in the prompt;
+  both cap at the server's 24-character limit so the name you keep is the name you play as; the prompt waits its
+  turn behind the "What's new?" notes after an update instead of hiding under them; and the menu no longer
+  re-reads the whole saved world on every rebuild just to find your name (a visible hitch with a large world).
+
+### 🔒 Privacy page — what an in-game report stores, and how to have it deleted (#1329)
+
+- The portal privacy page now describes the F1 (F2 in the browser) reports and the in-game reply channel in
+  all 14 languages: what a report carries, that the reply key is a one-way hash of your installation (never
+  your password or e-mail), that developer answers appear in the game and your typed answer is stored with
+  the report, that reports stay until we delete them (no automatic expiry) and are not touched by deleting a
+  portal account — and that an e-mail to the address on the page gets them removed.
+
+### 🔧 Creature and physics polish from the week's audit (#1348, #1349, #1356, #1367)
+
+- **Pets wait at a cliff** (#1348): a walker companion under a ledge it cannot jump hopped in place for as long
+  as you stood above; a crawler companion levitated straight up the wall. Both now wait at the base (the leash
+  still brings them along when you walk on); one-block steps are still taken.
+- **Animals fall into a pit dug under them instead of rising through the ceiling** (#1349): the ground probe
+  preferred the nearest floor in either direction, lifting a ground-floor animal onto the storey above.
+- **No pop-out at the edge of view** (#1356): the crowding despawn shed animals 40 blocks out — in plain sight
+  at larger view distances — and could remove a hunter mid-charge; it now respects the widest joined
+  player's view distance and never sheds a creature that is hunting. The 70/110-block leash prune respects
+  your view distance too (#1367).
+- **Falling sand no longer rests on a tuft of grass, a torch or a flame** (#1367) — it crushes the prop (its drop
+  lands on top of the settled block; a flame is put out) and falls on to the real ground. A doorway holds a
+  falling block up like a player does; an animal the block lands on steps aside instead of being buried.
+  **Weather snow that slid off a ledge still melts**, sand dropped on a thawing drift comes down with it, and a
+  sand block you placed keeps your name after it has fallen (grief reports).
+- **More creature physics** (#1367): a titan is no longer hauled onto a tree crown because of a tuft of grass in
+  its column; a bird whose perch is dug away falls and takes off again; an animal never jumps into a low ceiling;
+  falls have a terminal speed (no more 2.7-block snaps); walkers no longer step down onto lava; a swimmer beside
+  a cliff overhang keeps swimming instead of steering out of its lake.
+- **More still** (#1368): a winged giant no longer floats through its hop (the client uses the server's own
+  ground-bird rule for the glide instead of "has wings"); a perched bird whose perch is dug away falls with its
+  wings out, and the server reports the fall as such; and the per-creature animator lookup that ran every frame
+  is done once.
+
+### 🧪 Under the hood (#1362)
+
+- The report-host test fixture no longer looks like an 80-second network stall. It was xunit's parallel queue,
+  not I/O: one in-process ReportHost per test class, every request timed, and the loopback HTTP tests moved into
+  a real-time-sensitive collection so the slow first Kestrel start stays off the fast-tier clock.
 
 ## [2026.8.22] — 2026-08-26
 
@@ -3983,7 +4092,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...HEAD
+[2026.8.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...v2026.8.23
 [2026.8.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...v2026.8.22
 [2026.8.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...v2026.8.21
 [2026.8.20]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.19...v2026.8.20
