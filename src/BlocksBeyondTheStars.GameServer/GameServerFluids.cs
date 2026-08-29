@@ -230,6 +230,8 @@ public sealed partial class GameServer
         }
 
         _sinceFluid = 0;
+        _worlds.Active.FluidStep++;
+        bool lavaRests = (_worlds.Active.FluidStep & 1) == 1; // #1316: lava moves on every second step only
 
         var todo = new List<Vector3i>(_activeFluid);
         _activeFluid.Clear();
@@ -254,7 +256,16 @@ public sealed partial class GameServer
             {
                 if (QuenchLava(pos) != 0)
                 {
-                    continue; // touched water: it is rock now (#1284)
+                    continue; // touched water: it is rock now (#1284) — contact fires on wake, never waits for the cadence
+                }
+
+                // Lava flows at half the water speed (#1316, maintainer decision — readability, not realism:
+                // fast lava kills before you can react). The budget and the wake set stay shared; a lava cell
+                // just sits out every other step and is re-queued untouched.
+                if (lavaRests)
+                {
+                    _activeFluid.Add(pos);
+                    continue;
                 }
 
                 IgniteFlammableNeighbors(pos); // active/flowing lava sets adjacent plants/wood alight (item 30)
@@ -424,6 +435,7 @@ public sealed partial class GameServer
         UntrackFluid(pos);
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
         WakeNeighbors(pos);
+        OnSupportRemoved(pos); // sand resting on a drying tongue drops with it (#1319)
     }
 
 
@@ -482,6 +494,8 @@ public sealed partial class GameServer
         {
             OnFluidRemoved(pos);
         }
+
+        OnSupportRemoved(pos); // #1319: the same wake mining gives a granular block above
     }
 
     /// <summary>True if the player is standing in or directly on lava (for contact damage).</summary>

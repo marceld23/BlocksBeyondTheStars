@@ -9643,6 +9643,32 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): fluids — aim at water and lava, slow lava, and sand that falls (#1310, #1316, #1319)
+
+Lyxette's round-3 fluid reports; client + server + data. Unity build required (aim march changed).
+
+* **Water and lava are aimable (#1310).** `AimTarget` marched straight through fluids, so an open lava lake
+  offered no build target and lava could only ever be mined indirectly. With a placeable item held, or a tool
+  that can mine a fluid by the block data (tier-3 drill), the ray now stops at a fluid cell it ENTERS from a
+  non-fluid cell and offers that cell as hit + place (the server displaces the fluid, #851). A ray that starts
+  inside fluid (swimming) still passes through, so building on the seabed from under water is unchanged.
+* **Lava at half water speed (#1316).** One shared cadence used to drive both. `WorldManager.FluidStep` counts
+  fluid steps; a lava cell sits out every odd step (re-queued untouched, budget and wake set stay shared).
+  The water↔lava quench still fires on wake, before the cadence gate.
+* **Granular blocks (#1319).** `BlockDefinition.Granular` (`"granular": true` on sand, ash, snow) +
+  `GameServerGranular.cs`: instant settle through air (one `SetBlock` pair, two `BlockChanged`, nothing
+  mid-fall to persist), one cell per fluid step through water/lava replacing it (the lava-filling use case),
+  woken ONLY by mutations — mining, placing, blaster, doused fire, retracting fluid, the cascade above a
+  vacated cell. Generated terrain is never scanned (worldgen + determinism audits untouched); a carved form
+  stays; dye/glow/paint travel with the fall; ship interiors are never entered; a player in the landing cell
+  makes the block wait. Fire's burn-out ash is deliberately NOT woken — a burnt canopy keeps its shape.
+* Tests: `GranularBlockTests` (9) — data flag, column settle, pit, lava sink one-per-step, carved form stays,
+  dye survives, untouched overhang stays, ship interior untouched, lava half-speed cadence.
+* Docs: `WORLD_GENERATION.md` §8 (live flow + granular), `USER_MANUAL.md` (lava speed, aiming at fluids,
+  falling sand).
+
+---
+
 ## ✅ Done (2026-08-29): drops and loot — packets fall, creature loot expires, the hold says thank you (#1311, #1312, #1317)
 
 Lyxette's round-3 drop reports, server + locale only.

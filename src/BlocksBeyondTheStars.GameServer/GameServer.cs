@@ -1423,6 +1423,7 @@ public sealed partial class GameServer
             Guard("TickPresence", deltaSeconds, TickPresence);
             Guard("TickMarkerPings", deltaSeconds, TickMarkerPings); // expire "look here" pings (#1217)
             Guard("TickFluids", deltaSeconds, TickFluids);
+            Guard("TickGranular", deltaSeconds, TickGranular); // #1319: woken sand/ash/snow settles, sinks through fluid
             Guard("TickFire", deltaSeconds, TickFire);
             Guard("TickWeather", deltaSeconds, TickWeather);
             Guard("TickFlora", deltaSeconds, TickFlora);
@@ -3921,6 +3922,8 @@ public sealed partial class GameServer
             OnFluidRemoved(pos);
         }
 
+        OnSupportRemoved(pos); // #1319: a granular block above a mined cell settles down
+
         OnBlockMined(session, def.Key);
         ShipAiOnMine(session); // VEGA onboarding: the "mine a few blocks" stage counts every break
         ShipAiOnBlockBroken(session, def.Key); // VEGA context tips (#1077): digging score, by-hand streak, rare-ore learned
@@ -4359,6 +4362,8 @@ public sealed partial class GameServer
             UntrackFluid(pos);
             OnFluidRemoved(pos);
         }
+
+        ActivateGranular(pos); // #1319: placed sand with nothing under it drops; over lava it sinks
 
         SendInventory(session);
         OnAchievementBuild(session);

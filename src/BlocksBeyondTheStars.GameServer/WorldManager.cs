@@ -114,6 +114,8 @@ internal sealed class LoadedWorld
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)
+    public HashSet<Vector3i> ActiveGranular { get; } = new(); // loose blocks woken by a mutation (#1319) — transient, never saved
+    public int FluidStep { get; set; } // fluid steps so far — lava advances on every second one (#1316)
     public Dictionary<Vector3i, float> FireTimer { get; } = new(); // burning cells → remaining burn time (item 30)
     public HashSet<Vector3i> ActiveFire { get; } = new();
     public Dictionary<Vector3i, int> FireGeneration { get; } = new(); // burning cells → hops from the ignition point (#791)
@@ -190,6 +192,7 @@ internal sealed class LoadedWorld
     public int EnemySpawnOrdinal { get; set; }
     public double SinceBanditSync { get; set; }  // bandit movement stream throttle (per-world, like SinceEnemySync)
     public double SinceFluid { get; set; }
+    public double SinceGranular { get; set; } // granular settle cadence (#1319) — the fluid interval, own timer
     public double SinceFire { get; set; }
     public double SinceDropSweep { get; set; } // ground drop-packet auto-pickup throttle (#853)
     // These three run once per occupied world each tick, so their accumulate-and-reset throttles MUST be

@@ -293,6 +293,14 @@ public sealed partial class GameServer
     {
         _world.SetBlock(pos, new BlockId(block));
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = block });
+
+        // #1319: fire has its own mutation path — a doused cell (air) may have carried sand above it. The ash
+        // a burn-out leaves is granular but deliberately NOT woken: it stays where the flame was, like any
+        // untouched material, until something mines or blasts beside it (a burnt canopy keeps its shape).
+        if (block == 0)
+        {
+            OnSupportRemoved(pos);
+        }
     }
 
     private bool HasWaterNeighbor(Vector3i p)

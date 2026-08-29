@@ -226,6 +226,8 @@ public sealed partial class GameServer
                     {
                         OnFluidRemoved(p); // a hole opened in/under water or lava refills
                     }
+
+                    OnSupportRemoved(p); // #1319: sand over the blast crater comes down
                 }
     }
 

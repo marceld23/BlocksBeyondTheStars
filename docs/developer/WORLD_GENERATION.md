@@ -413,6 +413,22 @@ Per column the precedence is **pond > river > sea**. On lava worlds the *same* m
 (sparser, wider, shallower), tagged for shader animation. Submerged columns also grow aquatic flora
 (kelp/seagrass/coral on the bed, lily pads on the surface).
 
+**Live flow (`GameServerFluids.cs`):** a server-authoritative cellular automaton on a shared ~4 Hz cadence
+(`FluidInterval`) with a per-step budget — cells flow down, else spread sideways with a decaying level;
+sources are untracked and bottomless, flowing cells persist their level (#657). **Lava moves on every
+second step only** (#1316 — half the water speed, a readability decision: fast lava kills before you can
+react); the water↔lava quench (#1284) fires on wake and never waits for the cadence.
+
+**Granular blocks (`GameServerGranular.cs`, #1319):** `"granular": true` in `blocks.json` (sand, ash, snow)
+marks loose material that settles when its support goes — **instant** through air (one `SetBlock` pair,
+two `BlockChanged`, no falling entity, nothing mid-fall to save), **one cell per fluid step** through
+water/lava, replacing the fluid like a placed block does (#851) — sand dropped on lava eats it cell by cell.
+Only mutations wake a cell: mining, placing, the terrain blaster, a doused fire, a retracting fluid, and
+the cascade above a vacated cell. **Generated terrain is never scanned**, so dune overhangs stand until
+touched and the determinism audits are untouched; the active set is transient across restarts. A carved
+form stays (a built thing), dye/glow/paint travel with the fall, ship interiors are neither entered nor
+disturbed, and a block waits while a player stands in its landing cell.
+
 ---
 
 ## 9. Weather — episodes on a ladder, plus events

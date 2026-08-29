@@ -346,6 +346,16 @@ separate unlock; admins can still disable it through server world rules.
   **obsidian**, a flowing lava **tongue** cools to **basalt**. Place water onto a lava pool and the pool is
   quenched to obsidian in place; place it beside lava and the neighbouring lava crusts over while the water
   stays. Water flowing into lava still chills to obsidian at the contact face.
+- **Lava is slow, water is quick**: lava creeps at half the speed water flows, so a breached crater gives
+  you time to step back.
+- **Aim at water and lava**: holding a block, the crosshair stops at a fluid's surface and the block goes
+  *into* that cell (the fluid makes way) — so you can bridge a lake or a lava field from its edge. Holding
+  a tier-3 drill (mining beam, diamond drill) the surface is mineable too. While you are swimming the aim
+  still passes through the water to the bed.
+- **Sand, ash and snow fall.** Mine the block under a sand column and it settles onto the next floor;
+  place sand over a pit and it lands at the bottom. Dropped onto lava it sinks one cell at a time and
+  replaces the lava — a slow, safe way to fill a lava lake. Loose ground you never touched stays where the
+  world made it, and a carved sand form stays a built thing.
 
 ### Fire
 - **What burns:** plants, wood and leaves. Grass and the ground itself never catch, so a fire stays in
