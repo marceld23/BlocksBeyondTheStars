@@ -85,7 +85,7 @@ One download — every mode. The game client runs on **Windows, Linux and (exper
 *   🏠 **LAN multiplayer** — host a world right on your PC and play together with family and friends on your home network.
 *   🌐 **Official Worlds (online)** — create a free account at **[play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de/?lang=en)** (no email required) or directly in-game via **Main menu → Official Worlds**, then create your own world — online multiplayer with friends without running your own server. There are **no open public servers**: to play with friends, set a join password and list your world publicly — friends find it under *Official Worlds → Public worlds* and join with your password. *Official Worlds are in beta — download a backup of your world regularly.*
 
-Or skip the download entirely and **[play in your browser](https://play.blocksbeyondthestars.de/?lang=en)** — no install needed. Browser play is **online only** (singleplayer and LAN need the desktop client).
+Or skip the download entirely and **[play in your browser](https://play.blocksbeyondthestars.de/?lang=en)** — no install needed. Pick a player name and play **singleplayer right away** (no account — your world is saved in that browser), or create an account and a hosted world to play with friends. Only LAN hosting needs the desktop client.
 
 ## 🎬 Watch the Let's Play
 
@@ -257,8 +257,9 @@ NAS or a VPS (including via Docker) can host a world that players join.
   Game", or a remote dedicated server.
 - **Browser (WebGL, experimental):** a dedicated server can also serve a **play-in-the-browser** build —
   no install, just open the server's `/play` page, or play on the official service at
-  [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de/?lang=en). Browser play only joins
-  a hosted server (no singleplayer), so it is opt-in on the host side; see
+  [play.blocksbeyondthestars.de](https://play.blocksbeyondthestars.de/?lang=en). The browser build runs the
+  real authoritative server **in-process** for singleplayer (one world per browser, no account) and joins
+  a hosted server for multiplayer; serving it is opt-in on the host side, see
   [self-hosting](#self-hosting-packages) below.
 
 **Dedicated server (to host)**

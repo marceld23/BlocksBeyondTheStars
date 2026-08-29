@@ -218,6 +218,14 @@ namespace BlocksBeyondTheStars.Client
             if (!string.IsNullOrWhiteSpace(playerName))
             {
                 PlayerName = playerName.Trim();
+                // A deep-linked name is as deliberate as one typed in the menu (the portal's solo entry
+                // sends the name it remembered, #1321): persist it, or the next visit without the parameter
+                // fell back to whatever was saved before — or to nothing (#1322).
+                if (Settings != null)
+                {
+                    Settings.PlayerName = PlayerName;
+                    Settings.Save();
+                }
             }
 
             // Official-worlds deep-link (the portal's Play button): the join grant rides the page URL
@@ -243,6 +251,54 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private bool _autoSingleplayerWhenReady;
+
+        /// <summary>Set when a deep-linked singleplayer start still needs a name; the WebGL menu consumes it
+        /// and opens the name prompt on top of itself (#1322).</summary>
+        public bool BrowserNamePromptPending;
+
+        /// <summary><c>?singleplayer=1</c> arrived without a name — none in the URL, the settings or an
+        /// arcade session (#1322). The name IS the player id, so before asking we look at the world we are
+        /// about to restore: a world with exactly one player belongs to that player (a second device
+        /// restoring the Glitch cloud copy, settings lost) — adopt the name and go. Otherwise the menu asks
+        /// once ("What's your name?") instead of the old silent "Explorer", which permanently baked a
+        /// placeholder identity into that browser's one world.</summary>
+        private IEnumerator ResolveBrowserPlayerNameThenStart()
+        {
+            byte[] blob = BrowserLocalServer.LoadLocalBlob();
+            if (GlitchCloudSaves.Enabled)
+            {
+                yield return GlitchCloudSaves.FetchLatest(cloudBlob =>
+                {
+                    if (cloudBlob != null)
+                    {
+                        blob = cloudBlob;
+                    }
+                });
+            }
+
+            string saved = BlocksBeyondTheStars.Persistence.MemoryWorldSnapshotPeek.SolePlayerId(blob);
+            if (!string.IsNullOrWhiteSpace(saved))
+            {
+                PlayerName = saved;
+                Settings.PlayerName = saved;
+                Settings.Save();
+                Debug.Log($"[BrowserSP] Adopted the saved world's player '{saved}' for the deep-linked start.");
+                StartBrowserSingleplayer();
+                yield break;
+            }
+
+            if (Phase != ShellPhase.MainMenu)
+            {
+                yield break; // the player moved on while we looked (menu → settings/credits)
+            }
+
+            BrowserNamePromptPending = true;
+            if (_uiMenu != null)
+            {
+                Destroy(_uiMenu); // rebuilt next frame with the prompt open
+                _uiMenu = null;
+            }
+        }
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         /// <summary>Menu retry for the glitch.fun arcade: the auto-join runs on page load, but when it
@@ -1370,10 +1426,14 @@ namespace BlocksBeyondTheStars.Client
                 _autoSingleplayerWhenReady = false;
                 if (string.IsNullOrWhiteSpace(PlayerName))
                 {
-                    PlayerName = "Explorer"; // the deep-link skips the menu's name gate — save identity needs one
+                    // The deep-link skipped the menu's name gate and the save identity needs one: adopt the
+                    // saved world's player or ask — never a silent placeholder (#1322).
+                    StartCoroutine(ResolveBrowserPlayerNameThenStart());
                 }
-
-                StartBrowserSingleplayer();
+                else
+                {
+                    StartBrowserSingleplayer();
+                }
             }
 
             // glitch.fun arcade ban/license revocation (heartbeat relay answered 403): leave the world

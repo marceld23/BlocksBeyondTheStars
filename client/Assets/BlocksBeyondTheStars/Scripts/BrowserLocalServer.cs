@@ -82,6 +82,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>The name of the one player saved in this browser's local world, or null (no world,
+        /// unreadable, or not exactly one player). The menu prefills its name field from this when the
+        /// settings hold no name (#1322): the name IS the player id, so nothing else gets a returning
+        /// player back into their own world.</summary>
+        public static string PeekSavedPlayerName() => MemoryWorldSnapshotPeek.SolePlayerId(LoadLocalBlob());
+
         /// <summary>"New world" (#1181): deletes the world saved in this browser and arms the reset marker
         /// that keeps the deployment migration (#1177) and the cloud fetch from bringing the old world back
         /// until the fresh one has been persisted (<see cref="PersistBlob"/> clears it). Name, settings and

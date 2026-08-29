@@ -84,10 +84,27 @@ public static class WorldHostPortalPages
         string rulesLink = $"<a href='/rules{t.Query}'>{t.T("landing.signup.consentLink")}</a>";
         string termsLink = $"<a href='/rules{t.Query}'>{t.T("landing.terms.consentLink")}</a>";
 
+        // Solo entry first (#1321): the same WebGL build the Play button deep-links into also runs a full
+        // in-browser singleplayer — no account, no hosted world, no instance to wake. Until this block
+        // existed, nothing on the portal linked to it, so every "play in your browser" visitor believed
+        // they had to sign up and create a world. It is a plain GET form into /play/, so it works without
+        // JavaScript; the script below only remembers the name and blocks an empty submit. The name is
+        // sent along because the browser world keys its player on it (the client's "Explorer" fallback
+        // would otherwise become that world's permanent identity).
         string body = $@"
 <h1>Blocks Beyond the Stars — <span class='o'>{t.T("landing.worlds")}</span></h1>
 <p class='sub'>{t.T("landing.sub")}</p>
 {websiteLine}
+<form class='card solo' id='solo-form' method='get' action='/play/' novalidate>
+ <h2>{t.T("landing.solo.title")}</h2>
+ <p class='hint'>{t.T("landing.solo.hint")}</p>
+ <input type='hidden' name='singleplayer' value='1'>
+ <input type='hidden' name='lang' value='{t.Lang}'>
+ <label for='solo-name'>{t.T("landing.solo.name")}</label>
+ <input id='solo-name' name='player_name' autocomplete='nickname' spellcheck='false' placeholder='{t.T("landing.solo.namePlaceholder")}' maxlength='24'>
+ <div id='solo-msg' role='status' aria-live='polite' aria-atomic='true'></div>
+ <button type='submit' class='playnow'>{t.T("landing.solo.play")}</button>
+</form>
 <div class='card how'>
  <h2>{t.T("landing.how.title")}</h2>
  <ol>
@@ -148,6 +165,7 @@ public static class WorldHostPortalPages
             {
                 acceptFirst = t.T("landing.js.acceptFirst"),
                 wrongLogin = t.T("landing.js.wrongLogin"),
+                needName = t.T("landing.js.needName"),
                 err = t.T("common.error"),
             }, ScriptJson))
             .Replace("__LQ__", t.Query);
@@ -212,6 +230,21 @@ function wire(id, fn){
   document.getElementById(id).addEventListener('submit', function(e){ e.preventDefault(); fn(); });
 }
 wire('su-form', signup); wire('li-form', login); wire('li-recover', recover); wire('li-terms', reaccept);
+// Solo entry (#1321): the form itself is a plain GET into /play/ (works without script). The script
+// remembers the name under the same key My Worlds uses, so both paths share one identity, and refuses an
+// empty submit with focus on the field — the browser world would otherwise be keyed on a placeholder.
+(function(){
+  const f = document.getElementById('solo-form'), n = document.getElementById('solo-name'), m = document.getElementById('solo-msg');
+  if(!f || !n) return;
+  n.value = localStorage.getItem('bbs_player_name') || '';
+  n.addEventListener('input', function(){ localStorage.setItem('bbs_player_name', n.value.trim()); });
+  f.addEventListener('submit', function(e){
+    const name = n.value.trim();
+    if(!name){ e.preventDefault(); m.textContent = L.needName; n.focus(); return; }
+    n.value = name; // the GET submit carries exactly this as ?player_name=
+    localStorage.setItem('bbs_player_name', name);
+  });
+})();
 // 'Forgot your password?' is a disclosure: the trigger carries the open/closed state, and focus moves
 // into the panel it reveals instead of staying behind on the trigger.
 document.getElementById('li-recover-toggle').addEventListener('click', function(){
@@ -236,6 +269,7 @@ document.getElementById('li-recover-toggle').addEventListener('click', function(
  <label for='player-name'>{t.T("worlds.playerName.label")}</label>
  <input id='player-name' name='player-name' autocomplete='nickname' maxlength='24'>
  <p class='hint'>{t.T("worlds.playerName.hint")}</p>
+ <p class='hint'><a id='solo-link' href='/play/?singleplayer=1&amp;lang={t.Lang}'>{t.T("worlds.solo.link")}</a></p>
 </div>
 <form class='card' id='w-form' novalidate>
  <h2>{t.T("worlds.new.title")}</h2>
@@ -306,6 +340,7 @@ document.getElementById('li-recover-toggle').addEventListener('click', function(
                 del = t.T("worlds.js.del"),
                 delConfirm = t.T("worlds.js.delConfirm"),
                 noWorlds = t.T("worlds.js.noWorlds"),
+                soloLink = t.T("worlds.solo.link"),
                 creating = t.T("worlds.js.creating"),
                 created = t.T("worlds.js.created"),
                 stopping = t.T("worlds.js.stopping"),
@@ -445,7 +480,8 @@ async function load(){
       <div class='grant' id='g-${w.id}'></div>`;
     el.appendChild(d);
   }
-  if(!j.worlds.length) el.innerHTML = `<p class='hint'>${L.noWorlds}</p>`;
+  // A player who signed up only to play alone must not have to create a hosted world (#1321).
+  if(!j.worlds.length) el.innerHTML = `<p class='hint'>${L.noWorlds} <a href='${esc(soloUrl())}'>${L.soloLink}</a></p>`;
   const rw = document.getElementById('r-world'); const keep = rw.value;
   rw.length = 1; // keep the '(optional)' placeholder, rebuild the rest from the fresh list
   for(const w of j.worlds){ const o=document.createElement('option'); o.value=w.id; o.textContent=w.name; rw.appendChild(o); }
@@ -661,6 +697,13 @@ function esc(s){return String(s).replace(/[&<>""']/g, c=>({'&':'&amp;','<':'&lt;
 // Shared player-name field: prefilled from the last used name and persisted as it changes, so joining
 // any world (own or public) never has to prompt for it.
 (function(){ const pn=document.getElementById('player-name'); if(pn){ pn.value=localStorage.getItem('bbs_player_name')||''; pn.addEventListener('input',()=>localStorage.setItem('bbs_player_name', pn.value.trim())); } })();
+// Solo link (#1321): the in-browser singleplayer needs no world at all — the link carries the player name
+// from the field above (the browser world keys its player on it) and this page's language.
+function soloUrl(){
+  const n=(document.getElementById('player-name').value||'').trim();
+  return '/play/?singleplayer=1'+(n?'&player_name='+encodeURIComponent(n):'')+'&lang='+encodeURIComponent(PAGE_LANG);
+}
+(function(){ const sl=document.getElementById('solo-link'), pn=document.getElementById('player-name'); if(!sl||!pn) return; const upd=()=>{ sl.href=soloUrl(); }; upd(); pn.addEventListener('input', upd); })();
 // Real <form>s so Enter in a field runs that card's action instead of doing nothing (#574). Each card
 // owns its own form — the report form sits inside the feedback card's <details>, never nested in it.
 function wire(id, fn){
@@ -952,9 +995,10 @@ button.linky{{margin:0;padding:0;border:0;background:none;color:var(--cyan);font
 button.linky:hover{{background:none;color:#eaf6ff}}
 label.up{{display:inline-block;margin:6px 6px 0 0;padding:9px 16px;border-radius:8px;border:1px solid var(--cyan);
  color:var(--cyan);font-weight:600;cursor:pointer}}
-a.playnow{{display:inline-block;margin:8px 0 2px;padding:12px 22px;border-radius:10px;font-weight:700;font-size:16px;
- text-decoration:none;color:#fff;background:linear-gradient(180deg,#2f8fff,#1d68d8);box-shadow:0 8px 22px rgba(29,104,216,.45)}}
-a.playnow:hover{{filter:brightness(1.08)}}
+a.playnow,button.playnow{{display:inline-block;margin:8px 0 2px;padding:12px 22px;border-radius:10px;border:0;font-weight:700;font-size:16px;
+ text-decoration:none;color:#fff;background:linear-gradient(180deg,#2f8fff,#1d68d8);box-shadow:0 8px 22px rgba(29,104,216,.45);cursor:pointer}}
+a.playnow:hover,button.playnow:hover{{filter:brightness(1.08)}}
+.solo{{border-color:#2f8fff;background:#0d1a33cc}} #solo-msg{{color:var(--orange);font-weight:600;min-height:1.2em;margin:6px 0}}
 .st{{font-size:.8rem;padding:2px 10px;border-radius:10px;border:1px solid var(--line);vertical-align:middle}}
 .st.running{{color:#7dff9e;border-color:#2e7d44}} .st.stopped{{color:#9db2cf}} .st.starting{{color:var(--orange);border-color:#7a5218}}
 code{{background:#0a101d;border:1px solid var(--line);border-radius:6px;padding:1px 6px;word-break:break-all}}
