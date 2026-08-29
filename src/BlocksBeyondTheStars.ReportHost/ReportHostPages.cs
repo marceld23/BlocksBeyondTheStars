@@ -104,7 +104,42 @@ public static class ReportHostPages
 
     /// <summary>How far apart the two rows of one F1 report may be stamped. The client posts directly and the
     /// server forwards its /bump snapshot independently, so they land a moment apart — observed 0–2 s.</summary>
-    private const long DuplicateWindowSeconds = 8;
+    public const long DuplicateWindowSeconds = 8;
+
+    /// <summary>
+    /// The half of a report pair that owns its conversation (#1378): the row whose reply key the player's game
+    /// polls with. A row that carries a key owns its own thread. A key-less row (the server's /bump forward of a
+    /// report filed before the reply channel — #1359 blanked its name-derived key on purpose) hands over to its
+    /// paired half when that one has a key, so the detail page shows the pair's one thread whichever half the
+    /// operator opened, and an answer typed there is never stored where no game can read it. Without a keyed
+    /// partner the row stays its own owner (and the page says nothing can reach the player).
+    /// </summary>
+    /// <param name="candidates">Rows stamped within <see cref="DuplicateWindowSeconds"/> of <paramref name="r"/>
+    /// (see <c>ReportStore.Around</c>); <paramref name="r"/> itself may be among them.</param>
+    public static BugReportRecord ThreadOwner(BugReportRecord r, IReadOnlyList<BugReportRecord> candidates)
+    {
+        if (r.ReplyKey.Length > 0)
+        {
+            return r;
+        }
+
+        BugReportRecord? owner = null;
+        foreach (var c in candidates)
+        {
+            if (c.Id == r.Id || c.ReplyKey.Length == 0 || !IsSameReport(r, c))
+            {
+                continue;
+            }
+
+            // Prefer the client-direct half — the one that always carries the install's own key.
+            if (owner == null || (owner.Source.Length > 0 && c.Source.Length == 0))
+            {
+                owner = c;
+            }
+        }
+
+        return owner ?? r;
+    }
 
     /// <summary>
     /// Collapses the two database rows that one in-game F1 report produces into a single group.
@@ -243,9 +278,12 @@ public static class ReportHostPages
     /// <summary>The Unity platform string of every browser build (play.* and the glitch.fun arcade alike).</summary>
     private const string WebGlPlatform = "WebGLPlayer";
 
-    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null)
+    /// <param name="threadOwner">The half of the pair that owns the conversation (<see cref="ThreadOwner"/>);
+    /// <paramref name="replies"/> are ITS replies. Null or <paramref name="r"/> itself = the row owns its thread.</param>
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null)
     {
         replies ??= Array.Empty<ReplyRecord>();
+        threadOwner ??= r;
         string csrfField = csrf?.HiddenField() ?? string.Empty;
         var sb = new StringBuilder();
         string when = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).ToString("yyyy-MM-dd HH:mm:ss");
@@ -275,12 +313,22 @@ public static class ReportHostPages
         // Reply thread (#1327): what the player sees in the game, plus the form to add to it. Only reports
         // that carry a reply key can reach a player (server crash reports have none).
         sb.Append("<div class='card'><h2>Conversation with the player</h2>");
-        var origin = KeyOrigin(r);
+        bool viaPartner = threadOwner.Id != r.Id;
+        if (viaPartner)
+        {
+            // The screenshot half of a pre-reply-channel pair (#1378): its own key is blank, the thread lives
+            // on the client-direct row — say so, and let the form below write there.
+            sb.Append($"<p class='hint'>This row's own reply key is blank; the conversation lives on the paired " +
+                      $"<a href='/admin/report/{threadOwner.Id}'>{(threadOwner.Source.Length > 0 ? E(threadOwner.Source) : "client")} row</a> " +
+                      "— the half whose key the player's game polls with. What you write below is stored there.</p>");
+        }
+
+        var origin = KeyOrigin(threadOwner);
         if (origin == ReplyKeyOrigin.None)
         {
             sb.Append("<p class='hint'>This report carries no reply key (no player id) — nothing you write here can reach a player.</p>");
         }
-        else if (origin == ReplyKeyOrigin.DerivedFromPlayerId && r.Platform == WebGlPlatform)
+        else if (origin == ReplyKeyOrigin.DerivedFromPlayerId && threadOwner.Platform == WebGlPlatform)
         {
             // A browser report from before the reply channel: the key was derived from the browser-local
             // token, which the glitch.fun arcade never polls with (#1369) — only a play.* install would.
@@ -309,15 +357,17 @@ public static class ReportHostPages
             sb.Append($"<div class='reply reply-{E(reply.Author)}'><div class='sub'>{who} · {stamp} UTC{seen}</div><pre>{E(reply.Text)}</pre></div>");
         }
 
-        if (r.FixedInVersion.Length > 0)
+        if (threadOwner.FixedInVersion.Length > 0)
         {
-            sb.Append($"<p class='sub'>Fixed in version: <b>{E(r.FixedInVersion)}</b> (shown to the player with the thread)</p>");
+            sb.Append($"<p class='sub'>Fixed in version: <b>{E(threadOwner.FixedInVersion)}</b> (shown to the player with the thread)</p>");
         }
 
+        // The form posts to THIS row's route; the route resolves the owner the same way (#1378), so a reply
+        // typed on either half lands on the keyed one and the redirect returns here.
         sb.Append($"<form method='post' action='/admin/report/{r.Id}/reply' class='replyform'>{csrfField}");
         sb.Append("<textarea name='text' rows='4' maxlength='5000' placeholder='Answer, or a follow-up question. Never ask for personal data — the audience includes children.'></textarea>");
         sb.Append("<label><input type='checkbox' name='question' value='1'> this is a question (status → waiting_for_player; the player can answer in-game)</label>");
-        sb.Append($"<label>fixed in version <input type='text' name='fixed_in_version' value='{E(r.FixedInVersion)}' placeholder='e.g. 2026.8.23' size='14'></label>");
+        sb.Append($"<label>fixed in version <input type='text' name='fixed_in_version' value='{E(threadOwner.FixedInVersion)}' placeholder='e.g. 2026.8.23' size='14'></label>");
         sb.Append("<button>send to player</button></form></div>");
 
         sb.Append("<div class='card actions'>");

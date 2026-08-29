@@ -110,6 +110,14 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Report inbox: the screenshot half of a pair shows the pair's conversation (#1378, 2026-08-30, branch fix/reporthost-pair-thread)
+After answering Lyxette's 11 reports through the API, the admin list showed no answer on any of them: it links each
+pair to the `/bump` half (screenshot), whose reply key is blank for pre-8.23 reports (#1359 repair), so its detail
+page rendered an empty thread while the replies sat on the client row. `ReportHostPages.ThreadOwner` resolves the
+keyed half through the existing pairing rule (`ReportStore.Around` supplies the candidates); the detail page renders
+the owner's thread + "fixed in" with a hand-over hint, and both reply routes write to the owner. Test:
+`PairedScreenshotRow_ShowsTheClientHalfsThread_AndReceivesRepliesThere`. ReportHost image redeploy needed.
+
 ### ★ The "80 s HTTP request" was xunit's parallel queue, not the network (#1362, 2026-08-29, branch fix/1362-xunit-queue-latency)
 A ReportHost HTTP test measured 34 s / 82 s / 134 s for a loopback request that takes a millisecond, and
 the 134 s failed the fast-tier duration guardrail. It was never HTTP: with `maxParallelThreads` set, xunit
