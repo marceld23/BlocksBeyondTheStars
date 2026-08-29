@@ -30,6 +30,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   go through a small attribute encoder now, and a test renders every portal page in all 14 languages and
   fails on the first attribute a translation breaks.
 
+### 🔒 Privacy page — what an in-game report stores, and how to have it deleted (#1329)
+
+- The portal privacy page now describes the F1 (F2 in the browser) reports and the in-game reply channel in
+  all 14 languages: what a report carries, that the reply key is a one-way hash of your installation (never
+  your password or e-mail), that developer answers appear in the game and your typed answer is stored with
+  the report, that reports stay until we delete them (no automatic expiry) and are not touched by deleting a
+  portal account — and that an e-mail to the address on the page gets them removed.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**

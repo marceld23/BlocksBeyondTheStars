@@ -195,4 +195,11 @@ operator's browser.
 
 Reports may include an optional player e-mail plus a screenshot. Use `BBS_REPORTS_RETENTION_DAYS` for
 automatic expiry, and the admin UI's delete (or `DELETE /api/reports/{id}`) for individual removal —
-deletion always removes the screenshot file too.
+deletion always removes the screenshot file too (and the reply thread).
+
+The player-facing wording lives on the portal privacy page (`WorldHostPortalPages.Privacy`, #1329): the
+`privacy.summary.reports` paragraph in all 14 portal locales plus the German authoritative sections 2 and 5
+describe what an in-game report carries, the one-way reply key, in-game answers, retention ("kept until we
+delete them — no automatic expiry at the moment", which matches the official inbox's `RETENTION_DAYS=0`
+default) and deletion on request via the legal e-mail address. If you enable retention on the official
+inbox, update that paragraph.

@@ -9678,6 +9678,24 @@ mangled field on the French landing page.
 
 ---
 
+## ✅ Done (2026-08-29): the portal privacy page covers in-game reports and the reply channel (#1329, reopened)
+
+The privacy page's "Meldungen & Feedback" bullet only described the portal's own feedback form; the F1/F2
+reports and the #1327 reply channel were missing.
+
+* **New paragraph `privacy.summary.reports`** in all 14 portal locales (DE + EN written, the rest translated),
+  shown in the summary card of every language, plus two bullets in the German authoritative text (§2 data,
+  §5 retention): what a report carries (text, game/version/platform, in-world name, position, stats, screenshot
+  if attached, e-mail only if typed), the one-way hashed reply key (never password or e-mail), answers shown
+  in-game and a typed answer stored with the report, that these reports belong to the install (account
+  deletion does not touch them), retention = kept until deleted (no automatic expiry — matches the official
+  inbox's `RETENTION_DAYS=0`), deletion on request via the legal e-mail with report title or player name.
+* Docs: REPORT_HOST.md privacy section points at the wording (update it if retention is enabled);
+  PLAYER_FEEDBACK.md's open item "confirm the privacy note" is resolved into a keep-in-step note.
+  ⚠ Ships with the WorldHost image redeploy.
+
+---
+
 ## ✅ Done (2026-08-29): touchdown on the real ground over a pad, and a rescue you can read (#1318)
 
 Lyxette's "landed and was suddenly underground" (round 3). Server only.

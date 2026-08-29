@@ -809,6 +809,7 @@ loadNotices();
 <div class='card' lang='{summary.Lang}'>
  <h2>{summary.T("privacy.summary.title")}</h2>
  <p>{summary.T("privacy.summary.text")}</p>
+ <p>{summary.T("privacy.summary.reports")}</p>
 </div>";
 
         string germanBody = $@"
@@ -830,6 +831,16 @@ loadNotices();
   <li><b>Welten &amp; Spielstände:</b> die von dir erstellten oder hochgeladenen Welten (Spieldaten).</li>
   <li><b>Meldungen &amp; Feedback:</b> von dir abgesendete „Spieler melden“-Einträge (gemeldeter Name,
    Kategorie, Text) sowie dein Spiel-Feedback („Feedback &amp; Ideen“, nur der Text).</li>
+  <li><b>Fehlermeldungen aus dem Spiel (F1, im Browser F2) &amp; Entwickler-Antworten:</b> Schickst du eine
+   Meldung aus dem Spiel heraus, landet sie in unserem Meldungs-Postfach (ein eigener Dienst, ebenfalls in
+   Deutschland gehostet): dein eingetippter Text, technische Spieldaten (Spielversion, Plattform, dein
+   Spielername in der Welt, Position und Spielwerte), ein Screenshot, falls du ihn mitschickst, und eine
+   E-Mail-Adresse nur dann, wenn du sie freiwillig einträgst. Die Meldung trägt außerdem einen
+   <b>Antwort-Schlüssel</b> — ein Einweg-Hash aus deiner Spielinstallation, nie dein Kontopasswort oder deine
+   E-Mail —, damit eine Antwort der Entwickler genau das Spiel erreicht, das die Meldung geschickt hat.
+   Antworten und Rückfragen werden dir im Spiel angezeigt; eine Antwort, die du dort eintippst, wird bei
+   deiner Meldung gespeichert. Diese Meldungen hängen an deiner Spielinstallation, nicht an einem
+   Portal-Konto.</li>
   <li><b>Sitzung:</b> ein zufälliges Sitzungs-Token im localStorage deines Browsers (kein Cookie,
    kein seitenübergreifendes Tracking). Wählst du eine Sprache, merkt sich ein einzelnes Cookie
    (<code>bbs_lang</code>) nur diese Einstellung.</li>
@@ -863,6 +874,10 @@ loadNotices();
    Button <b>„Konto löschen“</b> auf der Welten-Seite; damit werden Konto, Sitzungen, deine Meldungen und
    alle deine Welten samt Spielständen endgültig entfernt.</li>
   <li>Lange inaktive Welten werden nach etwa {config.ArchiveAfterMonths} Monaten archiviert (nicht gelöscht).</li>
+  <li>Fehlermeldungen aus dem Spiel bleiben samt Gesprächsverlauf im Meldungs-Postfach, bis wir sie löschen —
+   eine automatische Löschfrist gibt es derzeit nicht, und das Löschen des Portal-Kontos betrifft sie nicht.
+   Möchtest du sie löschen lassen, schreib an die oben genannte E-Mail-Adresse und nenne den Titel der
+   Meldung oder den Spielernamen, den du im Spiel verwendet hast.</li>
   <li>IP-bezogene Einträge in Rate-Limits liegen nur im Arbeitsspeicher; Server-Protokolle werden turnusmäßig überschrieben.</li>
  </ul>
 </div>

@@ -177,4 +177,7 @@ The release workflows write the partial from the GitHub **Environment secret** `
 - Set the `BBS_BUGREPORT_API_KEY` Environment secret to the deployed ReportHost's write key (the old
   `WIX_BUGREPORT_API_KEY` secret is obsolete after the cutover).
 - Keep the legacy Wix endpoint accepting until pre-cutover builds have died out, then retire its key.
-- Confirm the GDPR/privacy note on the website matches `ui.feedback.hint`.
+- Keep the portal privacy page in step with `ui.feedback.hint`: `privacy.summary.reports` (all 14 portal
+  locales, `src/BlocksBeyondTheStars.WorldHost/Locales/`) plus the German sections 2 and 5 of
+  `WorldHostPortalPages.Privacy` describe what an in-game report carries, the one-way reply key, in-game
+  answers, retention (no automatic expiry on the official inbox today) and deletion on request (#1329).
