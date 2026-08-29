@@ -169,6 +169,49 @@ public sealed partial class GameServer
     /// whole ship. Used by every ship-placement consumer.</summary>
     private int PadGroundY(int cx, int cz) => PadGroundY(_world.Planet, cx, cz);
 
+    /// <summary>How far above the generated median the touchdown height looks for player-built ground: a
+    /// paved yard or a raised platform over the pad, not a tower beside it.</summary>
+    private const int PadRaiseScan = 8;
+
+    /// <summary>The height a ship parks on and a player touches down at (#1318): the pad's generated median
+    /// (<see cref="PadGroundY(int,int)"/>), RAISED to whatever has been built over the footprint since — the
+    /// real blocks at the centre and the four corner columns, scanned from the median up to
+    /// <see cref="PadRaiseScan"/> cells. Never lowered: a pit dug at the centre must not sink the hull, and the
+    /// median stays the floor the pad was levelled to at generation. Lyxette paved his landing site with
+    /// concrete walkways; the median ignored them, so every landing put the ship — and him — inside his own
+    /// floor until the entombment rescue dug him out a second later.</summary>
+    private int PadSurfaceY(int cx, int cz)
+    {
+        const int r = 4;
+        int median = PadGroundY(cx, cz);
+        int top = median;
+        foreach (var (dx, dz) in new[] { (0, 0), (-r, -r), (r, -r), (-r, r), (r, r) })
+        {
+            for (int dy = PadRaiseScan; dy >= 1; dy--)
+            {
+                if (IsBodyBlockingCell(cx + dx, median + dy, cz + dz))
+                {
+                    top = System.Math.Max(top, median + dy);
+                    break;
+                }
+            }
+        }
+
+        return top;
+    }
+
+    /// <summary>Test seam: a pad's centre column and generated ground height on the active world.</summary>
+    public (int X, int Y, int Z) LandingPadForTest(int index)
+    {
+        if (_landingPads.Count == 0)
+        {
+            BuildLandingPads();
+        }
+
+        var pad = _landingPads[index];
+        return (pad.CenterX, pad.CenterY, pad.CenterZ);
+    }
+
     /// <summary>As <see cref="PadGroundY(int,int)"/> but for an explicit planet (the generator must already be
     /// configured for that body's circumference) — so pads can be computed for any body, loaded or not.</summary>
     private int PadGroundY(PlanetType planet, int cx, int cz)
@@ -526,7 +569,7 @@ public sealed partial class GameServer
         }
 
         var pad = PlayerPad(session);
-        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
+        int surfaceY = PadSurfaceY(pad.CenterX, pad.CenterZ); // the ship placement's height: median, raised over player builds (#1318)
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
         if (!session.Spectating)

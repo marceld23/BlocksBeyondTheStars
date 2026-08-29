@@ -829,7 +829,7 @@ public sealed partial class GameServer
         }
 
         var pad = PlayerPad(session); // the pad claimed above (item 38)
-        int surfaceY = PadGroundY(pad.CenterX, pad.CenterZ); // matches the ship placement's median footprint height
+        int surfaceY = PadSurfaceY(pad.CenterX, pad.CenterZ); // the ship placement's height: median, raised over player builds (#1318)
         var spawn = _shipPlaced ? _healTank : new Vector3f(pad.CenterX + 0.5f, surfaceY + 2f, pad.CenterZ + 0.5f);
         session.State.Position = spawn;
         session.AwaitingSpawnAdopt = true; // #865: the client still streams its pre-landing pose for a beat
@@ -3237,7 +3237,7 @@ public sealed partial class GameServer
             spawnZ = pad.CenterZ;
         }
 
-        int surfaceY = PadGroundY(spawnX, spawnZ); // median footprint height — same level the ship stamps at
+        int surfaceY = PadSurfaceY(spawnX, spawnZ); // the level the ship parks at: median, raised over player builds (#1318)
         var spawn = new Vector3f(spawnX + 0.5f, surfaceY + 2f, spawnZ + 0.5f);
         var state = new PlayerState
         {

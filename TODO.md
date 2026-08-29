@@ -9643,6 +9643,26 @@ is **pre-approved** (keys in `tools/ai-assets/.env`, run via `uv`).
 
 ---
 
+## ✅ Done (2026-08-29): touchdown on the real ground over a pad, and a rescue you can read (#1318)
+
+Lyxette's "landed and was suddenly underground" (round 3). Server only.
+
+* **Repro first, as the issue asked — the spread hypothesis does not hold.** A 75-seed probe (25 × `varied`,
+  `swamp`, `highland`, no ship) found 0 entombed spawns: pads are nudged flat and levelled to the median at
+  generation, so the generated centre column never sits above the median. What `PadGroundY` ignores is the
+  REAL blocks — it reads `_generator.SurfaceHeight`. Building on a pad is admin-only, and in singleplayer the
+  first player is the world admin: Lyxette paved his landing site (the #1320 walkways), and every landing put
+  the ship — and his spawn, the hull's heal-tank cell — inside his own floor until `TickVoidRescue` dug him out.
+* **`PadSurfaceY`:** the median, raised over the footprint's real blocks (centre + four corners, ≤ 8 cells,
+  `IsBodyBlockingCell`), never lowered (a pit must not sink the hull). Used by `PlaceLandedShip`, both pad spawns
+  (`HandleTravel`, `RelocateToAssignedPad`), the new-player spawn and `SafeSpawnPoint`. Untouched pads keep the
+  exact old height — existing saves unchanged.
+* **Readable rescue:** the HUD toast has no lifetime (the next `LastMessage` overwrites it, and a landing sends
+  several), so the dug-out notice "flashed". It is now also sent as a plain localized chat line.
+* Tests: `PadSpawnTests` (4) — paved pad without/with ship, untouched pad unchanged, rescue in chat.
+
+---
+
 ## ✅ Done (2026-08-29): walled base areas keep the wildlife out (#1315)
 
 Lyxette's "they spawn inside my walls — and the walls are too high for them" (round 3). Server + data.

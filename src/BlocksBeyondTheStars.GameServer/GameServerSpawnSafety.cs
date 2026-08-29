@@ -173,7 +173,7 @@ public sealed partial class GameServer
         var pad = FindSessionByPlayerId(playerId) is { } s ? PlayerPad(s)
             : (_landingPads.Count > 0 ? _landingPads[0] : null);
         int px = pad?.CenterX ?? 0, pz = pad?.CenterZ ?? 0;
-        int surfaceY = _generator.SurfaceHeight(_world.Planet, px, pz);
+        int surfaceY = PadSurfaceY(px, pz); // real ground over the pad, never the generated surface alone (#1318)
         return new Vector3f(px + 0.5f, surfaceY + 2f, pz + 0.5f);
     }
 
@@ -260,6 +260,9 @@ public sealed partial class GameServer
                 s.AwaitingSpawnAdopt = true; // #865: the client's stale stream must not drag them back in
                 _log.Warn($"Player '{p.Name}' was sealed inside blocks; moved to {freed}.");
                 Send(s, new RespawnNotice { X = freed.X, Y = freed.Y, Z = freed.Z, Reason = "@srv.misc.dug_out" });
+                // #1318: the HUD toast is overwritten by the next message (a landing sends several), so the
+                // rescue "flashed too briefly to read" — mirror it into the chat scrollback as plain text.
+                Send(s, new ServerMessage { Text = Localize(s.Locale, "srv.misc.dug_out") });
                 SendPlayerState(s);
                 continue;
             }
@@ -274,6 +277,7 @@ public sealed partial class GameServer
             s.AwaitingSpawnAdopt = true; // #865: the client's stale stream must not drag them back down
             _log.Warn($"Player '{p.Name}' fell into the void; recovered to {safe}.");
             Send(s, new RespawnNotice { X = safe.X, Y = safe.Y, Z = safe.Z, Reason = "@srv.misc.fall_recovered" });
+            Send(s, new ServerMessage { Text = Localize(s.Locale, "srv.misc.fall_recovered") }); // readable in chat too (#1318)
             SendPlayerState(s);
         }
     }
