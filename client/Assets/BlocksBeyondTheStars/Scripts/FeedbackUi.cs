@@ -92,7 +92,7 @@ namespace BlocksBeyondTheStars.Client
         private Task<FeedbackReplyResult> _pollTask;
         private Task<FeedbackReplyResult> _answerTask;
         private readonly Queue<FeedbackReplyThread> _inbox = new Queue<FeedbackReplyThread>();
-        private readonly HashSet<string> _inboxIds = new HashSet<string>();
+        private readonly FeedbackReplyTracker _inboxTracker = new FeedbackReplyTracker(); // by reply id (#1351)
         private readonly object _replyOwner = new object(); // its own menu owner — independent of the F1 dialog
 
         // Reply window (built lazily).
@@ -608,9 +608,12 @@ namespace BlocksBeyondTheStars.Client
             FeedbackReplyThread first = null;
             foreach (var thread in result.Threads)
             {
-                if (thread.UnseenIds.Count == 0 || !_inboxIds.Add(thread.ReportId))
+                // Keyed by reply id, not report id (#1351): a second answer or follow-up question on a report
+                // whose first answer was already acknowledged opens the window again instead of waiting for
+                // the next world restart.
+                if (!_inboxTracker.Offer(thread))
                 {
-                    continue; // nothing new, or already queued/shown this session
+                    continue; // nothing new, or every unseen entry was already queued/shown this session
                 }
 
                 _inbox.Enqueue(thread);

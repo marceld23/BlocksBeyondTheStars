@@ -1118,7 +1118,10 @@ namespace BlocksBeyondTheStars.Client
             // rebuilt, and a raycast against it can miss for a frame — which stalled the WHOLE drill (no tick, no
             // mine, no sparks) until it settled, then everything resumed. That stall was the "mining gets stuck,
             // then a block suddenly mines and the stuck ones work too" bug (B32). The voxel world never stalls.
-            if (!AimBlock(out var hitCell, out _))
+            // Same fluid-aware target as the click (#1353): a tier-3 drill that needs two hits on lava used to
+            // tap the lava cell and then, held, march through it to the rock behind — the lava never broke.
+            // A parked-ship cell is a structure edit, which stays a per-click action (no hold-drilling hulls).
+            if (!AimTarget(out var hitCell, out _, out var aimedShip, HeldToolFluidAim()) || aimedShip != null)
             {
                 return;
             }
@@ -1201,15 +1204,63 @@ namespace BlocksBeyondTheStars.Client
                 && !string.IsNullOrEmpty(Game.Content?.GetItem(held)?.PlacesBlock);
         }
 
-        /// <summary>True if the selected hotbar tool can mine water/lava by the block data (kind + tier — the
-        /// server applies the same rule, so the client never offers a target it would then reject) (#1310).</summary>
-        private bool HeldToolMinesFluids()
+        /// <summary>Which fluid cells the aim ray may stop at (#1310, #1353) — a flag per fluid so the
+        /// decision is taken against the definition of the fluid actually hit, not "lava stands for both".</summary>
+        [System.Flags]
+        private enum FluidAim
+        {
+            None = 0,
+            Water = 1,
+            Lava = 2,
+            Both = Water | Lava,
+        }
+
+        /// <summary>The fluids the selected hotbar tool can mine by the block data (kind + tier — the server
+        /// applies the same rule, so the client never offers a target it would then reject) (#1310). Water and
+        /// lava are checked separately: a tool that reaches one but not the other stops only at that one.</summary>
+        private FluidAim HeldToolFluidAim()
         {
             string held = Game.ItemInSlot(Game.SelectedHotbarSlot);
             var tool = string.IsNullOrEmpty(held) ? null : Game.Content?.GetItem(held)?.Tool;
-            var lava = Game.Content?.GetBlock("lava");
-            return tool != null && lava != null && lava.Mineable
-                && tool.Kind == lava.RequiredTool && tool.Tier >= lava.MinToolTier;
+            if (tool == null)
+            {
+                return FluidAim.None;
+            }
+
+            var aim = FluidAim.None;
+            if (ToolMines(tool, Game.Content.GetBlock("water")))
+            {
+                aim |= FluidAim.Water;
+            }
+
+            if (ToolMines(tool, Game.Content.GetBlock("lava")))
+            {
+                aim |= FluidAim.Lava;
+            }
+
+            return aim;
+        }
+
+        private static bool ToolMines(BlocksBeyondTheStars.Shared.Definitions.ToolProperties tool,
+            BlocksBeyondTheStars.Shared.Definitions.BlockDefinition fluid)
+            => fluid != null && fluid.Mineable && tool.Kind == fluid.RequiredTool && tool.Tier >= fluid.MinToolTier;
+
+        /// <summary>Both fluids when the held item places a block (the block displaces either, #851), else none.</summary>
+        private FluidAim PlaceFluidAim() => HeldItemPlacesBlock() ? FluidAim.Both : FluidAim.None;
+
+        /// <summary>The cell the selection outline belongs on (#1353): the very target the next click would take
+        /// — mine with the held tool (including the fluids it can mine) or place the held block (into a fluid) —
+        /// so <see cref="MiningFx"/> highlights exactly what <see cref="HandleInteract"/> will accept. Parked-ship
+        /// cells count; a menu or missing rig yields no cell.</summary>
+        public bool AimOutlineCell(out Vector3Int cell)
+        {
+            if (Game == null)
+            {
+                cell = default;
+                return false;
+            }
+
+            return AimTarget(out cell, out _, out _, HeldToolFluidAim() | PlaceFluidAim());
         }
 
         /// <summary>True if the selected hotbar item is a handheld scanner (its primary action scans).</summary>
@@ -3173,7 +3224,7 @@ namespace BlocksBeyondTheStars.Client
             // #851) and for a tool that can actually mine a fluid (a tier-3 drill: mining beam, diamond drill);
             // anything else keeps aiming through them, so a basic drill still reaches the rock under a pond.
             if (!AimTarget(out var hitCell, out var placeCell, out var aimedShip,
-                    fluidSurfaces: mine ? HeldToolMinesFluids() : HeldItemPlacesBlock()))
+                    fluidSurfaces: mine ? HeldToolFluidAim() : PlaceFluidAim()))
             {
                 return;
             }
@@ -3276,8 +3327,9 @@ namespace BlocksBeyondTheStars.Client
         /// and the place cell: a placed block displaces the fluid (#851) and a tier-3 drill mines it, which is
         /// what the block data has promised all along. Over an open lava lake the old march found no target at
         /// all. A ray that STARTS inside fluid (the player is swimming) keeps passing through, so building on
-        /// the seabed from under water is unchanged.</summary>
-        private bool AimTarget(out Vector3Int hitCell, out Vector3Int placeCell, out LandedShipModel ship, bool fluidSurfaces = false)
+        /// the seabed from under water is unchanged. The flags say WHICH fluids stop the ray (#1353): a tool
+        /// that mines lava but not water still aims through a pond to the seabed.</summary>
+        private bool AimTarget(out Vector3Int hitCell, out Vector3Int placeCell, out LandedShipModel ship, FluidAim fluidSurfaces = FluidAim.None)
         {
             hitCell = default;
             placeCell = default;
@@ -3305,7 +3357,8 @@ namespace BlocksBeyondTheStars.Client
             for (int i = 0; i < 80 && t <= Reach; i++)
             {
                 var id = Game.World.GetBlock(x, y, z);
-                bool fluid = !id.IsAir && IsFluidBlock(id);
+                var fluidKind = id.IsAir ? FluidAim.None : FluidKindOf(id);
+                bool fluid = fluidKind != FluidAim.None;
                 if (!id.IsAir && !fluid)
                 {
                     hitCell = new Vector3Int(x, y, z);
@@ -3313,7 +3366,7 @@ namespace BlocksBeyondTheStars.Client
                     return true;
                 }
 
-                if (fluid && fluidSurfaces && !prevFluid)
+                if (fluid && (fluidSurfaces & fluidKind) != 0 && !prevFluid)
                 {
                     hitCell = new Vector3Int(x, y, z);
                     placeCell = hitCell; // into the fluid cell itself — the server displaces it (#851)
@@ -3561,7 +3614,9 @@ namespace BlocksBeyondTheStars.Client
                 Game.HoldingRotatableBlock = rotatable;
             }
 
-            if (!rotatable || !AimTarget(out var hitCell, out var placeCell, out var aimedShip) || aimedShip != null
+            // Same fluid-aware target as the place click (#1353): a held slab/stair gets its ghost over water
+            // and lava, where the click sets the block into the fluid cell.
+            if (!rotatable || !AimTarget(out var hitCell, out var placeCell, out var aimedShip, PlaceFluidAim()) || aimedShip != null
                 || !PendingPlacement(held, hitCell, placeCell, out int shape, out int upFace, out int yaw))
             {
                 _placementGhost?.Hide();
@@ -3668,9 +3723,18 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Water/lava are passed through when aiming (they have no collider — you swim/sink into them).</summary>
         private bool IsFluidBlock(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
+            => FluidKindOf(id) != FluidAim.None;
+
+        /// <summary>Which fluid a block id is (one key lookup — the aim march calls this per cell).</summary>
+        private FluidAim FluidKindOf(BlocksBeyondTheStars.Shared.Primitives.BlockId id)
         {
             var key = Game.Content?.BlockById(id)?.Key;
-            return key is "water" or "lava";
+            return key switch
+            {
+                "water" => FluidAim.Water,
+                "lava" => FluidAim.Lava,
+                _ => FluidAim.None,
+            };
         }
 
         private void SendMovement()

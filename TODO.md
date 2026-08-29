@@ -7,7 +7,7 @@ plans live under [docs/](docs/) (committed); the long-range direction is the str
 keep it current when controls/features change. Last consolidated 2026-06-04.
 
 **Build:** `scripts/build-client.ps1` (Windows) or `scripts/build-client.sh` (Linux) — publishes shared libs + bundled server + Unity player.
-**Test:** `./scripts/run-tests.sh` — currently **2488 server (non-Slow tier) + 419 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
+**Test:** `./scripts/run-tests.sh` — currently **2488 server (non-Slow tier) + 448 client passing** (2026-08-29). Locale parity (en/de) is enforced by a test.
 CI runs two tiers: PRs skip the tests marked `[Trait("Category", "Slow")]`; pushes to `main` and the release workflow run the full suite. CI builds/runs
 tests in Release, and a per-test duration guardrail (`scripts/check-test-durations.py`, PRs only) fails the gate when a non-Slow test exceeds 120 s.
 The server suite is sharded across a 6-runner matrix (`scripts/partition-tests.py` + checked-in weights; `Tests passed` is the required fan-in check) — PR gate ~4:30. The weights decay as test classes are added, so
@@ -9693,6 +9693,34 @@ reports and the #1327 reply channel were missing.
 * Docs: REPORT_HOST.md privacy section points at the wording (update it if retention is enabled);
   PLAYER_FEEDBACK.md's open item "confirm the privacy note" is resolved into a keep-in-step note.
   ⚠ Ships with the WorldHost image redeploy.
+---
+
+## ✅ Done (2026-08-29): client audit follow-ups — second reply, fluid targets, cloud-save peek (#1351, #1353, #1355)
+
+Three follow-ups from the 2026-08-29 client audit of #1328, #1310 and #1322. Client only; Unity build required.
+
+* **A second developer reply on the same report is shown (#1351).** `FeedbackUi` remembered shown threads by
+  REPORT id and never cleared the set, so after the player acknowledged answer A, answer B / a follow-up
+  question on the same report stayed hidden until the world rig restarted. The "which polled threads are new"
+  decision now lives in Client.Core (`Feedback/FeedbackReplyTracker`, keyed by developer reply id: a thread is
+  offered again exactly when it carries an unseen id this session has not queued/shown; a poll that repeats
+  already-shown ids while the ack is in flight stays quiet). Test in `FeedbackReplyTests`.
+* **Outline, held drill and placement ghost use the click's fluid-aware target (#1353).** Since #1310 only the
+  click stopped at water/lava. `MiningFx` dropped its private copy of the voxel march (it skipped fluids
+  unconditionally → no box on lava, or a box on the rock behind it) and asks
+  `PlayerController.AimOutlineCell` — the same `AimTarget` the click uses. The hold-to-mine loop
+  (`HandleDrillAudio`) targets through `AimTarget` too, so a diamond drill (two hits on lava) completes on the
+  lava cell instead of tapping the lava and then holding on the rock behind it (parked-ship cells stay
+  click-only). `UpdatePlacementGhost` passes the place gate, so a held slab/stair shows its ghost over water.
+  `HeldToolMinesFluids` became per-fluid flags (`FluidAim` Water/Lava/Both): the tool check reads the
+  definition of the fluid actually entered instead of `lava` standing for both (same data today, but the
+  client no longer assumes it).
+* **The browser name peek no longer consumes the cloud-save version (#1355).** `ResolveBrowserPlayerNameThenStart`
+  peeked at the cloud blob via `GlitchCloudSaves.FetchLatest`, which wrote `SaveMeta(version)`; the boot's
+  own `FetchLatest` then saw `version <= _lastVersion` with a local blob present and started from the OLDER
+  local world although the name had just been adopted from the newer cloud one. `FetchLatest(done, markSeen)`
+  — the peek passes `markSeen: false` and touches neither `_lastVersion` nor the meta file. The version rule
+  itself moved to Client.Core (`CloudSaveVersions.CloudWins`) with a peek-then-boot test (`CloudSaveVersionsTests`).
 
 ---
 

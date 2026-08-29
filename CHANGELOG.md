@@ -38,6 +38,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   the report, that reports stay until we delete them (no automatic expiry) and are not touched by deleting a
   portal account — and that an e-mail to the address on the page gets them removed.
 
+### 🌊 Outline, held drill and placement ghost agree with the click on water and lava (#1353)
+
+- **What you highlight is what you hit.** Since water and lava became aimable, the click stopped at a fluid
+  but the selection box, the held drill and the slab/stair ghost still marched through it: aiming at lava
+  with a mining beam showed no box (or one on the rock behind), a diamond drill held on lava never finished
+  the cell (its second hit went to the rock behind), and a held slab showed no ghost over water. All three
+  now ask for the same fluid-aware target as the click — and the tool check reads the definition of the
+  fluid actually under the crosshair (water and lava separately) instead of assuming lava stands for both.
+
 ### 🤖 The Guardian machines show their circuits (#1337, #1338)
 
 - **Robots, scan-drones, space drones and UFOs are grey circuit-plated armour, not black silhouettes.**
@@ -80,6 +89,10 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   `player_name` is now persisted like a typed one, and the menu prefills its name field from the saved
   world when the settings are empty.
 - **Docs:** README, user manual and the hosted-worlds notes no longer claim browser play is "online only".
+- **The name lookup no longer eats the cloud save (#1355).** On glitch.fun the deep-linked start peeked at
+  the cloud world to adopt its player name, and that peek marked the cloud version as "already synced" —
+  so the boot right behind it fell back to the older local world. The peek is side-effect free now; the
+  boot receives the newer cloud copy again.
 ### 💬 The developers can answer your F1 report inside the game (#1327, #1328, #1329)
 
 - **Every report now has a reply thread.** An answer shows up as a HUD line plus a window with the conversation
@@ -89,6 +102,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   in the glitch.fun arcade (where answers follow your Glitch install across releases). Operators get a
   conversation view + reply form on the ReportHost detail page and `POST /api/reports/{id}/replies` for scripts;
   reports sent by older game versions are answerable too (the reply key is derived from the stored player id).
+- **A second answer on the same report shows up too (#1351).** Once you had acknowledged a reply, a later
+  answer or follow-up question on that report stayed hidden until the next world restart; the game now
+  tracks the individual replies it has shown, so every new one opens the window again.
 
 ## [2026.8.22] — 2026-08-26
 

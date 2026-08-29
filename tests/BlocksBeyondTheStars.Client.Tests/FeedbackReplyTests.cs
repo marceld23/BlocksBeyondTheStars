@@ -282,6 +282,35 @@ public sealed class FeedbackReplyTests : IDisposable
         Assert.Empty(FeedbackReplyClient.ParseThreads("{\"items\":\"nope\"}"));
     }
 
+    // ---------------- Which polled threads are new (#1351) ----------------
+
+    private static FeedbackReplyThread Thread(string reportId, params long[] unseen)
+    {
+        var t = new FeedbackReplyThread { ReportId = reportId, Title = "t" };
+        t.UnseenIds.AddRange(unseen);
+        return t;
+    }
+
+    [Fact]
+    public void Tracker_ShowsASecondReplyOnTheSameReport_AfterTheFirstWasAcknowledged()
+    {
+        var tracker = new FeedbackReplyTracker();
+
+        Assert.False(tracker.Offer(null));
+        Assert.False(tracker.Offer(Thread("r1")));            // nothing unseen → nothing to show
+        Assert.True(tracker.Offer(Thread("r1", 8)));          // reply A → window
+        Assert.False(tracker.Offer(Thread("r1", 8)));         // same poll result again → not twice
+        Assert.False(tracker.Offer(Thread("r1", 8)));         // ack not landed yet, still id 8 only → quiet
+
+        // The player acknowledged A; the developer posts B on the SAME report. The old report-id set
+        // swallowed this until the world rig restarted.
+        Assert.True(tracker.Offer(Thread("r1", 9)));
+        Assert.True(tracker.Offer(Thread("r1", 8, 10)));      // a mix of old and new → the new one counts
+        Assert.False(tracker.Offer(Thread("r1", 8, 9, 10)));  // everything already shown
+        Assert.True(tracker.Offer(Thread("r2", 11)));         // another report is independent
+        Assert.Equal(4, tracker.ShownCount);
+    }
+
     public void Dispose()
     {
         _running = false;

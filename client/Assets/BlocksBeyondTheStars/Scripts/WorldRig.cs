@@ -513,7 +513,7 @@ namespace BlocksBeyondTheStars.Client
             var miningFx = root.AddComponent<MiningFx>();
             miningFx.Game = boot;
             miningFx.Camera = cam;
-            miningFx.Reach = pc.Reach;
+            miningFx.Player = pc; // the outline asks the player rig for the very cell a click would take (#1353)
 
             // Flora spawn/regrow cue: a growing sprout marks a harvested cell while its plant regrows.
             var floraGrowthFx = root.AddComponent<FloraGrowthFx>();

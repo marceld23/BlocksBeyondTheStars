@@ -61,8 +61,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Fetches the latest cloud save before the world starts. Reports the cloud blob when
         /// it is NEWER than what this browser last synced (continuing on another device), else null —
-        /// the caller keeps its local blob. Guests are detected here and stay local-only.</summary>
-        public static IEnumerator FetchLatest(Action<byte[]> done)
+        /// the caller keeps its local blob. Guests are detected here and stay local-only.
+        /// <paramref name="markSeen"/> records the delivered version as "synced" (the boot); a caller that
+        /// only PEEKS at the blob (the deep-linked name lookup, #1322) passes false — recording it there
+        /// made the boot's own fetch right behind it judge the cloud copy as already known and start from
+        /// the older local blob (#1355).</summary>
+        public static IEnumerator FetchLatest(Action<byte[]> done, bool markSeen = true)
         {
             _blocked = false;
             _lastVersion = LoadMeta();
@@ -119,7 +123,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 bool localExists = File.Exists(BrowserLocalServer.SaveBlobPath);
-                if (response.version <= _lastVersion && localExists)
+                if (!CloudSaveVersions.CloudWins(response.version, _lastVersion, localExists))
                 {
                     // This browser already has everything the cloud has (it uploaded that version).
                     done?.Invoke(null);
@@ -136,11 +140,15 @@ namespace BlocksBeyondTheStars.Client
                     Debug.LogWarning("[CloudSave] Cloud payload was not valid base64 — keeping the local world.");
                 }
 
-                if (blob != null)
+                if (blob != null && markSeen)
                 {
                     _lastVersion = response.version;
                     SaveMeta(_lastVersion);
                     Debug.Log($"[CloudSave] Continuing from cloud version {response.version} ({blob.Length} B).");
+                }
+                else if (blob != null)
+                {
+                    Debug.Log($"[CloudSave] Peeked at cloud version {response.version} ({blob.Length} B) — not marked as synced.");
                 }
 
                 done?.Invoke(blob);
