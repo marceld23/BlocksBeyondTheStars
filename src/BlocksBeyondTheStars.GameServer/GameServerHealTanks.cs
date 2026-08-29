@@ -285,6 +285,7 @@ public sealed partial class GameServer
         SendEnvironment(session);
         SendInventory(session);
         SendLandedShips(session);
+        SendShipPlacement(session); // #1346: the client clears its ship marker on every WorldReset (#1308) — re-arm the blip
         SendPlanetPois(session);
         SendCreatures(session);
         SendContainers(session);
