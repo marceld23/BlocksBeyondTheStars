@@ -791,6 +791,104 @@ public sealed class ReportHostTests : IDisposable
         Assert.NotEqual(new AdminCsrf().Token, new AdminCsrf().Token);
     }
 
+    /// <summary>#1380: the list shows the two rows of an F1 report as ONE report, so "mark done", delete and the
+    /// reply-driven status flips must cover both halves — before, the other row stayed <c>new</c> under the
+    /// status filter or survived a delete as a lone row. An unrelated report in the same window is untouched.</summary>
+    [Fact]
+    public void PairActions_StatusDeleteAndReplyFlips_CoverBothHalves_AndLeaveAStrangerAlone()
+    {
+        var store = NewStore();
+        string client = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 100);
+        string server = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Justus"), new ReportHostConfig(), out _)!, nowUnix: 101);
+        string stranger = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Pilot"), new ReportHostConfig(), out _)!, nowUnix: 102);
+
+        // The pair resolves from either half (the addressed row first); the stranger is a pair of one.
+        Assert.Equal(new[] { server, client }, ReportPairActions.PairOf(store, store.Get(server)!).Select(r => r.Id));
+        Assert.Equal(new[] { client, server }, ReportPairActions.PairOf(store, store.Get(client)!).Select(r => r.Id));
+        Assert.Equal(new[] { stranger }, ReportPairActions.PairOf(store, store.Get(stranger)!).Select(r => r.Id));
+
+        // "mark done" on the screenshot half — the row the list links — sets both; the stranger stays new.
+        Assert.Equal(new[] { server, client }, ReportPairActions.SetStatus(store, server, BugReportStatus.Done));
+        Assert.Equal(BugReportStatus.Done, store.Get(client)!.Status);
+        Assert.Equal(BugReportStatus.Done, store.Get(server)!.Status);
+        Assert.Equal(BugReportStatus.New, store.Get(stranger)!.Status);
+        Assert.Null(ReportPairActions.SetStatus(store, "no-such-id", BugReportStatus.Done));
+        Assert.Null(ReportPairActions.SetStatus(store, server, "bogus"));
+
+        // A developer question flips the thread owner (the keyed client half) on its own; the mirror carries
+        // it over to the screenshot half, and is a no-op once the two agree.
+        Assert.True(store.AddDevReply(client, "Which world was that?", isQuestion: true, nowUnix: 200) > 0);
+        Assert.Equal(BugReportStatus.WaitingForPlayer, store.Get(client)!.Status);
+        Assert.Equal(BugReportStatus.Done, store.Get(server)!.Status);
+        Assert.Equal(1, ReportPairActions.MirrorStatus(store, client));
+        Assert.Equal(BugReportStatus.WaitingForPlayer, store.Get(server)!.Status);
+        Assert.Equal(0, ReportPairActions.MirrorStatus(store, client));
+        Assert.Equal(0, ReportPairActions.MirrorStatus(store, "no-such-id"));
+
+        // Delete from the client half: both rows and the thread are gone, the stranger survives.
+        Assert.Equal(new[] { client, server }, ReportPairActions.Delete(store, client));
+        Assert.Null(store.Get(client));
+        Assert.Null(store.Get(server));
+        Assert.Empty(store.ListReplies(client));
+        Assert.NotNull(store.Get(stranger));
+        Assert.Null(ReportPairActions.Delete(store, client));
+    }
+
+    /// <summary>#1380: pairs triaged apart before actions covered both halves settle on the most advanced state
+    /// once, at startup — idempotent, and a lone row is never touched.</summary>
+    [Fact]
+    public void SyncPairStatuses_SettlesPairsTriagedApart_OnTheMostAdvancedState()
+    {
+        var store = NewStore();
+        string client = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 100);
+        string server = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Justus"), new ReportHostConfig(), out _)!, nowUnix: 101);
+        string stranger = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Pilot"), new ReportHostConfig(), out _)!, nowUnix: 102);
+
+        // The shape the old admin UI left behind: done on the list's row, new on the other.
+        Assert.True(store.SetStatus(server, BugReportStatus.Done));
+        Assert.Equal(1, store.SyncPairStatuses(ReportHostPages.GroupDuplicates));
+        Assert.Equal(BugReportStatus.Done, store.Get(client)!.Status);
+        Assert.Equal(BugReportStatus.Done, store.Get(server)!.Status);
+        Assert.Equal(BugReportStatus.New, store.Get(stranger)!.Status);
+        Assert.Equal(0, store.SyncPairStatuses(ReportHostPages.GroupDuplicates));
+
+        // The ranking is the admin UI's order; unknown values never win.
+        Assert.Equal(BugReportStatus.PlayerReplied, BugReportStatus.MostAdvanced(new[] { BugReportStatus.Triaged, BugReportStatus.PlayerReplied, BugReportStatus.WaitingForPlayer }));
+        Assert.Equal(BugReportStatus.Done, BugReportStatus.MostAdvanced(new[] { BugReportStatus.Done, "bogus", BugReportStatus.New }));
+        Assert.Equal(BugReportStatus.New, BugReportStatus.MostAdvanced(Array.Empty<string>()));
+    }
+
+    /// <summary>#1380: the detail page says when the buttons act on both rows, names the partner, and greys a
+    /// status out only while BOTH halves already have it. A row on its own keeps the old wording.</summary>
+    [Fact]
+    public void DetailPage_SaysActionsCoverBothRows_OnlyForAPair()
+    {
+        var store = NewStore();
+        string client = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer"), new ReportHostConfig(), out _)!, nowUnix: 100);
+        string server = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Justus"), new ReportHostConfig(), out _)!, nowUnix: 101);
+        var serverRow = store.Get(server)!;
+
+        string html = ReportHostPages.Detail(serverRow, pair: ReportPairActions.PairOf(store, serverRow));
+        Assert.Contains("mark done (both rows)", html);
+        Assert.Contains(">delete (both rows)<", html);
+        Assert.Contains("Delete this report and its paired row permanently?", html);
+        Assert.Contains($"<th>Paired row</th><td><a href='/admin/report/{client}'>client row</a>", html);
+        Assert.Contains("value='new'><button disabled>mark new (both rows)", html);
+
+        // Triage the partner alone (the pre-#1380 shape): "mark new" is live again, because it would still change a row.
+        Assert.True(store.SetStatus(client, BugReportStatus.Triaged));
+        html = ReportHostPages.Detail(serverRow, pair: ReportPairActions.PairOf(store, serverRow));
+        Assert.Contains("value='new'><button>mark new (both rows)", html);
+
+        string stranger = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Pilot"), new ReportHostConfig(), out _)!, nowUnix: 102);
+        var strangerRow = store.Get(stranger)!;
+        html = ReportHostPages.Detail(strangerRow, pair: ReportPairActions.PairOf(store, strangerRow));
+        Assert.DoesNotContain("both rows", html);
+        Assert.DoesNotContain("Paired row", html);
+        Assert.Contains("Delete this report permanently?", html);
+        Assert.Contains("value='new'><button disabled>mark new</button>", html);
+    }
+
     public void Dispose()
     {
         foreach (var store in _stores)

@@ -78,6 +78,33 @@ public sealed class ReportDuplicateGroupingTests
         Assert.Equal(2, groups[0].Count);
     }
 
+    /// <summary>#1380: the rows an operator action covers — the addressed row first, then its paired half; an
+    /// unrelated report inside the same window is never part of it.</summary>
+    [Fact]
+    public void PairOf_ReturnsTheRowAndItsHalf_NeverAStranger()
+    {
+        var client = Row("client1", "Treppen Winkel", "Ich will das Treppen in verschiedenen Winkeln platzierbar sind.", 1000);
+        var server = Row("server1", "Bump [Minecraft]: [feedback] Treppen Winkel — Ich will das Treppen in ver",
+            "[feedback] Treppen Winkel — Ich will das Treppen in verschiedenen Winkeln platzierbar sind.",
+            1001, source: "server", screenshot: "bump_1.jpg");
+        var stranger = Row("server2", "Bump [w]: [feedback] Lampe — geht aus.", "[feedback] Lampe — geht aus.", 1002, source: "server", playerName: "Justus");
+        var window = new[] { client, server, stranger };
+
+        var pair = ReportHostPages.PairOf(server, window);
+        Assert.Equal(2, pair.Count);
+        Assert.Equal("server1", pair[0].Id);
+        Assert.Equal("client1", pair[1].Id);
+
+        pair = ReportHostPages.PairOf(client, window);
+        Assert.Equal(2, pair.Count);
+        Assert.Equal("client1", pair[0].Id);
+        Assert.Equal("server1", pair[1].Id);
+
+        pair = ReportHostPages.PairOf(stranger, window);
+        Assert.Single(pair);
+        Assert.Equal("server2", pair[0].Id);
+    }
+
     /// <summary>A #1359 client passes its reply key through /bump, so both halves carry the same key — the
     /// exact identity, which wins over the name (here the player renamed between the two uploads).</summary>
     [Fact]

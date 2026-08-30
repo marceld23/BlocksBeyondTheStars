@@ -13,6 +13,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 📬 Report inbox — "mark done" and delete cover both rows of a report (#1380)
+
+- **Marking a report done or deleting it always left one row behind.** The admin list shows the two rows
+  every in-game F1 report produces (client-direct + the server's `/bump` snapshot) as one report, but the
+  buttons acted on the one row you had opened: the other half stayed `new` — a lone row under the status
+  filter — or survived a delete under its `Bump [world]: …` title. Even without clicking, a follow-up
+  question or a player's answer moved only the keyed half. Status changes and deletes now cover the pair
+  (detail page and `PATCH` / `DELETE /api/reports/{id}` alike — the buttons say "both rows", the API answer
+  lists the `reportIds` changed), the reply-driven flips are mirrored onto the other half, and pairs left
+  triaged apart settle on their most advanced state once at startup. Operators: redeploy the ReportHost image.
+
 ### 📬 Report inbox — the screenshot half of a pair shows the pair's conversation (#1378)
 
 - **Opening a report from the admin list showed an empty conversation** although the developers had answered.

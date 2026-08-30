@@ -142,6 +142,29 @@ public static class ReportHostPages
     }
 
     /// <summary>
+    /// Every row of the report pair <paramref name="r"/> belongs to — <paramref name="r"/> first, then each
+    /// candidate the pairing rule (<see cref="GroupDuplicates"/>) accepts. This is what an operator action
+    /// works on (#1380): status changes and deletes apply to the whole pair, because the list shows the pair
+    /// as ONE report and an action on one row would otherwise leave the other half behind as a lone row
+    /// (still <c>new</c>, or surviving a delete under the server's <c>Bump [world]: …</c> title).
+    /// </summary>
+    /// <param name="candidates">Rows stamped within <see cref="DuplicateWindowSeconds"/> of <paramref name="r"/>
+    /// (see <c>ReportStore.Around</c>); <paramref name="r"/> itself may be among them.</param>
+    public static List<BugReportRecord> PairOf(BugReportRecord r, IReadOnlyList<BugReportRecord> candidates)
+    {
+        var pair = new List<BugReportRecord> { r };
+        foreach (var c in candidates)
+        {
+            if (c.Id != r.Id && IsSameReport(r, c))
+            {
+                pair.Add(c);
+            }
+        }
+
+        return pair;
+    }
+
+    /// <summary>
     /// Collapses the two database rows that one in-game F1 report produces into a single group.
     /// <para>
     /// Pressing F1 fires two independent uploads by design (see the ReportHost docs): the client posts to
@@ -280,10 +303,13 @@ public static class ReportHostPages
 
     /// <param name="threadOwner">The half of the pair that owns the conversation (<see cref="ThreadOwner"/>);
     /// <paramref name="replies"/> are ITS replies. Null or <paramref name="r"/> itself = the row owns its thread.</param>
-    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null)
+    /// <param name="pair">The rows the status buttons and delete act on (<see cref="PairOf"/>, #1380) — the
+    /// page says so when there is more than one. Null = <paramref name="r"/> alone.</param>
+    public static string Detail(BugReportRecord r, IReadOnlyList<ReplyRecord>? replies = null, AdminCsrf? csrf = null, BugReportRecord? threadOwner = null, IReadOnlyList<BugReportRecord>? pair = null)
     {
         replies ??= Array.Empty<ReplyRecord>();
         threadOwner ??= r;
+        var partners = pair?.Where(p => p.Id != r.Id).ToList() ?? new List<BugReportRecord>();
         string csrfField = csrf?.HiddenField() ?? string.Empty;
         var sb = new StringBuilder();
         string when = DateTimeOffset.FromUnixTimeSeconds(r.CreatedUnix).ToString("yyyy-MM-dd HH:mm:ss");
@@ -301,6 +327,17 @@ public static class ReportHostPages
         AppendRow(sb, "Session", r.SessionId);
         AppendRow(sb, "Client time", r.ClientTimestamp);
         AppendRow(sb, "Report id", r.Id);
+        if (partners.Count > 0)
+        {
+            // The other half of the pair (#1380): the list shows the two as one report, and the buttons below
+            // act on both — name the partner so the operator can see what "both rows" means.
+            sb.Append("<tr><th>Paired row</th><td>");
+            sb.Append(string.Join(" · ", partners.Select(p =>
+                $"<a href='/admin/report/{p.Id}'>{(p.Source.Length > 0 ? E(p.Source) : "client")} row</a> " +
+                $"<span class='sub'>({E(p.Status)}{(p.ScreenshotFile.Length > 0 ? ", 📷" : "")})</span>")));
+            sb.Append("</td></tr>");
+        }
+
         sb.Append("</table></div>");
 
         if (r.ScreenshotFile.Length > 0)
@@ -370,13 +407,18 @@ public static class ReportHostPages
         sb.Append($"<label>fixed in version <input type='text' name='fixed_in_version' value='{E(threadOwner.FixedInVersion)}' placeholder='e.g. 2026.8.23' size='14'></label>");
         sb.Append("<button>send to player</button></form></div>");
 
+        // Status and delete act on the whole pair (#1380) — the buttons say so, and a status the partner
+        // already has still counts as "not yet set" when this row lacks it.
+        string bothRows = partners.Count > 0 ? " (both rows)" : string.Empty;
+        string confirmText = partners.Count > 0 ? "Delete this report and its paired row permanently?" : "Delete this report permanently?";
         sb.Append("<div class='card actions'>");
         foreach (var s in BugReportStatus.All)
         {
-            sb.Append($"<form method='post' action='/admin/report/{r.Id}/status'>{csrfField}<input type='hidden' name='status' value='{s}'><button{(s == r.Status ? " disabled" : "")}>mark {s}</button></form>");
+            bool already = s == r.Status && partners.All(p => p.Status == s);
+            sb.Append($"<form method='post' action='/admin/report/{r.Id}/status'>{csrfField}<input type='hidden' name='status' value='{s}'><button{(already ? " disabled" : "")}>mark {s}{bothRows}</button></form>");
         }
 
-        sb.Append($"<form method='post' action='/admin/report/{r.Id}/delete' onsubmit=\"return confirm('Delete this report permanently?')\">{csrfField}<button class='danger'>delete</button></form>");
+        sb.Append($"<form method='post' action='/admin/report/{r.Id}/delete' onsubmit=\"return confirm('{confirmText}')\">{csrfField}<button class='danger'>delete{bothRows}</button></form>");
         sb.Append("</div>");
 
         return Shell($"Report {r.Id[..8]} — Blocks Beyond the Stars", sb.ToString());
