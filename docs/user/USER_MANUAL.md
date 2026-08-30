@@ -1254,7 +1254,11 @@ separate unlock; admins can still disable it through server world rules.
 All editors are menu tools that **export a JSON bundle**; a developer folds it into the game data with the
 matching Python merge tool (review the diff, translate locale placeholders, commit). Shared build-room
 controls (Ship/Station/Town/Material 3D editors): **hold Right-mouse** to look, **WASD** to fly, **Q/E**
-(or Space/Ctrl) up/down, **Shift** faster, **Left-click** place, **Middle-click** remove, **Esc** to exit.
+(or Space/Ctrl) up/down, **Mouse wheel** zoom (dolly along your view), **Shift** faster, **F** frame the
+build (or the floor centre when nothing is placed yet), **Left-click** place, **Middle-click** remove,
+**Esc** to exit. A translucent ghost cube shows where a click lands (green = free, red = occupied / out of
+bounds); the floor grid marks every cell with a brighter line every 8 cells. The palette on the left has a
+search box (typing there never moves the camera) and a scrollbar.
 
 | Editor | Designs | Export → merge tool |
 |---|---|---|

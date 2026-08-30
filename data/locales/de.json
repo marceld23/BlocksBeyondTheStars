@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "Keine",
   "ui.struct.save": "SPEICHERN / EXPORT",
   "ui.struct.load": "LADEN",
-  "ui.struct.hint": "RECHTE MAUS halten zum Umsehen · WASD + Q/E fliegen · Shift = schneller · LINKSKLICK setzen · MITTELKLICK entfernen · Esc = Menü",
+  "ui.struct.hint": "RECHTE MAUS halten zum Umsehen · WASD + Q/E fliegen · MAUSRAD = zoomen · Shift = schneller · F = Bau zentrieren · LINKSKLICK setzen · MITTELKLICK entfernen · Esc = Menü",
   "ui.struct.hint_pad": "Linker Stick fliegen · rechter Stick umsehen · LB/RB runter/hoch · A setzen · X entfernen · Y drehen · Steuerkreuz Palette · Start = Panels · B = zurück",
   "ui.struct.hint_pad_panel": "Stick geht durch die Panels · A wählt · Start = fliegen und bauen · B = Editor verlassen",
   "ui.tier.small": "Klein",

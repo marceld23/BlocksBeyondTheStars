@@ -588,11 +588,16 @@ namespace BlocksBeyondTheStars.Client
             return tex;
         }
 
-        private static GameObject MakeSphere(string name, Vector3 pos, float scale, Material mat)
+        /// <summary>A sphere body parented under this backdrop — like every other backdrop object, so
+        /// destroying/parking the backdrop takes it along. The planet + moon used to be created at the
+        /// scene root and outlived <c>DestroyMenuBackground</c>: every editor showed a huge blue planet
+        /// rising out of its build floor, and each visit leaked another pair (#1389).</summary>
+        private GameObject MakeSphere(string name, Vector3 pos, float scale, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = name;
             StripCollider(go);
+            go.transform.SetParent(transform, false);
             go.transform.localPosition = pos;
             go.transform.localScale = Vector3.one * scale;
             go.GetComponent<Renderer>().sharedMaterial = mat;

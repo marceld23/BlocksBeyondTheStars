@@ -218,12 +218,22 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Row height under <see cref="UiKit.ScrollList"/>: its layout group has
+        /// <c>childControlHeight = false</c>, so it lays rows out by their OWN rect height and ignores a
+        /// LayoutElement — without an explicit sizeDelta every row was the RectTransform default of
+        /// 100 units tall, three-quarters empty (#1386).</summary>
+        private static void SetRowHeight(GameObject row, float height)
+        {
+            ((RectTransform)row.transform).sizeDelta = new Vector2(0f, height);
+            var le = row.AddComponent<LayoutElement>();
+            le.minHeight = le.preferredHeight = height;
+        }
+
         private void AddHeader(string title)
         {
             var row = new GameObject("Header", typeof(RectTransform));
             row.transform.SetParent(_parent, false);
-            var le = row.AddComponent<LayoutElement>();
-            le.minHeight = le.preferredHeight = 26f;
+            SetRowHeight(row, 26f);
             UiKit.AddText(row.transform, 6f, 4f, 250f, 22f, title, 13, UiKit.CyanDim, TextAnchor.LowerLeft, FontStyle.Bold);
         }
 
@@ -232,8 +242,7 @@ namespace BlocksBeyondTheStars.Client
             var e = _entries[entryIndex];
             var row = new GameObject("Row", typeof(RectTransform));
             row.transform.SetParent(_parent, false);
-            var le = row.AddComponent<LayoutElement>();
-            le.minHeight = le.preferredHeight = 36f;
+            SetRowHeight(row, 36f);
 
             var img = row.AddComponent<Image>();
             img.sprite = UiKit.ButtonSprite;

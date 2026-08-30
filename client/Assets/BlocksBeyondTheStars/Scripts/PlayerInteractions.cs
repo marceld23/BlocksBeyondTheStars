@@ -356,8 +356,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Left column: my inventory as icon cards, each with the −/n/+ offer control.
             UiKit.AddText(panel, ColLeftX, 100f, ColLeftW, 24f, loc.Get("ui.trade.inventory"), 18, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _invContent = UiKit.ScrollList(panel, ColLeftX, 130f, ColLeftW, DialogH - 130f - 96f, 4f);
-            UiKit.AddInlineScrollbar(_invContent.GetComponentInParent<ScrollRect>());
+            _invContent = UiKit.ScrollList(panel, ColLeftX, 130f, ColLeftW, DialogH - 130f - 96f, 4f); // ScrollList brings its own inline scrollbar (#1387)
             _invEmpty = UiKit.AddText(panel, ColLeftX + 12f, 140f, ColLeftW - 24f, 40f, loc.Get("ui.trade.inventory_empty"), 16, UiKit.CyanDim, TextAnchor.UpperLeft);
 
             // Right column, top: what I give (+ knowledge control) with my ready state.

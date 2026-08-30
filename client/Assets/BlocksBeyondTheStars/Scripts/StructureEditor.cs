@@ -85,11 +85,10 @@ namespace BlocksBeyondTheStars.Client
             _cam.backgroundColor = new Color(0.02f, 0.03f, 0.06f);
             _cam.farClipPlane = 1600f;
             camGo.AddComponent<AudioListener>();
-            _cam.transform.position = new Vector3(MaxW / 2f, 18f, -36f);
-            _pitch = 18f;
-            _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
+            EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL); // opening view (#1390)
 
             _view = new EditorVoxelChunkView(transform);
+            _ghost = new EditorPlacementGhost(transform);
             BuildRoom();
             BuildUi();
         }
@@ -135,41 +134,9 @@ namespace BlocksBeyondTheStars.Client
 
         private void BuildRoom()
         {
-            _floor = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            _floor.name = "BuildFloor";
-            _floor.transform.position = new Vector3(MaxW / 2f, -0.5f, MaxL / 2f);
-            _floor.transform.localScale = new Vector3(MaxW, 1f, MaxL);
-            _floor.transform.SetParent(transform, false);
-            _floor.GetComponent<Renderer>().sharedMaterial = Lit(new Color(0.10f, 0.13f, 0.18f), null);
-
-            var lineMat = Unlit(new Color(0.2f, 0.35f, 0.45f, 1f));
-            for (int x = 0; x <= MaxW; x += 2)
-            {
-                GridLine(new Vector3(x, 0.02f, MaxL / 2f), new Vector3(0.03f, 0.02f, MaxL), lineMat);
-            }
-
-            for (int z = 0; z <= MaxL; z += 2)
-            {
-                GridLine(new Vector3(MaxW / 2f, 0.02f, z), new Vector3(MaxW, 0.02f, 0.03f), lineMat);
-            }
-
-            var lightGo = new GameObject("EditorSun");
-            lightGo.transform.SetParent(transform, false);
-            var sun = lightGo.AddComponent<Light>();
-            sun.type = LightType.Directional;
-            sun.transform.rotation = Quaternion.Euler(45f, 35f, 0f);
-            sun.intensity = 1f;
-        }
-
-        private void GridLine(Vector3 pos, Vector3 scale, Material mat)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Grid";
-            Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(transform, false);
-            go.transform.position = pos;
-            go.transform.localScale = scale;
-            go.GetComponent<Renderer>().sharedMaterial = mat;
+            // Floor (raycast target) with the shared procedural grid + fill light (#1391).
+            _floor = EditorSceneKit.BuildFloor(transform, MaxW, MaxL);
+            EditorSceneKit.BuildSun(transform);
         }
 
         private void Update()
@@ -190,23 +157,41 @@ namespace BlocksBeyondTheStars.Client
                 _cam.transform.rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             }
 
-            float speed = (Input.GetKey(KeyCode.LeftShift) ? 55f : 22f) * Time.deltaTime;
-            var move = Vector3.zero;
-            if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
-            if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
-            if (Input.GetKey(KeyCode.D)) move += _cam.transform.right;
-            if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
-            if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
-            if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
-            _cam.transform.position += move * speed;
+            // Keystrokes belong to a focused text field (the palette search, the key/name inputs) —
+            // typing "sand" must not fly the camera away or turn the brush (#1388).
+            bool typing = UiKit.TextFieldFocused();
+            bool fast = Input.GetKey(KeyCode.LeftShift);
+            if (!typing)
+            {
+                float speed = (fast ? 55f : 22f) * Time.deltaTime;
+                var move = Vector3.zero;
+                if (Input.GetKey(KeyCode.W)) move += _cam.transform.forward;
+                if (Input.GetKey(KeyCode.S)) move -= _cam.transform.forward;
+                if (Input.GetKey(KeyCode.D)) move += _cam.transform.right;
+                if (Input.GetKey(KeyCode.A)) move -= _cam.transform.right;
+                if (Input.GetKey(KeyCode.E) || Input.GetKey(KeyCode.Space)) move += Vector3.up;
+                if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
+                _cam.transform.position += move * speed;
+
+                if (Input.GetKeyDown(KeyCode.F))
+                {
+                    EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL);
+                }
+            }
 
             _mouseOverUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
+            if (!_mouseOverUi)
+            {
+                EditorSceneKit.WheelDolly(_cam.transform, fast); // wheel over a panel scrolls the panel
+            }
+
             if (_blocksLabel != null && _lastPlaced != _design.Count)
             {
                 _lastPlaced = _design.Count;
                 _blocksLabel.text = string.Format(L("ui.ed.placed"), _design.Count);
             }
 
+            UpdateGhost(flying || _mouseOverUi);
             if (!flying && !_mouseOverUi)
             {
                 if (Input.GetMouseButtonDown(0)) TryPlace();
@@ -214,13 +199,23 @@ namespace BlocksBeyondTheStars.Client
             }
 
             // Rotate the shape brush (matches the in-game place-orientation control).
-            if (!_mouseOverUi && Input.GetKeyDown(KeyCode.R))
+            if (!typing && !_mouseOverUi && Input.GetKeyDown(KeyCode.R))
             {
                 _brushOrient = (_brushOrient + 1) & 3;
                 if (_orientLabel != null) _orientLabel.text = (_brushOrient * 90) + "°";
             }
 
             _view.Flush(); // upload any chunk meshes touched by this frame's edits
+        }
+
+        private EditorPlacementGhost _ghost;
+
+        /// <summary>Shows where a click would land: green = free cell, red = occupied / out of bounds.</summary>
+        private void UpdateGhost(bool hidden)
+        {
+            Vector3i cell = default;
+            bool show = !hidden && TryGetTargetCell(out cell);
+            _ghost?.Update(show, cell, show && InBounds(cell) && !_design.ContainsKey(cell));
         }
 
         private void TryPlace()
@@ -533,20 +528,6 @@ namespace BlocksBeyondTheStars.Client
             return sb.ToString();
         }
 
-        private static Material Lit(Color color, Texture2D tex)
-        {
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(color) };
-            if (tex != null) m.mainTexture = tex;
-            return m;
-        }
-
-        private static Material Unlit(Color color)
-        {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = ShaderColor.Srgb(color) };
-        }
-
         // ----------------------------- UI (uGUI) -----------------------------
 
         private const float PanelH = 1048f;
@@ -564,6 +545,7 @@ namespace BlocksBeyondTheStars.Client
         private void OnDestroy()
         {
             _view?.Dispose();
+            _ghost?.Dispose();
             _atlas?.Destroy(); // palette sprites reference this texture; the editor owns it (#423 lesson)
             _atlas = null;
             if (_canvas != null)

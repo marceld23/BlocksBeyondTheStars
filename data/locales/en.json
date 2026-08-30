@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "None",
   "ui.struct.save": "SAVE / EXPORT",
   "ui.struct.load": "LOAD",
-  "ui.struct.hint": "Hold RIGHT-MOUSE to look · WASD + Q/E to fly · Shift = faster · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu",
+  "ui.struct.hint": "Hold RIGHT-MOUSE to look · WASD + Q/E to fly · WHEEL = zoom · Shift = faster · F = frame build · LEFT-CLICK place · MIDDLE-CLICK remove · Esc = menu",
   "ui.struct.hint_pad": "Left stick fly · right stick look · LB/RB down/up · A place · X remove · Y turn · D-pad palette · Start = panels · B = back",
   "ui.struct.hint_pad_panel": "Stick walks the panels · A picks · Start = fly and build · B = leave the editor",
   "ui.tier.small": "Small",
