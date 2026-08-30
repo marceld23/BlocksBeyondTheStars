@@ -3896,5 +3896,15 @@
   "ui.part.console": "Console",
   "ui.marker.greenhouse": "Greenhouse",
   "ui.marker.chest": "Chest",
-  "ui.marker.data_terminal": "Data terminal"
+  "ui.marker.data_terminal": "Data terminal",
+  "ui.tier.colossal": "Colossal",
+  "ui.marker.spawn": "Arrival point",
+  "ui.struct.generate_title": "PROCEDURAL STARTING POINT",
+  "ui.struct.seed": "Seed",
+  "ui.struct.reroll": "Reroll",
+  "ui.struct.generate": "Generate",
+  "ui.struct.surface": "Surface block (villages)",
+  "ui.struct.size_station": "Procedural: {0} modules on {1} floor(s), rooms {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Procedural: {0}–{1} × {2}–{3} blocks, {4}–{5} storey(s)",
+  "ui.ed.generated": "Generated a procedural {0} (seed {2}): {1} cells. Edit it and save it as a template."
 }

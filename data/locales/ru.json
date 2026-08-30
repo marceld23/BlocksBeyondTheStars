@@ -3896,5 +3896,15 @@
   "ui.part.console": "Консоль",
   "ui.marker.greenhouse": "Теплица",
   "ui.marker.chest": "Сундук",
-  "ui.marker.data_terminal": "Терминал данных"
+  "ui.marker.data_terminal": "Терминал данных",
+  "ui.tier.colossal": "Колоссальный",
+  "ui.marker.spawn": "Точка прибытия",
+  "ui.struct.generate_title": "ПРОЦЕДУРНАЯ ТОЧКА СТАРТА",
+  "ui.struct.seed": "Сид",
+  "ui.struct.reroll": "Перебросить",
+  "ui.struct.generate": "Сгенерировать",
+  "ui.struct.surface": "Поверхностный блок (посёлки)",
+  "ui.struct.size_station": "Процедурно: {0} модулей на {1} этаж(ах), комнаты {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Процедурно: {0}–{1} × {2}–{3} блоков, {4}–{5} этаж(ей)",
+  "ui.ed.generated": "Сгенерирован процедурный {0} (сид {2}): {1} ячеек. Отредактируй и сохрани как шаблон."
 }

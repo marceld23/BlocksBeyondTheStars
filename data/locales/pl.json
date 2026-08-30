@@ -3896,5 +3896,15 @@
   "ui.part.console": "Konsola",
   "ui.marker.greenhouse": "Szklarnia",
   "ui.marker.chest": "Skrzynia",
-  "ui.marker.data_terminal": "Terminal danych"
+  "ui.marker.data_terminal": "Terminal danych",
+  "ui.tier.colossal": "Olbrzymi",
+  "ui.marker.spawn": "Punkt przybycia",
+  "ui.struct.generate_title": "PROCEDURALNY PUNKT STARTOWY",
+  "ui.struct.seed": "Ziarno",
+  "ui.struct.reroll": "Przerzuć",
+  "ui.struct.generate": "Generuj",
+  "ui.struct.surface": "Blok powierzchniowy (wioski)",
+  "ui.struct.size_station": "Proceduralne: {0} modułów na {1} poziomie(ach), pokoje {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Proceduralne: {0}–{1} × {2}–{3} bloków, {4}–{5} kondygnacji",
+  "ui.ed.generated": "Wygenerowano proceduralny {0} (ziarno {2}): {1} komórek. Edytuj go i zapisz jako szablon."
 }

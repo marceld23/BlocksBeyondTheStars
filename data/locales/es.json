@@ -3896,5 +3896,15 @@
   "ui.part.console": "Consola",
   "ui.marker.greenhouse": "Invernadero",
   "ui.marker.chest": "Cofre",
-  "ui.marker.data_terminal": "Terminal de datos"
+  "ui.marker.data_terminal": "Terminal de datos",
+  "ui.tier.colossal": "Colosal",
+  "ui.marker.spawn": "Punto de llegada",
+  "ui.struct.generate_title": "PUNTO DE INICIO PROCEDURAL",
+  "ui.struct.seed": "Semilla",
+  "ui.struct.reroll": "Volver a tirar",
+  "ui.struct.generate": "Generar",
+  "ui.struct.surface": "Bloque de superficie (aldeas)",
+  "ui.struct.size_station": "Procedural: {0} módulos en {1} planta(s), habitaciones {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Procedural: {0}–{1} × {2}–{3} bloques, {4}–{5} piso(s)",
+  "ui.ed.generated": "Generado un {0} procedimental (semilla {2}): {1} celdas. Edítalo y guárdalo como plantilla."
 }

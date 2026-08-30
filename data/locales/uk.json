@@ -3896,5 +3896,15 @@
   "ui.part.console": "Консоль",
   "ui.marker.greenhouse": "Оранжерея",
   "ui.marker.chest": "Скриня",
-  "ui.marker.data_terminal": "Термінал даних"
+  "ui.marker.data_terminal": "Термінал даних",
+  "ui.tier.colossal": "Колосальний",
+  "ui.marker.spawn": "Точка прибуття",
+  "ui.struct.generate_title": "ПРОЦЕДУРНИЙ ПОЧАТКОВИЙ ПУНКТ",
+  "ui.struct.seed": "Насіння",
+  "ui.struct.reroll": "Перебросити",
+  "ui.struct.generate": "Створити",
+  "ui.struct.surface": "Поверхневий блок (селища)",
+  "ui.struct.size_station": "Процедурно: {0} модулів на {1} поверх(ах), кімнати {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Процедурно: {0}–{1} × {2}–{3} блоків, {4}–{5} поверх(ів)",
+  "ui.ed.generated": "Згенеровано процедурний {0} (seed {2}): {1} клітин. Відредагуй і збережи як шаблон."
 }

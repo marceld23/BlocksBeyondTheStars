@@ -3896,5 +3896,15 @@
   "ui.part.console": "콘솔",
   "ui.marker.greenhouse": "온실",
   "ui.marker.chest": "상자",
-  "ui.marker.data_terminal": "데이터 단말기"
+  "ui.marker.data_terminal": "데이터 단말기",
+  "ui.tier.colossal": "거대한",
+  "ui.marker.spawn": "도착 지점",
+  "ui.struct.generate_title": "절차적 시작 지점",
+  "ui.struct.seed": "시드",
+  "ui.struct.reroll": "다시 뽑기",
+  "ui.struct.generate": "생성",
+  "ui.struct.surface": "표면 블록(마을)",
+  "ui.struct.size_station": "절차적: {1}층에 {0} 모듈, 방 크기 {2}×{3}×{4}",
+  "ui.struct.size_settlement": "절차적: {0}–{1} × {2}–{3} 블록, {4}–{5}층",
+  "ui.ed.generated": "절차적으로 {0} 생성됨(시드 {2}): 셀 {1}개. 편집한 뒤 템플릿으로 저장하세요."
 }

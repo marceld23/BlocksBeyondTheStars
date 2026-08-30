@@ -3896,5 +3896,15 @@
   "ui.part.console": "Konsol",
   "ui.marker.greenhouse": "Sera",
   "ui.marker.chest": "Sandık",
-  "ui.marker.data_terminal": "Veri terminali"
+  "ui.marker.data_terminal": "Veri terminali",
+  "ui.tier.colossal": "Heybetli",
+  "ui.marker.spawn": "Varış noktası",
+  "ui.struct.generate_title": "PROSEDÜREL BAŞLANGIÇ NOKTASI",
+  "ui.struct.seed": "Tohum",
+  "ui.struct.reroll": "Tekrar karıştır",
+  "ui.struct.generate": "Oluştur",
+  "ui.struct.surface": "Yüzey blok (köyler)",
+  "ui.struct.size_station": "Prosedürel: {0} modül, {1} katlı, odalar {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Prosedürel: {0}–{1} × {2}–{3} blok, {4}–{5} kat",
+  "ui.ed.generated": "Prosedürel bir {0} (tohum {2}) oluşturuldu: {1} hücre. Düzenle ve şablon olarak kaydet."
 }

@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System.IO;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using BlocksBeyondTheStars.Shared.World;
+using BlocksBeyondTheStars.WorldGeneration;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -72,6 +74,8 @@ namespace BlocksBeyondTheStars.Client
         private string _pack = "default";   // template pack; a world enables a set of packs
         private int _weight = 1;            // relative selection weight within its tier
         private string _planetTypes = string.Empty; // settlements only: comma-separated planet-type keys (#1115); blank = every world
+        private int _seed = 1;              // procedural starting point (#1401): seed fed to the world-gen generator
+        private string _surface = "grass";  // settlements only: the biome surface block the generator builds villages from
         private string _status = string.Empty;
         private bool _mouseOverUi;
 
@@ -81,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
             _atlas = Shell != null && Shell.Content != null ? new BlockTextureAtlas(Shell.Content) : null;
             _palette = BuildPalette();
             _tiers = EditorMode == Mode.Station
-                ? new[] { "small", "medium", "large", "huge" }
+                ? new[] { "small", "medium", "large", "huge", "colossal" } // colossal = the rare mega-station (#1402)
                 : new[] { "hamlet", "village", "town", "city" };
             _key = EditorMode == Mode.Station ? "my_station" : "my_settlement";
             _name = EditorMode == Mode.Station ? "My Station" : "My Settlement";
@@ -96,6 +100,7 @@ namespace BlocksBeyondTheStars.Client
             EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL); // opening view (#1390)
 
             _view = new EditorVoxelChunkView(transform);
+            _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
             _ghost = new EditorPlacementGhost(transform);
             BuildRoom();
             BuildUi();
@@ -128,6 +133,9 @@ namespace BlocksBeyondTheStars.Client
             M("console", new Color(0.3f, 0.6f, 0.95f)),
             M("npc", new Color(0.85f, 0.6f, 0.5f)),          // used by the shipped spire/bazaar templates (#1398)
             M("greenhouse", new Color(0.45f, 0.85f, 0.35f)), // hydroponics bay marker (#628)
+            M("spawn", new Color(0.95f, 0.95f, 0.6f)),       // arrival point the procedural hub emits (#1401)
+            M("door_slide", new Color(0.40f, 0.85f, 0.95f)), // procedural stations hang doors on these (#1401)
+            M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
         };
 
@@ -140,6 +148,7 @@ namespace BlocksBeyondTheStars.Client
             M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
             M("loot", new Color(0.8f, 0.7f, 0.3f)),
+            M("greenhouse", new Color(0.45f, 0.85f, 0.35f)),    // the generator's garden-house marker (#626, #1401)
             M("chest", new Color(0.75f, 0.55f, 0.25f)),         // loot chest (stilt_hamlet, #1398)
             M("data_terminal", new Color(0.35f, 0.9f, 0.9f)),   // lore terminal (walled_market, #1398)
         };
@@ -303,11 +312,20 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCellData(Vector3i cell, EditorPaletteKit.Entry pal, CellData data)
         {
-            // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch.
-            // The chunked view bakes directional shading + face culling; markers render as small inset cubes.
+            // Real blocks show their atlas tile (#1400); dye/glow tint the texture like in-game. Markers keep
+            // the palette swatch. The chunked view bakes directional shading + face culling; markers render
+            // as small inset cubes.
+            bool textured = false;
+            Rect tile = default;
+            if (_atlas != null && pal.Kind != "marker" && Shell?.Content?.GetBlock(pal.Id) is { } def)
+            {
+                textured = true;
+                tile = _atlas.TileUv(def.NumericId.Value);
+            }
+
             Color baseCol = data.Tint != 0
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
-                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : pal.Color);
+                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : (textured ? Color.white : pal.Color));
 
             _design[cell] = data;
             _view.Set(cell, new EditorVoxelChunkView.Cell
@@ -316,6 +334,8 @@ namespace BlocksBeyondTheStars.Client
                 Glow = data.Glow != 0,
                 Shape = data.Shape,
                 Marker = pal.Kind == "marker",
+                Textured = textured,
+                Uv = tile,
             });
         }
 
@@ -620,6 +640,93 @@ namespace BlocksBeyondTheStars.Client
             RebuildUi();
         }
 
+        /// <summary>The procedural envelope of a tier (#1402): read from the generators' own layout tables so the
+        /// hint can never drift from what world-gen builds.</summary>
+        private string SizeHint(string tier)
+        {
+            if (EditorMode == Mode.Station)
+            {
+                var (modules, floors, rw, rh, rl) = StationGenerator.Layout(tier);
+                return string.Format(L("ui.struct.size_station"), modules, floors, rw, rh, rl);
+            }
+
+            var (cols, rows, baseFloors) = SettlementGenerator.Layout(tier);
+            bool town = tier == "town" || tier == "city";
+            int p = SettlementGenerator.Plot;
+            return string.Format(L("ui.struct.size_settlement"),
+                cols * p + 1, (cols + 1) * p + 1, rows * p + 1, (rows + 1) * p + 1, baseFloors, town ? baseFloors + 1 : baseFloors);
+        }
+
+        /// <summary>Runs the world-gen generator for the current tier + seed on the client (the client ships the
+        /// WorldGeneration assembly) and loads the result as editable cells (#1401): blocks via numeric id → key,
+        /// markers onto the marker palette. A procedural city becomes a five-minute template job.</summary>
+        private void GenerateProcedural()
+        {
+            if (Shell?.Content == null)
+            {
+                return;
+            }
+
+            string tier = _tiers[_tier];
+            var cells = new List<CellJson>();
+            try
+            {
+                int w, h, l;
+                Func<int, int, int, ushort> get;
+                if (EditorMode == Mode.Station)
+                {
+                    var s = StationGenerator.Generate(tier, _seed, Shell.Content);
+                    w = s.Width; h = s.Height; l = s.Length; get = s.Get;
+                    foreach (var m in s.Markers)
+                    {
+                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                    }
+                }
+                else
+                {
+                    string surface = Slug(_surface);
+                    if (string.IsNullOrEmpty(surface) || Shell.Content.GetBlock(surface) == null)
+                    {
+                        surface = "stone"; // the generator's own fallback material
+                    }
+
+                    var s = SettlementGenerator.Generate(tier, ruined: false, _seed, surface, Shell.Content);
+                    w = s.Width; h = s.Height; l = s.Length; get = s.Get;
+                    foreach (var m in s.Markers)
+                    {
+                        cells.Add(new CellJson { x = m.LocalPos.X, y = m.LocalPos.Y, z = m.LocalPos.Z, kind = "marker", id = m.Type });
+                    }
+                }
+
+                // Markers first: a block on a marker cell is the one that gets skipped (and reported), never the
+                // vendor / mission board a settlement needs to function.
+                for (int x = 0; x < w; x++)
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int z = 0; z < l; z++)
+                        {
+                            ushort v = get(x, y, z);
+                            if (v == 0 || Shell.Content.BlockById(new BlockId(v)) is not { } def)
+                            {
+                                continue;
+                            }
+
+                            cells.Add(new CellJson { x = x, y = y, z = z, kind = "block", id = def.Key });
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                SetStatus(string.Format(L("ui.ed.load_failed"), e.Message));
+                return;
+            }
+
+            ApplyTemplate($"{ModeName}_{tier}_{_seed}", $"{TierLabel(tier)} #{_seed}", tier, "default", 1, null, cells, copy: false);
+            SetStatus(string.Format(L("ui.ed.generated"), TierLabel(tier), _design.Count, _seed) + "\n" + _status);
+        }
+
         /// <summary>Clears the current build and rebuilds it (+ the form) from a saved export bundle.</summary>
         private void LoadDesign(string key)
         {
@@ -691,6 +798,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _statusLabel;
         private Text _blocksLabel;
         private Text _tierLabel;
+        private Text _sizeHintLabel;
         private Text _weightLabel;
         private Text _shapeLabel;
         private Text _orientLabel;
@@ -745,8 +853,17 @@ namespace BlocksBeyondTheStars.Client
             // Size tier stepper.
             UiKit.AddText(meta, 16f, y, 150f, 30f, L("ui.struct.tier"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
             _tierLabel = UiKit.AddText(meta, 176f, y, 120f, 30f, TierLabel(_tiers[_tier]), 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () => { _tier = (_tier + 1) % _tiers.Length; _tierLabel.text = TierLabel(_tiers[_tier]); });
-            y += 44f;
+            UiKit.AddButton(meta, 300f, y, 30f, 30f, "→", () =>
+            {
+                _tier = (_tier + 1) % _tiers.Length;
+                _tierLabel.text = TierLabel(_tiers[_tier]);
+                if (_sizeHintLabel != null) _sizeHintLabel.text = SizeHint(_tiers[_tier]);
+            });
+            y += 32f;
+
+            // What the procedural generator builds for this tier, so a template matches its scale (#1402).
+            _sizeHintLabel = UiKit.AddText(meta, 16f, y, 348f, 22f, SizeHint(_tiers[_tier]), 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 26f;
 
             // Template pack (a world enables a set of packs) + selection weight within the tier.
             UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.pack"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
@@ -767,6 +884,29 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddInput(meta, 16f, y, 348f, 30f, _planetTypes, v => _planetTypes = v ?? string.Empty);
                 y += 44f;
             }
+
+            // ── Procedural starting point (#1401): run the world-gen generator for this tier + seed and
+            // load the result into the room to refine into a template. ──
+            UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.generate_title"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            y += 28f;
+            UiKit.AddText(meta, 16f, y, 56f, 30f, L("ui.struct.seed"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            var seedInput = UiKit.AddInput(meta, 74f, y, 86f, 30f, _seed.ToString(), v => { if (int.TryParse(v, out var s)) _seed = s; });
+            seedInput.contentType = InputField.ContentType.IntegerNumber;
+            UiKit.AddButton(meta, 166f, y, 76f, 30f, L("ui.struct.reroll"), () =>
+            {
+                _seed = UnityEngine.Random.Range(1, 1000000);
+                seedInput.SetTextWithoutNotify(_seed.ToString());
+            });
+            UiKit.AddButton(meta, 248f, y, 116f, 30f, L("ui.struct.generate"), GenerateProcedural);
+            y += 38f;
+            if (EditorMode == Mode.Settlement)
+            {
+                UiKit.AddText(meta, 16f, y, 130f, 30f, L("ui.struct.surface"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                UiKit.AddInput(meta, 150f, y, 214f, 30f, _surface, v => _surface = v ?? string.Empty);
+                y += 38f;
+            }
+
+            y += 8f;
 
             // ── Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells ──
             UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.brush"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

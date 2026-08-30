@@ -3896,5 +3896,15 @@
   "ui.part.console": "Console",
   "ui.marker.greenhouse": "Kas",
   "ui.marker.chest": "Kist",
-  "ui.marker.data_terminal": "Dataterminal"
+  "ui.marker.data_terminal": "Dataterminal",
+  "ui.tier.colossal": "Kolossaal",
+  "ui.marker.spawn": "Aankomstpunt",
+  "ui.struct.generate_title": "PROCEDURAAL STARTPUNT",
+  "ui.struct.seed": "Zaad",
+  "ui.struct.reroll": "Opnieuw",
+  "ui.struct.generate": "Genereer",
+  "ui.struct.surface": "Oppervlakteblok (dorpen)",
+  "ui.struct.size_station": "Procedureel: {0} modules op {1} etage(s), kamers {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Procedureel: {0}–{1} × {2}–{3} blokken, {4}–{5} verdiepingen",
+  "ui.ed.generated": "Een procedureel {0} gegenereerd (zaad {2}): {1} cellen. Bewerk het en sla het op als sjabloon."
 }

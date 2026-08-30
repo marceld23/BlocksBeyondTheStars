@@ -3896,5 +3896,15 @@
   "ui.part.console": "控制台",
   "ui.marker.greenhouse": "温室",
   "ui.marker.chest": "箱子",
-  "ui.marker.data_terminal": "数据终端"
+  "ui.marker.data_terminal": "数据终端",
+  "ui.tier.colossal": "巨型",
+  "ui.marker.spawn": "到达点",
+  "ui.struct.generate_title": "程序化起始点",
+  "ui.struct.seed": "种子",
+  "ui.struct.reroll": "重掷",
+  "ui.struct.generate": "生成",
+  "ui.struct.surface": "表面方块（村庄）",
+  "ui.struct.size_station": "程序化：{0} 个模块，{1} 层，房间 {2}×{3}×{4}",
+  "ui.struct.size_settlement": "程序化：{0}–{1} × {2}–{3} 方块，{4}–{5} 层",
+  "ui.ed.generated": "已生成程序化的 {0}（种子 {2}）：{1} 单元。编辑并保存为模板。"
 }

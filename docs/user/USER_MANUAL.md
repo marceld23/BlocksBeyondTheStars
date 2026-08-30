@@ -1274,6 +1274,15 @@ status line instead of vanishing.
 floors and roofs. Set its width / length / height with the *Interior* steppers; wings, engines, nav lights
 and antennae may sit anywhere outside the box (that is how the shipped ships are built).
 
+**Station / Town editor — procedural starting point.** Pick a size tier (stations up to *Colossal*; the line
+under the stepper tells you how big the game's own generator builds that tier), set a **Seed** (or **Reroll**)
+and press **Generate**: the same generator the world uses builds a station / settlement of that tier into the
+room, markers included, ready to edit and save as a template. Villages use the **Surface block** field as their
+material (e.g. `grass`, `sand`, `stone`).
+
+**Textures.** Placed blocks show their real block textures (dye and glow tint them like in-game); station tiles,
+ship elements and interaction markers are drawn as plain colour swatches so they stand out.
+
 | Editor | Designs | Export → merge tool |
 |---|---|---|
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |

@@ -95,7 +95,7 @@ public sealed class SettlementStructure
 /// </summary>
 public static class SettlementGenerator
 {
-    private const int Plot = 8;      // plot stride (building + street margin)
+    public const int Plot = 8;       // plot stride (building + street margin); public so the editor can show the tier envelope (#1402)
     private const int Building = 6;  // max building footprint (Building×Building)
     private const int FloorH = 4;    // height of one storey
     private const int RoofCap = 3;   // reserved head-room above the top storey for roofs

@@ -110,6 +110,23 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Build editors: real block textures, procedural starting point, colossal tier + size hints (#1400–#1402, 2026-08-30, branch feat/editor-load-existing)
+Marcel, after the first load-picker build: "why are the things untextured, and why only village-sized templates?"
+**Textures (#1400)**: `EditorVoxelChunkView` baked the atlas tile's *average* colour into vertex colours and drew
+with `VertexColorOpaque` — the atlas was loaded but only fed the palette icons. Now every face of a real block
+carries its `BlockTextureAtlas.TileUv` in TEXCOORD0 plus a per-vertex sample weight in TEXCOORD1.x, and the
+shader (already Always-Included) multiplies an optional `_MainTex` by the vertex colour — so face shading, dye
+tint and glow still work, markers / stations / non-block elements stay flat (weight 0), creatures and every other
+vertex-colour mesh (no TEXCOORD1 → weight 0) render exactly as before. Shaped cells map the geometry's unit-tile
+uvs into the tile. **Generate (#1401)**: the town / station editor runs `SettlementGenerator.Generate` /
+`StationGenerator.Generate` on the client (the WorldGeneration assembly was already referenced) for the chosen
+tier + seed (Reroll; surface-block field for villages) and loads the result as cells — blocks via `BlockById`,
+markers first so a block never displaces the vendor. Palettes gained the generator markers (`spawn`,
+`door_slide`, `door_hinge` on stations, `greenhouse` on settlements); `StructureGeneratorEditorRoomTests`
+guards every tier × 3 seeds against the 128³ room and the palette. **Colossal + hints (#1402)**: `colossal` in
+the station tier list; a "Procedural: …" line under the tier stepper reads the generators' own `Layout()`
+tables (`SettlementGenerator.Plot` made public). Locales: 10 keys EN/DE + 12 MT.
+
 ### ★ Build editors: load a built-in ship / template as a starting point (#1394–#1399, 2026-08-30, branch feat/editor-load-existing)
 Marcel: "how could the ship editor and the station/town editor load the existing ships and templates so I can
 change them?" LOAD only listed the user's own exports; the shipped content was never offered. **Load (#1394,

@@ -13,6 +13,12 @@ addition to* procedural generation.
 > pinned worlds (#1115) keep the original by key anyway. The palettes gained the marker ids the shipped
 > templates use (`npc`, `greenhouse`, `chest`, `data_terminal`); the settlement form carries `planetTypes`;
 > `tools/merge_structure.py` preserves `legacyPool` / `planetTypes` on a re-merge.
+>
+> **Update (2026-08-30, #1400–#1402):** the editor renders real block textures (`EditorVoxelChunkView` writes
+> atlas uvs + a per-vertex sample weight; `VertexColorOpaque` samples an optional `_MainTex`), offers the
+> `colossal` station tier with a "procedural: …" size line from the generators' `Layout()` tables, and has a
+> **Generate** button that runs `StationGenerator` / `SettlementGenerator` on the client for the chosen tier +
+> seed and loads the result as editable cells — the intended way to author city / huge / colossal templates.
 
 > **Update (2026-06-27) — large builds.** The structure editor's build volume is now **128×128×128**
 > (`StructureEditor.MaxW/MaxH/MaxL`; the ship editor is 48×32×48). To keep large builds editable the editors

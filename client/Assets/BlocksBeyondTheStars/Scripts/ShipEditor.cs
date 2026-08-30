@@ -127,6 +127,7 @@ namespace BlocksBeyondTheStars.Client
             _yaw = 0f;
 
             _view = new EditorVoxelChunkView(transform);
+            _view.SetAtlas(_atlas?.Texture); // real block tiles on placed cells (#1400)
             _ghost = new EditorPlacementGhost(transform);
             BuildRoom();
             _frame = new EditorInteriorFrame(transform);
@@ -473,11 +474,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceCellData(Vector3i cell, EditorPaletteKit.Entry pal, CellData data)
         {
-            // Dye wins for the base colour; a pure glow cell shows its glow colour; else the palette swatch
-            // (mirrors the in-game look). The chunked view bakes the directional shading + face culling.
+            // Real blocks (and the elements that are blocks, e.g. glass / nav lights) show their atlas tile
+            // (#1400); dye/glow tint the texture like in-game. Stations and non-block elements keep the
+            // palette swatch. The chunked view bakes the directional shading + face culling.
+            var tile = TileOf(pal, out bool textured);
             Color baseCol = data.Tint != 0
                 ? EditorVoxelPreview.RgbToColor(data.Tint)
-                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : pal.Color);
+                : (data.Glow != 0 ? EditorVoxelPreview.RgbToColor(data.Glow) : (textured ? Color.white : pal.Color));
 
             _design[cell] = data;
             _view.Set(cell, new EditorVoxelChunkView.Cell
@@ -486,10 +489,26 @@ namespace BlocksBeyondTheStars.Client
                 Glow = data.Glow != 0,
                 Shape = data.Shape,
                 Marker = false, // the ship editor has no markers (elements + stations are solid anchors)
+                Textured = textured,
+                Uv = tile,
             });
         }
 
         private bool InBounds(Vector3i c) => c.X >= 0 && c.X < MaxW && c.Y >= 0 && c.Y < MaxH && c.Z >= 0 && c.Z < MaxL;
+
+        /// <summary>The atlas tile of a palette entry that is a real content block (stations never are;
+        /// elements only when their id is a block key); <paramref name="textured"/> = false otherwise.</summary>
+        private Rect TileOf(EditorPaletteKit.Entry pal, out bool textured)
+        {
+            textured = false;
+            if (_atlas == null || pal.Kind == "station" || Shell?.Content?.GetBlock(pal.Id) is not { } def)
+            {
+                return default;
+            }
+
+            textured = true;
+            return _atlas.TileUv(def.NumericId.Value);
+        }
 
         // ----------------------------- UI (modern uGUI) -----------------------------
 

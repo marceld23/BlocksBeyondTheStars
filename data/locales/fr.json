@@ -3896,5 +3896,15 @@
   "ui.part.console": "Console",
   "ui.marker.greenhouse": "Serre",
   "ui.marker.chest": "Coffre",
-  "ui.marker.data_terminal": "Terminal de données"
+  "ui.marker.data_terminal": "Terminal de données",
+  "ui.tier.colossal": "Colossal",
+  "ui.marker.spawn": "Point d’arrivée",
+  "ui.struct.generate_title": "POINT DE DÉPART PROCÉDURAL",
+  "ui.struct.seed": "Graine",
+  "ui.struct.reroll": "Relancer",
+  "ui.struct.generate": "Générer",
+  "ui.struct.surface": "Bloc de surface (villages)",
+  "ui.struct.size_station": "Procédural : {0} modules sur {1} étage(s), pièces {2}×{3}×{4}",
+  "ui.struct.size_settlement": "Procédural : {0}–{1} × {2}–{3} blocs, {4}–{5} étage(s)",
+  "ui.ed.generated": "Généré un {0} procédural (graine {2}) : {1} cellules. Modifie-le et enregistre-le comme modèle."
 }

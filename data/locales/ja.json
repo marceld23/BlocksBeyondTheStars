@@ -3896,5 +3896,15 @@
   "ui.part.console": "コンソール",
   "ui.marker.greenhouse": "温室",
   "ui.marker.chest": "チェスト",
-  "ui.marker.data_terminal": "データ端末"
+  "ui.marker.data_terminal": "データ端末",
+  "ui.tier.colossal": "巨大",
+  "ui.marker.spawn": "到着地点",
+  "ui.struct.generate_title": "手続き生成の開始地点",
+  "ui.struct.seed": "シード",
+  "ui.struct.reroll": "やり直す",
+  "ui.struct.generate": "生成",
+  "ui.struct.surface": "地表ブロック（村）",
+  "ui.struct.size_station": "手続き生成: {1} 階の {0} モジュール、部屋 {2}×{3}×{4}",
+  "ui.struct.size_settlement": "手続き生成: {0}–{1} × {2}–{3} ブロック、{4}–{5} 階建て",
+  "ui.ed.generated": "手続き生成されたテンプレート {0}（シード {2}）を生成しました: {1} セル。編集してテンプレートとして保存してください。"
 }
