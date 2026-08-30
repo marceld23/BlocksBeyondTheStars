@@ -150,7 +150,7 @@ entire test suite are plain C# and JSON, and everything our CI checks runs on th
 | --- | --- |
 | 🌱 [**Good first issues**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) | Small and scoped, described end to end. Several are **pure JSON** — game balance, recipes, tech-tree wiring — with no C# at all. |
 | 🙌 [**Help wanted**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) | Everything we'd be glad to hand over. |
-| 🌍 [**Localization**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3Alocalization) | No code at all. 14 languages, and **partial translations are welcome** — every missing key falls back to English. |
+| 🌍 [**Localization**](https://github.com/marceld23/BlocksBeyondTheStars/issues?q=is%3Aissue+is%3Aopen+label%3Alocalization) | No code at all. All 14 languages are complete but mostly machine-assisted — **native-speaker polish is welcome**, and even a handful of improved lines makes a real difference. |
 | 🐛 [**All open issues**](https://github.com/marceld23/BlocksBeyondTheStars/issues) | The full list. |
 
 **Quickstart — clone, build, test (.NET 10 SDK, nothing else):**
