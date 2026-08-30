@@ -142,7 +142,7 @@ buttons — retuning is tracked in issue #195):
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
-| **Start** | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
+| **Menu** (☰ — the three-lines button right of the Xbox logo; Unity and 360-era pads call it Start. The Xbox-logo button itself belongs to Windows' Game Bar and never reaches the game) | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
 tab of the gameplay menu** (Inventory, Crafting, Tech, Ship, Map, Missions, Character, …), the Codex, the
@@ -162,7 +162,7 @@ Close).
 
 **Typing without a keyboard.** Move to a text box and press **(A)**: an on-screen keyboard opens, and you
 pick letters with the stick and **(A)**. **ABC/abc** switches upper and lower case, **?123** shows the
-punctuation page, **(X)** deletes the last letter, **Start** is done and **(B)** cancels. Password fields
+punctuation page, **(X)** deletes the last letter, **Menu (☰)** is done and **(B)** cancels. Password fields
 show bullets instead of letters, number fields accept only digits, and when you are done the focus lands
 back on the box you came from. It works
 everywhere text is asked for — the world name, a server address, a beacon or blueprint label, the chat —
@@ -173,7 +173,7 @@ keyboard opens instead; nothing changes there.)
 speed, so lining a block up is easier without changing your normal look speed.
 
 **Editors on a controller.** The Ship Editor and the pixel (face/paint) editor have two modes, and
-**Start** swaps between them: the side panels (stick walks them, **(A)** picks) and the work surface. In
+**Menu (☰)** swaps between them: the side panels (stick walks them, **(A)** picks) and the work surface. In
 the Ship Editor's surface mode the left stick flies, the right stick looks, **LB/RB** drop and rise,
 **L3** flies faster, the d-pad steps through the palette, **(A)** places, **(X)** removes and **(Y)** turns
 the block — a crosshair in the middle of the screen shows where it will land. In the pixel editor the stick
@@ -192,7 +192,7 @@ remembered but which nothing acts on yet.
 Tap the pad button and press any controller button to rebind it (actions marked **—** have no pad button
 by default but can be given one). *Reset controls* restores both keyboard and pad defaults. The **Menus**
 group at the bottom (close/back, open the menu) shows its keyboard keys greyed out: **Esc** and **Tab**
-stay fixed so nobody can bind away the key that leaves a window — the pad buttons **(B)** and **Start**
+stay fixed so nobody can bind away the key that leaves a window — the pad buttons **(B)** and **Menu**
 are rebindable as usual.
 
 ### Touch controls (experimental — tablet / touch browser)
@@ -270,7 +270,7 @@ separate unlock; admins can still disable it through server world rules.
   **P** pauses, **R** restarts, **H** opens help — and the mouse plays the pointer games directly. **Esc**
   acts as the in-game *Cancel* in games that use one; otherwise it closes the screen as usual.
 - **Gamepad — every game is playable on the pad:** left stick / D-pad steer, **(A)** confirms / acts,
-  **(B)** cancels, **(X)** secondary, **(Y)** help, **Start** pauses, **View** (Back) restarts. In the pointer
+  **(B)** cancels, **(X)** secondary, **(Y)** help, **Menu (☰)** pauses, **View** (Back) restarts. In the pointer
   games (puzzles like Star Memory, Void Solitaire, Laser Grid …) the stick glides a **cursor reticle**
   across the board and **(A)** clicks — drags included — while the D-pad keeps serving any arrow moves.
   The start/pause/result overlays are stick-navigable like every other menu.

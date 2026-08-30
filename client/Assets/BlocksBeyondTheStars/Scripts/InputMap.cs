@@ -447,7 +447,10 @@ namespace BlocksBeyondTheStars.Client
                 // rectangles); "Back" was the 360's name, which is Unity's — and no player looking at a
                 // modern pad found it, so VEGA lines seemed undismissable on a controller.
                 KeyCode.JoystickButton6 => set switch { PadGlyphSet.PlayStation => "Share", PadGlyphSet.Nintendo => "-", _ => "View" },
-                KeyCode.JoystickButton7 => set switch { PadGlyphSet.PlayStation => "Options", PadGlyphSet.Nintendo => "+", _ => "Start" },
+                // Same story for "Start": since the Xbox One it is the "Menu" button (three lines, right of
+                // the logo). A player reading "Start" reached for the Xbox-logo button — which Windows'
+                // Game Bar owns — and concluded the game had no way into its menus on a pad.
+                KeyCode.JoystickButton7 => set switch { PadGlyphSet.PlayStation => "Options", PadGlyphSet.Nintendo => "+", _ => "Menu" },
                 KeyCode.JoystickButton8 => set == PadGlyphSet.Xbox ? "LS" : "L3",
                 KeyCode.JoystickButton9 => set == PadGlyphSet.Xbox ? "RS" : "R3",
                 >= KeyCode.JoystickButton10 and <= KeyCode.JoystickButton19 => "B" + (button - KeyCode.JoystickButton0),

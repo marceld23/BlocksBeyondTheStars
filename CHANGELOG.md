@@ -27,7 +27,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   selected wedge lifts to cyan.
 - **VEGA lines can be dismissed on a pad** — they always could, on the button Unity calls "Back": the game
   now names it **View**, which is what is printed on every Xbox pad since the One (the hint reads
-  "Continue · View"; Share on PlayStation, − on Nintendo).
+  "Continue · View"; Share on PlayStation, − on Nintendo). Likewise the menu button is now called **Menu**
+  (☰, right of the Xbox logo) instead of "Start" — a player reading "Start" reached for the Xbox-logo button,
+  which Windows' Game Bar owns, and found no way into the menus.
 - **Text fields showed no focus at all** (#1406): a runtime-built `InputField` has no `targetGraphic`, so
   its tint never changed. Fields now light up like buttons — which is how you find the name box.
 - **The selection scrolls into view** (#1407): moving down a long list (crafting, settings, the Codex …)

@@ -61,7 +61,7 @@ HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / Can
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
   **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
-  Start = menu. Every other action reaches the pad through the context-actions list or a rebind.
+  **Menu = UiMenu** (`PadButton.Start`, JoystickButton7 — shown as "Menu", the One/Series name; the Xbox-logo button belongs to the Windows Game Bar and never reaches the game). Every other action reaches the pad through the context-actions list or a rebind.
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
   both are still bindable to a *button* as well. Up went to chat because that is what makes text entry
@@ -125,7 +125,7 @@ Three rules the component enforces so it never does harm off-screen:
   (the crafting pane rebuilds all three panels on every pick).
 
 `UiNav.SetSuspended(root, true)` hands the sticks to a screen's 3D viewport and clears the selection — used by
-the ship and face editors, where **Start** swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
+the ship and face editors, where **Menu** (Start) swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
 and `NoteSelection()` are the seams `UiNavEditModeTests` checks, since CI has no pad.
 
 Beyond claiming the selection, `UiNavFocus` supplies the three things a mouse pointer gives a menu for free
@@ -180,7 +180,7 @@ Nine screens used to poll `KeyCode.JoystickButton1` / `JoystickButton7` raw, rig
 | Action | Keyboard | Pad | Rebindable |
 |---|---|---|---|
 | `InputAction.UiCancel` | `Escape` | **B** | pad column only |
-| `InputAction.UiMenu` | `Tab` | **Start** | pad column only |
+| `InputAction.UiMenu` | `Tab` | **Menu** (Unity: Start) | pad column only |
 
 `InputMap.KeyboardLocked(action)` makes the keyboard column fixed and `UiSettings.KeyRow` renders those rows
 with a disabled key button. Escape and Tab must not be bindable away: a player who did could end up inside a
@@ -204,7 +204,7 @@ numbers stay in `GamepadInputSource` alone. The two editors use them today; the 
 ### Editors on a pad
 
 Both standalone editors are pointer-native tools, so they get a **focus toggle** rather than a cursor
-emulation: **Start** swaps between the side panels (UiNav) and the work surface, because one stick cannot walk
+emulation: **Menu** (Start) swaps between the side panels (UiNav) and the work surface, because one stick cannot walk
 a list and steer a brush at the same time. **B** leaves the surface; from the panels it leaves the editor.
 
 | | Ship editor (`ShipEditor`) | Pixel editor (`FaceEditor`) |

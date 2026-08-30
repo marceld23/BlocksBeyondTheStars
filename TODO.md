@@ -129,7 +129,8 @@ on the new tab; off while typing or the appearance editor is up). **#1411** both
 stayed inert because a mouse-clicked HUD button stays selected for ever and `UiNavFocus` deferred to ANY valid
 selection → `StaleForeignSelection` claims unless another live pad screen owns it, pop-ups clear the selection on
 open; and VEGA's continue button was named "Back" (360) where every modern Xbox pad prints **View** → glyph
-renamed (docs + `ui.hud.hint_pad`). Third pass: the Esc pause menu had NO pad route (Esc keyboard-only, all stock
+renamed (docs + `ui.hud.hint_pad`); same for "Start" → **Menu** (Marcel took "Start" for the Xbox-logo button, which the
+Game Bar owns). Third pass: the Esc pause menu had NO pad route (Esc keyboard-only, all stock
 buttons taken) → "Pause menu" button in the Start screen's top strip → `AppShell.OpenPauseMenu()` (public,
 extracted from the Esc branch), dialog canvas `UiNav`-enabled, B resumes while it is up (`_confirmQuit` gate —
 the world is held, so B is nobody's crouch). Tests: `GamepadMenuEditModeTests` (9 — ring,

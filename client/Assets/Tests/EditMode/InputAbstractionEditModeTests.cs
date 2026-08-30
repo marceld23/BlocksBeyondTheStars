@@ -309,7 +309,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             InputMap.Use(settings);
 
             Assert.AreEqual("(A)", InputMap.PadGlyph(KeyCode.JoystickButton0), "Xbox is the default");
-            Assert.AreEqual("Start", InputMap.PadGlyph(KeyCode.JoystickButton7));
+            Assert.AreEqual("Menu", InputMap.PadGlyph(KeyCode.JoystickButton7), "the One/Series name, not the 360's Start");
 
             settings.PadGlyphs = PadGlyphSet.PlayStation;
             Assert.AreEqual("(Cross)", InputMap.PadGlyph(KeyCode.JoystickButton0));
