@@ -110,6 +110,20 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WorldHost: the VPS disk leak — 92 GB of orphaned anonymous volumes (#1414, 2026-08-30, branch fix/worldhost-volume-leak)
+Marcel: "what exactly eats so much disk on my VPS?" — 121 GB / 237 GB, and `docker system df` said 379 volumes,
+351 dangling, 92 GB reclaimable (+ 93 images, 82 unused, 17 GB). Four pieces: the `Dockerfile` declares
+`/app/saves /app/config /app/clients /app/webgl` as VOLUMEs; `DockerCliLauncher.BuildRunArgs` bind-mounts only
+saves, so every `docker run` minted THREE anonymous volumes; `entrypoint.sh` defaults `BBS_FETCH_CLIENT=1` and
+pulled Setup.exe + AppImage + macOS zip (~1 GB) into `/app/clients` on every start — for an instance whose admin
+port is never published; and `Start()`/`Remove()` ran `docker rm -f` without `-v`, orphaning them on every
+re-wake (6–18 per day since 2026-07-05). Fix: `rm -f -v` at both call sites (saves are a bind mount, untouched),
+`-e BBS_FETCH_CLIENT=0` per instance, Dockerfile VOLUME list = saves + config only. Ops (done by hand on the host):
+`docker volume prune` −92 GB, `docker image prune -a` −18 GB → **18 GB used**; `/etc/cron.weekly/bbs-docker-prune`
+(dangling volumes + images unused >30 d, never containers) as belt-and-braces. Test:
+`BuildRunArgs_SkipsClientInstallerFetch_AndMountsOnlySaves`. Docs: deploy/README § Disk hygiene (+ runbook step 4
+`rm -v`), HOSTED_WORLDS diagram, CHANGELOG.
+
 ### ★ Gamepad: the menus are actually navigable — search-box trap, pie ring, field focus, scroll-into-view, hint strip, LB/RB tabs, selection frame, scrollbars (#1404–#1411, 2026-08-30, branch fix/gamepad-menus)
 Marcel's pad test: "how do I enter a name, how do I navigate the Tab menu, the R3 pie can't be used." Three real
 bugs plus the missing guidance. **#1404** the crafting search box was the one `InputField` built by hand (no

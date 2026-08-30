@@ -45,7 +45,8 @@ public interface IInstanceLauncher
 /// registry (world ids are server-generated hex; the display name is passed only as an ENV VALUE).
 ///
 /// Container shape per world:
-///  - name <c>bbs-world-&lt;id&gt;</c>, volume <c>bbs-world-&lt;id&gt;-saves</c> mounted at /app/saves
+///  - name <c>bbs-world-&lt;id&gt;</c>, the host's <c>worlds/&lt;id&gt;/saves</c> BIND-mounted at /app/saves — the only
+///    mount; every other VOLUME the image declares would become an anonymous volume, hence <c>rm -v</c> (#1414)
 ///  - <c>--restart=no</c> — REQUIRED: the instance exits itself on idle (BBS_IDLE_SHUTDOWN_MINUTES);
 ///    an auto-restart policy would wake it right back up and defeat sleeping
 ///  - one stable host port published as udp (native gameplay) AND tcp (WS gateway; /status health probe)
@@ -67,7 +68,10 @@ public sealed class DockerCliLauncher : IInstanceLauncher
         // Instances exit on idle but their container OBJECT remains (we run without --rm so logs stay
         // inspectable while a world sleeps) — remove any stale one first or the re-wake's `docker run
         // --name bbs-world-<id>` fails with a name conflict. Best effort: "no such container" is fine.
-        Run(new List<string> { "rm", "-f", $"bbs-world-{world.Id}" });
+        // `-v` drops the container's ANONYMOUS volumes with it (the image declares VOLUMEs we do not mount);
+        // without it every wake leaked them — 92 GB of orphans on the VPS by 2026-08-30 (#1414). The saves
+        // are a bind mount, which `-v` never touches.
+        Run(new List<string> { "rm", "-f", "-v", $"bbs-world-{world.Id}" });
 
         var (exitCode, stdout, stderr) = Run(BuildRunArgs(_config, world, savesDir));
         if (exitCode != 0)
@@ -103,6 +107,9 @@ public sealed class DockerCliLauncher : IInstanceLauncher
             "-e", $"BBS_WORLD_OWNER={world.OwnerAccountId}",
             "-e", "BBS_ENABLE_WEBSOCKET=true",
             "-e", "BBS_WEBSOCKET_BIND=+",
+            // A hosted instance never publishes its admin port, so the entrypoint's best-effort download of the
+            // client installers (~1 GB per start, into /app/clients) could never be served — skip it (#1414).
+            "-e", "BBS_FETCH_CLIENT=0",
         };
 
         // Resource fences: a hard memory cap (same value as --memory-swap, so a capped world can't push
@@ -206,7 +213,7 @@ public sealed class DockerCliLauncher : IInstanceLauncher
 
         // By NAME, not container id: the registry row is about to disappear, and the name is the one
         // handle that survives a crashed/replaced container (Start() removes stale ones the same way).
-        Run(new List<string> { "rm", "-f", $"bbs-world-{worldId}" });
+        Run(new List<string> { "rm", "-f", "-v", $"bbs-world-{worldId}" });
     }
 
     public bool IsRunning(string containerId)

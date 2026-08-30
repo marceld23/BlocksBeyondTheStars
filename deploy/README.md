@@ -85,7 +85,7 @@ dedicated-server image `ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z` 
    check `worldhost-image.yml` runs). The `production` environment gate must be approved.
 4. **Recycle the keep-awake arcade pool worlds.** They never idle-exit
    (`BBS_WH_GLITCH_KEEP_AWAKE`), so unlike normal worlds they would keep the old image forever:
-   `docker rm -f bbs-world-<id>` per pool world — WorldHost re-wakes each on the new pin within
+   `docker rm -f -v bbs-world-<id>` per pool world — WorldHost re-wakes each on the new pin within
    ~20 s via the crash→re-wake path. Verify the image with `docker ps`.
    Normal hosted worlds need nothing: they pick up the new pin on their next wake.
 5. **Refresh `/play`** with the release's `webgl` zip — see the in-place snippet above.
@@ -95,6 +95,26 @@ dedicated-server image `ghcr.io/marceld23/blocks-beyond-the-stars-server:X.Y.Z` 
    does not fit.
 
 Rollback = restore the `.env` backup, redeploy `worldhost`, recycle the pool worlds again.
+
+## Disk hygiene (#1414)
+
+On 2026-08-30 the host sat at 121 GB / 237 GB: **92 GB of orphaned anonymous Docker volumes** plus
+17 GB of unused images. Every world wake had created three anonymous volumes (the image's
+`/app/config`, `/app/clients`, `/app/webgl` VOLUMEs — only `/app/saves` is bind-mounted) and the
+entrypoint filled `/app/clients` with the ~1 GB client installers; `docker rm -f` without `-v` then
+left them behind. Fixed in the launcher (`rm -v`, `BBS_FETCH_CLIENT=0`) and the Dockerfile (only
+saves + config are VOLUMEs).
+
+Belt-and-braces on the host: `/etc/cron.weekly/bbs-docker-prune` (hand-installed, not in the repo)
+
+```sh
+docker volume prune -f                          # dangling anonymous volumes only (named netdata/caddy stay)
+docker image prune -af --filter "until=720h"    # images unused for 30+ days
+logger -t bbs-docker-prune "weekly prune done: $(df -h / | awk 'NR==2{print $3" used, "$4" free"}')"
+```
+
+It never touches containers, so sleeping `bbs-world-*` objects keep their logs. Check it ran with
+`journalctl -t bbs-docker-prune`; the quick health check is `docker system df` (RECLAIMABLE should be ≈ 0).
 
 ## One-time host prerequisites (already done on bbs-host-1, 2026-07-04)
 
