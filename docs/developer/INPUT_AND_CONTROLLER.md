@@ -128,6 +128,37 @@ Three rules the component enforces so it never does harm off-screen:
 the ship and face editors, where **Start** swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
 and `NoteSelection()` are the seams `UiNavEditModeTests` checks, since CI has no pad.
 
+Beyond claiming the selection, `UiNavFocus` supplies the three things a mouse pointer gives a menu for free
+(2026-08-30 controller review, #1404–#1411) — all gated on `InputMap.ActiveDevice == Gamepad`, so
+keyboard/mouse is untouched:
+
+* **Selection chrome (#1410):** a cyan `Outline` on the selected control's `targetGraphic` and the hover blip
+  on every move (`UiHover` is pointer-enter only, so the stick used to move the cursor in silence).
+* **Scroll into view (#1407):** when the selection moves inside a vertical `ScrollRect`, the pane scrolls
+  the minimum distance that brings the row inside the viewport (`UiNavFocus.ScrollDelta` is the pure part;
+  applied through `verticalNormalizedPosition`, so content pivot/anchor conventions do not matter).
+* **Hint strip (#1408):** a bottom-centre line "(A) choose · (B) back" (+ "type" on an `InputField`), built by
+  `ComposeHint` through `InputMap.PadGlyph` so it follows the glyph set and pad rebinds; verbs are
+  `ui.pad.*`. Screens add their own lines with `UiNav.AddHint(root, "ui.pad.tabs", PadButton.Lb, PadButton.Rb)`;
+  the two editors pass `UiNav.Enable(root, padHints: false)` because they draw a hint line of their own.
+
+Four traps the review found, so nobody builds them again:
+
+* **A runtime-built `Selectable` has no `targetGraphic`** — Unity fills it only from the editor-side
+  `Reset()`, and `DoStateTransition` returns while it is null. `UiKit.AddInput` now sets it (#1406); any
+  hand-rolled Selectable must too, or it never shows focus.
+* **`Navigation.Automatic` fails completely for concentric rects.** `Selectable.FindSelectable` scores a
+  candidate by the vector from the current rect's *edge* to the candidate's *centre*; rects sharing a
+  centre always score `dot ≤ 0`. Radial layouts need `Navigation.Explicit` (`HotbarActionUi.WireRing`, #1405).
+* **Every text field goes through `UiKit.AddInput`.** The crafting search box was the one hand-built
+  `InputField` and therefore had no `PadTextEntryBridge`: it swallowed the axes *and* made
+  `TextFieldFocused()` read "typing", which switched off B and Start in `GameMenu` (#1404).
+* **Scrollbars opt out of navigation** (`Navigation.Mode.None` in both `UiKit` builders, #1411); `UiNavFocus`
+  also skips `Mode.None` controls when picking a focus target.
+
+The in-game menu steps its tab row with **LB / RB** (`CraftingTechShipUI.CycleTab`, #1409) — free while a
+screen owns the input, like B doubling as crouch — and selects the new tab's button on rebuild.
+
 Wired on: the main menu, the in-game (Tab/Start) menu **and all 11 of its tabs**, settings, the world picker,
 vendor trade, the Codex (Wiki), the Arcade, credits, the feedback dialog, the respawn prompt, the slot-action
 pie, the context-actions list, the landing-pad chooser (land map), the trade / dock prompts + trade panel, the

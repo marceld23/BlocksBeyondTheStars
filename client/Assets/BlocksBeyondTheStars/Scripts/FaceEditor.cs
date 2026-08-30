@@ -661,7 +661,7 @@ namespace BlocksBeyondTheStars.Client
 
             _ui = UiKit.CreateCanvas("Face Editor UI");
             _ui.sortingOrder = 60; // above the in-game menu (CraftingTechShipUI is sortingOrder 50)
-            UiNav.Enable(_ui.gameObject); // pad: walk the tools/palette; Start hands the sticks to the canvas (#1198)
+            UiNav.Enable(_ui.gameObject, padHints: false); // pad: walk the tools/palette; Start hands the sticks to the canvas (#1198); own hint line
             var root = _ui.transform;
 
             // Shared scrim + opaque panel (#588). The old backdrop was an AddPanel, whose raycastTarget is

@@ -548,7 +548,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _canvas = UiKit.CreateCanvas("Ship Editor UI");
             _canvas.sortingOrder = 5;
-            UiNav.Enable(_canvas.gameObject); // pad: walk the palette + the form (#1198)
+            UiNav.Enable(_canvas.gameObject, padHints: false); // pad: walk the palette + the form (#1198); own hint line below
             var root = _canvas.transform;
 
             // Left: block/part palette (elements + stations + every placeable block), grouped by

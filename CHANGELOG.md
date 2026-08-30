@@ -13,6 +13,26 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎮 Gamepad — the menus are actually navigable now (#1404 #1405 #1406 #1407 #1408 #1409 #1410 #1411)
+
+- **The crafting search box trapped the pad** (#1404). It was the one text field built by hand instead of
+  through `UiKit.AddInput`, so it lacked the bridge that keeps a field deactivated while a pad is in hand:
+  landing on it killed the stick, and because the game then read "typing", **(B)** and **Start** stopped
+  working too. It now goes through the shared builder like every other field.
+- **The slot-action pie (R3) could not be navigated** (#1405). Its four wedges are concentric rects told
+  apart by rotation only, which uGUI's automatic navigation cannot score — the selection never left
+  "Swap". The wedges are now wired as an explicit ring; a dimmed wedge falls through to its opposite.
+- **Text fields showed no focus at all** (#1406): a runtime-built `InputField` has no `targetGraphic`, so
+  its tint never changed. Fields now light up like buttons — which is how you find the name box.
+- **The selection scrolls into view** (#1407): moving down a long list (crafting, settings, the Codex …)
+  now scrolls the pane so the highlighted row stays inside the frame.
+- **A hint strip along the bottom** of every pad-navigable screen says what the buttons do — "(A) choose ·
+  (B) back", "type" on a text field, plus the screen's own extras — in the glyph set you picked (#1408).
+- **LB / RB step through the in-game menu's tabs** (#1409), landing the cursor on the new tab.
+- **The selection wears a cyan frame and moving it clicks** (#1410) — on a wall of inventory tiles the old
+  tint-only highlight was invisible, and the stick moved the cursor in silence.
+- **Scrollbars left the navigation graph** (#1411): the stick can no longer park the cursor on an 8 px bar.
+
 ### 📬 Report inbox — "mark done" and delete cover both rows of a report (#1380)
 
 - **Marking a report done or deleting it always left one row behind.** The admin list shows the two rows

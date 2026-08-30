@@ -153,6 +153,13 @@ editors. The right stick also steers the ship in flight; the d-pad cycles the **
 (laser ↔ tractor beam) at the helm. Direct hotbar number-key picks remain keyboard-only. Verbs without a
 face button — everything in the **L3 Actions** list — can also be given their own button in Settings.
 
+While a pad is in your hands every menu shows a **hint strip along its bottom edge** — "(A) choose · (B)
+back", "type" when a text box is selected, and whatever else that screen offers — in the button names you
+picked in *Settings → Controller*. The selected control wears a **cyan frame** and moving the cursor
+clicks, long lists **scroll along with the cursor**, and in the gameplay menu **LB / RB** step through the
+tabs. In the slot-action pie the stick walks the four wedges (up = Swap, left = Colour, right = Form, down =
+Close).
+
 **Typing without a keyboard.** Move to a text box and press **(A)**: an on-screen keyboard opens, and you
 pick letters with the stick and **(A)**. **ABC/abc** switches upper and lower case, **?123** shows the
 punctuation page, **(X)** deletes the last letter, **Start** is done and **(B)** cancels. Password fields
