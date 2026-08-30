@@ -125,7 +125,11 @@ cyan `Outline` on the selected control + hover blip on move, scroll-into-view th
 field, + per-screen `UiNav.AddHint` lines) via `InputMap.PadGlyph` — editors opt out (`padHints: false`), the
 on-screen keyboard adds X/Start. **#1409** LB/RB cycle the 11 tabs (`CycleTab`, display order, lands the cursor
 on the new tab; off while typing or the appearance editor is up). **#1411** both `UiKit` scrollbars get
-`Navigation.Mode.None`; `UiNavFocus` skips `Mode.None` controls. Tests: `GamepadMenuEditModeTests` (9 — ring,
+`Navigation.Mode.None`; `UiNavFocus` skips `Mode.None` controls. Marcel's second pass found two more: the pie
+stayed inert because a mouse-clicked HUD button stays selected for ever and `UiNavFocus` deferred to ANY valid
+selection → `StaleForeignSelection` claims unless another live pad screen owns it, pop-ups clear the selection on
+open; and VEGA's continue button was named "Back" (360) where every modern Xbox pad prints **View** → glyph
+renamed (docs + `ui.hud.hint_pad`). Tests: `GamepadMenuEditModeTests` (9 — ring,
 fall-through, scroll delta ×4, hint wording ×2, scrollbar opt-out). Locales: 4 `ui.pad.*` keys EN/DE + 12 MT.
 Docs: INPUT_AND_CONTROLLER.md (selection chrome + the four traps), USER_MANUAL § Gamepad, CHANGELOG.
 

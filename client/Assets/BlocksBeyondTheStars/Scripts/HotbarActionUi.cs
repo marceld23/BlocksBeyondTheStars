@@ -143,6 +143,9 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 40; // above the HUD (10) and the flight overlay (12), below nothing that matters
             UiNav.Enable(_canvas.gameObject); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            // Drop whatever the mouse left selected on the HUD, so the pie's UiNavFocus claims the first
+            // wedge on its first frame instead of deferring to a control nobody can see (#1405).
+            UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
             BuildRing();
         }
 
@@ -288,7 +291,7 @@ namespace BlocksBeyondTheStars.Client
                 c.normalColor = new Color(0.70f, 0.74f, 0.80f, 1f);
                 c.highlightedColor = Color.white;
                 c.pressedColor = UiKit.Cyan;
-                c.selectedColor = Color.white;
+                c.selectedColor = new Color(0.75f, 1f, 1.5f, 1f); // a clear cyan lift — on a dark wedge plain white barely reads (#1405)
                 c.fadeDuration = 0.08f;
                 btn.colors = c;
                 go.AddComponent<UiHover>();

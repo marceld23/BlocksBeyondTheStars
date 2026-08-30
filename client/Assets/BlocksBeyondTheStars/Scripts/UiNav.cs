@@ -169,7 +169,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var current = es.currentSelectedGameObject;
-            if (current != null && current.activeInHierarchy)
+            if (current != null && current.activeInHierarchy && !StaleForeignSelection(current))
             {
                 var sel = current.GetComponent<Selectable>();
                 if (sel != null && sel.IsInteractable())
@@ -203,6 +203,24 @@ namespace BlocksBeyondTheStars.Client
             }
 
             RefreshHint(null);
+        }
+
+        /// <summary>True when the EventSystem's selection is a control that belongs to NO live pad screen — a
+        /// HUD button the mouse clicked earlier (wreck claim, taming panel …) that uGUI keeps selected for
+        /// ever. Until #1405's second half such a leftover made a freshly opened pop-up (the slot-action pie
+        /// most visibly) inert: this component saw "a valid control is focused" and never claimed the
+        /// selection, so the stick moved an invisible HUD cursor and A pressed a button nobody could see.
+        /// A selection inside another screen that currently wants focus (the on-screen keyboard over a
+        /// dialog) is NOT stale — that screen owns the pad until it closes.</summary>
+        private bool StaleForeignSelection(GameObject current)
+        {
+            if (current.transform.IsChildOf(transform))
+            {
+                return false; // ours
+            }
+
+            var owner = current.GetComponentInParent<UiNavFocus>();
+            return owner == null || !owner.isActiveAndEnabled || !owner.WantsFocus;
         }
 
         // ---- selection chrome (#1407, #1410) --------------------------------------------------------------

@@ -443,7 +443,10 @@ namespace BlocksBeyondTheStars.Client
                 KeyCode.JoystickButton3 => set switch { PadGlyphSet.PlayStation => "(Triangle)", PadGlyphSet.Nintendo => "(X)", _ => "(Y)" },
                 KeyCode.JoystickButton4 => set switch { PadGlyphSet.PlayStation => "L1", PadGlyphSet.Nintendo => "L", _ => "LB" },
                 KeyCode.JoystickButton5 => set switch { PadGlyphSet.PlayStation => "R1", PadGlyphSet.Nintendo => "R", _ => "RB" },
-                KeyCode.JoystickButton6 => set switch { PadGlyphSet.PlayStation => "Share", PadGlyphSet.Nintendo => "-", _ => "Back" },
+                // "View" is what the button is called on every Xbox pad since the One (the two overlapping
+                // rectangles); "Back" was the 360's name, which is Unity's — and no player looking at a
+                // modern pad found it, so VEGA lines seemed undismissable on a controller.
+                KeyCode.JoystickButton6 => set switch { PadGlyphSet.PlayStation => "Share", PadGlyphSet.Nintendo => "-", _ => "View" },
                 KeyCode.JoystickButton7 => set switch { PadGlyphSet.PlayStation => "Options", PadGlyphSet.Nintendo => "+", _ => "Start" },
                 KeyCode.JoystickButton8 => set == PadGlyphSet.Xbox ? "LS" : "L3",
                 KeyCode.JoystickButton9 => set == PadGlyphSet.Xbox ? "RS" : "R3",

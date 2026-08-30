@@ -110,7 +110,7 @@ Last updated: 2026-08-26.
 | **U** | Undock from a player / leave a boarded space station |
 | **V** | Toggle first / third-person camera |
 | **I** | Toggle **thermal vision** while looking through the thermal binoculars (see §5 → Binoculars) |
-| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) — rebindable; gamepad **Back**, touch **NEXT ▶** |
+| **N** | Advance the current **VEGA** dialogue line (also fast-completes the typewriter) — rebindable; gamepad **View** (Back), touch **NEXT ▶** |
 | **Tab** | Open / close the gameplay menu (Inventory, Crafting, Tech, Ship, Map, Missions, Character); also closes full-screen menu screens such as the Codex |
 | **M** | Toggle the world map (top-down planet view; click to set a waypoint) — rebindable; touch **MAP** |
 | **Enter** | Open the chat box (Esc cancels) |
@@ -141,7 +141,7 @@ buttons — retuning is tracked in issue #195):
 | **(Y)** | Toggle first / third-person camera |
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
-| **Back / View** | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
+| **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
 | **Start** | Open / close the gameplay menu |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
@@ -270,7 +270,7 @@ separate unlock; admins can still disable it through server world rules.
   **P** pauses, **R** restarts, **H** opens help — and the mouse plays the pointer games directly. **Esc**
   acts as the in-game *Cancel* in games that use one; otherwise it closes the screen as usual.
 - **Gamepad — every game is playable on the pad:** left stick / D-pad steer, **(A)** confirms / acts,
-  **(B)** cancels, **(X)** secondary, **(Y)** help, **Start** pauses, **Back** restarts. In the pointer
+  **(B)** cancels, **(X)** secondary, **(Y)** help, **Start** pauses, **View** (Back) restarts. In the pointer
   games (puzzles like Star Memory, Void Solitaire, Laser Grid …) the stick glides a **cursor reticle**
   across the board and **(A)** clicks — drags included — while the D-pad keeps serving any arrow moves.
   The start/pause/result overlays are stick-navigable like every other menu.

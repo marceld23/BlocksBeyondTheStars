@@ -19,9 +19,15 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   through `UiKit.AddInput`, so it lacked the bridge that keeps a field deactivated while a pad is in hand:
   landing on it killed the stick, and because the game then read "typing", **(B)** and **Start** stopped
   working too. It now goes through the shared builder like every other field.
-- **The slot-action pie (R3) could not be navigated** (#1405). Its four wedges are concentric rects told
-  apart by rotation only, which uGUI's automatic navigation cannot score — the selection never left
-  "Swap". The wedges are now wired as an explicit ring; a dimmed wedge falls through to its opposite.
+- **The slot-action pie (R3) could not be navigated** (#1405). Two causes: its four wedges are concentric
+  rects told apart by rotation only, which uGUI's automatic navigation cannot score — the selection never
+  left "Swap" — and a HUD button the mouse had clicked earlier stayed selected for ever, so the pie never
+  claimed the pad at all and the stick drove an invisible cursor. The wedges are now wired as an explicit
+  ring (a dimmed wedge falls through to its opposite), pop-ups clear a stale selection on open, and the
+  selected wedge lifts to cyan.
+- **VEGA lines can be dismissed on a pad** — they always could, on the button Unity calls "Back": the game
+  now names it **View**, which is what is printed on every Xbox pad since the One (the hint reads
+  "Continue · View"; Share on PlayStation, − on Nintendo).
 - **Text fields showed no focus at all** (#1406): a runtime-built `InputField` has no `targetGraphic`, so
   its tint never changed. Fields now light up like buttons — which is how you find the name box.
 - **The selection scrolls into view** (#1407): moving down a long list (crafting, settings, the Codex …)

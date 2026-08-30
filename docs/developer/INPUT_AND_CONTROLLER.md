@@ -60,7 +60,7 @@ HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / Can
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
-  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **Back = VegaContinue** ·
+  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
   Start = menu. Every other action reaches the pad through the context-actions list or a rebind.
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
@@ -155,6 +155,11 @@ Four traps the review found, so nobody builds them again:
   `TextFieldFocused()` read "typing", which switched off B and Start in `GameMenu` (#1404).
 * **Scrollbars opt out of navigation** (`Navigation.Mode.None` in both `UiKit` builders, #1411); `UiNavFocus`
   also skips `Mode.None` controls when picking a focus target.
+* **A stale HUD selection made every pop-up inert.** uGUI keeps the last mouse-clicked Button selected for
+  ever (a wreck-claim or taming button on the HUD), and `UiNavFocus` used to treat ANY valid selection as
+  "nothing to do" — so the slot-action pie opened with the stick driving an invisible HUD cursor.
+  `StaleForeignSelection` now claims the selection unless it belongs to another screen that currently
+  wants focus (the on-screen keyboard over a dialog); pop-ups additionally clear the selection on open.
 
 The in-game menu steps its tab row with **LB / RB** (`CraftingTechShipUI.CycleTab`, #1409) — free while a
 screen owns the input, like B doubling as crouch — and selects the new tab's button on rebuild.

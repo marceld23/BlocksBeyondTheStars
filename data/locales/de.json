@@ -678,7 +678,7 @@
   "mission.bounty.ship.title": "Kopfgeld: Raider-Schiff",
   "mission.bounty.ship.desc": "Ein Raider-Schiff treibt in diesem Sternensystem sein Unwesen und presst Piloten aus. Vertreibe es und melde dich dann am Missionsboard der Station zurück.",
   "ui.hud.hint": "WASD bewegen · Space springen · Strg/C ducken · LMT abbauen · RMT setzen · 1-9 Hotbar · F angreifen · G plündern · R reparieren · L Lampe · M Karte · Enter Chat · E benutzen · V Ansicht · Tab Menü · {feedback_key} Feedback",
-  "ui.hud.hint_pad": "Linker Stick bewegen · Rechter Stick umsehen · RB abbauen · LB setzen · Steuerkreuz Hotbar · (A) springen · (B) ducken · (X) benutzen · (Y) Ansicht · LS Aktionen · Back VEGA weiter · Start Menü",
+  "ui.hud.hint_pad": "Linker Stick bewegen · Rechter Stick umsehen · RB abbauen · LB setzen · Steuerkreuz Hotbar · (A) springen · (B) ducken · (X) benutzen · (Y) Ansicht · LS Aktionen · View VEGA weiter · Start Menü",
   "ui.hud.hint_fly": "Leertaste×2 fliegen",
   "ui.hud.hint_rotate": "{key} drehen · Umschalt+{key} zurück",
   "ui.hud.hint_slot_actions": "{key} Slot-Aktionen",
