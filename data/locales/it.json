@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "Nessuno",
   "ui.struct.save": "SALVA / ESPORTA",
   "ui.struct.load": "CARICA",
-  "ui.struct.hint": "Tieni premuto TASTO DESTRO per guardare · WASD + Q/E per volare · Shift = più veloce · CLICK SINISTRO posa · CLICK CENTRALE rimuove · Esc = menu",
+  "ui.struct.hint": "Tieni premuto TASTO DESTRO per guardare · WASD + Q/E per volare · ROTELLA = zoom · Shift = più veloce · F = inquadra la costruzione · CLICK SINISTRO posa · CLICK CENTRALE rimuove · Esc = menu",
   "ui.struct.hint_pad": "Stick sinistro vola · stick destro guarda · LB/RB giù/su · A piazza · X rimuovi · Y gira · D-pad palette · Start = pannelli · B = indietro",
   "ui.struct.hint_pad_panel": "Lo stick cammina sui pannelli · A seleziona · Start = vola e costruisci · B = esci dall'editor",
   "ui.tier.small": "Piccolo",

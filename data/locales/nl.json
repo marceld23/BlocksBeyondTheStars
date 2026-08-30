@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "Geen",
   "ui.struct.save": "OPSLAAN / EXPORTEREN",
   "ui.struct.load": "LADEN",
-  "ui.struct.hint": "Houd RECHTER-MUIS ingedrukt om te kijken · WASD + Q/E om te vliegen · Shift = sneller · LINKER-KLIK plaatsen · MIDDEN-KLIK verwijderen · Esc = menu",
+  "ui.struct.hint": "Houd RECHTER-MUIS ingedrukt om te kijken · WASD + Q/E om te vliegen · MUISWIEL = zoomen · Shift = sneller · F = bouwwerk in beeld · LINKER-KLIK plaatsen · MIDDEN-KLIK verwijderen · Esc = menu",
   "ui.struct.hint_pad": "Linker stick vliegen · rechter stick kijken · LB/RB omlaag/omhoog · A plaatsen · X verwijderen · Y draaien · D-pad palet · Start = panelen · B = terug",
   "ui.struct.hint_pad_panel": "Stick loopt langs panelen · A kiest · Start = vliegen en bouwen · B = editor verlaten",
   "ui.tier.small": "Klein",

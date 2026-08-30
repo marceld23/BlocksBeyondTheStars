@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "无",
   "ui.struct.save": "保存 / 导出",
   "ui.struct.load": "加载",
-  "ui.struct.hint": "按住右键查看 · WASD + Q/E 飞行 · Shift = 加速 · 左键放置 · 中键移除 · Esc = 菜单",
+  "ui.struct.hint": "按住右键查看 · WASD + Q/E 飞行 · 滚轮 = 缩放 · Shift = 加速 · F = 聚焦建筑 · 左键放置 · 中键移除 · Esc = 菜单",
   "ui.struct.hint_pad": "左摇杆 飞行 · 右摇杆 观察 · LB/RB 下/上 · A 放置 · X 拆除 · Y 旋转 · 十字键 调色板 · Start = 面板 · B = 返回",
   "ui.struct.hint_pad_panel": "摇杆 在面板间移动 · A 选择 · Start = 飞行与建造 · B = 退出编辑器",
   "ui.tier.small": "小型",

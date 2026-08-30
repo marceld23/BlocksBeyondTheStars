@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "Ninguno",
   "ui.struct.save": "GUARDAR / EXPORTAR",
   "ui.struct.load": "CARGAR",
-  "ui.struct.hint": "Mantén pulsado RIGHT-MOUSE para mirar · WASD + Q/E para volar · Shift = más rápido · LEFT-CLICK para colocar · MIDDLE-CLICK para quitar · Esc = menú",
+  "ui.struct.hint": "Mantén pulsado RIGHT-MOUSE para mirar · WASD + Q/E para volar · RUEDA = zoom · Shift = más rápido · F = encuadrar la construcción · LEFT-CLICK para colocar · MIDDLE-CLICK para quitar · Esc = menú",
   "ui.struct.hint_pad": "Stick izquierdo volar · stick derecho mirar · LB/RB bajar/subir · A colocar · X quitar · Y girar · D-pad paleta · Start = paneles · B = atrás",
   "ui.struct.hint_pad_panel": "El stick camina por los paneles · A selecciona · Start = volar y construir · B = salir del editor",
   "ui.tier.small": "Pequeño",
