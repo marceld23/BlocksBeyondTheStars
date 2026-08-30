@@ -891,12 +891,17 @@ namespace BlocksBeyondTheStars.Client
             vlg.childForceExpandHeight = false;
             vlg.childControlHeight = false;
             vlg.spacing = spacing;
-            vlg.padding = new RectOffset(4, 4, 4, 4);
+            vlg.padding = new RectOffset(4, 12, 4, 4); // right: room for the inline scrollbar
             var fitter = contentGo.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             scroll.viewport = viewGo.GetComponent<RectTransform>();
             scroll.content = content;
+
+            // A position indicator: the wheel scrolled but nothing SHOWED that a list continued below
+            // the viewport (the editor palettes looked like eight-entry lists, #1387). Auto-hides when
+            // the content fits, so short lists look unchanged.
+            AddInlineScrollbar(scroll);
             return content;
         }
 

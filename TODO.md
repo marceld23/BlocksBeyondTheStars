@@ -110,6 +110,24 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Build editors: palette rows, scrollbar, typing guard, orphaned menu planet, wheel zoom, visible grid (#1386–#1391, 2026-08-30, branch fix/editor-ux)
+Marcel's settlement-editor screenshot: "no scrollbar or search on the left, a weird orb in the background, can't
+zoom, can't see the grid". Six causes, all in the shared editor bricks so ship/station/settlement got them at once.
+**Rows (#1386)**: `PaletteListUi` rows only set a `LayoutElement`, but `UiKit.ScrollList`'s layout group has
+`childControlHeight=false` → every row was the RectTransform default of 100 units tall (8 entries visible, three
+quarters empty) — rows/headers now set `sizeDelta`. **Scrollbar (#1387)**: `ScrollList` attaches
+`AddInlineScrollbar` itself (every list built with it — BeamPad, StoryReader, ContentEditor, trade — gets the
+auto-hide indicator; the trade dialog's own call removed). **Typing (#1388)**: both editors read WASD/Q/E/R
+regardless of a focused field — guarded by `UiKit.TextFieldFocused()`. **Orb (#1389)**:
+`MenuBackground.MakeSphere` was the one backdrop builder without `SetParent`, so the menu planet + moon
+survived `DestroyMenuBackground` and rose out of every editor's floor (and leaked per visit). **Zoom (#1390)**:
+new `EditorSceneKit.WheelDolly` (wheel = dolly along the view, Shift ×3, not over a panel), `Frame` for the
+opening view + the `F` key (30° down, whole build in view). **Grid (#1391)**: the 258 sub-pixel cube lines are
+replaced by one floor material with a mipmapped procedural grid texture (minor line per cell, major every 8) via
+`EditorSceneKit.BuildFloor`; the placement ghost moved into the shared `EditorPlacementGhost`, so the
+station/settlement editor finally shows where a click lands. Hint line (en/de) names wheel + F. No .NET tests
+(pure Unity); verified by local Unity build + in-game check.
+
 ### ★ Report inbox: "mark done" and delete cover both rows of a report (#1380, 2026-08-30, branch fix/reporthost-pair-actions)
 Marcel: marking a stacked report done or deleting it always left one row behind. Pairing (#1359) is render-time only
 and every action hit the one row id — the admin forms, `PATCH`/`DELETE /api/reports/{id}`, and the reply-driven
