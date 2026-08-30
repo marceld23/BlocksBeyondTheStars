@@ -360,6 +360,10 @@ namespace BlocksBeyondTheStars.Client
 
         private FaceEditor _faceEditor;
 
+        /// <summary>True while the appearance editor overlays the Character tab — the tab screen's shoulder
+        /// buttons stand down then (LB is the editor's fill modifier, #1409).</summary>
+        public bool AppearanceEditorOpen => _faceEditor != null;
+
         /// <summary>
         /// Opens the appearance screen (#899): face, torso, arms, legs and helmet as tabs of ONE editor, each
         /// with its base colour beside the canvas it tints. It replaces nine separate Character-tab cards —

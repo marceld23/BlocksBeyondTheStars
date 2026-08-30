@@ -199,9 +199,10 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             Assert.AreEqual(KeyCode.None, InputMap.Key(InputAction.ContextActions));
             Assert.AreEqual(KeyCode.JoystickButton8, GamepadInputSource.ButtonFor(InputAction.ContextActions));
             Assert.AreEqual(KeyCode.JoystickButton6, GamepadInputSource.ButtonFor(InputAction.VegaContinue));
-            // …and the two stick clicks / Back have glyphs, so the VEGA hint and the settings rows can name them.
+            // …and the two stick clicks / View have glyphs, so the VEGA hint and the settings rows can name them.
+            // "View" (the Xbox One/Series name), not Unity's 360-era "Back" — nobody found "Back" on a modern pad.
             Assert.AreEqual("LS", InputMap.PadGlyph(KeyCode.JoystickButton8));
-            Assert.AreEqual("Back", InputMap.PadGlyph(KeyCode.JoystickButton6));
+            Assert.AreEqual("View", InputMap.PadGlyph(KeyCode.JoystickButton6));
         }
 
         [Test]
@@ -308,7 +309,7 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
             InputMap.Use(settings);
 
             Assert.AreEqual("(A)", InputMap.PadGlyph(KeyCode.JoystickButton0), "Xbox is the default");
-            Assert.AreEqual("Start", InputMap.PadGlyph(KeyCode.JoystickButton7));
+            Assert.AreEqual("Menu", InputMap.PadGlyph(KeyCode.JoystickButton7), "the One/Series name, not the 360's Start");
 
             settings.PadGlyphs = PadGlyphSet.PlayStation;
             Assert.AreEqual("(Cross)", InputMap.PadGlyph(KeyCode.JoystickButton0));

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using BlocksBeyondTheStars.Client.Portal;
 using BlocksBeyondTheStars.Shared.Definitions;
@@ -172,6 +173,23 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.CraftCompleted += OnCraftResult;
                 _craftHooked = true;
+            }
+
+            // LB / RB step through the tab row (#1409) — the console convention, and the only alternative on
+            // a pad is walking the stick back up through a whole list. The two buttons are place / mine in
+            // the world, but an open screen freezes player control, so they are free here (the same way B
+            // is both crouch and cancel). Not while the on-screen keyboard has the pad, and not while the
+            // appearance editor sits on top of the Character tab — LB is its fill modifier.
+            if (!UiKit.TextFieldFocused() && Menu?.AppearanceEditorOpen != true)
+            {
+                if (InputMap.PadDown(PadButton.Rb))
+                {
+                    CycleTab(+1);
+                }
+                else if (InputMap.PadDown(PadButton.Lb))
+                {
+                    CycleTab(-1);
+                }
             }
 
             DetectBlueprintUnlocks();
@@ -449,6 +467,7 @@ namespace BlocksBeyondTheStars.Client
             // The pad drives all 11 tabs. This MUST sit on the canvas, not on GameMenu's GameObject:
             // CreateCanvas returns a scene-root object, so a UiNavFocus on the owner sees nothing (#1198).
             UiNav.Enable(_canvas.gameObject);
+            UiNav.AddHint(_canvas.gameObject, "ui.pad.tabs", PadButton.Lb, PadButton.Rb); // LB/RB step the tabs (#1409)
             var root = _canvas.transform;
 
             // Full-screen dim backdrop — translucent so the world/HUD shows through (holographic-overlay look,
@@ -524,6 +543,14 @@ namespace BlocksBeyondTheStars.Client
                 if (active)
                 {
                     b.GetComponent<Image>().color = UiKit.Cyan;
+                    if (_selectActiveTabOnBuild)
+                    {
+                        // A shoulder-button tab step lands the pad ON the new tab, not wherever the
+                        // remembered index happens to point in a differently shaped page (#1409).
+                        _selectActiveTabOnBuild = false;
+                        EventSystem.current?.SetSelectedGameObject(b.gameObject);
+                        _canvas.GetComponent<UiNavFocus>()?.NoteSelection(b.gameObject);
+                    }
                 }
                 else if (!IsTabAvailable(Tabs[i].Mode))
                 {
@@ -579,6 +606,16 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddBadge(arcadeBtn, 140f); // a freshly downloaded data-cube game is waiting in the Arcade
             }
 
+            // The Esc pause menu (Resume / Settings / Quit) had no pad route at all: Esc is keyboard-only
+            // in-game and every stock pad button is spoken for. Start opens THIS screen, so a button here is
+            // the one place a pad player will look for it. Closes the tab menu first — the two are separate
+            // owners in the cursor arbiter and must not stack.
+            UiKit.AddButton(p, W - 594, topY, 140, topH, L("ui.tab.pause"), () =>
+            {
+                Menu?.CloseFromUi();
+                FindAnyObjectByType<AppShell>()?.OpenPauseMenu();
+            });
+
             // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
             if (_mode == Mode.Crafting || _mode == Mode.Ship)
             {
@@ -613,6 +650,29 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private void OnTab(int tab) => Menu?.SwitchFromUi(tab); // GameMenu owns the active tab
+
+        private bool _selectActiveTabOnBuild; // set by CycleTab, consumed by the next BuildHeader
+
+        /// <summary>Steps the active tab by <paramref name="dir"/> in DISPLAY order (wrapping), through the
+        /// same path a tab click takes so badges, station gating and data refresh behave identically. Dimmed
+        /// (context-not-met) tabs are stepped onto like a click reaches them: they stay browsable (#1071).</summary>
+        private void CycleTab(int dir)
+        {
+            int at = 0;
+            for (int i = 0; i < Tabs.Length; i++)
+            {
+                if (Tabs[i].Mode == _mode)
+                {
+                    at = i;
+                    break;
+                }
+            }
+
+            int next = (at + dir + Tabs.Length) % Tabs.Length;
+            _selectActiveTabOnBuild = true;
+            UiSound.Click();
+            OnTab((int)Tabs[next].Mode);
+        }
 
         // --- sidebar (categories) ---
 
@@ -5043,22 +5103,16 @@ namespace BlocksBeyondTheStars.Client
 
         private void AddSearchBox(Transform parent, float x, float y, float w, float h)
         {
-            var go = new GameObject("Search", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            UiKit.Place(go, x, y, w, h);
-            var img = go.AddComponent<Image>();
-            img.sprite = UiKit.ButtonSprite;
-            img.type = Image.Type.Sliced;
-            img.color = new Color(0.05f, 0.12f, 0.24f, 0.95f);
-
-            var input = go.AddComponent<InputField>();
-            var text = UiKit.AddText(go.transform, 14, 0, w - 24, h, _search, 22, UiKit.TextCol, TextAnchor.MiddleLeft);
-            text.supportRichText = false;
-            var ph = UiKit.AddText(go.transform, 14, 0, w - 24, h, L("ui.craft.search"), 22, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Italic);
-            input.textComponent = text;
-            input.placeholder = ph;
-            input.text = _search;
-            input.onValueChanged.AddListener(s => { _search = s; RebuildList(); });
+            // Built through UiKit.AddInput like every other field, NOT assembled by hand (#1404): the themed
+            // builder attaches the PadTextEntryBridge that keeps a field deactivated while a pad is in hand.
+            // This box used to be the one field without it — and it sits right under the tab row, so the
+            // stick landed on it first: the activated field swallowed the navigation axes, and because
+            // TextFieldFocused() then read "typing", GameMenu ignored B and Start too. No way out on a pad.
+            var input = UiKit.AddInput(parent, x, y, w, h, _search,
+                s => { _search = s; RebuildList(); }, L("ui.craft.search"), fontSize: 22);
+            input.gameObject.name = "Search";
+            input.GetComponent<Image>().color = new Color(0.07f, 0.17f, 0.34f, 0.95f); // the old tint ÷ the resting 0.70
+            ((Text)input.placeholder).color = UiKit.CyanDim;
         }
 
         private static void SetInteractable(Button b, bool on)

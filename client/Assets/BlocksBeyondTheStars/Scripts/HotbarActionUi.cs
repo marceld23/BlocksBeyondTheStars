@@ -143,6 +143,9 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 40; // above the HUD (10) and the flight overlay (12), below nothing that matters
             UiNav.Enable(_canvas.gameObject); // pad: auto-focus so the stick walks wedges/buttons, A clicks (#940)
             Game.SetMenuOwner(this, true); // freezes player control + frees the cursor via the arbiter (#413)
+            // Drop whatever the mouse left selected on the HUD, so the pie's UiNavFocus claims the first
+            // wedge on its first frame instead of deferring to a control nobody can see (#1405).
+            UnityEngine.EventSystems.EventSystem.current?.SetSelectedGameObject(null);
             BuildRing();
         }
 
@@ -205,10 +208,11 @@ namespace BlocksBeyondTheStars.Client
 
             // Swap is always available (an empty slot can still receive something from the backpack);
             // Close always works. Positive z-rotation is counter-clockwise: +90° = left, -90° = right.
-            AddWedge(t, 0f, L("ui.hotbar_action.swap"), true, () => Rebuild(BuildSwap));
-            AddWedge(t, 90f, L("ui.hotbar_action.colour"), tintable, () => Rebuild(BuildColour));
-            AddWedge(t, -90f, L("ui.hotbar_action.form"), shapeable, () => Rebuild(BuildForm));
-            AddWedge(t, 180f, L("ui.hotbar_action.close"), true, Close);
+            var top = AddWedge(t, 0f, L("ui.hotbar_action.swap"), true, () => Rebuild(BuildSwap));
+            var left = AddWedge(t, 90f, L("ui.hotbar_action.colour"), tintable, () => Rebuild(BuildColour));
+            var right = AddWedge(t, -90f, L("ui.hotbar_action.form"), shapeable, () => Rebuild(BuildForm));
+            var bottom = AddWedge(t, 180f, L("ui.hotbar_action.close"), true, Close);
+            WireRing(top, right, bottom, left);
 
             if (!string.IsNullOrEmpty(_item) && !tintable && !shapeable)
             {
@@ -224,8 +228,46 @@ namespace BlocksBeyondTheStars.Client
         /// (uGUI raycasting follows the rotation) and alpha hit-testing keeps clicks inside the visible
         /// arc — the transparent corners of the bounding box never steal a click from a neighbour. The
         /// label counter-rotates so it reads upright at the wedge's centroid.</summary>
-        private void AddWedge(Transform parent, float angleDeg, string label, bool enabled, System.Action onClick)
+        /// <summary>Gives the four wedges explicit stick navigation as a ring (#1405). They are CONCENTRIC —
+        /// one 460×460 rect each, all at the canvas centre, told apart by rotation only — and uGUI's
+        /// <c>Navigation.Automatic</c> scores a candidate by the vector from the current rect's EDGE (in the
+        /// stick direction) to the candidate's CENTRE: for rects that share a centre that vector always points
+        /// back against the stick, so every candidate fails the <c>dot &gt; 0</c> test in every direction and
+        /// the selection never left "Swap". A disabled wedge (Colour / Form on a non-material item) is null;
+        /// a horizontal move from top or bottom then falls through to the opposite wedge so the ring never
+        /// dead-ends. Static + public so CI can walk the ring without a pad.</summary>
+        public static void WireRing(Button top, Button right, Button bottom, Button left)
         {
+            // Plain comparisons rather than ?? — Unity objects overload ==, and a dimmed wedge is a real null.
+            var l = left != null ? left : bottom;
+            var r = right != null ? right : bottom;
+            Set(top, up: null, down: bottom, l: l, r: r);
+            Set(bottom, up: top, down: null, l: left != null ? left : top, r: right != null ? right : top);
+            Set(left, up: top, down: bottom, l: null, r: r);
+            Set(right, up: top, down: bottom, l: l, r: null);
+
+            static void Set(Button b, Button up, Button down, Button l, Button r)
+            {
+                if (b == null)
+                {
+                    return;
+                }
+
+                b.navigation = new Navigation
+                {
+                    mode = Navigation.Mode.Explicit,
+                    selectOnUp = up,
+                    selectOnDown = down,
+                    selectOnLeft = l,
+                    selectOnRight = r,
+                };
+            }
+        }
+
+        /// <returns>The wedge's button, or null for a dimmed (inert) wedge.</returns>
+        private Button AddWedge(Transform parent, float angleDeg, string label, bool enabled, System.Action onClick)
+        {
+            Button btn = null;
             var go = new GameObject("Wedge", typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
@@ -243,13 +285,13 @@ namespace BlocksBeyondTheStars.Client
 
             if (enabled)
             {
-                var btn = go.AddComponent<Button>();
+                btn = go.AddComponent<Button>();
                 btn.targetGraphic = img;
                 var c = btn.colors; // same feel as UiKit.AddButton: dim at rest, bright on hover, cyan on press
                 c.normalColor = new Color(0.70f, 0.74f, 0.80f, 1f);
                 c.highlightedColor = Color.white;
                 c.pressedColor = UiKit.Cyan;
-                c.selectedColor = Color.white;
+                c.selectedColor = new Color(0.75f, 1f, 1.5f, 1f); // a clear cyan lift — on a dark wedge plain white barely reads (#1405)
                 c.fadeDuration = 0.08f;
                 btn.colors = c;
                 go.AddComponent<UiHover>();
@@ -264,6 +306,7 @@ namespace BlocksBeyondTheStars.Client
             trt.anchorMin = trt.anchorMax = trt.pivot = new Vector2(0.5f, 0.5f);
             trt.anchoredPosition = new Vector2(0f, WedgeLabelRadius); // pre-rotation "up" = the wedge centroid
             trt.localRotation = Quaternion.Euler(0f, 0f, -angleDeg);  // …counter-rotated to read upright
+            return btn;
         }
 
         private static Sprite _wedgeSprite;

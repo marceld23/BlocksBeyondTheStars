@@ -176,6 +176,8 @@ namespace BlocksBeyondTheStars.Client
             _canvas.sortingOrder = 5000; // above every dialog, including the modal scrims
             _root = _canvas.transform;
             UiNav.Enable(_canvas.gameObject); // the canvas is a scene root, so the component belongs on IT (#1198)
+            UiNav.AddHint(_canvas.gameObject, "ui.keyboard.back", PadButton.X);     // the strip names the two
+            UiNav.AddHint(_canvas.gameObject, "ui.keyboard.done", PadButton.Start); // shortcuts Update() reads (#1408)
             BuildContent();
         }
 

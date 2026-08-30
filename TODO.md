@@ -110,6 +110,36 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Gamepad: the menus are actually navigable — search-box trap, pie ring, field focus, scroll-into-view, hint strip, LB/RB tabs, selection frame, scrollbars (#1404–#1411, 2026-08-30, branch fix/gamepad-menus)
+Marcel's pad test: "how do I enter a name, how do I navigate the Tab menu, the R3 pie can't be used." Three real
+bugs plus the missing guidance. **#1404** the crafting search box was the one `InputField` built by hand (no
+`PadTextEntryBridge`): it swallowed the axes AND made `TextFieldFocused()` read "typing", so `GameMenu` ignored B
+and Start — stick, B, Start all dead with no way out on a pad; now `UiKit.AddInput`. **#1405** the pie's four
+wedges are concentric rects (rotation only) — uGUI's automatic navigation scores edge→centre vectors, which are
+`dot ≤ 0` for shared centres in every direction, so the selection never left "Swap"; `HotbarActionUi.WireRing`
+wires an explicit ring, dimmed wedges fall through to the opposite one. **#1406** `UiKit.AddInput` never set
+`targetGraphic` (Unity fills it only from editor-side `Reset()`), so fields showed no focus; set now, base tint
+÷0.70 so rest looks unchanged. **#1407/#1408/#1410** all live in `UiNavFocus` (one component, all 33 screens):
+cyan `Outline` on the selected control + hover blip on move, scroll-into-view through
+`verticalNormalizedPosition` (`ScrollDelta` pure), and a bottom hint strip "(A) choose · (B) back" (+ "type" on a
+field, + per-screen `UiNav.AddHint` lines) via `InputMap.PadGlyph` — editors opt out (`padHints: false`), the
+on-screen keyboard adds X/Start. **#1409** LB/RB cycle the 11 tabs (`CycleTab`, display order, lands the cursor
+on the new tab; off while typing or the appearance editor is up). **#1411** both `UiKit` scrollbars get
+`Navigation.Mode.None`; `UiNavFocus` skips `Mode.None` controls. Marcel's second pass found two more: the pie
+stayed inert because a mouse-clicked HUD button stays selected for ever and `UiNavFocus` deferred to ANY valid
+selection → `StaleForeignSelection` claims unless another live pad screen owns it, pop-ups clear the selection on
+open; and VEGA's continue button was named "Back" (360) where every modern Xbox pad prints **View** → glyph
+renamed (docs + `ui.hud.hint_pad`); same for "Start" → **Menu** (Marcel took "Start" for the Xbox-logo button, which the
+Game Bar owns). Third pass: the Esc pause menu had NO pad route (Esc keyboard-only, all stock
+buttons taken) → "Pause menu" button in the Start screen's top strip → `AppShell.OpenPauseMenu()` (public,
+extracted from the Esc branch), dialog canvas `UiNav`-enabled, B resumes while it is up (`_confirmQuit` gate —
+the world is held, so B is nobody's crouch). Fourth: text-only screens (credits, What's new) had nothing the stick
+could select → no way to scroll; `UiNavFocus.StickScroll` drives the pane around the selection (else the screen's
+first pane) with the right stick / d-pad via `InputMap.PadScrollY` (raw right-stick Y, new) at 900 px/s; hint strip
+adds "RS scroll" when a pane overflows. Tests: `GamepadMenuEditModeTests` (10 — ring,
+fall-through, scroll delta ×4, hint wording ×2, scrollbar opt-out). Locales: 4 `ui.pad.*` keys EN/DE + 12 MT.
+Docs: INPUT_AND_CONTROLLER.md (selection chrome + the four traps), USER_MANUAL § Gamepad, CHANGELOG.
+
 ### ★ Build editors: real block textures, procedural starting point, colossal tier + size hints (#1400–#1402, 2026-08-30, branch feat/editor-load-existing)
 Marcel, after the first load-picker build: "why are the things untextured, and why only village-sized templates?"
 **Textures (#1400)**: `EditorVoxelChunkView` baked the atlas tile's *average* colour into vertex colours and drew

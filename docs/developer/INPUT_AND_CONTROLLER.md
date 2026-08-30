@@ -60,8 +60,8 @@ HoldsWeapon / BinocularsRaised`, `PlayerInteractions.CanRequestTradeOrDock / Can
   `ToggleThirdPerson` (Y) is also polled during flight, so sharing Y would fire both on one press.
 - **Stock pad layout (Xbox):** A jump · B crouch / close · X Interact · Y ToggleThirdPerson · LB place ·
   RB mine · d-pad ◄► hotbar / ship system · **d-pad ▲ = OpenChat** · **d-pad ▼ = RotateShape** ·
-  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **Back = VegaContinue** ·
-  Start = menu. Every other action reaches the pad through the context-actions list or a rebind.
+  **LS = ContextActions** (the list above) · **RS = HotbarAction** (slot pie) · **View = VegaContinue** (`PadButton.Back`, JoystickButton6 — shown as "View", the Xbox One/Series name; Unity's "Back" is the 360 name nobody finds on a modern pad) ·
+  **Menu = UiMenu** (`PadButton.Start`, JoystickButton7 — shown as "Menu", the One/Series name; the Xbox-logo button belongs to the Windows Game Bar and never reaches the game). Every other action reaches the pad through the context-actions list or a rebind.
 - **The two d-pad verbs are fixed (#1220).** An axis cannot be written as a `KeyCode`, so `OpenChat` and
   `RotateShape` fire from inside `GamepadInputSource.DpadActionDown` rather than through the binding table —
   both are still bindable to a *button* as well. Up went to chat because that is what makes text entry
@@ -125,8 +125,49 @@ Three rules the component enforces so it never does harm off-screen:
   (the crafting pane rebuilds all three panels on every pick).
 
 `UiNav.SetSuspended(root, true)` hands the sticks to a screen's 3D viewport and clears the selection — used by
-the ship and face editors, where **Start** swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
+the ship and face editors, where **Menu** (Start) swaps between panel and viewport focus. `WantsFocus`, `FocusTarget()`
 and `NoteSelection()` are the seams `UiNavEditModeTests` checks, since CI has no pad.
+
+Beyond claiming the selection, `UiNavFocus` supplies the three things a mouse pointer gives a menu for free
+(2026-08-30 controller review, #1404–#1411) — all gated on `InputMap.ActiveDevice == Gamepad`, so
+keyboard/mouse is untouched:
+
+* **Selection chrome (#1410):** a cyan `Outline` on the selected control's `targetGraphic` and the hover blip
+  on every move (`UiHover` is pointer-enter only, so the stick used to move the cursor in silence).
+* **Scroll into view (#1407):** when the selection moves inside a vertical `ScrollRect`, the pane scrolls
+  the minimum distance that brings the row inside the viewport (`UiNavFocus.ScrollDelta` is the pure part;
+  applied through `verticalNormalizedPosition`, so content pivot/anchor conventions do not matter).
+* **Stick scrolling:** the right stick (`InputMap.PadScrollY`, raw −1..1) and the d-pad — which
+  `StandaloneInputModule` never reads, it only maps the left stick — scroll the pane around the selection, or
+  the screen's first vertical `ScrollRect` when nothing is selected. That is what lets a pad read the credits
+  / What's new / a story page at all: they hold nothing selectable, so directional navigation has no cursor
+  to move and the pane never scrolled. The hint strip adds "RS scroll" while a pane overflows.
+* **Hint strip (#1408):** a bottom-centre line "(A) choose · (B) back" (+ "type" on an `InputField`), built by
+  `ComposeHint` through `InputMap.PadGlyph` so it follows the glyph set and pad rebinds; verbs are
+  `ui.pad.*`. Screens add their own lines with `UiNav.AddHint(root, "ui.pad.tabs", PadButton.Lb, PadButton.Rb)`;
+  the two editors pass `UiNav.Enable(root, padHints: false)` because they draw a hint line of their own.
+
+Four traps the review found, so nobody builds them again:
+
+* **A runtime-built `Selectable` has no `targetGraphic`** — Unity fills it only from the editor-side
+  `Reset()`, and `DoStateTransition` returns while it is null. `UiKit.AddInput` now sets it (#1406); any
+  hand-rolled Selectable must too, or it never shows focus.
+* **`Navigation.Automatic` fails completely for concentric rects.** `Selectable.FindSelectable` scores a
+  candidate by the vector from the current rect's *edge* to the candidate's *centre*; rects sharing a
+  centre always score `dot ≤ 0`. Radial layouts need `Navigation.Explicit` (`HotbarActionUi.WireRing`, #1405).
+* **Every text field goes through `UiKit.AddInput`.** The crafting search box was the one hand-built
+  `InputField` and therefore had no `PadTextEntryBridge`: it swallowed the axes *and* made
+  `TextFieldFocused()` read "typing", which switched off B and Start in `GameMenu` (#1404).
+* **Scrollbars opt out of navigation** (`Navigation.Mode.None` in both `UiKit` builders, #1411); `UiNavFocus`
+  also skips `Mode.None` controls when picking a focus target.
+* **A stale HUD selection made every pop-up inert.** uGUI keeps the last mouse-clicked Button selected for
+  ever (a wreck-claim or taming button on the HUD), and `UiNavFocus` used to treat ANY valid selection as
+  "nothing to do" — so the slot-action pie opened with the stick driving an invisible HUD cursor.
+  `StaleForeignSelection` now claims the selection unless it belongs to another screen that currently
+  wants focus (the on-screen keyboard over a dialog); pop-ups additionally clear the selection on open.
+
+The in-game menu steps its tab row with **LB / RB** (`CraftingTechShipUI.CycleTab`, #1409) — free while a
+screen owns the input, like B doubling as crouch — and selects the new tab's button on rebuild.
 
 Wired on: the main menu, the in-game (Tab/Start) menu **and all 11 of its tabs**, settings, the world picker,
 vendor trade, the Codex (Wiki), the Arcade, credits, the feedback dialog, the respawn prompt, the slot-action
@@ -144,7 +185,7 @@ Nine screens used to poll `KeyCode.JoystickButton1` / `JoystickButton7` raw, rig
 | Action | Keyboard | Pad | Rebindable |
 |---|---|---|---|
 | `InputAction.UiCancel` | `Escape` | **B** | pad column only |
-| `InputAction.UiMenu` | `Tab` | **Start** | pad column only |
+| `InputAction.UiMenu` | `Tab` | **Menu** (Unity: Start) | pad column only |
 
 `InputMap.KeyboardLocked(action)` makes the keyboard column fixed and `UiSettings.KeyRow` renders those rows
 with a disabled key button. Escape and Tab must not be bindable away: a player who did could end up inside a
@@ -153,7 +194,10 @@ modal with no key that leaves it.
 **`AppShell` is the exception.** Its shell-level cancel accepts pad B in the *menu* phases only — in
 `ShellPhase.InGame` B is crouch (`GamepadInputSource.CrouchHeld`), and ducking must never pop the quit dialog.
 The in-game screens are safe because each gates its cancel on being open, and an open screen freezes player
-control.
+control. Consequently the pause menu has **no pad button of its own** (every stock button is taken): the pad
+reaches it through the **Pause menu** button on the Start screen's top strip (`CraftingTechShipUI` →
+`AppShell.OpenPauseMenu()`), and while the dialog is up — the world held, B nobody's crouch — **B resumes**.
+The dialog's canvas is `UiNav`-enabled like every other screen.
 
 ### Named pad buttons (`PadButton`)
 
@@ -165,7 +209,7 @@ numbers stay in `GamepadInputSource` alone. The two editors use them today; the 
 ### Editors on a pad
 
 Both standalone editors are pointer-native tools, so they get a **focus toggle** rather than a cursor
-emulation: **Start** swaps between the side panels (UiNav) and the work surface, because one stick cannot walk
+emulation: **Menu** (Start) swaps between the side panels (UiNav) and the work surface, because one stick cannot walk
 a list and steer a brush at the same time. **B** leaves the surface; from the panels it leaves the editor.
 
 | | Ship editor (`ShipEditor`) | Pixel editor (`FaceEditor`) |

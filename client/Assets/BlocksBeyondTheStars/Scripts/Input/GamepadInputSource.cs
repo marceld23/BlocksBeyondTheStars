@@ -299,6 +299,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Raw left stick vertical, deadzoned — see <see cref="RawStickX"/>.</summary>
         public static float RawStickY() => Connected() ? Deadzoned(Input.GetAxis("Vertical")) : 0f;
 
+        /// <summary>Raw right stick vertical (positive = up, the asset inverts it), deadzoned, with NONE of
+        /// the look rate / sensitivity that <see cref="LookY"/> applies — menus scroll a pane with it.</summary>
+        public static float RawRightStickY() => Connected() ? Deadzoned(Input.GetAxis(AxisRightStickY)) : 0f;
+
         /// <summary>D-pad X as a raw −1/0/1-ish axis (deadzoned), for the minigame host's own edge+repeat
         /// logic (#1218) — unlike <see cref="DpadStep"/> this applies NO cooldown of its own.</summary>
         public static float RawDpadX() => Connected() ? Deadzoned(Input.GetAxis(AxisDpadX)) : 0f;

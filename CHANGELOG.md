@@ -13,6 +13,40 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎮 Gamepad — the menus are actually navigable now (#1404 #1405 #1406 #1407 #1408 #1409 #1410 #1411)
+
+- **The crafting search box trapped the pad** (#1404). It was the one text field built by hand instead of
+  through `UiKit.AddInput`, so it lacked the bridge that keeps a field deactivated while a pad is in hand:
+  landing on it killed the stick, and because the game then read "typing", **(B)** and **Start** stopped
+  working too. It now goes through the shared builder like every other field.
+- **The slot-action pie (R3) could not be navigated** (#1405). Two causes: its four wedges are concentric
+  rects told apart by rotation only, which uGUI's automatic navigation cannot score — the selection never
+  left "Swap" — and a HUD button the mouse had clicked earlier stayed selected for ever, so the pie never
+  claimed the pad at all and the stick drove an invisible cursor. The wedges are now wired as an explicit
+  ring (a dimmed wedge falls through to its opposite), pop-ups clear a stale selection on open, and the
+  selected wedge lifts to cyan.
+- **VEGA lines can be dismissed on a pad** — they always could, on the button Unity calls "Back": the game
+  now names it **View**, which is what is printed on every Xbox pad since the One (the hint reads
+  "Continue · View"; Share on PlayStation, − on Nintendo). Likewise the menu button is now called **Menu**
+  (☰, right of the Xbox logo) instead of "Start" — a player reading "Start" reached for the Xbox-logo button,
+  which Windows' Game Bar owns, and found no way into the menus.
+- **Text fields showed no focus at all** (#1406): a runtime-built `InputField` has no `targetGraphic`, so
+  its tint never changed. Fields now light up like buttons — which is how you find the name box.
+- **The selection scrolls into view** (#1407): moving down a long list (crafting, settings, the Codex …)
+  now scrolls the pane so the highlighted row stays inside the frame.
+- **A hint strip along the bottom** of every pad-navigable screen says what the buttons do — "(A) choose ·
+  (B) back", "type" on a text field, plus the screen's own extras — in the glyph set you picked (#1408).
+- **LB / RB step through the in-game menu's tabs** (#1409), landing the cursor on the new tab.
+- **The selection wears a cyan frame and moving it clicks** (#1410) — on a wall of inventory tiles the old
+  tint-only highlight was invisible, and the stick moved the cursor in silence.
+- **Scrollbars left the navigation graph** (#1411): the stick can no longer park the cursor on an 8 px bar.
+- **The right stick (and the d-pad) scroll any pane** — credits, What's new, a story page, the settings
+  list. Text-only screens hold nothing the stick can select, so a pad could not read past the first
+  screenful; the hint strip names "RS scroll" whenever a screen has something to scroll.
+- **The pause menu is reachable on a pad.** Esc was keyboard-only and every stock pad button is spoken for,
+  so Resume / Settings / Quit had no controller route at all. The Start screen's top strip now carries a
+  **Pause menu** button, the dialog is stick-navigable, and **(B)** resumes.
+
 ### 📬 Report inbox — "mark done" and delete cover both rows of a report (#1380)
 
 - **Marking a report done or deleting it always left one row behind.** The admin list shows the two rows

@@ -559,6 +559,7 @@ namespace BlocksBeyondTheStars.Client
 
             bar.handleRect = handleRt;
             bar.targetGraphic = handle;
+            bar.navigation = new Navigation { mode = Navigation.Mode.None }; // a drag target, never a pad stop (#1411)
             scroll.verticalScrollbar = bar;
             scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
             return bar;
@@ -597,6 +598,10 @@ namespace BlocksBeyondTheStars.Client
 
             bar.handleRect = handleRt;
             bar.targetGraphic = handle;
+            // Out of the pad's navigation graph (#1411): while a page scrolls, the bar is interactable and
+            // Navigation.Automatic would let the stick park the selection on an 8 px strip where the
+            // highlight is invisible — and a vertical Scrollbar's OnMove eats up/down it cannot route.
+            bar.navigation = new Navigation { mode = Navigation.Mode.None };
             scroll.verticalScrollbar = bar;
             scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
             return bar;
@@ -816,9 +821,24 @@ namespace BlocksBeyondTheStars.Client
             var bg = go.AddComponent<Image>();
             bg.sprite = ButtonSprite;
             bg.type = Image.Type.Sliced;
-            bg.color = new Color(0.03f, 0.07f, 0.14f, 0.95f);
+            // The Selectable tint below MULTIPLIES this (0.70 at rest), so the base is the old resting colour
+            // divided by 0.70 — a field at rest looks exactly as it always did, and only lights up on focus.
+            bg.color = new Color(0.043f, 0.10f, 0.20f, 0.95f);
 
             var input = go.AddComponent<InputField>();
+            // A Selectable added at runtime has NO targetGraphic — Unity only fills it from the editor-side
+            // Reset(), and DoStateTransition returns at once while it is null. Without this line a field
+            // looks exactly the same selected and unselected, which on a gamepad means there is nothing to
+            // lead the player to the box at all (#1406). Same colour block as AddButton so the two families
+            // light up alike; the field's own frame stays dark, the tint only brightens it.
+            input.targetGraphic = bg;
+            var ic = input.colors;
+            ic.normalColor = new Color(0.70f, 0.74f, 0.80f, 1f);
+            ic.highlightedColor = Color.white;
+            ic.selectedColor = Color.white;
+            ic.pressedColor = Cyan;
+            ic.fadeDuration = 0.08f;
+            input.colors = ic;
             var anchor = multiline ? TextAnchor.UpperLeft : TextAnchor.MiddleLeft;
             float textY = multiline ? 5f : 0f, textH = multiline ? h - 10f : h;
 
