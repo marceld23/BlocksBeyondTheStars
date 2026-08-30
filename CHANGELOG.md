@@ -13,6 +13,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- WorldHost leaked ~1 GB of anonymous Docker volumes per world wake — the image declared `/app/clients`
+  + `/app/webgl` as VOLUMEs, every start downloaded the client installers into one, and `docker rm`
+  ran without `-v`. Now `rm -v`, `BBS_FETCH_CLIENT=0` for hosted instances, and only saves + config
+  are VOLUMEs; the VPS was pruned from 121 GB to 18 GB and a weekly prune guards the host. (#1414)
+
 ## [2026.8.24] — 2026-08-30
 
 The drafting-table release. The three build editors — ship, station, town — stopped being empty

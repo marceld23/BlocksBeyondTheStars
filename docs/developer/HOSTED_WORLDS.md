@@ -28,7 +28,7 @@ The three hosting tiers, side by side:
                     │   docker CLI: one container per world                                     │
                     │                                                                           │
                     │ bbs-world-<id> containers (the normal dedicated-server image)             │
-                    │   volume bbs-world-<id>-saves:/app/saves                                  │
+                    │   bind mount worlds/<id>/saves:/app/saves (only mount; docker rm -v #1414)│
  native UDP ───────►│   host port 3200x → 31415/udp (gameplay), 127.0.0.1:3200x → /status probe │
                     └───────────────────────────────────────────────────────────────────────────┘
 ```

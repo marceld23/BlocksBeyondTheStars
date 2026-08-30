@@ -61,7 +61,10 @@ ENV BBS_ADMIN_BIND=0.0.0.0
 EXPOSE 31415/udp 31415/tcp 31416/tcp
 
 # saves/ = SQLite world + backups + logs + /bump bug reports (<world>/bumps) · config/ = server.json · clients/ = published Windows Setup.exe + Linux AppImage + macOS zip · webgl/ = Unity WebGL browser build served at /play (mount a local Build/WebGL, or set BBS_FETCH_WEBGL=1)
-VOLUME ["/app/saves", "/app/config", "/app/clients", "/app/webgl"]
+# Only saves + config are VOLUMEs. clients/ and webgl/ deliberately are NOT: an undeclared path lives in the
+# container's own layer (or an explicit mount) — as VOLUMEs they became a fresh ~1 GB anonymous volume per
+# container start that outlived `docker rm` (#1414).
+VOLUME ["/app/saves", "/app/config"]
 
 # Health = the public admin dashboard root (cheap static HTML, never password-gated unlike /api/*).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

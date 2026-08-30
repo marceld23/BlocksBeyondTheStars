@@ -651,6 +651,22 @@ public sealed class WorldHostTests : IDisposable
         Assert.Equal(config.ServerImage, args[^1]); // image stays the last argv entry
     }
 
+
+    [Fact]
+    public void BuildRunArgs_SkipsClientInstallerFetch_AndMountsOnlySaves()
+    {
+        // #1414: the image declares several VOLUMEs; anything we do not bind-mount becomes an anonymous volume
+        // per start (which `rm -v` must then drop), and the entrypoint's ~1 GB installer download can never be
+        // served from a hosted instance (admin port not published) — so it is switched off.
+        var config = new WorldHostConfig();
+        var world = new WorldRecord("abc123abc123", "acct", "My World", "secret", 32001, WorldStatus.Stopped, "", 0, 0);
+
+        var args = DockerCliLauncher.BuildRunArgs(config, world, "/opt/bbs/worldhost/worlds/abc123abc123/saves");
+
+        Assert.Contains("BBS_FETCH_CLIENT=0", args);
+        Assert.Equal(new[] { "/opt/bbs/worldhost/worlds/abc123abc123/saves:/app/saves" }, args.Where(a => a.Contains(":/app/")).ToArray());
+        Assert.DoesNotContain(args, a => a.Contains("bbs-world-abc123abc123-saves")); // bind mount, not a named volume
+    }
     [Fact]
     public void BuildRunArgs_OmitsFencesAndAi_WhenUnconfigured()
     {
