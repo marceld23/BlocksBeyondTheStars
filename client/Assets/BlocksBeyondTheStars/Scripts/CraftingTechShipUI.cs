@@ -606,6 +606,16 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddBadge(arcadeBtn, 140f); // a freshly downloaded data-cube game is waiting in the Arcade
             }
 
+            // The Esc pause menu (Resume / Settings / Quit) had no pad route at all: Esc is keyboard-only
+            // in-game and every stock pad button is spoken for. Start opens THIS screen, so a button here is
+            // the one place a pad player will look for it. Closes the tab menu first — the two are separate
+            // owners in the cursor arbiter and must not stack.
+            UiKit.AddButton(p, W - 594, topY, 140, topH, L("ui.tab.pause"), () =>
+            {
+                Menu?.CloseFromUi();
+                FindAnyObjectByType<AppShell>()?.OpenPauseMenu();
+            });
+
             // Search + craftable filter (crafting + ship lists benefit; other modes don't need it).
             if (_mode == Mode.Crafting || _mode == Mode.Ship)
             {

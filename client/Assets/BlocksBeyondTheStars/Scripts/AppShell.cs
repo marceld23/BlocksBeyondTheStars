@@ -1688,9 +1688,12 @@ namespace BlocksBeyondTheStars.Client
 
             // Pad B backs out of the MENU phases too (#1198) — settings, credits, save-select and the four
             // standalone editors had no pad exit at all. Deliberately NOT in-game: there B is crouch
-            // (GamepadInputSource.CrouchHeld), and ducking must never pop the quit dialog.
+            // (GamepadInputSource.CrouchHeld), and ducking must never pop the quit dialog. The one in-game
+            // exception is the pause dialog itself: while it is UP the world is held and B is nobody's
+            // crouch, so B resumes — the pad's way in is the "Pause menu" button on the Start screen
+            // (CraftingTechShipUI → OpenPauseMenu), since every stock pad button is already spoken for.
             bool cancel = Phase == ShellPhase.InGame
-                ? Input.GetKeyDown(KeyCode.Escape)
+                ? Input.GetKeyDown(KeyCode.Escape) || (_confirmQuit && InputMap.Down(InputAction.UiCancel))
                 : InputMap.Down(InputAction.UiCancel);
             if (cancel)
             {
@@ -1716,12 +1719,7 @@ namespace BlocksBeyondTheStars.Client
                     }
                     else
                     {
-                        // Ask before leaving the game (rather than quitting instantly) — and actually hold the
-                        // world while the menu is up, which is what the dialog has always claimed to do.
-                        _confirmQuit = true;
-                        SetWorldPaused(true);
-                        ShowQuitDialog(true);
-                        boot?.SetMenuOwner(this, true); // freezes player control + frees the cursor for the buttons (#413)
+                        OpenPauseMenu();
                     }
                 }
                 else if (Phase == ShellPhase.Settings)
@@ -1797,11 +1795,30 @@ namespace BlocksBeyondTheStars.Client
         // The in-game Esc menu. Was a bare "leave the game?" confirmation; now a small pause menu so the player
         // can reach Settings (and the volume) without quitting the world — the tester had to leave the session
         // just to turn the sound down (Severin playtest). Resume/Settings/Quit, laid out top to bottom.
+        /// <summary>Opens the in-game pause menu (Resume / Settings / Quit) and holds the world — what Esc does
+        /// on the keyboard. Public for the pad route: the "Pause menu" button on the Start screen. No-op while
+        /// it is already up or outside a game.</summary>
+        public void OpenPauseMenu()
+        {
+            if (Phase != ShellPhase.InGame || _confirmQuit)
+            {
+                return;
+            }
+
+            // Ask before leaving the game (rather than quitting instantly) — and actually hold the
+            // world while the menu is up, which is what the dialog has always claimed to do.
+            _confirmQuit = true;
+            SetWorldPaused(true);
+            ShowQuitDialog(true);
+            Boot()?.SetMenuOwner(this, true); // freezes player control + frees the cursor for the buttons (#413)
+        }
+
         private void BuildQuitDialog()
         {
             var canvas = UiKit.CreateCanvas("Pause Menu");
             canvas.sortingOrder = 60; // above the in-game HUD/menu
             _quitDialog = canvas.gameObject;
+            UiNav.Enable(canvas.gameObject); // pad: stick walks Resume / Settings / Quit, A picks, B resumes
 
             var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 720f, 370f, 480f, 340f);
             UiKit.AddText(panel.transform, 24f, 24f, 432f, 44f,

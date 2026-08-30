@@ -189,7 +189,10 @@ modal with no key that leaves it.
 **`AppShell` is the exception.** Its shell-level cancel accepts pad B in the *menu* phases only — in
 `ShellPhase.InGame` B is crouch (`GamepadInputSource.CrouchHeld`), and ducking must never pop the quit dialog.
 The in-game screens are safe because each gates its cancel on being open, and an open screen freezes player
-control.
+control. Consequently the pause menu has **no pad button of its own** (every stock button is taken): the pad
+reaches it through the **Pause menu** button on the Start screen's top strip (`CraftingTechShipUI` →
+`AppShell.OpenPauseMenu()`), and while the dialog is up — the world held, B nobody's crouch — **B resumes**.
+The dialog's canvas is `UiNav`-enabled like every other screen.
 
 ### Named pad buttons (`PadButton`)
 

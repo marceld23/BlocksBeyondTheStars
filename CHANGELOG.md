@@ -38,6 +38,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **The selection wears a cyan frame and moving it clicks** (#1410) — on a wall of inventory tiles the old
   tint-only highlight was invisible, and the stick moved the cursor in silence.
 - **Scrollbars left the navigation graph** (#1411): the stick can no longer park the cursor on an 8 px bar.
+- **The pause menu is reachable on a pad.** Esc was keyboard-only and every stock pad button is spoken for,
+  so Resume / Settings / Quit had no controller route at all. The Start screen's top strip now carries a
+  **Pause menu** button, the dialog is stick-navigable, and **(B)** resumes.
 
 ### 📬 Report inbox — "mark done" and delete cover both rows of a report (#1380)
 

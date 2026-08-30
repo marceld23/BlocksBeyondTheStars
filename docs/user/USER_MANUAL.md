@@ -142,7 +142,7 @@ buttons — retuning is tracked in issue #195):
 | **R3** (click the right stick) | **Hotbar slot actions** on the selected slot (see §5) — stick navigates the menu, **(A)** picks, **(B)** closes |
 | **L3** (click the left stick) | **Actions** — a list of everything you can do right now (rotate the held block, trade / dock with the player beside you, undock, loot / stash, repair, lamp, thermal vision, deploy a station in EVA, leave / refuel the speeder, …); stick navigates, **(A)** picks, **(B)** closes |
 | **View** (the two-rectangles button left of the Xbox logo; "Back" on a 360 pad, Share on PlayStation, − on Nintendo) | **VEGA: continue** — advance or dismiss the ship AI's line (the same as **N** on the keyboard) |
-| **Start** | Open / close the gameplay menu |
+| **Start** | Open / close the gameplay menu — its top strip has the **Pause menu** button (Resume / Settings / Quit, the same dialog **Esc** opens on the keyboard); **(B)** resumes |
 
 In menus, the left stick / d-pad navigates, **(A)** confirms and **(B)** goes back — that includes **every
 tab of the gameplay menu** (Inventory, Crafting, Tech, Ship, Map, Missions, Character, …), the Codex, the
