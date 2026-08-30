@@ -110,6 +110,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Build editors: load a built-in ship / template as a starting point (#1394–#1399, 2026-08-30, branch feat/editor-load-existing)
+Marcel: "how could the ship editor and the station/town editor load the existing ships and templates so I can
+change them?" LOAD only listed the user's own exports; the shipped content was never offered. **Load (#1394,
+#1395)**: the LOAD dialog is now the shared `EditorLoadPicker` — a scrollable, sectioned list: *Built-in ships*
+(every `ShipDefinition` with a layout, from `AppShell.Content`; the starter is a code box and is not listed) /
+*Built-in templates* (`Content.StationTemplates` / `SettlementTemplates`) / *Your templates* (`usercontent/`) /
+*Your designs* (exports), each row with size + cell count; loading fills the room AND the form (name, stats,
+craft cost, blueprint, tier, pack, weight, planet types), frames the camera, and asks first when something is
+already placed. A built-in template loads as a COPY (`<key>_2` + a status hint) because user templates are
+ADDED to the pool, not merged over it — saving under the original key would only clone it. **Interior frame
+(#1396)**: export derived `width/height/length` from the bounding box of every cell, but the server treats those
+as the CABIN (floor guarantee, roof at `y == height`, hatch) and lets exterior cells sit outside — every shipped
+layout has 4–14 wings/engines/lights beyond the frame, so a re-export would have shifted the cabin. The interior
+size is now three explicit steppers with a translucent cyan frame in the room (`EditorInteriorFrame`).
+**Origin (#1397)**: exterior cells at negative x/z could not be represented (`InBounds` = 0..Max) — the interior
+origin now sits at `(8,0,8)` in the 48-room (`ShipLayout.EditorOriginX/Z`, shared so `ShipLayoutEditorRoomTests`
+guards every shipped layout against the room). **Palette (#1398)**: `console` station (5/7 layouts), station
+`npc`/`greenhouse`, settlement `chest`/`data_terminal` were missing → loads silently dropped them; added, and
+both loaders now count + name skipped cells in the status. **Merge tools (#1399)**: `merge_ship.py` derived
+`startModules` only from station tiles (re-merging the hauler lost reactor/life support/weapons) → union of the
+bundle's `startModules` (the editor exports the loaded definition's list), the existing entry's and the derived
+ones; `merge_structure.py` dropped `planetTypes` + `legacyPool` (pins!) → starts from the existing entry. Both
+replace in place (file order kept). Locales: 19 keys EN+DE, 12 community locales MT'd. Verified by the .NET
+test + a scratch re-merge of hauler / river_hamlet / stilt_hamlet + local Unity build.
+
 ### ★ Build editors: palette rows, scrollbar, typing guard, orphaned menu planet, wheel zoom, visible grid (#1386–#1391, 2026-08-30, branch fix/editor-ux)
 Marcel's settlement-editor screenshot: "no scrollbar or search on the left, a weird orb in the background, can't
 zoom, can't see the grid". Six causes, all in the shared editor bricks so ship/station/settlement got them at once.

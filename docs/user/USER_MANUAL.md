@@ -1260,6 +1260,20 @@ build (or the floor centre when nothing is placed yet), **Left-click** place, **
 bounds); the floor grid marks every cell with a brighter line every 8 cells. The palette on the left has a
 search box (typing there never moves the camera) and a scrollbar.
 
+**LOAD — start from an existing design.** The LOAD button in the Ship, Station and Town editors opens a
+sectioned list: **Built-in ships** (every shipped ship type that has a layout — scout, corvette, courier,
+hauler, thunderbolt, deathblock, hammerhead; the starter is a code-built box and is not listed) or
+**Built-in templates** (the shipped stations / settlements), **Your templates** (what you already saved to the
+user-content folder) and **Your designs** (your export bundles). Loading fills the build room *and* the side
+panel (name, stats, craft cost, tier, pack …) and frames the camera on it; if something is already placed the
+editor asks before replacing it. A built-in template is loaded as a **copy** (key `<name>_2`) — the original
+stays in the game, your copy is added next to it. Cells the palette does not know are counted and named in the
+status line instead of vanishing.
+
+**Ship editor — interior frame.** A translucent cyan box marks the **cabin**: the volume the game walks,
+floors and roofs. Set its width / length / height with the *Interior* steppers; wings, engines, nav lights
+and antennae may sit anywhere outside the box (that is how the shipped ships are built).
+
 | Editor | Designs | Export → merge tool |
 |---|---|---|
 | **Ship Editor** | Custom ship types (hull, viewports, lights, engine, hatch, station tiles) | `ship.json` + `layout.json` → `tools/merge_ship.py` |

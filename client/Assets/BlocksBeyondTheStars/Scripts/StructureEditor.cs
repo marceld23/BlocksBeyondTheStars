@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
@@ -19,6 +20,12 @@ namespace BlocksBeyondTheStars.Client
     /// panel sets the name + size tier; <b>Save</b> writes a template bundle (structure.json +
     /// layout.json) a developer folds into the game's template pools with tools/merge_structure.py.
     /// Self-contained on the client; the palette + size tiers switch by <see cref="EditorMode"/>.
+    /// <para>
+    /// <b>LOAD</b> (#1395) offers the shipped templates (from the loaded content) and the templates already
+    /// saved to the user-content folder as starting points, next to the user's exports. A shipped template
+    /// is loaded as a COPY (key suffixed <c>_2</c>): user templates are added to the pool, not merged over
+    /// it, so saving under the original key would only put a clone next to the original.
+    /// </para>
     /// </summary>
     public sealed class StructureEditor : MonoBehaviour
     {
@@ -64,6 +71,7 @@ namespace BlocksBeyondTheStars.Client
         private string _name = "My Structure";
         private string _pack = "default";   // template pack; a world enables a set of packs
         private int _weight = 1;            // relative selection weight within its tier
+        private string _planetTypes = string.Empty; // settlements only: comma-separated planet-type keys (#1115); blank = every world
         private string _status = string.Empty;
         private bool _mouseOverUi;
 
@@ -118,6 +126,8 @@ namespace BlocksBeyondTheStars.Client
             M("heal_tank", new Color(0.4f, 0.9f, 0.6f)),
             M("quarters", new Color(0.6f, 0.45f, 0.8f)),
             M("console", new Color(0.3f, 0.6f, 0.95f)),
+            M("npc", new Color(0.85f, 0.6f, 0.5f)),          // used by the shipped spire/bazaar templates (#1398)
+            M("greenhouse", new Color(0.45f, 0.85f, 0.35f)), // hydroponics bay marker (#628)
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
         };
 
@@ -130,6 +140,8 @@ namespace BlocksBeyondTheStars.Client
             M("door_hinge", new Color(0.60f, 0.40f, 0.20f)),
             M("door_energy", new Color(0.35f, 0.80f, 1f)), // the airtight air-curtain door (#793)
             M("loot", new Color(0.8f, 0.7f, 0.3f)),
+            M("chest", new Color(0.75f, 0.55f, 0.25f)),         // loot chest (stilt_hamlet, #1398)
+            M("data_terminal", new Color(0.35f, 0.9f, 0.9f)),   // lore terminal (walled_market, #1398)
         };
 
         private void BuildRoom()
@@ -313,7 +325,12 @@ namespace BlocksBeyondTheStars.Client
 
         [Serializable] private sealed class CellJson { public int x, y, z; public string kind, id; public int tint, glow, shape; }
         [Serializable] private sealed class LayoutJson { public int width, height, length; public List<CellJson> cells = new(); }
-        [Serializable] private sealed class MetaJson { public string key, name, kind, tier, pack, layout; public int weight = 1; }
+        [Serializable] private sealed class MetaJson
+        {
+            public string key, name, kind, tier, pack, layout;
+            public int weight = 1;
+            public List<string> planetTypes = new(); // carried through so a re-merge keeps the restriction (#1399)
+        }
 
         // Data-shaped StructureTemplate (matches the server's StructureTemplate JSON) written straight to
         // the user-content folder so a structure built in-game appears in the next new world WITHOUT a merge.
@@ -321,8 +338,25 @@ namespace BlocksBeyondTheStars.Client
         {
             public string key, name, tier, kind, pack;
             public int weight = 1;
+            public List<string> planetTypes = new();
             public int width, height, length;
             public List<CellJson> cells = new();
+        }
+
+        /// <summary>The planet-types field as a list: comma/space separated keys, trimmed, empty = every world.</summary>
+        private List<string> PlanetTypeList()
+        {
+            var list = new List<string>();
+            foreach (var raw in (_planetTypes ?? string.Empty).Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string s = raw.Trim().ToLowerInvariant();
+                if (s.Length > 0 && !list.Contains(s))
+                {
+                    list.Add(s);
+                }
+            }
+
+            return list;
         }
 
         private void Export()
@@ -357,7 +391,12 @@ namespace BlocksBeyondTheStars.Client
             string modeName = EditorMode == Mode.Station ? "station" : "settlement";
             string pack = string.IsNullOrWhiteSpace(_pack) ? "default" : Slug(_pack);
             int weight = Mathf.Max(1, _weight);
-            var meta = new MetaJson { key = key, name = _name, kind = modeName, tier = _tiers[_tier], pack = pack, weight = weight, layout = $"{key}.json" };
+            var planetTypes = EditorMode == Mode.Settlement ? PlanetTypeList() : new List<string>();
+            var meta = new MetaJson
+            {
+                key = key, name = _name, kind = modeName, tier = _tiers[_tier], pack = pack, weight = weight, layout = $"{key}.json",
+                planetTypes = planetTypes,
+            };
 
             try
             {
@@ -372,6 +411,7 @@ namespace BlocksBeyondTheStars.Client
                 var tpl = new TemplateJson
                 {
                     key = key, name = _name, tier = _tiers[_tier], kind = modeName, pack = pack, weight = weight,
+                    planetTypes = planetTypes,
                     width = layout.width, height = layout.height, length = layout.length, cells = layout.cells,
                 };
                 string userDir = Path.Combine(AppPaths.Root, "usercontent", modeName + "_templates");
@@ -386,53 +426,201 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private GameObject _loadPicker;
+        private EditorLoadPicker _loadPicker;
 
-        private string ExportsRoot => Path.Combine(AppPaths.Root,
-            (EditorMode == Mode.Station ? "station" : "settlement") + "_exports");
+        private string ModeName => EditorMode == Mode.Station ? "station" : "settlement";
 
-        /// <summary>Lists saved designs of the current mode and lets you load one back in to keep editing.</summary>
+        private string ExportsRoot => Path.Combine(AppPaths.Root, ModeName + "_exports");
+
+        private string UserTemplatesRoot => Path.Combine(AppPaths.Root, "usercontent", ModeName + "_templates");
+
+        /// <summary>The LOAD dialog (#1395): the shipped templates of this mode (from the loaded content),
+        /// the templates already in the user-content folder, then the user's export bundles.</summary>
         private void OpenLoadPicker()
         {
-            if (_loadPicker != null)
+            _loadPicker?.Close();
+
+            var builtIn = new EditorLoadPicker.Section { Title = L("ui.ed.sec_builtin_templates") };
+            if (Shell?.Content != null)
             {
-                Destroy(_loadPicker);
+                var pool = EditorMode == Mode.Station ? Shell.Content.StationTemplates : Shell.Content.SettlementTemplates;
+                var sorted = new List<StructureTemplate>(pool);
+                sorted.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+                foreach (var t in sorted)
+                {
+                    var tpl = t;
+                    builtIn.Items.Add(new EditorLoadPicker.Item
+                    {
+                        Label = string.IsNullOrEmpty(t.Name) ? t.Key : t.Name,
+                        Detail = Detail(t.Tier, t.Width, t.Length, t.Height, t.Cells.Count),
+                        Load = () => LoadBuiltIn(tpl),
+                    });
+                }
             }
 
-            var keys = new List<string>();
+            var user = new EditorLoadPicker.Section { Title = L("ui.ed.sec_user_templates") };
+            if (Directory.Exists(UserTemplatesRoot))
+            {
+                var files = Directory.GetFiles(UserTemplatesRoot, "*.json");
+                System.Array.Sort(files, string.CompareOrdinal);
+                foreach (var file in files)
+                {
+                    TemplateJson tpl;
+                    try
+                    {
+                        tpl = JsonUtility.FromJson<TemplateJson>(File.ReadAllText(file));
+                    }
+                    catch (Exception)
+                    {
+                        continue; // one unreadable file must not hide the rest (the server skips it the same way)
+                    }
+
+                    if (tpl == null || tpl.cells == null || tpl.cells.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    string fileKey = Path.GetFileNameWithoutExtension(file);
+                    if (string.IsNullOrEmpty(tpl.key))
+                    {
+                        tpl.key = fileKey;
+                    }
+
+                    var t = tpl;
+                    user.Items.Add(new EditorLoadPicker.Item
+                    {
+                        Label = string.IsNullOrEmpty(t.name) ? t.key : t.name,
+                        Detail = Detail(t.tier, t.width, t.length, t.height, t.cells.Count),
+                        Load = () => ApplyTemplate(t.key, t.name, t.tier, t.pack, t.weight, t.planetTypes, t.cells, copy: false),
+                    });
+                }
+            }
+
+            var mine = new EditorLoadPicker.Section { Title = L("ui.ed.sec_exports") };
             if (Directory.Exists(ExportsRoot))
             {
-                foreach (var d in Directory.GetDirectories(ExportsRoot))
+                var dirs = Directory.GetDirectories(ExportsRoot);
+                System.Array.Sort(dirs, string.CompareOrdinal);
+                foreach (var d in dirs)
                 {
-                    if (File.Exists(Path.Combine(d, "layout.json")))
+                    if (!File.Exists(Path.Combine(d, "layout.json")))
                     {
-                        keys.Add(Path.GetFileName(d));
+                        continue;
                     }
+
+                    string k = Path.GetFileName(d);
+                    mine.Items.Add(new EditorLoadPicker.Item { Label = k, Load = () => LoadDesign(k) });
                 }
             }
 
-            // Shared menu-modal chrome (#588) — the picker had no scrim, so the editor behind it stayed
-            // fully lit and clickable through the gaps.
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, 700f, 260f, 520f, 520f);
-            _loadPicker = overlay;
-            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            if (keys.Count == 0)
-            {
-                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            }
-            else
-            {
-                for (int i = 0; i < Mathf.Min(keys.Count, 11); i++)
-                {
-                    string k = keys[i];
-                    UiKit.AddButton(panel.transform, 20f, 54f + i * 38f, 480f, 34f, "▸  " + k, () => LoadDesign(k));
-                }
-            }
-
-            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, L("ui.menu.back"), () => { Destroy(_loadPicker); _loadPicker = null; });
+            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, user, mine }, _design.Count, () => _loadPicker = null);
         }
 
-        /// <summary>Clears the current build and rebuilds it (+ the form) from a saved design.</summary>
+        private string Detail(string tier, int w, int l, int h, int cells)
+        {
+            string tierText = string.IsNullOrEmpty(tier) || System.Array.IndexOf(_tiers, tier) < 0 ? tier ?? string.Empty : TierLabel(tier);
+            return $"{tierText} · {w}×{l}×{h} · " + string.Format(L("ui.ed.cells"), cells);
+        }
+
+        /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (door_slide is a block in
+        /// the shipped templates but a marker in the settlement palette), then by id alone; <c>Id == null</c>
+        /// when the palette has no such entry.</summary>
+        private EditorPaletteKit.Entry FindPalette(string id, string kind)
+        {
+            int i = System.Array.FindIndex(_palette, p => p.Id == id && p.Kind == kind);
+            if (i < 0)
+            {
+                i = System.Array.FindIndex(_palette, p => p.Id == id);
+            }
+
+            return i < 0 ? default : _palette[i];
+        }
+
+        /// <summary>Replaces the build with <paramref name="cells"/>. Cells whose id the palette lacks, or that
+        /// fall outside the room, are counted and named for the status line instead of vanishing (#1398).</summary>
+        private int ApplyCells(IEnumerable<CellJson> cells, List<string> skippedIds)
+        {
+            _view.Clear();
+            _design.Clear();
+            int skipped = 0;
+            foreach (var c in cells)
+            {
+                var cell = new Vector3i(c.x, c.y, c.z);
+                var pal = FindPalette(c.id, c.kind);
+                if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
+                {
+                    skipped++;
+                    if (!skippedIds.Contains(c.id ?? "?"))
+                    {
+                        skippedIds.Add(c.id ?? "?");
+                    }
+
+                    continue;
+                }
+
+                var data = new CellData
+                {
+                    Id = c.id,
+                    Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
+                    Tint = c.tint, Glow = c.glow, Shape = c.shape,
+                };
+                PlaceCellData(cell, pal, data);
+            }
+
+            _view.Flush(); // build all loaded chunks in one batch
+            return skipped;
+        }
+
+        /// <summary>Loads a shipped template as a COPY: the key gets a <c>_2</c> suffix and the status says so,
+        /// because the user-content pool is added to the built-in one — a save under the original key would
+        /// only put a clone next to the original (and pinned worlds keep the original anyway).</summary>
+        private void LoadBuiltIn(StructureTemplate t)
+        {
+            var cells = new List<CellJson>(t.Cells.Count);
+            foreach (var c in t.Cells)
+            {
+                cells.Add(new CellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape });
+            }
+
+            ApplyTemplate(t.Key, t.Name, t.Tier, t.PackOrDefault, t.Weight, t.PlanetTypes, cells, copy: true);
+        }
+
+        /// <summary>Common load path for built-in and user templates: cells + form fields, then the status
+        /// (skipped cells, copy hint) and a UI rebuild.</summary>
+        private void ApplyTemplate(string key, string name, string tier, string pack, int weight, List<string> planetTypes, IEnumerable<CellJson> cells, bool copy)
+        {
+            var skippedIds = new List<string>();
+            int skipped = ApplyCells(cells, skippedIds);
+
+            _key = copy ? key + "_2" : key;
+            _name = string.IsNullOrEmpty(name) ? key : name;
+            _pack = string.IsNullOrEmpty(pack) ? "default" : pack;
+            _weight = Mathf.Max(1, weight);
+            _planetTypes = planetTypes != null ? string.Join(", ", planetTypes) : string.Empty;
+            int ti = System.Array.IndexOf(_tiers, tier);
+            if (ti >= 0) _tier = ti;
+
+            FinishLoad(_name, skipped, skippedIds, copy ? key : null);
+        }
+
+        private void FinishLoad(string label, int skipped, List<string> skippedIds, string copiedFrom)
+        {
+            EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL);
+            _status = string.Format(L("ui.ed.loaded"), label, _design.Count);
+            if (skipped > 0)
+            {
+                _status += "\n" + string.Format(L("ui.ed.skipped"), skipped, string.Join(", ", skippedIds));
+            }
+
+            if (copiedFrom != null)
+            {
+                _status += "\n" + string.Format(L("ui.ed.copy_hint"), copiedFrom);
+            }
+
+            RebuildUi();
+        }
+
+        /// <summary>Clears the current build and rebuilds it (+ the form) from a saved export bundle.</summary>
         private void LoadDesign(string key)
         {
             string dir = Path.Combine(ExportsRoot, key);
@@ -446,50 +634,17 @@ namespace BlocksBeyondTheStars.Client
             try
             {
                 var layout = JsonUtility.FromJson<LayoutJson>(File.ReadAllText(layoutPath));
-
-                _view.Clear();
-                _design.Clear();
-
-                if (layout?.cells != null)
-                {
-                    foreach (var c in layout.cells)
-                    {
-                        var cell = new Vector3i(c.x, c.y, c.z);
-                        var pal = System.Array.Find(_palette, p => p.Id == c.id);
-                        if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
-                        {
-                            continue;
-                        }
-
-                        var data = new CellData
-                        {
-                            Id = c.id,
-                            Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
-                            Tint = c.tint, Glow = c.glow, Shape = c.shape,
-                        };
-                        PlaceCellData(cell, pal, data);
-                    }
-                }
-
-                _view.Flush(); // build all loaded chunks in one batch
-
                 string metaPath = Path.Combine(dir, "structure.json");
-                if (File.Exists(metaPath) && JsonUtility.FromJson<MetaJson>(File.ReadAllText(metaPath)) is { } meta)
-                {
-                    _key = string.IsNullOrEmpty(meta.key) ? key : meta.key;
-                    _name = string.IsNullOrEmpty(meta.name) ? _name : meta.name;
-                    _pack = string.IsNullOrEmpty(meta.pack) ? "default" : meta.pack;
-                    _weight = Mathf.Max(1, meta.weight);
-                    int ti = System.Array.IndexOf(_tiers, meta.tier);
-                    if (ti >= 0) _tier = ti;
-                }
-                else
-                {
-                    _key = key;
-                }
-
-                _status = string.Format(L("ui.ed.loaded"), key, _design.Count);
-                RebuildUi();
+                MetaJson meta = File.Exists(metaPath) ? JsonUtility.FromJson<MetaJson>(File.ReadAllText(metaPath)) : null;
+                ApplyTemplate(
+                    string.IsNullOrEmpty(meta?.key) ? key : meta.key,
+                    meta?.name ?? _name,
+                    meta?.tier,
+                    meta?.pack,
+                    meta?.weight ?? 1,
+                    meta?.planetTypes,
+                    layout?.cells ?? new List<CellJson>(),
+                    copy: false);
             }
             catch (Exception e)
             {
@@ -501,7 +656,8 @@ namespace BlocksBeyondTheStars.Client
         /// placed cells live under the editor transform, not the canvas, so they survive the rebuild).</summary>
         private void RebuildUi()
         {
-            _loadPicker = null; // destroyed along with the old canvas
+            _loadPicker?.Close(); // (also destroyed along with the old canvas)
+            _loadPicker = null;
             if (_canvas != null)
             {
                 Destroy(_canvas.gameObject);
@@ -602,6 +758,15 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(meta, 260f, y, 30f, 30f, "−", () => { _weight = Mathf.Max(1, _weight - 1); _weightLabel.text = _weight.ToString(); });
             UiKit.AddButton(meta, 300f, y, 30f, 30f, "+", () => { _weight = Mathf.Min(99, _weight + 1); _weightLabel.text = _weight.ToString(); });
             y += 50f;
+
+            // Settlements may restrict themselves to planet types (#1115); stations float in space.
+            if (EditorMode == Mode.Settlement)
+            {
+                UiKit.AddText(meta, 16f, y, 348f, 22f, L("ui.struct.planet_types"), 15, UiKit.CyanDim, TextAnchor.MiddleLeft);
+                y += 26f;
+                UiKit.AddInput(meta, 16f, y, 348f, 30f, _planetTypes, v => _planetTypes = v ?? string.Empty);
+                y += 44f;
+            }
 
             // ── Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells ──
             UiKit.AddText(meta, 16f, y, 348f, 24f, L("ui.struct.brush"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

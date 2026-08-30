@@ -15,6 +15,15 @@
 > (also IMPLEMENTED). The text below is retained as the original design record. Some specifics differ from
 > what shipped (e.g. the placeholder `light` block was replaced with the real light blocks, and the editor
 > palette is now built from the full `GameContent` catalogue rather than a fixed handful).
+>
+> **Update (2026-08-30, #1394–#1399):** P4's "load-an-existing-type-to-edit" is done — LOAD lists the shipped
+> ships (from the loaded content) next to the user's exports (`EditorLoadPicker`). Two conventions the layouts
+> already followed are now explicit in the editor: the **interior origin** sits at `ShipLayout.EditorOriginX/Z`
+> = (8, 8) in the 48×32×48 room so exterior cells at negative x/z fit (#1397; `ShipLayoutEditorRoomTests` guards
+> every shipped layout), and the **interior size** (`width/height/length` = the cabin the server floors, roofs
+> and hatches) is an explicit stepper triple with a cyan frame in the room, not the bounding box of every placed
+> cell (#1396). `ship.json` now carries `startModules`; `tools/merge_ship.py` keeps them (plus the existing
+> entry's) instead of deriving from station tiles only (#1399).
 
 A menu-launched, in-engine **ship designer**: an empty build room where the user flies/walks in 3D
 (like in-game) and places blocks to design a spaceship — hull, viewports, **all ship stations**, an

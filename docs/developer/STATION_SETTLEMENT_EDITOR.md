@@ -6,6 +6,14 @@ build to verify). Requested: build a **space-station editor** and a **town/villa
 editor), then make world generation pick from **lists of hand-designed station/village/town types** *in
 addition to* procedural generation.
 
+> **Update (2026-08-30, #1395 / #1398 / #1399):** LOAD now offers the shipped templates (from the loaded
+> content) and the user-content templates as starting points, via the shared `EditorLoadPicker`. A shipped
+> template loads as a **copy** (`<key>_2`): user-content templates are *added* to the pool (`ContentLoader`
+> `AddRange`), never merged over a built-in, so a save under the original key would only clone it — and
+> pinned worlds (#1115) keep the original by key anyway. The palettes gained the marker ids the shipped
+> templates use (`npc`, `greenhouse`, `chest`, `data_terminal`); the settlement form carries `planetTypes`;
+> `tools/merge_structure.py` preserves `legacyPool` / `planetTypes` on a re-merge.
+
 > **Update (2026-06-27) — large builds.** The structure editor's build volume is now **128×128×128**
 > (`StructureEditor.MaxW/MaxH/MaxL`; the ship editor is 48×32×48). To keep large builds editable the editors
 > render the placed cells as a chunked combined mesh with face culling (`EditorVoxelChunkView`) instead of one

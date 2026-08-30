@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
 using UnityEngine;
@@ -19,6 +20,14 @@ namespace BlocksBeyondTheStars.Client
     /// blueprint/craft costs. Save writes a ship-type bundle (ship.json + layout.json) that a developer
     /// folds into the game with tools/merge_ship.py. Self-contained on the client (no server).
     /// <para>
+    /// Coordinates (#1396, #1397): the layout's interior origin (0,0,0) sits at <see cref="Origin"/> in the
+    /// room, so exterior cells at negative x/z (wings, engines, nav lights — every shipped layout has them)
+    /// have space. The interior size is an explicit field, not the bounding box: the server treats
+    /// <c>0..W-1 × 0..H × 0..L-1</c> as the cabin (floor guarantee, roof, hatch) and everything else as
+    /// exterior, so a roof antenna must not grow the cabin. LOAD offers the shipped ships as starting
+    /// points (#1394) next to the user's own exports.
+    /// </para>
+    /// <para>
     /// On a gamepad the editor has two focus modes and <b>Start</b> swaps between them (#1198), because
     /// one stick cannot walk a list and fly a camera at the same time. In PANEL mode
     /// (<see cref="UiNavFocus"/> active) the sticks walk the palette and the form. In VIEWPORT mode the
@@ -31,8 +40,11 @@ namespace BlocksBeyondTheStars.Client
     {
         public AppShell Shell;
 
-        private const int MaxW = 48, MaxH = 32, MaxL = 48;
+        private const int MaxW = ShipLayout.EditorRoomWidth, MaxH = ShipLayout.EditorRoomHeight, MaxL = ShipLayout.EditorRoomLength;
         private const float RaycastDist = 1200f;
+
+        /// <summary>Room cell that holds the layout's interior origin (0,0,0); export subtracts it, load adds it.</summary>
+        private static readonly Vector3i Origin = new(ShipLayout.EditorOriginX, 0, ShipLayout.EditorOriginZ);
 
         private Camera _cam;
         private GameObject _floor;
@@ -78,6 +90,15 @@ namespace BlocksBeyondTheStars.Client
         private int _cargo = 48;
         private readonly List<CostRow> _craftCost = new() { new CostRow { Item = "iron_plate", Count = 20 } };
 
+        // Interior (cabin) size the server stamps as 0..W-1 × 0..H × 0..L-1 (#1396) — explicit, never derived
+        // from the placed cells, because exterior greebles sit outside it. Defaults match the starter box.
+        private int _intW = 5, _intL = 7, _intH = 4;
+        private EditorInteriorFrame _frame;
+
+        // The modules a loaded built-in ship starts with (reactor, life support, weapons …) — carried through
+        // to ship.json so tools/merge_ship.py keeps them instead of deriving only from station tiles (#1399).
+        private List<string> _startModules = new();
+
         private string _statusText = string.Empty;
         private bool _mouseOverUi;
 
@@ -104,12 +125,33 @@ namespace BlocksBeyondTheStars.Client
             _cam.farClipPlane = 800f;
             camGo.AddComponent<AudioListener>();
             _yaw = 0f;
-            EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL); // opening view (#1390)
 
             _view = new EditorVoxelChunkView(transform);
             _ghost = new EditorPlacementGhost(transform);
             BuildRoom();
+            _frame = new EditorInteriorFrame(transform);
+            RebuildFrame();
+            FrameCamera(); // opening view (#1390): the interior frame when nothing is placed yet
             BuildUi();
+        }
+
+        private void RebuildFrame() => _frame?.Rebuild(Origin, Mathf.Max(1, _intW), Mathf.Max(1, _intH), Mathf.Max(1, _intL));
+
+        /// <summary>Frames the build — or, with nothing placed, the interior frame, so a fresh editor opens
+        /// on the cabin volume rather than an arbitrary patch of floor.</summary>
+        private void FrameCamera()
+        {
+            IReadOnlyCollection<Vector3i> cells = _design.Keys;
+            if (cells.Count == 0)
+            {
+                cells = new[]
+                {
+                    Origin,
+                    new Vector3i(Origin.X + _intW - 1, _intH, Origin.Z + _intL - 1),
+                };
+            }
+
+            EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, cells, MaxW, MaxL);
         }
 
         private string L(string key) => Shell != null ? Shell.L(key) : key;
@@ -144,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
                 P("medbay", "station", new Color(0.9f, 0.95f, 1f)),
                 P("quarters", "station", new Color(0.6f, 0.45f, 0.8f)),
                 P("cargo", "station", new Color(0.7f, 0.6f, 0.45f)),
+                P("console", "station", new Color(0.35f, 0.7f, 0.9f)), // the ship console (#1073); in 5 of 7 shipped layouts (#1398)
                 P("hangar", "station", new Color(0.35f, 0.4f, 0.46f)),
                 P("ship_laser_basic", "station", new Color(0.45f, 1f, 1f)),
                 P("ship_cannon_1", "station", new Color(0.95f, 0.55f, 0.4f)),
@@ -206,7 +249,7 @@ namespace BlocksBeyondTheStars.Client
                 if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftControl)) move += Vector3.down;
                 if (Input.GetKeyDown(KeyCode.F))
                 {
-                    EditorSceneKit.Frame(_cam.transform, ref _pitch, _yaw, _design.Keys, MaxW, MaxL);
+                    FrameCamera();
                 }
             }
 
@@ -473,6 +516,7 @@ namespace BlocksBeyondTheStars.Client
         {
             _view?.Dispose();
             _ghost?.Dispose();
+            _frame?.Dispose();
             _atlas?.Destroy(); // palette sprites reference this texture; the editor owns it (#423 lesson)
             _atlas = null;
             if (_canvas != null)
@@ -507,8 +551,9 @@ namespace BlocksBeyondTheStars.Client
 
             // Pinned footer: status, then save on a full-width row of its own (so the label never has
             // to shrink), then load + back sharing the row below.
-            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 160f, 356f, 46f, string.Empty, 14, UiKit.Ok);
+            _statusLabel = UiKit.AddText(meta, 12f, PanelH - 160f, 356f, 46f, string.Empty, 13, UiKit.Ok);
             _statusLabel.alignment = TextAnchor.UpperLeft;
+            _statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // "skipped 3 cells: …" needs a second line
             UiKit.AddButton(meta, 12f, PanelH - 110f, 356f, 42f, L("ui.struct.save"), Export);
             UiKit.AddButton(meta, 12f, PanelH - 62f, 172f, 38f, L("ui.struct.load"), OpenLoadPicker);
             UiKit.AddButton(meta, 196f, PanelH - 62f, 172f, 38f, L("ui.menu.back"), () => Shell?.CloseShipEditor());
@@ -580,6 +625,16 @@ namespace BlocksBeyondTheStars.Client
             Stepper(L("ui.ship.speed"), () => _flightSpeed, v => _flightSpeed = v, 0.4f, 2.5f, 0.05f, "0.00");
             Stepper(L("ui.ship.handling"), () => _handling, v => _handling = v, 0.4f, 2.5f, 0.05f, "0.00");
             Stepper(L("ui.ship.cargo"), () => _cargo, v => _cargo = Mathf.RoundToInt(v), 12f, 240f, 4f, "0");
+
+            // Interior (cabin) frame: the volume the server walks, floors and roofs (#1396). The cyan box in
+            // the room follows these steppers; exterior cells may sit anywhere outside it.
+            FormHeader(L("ui.ship.interior"));
+            Stepper(L("ui.ship.int_w"), () => _intW, v => { _intW = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxW - Origin.X, 1f, "0");
+            Stepper(L("ui.ship.int_l"), () => _intL, v => { _intL = Mathf.RoundToInt(v); RebuildFrame(); }, 3f, MaxL - Origin.Z, 1f, "0");
+            Stepper(L("ui.ship.int_h"), () => _intH, v => { _intH = Mathf.RoundToInt(v); RebuildFrame(); }, 2f, MaxH - 1, 1f, "0");
+            var hint = FormLabel(L("ui.ship.interior_hint"));
+            hint.fontSize = 12;
+            hint.color = UiKit.CyanDim;
 
             // Block brush: dye + glow colour + shape + orientation applied to newly placed BLOCK cells
             // (every block is dyeable + shapeable in-game; shaped blocks orient at placement).
@@ -731,6 +786,7 @@ namespace BlocksBeyondTheStars.Client
             public float baseHull, baseShield, flightSpeed, handling;
             public int cargoSlots;
             public List<ExportCostJson> craftCost = new();
+            public List<string> startModules = new();
         }
 
         private void Export()
@@ -742,25 +798,19 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            int maxX = 0, maxY = 0, maxZ = 0;
-            var layout = new ExportLayoutJson();
+            // Cells go out in layout coordinates (room minus the interior origin, #1397); the interior size is
+            // the explicit cabin frame, not the bounding box of everything placed (#1396).
+            var layout = new ExportLayoutJson { width = _intW, height = _intH, length = _intL };
             foreach (var kv in _design)
             {
                 var d = kv.Value;
                 layout.cells.Add(new ExportCellJson
                 {
-                    x = kv.Key.X, y = kv.Key.Y, z = kv.Key.Z,
+                    x = kv.Key.X - Origin.X, y = kv.Key.Y - Origin.Y, z = kv.Key.Z - Origin.Z,
                     kind = string.IsNullOrEmpty(d.Kind) ? "block" : d.Kind, id = d.Id,
                     tint = d.Tint, glow = d.Glow, shape = d.Shape,
                 });
-                maxX = Mathf.Max(maxX, kv.Key.X);
-                maxY = Mathf.Max(maxY, kv.Key.Y);
-                maxZ = Mathf.Max(maxZ, kv.Key.Z);
             }
-
-            layout.width = maxX + 1;
-            layout.height = maxY + 1;
-            layout.length = maxZ + 1;
 
             var ship = new ExportShipJson
             {
@@ -774,6 +824,7 @@ namespace BlocksBeyondTheStars.Client
                 flightSpeed = (float)Math.Round(_flightSpeed, 2),
                 handling = (float)Math.Round(_handling, 2),
                 cargoSlots = _cargo,
+                startModules = new List<string>(_startModules),
             };
 
             foreach (var c in _craftCost)
@@ -798,54 +849,160 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private GameObject _loadPicker;
+        private EditorLoadPicker _loadPicker;
 
-        /// <summary>Lists the saved ship designs (under <c>ship_exports/</c>) and lets you load one back in to
-        /// keep editing it.</summary>
+        /// <summary>The LOAD dialog (#1394): the shipped ships (every <see cref="ShipDefinition"/> with a
+        /// layout, straight from the loaded content) as starting points, then the user's own exports under
+        /// <c>ship_exports/</c>. The starter ship is a code-built box without a layout and is not listed.</summary>
         private void OpenLoadPicker()
         {
-            if (_loadPicker != null)
-            {
-                Destroy(_loadPicker);
-            }
+            _loadPicker?.Close();
 
-            var keys = new List<string>();
-            string root = Path.Combine(AppPaths.Root, "ship_exports");
-            if (Directory.Exists(root))
+            var builtIn = new EditorLoadPicker.Section { Title = L("ui.ed.sec_builtin_ships") };
+            if (Shell?.Content != null)
             {
-                foreach (var d in Directory.GetDirectories(root))
+                var ships = new List<ShipDefinition>(Shell.Content.Ships.Values);
+                ships.Sort((a, b) => string.CompareOrdinal(a.Key, b.Key));
+                foreach (var def in ships)
                 {
-                    if (File.Exists(Path.Combine(d, "layout.json")))
+                    var layout = Shell.Content.GetShipLayout(def.Layout);
+                    if (layout == null)
                     {
-                        keys.Add(Path.GetFileName(d));
+                        continue;
                     }
-                }
-            }
 
-            // Shared menu-modal chrome (#588) — the picker had no scrim, so the editor behind it stayed
-            // fully lit and clickable through the gaps.
-            var (overlay, panel) = UiKit.AddModalOverlay(_canvas.transform, 700f, 280f, 520f, 520f);
-            _loadPicker = overlay;
-            UiKit.AddText(panel.transform, 20f, 14f, 480f, 28f, L("ui.struct.load"), 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            if (keys.Count == 0)
-            {
-                UiKit.AddText(panel.transform, 20f, 60f, 480f, 28f, L("ui.ed.none"), 15, UiKit.TextCol, TextAnchor.MiddleLeft);
-            }
-            else
-            {
-                for (int i = 0; i < Mathf.Min(keys.Count, 11); i++)
-                {
-                    string k = keys[i];
-                    UiKit.AddButton(panel.transform, 20f, 54f + i * 38f, 480f, 34f, "▸  " + k, () =>
+                    var d = def;
+                    builtIn.Items.Add(new EditorLoadPicker.Item
                     {
-                        LoadDesign(k);
-                        Destroy(_loadPicker);
-                        _loadPicker = null;
+                        Label = L(def.NameKey),
+                        Detail = $"{layout.Width}×{layout.Length}×{layout.Height} · " + string.Format(L("ui.ed.cells"), layout.Cells.Count),
+                        Load = () => LoadBuiltIn(d),
                     });
                 }
             }
 
-            UiKit.AddButton(panel.transform, 20f, 472f, 480f, 38f, L("ui.menu.back"), () => { Destroy(_loadPicker); _loadPicker = null; });
+            var mine = new EditorLoadPicker.Section { Title = L("ui.ed.sec_exports") };
+            string root = Path.Combine(AppPaths.Root, "ship_exports");
+            if (Directory.Exists(root))
+            {
+                foreach (var dir in Directory.GetDirectories(root))
+                {
+                    if (!File.Exists(Path.Combine(dir, "layout.json")))
+                    {
+                        continue;
+                    }
+
+                    string k = Path.GetFileName(dir);
+                    mine.Items.Add(new EditorLoadPicker.Item { Label = k, Load = () => LoadDesign(k) });
+                }
+            }
+
+            _loadPicker = EditorLoadPicker.Show(Shell, _canvas.transform, new[] { builtIn, mine }, _design.Count, () => _loadPicker = null);
+        }
+
+        /// <summary>Finds the palette entry for a loaded cell — by id AND kind first (a block and a marker may
+        /// share an id), then by id alone; <c>Id == null</c> when the palette has no such entry.</summary>
+        private EditorPaletteKit.Entry FindPalette(string id, string kind)
+        {
+            int i = System.Array.FindIndex(_palette, p => p.Id == id && p.Kind == kind);
+            if (i < 0)
+            {
+                i = System.Array.FindIndex(_palette, p => p.Id == id);
+            }
+
+            return i < 0 ? default : _palette[i];
+        }
+
+        /// <summary>Replaces the build with <paramref name="cells"/> (layout coordinates; the room origin is
+        /// added). Cells whose id the palette lacks, or that fall outside the room, are counted and named
+        /// so the status line can say what was lost instead of dropping them silently (#1398).</summary>
+        private int ApplyCells(IEnumerable<ExportCellJson> cells, List<string> skippedIds)
+        {
+            _view.Clear();
+            _design.Clear();
+            int skipped = 0;
+            foreach (var c in cells)
+            {
+                var cell = new Vector3i(c.x + Origin.X, c.y + Origin.Y, c.z + Origin.Z);
+                var pal = FindPalette(c.id, c.kind);
+                if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
+                {
+                    skipped++;
+                    if (!skippedIds.Contains(c.id ?? "?"))
+                    {
+                        skippedIds.Add(c.id ?? "?");
+                    }
+
+                    continue;
+                }
+
+                var data = new CellData
+                {
+                    Id = c.id,
+                    Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
+                    Tint = c.tint, Glow = c.glow, Shape = c.shape,
+                };
+                PlaceCellData(cell, pal, data);
+            }
+
+            _view.Flush(); // build all loaded chunks in one batch
+            return skipped;
+        }
+
+        /// <summary>Common tail of every load: frame, status (with the skipped-cells note), form.</summary>
+        private void FinishLoad(string label, int skipped, List<string> skippedIds)
+        {
+            RebuildFrame();
+            FrameCamera();
+            _status = string.Format(L("ui.ed.loaded"), label, _design.Count);
+            if (skipped > 0)
+            {
+                _status += "\n" + string.Format(L("ui.ed.skipped"), skipped, string.Join(", ", skippedIds));
+            }
+
+            RebuildForm();
+        }
+
+        /// <summary>Loads a shipped ship type as a starting point (#1394): its layout cells plus the whole
+        /// definition (localized name/description, stats, craft cost, blueprint, interior size, start
+        /// modules). Saving under the same key replaces the ship at merge time — the intended edit path.</summary>
+        private void LoadBuiltIn(ShipDefinition def)
+        {
+            var layout = Shell?.Content?.GetShipLayout(def.Layout);
+            if (layout == null)
+            {
+                _status = L("ui.ed.not_found");
+                return;
+            }
+
+            var cells = new List<ExportCellJson>(layout.Cells.Count);
+            foreach (var c in layout.Cells)
+            {
+                cells.Add(new ExportCellJson { x = c.X, y = c.Y, z = c.Z, kind = c.Kind, id = c.Id, tint = c.Tint, glow = c.Glow, shape = c.Shape });
+            }
+
+            var skippedIds = new List<string>();
+            int skipped = ApplyCells(cells, skippedIds);
+
+            _key = def.Key;
+            _shipName = L(def.NameKey);
+            _desc = L(def.DescriptionKey);
+            _requiredBlueprint = def.RequiredBlueprint ?? string.Empty;
+            _hull = def.BaseHull;
+            _shield = def.BaseShield;
+            _flightSpeed = def.FlightSpeed;
+            _handling = def.Handling;
+            _intW = Mathf.Max(1, layout.Width);
+            _intL = Mathf.Max(1, layout.Length);
+            _intH = Mathf.Max(1, layout.Height);
+            _startModules = new List<string>(def.StartModules);
+            _craftCost.Clear();
+            foreach (var c in def.CraftCost)
+            {
+                _craftCost.Add(new CostRow { Item = c.Item, Count = c.Count });
+            }
+
+            FinishLoad(_shipName, skipped, skippedIds);
         }
 
         /// <summary>Clears the current build and rebuilds it from a saved design's <c>layout.json</c>.</summary>
@@ -856,58 +1013,53 @@ namespace BlocksBeyondTheStars.Client
             if (!File.Exists(layoutPath))
             {
                 _status = L("ui.ed.not_found");
-                if (_statusLabel != null) _statusLabel.text = _status;
                 return;
             }
 
             try
             {
                 var layout = JsonUtility.FromJson<ExportLayoutJson>(File.ReadAllText(layoutPath));
-
-                _view.Clear();
-                _design.Clear();
-
-                if (layout?.cells != null)
+                var skippedIds = new List<string>();
+                int skipped = ApplyCells(layout?.cells ?? new List<ExportCellJson>(), skippedIds);
+                if (layout != null && layout.width > 0 && layout.length > 0 && layout.height > 0)
                 {
-                    foreach (var c in layout.cells)
-                    {
-                        var cell = new Vector3i(c.x, c.y, c.z);
-                        var pal = System.Array.Find(_palette, p => p.Id == c.id);
-                        if (pal.Id == null || !InBounds(cell) || _design.ContainsKey(cell))
-                        {
-                            continue; // unknown palette id or out of bounds
-                        }
-
-                        var data = new CellData
-                        {
-                            Id = c.id,
-                            Kind = string.IsNullOrEmpty(c.kind) ? pal.Kind : c.kind,
-                            Tint = c.tint, Glow = c.glow, Shape = c.shape,
-                        };
-                        PlaceCellData(cell, pal, data);
-                    }
+                    _intW = layout.width;
+                    _intL = layout.length;
+                    _intH = layout.height;
                 }
-
-                _view.Flush(); // build all loaded chunks in one batch
 
                 string shipPath = Path.Combine(dir, "ship.json");
                 if (File.Exists(shipPath) && JsonUtility.FromJson<ExportShipJson>(File.ReadAllText(shipPath)) is { } ship)
                 {
                     _key = string.IsNullOrEmpty(ship.key) ? key : ship.key;
                     _shipName = string.IsNullOrEmpty(ship.name) ? _shipName : ship.name;
+                    _desc = string.IsNullOrEmpty(ship.description) ? _desc : ship.description;
+                    _requiredBlueprint = ship.requiredBlueprint ?? string.Empty;
+                    if (ship.baseHull > 0) _hull = ship.baseHull;
+                    _shield = ship.baseShield;
+                    if (ship.flightSpeed > 0) _flightSpeed = ship.flightSpeed;
+                    if (ship.handling > 0) _handling = ship.handling;
+                    if (ship.cargoSlots > 0) _cargo = ship.cargoSlots;
+                    _startModules = ship.startModules != null ? new List<string>(ship.startModules) : new List<string>();
+                    if (ship.craftCost != null && ship.craftCost.Count > 0)
+                    {
+                        _craftCost.Clear();
+                        foreach (var c in ship.craftCost)
+                        {
+                            _craftCost.Add(new CostRow { Item = c.item ?? string.Empty, Count = c.count });
+                        }
+                    }
                 }
                 else
                 {
                     _key = key;
                 }
 
-                _status = string.Format(L("ui.ed.loaded"), key, _design.Count);
-                RebuildForm();
+                FinishLoad(key, skipped, skippedIds);
             }
             catch (Exception e)
             {
                 _status = string.Format(L("ui.ed.load_failed"), e.Message);
-                if (_statusLabel != null) _statusLabel.text = _status;
             }
         }
 
