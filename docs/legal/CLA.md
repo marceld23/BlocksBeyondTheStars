@@ -9,9 +9,6 @@
 > outbound license-grant option that allows the project owner to relicense
 > contributions. Company/entity contributors should instead sign the entity
 > variant (HA-CLA-E) — open an issue and we will provide it.
->
-> ⚠️ **Not yet legally reviewed.** This text must be confirmed by a lawyer before
-> the first release that ships under AGPL-3.0. Do not treat it as final until then.
 
 Thank you for your interest in contributing to Blocks Beyond the Stars. This
 Contributor License Agreement ("Agreement") documents the rights granted by
@@ -28,6 +25,9 @@ all right, title and interest in and to Your Contributions.
   in which You own or assert ownership of the Copyright.
 - **"Copyright"** means all rights protecting works of authorship, including
   copyright, moral and neighboring rights, for the full term of their existence.
+- **"Material"** means the work of authorship which is made available by Us to
+  third parties (the Blocks Beyond the Stars software and documentation). After
+  You Submit the Contribution, it may be included in the Material.
 - **"Submit"** means any form of electronic, verbal, or written communication sent
   to Us (e.g. pull requests, issues, code, documentation), excluding communication
   conspicuously marked "Not a Contribution".
@@ -48,10 +48,17 @@ platforms (e.g. game-console networks and storefronts).**
 ### 2.2 Patent License
 
 You grant to Us a perpetual, worldwide, non-exclusive, royalty-free, irrevocable
-(except as stated below) patent license, with the right to sublicense, under Your
-patent claims that are necessarily infringed by the Contribution alone or in
-combination with the Material, to make, use, sell, offer for sale, import and
-otherwise transfer the Contribution and the Material.
+(except as stated in this Section 2.2) patent license, with the right to
+sublicense, under Your patent claims that are necessarily infringed by the
+Contribution alone or in combination with the Material, to make, use, sell, offer
+for sale, import and otherwise transfer the Contribution and the Material.
+
+If any entity institutes patent litigation against You or any other entity
+(including a cross-claim or counterclaim in a lawsuit) alleging that Your
+Contribution, or the Material to which You have contributed, constitutes direct
+or contributory patent infringement, then any patent licenses granted to that
+entity under this Agreement for that Contribution or Material shall terminate as
+of the date such litigation is filed.
 
 ### 2.3 Outbound License — Our Promise
 
@@ -61,6 +68,12 @@ Material — including Your Contribution — to the public under the GNU AGPL-3.
 will always remain free, AGPL-licensed and current.** Any proprietary license We
 grant ourselves applies only to closed-platform distribution that cannot accept a
 copyleft license; it never removes or restricts the public open-source version.
+
+### 2.4 Moral Rights
+
+If moral rights apply to the Contribution, to the maximum extent permitted by
+law, You waive and agree not to assert such moral rights against Us or our
+successors in interest, or any of our licensees, either direct or indirect.
 
 ## 3. Your Representations
 
@@ -79,7 +92,7 @@ provided "AS IS", without warranty of any kind, express or implied.
 
 ## 5. Miscellaneous
 
-This Agreement is governed by the laws of the jurisdiction of the project owner,
+This Agreement is governed by the laws of the Federal Republic of Germany,
 excluding its conflict-of-law provisions. This Agreement sets out the entire
 agreement between You and Us regarding Your Contributions and supersedes any prior
 agreements on the subject.
