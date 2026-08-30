@@ -1903,6 +1903,7 @@
   "ui.pad.type": "ввести",
   "ui.pad.back": "назад",
   "ui.pad.tabs": "переключити вкладку",
+  "ui.pad.scroll": "прокрутка",
   "ui.settings.controller": "Контролер",
   "ui.settings.controller_none": "Контролер не підключено — ці налаштування застосуються, як тільки ти підключиш його.",
   "ui.settings.pad_deadzone": "Мертве поле стика",

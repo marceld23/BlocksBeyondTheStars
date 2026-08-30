@@ -1903,6 +1903,7 @@
   "ui.pad.type": "输入",
   "ui.pad.back": "返回",
   "ui.pad.tabs": "切换标签",
+  "ui.pad.scroll": "滚动",
   "ui.settings.controller": "手柄",
   "ui.settings.controller_none": "未连接手柄 — 连接后这些设置将生效。",
   "ui.settings.pad_deadzone": "摇杆死区",

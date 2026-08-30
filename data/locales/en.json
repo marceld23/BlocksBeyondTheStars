@@ -1903,6 +1903,7 @@
   "ui.pad.type": "type",
   "ui.pad.back": "back",
   "ui.pad.tabs": "switch tab",
+  "ui.pad.scroll": "scroll",
   "ui.settings.controller": "Controller",
   "ui.settings.controller_none": "No controller connected \u2014 these settings apply as soon as you plug one in.",
   "ui.settings.pad_deadzone": "Stick dead zone",

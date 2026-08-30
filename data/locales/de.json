@@ -1903,6 +1903,7 @@
   "ui.pad.type": "tippen",
   "ui.pad.back": "zurück",
   "ui.pad.tabs": "Tab wechseln",
+  "ui.pad.scroll": "scrollen",
   "ui.settings.controller": "Controller",
   "ui.settings.controller_none": "Kein Controller angeschlossen \u2014 diese Einstellungen gelten, sobald du einen ansteckst.",
   "ui.settings.pad_deadzone": "Totzone der Sticks",

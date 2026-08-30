@@ -188,10 +188,13 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
+                    StickScroll(current);
                     RefreshHint(current);
                     return; // a valid control is focused — nothing to do.
                 }
             }
+
+            StickScroll(null);
 
             _lastSelected = null;
             ClearSelectionFrame();
@@ -221,6 +224,87 @@ namespace BlocksBeyondTheStars.Client
 
             var owner = current.GetComponentInParent<UiNavFocus>();
             return owner == null || !owner.isActiveAndEnabled || !owner.WantsFocus;
+        }
+
+        // ---- stick scrolling ---------------------------------------------------------------------------------
+
+        private const float StickScrollPixelsPerSecond = 900f;
+
+        private ScrollRect _scrollPane; // the pane the right stick drives; re-resolved when it goes away
+
+        /// <summary>The right stick (and the d-pad, which the input module does not read) scroll a pane the
+        /// way the mouse wheel does. Text-only screens — credits, What's new, a story page — hold nothing the
+        /// stick can select, so before this a pad had no way to read past the first screenful; and on list
+        /// screens it is the quick way through a long page. Drives the pane around the selection if there is
+        /// one, else the screen's first scrollable pane.</summary>
+        private void StickScroll(GameObject current)
+        {
+            float axis = InputMap.PadScrollY();
+            if (Mathf.Abs(axis) < 0.01f)
+            {
+                axis = InputMap.PadDpadY();
+                if (Mathf.Abs(axis) < 0.01f)
+                {
+                    return;
+                }
+            }
+
+            var pane = ScrollPaneFor(current);
+            if (pane == null)
+            {
+                return;
+            }
+
+            var viewport = pane.viewport != null ? pane.viewport : (RectTransform)pane.transform;
+            float range = pane.content.rect.height - viewport.rect.height;
+            if (range <= 0.5f)
+            {
+                return;
+            }
+
+            pane.velocity = Vector2.zero;
+            pane.verticalNormalizedPosition = Mathf.Clamp01(
+                pane.verticalNormalizedPosition + axis * StickScrollPixelsPerSecond * Time.unscaledDeltaTime / range);
+        }
+
+        private ScrollRect ScrollPaneFor(GameObject current)
+        {
+            if (current != null)
+            {
+                var around = current.GetComponentInParent<ScrollRect>();
+                if (around != null && around.vertical && around.content != null)
+                {
+                    return around;
+                }
+            }
+
+            if (_scrollPane == null || !_scrollPane.isActiveAndEnabled)
+            {
+                _scrollPane = null;
+                foreach (var sr in GetComponentsInChildren<ScrollRect>(includeInactive: false))
+                {
+                    if (sr.vertical && sr.content != null)
+                    {
+                        _scrollPane = sr;
+                        break;
+                    }
+                }
+            }
+
+            return _scrollPane;
+        }
+
+        /// <summary>Whether this screen has a pane the stick could scroll right now — names RS in the hint strip.</summary>
+        private bool HasScrollablePane()
+        {
+            var pane = ScrollPaneFor(_lastSelected);
+            if (pane == null)
+            {
+                return false;
+            }
+
+            var viewport = pane.viewport != null ? pane.viewport : (RectTransform)pane.transform;
+            return pane.content.rect.height - viewport.rect.height > 0.5f;
         }
 
         // ---- selection chrome (#1407, #1410) --------------------------------------------------------------
@@ -344,7 +428,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             bool onField = current != null && current.GetComponent<InputField>() != null;
-            string text = ComposeHint(onField, _extraHints);
+            string text = ComposeHint(onField, HasScrollablePane(), _extraHints);
             if (_hintText.text != text)
             {
                 _hintText.text = text;
@@ -389,11 +473,17 @@ namespace BlocksBeyondTheStars.Client
         /// Cancel button as "back", then the screen's extra lines. Verbs come from <c>ui.pad.*</c> via
         /// <see cref="UiKit.L"/>; the glyphs follow the player's glyph set (#1219). Static so CI can pin
         /// the wording without a pad.</summary>
-        public static string ComposeHint(bool onTextField, IReadOnlyList<(PadButton[] Buttons, string VerbKey)> extras)
+        public static string ComposeHint(bool onTextField, bool scrollable, IReadOnlyList<(PadButton[] Buttons, string VerbKey)> extras)
         {
             var sb = new StringBuilder(96);
             Append(sb, InputMap.PadGlyph(KeyCode.JoystickButton0), onTextField ? "ui.pad.type" : "ui.pad.choose");
             Append(sb, InputMap.PadGlyph(GamepadInputSource.ButtonFor(InputAction.UiCancel)), "ui.pad.back");
+            if (scrollable)
+            {
+                // The STICK, not its click: "RS" is the Xbox name; the other sets call the click R3, so spell
+                // the stick out there rather than name a button nobody has to press.
+                Append(sb, InputMap.PadGlyph(KeyCode.JoystickButton9) == "RS" ? "RS" : "R-Stick", "ui.pad.scroll");
+            }
             if (extras != null)
             {
                 for (int i = 0; i < extras.Count; i++)

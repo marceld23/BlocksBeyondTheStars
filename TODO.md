@@ -133,7 +133,10 @@ renamed (docs + `ui.hud.hint_pad`); same for "Start" → **Menu** (Marcel took "
 Game Bar owns). Third pass: the Esc pause menu had NO pad route (Esc keyboard-only, all stock
 buttons taken) → "Pause menu" button in the Start screen's top strip → `AppShell.OpenPauseMenu()` (public,
 extracted from the Esc branch), dialog canvas `UiNav`-enabled, B resumes while it is up (`_confirmQuit` gate —
-the world is held, so B is nobody's crouch). Tests: `GamepadMenuEditModeTests` (9 — ring,
+the world is held, so B is nobody's crouch). Fourth: text-only screens (credits, What's new) had nothing the stick
+could select → no way to scroll; `UiNavFocus.StickScroll` drives the pane around the selection (else the screen's
+first pane) with the right stick / d-pad via `InputMap.PadScrollY` (raw right-stick Y, new) at 900 px/s; hint strip
+adds "RS scroll" when a pane overflows. Tests: `GamepadMenuEditModeTests` (10 — ring,
 fall-through, scroll delta ×4, hint wording ×2, scrollbar opt-out). Locales: 4 `ui.pad.*` keys EN/DE + 12 MT.
 Docs: INPUT_AND_CONTROLLER.md (selection chrome + the four traps), USER_MANUAL § Gamepad, CHANGELOG.
 

@@ -1903,6 +1903,7 @@
   "ui.pad.type": "taper",
   "ui.pad.back": "retour",
   "ui.pad.tabs": "changer d'onglet",
+  "ui.pad.scroll": "faire défiler",
   "ui.settings.controller": "Manette",
   "ui.settings.controller_none": "Aucune manette connectée — ces réglages s'appliquent dès que tu en branches une.",
   "ui.settings.pad_deadzone": "Zone morte du stick",

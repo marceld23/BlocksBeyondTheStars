@@ -137,6 +137,11 @@ keyboard/mouse is untouched:
 * **Scroll into view (#1407):** when the selection moves inside a vertical `ScrollRect`, the pane scrolls
   the minimum distance that brings the row inside the viewport (`UiNavFocus.ScrollDelta` is the pure part;
   applied through `verticalNormalizedPosition`, so content pivot/anchor conventions do not matter).
+* **Stick scrolling:** the right stick (`InputMap.PadScrollY`, raw −1..1) and the d-pad — which
+  `StandaloneInputModule` never reads, it only maps the left stick — scroll the pane around the selection, or
+  the screen's first vertical `ScrollRect` when nothing is selected. That is what lets a pad read the credits
+  / What's new / a story page at all: they hold nothing selectable, so directional navigation has no cursor
+  to move and the pane never scrolled. The hint strip adds "RS scroll" while a pane overflows.
 * **Hint strip (#1408):** a bottom-centre line "(A) choose · (B) back" (+ "type" on an `InputField`), built by
   `ComposeHint` through `InputMap.PadGlyph` so it follows the glyph set and pad rebinds; verbs are
   `ui.pad.*`. Screens add their own lines with `UiNav.AddHint(root, "ui.pad.tabs", PadButton.Lb, PadButton.Rb)`;

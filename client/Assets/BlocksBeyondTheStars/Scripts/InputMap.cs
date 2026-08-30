@@ -326,6 +326,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>D-pad Y raw (positive = up) — see <see cref="PadDpadX"/>.</summary>
         public static float PadDpadY() => GamepadInputSource.RawDpadY();
 
+        /// <summary>Right stick Y as a raw −1..1 axis (deadzoned, positive = up), for menus that scroll a
+        /// pane with it — unlike <see cref="PadLookY"/> this carries no look rate or sensitivity.</summary>
+        public static float PadScrollY() => GamepadInputSource.RawRightStickY();
+
         /// <summary>Right-stick look from the PAD ALONE (already a per-frame delta). <see cref="LookX"/>
         /// merges the mouse in; an editor viewport wants stick look without the mouse, which moves the
         /// pointer over its panels instead.</summary>

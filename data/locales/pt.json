@@ -1903,6 +1903,7 @@
   "ui.pad.type": "digitar",
   "ui.pad.back": "voltar",
   "ui.pad.tabs": "mudar aba",
+  "ui.pad.scroll": "rolar",
   "ui.settings.controller": "Controle",
   "ui.settings.controller_none": "Nenhum controle conectado — estas configurações valem assim que você conectar um.",
   "ui.settings.pad_deadzone": "Zona morta do stick",

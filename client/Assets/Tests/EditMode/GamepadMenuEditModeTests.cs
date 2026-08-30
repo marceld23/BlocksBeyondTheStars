@@ -117,20 +117,29 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         [Test]
         public void ComposeHint_NamesAAndB_AndTheScreensExtraLine()
         {
-            string text = UiNavFocus.ComposeHint(false,
+            string text = UiNavFocus.ComposeHint(false, false,
                 new List<(PadButton[] Buttons, string VerbKey)> { (new[] { PadButton.Lb, PadButton.Rb }, "ui.pad.tabs") });
 
             StringAssert.StartsWith("(A) ", text);
             StringAssert.Contains("(B) ", text);
             StringAssert.Contains("LB/RB ", text);
             StringAssert.Contains("ui.pad.tabs", text); // no localizer in EditMode → the key itself is shown
+            StringAssert.DoesNotContain("ui.pad.scroll", text);
         }
 
         [Test]
         public void ComposeHint_SaysType_WhileATextFieldIsSelected()
         {
-            StringAssert.Contains("ui.pad.type", UiNavFocus.ComposeHint(true, null));
-            StringAssert.Contains("ui.pad.choose", UiNavFocus.ComposeHint(false, null));
+            StringAssert.Contains("ui.pad.type", UiNavFocus.ComposeHint(true, false, null));
+            StringAssert.Contains("ui.pad.choose", UiNavFocus.ComposeHint(false, false, null));
+        }
+
+        [Test]
+        public void ComposeHint_NamesTheRightStick_WhenTheScreenScrolls()
+        {
+            // Credits / What's new hold nothing selectable, so the stick verb is the only way to read on.
+            string text = UiNavFocus.ComposeHint(false, true, null);
+            StringAssert.Contains("RS ui.pad.scroll", text);
         }
 
         // ---- #1411: scrollbars are not navigation stops ----------------------------------------------------------

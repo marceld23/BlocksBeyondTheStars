@@ -156,7 +156,7 @@ face button — everything in the **L3 Actions** list — can also be given thei
 While a pad is in your hands every menu shows a **hint strip along its bottom edge** — "(A) choose · (B)
 back", "type" when a text box is selected, and whatever else that screen offers — in the button names you
 picked in *Settings → Controller*. The selected control wears a **cyan frame** and moving the cursor
-clicks, long lists **scroll along with the cursor**, and in the gameplay menu **LB / RB** step through the
+clicks, long lists **scroll along with the cursor**, the **right stick** (or the d-pad) scrolls any page by hand — the credits, *What's new*, a story page — and in the gameplay menu **LB / RB** step through the
 tabs. In the slot-action pie the stick walks the four wedges (up = Swap, left = Colour, right = Form, down =
 Close).
 

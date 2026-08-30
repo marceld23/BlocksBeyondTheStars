@@ -1903,6 +1903,7 @@
   "ui.pad.type": "escribir",
   "ui.pad.back": "atrás",
   "ui.pad.tabs": "cambiar pestaña",
+  "ui.pad.scroll": "desplazar",
   "ui.settings.controller": "Mando",
   "ui.settings.controller_none": "No hay mando conectado — estos ajustes se aplicarán en cuanto conectes uno.",
   "ui.settings.pad_deadzone": "Zona muerta del joystick",

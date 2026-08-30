@@ -1903,6 +1903,7 @@
   "ui.pad.type": "입력해요",
   "ui.pad.back": "뒤로",
   "ui.pad.tabs": "탭 전환해요",
+  "ui.pad.scroll": "스크롤",
   "ui.settings.controller": "컨트롤러",
   "ui.settings.controller_none": "컨트롤러가 연결되지 않음 — 연결하면 이 설정이 적용됩니다.",
   "ui.settings.pad_deadzone": "스틱 데드존",

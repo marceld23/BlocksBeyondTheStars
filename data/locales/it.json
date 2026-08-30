@@ -1903,6 +1903,7 @@
   "ui.pad.type": "digita",
   "ui.pad.back": "indietro",
   "ui.pad.tabs": "cambia scheda",
+  "ui.pad.scroll": "scorri",
   "ui.settings.controller": "Controller",
   "ui.settings.controller_none": "Nessun controller connesso — queste impostazioni verranno applicate non appena ne collegherai uno.",
   "ui.settings.pad_deadzone": "Zona morta stick",

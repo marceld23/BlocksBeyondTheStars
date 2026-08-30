@@ -1903,6 +1903,7 @@
   "ui.pad.type": "typ",
   "ui.pad.back": "terug",
   "ui.pad.tabs": "wissel tab",
+  "ui.pad.scroll": "scrollen",
   "ui.settings.controller": "Controller",
   "ui.settings.controller_none": "Geen controller verbonden — deze instellingen gelden zodra je er een aansluit.",
   "ui.settings.pad_deadzone": "Dode zone stick",

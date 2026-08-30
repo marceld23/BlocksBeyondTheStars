@@ -1903,6 +1903,7 @@
   "ui.pad.type": "入力",
   "ui.pad.back": "戻る",
   "ui.pad.tabs": "タブ切替",
+  "ui.pad.scroll": "スクロール",
   "ui.settings.controller": "コントローラー",
   "ui.settings.controller_none": "コントローラーが接続されていません — 接続するとこの設定が適用されます。",
   "ui.settings.pad_deadzone": "スティックのデッドゾーン",
