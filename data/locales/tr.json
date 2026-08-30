@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "Yok",
   "ui.struct.save": "KAYDET / DIŞA AKTAR",
   "ui.struct.load": "YÜKLE",
-  "ui.struct.hint": "BASILI TUT: SAĞ-MOUSE ile bak · WASD + Q/E ile uç · Shift = hızlı · SOL-TIK yerleştir · ORTA-TIK kaldır · Esc = menü",
+  "ui.struct.hint": "BASILI TUT: SAĞ-MOUSE ile bak · WASD + Q/E ile uç · TEKERLEK = yakınlaştır · Shift = hızlı · F = yapıyı çerçevele · SOL-TIK yerleştir · ORTA-TIK kaldır · Esc = menü",
   "ui.struct.hint_pad": "Sol çubuk uçuş · sağ çubuk bakış · LB/RB alçalt/yükselt · A yerleştir · X kaldır · Y döndür · D-pad palet · Start = paneller · B = geri",
   "ui.struct.hint_pad_panel": "Çubuk panellerde dolaşır · A seçer · Start = uç ve inşa et · B = editörden çık",
   "ui.tier.small": "Küçük",

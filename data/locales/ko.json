@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "없음",
   "ui.struct.save": "저장 / 내보내기",
   "ui.struct.load": "불러오기",
-  "ui.struct.hint": "마우스 오른쪽을 누르면 보기 · WASD + Q/E로 비행 · Shift = 빠르게 · 왼쪽 클릭으로 배치 · 휠 클릭으로 제거 · Esc = 메뉴",
+  "ui.struct.hint": "마우스 오른쪽을 누르면 보기 · WASD + Q/E로 비행 · 휠 = 확대/축소 · Shift = 빠르게 · F = 건축물 화면 맞춤 · 왼쪽 클릭으로 배치 · 휠 클릭으로 제거 · Esc = 메뉴",
   "ui.struct.hint_pad": "왼쪽 스틱 비행 · 오른쪽 스틱 보기 · LB/RB 내려/올려 · A 놓기 · X 제거 · Y 돌리기 · 방향패드 팔레트 · Start = 패널 · B = 뒤로",
   "ui.struct.hint_pad_panel": "스틱으로 패널 이동 · A로 선택 · Start = 비행 및 건설 · B = 편집기 종료",
   "ui.tier.small": "소형",

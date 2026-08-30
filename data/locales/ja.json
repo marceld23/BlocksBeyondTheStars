@@ -1586,7 +1586,7 @@
   "ui.struct.brush_none": "なし",
   "ui.struct.save": "保存 / エクスポート",
   "ui.struct.load": "読み込み",
-  "ui.struct.hint": "右クリック長押しで視点移動 · WASD + Q/Eで飛行 · Shift = 速く · 左クリックで設置 · 中クリックで除去 · Esc = メニュー",
+  "ui.struct.hint": "右クリック長押しで視点移動 · WASD + Q/Eで飛行 · ホイール = ズーム · Shift = 速く · F = 建築を画面に収める · 左クリックで設置 · 中クリックで除去 · Esc = メニュー",
   "ui.struct.hint_pad": "左スティックで飛行 · 右スティックで視点 · LB/RB 下/上 · A 設置 · X 解除 · Y 回転 · 十字でパレット · Start = パネル · B = 戻る",
   "ui.struct.hint_pad_panel": "スティックでパネル移動 · A 選択 · Start = 飛んで建築 · B = エディタを退出",
   "ui.tier.small": "小",
