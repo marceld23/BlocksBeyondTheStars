@@ -56,6 +56,17 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Extra detail (target version, or error text) appended after the localized status label.</summary>
         public static string Detail { get; private set; } = string.Empty;
 
+        /// <summary>Download progress 0–100 while <see cref="State"/> is <see cref="UpdateState.Downloading"/>,
+        /// −1 otherwise. Velopack reports it from its download thread, so this is a plain volatile int the
+        /// UI polls on the main thread each frame — no cross-thread callback into Unity objects (#1383).</summary>
+        public static int Progress => _progress;
+
+        /// <summary>" · 42 %" while a download reports progress, "" otherwise — appended to the status detail
+        /// by both update UIs so they read the same.</summary>
+        public static string ProgressSuffix => _progress >= 0 ? $" · {_progress} %" : string.Empty;
+
+        private static volatile int _progress = -1;
+
         /// <summary>Version found by the quiet startup check ("" = none found / not checked). While
         /// non-empty and not <see cref="NoticeDismissed"/>, the main menu shows the update notice.</summary>
         public static string NoticeVersion { get; private set; } = string.Empty;
@@ -157,6 +168,7 @@ namespace BlocksBeyondTheStars.Client
             Busy = true;
             State = UpdateState.Checking;
             Detail = string.Empty;
+            _progress = -1;
             onChanged?.Invoke();
             try
             {
@@ -176,10 +188,13 @@ namespace BlocksBeyondTheStars.Client
 
                 State = UpdateState.Downloading;
                 Detail = info.TargetFullRelease.Version.ToString();
+                _progress = 0;
                 onChanged?.Invoke();
-                await mgr.DownloadUpdatesAsync(info);
+                // The progress callback runs on Velopack's download thread: touch nothing but the volatile int.
+                await mgr.DownloadUpdatesAsync(info, p => _progress = p);
 
                 State = UpdateState.Restarting;
+                _progress = -1;
                 onChanged?.Invoke();
                 mgr.ApplyUpdatesAndRestart(info.TargetFullRelease); // exits this process and relaunches the new build
             }
@@ -192,6 +207,7 @@ namespace BlocksBeyondTheStars.Client
             finally
             {
                 Busy = false;
+                _progress = -1;
                 onChanged?.Invoke();
             }
 #endif
