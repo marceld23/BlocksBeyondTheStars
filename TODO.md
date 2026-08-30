@@ -122,6 +122,16 @@ Tests: `PairActions_StatusDeleteAndReplyFlips_CoverBothHalves_AndLeaveAStrangerA
 `SyncPairStatuses_SettlesPairsTriagedApart_OnTheMostAdvancedState`, `DetailPage_SaysActionsCoverBothRows_OnlyForAPair`,
 `PairOf_ReturnsTheRowAndItsHalf_NeverAStranger`. ReportHost image redeploy needed; no client change.
 
+### ★ Spinners spin in place, update download shows progress, credits scroll to the end (#1382 #1383 #1384, 2026-08-30, branch fix/spinner-progress-credits)
+Marcel's playtest of the update flow: the download spinner "spins and circles at the same time" — `UiKit.AddSpinner`
+placed the ring via `Place()` (pivot top-left) and `SpinnerRotate` rotates around the pivot, so all four spinners
+orbited their corner; re-pivoted to the centre in the one helper. The download had no progress: Velopack 1.2.0's
+`DownloadUpdatesAsync(info, Action<int> progress)` was called without the callback; `ClientUpdater.Progress`
+(volatile, written from the download thread) is polled per frame by the notice (label + `UiKit.AddProgressBar`)
+and by the settings status label in place (no `Rebuild()` per percent). Credits text disappeared at the bottom:
+the `Text` rect was viewport-tall while glyphs overflowed, and `RectMask2D` culls by rect → sized to `contentH`.
+No tests (pure uGUI); verified by local Unity build + in-game check.
+
 ### ★ Report inbox: the screenshot half of a pair shows the pair's conversation (#1378, 2026-08-30, branch fix/reporthost-pair-thread)
 After answering Lyxette's 11 reports through the API, the admin list showed no answer on any of them: it links each
 pair to the `/bump` half (screenshot), whose reply key is blank for pre-8.23 reports (#1359 repair), so its detail

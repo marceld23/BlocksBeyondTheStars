@@ -76,6 +76,11 @@ namespace BlocksBeyondTheStars.Client
             float contentH = Mathf.Max(h, text.preferredHeight + 8f);
             content.sizeDelta = new Vector2(0f, contentH);
 
+            // The Text's own rect must span the whole content too: RectMask2D culls a renderer as soon as its
+            // RECT (not its overflowing glyphs) leaves the mask, so a viewport-tall rect at the top of a taller
+            // content made the entire text vanish once scrolled past the first page (#1384).
+            text.rectTransform.sizeDelta = new Vector2(textW, contentH);
+
             scroll.viewport = viewGo.GetComponent<RectTransform>();
             scroll.content = content;
 

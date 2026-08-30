@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
             var status = UiKit.AddText(dlg, 76f, 226f, 584f, 60f, "", 16, UiKit.CyanDim, TextAnchor.UpperLeft);
             status.horizontalOverflow = HorizontalWrapMode.Wrap;
             UiKit.AddSpinner(dlg, 42f, 224f, 26f, status); // spins while the status text is in progress ("…")
+            var bar = UiKit.AddProgressBar(dlg, 76f, 296f, 584f, 8f); // download progress under the status (#1383)
 
             Button installBtn = null;
             Button laterBtn = null;
@@ -47,10 +48,11 @@ namespace BlocksBeyondTheStars.Client
                     return; // dialog torn down while the download ran
                 }
 
+                bool downloading = ClientUpdater.State == UpdateState.Downloading;
                 status.text = ClientUpdater.State switch
                 {
                     UpdateState.Checking => shell.L("ui.settings.update_checking"),
-                    UpdateState.Downloading => shell.L("ui.settings.update_downloading") + " " + ClientUpdater.Detail,
+                    UpdateState.Downloading => shell.L("ui.settings.update_downloading") + " " + ClientUpdater.Detail + ClientUpdater.ProgressSuffix,
                     UpdateState.Restarting => shell.L("ui.settings.update_restarting"),
                     UpdateState.UpToDate => shell.L("ui.settings.update_uptodate"),
                     UpdateState.NotInstalled => shell.L("ui.settings.update_notinstalled"),
@@ -58,10 +60,31 @@ namespace BlocksBeyondTheStars.Client
                     _ => string.Empty,
                 };
 
+                if (downloading && ClientUpdater.Progress >= 0)
+                {
+                    bar.Set(ClientUpdater.Progress / 100f);
+                }
+                else
+                {
+                    bar.Hide();
+                }
+
                 // No second click while the download runs — and no "later" either: the restart is coming.
                 installBtn.interactable = !ClientUpdater.Busy;
                 laterBtn.interactable = !ClientUpdater.Busy;
             }
+
+            // Progress is written from the download thread and only polled here: refresh the label + bar
+            // whenever the percentage moved (state changes still arrive through the onChanged callback).
+            int shownProgress = ClientUpdater.Progress;
+            UiKit.EveryFrame(dlg.gameObject, () =>
+            {
+                if (ClientUpdater.Progress != shownProgress)
+                {
+                    shownProgress = ClientUpdater.Progress;
+                    Refresh();
+                }
+            });
 
             installBtn = UiKit.AddButton(dlg, 40f, 330f, 320f, 54f, shell.L("ui.update.install"), () =>
             {

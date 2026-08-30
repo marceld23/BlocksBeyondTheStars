@@ -266,7 +266,18 @@ namespace BlocksBeyondTheStars.Client
             UiKit.AddButton(_content, _x, y, 250, 44,
                 ClientUpdater.Busy ? L("ui.settings.update_checking") : L("ui.settings.update_check"),
                 () => { if (!ClientUpdater.Busy) ClientUpdater.CheckForUpdates(S.UpdateFeedUrl, () => { if (this != null) Rebuild(); }); });
-            UiKit.AddText(_content, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            var updateStatus = UiKit.AddText(_content, _x + 270, y, _rowW - 270, 44, UpdateStatusText(), 16, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            // Download progress ticks up to 100 times — refresh this one label in place rather than
+            // rebuilding the whole screen per percent (state changes still come through onChanged → Rebuild).
+            int shownProgress = ClientUpdater.Progress;
+            UiKit.EveryFrame(updateStatus.gameObject, () =>
+            {
+                if (ClientUpdater.Progress != shownProgress)
+                {
+                    shownProgress = ClientUpdater.Progress;
+                    updateStatus.text = UpdateStatusText();
+                }
+            });
             y += 52f;
 
             // Size the scroll content to the rows so the viewport can scroll to the very bottom.
@@ -339,7 +350,8 @@ namespace BlocksBeyondTheStars.Client
                 UpdateState.Failed => L("ui.settings.update_failed"),
                 _ => string.Empty,
             };
-            return string.IsNullOrEmpty(ClientUpdater.Detail) ? s : $"{s} ({ClientUpdater.Detail})";
+            string detail = ClientUpdater.Detail + ClientUpdater.ProgressSuffix; // "2026.8.24 · 42 %" while downloading
+            return string.IsNullOrEmpty(detail) ? s : $"{s} ({detail})";
         }
 
         // Two-column row layout shared by every row so labels and controls line up throughout the

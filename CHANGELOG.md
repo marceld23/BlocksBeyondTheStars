@@ -24,6 +24,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   lists the `reportIds` changed), the reply-driven flips are mirrored onto the other half, and pairs left
   triaged apart settle on their most advanced state once at startup. Operators: redeploy the ReportHost image.
 
+### 🌀 Spinners spin in place, the update download shows its progress, the credits scroll to the end (#1382 #1383 #1384)
+
+- **Every loading spinner orbited its own corner** instead of turning in place — `Place()` pivots at the
+  top-left and `Rotate()` turns around the pivot. The spinner is re-pivoted to its centre; the update notice,
+  online status, manage-world and report dialogs all inherit the fix. (#1382)
+- **The update download reports progress**: the notice reads "Downloading update… 2026.8.24 · 42 %" with a
+  thin bar underneath, and the settings screen's status line carries the same percentage. Velopack's
+  progress callback writes a volatile int from its download thread; the UI polls it per frame. (#1383)
+- **Credits vanished when scrolled to the bottom**: the text's rect was only viewport-tall while its glyphs
+  overflowed below, and `RectMask2D` culls by rect — past the first page, everything was culled. The rect
+  now spans the whole scroll content. (#1384)
+
 ### 📬 Report inbox — the screenshot half of a pair shows the pair's conversation (#1378)
 
 - **Opening a report from the admin list showed an empty conversation** although the developers had answered.

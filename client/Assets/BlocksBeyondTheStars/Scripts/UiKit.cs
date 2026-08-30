@@ -997,13 +997,76 @@ namespace BlocksBeyondTheStars.Client
         {
             var go = new GameObject("Spinner", typeof(RectTransform));
             go.transform.SetParent(parent, false);
-            Place(go, x, y, size, size);
+            // Place() pivots at the top-left corner, and Rotate() turns around the pivot — a ring pivoted
+            // there orbits its own corner instead of spinning in place (#1382). Re-pivot to the centre and
+            // shift by half a size so the top-left placement the callers pass stays where it is on screen.
+            var rt = Place(go, x, y, size, size);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(x + size / 2f, -(y + size / 2f));
             var img = go.AddComponent<Image>();
             img.sprite = SpinnerSprite;
             img.raycastTarget = false;
             var rot = go.AddComponent<SpinnerRotate>();
             rot.Bind(img, follow);
             return go;
+        }
+
+        /// <summary>A thin determinate progress bar (dark track, cyan fill). It starts hidden; the caller
+        /// drives it with <see cref="ProgressBar.Set"/> (0..1) and <see cref="ProgressBar.Hide"/>.</summary>
+        public static ProgressBar AddProgressBar(Transform parent, float x, float y, float w, float h)
+        {
+            var track = AddPanel(parent, x, y, w, h, new Color(0.03f, 0.07f, 0.14f, 0.9f));
+            var fillGo = new GameObject("Fill", typeof(RectTransform));
+            fillGo.transform.SetParent(track.transform, false);
+            var fill = fillGo.GetComponent<RectTransform>();
+            fill.anchorMin = new Vector2(0f, 0f);
+            fill.anchorMax = new Vector2(0f, 1f);
+            fill.pivot = new Vector2(0f, 0.5f);
+            fill.anchoredPosition = new Vector2(2f, 0f);
+            fill.sizeDelta = new Vector2(0f, -4f);          // 2 px inset on every side
+            var img = fillGo.AddComponent<Image>();
+            img.color = new Color(Cyan.r, Cyan.g, Cyan.b, 0.85f);
+            img.raycastTarget = false;
+            var bar = track.gameObject.AddComponent<ProgressBar>();
+            bar.Bind(fill, w - 4f);
+            return bar;
+        }
+
+        /// <summary>Handle for <see cref="AddProgressBar"/>: sets the fill width from a 0..1 value.</summary>
+        public sealed class ProgressBar : MonoBehaviour
+        {
+            private RectTransform _fill;
+            private float _width;
+
+            public void Bind(RectTransform fill, float width)
+            {
+                _fill = fill;
+                _width = width;
+                gameObject.SetActive(false);
+            }
+
+            public void Set(float t)
+            {
+                gameObject.SetActive(true);
+                _fill.sizeDelta = new Vector2(Mathf.Round(_width * Mathf.Clamp01(t)), _fill.sizeDelta.y);
+            }
+
+            public void Hide() => gameObject.SetActive(false);
+        }
+
+        /// <summary>Runs <paramref name="tick"/> every frame for as long as <paramref name="host"/> lives — for
+        /// labels that mirror state written from a worker thread (the update download's progress), where
+        /// polling on the main thread is simpler and safer than cross-thread callbacks.</summary>
+        public static void EveryFrame(GameObject host, System.Action tick)
+        {
+            host.AddComponent<FrameTick>().Tick = tick;
+        }
+
+        private sealed class FrameTick : MonoBehaviour
+        {
+            public System.Action Tick;
+
+            private void Update() => Tick?.Invoke();
         }
 
         /// <summary>Spins its image and (when bound to a label) shows it only while an action is in progress.</summary>
