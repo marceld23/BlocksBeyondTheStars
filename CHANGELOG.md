@@ -13,6 +13,78 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.24] — 2026-08-30
+
+The drafting-table release. The three build editors — ship, station, town — stopped being empty
+rooms with a palette. **Load** now lists every built-in ship and every built-in station and town
+template next to your own designs, so you start from the game's Scout or a real outpost instead of
+a blank grid; the station and town editors can **generate** a procedural layout for any tier and seed
+and hand it to you as editable cells; the blocks you place wear their **real textures** instead of
+flat colour; and a new **colossal** station tier sits above huge. Underneath, six things that made
+the editors hard to use at all — palette rows the height of a wall, a double scrollbar, WASD typing
+into the name box, a menu planet left behind in every editor, no wheel zoom, a grid you could not see.
+
+The other half is the **gamepad**. Eight menu screens were walkable with a pad in theory and not in
+practice: the crafting search box swallowed the stick, the slot pie could not be navigated, text
+fields never showed focus, long lists scrolled the cursor out of the frame, and nothing told you what
+the buttons did. Every one of those is fixed, the selection wears a cyan frame and clicks, LB/RB step
+through the tabs, the right stick scrolls any pane, and the pause menu finally has a controller route.
+Plus the loading spinners that orbited their own corner, an update download that shows its percentage,
+credits that no longer vanish at the bottom, and two report-inbox repairs for the operator side.
+
+Protocol stays 3, saves migrate. Operators: the **ReportHost image must be redeployed** for the inbox
+fixes (#1378, #1380).
+
+### 🏗️ Build editors — start from a real ship or template, real textures, procedural layouts, colossal (#1394 #1395 #1396 #1397 #1398 #1399 #1400 #1401 #1402)
+
+- **Load lists the built-in designs** (#1394, #1395). The ship, station and town editors' LOAD button
+  only knew your own exports. It is now a shared, scrollable picker with sections: every built-in ship
+  with a layout, the built-in station and settlement templates, your usercontent templates and your
+  export bundles — each row with size and cell count. Loading fills the room and the form, frames the
+  camera and asks first when something is already placed.
+- **A built-in template loads as a copy** (`<key>_2`, with a hint) (#1396): usercontent is *added* to the
+  pool, so saving under the original key would only have cloned it.
+- **The ship's interior is an explicit frame** (#1397): width / height / length are three steppers with a
+  translucent cyan frame instead of the bounding box of every placed cell — the server treats those three
+  numbers as the cabin; wings and engines sit outside it. The interior origin now sits at (8, 0, 8) in the
+  room, so the negative-x/z exterior cells every shipped layout has can be represented.
+- **Palettes gained the missing blocks** (#1398): console (ship), NPC and greenhouse (station), chest and
+  data terminal (settlement); both loaders report skipped cells instead of dropping them silently.
+- **Merging keeps what you did not touch** (#1399): `merge_ship.py` preserves `startModules` (the editor
+  exports the loaded definition's list), `merge_structure.py` keeps `legacyPool` / `planetTypes` by
+  starting from the existing entry; both replace in place. The settlement form carries `planetTypes`.
+- **Real block textures in the room** (#1400): each block face gets its atlas tile, and the editor's
+  vertex-colour shader multiplies an optional texture into the colour — face shading, dye and glow still
+  apply, and every mesh without texture coordinates (creatures, doors …) renders as before. Stations,
+  markers and non-block elements stay flat. Shaped cells map their geometry's unit tile into the atlas.
+- **Generate** (#1401): the station and town editors run the game's own `StationGenerator` /
+  `SettlementGenerator` on the client for the chosen tier and seed (Reroll; villages get a surface-block
+  field) and load the result as editable cells — markers first, so a block never displaces the vendor.
+  Palettes gained the marker ids the generators emit (spawn, sliding and hinged doors; greenhouse for
+  settlements). A test guards every tier × three seeds against the 128³ room and the palette.
+- **Colossal tier + size hints** (#1402): a colossal station tier above huge, and a "Procedural: …" line
+  under the tier stepper reads the generators' own layout tables so you know what a tier produces.
+- Locales: 29 keys EN/DE, the 12 community locales machine-topped-up. Docs: USER_MANUAL,
+  SHIP_TYPE_EDITOR, STATION_SETTLEMENT_EDITOR.
+
+### 🧰 Build editors — palette rows, scrollbar, typing guard, orphaned planet, wheel zoom, visible grid (#1386 #1387 #1388 #1389 #1390 #1391 #1393)
+
+- **Palette rows were 100 units tall** (#1386): `UiKit.ScrollList` lays out without controlling child
+  height, so every row and header sat at the RectTransform default. Rows and headers now set their size.
+- **The trade dialog showed two scrollbars** (#1387): `UiKit.ScrollList` attaches its own auto-hide bar;
+  the dialog's extra call is gone.
+- **Typing a name moved the camera** (#1388): WASD / QE / Space / Ctrl / R / F are skipped while a text
+  field is focused.
+- **A menu planet floated in every editor** (#1389): the start-screen planet and moon were parented outside
+  the backdrop root and survived its teardown. They travel with it now.
+- **Wheel zoom and framing** (#1390): the mouse wheel dollies along the view (Shift ×3), the opening view
+  frames the room, and **F** re-frames it — shared `EditorSceneKit` for all three editors.
+- **A grid you can see** (#1391): one mipmapped procedural grid texture (minor line per cell, major every
+  eight) replaces 258 sub-pixel cube lines, and the placement ghost is shared by both editors — the station
+  and town editors finally show the target cell.
+- The build-room hint line names wheel zoom and F in all 14 locales (#1393; ru/uk also spell out "middle
+  button" for remove so it no longer collides with the wheel entry).
+
 ### 🎮 Gamepad — the menus are actually navigable now (#1404 #1405 #1406 #1407 #1408 #1409 #1410 #1411)
 
 - **The crafting search box trapped the pad** (#1404). It was the one text field built by hand instead of
@@ -4163,7 +4235,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...HEAD
+[2026.8.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...v2026.8.24
 [2026.8.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...v2026.8.23
 [2026.8.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...v2026.8.22
 [2026.8.21]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.20...v2026.8.21
