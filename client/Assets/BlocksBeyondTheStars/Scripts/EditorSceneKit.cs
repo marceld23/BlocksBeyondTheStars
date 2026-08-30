@@ -214,4 +214,90 @@ namespace BlocksBeyondTheStars.Client
             Object.Destroy(_invalid);
         }
     }
+
+    /// <summary>
+    /// The ship editor's interior frame (#1396): a translucent cyan box marking the volume the server treats
+    /// as the cabin — <c>0..W-1 × 0..H × 0..L-1</c> of the layout, shifted by the room origin. Everything
+    /// outside it is exterior (wings, engines, antennae) and may sit anywhere in the room; the floor
+    /// guarantee, the roof and the hatch logic only look inside. Rebuilt whenever the dims change.
+    /// </summary>
+    internal sealed class EditorInteriorFrame
+    {
+        private readonly Transform _parent;
+        private readonly Material _fill, _edge;
+        private GameObject _root;
+
+        public EditorInteriorFrame(Transform parent)
+        {
+            _parent = parent;
+            var shader = Shader.Find("BlocksBeyondTheStars/Cloud") ?? Shader.Find("Unlit/Transparent");
+            _fill = new Material(shader) { renderQueue = 2990 };
+            _fill.SetColor("_Color", ShaderColor.Srgb(new Color(0.40f, 0.82f, 1f, 0.08f)));
+            _edge = new Material(shader) { renderQueue = 2991 };
+            _edge.SetColor("_Color", ShaderColor.Srgb(new Color(0.40f, 0.82f, 1f, 0.55f)));
+        }
+
+        /// <summary>Rebuilds the frame for an interior of <paramref name="w"/>×<paramref name="h"/>×<paramref name="l"/>
+        /// cells whose (0,0,0) sits at <paramref name="origin"/>. The cabin spans y = 0..h (roof row included).</summary>
+        public void Rebuild(Vector3i origin, int w, int h, int l)
+        {
+            if (_root != null)
+            {
+                Object.Destroy(_root);
+            }
+
+            _root = new GameObject("InteriorFrame");
+            _root.transform.SetParent(_parent, false);
+            var size = new Vector3(w, h + 1, l);
+            var centre = new Vector3(origin.X + w / 2f, origin.Y + (h + 1) / 2f, origin.Z + l / 2f);
+            Box(centre, size, _fill);
+
+            // Twelve thin edge bars so the frame reads even where the fill is too faint against the floor.
+            const float t = 0.06f;
+            var min = centre - size / 2f;
+            var max = centre + size / 2f;
+            foreach (float y in new[] { min.y, max.y })
+            {
+                foreach (float z in new[] { min.z, max.z })
+                {
+                    Box(new Vector3(centre.x, y, z), new Vector3(size.x, t, t), _edge);
+                }
+
+                foreach (float x in new[] { min.x, max.x })
+                {
+                    Box(new Vector3(x, y, centre.z), new Vector3(t, t, size.z), _edge);
+                }
+            }
+
+            foreach (float x in new[] { min.x, max.x })
+            {
+                foreach (float z in new[] { min.z, max.z })
+                {
+                    Box(new Vector3(x, centre.y, z), new Vector3(t, size.y, t), _edge);
+                }
+            }
+        }
+
+        private void Box(Vector3 centre, Vector3 size, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Frame";
+            Object.Destroy(go.GetComponent<Collider>()); // never blocks the picking ray
+            go.transform.SetParent(_root.transform, false);
+            go.transform.position = centre;
+            go.transform.localScale = size;
+            go.GetComponent<Renderer>().sharedMaterial = mat;
+        }
+
+        public void Dispose()
+        {
+            if (_root != null)
+            {
+                Object.Destroy(_root);
+            }
+
+            Object.Destroy(_fill);
+            Object.Destroy(_edge);
+        }
+    }
 }

@@ -6,6 +6,14 @@
 // original Built-in RP pass (unchanged). The active pipeline picks the matching SubShader.
 Shader "BlocksBeyondTheStars/VertexColorOpaque"
 {
+    Properties
+    {
+        // Optional atlas for the build editors (#1400). A mesh opts in per vertex through TEXCOORD1.x (1 = sample
+        // the atlas at TEXCOORD0, 0 = plain vertex colour), so creatures and every other vertex-colour-only mesh
+        // (no TEXCOORD1 → weight 0) render exactly as before.
+        _MainTex ("Texture (optional)", 2D) = "white" {}
+    }
+
     // ---------------- URP ----------------
     SubShader
     {
@@ -25,9 +33,11 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             float4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
+            TEXTURE2D(_MainTex);
+            SAMPLER(sampler_MainTex);
 
-            struct Attributes { float4 positionOS : POSITION; float4 color : COLOR; };
-            struct Varyings { float4 positionCS : SV_POSITION; float4 color : COLOR; float3 wp : TEXCOORD0; };
+            struct Attributes { float4 positionOS : POSITION; float4 color : COLOR; float2 uv : TEXCOORD0; float2 tex : TEXCOORD1; };
+            struct Varyings { float4 positionCS : SV_POSITION; float4 color : COLOR; float3 wp : TEXCOORD0; float3 uvw : TEXCOORD1; };
 
             Varyings vert(Attributes v)
             {
@@ -36,6 +46,7 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
                 o.positionCS = TransformWorldToHClip(wp);
                 o.color = v.color;
                 o.wp = wp;
+                o.uvw = float3(v.uv, v.tex.x); // atlas uv + sample weight (#1400)
                 return o;
             }
 
@@ -43,7 +54,8 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             {
                 float3 l = (_Sc_Light.a < 0.5) ? float3(1, 1, 1) : _Sc_Light.rgb;
                 float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
-                float3 col = i.color.rgb * l * lerp(0.55, 1.0, shadow); // shadowed models dim, never black
+                float3 tex = lerp(float3(1, 1, 1), SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uvw.xy).rgb, saturate(i.uvw.z));
+                float3 col = i.color.rgb * tex * l * lerp(0.55, 1.0, shadow); // shadowed models dim, never black
                 return half4(col, i.color.a);
             }
             ENDHLSL
@@ -104,21 +116,26 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             {
                 float4 vertex : POSITION;
                 fixed4 color : COLOR;
+                float2 uv : TEXCOORD0;
+                float2 tex : TEXCOORD1;
             };
 
             struct v2f
             {
                 float4 pos : SV_POSITION;
                 fixed4 color : COLOR;
+                float3 uvw : TEXCOORD0; // atlas uv + sample weight (#1400)
             };
 
             fixed4 _Sc_Light; // global day/night × sun-colour × weather tint (alpha>0.5 = set)
+            sampler2D _MainTex;
 
             v2f vert(appdata v)
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
                 o.color = v.color;
+                o.uvw = float3(v.uv, v.tex.x);
                 return o;
             }
 
@@ -126,7 +143,8 @@ Shader "BlocksBeyondTheStars/VertexColorOpaque"
             {
                 fixed4 l = _Sc_Light;
                 if (l.a < 0.5) l = fixed4(1, 1, 1, 1); // default to no tint until set
-                return fixed4(i.color.rgb * l.rgb, i.color.a);
+                fixed3 tex = lerp(fixed3(1, 1, 1), tex2D(_MainTex, i.uvw.xy).rgb, saturate(i.uvw.z));
+                return fixed4(i.color.rgb * tex * l.rgb, i.color.a);
             }
             ENDCG
         }

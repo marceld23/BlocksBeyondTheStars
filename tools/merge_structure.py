@@ -54,7 +54,26 @@ def main():
     pool_path = POOL_FOR[kind]
     pool = _load(pool_path) if pool_path.exists() else []
 
-    entry = {
+    existing = next((e for e in pool if e.get("key") == meta["key"]), None)
+    entry = merged_entry(meta, layout, existing)
+
+    # Replace the existing entry in place (keeps the pool order), else append.
+    if existing is not None:
+        pool[pool.index(existing)] = entry
+    else:
+        pool.append(entry)
+
+    _dump(pool_path, pool)
+    print(f"merged '{entry['key']}' ({len(entry['cells'])} cells) into {pool_path.relative_to(REPO)}")
+    print("review the diff and commit. World-gen template-pool selection is the next integration step.")
+
+
+def merged_entry(meta, layout, existing):
+    """The pool entry for a bundle. Starts from the existing entry (if any) so `legacyPool` (pinned replays,
+    #1115 — never drop it) and any field the editor does not know about survive a re-merge; `planetTypes`
+    comes from the bundle when the editor wrote it, else stays as it was (#1399)."""
+    entry = dict(existing or {})
+    entry.update({
         "key": meta["key"],
         "name": meta.get("name", meta["key"]),
         "tier": meta.get("tier", "medium"),
@@ -64,15 +83,13 @@ def main():
         "height": layout.get("height", 0),
         "length": layout.get("length", 0),
         "cells": layout.get("cells", []),
-    }
-
-    # Replace an existing entry with the same key, else append.
-    pool = [e for e in pool if e.get("key") != entry["key"]]
-    pool.append(entry)
-
-    _dump(pool_path, pool)
-    print(f"merged '{entry['key']}' ({len(entry['cells'])} cells) into {pool_path.relative_to(REPO)}")
-    print("review the diff and commit. World-gen template-pool selection is the next integration step.")
+    })
+    if "planetTypes" in meta:
+        if meta["planetTypes"]:
+            entry["planetTypes"] = list(meta["planetTypes"])
+        else:
+            entry.pop("planetTypes", None)  # the editor cleared the restriction on purpose
+    return entry
 
 
 if __name__ == "__main__":

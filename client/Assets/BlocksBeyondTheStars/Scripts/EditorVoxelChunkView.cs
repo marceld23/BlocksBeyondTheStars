@@ -26,10 +26,12 @@ namespace BlocksBeyondTheStars.Client
         /// and passes it in; the view only renders + culls.</summary>
         internal struct Cell
         {
-            public Color Color;   // resolved base colour
+            public Color Color;   // resolved base colour (white for a textured block without dye)
             public bool Glow;     // brighten toward full (stand-in for the in-game emissive look)
             public int Shape;     // packed shape+orientation (0 = plain cube)
             public bool Marker;   // interaction marker — drawn as a small inset cube, never occludes
+            public bool Textured; // sample the atlas tile at Uv (#1400); false = plain vertex colour
+            public Rect Uv;       // the block's atlas tile (BlockTextureAtlas.TileUv)
         }
 
         private const int ChunkSize = 16;
@@ -62,6 +64,16 @@ namespace BlocksBeyondTheStars.Client
         public int Count => _all.Count;
 
         public bool Contains(Vector3i cell) => _all.ContainsKey(cell);
+
+        /// <summary>Hands the block atlas to the chunk material so textured cells show their real tile
+        /// (#1400). Without an atlas every cell falls back to its flat colour.</summary>
+        public void SetAtlas(Texture2D atlas)
+        {
+            if (_material != null)
+            {
+                _material.mainTexture = atlas;
+            }
+        }
 
         /// <summary>Adds or replaces a cell and marks its chunk (and any bordering neighbour chunk) dirty.</summary>
         public void Set(Vector3i cell, Cell data)
@@ -193,7 +205,11 @@ namespace BlocksBeyondTheStars.Client
         // Scratch buffers reused across rebuilds (one chunk is built at a time on the main thread).
         private static readonly List<Vector3> _verts = new();
         private static readonly List<Color> _colors = new();
+        private static readonly List<Vector2> _uvs = new();    // TEXCOORD0: atlas uv
+        private static readonly List<Vector2> _flags = new();  // TEXCOORD1: x = atlas sample weight (1 textured / 0 flat)
         private static readonly List<int> _tris = new();
+
+        private static readonly Vector2 Flat = Vector2.zero, Textured = new(1f, 0f);
 
         /// <summary>True if the cell at <paramref name="p"/> is a solid cube that should hide the face turned
         /// toward it. Shaped + marker cells never occlude (they don't fill the cell).</summary>
@@ -204,6 +220,8 @@ namespace BlocksBeyondTheStars.Client
         {
             _verts.Clear();
             _colors.Clear();
+            _uvs.Clear();
+            _flags.Clear();
             _tris.Clear();
 
             foreach (var kv in slot.Cells)
@@ -217,7 +235,7 @@ namespace BlocksBeyondTheStars.Client
                     // Markers read as small floating cubes so they stand apart from solid blocks.
                     for (int f = 0; f < 6; f++)
                     {
-                        AddFace(origin, f, 0.25f, 0.75f, data.Color, data.Glow);
+                        AddFace(origin, f, 0.25f, 0.75f, data.Color, data.Glow, default, false);
                     }
                 }
                 else if (data.Shape != 0)
@@ -227,12 +245,12 @@ namespace BlocksBeyondTheStars.Client
                 else
                 {
                     // Plain cube: emit only the faces exposed to a non-occluding neighbour.
-                    if (!Occludes(new Vector3i(cell.X, cell.Y + 1, cell.Z))) AddFace(origin, 0, 0f, 1f, data.Color, data.Glow);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y - 1, cell.Z))) AddFace(origin, 1, 0f, 1f, data.Color, data.Glow);
-                    if (!Occludes(new Vector3i(cell.X + 1, cell.Y, cell.Z))) AddFace(origin, 2, 0f, 1f, data.Color, data.Glow);
-                    if (!Occludes(new Vector3i(cell.X - 1, cell.Y, cell.Z))) AddFace(origin, 3, 0f, 1f, data.Color, data.Glow);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z + 1))) AddFace(origin, 4, 0f, 1f, data.Color, data.Glow);
-                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z - 1))) AddFace(origin, 5, 0f, 1f, data.Color, data.Glow);
+                    if (!Occludes(new Vector3i(cell.X, cell.Y + 1, cell.Z))) AddFace(origin, 0, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    if (!Occludes(new Vector3i(cell.X, cell.Y - 1, cell.Z))) AddFace(origin, 1, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    if (!Occludes(new Vector3i(cell.X + 1, cell.Y, cell.Z))) AddFace(origin, 2, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    if (!Occludes(new Vector3i(cell.X - 1, cell.Y, cell.Z))) AddFace(origin, 3, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z + 1))) AddFace(origin, 4, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
+                    if (!Occludes(new Vector3i(cell.X, cell.Y, cell.Z - 1))) AddFace(origin, 5, 0f, 1f, data.Color, data.Glow, data.Uv, data.Textured);
                 }
             }
 
@@ -251,6 +269,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 mesh.SetVertices(_verts);
                 mesh.SetColors(_colors);
+                mesh.SetUVs(0, _uvs);
+                mesh.SetUVs(1, _flags);
                 mesh.SetTriangles(_tris, 0);
                 mesh.RecalculateBounds();
             }
@@ -276,30 +296,48 @@ namespace BlocksBeyondTheStars.Client
                 Vector3 nrm = Vector3.Cross(edge1, edge2).normalized;
                 float shade = Mathf.Clamp(0.76f + 0.24f * nrm.y, 0.5f, 1f);
                 Color col = Tint(data.Color, shade, data.Glow);
+                Vector2 flag = data.Textured ? Textured : Flat;
 
+                // The shape geometry carries unit-tile uvs per corner; map them into the block's atlas tile
+                // (a degenerate uv on the mipmapped atlas renders white, so every corner gets a real one).
                 int b0 = _verts.Count;
                 _verts.Add(a); _verts.Add(b); _verts.Add(c);
                 _colors.Add(col); _colors.Add(col); _colors.Add(col);
+                _uvs.Add(InTile(data.Uv, face.UvA)); _uvs.Add(InTile(data.Uv, face.UvB)); _uvs.Add(InTile(data.Uv, face.UvC));
+                _flags.Add(flag); _flags.Add(flag); _flags.Add(flag);
                 _tris.Add(b0); _tris.Add(b0 + 1); _tris.Add(b0 + 2);
                 if (face.IsQuad)
                 {
                     _verts.Add(origin + face.D);
                     _colors.Add(col);
+                    _uvs.Add(InTile(data.Uv, face.UvD));
+                    _flags.Add(flag);
                     _tris.Add(b0); _tris.Add(b0 + 2); _tris.Add(b0 + 3);
                 }
             }
         }
 
+        /// <summary>Maps a unit-tile uv (0..1) into the atlas tile rect.</summary>
+        private static Vector2 InTile(Rect tile, Vector2 unit)
+            => new(tile.xMin + Mathf.Clamp01(unit.x) * tile.width, tile.yMin + Mathf.Clamp01(unit.y) * tile.height);
+
         /// <summary>Appends one box face (winding + corner order match <c>ChunkMesher.FaceQuad</c> so the
-        /// outward side is the front face), shaded by face direction and baked into the vertex colour.</summary>
-        private void AddFace(Vector3 p, int face, float lo, float hi, Color color, bool glow)
+        /// outward side is the front face), shaded by face direction and baked into the vertex colour. A
+        /// textured face carries the block's atlas tile in TEXCOORD0 (#1400); a flat one samples nothing.</summary>
+        private void AddFace(Vector3 p, int face, float lo, float hi, Color color, bool glow, Rect tile, bool textured)
         {
             Vector3[] q = FaceQuad(p, face, lo, hi);
             Color col = Tint(color, FaceShade(face), glow);
+            Vector2 flag = textured ? Textured : Flat;
 
             int b0 = _verts.Count;
             _verts.Add(q[0]); _verts.Add(q[1]); _verts.Add(q[2]); _verts.Add(q[3]);
             _colors.Add(col); _colors.Add(col); _colors.Add(col); _colors.Add(col);
+            _uvs.Add(new Vector2(tile.xMin, tile.yMin));
+            _uvs.Add(new Vector2(tile.xMin, tile.yMax));
+            _uvs.Add(new Vector2(tile.xMax, tile.yMax));
+            _uvs.Add(new Vector2(tile.xMax, tile.yMin));
+            _flags.Add(flag); _flags.Add(flag); _flags.Add(flag); _flags.Add(flag);
             _tris.Add(b0); _tris.Add(b0 + 1); _tris.Add(b0 + 2);
             _tris.Add(b0); _tris.Add(b0 + 2); _tris.Add(b0 + 3);
         }

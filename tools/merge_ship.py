@@ -62,38 +62,17 @@ def main():
     if not layout.get("cells"):
         sys.exit("layout.json has no cells.")
 
-    modules = []
-    for c in layout["cells"]:
-        m = MODULE_FOR.get(c.get("id"))
-        if m and m not in modules:
-            modules.append(m)
-
-    entry = {
-        "key": key,
-        "nameKey": f"ship.{key}.name",
-        "descriptionKey": f"ship.{key}.desc",
-        "baseHull": ship.get("baseHull", 100),
-        "baseShield": ship.get("baseShield", 0),
-        "flightSpeed": ship.get("flightSpeed", 1.0),
-        "handling": ship.get("handling", 1.0),
-        "interiorWidth": layout.get("width", 5),
-        "interiorLength": layout.get("length", 7),
-        "height": layout.get("height", 4),
-        "startModules": modules,
-        "layout": key,
-    }
-    if ship.get("requiredBlueprint"):
-        entry["requiredBlueprint"] = ship["requiredBlueprint"]
-    if ship.get("craftCost"):
-        entry["craftCost"] = [
-            {"item": c["item"], "count": c["count"]}
-            for c in ship["craftCost"] if c.get("item") and c.get("count")
-        ]
-
-    # 1. ships.json — replace any existing entry with this key, then append.
     ships_path = DATA / "ships.json"
-    ships = [s for s in _load(ships_path) if s.get("key") != key]
-    ships.append(entry)
+    ships = _load(ships_path)
+    existing = next((s for s in ships if s.get("key") == key), None)
+
+    entry = merged_entry(key, ship, layout, existing)
+
+    # 1. ships.json — replace the existing entry in place (keeps the file order), else append.
+    if existing is not None:
+        ships[ships.index(existing)] = entry
+    else:
+        ships.append(entry)
     _dump(ships_path, ships)
 
     # 2. layout file (normalised to the ShipLayout schema).
@@ -117,8 +96,56 @@ def main():
         d.setdefault(f"ship.{key}.desc", ship.get("description") or "A custom ship.")
         _dump(lp, d)
 
-    print(f"Merged ship '{key}': {len(layout['cells'])} cells, modules={modules}.")
+    print(f"Merged ship '{key}': {len(layout['cells'])} cells, modules={entry['startModules']}.")
     print("Re-run the server / rebuild the client to pick it up.")
+
+
+def start_modules(ship, layout, existing):
+    """The ship's start modules, in order: what the editor exported (a loaded built-in carries its
+    definition's list, #1399), then whatever the existing entry already had, then the modules derived
+    from the placed station tiles. Deriving alone dropped reactor / life support / weapons — they have no
+    station tile — every time a shipped ship was re-merged."""
+    modules = []
+
+    def add(m):
+        if m and m not in modules:
+            modules.append(m)
+
+    for m in ship.get("startModules") or []:
+        add(m)
+    for m in (existing or {}).get("startModules") or []:
+        add(m)
+    for c in layout.get("cells") or []:
+        add(MODULE_FOR.get(c.get("id")))
+    return modules
+
+
+def merged_entry(key, ship, layout, existing):
+    """The ships.json entry for a bundle. Starts from the existing entry (if any) so fields the editor does
+    not know about survive a re-merge, then overwrites what the bundle defines."""
+    entry = dict(existing or {})
+    entry.update({
+        "key": key,
+        "nameKey": f"ship.{key}.name",
+        "descriptionKey": f"ship.{key}.desc",
+        "baseHull": ship.get("baseHull", 100),
+        "baseShield": ship.get("baseShield", 0),
+        "flightSpeed": ship.get("flightSpeed", 1.0),
+        "handling": ship.get("handling", 1.0),
+        "interiorWidth": layout.get("width", 5),
+        "interiorLength": layout.get("length", 7),
+        "height": layout.get("height", 4),
+        "startModules": start_modules(ship, layout, existing),
+        "layout": key,
+    })
+    if ship.get("requiredBlueprint"):
+        entry["requiredBlueprint"] = ship["requiredBlueprint"]
+    if ship.get("craftCost"):
+        entry["craftCost"] = [
+            {"item": c["item"], "count": c["count"]}
+            for c in ship["craftCost"] if c.get("item") and c.get("count")
+        ]
+    return entry
 
 
 if __name__ == "__main__":

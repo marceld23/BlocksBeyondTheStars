@@ -21,6 +21,22 @@ public sealed class ShipLayout
     public int Length { get; set; }
 
     public List<ShipLayoutCell> Cells { get; set; } = new();
+
+    /// <summary>
+    /// The ship editor's build room (#1397): <see cref="EditorRoomWidth"/> × <see cref="EditorRoomHeight"/> ×
+    /// <see cref="EditorRoomLength"/> room cells, with the layout's interior origin (0,0,0) placed at
+    /// (<see cref="EditorOriginX"/>, 0, <see cref="EditorOriginZ"/>) so exterior cells at negative x/z (wings,
+    /// engines, nav lights) have room. Every shipped layout must fit — <see cref="FitsEditorRoom"/> is the
+    /// guard the content test runs, so a layout the editor could not load again never ships.
+    /// </summary>
+    public const int EditorOriginX = 8, EditorOriginZ = 8;
+    public const int EditorRoomWidth = 48, EditorRoomHeight = 32, EditorRoomLength = 48;
+
+    /// <summary>True when a layout cell lands inside the editor's build room after the origin shift.</summary>
+    public static bool FitsEditorRoom(int x, int y, int z)
+        => x + EditorOriginX >= 0 && x + EditorOriginX < EditorRoomWidth
+        && y >= 0 && y < EditorRoomHeight
+        && z + EditorOriginZ >= 0 && z + EditorOriginZ < EditorRoomLength;
 }
 
 /// <summary>One placed cell: position + what it is (a block, a station marker, or a special element).</summary>

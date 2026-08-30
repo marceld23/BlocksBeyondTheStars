@@ -110,6 +110,48 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Build editors: real block textures, procedural starting point, colossal tier + size hints (#1400–#1402, 2026-08-30, branch feat/editor-load-existing)
+Marcel, after the first load-picker build: "why are the things untextured, and why only village-sized templates?"
+**Textures (#1400)**: `EditorVoxelChunkView` baked the atlas tile's *average* colour into vertex colours and drew
+with `VertexColorOpaque` — the atlas was loaded but only fed the palette icons. Now every face of a real block
+carries its `BlockTextureAtlas.TileUv` in TEXCOORD0 plus a per-vertex sample weight in TEXCOORD1.x, and the
+shader (already Always-Included) multiplies an optional `_MainTex` by the vertex colour — so face shading, dye
+tint and glow still work, markers / stations / non-block elements stay flat (weight 0), creatures and every other
+vertex-colour mesh (no TEXCOORD1 → weight 0) render exactly as before. Shaped cells map the geometry's unit-tile
+uvs into the tile. **Generate (#1401)**: the town / station editor runs `SettlementGenerator.Generate` /
+`StationGenerator.Generate` on the client (the WorldGeneration assembly was already referenced) for the chosen
+tier + seed (Reroll; surface-block field for villages) and loads the result as cells — blocks via `BlockById`,
+markers first so a block never displaces the vendor. Palettes gained the generator markers (`spawn`,
+`door_slide`, `door_hinge` on stations, `greenhouse` on settlements); `StructureGeneratorEditorRoomTests`
+guards every tier × 3 seeds against the 128³ room and the palette. **Colossal + hints (#1402)**: `colossal` in
+the station tier list; a "Procedural: …" line under the tier stepper reads the generators' own `Layout()`
+tables (`SettlementGenerator.Plot` made public). Locales: 10 keys EN/DE + 12 MT.
+
+### ★ Build editors: load a built-in ship / template as a starting point (#1394–#1399, 2026-08-30, branch feat/editor-load-existing)
+Marcel: "how could the ship editor and the station/town editor load the existing ships and templates so I can
+change them?" LOAD only listed the user's own exports; the shipped content was never offered. **Load (#1394,
+#1395)**: the LOAD dialog is now the shared `EditorLoadPicker` — a scrollable, sectioned list: *Built-in ships*
+(every `ShipDefinition` with a layout, from `AppShell.Content`; the starter is a code box and is not listed) /
+*Built-in templates* (`Content.StationTemplates` / `SettlementTemplates`) / *Your templates* (`usercontent/`) /
+*Your designs* (exports), each row with size + cell count; loading fills the room AND the form (name, stats,
+craft cost, blueprint, tier, pack, weight, planet types), frames the camera, and asks first when something is
+already placed. A built-in template loads as a COPY (`<key>_2` + a status hint) because user templates are
+ADDED to the pool, not merged over it — saving under the original key would only clone it. **Interior frame
+(#1396)**: export derived `width/height/length` from the bounding box of every cell, but the server treats those
+as the CABIN (floor guarantee, roof at `y == height`, hatch) and lets exterior cells sit outside — every shipped
+layout has 4–14 wings/engines/lights beyond the frame, so a re-export would have shifted the cabin. The interior
+size is now three explicit steppers with a translucent cyan frame in the room (`EditorInteriorFrame`).
+**Origin (#1397)**: exterior cells at negative x/z could not be represented (`InBounds` = 0..Max) — the interior
+origin now sits at `(8,0,8)` in the 48-room (`ShipLayout.EditorOriginX/Z`, shared so `ShipLayoutEditorRoomTests`
+guards every shipped layout against the room). **Palette (#1398)**: `console` station (5/7 layouts), station
+`npc`/`greenhouse`, settlement `chest`/`data_terminal` were missing → loads silently dropped them; added, and
+both loaders now count + name skipped cells in the status. **Merge tools (#1399)**: `merge_ship.py` derived
+`startModules` only from station tiles (re-merging the hauler lost reactor/life support/weapons) → union of the
+bundle's `startModules` (the editor exports the loaded definition's list), the existing entry's and the derived
+ones; `merge_structure.py` dropped `planetTypes` + `legacyPool` (pins!) → starts from the existing entry. Both
+replace in place (file order kept). Locales: 19 keys EN+DE, 12 community locales MT'd. Verified by the .NET
+test + a scratch re-merge of hauler / river_hamlet / stilt_hamlet + local Unity build.
+
 ### ★ Build editors: palette rows, scrollbar, typing guard, orphaned menu planet, wheel zoom, visible grid (#1386–#1391, 2026-08-30, branch fix/editor-ux)
 Marcel's settlement-editor screenshot: "no scrollbar or search on the left, a weird orb in the background, can't
 zoom, can't see the grid". Six causes, all in the shared editor bricks so ship/station/settlement got them at once.
