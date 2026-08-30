@@ -24,8 +24,8 @@ game server (crash flush) ──┘    (x-bugreport-key)    + files    └──
 | `GET /api/reports?since=&status=&category=&source=&limit=&cursor=` | header `x-report-read-key` | Delta-sync list: `{ items, nextCursor, hasMore }`, ascending `createdAt` |
 | `GET /api/reports/{id}` | read key | One report (full, incl. parsed `reportJson`) |
 | `GET /api/reports/{id}/screenshot` | read key | The screenshot image |
-| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI |
-| `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete (incl. screenshot + reply thread) |
+| `PATCH /api/reports/{id}` `{"status":"new\|triaged\|waiting_for_player\|player_replied\|done"}` | admin Basic Auth, JSON content type | Triage from scripts/CI — covers the whole report pair (#1380); the answer lists the rows changed as `reportIds` |
+| `DELETE /api/reports/{id}` | admin Basic Auth | Permanent delete of the report and its paired half (incl. screenshots + reply threads) |
 | `POST /api/reports/{id}/replies` `{"text","question":bool,"fixedInVersion"?}` | admin Basic Auth, JSON content type | Developer answer / follow-up question (#1327) — scriptable twin of the detail-page form |
 | `GET /api/replies?key=&since=&ids=` | header `x-bugreport-key` | **Client poll**: threads of this reply key with unread developer entries, plus `gone` for the remembered `ids` the key can no longer read (CORS on) |
 | `POST /api/replies/ack` `{"key","replyIds":[]}` | header `x-bugreport-key` | Client marks shown developer entries read |
@@ -197,7 +197,14 @@ reports.example.com {
   containing the other, and the **same reporter** — by reply key when both halves carry one, by player
   **name** otherwise. Not by `playerId`: the client row carries the install token, the server row the
   player name, so the two never agree (the original #618 check compared exactly that and never paired a
-  single report in production — #1359).
+  single report in production — #1359). **Operator actions cover the pair** (#1380): a status change or
+  delete on either half — the detail-page buttons, `PATCH` / `DELETE /api/reports/{id}` — applies to both
+  rows (`ReportPairActions`, resolving the pair through `ReportStore.Around` + `ReportHostPages.PairOf`),
+  the reply-driven flips (`waiting_for_player` on a question, `player_replied` on an answer) are mirrored
+  from the keyed half onto the other, and at startup `ReportStore.SyncPairStatuses` settles pairs that
+  were triaged apart before this on their most advanced state. Before, "mark done" on the list's row left
+  the other half `new` (a lone row under the status filter) and a delete left it behind under the server's
+  `Bump [world]: …` title.
 - **`/reportpaint` / `/reportshape` reports** (#938) — any server with a configured sink also forwards
   each in-game paint/shape report to the inbox, shaped like a `/bump` (no `reportJson.kind` → category
   *feedback*, `source: "server"`) with `reportJson.reportType: "paint-report"` / `"shape-report"` and

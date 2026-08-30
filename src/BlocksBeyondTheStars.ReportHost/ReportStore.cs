@@ -64,10 +64,30 @@ public static class BugReportStatus
     public const string PlayerReplied = "player_replied";
     public const string Done = "done";
 
-    /// <summary>Every state, in the order the admin UI lists them.</summary>
+    /// <summary>Every state, in the order the admin UI lists them — which is also how far along the triage a
+    /// state is (<see cref="MostAdvanced"/>).</summary>
     public static readonly string[] All = { New, Triaged, WaitingForPlayer, PlayerReplied, Done };
 
     public static bool IsValid(string status) => status is New or Triaged or WaitingForPlayer or PlayerReplied or Done;
+
+    /// <summary>The state furthest along the triage among <paramref name="statuses"/> (order of <see cref="All"/>;
+    /// an unknown value ranks lowest). What a report pair left with differing halves settles on (#1380).</summary>
+    public static string MostAdvanced(IEnumerable<string> statuses)
+    {
+        string best = New;
+        int bestRank = -1;
+        foreach (string s in statuses)
+        {
+            int rank = Array.IndexOf(All, s);
+            if (rank > bestRank)
+            {
+                best = s;
+                bestRank = rank;
+            }
+        }
+
+        return best;
+    }
 }
 
 /// <summary>
@@ -266,6 +286,46 @@ public sealed class ReportStore : IDisposable
             }
 
             return derived.Count;
+        }
+    }
+
+    /// <summary>One-time repair for report pairs triaged apart (#1380): before status changes covered the whole
+    /// pair, "mark done" on the list's row left the other half <c>new</c>, and a developer question moved only
+    /// the keyed half. Every pair <paramref name="group"/> forms (the admin list's rule, passed in so the store
+    /// does not own it) settles on its most advanced state. Idempotent; returns how many rows changed. Called
+    /// at startup after <see cref="RevokeNameDerivedServerKeys"/>.</summary>
+    public int SyncPairStatuses(Func<IReadOnlyList<BugReportRecord>, List<List<BugReportRecord>>> group)
+    {
+        lock (_gate)
+        {
+            var rows = new List<BugReportRecord>();
+            using (var select = _db.CreateCommand())
+            {
+                select.CommandText = "SELECT * FROM bugreport ORDER BY created_unix, id;";
+                using var reader = select.ExecuteReader();
+                while (reader.Read())
+                {
+                    rows.Add(ReadRecord(reader));
+                }
+            }
+
+            int changed = 0;
+            foreach (var pair in group(rows))
+            {
+                if (pair.Count < 2)
+                {
+                    continue;
+                }
+
+                string target = BugReportStatus.MostAdvanced(pair.Select(r => r.Status));
+                foreach (var lagging in pair.Where(r => r.Status != target))
+                {
+                    SetStatusLocked(lagging.Id, target);
+                    changed++;
+                }
+            }
+
+            return changed;
         }
     }
 

@@ -110,6 +110,18 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Report inbox: "mark done" and delete cover both rows of a report (#1380, 2026-08-30, branch fix/reporthost-pair-actions)
+Marcel: marking a stacked report done or deleting it always left one row behind. Pairing (#1359) is render-time only
+and every action hit the one row id — the admin forms, `PATCH`/`DELETE /api/reports/{id}`, and the reply-driven
+flips (`waiting_for_player`, `player_replied`) that land on the `ThreadOwner` only; `ReportStore.Latest` filters by
+status before grouping, so the untouched half showed as a lone row. New `ReportPairActions` (SetStatus / Delete /
+MirrorStatus) resolves the pair through `ReportStore.Around` + `ReportHostPages.PairOf` and applies the action to
+every member; the detail page says "(both rows)", names the partner and greys a status out only when both halves
+have it; `ReportStore.SyncPairStatuses` settles historical pairs on `BugReportStatus.MostAdvanced` once at startup.
+Tests: `PairActions_StatusDeleteAndReplyFlips_CoverBothHalves_AndLeaveAStrangerAlone`,
+`SyncPairStatuses_SettlesPairsTriagedApart_OnTheMostAdvancedState`, `DetailPage_SaysActionsCoverBothRows_OnlyForAPair`,
+`PairOf_ReturnsTheRowAndItsHalf_NeverAStranger`. ReportHost image redeploy needed; no client change.
+
 ### ★ Report inbox: the screenshot half of a pair shows the pair's conversation (#1378, 2026-08-30, branch fix/reporthost-pair-thread)
 After answering Lyxette's 11 reports through the API, the admin list showed no answer on any of them: it links each
 pair to the `/bump` half (screenshot), whose reply key is blank for pre-8.23 reports (#1359 repair), so its detail

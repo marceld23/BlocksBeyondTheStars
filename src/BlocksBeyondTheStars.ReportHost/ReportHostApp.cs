@@ -60,6 +60,14 @@ public static class ReportHostApp
             log.LogInformation("Revoked name-derived reply keys on {Count} server-forwarded report(s).", revoked);
         }
 
+        // Pairs triaged apart before actions covered both halves (#1380) settle on their most advanced
+        // state. Idempotent — a no-op once repaired, and every action below keeps pairs in step from here on.
+        int synced = store.SyncPairStatuses(ReportHostPages.GroupDuplicates);
+        if (synced > 0)
+        {
+            log.LogInformation("Aligned the status of {Count} report row(s) with their paired half.", synced);
+        }
+
         log.LogInformation(
             "ReportHost on {Bind}:{Port} — ingest {Ingest}, read API {Read}, admin UI {Admin}, retention {Retention}, pruned {Pruned} at start.",
             config.BindAddress, config.Port,
@@ -403,7 +411,10 @@ public static class ReportHostApp
                 return Results.BadRequest(new { error = "invalid_status" });
             }
 
-            return store.SetStatus(id, status) ? Results.Json(new { ok = true, status }) : Results.NotFound();
+            // The whole pair (#1380) — `reportIds` names every row changed, the addressed one first.
+            return ReportPairActions.SetStatus(store, id, status) is { } reportIds
+                ? Results.Json(new { ok = true, status, reportIds })
+                : Results.NotFound();
         });
 
         app.MapDelete("/api/reports/{id}", (HttpContext ctx, string id) =>
@@ -413,7 +424,7 @@ public static class ReportHostApp
                 return denied;
             }
 
-            return store.Delete(id) ? Results.NoContent() : Results.NotFound();
+            return ReportPairActions.Delete(store, id) != null ? Results.NoContent() : Results.NotFound();
         });
 
         // ---------------- Reply threads (#1327): player pull + answer, operator post ----------------
@@ -537,6 +548,7 @@ public static class ReportHostApp
                     return Results.Json(new { error = "reply_limit" }, statusCode: StatusCodes.Status409Conflict);
             }
 
+            ReportPairActions.MirrorStatus(store, reportId); // player_replied on the screenshot half too (#1380)
             var report = store.Get(reportId);
             log.LogInformation("Player replied on report {Id} (reply {ReplyId}).", reportId, replyId);
             notifier.Post("Player replied",
@@ -598,6 +610,11 @@ public static class ReportHostApp
                 store.SetFixedInVersion(owner.Id, fixedIn);
             }
 
+            if (question)
+            {
+                ReportPairActions.MirrorStatus(store, owner.Id); // waiting_for_player on the screenshot half too (#1380)
+            }
+
             return Results.Json(new { ok = true, replyId, reportId = owner.Id }, statusCode: StatusCodes.Status201Created);
         });
 
@@ -650,7 +667,8 @@ public static class ReportHostApp
             }
 
             var owner = ThreadOwnerOf(record);
-            return Results.Content(ReportHostPages.Detail(record, store.ListReplies(owner.Id), csrf, owner), "text/html; charset=utf-8");
+            var pair = ReportPairActions.PairOf(store, record);
+            return Results.Content(ReportHostPages.Detail(record, store.ListReplies(owner.Id), csrf, owner, pair), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to
@@ -689,6 +707,11 @@ public static class ReportHostApp
                 store.SetFixedInVersion(owner.Id, fixedIn);
             }
 
+            if (text.Length > 0 && question)
+            {
+                ReportPairActions.MirrorStatus(store, owner.Id); // waiting_for_player on the screenshot half too (#1380)
+            }
+
             return Results.Redirect($"/admin/report/{id}");
         });
 
@@ -720,8 +743,10 @@ public static class ReportHostApp
                 return forged;
             }
 
+            // The whole pair (#1380): the list shows the two rows as one report, so "mark done" must not leave
+            // the other half new.
             string status = form["status"].ToString();
-            if (!BugReportStatus.IsValid(status) || !store.SetStatus(id, status))
+            if (ReportPairActions.SetStatus(store, id, status) == null)
             {
                 return Results.NotFound();
             }
@@ -742,7 +767,7 @@ public static class ReportHostApp
                 return forged;
             }
 
-            store.Delete(id);
+            ReportPairActions.Delete(store, id); // both halves, with screenshots and threads (#1380)
             return Results.Redirect("/admin");
         });
 
