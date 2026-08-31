@@ -130,6 +130,25 @@ prefetch (each decoded track is ~80 MB PCM). **#1425** browser-SP server budgets
 Desktop behavior is unchanged except: the shell honors Low/Potato, and desktop-browser first runs now calibrate
 UP from Low instead of being stuck there. Needs an on-device playtest (Tab A8) after the next WebGL release.
 
+### ★ Justus playtest: black first-person hand, truncated punch arm, the floating asteroid door (#1427–#1429, 2026-08-31, branch fix/justus-playtest-hand-doors)
+Three F1 reports from Justus (v2026.8.24). **#1427** the empty-slot hand ignored the appearance editor's arm
+painting (it only resolved the flat `ArmColor`) and its materials lacked the avatar's `_Floor 0.62`/`_Fill 0.3`
+ambient lift, so a dark base sank to a pure black silhouette in Linear space; `HeldItem` now bakes the same
+`BodyPaintKit` arm atlas (cached, right-limb OUTER chunk via material ST — the held-block tile trick) onto
+forearm/fist/thumb with a white tint, and all four hand parts get the lift. **#1428** the forearm's open rear end
+became visible when punching: the gameplay camera used Unity's default 0.3 near plane (the preview rigs use 0.1)
+which clipped the back-culled cube into a hollow tube, and `Kind.Hand` fell into the generic 55°-pitch tool jab
+that swung that end into view — near plane now 0.1 and the bare hand gets its own straight-punch pose (light
+wrist tilt only). **#1429** door ids are per world and restart at 1 (`RegisterDoors`), but `DoorView` never
+cleared on `WorldReset` and `OnDoors` mutated only `Open` on a known id — after ship travel to a small asteroid
+the recycled id 1 kept the OLD settlement door object pinned at old-world coordinates (folded next to the player
+by the ±circ/2 wrap) while the ship's hatch got no object at all: the "floating door" and the doorless ship were
+one bug. `DoorView` now drops everything on `WorldResetReceived` (NpcView pattern) and rebuilds any door whose
+pos/kind/axis/width changed (`SameDoor`); server-side, the three `WorldReset` senders without a follow-up
+restock (`RecoverToShip`, heal-tank respawn, station undock-return) now `SendDoors` too. Tests: EditMode
+`DoorViewEditModeTests` (identity predicate) + `HeldItemEditModeTests` paint-resolver pin; server-side
+`AssertDoorsFollowTheReset` added to both #1346 death-respawn regressions.
+
 ### ★ WorldHost: the VPS disk leak — 92 GB of orphaned anonymous volumes (#1414, 2026-08-30, branch fix/worldhost-volume-leak)
 Marcel: "what exactly eats so much disk on my VPS?" — 121 GB / 237 GB, and `docker system df` said 379 volumes,
 351 dangling, 92 GB reclaimable (+ 93 images, 82 unused, 17 GB). Four pieces: the `Dockerfile` declares

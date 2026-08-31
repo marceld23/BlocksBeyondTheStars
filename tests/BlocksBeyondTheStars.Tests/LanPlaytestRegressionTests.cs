@@ -696,6 +696,20 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.True(placement > reset, "…and re-arm the ship marker AFTER that reset (#1346)");
     }
 
+    /// <summary>Since #1429 the client also drops all door objects on EVERY WorldReset (door ids are per
+    /// world and restart at 1, so keeping them pinned stale doors at old-world coordinates). A reset that
+    /// is not followed by a DoorList leaves the respawn world doorless.</summary>
+    private static void AssertDoorsFollowTheReset(RecordingTransport transport, PlayerSession session)
+    {
+        var msgs = transport.Sent.Where(x => x.Conn == session.ConnectionId).Select(x => x.Msg).ToList();
+        int reset = msgs.FindIndex(m => m is WorldReset);
+        // PlaceLandedShip broadcasts a DoorList DURING the transition, i.e. before the reset that wipes
+        // it client-side — only a DoorList after the (first) reset actually restocks, so look from there.
+        int doors = msgs.FindLastIndex(m => m is DoorList);
+        Assert.True(reset >= 0, "a death away from the ship's world must reset the world");
+        Assert.True(doors > reset, "…and restock the doors AFTER that reset (#1429)");
+    }
+
     [Fact]
     public void DyingInSpace_ResendsTheShipPlacement_AfterTheWorldReset()
     {
@@ -711,6 +725,7 @@ public sealed class LanPlaytestRegressionTests : IDisposable
 
         Assert.True(host.State.AboardShip);
         AssertShipPlacementFollowsTheReset(transport, host);
+        AssertDoorsFollowTheReset(transport, host); // same gap for the door objects (#1429)
     }
 
     [Fact]
@@ -753,5 +768,6 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.Equal(body.Id, host.CurrentLocationId);
         Assert.False(host.State.AboardShip); // woke at the home tank, on foot
         AssertShipPlacementFollowsTheReset(transport, host);
+        AssertDoorsFollowTheReset(transport, host); // same gap for the door objects (#1429)
     }
 }

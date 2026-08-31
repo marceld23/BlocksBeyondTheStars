@@ -1625,8 +1625,10 @@ namespace BlocksBeyondTheStars.Client
                     ? (Atlas.Texture, Atlas.TileUv(b.NumericId.Value))
                     : null;
 
-            // The empty-slot hand (#1033) wears a glove in the player's suit arm colour.
+            // The empty-slot hand (#1033) wears a glove in the player's suit arm colour — and the player's
+            // own arm painting from the appearance editor, so first person matches third person (#1427).
             HeldItem.HandTintResolver = () => Settings?.ArmColor;
+            HeldItem.HandPaintResolver = () => Settings?.ArmPixels;
 
             if (Loopback != null)
             {

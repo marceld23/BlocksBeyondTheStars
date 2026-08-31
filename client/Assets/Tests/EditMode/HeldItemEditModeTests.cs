@@ -15,7 +15,11 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
     public sealed class HeldItemEditModeTests
     {
         [TearDown]
-        public void TearDown() => HeldItem.HandTintResolver = null;
+        public void TearDown()
+        {
+            HeldItem.HandTintResolver = null;
+            HeldItem.HandPaintResolver = null;
+        }
 
         [Test]
         public void EmptySlotResolvesToHand()
@@ -43,6 +47,17 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
         public void NonEmptyKeyWithoutContentStaysNone()
         {
             Assert.That(HeldItem.For(null, "iron_drill").kind, Is.EqualTo(HeldItem.Kind.None));
+        }
+
+        [Test]
+        public void PaintResolverDoesNotChangeTheResolvedTint()
+        {
+            // The painting is applied at build time on top of the base tint (#1427) — For() keeps
+            // resolving the flat arm colour so the cuff shade and the unpainted fallback stay stable.
+            var arm = new Color(0.9f, 0.1f, 0.2f);
+            HeldItem.HandTintResolver = () => arm;
+            HeldItem.HandPaintResolver = () => new string('1', 8 * 32 * 32);
+            Assert.That(HeldItem.For(null, "").tint, Is.EqualTo(arm));
         }
     }
 }

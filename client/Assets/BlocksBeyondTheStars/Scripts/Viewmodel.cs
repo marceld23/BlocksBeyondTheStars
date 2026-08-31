@@ -192,6 +192,15 @@ namespace BlocksBeyondTheStars.Client
                     posOff += new Vector3(0f, 0.045f * kick, -0.11f * kick);
                     rot += new Vector3(-24f * kick, 0f, 0f);
                 }
+                else if (_kind == HeldItem.Kind.Hand)
+                {
+                    // Bare hand: a straight punch. The forearm is an open-ended stump that sits below and
+                    // right of the frustum at its shallow depths — the generic jab's 55° pitch used to swing
+                    // that open rear end up into view ("the arm ends at the back", #1428). Drive the fist
+                    // forward with only a light wrist tilt so the rear stays off-screen.
+                    posOff += new Vector3(-0.04f, -0.02f, 0.16f) * jab;
+                    rot += new Vector3(9f * jab, -7f * jab, -5f * jab);
+                }
                 else
                 {
                     // Tools / drill / block: a forward-down jab.

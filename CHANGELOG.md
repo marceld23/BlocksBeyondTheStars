@@ -15,6 +15,17 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### Fixed
 
+- The first-person hand shows your painted arm design and no longer renders as a black silhouette —
+  the viewmodel never received the appearance editor's arm painting and its materials lacked the
+  avatar's ambient lift, so dark suit colours sank to pure black. (#1427)
+- The first-person arm no longer looks cut off at the back when punching: the camera near plane
+  clipped the forearm open and the generic tool jab swung that end into view; the bare hand now
+  throws a straight punch of its own. (#1428)
+- Landing on another body no longer leaves a stale door floating in mid-air while your ship's hatch
+  goes doorless — door ids restart per world and the client recycled an old door object for the
+  ship's hatch id; doors are now dropped on every world change and rebuilt when their record moved,
+  and respawns restock the door list. (#1429)
+
 - WorldHost leaked ~1 GB of anonymous Docker volumes per world wake — the image declared `/app/clients`
   + `/app/webgl` as VOLUMEs, every start downloaded the client installers into one, and `docker rm`
   ran without `-v`. Now `rm -v`, `BBS_FETCH_CLIENT=0` for hosted instances, and only saves + config

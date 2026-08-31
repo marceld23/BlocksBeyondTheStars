@@ -4,6 +4,7 @@
 using UnityEngine;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
+using BodyPaint = BlocksBeyondTheStars.Shared.State.BodyPaint;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -24,6 +25,11 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Resolves the local player's suit arm colour so the empty-slot hand matches the
         /// avatar's glove. Wired by GameBootstrap; null falls back to the default suit blue.</summary>
         public static System.Func<Color?> HandTintResolver;
+
+        /// <summary>Resolves the local player's arm painting (the <c>BodyPaint</c> wire payload from the
+        /// appearance editor) so the empty-slot hand shows the player's own design instead of only the
+        /// flat suit colour (#1427). Wired by GameBootstrap; null/empty keeps the flat tint.</summary>
+        public static System.Func<string> HandPaintResolver;
 
         /// <summary>Default glove colour when no resolver is wired (= <c>ClientSettings.ArmColor</c> default).</summary>
         private static readonly Color DefaultGlove = new Color(0.20f, 0.45f, 0.80f);
@@ -160,10 +166,15 @@ namespace BlocksBeyondTheStars.Client
                     // Empty slot (#1033): a gloved fist on the suit-coloured forearm — thumb on the inner
                     // side of a right hand, cuff a darker shade for definition.
                     var cuff = new Color(tint.r * 0.7f, tint.g * 0.7f, tint.b * 0.7f);
-                    Cube(holder.transform, new Vector3(0.02f, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint); // forearm
-                    Cube(holder.transform, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);    // cuff
-                    Cube(holder.transform, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);         // fist
-                    Cube(holder.transform, new Vector3(-0.075f, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint); // thumb
+                    var forearm = Cube(holder.transform, new Vector3(0.02f, -0.06f, -0.16f), new Vector3(0.11f, 0.11f, 0.30f), tint);
+                    var cuffGo = Cube(holder.transform, new Vector3(0f, -0.02f, -0.02f), new Vector3(0.12f, 0.12f, 0.07f), cuff);
+                    var fist = Cube(holder.transform, new Vector3(0f, 0f, 0.07f), new Vector3(0.13f, 0.12f, 0.14f), tint);
+                    var thumb = Cube(holder.transform, new Vector3(-0.075f, 0.01f, 0.05f), new Vector3(0.05f, 0.06f, 0.08f), tint);
+                    PaintHand(tint, forearm, fist, thumb); // the player's own arm painting, when there is one (#1427)
+                    // The hand is suit-coloured like the avatar, so it shares the avatar's failure mode:
+                    // LitColor's fixed key light + Linear colour space sink dark tints to a black silhouette
+                    // without the ambient lift PlayerAvatar.Lit applies (#1427). Cuff included.
+                    LiftAmbient(forearm, cuffGo, fist, thumb);
                     break;
 
                 default: // Tool
@@ -172,6 +183,63 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return holder;
+        }
+
+        // Cached hand-paint atlas: the hand rebuilds on every hotbar change, and baking a texture each
+        // time would leak one per switch. Keyed by payload + base colour; the stale one is destroyed.
+        private static Texture2D _handAtlas;
+        private static string _handAtlasKey;
+
+        /// <summary>Applies the player's arm painting to the hand parts (white tint + the atlas the avatar
+        /// also bakes, mapped to the right arm's OUTER chunk — the hero face of the paint editor). Without
+        /// a valid painting the parts keep their flat suit tint, matching the pre-#1427 look.</summary>
+        private static void PaintHand(Color baseColor, params GameObject[] parts)
+        {
+            string pixels = HandPaintResolver?.Invoke();
+            if (string.IsNullOrEmpty(pixels) || pixels.Length != BodyPaint.ExpectedLength(BodyPaint.Arms))
+            {
+                return;
+            }
+
+            string key = pixels + "#" + ColorUtility.ToHtmlStringRGB(baseColor);
+            if (_handAtlasKey != key || _handAtlas == null)
+            {
+                if (_handAtlas != null)
+                {
+                    Object.Destroy(_handAtlas);
+                }
+
+                _handAtlas = BodyPaintKit.BuildAtlas(BodyPaint.Arms, pixels, baseColor);
+                _handAtlasKey = key;
+            }
+
+            // Right limb = canvas row 1 → chunks 4..7 (front|outer|back|inner); outer is chunk 5. Cube
+            // face UVs are 0..1, so the material ST maps every face onto that chunk (same trick as the
+            // held block's atlas tile above). Transparent pixels are pre-composited onto the base colour.
+            var uv = BodyPaintKit.ChunkRect(BodyPaint.Arms, 5);
+            foreach (var go in parts)
+            {
+                var m = go.GetComponent<Renderer>().sharedMaterial;
+                m.color = Color.white; // the painting's true colours, like the avatar's painted parts
+                m.mainTexture = _handAtlas;
+                m.mainTextureScale = new Vector2(uv.width, uv.height);
+                m.mainTextureOffset = new Vector2(uv.x, uv.y);
+            }
+        }
+
+        /// <summary>Raises LitColor's ambient floor + fill to the avatar's values (see
+        /// <c>PlayerAvatar.Lit</c>) so suit-coloured hand parts never sink to black (#1427).</summary>
+        private static void LiftAmbient(params GameObject[] parts)
+        {
+            foreach (var go in parts)
+            {
+                var m = go.GetComponent<Renderer>().sharedMaterial;
+                if (m.HasProperty("_Floor")) // no-op on the Unlit/Color fallback
+                {
+                    m.SetFloat("_Floor", 0.62f);
+                    m.SetFloat("_Fill", 0.3f);
+                }
+            }
         }
 
         private static GameObject Cube(Transform parent, Vector3 localPos, Vector3 scale, Color color)

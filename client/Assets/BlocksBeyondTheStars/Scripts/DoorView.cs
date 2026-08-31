@@ -34,6 +34,7 @@ namespace BlocksBeyondTheStars.Client
             public string Kind;
             public Vector3 World;          // canonical world pos (gap centre, floor)
             public float Width;
+            public bool AxisX;
             public bool Open;
             public float Anim;             // 0 closed → 1 open, eased toward Open
             public Transform Field;        // energy door: the translucent blue field shown in the open doorway
@@ -50,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
             if (!_subscribed && Game?.Network != null)
             {
                 Game.Network.DoorsReceived += OnDoors;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
             }
 
@@ -100,19 +102,51 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Travelling wipes the world: door ids are per world and restart at 1 on the destination
+        /// body, so every held door object is stale. Without this reset a recycled id pinned an old door at
+        /// its old coordinates — the "floating door on the asteroid" while the landed ship went doorless
+        /// (#1429). The server re-sends the destination's doors after every WorldReset.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var d in _doors.Values)
+            {
+                if (d.Go != null)
+                {
+                    Destroy(d.Go);
+                }
+            }
+
+            _doors.Clear();
+        }
+
+        /// <summary>True when the incoming record still describes the door object we hold for its id —
+        /// only then is it safe to mutate in place. A mismatch means the id was recycled for a different
+        /// door (see <see cref="OnWorldReset"/>) and the object must be rebuilt, not reused (#1429).</summary>
+        public static bool SameDoor(string kind, Vector3 world, float width, bool axisX, NetDoor nd)
+            => kind == nd.Kind
+               && axisX == nd.AxisX
+               && Mathf.Approximately(width, Mathf.Max(1f, nd.Width))
+               && (world - new Vector3(nd.X, nd.Y, nd.Z)).sqrMagnitude < 0.01f;
+
         private void OnDoors(DoorList m)
         {
             var seen = new HashSet<int>();
             foreach (var nd in m.Doors)
             {
                 seen.Add(nd.Id);
-                if (!_doors.TryGetValue(nd.Id, out var d))
+                if (_doors.TryGetValue(nd.Id, out var d) && !SameDoor(d.Kind, d.World, d.Width, d.AxisX, nd))
+                {
+                    Destroy(d.Go);
+                    _doors.Remove(nd.Id);
+                    d = null;
+                }
+
+                if (d == null)
                 {
                     d = Build(nd);
                     _doors[nd.Id] = d;
                 }
-
-                if (d.Open != nd.Open)
+                else if (d.Open != nd.Open)
                 {
                     d.Open = nd.Open;
                     PlayDoorSfx(d);
@@ -211,6 +245,7 @@ namespace BlocksBeyondTheStars.Client
                 Kind = nd.Kind,
                 World = new Vector3(nd.X, nd.Y, nd.Z),
                 Width = w,
+                AxisX = nd.AxisX,
                 Open = nd.Open,
                 Anim = nd.Open ? 1f : 0f,
                 Field = field,
@@ -364,6 +399,7 @@ namespace BlocksBeyondTheStars.Client
             if (_subscribed && Game?.Network != null)
             {
                 Game.Network.DoorsReceived -= OnDoors;
+                Game.Network.WorldResetReceived -= OnWorldReset;
             }
 
             if (Instance == this)
