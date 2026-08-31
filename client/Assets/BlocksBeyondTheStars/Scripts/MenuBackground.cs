@@ -112,16 +112,25 @@ namespace BlocksBeyondTheStars.Client
             // URP Volume. The project always runs URP (every quality level assigns it), so there's no Built-in path.
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
             {
+                // Respect the player's preset (#1421), like IntroCinematic: Medium+ keeps the full attract
+                // look (High post), Low/Potato get their own cheap tier — the menu backdrop otherwise ran
+                // forced-High post through the default full-res-SSAO renderer on devices set to Low.
+                var settings = Shell != null ? Shell.Settings : null;
+                var preset = settings?.Preset ?? QualityPreset.Medium;
                 var post = gameObject.AddComponent<UrpScenePost>();
-                post.Preset = QualityPreset.High;
+                post.Preset = preset >= QualityPreset.Medium ? QualityPreset.High : preset;
                 post.LensFlareEnabled = true;
                 post.MotionBlurEnabled = false;
                 post.ShellMode = true; // tighter bloom so the attract scene reads crisp, not hazy
 
-                // A code-created URP camera has post-processing OFF by default — turn it on or the global Volume
-                // (bloom/tonemap/vignette/lens flare) never touches the menu scene.
+                // A code-created URP camera has post-processing OFF by default — ApplyCameraLook turns it on
+                // and picks the preset's renderer tier, or the global Volume never touches the menu scene.
                 var camData = _cam.GetUniversalAdditionalCameraData();
-                if (camData != null)
+                if (camData != null && settings != null)
+                {
+                    settings.ApplyCameraLook(camData);
+                }
+                else if (camData != null)
                 {
                     camData.renderPostProcessing = true;
                 }

@@ -306,6 +306,15 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // RequiredPull walks up to 8 raymarched CameraClear probes (~400+ voxel lookups) and ran every
+        // frame — exactly while chunk streaming/meshing peaks after world reveal (#1425). The staged shot
+        // moves slowly (orbit 8°/s, damped radius), so the verified pull level is reused for a few frames;
+        // the per-frame CameraClear check on the actual camera spot below still catches late-streamed
+        // terrain immediately.
+        private const int PullRecheckFrames = 3;
+        private int _cachedPull;
+        private int _pullCheckedFrame = int.MinValue;
+
         private void LateUpdate()
         {
             if (!_cameraOverride || Camera == null)
@@ -343,7 +352,18 @@ namespace BlocksBeyondTheStars.Client
             // push-in can still put the ideal spot inside terrain. Each pull level trades radius for
             // height until the view is clear; blend levels smoothly so the correction reads as a camera
             // move, not a cut.
-            int needed = RequiredPull(look);
+            int needed;
+            if (Time.frameCount - _pullCheckedFrame < PullRecheckFrames)
+            {
+                needed = _cachedPull;
+            }
+            else
+            {
+                needed = RequiredPull(look);
+                _cachedPull = needed;
+                _pullCheckedFrame = Time.frameCount;
+            }
+
             if (needed < 0)
             {
                 // Nothing clear even fully pulled in — hold the last good pose rather than enter the rock.

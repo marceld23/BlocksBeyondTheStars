@@ -176,6 +176,12 @@ namespace BlocksBeyondTheStars.Client
         // Graphics
         public QualityPreset Preset = QualityPreset.Medium;
 
+        /// <summary>True while <see cref="Preset"/> is auto-managed: set on a browser/mobile first run and
+        /// consumed by <see cref="AutoQualityCalibrator"/>, which steps the preset by measured frame time.
+        /// Cleared the moment the player picks a preset by hand — a manual choice is never overridden.
+        /// Existing installs load this as false, so their persisted preset stays untouched.</summary>
+        public bool PresetAuto;
+
         /// <summary>How the window is presented (windowed / borderless / exclusive). Default borderless so the
         /// game opens fullscreen on whichever monitor it launches on; switch to Windowed (in the settings menu)
         /// for a draggable, maximizable window, or to Exclusive for true exclusive fullscreen.</summary>
@@ -797,9 +803,21 @@ namespace BlocksBeyondTheStars.Client
                 // Tablets and the browser build are GPU-weak next to a desktop, and the scene is heavy (custom
                 // URP, SSAO, SMAA, PBR). Start those on a Lite preset so the first run is playable; the player
                 // can still raise it in Settings. Only on a genuine first run — a returning player keeps theirs.
+                // PresetAuto hands the preset to the shell frame-time calibration (#1423), which steps it up on
+                // capable devices (a desktop browser is not stuck on Low forever) and down on struggling ones.
                 if (Application.isMobilePlatform || Application.platform == RuntimePlatform.WebGLPlayer)
                 {
                     settings.Preset = QualityPreset.Low;
+                    settings.PresetAuto = true;
+
+                    // Phone/tablet-class browser (#1424): shorter horizon, and the synth music engine instead
+                    // of the MP3 library — no download and no browser-side decodeAudioData, whose ~80 MB PCM
+                    // per track is what tips a 3–4 GB tablet into EncodingError memory failures (#1419).
+                    if (BrowserDevice.IsMobileBrowser)
+                    {
+                        settings.ViewDistanceChunks = 3;
+                        settings.MusicMode = MusicMode.Synth;
+                    }
                 }
             }
 
@@ -977,8 +995,12 @@ namespace BlocksBeyondTheStars.Client
                     QualityPreset.Medium => 2,
                     _ => 4,
                 };
-                urp.supportsHDR = Preset > QualityPreset.Potato;
-                urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : 1f;
+                // On WebGL, Low must actually be low (#1424): the wasm main thread also runs the in-process
+                // singleplayer server and all chunk meshing, so Low additionally drops HDR and renders the 3D
+                // view at 80 % — between Potato (75 %) and the desktop presets (100 %). Desktop Low is unchanged.
+                bool webglLow = Application.platform == RuntimePlatform.WebGLPlayer && Preset == QualityPreset.Low;
+                urp.supportsHDR = Preset > QualityPreset.Potato && !webglLow;
+                urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : webglLow ? 0.8f : 1f;
 
                 // The shared asset bakes a 4096 main-light shadowmap for every level, but only High reaches far
                 // enough (90 m) to justify it — Medium and below cover 70 m or less, where 2048 is visually
@@ -1011,9 +1033,13 @@ namespace BlocksBeyondTheStars.Client
         /// Volume — bloom/tonemap/grade — and SMAA both need it), SMAA from <see cref="Smaa"/> (Medium+), and the
         /// renderer choice — index 0 = full-res SSAO (High), index 2 = half-res SSAO (Medium), index 1 = SSAO-free
         /// (Potato/Low). SSAO was the measured Low→Medium frame-time cliff (#374).</summary>
-        public void ApplyCameraLook()
+        public void ApplyCameraLook() => ApplyCameraLook(ActiveCameraData);
+
+        /// <summary>Same as <see cref="ApplyCameraLook()"/> for an explicit camera — the shell scenes
+        /// (intro cinematic, menu backdrop) pass their own camera data, which exists before
+        /// <see cref="ActiveCameraData"/> is ever assigned (#1421).</summary>
+        public void ApplyCameraLook(UniversalAdditionalCameraData cd)
         {
-            var cd = ActiveCameraData;
             if (cd == null)
             {
                 return;
@@ -1043,6 +1069,14 @@ namespace BlocksBeyondTheStars.Client
         /// OS maximize/resize affordances to appear in Windowed mode.</summary>
         private void ApplyWindowMode()
         {
+            // WebGL has no window to manage: the template owns the canvas and keeps the render target
+            // matched to the DOM size (index.html). Screen.SetResolution here fought that by forcing the
+            // backing store to Screen.currentResolution — wrong size AND wrong owner on tablets (#1420).
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+            {
+                return;
+            }
+
             var native = Screen.currentResolution;
             switch (Window)
             {

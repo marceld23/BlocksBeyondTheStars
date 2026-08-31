@@ -72,6 +72,23 @@ namespace BlocksBeyondTheStars.Client
         /// rigs stay dormant while touch laptops and iPad-Safari's desktop UA get controls on first tap.</summary>
         public static bool ShouldShow() => Application.isMobilePlatform || s_touchSeen;
 
+        /// <summary>Latches "touch is in use". AppShell calls this from the very first frame (per-frame
+        /// touch poll + the <see cref="BrowserDevice"/> phone/tablet classification), so the SHELL —
+        /// splash, menus, settings — reacts to touch too (#1422); before, the latch lived only in the
+        /// in-game overlay's Update and the whole pre-game phase ran with desktop mouse handling. Also
+        /// rescales the already-created EventSystem's tap-vs-drag threshold: the EventSystem is born with
+        /// the first splash canvas, long before any touch can have been seen.</summary>
+        public static void NoteTouch()
+        {
+            if (s_touchSeen)
+            {
+                return;
+            }
+
+            s_touchSeen = true;
+            UiKit.ApplyTouchDragThreshold();
+        }
+
         /// <summary>Whether the controls are currently live (built AND visible). The source reads zero when false.</summary>
         public bool Visible => _built && _rootPanel != null && _rootPanel.activeSelf;
 
@@ -188,7 +205,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (!s_touchSeen && Input.touchCount > 0)
             {
-                s_touchSeen = true;
+                NoteTouch();
             }
 
             if (!_built)

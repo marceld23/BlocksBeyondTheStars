@@ -70,7 +70,9 @@ namespace BlocksBeyondTheStars.Client
             Head(ref y, L("ui.settings.graphics"));
             // Graphics rows apply immediately (like the window-mode row always did) so changes made from the
             // in-game pause menu are visible right away instead of only when the settings screen closes.
-            Cycle(ref y, L("ui.settings.preset"), L("ui.settings.preset." + S.Preset.ToString().ToLowerInvariant()), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); S.Apply(); ApplyLiveWorld(); Rebuild(); });
+            // A hand-picked preset ends auto-calibration (#1423): PresetAuto off means the shell
+            // frame-time calibrator never overrides the player's explicit choice again.
+            Cycle(ref y, L("ui.settings.preset"), L("ui.settings.preset." + S.Preset.ToString().ToLowerInvariant()), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); S.PresetAuto = false; S.Apply(); ApplyLiveWorld(); Rebuild(); });
             // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),

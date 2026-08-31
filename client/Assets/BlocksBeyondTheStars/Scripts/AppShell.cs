@@ -167,6 +167,19 @@ namespace BlocksBeyondTheStars.Client
             crashGo.AddComponent<CrashReporter>().Settings = Settings;
             InputMap.Use(Settings); // route remappable controls through the loaded bindings (Stream C)
             Settings.Apply();
+
+            // Browser build (#1423): a phone/tablet-class device is touch-first before any touch happens —
+            // pre-latch so the very first canvas gets touch-sized hit behavior — and the shell frame-time
+            // calibrator steps the auto-managed preset up/down by what THIS device actually measures.
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+            {
+                if (BrowserDevice.IsMobileBrowser)
+                {
+                    TouchControlsUi.NoteTouch();
+                }
+
+                gameObject.AddComponent<AutoQualityCalibrator>().Shell = this;
+            }
             if (StreamingAssetsCache.UsesRemoteStreamingAssets)
             {
                 StartCoroutine(LoadContentForStartup());
@@ -1395,6 +1408,14 @@ namespace BlocksBeyondTheStars.Client
 
         private void Update()
         {
+            // Shell-level touch latch (#1422): the first real touch flips the touch UI on for the MENUS
+            // too, not only in-game — the old latch lived in the in-game overlay's Update, so the whole
+            // pre-game phase (splash → intro → menu) ran with desktop mouse handling on tablets.
+            if (Input.touchCount > 0)
+            {
+                TouchControlsUi.NoteTouch();
+            }
+
             // A failed content load/download shows the blocking retry overlay (#422) — handled before
             // anything else so it appears no matter which shell phase the failure hit.
             bool contentError = !ContentReady && !string.IsNullOrEmpty(ContentLoadError);

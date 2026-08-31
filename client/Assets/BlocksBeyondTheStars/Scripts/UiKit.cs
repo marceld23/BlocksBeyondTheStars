@@ -381,6 +381,21 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>Touch devices: scale the live EventSystem's tap-vs-drag threshold with the display's
+        /// DPI. The default (10 px) is tuned for a mouse — on a high-DPI tablet a finger wobbles further
+        /// than that, so menu taps get misread as drags and silently do nothing; ~1 mm of physical
+        /// movement is the usual bound. Called when the EventSystem is created on a known-touch device
+        /// AND from <see cref="TouchControlsUi.NoteTouch"/> when touch is first seen later — the
+        /// EventSystem is born with the first splash canvas, usually before any touch (#1422).</summary>
+        public static void ApplyTouchDragThreshold()
+        {
+            var system = Object.FindAnyObjectByType<EventSystem>();
+            if (system != null && Screen.dpi > 0f)
+            {
+                system.pixelDragThreshold = Mathf.Max(10, Mathf.RoundToInt(Screen.dpi / 25.4f)); // ≈1 mm
+            }
+        }
+
         /// <param name="userScalable">True for HUD-style canvases, which follow the player's UI-scale
         /// setting. Menus must stay false — their layout is absolute 1920 coordinates.</param>
         public static Canvas CreateCanvas(string name, float refW = 1920f, float refH = 1080f, bool userScalable = false)
@@ -388,15 +403,12 @@ namespace BlocksBeyondTheStars.Client
             if (Object.FindAnyObjectByType<EventSystem>() == null)
             {
                 var es = new GameObject("EventSystem");
-                var system = es.AddComponent<EventSystem>();
+                es.AddComponent<EventSystem>();
                 es.AddComponent<StandaloneInputModule>();
 
-                // Touch devices: scale the tap-vs-drag threshold with the display's DPI. The default (10 px)
-                // is tuned for a mouse — on a high-DPI tablet a finger wobbles further than that, so menu taps
-                // get misread as drags and silently do nothing. ~1 mm of physical movement is the usual bound.
-                if (TouchControlsUi.ShouldShow() && Screen.dpi > 0f)
+                if (TouchControlsUi.ShouldShow())
                 {
-                    system.pixelDragThreshold = Mathf.Max(10, Mathf.RoundToInt(Screen.dpi / 25.4f)); // ≈1 mm
+                    ApplyTouchDragThreshold();
                 }
             }
 

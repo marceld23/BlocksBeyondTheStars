@@ -233,8 +233,13 @@ namespace BlocksBeyondTheStars.Client
 
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null)
             {
+                // Respect the player's preset (#1421): Medium+ keeps the full cinematic look (High post),
+                // but a device already downgraded to Low/Potato must not have the shell force it back up —
+                // the forced-High post stack + the default full-res-SSAO renderer made the intro the single
+                // heaviest scene on weak browsers. ApplyCameraLook picks the same renderer tier as in-game.
+                var settings = _shell.Settings;
                 var post = _root.AddComponent<UrpScenePost>();
-                post.Preset = QualityPreset.High;
+                post.Preset = settings.Preset >= QualityPreset.Medium ? QualityPreset.High : settings.Preset;
                 post.LensFlareEnabled = true;
                 post.MotionBlurEnabled = false;
                 post.ShellMode = true;
@@ -242,7 +247,7 @@ namespace BlocksBeyondTheStars.Client
                 var camData = _cam.GetUniversalAdditionalCameraData();
                 if (camData != null)
                 {
-                    camData.renderPostProcessing = true;
+                    settings.ApplyCameraLook(camData);
                 }
             }
 

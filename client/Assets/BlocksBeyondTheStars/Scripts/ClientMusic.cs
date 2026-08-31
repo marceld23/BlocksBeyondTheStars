@@ -600,7 +600,12 @@ namespace BlocksBeyondTheStars.Client
             _plannedNext = name;
             _plannedKey = want;
             _prefetchedName = name;
-            if (!_musicCache.ContainsKey(name) && !_inFlight.ContainsKey(name))
+
+            // Phone/tablet browsers (#1424) skip the ahead-of-need fetch: a prefetched track means a THIRD
+            // decoded clip (~80 MB PCM each) alive at once, and that memory pressure is what makes the
+            // browser's decodeAudioData fail on 3–4 GB devices (#1419). The successor still plays — it just
+            // downloads at the seam (the current piece runs out, the next fades in when it arrives).
+            if (!BrowserDevice.IsMobileBrowser && !_musicCache.ContainsKey(name) && !_inFlight.ContainsKey(name))
             {
                 EnsureClip(name, _ => { });
             }
