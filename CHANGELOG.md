@@ -13,7 +13,55 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### Fixed
+## [2026.8.25] — 2026-08-31
+
+The tablet release. Browser play on a mid-range tablet (the house Galaxy Tab A8) stuttered from the
+intro on, controls felt sluggish, and leaving the ship popped a fatal-looking browser modal for an
+audio hiccup the game fully recovers from. This release gives the WebGL build a real **mobile
+profile**: the device is classified by GPU family, the guess is corrected by ~15 s of real frame-time
+measurement, touch behaviour is live from the first menu, and mobile budgets keep the world ticking
+smoothly — while desktop browsers are never stripped down. The guiding principle throughout: touch
+detection and performance tiering are separate concerns.
+
+The rest came out of Justus' latest playtest — the first-person hand finally wears your painted arm
+design (and no longer renders pitch black), the bare hand throws a real straight punch instead of
+showing the clipped-open forearm, and landing on another world no longer leaves a stale door floating
+in mid-air. Plus a hosting cleanup: WorldHost leaked ~1 GB of Docker volumes per world wake.
+
+Protocol stays 3, saves migrate. Operators: the **worldhost image must be redeployed** for the
+volume-leak fix (#1414).
+
+### 📱 Tablet & browser — mobile profile, auto quality, touch from frame one (#1419 #1420 #1421 #1422 #1423 #1424 #1425 #1430 #1431 #1432)
+
+- **The fatal-looking audio modal is gone** (#1419). Under memory pressure a tablet browser can fail
+  to decode a music track ("EncodingError: unable to decode audio data"); the game already falls back
+  to synth music, but Unity's JS error handler turned it into an "An error occurred running the Unity
+  content" modal. The template now swallows exactly that error to the console — matching Chrome's,
+  Firefox's *and* Safari's wording (#1431), at both interception points (alert override +
+  `unhandledrejection`).
+- **DPR and canvas guards** (#1420): the devicePixelRatio-1 cap now also fires for multi-touch
+  coarse-pointer devices (iPadOS reports a desktop UA), while touch-screen laptops keep native DPR;
+  `ApplyWindowMode` no-ops on WebGL — the template owns the canvas size.
+- **The shell respects your preset** (#1421): the intro cinematic and menu background no longer force
+  High post-processing and full-resolution SSAO on Low/Potato devices; Medium and up keep the High
+  cinematic look.
+- **Touch from frame one** (#1422): a touch latches at AppShell level and rescales the live
+  EventSystem's tap-vs-drag threshold, so the menus behave touch-sized before any world is entered.
+- **Auto quality calibration** (#1423): a new `BrowserDevice` start guess by GPU family (Mali /
+  Adreno / PowerVR; "Apple GPU" + touch) and a new `AutoQualityCalibrator` that samples shell frame
+  times for ~15 s and steps the auto-managed preset one notch per session; choosing a preset manually
+  ends auto-management for good. Windows-on-ARM laptops and Chromebooks with mobile GPU names are no
+  longer misclassified as tablets — the mobile branch requires touch support, and a Direct3D renderer
+  string always classifies as desktop (#1432).
+- **Mobile budgets** (#1424): WebGL Low means render scale 0.8 with HDR off; mobile first-run defaults
+  are view distance 3 and synth music; and mobile skips the 45-second track prefetch (each decoded
+  track is ≈ 80 MB of PCM).
+- **Browser singleplayer smoothness** (#1425): the embedded server is capped at 2 ticks per frame
+  with a 3 ms chunk-generation budget on mobile, and the prologue camera's terrain raymarch is cached
+  across 3 frames. A review fix made that cache actually revalidate (#1430) — an int-overflow
+  sentinel had silently disabled the prologue camera's terrain safety net on **every** platform.
+
+### 👊 First-person hand and doors — playtest fixes (#1427 #1428 #1429)
 
 - The first-person hand shows your painted arm design and no longer renders as a black silhouette —
   the viewmodel never received the appearance editor's arm painting and its materials lacked the
@@ -26,10 +74,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   ship's hatch id; doors are now dropped on every world change and rebuilt when their record moved,
   and respawns restock the door list. (#1429)
 
+### 🧹 Hosting (#1414)
+
 - WorldHost leaked ~1 GB of anonymous Docker volumes per world wake — the image declared `/app/clients`
   + `/app/webgl` as VOLUMEs, every start downloaded the client installers into one, and `docker rm`
   ran without `-v`. Now `rm -v`, `BBS_FETCH_CLIENT=0` for hosted instances, and only saves + config
   are VOLUMEs; the VPS was pruned from 121 GB to 18 GB and a weekly prune guards the host. (#1414)
+
+### 📄 Project
+
+- The CLA gained a patent-termination clause and a moral-rights waiver and now names German governing
+  law. Contributors are asked to re-sign on their next PR. (#1416)
+- The README's localization row now says what is actually needed: all 14 locales are key-complete —
+  contributions wanted are native-speaker polish, not missing keys. (#1418)
 
 ## [2026.8.24] — 2026-08-30
 
@@ -4253,7 +4310,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...HEAD
+[2026.8.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...v2026.8.25
 [2026.8.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...v2026.8.24
 [2026.8.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...v2026.8.23
 [2026.8.22]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.21...v2026.8.22
