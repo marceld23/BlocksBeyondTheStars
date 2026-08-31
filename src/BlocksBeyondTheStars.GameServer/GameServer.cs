@@ -2055,6 +2055,7 @@ public sealed partial class GameServer
         SendCreatures(session);
         SendContainers(session);
         SendNpcs(session);
+        SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the home world's
     }
 
     /// <summary>Upper bound on a client-requested render distance (matches the in-game slider's max), so a

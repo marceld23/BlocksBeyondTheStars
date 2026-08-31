@@ -290,6 +290,7 @@ public sealed partial class GameServer
         SendCreatures(session);
         SendContainers(session);
         SendNpcs(session);
+        SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the spawn world's
         return true;
     }
 

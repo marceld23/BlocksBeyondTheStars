@@ -102,6 +102,10 @@ namespace BlocksBeyondTheStars.Client
             var cam = camGo.AddComponent<Camera>();
             camGo.AddComponent<AudioListener>(); // hear procedural SFX (M26)
             camGo.tag = "MainCamera";
+            // Unity's default near plane (0.3) cuts through the first-person viewmodel: the forearm's rear
+            // ~6 cm sat behind it and was clipped into a hollow open tube whenever a swing raised it into
+            // view (#1428). 0.1 matches the avatar/ship preview rigs; reversed-Z depth keeps precision fine.
+            cam.nearClipPlane = 0.1f;
 
             // URP look wiring: a code-created URP camera has post-processing OFF by default, so the global
             // UrpScenePost Volume (bloom/tonemap/vignette/teal-orange grade/lens flare) and SMAA would never run

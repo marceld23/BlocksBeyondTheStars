@@ -399,6 +399,7 @@ public sealed partial class GameServer
         SendContainers(session);
         SendNpcs(session);
         SendInventory(session);
+        SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the return world's
 
         // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
         if (!OccupiedLocations().Contains(stationLoc))
