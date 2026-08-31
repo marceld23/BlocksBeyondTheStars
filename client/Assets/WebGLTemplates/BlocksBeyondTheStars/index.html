@@ -104,6 +104,31 @@
         updateBannerVisibility();
       }
 
+      // A failed browser-side audio decode (EncodingError from decodeAudioData — seen under memory
+      // pressure on tablets) is fully recovered in-game: the track is dropped from its pool and the
+      // synth engine takes over. But Unity's default error handler still raises a fatal-looking
+      // "An error occurred running the Unity content" alert for it. Swallow exactly that message —
+      // to the console, not the player — and keep every other error on the loud path (#1419).
+      function bbsIsAudioDecodeError(msg) {
+        return typeof msg === "string" && msg.indexOf("decode audio data") !== -1;
+      }
+      var bbsNativeAlert = window.alert.bind(window);
+      window.alert = function (msg) {
+        if (bbsIsAudioDecodeError(String(msg))) {
+          console.warn("[BBS] Audio decode failed (recovered in-game): " + msg);
+          return;
+        }
+        bbsNativeAlert(msg);
+      };
+      window.addEventListener("unhandledrejection", function (e) {
+        var reason = e && e.reason;
+        var msg = String(reason && reason.message ? reason.message : reason);
+        if (bbsIsAudioDecodeError(msg)) {
+          console.warn("[BBS] Audio decode failed (recovered in-game): " + msg);
+          e.preventDefault();
+        }
+      });
+
       var buildUrl = "Build";
       // Unity emits STABLE file names (WebGL.data.unityweb, …), so URLs alone can't distinguish builds.
       // The server rewrites this stamp to "?v=<build timestamp>" when serving the page — every build gets
@@ -128,7 +153,13 @@
         showBanner: unityShowBanner,
       };
 
-      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      // The UA regex misses tablets that present as desktops — iPadOS 13+ Safari reports a
+      // "Macintosh" UA, Android's "Desktop site" mode drops "Android" — so ALSO treat a multi-touch
+      // device whose PRIMARY pointer is coarse (a finger) as mobile (#1420). Touch-screen laptops
+      // keep a fine primary pointer (mouse/trackpad) and stay on the crisp native-DPR desktop path.
+      var bbsCoarseTouch = navigator.maxTouchPoints > 1
+        && window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || bbsCoarseTouch) {
         // Mobile: lock the visual viewport so the canvas maps 1:1 to CSS pixels (no pinch zoom).
         var meta = document.createElement('meta');
         meta.name = 'viewport';

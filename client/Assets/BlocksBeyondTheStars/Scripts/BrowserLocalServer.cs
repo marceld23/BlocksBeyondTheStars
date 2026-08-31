@@ -27,8 +27,10 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Never simulate more than this many ticks in one frame — after a long tab stall we
         /// drop the backlog instead of freezing the frame trying to catch up (singleplayer: no one else
-        /// depends on the lost time).</summary>
-        private const int MaxTicksPerFrame = 5;
+        /// depends on the lost time). Phone/tablet browsers get a tighter cap (#1425): the tick runs on
+        /// the render thread, and a weak device that just missed one frame budget would otherwise be
+        /// handed a multi-tick catch-up burst next frame — a stutter feedback loop.</summary>
+        private static int MaxTicksPerFrame => BrowserDevice.IsMobileBrowser ? 2 : 5;
 
         /// <summary>Durable-save cadence driven by THIS host (SaveAll + Flush → blob → IndexedDB/cloud).
         /// Deliberately tighter than the server's internal 5-min autosave: a browser tab can vanish
@@ -137,7 +139,9 @@ namespace BlocksBeyondTheStars.Client
                     // multiplied by the MaxTicksPerFrame catch-up, is the main browser-SP hitch source.
                     // A wall-clock budget keeps cheap ticks streaming at full speed but cuts generation
                     // bursts off mid-loop (rest resumes next tick, nearest-first order unchanged).
-                    ChunkStreamBudgetMs = 6.0,
+                    // Phone/tablet browsers halve the budget (#1425): world streaming slows down, frames
+                    // smooth out — the right trade on a device that can't hold 30 fps to begin with.
+                    ChunkStreamBudgetMs = BrowserDevice.IsMobileBrowser ? 3.0 : 6.0,
                 };
 
                 // Same as the native bundled host (#642): the solo player is the WorldAdmin, so admin

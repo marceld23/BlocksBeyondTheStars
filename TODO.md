@@ -110,6 +110,26 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WebGL on tablets: audio EncodingError modal + browser-mobile profile + auto quality calibration (#1419–#1425, 2026-08-31, branch feat/webgl-tablet-profile)
+Marcel's Galaxy Tab A8 test of browser singleplayer: heavy stutter from the intro on, sluggish controls, and a
+fatal-looking "EncodingError: unable to decode audio data" modal after leaving the ship. Delivery was verified
+clean on both hosts (VPS + glitch CDN: byte-identical `audio/mpeg`, real 404s) — the decode fails client-side
+under memory pressure, and the C# side already recovers (synth fallback), so **#1419** the WebGL template now
+swallows exactly that alert to the console. **#1420** `ApplyWindowMode` no longer calls `Screen.SetResolution`
+on WebGL (the template owns the canvas), and the template's DPR-1 cap also fires for multi-touch coarse-pointer
+devices (iPadOS desktop UA). **#1421** IntroCinematic/MenuBackground respect the player's preset (Medium+ keeps
+the High cinematic look) and shell cameras go through `ApplyCameraLook(camData)` — no more forced-High post +
+full-res SSAO on devices set to Low. **#1422** touch latches at AppShell level from frame one (`NoteTouch`) and
+rescales the live EventSystem's drag threshold, so menus get touch behavior pre-game. **#1423** `BrowserDevice`
+classifies phone/tablet browsers by GPU family (Mali/Adreno/PowerVR; "Apple GPU"+touch) as a start guess, and
+`AutoQualityCalibrator` measures shell frame times (~15 s, median/p90) and steps the auto-managed preset one
+notch per session (`PresetAuto`, cleared by a manual choice in settings). **#1424** WebGL Low is really low
+(renderScale 0.8, HDR off) and the mobile profile defaults to view distance 3 + Synth music with no 45-s
+prefetch (each decoded track is ~80 MB PCM). **#1425** browser-SP server budgets tighten on mobile
+(2 ticks/frame, 3 ms chunk-gen) and the prologue's `RequiredPull` raymarch burst is cached over 3 frames.
+Desktop behavior is unchanged except: the shell honors Low/Potato, and desktop-browser first runs now calibrate
+UP from Low instead of being stuck there. Needs an on-device playtest (Tab A8) after the next WebGL release.
+
 ### ★ WorldHost: the VPS disk leak — 92 GB of orphaned anonymous volumes (#1414, 2026-08-30, branch fix/worldhost-volume-leak)
 Marcel: "what exactly eats so much disk on my VPS?" — 121 GB / 237 GB, and `docker system df` said 379 volumes,
 351 dangling, 92 GB reclaimable (+ 93 images, 82 unused, 17 GB). Four pieces: the `Dockerfile` declares
