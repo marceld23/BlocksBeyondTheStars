@@ -130,6 +130,16 @@ prefetch (each decoded track is ~80 MB PCM). **#1425** browser-SP server budgets
 Desktop behavior is unchanged except: the shell honors Low/Potato, and desktop-browser first runs now calibrate
 UP from Low instead of being stuck there. Needs an on-device playtest (Tab A8) after the next WebGL release.
 
+**Post-merge code review fixes (#1430–#1432, 2026-08-31, branch fix/tablet-profile-review-fixes):** the review
+of #1426 found **#1430** the prologue pull cache's `int.MinValue` frame sentinel overflowed in
+`frameCount - _pullCheckedFrame` — the cached branch always won, `RequiredPull` never ran and the terrain
+safety net was dead on every platform (camera could clip into late-streamed terrain); the sentinel is now
+`-PullRecheckFrames`. **#1431** the audio-decode alert filter only matched Chrome's wording — it now also
+catches Firefox ("…passed to decodeAudioData…") and Safari ("Decoding failed"). **#1432** `BrowserDevice`
+called Adreno/Mali laptops (Windows-on-ARM, MediaTek Chromebooks) phone/tablet-class — the mobile-GPU branch
+now requires touch, and a `Direct3D` renderer string (Windows ANGLE) always means desktop. Playtest note for
+the Tab A8: the VD-3/Synth first-run defaults only apply on a fresh origin — clear site data before testing.
+
 ### ★ Justus playtest: black first-person hand, truncated punch arm, the floating asteroid door (#1427–#1429, 2026-08-31, branch fix/justus-playtest-hand-doors)
 Three F1 reports from Justus (v2026.8.24). **#1427** the empty-slot hand ignored the appearance editor's arm
 painting (it only resolved the flat `ArmColor`) and its materials lacked the avatar's `_Floor 0.62`/`_Fill 0.3`

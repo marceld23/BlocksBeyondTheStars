@@ -109,8 +109,11 @@
       // synth engine takes over. But Unity's default error handler still raises a fatal-looking
       // "An error occurred running the Unity content" alert for it. Swallow exactly that message —
       // to the console, not the player — and keep every other error on the loud path (#1419).
+      // Every engine words the decodeAudioData EncodingError differently (#1431): Chrome "Unable to
+      // decode audio data", Firefox "The buffer passed to decodeAudioData contains an invalid
+      // content …", Safari "Decoding failed" — match all three.
       function bbsIsAudioDecodeError(msg) {
-        return typeof msg === "string" && msg.indexOf("decode audio data") !== -1;
+        return typeof msg === "string" && /decode audio data|decodeAudioData|Decoding failed/i.test(msg);
       }
       var bbsNativeAlert = window.alert.bind(window);
       window.alert = function (msg) {

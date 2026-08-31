@@ -33,10 +33,19 @@ namespace BlocksBeyondTheStars.Client
             // lie — a budget tablet reports 8 cores like a desktop, and UA sniffing misses iPadOS
             // Safari (desktop "Macintosh" UA). "Apple GPU" alone is ambiguous (M-series Macs report it
             // in Safari too), so it only counts together with touch support, which Mac Safari lacks.
+            // Those GPU families are NOT phone-exclusive though (#1432): Windows-on-ARM Snapdragon
+            // laptops report Adreno and MediaTek Chromebooks report Mali — so the mobile-GPU branch
+            // also requires touch (every real phone/tablet browser has it), and a renderer string
+            // naming Direct3D (Windows ANGLE backend) is a Windows machine, whatever the GPU vendor.
             string gpu = SystemInfo.graphicsDeviceName ?? string.Empty;
+            if (Contains(gpu, "Direct3D"))
+            {
+                return false;
+            }
+
             bool mobileGpu = Contains(gpu, "Mali") || Contains(gpu, "Adreno") || Contains(gpu, "PowerVR");
             bool appleTouch = Contains(gpu, "Apple") && Input.touchSupported;
-            return mobileGpu || appleTouch;
+            return (mobileGpu && Input.touchSupported) || appleTouch;
         }
 
         private static bool Contains(string haystack, string needle)

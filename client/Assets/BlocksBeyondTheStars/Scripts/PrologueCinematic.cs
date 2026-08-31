@@ -313,7 +313,9 @@ namespace BlocksBeyondTheStars.Client
         // terrain immediately.
         private const int PullRecheckFrames = 3;
         private int _cachedPull;
-        private int _pullCheckedFrame = int.MinValue;
+        // NOT int.MinValue: `frameCount - int.MinValue` wraps negative and would keep the cache branch
+        // taken forever (#1430) — this sentinel makes the very first LateUpdate recompute.
+        private int _pullCheckedFrame = -PullRecheckFrames;
 
         private void LateUpdate()
         {
