@@ -13,6 +13,53 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.8.26] — 2026-09-01
+
+The headroom release. The last release made browser play on a tablet *smooth* — but tablets with
+little memory could still crash right after the loading screen, because the browser simply wouldn't
+give the game the memory it asked for. This release is all about fixing that: in the browser the
+game now **needs noticeably less memory**, it **keeps track** of how much it uses (so crashes can
+finally be diagnosed right on the device), and if a device really can't manage, it **says so
+kindly** — with a clear, translated message instead of a wall of developer text. Playing on desktop
+is completely unchanged.
+
+Protocol stays 3, saves migrate.
+
+### 📉 Less memory needed on tablets (#1436 #1437 #1438 #1440)
+
+- **The world no longer piles up in memory (#1438)**: on phones and tablets the game now keeps only
+  as much of the world loaded as your view distance actually shows. Before, terrain you had
+  travelled past quietly stayed in memory far beyond what you could see — the main reason long
+  sessions ran out. Raise the view distance and you get the wider horizon back; desktop is
+  untouched.
+- **The right amount of memory from the start (#1437)**: the game now reserves its working memory in
+  one go at startup instead of growing it in dozens of small steps during the critical
+  loading phase — exactly the moment weak devices used to give up.
+- **Leaner networking (#1440)**: messages between game and server are processed with far fewer
+  detours, which means less memory churn every single tick — especially noticeable in browser
+  singleplayer.
+- **Memory tracking (#1436)**: the game page now records how much memory is in use and remembers the
+  peak — the foundation for the friendly crash messages below.
+
+### 📦 A smaller download — measured, not guessed (#1442 #1443)
+
+- **The browser version got smaller (#1443)** — a safe trim with no effect on how the game runs.
+- **A much bigger trim was tested and rejected (#1442)**: it would have cut the download by a third,
+  but a real in-game measurement showed it made the game three times slower — so it doesn't ship.
+  The performance test rig now runs directly in the browser, so future decisions like this one can
+  be measured instead of guessed.
+
+### 🛟 Friendly messages when memory runs out (#1445)
+
+- **A heads-up before it goes wrong**: on devices with little memory, the game now warns you before
+  it even loads — "your device has little memory, close other tabs and apps" — with a **Start
+  anyway** button.
+- **Clear words instead of cryptic errors**: if the browser can't provide enough memory at startup,
+  or the game runs out mid-session, you now see a plain, friendly message telling you what to do
+  (close tabs, restart the browser, reload) instead of a developer stack trace. Translated into all
+  14 languages the game speaks — and the measured memory peak is shown right in the panel, so a
+  crash can be reported without any cables or debugging tools.
+
 ## [2026.8.25] — 2026-08-31
 
 The tablet release. Browser play on a mid-range tablet (the house Galaxy Tab A8) stuttered from the
@@ -4310,7 +4357,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...HEAD
+[2026.8.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...v2026.8.26
 [2026.8.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...v2026.8.25
 [2026.8.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...v2026.8.24
 [2026.8.23]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.22...v2026.8.23
