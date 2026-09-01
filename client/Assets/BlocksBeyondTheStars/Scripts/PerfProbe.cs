@@ -278,15 +278,19 @@ namespace BlocksBeyondTheStars.Client
 
             // Phase 2: walk — scripted forward traversal; fresh chunks stream/mesh the whole time.
             // The spawn is aboard the starter ship, so a blind forward push used to measure a cockpit
-            // wall: toggle fly + hop above the hull first (the solo player is the WorldAdmin, #642) so
-            // the traversal crosses open terrain regardless of the ship layout around the spawn.
-            boot.Network.SendAdminCommand("fly");
-            var hover = boot.PlayerPosition;
-            boot.Network.SendAdminCommand("teleport_to_location", x: hover.x, y: hover.y + 25f, z: hover.z);
+            // wall — and /fly alone does not fix that: the toggle is server-side state, the local
+            // controller kept walking and snagged on obstacles (the 2026-09-01 A/B runs needed manual
+            // jumps). The traversal is therefore driven by authoritative teleport hops (the solo player
+            // is the WorldAdmin, #642): a fixed step forward every couple of seconds at a fixed height
+            // above the spawn, immune to terrain, ships and physics — the same route every run. The
+            // scripted forward input stays on so the camera/controller behave like a moving player.
+            var hoverStart = boot.PlayerPosition;
+            var hop = StartCoroutine(HopForward(boot, hoverStart.x, hoverStart.y + 30f, hoverStart.z));
             yield return new WaitForSecondsRealtime(2f);
             InputMap.ScriptedMove = new Vector2(0f, 1f);
             yield return Sample("walk", _walkSeconds, x => r = x);
             InputMap.ScriptedMove = Vector2.zero;
+            StopCoroutine(hop);
             phases.Add(r);
 
             // Phase 3 (optional): dense — force visual midnight and stand among the Extreme creature pack so the
@@ -303,6 +307,19 @@ namespace BlocksBeyondTheStars.Client
             WriteResults(shell, phases);
             RestoreSettingsFile();
             Quit(0);
+        }
+
+        /// <summary>Drives the walk phase along a fixed line: every 2 s an authoritative hop 16 blocks
+        /// forward at a constant height above the spawn (~8 m/s). The player free-falls a little between
+        /// hops and may briefly touch ground on rising terrain — irrelevant, the route and pace stay
+        /// identical across runs, which is all the A/B comparison needs.</summary>
+        private IEnumerator HopForward(GameBootstrap boot, float x, float y, float z)
+        {
+            for (float dist = 0f; ; dist += 16f)
+            {
+                boot.Network.SendAdminCommand("teleport_to_location", x: x, y: y, z: z + dist);
+                yield return new WaitForSecondsRealtime(2f);
+            }
         }
 
         private static string SettingsPath => Path.Combine(AppPaths.Root, "client_settings.json");

@@ -119,10 +119,13 @@ music moved by #1167), the big fixed block is the **61.4 MB wasm module**. To ju
 real in-game A/B was built first: **PerfProbe now runs in the browser** — knobs from the page URL
 (`?perfProbe=1&seed=…&perfIdle=…&perfWalk=…`), routes through the in-process browser host with a
 deterministic seed (`AppShell.BrowserSeedOverride`), dismisses the prologue's VEGA lines via the
-touch-NEXT injection hook, and replaces the blind cockpit-wall walk with **fly + hover 25 blocks up,
-then scripted forward flight** over fresh terrain (desktop probe runs get the same fix); the summary
-is logged before any file write so the console capture always has it. Verdict on identical seed/route
-(desktop browser, AMD 780M): **#1442 OptimizeSize REJECTED** — wasm 61.4 → 37.8 MB but shared generics
+touch-NEXT injection hook, and replaces the blind cockpit-wall walk with an **authoritative teleport
+chain** (16 blocks forward every 2 s at fixed height — /fly alone proved insufficient, the toggle is
+server-side and the local controller kept walking into obstacles; desktop probe runs get the same
+fix); the summary is logged before any file write so the console capture always has it. Verdict on
+identical seed/route (desktop browser, AMD 780M; the walk phases of the first A/B runs had manual
+keyboard interference, so the verdict rests on the interference-free **idle** phase, where the factor
+is identical): **#1442 OptimizeSize REJECTED** — wasm 61.4 → 37.8 MB but shared generics
 tripled frame times (idle 23.7 → 69.0 ms, flight 23.5 → 59.5 ms); code generation stays OptimizeSpeed,
 now set explicitly with the numbers in the comment. **#1443 Medium stripping ships** — 61.4 → 58.9 MB,
 runtime-neutral, safe because link.xml preserves all seven own assemblies (which is also why the win
