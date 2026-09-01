@@ -110,6 +110,28 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WebGL wasm-size diet, measured honestly: Medium stripping ships, OptimizeSize rejected 3× slower, PerfProbe learns the browser (#1442 #1443, 2026-09-01, branch perf/webgl-wasm-size)
+Follow-up to the OOM package below: the on-device DevTools capture proved the Tab A8 dies by Android's
+**lmkd killing the renderer at only ~307 MB wasm heap** — the binding constraint is the total process
+footprint, not the heap. Measured from the LIVE build (the stale Aug-17 local build was a trap: music
+still in Resources + BBS_WEBGL_DEBUG_EXCEPTIONS): `.data` is already only 34.6 MB (audio lever dead —
+music moved by #1167), the big fixed block is the **61.4 MB wasm module**. To judge the two knobs a
+real in-game A/B was built first: **PerfProbe now runs in the browser** — knobs from the page URL
+(`?perfProbe=1&seed=…&perfIdle=…&perfWalk=…`), routes through the in-process browser host with a
+deterministic seed (`AppShell.BrowserSeedOverride`), dismisses the prologue's VEGA lines via the
+touch-NEXT injection hook, and replaces the blind cockpit-wall walk with an **authoritative teleport
+chain** (16 blocks forward every 2 s at fixed height — /fly alone proved insufficient, the toggle is
+server-side and the local controller kept walking into obstacles; desktop probe runs get the same
+fix); the summary is logged before any file write so the console capture always has it. Verdict on
+identical seed/route (desktop browser, AMD 780M; the walk phases of the first A/B runs had manual
+keyboard interference, so the verdict rests on the interference-free **idle** phase, where the factor
+is identical): **#1442 OptimizeSize REJECTED** — wasm 61.4 → 37.8 MB but shared generics
+tripled frame times (idle 23.7 → 69.0 ms, flight 23.5 → 59.5 ms); code generation stays OptimizeSpeed,
+now set explicitly with the numbers in the comment. **#1443 Medium stripping ships** — 61.4 → 58.9 MB,
+runtime-neutral, safe because link.xml preserves all seven own assemblies (which is also why the win
+is small). Remaining meaningful wasm lever = narrowing those preserve="all" entries (parked, risky).
+WebGL target only; desktop/native builds untouched.
+
 ### ★ WebGL tablet wasm-heap OOM: shell heap telemetry, 256 MB initial heap, VD-scaled mobile chunk horizon, NetCodec UTF-8 fast path (#1436–#1440, 2026-09-01, branch perf/webgl-mobile-memory)
 The Tab A8 retest of v2026.8.25 on a FRESH origin still died right after the loading screen —
 `abort("OOM")` via `abortOnCannotGrowMemory`: the wasm heap could not grow on the 3-4 GB device.

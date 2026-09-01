@@ -826,6 +826,11 @@ namespace BlocksBeyondTheStars.Client
         /// process, so the REAL authoritative server runs inside this client (LoopbackTransport +
         /// MemoryWorldRepository), pumped by <see cref="BrowserLocalServer"/>. One persistent world per
         /// browser (IndexedDB blob), cloud-synced on glitch.fun for logged-in accounts.</summary>
+        /// <summary>PerfProbe only (#1442): fixes the seed of the NEXT fresh browser world so A/B
+        /// measurement runs generate identical terrain (each run starts on a fresh browser profile,
+        /// so there is no saved blob to win over it). Null = the normal random seed.</summary>
+        [System.NonSerialized] public long? BrowserSeedOverride;
+
         public void StartBrowserSingleplayer()
         {
             MenuNotice = "";
@@ -891,7 +896,7 @@ namespace BlocksBeyondTheStars.Client
                 });
             }
 
-            long freshSeed = (long)UnityEngine.Random.Range(1, int.MaxValue) << 16 ^ System.DateTime.UtcNow.Ticks;
+            long freshSeed = BrowserSeedOverride ?? ((long)UnityEngine.Random.Range(1, int.MaxValue) << 16 ^ System.DateTime.UtcNow.Ticks);
             if (!BrowserServer.StartServer(Content, blob, freshSeed))
             {
                 BrowserWorldBooting = false;

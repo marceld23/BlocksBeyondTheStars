@@ -188,7 +188,19 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 || string.Equals(Environment.GetEnvironmentVariable("BBS_WEBGL_FAST_LOCAL"), "true", StringComparison.OrdinalIgnoreCase);
 
             EditorUserBuildSettings.development = false;
-            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Low);
+
+            // Wasm-size diet (#1442/#1443): the module V8 must compile is the biggest fixed block of the
+            // renderer footprint that gets browser tabs lmkd-killed on 3-4 GB Android tablets (measured:
+            // 61.4 MB wasm, killed at ~307 MB heap). Medium stripping is safe for our own assemblies —
+            // link.xml preserves all seven wholesale for reflection-based System.Text.Json (#378) — and
+            // free at runtime (61.4 → 58.9 MB). Code generation stays OptimizeSpeed DELIBERATELY, and
+            // explicitly so nobody flips it casually: OptimizeSize shrank the wasm to 37.8 MB but its
+            // shared generics tripled desktop-browser frame times in the in-game A/B probe
+            // (idle 23.7 → 69.0 ms, scripted flight 23.5 → 59.5 ms; #1442, measured 2026-09-01).
+            // WebGL target only; desktop/native builds keep their settings.
+            PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.WebGL, ManagedStrippingLevel.Medium);
+            PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.WebGL, UnityEditor.Build.Il2CppCodeGeneration.OptimizeSpeed);
+
             SetWebGLProperty("memorySize", 512);
             SetWebGLProperty("compressionFormat", fastLocal ? "Disabled" : "Brotli");
             SetWebGLProperty("decompressionFallback", !fastLocal);
