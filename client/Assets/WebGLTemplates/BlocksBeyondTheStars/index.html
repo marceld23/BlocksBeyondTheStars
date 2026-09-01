@@ -35,6 +35,16 @@
         cursor: pointer; opacity: .35; transition: opacity .15s; color: #bfe7ff; font-size: 24px;
         line-height: 34px; text-align: center; user-select: none }
       #unity-fullscreen-button:hover { opacity: 1 }
+      /* Memory-guard panel (#1445): same visual family as the loading UI. */
+      #bbs-mem-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        display: none; text-align: center; font-family: 'Rajdhani', system-ui, 'Segoe UI', sans-serif;
+        max-width: 420px; padding: 0 18px }
+      #bbs-mem-text { color: #eaf6ff; font-size: 17px; line-height: 1.5 }
+      #bbs-mem-detail { color: #8aa0bd; font-size: 13px; margin-top: 10px }
+      #bbs-mem-button { display: inline-block; margin-top: 22px; padding: 10px 26px; cursor: pointer;
+        color: #5fd7ff; font-size: 14px; letter-spacing: .18em; text-transform: uppercase;
+        border: 1px solid #21304c; border-radius: 6px; background: rgba(95,215,255,.08); user-select: none }
+      #bbs-mem-button:hover { background: rgba(95,215,255,.18) }
     </style>
   </head>
   <body>
@@ -49,35 +59,98 @@
         <div id="bbs-loading-hint">Loading</div>
       </div>
       <div id="unity-warning"> </div>
+      <div id="bbs-mem-panel">
+        <div id="bbs-mem-text"></div>
+        <div id="bbs-mem-detail"></div>
+        <div id="bbs-mem-button"></div>
+      </div>
       <div id="unity-fullscreen-button" title="Fullscreen">⛶</div>
     </div>
     <script>
-      // The two words this shell shows before the engine (which does its own localization) takes over.
+      // The strings this shell shows before the engine (which does its own localization) takes over:
+      // [loading, fullscreen, low-memory warning, start anyway, out-of-memory message, reload].
       // The portal's Play button appends ?lang=<code>; a direct visit falls back to the browser's own
-      // language, and anything we don't ship stays English (#970).
+      // language, and anything we don't ship stays English (#970). Memory-guard strings are #1445.
       var BBS_SHELL_TEXT = {
-        de: ["Wird geladen", "Vollbild"],
-        en: ["Loading", "Fullscreen"],
-        es: ["Cargando", "Pantalla completa"],
-        fr: ["Chargement", "Plein écran"],
-        it: ["Caricamento", "Schermo intero"],
-        ja: ["読み込み中", "全画面表示"],
-        ko: ["불러오는 중", "전체 화면"],
-        nl: ["Laden", "Volledig scherm"],
-        pl: ["Wczytywanie", "Pełny ekran"],
-        pt: ["Carregando", "Tela cheia"],
-        ru: ["Загрузка", "Полный экран"],
-        tr: ["Yükleniyor", "Tam ekran"],
-        uk: ["Завантаження", "Повний екран"],
-        zh: ["加载中", "全屏"]
+        de: ["Wird geladen", "Vollbild",
+             "Dein Gerät hat wenig Arbeitsspeicher — das Spiel kann dadurch abstürzen. Schließe alle anderen Tabs und Apps, bevor du startest.",
+             "Trotzdem starten",
+             "Nicht genug freier Speicher. Schließe andere Tabs und Apps, starte den Browser neu und lade die Seite dann erneut.",
+             "Neu laden"],
+        en: ["Loading", "Fullscreen",
+             "Your device has little memory — the game may crash. Close all other tabs and apps before starting.",
+             "Start anyway",
+             "Not enough free memory. Close other tabs and apps, restart your browser, then reload this page.",
+             "Reload"],
+        es: ["Cargando", "Pantalla completa",
+             "Tu dispositivo tiene poca memoria: el juego puede cerrarse. Cierra las demás pestañas y aplicaciones antes de empezar.",
+             "Iniciar de todos modos",
+             "No hay suficiente memoria libre. Cierra otras pestañas y aplicaciones, reinicia el navegador y vuelve a cargar la página.",
+             "Recargar"],
+        fr: ["Chargement", "Plein écran",
+             "Votre appareil a peu de mémoire — le jeu peut planter. Fermez les autres onglets et applications avant de commencer.",
+             "Démarrer quand même",
+             "Mémoire libre insuffisante. Fermez les autres onglets et applications, redémarrez le navigateur, puis rechargez cette page.",
+             "Recharger"],
+        it: ["Caricamento", "Schermo intero",
+             "Il tuo dispositivo ha poca memoria: il gioco potrebbe bloccarsi. Chiudi le altre schede e app prima di iniziare.",
+             "Avvia comunque",
+             "Memoria libera insufficiente. Chiudi le altre schede e app, riavvia il browser e ricarica la pagina.",
+             "Ricarica"],
+        ja: ["読み込み中", "全画面表示",
+             "この端末はメモリが少ないため、ゲームがクラッシュする可能性があります。開始する前に他のタブやアプリを閉じてください。",
+             "それでも開始",
+             "空きメモリが不足しています。他のタブやアプリを閉じ、ブラウザを再起動してからページを再読み込みしてください。",
+             "再読み込み"],
+        ko: ["불러오는 중", "전체 화면",
+             "기기 메모리가 부족하여 게임이 강제 종료될 수 있습니다. 시작하기 전에 다른 탭과 앱을 모두 닫아 주세요.",
+             "그래도 시작",
+             "여유 메모리가 부족합니다. 다른 탭과 앱을 닫고 브라우저를 재시작한 뒤 페이지를 새로 고침하세요.",
+             "새로 고침"],
+        nl: ["Laden", "Volledig scherm",
+             "Je apparaat heeft weinig geheugen — het spel kan crashen. Sluit alle andere tabbladen en apps voordat je start.",
+             "Toch starten",
+             "Niet genoeg vrij geheugen. Sluit andere tabbladen en apps, herstart je browser en laad deze pagina opnieuw.",
+             "Opnieuw laden"],
+        pl: ["Wczytywanie", "Pełny ekran",
+             "Twoje urządzenie ma mało pamięci — gra może się zawiesić. Zamknij pozostałe karty i aplikacje przed rozpoczęciem.",
+             "Uruchom mimo to",
+             "Za mało wolnej pamięci. Zamknij inne karty i aplikacje, uruchom przeglądarkę ponownie, a następnie odśwież stronę.",
+             "Odśwież"],
+        pt: ["Carregando", "Tela cheia",
+             "Seu dispositivo tem pouca memória — o jogo pode travar. Feche as outras abas e aplicativos antes de começar.",
+             "Iniciar mesmo assim",
+             "Memória livre insuficiente. Feche outras abas e aplicativos, reinicie o navegador e recarregue esta página.",
+             "Recarregar"],
+        ru: ["Загрузка", "Полный экран",
+             "На устройстве мало памяти — игра может аварийно завершиться. Закройте остальные вкладки и приложения перед запуском.",
+             "Всё равно начать",
+             "Недостаточно свободной памяти. Закройте другие вкладки и приложения, перезапустите браузер и перезагрузите страницу.",
+             "Перезагрузить"],
+        tr: ["Yükleniyor", "Tam ekran",
+             "Cihazının belleği az — oyun çökebilir. Başlamadan önce diğer tüm sekmeleri ve uygulamaları kapat.",
+             "Yine de başlat",
+             "Yeterli boş bellek yok. Diğer sekmeleri ve uygulamaları kapat, tarayıcıyı yeniden başlat ve sayfayı yeniden yükle.",
+             "Yeniden yükle"],
+        uk: ["Завантаження", "Повний екран",
+             "На пристрої мало пам'яті — гра може аварійно закритися. Закрийте інші вкладки та застосунки перед запуском.",
+             "Все одно почати",
+             "Недостатньо вільної пам'яті. Закрийте інші вкладки та застосунки, перезапустіть браузер і перезавантажте сторінку.",
+             "Перезавантажити"],
+        zh: ["加载中", "全屏",
+             "你的设备内存较少，游戏可能会崩溃。开始前请关闭其他所有标签页和应用。",
+             "仍然开始",
+             "可用内存不足。请关闭其他标签页和应用，重启浏览器后重新加载本页面。",
+             "重新加载"]
       };
+      var BBS_T = BBS_SHELL_TEXT.en;
       (function localizeShell() {
         var asked = new URLSearchParams(location.search).get("lang")
           || (navigator.language || "en").slice(0, 2).toLowerCase();
-        var text = BBS_SHELL_TEXT[asked] || BBS_SHELL_TEXT.en;
+        BBS_T = BBS_SHELL_TEXT[asked] || BBS_SHELL_TEXT.en;
         document.documentElement.lang = BBS_SHELL_TEXT[asked] ? asked : "en";
-        document.querySelector("#bbs-loading-hint").textContent = text[0];
-        document.querySelector("#unity-fullscreen-button").title = text[1];
+        document.querySelector("#bbs-loading-hint").textContent = BBS_T[0];
+        document.querySelector("#unity-fullscreen-button").title = BBS_T[1];
       })();
 
       var canvas = document.querySelector("#unity-canvas");
@@ -115,10 +188,38 @@
       function bbsIsAudioDecodeError(msg) {
         return typeof msg === "string" && /decode audio data|decodeAudioData|Decoding failed/i.test(msg);
       }
+      // Memory guard (#1445): the three ways a low-memory device dies — instantiate OOM at startup,
+      // abort("OOM")/abortOnCannotGrowMemory mid-game, or a silent renderer kill — all showed players
+      // a developer stack trace at best. Recognize the first two and show a readable, localized panel
+      // instead. The original message still goes to the console for diagnosis, and the mid-game panel
+      // includes the [BBS-Heap] peak so the number is readable on-device without USB debugging.
+      function bbsIsMemError(msg) {
+        return typeof msg === "string"
+          && /Cannot allocate Wasm memory|abortOnCannotGrowMemory|abort\(("|')?OOM|Out of memory/i.test(msg);
+      }
+      function bbsShowMemPanel(text, buttonLabel, onClick, detail) {
+        document.querySelector("#unity-loading-bar").style.display = "none";
+        document.querySelector("#bbs-mem-text").textContent = text;
+        document.querySelector("#bbs-mem-detail").textContent = detail || "";
+        var btn = document.querySelector("#bbs-mem-button");
+        btn.textContent = buttonLabel;
+        btn.onclick = onClick;
+        document.querySelector("#bbs-mem-panel").style.display = "block";
+      }
+      function bbsShowOutOfMemory(msg) {
+        console.error("[BBS] Out of memory: " + msg);
+        var peak = window.bbsHeapPeakMB ? "[BBS-Heap] peak=" + window.bbsHeapPeakMB + "MB" : "";
+        bbsShowMemPanel(BBS_T[4], BBS_T[5], function () { location.reload(); }, peak);
+      }
+
       var bbsNativeAlert = window.alert.bind(window);
       window.alert = function (msg) {
         if (bbsIsAudioDecodeError(String(msg))) {
           console.warn("[BBS] Audio decode failed (recovered in-game): " + msg);
+          return;
+        }
+        if (bbsIsMemError(String(msg))) {
+          bbsShowOutOfMemory(String(msg));
           return;
         }
         bbsNativeAlert(msg);
@@ -197,25 +298,47 @@
       // Desktop and mobile alike fill the whole browser client area (the CSS pins the canvas to the
       // viewport); Unity keeps the render target matched to the DOM size, so no manual resize handling.
 
-      document.querySelector("#unity-loading-bar").style.display = "block";
+      function bbsStartGame() {
+        document.querySelector("#bbs-mem-panel").style.display = "none";
+        document.querySelector("#unity-loading-bar").style.display = "block";
 
-      var script = document.createElement("script");
-      script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
-        }).then((unityInstance) => {
-          document.querySelector("#unity-loading-bar").style.display = "none";
-          document.querySelector("#unity-fullscreen-button").onclick = () => {
-            unityInstance.SetFullscreen(1);
-          };
-          bbsWatchHeap(unityInstance);
-        }).catch((message) => {
-          alert(message);
-        });
-      };
+        var script = document.createElement("script");
+        script.src = loaderUrl;
+        script.onload = () => {
+          createUnityInstance(canvas, config, (progress) => {
+            document.querySelector("#unity-progress-bar-full").style.width = 100 * progress + "%";
+          }).then((unityInstance) => {
+            document.querySelector("#unity-loading-bar").style.display = "none";
+            document.querySelector("#unity-fullscreen-button").onclick = () => {
+              unityInstance.SetFullscreen(1);
+            };
+            bbsWatchHeap(unityInstance);
+          }).catch((message) => {
+            // A refused initial wasm memory (previous crashed tab still holding its heap, or a
+            // genuinely full device) gets the friendly panel; every other failure stays loud.
+            if (bbsIsMemError(String(message))) {
+              bbsShowOutOfMemory(String(message));
+            } else {
+              alert(message);
+            }
+          });
+        };
 
-      document.body.appendChild(script);
+        document.body.appendChild(script);
+      }
+
+      // Pre-flight (#1445): navigator.deviceMemory is a coarse power-of-two bucket and missing on
+      // Safari/Firefox — good enough for a WARNING, far too coarse for a hard block (a clean Chrome
+      // on a 3 GB tablet does start). Below the 4 GB bucket, offer a "start anyway" instead of
+      // launching into a likely crash. ?bbsMem=low forces the path for testing.
+      var bbsLowMem = new URLSearchParams(location.search).get("bbsMem") === "low"
+        || (navigator.deviceMemory && navigator.deviceMemory < 4);
+      if (bbsLowMem) {
+        var reported = navigator.deviceMemory ? "navigator.deviceMemory=" + navigator.deviceMemory + "GB" : "";
+        bbsShowMemPanel(BBS_T[2], BBS_T[3], bbsStartGame, reported);
+      } else {
+        bbsStartGame();
+      }
     </script>
   </body>
 </html>

@@ -110,6 +110,19 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WebGL shell memory guard: low-RAM pre-flight warning + readable out-of-memory panels (#1445, 2026-09-01, branch feat/webgl-memory-guard)
+A low-memory device dies in one of three ways (instantiate OOM at startup, abort("OOM") mid-game,
+silent lmkd kill) and players saw a developer stack trace at best. The shell now guards all the paths
+it can see, JS-only, localized in all 14 shell languages: **pre-flight** — `navigator.deviceMemory`
+below the 4 GB bucket shows a "your device has little memory, close other tabs/apps" notice with a
+Start-anyway button (a warning, deliberately not a hard block: the API is a coarse bucket, missing on
+Safari/Firefox, and a clean Chrome on the 3 GB Tab A8 does start; `?bbsMem=low` forces the path for
+testing); **startup** — a refused initial wasm memory from `createUnityInstance` becomes a friendly
+"not enough free memory — close tabs, restart browser, reload" panel with a Reload button; **mid-game**
+— the alert intercept turns abort("OOM")/abortOnCannotGrowMemory into the same panel, including the
+`[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
+go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
+
 ### ★ WebGL wasm-size diet, measured honestly: Medium stripping ships, OptimizeSize rejected 3× slower, PerfProbe learns the browser (#1442 #1443, 2026-09-01, branch perf/webgl-wasm-size)
 Follow-up to the OOM package below: the on-device DevTools capture proved the Tab A8 dies by Android's
 **lmkd killing the renderer at only ~307 MB wasm heap** — the binding constraint is the total process
