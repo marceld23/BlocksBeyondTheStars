@@ -125,6 +125,34 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // Browser runs cannot pass command-line args — the same knobs come from the page URL
+            // instead (#1442: the desktop A/B guard for the wasm-size settings runs this probe against
+            // a served build): /play/?perfProbe=1&seed=42&perfIdle=20&perfWalk=40&perfPreset=Medium&perfVd=4
+            string url = Application.absoluteURL;
+            if (!on && !string.IsNullOrEmpty(url) && url.IndexOf("perfProbe=", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                string Query(string key)
+                {
+                    int i = url.IndexOf(key + "=", StringComparison.OrdinalIgnoreCase);
+                    if (i < 0)
+                    {
+                        return null;
+                    }
+
+                    int start = i + key.Length + 1;
+                    int end = url.IndexOfAny(new[] { '&', '#' }, start);
+                    return end < 0 ? url.Substring(start) : url.Substring(start, end - start);
+                }
+
+                on = true;
+                if (long.TryParse(Query("seed"), out var qs)) { seed = qs; }
+                if (float.TryParse(Query("perfIdle"), out var qi)) { idle = Mathf.Clamp(qi, 5f, 600f); }
+                if (float.TryParse(Query("perfWalk"), out var qw)) { walk = Mathf.Clamp(qw, 5f, 600f); }
+                if (int.TryParse(Query("perfVd"), out var qv)) { vd = Mathf.Clamp(qv, 1, 8); }
+                preset = Query("perfPreset") ?? preset;
+                dense = Query("perfDense") == "1";
+            }
+
             if (!on)
             {
                 return;
@@ -184,7 +212,19 @@ namespace BlocksBeyondTheStars.Client
                 : null;
 
             Debug.Log($"[PerfProbe] Starting world (seed {_seed}, preset {shell.Settings.Preset}, view distance {shell.Settings.ViewDistanceChunks}{(_dense ? ", dense scene" : "")}).");
-            shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false, worldOptions: worldOptions);
+            if (Application.platform == RuntimePlatform.WebGLPlayer)
+            {
+                // The browser cannot spawn the bundled server process — go through the in-process host
+                // (#1442). Its world is the one persistent browser world, so probe runs must start on a
+                // fresh browser profile; the seed override makes that fresh world deterministic. The
+                // dense phase's WorldCreationOptions are a desktop-only probe feature.
+                shell.BrowserSeedOverride = _seed;
+                shell.StartBrowserSingleplayer();
+            }
+            else
+            {
+                shell.StartSingleplayerWorld(WorldName, _seed, creativeUnlockAll: false, creativeAllShips: false, creativeKit: false, worldOptions: worldOptions);
+            }
 
             yield return WaitForPhase(shell, ShellPhase.InGame, WorldLoadTimeout);
             var boot = shell.CurrentBoot;
@@ -197,6 +237,29 @@ namespace BlocksBeyondTheStars.Client
 
             yield return WaitUntil(() => boot.WorldReady, WorldLoadTimeout);
             yield return new WaitForSecondsRealtime(ChunkSettle);
+
+            // A fresh world plays the prologue cinematic, and since #1011 its VEGA lines wait for an
+            // explicit continue — the probe must not measure the scripted camera flight, so dismiss the
+            // intro the way a player would (same injection hook the touch NEXT button uses, #1041) until
+            // no line has shown for a few quiet seconds.
+            var vega = FindAnyObjectByType<VegaPanel>();
+            float quiet = 0f, dismissGuard = 0f;
+            while (quiet < 3f && dismissGuard < 90f)
+            {
+                if (vega != null && vega.LineShowing)
+                {
+                    quiet = 0f;
+                    dismissGuard += 0.6f;
+                    InputMap.InjectNextFrame(InputAction.VegaContinue);
+                    yield return new WaitForSecondsRealtime(0.6f);
+                }
+                else
+                {
+                    quiet += Time.unscaledDeltaTime;
+                    dismissGuard += Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
 
             // Per-feature overrides run AFTER the preset is applied and the gameplay camera exists (so the SSAO
             // renderer / SMAA choice on ActiveCameraData is live), isolating one feature's cost for #374.
@@ -214,6 +277,13 @@ namespace BlocksBeyondTheStars.Client
             phases.Add(r);
 
             // Phase 2: walk — scripted forward traversal; fresh chunks stream/mesh the whole time.
+            // The spawn is aboard the starter ship, so a blind forward push used to measure a cockpit
+            // wall: toggle fly + hop above the hull first (the solo player is the WorldAdmin, #642) so
+            // the traversal crosses open terrain regardless of the ship layout around the spawn.
+            boot.Network.SendAdminCommand("fly");
+            var hover = boot.PlayerPosition;
+            boot.Network.SendAdminCommand("teleport_to_location", x: hover.x, y: hover.y + 25f, z: hover.z);
+            yield return new WaitForSecondsRealtime(2f);
             InputMap.ScriptedMove = new Vector2(0f, 1f);
             yield return Sample("walk", _walkSeconds, x => r = x);
             InputMap.ScriptedMove = Vector2.zero;
@@ -453,14 +523,6 @@ namespace BlocksBeyondTheStars.Client
                 phases = phases.ToArray(),
             };
 
-            string dir = !string.IsNullOrEmpty(_outDir) ? _outDir : Path.Combine(AppPaths.Root, "perf");
-            Directory.CreateDirectory(dir);
-            string featureSuffix = string.IsNullOrEmpty(_featureTag) ? "" : $"_{_featureTag}";
-            string denseSuffix = _dense ? "_dense" : "";
-            string baseName = $"perf_baseline_{Application.platform}_{result.qualityPreset}_vd{result.viewDistanceChunks}{denseSuffix}{featureSuffix}";
-            string jsonPath = Path.Combine(dir, baseName + ".json");
-            File.WriteAllText(jsonPath, JsonUtility.ToJson(result, prettyPrint: true));
-
             var txt = new StringBuilder();
             txt.AppendLine($"Perf baseline — {result.capturedUtc} UTC — v{result.appVersion} — {result.platform}");
             txt.AppendLine($"Preset {result.qualityPreset}, view distance {result.viewDistanceChunks}, seed {result.seed}");
@@ -477,9 +539,27 @@ namespace BlocksBeyondTheStars.Client
                              + $"GC {ph.gcGen0}/{ph.gcGen1}/{ph.gcGen2}, managed Δ {ph.managedMemDeltaBytes / (1024f * 1024f):0.0} MB");
             }
 
-            string txtPath = Path.Combine(dir, baseName + ".txt");
-            File.WriteAllText(txtPath, txt.ToString());
-            Debug.Log($"[PerfProbe] Results written to {jsonPath}\n{txt}");
+            // The summary always goes to the log FIRST: in the browser the console (captured over the
+            // DevTools protocol) is the only reliable output channel — file writes land in IDBFS at
+            // best, and must never be the reason a finished measurement is lost (#1442).
+            Debug.Log($"[PerfProbe] RESULT\n{txt}");
+
+            try
+            {
+                string dir = !string.IsNullOrEmpty(_outDir) ? _outDir : Path.Combine(AppPaths.Root, "perf");
+                Directory.CreateDirectory(dir);
+                string featureSuffix = string.IsNullOrEmpty(_featureTag) ? "" : $"_{_featureTag}";
+                string denseSuffix = _dense ? "_dense" : "";
+                string baseName = $"perf_baseline_{Application.platform}_{result.qualityPreset}_vd{result.viewDistanceChunks}{denseSuffix}{featureSuffix}";
+                string jsonPath = Path.Combine(dir, baseName + ".json");
+                File.WriteAllText(jsonPath, JsonUtility.ToJson(result, prettyPrint: true));
+                File.WriteAllText(Path.Combine(dir, baseName + ".txt"), txt.ToString());
+                Debug.Log($"[PerfProbe] Results written to {jsonPath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[PerfProbe] Could not write result files: {ex.Message}");
+            }
         }
 
         private static IEnumerator WaitForPhase(AppShell shell, ShellPhase phase, float timeout)
