@@ -1509,6 +1509,29 @@ namespace BlocksBeyondTheStars.Client
         public float ChunkUnloadDistanceBlocks = 384f;
         private readonly List<ChunkCoord> _unloadScratch = new List<ChunkCoord>();
 
+        // Memory (#1438): on a phone/tablet browser the three distances above must scale with the ACTIVE
+        // view distance instead of staying at these desktop-sized constants. There the server only streams
+        // a VD+1 radius (VD 3 → ~64 blocks), so with a 384-block unload horizon the resident set is bounded
+        // by travel, not by view distance — after a long walk, thousands of chunk objects (each a render
+        // mesh + CPU-resident collider mesh + voxel copy) pile up in the wasm heap of a 3-4 GB tablet that
+        // OOMs (abortOnCannotGrowMemory). Scaled, not capped: a device that runs at a higher view distance
+        // gets its horizon back. Unload stays beyond the draw cull so a visible chunk is never dropped;
+        // the collider range never exceeds the cull (nothing interactable lives beyond it on mobile).
+        // ViewDistanceChunks is the join-time value the server actually streams at (0 = server default 4).
+        private (float Cull, float Collider, float Unload) EffectiveChunkDistances()
+        {
+            if (!BrowserDevice.IsMobileBrowser)
+            {
+                return (ChunkDrawDistanceBlocks, ChunkColliderDistanceBlocks, ChunkUnloadDistanceBlocks);
+            }
+
+            int vd = ViewDistanceChunks > 0 ? ViewDistanceChunks : 4;
+            float cull = Mathf.Min(ChunkDrawDistanceBlocks, (vd + 2) * WorldConstants.ChunkSize);
+            float collider = Mathf.Min(ChunkColliderDistanceBlocks, cull);
+            float unload = Mathf.Min(ChunkUnloadDistanceBlocks, (vd + 4) * WorldConstants.ChunkSize);
+            return (cull, collider, unload);
+        }
+
         // Performance (P2): assigning MeshCollider.sharedMesh cooks the collision mesh synchronously on the
         // main thread — the single heaviest per-chunk op. Instead we run Physics.BakeMesh on a worker thread
         // and assign the (now-cached) cook back on the main thread in DrainBakedColliders. _colliderGen +
@@ -2358,9 +2381,10 @@ namespace BlocksBeyondTheStars.Client
         private void RepositionChunks()
         {
             var pp = PlayerPosition;
-            float cullSq = ChunkDrawDistanceBlocks * ChunkDrawDistanceBlocks;
-            float colliderSq = ChunkColliderDistanceBlocks * ChunkColliderDistanceBlocks;
-            float unloadSq = ChunkUnloadDistanceBlocks * ChunkUnloadDistanceBlocks;
+            var (cull, collider, unload) = EffectiveChunkDistances();
+            float cullSq = cull * cull;
+            float colliderSq = collider * collider;
+            float unloadSq = unload * unload;
             _unloadScratch.Clear();
             foreach (var kv in _chunkObjects)
             {

@@ -110,6 +110,26 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ WebGL tablet wasm-heap OOM: shell heap telemetry, 256 MB initial heap, VD-scaled mobile chunk horizon, NetCodec UTF-8 fast path (#1436–#1440, 2026-09-01, branch perf/webgl-mobile-memory)
+The Tab A8 retest of v2026.8.25 on a FRESH origin still died right after the loading screen —
+`abort("OOM")` via `abortOnCannotGrowMemory`: the wasm heap could not grow on the 3-4 GB device.
+**#1436** the WebGL shell template now watches `Module.HEAPU8.length` (re-read every sample; emscripten
+swaps the buffer on growth) and logs `[BBS-Heap] total/peak` on growth plus a 30 s heartbeat — the first
+heap visibility we have (peak also on `window.bbsHeapPeakMB`). **#1437** `webGLInitialMemorySize` 32 → 256 MB
+(maximum stays 2048 — deliberately NOT lowered, desktops keep their headroom): the heap starts at a size it
+reaches anyway instead of performing dozens of growth steps through the OOM-critical streaming phase.
+**#1438** on phone/tablet browsers the client's chunk horizon now scales with the join-time view distance
+instead of the desktop constants (unload 384 → `(VD+4)*16`, draw cull 256 → `(VD+2)*16`, collider ≤ cull;
+desktop unchanged): at VD 3 the server only streams a ~4-chunk radius, so the 384-block unload horizon let
+the resident set grow with travel, not view — thousands of chunk objects (render mesh + CPU-side collider
+mesh + voxel copy) in a heap that cannot afford them. **#1440** `NetCodec` JSON envelope now serializes
+straight to UTF-8 and parses/deserializes received bytes in place (was: 4 copies on encode, ~6 on decode
+incl. two full UTF-16 strings per message — at 16+ chunk messages/tick through BOTH in-process loopback
+directions, pure heap-growth churn); wire bytes unchanged, codec tests green. **#1439** (cheaper synth
+music on mobile) turned out already shipped — synth renders at 22.05 kHz since its introduction, mobile
+skips the prefetch (#1424) and the cache trims to active+fading; closed without code. Needs a Tab A8
+playtest; the `[BBS-Heap]` log now tells us where the memory actually goes if it still fails.
+
 ### ★ WebGL on tablets: audio EncodingError modal + browser-mobile profile + auto quality calibration (#1419–#1425, 2026-08-31, branch feat/webgl-tablet-profile)
 Marcel's Galaxy Tab A8 test of browser singleplayer: heavy stutter from the intro on, sluggish controls, and a
 fatal-looking "EncodingError: unable to decode audio data" modal after leaving the ship. Delivery was verified

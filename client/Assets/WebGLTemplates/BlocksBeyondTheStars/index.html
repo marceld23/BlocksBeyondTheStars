@@ -132,6 +132,28 @@
         }
       });
 
+      // Wasm-heap watcher (#1436): the OOM crash on low-memory tablets (abortOnCannotGrowMemory)
+      // is invisible without knowing how big the heap actually is at each point. Sampled here in
+      // the shell — plain JS shipped with every build, no engine-side code paths PR CI can't
+      // compile. HEAPU8 must be re-read every sample: emscripten replaces the buffer on growth.
+      // Logs on growth plus a 30 s heartbeat so a console capture stays low-noise but always has
+      // a recent size next to the game's own milestone logs. Peak also on window.bbsHeapPeakMB.
+      function bbsWatchHeap(unityInstance) {
+        var peak = 0, lastLogged = 0, lastHeartbeat = Date.now();
+        setInterval(function () {
+          var heap;
+          try { heap = unityInstance.Module.HEAPU8.length; } catch (e) { return; }
+          var mb = Math.round(heap / (1024 * 1024));
+          if (mb > peak) { peak = mb; window.bbsHeapPeakMB = peak; }
+          var now = Date.now();
+          if (mb !== lastLogged || now - lastHeartbeat >= 30000) {
+            console.log("[BBS-Heap] total=" + mb + "MB peak=" + peak + "MB");
+            lastLogged = mb;
+            lastHeartbeat = now;
+          }
+        }, 2000);
+      }
+
       var buildUrl = "Build";
       // Unity emits STABLE file names (WebGL.data.unityweb, …), so URLs alone can't distinguish builds.
       // The server rewrites this stamp to "?v=<build timestamp>" when serving the page — every build gets
@@ -187,6 +209,7 @@
           document.querySelector("#unity-fullscreen-button").onclick = () => {
             unityInstance.SetFullscreen(1);
           };
+          bbsWatchHeap(unityInstance);
         }).catch((message) => {
           alert(message);
         });

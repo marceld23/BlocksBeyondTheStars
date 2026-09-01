@@ -585,7 +585,16 @@ public static class NetCodec
         return false;
     }
 
-    /// <summary>Encodes a tagged JSON payload for browser WebSocket clients.</summary>
+    // Per-tag UTF-8 envelope prefix ("{\"tag\":<n>,\"body\":"), built once per tag. A benign race may
+    // compute an entry twice; both results are identical.
+    private static readonly byte[]?[] JsonEnvelopeHeads = new byte[byte.MaxValue + 1][];
+
+    /// <summary>Encodes a tagged JSON payload for browser WebSocket clients. Serializes straight to
+    /// UTF-8 and composes the envelope in the output buffer — the string-based path (body string →
+    /// envelope concat → GetBytes) made four full copies per message, two of them UTF-16. Chunk
+    /// streaming pushes 15-25 KB messages through here 16+ times per tick, and in browser
+    /// singleplayer BOTH loopback directions do — that churn is pure wasm-heap growth on tablets
+    /// (#1440). The wire bytes are unchanged.</summary>
     public static byte[] EncodeJson(object message)
     {
         var type = message.GetType();
@@ -594,12 +603,13 @@ public static class NetCodec
             throw new InvalidOperationException($"Message type '{type.Name}' is not registered with NetCodec.");
         }
 
-        string body = JsonSerializer.Serialize(message, type, JsonOptions);
-        string envelope = "{\"tag\":" + tag + ",\"body\":" + body + "}";
-        byte[] json = Encoding.UTF8.GetBytes(envelope);
-        var payload = new byte[json.Length + 1];
+        byte[] body = JsonSerializer.SerializeToUtf8Bytes(message, type, JsonOptions);
+        byte[] head = JsonEnvelopeHeads[tag] ??= Encoding.UTF8.GetBytes("{\"tag\":" + tag + ",\"body\":");
+        var payload = new byte[1 + head.Length + body.Length + 1];
         payload[0] = JsonEnvelopeTag;
-        Buffer.BlockCopy(json, 0, payload, 1, json.Length);
+        Buffer.BlockCopy(head, 0, payload, 1, head.Length);
+        Buffer.BlockCopy(body, 0, payload, 1 + head.Length, body.Length);
+        payload[payload.Length - 1] = (byte)'}';
         return payload;
     }
 
@@ -656,8 +666,10 @@ public static class NetCodec
 
         try
         {
-            string json = Encoding.UTF8.GetString(payload, 1, payload.Length - 1);
-            using var doc = JsonDocument.Parse(json, JsonDocumentOptions);
+            // Parse the received UTF-8 directly and deserialize the body element in place. The old
+            // path (GetString → Parse(string) → GetRawText() → Deserialize(string)) round-tripped
+            // every message through two full UTF-16 strings and two transcodes (#1440).
+            using var doc = JsonDocument.Parse(new ReadOnlyMemory<byte>(payload, 1, payload.Length - 1), JsonDocumentOptions);
             var root = doc.RootElement;
             if (!root.TryGetProperty("tag", out var tagElement)
                 || !tagElement.TryGetInt32(out int tag)
@@ -673,7 +685,7 @@ public static class NetCodec
                 return null;
             }
 
-            return JsonSerializer.Deserialize(bodyElement.GetRawText(), type, JsonOptions);
+            return bodyElement.Deserialize(type, JsonOptions);
         }
         catch (JsonException)
         {
