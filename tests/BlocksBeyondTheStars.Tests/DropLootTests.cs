@@ -349,6 +349,84 @@ public sealed class DropLootTests : IDisposable
         }
     }
 
+    // ---------------- #1475: space is lossless too ----------------
+
+    [Fact]
+    public void OverflowWithoutATractor_FloatsAsSalvage_InsteadOfVanishing()
+    {
+        var transport = new RecordingTransport();
+        var server = SpaceServer("overflow-float", transport, out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Remove("tractor_beam"); // direct-to-inventory loot …
+            // … into a backpack and a hold that are brim-full: nothing the rock yields can be stowed.
+            for (int i = 0; i <= pilot.State.Inventory.SlotCount; i++)
+            {
+                pilot.State.Inventory.Add("stone", 64, 64);
+            }
+
+            for (int i = 0; i <= server.Ship.Cargo.SlotCount; i++)
+            {
+                server.Ship.Cargo.Add("stone", 64, 64);
+            }
+
+            server.EnterSpace("Pilot");
+
+            CombatEntity? drop = null;
+            for (int i = 0; i < 40 && drop == null; i++)
+            {
+                server.TickForTest(2.0);
+                var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
+                if (a != null)
+                {
+                    server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+                }
+
+                drop = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.ResourceDrop);
+            }
+
+            Assert.NotNull(drop); // the ore floats at the rock instead of being discarded with a "pockets full" hint
+            Assert.NotEmpty(drop!.Loot);
+        }
+    }
+
+    [Fact]
+    public void FloatingSalvage_SurvivesLeavingSpace()
+    {
+        var transport = new RecordingTransport();
+        var server = SpaceServer("float-persist", transport, out var repo);
+        using (repo)
+        {
+            server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("asteroid_breaker");
+            server.Ship.Modules.Add("tractor_beam");
+            server.EnterSpace("Pilot");
+
+            CombatEntity? drop = null;
+            for (int i = 0; i < 24 && drop == null; i++)
+            {
+                server.TickForTest(2.0);
+                var a = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.Asteroid);
+                if (a != null)
+                {
+                    server.FireWeapon("Pilot", "asteroid_breaker", a.Id);
+                }
+
+                drop = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.ResourceDrop);
+            }
+
+            Assert.NotNull(drop);
+
+            server.LeaveSpace("Pilot"); // the instance dies with its last pilot …
+            server.EnterSpace("Pilot"); // … and the salvage is back when that space is created again
+            var back = server.SpaceEntitiesFor("Pilot").FirstOrDefault(e => e.Kind == CombatEntityKind.ResourceDrop);
+            Assert.NotNull(back);
+            Assert.Equal(drop!.Id, back!.Id);
+        }
+    }
+
     // ---------------- #1367: the colliding rule + the shutdown checkpoint ----------------
 
     [Fact]

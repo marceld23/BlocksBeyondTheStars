@@ -576,10 +576,12 @@ public sealed partial class GameServer
 
             SendShipDesign(session, structure);
 
-            // item 20 S3: also send every voxel asteroid body so the flight view renders + can mine them.
+            // item 20 S3: also send every voxel asteroid body so the flight view renders + can mine them —
+            // and every player-built station (#1470): its design was only ever sent at commission, so after a
+            // landing or a restart re-entering pilots saw the generic placeholder instead of the real hull.
             foreach (var st in instance.Structures.Values)
             {
-                if (st.Kind == "asteroid")
+                if (st.Kind == "asteroid" || st.Kind == "station")
                 {
                     SendShipDesign(session, st);
                 }
@@ -642,6 +644,7 @@ public sealed partial class GameServer
             instance.PilotSims.Remove(playerId); // per-pilot collision state dies with the flight (#955)
             if (instance.Players.Count == 0)
             {
+                StashFloatingSalvage(instance); // #1475: uncollected ore outlives the flight
                 _spaceInstances.Remove(instanceId);
             }
         }
@@ -688,6 +691,7 @@ public sealed partial class GameServer
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
         AddDerelictToInstance(instance); // #1129: "The Long Quiet" drifts in exactly one body's space
+        RestoreFloatingSalvage(instance); // #1475: salvage left floating when this space was last torn down
 
         // Hostile NPC drones only when space combat is enabled and NPC enemies are switched on. Once the
         // Guardian core is destroyed the finale gauntlet stays down for good, and the ambient waves survive
@@ -1103,6 +1107,23 @@ public sealed partial class GameServer
             var backpackBefore = target.Loot.Select(l => session.State.Inventory.CountOf(l.Item)).ToList();
             var cargoBefore = target.Loot.Select(l => _ship.Cargo.CountOf(l.Item)).ToList();
             BankLoot(session, pool, target.Loot); // target is already destroyed — warn rather than lose it silently
+            // #1475: whatever found no room floats as salvage at the rock instead of vanishing — space has no
+            // drop packets, so this is its lossless path (a tractor beam, or flying through it, collects it later).
+            var leftovers = pool.TakeLeftovers();
+            if (leftovers.Count > 0)
+            {
+                instance.Entities.Add(new CombatEntity
+                {
+                    Id = NextEntityId(),
+                    Kind = CombatEntityKind.ResourceDrop,
+                    Hostile = false,
+                    Hull = 1f,
+                    HullMax = 1f,
+                    Position = target.Position,
+                    Loot = leftovers,
+                });
+            }
+
             SendInventory(session);
 
             // #1317: say where the ore went. The pool fills the backpack first and the hold after, and until
@@ -1353,7 +1374,13 @@ public sealed partial class GameServer
     // Passive auto-collect radius. Was 8 — too tight: salvage spawns at the destroyed rock's centre, so after a
     // mid-range kill you often couldn't get close enough to vacuum it (most noticeable on your very first kill,
     // before you've learned to nose right into the wreck). Widened so flying near the wreck reliably collects it.
-    private const float TractorRange = 16f;
+    /// <summary>Passive tractor pull range — the module's <c>tractor_range</c> stat (#1477: the data value was
+    /// dead and the server always used 16; now the stat IS the number, 16 when the data has none).</summary>
+    private float TractorRange => (float)(_content.GetShipModule(TractorModule)?.Stats.GetValueOrDefault("tractor_range", 16.0) ?? 16.0);
+
+    /// <summary>Without a tractor beam a drop is still collected by flying THROUGH it (#1475): the overflow path
+    /// floats salvage for beam-less ships too, so there has to be a way to pick it up.</summary>
+    private const float TouchCollectRange = 3f;
 
     /// <summary>Tractor beam: pulls salvage drops within <paramref name="range"/> of the COLLECTING pilot's
     /// ship into that ship's cargo hold (until full). The passive tick uses a short range; a manual pull
@@ -1362,7 +1389,7 @@ public sealed partial class GameServer
     {
         if (!_ship.HasModule(TractorModule))
         {
-            return;
+            range = System.Math.Min(range, TouchCollectRange); // no beam: only what the hull touches (#1475)
         }
 
         var shipPos = PilotPositionIn(instance, playerId); // #994: sweep around the collector's own ship
@@ -2006,6 +2033,7 @@ public sealed partial class GameServer
         }
 
         instance.Players.Clear();
+        StashFloatingSalvage(instance); // #1475
         _spaceInstances.Remove(instance.Id);
     }
 
@@ -2062,6 +2090,36 @@ public sealed partial class GameServer
     };
 
     private string NextEntityId() => "e" + _nextEntityId++;
+
+    /// <summary>#1475: salvage drops still floating when a space instance is torn down (last pilot landed, ship
+    /// disabled), keyed by instance id, and re-added the next time that space is created — so uncollected ore
+    /// survives a landing instead of dying with the instance. In-memory only: a server restart still loses
+    /// it, which the issue accepts (no save-shape change).</summary>
+    private readonly Dictionary<string, List<CombatEntity>> _floatingSalvage = new();
+
+    private void StashFloatingSalvage(SpaceInstance instance)
+    {
+        var drops = instance.Entities.Where(e => e.Kind == CombatEntityKind.ResourceDrop && e.Loot.Count > 0).ToList();
+        if (drops.Count == 0)
+        {
+            _floatingSalvage.Remove(instance.Id);
+            return;
+        }
+
+        _floatingSalvage[instance.Id] = drops;
+    }
+
+    private void RestoreFloatingSalvage(SpaceInstance instance)
+    {
+        if (_floatingSalvage.Remove(instance.Id, out var drops))
+        {
+            instance.Entities.AddRange(drops);
+        }
+    }
+
+    /// <summary>Test/inspection: salvage drops parked for a torn-down instance (#1475).</summary>
+    public int FloatingSalvageParkedForTest(string instanceId)
+        => _floatingSalvage.TryGetValue(instanceId, out var drops) ? drops.Count : 0;
 
     private static NetCombatEntity ToNet(CombatEntity e) => new()
     {

@@ -1224,6 +1224,13 @@ namespace BlocksBeyondTheStars.Client
                     ?? "Warning: the base is no longer airtight — air only reaches the core zone!";
             }
 
+            // #1473: a player-built station's hull is open — no air outside a sealed pocket until it is patched.
+            if (text == "@station_air_lost")
+            {
+                return Localizer?.Get("ui.station.air_lost")
+                    ?? "Warning: the station is no longer airtight — helmet on until the hull is patched!";
+            }
+
             // (#817/#821 block painting uses the generic "@srv.paint.*" tokens resolved above.)
             return text;
         }

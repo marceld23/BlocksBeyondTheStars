@@ -3803,6 +3803,21 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
+                    // #1469: a player-built station renders as its own voxel hull (a "station" design in _structs
+                    // under the same id) — never ALSO as the generic spinning placeholder model. A placeholder
+                    // built before the design arrived (a late SpaceShipDesign) is torn down here.
+                    if (e.Kind == "SpaceStation" && _structs.ContainsKey(e.Id))
+                    {
+                        if (_entities.TryGetValue(e.Id, out var placeholder))
+                        {
+                            Destroy(placeholder);
+                            _entities.Remove(e.Id);
+                            _entityLerp.Remove(e.Id);
+                        }
+
+                        continue;
+                    }
+
                     if (!_entities.TryGetValue(e.Id, out var go))
                     {
                         // Real textured multi-cube models (mirrors the ship) instead of a flat colour cube.

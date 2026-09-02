@@ -422,7 +422,9 @@ separate unlock; admins can still disable it through server world rules.
   modules) and is shared by everyone aboard that ship.
 - **What goes where:** mined and crafted items fill your inventory first and only spill into the cargo hold
   once it's full (and only while you're aboard). Salvage you scoop up while flying in space goes straight
-  into the cargo hold. While you're aboard the ship, crafting draws from **both** at once.
+  into the cargo hold. While you're aboard the ship, crafting draws from **both** at once. Asteroid ore that
+  finds no room **floats at the rock** instead of vanishing; a tractor beam pulls it in from 16 m, without one
+  you fly through it. Floating salvage survives a landing — it is still there when you launch again.
 - **Moving things by hand:** open the **Tab menu → Inventory**. The **Inventory** tab has a **"Stow all
   materials in cargo"** button (loose materials/components only — your tools, weapons and quick-bar items
   stay put), and selecting any item offers **"Move to cargo hold"**. The **Cargo Hold** tab shows the hold's
@@ -626,6 +628,11 @@ separate unlock; admins can still disable it through server world rules.
   travel back down to your ship on the planet.
 - **Build your own**: deploy a **Station Core** on a spacewalk (press **B**), build a hull + an airlock door
   around it, and it commissions into a boardable station on the star map.
+- **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
+  hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
+  **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
+  **trading post** or a **mission board** aboard; visiting traders still dock regardless. Windows show the
+  planet you orbit, the sun and a moon.
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
 - **SPS relay** (late game): any commissioned player station can be converted into a relay of the old

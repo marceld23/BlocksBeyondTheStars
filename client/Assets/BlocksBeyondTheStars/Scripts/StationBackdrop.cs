@@ -76,8 +76,10 @@ namespace BlocksBeyondTheStars.Client
             planet.name = "BackdropPlanet";
             StripCollider(planet);
             planet.transform.SetParent(_root.transform, false);
-            planet.transform.localPosition = new Vector3(230f, -80f, 620f);
-            planet.transform.localScale = Vector3.one * 300f;
+            // #1474: at eye level and big — the old (230,-80,620)/300 sat below the horizon on one wall only,
+            // so every other window showed bare stars ("I built windows, where are the planets?").
+            planet.transform.localPosition = new Vector3(0f, 30f, 520f);
+            planet.transform.localScale = Vector3.one * 480f;
             var litShader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
             string biome = PlanetBiome();
             // Data-driven planet colour (surface block + flora/water blend) with the palette as backstop.
@@ -91,7 +93,7 @@ namespace BlocksBeyondTheStars.Client
             sun.name = "BackdropSun";
             StripCollider(sun);
             sun.transform.SetParent(_root.transform, false);
-            sun.transform.localPosition = new Vector3(-360f, 170f, 540f);
+            sun.transform.localPosition = new Vector3(560f, 200f, 140f); // +X wall
             sun.transform.localScale = Vector3.one * 150f;
             var sunShader = Shader.Find("BlocksBeyondTheStars/SunGlow") ?? Shader.Find("Unlit/Color");
             _sunMat = new Material(sunShader) { mainTexture = GlowTexture() };
@@ -102,6 +104,24 @@ namespace BlocksBeyondTheStars.Client
             smr.receiveShadows = false;
             _sun = sun.transform;
 
+            // #1474: something for the other walls too — a grey moon behind (-Z) and a distant sibling world
+            // off the -X wall, so no window looks at empty black.
+            var moon = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            moon.name = "BackdropMoon";
+            StripCollider(moon);
+            moon.transform.SetParent(_root.transform, false);
+            moon.transform.localPosition = new Vector3(-150f, 70f, -560f);
+            moon.transform.localScale = Vector3.one * 120f;
+            moon.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = ShaderColor.Srgb(new Color(0.62f, 0.60f, 0.58f)) };
+
+            var sibling = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sibling.name = "BackdropSibling";
+            StripCollider(sibling);
+            sibling.transform.SetParent(_root.transform, false);
+            sibling.transform.localPosition = new Vector3(-600f, 40f, -80f);
+            sibling.transform.localScale = Vector3.one * 160f;
+            sibling.GetComponent<Renderer>().sharedMaterial = new Material(litShader) { color = ShaderColor.Srgb(PlanetColor("ice")) };
+
             _root.SetActive(false);
         }
 
@@ -111,6 +131,35 @@ namespace BlocksBeyondTheStars.Client
             var map = Game?.StarMap;
             if (map?.Systems != null)
             {
+                // #1474: the boarded station's HOST body — the station's star-map entry shares the host's system
+                // coordinates (AddStationBodyToGalaxy), so the planet/moon at the same spot is the one outside.
+                BlocksBeyondTheStars.Networking.Messages.NetBody station = null;
+                foreach (var sys in map.Systems)
+                {
+                    foreach (var b in sys.Bodies)
+                    {
+                        if (b.Kind == "SpaceStation" && b.Name == Game.StationName)
+                        {
+                            station = b;
+                        }
+                    }
+                }
+
+                if (station != null)
+                {
+                    foreach (var sys in map.Systems)
+                    {
+                        foreach (var b in sys.Bodies)
+                        {
+                            if ((b.Kind == "Planet" || b.Kind == "Moon") && !string.IsNullOrEmpty(b.PlanetType)
+                                && Mathf.Abs(b.SystemX - station.SystemX) < 0.5f && Mathf.Abs(b.SystemZ - station.SystemZ) < 0.5f)
+                            {
+                                return b.PlanetType;
+                            }
+                        }
+                    }
+                }
+
                 foreach (var sys in map.Systems)
                 {
                     foreach (var b in sys.Bodies)

@@ -110,6 +110,35 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Lyxette round 5 — player stations get real: hull drawn once, sealed-volume air, crew on demand, windows with a view; cargo tiers explain themselves; space salvage is lossless (#1469–#1478, 2026-09-03, branch fix/lyxette-reports-2026-09-03)
+Three F1 reports from the evening of 2026-09-02 (v2026.8.26), all decisions Marcel 2026-09-03. **Station drawn
+twice (#1469, #1470):** one player-built station id was rendered by two client paths — the voxel hull from its
+`SpaceShipDesign` AND the generic spinning placeholder from its `SpaceStation` contact ("ein Gebäude und eine
+Station, die sich da durch dreht") — and the server re-sent only asteroid designs on space entry and never
+registered a fresh commission in the per-location list, so after one landing only the placeholder survived.
+The entity loop now skips a station that owns a voxel hull (a late placeholder is torn down), station designs
+are re-sent on entry, and `PersistStation` registers the row for the running session too. **Sealed-volume air
+(#1473, decision b):** a boarder on a `pstation:` station breathes only inside a pocket enclosed by airtight
+full cubes (glass counts), door blocks and the core — `GameServerStationAir` mirrors the base flood-fill within
+the stamped box + 8 cells; a hole means helmet on with a one-shot `@station_air_lost`, the already-airtight
+`force_field` plugs it, and a player station's deck is no longer "breathable" world air (NPC stations unchanged:
+authored sealed, crews have no O2 model; HUD shows "(station life support)" while sealed). **Crew on demand
+(#1472, decision a):** the "small" tier's two filler civilians spawn only around a built `station_vendor` /
+`mission_board`; a crew hint follows the commission toast. **Windows (#1474):** the `StationBackdrop` planet
+sits at eye level and large (was below the horizon on one wall only), plus a moon and a sibling world for the
+other walls; the station's star-map body is anchored at its real host so the backdrop resolves the host
+planet's colour. **Cargo tiers (#1471):** tier I says "+24", the Modules tab and every cargo module show
+"72 slots = 48 + 24 · tier 1 of 3 · next: II (+32)", and the German remove button is "Entfernen" (not
+"Ausbauen", which reads as *expand* — the literal source of "kein sauberer Status zum Tier1 Ausbau").
+**Space salvage (#1475):** overflow without a tractor floats as a `ResourceDrop` at the rock instead of being
+discarded, floating drops are parked per instance id and restored when that space is recreated (in-memory; a
+restart still loses them), and a beam-less ship collects by flying through a drop (3 m). **Codex (#1476):**
+planet types list every ore with its start depth and say plainly when a type has no rare metals ("wie tief
+lohnt es sich?" — on `varied`, lithium at 12 is the last new ore). **Data (#1477, #1478):** `tractor_range`
+is read from the module stat (16) instead of being dead, and the station deploy counter is seeded from
+persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
+Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
+
 ### ★ WebGL shell memory guard: low-RAM pre-flight warning + readable out-of-memory panels (#1445, 2026-09-01, branch feat/webgl-memory-guard)
 A low-memory device dies in one of three ways (instantiate OOM at startup, abort("OOM") mid-game,
 silent lmkd kill) and players saw a developer stack trace at best. The shell now guards all the paths
