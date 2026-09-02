@@ -565,6 +565,7 @@ namespace BlocksBeyondTheStars.Client
                 // ---- Fleet-admin observer + inspection (issues #487/#488) ----
                 // Note these are NOT gated by the "admin cheats" world option server-side; the role is the gate.
                 case "/players": net.SendAdminCommand("players"); return true;
+                case "/basewalls": net.SendAdminCommand("basewalls"); return true; // enclosure-fill report (#1452)
 
                 case "/builds":
                     // Optional player filter: "/builds Justus" lists only that player's structures.

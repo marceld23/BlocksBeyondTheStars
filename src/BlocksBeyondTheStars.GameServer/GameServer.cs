@@ -5023,6 +5023,11 @@ public sealed partial class GameServer
                 AdminListBuilds(session, cmd.StringArg);
                 return;
 
+            // Base-wall diagnostics (#1452) — a read-only report, not a cheat: the role is the gate.
+            case "basewalls":
+                AdminBaseWalls(session);
+                return;
+
             // Paint moderation (#821) — like kick/announce, moderation is not a cheat: the role is the gate.
             case "shapewipe":
                 AdminCustomShapeWipe(session, cmd.StringArg);

@@ -125,6 +125,38 @@ public sealed class BaseWalledYardTests : IDisposable
     }
 
     [Fact]
+    public void BaseWallsReport_NamesTheCore_AndReadsTheYardAsEnclosed_ThenOpenAfterAGap()
+    {
+        // #1452: the /basewalls report is the admin's only window into the enclosure fill — it must say what
+        // the spawner would decide for the spot the admin stands on, and why.
+        var server = Started(out var repo, "report");
+        using (repo)
+        {
+            var (builder, padY) = Yard(server);
+            builder.State.Position = new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f); // inside the ring
+
+            var lines = server.BaseWallsReportForTest(builder);
+            Assert.Equal(4, lines.Count);
+            Assert.Contains("48", lines[0]);                       // the reach box
+            Assert.Contains("fill complete", lines[1]);            // no budget exhaustion on a small yard
+            Assert.Contains("enclosed", lines[2]);                 // this cell: no spawns
+            Assert.Contains("2 blocks", lines[3]);                 // the rules line names the wall height
+
+            server.RemoveBlockForTest(Cx + Ring, padY + 1, Cz);
+            server.RemoveBlockForTest(Cx + Ring, padY + 2, Cz);
+            Settle(server);
+            var after = server.BaseWallsReportForTest(builder);
+            Assert.Contains("open", after[2]);
+            Assert.DoesNotContain("enclosed", after[2]);
+
+            builder.State.Position = new Vector3f(Cx + 200.5f, padY + 1, Cz + 0.5f); // beyond the reach box
+            var none = server.BaseWallsReportForTest(builder);
+            Assert.Single(none);
+            Assert.Contains("48", none[0]);
+        }
+    }
+
+    [Fact]
     public void AWalledYard_IsFencedIn_AndAGapLetsTheAnimalsIn()
     {
         var server = Started(out var repo, "yard");
