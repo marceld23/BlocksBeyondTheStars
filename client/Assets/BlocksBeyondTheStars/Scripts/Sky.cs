@@ -236,7 +236,10 @@ namespace BlocksBeyondTheStars.Client
             float dayLit = day * (2f - day);
             // Inside an orbital station there is no day/night — it's lit by its own constant lighting.
             float brightness = constantLight ? 1f : Mathf.Lerp(0.35f, 1f, dayLit); // night floor → noon
-            float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.65f, weatherIntensity); // storms darken
+            // Storms darken — but only to 0.78 now (was 0.65, #1457): the block light goes through the sRGB→linear
+            // conversion below, so 0.65 landed in the shader as ~0.38 of noon, and on the overcast-only worlds
+            // (swamp, ashen, fungal never clear) every daytime read as dusk. A grey day should still be a day.
+            float weatherDim = constantLight ? 1f : Mathf.Lerp(1f, 0.78f, weatherIntensity);
 
             // Twilight (golden hour): peaks with the sun sitting on the horizon (sunHeight → 0) and fades out by
             // full day / deep night. Off in airless (space) skies — no atmosphere means no scattering, so there the

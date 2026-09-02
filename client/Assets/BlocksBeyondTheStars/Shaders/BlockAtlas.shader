@@ -179,7 +179,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
                 // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
                 float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
-                float amb = lerp(0.24, 0.70, sky);
+                float amb = lerp(0.26, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
                 float3 col = albedo * (light * (amb + 0.5 * ndl * sky * shadow) + 0.05) * faceAo;
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
@@ -505,7 +505,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // (outdoors ~0.70, a readable cave floor of 0.24). The directional adds the sunny side on top.
                 // A small flat term (sun/sky-independent) guarantees a minimum readable level, so blocks in a
                 // dark hole or deep cave are dim but never pure black.
-                float amb = lerp(0.24, 0.70, sky);
+                float amb = lerp(0.26, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
                 fixed3 col = albedo * (light * (amb + 0.5 * ndl * sky) + 0.05) * faceAo;
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only

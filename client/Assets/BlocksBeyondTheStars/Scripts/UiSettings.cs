@@ -73,6 +73,12 @@ namespace BlocksBeyondTheStars.Client
             // A hand-picked preset ends auto-calibration (#1423): PresetAuto off means the shell
             // frame-time calibrator never overrides the player's explicit choice again.
             Cycle(ref y, L("ui.settings.preset"), L("ui.settings.preset." + S.Preset.ToString().ToLowerInvariant()), () => { S.Preset = (QualityPreset)(((int)S.Preset + 1) % 4); S.PresetAuto = false; S.Apply(); ApplyLiveWorld(); Rebuild(); });
+            // Brightness sits right under the preset (#1457): "the world is too dark" is the first thing a player
+            // looks for here, and it used to hide six rows down in the scroll viewport.
+            Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
+                () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
+                () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
+                Mathf.RoundToInt(S.Brightness * 100f) + "%");
             // Window mode cycles Windowed → Borderless → Exclusive and applies immediately so the player sees
             // the window change without leaving the menu (resolution/mode changes are pushed via Apply()).
             Cycle(ref y, L("ui.settings.window_mode"), L(WindowModeKey(S.Window)),
@@ -96,10 +102,6 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.UiScale = Mathf.Clamp(S.UiScale - 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
                 () => { S.UiScale = Mathf.Clamp(S.UiScale + 0.1f, UiKit.UserScaleMin, UiKit.UserScaleMax); S.Apply(); Rebuild(); },
                 Mathf.RoundToInt(S.UiScale * 100f) + "%");
-            Stepper(ref y, L("ui.settings.brightness"), (S.Brightness - 0.7f) / 0.8f, 0.7f, 1.5f,
-                () => { S.Brightness = Mathf.Clamp(S.Brightness - 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
-                () => { S.Brightness = Mathf.Clamp(S.Brightness + 0.05f, 0.7f, 1.5f); UrpScenePost.Instance?.SetBrightness(S.Brightness); Rebuild(); },
-                Mathf.RoundToInt(S.Brightness * 100f) + "%");
             // Frame pacing. VSync off (+ optional fps cap) is the recommended fix when the game runs sluggish
             // on the Linux/Proton client, where VSync can lock to a hard 30 fps.
             Toggle(ref y, L("ui.settings.vsync"), S.VSync, () => { S.VSync = !S.VSync; S.Apply(); Rebuild(); });

@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ☀️ Daylight re-tune — grey days are still days (#1457)
+
+- **Worlds read brighter by day** (#1457). "Die Welten wirken auch tagsüber sehr dunkel und drückend"
+  (school playtest, browser). Four small levers, no new look: overcast now dims the daylight to 78 %
+  instead of 65 % (on swamp, ashen and fungal worlds — which never clear — every day read as dusk),
+  sky-lit block faces turned away from the sun get a touch more ambient, the baseline vignette and
+  the extra contrast in the post grade are eased, and the brightness slider moved to the top of the
+  graphics settings. Browser Low/Potato, which render without an HDR buffer, use the Neutral tonemap
+  instead of ACES — ACES over an already-clamped frame only crushed the midtones.
+
 ### 🎒 School playtest 2026-09-02 — scanner, see-through edges, bed, cameras, hand, menu memory (#1456 #1458 #1459 #1460 #1463 #1464)
 
 - **Titans can be scanned** (#1458). The scanner tested a creature's *origin* — its feet at the body
