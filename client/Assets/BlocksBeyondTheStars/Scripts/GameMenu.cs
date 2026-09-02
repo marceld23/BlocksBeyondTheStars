@@ -306,6 +306,7 @@ namespace BlocksBeyondTheStars.Client
             if (Game != null)
             {
                 Game.HullRgb = Rgb(Settings.HullColor); // keep the flight view's hull tint in sync (item 32)
+                Game.HeldItemDirty = true;              // the first-person hand wears the arm colour (#1464)
             }
 
             Settings.Save();
@@ -426,6 +427,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.BodyPaintPixels[part] = Settings.GetBodyPaint(part);
                 QueueAppearanceSend(part, Settings.GetBodyPaint(part));
+                Game.HeldItemDirty = true; // rebuild the first-person hand with the new painting (#1464)
             }
         }
 

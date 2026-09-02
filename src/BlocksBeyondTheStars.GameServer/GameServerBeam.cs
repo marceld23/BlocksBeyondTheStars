@@ -165,12 +165,16 @@ public sealed partial class GameServer
         }
 
         var from = new Vector3f(source.Cell.X + 0.5f, source.Cell.Y + 1f, source.Cell.Z + 0.5f);
-        var to = new Vector3f(target.Cell.X + 0.5f, target.Cell.Y + 1f, target.Cell.Z + 0.5f);
+        var to = BeamArrivalSpot(target.Cell);
 
         session.State.SuitEnergy -= BeamEnergyCost;
         session.State.Position = to;
         _beamCooldown[me] = BeamCooldownSeconds;
 
+        // The destination's ground goes out ahead of the snap (#1449): a far pad — an underground mine
+        // level, say — sits in chunks the client has never seen, and the settle freeze on the other side
+        // can only wait for a floor it is told about.
+        StreamFootingNow(session, to);
         SendPlayerState(session); // sync the spent energy + authoritative position to the HUD
         Send(session, new BeamTeleported { X = to.X, Y = to.Y, Z = to.Z }); // snap the body + arrival effect
         BroadcastToWorld(new BeamFx
@@ -185,6 +189,28 @@ public sealed partial class GameServer
 
         string label = string.IsNullOrEmpty(target.Name) ? "beam block" : target.Name;
         Send(session, new ServerMessage { Text = "@srv.beam.done:" + label });
+    }
+
+    /// <summary>How far above a beam pad the arrival search climbs for two clear cells. Pads live in rooms:
+    /// a pad under a low ceiling (a mine level, a cramped base) must not park the player's head in the slab
+    /// above it. Sized for a stamped hall, not a whole structure — beyond this the pad is simply buried.</summary>
+    private const int BeamArrivalProbeHeight = 8;
+
+    /// <summary>Where a player lands when beaming to <paramref name="pad"/>: standing on the pad, with the
+    /// two cells above it clear. A blind "pad + 1" put the player into whatever the world had there (#1449);
+    /// the /tp command has climbed out of stamped geometry for a long time, the beam now does the same.</summary>
+    private Vector3f BeamArrivalSpot(Vector3i pad)
+    {
+        int y = pad.Y + 1;
+        for (int i = 0; i < BeamArrivalProbeHeight; i++, y++)
+        {
+            if (_world.GetBlock(new Vector3i(pad.X, y, pad.Z)).IsAir && _world.GetBlock(new Vector3i(pad.X, y + 1, pad.Z)).IsAir)
+            {
+                return new Vector3f(pad.X + 0.5f, y, pad.Z + 0.5f);
+            }
+        }
+
+        return new Vector3f(pad.X + 0.5f, pad.Y + 1f, pad.Z + 0.5f); // buried pad: the old spot, the entombed rescue takes it from here
     }
 
     /// <summary>True if the player may use this beam block as a source/destination: they own it, are allied with

@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.World;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -28,6 +32,32 @@ public sealed class BeamTests : IDisposable
     {
         _root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "bbts_beam_" + Guid.NewGuid().ToString("N"));
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
+    }
+
+    /// <summary>Records every server send so a test can assert what reached the player, in which order.</summary>
+    private sealed class RecordingTransport : IServerTransport
+    {
+        public event Action<int>? ClientConnected;
+        public event Action<int>? ClientDisconnected;
+        public event Action<int, byte[]>? PayloadReceived;
+
+        public readonly List<(int Conn, object Msg)> Sent = new();
+
+        public void Start(int port) { }
+
+        public void Send(int connectionId, byte[] payload, DeliveryMode mode)
+        {
+            if (NetCodec.Decode(payload) is { } m) Sent.Add((connectionId, m));
+        }
+
+        public void Broadcast(byte[] payload, DeliveryMode mode)
+        {
+            if (NetCodec.Decode(payload) is { } m) Sent.Add((int.MinValue, m));
+        }
+
+        public void Poll() { _ = ClientConnected; _ = ClientDisconnected; _ = PayloadReceived; }
+        public void Stop() { }
+        public void Dispose() { }
     }
 
     private SvGameServer NewServer(out SqliteWorldRepository repo)
@@ -157,6 +187,45 @@ public sealed class BeamTests : IDisposable
             Assert.Equal(201f, p.State.Position.Y, 3);
             Assert.Equal(0.5f, p.State.Position.Z, 3);
             Assert.True(p.State.SuitEnergy < energyBefore); // the jump cost suit energy
+        }
+    }
+
+    [Fact]
+    public void Teleport_ClimbsAboveALowCeiling_AndPreloadsTheGround()
+    {
+        // #1449: a pad under a one-block ceiling used to receive the player at "pad + 1" — head in the slab —
+        // and the destination's chunks only followed on later streaming ticks, so the client's settle freeze
+        // had no floor to wait for and dropped the player. The arrival now climbs to two clear cells, and the
+        // feet/floor chunks are sent BEFORE the snap message.
+        var transport = new RecordingTransport();
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "beam_probe"));
+        var config = new ServerConfig { WorldName = "beam_probe", Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, _content, transport, repo);
+        server.Start();
+        using (repo)
+        {
+            var p = Player(server, "Builder", new Vector3f(0, 200, 0));
+            p.State.Inventory.Add("beam_block", 1, 16);
+            p.State.Inventory.Add("stone", 4, 64);
+
+            server.PlaceBlock("Builder", 1, 200, 0, "beam_block", "Source");
+            server.PlaceBlock("Builder", 5, 200, 0, "beam_block", "Dest");
+            server.PlaceBlock("Builder", 5, 202, 0, "stone"); // a ceiling one block over the destination pad
+            var snaps = server.BeamSnapshots.OrderBy(b => b.Cell.X).ToList();
+            p.SentChunks.Clear(); // the destination is "far": nothing streamed yet
+            transport.Sent.Clear();
+
+            server.BeamTeleportForTest(p, snaps[0].Id, snaps[1].Id);
+
+            // Standing on the ceiling slab (y 203), not inside it — the first two clear cells above the pad.
+            Assert.Equal(5.5f, p.State.Position.X, 3);
+            Assert.Equal(203f, p.State.Position.Y, 3);
+
+            var msgs = transport.Sent.Where(x => x.Conn == p.ConnectionId).Select(x => x.Msg).ToList();
+            int snap = msgs.FindIndex(m => m is BeamTeleported);
+            int ground = msgs.FindIndex(m => m is ChunkDataMessage c && c.Cy == WorldConstants.WorldToChunk(new Vector3i(5, 202, 0)).Y);
+            Assert.True(snap >= 0, "the beam must snap the body");
+            Assert.True(ground >= 0 && ground < snap, "the ground under the arrival must be streamed before the snap");
         }
     }
 

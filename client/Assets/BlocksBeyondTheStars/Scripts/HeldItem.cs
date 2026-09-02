@@ -190,6 +190,19 @@ namespace BlocksBeyondTheStars.Client
         private static Texture2D _handAtlas;
         private static string _handAtlasKey;
 
+        /// <summary>Frees the cached hand-paint atlas (world teardown, #1464) — a static Texture2D is never
+        /// swept by <c>Resources.UnloadUnusedAssets</c> while this class still references it.</summary>
+        public static void ReleaseHandAtlas()
+        {
+            if (_handAtlas != null)
+            {
+                Object.Destroy(_handAtlas);
+            }
+
+            _handAtlas = null;
+            _handAtlasKey = null;
+        }
+
         /// <summary>Applies the player's arm painting to the hand parts (white tint + the atlas the avatar
         /// also bakes, mapped to the right arm's OUTER chunk — the hero face of the paint editor). Without
         /// a valid painting the parts keep their flat suit tint, matching the pre-#1427 look.</summary>

@@ -242,6 +242,32 @@ public sealed class ShipAiTests : IDisposable
     }
 
     [Fact]
+    public void CreativeWorld_RunsTheTutorial_AndSkipsOnlyTheUnlockLesson()
+    {
+        // #1461: a creative world grants every blueprint at join, which used to read as "a veteran save" and
+        // silently skipped the whole chain — a school browser session has no persistent save, so every
+        // session was a first session without a single lesson. Only the moot "unlock a blueprint" stage is
+        // pre-granted now; VEGA still opens with the intro and the first lesson.
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var config = Config();
+        config.CreativeUnlockAllBlueprints = true;
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Kid");
+
+        var milestones = server.MilestonesForTest("Kid");
+        Assert.Contains(lines, l => l.LineKey == "vega.intro.1");
+        Assert.Contains(lines, l => l.LineKey == "vega.s.mine.start");
+        Assert.DoesNotContain(lines, l => l.LineKey == "vega.veteran");
+        Assert.Contains("vega:stage:unlock", milestones);     // moot in creative — granted silently
+        Assert.DoesNotContain("vega:stage:mine", milestones); // the real lessons are still ahead
+        Assert.DoesNotContain("vega:stage:launch", milestones);
+    }
+
+    [Fact]
     public void VeteranSave_AutoSkipsOnboarding_WithOneLine()
     {
         using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));

@@ -115,5 +115,24 @@ namespace BlocksBeyondTheStars.Client.Tests.EditMode
                 GroundTopEmitted(content, IdOf(content, "dirt"), IdOf(content, "stone")),
                 "An opaque neighbour must still cull the shared face.");
         }
+
+        /// <summary>#1459: the bevel's open-edge mask and the face cull share ONE predicate. When they drifted
+        /// (the cull learned flora/foliage/slim props, the bevel mask did not) every drawn face beside a torch
+        /// or plant kept its neighbour's inset without a chamfer — a 6 cm see-through slit along the edge.
+        /// Pins the predicate for each non-sealing family and for the sealing case.</summary>
+        [TestCase("torch", true)]        // slim prop
+        [TestCase("ladder", true)]       // slim prop
+        [TestCase("flora_fern", true)]   // cross-plant flora
+        [TestCase("tree_leaves", true)]  // foliage shell
+        [TestCase("glass", true)]        // see-through
+        [TestCase("stone", false)]       // opaque cube seals the face — and the edge stays flush
+        public void NeighbourExposesOpaqueFace_MatchesTheFaceCull(string neighbourKey, bool expected)
+        {
+            var content = LoadContentOrIgnore();
+            var neighbour = new BlockId(IdOf(content, neighbourKey));
+            Assert.That(ChunkMesher.NeighbourExposesOpaqueFace(content, neighbour), Is.EqualTo(expected),
+                $"'{neighbourKey}' must {(expected ? "expose" : "seal")} the adjacent opaque face — the bevel edge mask keys off the same answer.");
+            Assert.That(ChunkMesher.NeighbourExposesOpaqueFace(content, BlockId.Air), Is.True);
+        }
     }
 }

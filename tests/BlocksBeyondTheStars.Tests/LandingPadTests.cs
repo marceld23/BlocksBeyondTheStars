@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -49,6 +50,50 @@ public sealed class LandingPadTests : IDisposable
         var peaceful = ServerPresets.Get("peaceful-creative")!;
         Assert.Equal(SpaceCombatMode.Off, peaceful.SpaceCombat);
         Assert.Equal(AlienActivity.Off, peaceful.PlanetEnemies);
+    }
+
+    [Fact]
+    public void OceanWorld_RaisesAnIsletUnderSomePads_AndFlagsTheSeabedOnes()
+    {
+        // #1453/#1454: an ocean-class world floods 78–97 % of its columns, and the pad march (±180 blocks along
+        // one latitude) regularly finds no land. Such pads now either carry a seeded sand islet (surface two
+        // blocks above the sea, air above it) or stay on the seabed and are flagged Wet for the chooser.
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "islet"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = "islet", Seed = 7, StartPlanet = "ocean", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        server.AddLocalPlayer("Pilot"); // loads the ocean body + builds its pads
+
+        int seaLevel = server.SeaLevelForTest();
+        int islets = 0, wet = 0, dry = 0;
+        for (int i = 0; i < server.LandingPadCenters.Count; i++)
+        {
+            var pad = server.LandingPadInfoForTest(i);
+            if (pad.Islet)
+            {
+                islets++;
+                Assert.False(pad.Wet, "an islet pad is dry by definition");
+                Assert.Equal(seaLevel + 2, pad.Y);
+                // The mound exists in the generated world: a beach block at the levelled height, air above.
+                Assert.False(server.World.GetBlock(new Vector3i(pad.X, pad.Y, pad.Z)).IsAir);
+                Assert.True(server.World.GetBlock(new Vector3i(pad.X, pad.Y + 1, pad.Z)).IsAir);
+                Assert.True(server.World.GetBlock(new Vector3i(pad.X, pad.Y + 2, pad.Z)).IsAir);
+            }
+            else if (pad.Wet)
+            {
+                wet++;
+                Assert.True(pad.Y < seaLevel, "a wet pad sits on the seabed");
+            }
+            else
+            {
+                dry++;
+            }
+        }
+
+        Assert.True(islets + wet + dry == server.LandingPadCenters.Count);
+        Assert.True(islets > 0 || wet > 0, "an ocean world is expected to produce at least one all-water pad");
+        Assert.True(islets > 0, "the seeded roll (~60 %) should raise at least one islet across the pads");
     }
 
     [Fact]

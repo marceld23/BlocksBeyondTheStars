@@ -185,7 +185,11 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.Contains(toPilot, m => m is ShipPlacement);
         Assert.Contains(toPilot, m => m is DoorList);
         Assert.Contains(toPilot, m => m is ShipCombatStatus);
-        Assert.Empty(pilot.SentChunks); // cleared → the world re-streams fresh (stale-view self-heal)
+        // Cleared → the world re-streams fresh (stale-view self-heal). Since #1450 the footing chunks are
+        // re-sent in the same breath, so whatever SentChunks holds now must be exactly what this landing sent.
+        var resent = toPilot.OfType<ChunkDataMessage>().Select(c => new ChunkCoord(c.Cx, c.Cy, c.Cz)).ToHashSet();
+        Assert.NotEmpty(resent);
+        Assert.All(pilot.SentChunks, c => Assert.Contains(c, resent));
     }
 
     // ---------------- #971: the same-body landing must also MOVE the player ----------------
@@ -726,6 +730,40 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.True(host.State.AboardShip);
         AssertShipPlacementFollowsTheReset(transport, host);
         AssertDoorsFollowTheReset(transport, host); // same gap for the door objects (#1429)
+    }
+
+    [Fact]
+    public void LandingOnABody_SendsTheParkedShipsAndTheGround_BeforeTheSnap()
+    {
+        // #1450: the travel landing sent the player's position before the parked ship objects, so the client
+        // settled inside a ship that did not exist yet and the terrain under the pad passed for its deck. The
+        // ship list and the feet/floor chunks now precede the position, and the landing rides the strict
+        // RespawnNotice snap channel (like the touchdown from flight, #971) instead of the loose world spawn.
+        var transport = new RecordingTransport();
+        var server = NewServer("landing_order", transport);
+        var host = server.AddLocalPlayer("Host");
+        server.SetInstantTravelForTest(true);
+        var body = server.Galaxy.AllBodies().First(b =>
+            b.Kind == CelestialKind.Planet
+            && !string.IsNullOrEmpty(b.PlanetType)
+            && _content.GetPlanet(b.PlanetType!) is not null
+            && b.Id != host.CurrentLocationId);
+        server.RequestLandingPadsForTest(host, host.CurrentLocationId);
+        server.Ship.Modules.Add("jump_generator");
+        transport.Sent.Clear();
+
+        Assert.True(server.QuickTravelForTest("Host", body.Id));
+
+        var msgs = transport.Sent.Where(x => x.Conn == host.ConnectionId).Select(x => x.Msg).ToList();
+        int reset = msgs.FindLastIndex(m => m is WorldReset);
+        int ships = msgs.FindIndex(reset, m => m is LandedShipState);
+        int state = msgs.FindIndex(reset, m => m is PlayerStateUpdate);
+        int snap = msgs.FindIndex(reset, m => m is RespawnNotice);
+        int ground = msgs.FindIndex(reset, m => m is ChunkDataMessage);
+        Assert.True(reset >= 0, "a landing on another body resets the world");
+        Assert.True(ships > reset && ships < state, "the parked ship objects must arrive before the position");
+        Assert.True(ground > reset && ground < state, "the ground under the feet must arrive before the position");
+        Assert.True(snap > state, "the landing snaps the body on the strict RespawnNotice channel after the position");
     }
 
     [Fact]

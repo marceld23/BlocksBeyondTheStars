@@ -26,6 +26,10 @@ public sealed class NetLandingPad
     /// the receiver's own pad too, which carries <see cref="Mine"/> instead of <see cref="Occupied"/>.</summary>
     public string Occupant { get; set; } = string.Empty;
 
+    /// <summary>The pad lies on the sea floor (#1454): the ship parks in a dry shaft under the water. The
+    /// chooser labels such pads so a first-time player is not surprised by walls of water.</summary>
+    public bool Wet { get; set; }
+
     /// <summary>True if the receiving player is the one holding this pad (#977) — their parked or reserved
     /// ship's pad. Drawn as theirs and stays selectable in the chooser. Appended field: contractless
     /// MessagePack, so an older peer simply reads it as false (no protocol bump).</summary>

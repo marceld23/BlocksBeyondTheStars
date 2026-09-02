@@ -844,9 +844,16 @@ public sealed partial class GameServer
         }
 
         Send(session, new WorldReset { PlanetType = body.PlanetType, PlanetName = planetName, SystemName = systemName, Hyperjump = hyperjump });
-        SendPlayerState(session);
-        SendShipCombatStatus(session);
+        // The parked ship objects and the ground go out BEFORE the position (#1450): the client settles the
+        // moment it knows where it is, and the deck it is meant to stand on has to exist by then — with the
+        // ship arriving after the snap, the terrain under the pad answered the ground check and the player
+        // sank through the deck. The RespawnNotice puts the landing on the strict "feet on a floor" settle
+        // (the same channel the touchdown from flight uses, #971) instead of the loose world-spawn one.
         SendLandedShips(session); // every parked ship object on this world (incl. the player's own)
+        StreamFootingNow(session, spawn);
+        SendPlayerState(session);
+        Send(session, new RespawnNotice { X = spawn.X, Y = spawn.Y, Z = spawn.Z, Reason = "@srv.land.touchdown" });
+        SendShipCombatStatus(session);
         SendShipPlacement(session);
         SendShipStations(session);
         SendStationsInReach(session); // #1070: the Tab-menu gates start from the server truth, not a guess
@@ -1606,6 +1613,10 @@ public sealed partial class GameServer
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).
             // Life support overrides this (ship cabin, station, base zone): an underwater base is a dome.
             bool submerged = !lifeSupport && !p.InEva && HeadUnderwater(p);
+            if (submerged)
+            {
+                ShipAiHintOnce(session, "swim"); // first dive: Space rises, the O2 bar counts down (#1455)
+            }
             // Above the atmosphere (built a tower up into space) the air runs out too, even on a breathable
             // world — the suit tank drains until the player descends back below the line. Life support wins
             // over the altitude line as well, so a base founded on a peak above it still breathes.
@@ -2238,33 +2249,65 @@ public sealed partial class GameServer
                     continue; // two view offsets can map to the same wrapped chunk — send it once
                 }
 
-                var chunk = _world.GetOrLoadChunk(coord);
-                var dense = chunk.ToArray();
-                // Ship the run-length-encoded payload when it is smaller (terrain almost always is; a rare
-                // unrunnable chunk goes dense). Decisive on the browser JSON path — ~15-25 KB of JSON
-                // numbers per chunk shrink to usually a few hundred bytes — and it trims native payloads
-                // and VPS egress too. The client accepts both representations (ChunkDataMessage.DecodeBlocks).
-                var rle = ChunkBlocksRle.Encode(dense);
-                var msg = new ChunkDataMessage
-                {
-                    Cx = coord.X,
-                    Cy = coord.Y,
-                    Cz = coord.Z,
-                };
-                if (rle.Length < dense.Length)
-                {
-                    msg.BlocksRle = rle;
-                }
-                else
-                {
-                    msg.Blocks = dense;
-                }
-                PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
-                Send(session, msg);
-                session.SentChunks.Add(coord);
-                MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
+                StreamChunkNow(session, coord);
                 sent++;
             }
+        }
+    }
+
+    /// <summary>Sends one chunk to a session right now and records it as sent. The regular streaming pass
+    /// and the arrival pre-load (<see cref="StreamFootingNow"/>) share this so a chunk is encoded the same way
+    /// whichever path delivers it first.</summary>
+    private void StreamChunkNow(PlayerSession session, ChunkCoord coord)
+    {
+        var chunk = _world.GetOrLoadChunk(coord);
+        var dense = chunk.ToArray();
+        // Ship the run-length-encoded payload when it is smaller (terrain almost always is; a rare
+        // unrunnable chunk goes dense). Decisive on the browser JSON path — ~15-25 KB of JSON
+        // numbers per chunk shrink to usually a few hundred bytes — and it trims native payloads
+        // and VPS egress too. The client accepts both representations (ChunkDataMessage.DecodeBlocks).
+        var rle = ChunkBlocksRle.Encode(dense);
+        var msg = new ChunkDataMessage
+        {
+            Cx = coord.X,
+            Cy = coord.Y,
+            Cz = coord.Z,
+        };
+        if (rle.Length < dense.Length)
+        {
+            msg.BlocksRle = rle;
+        }
+        else
+        {
+            msg.Blocks = dense;
+        }
+        PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
+        Send(session, msg);
+        session.SentChunks.Add(coord);
+        MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
+    }
+
+    /// <summary>Pre-loads the ground under a player about to be snapped to <paramref name="feet"/>: the
+    /// chunk holding the feet cell and the one holding the cell below it (a floor on a chunk boundary lives
+    /// in the lower one). The nearest-first streaming pass would deliver them on the next ticks anyway, but
+    /// a far beam or landing reaches the client BEFORE that pass — and the client's settle freeze then had
+    /// no floor to wait for, released on its grace timer and dropped the player through the floor the pad
+    /// sat on (#1449). Sending the two chunks ahead of the snap closes that window.</summary>
+    private void StreamFootingNow(PlayerSession session, Vector3f feet)
+    {
+        int minChunkY = WorldConstants.WorldToChunk(MinBuildY);
+        int maxChunkY = WorldConstants.WorldToChunk(MaxBuildY);
+        var feetCell = feet.ToBlock();
+        var below = new Vector3i(feetCell.X, feetCell.Y - 1, feetCell.Z);
+        foreach (var cell in new[] { feetCell, below })
+        {
+            var coord = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(cell), _world.Circumference);
+            if (coord.Y < minChunkY || coord.Y > maxChunkY || session.SentChunks.Contains(coord))
+            {
+                continue;
+            }
+
+            StreamChunkNow(session, coord);
         }
     }
 
