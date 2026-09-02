@@ -170,13 +170,14 @@ public sealed partial class GameServer
             });
         }
 
-        AddStationBodyToGalaxy(s.Id, s.Name);
+        AddStationBodyToGalaxy(s.Id, s.Name, instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id);
         PersistStation(instance, s);
         BroadcastSpaceState(instance);
 
         if (owner is not null)
         {
             Send(owner, new ServerMessage { Text = "@srv.station.commissioned:" + s.Name });
+            Send(owner, new ServerMessage { Text = "@srv.station.crew_hint" }); // #1472: crew comes with a crew space
             OnAchievementStationCommissioned(owner); // "Station Master" (#1102)
         }
 
@@ -184,9 +185,11 @@ public sealed partial class GameServer
         _log.Info($"Player station '{s.Name}' ({s.Id}) commissioned with {s.Cells.Count} blocks.");
     }
 
-    private void AddStationBodyToGalaxy(string id, string name)
+    private void AddStationBodyToGalaxy(string id, string name, string? hostLocationId = null)
     {
-        var current = _galaxy.FindBody(_meta.ActiveLocationId);
+        // #1474: anchor the station beside the body it actually orbits (the instance it was built in), not
+        // whatever the save's active cursor points at — the star map and the window backdrop key on it.
+        var current = (hostLocationId is not null ? _galaxy.FindBody(hostLocationId) : null) ?? _galaxy.FindBody(_meta.ActiveLocationId);
         var sys = _galaxy.Systems.FirstOrDefault(x => x.Id == current?.SystemId) ?? _galaxy.Systems.FirstOrDefault();
         if (sys is null || sys.Bodies.Any(b => b.Id == id))
         {
@@ -210,7 +213,7 @@ public sealed partial class GameServer
     {
         string loc = instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id;
         _stationHostBody[s.Id] = loc; // remember the body it orbits (travel-screen badge + menu-board return)
-        _repo.SaveSpaceStructure(new StoredSpaceStructure
+        var row = new StoredSpaceStructure
         {
             Id = s.Id,
             OwnerId = s.OwnerId,
@@ -221,7 +224,19 @@ public sealed partial class GameServer
             PosZ = s.Position.Z,
             Boardable = s.Boardable,
             Blocks = SerializeCells(s.Cells),
-        });
+        };
+        _repo.SaveSpaceStructure(row);
+
+        // #1470: register the row for THIS run too. Until now only a restart's LoadPlayerStations filled the
+        // per-location list, so a station commissioned in this session vanished from its space the moment the
+        // last pilot landed (the instance is torn down) — re-entry brought back the star-map contact only.
+        if (!_persistedStationsByLocation.TryGetValue(loc, out var rows))
+        {
+            rows = _persistedStationsByLocation[loc] = new List<StoredSpaceStructure>();
+        }
+
+        rows.RemoveAll(r => r.Id == row.Id);
+        rows.Add(row);
     }
 
     private static string SerializeCells(Dictionary<Vector3i, BlockId> cells)
@@ -274,6 +289,14 @@ public sealed partial class GameServer
             list.Add(row);
             _stationHostBody[row.Id] = row.Location; // host body for the travel-screen badge + menu-board return
 
+            // #1478: the deploy counter is in-memory only — seed it past every persisted sequence so a station
+            // deployed after a restart never reuses a stored id (same entity, boardable and interior-world key).
+            int sep = row.Id.LastIndexOf(':');
+            if (sep >= 0 && int.TryParse(row.Id.AsSpan(sep + 1), out int seq) && seq >= _nextStationSeq)
+            {
+                _nextStationSeq = seq + 1;
+            }
+
             var s = new SpaceStructure
             {
                 Id = row.Id,
@@ -293,7 +316,7 @@ public sealed partial class GameServer
                 SpacePosition = s.Position,
                 Origin = new Vector3i(8, 64, 8),
             };
-            AddStationBodyToGalaxy(row.Id, row.Name);
+            AddStationBodyToGalaxy(row.Id, row.Name, row.Location);
         }
 
         if (_playerStationCells.Count > 0)
@@ -356,6 +379,10 @@ public sealed partial class GameServer
         {
             minX = minY = minZ = maxX = maxY = maxZ = 0;
         }
+
+        // The build's world-space box: the sealed-air fill (#1473) treats anything beyond it (+ margin) as void.
+        station.BoundsMin = new Vector3i(station.Origin.X, station.Origin.Y, station.Origin.Z);
+        station.BoundsMax = new Vector3i(station.Origin.X + (maxX - minX), station.Origin.Y + (maxY - minY), station.Origin.Z + (maxZ - minZ));
 
         // Spawn at the build's centre with a guaranteed floor pad + headroom (never fall through into the void).
         int cx = station.Origin.X + (maxX - minX) / 2;
@@ -596,6 +623,24 @@ public sealed partial class GameServer
         }
 
         return null;
+    }
+
+    /// <summary>Test/inspection: every station structure the player owns in their instance (#1478).</summary>
+    public List<string> OwnedStationIdsForTest(string playerId)
+    {
+        var ids = new List<string>();
+        if (_playerInstance.TryGetValue(playerId, out var iid) && _spaceInstances.TryGetValue(iid, out var inst))
+        {
+            foreach (var st in inst.Structures.Values)
+            {
+                if (st.Kind == "station" && st.OwnerId == playerId)
+                {
+                    ids.Add(st.Id);
+                }
+            }
+        }
+
+        return ids;
     }
 
     /// <summary>Test/inspection: whether a station id is commissioned (boardable + registered).</summary>

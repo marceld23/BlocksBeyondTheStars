@@ -694,6 +694,7 @@ namespace BlocksBeyondTheStars.Client
             // Spell out "(breathable)" rather than a bare "*", so new players understand the full O2 bar isn't
             // draining because the air here is breathable — and that it will drain elsewhere (space, toxic worlds).
             string oxySuffix = breathable ? "  (" + loc.Get("ui.hud.breathable") + ")"
+                : Game.LifeSupportSource == 2 ? "  (" + loc.Get("ui.hud.station_air") + ")" // #1473: sealed station pocket
                 : baseAir ? "  (" + loc.Get("ui.hud.base_air") + ")"
                 : string.Empty;
             string oxy = loc.Get("ui.hud.oxygen") + oxySuffix;

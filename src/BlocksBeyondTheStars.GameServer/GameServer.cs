@@ -1600,14 +1600,17 @@ public sealed partial class GameServer
             var playerCell = new Vector3i(
                 (int)System.Math.Floor(p.Position.X), (int)System.Math.Floor(p.Position.Y), (int)System.Math.Floor(p.Position.Z));
             bool atBase = !p.InEva && (InAnyBaseZone(playerCell) || InSealedBaseRoom(playerCell));
-            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || InStation(p.PlayerId)
+            // A boarded station breathes too — but a PLAYER-BUILT one only inside a sealed pocket of its hull
+            // (#1473): a hole means helmet on until it is patched (a force-field block plugs it).
+            bool stationAir = !p.InEva && StationLifeSupport(p, playerCell);
+            bool lifeSupport = !p.InEva && (p.AboardShip || insideShip || atBase || stationAir
                 || !Rules.OxygenEnabledFor(p.ModeOverride));
             // Which source keeps this player breathing — sent to the client so the HUD can name it
             // (0 none, 1 ship cabin/aboard, 2 station, 3 base zone or sealed room). Base ranks last so
             // the label only claims the base when nothing closer (ship/station) already covers you.
             p.LifeSupportSource = (byte)(!lifeSupport ? 0
                 : p.AboardShip || insideShip ? 1
-                : InStation(p.PlayerId) ? 2
+                : stationAir ? 2
                 : atBase ? 3 : 0);
             // Submerged underwater the suit runs on its own air, even on a breathable world — diving spends
             // the oxygen tank just like a toxic/airless atmosphere does (the extractor can't pull from water).

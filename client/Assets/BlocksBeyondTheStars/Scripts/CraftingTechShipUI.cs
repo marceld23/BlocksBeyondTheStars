@@ -1579,6 +1579,65 @@ namespace BlocksBeyondTheStars.Client
         private bool ModuleFitted(BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition m)
             => Game.ShipCombat?.Modules != null && System.Array.IndexOf(Game.ShipCombat.Modules, m.Key) >= 0;
 
+        /// <summary>#1471: "Cargo hold: 72 slots = 48 + 24 · tier 1 of 3 · next: Cargo Expansion II (+32)" — the
+        /// active ship's hold make-up, so it is visible that 72 already CONTAINS tier I and what the next step
+        /// is. Empty when no fit is known yet (the combat status streams the module list).</summary>
+        private string CargoTierLine()
+        {
+            var fitted = Game.ShipCombat?.Modules;
+            if (fitted == null || Game.Content == null)
+            {
+                return string.Empty;
+            }
+
+            var tiers = Game.Content.ShipModules.Values
+                .Where(m => m.Key.StartsWith("cargo_hold_", System.StringComparison.Ordinal) && m.Stats.ContainsKey("cargo_slots"))
+                .OrderBy(m => m.Key == "cargo_hold_basic" ? 0 : 1)
+                .ThenBy(m => m.Key, System.StringComparer.Ordinal)
+                .ToList();
+            int total = 0, fittedTiers = 0, tierCount = 0;
+            var parts = new List<string>();
+            BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition next = null;
+            foreach (var m in tiers)
+            {
+                bool isTier = m.Key != "cargo_hold_basic";
+                if (isTier)
+                {
+                    tierCount++;
+                }
+
+                if (System.Array.IndexOf(fitted, m.Key) >= 0)
+                {
+                    int slots = (int)m.Stats["cargo_slots"];
+                    total += slots;
+                    parts.Add(slots.ToString());
+                    if (isTier)
+                    {
+                        fittedTiers++;
+                    }
+                }
+                else if (isTier && next == null)
+                {
+                    next = m;
+                }
+            }
+
+            if (parts.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            string line = L("ui.ship.cargo_makeup")
+                .Replace("{total}", total.ToString())
+                .Replace("{parts}", string.Join(" + ", parts))
+                .Replace("{n}", fittedTiers.ToString())
+                .Replace("{max}", tierCount.ToString());
+            line += " · " + (next != null
+                ? L("ui.ship.cargo_next").Replace("{name}", L($"module.{next.Key}.name")).Replace("{slots}", ((int)next.Stats["cargo_slots"]).ToString())
+                : L("ui.ship.cargo_maxed"));
+            return line;
+        }
+
         /// <summary>Localised, comma-joined names of a module list (mandatory hull essentials skipped).</summary>
         private string FitList(string[] modules)
         {
@@ -1602,6 +1661,14 @@ namespace BlocksBeyondTheStars.Client
             var t = UiKit.AddText(_listContent, 8, y, 752, 52, FitList(Game.ShipCombat?.Modules), 18, UiKit.TextCol, TextAnchor.UpperLeft);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             y += 56f;
+            string cargoLine = CargoTierLine();
+            if (!string.IsNullOrEmpty(cargoLine))
+            {
+                var cargo = UiKit.AddText(_listContent, 8, y, 752, 26, cargoLine, 18, UiKit.Cyan, TextAnchor.UpperLeft);
+                cargo.horizontalOverflow = HorizontalWrapMode.Wrap;
+                y += 30f;
+            }
+
             var rule = UiKit.AddText(_listContent, 8, y, 752, 48,
                 L("ui.ship.module_rule").Replace("{pct}", Mathf.RoundToInt(BlocksBeyondTheStars.Shared.Definitions.ShipModuleDefinition.SalvageRate * 100f).ToString()),
                 16, UiKit.CyanDim, TextAnchor.UpperLeft);
@@ -3773,6 +3840,19 @@ namespace BlocksBeyondTheStars.Client
                     var t = UiKit.AddText(_detail, 8, y, 620, 80, desc, 20, UiKit.CyanDim, TextAnchor.UpperLeft);
                     t.horizontalOverflow = HorizontalWrapMode.Wrap;
                     y += 84f;
+                }
+
+                // #1471: on a cargo module, spell out what the hold is made of and what the next tier adds — a
+                // hauler owner saw "72" next to a fitted tier I and read it as a broken upgrade.
+                if (m.Key.StartsWith("cargo_hold_", System.StringComparison.Ordinal))
+                {
+                    string cargoLine = CargoTierLine();
+                    if (!string.IsNullOrEmpty(cargoLine))
+                    {
+                        var c = UiKit.AddText(_detail, 8, y, 620, 52, cargoLine, 18, UiKit.Cyan, TextAnchor.UpperLeft);
+                        c.horizontalOverflow = HorizontalWrapMode.Wrap;
+                        y += 56f;
+                    }
                 }
 
                 if (ModuleFitted(m))

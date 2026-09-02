@@ -211,7 +211,7 @@ namespace BlocksBeyondTheStars.Client
             "tech" => BuildEntries(L("ui.wiki.tech"), Entries(Game?.Content?.Blueprints?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "ships" => BuildEntries(L("ui.wiki.ships"), Entries(Game?.Content?.Ships?.Values, d => d.NameKey, d => d.DescriptionKey)),
             "modules" => BuildEntries(L("ui.wiki.modules"), Entries(Game?.Content?.ShipModules?.Values, d => d.NameKey, d => d.DescriptionKey)),
-            "planets" => BuildEntries(L("ui.wiki.planets"), Entries(Game?.Content?.Planets?.Values, d => d.NameKey, d => ToDescKey(d.NameKey))),
+            "planets" => BuildEntries(L("ui.wiki.planets"), PlanetEntries()),
             "discoveries" => BuildDiscoveries(),
             "lore" => BuildLore(),
             _ => string.Empty,
@@ -380,6 +380,71 @@ namespace BlocksBeyondTheStars.Client
                 {
                     result.Add((L(nameKey(d)), descKey == null ? string.Empty : Desc(descKey(d))));
                 }
+            }
+
+            result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));
+            return result;
+        }
+
+        /// <summary>The ores whose absence is worth a plain sentence (#1476): the "deep prizes" the Codex guide
+        /// promises on the rough worlds — so a varied-world miner learns that digging deeper here finds none.</summary>
+        private static readonly string[] RareOres =
+        {
+            "gold_ore", "titanium_ore", "cobalt_ore", "uranium_ore", "platinum_ore", "tungsten_ore", "neodymium_ore", "diamond_ore",
+        };
+
+        /// <summary>#1476: planet entries carry their ore table — every ore with the depth it starts at, and one
+        /// line when the type has none of the rare metals — so "how deep is it worth going?" has an answer.</summary>
+        private List<(string Name, string Desc)> PlanetEntries()
+        {
+            var result = new List<(string Name, string Desc)>();
+            var planets = Game?.Content?.Planets?.Values;
+            if (planets == null)
+            {
+                return result;
+            }
+
+            foreach (var d in planets)
+            {
+                if (d.Void)
+                {
+                    continue; // station decks / ship cabins are not worlds you land on
+                }
+
+                var sb = new StringBuilder(Desc(ToDescKey(d.NameKey)));
+                var ores = new List<BlocksBeyondTheStars.Shared.Definitions.OreVein>(d.Ores ?? new List<BlocksBeyondTheStars.Shared.Definitions.OreVein>());
+                ores.Sort((a, b) => a.MinDepth != b.MinDepth
+                    ? a.MinDepth.CompareTo(b.MinDepth)
+                    : string.Compare(L("block." + a.Block + ".name"), L("block." + b.Block + ".name"), StringComparison.CurrentCultureIgnoreCase));
+                if (ores.Count > 0)
+                {
+                    if (sb.Length > 0)
+                    {
+                        sb.Append('\n');
+                    }
+
+                    sb.Append(L("ui.wiki.ores_by_depth")).Append(' ');
+                    bool rare = false;
+                    for (int i = 0; i < ores.Count; i++)
+                    {
+                        if (i > 0)
+                        {
+                            sb.Append(", ");
+                        }
+
+                        sb.Append(L("ui.wiki.ore_from_depth")
+                            .Replace("{name}", L("block." + ores[i].Block + ".name"))
+                            .Replace("{depth}", ores[i].MinDepth.ToString()));
+                        rare |= Array.IndexOf(RareOres, ores[i].Block) >= 0;
+                    }
+
+                    if (!rare)
+                    {
+                        sb.Append('\n').Append(L("ui.wiki.no_rare_metals"));
+                    }
+                }
+
+                result.Add((L(d.NameKey), sb.ToString()));
             }
 
             result.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.CurrentCultureIgnoreCase));

@@ -44,6 +44,10 @@ public sealed partial class GameServer
         public StationStructure? Structure { get; set; }
         public List<(string Type, Vector3f Pos)> Markers { get; } = new();
         public Vector3f Spawn { get; set; }
+
+        /// <summary>World-space box of the stamped build (player stations; #1473 sealed-air reach box).</summary>
+        public Vector3i BoundsMin { get; set; }
+        public Vector3i BoundsMax { get; set; }
     }
 
     /// <summary>Station markers for tests/inspection; empty until the station is stamped.</summary>
@@ -596,7 +600,12 @@ public sealed partial class GameServer
         // Extra wandering civilians/dockhands so the station feels populated — scaled by size, some are
         // maintenance androids, with a little size variation. Placed near existing markers (valid rooms).
         int extra = station.SizeTier switch { "small" => 2, "large" => 8, "huge" => 13, "colossal" => 18, _ => 4 };
-        var spots = station.Markers.Select(m => m.Pos).ToList();
+        // #1472: a player-built station stays empty until its owner builds a crew space (trading post / mission
+        // board) — the filler crew then gathers around those, never around the bare spawn pad.
+        bool playerStation = station.Id.StartsWith("pstation:", System.StringComparison.Ordinal);
+        var spots = station.Markers
+            .Where(m => !playerStation || m.Type is "vendor" or "mission_board")
+            .Select(m => m.Pos).ToList();
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
             var b = spots[rng.Next(spots.Count)];
