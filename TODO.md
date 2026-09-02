@@ -123,6 +123,32 @@ testing); **startup** — a refused initial wasm memory from `createUnityInstanc
 `[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
 go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
 
+### ★ School playtest 2026-09-02, group 1: titan scan, bevel slit, bed prompt, camera boom, hand refresh, menu atlas memory (#1456 #1458 #1459 #1460 #1463 #1464, 2026-09-02, branch fix/playtest-2026-09-02)
+First of the playtest fix groups (the branch carries the whole 2026-09-02 batch, one PR). **#1458** —
+`PlayerController.TryFindScanTarget` replaces the origin-in-cone test with the attack path's Size-scaled
+body sphere (`center = feet + 0.6·size`, `r = 0.9·size`, point-blank when standing inside it), shared by
+the LMB scan and the per-frame `Game.ScanTargetInView` that now gates the HUD "LMB: scan" prompt.
+**#1459** — `ChunkMesher.NeighbourExposesOpaqueFace` is the ONE predicate for the face cull, the bevel
+`openMask` and `AoOccluder`; the bevel mask had never learned flora/foliage (#382) or slim props (#1031),
+so a drawn face beside a torch/plant kept its neighbour's 0.06 inset without a chamfer → a see-through
+slit. Pinned by `ChunkMesherFloraFloorEditModeTests.NeighbourExposesOpaqueFace_MatchesTheFaceCull`.
+**#1456** — `bed` + `heal_tank` join the aimed-station prompt whitelist with `ui.station.block.bed/heal_tank`,
+new `block.bed.desc`, and `module.quarters.desc` shortened to what quarters do (return point) in all 14
+locales. **#1460** — `ResolveCameraBoom` (sphere cast r 0.2, instant pull-in, eased extension, min 0.35)
+for the third-person and vehicle chase cameras; the embedded guard checks eye height too, and
+`LiftOutOfBlockAt` handles neighbouring columns the capsule overlaps (side nudge instead of lift).
+**#1464** — `Game.HeldItemDirty` set by `ApplyBodyPaint`/`ApplyAppearance` forces `RefreshHeldItem`;
+`GameBootstrap.OnDestroy` clears both hand resolvers and `HeldItem.ReleaseHandAtlas()`. **#1463** —
+`BuildNormalAtlas` on `Color32` (2 × 4 MiB instead of 2 × 16 MiB); `EnsureMenuBackground` schedules the
+`UnloadUnusedAssets` sweep on every rebuild after the first (editor close, language change), de-duplicated
+against ReturnToMenu's own sweep. SpaceView's ship camera keeps its fixed offset (no terrain in flight).
+**#1448** (group 2, same branch) — `ClientUpdater.CheckForUpdates` no longer calls `ApplyUpdatesAndRestart`
+(= `WaitExitThenApplyUpdates` + `Environment.Exit(0)` on the Unity main thread → dead message pump, "not
+responding", Update.exe waiting on a pid that never dies): it runs `WaitExitThenApplyUpdates` via `Task.Run`,
+invokes `ClientUpdater.PrepareRestart` (AppShell wires `StopLocalServer` — drain + save) and then
+`Application.Quit()`. Only verifiable with a real release: the next tag is the test.
+Verification: locale guard tests + local Unity build (worktree: PackageCache robocopy + sync-velopack-libs).
+
 ### ★ WebGL wasm-size diet, measured honestly: Medium stripping ships, OptimizeSize rejected 3× slower, PerfProbe learns the browser (#1442 #1443, 2026-09-01, branch perf/webgl-wasm-size)
 Follow-up to the OOM package below: the on-device DevTools capture proved the Tab A8 dies by Android's
 **lmkd killing the renderer at only ~307 MB wasm heap** — the binding constraint is the total process

@@ -198,6 +198,9 @@ namespace BlocksBeyondTheStars.Client
             ApplyGlitchServerDefaults();
             ConfigureOptionalWebAutoJoin();
 
+            // The update restart drains + saves a running singleplayer server before Unity quits (#1448).
+            ClientUpdater.PrepareRestart = StopLocalServer;
+
             // Quiet update check (#543), fired during the splash so the answer is usually in before the
             // menu appears. Editor/WebGL/portable runs no-op inside; failures are silent by design.
             if (Settings.UpdateCheckOnStart)
@@ -505,8 +508,18 @@ namespace BlocksBeyondTheStars.Client
             {
                 _menuBackground = new GameObject("MenuBackground");
                 _menuBackground.AddComponent<MenuBackground>().Shell = this; // supplies content + hull colour
+
+                // Every rebuild after the first leaves a destroyed backdrop's cloud/sky textures, materials
+                // and meshes behind (its OnDestroy frees only the atlas + chunk materials). ReturnToMenu
+                // already sweeps; editor close and language change did not (#1463).
+                if (_menuBackgroundBuilds++ > 0)
+                {
+                    StartCoroutine(UnloadDestroyedWorldAssets());
+                }
             }
         }
+
+        private int _menuBackgroundBuilds;
 
         private void DestroyMenuBackground()
         {
@@ -1089,9 +1102,18 @@ namespace BlocksBeyondTheStars.Client
         /// references; GameBootstrap.OnDestroy clears the static caches that would otherwise pin the atlas.</summary>
         private IEnumerator UnloadDestroyedWorldAssets()
         {
+            if (_assetSweepQueued)
+            {
+                yield break; // ReturnToMenu + the backdrop rebuild both ask in the same frame — one pass is enough
+            }
+
+            _assetSweepQueued = true;
             yield return null;
+            _assetSweepQueued = false;
             Resources.UnloadUnusedAssets();
         }
+
+        private bool _assetSweepQueued;
 
         private bool _confirmQuit; // showing the "quit to menu?" confirmation over the game
         private bool _chatTypingPrev; // chat focus last frame (so closing chat with Esc doesn't pop quit)

@@ -390,16 +390,20 @@ namespace BlocksBeyondTheStars.Client
                 wrapMode = TextureWrapMode.Clamp,
             };
 
-            var src = Texture.GetPixels();
-            var dst = new Color[w * h];
+            // Color32 (4 B/px) instead of Color (16 B/px): the two float arrays were 2 × 16 MiB — the largest
+            // contiguous managed allocations in the shell, rebuilt on every menu return, and on the non-compacting
+            // Mono heap the first thing to fail with OutOfMemory in a long session (#1463). Now 2 × 4 MiB.
+            var src = Texture.GetPixels32();
+            var dst = new Color32[w * h];
             const float strength = 1.6f;
+            const float inv255 = 1f / 255f;
 
             float Lum(int x, int y)
             {
                 x = x < 0 ? 0 : (x >= w ? w - 1 : x);
                 y = y < 0 ? 0 : (y >= h ? h - 1 : y);
                 var c = src[y * w + x];
-                return c.r * 0.299f + c.g * 0.587f + c.b * 0.114f;
+                return (c.r * 0.299f + c.g * 0.587f + c.b * 0.114f) * inv255;
             }
 
             for (int y = 0; y < h; y++)
@@ -413,11 +417,15 @@ namespace BlocksBeyondTheStars.Client
                     // painted cracks, seams, rivets, grain — read as shallow pits, so the block shader can
                     // darken them a touch for texture-scale depth on top of the per-vertex AO.
                     float cav = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy) * 2.0f);
-                    dst[y * w + x] = new Color(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f, n.z * 0.5f + 0.5f, cav);
+                    dst[y * w + x] = new Color32(
+                        (byte)Mathf.RoundToInt((n.x * 0.5f + 0.5f) * 255f),
+                        (byte)Mathf.RoundToInt((n.y * 0.5f + 0.5f) * 255f),
+                        (byte)Mathf.RoundToInt((n.z * 0.5f + 0.5f) * 255f),
+                        (byte)Mathf.RoundToInt(cav * 255f));
                 }
             }
 
-            NormalTexture.SetPixels(dst);
+            NormalTexture.SetPixels32(dst);
             NormalTexture.Apply(updateMipmaps: true);
         }
 

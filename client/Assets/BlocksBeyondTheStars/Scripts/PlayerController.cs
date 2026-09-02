@@ -294,6 +294,7 @@ namespace BlocksBeyondTheStars.Client
             if (Camera != null)
             {
                 Camera.transform.localPosition = ThirdPerson ? ThirdPersonEye : FirstPersonEye;
+                _cameraBoomLength = -1f; // the spring arm re-measures from the full offset (#1460)
             }
 
             // Show the avatar only in third-person (otherwise the camera is inside the head); the
@@ -313,9 +314,15 @@ namespace BlocksBeyondTheStars.Client
         private void RefreshHeldItem()
         {
             string key = Game?.ItemInSlot(Game.SelectedHotbarSlot) ?? string.Empty;
-            if (key == _heldKey)
+            bool dirty = Game != null && Game.HeldItemDirty; // appearance edit: same key, new arm paint (#1464)
+            if (key == _heldKey && !dirty)
             {
                 return;
+            }
+
+            if (Game != null)
+            {
+                Game.HeldItemDirty = false;
             }
 
             _heldKey = key;
@@ -1333,37 +1340,54 @@ namespace BlocksBeyondTheStars.Client
             return to.sqrMagnitude <= ScanPointBlankSq || Vector3.Angle(fwd, to) <= ScanConeDegrees;
         }
 
-        /// <summary>Scans the aimed-at creature (threat assessment) or, failing that, the block in view.</summary>
-        private void ScanTarget()
+        /// <summary>Resolves what the scanner would read right now: the creature whose BODY the view ray hits,
+        /// else the nearest aimed critter, else the block in view. Creatures are tested against the same
+        /// Size-scaled sphere the attack path uses — the old test measured the creature's origin (its feet at
+        /// the body centre) against an 8-block reach and a 25° cone, which a titan spanning ten blocks never
+        /// satisfied while you looked at its flank or head ("Titanen können nicht gescannt werden", #1458).
+        /// Proximity alone still never qualifies (#1005): the ray has to hit the body.</summary>
+        private bool TryFindScanTarget(out string kind, out string key, out Vector3 at)
         {
-            if (Game?.Network == null || Camera == null)
+            kind = null;
+            key = null;
+            at = default;
+            if (Game == null || Camera == null)
             {
-                return;
+                return false;
             }
 
             Vector3 eye = Camera.transform.position;
             Vector3 fwd = Camera.transform.forward;
 
-            string speciesId = null;
-            Vector3 scanPos = default;
-            float bestSq = Reach * Reach;
+            float best = float.MaxValue;
             foreach (var c in Game.Creatures)
             {
-                var cp = Game.ScenePos(c.X, c.Y, c.Z); // seam-aware (longitude wraps)
-                float d = (cp - transform.position).sqrMagnitude;
-                if (d < bestSq && InScanCone(eye, fwd, cp))
+                float size = Mathf.Clamp(c.Size, 0.4f, 8f);
+                var basePos = Game.ScenePos(c.X, c.Y, c.Z); // seam-aware (longitude wraps)
+                var center = basePos + Vector3.up * (0.6f * size);
+                float r = Mathf.Max(0.8f, 0.9f * size);
+                float d;
+                if ((center - eye).sqrMagnitude <= r * r)
                 {
-                    bestSq = d;
-                    speciesId = c.SpeciesId;
-                    scanPos = cp;
+                    d = 0f; // standing inside the body (a titan's legs) — point-blank, no angle test
+                }
+                else if (!RayHitsSphere(eye, fwd, center, r, out d) || d - r > Reach)
+                {
+                    continue; // the ray misses the body, or the body surface is beyond reach
+                }
+
+                if (d < best)
+                {
+                    best = d;
+                    kind = "creature";
+                    key = c.SpeciesId;
+                    at = basePos + Vector3.up * (0.5f * size);
                 }
             }
 
-            if (speciesId != null)
+            if (kind != null)
             {
-                Game.Network.SendScan("creature", speciesId);
-                Weapons?.Pulse(scanPos, new Color(0.4f, 0.85f, 1f));
-                return;
+                return true;
             }
 
             // Micro-fauna (#757): when no real creature is in view, the nearest aimed-at critter answers.
@@ -1373,9 +1397,10 @@ namespace BlocksBeyondTheStars.Client
                 && MicroFaunaView.Instance.NearestCritter(Game.PlayerPosition, 5f, out string critterKey, out var critterAt,
                     world => InScanCone(eye, fwd, Game.ScenePos(world.x, world.y, world.z))))
             {
-                Game.Network.SendScan("microfauna", critterKey);
-                Weapons?.Pulse(Game.ScenePos(critterAt.x, critterAt.y, critterAt.z), new Color(0.4f, 0.85f, 1f));
-                return;
+                kind = "microfauna";
+                key = critterKey;
+                at = Game.ScenePos(critterAt.x, critterAt.y, critterAt.z);
+                return true;
             }
 
             // Voxel ray-march INCLUDING fluids, so you can scan a water/lava block too (they have no collider, so
@@ -1383,8 +1408,27 @@ namespace BlocksBeyondTheStars.Client
             if (AimBlock(out var b, out _, includeFluids: true)
                 && Game.Content?.BlockById(Game.World.GetBlock(b.x, b.y, b.z)) is { } def)
             {
-                Game.Network.SendScan("block", def.Key);
-                Weapons?.Pulse(new Vector3(b.x + 0.5f, b.y + 0.5f, b.z + 0.5f), new Color(0.4f, 0.85f, 1f));
+                kind = "block";
+                key = def.Key;
+                at = new Vector3(b.x + 0.5f, b.y + 0.5f, b.z + 0.5f);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Scans the aimed-at creature (threat assessment) or, failing that, the block in view.</summary>
+        private void ScanTarget()
+        {
+            if (Game?.Network == null || Camera == null)
+            {
+                return;
+            }
+
+            if (TryFindScanTarget(out string kind, out string key, out var at))
+            {
+                Game.Network.SendScan(kind, key);
+                Weapons?.Pulse(at, new Color(0.4f, 0.85f, 1f));
                 return;
             }
 
@@ -1523,11 +1567,17 @@ namespace BlocksBeyondTheStars.Client
             if (string.IsNullOrEmpty(Game.NearbyStation) && AimBlock(out var aimHit, out _))
             {
                 string aimedKey = Game.Content?.BlockById(Game.World.GetBlock(aimHit.x, aimHit.y, aimHit.z))?.Key;
-                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "algae_tank" or "campfire")
+                // bed + heal_tank (#1456): both take E for the home spawn (HandleSetSpawnPoint below), but without
+                // a prompt the bed was indistinguishable from a decorative slab ("man kann es nicht benutzen").
+                if (aimedKey is "workbench" or "forge" or "detoxifier" or "matter_forge" or "algae_tank" or "campfire"
+                    or "bed" or "heal_tank")
                 {
                     Game.AimedStationBlock = aimedKey;
                 }
             }
+
+            // The scanner's prompt only shows when it would actually read something (#1458).
+            Game.ScanTargetInView = HoldingScanner() && TryFindScanTarget(out _, out _, out _);
 
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
@@ -1874,9 +1924,14 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Does the cell overlap the capsule's own column? Feet at transform.position, head StandHeight above.
+            // Does the cell overlap the capsule? Feet at transform.position, head StandHeight above; the capsule
+            // is `radius` wide, so a block in a NEIGHBOURING column can overlap it too (#1460: the guard used to
+            // consider the centre column only, leaving the eye inside a block a friend placed beside you).
             var pos = transform.position;
-            if (Mathf.FloorToInt(pos.x) != cellX || Mathf.FloorToInt(pos.z) != cellZ)
+            float radius = _controller.radius;
+            float dx = pos.x - (cellX + 0.5f);
+            float dz = pos.z - (cellZ + 0.5f);
+            if (Mathf.Abs(dx) >= 0.5f + radius || Mathf.Abs(dz) >= 0.5f + radius)
             {
                 return;
             }
@@ -1888,7 +1943,25 @@ namespace BlocksBeyondTheStars.Client
                 return; // entirely below the feet or above the head — no overlap
             }
 
-            SnapTo(new Vector3(pos.x, cellY + 1f, pos.z));
+            bool ownColumn = Mathf.FloorToInt(pos.x) == cellX && Mathf.FloorToInt(pos.z) == cellZ;
+            if (ownColumn)
+            {
+                SnapTo(new Vector3(pos.x, cellY + 1f, pos.z));
+                return;
+            }
+
+            // A side overlap: nudge out of the cell along the axis with the most overlap instead of lifting.
+            float pushX = 0f, pushZ = 0f;
+            if (Mathf.Abs(dx) >= Mathf.Abs(dz))
+            {
+                pushX = Mathf.Sign(dx) * (0.5f + radius - Mathf.Abs(dx) + 0.02f);
+            }
+            else
+            {
+                pushZ = Mathf.Sign(dz) * (0.5f + radius - Mathf.Abs(dz) + 0.02f);
+            }
+
+            SnapTo(new Vector3(pos.x + pushX, pos.y, pos.z + pushZ));
         }
 
         /// <summary>
@@ -1919,9 +1992,12 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            // Solid at chest height means the capsule is inside geometry, not merely brushing it. Only blocks
-            // that really collide count — walking through grass or past a wall torch is not being stuck.
-            bool embedded = IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * 0.9f));
+            // Solid at chest height OR at eye height means the capsule is inside geometry, not merely brushing
+            // it (the eye check is what stops a block placed at head height from x-raying the world, #1460).
+            // Only blocks that really collide count — walking through grass or past a wall torch is not being stuck.
+            float eyeHeight = _crouched ? CrouchEye.y : FirstPersonEye.y;
+            bool embedded = IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * 0.9f))
+                || IsCollidingKey(BlockKeyAt(transform.position + Vector3.up * eyeHeight));
             if (embedded)
             {
                 if (++_embeddedFrames >= EmbeddedFramesBeforeRescue && _hasSafeGround)
@@ -2332,7 +2408,10 @@ namespace BlocksBeyondTheStars.Client
             _speederCamPitch = Mathf.Clamp(_speederCamPitch - my, -8f, 35f);
             if (Camera != null)
             {
-                Camera.transform.localPosition = new Vector3(0f, 2.4f, -5.5f);
+                // Same spring arm as the third-person view (#1460) — the chase boom clipped into cliffs and walls.
+                Camera.transform.position = ResolveCameraBoom(
+                    transform.TransformPoint(new Vector3(0f, 1.2f, 0f)), transform.TransformPoint(new Vector3(0f, 2.4f, -5.5f)),
+                    Time.deltaTime);
                 Camera.transform.localEulerAngles = new Vector3(_speederCamPitch, 0f, 0f);
             }
 
@@ -3021,6 +3100,37 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private const float CameraBoomRadius = 0.2f;   // sphere-cast radius: keeps the near plane (0.1) clear of the wall
+        private const float CameraBoomMinimum = 0.35f; // never closer than this to the pivot — you still see yourself
+        private float _cameraBoomLength = -1f;         // current boom length; pulls in instantly, extends smoothly
+
+        /// <summary>Where a boom camera may sit: <paramref name="desired"/> unless world geometry sits between
+        /// the pivot and it, in which case the camera is pulled in front of that geometry. Pull-in is instant
+        /// (a wall must never be seen from inside), the return eases out. The player's own capsule overlaps the
+        /// cast's start and is therefore ignored by Unity; creature meshes carry no colliders by design.</summary>
+        private Vector3 ResolveCameraBoom(Vector3 pivot, Vector3 desired, float dt)
+        {
+            Vector3 to = desired - pivot;
+            float full = to.magnitude;
+            if (full < 0.001f)
+            {
+                return desired;
+            }
+
+            Vector3 dir = to / full;
+            float allowed = full;
+            if (Physics.SphereCast(pivot, CameraBoomRadius, dir, out var hit, full, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore)
+                && hit.collider != _controller)
+            {
+                allowed = Mathf.Max(CameraBoomMinimum, hit.distance - 0.05f);
+            }
+
+            _cameraBoomLength = _cameraBoomLength < 0f || allowed < _cameraBoomLength
+                ? allowed
+                : Mathf.MoveTowards(_cameraBoomLength, allowed, dt * 6f);
+            return pivot + dir * _cameraBoomLength;
+        }
+
         /// <summary>First-person camera feel: a subtle walking head-bob, a small forward FOV kick while
         /// moving, and a decaying shake on landing/impacts. Composed over the look pitch each frame.</summary>
         private void UpdateCameraFeel()
@@ -3036,6 +3146,10 @@ namespace BlocksBeyondTheStars.Client
             if (ThirdPerson)
             {
                 Camera.fieldOfView = Mathf.MoveTowards(Camera.fieldOfView, _baseFov, dt * 30f);
+                // Spring arm: the boom used to be a fixed offset, so with your back to any wall within 3.5 m the
+                // camera sat inside the block and the world showed through the culled back faces (#1460).
+                Camera.transform.position = ResolveCameraBoom(
+                    transform.TransformPoint(FirstPersonEye), transform.TransformPoint(ThirdPersonEye), dt);
                 return;
             }
 

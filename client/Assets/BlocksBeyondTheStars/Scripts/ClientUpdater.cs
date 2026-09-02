@@ -5,6 +5,7 @@
 // the browser build has no Velopack DLL (you "update" by reloading the page), so referencing it there
 // fails the WebGL script compile with CS0246 'Velopack'.
 #if !UNITY_EDITOR && !UNITY_WEBGL
+using System.Threading.Tasks;
 using Velopack;
 using Velopack.Sources;
 #endif
@@ -66,6 +67,11 @@ namespace BlocksBeyondTheStars.Client
         public static string ProgressSuffix => _progress >= 0 ? $" · {_progress} %" : string.Empty;
 
         private static volatile int _progress = -1;
+
+        /// <summary>Runs on the main thread right before the update restart quits the process — the shell
+        /// hooks its local-server stop here so a singleplayer world is drained and saved before Update.exe
+        /// swaps the install (#1448). `OnApplicationQuit` would do it too, but this keeps it explicit.</summary>
+        public static Action PrepareRestart;
 
         /// <summary>Version found by the quiet startup check ("" = none found / not checked). While
         /// non-empty and not <see cref="NoticeDismissed"/>, the main menu shows the update notice.</summary>
@@ -196,7 +202,17 @@ namespace BlocksBeyondTheStars.Client
                 State = UpdateState.Restarting;
                 _progress = -1;
                 onChanged?.Invoke();
-                mgr.ApplyUpdatesAndRestart(info.TargetFullRelease); // exits this process and relaunches the new build
+
+                // #1448: `ApplyUpdatesAndRestart` is `WaitExitThenApplyUpdates` + `Environment.Exit(0)`. Called
+                // from the Unity main thread that exit killed the message pump mid-player-loop: Windows showed
+                // the busy cursor + "not responding", Mono's shutdown wedged against Unity's threads, and
+                // Update.exe (`--waitPid`) waited for a process that never finished dying — until the player
+                // force-closed it, whereupon the update applied cleanly. So: hand the asset to Update.exe off
+                // the main thread, let the shell stop its local server, then let UNITY quit the process.
+                var asset = info.TargetFullRelease;
+                await Task.Run(() => mgr.WaitExitThenApplyUpdates(asset, silent: false, restart: true));
+                PrepareRestart?.Invoke();
+                Application.Quit();
             }
             catch (Exception e)
             {

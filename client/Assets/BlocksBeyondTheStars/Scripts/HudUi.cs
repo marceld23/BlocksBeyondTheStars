@@ -789,8 +789,10 @@ namespace BlocksBeyondTheStars.Client
                     // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
                     prompt = loc.Get("ui.station.block." + Game.AimedStationBlock);
                 }
-                else if (HoldingScanner())
+                else if (HoldingScanner() && Game.ScanTargetInView)
                 {
+                    // Only when the scanner would actually read something — an unconditional hint over a
+                    // target the scan can't acquire read as "titans can't be scanned" (#1458).
                     prompt = loc.Get("ui.scan.use_hint");
                 }
             }

@@ -13,6 +13,36 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎒 School playtest 2026-09-02 — scanner, see-through edges, bed, cameras, hand, menu memory (#1456 #1458 #1459 #1460 #1463 #1464)
+
+- **Titans can be scanned** (#1458). The scanner tested a creature's *origin* — its feet at the body
+  centre — against an 8-block reach and a 25° aim cone, which a titan spanning ten blocks never
+  satisfied while you looked at its flank or head. Scanning now hits the same Size-scaled body sphere
+  attacks use, and the "LMB: scan" prompt only shows when the scanner would actually read something.
+- **No more 6 cm slits at block edges** (#1459). Beside a torch, lantern, ladder, plant or leaf block
+  the bevelled edge of a wall or floor block was inset on one face but not chamfered — a thin
+  see-through line along the edge. The face cull, the bevel edge mask and the ambient-occlusion set
+  now share one predicate, pinned by a test.
+- **The bed says what it does** (#1456). Aiming at a bed or heal tank shows "E: set home spawn ·
+  heals slowly nearby" like the crafting stations do; the placed bed has a description; and the crew
+  quarters no longer promise "sleep to skip time" — they set your return point aboard, which is what
+  they always did. All 14 languages.
+- **Third-person and chase cameras stop inside walls** (#1460). The boom pulls in front of any
+  geometry between you and the camera instead of clipping into it; the stuck-in-block guard also
+  checks eye height and blocks placed beside you, not just the chest cell of your own column.
+- **The painted hand updates at once** (#1464). Editing the arm painting or suit colours in the
+  appearance screen rebuilds the first-person hand immediately instead of on the next hotbar switch;
+  the hand's resolvers and atlas are released on world teardown.
+- **Updates no longer hang on "not responding"** (#1448). After the download the client asked
+  Velopack to restart from inside Unity's main loop, which ended in a hard process exit that Unity
+  never survived — the window froze, Windows offered to close it, and only that force-close let
+  Update.exe finish. The hand-over to Update.exe now happens off the main thread and Unity quits
+  itself, after a running singleplayer world has been saved.
+- **Main-menu memory spike halved eight times over** (#1463). The block normal atlas was built from two
+  16 MiB float arrays on every return to the menu — the first allocation to fail on a fragmented heap
+  (a player's OutOfMemory at the main menu). It now works on 4 MiB byte arrays, and returning from an
+  editor or a language change sweeps the previous backdrop's leftovers like returning from a world does.
+
 ## [2026.8.26] — 2026-09-01
 
 The headroom release. The last release made browser play on a tablet *smooth* — but tablets with

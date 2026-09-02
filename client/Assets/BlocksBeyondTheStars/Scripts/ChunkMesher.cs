@@ -36,6 +36,15 @@ namespace BlocksBeyondTheStars.Client
         /// faces are hidden, so it has no convex edges). Set to 0 to disable the whole bevel pass. Tunable.</summary>
         public const float BevelAmount = 0.06f;
 
+        /// <summary>Whether an opaque cube's face toward <paramref name="neighbour"/> stays visible: air,
+        /// see-through blocks, flora, foliage and slim props (torch/lantern/ladder) never fill their cell, so
+        /// they can't seal the face behind them. This ONE predicate feeds the face cull, the bevel's open-edge
+        /// mask and the AO occluder set — they drifted apart once (#382/#1031 grew the cull, the bevel mask
+        /// stayed behind) and the mismatch opened a 6 cm see-through slit along every such edge (#1459).</summary>
+        public static bool NeighbourExposesOpaqueFace(GameContent content, BlockId neighbour)
+            => neighbour.IsAir || IsTransparent(content, neighbour) || IsFloraBlock(content, neighbour)
+                || IsFoliageBlock(content, neighbour) || IsSlimPropBlock(content, neighbour);
+
         /// <summary>How far a water SURFACE cell's top face sits below the block top (fraction of a block), so
         /// standing water reads as liquid in a hollow instead of a glass cube flush with the bank (#658). Water
         /// only: lava is opaque, so its neighbours cull their faces against it and a lowered lava top would open
@@ -305,9 +314,7 @@ namespace BlocksBeyondTheStars.Client
                     return o;
                 }
 
-                var b = worldBlock(ax, ay, az);
-                bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
-                    && !IsSlimPropBlock(content, b);
+                bool res = !NeighbourExposesOpaqueFace(content, worldBlock(ax, ay, az));
                 aoOcc[key] = res;
                 return res;
             }
@@ -664,7 +671,10 @@ namespace BlocksBeyondTheStars.Client
                         var bd = Faces[bf];
                         int ox = wx + bd.X, oy = wy + bd.Y, oz = wz + bd.Z;
                         var onb = worldBlock(ox, oy, oz);
-                        if (onb.IsAir || IsTransparent(content, onb)
+                        // MUST agree with drawFace below: a face that is drawn but not "open" here gets no
+                        // chamfer while its neighbouring face is still inset → a BevelAmount-wide slit along the
+                        // edge you can look through (#1459: torches, plants, ladders, leaves beside a wall).
+                        if (NeighbourExposesOpaqueFace(content, onb)
                             || (worldShape != null && !ShapeCode.IsCube(worldShape(ox, oy, oz))))
                         {
                             openMask |= 1 << bf;
@@ -703,8 +713,7 @@ namespace BlocksBeyondTheStars.Client
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
                     bool drawFace = transparent ? (nb.IsAir && Loaded(nx, ny, nz))
                         : foliage ? (nb.IsAir || IsTransparent(content, nb))
-                        : (nb.IsAir || IsTransparent(content, nb) || IsFloraBlock(content, nb) || IsFoliageBlock(content, nb)
-                            || IsSlimPropBlock(content, nb));
+                        : NeighbourExposesOpaqueFace(content, nb);
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face

@@ -401,6 +401,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Your own base core in the crosshair (#1267) — the HUD prompt shows its air readout; null otherwise.</summary>
         public NetBase AimedOwnBase;
 
+        /// <summary>True while the held scanner has something it can read under the crosshair (creature body,
+        /// critter or block) — gates the "LMB: scan" prompt (#1458). Set by PlayerController each frame.</summary>
+        public bool ScanTargetInView;
+
+        /// <summary>Set when the appearance editor changed the arm painting/colours: the first-person hand is
+        /// keyed on the hotbar item only, so without this it kept the old paint until a slot switch (#1464).
+        /// PlayerController clears it on the next refresh.</summary>
+        public bool HeldItemDirty;
+
         // --- Station affordances (#1070/#1072): the SERVER says which stations are usable right now. ---
 
         /// <summary>Lower-case CraftingStation names usable now ("workshop", "refinery", …); hand is implicit.
@@ -3170,6 +3179,9 @@ namespace BlocksBeyondTheStars.Client
             IconResolver.ClearCache();
             ShapeIconFactory.ClearCache();
             HeldItem.BlockTileResolver = null;
+            HeldItem.HandTintResolver = null;  // both closures capture Settings (and this object graph) — #1464
+            HeldItem.HandPaintResolver = null;
+            HeldItem.ReleaseHandAtlas();
 
             // The sampler's baked creature voices are code-created AudioClips held by a STATIC cache, so
             // they fall in exactly the same trap as the icon caches above: UnloadUnusedAssets cannot free
