@@ -123,6 +123,18 @@ testing); **startup** — a refused initial wasm memory from `createUnityInstanc
 `[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
 go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
 
+### ★ Base walls: `/basewalls` admin report + texts that match the fill (#1452, 2026-09-02, branch fix/basewalls-diagnostics)
+Follow-up to Lyxette's "elephants on my walled pad": the enclosure fill (`GameServerBaseWalls`) fails open
+silently (budget, unloaded chunk, 1-high segment, open hinge door) and nothing logs a spawn. `AdminBaseWalls`
+→ `BaseWallsReport(session)` (4 lines, localized via `srv.basewalls.*`): nearest core within the ±48 box,
+`RefreshBaseWalls` at the admin's feet level (reachable cells, `WalledFillBudget`, `FailOpen`), the admin's
+own cell (`InSealedBaseRoom` / enclosed / open), and the rules line. Dispatch `case "basewalls"` in
+`HandleAdminCommand`; `ChatUi` maps `/basewalls`; USER_MANUAL admin table. Texts rewritten in all 14 locales
+(`block.base_core.desc`, `vega.hint.base_walls`) + the `base-air` codex paragraph (EN/DE): 2-high walls at
+feet level, 48 incl. height, hinge/wood doors leak vs slide/energy doors = walls, unloaded = open, cave
+dwellers exempt. Test `BaseWalledYardTests.BaseWallsReport_NamesTheCore_AndReadsTheYardAsEnclosed_ThenOpenAfterAGap`.
+Deliberately NOT here: the 24-block core radius (#1451, offered to Ahmed).
+
 ### ★ Daylight re-tune: overcast floor, ambient, vignette/contrast, Neutral tonemap on LDR, brightness row (#1457, 2026-09-02, branch fix/daylight-retune)
 Verena (school playtest, browser): "auch tagsüber sehr dunkel und drückend". The June brightness work (PR #65:
 night floor 0.35, weatherDim 0.65, `dayLit` shoulder, shader `nightFloor`, brightness slider) IS live; what

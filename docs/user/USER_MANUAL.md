@@ -1482,6 +1482,7 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open) |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |

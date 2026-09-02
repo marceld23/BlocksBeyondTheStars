@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using System.Linq;
+using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.World;
@@ -384,6 +385,72 @@ public sealed partial class GameServer
             _baseWalls.Remove(key);
         }
     }
+
+    /// <summary><c>/basewalls</c> (#1452): the admin's window into the enclosure fill. A yard that "should be
+    /// fenced in" but still gets animals used to be undiagnosable — the fill fails open silently (budget,
+    /// unloaded chunks, a one-high segment, an open hinge door) and nothing logs a spawn. The report names the
+    /// nearest core, the fill at the admin's feet level (size, budget, fail-open), what the admin's own cell
+    /// reads as, and the rules the texts used to skip.</summary>
+    private void AdminBaseWalls(PlayerSession session)
+    {
+        foreach (string line in BaseWallsReport(session))
+        {
+            Send(session, new ServerMessage { Text = line });
+        }
+    }
+
+    private List<string> BaseWallsReport(PlayerSession session)
+    {
+        var p = session.State;
+        var cell = WorldConstants.CanonicalBlock(p.Position.ToBlock(), _world.Circumference);
+        string L(string key) => Localize(session.Locale, key);
+        var lines = new List<string>();
+
+        ServerBase? nearest = null;
+        int nearestDist = int.MaxValue;
+        foreach (var b in _bases)
+        {
+            if (b.Planet != _world.LocationId)
+            {
+                continue;
+            }
+
+            int d = System.Math.Max(WrapAbs(cell.X - b.Cell.X), System.Math.Max(System.Math.Abs(cell.Y - b.Cell.Y), WrapAbsZ(cell.Z - b.Cell.Z)));
+            if (d <= SealedRoomMaxReach && d < nearestDist)
+            {
+                nearest = b;
+                nearestDist = d;
+            }
+        }
+
+        if (nearest is null)
+        {
+            lines.Add(L("srv.basewalls.none").Replace("{reach}", SealedRoomMaxReach.ToString()));
+            return lines;
+        }
+
+        lines.Add(L("srv.basewalls.base")
+            .Replace("{name}", string.IsNullOrWhiteSpace(nearest.Name) ? "#" + nearest.Id : nearest.Name)
+            .Replace("{x}", nearest.Cell.X.ToString()).Replace("{y}", nearest.Cell.Y.ToString()).Replace("{z}", nearest.Cell.Z.ToString())
+            .Replace("{dist}", nearestDist.ToString()).Replace("{reach}", SealedRoomMaxReach.ToString()));
+
+        var level = RefreshBaseWalls(nearest, cell.Y);
+        lines.Add(L("srv.basewalls.level")
+            .Replace("{y}", cell.Y.ToString())
+            .Replace("{cells}", level.Reachable.Count.ToString())
+            .Replace("{budget}", WalledFillBudget.ToString())
+            .Replace("{verdict}", L(level.FailOpen ? "srv.basewalls.fail_open" : "srv.basewalls.complete")));
+
+        string state = InSealedBaseRoom(cell) ? L("srv.basewalls.here_sealed")
+            : !level.FailOpen && !level.Reachable.Contains(cell) ? L("srv.basewalls.here_enclosed")
+            : L("srv.basewalls.here_open");
+        lines.Add(L("srv.basewalls.here").Replace("{state}", state));
+        lines.Add(L("srv.basewalls.rules"));
+        return lines;
+    }
+
+    /// <summary>Test seam: the <c>/basewalls</c> report lines for a session (localized to its locale).</summary>
+    public IReadOnlyList<string> BaseWallsReportForTest(PlayerSession session) => BaseWallsReport(session);
 
     /// <summary>Test seam: whether a cell reads as fenced in by a base's walls right now (cache refreshed).</summary>
     public bool InWalledBaseAreaForTest(int x, int y, int z) => InWalledBaseArea(new Vector3i(x, y, z));

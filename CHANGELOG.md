@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧱 Base walls: an admin report and honest texts (#1452)
+
+- **`/basewalls`** (#1452). A yard that "should be fenced in" but still got animals was undiagnosable —
+  the enclosure fill fails open silently. The new admin command names the nearest base core, the
+  fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed,
+  sealed or open, and the rules. The base-core description, VEGA's wall hint and the codex article now
+  say what the code does: walls need to be at least 2 blocks high and closed at feet level, the 48
+  blocks include height, an open wooden or hinge door is a gap while slide and energy doors always
+  count as walls, unloaded neighbouring areas read as open, and cave dwellers ignore walls too.
+
 ### ☀️ Daylight re-tune — grey days are still days (#1457)
 
 - **Worlds read brighter by day** (#1457). "Die Welten wirken auch tagsüber sehr dunkel und drückend"
