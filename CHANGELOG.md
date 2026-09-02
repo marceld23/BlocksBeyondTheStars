@@ -13,6 +13,12 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🎓 Credits — the school game club
+
+- **Schul-AG** joins the playtesters in the README and the in-game Credits screen (all 14 languages):
+  **Ben, Marie and Nikita**, whose first club day produced the reports behind #1456, #1462,
+  #1453–#1455 and #1459.
+
 ### 🧱 Base walls: an admin report and honest texts (#1452)
 
 - **`/basewalls`** (#1452). A yard that "should be fenced in" but still got animals was undiagnosable —

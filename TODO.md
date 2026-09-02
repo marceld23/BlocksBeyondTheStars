@@ -123,6 +123,11 @@ testing); **startup** — a refused initial wasm memory from `createUnityInstanc
 `[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
 go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
 
+### ★ Credits: Schul-AG — Ben, Marie, Nikita (2026-09-02, branch docs/schul-ag-credits)
+The school game club's first playtest day (browser build) gets its own playtester entry — README
+"Playtesters" list + `ui.credits.body` in all 14 locales (line after "sasas"), first names only. Verena
+accompanies the club and is already credited as family.
+
 ### ★ Base walls: `/basewalls` admin report + texts that match the fill (#1452, 2026-09-02, branch fix/basewalls-diagnostics)
 Follow-up to Lyxette's "elephants on my walled pad": the enclosure fill (`GameServerBaseWalls`) fails open
 silently (budget, unloaded chunk, 1-high segment, open hinge door) and nothing logs a spawn. `AdminBaseWalls`
