@@ -53,7 +53,13 @@ namespace BlocksBeyondTheStars.Client
         private ScreenSpaceLensFlare _lensFlare;
         private float _speed; // 0..1 camera-motion intensity driver for the motion blur (set via SetMotion)
 
-        private const float BaseVignette = 0.26f;
+        private const float BaseVignette = 0.18f; // was 0.26 — with the AO stack it read as a dark, closed-in frame (#1457)
+        private Tonemapping _tonemap;
+
+        /// <summary>ACES on an HDR buffer, Neutral on an LDR one — ACES over clamped LDR pixels only darkens the
+        /// midtones (#1457). Called from ClientSettings whenever the preset flips HDR.</summary>
+        public void SetTonemapForHdr(bool hdr)
+            => _tonemap?.mode.Override(hdr ? TonemappingMode.ACES : TonemappingMode.Neutral);
         private float _damagePulse;   // decaying 0..1 → a red-tinted vignette kick on damage
         private float _oxygenAlarm;   // 0..1 low-O₂ alarm level (driven by HudUi each frame)
         private float _burstTimer, _burstDuration, _burstChroma, _burstGrain;
@@ -76,8 +82,12 @@ namespace BlocksBeyondTheStars.Client
 
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
 
-            var tonemap = profile.Add<Tonemapping>(true);
-            tonemap.mode.Override(TonemappingMode.ACES); // filmic ACES tonemap
+            _tonemap = profile.Add<Tonemapping>(true);
+            // Filmic ACES needs an HDR buffer to have anything to roll off; on an LDR buffer (WebGL Low/Potato,
+            // #1424) it only crushed the midtones of an already-clamped frame — the browser build read darker
+            // and flatter than the same scene on desktop (#1457). Neutral keeps the midtones there.
+            var rp = GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset;
+            SetTonemapForHdr(rp == null || rp.supportsHDR);
 
             var bloom = profile.Add<Bloom>(true);
             if (ShellMode)
@@ -107,7 +117,7 @@ namespace BlocksBeyondTheStars.Client
 
             _grade = profile.Add<ColorAdjustments>(true);
             _grade.postExposure.Override(ExposureFor(Brightness));
-            _grade.contrast.Override(6f);
+            _grade.contrast.Override(3f); // was 6 — the extra contrast pushed the shadow half of every daylight frame down (#1457)
             _grade.saturation.Override(6f);
             _grade.colorFilter.Override(Color.white);
 

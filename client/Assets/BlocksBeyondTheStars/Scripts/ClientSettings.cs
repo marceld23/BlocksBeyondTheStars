@@ -1000,6 +1000,7 @@ namespace BlocksBeyondTheStars.Client
                 // view at 80 % — between Potato (75 %) and the desktop presets (100 %). Desktop Low is unchanged.
                 bool webglLow = Application.platform == RuntimePlatform.WebGLPlayer && Preset == QualityPreset.Low;
                 urp.supportsHDR = Preset > QualityPreset.Potato && !webglLow;
+                UrpScenePost.Instance?.SetTonemapForHdr(urp.supportsHDR); // LDR gets Neutral, not ACES (#1457)
                 urp.renderScale = Preset == QualityPreset.Potato ? 0.75f : webglLow ? 0.8f : 1f;
 
                 // The shared asset bakes a 4096 main-light shadowmap for every level, but only High reaches far

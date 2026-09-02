@@ -123,6 +123,20 @@ testing); **startup** — a refused initial wasm memory from `createUnityInstanc
 `[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
 go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
 
+### ★ Daylight re-tune: overcast floor, ambient, vignette/contrast, Neutral tonemap on LDR, brightness row (#1457, 2026-09-02, branch fix/daylight-retune)
+Verena (school playtest, browser): "auch tagsüber sehr dunkel und drückend". The June brightness work (PR #65:
+night floor 0.35, weatherDim 0.65, `dayLit` shoulder, shader `nightFloor`, brightness slider) IS live; what
+remained is the PT-1 visual re-tune the Linear migration asked for and a WebGL-specific flattening. NOTE on the
+"gamma→linear double application" theory: `ShaderColor.Srgb(tint)` = `.linear` reproduces the gamma-era
+perceived product exactly (albedo_lin·light_lin → display = albedo_γ·0.35), so the scalar path is not a bug;
+the constants were simply tuned dark and the additive shader terms shifted. Changes: `Sky.cs` weatherDim floor
+0.65 → 0.78; `BlockAtlas.shader` `amb = lerp(0.26, 0.78, sky)` (was 0.24/0.70, both passes); `UrpScenePost`
+`BaseVignette` 0.26 → 0.18, contrast 6 → 3, `SetTonemapForHdr` (Neutral when the URP asset runs LDR, i.e.
+WebGL Low/Potato — called from `ClientSettings.ApplyCameraLook` on every preset change); `UiSettings` brightness
+stepper moved under the preset row. Not changed: night floor, fog opacity (#388 pop-in), the overcast
+`LadderFloor` on swamp/ashen/fungal (design), the per-species flora tint path (converting it would DARKEN flora).
+Verification: before/after captures (swamp, varied, fungal; clear noon via the capture pin) for Marcel's call.
+
 ### ★ School playtest 2026-09-02, group 1: titan scan, bevel slit, bed prompt, camera boom, hand refresh, menu atlas memory (#1456 #1458 #1459 #1460 #1463 #1464, 2026-09-02, branch fix/playtest-2026-09-02)
 First of the playtest fix groups (the branch carries the whole 2026-09-02 batch, one PR). **#1458** —
 `PlayerController.TryFindScanTarget` replaces the origin-in-cone test with the attack path's Size-scaled
