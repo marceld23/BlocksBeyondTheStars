@@ -33,7 +33,27 @@ public sealed partial class GameServer
         public int CenterZ;
         public int CenterY;                       // ground height at the pad (the reserved volume sits just above it)
         public int Radius = LandingPadRadius;
+
+        /// <summary>The pad footprint lies under water — the seabed fallback (#1454): the ship parks in a dry
+        /// shaft on the sea floor. The chooser marks these so a player can pick a dry pad instead.</summary>
+        public bool Wet;
+
+        /// <summary>The generator raises a sand islet under this pad instead of sinking it to the seabed
+        /// (#1453) — rolled per pad on ocean-class worlds, so some ocean landings still go under.</summary>
+        public bool Islet;
     }
+
+    /// <summary>How far above the sea an islet pad's surface sits (a dry beach, not a tidal flat).</summary>
+    private const int IsletRise = 2;
+
+    /// <summary>Radius of the islet's beach slope around the pad — 1:1 from the pad rim down to the sea.</summary>
+    private const int IsletRadius = LandingPadRadius + 8;
+
+    /// <summary>Roughly three of five all-water pads on an ocean-class world get an islet; the rest keep the
+    /// seabed shaft (decision 2026-09-02: "manchmal, nicht immer"). Seeded per body + pad, never rolled at
+    /// runtime, so every player and every load sees the same coast.</summary>
+    private static bool IsletRoll(string locationId, int padIndex)
+        => (WorldGenerator.StableHash("islet:" + locationId + ":" + padIndex) & 0xFF) < 154;
 
     private List<LandingPad> _landingPads => _worlds.Active.LandingPads;
 
@@ -95,7 +115,7 @@ public sealed partial class GameServer
         flats.Clear();
         foreach (var pad in pads)
         {
-            flats.Add(new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius));
+            flats.Add(new BlocksBeyondTheStars.WorldGeneration.LandingPadFlatten(pad.CenterX, pad.CenterZ, pad.CenterY, pad.Radius, pad.Islet, IsletRadius));
         }
     }
 
@@ -153,7 +173,21 @@ public sealed partial class GameServer
                 // March the longitude (at this pad's latitude) to the nearest dry + reasonably flat column, so
                 // a ship never lands in water (B36) or perches on a terrain spike (dramatic-terrain worlds).
                 int cx = NudgePadToDryAndFlat(planet, baseX, baseZ);
-                pads.Add(new LandingPad { Index = i, CenterX = cx, CenterZ = baseZ, CenterY = PadGroundY(planet, cx, baseZ) });
+                // Still wet after the march = an all-sea band. Ocean-class worlds (waterAbundance ≥ 1, 78–97 %
+                // water) get a rolled islet raised out of the sea (#1453); everything else keeps the seabed
+                // shaft and is flagged so the chooser can say so (#1454).
+                bool wet = LandingFootprintWet(planet, cx, baseZ);
+                int seaLevel = _generator.SeaLevel(planet);
+                bool islet = wet && seaLevel != int.MinValue && (planet.WaterAbundance ?? 0.0) >= 1.0 && IsletRoll(locationId, i);
+                pads.Add(new LandingPad
+                {
+                    Index = i,
+                    CenterX = cx,
+                    CenterZ = baseZ,
+                    CenterY = islet ? seaLevel + IsletRise : PadGroundY(planet, cx, baseZ),
+                    Wet = wet && !islet,
+                    Islet = islet,
+                });
             }
 
             return pads;
@@ -167,7 +201,19 @@ public sealed partial class GameServer
     /// <summary>The pad/ship ground height on the ACTIVE world: the MEDIAN surface height over the landing
     /// footprint (centre + four corners), not the centre column alone — one rocky spike no longer hoists the
     /// whole ship. Used by every ship-placement consumer.</summary>
-    private int PadGroundY(int cx, int cz) => PadGroundY(_world.Planet, cx, cz);
+    private int PadGroundY(int cx, int cz)
+    {
+        // An islet pad's ground is the raised mound the generator built, not the noise seabed under it (#1453).
+        foreach (var pad in _landingPads)
+        {
+            if (pad.Islet && pad.CenterX == cx && pad.CenterZ == cz)
+            {
+                return pad.CenterY;
+            }
+        }
+
+        return PadGroundY(_world.Planet, cx, cz);
+    }
 
     /// <summary>How far above the generated median the touchdown height looks for player-built ground: a
     /// paved yard or a raised platform over the pad, not a tower beside it.</summary>
@@ -591,9 +637,10 @@ public sealed partial class GameServer
         // #414 N17), and unlike the cross-body travel path there is no WorldReset here to re-arm its spawn
         // snap. Without this the body stayed at the pad it launched from while the ship parked on the pad
         // the player picked in the chooser — "I landed and my ship isn't there" (#971).
+        SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own) — before the snap (#1450)
+        StreamFootingNow(session, spawn);
         Send(session, new RespawnNotice { X = spawn.X, Y = spawn.Y, Z = spawn.Z, Reason = "@srv.land.touchdown" });
         SendPlayerState(session);
-        SendLandedShips(session); // the landing world's parked ship objects (incl. the player's own)
         BroadcastLandingPads(session); // the touchdown claimed a pad — everyone's map must show it (#1020)
         SyncAppearance(session); // faces + body paintings both ways — the launch dropped them (#982)
         // Parity with the cross-body travel path (#957): without these the HUD compass ship blip and the
@@ -617,6 +664,7 @@ public sealed partial class GameServer
             pads[i] = PadStatusFor(_world.LocationId, p.Index, session);
             pads[i].X = p.CenterX;
             pads[i].Z = p.CenterZ;
+            pads[i].Wet = p.Wet;
         }
 
         // This is the active body, so its day fraction is live (drives the world-map terminator client-side).
@@ -710,6 +758,7 @@ public sealed partial class GameServer
             pads[i] = PadStatusFor(body.Id, p.Index, session);
             pads[i].X = p.CenterX;
             pads[i].Z = p.CenterZ;
+            pads[i].Wet = p.Wet; // seabed pad (#1454) — the chooser says so before the player commits
         }
 
         Send(session, new LandingPadList { BodyId = requestedId, Pads = pads, TimeOfDay = BodyArrivalTimeOfDay(body.Id) });
@@ -755,6 +804,21 @@ public sealed partial class GameServer
     /// <summary>Pad centres (index, x, z) on the active world, for tests/inspection.</summary>
     public IReadOnlyList<(int Index, int X, int Z)> LandingPadCenters
         => _landingPads.ConvertAll(p => (p.Index, p.CenterX, p.CenterZ));
+
+    /// <summary>Test hook: the active world's sea level (int.MinValue on a dry world).</summary>
+    public int SeaLevelForTest() => _generator.SeaLevel(_world.Planet);
+
+    /// <summary>Test hook: a pad's centre, levelled ground height and its seabed/islet flags (#1453/#1454).</summary>
+    public (int X, int Y, int Z, bool Wet, bool Islet) LandingPadInfoForTest(int index)
+    {
+        if (_landingPads.Count == 0)
+        {
+            BuildLandingPads();
+        }
+
+        var pad = _landingPads[index];
+        return (pad.CenterX, pad.CenterY, pad.CenterZ, pad.Wet, pad.Islet);
+    }
 
     /// <summary>Test hook: true if the active world's pad at this index sits on dry land (B36).</summary>
     public bool LandingPadIsDry(int index)

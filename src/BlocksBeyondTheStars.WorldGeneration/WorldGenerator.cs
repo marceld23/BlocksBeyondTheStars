@@ -112,19 +112,37 @@ public sealed class WorldGenerator
 
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)
+        => PadColumnAt(worldX, worldZ, out var pad, out int target) && target == pad.SurfaceY ? target : null;
+
+    /// <summary>The pad a column belongs to and the height its ground is levelled to: the pad's surface
+    /// over the pad proper, and — for an islet pad (#1453) — a 1:1 beach slope falling away from the pad
+    /// edge out to the islet radius. False when the column is on no pad at all.</summary>
+    private bool PadColumnAt(int worldX, int worldZ, out LandingPadFlatten pad, out int target)
     {
         for (int i = 0; i < _landingPads.Count; i++)
         {
             var p = _landingPads[i];
             int dx = WorldConstants.WrapDeltaX(worldX - p.CenterX, _circumference);
             int dz = worldZ - p.CenterZ;
-            if (dx * dx + dz * dz <= p.Radius * p.Radius)
+            int d2 = dx * dx + dz * dz;
+            if (d2 <= p.Radius * p.Radius)
             {
-                return p.SurfaceY;
+                pad = p;
+                target = p.SurfaceY;
+                return true;
+            }
+
+            if (p.Islet && d2 <= p.IsletRadius * p.IsletRadius)
+            {
+                pad = p;
+                target = p.SurfaceY - (int)System.Math.Ceiling(System.Math.Sqrt(d2) - p.Radius);
+                return true;
             }
         }
 
-        return null;
+        pad = default;
+        target = 0;
+        return false;
     }
 
     private const int PadFoundationDepth = 8; // plug caves this deep under a pad (no falling into one)
@@ -144,30 +162,49 @@ public sealed class WorldGenerator
         var calib = CalibFor(planet);
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
+        var (_, seaFluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        var beachId = BeachBlockFor(planet);
         for (int lx = 0; lx < cs; lx++)
             for (int lz = 0; lz < cs; lz++)
             {
                 int worldX = origin.X + lx;
                 int worldZ = origin.Z + lz;
-                if (PadSurfaceAt(worldX, worldZ) is not int padY)
+                if (!PadColumnAt(worldX, worldZ, out var pad, out int padY))
                 {
                     continue;
                 }
 
+                // An islet (#1453) is a sand mound raised out of the sea: every water/air cell from the seabed
+                // up to the levelled height becomes beach block, the pad top is sheared clear like any pad,
+                // and the beach slope keeps whatever sea still stands above its lower rim.
+                bool islet = pad.Islet;
+                bool slope = islet && padY < pad.SurfaceY;
                 int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, padY);
-                var surfaceId = biomes[biomeIndex].Surface;
-                var subSurfaceId = biomes[biomeIndex].Sub;
+                var surfaceId = islet ? beachId : biomes[biomeIndex].Surface;
+                var subSurfaceId = islet ? beachId : biomes[biomeIndex].Sub;
 
                 for (int ly = 0; ly < cs; ly++)
                 {
                     int worldY = origin.Y + ly;
                     if (worldY > padY)
                     {
-                        chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
+                        if (!slope)
+                        {
+                            chunk.Set(lx, ly, lz, BlockId.Air); // shear off anything above the pad level
+                        }
                     }
                     else if (worldY == padY)
                     {
                         chunk.Set(lx, ly, lz, surfaceId); // a natural, level pad surface
+                    }
+                    else if (islet)
+                    {
+                        var cell = chunk.Get(lx, ly, lz);
+                        if (cell.IsAir || cell.Value == seaFluid.Value || cell.Value == waterId.Value)
+                        {
+                            chunk.Set(lx, ly, lz, subSurfaceId); // the mound stands on the seabed, not on water
+                        }
                     }
                     else if (worldY >= padY - PadFoundationDepth && chunk.Get(lx, ly, lz).IsAir)
                     {

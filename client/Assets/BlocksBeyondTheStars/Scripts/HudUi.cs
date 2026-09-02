@@ -772,7 +772,13 @@ namespace BlocksBeyondTheStars.Client
             string prompt = string.Empty;
             if (!Game.SpaceViewActive)
             {
-                if (!string.IsNullOrEmpty(Game.NearbyStation))
+                if (Game.SettlingHint)
+                {
+                    // The spawn/respawn settle freeze is holding the body (#1462) — say so instead of leaving
+                    // a fully drawn ship that ignores WASD.
+                    prompt = loc.Get("ui.hud.settling");
+                }
+                else if (!string.IsNullOrEmpty(Game.NearbyStation))
                 {
                     // Inside the ship while it floats in space, the cockpit reads as the helm (take it to fly again).
                     string stationKey = (Game.NearbyStation == "cockpit" && Game.LoadingPlanetType == "ship_interior")

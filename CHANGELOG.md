@@ -33,6 +33,35 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **The painted hand updates at once** (#1464). Editing the arm painting or suit colours in the
   appearance screen rebuilds the first-person hand immediately instead of on the next hotbar switch;
   the hand's resolvers and atlas are released on world teardown.
+- **Beaming to a beacon no longer drops you through the floor** (#1449). The beam pad put you at
+  "pad + 1" — head in a low ceiling if there was one — and the chunks around a far pad only followed
+  on later ticks, so the settle freeze on arrival had no floor to wait for. The arrival now climbs to
+  two clear cells above the pad, the ground under it is sent ahead of the snap, and the client only
+  trusts a step-down as "my floor" once the chunk under its feet has actually arrived.
+- **Landing on a planet keeps your feet on the deck** (#1450). The parked ships and the ground now
+  reach the client before your position does, and the landing (and stepping inside the ship) uses
+  the strict "feet on a floor" settle instead of the loose world-spawn one that accepted terrain
+  metres below the deck.
+- **The heal-tank retrieval stops freezing you for eight seconds in the browser** (#1462). A snap
+  inside an already-drawn world waited for the whole streamed view to finish meshing — which a
+  browser meshing two chunks a frame rarely does — before it let go. With the floor confirmed, a
+  one-second quiet window is enough, and a "Stabilising position…" HUD line explains the wait.
+- **Ocean worlds: some landing pads rise out of the sea** (#1453). When the pad march along a
+  latitude finds no land at all, roughly three in five such pads on an ocean-class world now get a
+  seeded sand islet — a dry beach two blocks above the waves with a gentle slope into the sea — and
+  the rest keep the seabed shaft as before. Same coast for every player and every load.
+- **The landing-pad chooser marks seabed pads** (#1454). A pad on the sea floor is still selectable
+  (the shaft is dry), but it now says "underwater · seabed" on the approach map and the world map,
+  so a first-time player is not surprised by walls of water.
+- **E at the cockpit asks "Launch into space?"** (#1455). The only way off a planet used to be a
+  button at the top of the Map tab. Confirm with the button, E or Enter; "Not yet" opens the map as
+  before. The cockpit prompt and message name both paths, VEGA explains a seabed landing the first time
+  it happens (dry shaft, don't mine the walls, E at the cockpit), and a first dive gets a one-line
+  swimming hint.
+- **VEGA's tutorial runs in creative worlds too** (#1461). A creative world hands out every blueprint
+  at join, which read as "a veteran save" and silently skipped the whole chain — a school browser
+  session with no persistent save never heard a single lesson. Only the moot "unlock a blueprint"
+  lesson is skipped now.
 - **Updates no longer hang on "not responding"** (#1448). After the download the client asked
   Velopack to restart from inside Unity's main loop, which ended in a hard process exit that Unity
   never survived — the window froze, Windows offered to close it, and only that force-close let

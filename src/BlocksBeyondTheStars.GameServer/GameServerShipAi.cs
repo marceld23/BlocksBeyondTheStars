@@ -71,9 +71,15 @@ public sealed partial class GameServer
     private static bool VegaOnboardingDone(PlayerState p) => VegaStageIndex(p) >= VegaStages.Length;
 
     /// <summary>A save that has clearly played before gets VEGA's onboarding pre-granted — they only hear
-    /// a one-line "systems online". (Creative grants count too: creative worlds skip the tutorial.)</summary>
-    private static bool VegaIsVeteran(PlayerState p)
-        => p.KnowledgePoints > 0 || p.UnlockedBlueprints.Count > 0 || p.Missions.Count > 0;
+    /// a one-line "systems online". Creative grants no longer count (#1461): a creative world hands out
+    /// blueprints at join, which silently skipped the whole tutorial — and a school browser session with
+    /// no persistent save is a first session every time.</summary>
+    private bool VegaIsVeteran(PlayerState p)
+        => !CreativeGrantsActive && (p.KnowledgePoints > 0 || p.UnlockedBlueprints.Count > 0 || p.Missions.Count > 0);
+
+    /// <summary>Whether this world pre-grants blueprints (singleplayer Creative option or Creative mode).</summary>
+    private bool CreativeGrantsActive
+        => _config.CreativeUnlockAllBlueprints || Rules.GameMode == GameMode.Creative;
 
     private void SendVegaLine(PlayerSession session, string lineKey, byte kind, string arg = "")
         => Send(session, new ShipAiLine
@@ -191,6 +197,13 @@ public sealed partial class GameServer
                 // without these, neither surface is ever introduced until stage 2 mentions Tab in passing.
                 SendVegaLine(session, "vega.intro.menu", 0);
                 SendVegaLine(session, "vega.intro.codex", 0);
+                if (CreativeGrantsActive)
+                {
+                    // Every blueprint is already unlocked here — "unlock a first blueprint" would never
+                    // complete. Grant that one stage silently; the chain skips it when it gets there (#1461).
+                    p.Milestones.Add(VegaStageKey("unlock"));
+                }
+
                 SendVegaLine(session, "vega.s.mine.start", 0);
             }
 
@@ -361,6 +374,13 @@ public sealed partial class GameServer
         if (id.Length > 0)
         {
             ShipAiHintOnce(session, "world:" + id);
+        }
+
+        // Parked on the sea floor (#1455): the shaft is dry, the walls are not to be mined, and the way off
+        // the planet is E at the cockpit — the one landing a first-time player cannot read on their own.
+        if (PlayerPad(session).Wet)
+        {
+            ShipAiHintOnce(session, "seabed");
         }
     }
 

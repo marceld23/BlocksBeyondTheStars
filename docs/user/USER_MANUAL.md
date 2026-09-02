@@ -223,7 +223,9 @@ nothing changes — controls stay keyboard + mouse (or a gamepad).
 
 ## 3. Space-flight controls
 
-Enter space by launching the ship; on foot you board/leave via the cockpit. While flying:
+Enter space by launching the ship; on foot you board/leave via the cockpit. On a landed ship, **E at the
+cockpit asks "Launch into space?"** — confirm with the button, **E** or **Enter**; "Not yet" opens the map instead
+(the Map tab keeps its own **Launch into space** button). While flying:
 
 | Key / input | Action |
 |---|---|

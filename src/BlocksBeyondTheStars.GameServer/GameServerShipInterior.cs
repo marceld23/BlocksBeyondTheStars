@@ -74,10 +74,11 @@ public sealed partial class GameServer
 
         Send(session, new SpaceClosed { Reason = "@srv.misc.stepped_inside", ShipDisabled = false });
         Send(session, new WorldReset { PlanetType = ShipInteriorType, PlanetName = string.Empty, SystemName = string.Empty, Hyperjump = false });
+        SendLandedShips(session); // the ship object itself — the world is void apart from it — BEFORE the position (#1450)
         SendPlayerState(session);
+        Send(session, new RespawnNotice { X = session.State.Position.X, Y = session.State.Position.Y, Z = session.State.Position.Z, Reason = "@srv.misc.stepped_inside" });
         SendEnvironment(session);
         SendInventory(session);
-        SendLandedShips(session); // the ship object itself — the world is void apart from it
         SendShipStations(session);
         SendDoors(session);
         _log.Info($"Player '{session.State.Name}' stepped inside their ship (world '{shipLoc}').");

@@ -469,7 +469,8 @@ namespace BlocksBeyondTheStars.Client
                     PadMarker(pad.X, pad.Z, col);
                     int dist = Mathf.RoundToInt(GroundDistance(pad.X, pad.Z));
                     string occ = pad.Occupied || pad.Mine ? $" ({pad.Occupant})" : string.Empty;
-                    poiLines.Append($"\n⊕ {L("ui.map.pad")} {pad.Index + 1}{occ}  —  {dist} m");
+                    string wet = pad.Wet ? $" · {L("ui.space.pad_wet")}" : string.Empty; // seabed pad (#1454)
+                    poiLines.Append($"\n⊕ {L("ui.map.pad")} {pad.Index + 1}{occ}{wet}  —  {dist} m");
                 }
             }
 

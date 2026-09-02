@@ -1494,11 +1494,20 @@ namespace BlocksBeyondTheStars.Client
                 {
                     UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
                     _captureFreePads.Add((new Vector2(mx + marker * 0.5f, my + marker * 0.5f), padIndex));
+                    float captionY = my + marker;
                     if (p.Mine)
                     {
-                        UiKit.AddText(panel.transform, mx - 30, my + marker, marker + 60, 18,
+                        UiKit.AddText(panel.transform, mx - 30, captionY, marker + 60, 18,
                             string.IsNullOrEmpty(p.Occupant) ? Loc("ui.space.pad_yours", "your pad") : p.Occupant,
                             12, UiKit.Cyan, TextAnchor.UpperCenter);
+                        captionY += 16;
+                    }
+
+                    if (p.Wet)
+                    {
+                        // A seabed pad (#1454): still selectable — the shaft is dry — but say so before the player commits.
+                        UiKit.AddText(panel.transform, mx - 40, captionY, marker + 80, 18, Loc("ui.space.pad_wet", "underwater"),
+                            12, new Color(0.55f, 0.75f, 1f), TextAnchor.UpperCenter);
                     }
                 }
                 else

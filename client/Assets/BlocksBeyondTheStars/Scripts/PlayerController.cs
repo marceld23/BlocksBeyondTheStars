@@ -227,7 +227,25 @@ namespace BlocksBeyondTheStars.Client
         /// release the settle freeze, and the player fell through the slab whose own chunk had not
         /// streamed yet — Lyxette's beam pad on a thin second-floor ceiling (#1276).</summary>
         private const float SnapFloorMaxDrop = 1.6f;
+
+        /// <summary>A ground hit this close under a snapped body is the floor cell the server put the feet
+        /// on — no further proof needed. Anything deeper (up to <see cref="SnapFloorMaxDrop"/>) must be backed
+        /// by a streamed chunk under the feet (#1449).</summary>
+        private const float SnapFloorOnIt = 0.6f;
+
+        /// <summary>Longest a same-world snap (heal-tank, beam, respawn) waits for the view-settle gate once
+        /// the floor is confirmed (#1462) — the world is already on screen, there is no veil to hold.</summary>
+        private const float SnapQuietCapSeconds = 1.0f;
+
+        /// <summary>Settle freezes shorter than this pass unnoticed; longer ones show the HUD hint.</summary>
+        private const float SettlingHintAfterSeconds = 0.4f;
         private float _awaitFloorTimer;
+
+        /// <summary>Whether the client actually holds the chunk under <paramref name="feet"/> — false while it
+        /// is still streaming, in which case "air below" means "unknown", not "open" (#1449).</summary>
+        private bool FootingKnown(Vector3 feet)
+            => Game?.World == null
+               || Game.World.TryGetBlock(Mathf.FloorToInt(feet.x), Mathf.FloorToInt(feet.y - 0.05f), Mathf.FloorToInt(feet.z), out _);
 
         // View-settle gate (#390): hold the reveal until the streamed view has finished arriving AND meshing, so
         // the world doesn't visibly assemble after the veil lifts. "No new chunk for this long" is the reliable
@@ -414,9 +432,15 @@ namespace BlocksBeyondTheStars.Client
                 // Solid ground loaded below the spawn? (the chunk's MeshCollider exists). After a server snap
                 // onto a floor cell it has to be THAT floor — a collider metres further down is the wrong
                 // chunk answering (#1276).
+                // A step down (0.6 m < hit ≤ 1.6 m) only counts when the cell under the feet is KNOWN — its chunk
+                // has streamed and says "air". Otherwise the collider answering is terrain under a slab whose
+                // chunk has not arrived yet, and releasing on it drops the player through that slab once it
+                // does (#1449, the beam pad on a mine ceiling). A hit right under the feet is the floor itself.
                 bool groundBelow = Physics.Raycast(_spawnPos + Vector3.up * 0.5f, Vector3.down, out var gHit, 10f)
                                    && gHit.collider != _controller
-                                   && (!_snapOntoFloor || gHit.distance <= SnapFloorMaxDrop);
+                                   && (!_snapOntoFloor
+                                       || gHit.distance <= SnapFloorOnIt
+                                       || (gHit.distance <= SnapFloorMaxDrop && FootingKnown(_spawnPos)));
 
                 // The streamed view has finished arriving AND meshing — so the reveal shows a populated world
                 // instead of one that visibly assembles over the next few seconds (#390). While the server is
@@ -425,13 +449,24 @@ namespace BlocksBeyondTheStars.Client
                 bool viewSettled = Game.TimeSinceLastChunk >= ViewSettleQuietSeconds
                                    && Game.PendingMeshCount <= ViewSettleBacklog;
 
+                // A snap inside an already-revealed world (heal-tank retrieval, beam, same-world respawn) has
+                // nothing to reveal: the view-settle gate is about the veil, and a browser client meshing two
+                // chunks a frame rarely drains its backlog below the threshold — so the player stood frozen
+                // in a fully drawn ship for the whole 8 s grace with no hint why (#1462). With the floor under
+                // the feet confirmed, a short quiet window is all that snap needs.
+                bool quickSnap = _snapOntoFloor && Game.WorldReady && _settleTimer > SnapQuietCapSeconds;
+
+                // Something to read while the freeze lasts longer than a blink — "Stabilising…" beats a mute
+                // body that ignores WASD (#1462).
+                Game.SettlingHint = !awaitingConfirm && _settleTimer > SettlingHintAfterSeconds;
+
                 // Reveal the world + release control once there is real ground under the spawn AND the view has
                 // settled, or after a short grace so the veil never lingers or feels stuck. Releasing on that
                 // grace alone used to hand the player straight into free fall through terrain that had not
                 // streamed yet — an 8-second drop into the void followed by the server's rescue teleports, which
                 // is what a slow (browser) client got on every first join (#773). Gravity is therefore held off
                 // separately until a floor actually exists: the veil lifts on time, the player just doesn't fall.
-                if (!awaitingConfirm && ((groundBelow && viewSettled) || _settleTimer > SettleGraceSeconds))
+                if (!awaitingConfirm && ((groundBelow && (viewSettled || quickSnap)) || _settleTimer > SettleGraceSeconds))
                 {
                     if (!_worldRevealed)
                     {
@@ -443,6 +478,7 @@ namespace BlocksBeyondTheStars.Client
                     _awaitFloorTimer = 0f;
                     _settling = false;
                     _settleTimer = 0f;
+                    Game.SettlingHint = false;
                 }
                 else
                 {
@@ -1582,9 +1618,9 @@ namespace BlocksBeyondTheStars.Client
             // Your own base core in the crosshair → the HUD shows the rename key + the core's air readout (#1267).
             Game.AimedOwnBase = AimedOwnedBase();
 
-            if (!InputMap.Down(InputAction.Interact))
+            if (!InputMap.Down(InputAction.Interact) || LaunchPrompt.IsOpen)
             {
-                return;
+                return; // the launch question owns E while it is up (#1455)
             }
 
             // A radio beacon you own that you're aiming at → rename it (item 37).
@@ -1760,7 +1796,16 @@ namespace BlocksBeyondTheStars.Client
             // Stations that open a client UI panel; the rest are resolved server-side.
             switch (Game.NearbyStation)
             {
-                case "cockpit": Menu?.OpenMap(); break;
+                case "cockpit":
+                    // On a landed ship E asks "launch into space?" first (#1455): the launch button lived only
+                    // at the top of the Map tab, and a first-time player at the cockpit never found it. Declining
+                    // opens the map as before; aboard the floating interior the cockpit is the helm (server-side).
+                    if (LaunchPrompt.Instance == null || !LaunchPrompt.Instance.TryOffer(() => Menu?.OpenMap()))
+                    {
+                        Menu?.OpenMap();
+                    }
+
+                    break;
                 case "workshop": Menu?.OpenCrafting(); break;
                 case "market": Menu?.OpenMarket(); Game.Network?.SendNpcGreet("vendor"); break; // item 15: vendor greeting
                 case "cargo": Menu?.OpenInventory(); break;

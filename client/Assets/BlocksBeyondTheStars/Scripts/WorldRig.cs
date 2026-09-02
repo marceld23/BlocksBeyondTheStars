@@ -328,6 +328,10 @@ namespace BlocksBeyondTheStars.Client
             var respawnPrompt = root.AddComponent<RespawnPrompt>();
             respawnPrompt.Game = boot;
 
+            // "Launch into space?" — E at the cockpit of a landed ship asks instead of only opening the map (#1455).
+            var launchPrompt = root.AddComponent<LaunchPrompt>();
+            launchPrompt.Game = boot;
+
             // Maintenance announcements (#249): persistent restart-countdown banner + delayed-ack info modal.
             var maintenance = root.AddComponent<MaintenanceUi>();
             maintenance.Game = boot;

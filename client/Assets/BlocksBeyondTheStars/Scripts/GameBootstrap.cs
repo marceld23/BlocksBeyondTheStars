@@ -405,6 +405,10 @@ namespace BlocksBeyondTheStars.Client
         /// critter or block) — gates the "LMB: scan" prompt (#1458). Set by PlayerController each frame.</summary>
         public bool ScanTargetInView;
 
+        /// <summary>True while the spawn/respawn settle freeze has held the body for more than a blink — the
+        /// HUD shows "Stabilising…" so a frozen body reads as a state, not a bug (#1462). Set by PlayerController.</summary>
+        public bool SettlingHint;
+
         /// <summary>Set when the appearance editor changed the arm painting/colours: the first-person hand is
         /// keyed on the hotbar item only, so without this it kept the old paint until a slot switch (#1464).
         /// PlayerController clears it on the next refresh.</summary>
