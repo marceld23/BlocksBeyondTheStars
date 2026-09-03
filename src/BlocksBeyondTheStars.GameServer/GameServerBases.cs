@@ -88,11 +88,39 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Chebyshev (cube) test: is <paramref name="pos"/> within the base-core's protected half-extent?</summary>
+    /// <summary>
+    /// Chebyshev (cube) test: is <paramref name="pos"/> within the specified
+    /// half-extent of the base-core?
+    /// </summary>
+    private static bool WithinBaseZone(Vector3i core, Vector3i pos, int radius)
+        => System.Math.Abs(pos.X - core.X) <= radius
+           && System.Math.Abs(pos.Y - core.Y) <= radius
+           && System.Math.Abs(pos.Z - core.Z) <= radius;
+
+    /// <summary>
+    /// Chebyshev (cube) test using the base's configured protection radius.
+    /// </summary>
     private static bool WithinBaseZone(Vector3i core, Vector3i pos)
-        => System.Math.Abs(pos.X - core.X) <= BaseProtectionRadius
-           && System.Math.Abs(pos.Y - core.Y) <= BaseProtectionRadius
-           && System.Math.Abs(pos.Z - core.Z) <= BaseProtectionRadius;
+        => WithinBaseZone(core, pos, BaseProtectionRadius);
+
+    /// <summary>
+    /// True if the cell is within 24 blocks of any base core on the current world.
+    /// Uses the same Chebyshev (cube) distance as the base protection zone.
+    /// </summary>
+    private bool IsNearBaseCore(Vector3i cell)
+    {
+        string body = _world.LocationId;
+
+        foreach (var b in _bases)
+        {
+            if (b.Planet == body && WithinBaseZone(b.Cell, cell, 24))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>True if the cell lies inside a base zone the PLAYER OWNS on the current world — the "build
     /// at home" test the build missions use (#1116). Allied zones deliberately don't count: the assignment
