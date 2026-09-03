@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} de connaissances — fragment de données analysé.",
   "srv.misc.dug_out": "Tu étais coincé dans la roche — dégagé.",
   "srv.misc.fall_recovered": "Rétabli après une chute.",
+  "srv.station.zero_g": "Tu as quitté la gravité de la station — la combinaison flotte maintenant. Saut fait monter, accroupir fait descendre ; dérive vers le pont, ou appuie sur U pour revenir à ton vaisseau.",
+  "srv.station.drifted_back": "Tu t'es trop éloigné de la station — ramené sur la plateforme.",
   "srv.misc.interior_space_only": "Tu dois être dans l'espace pour entrer dans le vaisseau.",
   "srv.misc.need_radio": "Tu as besoin d'une radio pour utiliser les communications.",
   "srv.misc.no_heal_tank": "Aucun réservoir de soins ni lit à portée.",

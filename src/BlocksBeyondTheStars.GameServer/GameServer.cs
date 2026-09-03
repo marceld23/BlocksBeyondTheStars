@@ -1732,18 +1732,28 @@ public sealed partial class GameServer
 
     /// <summary>Flips <see cref="Shared.State.PlayerState.AboveAtmosphere"/> when an on-foot player crosses
     /// the planet's atmosphere line (item 10), broadcasting the change. Only an on-foot player on a real
-    /// planet qualifies (not aboard / EVA / ship interior / station; only worlds with an atmosphere line).</summary>
+    /// planet qualifies (not aboard / EVA / ship interior; only worlds with an atmosphere line). A boarder who
+    /// leaves a player-built station's gravity volume (#1485) floats the same way — see
+    /// <see cref="OutsideStationGravity"/>.</summary>
     private void UpdateAboveAtmosphere(PlayerSession session)
     {
         var p = session.State;
-        bool eligible = _atmosphereHeight > 0
-            && !p.AboardShip && !p.InEva
-            && !InShipInterior(p.PlayerId) && !InStation(p.PlayerId);
+        bool above;
+        if (InStation(p.PlayerId))
+        {
+            above = OutsideStationGravity(session);
+        }
+        else
+        {
+            bool eligible = _atmosphereHeight > 0
+                && !p.AboardShip && !p.InEva
+                && !InShipInterior(p.PlayerId);
 
-        // Hysteresis: cross up at the line, drop only once a few blocks back below it.
-        bool above = eligible && (p.AboveAtmosphere
-            ? p.Position.Y > _atmosphereHeight - AtmosphereHysteresis
-            : p.Position.Y > _atmosphereHeight);
+            // Hysteresis: cross up at the line, drop only once a few blocks back below it.
+            above = eligible && (p.AboveAtmosphere
+                ? p.Position.Y > _atmosphereHeight - AtmosphereHysteresis
+                : p.Position.Y > _atmosphereHeight);
+        }
 
         if (above != p.AboveAtmosphere)
         {

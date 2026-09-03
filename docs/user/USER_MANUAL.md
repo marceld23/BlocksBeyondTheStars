@@ -631,8 +631,12 @@ separate unlock; admins can still disable it through server world rules.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
   hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
-  **trading post** or a **mission board** aboard; visiting traders still dock regardless. Windows show the
-  planet you orbit, the sun and a moon.
+  **trading post** or a **mission board** aboard — in a sealed room; a post open to space stays unstaffed
+  until you seal it. Visiting traders still dock regardless. Windows show the planet you orbit, the sun and a moon.
+- **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
+  past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
+  outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
+  your ship.
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
 - **SPS relay** (late game): any commissioned player station can be converted into a relay of the old

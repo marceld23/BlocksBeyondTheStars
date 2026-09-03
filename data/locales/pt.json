@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} conhecimento — fragmento de dados analisado.",
   "srv.misc.dug_out": "Você estava preso na rocha — desenterrado.",
   "srv.misc.fall_recovered": "Recuperado da queda.",
+  "srv.station.zero_g": "Você saiu da gravidade da estação — a roupa agora flutua. Pular sobe, agachar desce; volte ao convés flutuando, ou pressione U para retornar à sua nave.",
+  "srv.station.drifted_back": "Você se afastou demais da estação — trazido de volta à plataforma.",
   "srv.misc.interior_space_only": "Você precisa estar no espaço para entrar no navio.",
   "srv.misc.need_radio": "Você precisa de um rádio de comunicação para usar comunicações.",
   "srv.misc.no_heal_tank": "Sem tanque de cura ou cama ao alcance.",

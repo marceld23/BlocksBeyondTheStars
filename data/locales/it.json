@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} conoscenza — frammento di dati analizzato.",
   "srv.misc.dug_out": "Eri bloccato nella roccia — sei stato liberato.",
   "srv.misc.fall_recovered": "Recuperato dalla caduta.",
+  "srv.station.zero_g": "Hai lasciato la gravità della stazione — la tuta ora galleggia. Salto sale, accovacciarsi scende; torna lentamente al ponte o premi U per tornare alla tua nave.",
+  "srv.station.drifted_back": "Ti sei allontanato troppo dalla stazione — riportato alla piazzola.",
   "srv.misc.interior_space_only": "Devi essere nello spazio esterno per entrare nella nave.",
   "srv.misc.need_radio": "Ti serve una radio per usare le comunicazioni.",
   "srv.misc.no_heal_tank": "Nessun serbatoio di cura o letto a portata.",

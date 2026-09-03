@@ -245,8 +245,14 @@ public sealed partial class GameServer
         foreach (var s in JoinedInActiveWorld())
         {
             var p = s.State;
-            if (InSpace(p.PlayerId) || InStation(p.PlayerId))
+            if (InSpace(p.PlayerId))
             {
+                continue;
+            }
+
+            if (InStation(p.PlayerId))
+            {
+                RescueDriftingBoarder(s); // #1485: a boarder lost far beyond the station's gravity volume comes back to the pad
                 continue;
             }
 

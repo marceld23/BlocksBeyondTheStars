@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} 지식 — 데이터 조각 분석 완료.",
   "srv.misc.dug_out": "암석에 갇혔었습니다 — 파내어 구출되었습니다.",
   "srv.misc.fall_recovered": "낙하에서 회복되었습니다.",
+  "srv.station.zero_g": "우주복이 떠올라 중력이 없어졌어요. 점프하면 위로, 웅크리면 아래로 가라앉아요; 갑판으로 다시 떠다니거나 우주선으로 돌아가려면 U를 누르세요.",
+  "srv.station.drifted_back": "스테이션에서 너무 멀리 흘러갔어요 — 착륙 패드로 되돌려졌습니다.",
   "srv.misc.interior_space_only": "선체 안으로 들어가려면 우주 밖에 있어야 합니다.",
   "srv.misc.need_radio": "통신을 사용하려면 통신 라디오가 필요합니다.",
   "srv.misc.no_heal_tank": "치유 탱크나 침대가 닿는 범위에 없습니다.",
