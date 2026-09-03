@@ -127,9 +127,8 @@ never tested blocks — its ground probe fell back to the noise surface when not
 cells, which is what a ≥7-block wall looks like from its foot, so a walker strolled through it while a ≤3 wall
 lifted it onto the parapet in one tick. The destination column is now read from real blocks only
 (`MachineGroundAt`: loaded column without footing = wall), a walker steps up two blocks at most (a natural
-ledge, never a three-block protective wall — `MachineStepUp`), a drone's hover clears three, and the two body
-cells must be free (`MachineBodyBlocked`). `/basewalls` rules and the base-core
-text say so. **Torch in base air (#1483):** `BreathableAirAt` (base supply cube / sealed room / station pocket)
+ledge, never a three-block protective wall — `MachineStepUp`), a drone's hover clears three (so a wall of four holds a scan-drone; the standable probe
+already keeps a walker's body out of walls). `/basewalls` rules and the base-core text say so. **Torch in base air (#1483):** `BreathableAirAt` (base supply cube / sealed room / station pocket)
 joins the world-atmosphere check. **Inventory (#1484):** the space contact list and the last HUD message left
 the Tab-menu data hash (the footer refreshes in place), the list keeps its scroll offset across same-page
 rebuilds, the discard confirm names the item, and suit gear gets a Keep / Throw-away modal. **Sneak edge
@@ -148,6 +147,18 @@ stamped box + the 8-block air margin IS the gravity now: outside it `UpdateAbove
 floats him — jump rises, crouch sinks, drift back or build the outer hull from outside — with a one-shot
 `@srv.station.zero_g`; more than 64 blocks beyond the volume the void rescue sets him back on the pad
 (`RescueDriftingBoarder`, `@srv.station.drifted_back`). `U` stays the anchor; NPC stations are untouched.
+**Round-6 review (#1493, branch fix/station-rows-after-1480):** a station deployed before #1480 by a ship that
+never landed elsewhere was persisted under the launch instance's raw key — the planet-TYPE placeholder
+(`BuildShipFromDefinition` seeds `CurrentLocationId` with it; `SwitchActiveWorld` runs before any ship exists) —
+and since #1480 every lookup resolves through `StationHostKey`, so the row never matched again: the station
+vanished from its orbit. `LoadPlayerStations` now normalises `Location` through `StationHostKey` and re-saves the
+row once. Also from the review: the spawn is judged AFTER the top-up and moves to the nearest standable cell
+inside the build instead of carving the pad through it (the first stamp cut the core out of the centre column,
+the next start restored it into the spawn's head cell — or carved a wall the grid then restored, every start);
+interior placements write dye/glow/shape back into the cell grid; the live hull update finds the instance by the
+structure it holds; the client's `_colliderAppliedGen` is recorded on the WebGL synchronous cook and for all-air
+chunks (the `[FallGuard]` line no longer says "bake pending" for ever there); the `/basewalls` / base-core texts
+now say scan-drones are stopped by a wall of four or more (they were, since #1452's own probe window).
 Tests: `StationGravityTests` (2).
 
 ### ★ Lyxette round 5 — player stations get real: hull drawn once, sealed-volume air, crew on demand, windows with a view; cargo tiers explain themselves; space salvage is lossless (#1469–#1478, 2026-09-03, branch fix/lyxette-reports-2026-09-03)

@@ -300,6 +300,19 @@ public sealed partial class GameServer
         _persistedStationsByLocation.Clear();
         foreach (var row in _repo.ListSpaceStructures())
         {
+            // #1493: rows written before #1480 carry the launch instance's RAW key — for a ship that never landed
+            // on another body that is the save's planet-TYPE placeholder, no body at all. Everything that finds a
+            // station again (the per-location list, the contact filter, the instance lookup) resolves through
+            // StationHostKey now, so the row is normalised here — and re-saved once — or the station would never
+            // float in its orbit again after the update.
+            string loc = StationHostKey(row.Location);
+            if (loc != row.Location)
+            {
+                _log.Info($"Player station '{row.Name}' re-keyed from '{row.Location}' to body '{loc}'.");
+                row.Location = loc;
+                _repo.SaveSpaceStructure(row);
+            }
+
             if (!_persistedStationsByLocation.TryGetValue(row.Location, out var list))
             {
                 list = _persistedStationsByLocation[row.Location] = new List<StoredSpaceStructure>();
@@ -411,9 +424,6 @@ public sealed partial class GameServer
         int cz = station.Origin.Z + ((min.Z + max.Z) / 2 - anchor.Z);
         int fy = station.Origin.Y;
         var hull = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
-        // A materialised interior keeps its pad unless the player has built the spawn spot shut (or it never got
-        // one at that spot because the build grew): only then is the pad re-cut — never over a good floor.
-        bool cutPad = firstStamp || !StandableAt(cx, fy + 1, cz);
 
         // Stamp the whole build in one transaction: a station can be hundreds of voxels and each SetBlock is
         // otherwise its own WAL commit — that loop stalls the tick thread for as long as it runs.
@@ -438,8 +448,33 @@ public sealed partial class GameServer
 
                 _world.SetBlock(w, kv.Value);
             }
+        });
 
-            if (cutPad)
+        // The spawn is judged AFTER the top-up, so a block of the build restored at the centre (the core, a wall
+        // built since) never sits in the spawn column. A materialised interior keeps its pad: the centre follows
+        // the cell box, so a wing built on one side can move it onto something the player built — the spawn then
+        // moves to the nearest standable spot INSIDE the build (#1493: the old re-cut carved two air cells + an
+        // iron floor into that wall on every start, and since the carve was never written back the grid restored
+        // the wall for the next start to carve again — a hole in a sealed room). Only a build with no standable
+        // cell at all gets a pad cut.
+        bool cutPad = firstStamp;
+        if (!firstStamp && !StandableAt(cx, fy + 1, cz))
+        {
+            if (TryFindStandableInStation(station, new Vector3i(cx, fy + 1, cz), out var spot))
+            {
+                cx = spot.X;
+                fy = spot.Y - 1;
+                cz = spot.Z;
+            }
+            else
+            {
+                cutPad = true;
+            }
+        }
+
+        if (cutPad)
+        {
+            _repo.RunInTransaction(() =>
             {
                 if (!hull.IsAir)
                 {
@@ -452,8 +487,8 @@ public sealed partial class GameServer
 
                 _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
                 _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
-            }
-        });
+            });
+        }
 
         if (firstStamp && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
         {
@@ -493,6 +528,33 @@ public sealed partial class GameServer
         return (new Vector3i(minX, minY, minZ), new Vector3i(maxX, maxY, maxZ));
     }
 
+    /// <summary>The standable cell (feet cell with two free cells above) inside a materialised station's box that
+    /// lies nearest to <paramref name="near"/> — the spawn spot when the box centre is built shut (#1493).</summary>
+    private bool TryFindStandableInStation(BoardableStation station, Vector3i near, out Vector3i spot)
+    {
+        spot = default;
+        long best = long.MaxValue;
+        for (int x = station.BoundsMin.X; x <= station.BoundsMax.X; x++)
+            for (int z = station.BoundsMin.Z; z <= station.BoundsMax.Z; z++)
+                for (int y = station.BoundsMin.Y + 1; y <= station.BoundsMax.Y + 1; y++)
+                {
+                    if (!StandableAt(x, y, z))
+                    {
+                        continue;
+                    }
+
+                    long dx = x - near.X, dy = y - near.Y, dz = z - near.Z;
+                    long d = dx * dx + dy * dy * 4 + dz * dz; // prefer the same deck over one above or below
+                    if (d < best)
+                    {
+                        best = d;
+                        spot = new Vector3i(x, y, z);
+                    }
+                }
+
+        return best != long.MaxValue;
+    }
+
     /// <summary>The build's world-space box in its interior world: the sealed-air fill (#1473) treats anything
     /// beyond it (+ margin) as void. Follows the cells, so a wing built from inside widens the breathable reach.</summary>
     private static void RefreshStationBounds(BoardableStation station, Vector3i min, Vector3i max)
@@ -515,7 +577,7 @@ public sealed partial class GameServer
     /// built inside are door entities, not blocks, and persist with the world on their own. No-op outside
     /// player-station worlds. Called after the world write, for player edits only — station stamps, fluids and
     /// fires never go through here.</summary>
-    private void WriteBackStationCell(Vector3i world, BlockId block)
+    private void WriteBackStationCell(Vector3i world, BlockId block, int tint = 0, int glow = 0, int shape = 0)
     {
         if (!IsPlayerStationWorld(_world.LocationId))
         {
@@ -530,12 +592,14 @@ public sealed partial class GameServer
         }
 
         var cell = WorldToStationCell(station, world);
-        if (block.IsAir ? !s.Cells.ContainsKey(cell) : s.Get(cell).Value == block.Value)
+        bool sameMods = s.Mods.TryGetValue(cell, out var mods) ? mods == (tint, glow) : tint == 0 && glow == 0;
+        bool sameShape = (s.Shapes.TryGetValue(cell, out var sh) ? sh : 0) == shape;
+        if (block.IsAir ? !s.Cells.ContainsKey(cell) : s.Get(cell).Value == block.Value && sameMods && sameShape)
         {
             return; // nothing the grid doesn't already say
         }
 
-        s.Set(cell, block);
+        s.Set(cell, block, tint, glow, shape); // #1493: dye + form ride along, so the hull seen from a spacewalk matches
         var (min, max) = CellBox(s);
         RefreshStationBounds(station, min, max);
         if (_stationHostBody.TryGetValue(stationId, out var hostLoc))
@@ -543,8 +607,9 @@ public sealed partial class GameServer
             PersistStation(hostLoc, s);
         }
 
-        // Pilots floating beside the hull right now see the rebuilt wall too.
-        if (_spaceInstances.TryGetValue("space:" + (hostLoc ?? string.Empty), out var instance) && instance.Structures.ContainsKey(s.Id))
+        // Pilots floating beside the hull right now see the rebuilt wall too. The instance is found by the structure
+        // it holds, not by key: a never-landed ship's instance is keyed by the planet-type placeholder (#1493).
+        if (_spaceInstances.Values.FirstOrDefault(i => i.Structures.ContainsKey(s.Id)) is { } instance)
         {
             foreach (var pid in instance.Players)
             {

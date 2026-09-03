@@ -4394,7 +4394,7 @@ public sealed partial class GameServer
         }
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
-        WriteBackStationCell(pos, blockDef.NumericId); // #1481: an interior edit is part of the station's build from now on
+        WriteBackStationCell(pos, blockDef.NumericId, placeTint, placeGlow, placeShape); // #1481: an interior edit is part of the station's build from now on
 
         if (IsContainerBlock(blockDef.Key))
         {
