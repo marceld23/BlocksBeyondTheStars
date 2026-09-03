@@ -425,6 +425,99 @@ public sealed class PlayerStationReportsTests : IDisposable
         }
     }
 
+    // ---------------- #1493: rows keyed by the launch placeholder are re-keyed on load ----------------
+
+    [Fact]
+    public void PreUpgradeStationRow_KeyedByThePlanetTypePlaceholder_IsFoundAgainAfterARestart()
+    {
+        string id;
+        string host;
+        string placeholder;
+        {
+            var s1 = NewServer("rekey", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildLineStation(s1, pilot);
+                host = s1.StationHostBodyForTest(id);
+                var body = s1.Galaxy.FindBody(host);
+                Assert.NotNull(body);
+                s1.LeaveSpace("Owner");
+                repo1.Flush();
+
+                // A row written before #1480 carried the launch instance's RAW key — for a ship that never landed
+                // anywhere else that is the planet-TYPE placeholder, which is no body of the galaxy.
+                placeholder = body!.PlanetType!;
+                Assert.Null(s1.Galaxy.FindBody(placeholder));
+                var row = repo1.ListSpaceStructures().Single(r => r.Id == id);
+                row.Location = placeholder;
+                repo1.SaveSpaceStructure(row);
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("rekey", out var repo2);
+        using (repo2)
+        {
+            Assert.Equal(host, s2.StationHostBodyForTest(id)); // re-keyed on load…
+            Assert.Equal(host, repo2.ListSpaceStructures().Single(r => r.Id == id).Location); // …and re-saved once
+
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            s2.EnterSpace("Owner");
+            Assert.True(s2.SpaceEntitiesFor("Owner").Any(e => e.Id == id),
+                $"the pre-upgrade station must float in its orbit again (contacts: {string.Join(", ", s2.SpaceEntitiesFor("Owner").Select(e => e.Id))})");
+        }
+    }
+
+    // ---------------- #1493: the spawn is judged after the top-up and never carves the build ----------------
+
+    [Fact]
+    public void RestoredBuildAtTheSpawnColumn_MovesTheSpawn_InsteadOfCarvingTheBuild()
+    {
+        var core = BoxWorld(0, 0, 0); // the core sits two above the floor — exactly the first stamp's head cell
+        string id;
+        ushort coreBlock;
+        {
+            var s1 = NewServer("padspawn", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildSealedBox(s1, pilot);
+                coreBlock = s1.StationCellsForTest(id)[new Vector3i(0, 0, 0)].Value;
+                BoardOwnStation(s1, "Owner", id);
+                Assert.True(s1.World.GetBlock(core).IsAir, "the first stamp cuts the pad through the centre column");
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("padspawn", out var repo2);
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            BoardOwnStation(s2, "Owner", id);
+
+            // The top-up put the core back (its cell is still part of the build) — and the spawn moved off it.
+            Assert.Equal(coreBlock, s2.World.GetBlock(core).Value);
+            var feet = new Vector3i((int)Math.Floor(pilot.State.Position.X), (int)Math.Floor(pilot.State.Position.Y), (int)Math.Floor(pilot.State.Position.Z));
+            Assert.NotEqual((core.X, core.Z), (feet.X, feet.Z));
+            Assert.True(s2.World.GetBlock(feet).IsAir && s2.World.GetBlock(new Vector3i(feet.X, feet.Y + 1, feet.Z)).IsAir,
+                $"the spawn must be free at {feet}");
+            Assert.False(s2.World.GetBlock(new Vector3i(feet.X, feet.Y - 1, feet.Z)).IsAir, "…and stand on a floor");
+
+            // Nothing of the build was carved: every cell of the grid is in the world.
+            foreach (var kv in s2.StationCellsForTest(id))
+            {
+                Assert.Equal(kv.Value.Value, s2.World.GetBlock(BoxWorld(kv.Key.X, kv.Key.Y, kv.Key.Z)).Value);
+            }
+        }
+    }
+
     [Fact]
     public void TractorBeam_DeclaresThePassiveRange_TheServerUses()
     {

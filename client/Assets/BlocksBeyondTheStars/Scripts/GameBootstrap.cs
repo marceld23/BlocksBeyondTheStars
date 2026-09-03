@@ -3110,6 +3110,8 @@ namespace BlocksBeyondTheStars.Client
                     mcol.sharedMesh = null;
                     Destroy(stale);
                 }
+
+                _colliderAppliedGen[coord] = bakeGen; // #1493: nothing to cook — the chunk carries this generation now
             }
             else
             {
@@ -3121,6 +3123,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     var oldWebgl = mcol.sharedMesh; // freshly cooked each remesh — free the previous one (leak otherwise)
                     mcol.sharedMesh = collider;
+                    _colliderAppliedGen[coord] = bakeGen; // #1493: cooked on the spot — the fall-guard log must not call it pending
                     if (oldWebgl != null && oldWebgl != collider)
                     {
                         Destroy(oldWebgl);
