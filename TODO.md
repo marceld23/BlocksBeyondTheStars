@@ -110,6 +110,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Creature spawn exclusion radius: nothing wild within 24 blocks of a base_core (#1451, 2026-09-03, PR #1492 by @ahmdkaml)
+Lyxette's herbivores on the walled landing pad (~20 blocks from the core) exposed that the wall-ring fill is
+the ONLY spawn rule near a base and that it fails open silently. `SpawnSpotClear` now rejects every non-Air
+habitat within `WorldConstants.BaseSpawnExclusionRadius` (24, Chebyshev cube incl. height) of any base core
+on the current world (`IsNearBaseCore`), BEFORE the sealed-room and wall-ring checks; herd members inherit
+it. The wall ring keeps its job for larger yards. Tests: `BaseWalledYardTests.TheSpawner_RejectsALandSpawn_Within24BlocksOfTheBaseCore`
+(pad 20 blocks out, no wall); the sealed-room spawn test moved its room to x 5..30 so the wall-gap
+behaviour stays covered outside the radius. `.vscode/` git-ignored. OPEN: player texts (`block.base_core.desc`,
+`vega.hint.base_walls`, `base-air` codex) still describe only the 48-block ring → #1495 (Ahmed, EN+DE; the
+other 12 locales by Marcel). UNRELEASED.
+
 ### ★ Lyxette round 6 — the station stays where you built it and how you rebuilt it; walls stop the walking robots; torches burn in base air; the inventory stops moving under your click (#1480–#1484, #1486–#1489, 2026-09-03, branch fix/lyxette-reports-2026-09-03b)
 Eight F1 reports from the morning of 2026-09-03 (v2026.8.26), decisions Marcel 2026-09-03. **Station in every
 orbit (#1480):** `AddStationContacts` listed every `SpaceStation` body of the star system in every orbit — a
@@ -207,7 +218,7 @@ own cell (`InSealedBaseRoom` / enclosed / open), and the rules line. Dispatch `c
 (`block.base_core.desc`, `vega.hint.base_walls`) + the `base-air` codex paragraph (EN/DE): 2-high walls at
 feet level, 48 incl. height, hinge/wood doors leak vs slide/energy doors = walls, unloaded = open, cave
 dwellers exempt. Test `BaseWalledYardTests.BaseWallsReport_NamesTheCore_AndReadsTheYardAsEnclosed_ThenOpenAfterAGap`.
-Deliberately NOT here: the 24-block core radius (#1451, offered to Ahmed).
+The 24-block core radius came separately in #1492 (#1451, Ahmed) — see the entry above.
 
 ### ★ Daylight re-tune: overcast floor, ambient, vignette/contrast, Neutral tonemap on LDR, brightness row (#1457, 2026-09-02, branch fix/daylight-retune)
 Verena (school playtest, browser): "auch tagsüber sehr dunkel und drückend". The June brightness work (PR #65:
