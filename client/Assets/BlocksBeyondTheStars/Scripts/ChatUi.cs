@@ -566,6 +566,7 @@ namespace BlocksBeyondTheStars.Client
                 // Note these are NOT gated by the "admin cheats" world option server-side; the role is the gate.
                 case "/players": net.SendAdminCommand("players"); return true;
                 case "/basewalls": net.SendAdminCommand("basewalls"); return true; // enclosure-fill report (#1452)
+                case "/creatures": net.SendAdminCommand("creatures"); return true; // creature-footing report (#1489)
 
                 case "/builds":
                     // Optional player filter: "/builds Justus" lists only that player's structures.

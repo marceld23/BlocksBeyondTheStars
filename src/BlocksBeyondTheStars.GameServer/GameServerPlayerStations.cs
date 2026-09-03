@@ -170,7 +170,7 @@ public sealed partial class GameServer
             });
         }
 
-        AddStationBodyToGalaxy(s.Id, s.Name, instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id);
+        AddStationBodyToGalaxy(s.Id, s.Name, StationHostKey(instance.Id));
         PersistStation(instance, s);
         BroadcastSpaceState(instance);
 
@@ -210,9 +210,24 @@ public sealed partial class GameServer
     }
 
     private void PersistStation(SpaceInstance instance, SpaceStructure s)
+        => PersistStation(StationHostKey(instance.Id), s);
+
+    /// <summary>The body id a space instance orbits, for station bookkeeping (#1480): the instance key without its
+    /// <c>space:</c> prefix, resolved through the galaxy — a never-launched ship's instance still carries the save's
+    /// planet-TYPE placeholder as its key, which is no body at all, so that case falls back to the save's active
+    /// body. Persisted rows, the per-location list and the contact filter all speak this one key.</summary>
+    private string StationHostKey(string instanceOrBodyId)
     {
-        string loc = instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id;
+        string raw = instanceOrBodyId.StartsWith("space:", System.StringComparison.Ordinal) ? instanceOrBodyId.Substring("space:".Length) : instanceOrBodyId;
+        return _galaxy?.FindBody(raw)?.Id ?? _galaxy?.FindBody(_meta.ActiveLocationId)?.Id ?? raw;
+    }
+
+    /// <summary>Writes a station's registry row + cells; <paramref name="loc"/> is the body it orbits. The stamp
+    /// anchor (#1481) rides along from the boardable record once the interior has been materialised.</summary>
+    private void PersistStation(string loc, SpaceStructure s)
+    {
         _stationHostBody[s.Id] = loc; // remember the body it orbits (travel-screen badge + menu-board return)
+        var stamped = _stationsById.TryGetValue(s.Id, out var boardable) && boardable.Materialised ? boardable : null;
         var row = new StoredSpaceStructure
         {
             Id = s.Id,
@@ -224,6 +239,10 @@ public sealed partial class GameServer
             PosZ = s.Position.Z,
             Boardable = s.Boardable,
             Blocks = SerializeCells(s.Cells),
+            Stamped = stamped is not null,
+            StampMinX = stamped?.StampMin.X ?? 0,
+            StampMinY = stamped?.StampMin.Y ?? 0,
+            StampMinZ = stamped?.StampMin.Z ?? 0,
         };
         _repo.SaveSpaceStructure(row);
 
@@ -315,6 +334,8 @@ public sealed partial class GameServer
                 SizeTier = "small",
                 SpacePosition = s.Position,
                 Origin = new Vector3i(8, 64, 8),
+                Materialised = row.Stamped, // #1481: the interior world already holds a stamp at this anchor
+                StampMin = new Vector3i(row.StampMinX, row.StampMinY, row.StampMinZ),
             };
             AddStationBodyToGalaxy(row.Id, row.Name, row.Location);
         }
@@ -328,7 +349,7 @@ public sealed partial class GameServer
     /// <summary>Re-creates persisted player stations in a freshly created space instance + their dock contacts.</summary>
     private void AddPersistedStations(SpaceInstance instance)
     {
-        string loc = instance.Id.StartsWith("space:") ? instance.Id.Substring("space:".Length) : instance.Id;
+        string loc = StationHostKey(instance.Id);
         if (!_persistedStationsByLocation.TryGetValue(loc, out var rows))
         {
             return;
@@ -367,28 +388,32 @@ public sealed partial class GameServer
             return;
         }
 
-        int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
-        int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
-        foreach (var c in src.Cells.Keys)
+        var (min, max) = CellBox(src);
+
+        // #1481: the stamp is anchored ONCE. The first stamp pins the build's cell minimum to the world origin
+        // and persists that anchor; every later stamp (each server start recreates the boardable record) maps
+        // through the same anchor, so interior edits written back into the cells (see WriteBackStationCell)
+        // land where they were made and a wing added on the far side never shifts the whole interior. Before
+        // this the minimum was recomputed from the cells every time and the original cells were stamped over
+        // whatever the player had changed inside — a door built where glass was reverted on the next start.
+        bool firstStamp = !station.Materialised;
+        if (firstStamp)
         {
-            if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
-            if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
+            station.StampMin = min;
+            station.Materialised = true;
         }
 
-        if (src.Cells.Count == 0)
-        {
-            minX = minY = minZ = maxX = maxY = maxZ = 0;
-        }
-
-        // The build's world-space box: the sealed-air fill (#1473) treats anything beyond it (+ margin) as void.
-        station.BoundsMin = new Vector3i(station.Origin.X, station.Origin.Y, station.Origin.Z);
-        station.BoundsMax = new Vector3i(station.Origin.X + (maxX - minX), station.Origin.Y + (maxY - minY), station.Origin.Z + (maxZ - minZ));
+        var anchor = station.StampMin;
+        RefreshStationBounds(station, min, max);
 
         // Spawn at the build's centre with a guaranteed floor pad + headroom (never fall through into the void).
-        int cx = station.Origin.X + (maxX - minX) / 2;
-        int cz = station.Origin.Z + (maxZ - minZ) / 2;
+        int cx = station.Origin.X + ((min.X + max.X) / 2 - anchor.X);
+        int cz = station.Origin.Z + ((min.Z + max.Z) / 2 - anchor.Z);
         int fy = station.Origin.Y;
         var hull = _content.GetBlock("iron_wall")?.NumericId ?? BlockId.Air;
+        // A materialised interior keeps its pad unless the player has built the spawn spot shut (or it never got
+        // one at that spot because the build grew): only then is the pad re-cut — never over a good floor.
+        bool cutPad = firstStamp || !StandableAt(cx, fy + 1, cz);
 
         // Stamp the whole build in one transaction: a station can be hundreds of voxels and each SetBlock is
         // otherwise its own WAL commit — that loop stalls the tick thread for as long as it runs.
@@ -405,22 +430,35 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
+                var w = StationCellToWorld(station, kv.Key);
+                if (!firstStamp && _world.GetBlock(w).Value == kv.Value.Value)
+                {
+                    continue; // already there — a materialised interior is only topped up with hull work done since
+                }
+
                 _world.SetBlock(w, kv.Value);
             }
 
-            if (!hull.IsAir)
+            if (cutPad)
             {
-                for (int dx = -1; dx <= 1; dx++)
-                    for (int dz = -1; dz <= 1; dz++)
-                    {
-                        _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
-                    }
-            }
+                if (!hull.IsAir)
+                {
+                    for (int dx = -1; dx <= 1; dx++)
+                        for (int dz = -1; dz <= 1; dz++)
+                        {
+                            _world.SetBlock(new Vector3i(cx + dx, fy, cz + dz), hull);
+                        }
+                }
 
-            _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
-            _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
+                _world.SetBlock(new Vector3i(cx, fy + 1, cz), BlockId.Air);
+                _world.SetBlock(new Vector3i(cx, fy + 2, cz), BlockId.Air);
+            }
         });
+
+        if (firstStamp && _stationHostBody.TryGetValue(station.Id, out var hostLoc))
+        {
+            PersistStation(hostLoc, src); // the anchor is part of the row from now on
+        }
 
         station.Spawn = new Vector3f(cx + 0.5f, fy + 1f, cz + 0.5f);
         station.Markers.Clear();
@@ -429,12 +467,102 @@ public sealed partial class GameServer
         // Manual placeables (Feature 2): vendor / mission-board / container blocks the owner built into their
         // station become interaction points, reusing the SAME trade/mission/loot code paths procedural
         // stations use (SpawnStationNpcs staffs the vendor/board markers; placed containers are lootable).
-        RegisterPlayerStationPlaceables(station, src, minX, minY, minZ);
+        RegisterPlayerStationPlaceables(station, src);
 
         station.Structure = null; // player station: no procedural structure bounds
         station.Stamped = true;
         _log.Info($"Player station '{station.Name}' stamped into its void world at ({station.Origin.X},{station.Origin.Y},{station.Origin.Z}).");
     }
+
+    /// <summary>The cell-grid bounding box of a build (both corners inclusive; the origin cell for an empty build).</summary>
+    private static (Vector3i Min, Vector3i Max) CellBox(SpaceStructure src)
+    {
+        if (src.Cells.Count == 0)
+        {
+            return (new Vector3i(0, 0, 0), new Vector3i(0, 0, 0));
+        }
+
+        int minX = int.MaxValue, minY = int.MaxValue, minZ = int.MaxValue;
+        int maxX = int.MinValue, maxY = int.MinValue, maxZ = int.MinValue;
+        foreach (var c in src.Cells.Keys)
+        {
+            if (c.X < minX) minX = c.X; if (c.Y < minY) minY = c.Y; if (c.Z < minZ) minZ = c.Z;
+            if (c.X > maxX) maxX = c.X; if (c.Y > maxY) maxY = c.Y; if (c.Z > maxZ) maxZ = c.Z;
+        }
+
+        return (new Vector3i(minX, minY, minZ), new Vector3i(maxX, maxY, maxZ));
+    }
+
+    /// <summary>The build's world-space box in its interior world: the sealed-air fill (#1473) treats anything
+    /// beyond it (+ margin) as void. Follows the cells, so a wing built from inside widens the breathable reach.</summary>
+    private static void RefreshStationBounds(BoardableStation station, Vector3i min, Vector3i max)
+    {
+        station.BoundsMin = StationCellToWorld(station, min);
+        station.BoundsMax = StationCellToWorld(station, max);
+    }
+
+    /// <summary>Build cell → interior-world cell through the station's stamp anchor (#1481).</summary>
+    private static Vector3i StationCellToWorld(BoardableStation station, Vector3i cell)
+        => new(station.Origin.X + cell.X - station.StampMin.X, station.Origin.Y + cell.Y - station.StampMin.Y, station.Origin.Z + cell.Z - station.StampMin.Z);
+
+    /// <summary>Interior-world cell → build cell (the inverse of <see cref="StationCellToWorld"/>).</summary>
+    private static Vector3i WorldToStationCell(BoardableStation station, Vector3i world)
+        => new(world.X - station.Origin.X + station.StampMin.X, world.Y - station.Origin.Y + station.StampMin.Y, world.Z - station.Origin.Z + station.StampMin.Z);
+
+    /// <summary>A block changed inside a player station's interior world (#1481): mirror it into the station's
+    /// cell grid and persist, so the edit survives the next server start (the re-stamp finds the cell already
+    /// matching — or gone — and leaves it alone) and the hull seen from a spacewalk shows the rebuilt wall. Doors
+    /// built inside are door entities, not blocks, and persist with the world on their own. No-op outside
+    /// player-station worlds. Called after the world write, for player edits only — station stamps, fluids and
+    /// fires never go through here.</summary>
+    private void WriteBackStationCell(Vector3i world, BlockId block)
+    {
+        if (!IsPlayerStationWorld(_world.LocationId))
+        {
+            return;
+        }
+
+        string stationId = _world.LocationId.Substring("station:".Length);
+        if (!_stationsById.TryGetValue(stationId, out var station) || !station.Materialised
+            || !_playerStationCells.TryGetValue(stationId, out var s))
+        {
+            return;
+        }
+
+        var cell = WorldToStationCell(station, world);
+        if (block.IsAir ? !s.Cells.ContainsKey(cell) : s.Get(cell).Value == block.Value)
+        {
+            return; // nothing the grid doesn't already say
+        }
+
+        s.Set(cell, block);
+        var (min, max) = CellBox(s);
+        RefreshStationBounds(station, min, max);
+        if (_stationHostBody.TryGetValue(stationId, out var hostLoc))
+        {
+            PersistStation(hostLoc, s);
+        }
+
+        // Pilots floating beside the hull right now see the rebuilt wall too.
+        if (_spaceInstances.TryGetValue("space:" + (hostLoc ?? string.Empty), out var instance) && instance.Structures.ContainsKey(s.Id))
+        {
+            foreach (var pid in instance.Players)
+            {
+                if (FindSessionByPlayerId(pid) is { } sess)
+                {
+                    SendShipDesign(sess, s);
+                }
+            }
+        }
+    }
+
+    /// <summary>Test seam (#1480): the body id a player station orbits (empty when unknown).</summary>
+    public string StationHostBodyForTest(string stationId)
+        => _stationHostBody.TryGetValue(stationId, out var host) ? host : string.Empty;
+
+    /// <summary>Test seam (#1481): a player station's persisted cell grid.</summary>
+    public IReadOnlyDictionary<Vector3i, BlockId> StationCellsForTest(string stationId)
+        => _playerStationCells.TryGetValue(stationId, out var s) ? s.Cells : new Dictionary<Vector3i, BlockId>();
 
     /// <summary>Scans a player station's own placed cells for the manual placeable blocks and wires them as
     /// interaction points in the stamped void world: a <c>station_vendor</c> / <c>mission_board</c> becomes a
@@ -442,7 +570,7 @@ public sealed partial class GameServer
     /// <see cref="NearSpaceStationMissionBoard"/> fire for boarders), and a <c>station_container</c> becomes a
     /// lootable/stash-able container reusing the existing crate code paths. The blocks themselves persist via
     /// the station's cells, so these interaction points are re-derived on every board (nothing auto-spawns).</summary>
-    private void RegisterPlayerStationPlaceables(BoardableStation station, SpaceStructure src, int minX, int minY, int minZ)
+    private void RegisterPlayerStationPlaceables(BoardableStation station, SpaceStructure src)
     {
         var vendor = _content.GetBlock("station_vendor")?.NumericId ?? BlockId.Air;
         var board = _content.GetBlock("mission_board")?.NumericId ?? BlockId.Air;
@@ -451,7 +579,7 @@ public sealed partial class GameServer
         bool hasBoard = false;
         foreach (var kv in src.Cells)
         {
-            var w = new Vector3i(station.Origin.X + kv.Key.X - minX, station.Origin.Y + kv.Key.Y - minY, station.Origin.Z + kv.Key.Z - minZ);
+            var w = StationCellToWorld(station, kv.Key);
             var center = new Vector3f(w.X + 0.5f, w.Y + 0.5f, w.Z + 0.5f);
 
             if (!vendor.IsAir && kv.Value.Value == vendor.Value)
