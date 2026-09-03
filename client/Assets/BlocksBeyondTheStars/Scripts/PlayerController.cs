@@ -172,7 +172,7 @@ namespace BlocksBeyondTheStars.Client
         private const float StandHeight = 1.8f;
         private const float CrouchHeight = 1.2f;
         private const float CrouchSpeedMul = 0.4f;
-        private const float SneakEdgeProbe = 0.08f; // how far past the centre the sneak edge-stop looks for floor (#1309)
+        private const float SneakEdgeOverhang = 0.2f; // how far the centre may hang past an edge while sneaking before the stop fires (#1309, #1486)
         private static readonly Vector3 CrouchEye = new Vector3(0f, 1.0f, 0f);
         private bool _crouched;
         private float _crouchT; // 0 = standing, 1 = fully crouched (eases the camera; the collider snaps)
@@ -2047,6 +2047,14 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (++_embeddedFrames >= EmbeddedFramesBeforeRescue && _hasSafeGround)
                 {
+                    // #1488: say so. A player reported a "falling" jolt while standing on a solid station floor
+                    // and building at its edge — the prime suspect is this rescue firing while the chunk's
+                    // collider is still being re-baked off-thread. The line names the spot and whether a bake
+                    // was pending, so the next report settles it.
+                    var at = transform.position;
+                    bool bakePending = Game != null && Game.ColliderBakePendingAt(at);
+                    Debug.Log($"[FallGuard] rescued to {_lastSafeGround} after {_embeddedFrames} embedded frames at {at} " +
+                              $"(world {Game?.LoadingPlanetType ?? "?"}, grounded {grounded}, collider bake pending {bakePending})");
                     SnapTo(_lastSafeGround);
                     _embeddedFrames = 0;
                 }
@@ -3066,10 +3074,15 @@ namespace BlocksBeyondTheStars.Client
             // #1309: probe just past the CENTRE, not past the capsule's rim. At radius + 0.15 the sample sat
             // 0.5 blocks ahead, so the stop fired as soon as the centre came within half a block of the edge —
             // i.e. in the middle of the last block, which made building an outer wall face from its top
-            // impossible without scaffolding. A short probe lets the capsule overhang the edge the way
-            // sneaking does in every other voxel builder, while the feet still keep their footing. The probe
-            // also covers THIS frame's step, so a long frame cannot carry the centre past the edge unseen.
-            float reach = SneakEdgeProbe + horizontalDir.magnitude * Time.deltaTime;
+            // impossible without scaffolding.
+            // #1486: probe BEHIND the centre. With the sample 0.08 ahead the centre — and the eye above it —
+            // stopped just short of the edge, so the outer face of the block underfoot was never in view and
+            // "Blöcke an Außenwände setzen geht immer noch nicht". Now the stop fires only once the centre
+            // would hang SneakEdgeOverhang past the edge: the eye clears the rim and can aim down onto the
+            // outer face, while the trailing part of the footprint still stands on the block — the way
+            // sneaking overhangs in every other voxel builder. The probe also covers THIS frame's step, so a
+            // long frame cannot carry the centre past the edge unseen.
+            float reach = horizontalDir.magnitude * Time.deltaTime - SneakEdgeOverhang;
             Vector3 ahead = transform.position + horizontalDir.normalized * reach;
             return IsSolidKey(BlockKeyAt(ahead - Vector3.up * 0.5f))
                 || IsSolidKey(BlockKeyAt(ahead - Vector3.up * 1.2f));

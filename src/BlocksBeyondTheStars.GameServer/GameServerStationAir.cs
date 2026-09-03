@@ -94,6 +94,25 @@ public sealed partial class GameServer
         return sealedHere;
     }
 
+    /// <summary>Whether a cell of the active world holds breathable air of its OWN making — a founded base's
+    /// supply cube or sealed room, or a player station's sealed pocket — regardless of the world's atmosphere
+    /// (#1483). What a flame needs on an airless body; the world-level atmosphere is checked by the caller.</summary>
+    private bool BreathableAirAt(Vector3i cell)
+    {
+        if (InAnyBaseZone(cell) || InSealedBaseRoom(cell))
+        {
+            return true;
+        }
+
+        if (IsPlayerStationWorld(_world.LocationId))
+        {
+            string stationId = _world.LocationId.Substring("station:".Length);
+            return _stationsById.TryGetValue(stationId, out var station) && station.Stamped && InSealedStationPocket(station, cell);
+        }
+
+        return false;
+    }
+
     /// <summary>Test/inspection: whether the given cell of the active station world sits in a sealed pocket.</summary>
     public bool StationCellSealedForTest(string stationId, Vector3i cell)
         => _stationsById.TryGetValue(stationId, out var station) && InSealedStationPocket(station, cell);
@@ -187,13 +206,14 @@ public sealed partial class GameServer
     }
 
     /// <summary>Airtight for station purposes: an airtight full cube (walls, glass, force field), any door block
-    /// (the airlock the commission rule already demands) or the station core itself.</summary>
+    /// (the airlock the commission rule already demands), a door BUILT inside (a door entity fills its air cells —
+    /// #1481, an airlock is an airlock whichever way it was placed) or the station core itself.</summary>
     private bool IsStationAirtightCell(Vector3i c)
     {
         var id = _world.GetBlockIfLoaded(c);
         if (id.IsAir)
         {
-            return false;
+            return PlayerDoorFillsCell(c);
         }
 
         _stationAirtightExtras ??= BuildStationAirtightExtras();
@@ -204,6 +224,106 @@ public sealed partial class GameServer
 
         var def = _content.BlockById(id);
         return def is { Airtight: true } && ShapeCode.IsCube(_world.GetShape(c)); // shaped cells leak
+    }
+
+    // ---------------- #1487: crew only staffs posts that hold air ----------------
+
+    private const double StationStaffInterval = 3.0; // seconds between re-checks of a boarded player station's posts
+    private double _stationStaffTimer;
+    private readonly Dictionary<string, int> _stationStaffSig = new(); // station id → bitmask of staffable posts at the last (re)staffing
+
+    /// <summary>Whether a station post may be staffed: always on NPC stations and for non-post markers; on a
+    /// player-built station only while the air cell above the post sits in a sealed pocket.</summary>
+    private bool StationMarkerStaffable(BoardableStation station, string type, Vector3f pos)
+    {
+        if (!IsPlayerStationId(station.Id) || type is not ("vendor" or "mission_board"))
+        {
+            return true;
+        }
+
+        var head = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y) + 1, (int)System.Math.Floor(pos.Z));
+        return InSealedStationPocket(station, head);
+    }
+
+    /// <summary>Bitmask of the station's posts that are staffable right now (marker order is stable per stamp).</summary>
+    private int StationStaffSignature(BoardableStation station)
+    {
+        int sig = 0;
+        for (int i = 0; i < station.Markers.Count && i < 31; i++)
+        {
+            var (type, pos) = station.Markers[i];
+            if (type is "vendor" or "mission_board" && StationMarkerStaffable(station, type, pos))
+            {
+                sig |= 1 << i;
+            }
+        }
+
+        return sig;
+    }
+
+    /// <summary>True when a player station has a trading post or mission board standing in an unsealed room.</summary>
+    private bool StationHasUnstaffedPost(BoardableStation station)
+    {
+        foreach (var (type, pos) in station.Markers)
+        {
+            if (type is "vendor" or "mission_board" && !StationMarkerStaffable(station, type, pos))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Re-staffs a boarded player station when a post's room seals or opens (#1487): the crew arrives
+    /// once the hull around the post is airtight and leaves — with a word to the boarders — when it is breached.
+    /// Cheap: one signature per few seconds, a respawn only on a change.</summary>
+    private void TickStationStaffing(double dt)
+    {
+        if (!IsPlayerStationWorld(_world.LocationId))
+        {
+            return;
+        }
+
+        _stationStaffTimer += dt;
+        if (_stationStaffTimer < StationStaffInterval)
+        {
+            return;
+        }
+
+        _stationStaffTimer = 0;
+        string stationId = _world.LocationId.Substring("station:".Length);
+        if (!_stationsById.TryGetValue(stationId, out var station) || !station.Stamped)
+        {
+            return;
+        }
+
+        int sig = StationStaffSignature(station);
+        if (!_stationStaffSig.TryGetValue(stationId, out var last) || last == sig)
+        {
+            _stationStaffSig[stationId] = sig;
+            return;
+        }
+
+        _npcs.Clear();
+        SpawnStationNpcs(station); // deterministic from the station seed: the same faces come back; a newly open post tells the boarders
+        BroadcastNpcs();
+    }
+
+    /// <summary>Whether a player-built door entity occupies the cell (its ~3-tall opening column).</summary>
+    private bool PlayerDoorFillsCell(Vector3i c)
+    {
+        foreach (var d in _doors)
+        {
+            if (d.PlayerBuilt
+                && (int)System.Math.Floor(d.Pos.X) == c.X && (int)System.Math.Floor(d.Pos.Z) == c.Z
+                && c.Y >= (int)System.Math.Floor(d.Pos.Y) && c.Y <= (int)System.Math.Floor(d.Pos.Y) + 2)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private HashSet<ushort> BuildStationAirtightExtras()

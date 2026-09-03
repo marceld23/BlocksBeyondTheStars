@@ -1438,6 +1438,7 @@ public sealed partial class GameServer
             Guard("TickFlora", deltaSeconds, TickFlora);
             Guard("TickCreatures", deltaSeconds, TickCreatures);
             Guard("TickNpcs", deltaSeconds, TickNpcs);
+            Guard("TickStationStaffing", deltaSeconds, TickStationStaffing); // #1487: crew only staffs posts in sealed rooms
             Guard("TickLandedTraders", deltaSeconds, TickLandedTraders); // P3: materialize/lift-off a peaceful trader parked on this surface
             Guard("TickDoors", deltaSeconds, TickDoors);
             Guard("TickDropPackets", deltaSeconds, TickDropPackets); // #853: ground packets flow back into whoever walks over them
@@ -3960,6 +3961,7 @@ public sealed partial class GameServer
         }
 
         BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = BlockId.AirValue });
+        WriteBackStationCell(pos, BlockId.Air); // #1481: an interior edit is part of the station's build from now on
         if (floraHarvest)
         {
             ScheduleFloraRegrow(pos, current.Value); // regrows if the host stays intact
@@ -4163,8 +4165,10 @@ public sealed partial class GameServer
         // the like) there is nothing to sustain it, so it is refused with a reason the player can act on instead
         // of being placed as a dud that mysteriously gives no light. A toxic atmosphere is fine — you need a
         // suit, the flame does not. Checked HERE, before the item is consumed further down, so a refused torch
-        // stays in the pack.
-        if (blockDef.Key == "torch" && !AtmospherePresent)
+        // stays in the pack. A sealed base room or station pocket holds air of its own (#1483): a torch burns
+        // there too — the old check asked only the WORLD and refused the lamp in an asteroid base that its own
+        // core reported as breathable.
+        if (blockDef.Key == "torch" && !AtmospherePresent && !BreathableAirAt(pos))
         {
             Reject(session, "place", "@no_air");
             return;
@@ -4380,6 +4384,7 @@ public sealed partial class GameServer
         }
 
         _world.SetBlock(pos, blockDef.NumericId, placeTint, placeGlow, placeShape, session.State.PlayerId);
+        WriteBackStationCell(pos, blockDef.NumericId); // #1481: an interior edit is part of the station's build from now on
 
         if (IsContainerBlock(blockDef.Key))
         {
@@ -5029,6 +5034,11 @@ public sealed partial class GameServer
             // Base-wall diagnostics (#1452) — a read-only report, not a cheat: the role is the gate.
             case "basewalls":
                 AdminBaseWalls(session);
+                return;
+
+            // Creature-footing diagnostics (#1489) — feet vs real ground per animal nearby, same read-only idea.
+            case "creatures":
+                AdminCreatures(session);
                 return;
 
             // Paint moderation (#821) — like kick/announce, moderation is not a cheat: the role is the gate.

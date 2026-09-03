@@ -101,7 +101,7 @@ public sealed class PlayerStationReportsTests : IDisposable
 
     /// <summary>Deploys a core and builds a SEALED 5×5×5 iron shell around it (cells −2…2, the core at the
     /// centre), with a slide door in one wall — the smallest hull whose interior should hold air.</summary>
-    private static string BuildSealedBox(SvGameServer server, PlayerSession pilot)
+    private static string BuildSealedBox(SvGameServer server, PlayerSession pilot, string? vendorItem = null)
     {
         string playerId = pilot.State.PlayerId;
         server.EnterSpace(playerId);
@@ -122,9 +122,17 @@ public sealed class PlayerStationReportsTests : IDisposable
                 }
 
         Edit(server, playerId, id, 2, -1, 0, "door_slide"); // the airlock fills the doorway in the +X wall
+        if (vendorItem != null)
+        {
+            Edit(server, playerId, id, 1, -1, 0, vendorItem); // a post on the floor inside the sealed room
+        }
+
         Assert.True(server.StationIsBoardableForTest(id));
         return id;
     }
+
+    /// <summary>Build cell → interior-world cell for the sealed box: origin (8,64,8) minus the −2 build minimum.</summary>
+    private static Vector3i BoxWorld(int x, int y, int z) => new(x + 10, y + 66, z + 10);
 
     private static void BoardOwnStation(SvGameServer server, string playerId, string stationId)
     {
@@ -226,18 +234,60 @@ public sealed class PlayerStationReportsTests : IDisposable
     }
 
     [Fact]
-    public void ATradingPost_BringsTheVendorAndTheFillerCrew()
+    public void ATradingPost_InASealedRoom_BringsTheVendorAndTheFillerCrew()
     {
         var server = NewServer("crew", out var repo);
         using (repo)
         {
             var pilot = server.AddLocalPlayer("Owner");
-            string id = BuildLineStation(server, pilot, vendorItem: "station_vendor");
+            string id = BuildSealedBox(server, pilot, vendorItem: "station_vendor");
             BoardOwnStation(server, "Owner", id);
 
             var roles = server.NpcSnapshots.Select(n => n.Role).ToList();
             Assert.Contains("vendor", roles);
             Assert.Equal(2, roles.Count(r => r == "settler")); // the "small" tier's two civilians, now around the post
+        }
+    }
+
+    // ---------------- #1487: nobody staffs a post that is open to space ----------------
+
+    [Fact]
+    public void ATradingPost_InTheVacuum_StaysUnstaffed_AndTheBoarderIsTold()
+    {
+        var transport = new RecordingTransport();
+        var server = NewServer("vacuumpost", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildLineStation(server, pilot, vendorItem: "station_vendor"); // a line of walls: no room, no air
+            BoardOwnStation(server, "Owner", id);
+
+            Assert.Empty(server.NpcSnapshots);
+            Assert.Contains(transport.Sent, m => m is ServerMessage sm && sm.Text == "@srv.station.staff_needs_air");
+        }
+    }
+
+    [Fact]
+    public void ATradingPost_LosesItsCrew_WhenTheRoomIsBreached_AndGetsItBack_WhenPlugged()
+    {
+        var server = NewServer("breachpost", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildSealedBox(server, pilot, vendorItem: "station_vendor");
+            BoardOwnStation(server, "Owner", id);
+            Assert.Contains(server.NpcSnapshots, n => n.Role == "vendor");
+
+            // Knock the top centre block out: the room leaks → the next staffing check clears the post.
+            var hole = BoxWorld(0, 2, 0);
+            server.World.SetBlock(hole, BlockId.Air);
+            TickAt(server, pilot, pilot.State.Position, halfSeconds: 12);
+            Assert.DoesNotContain(server.NpcSnapshots, n => n.Role == "vendor");
+
+            // Plug it with a force field: sealed again → the vendor is back at the post.
+            server.World.SetBlock(hole, _content.GetBlock("force_field")!.NumericId);
+            TickAt(server, pilot, pilot.State.Position, halfSeconds: 12);
+            Assert.Contains(server.NpcSnapshots, n => n.Role == "vendor");
         }
     }
 
@@ -297,6 +347,83 @@ public sealed class PlayerStationReportsTests : IDisposable
     }
 
     // ---------------- #1477: the tractor range comes from data ----------------
+
+    // ---------------- #1480: a player station is a contact only in the orbit it was built in ----------------
+
+    [Fact]
+    public void PlayerStation_IsNotAContact_InAnotherOrbitOfTheSameSystem()
+    {
+        var server = NewServer("orbit", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildLineStation(server, pilot);
+            server.LeaveSpace("Owner");
+
+            var here = server.Galaxy.FindBody(server.StationHostBodyForTest(id))!; // a real body id, not the launch placeholder
+            var system = server.Galaxy.Systems.First(s => s.Id == here.SystemId);
+            var other = system.Bodies.First(b => b.Id != here.Id && !string.IsNullOrEmpty(b.PlanetType));
+            server.Travel("Owner", other.Id);
+            Assert.Equal(other.Id, pilot.CurrentLocationId);
+
+            server.EnterSpace("Owner");
+            Assert.DoesNotContain(server.SpaceEntitiesFor("Owner"), e => e.Id == id); // not "versetzt" into the next orbit
+
+            // …and back home it is exactly where it was built.
+            server.LeaveSpace("Owner");
+            server.Travel("Owner", here.Id);
+            server.EnterSpace("Owner");
+            Assert.Contains(server.SpaceEntitiesFor("Owner"), e => e.Id == id);
+        }
+    }
+
+    // ---------------- #1481: interior edits survive a restart ----------------
+
+    [Fact]
+    public void InteriorEdits_AreWrittenBackToTheStation_AndSurviveARestart()
+    {
+        var glass = _content.GetBlock("glass")!.NumericId;
+        var roof = BoxWorld(0, 2, 0);      // the top centre wall block
+        var shelf = BoxWorld(0, 0, 1);     // an interior air cell
+        string id;
+        {
+            var s1 = NewServer("interior", out var repo1);
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildSealedBox(s1, pilot);
+                BoardOwnStation(s1, "Owner", id);
+
+                s1.MineBlock("Owner", roof.X, roof.Y, roof.Z);
+                Assert.True(s1.World.GetBlock(roof).IsAir);
+                s1.PlaceBlock("Owner", shelf.X, shelf.Y, shelf.Z, "glass");
+                Assert.Equal(glass.Value, s1.World.GetBlock(shelf).Value);
+
+                // The cell grid follows the world: the roof cell is gone, the glass is a cell of the build now.
+                var cells = s1.StationCellsForTest(id);
+                Assert.False(cells.ContainsKey(new Vector3i(0, 2, 0)));
+                Assert.Equal(glass.Value, cells[new Vector3i(0, 0, 1)].Value);
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("interior", out var repo2);
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true; // the save left him boarded on the station; launch from the ship again
+            s2.EnterSpace("Owner");
+            Assert.True(s2.SpaceEntitiesFor("Owner").Any(e => e.Id == id),
+                $"the restored station must float in its host orbit again (host '{s2.StationHostBodyForTest(id)}', pilot at '{pilot.CurrentLocationId}', contacts: {string.Join(", ", s2.SpaceEntitiesFor("Owner").Select(e => e.Id))})");
+            BoardOwnStation(s2, "Owner", id);
+
+            // Before: the restart re-stamped the original cells and put the roof block back over the hole.
+            Assert.True(s2.World.GetBlock(roof).IsAir, "a mined interior block must stay mined after a restart");
+            Assert.Equal(glass.Value, s2.World.GetBlock(shelf).Value);
+        }
+    }
 
     [Fact]
     public void TractorBeam_DeclaresThePassiveRange_TheServerUses()

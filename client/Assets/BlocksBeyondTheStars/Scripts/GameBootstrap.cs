@@ -1560,6 +1560,22 @@ namespace BlocksBeyondTheStars.Client
         private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)> _bakedColliders
             = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, Mesh Collider, int Gen, int Epoch)>();
 
+        /// <summary>The bake generation each chunk's collider currently CARRIES (#1488) — lags <see cref="_colliderGen"/>
+        /// while a cook is in flight, which is the window the falling-out guard's diagnostics ask about.</summary>
+        private readonly Dictionary<ChunkCoord, int> _colliderAppliedGen = new Dictionary<ChunkCoord, int>();
+
+        /// <summary>Whether the chunk under a scene position has a collider re-bake in flight (started, not yet
+        /// assigned). Diagnostics only (#1488): the falling-out guard logs it when it fires.</summary>
+        public bool ColliderBakePendingAt(Vector3 scenePos)
+        {
+            var coord = WorldConstants.WorldToChunk(new Vector3i(
+                Mathf.FloorToInt((float)WorldConstants.WrapX(scenePos.x, Circumference)),
+                Mathf.FloorToInt(scenePos.y),
+                Mathf.FloorToInt((float)WorldConstants.WrapZ(scenePos.z, Circumference))));
+            return _colliderGen.TryGetValue(coord, out int wanted)
+                && (!_colliderAppliedGen.TryGetValue(coord, out int applied) || applied != wanted);
+        }
+
         // Performance (A2): build the chunk GEOMETRY off the main thread too (the heavy triple-loop + coloured
         // light flood-fill). DispatchChunkBuild snapshots the chunk neighbourhood on the main thread, runs
         // ChunkMesher.BuildGeometry on a worker, and enqueues the plain ChunkMeshData; DrainBuiltChunks uploads
@@ -2463,6 +2479,7 @@ namespace BlocksBeyondTheStars.Client
                 _chunkObjects.Remove(coord);
                 _dirty.Remove(coord);
                 _colliderGen.Remove(coord);
+                _colliderAppliedGen.Remove(coord);
                 _meshGen.Remove(coord);
                 _meshFailCounts.Remove(coord);
                 World.RemoveChunk(coord);
@@ -2632,6 +2649,7 @@ namespace BlocksBeyondTheStars.Client
             // in-flight off-thread builds + bakes so they're dropped in DrainBuiltChunks/DrainBakedColliders
             // instead of landing on the new world's chunks.
             _colliderGen.Clear();
+            _colliderAppliedGen.Clear();
             _meshGen.Clear();
             _meshFailCounts.Clear();
             World.Clear();
@@ -3152,6 +3170,7 @@ namespace BlocksBeyondTheStars.Client
                             Destroy(old); // …so the outgoing one is orphaned unless we free it (leak on every remesh)
                         }
 
+                        _colliderAppliedGen[baked.Coord] = baked.Gen; // #1488: the collider now carries this bake
                         assigned = true;
                     }
                 }

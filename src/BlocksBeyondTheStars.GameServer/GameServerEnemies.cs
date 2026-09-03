@@ -446,10 +446,20 @@ public sealed partial class GameServer
         // is the feet (a drone's hover offset removed); noise surface only when the chunk isn't loaded.
         int refY = (int)System.Math.Floor(enemy.Position.Y) - hover;
         int prevGround = GroundFeetYAt((int)System.Math.Floor(enemy.Position.X), (int)System.Math.Floor(enemy.Position.Z), refY);
-        int groundY = GroundFeetYAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY);
-        if (System.Math.Abs(groundY - prevGround) > 3)
+        // #1482: the destination column is read from REAL blocks only. The old probe fell back to the noise
+        // surface when nothing standable sat within its ±6 window — which is exactly what a wall taller than
+        // six blocks looks like from its foot — so a walking robot read a seven-block wall as level ground
+        // and strolled straight through it, while a three-block wall lifted it onto the parapet in a single
+        // tick. Now: no standable cell in a loaded column = a wall; a walker steps up two blocks at most (a
+        // long-legged hunter clears a natural ledge, a three-block protective wall holds it) and a drone's
+        // hover clears three; anything higher is an obstacle. (The standable probe already demands two free
+        // cells above the feet, so a walker's body never lands inside a wall; a drone keeps weaving through
+        // tree crowns and trunks at hover height as it always has.)
+        if (!MachineGroundAt((int)System.Math.Floor(nx), (int)System.Math.Floor(nz), refY, out int groundY)
+            || groundY - prevGround > (drone ? ScanDroneHover - 1 : MachineStepUp)
+            || prevGround - groundY > 3)
         {
-            enemy.Loco.ModeTimer = 0f; // cliff/spike in the way — pick a new direction next tick
+            enemy.Loco.ModeTimer = 0f; // wall/cliff/spike in the way — pick a new direction next tick
             return false;
         }
 
@@ -478,6 +488,37 @@ public sealed partial class GameServer
 
         enemy.Position = candidate;
         return res.Moving;
+    }
+
+    /// <summary>Blocks a walking machine steps up in one go (#1482): a natural two-block ledge, never a three-block wall.</summary>
+    private const int MachineStepUp = 2;
+
+    /// <summary>The feet cell a planet machine would rest on in a column (#1482): a REAL standable cell near the
+    /// reference height, or the generator surface when the column's chunk is not loaded or the column is water /
+    /// lava in the probe window (a lake is no wall — machines cross it the way they always did, on the noise
+    /// surface). A loaded column with nothing standable and no fluid in the window is solid ground-to-sky as
+    /// far as the machine can see: a wall.</summary>
+    private bool MachineGroundAt(int x, int z, int refY, out int feetY)
+    {
+        if (TryGroundFeetYAt(x, z, refY, out feetY))
+        {
+            return true;
+        }
+
+        bool loaded = _world.IsChunkLoaded(WorldConstants.WorldToChunk(new Vector3i(x, refY, z)));
+        bool fluidColumn = false;
+        for (int dy = -CreatureGroundScan; dy <= CreatureGroundScan && loaded && !fluidColumn; dy++)
+        {
+            fluidColumn = IsFluid(_world.GetBlockIfLoaded(new Vector3i(x, refY + dy, z)).Value);
+        }
+
+        if (!loaded || fluidColumn)
+        {
+            feetY = _generator.SurfaceHeight(_world.Planet, x, z) + 1; // off-screen or over water: the noise surface, as before
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>Returns <paramref name="to"/> expressed in <paramref name="from"/>'s local frame across the world's
