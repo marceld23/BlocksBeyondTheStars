@@ -315,21 +315,26 @@ public sealed class CreatureBuildRespectTests : IDisposable
             p.State.AboardShip = false;
             Force(server, 0, titan: false, nocturnal: false);
 
-            int oy = MaxTopY(server, 10, 0, 24) + 10; // mid-air, clear of every natural feature
+            int oy = MaxTopY(server, 24, 0, 24) + 10; // mid-air, clear of every natural feature
             int coreX = 1, coreZ = 0;
             p.State.Position = new Vector3f(coreX - 1, oy, coreZ);
             p.State.Inventory.Add("base_core", 2, 16);
             server.PlaceBlock("Builder", coreX, oy, coreZ, "base_core");
             int baseId = server.BaseSnapshots.Single().Id;
 
-            // Shell x[5..15] y[oy-1..oy+3] z[-3..3], interior hollow, a 1×3 doorway at x=5 facing the core.
+            // Shell x[5..30] y[oy-1..oy+3] z[-3..3], interior hollow, a 1×3 doorway at x=5 facing the core.
             var stone = _content.GetBlock("stone")!.NumericId;
-            for (int x = 5; x <= 15; x++)
+            for (int x = 5; x <= 30; x++)
                 for (int y = oy - 1; y <= oy + 3; y++)
                     for (int z = -3; z <= 3; z++)
                     {
-                        bool interior = x > 5 && x < 15 && y > oy - 1 && y < oy + 3 && z > -3 && z < 3;
+                        bool interior =
+                            x > 5 && x < 30 &&
+                            y > oy - 1 && y < oy + 3 &&
+                            z > -3 && z < 3;
+
                         bool doorway = x == 5 && z == 0 && y >= oy && y <= oy + 2;
+
                         if (!interior && !doorway)
                         {
                             server.World.SetBlock(new Vector3i(x, y, z), stone);
@@ -340,21 +345,31 @@ public sealed class CreatureBuildRespectTests : IDisposable
             p.State.Position = new Vector3f(4, oy, 0.5f);
             server.PlaceBlock("Builder", 5, oy, 0, "door_energy");
 
-            var inside = new Vector3f(13.5f, oy, 0.5f); // beyond the cube — supplied only by the sealed fill
+            var inside = new Vector3f(28.5f, oy, 0.5f); // beyond the 24-block exclusion, but inside the supplied room
             for (int i = 0; i < 6; i++)
             {
                 p.State.Position = inside;
                 server.TickForTest(0.5); // covers the 1.5 s recompute interval
             }
 
-            Assert.True(server.BaseAirForTest(baseId).Cells > 0, "the room must read as sealed for this test to mean anything");
+            Assert.True(
+                server.BaseAirForTest(baseId).Cells > 0,
+                "the room must read as sealed for this test to mean anything");
 
-            Assert.False(server.SpawnSpotClearForTest(inside), "a spawn candidate inside the sealed room must be rejected");
-            Assert.True(server.SpawnSpotClearForTest(new Vector3f(24.5f, oy, 0.5f)), "open air beside the room stays spawnable");
+            Assert.False(
+                server.SpawnSpotClearForTest(inside),
+                "a spawn candidate inside the sealed room must be rejected");
+
+            Assert.True(
+                server.SpawnSpotClearForTest(new Vector3f(32.5f, oy, 0.5f)),
+                "open air beside the room stays spawnable");
 
             // Knock a hole in the roof: the pocket leaks and the air fill empties — but the WALLS still stand,
             // so the walled-area rule (#1315) keeps the spot closed: a roofless yard is exactly its case.
-            server.World.SetBlock(new Vector3i(13, oy + 3, 0), BlocksBeyondTheStars.Shared.Primitives.BlockId.Air);
+            server.World.SetBlock(
+                new Vector3i(28, oy + 3, 0),
+                BlocksBeyondTheStars.Shared.Primitives.BlockId.Air);
+
             for (int i = 0; i < 6; i++)
             {
                 p.State.Position = inside;
@@ -362,20 +377,24 @@ public sealed class CreatureBuildRespectTests : IDisposable
             }
 
             Assert.Equal((0, 0), server.BaseAirForTest(baseId));
-            Assert.False(server.SpawnSpotClearForTest(inside), "unsealed but still walled in — the yard rule holds (#1315)");
+            Assert.False(
+                server.SpawnSpotClearForTest(inside),
+                "unsealed but still walled in — the yard rule holds (#1315)");
 
             // Open the wall at the spawn's own level: now the outside-in fill reaches it and it is ordinary terrain.
-            server.RemoveBlockForTest(15, oy, 0);
+            server.RemoveBlockForTest(30, oy, 0);
+
             for (int i = 0; i < 6; i++)
             {
                 p.State.Position = inside;
                 server.TickForTest(0.5);
             }
 
-            Assert.True(server.SpawnSpotClearForTest(inside), "a gap in the wall lets the spawner (and the animals) in");
+            Assert.True(
+                server.SpawnSpotClearForTest(inside),
+                "a gap in the wall lets the spawner (and the animals) in");
         }
     }
-
     // ---------------- #1320: sleepers vs walls, floors and hulls ----------------
 
     [Fact]
