@@ -18,6 +18,9 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 - **Schul-AG** joins the playtesters in the README and the in-game Credits screen (all 14 languages):
   **Ben, Marie and Nikita**, whose first club day produced the reports behind #1456, #1462,
   #1453–#1455 and #1459.
+- The club now has its own credit block under its name — **School club "Building Games with AI"**
+  (Schul-AG „Spiele entwickeln mit KI“) — placed directly above the community contributors, in the
+  README and in the in-game Credits (all 14 languages).
 
 ### 🧱 Base walls: an admin report and honest texts (#1452)
 
