@@ -500,7 +500,7 @@ public sealed partial class GameServer
 
         if (sp.Habitat != CreatureHabitat.Air && IsNearBaseCore(cell))
         {
-            // Reject wild spawns within 24 blocks of any base_core on the current world.
+            // Reject wild spawns within BaseSpawnExclusionRadius blocks of any base_core on the current world.
             return false;
         }
         if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos, CreatureShipMargin(sp)))

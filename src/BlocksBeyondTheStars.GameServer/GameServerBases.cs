@@ -51,6 +51,10 @@ public sealed partial class GameServer
     /// the base's life-support field (see <see cref="InAnyBaseZone"/>); shared with the client's HUD hint.</summary>
     private const int BaseProtectionRadius = WorldConstants.BaseZoneRadius;
 
+    /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
+    /// Shared with the world constant so the server's spawn checks use the authoritative radius.</summary>
+    private const int BaseSpawnExclusionRadius = WorldConstants.BaseSpawnExclusionRadius;
+
     /// <summary>True if the cell falls inside some player base's protected zone on the current world AND the actor
     /// may not edit it there. Owner + allies + admins build freely; for anyone else the whole zone is read-only.
     /// The base_core cell itself is owner-only even for allies, so an ally can't dissolve the base out from under
@@ -104,7 +108,7 @@ public sealed partial class GameServer
         => WithinBaseZone(core, pos, BaseProtectionRadius);
 
     /// <summary>
-    /// True if the cell is within 24 blocks of any base core on the current world.
+    /// True if the cell is within BaseSpawnExclusionRadius blocks of any base core on the current world.
     /// Uses the same Chebyshev (cube) distance as the base protection zone.
     /// </summary>
     private bool IsNearBaseCore(Vector3i cell)
@@ -113,7 +117,7 @@ public sealed partial class GameServer
 
         foreach (var b in _bases)
         {
-            if (b.Planet == body && WithinBaseZone(b.Cell, cell, 24))
+            if (b.Planet == body && WithinBaseZone(b.Cell, cell, BaseSpawnExclusionRadius))
             {
                 return true;
             }

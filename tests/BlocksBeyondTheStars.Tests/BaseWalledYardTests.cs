@@ -257,7 +257,7 @@ public sealed class BaseWalledYardTests : IDisposable
 
             Assert.False(
                 server.SpawnSpotClearForTest(nearCore),
-                "a land spawn within 24 blocks of the base core is rejected");
+                "a land spawn within BaseSpawnExclusionRadius blocks of the base core is rejected");
         }
     }
 
