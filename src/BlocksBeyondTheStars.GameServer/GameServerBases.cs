@@ -51,6 +51,10 @@ public sealed partial class GameServer
     /// the base's life-support field (see <see cref="InAnyBaseZone"/>); shared with the client's HUD hint.</summary>
     private const int BaseProtectionRadius = WorldConstants.BaseZoneRadius;
 
+    /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
+    /// Shared with the world constant so the server's spawn checks use the authoritative radius.</summary>
+    private const int BaseSpawnExclusionRadius = WorldConstants.BaseSpawnExclusionRadius;
+
     /// <summary>True if the cell falls inside some player base's protected zone on the current world AND the actor
     /// may not edit it there. Owner + allies + admins build freely; for anyone else the whole zone is read-only.
     /// The base_core cell itself is owner-only even for allies, so an ally can't dissolve the base out from under
@@ -88,11 +92,39 @@ public sealed partial class GameServer
         return false;
     }
 
-    /// <summary>Chebyshev (cube) test: is <paramref name="pos"/> within the base-core's protected half-extent?</summary>
+    /// <summary>
+    /// Chebyshev (cube) test: is <paramref name="pos"/> within the specified
+    /// half-extent of the base-core?
+    /// </summary>
+    private static bool WithinBaseZone(Vector3i core, Vector3i pos, int radius)
+        => System.Math.Abs(pos.X - core.X) <= radius
+           && System.Math.Abs(pos.Y - core.Y) <= radius
+           && System.Math.Abs(pos.Z - core.Z) <= radius;
+
+    /// <summary>
+    /// Chebyshev (cube) test using the base's configured protection radius.
+    /// </summary>
     private static bool WithinBaseZone(Vector3i core, Vector3i pos)
-        => System.Math.Abs(pos.X - core.X) <= BaseProtectionRadius
-           && System.Math.Abs(pos.Y - core.Y) <= BaseProtectionRadius
-           && System.Math.Abs(pos.Z - core.Z) <= BaseProtectionRadius;
+        => WithinBaseZone(core, pos, BaseProtectionRadius);
+
+    /// <summary>
+    /// True if the cell is within BaseSpawnExclusionRadius blocks of any base core on the current world.
+    /// Uses the same Chebyshev (cube) distance as the base protection zone.
+    /// </summary>
+    private bool IsNearBaseCore(Vector3i cell)
+    {
+        string body = _world.LocationId;
+
+        foreach (var b in _bases)
+        {
+            if (b.Planet == body && WithinBaseZone(b.Cell, cell, BaseSpawnExclusionRadius))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>True if the cell lies inside a base zone the PLAYER OWNS on the current world — the "build
     /// at home" test the build missions use (#1116). Allied zones deliberately don't count: the assignment

@@ -496,6 +496,13 @@ public sealed partial class GameServer
     /// wildlife. <see cref="InSealedBaseRoom"/> is a cached set lookup, effectively free.</summary>
     private bool SpawnSpotClear(CreatureSpecies sp, Vector3f pos, int px, int pz, int surface)
     {
+        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
+
+        if (sp.Habitat != CreatureHabitat.Air && IsNearBaseCore(cell))
+        {
+            // Reject wild spawns within BaseSpawnExclusionRadius blocks of any base_core on the current world.
+            return false;
+        }
         if (!HabitatSuitable(sp, pos) || EntityBlockedByShip(pos, CreatureShipMargin(sp)))
         {
             // Reject the SAME volume the movement barrier guards (not just the tight interior box), so a
@@ -526,7 +533,6 @@ public sealed partial class GameServer
         }
 
         // #1314: nothing spawns inside a base's sealed rooms — the volume the air fill already knows.
-        var cell = new Vector3i((int)System.Math.Floor(pos.X), (int)System.Math.Floor(pos.Y), (int)System.Math.Floor(pos.Z));
         if (InSealedBaseRoom(cell))
         {
             return false;

@@ -37,6 +37,10 @@ public static class WorldConstants
     /// hint and the server's authoritative checks can never disagree about the zone size.</summary>
     public const int BaseZoneRadius = 8;
 
+    /// <summary>Half-extent (in blocks) around a base_core within which wild creature spawning is excluded.
+    /// Shared so player-facing text and the server's authoritative spawn check use the same value.</summary>
+    public const int BaseSpawnExclusionRadius = 24;
+
     // --- Longitude wrap helpers ---
     // Each takes an explicit circumference so a world can be any size; the no-arg overloads use the default
     // Circumference (6000) so existing callers/tests are unaffected. ChunksAround/LatitudeLimit have per-circ

@@ -232,12 +232,32 @@ public sealed class BaseWalledYardTests : IDisposable
             sp.Size = 1f;
 
             var inside = new Vector3f(Cx + 2.5f, padY + 1, Cz + 0.5f);
-            var outside = new Vector3f(Cx + 9.5f, padY + 1, Cz + 0.5f);
+            var outside = new Vector3f(Cx + 25.5f, padY + 1, Cz + 0.5f);
             Assert.False(server.SpawnSpotClearForTest(inside), "a land spawn inside the yard is rejected");
             Assert.True(server.SpawnSpotClearForTest(outside), "outside the ring spawns continue");
 
             sp.Habitat = CreatureHabitat.Air;
             Assert.True(server.SpawnSpotClearForTest(new Vector3f(Cx + 2.5f, padY + 5, Cz + 0.5f)), "a flier does not care about walls");
+        }
+    }
+
+    [Fact]
+    public void TheSpawner_RejectsALandSpawn_Within24BlocksOfTheBaseCore()
+    {
+        var server = Started(out var repo, "spawn-core-radius");
+        using (repo)
+        {
+            var (_, padY) = Yard(server, ring: false);
+            var sp = server.SpeciesRoster[0];
+            sp.Habitat = CreatureHabitat.Land;
+            sp.BodyPlan = CreatureBodyPlan.Standard;
+            sp.Size = 1f;
+
+            var nearCore = new Vector3f(Cx + 20.5f, padY + 1, Cz + 0.5f);
+
+            Assert.False(
+                server.SpawnSpotClearForTest(nearCore),
+                "a land spawn within BaseSpawnExclusionRadius blocks of the base core is rejected");
         }
     }
 

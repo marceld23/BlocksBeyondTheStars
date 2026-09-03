@@ -7,6 +7,7 @@ publish/
 
 # Editor / agent settings (local only)
 .claude/
+.vscode/
 
 # Local Docker Compose overrides (auto-loaded by `docker compose`; per-machine dev config such as
 # enabling the WebSocket gateway + bind-mounting a locally built client/Build/WebGL at /app/webgl).
