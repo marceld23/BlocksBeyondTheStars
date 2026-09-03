@@ -117,9 +117,9 @@ habitat within `WorldConstants.BaseSpawnExclusionRadius` (24, Chebyshev cube inc
 on the current world (`IsNearBaseCore`), BEFORE the sealed-room and wall-ring checks; herd members inherit
 it. The wall ring keeps its job for larger yards. Tests: `BaseWalledYardTests.TheSpawner_RejectsALandSpawn_Within24BlocksOfTheBaseCore`
 (pad 20 blocks out, no wall); the sealed-room spawn test moved its room to x 5..30 so the wall-gap
-behaviour stays covered outside the radius. `.vscode/` git-ignored. OPEN: player texts (`block.base_core.desc`,
-`vega.hint.base_walls`, `base-air` codex) still describe only the 48-block ring → #1495 (Ahmed, EN+DE; the
-other 12 locales by Marcel). UNRELEASED.
+behaviour stays covered outside the radius. `.vscode/` git-ignored. Player texts (`block.base_core.desc`,
+`vega.hint.base_walls`, `base-air` codex EN+DE) now name the 24-block guarantee beside the ring (#1495,
+all 14 locales, machine pass for the 12). UNRELEASED.
 
 ### ★ Lyxette round 6 — the station stays where you built it and how you rebuilt it; walls stop the walking robots; torches burn in base air; the inventory stops moving under your click (#1480–#1484, #1486–#1489, 2026-09-03, branch fix/lyxette-reports-2026-09-03b)
 Eight F1 reports from the morning of 2026-09-03 (v2026.8.26), decisions Marcel 2026-09-03. **Station in every
