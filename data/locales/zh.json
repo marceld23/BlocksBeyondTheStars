@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} 知识 — 数据片段已解析。",
   "srv.misc.dug_out": "你被岩石卡住了 —— 已挖出。",
   "srv.misc.fall_recovered": "已从跌落中恢复。",
+  "srv.station.zero_g": "你已离开空间站的重力范围——现在宇航服会漂浮。跳跃上升，蹲下下沉；飘回甲板或按 U 返回你的飞船。",
+  "srv.station.drifted_back": "你离空间站太远了——已被送回停机坪。",
   "srv.misc.interior_space_only": "你必须在外太空才能进入飞船内部。",
   "srv.misc.need_radio": "你需要一个通讯电台才能使用通讯。",
   "srv.misc.no_heal_tank": "附近没有治疗罐或床。",

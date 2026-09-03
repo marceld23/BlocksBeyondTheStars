@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} 知識 — データ断片を解析しました。",
   "srv.misc.dug_out": "岩に埋まっていました — 掘り出しました。",
   "srv.misc.fall_recovered": "落下から回復しました。",
+  "srv.station.zero_g": "ステーションの重力を離れました — スーツが浮いています。ジャンプで上昇、しゃがみで下降；デッキに戻るか、Uキーで船に戻ってください。",
+  "srv.station.drifted_back": "ステーションから遠くへ流されました — パッドに戻されました。",
   "srv.misc.interior_space_only": "船内に入るには宇宙空間にいる必要があります。",
   "srv.misc.need_radio": "通信を使うには無線機が必要です。",
   "srv.misc.no_heal_tank": "回復タンクやベッドの届く範囲にありません。",

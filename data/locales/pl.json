@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} wiedza — fragment danych przeanalizowany.",
   "srv.misc.dug_out": "Utknąłeś w skale — wykopano cię.",
   "srv.misc.fall_recovered": "Powrócono po upadku.",
+  "srv.station.zero_g": "Opuszczasz grawitację stacji — skafander unosi się. Skok = w górę, kucnięcie = w dół; dryfuj z powrotem na pokład lub naciśnij U, aby wrócić do statku.",
+  "srv.station.drifted_back": "Odrywałeś za daleko od stacji — przeniesiono na platformę.",
   "srv.misc.interior_space_only": "Musisz być na zewnątrz, w kosmosie, żeby wejść do statku.",
   "srv.misc.need_radio": "Potrzebujesz radia łączności, aby używać comms.",
   "srv.misc.no_heal_tank": "Brak zbiornika leczniczego lub łóżka w zasięgu.",

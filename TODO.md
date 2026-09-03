@@ -141,7 +141,14 @@ in a sealed pocket; `TickStationStaffing` re-staffs on seal/breach transitions a
 `[FallGuard]` with position, frames and whether a collider re-bake was pending (`ColliderBakePendingAt`) —
 diagnosis first, fix after a repro. **`/creatures` (#1489):** admin readout per animal within 48 blocks —
 feet, real ground (species-aware wide probe), delta, noise surface, verdict (BURIED / floating / ok).
-Deferred to its own PR: the station gravity volume (#1485, decision b — EVA float outside the box + margin).
+**Station gravity volume (#1485, decision b, own PR, branch feat/station-gravity-volume):** a boarder who stepped
+over the deck's edge fell for ever (no floor, the void rescue skipped boarded players, only `U` helped). The
+stamped box + the 8-block air margin IS the gravity now: outside it `UpdateAboveAtmosphere` flags the boarder
+`AboveAtmosphere` (`OutsideStationGravity`, 2-block hysteresis), so the client's existing on-foot zero-g (item 10)
+floats him — jump rises, crouch sinks, drift back or build the outer hull from outside — with a one-shot
+`@srv.station.zero_g`; more than 64 blocks beyond the volume the void rescue sets him back on the pad
+(`RescueDriftingBoarder`, `@srv.station.drifted_back`). `U` stays the anchor; NPC stations are untouched.
+Tests: `StationGravityTests` (2).
 
 ### ★ Lyxette round 5 — player stations get real: hull drawn once, sealed-volume air, crew on demand, windows with a view; cargo tiers explain themselves; space salvage is lossless (#1469–#1478, 2026-09-03, branch fix/lyxette-reports-2026-09-03)
 Three F1 reports from the evening of 2026-09-02 (v2026.8.26), all decisions Marcel 2026-09-03. **Station drawn

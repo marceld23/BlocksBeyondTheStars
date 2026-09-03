@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} knowledge — data fragment analysed.",
   "srv.misc.dug_out": "You were stuck in the rock — dug out.",
   "srv.misc.fall_recovered": "Recovered from a fall.",
+  "srv.station.zero_g": "You have left the station's gravity — the suit floats now. Jump rises, crouch sinks; drift back to the deck, or press U to return to your ship.",
+  "srv.station.drifted_back": "You drifted too far from the station — brought back to the pad.",
   "srv.misc.interior_space_only": "You must be out in space to step inside the ship.",
   "srv.misc.need_radio": "You need a comm radio to use comms.",
   "srv.misc.no_heal_tank": "No heal tank or bed in reach.",

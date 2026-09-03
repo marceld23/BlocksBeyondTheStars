@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} de conocimiento — fragmento de datos analizado.",
   "srv.misc.dug_out": "Estabas atrapado en la roca: te hemos sacado.",
   "srv.misc.fall_recovered": "Recuperado tras una caída.",
+  "srv.station.zero_g": "Has salido de la gravedad de la estación: el traje flota ahora. Saltar sube, agacharse baja; regresa a la cubierta o presiona U para volver a tu nave.",
+  "srv.station.drifted_back": "Te alejaste demasiado de la estación: te devolvimos a la plataforma.",
   "srv.misc.interior_space_only": "Debes estar en el espacio exterior para entrar en la nave.",
   "srv.misc.need_radio": "Necesitas una radio de comunicaciones para usar las comunicaciones.",
   "srv.misc.no_heal_tank": "No hay tanque de curación ni cama al alcance.",

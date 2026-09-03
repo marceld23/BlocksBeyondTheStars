@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} kennis — datafragment geanalyseerd.",
   "srv.misc.dug_out": "Je zat vast in de rots — eruit gegraven.",
   "srv.misc.fall_recovered": "Hersteld na een val.",
+  "srv.station.zero_g": "Je hebt de zwaartekracht van het station verlaten — het pak zweeft nu. Spring om te stijgen, hurk om te zakken; drijf terug naar het dek, of druk op U om naar je schip terug te keren.",
+  "srv.station.drifted_back": "Je dreef te ver weg van het station — teruggebracht naar de lanceerplaats.",
   "srv.misc.interior_space_only": "Je moet in de ruimte zijn om het schip binnen te gaan.",
   "srv.misc.need_radio": "Je hebt een comm-radio nodig om comms te gebruiken.",
   "srv.misc.no_heal_tank": "Geen hersteltank of bed binnen bereik.",

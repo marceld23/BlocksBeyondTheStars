@@ -3570,6 +3570,8 @@
   "srv.misc.data_analysed": "+{name} Wissen — Datenfragment ausgewertet.",
   "srv.misc.dug_out": "Du stecktest im Gestein — ausgegraben.",
   "srv.misc.fall_recovered": "Nach einem Sturz geborgen.",
+  "srv.station.zero_g": "Du hast die Schwerkraft der Station verlassen — der Anzug schwebt jetzt. Springen steigt, Ducken sinkt; treib zurück aufs Deck oder drück U für dein Schiff.",
+  "srv.station.drifted_back": "Du bist zu weit von der Station abgetrieben — zurück auf die Plattform geholt.",
   "srv.misc.interior_space_only": "Nur draußen im Weltraum kannst du ins Schiff hineingehen.",
   "srv.misc.need_radio": "Für den Funk brauchst du ein Funkgerät.",
   "srv.misc.no_heal_tank": "Kein Heiltank und kein Bett in Reichweite.",
