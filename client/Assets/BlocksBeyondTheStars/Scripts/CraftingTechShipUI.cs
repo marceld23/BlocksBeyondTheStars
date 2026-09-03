@@ -76,6 +76,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _craftHooked;
         private bool _craftableOnly;
         private int _lastDataHash = -1;
+        private string _feedbackShown = string.Empty; // the server message the footer currently shows (#1484: refreshed in place, not via the hash)
         private bool _built;
         // The page (mode+category / selection) last rendered into each scroll view. A rebuild that changes
         // the page scrolls back to the top; an in-place refresh (live data, volume/colour cycling) keeps the
@@ -158,6 +159,7 @@ namespace BlocksBeyondTheStars.Client
                 _canvas.enabled = false;
             }
 
+            CloseDiscardGearDialog(); // #1484: a half-answered "throw away the helmet lamp?" dies with the menu
             _avatarPreview?.SetActive(false); // stop rendering the preview camera while the menu is closed
             _shipPreview?.SetActive(false);
         }
@@ -214,11 +216,15 @@ namespace BlocksBeyondTheStars.Client
                     + (Game.StarMap?.Systems.Length ?? 0) * 211 + (Game.StarMap?.ActiveLocationId?.GetHashCode() ?? 0)
                     + (Game.Missions?.Available.Length ?? 0) * 307 + (Game.Missions?.Active.Length ?? 0) * 401
                     + (Game.KnownNpcs?.Length ?? 0) * 503 // #1118: the roster arrives async
-                    + (Game.Space?.Entities.Length ?? 0) * 503 + (Game.InSpace ? 7777 : 0)
+                    // #1484: the space contact list and the last HUD message are NOT hashed any more. Neither is
+                    // shown by any tab, yet in flight (contacts drifting in and out, autopilot chatter) they
+                    // changed every few seconds and rebuilt the open Inventory tab under the cursor — the item
+                    // beneath a half-confirmed "throw away" click silently became a different one. The footer
+                    // message refreshes in place instead (see Update).
+                    + (Game.InSpace ? 7777 : 0)
                     // Aboard / ship-interior state drives the Map tab dimming + travel-button gating, so a change
                     // (board/leave the ship with the menu open) must rebuild the header + map buttons.
                     + (Game.Aboard ? 8887 : 0) + (Game.LoadingPlanetType?.GetHashCode() ?? 0)
-                    + (Game.LastMessage?.GetHashCode() ?? 0)
                     // Alliances tab: roster + pending changes refresh the lists; the online-player count drives the
                     // "find players" picker. The radio (Funk) feed is deliberately NOT hashed — its log refreshes in
                     // place each frame so an incoming message never rebuilds the pane and steals the input's focus.
@@ -245,6 +251,16 @@ namespace BlocksBeyondTheStars.Client
                 RebuildSidebar(); // map systems / sections can arrive async
                 RebuildList();
                 RebuildDetail();
+            }
+
+            // #1484: the footer echoes the latest server message in place — it used to ride the data hash and
+            // rebuilt every tab for a HUD line. A custom footer text (a validation hint) stays until the next
+            // server message arrives.
+            string latest = Game.LastMessage ?? string.Empty;
+            if (_feedback != null && latest != _feedbackShown)
+            {
+                _feedbackShown = latest;
+                _feedback.text = latest;
             }
 
             // Live radio scrollback: keep the Funk view current without a rebuild (preserves typing focus).
@@ -934,6 +950,9 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            // #1484: remember where the list was scrolled — a rebuild of the SAME page must land exactly there,
+            // or the row under the mouse changes between two clicks of the discard confirm.
+            Vector2 keepScroll = _listContent != null ? _listContent.anchoredPosition : Vector2.zero;
             ClearChildren(_listContent);
             bool production = _mode == Mode.Crafting || _mode == Mode.Tech || _mode == Mode.Ship;
             RefreshGateRow(production);
@@ -962,11 +981,19 @@ namespace BlocksBeyondTheStars.Client
                 _listPage = listPage;
                 ScrollToTop(_listContent); // a new page starts at the top, not wherever the last one was scrolled
             }
+            else if (_listContent != null)
+            {
+                // Same page: put the list back where it was (clamped to the new height) — see keepScroll above.
+                float viewHeight = (_listContent.parent as RectTransform)?.rect.height ?? 0f;
+                float maxY = Mathf.Max(0f, y - viewHeight);
+                _listContent.anchoredPosition = new Vector2(keepScroll.x, Mathf.Clamp(keepScroll.y, 0f, maxY));
+            }
 
             _footer.text = production ? L("ui.craft.source") + "   |   " + InReachText() : string.Empty;
             if (_feedback != null)
             {
-                _feedback.text = Game.LastMessage ?? string.Empty;
+                _feedbackShown = Game.LastMessage ?? string.Empty;
+                _feedback.text = _feedbackShown;
             }
         }
 
@@ -3922,6 +3949,50 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The detail entry whose Discard button is currently armed, or "" when none is (#599). Cleared
         /// whenever the detail pane switches to another entry, so an armed button never survives navigation.</summary>
         private string _discardArmed = string.Empty;
+        private GameObject _discardDialog; // #1484: the suit-gear confirm, one at a time
+
+        /// <summary>The suit-gear confirm (#1484): a modal that names the piece and offers Keep / Throw away.
+        /// Only this dialog sends the discard for suit gear; closing the menu drops it.</summary>
+        private void ShowDiscardGearDialog(string item, int slot, bool inCargo)
+        {
+            CloseDiscardGearDialog();
+            var canvas = UiKit.CreateCanvas("Discard Gear");
+            canvas.sortingOrder = 61; // above the Tab menu
+            _discardDialog = canvas.gameObject;
+            UiNav.Enable(canvas.gameObject); // pad: stick walks Keep / Throw away, A picks
+
+            var (_, panel) = UiKit.AddModalOverlay(canvas.transform, 660f, 380f, 600f, 300f);
+            UiKit.AddText(panel.transform, 24f, 24f, 552f, 44f,
+                L("ui.inventory.discard_gear_title"), 26, UiKit.TextCol, TextAnchor.MiddleCenter);
+            var body = UiKit.AddText(panel.transform, 24f, 76f, 552f, 90f,
+                L("ui.inventory.discard_gear_text").Replace("{item}", ItemName(item)), 18, UiKit.CyanDim, TextAnchor.UpperCenter);
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiKit.AddButton(panel.transform, 40f, 200f, 240f, 56f, L("ui.inventory.discard_gear_keep"), CloseDiscardGearDialog);
+            var yes = UiKit.AddButton(panel.transform, 320f, 200f, 240f, 56f,
+                L("ui.inventory.discard_gear_yes").Replace("{item}", ItemName(item)),
+                () =>
+                {
+                    CloseDiscardGearDialog();
+                    Game.Network?.SendDiscardItem(slot, inCargo);
+                    _selected = string.Empty; // the entry is about to vanish from the list
+                    RebuildList();
+                    RebuildDetail();
+                });
+            var yesImg = yes.GetComponent<Image>();
+            if (yesImg != null)
+            {
+                yesImg.color = new Color(0.62f, 0.20f, 0.20f);
+            }
+        }
+
+        private void CloseDiscardGearDialog()
+        {
+            if (_discardDialog != null)
+            {
+                Destroy(_discardDialog);
+                _discardDialog = null;
+            }
+        }
 
         /// <summary>The first slot holding <paramref name="item"/> in the backpack (or the ship's hold), or -1.
         /// The discard intent addresses a slot, since a dyed/shaped stack carries a composite item key.</summary>
@@ -3978,8 +4049,14 @@ namespace BlocksBeyondTheStars.Client
             if (discardSlot >= 0 && !StarterKit.IsProtected(item))
             {
                 bool armed = _discardArmed == _selected;
-                var discardBtn = UiKit.AddButton(_detail, 8, y, 320, 46,
-                    L(armed ? "ui.inventory.discard_confirm" : "ui.inventory.discard"),
+                // #1484: the confirm NAMES the item — a second click on "Really throw away?" used to destroy
+                // whatever had scrolled under the mouse meanwhile. Suit gear (the helmet lamp, a jetpack module)
+                // gets a proper dialog on top: it is the one kind of item a player cannot craft back in a minute.
+                bool suitGear = Game.Content.GetItem(item) is { } gearDef && BlocksBeyondTheStars.Shared.State.SuitEquipment.IsSuitGear(gearDef);
+                string discardLabel = armed
+                    ? L("ui.inventory.discard_confirm").Replace("{item}", ItemName(item))
+                    : L("ui.inventory.discard");
+                var discardBtn = UiKit.AddButton(_detail, 8, y, 320, 46, discardLabel,
                     () =>
                     {
                         if (!armed)
@@ -3990,6 +4067,12 @@ namespace BlocksBeyondTheStars.Client
                         }
 
                         _discardArmed = string.Empty;
+                        if (suitGear)
+                        {
+                            ShowDiscardGearDialog(item, discardSlot, inCargo);
+                            return;
+                        }
+
                         Game.Network?.SendDiscardItem(discardSlot, inCargo);
                         _selected = string.Empty; // the entry is about to vanish from the list
                         RebuildList();

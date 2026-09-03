@@ -631,8 +631,12 @@ separate unlock; admins can still disable it through server world rules.
 - **Air only fills sealed rooms** in a station you built: walls, glass and doors are airtight, a hole in the
   hull means **helmet on** (the suit tank takes over, and you get a warning) until you patch it — a
   **force-field block** seals an opening you want to keep. **Crew** (two civilians) moves in once you build a
-  **trading post** or a **mission board** aboard; visiting traders still dock regardless. Windows show the
-  planet you orbit, the sun and a moon.
+  **trading post** or a **mission board** aboard — in a sealed room; a post open to space stays unstaffed
+  until you seal it. Visiting traders still dock regardless. Windows show the planet you orbit, the sun and a moon.
+- **Gravity ends at the hull**: inside your station's box (plus a few blocks around it) you walk; step or fall
+  past that and the suit **floats** — jump rises, crouch sinks, so you drift back to the deck or build the
+  outer hull from outside. Drift very far away and you are set back on the pad. **U** always returns you to
+  your ship.
 - **Name it**: rename a station you built from **Tab → Map** (select it → **Rename**), or by pressing **E**
   on the **station core** while standing inside your own station. Only the owner can rename it.
 - **SPS relay** (late game): any commissioned player station can be converted into a relay of the old
@@ -1489,7 +1493,8 @@ and that option is off by default on hosted worlds.
 | `/players` | Every player this world knows — role, body, position and when they were last seen. Offline players come from the save |
 | `/builds [Player]` | Named structures (bases, beacons, beam pads, stations) with owner, body and a ready-to-use `/goto` line; optionally for one player |
 | `/where Player` | One player's body, position and last-seen time — works while they are offline |
-| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open) |
+| `/basewalls` | Why animals do (not) spawn in a yard: the nearest base core, the enclosure fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed / sealed / open, and the rules (2-high walls, hinge doors leak, unloaded chunks read as open; walking Guardian robots step up two blocks and are stopped by a wall of three or more, drones and fliers are not) |
+| `/creatures` | Creature footing within 48 blocks: per animal its species and motion class, feet height, the real ground of its column, the delta between them, the generator's noise surface and a verdict (ok / floating / BURIED) — the readout for "animals standing in the ground" reports |
 | `/silence Player [Minutes]` | Pauses that player's chat for a while (10 minutes by default, a day at most). They are told how long, and can keep playing — see below |
 | `/unsilence Player` | Ends the pause right away |
 | `/kick Player` | Ends that player's session right now. **Momentary** — they can come back; to keep someone out for good, block them in *Manage world → Manage players* (below) |

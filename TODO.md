@@ -110,6 +110,46 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Lyxette round 6 — the station stays where you built it and how you rebuilt it; walls stop the walking robots; torches burn in base air; the inventory stops moving under your click (#1480–#1484, #1486–#1489, 2026-09-03, branch fix/lyxette-reports-2026-09-03b)
+Eight F1 reports from the morning of 2026-09-03 (v2026.8.26), decisions Marcel 2026-09-03. **Station in every
+orbit (#1480):** `AddStationContacts` listed every `SpaceStation` body of the star system in every orbit — a
+player station therefore had a dockable contact at its instance-local coordinates inside the next moon's rings
+("Raumstation versetzt?"). Contacts are now filtered by the instance's anchor body against `_stationHostBody`
+(the derelict included); NPC stations are unchanged. **Interior edits survive a restart (#1481, decision a):**
+the stamp is anchored ONCE — `space_structure` gained `stamped` + `smin_x/y/z` (SQLite/PG `ADD COLUMN`
+migrations, memory repo via JSON) — and every block placed or mined inside a `station:pstation:*` world is
+written back into the station's cell grid through that anchor (`WriteBackStationCell` → `PersistStation`,
+bounds refreshed, the hull design re-sent to pilots beside it). A later boarding tops up only cells the world
+does not already hold (EVA hull work) and re-cuts the spawn pad only when the spot is no longer standable.
+Doors built inside stay door entities; they now count as airtight for the station pocket. Pre-fix saves see
+one last re-stamp of cells mined before the upgrade. **Walls stop the walking robots (#1482):** `MovePlanetEnemy`
+never tested blocks — its ground probe fell back to the noise surface when nothing standable sat within ±6
+cells, which is what a ≥7-block wall looks like from its foot, so a walker strolled through it while a ≤3 wall
+lifted it onto the parapet in one tick. The destination column is now read from real blocks only
+(`MachineGroundAt`: loaded column without footing = wall), a walker steps up two blocks at most (a natural
+ledge, never a three-block protective wall — `MachineStepUp`), a drone's hover clears three, and the two body
+cells must be free (`MachineBodyBlocked`). `/basewalls` rules and the base-core
+text say so. **Torch in base air (#1483):** `BreathableAirAt` (base supply cube / sealed room / station pocket)
+joins the world-atmosphere check. **Inventory (#1484):** the space contact list and the last HUD message left
+the Tab-menu data hash (the footer refreshes in place), the list keeps its scroll offset across same-page
+rebuilds, the discard confirm names the item, and suit gear gets a Keep / Throw-away modal. **Sneak edge
+(#1486):** the probe sits `SneakEdgeOverhang` (0.2) BEHIND the centre, so the eye clears the rim and the
+outer face underfoot can be built on while the trailing footprint keeps standing. **Staff in sealed rooms
+(#1487):** a player station's vendor / mission-board post is staffed only while the air cell above it sits
+in a sealed pocket; `TickStationStaffing` re-staffs on seal/breach transitions and boarders get
+`@srv.station.staff_needs_air`. **Fall guard (#1488):** the client's `GuardAgainstFallingOut` logs
+`[FallGuard]` with position, frames and whether a collider re-bake was pending (`ColliderBakePendingAt`) —
+diagnosis first, fix after a repro. **`/creatures` (#1489):** admin readout per animal within 48 blocks —
+feet, real ground (species-aware wide probe), delta, noise surface, verdict (BURIED / floating / ok).
+**Station gravity volume (#1485, decision b, own PR, branch feat/station-gravity-volume):** a boarder who stepped
+over the deck's edge fell for ever (no floor, the void rescue skipped boarded players, only `U` helped). The
+stamped box + the 8-block air margin IS the gravity now: outside it `UpdateAboveAtmosphere` flags the boarder
+`AboveAtmosphere` (`OutsideStationGravity`, 2-block hysteresis), so the client's existing on-foot zero-g (item 10)
+floats him — jump rises, crouch sinks, drift back or build the outer hull from outside — with a one-shot
+`@srv.station.zero_g`; more than 64 blocks beyond the volume the void rescue sets him back on the pad
+(`RescueDriftingBoarder`, `@srv.station.drifted_back`). `U` stays the anchor; NPC stations are untouched.
+Tests: `StationGravityTests` (2).
+
 ### ★ Lyxette round 5 — player stations get real: hull drawn once, sealed-volume air, crew on demand, windows with a view; cargo tiers explain themselves; space salvage is lossless (#1469–#1478, 2026-09-03, branch fix/lyxette-reports-2026-09-03)
 Three F1 reports from the evening of 2026-09-02 (v2026.8.26), all decisions Marcel 2026-09-03. **Station drawn
 twice (#1469, #1470):** one player-built station id was rendered by two client paths — the voxel hull from its

@@ -191,6 +191,17 @@ public sealed class StoredSpaceStructure
 
     /// <summary>The voxel grid, serialized as "x:y:z:block" cells joined by ';'.</summary>
     public string Blocks { get; set; } = string.Empty;
+
+    /// <summary>Whether the station's interior world has been stamped at least once (#1481). Once it has, the
+    /// stamp anchor below is fixed for the life of the station: the interior world and the cell grid map onto each
+    /// other through it, so interior edits can be written back into the cells and a later stamp never shifts.</summary>
+    public bool Stamped { get; set; }
+
+    /// <summary>The cell-grid minimum the first stamp was anchored at (#1481) — the build cell that landed on the
+    /// interior world's origin. Meaningless while <see cref="Stamped"/> is false.</summary>
+    public int StampMinX { get; set; }
+    public int StampMinY { get; set; }
+    public int StampMinZ { get; set; }
 }
 
 /// <summary>A single persisted player block edit (placement or removal) in world space, with its

@@ -48,6 +48,12 @@ public sealed partial class GameServer
         /// <summary>World-space box of the stamped build (player stations; #1473 sealed-air reach box).</summary>
         public Vector3i BoundsMin { get; set; }
         public Vector3i BoundsMax { get; set; }
+
+        /// <summary>Player stations (#1481): whether the interior world already holds a stamp from an earlier
+        /// session, and the build cell that stamp anchored at <see cref="Origin"/>. Fixed for the life of the
+        /// station once set, so interior edits map back onto the cell grid and a later stamp never shifts.</summary>
+        public bool Materialised { get; set; }
+        public Vector3i StampMin { get; set; }
     }
 
     /// <summary>Station markers for tests/inspection; empty until the station is stamped.</summary>
@@ -66,10 +72,14 @@ public sealed partial class GameServer
     /// <summary>Mission ids offered by station boards (test/inspection).</summary>
     public IReadOnlyCollection<string> StationMissionIds => _stationMissionIds;
 
-    /// <summary>Adds station contacts to the given space instance, derived from the galaxy when possible.</summary>
+    /// <summary>Adds station contacts to the given space instance, derived from the galaxy when possible. A
+    /// player-built station is a contact only in the orbit it was built in (#1480): the system-wide body list
+    /// used to hand every orbit of the system the same station at its instance-local position, so a builder found
+    /// "his" station — dockable — inside the rings of the next moon over.</summary>
     private void AddStationContacts(SpaceInstance instance)
     {
-        foreach (var station in StationContactsForCurrentSystem())
+        string anchorId = StationHostKey(instance.Id);
+        foreach (var station in StationContactsForCurrentSystem(anchorId))
         {
             instance.Entities.Add(new CombatEntity
             {
@@ -85,12 +95,18 @@ public sealed partial class GameServer
         }
     }
 
-    private IEnumerable<BoardableStation> StationContactsForCurrentSystem()
+    /// <summary>The stations that belong in a space instance. <paramref name="anchorBodyId"/> is the body whose
+    /// orbit the instance is (its key without the <c>space:</c> prefix); stations that remember a host body
+    /// (player-built ones, the derelict) are listed only when it IS that body. Without an anchor the list is the
+    /// whole system's, as the star map wants it.</summary>
+    private IEnumerable<BoardableStation> StationContactsForCurrentSystem(string? anchorBodyId = null)
     {
-        var current = _galaxy.FindBody(_meta.ActiveLocationId);
+        var current = (anchorBodyId is not null ? _galaxy.FindBody(anchorBodyId) : null) ?? _galaxy.FindBody(_meta.ActiveLocationId);
         string systemId = current?.SystemId ?? _galaxy.Systems.FirstOrDefault()?.Id ?? "sys0";
+        string? hostFilter = anchorBodyId is null ? null : (current?.Id ?? anchorBodyId);
         var bodies = _galaxy.Systems.FirstOrDefault(s => s.Id == systemId)?.Bodies
             .Where(b => b.Kind == CelestialKind.SpaceStation)
+            .Where(b => hostFilter is null || !_stationHostBody.TryGetValue(b.Id, out var host) || host == hostFilter) // #1480
             .ToList() ?? new List<CelestialBody>();
 
         // The synthesised fallback station used to appear in EVERY station-less system, which defeated the
@@ -261,6 +277,11 @@ public sealed partial class GameServer
         }
 
         _boardedStation[playerId] = station.Id;
+        if (IsPlayerStationId(station.Id) && StationHasUnstaffedPost(station))
+        {
+            Send(session, new ServerMessage { Text = "@srv.station.staff_needs_air" }); // #1487: the post stands in the vacuum
+        }
+
         session.CurrentLocationId = stationLoc;
         session.State.Position = station.Spawn;
         session.State.AboardShip = false;
@@ -560,6 +581,7 @@ public sealed partial class GameServer
         var rng = new System.Random(unchecked((int)(_meta.Seed ^ WorldGenerator.StableHash("station-npc:" + station.Id))));
         int added = 0;
         int vendorIndex = 0;
+        bool unstaffed = false;
         BeginAuthoredCasting(station.Id); // #1150: at most one authored face per place
         foreach (var (type, pos) in station.Markers)
         {
@@ -576,6 +598,14 @@ public sealed partial class GameServer
             if (role is null)
             {
                 continue; // heal-tank / structural markers don't get a crew member
+            }
+
+            // #1487: on a player-built station a post is only staffed while its room holds air. A trading post
+            // in an unfinished wing open to space stood a trader in the vacuum ("Händler im Vakuum").
+            if (!StationMarkerStaffable(station, type, pos))
+            {
+                unstaffed = true;
+                continue;
             }
 
             // Each station vendor gets its own profession (B55) so multiple traders on one station sell different
@@ -604,7 +634,7 @@ public sealed partial class GameServer
         // board) — the filler crew then gathers around those, never around the bare spawn pad.
         bool playerStation = station.Id.StartsWith("pstation:", System.StringComparison.Ordinal);
         var spots = station.Markers
-            .Where(m => !playerStation || m.Type is "vendor" or "mission_board")
+            .Where(m => !playerStation || (m.Type is "vendor" or "mission_board" && StationMarkerStaffable(station, m.Type, m.Pos)))
             .Select(m => m.Pos).ToList();
         for (int i = 0; i < extra && spots.Count > 0; i++)
         {
@@ -619,6 +649,21 @@ public sealed partial class GameServer
 
         // Peaceful NPC traffic: if a trader ship has recently docked here, its pilot trades at the post too.
         MaybeSpawnVisitingTrader(station);
+
+        if (playerStation)
+        {
+            _stationStaffSig[station.Id] = StationStaffSignature(station); // #1487: re-staffed only when a room seals/opens
+            if (unstaffed)
+            {
+                foreach (var kv in _boardedStation)
+                {
+                    if (kv.Value == station.Id && FindSessionByPlayerId(kv.Key) is { } boarder)
+                    {
+                        Send(boarder, new ServerMessage { Text = "@srv.station.staff_needs_air" });
+                    }
+                }
+            }
+        }
 
         if (added > 0)
         {

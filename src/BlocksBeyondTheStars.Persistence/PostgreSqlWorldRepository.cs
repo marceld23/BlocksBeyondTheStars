@@ -146,6 +146,11 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             TryExecute("ALTER TABLE container ADD COLUMN IF NOT EXISTS filter TEXT NOT NULL DEFAULT '';");
             // Creature-loot drop packets expire (#1312): remaining lifetime in seconds, 0 = never.
             TryExecute("ALTER TABLE container ADD COLUMN IF NOT EXISTS lifetime DOUBLE PRECISION NOT NULL DEFAULT 0;");
+            // Player-station stamp anchor (#1481): 0 = never stamped (anchors itself on the next boarding).
+            TryExecute("ALTER TABLE space_structure ADD COLUMN IF NOT EXISTS stamped INTEGER NOT NULL DEFAULT 0;");
+            TryExecute("ALTER TABLE space_structure ADD COLUMN IF NOT EXISTS smin_x INTEGER NOT NULL DEFAULT 0;");
+            TryExecute("ALTER TABLE space_structure ADD COLUMN IF NOT EXISTS smin_y INTEGER NOT NULL DEFAULT 0;");
+            TryExecute("ALTER TABLE space_structure ADD COLUMN IF NOT EXISTS smin_z INTEGER NOT NULL DEFAULT 0;");
         }
         // 42P01/42P07 = the stored schema no longer matches what Initialize expects (undefined/duplicate
         // relation). Deliberately NOT 42601 (syntax_error) — that is a bug in our SQL, not a broken save.
@@ -938,10 +943,11 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO space_structure (id, owner, name, location, px, py, pz, boardable, blocks) " +
-                              "VALUES (@id, @o, @n, @loc, @px, @py, @pz, @b, @blk) " +
+            cmd.CommandText = "INSERT INTO space_structure (id, owner, name, location, px, py, pz, boardable, blocks, stamped, smin_x, smin_y, smin_z) " +
+                              "VALUES (@id, @o, @n, @loc, @px, @py, @pz, @b, @blk, @st, @sx, @sy, @sz) " +
                               "ON CONFLICT(id) DO UPDATE SET owner=excluded.owner, name=excluded.name, location=excluded.location, " +
-                              "px=excluded.px, py=excluded.py, pz=excluded.pz, boardable=excluded.boardable, blocks=excluded.blocks;";
+                              "px=excluded.px, py=excluded.py, pz=excluded.pz, boardable=excluded.boardable, blocks=excluded.blocks, " +
+                              "stamped=excluded.stamped, smin_x=excluded.smin_x, smin_y=excluded.smin_y, smin_z=excluded.smin_z;";
             cmd.Parameters.AddWithValue("@id", s.Id);
             cmd.Parameters.AddWithValue("@o", s.OwnerId);
             cmd.Parameters.AddWithValue("@n", s.Name);
@@ -951,6 +957,10 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
             cmd.Parameters.AddWithValue("@pz", s.PosZ);
             cmd.Parameters.AddWithValue("@b", s.Boardable ? 1 : 0);
             cmd.Parameters.AddWithValue("@blk", s.Blocks);
+            cmd.Parameters.AddWithValue("@st", s.Stamped ? 1 : 0);
+            cmd.Parameters.AddWithValue("@sx", s.StampMinX);
+            cmd.Parameters.AddWithValue("@sy", s.StampMinY);
+            cmd.Parameters.AddWithValue("@sz", s.StampMinZ);
             cmd.ExecuteNonQuery();
         }
     }
@@ -961,7 +971,7 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         lock (_gate)
         {
             using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT id, owner, name, location, px, py, pz, boardable, blocks FROM space_structure;";
+            cmd.CommandText = "SELECT id, owner, name, location, px, py, pz, boardable, blocks, stamped, smin_x, smin_y, smin_z FROM space_structure;";
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
@@ -976,6 +986,10 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
                     PosZ = (float)reader.GetDouble(6),
                     Boardable = reader.GetInt32(7) != 0,
                     Blocks = reader.GetString(8),
+                    Stamped = reader.GetInt32(9) != 0,
+                    StampMinX = reader.GetInt32(10),
+                    StampMinY = reader.GetInt32(11),
+                    StampMinZ = reader.GetInt32(12),
                 });
             }
         }

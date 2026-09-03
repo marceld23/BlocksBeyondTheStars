@@ -64,7 +64,12 @@ path and is cleanly isolated from any planet.
 
 ## Known gaps / deferred
 
-- Station-world edit persistence is intentionally light (regenerate on board; player-built stations
-  persist as `space_structure`).
+- NPC-station world edits are intentionally light (regenerate on board). Player-built stations persist as
+  `space_structure`, and since #1481 their interior edits are written back into that cell grid through a
+  stamp anchor persisted on the row (`stamped`, `smin_x/y/z`): the world and the grid map onto each other
+  through `Origin + cell − StampMin`, a later boarding only tops up cells the world does not already hold,
+  and the spawn pad is re-cut only when its spot stopped being standable. Doors built inside remain door
+  entities (persisted per world) and count as airtight for the station pocket. What is still open: EVA
+  hull edits made while the interior world is loaded reach it on the next boarding, not live.
 - Residual "flora into space" on **pre-fix persisted** station worlds is hardened separately
   (structure-stamp enclosure checks + re-clearing old stamped worlds) — see TODO.md.

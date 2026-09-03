@@ -8,6 +8,8 @@ using BlocksBeyondTheStars.Networking.Transport;
 using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
+using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -34,7 +36,7 @@ public sealed class EnemyMovementTests : IDisposable
         try { System.IO.Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private SvGameServer Started(string world, out SqliteWorldRepository repo)
+    private SvGameServer Started(string world, out SqliteWorldRepository repo, bool drones = true)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, world));
         var st = new LoopbackServerTransport(new LoopbackLink());
@@ -56,6 +58,7 @@ public sealed class EnemyMovementTests : IDisposable
         // locomotion (the scan-drone's strafe phase in particular) — so any change to the creature spawner
         // shifted which id the first fiend got and flipped the hunt assertion below (#1325 did exactly that).
         config.Rules.CreatureAbundance = AlienActivity.Off;
+        config.Rules.PlanetDrones = drones; // the wall tests (#1482) want walking robots only
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         return server;
@@ -204,6 +207,109 @@ public sealed class EnemyMovementTests : IDisposable
             }
 
             Assert.False(drone.Position.Equals(start), "a space hostile must patrol around its post, not hang still");
+        }
+    }
+
+    // ---------------- #1482: walls stop the walking robots ----------------
+
+    /// <summary>The top Y of the first non-air block under <paramref name="from"/> in a column.</summary>
+    private static int SurfaceYAt(SvGameServer server, int x, int z, int from)
+    {
+        for (int y = from; y > from - 96; y--)
+        {
+            if (!server.World.GetBlock(new Vector3i(x, y, z)).IsAir)
+            {
+                return y;
+            }
+        }
+
+        return from - 96;
+    }
+
+    /// <summary>Flattens a strip west of the player into an arena on real blocks (an iron floor at
+    /// <c>ground</c>, nine cells of air above), builds a <paramref name="wallHeight"/>-block wall three cells
+    /// west of the player across the strip, stands the player ON the wall and the first walking robot ten
+    /// cells west of it, facing the wall with a clear line of sight to the player. Returns (wall X, ground Y).</summary>
+    private (int WallX, int Ground) WallArena(SvGameServer server, PlayerSession pilot, CombatEntity robot, int wallHeight)
+    {
+        var iron = _content.GetBlock("iron_wall")!.NumericId;
+        int px = (int)Math.Floor(pilot.State.Position.X);
+        int pz = (int)Math.Floor(pilot.State.Position.Z);
+        int ground = SurfaceYAt(server, px, pz, (int)Math.Floor(pilot.State.Position.Y) + 8);
+        int wallX = px - 3;
+        for (int x = px - 13; x <= px + 2; x++)
+            for (int z = pz - 3; z <= pz + 3; z++)
+            {
+                server.World.SetBlock(new Vector3i(x, ground, z), iron);
+                for (int y = ground + 1; y <= ground + 9; y++)
+                {
+                    bool wall = x == wallX && y <= ground + wallHeight;
+                    server.World.SetBlock(new Vector3i(x, y, z), wall ? iron : BlockId.Air);
+                }
+            }
+
+        robot.Position = new Vector3f(px - 10 + 0.5f, ground + 1, pz + 0.5f);
+        pilot.State.Position = new Vector3f(wallX + 0.5f, ground + wallHeight + 1, pz + 0.5f);
+        return (wallX, ground);
+    }
+
+    private CombatEntity FirstWalkingRobot(SvGameServer server, PlayerSession pilot)
+    {
+        pilot.State.AboardShip = false; // on foot on the surface — a valid enemy target
+        for (int i = 0; i < 40 && server.PlanetEnemies.Count == 0; i++)
+        {
+            server.Tick(0.5);
+        }
+
+        var robot = server.PlanetEnemies.First(e => e.Kind != CombatEntityKind.ScanDrone);
+        return robot;
+    }
+
+    [Theory]
+    [InlineData(3)] // used to be lifted onto the parapet in ONE tick (ground delta ≤ 3 passed as a step)
+    [InlineData(7)] // used to walk straight THROUGH (nothing standable within ±6 → noise-surface fallback)
+    public void WalkingRobot_IsStoppedByAWall(int wallHeight)
+    {
+        var server = Started("wall" + wallHeight, out var repo, drones: false);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Prey");
+            var robot = FirstWalkingRobot(server, pilot);
+            var (wallX, ground) = WallArena(server, pilot, robot, wallHeight);
+
+            float startX = robot.Position.X;
+            for (int i = 0; i < 150; i++) // 15 s of hunting toward the player on the wall
+            {
+                server.Tick(0.1);
+                Assert.True(robot.Position.X < wallX, $"the robot must never pass the wall plane (x {robot.Position.X:F1} ≥ wall {wallX}) after {i} ticks");
+                Assert.True(robot.Position.Y < ground + 1 + 2, $"the robot must never climb the wall (y {robot.Position.Y:F1}, ground {ground}) after {i} ticks");
+            }
+
+            Assert.True(robot.Position.X > startX, "the robot should still have closed in on the wall (it hunts, it is just stopped)");
+        }
+    }
+
+    [Fact]
+    public void WalkingRobot_StillStepsUpASingleBlock()
+    {
+        var server = Started("step1", out var repo, drones: false);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Prey");
+            var robot = FirstWalkingRobot(server, pilot);
+            var (wallX, ground) = WallArena(server, pilot, robot, 1);
+            // Prey on the floor five cells BEYOND the step (on the step itself the robot would hold at its
+            // 1.6-block biting range before ever crossing the column).
+            pilot.State.Position = new Vector3f(wallX + 5.5f, ground + 1, pilot.State.Position.Z);
+
+            bool crossed = false;
+            for (int i = 0; i < 150 && !crossed; i++)
+            {
+                server.Tick(0.1);
+                crossed = robot.Position.X >= wallX;
+            }
+
+            Assert.True(crossed, "a one-block step is a step, not a wall");
         }
     }
 }
