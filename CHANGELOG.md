@@ -13,93 +13,137 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+## [2026.9.1] — 2026-09-03
+
+The school-club release. On 2 September the game-development club at the Kurfürst-Balduin
+Realschule plus in Trier West had its first evening — and the kids did exactly what we asked: they
+played, and then they told us honestly what was wrong. **Ben, Marie and Nikita** are the first club
+members in the Credits; their reports are behind the landing, ocean, scanner and camera fixes below.
+Right beside them, once again, **Lyxette** — our most diligent tester by a wide margin — sent in
+two rounds of reports from his own space station and his walled base: **more than twenty issues in
+two days**, and every single one of them is fixed here. Thank you both, club and Lyxette. 🙏
+
+Protocol stays 3, saves migrate — including stations you built before this update.
+
 ### 🎓 Credits — the school game club
 
-- **Schul-AG** joins the playtesters in the README and the in-game Credits screen (all 14 languages):
-  **Ben, Marie and Nikita**, whose first club day produced the reports behind #1456, #1462,
-  #1453–#1455 and #1459.
-- The club now has its own credit block under its name — **School club "Building Games with AI"**
-  (Schul-AG „Spiele entwickeln mit KI“) — placed directly above the community contributors, in the
-  README and in the in-game Credits (all 14 languages).
+- **The club has its own credit block** (#1468 #1499) — *School club "Building Games with AI"* (Schul-AG „Spiele
+  entwickeln mit KI“) — in the README and the in-game Credits screen in all 14 languages, directly
+  above the community contributors. **Ben, Marie and Nikita** open it: their first club day produced
+  the reports behind #1453–#1456, #1459 and #1462.
 
-### 🧱 Base walls: an admin report and honest texts (#1452)
+### 🎒 School playtest — landing safely, oceans, launching, the first lesson (#1448–#1450 #1453–#1456 #1458–#1464)
 
-- **`/basewalls`** (#1452). A yard that "should be fenced in" but still got animals was undiagnosable —
-  the enclosure fill fails open silently. The new admin command names the nearest base core, the
-  fill at your feet level (cells reached, budget, fail-open), whether your own cell reads enclosed,
-  sealed or open, and the rules. The base-core description, VEGA's wall hint and the codex article now
-  say what the code does: walls need to be at least 2 blocks high and closed at feet level, the 48
-  blocks include height, an open wooden or hinge door is a gap while slide and energy doors always
-  count as walls, unloaded neighbouring areas read as open, and cave dwellers ignore walls too.
-
-### ☀️ Daylight re-tune — grey days are still days (#1457)
-
-- **Worlds read brighter by day** (#1457). "Die Welten wirken auch tagsüber sehr dunkel und drückend"
-  (school playtest, browser). Four small levers, no new look: overcast now dims the daylight to 78 %
-  instead of 65 % (on swamp, ashen and fungal worlds — which never clear — every day read as dusk),
-  sky-lit block faces turned away from the sun get a touch more ambient, the baseline vignette and
-  the extra contrast in the post grade are eased, and the brightness slider moved to the top of the
-  graphics settings. Browser Low/Potato, which render without an HDR buffer, use the Neutral tonemap
-  instead of ACES — ACES over an already-clamped frame only crushed the midtones.
-
-### 🎒 School playtest 2026-09-02 — scanner, see-through edges, bed, cameras, hand, menu memory (#1456 #1458 #1459 #1460 #1463 #1464)
-
-- **Titans can be scanned** (#1458). The scanner tested a creature's *origin* — its feet at the body
-  centre — against an 8-block reach and a 25° aim cone, which a titan spanning ten blocks never
-  satisfied while you looked at its flank or head. Scanning now hits the same Size-scaled body sphere
-  attacks use, and the "LMB: scan" prompt only shows when the scanner would actually read something.
-- **No more 6 cm slits at block edges** (#1459). Beside a torch, lantern, ladder, plant or leaf block
-  the bevelled edge of a wall or floor block was inset on one face but not chamfered — a thin
-  see-through line along the edge. The face cull, the bevel edge mask and the ambient-occlusion set
-  now share one predicate, pinned by a test.
-- **The bed says what it does** (#1456). Aiming at a bed or heal tank shows "E: set home spawn ·
-  heals slowly nearby" like the crafting stations do; the placed bed has a description; and the crew
-  quarters no longer promise "sleep to skip time" — they set your return point aboard, which is what
-  they always did. All 14 languages.
-- **Third-person and chase cameras stop inside walls** (#1460). The boom pulls in front of any
-  geometry between you and the camera instead of clipping into it; the stuck-in-block guard also
-  checks eye height and blocks placed beside you, not just the chest cell of your own column.
-- **The painted hand updates at once** (#1464). Editing the arm painting or suit colours in the
-  appearance screen rebuilds the first-person hand immediately instead of on the next hotbar switch;
-  the hand's resolvers and atlas are released on world teardown.
-- **Beaming to a beacon no longer drops you through the floor** (#1449). The beam pad put you at
-  "pad + 1" — head in a low ceiling if there was one — and the chunks around a far pad only followed
-  on later ticks, so the settle freeze on arrival had no floor to wait for. The arrival now climbs to
-  two clear cells above the pad, the ground under it is sent ahead of the snap, and the client only
-  trusts a step-down as "my floor" once the chunk under its feet has actually arrived.
-- **Landing on a planet keeps your feet on the deck** (#1450). The parked ships and the ground now
-  reach the client before your position does, and the landing (and stepping inside the ship) uses
-  the strict "feet on a floor" settle instead of the loose world-spawn one that accepted terrain
-  metres below the deck.
-- **The heal-tank retrieval stops freezing you for eight seconds in the browser** (#1462). A snap
-  inside an already-drawn world waited for the whole streamed view to finish meshing — which a
-  browser meshing two chunks a frame rarely does — before it let go. With the floor confirmed, a
-  one-second quiet window is enough, and a "Stabilising position…" HUD line explains the wait.
-- **Ocean worlds: some landing pads rise out of the sea** (#1453). When the pad march along a
-  latitude finds no land at all, roughly three in five such pads on an ocean-class world now get a
-  seeded sand islet — a dry beach two blocks above the waves with a gentle slope into the sea — and
-  the rest keep the seabed shaft as before. Same coast for every player and every load.
-- **The landing-pad chooser marks seabed pads** (#1454). A pad on the sea floor is still selectable
-  (the shaft is dry), but it now says "underwater · seabed" on the approach map and the world map,
-  so a first-time player is not surprised by walls of water.
+- **Landing keeps your feet on the deck** (#1450). The parked ships and the ground now arrive before
+  you do, so a landing — or stepping into your ship — no longer drops you through the floor.
+- **Beaming to a beacon no longer puts you in the floor** (#1449). You arrive two clear blocks above the
+  pad, the ground under it is sent ahead, and the game waits for the real floor before it lets go.
+- **The heal tank no longer freezes you for eight seconds in the browser** (#1462). A short
+  "Stabilising position…" line explains the one-second wait that remains.
+- **Ocean worlds get beaches** (#1453). Where a landing pad would sit in open sea, roughly three in
+  five now rise on a small sand islet — a dry beach with a gentle slope into the water. The rest keep
+  the dry seabed shaft, and the **approach map and world map now say "underwater · seabed"** for
+  those pads (#1454), so nobody is surprised by walls of water.
 - **E at the cockpit asks "Launch into space?"** (#1455). The only way off a planet used to be a
-  button at the top of the Map tab. Confirm with the button, E or Enter; "Not yet" opens the map as
-  before. The cockpit prompt and message name both paths, VEGA explains a seabed landing the first time
-  it happens (dry shaft, don't mine the walls, E at the cockpit), and a first dive gets a one-line
-  swimming hint.
-- **VEGA's tutorial runs in creative worlds too** (#1461). A creative world hands out every blueprint
-  at join, which read as "a veteran save" and silently skipped the whole chain — a school browser
-  session with no persistent save never heard a single lesson. Only the moot "unlock a blueprint"
-  lesson is skipped now.
-- **Updates no longer hang on "not responding"** (#1448). After the download the client asked
-  Velopack to restart from inside Unity's main loop, which ended in a hard process exit that Unity
-  never survived — the window froze, Windows offered to close it, and only that force-close let
-  Update.exe finish. The hand-over to Update.exe now happens off the main thread and Unity quits
-  itself, after a running singleplayer world has been saved.
-- **Main-menu memory spike halved eight times over** (#1463). The block normal atlas was built from two
-  16 MiB float arrays on every return to the menu — the first allocation to fail on a fragmented heap
-  (a player's OutOfMemory at the main menu). It now works on 4 MiB byte arrays, and returning from an
-  editor or a language change sweeps the previous backdrop's leftovers like returning from a world does.
+  button at the top of the map. Confirm with the button, E or Enter; "Not yet" opens the map as before.
+  VEGA explains a seabed landing the first time it happens, and a first dive gets a swimming hint.
+- **VEGA's tutorial runs in creative worlds too** (#1461). A creative world hands out every blueprint at
+  once, which used to read as "a veteran save" — a school browser session never heard a single lesson.
+- **Titans can be scanned** (#1458). The scanner only aimed at a creature's feet, which a ten-block
+  titan never offered while you looked at its flank. It now hits the same body the attacks do, and the
+  "LMB: scan" prompt only appears when there is something to read.
+- **No more see-through slits at block edges** (#1459). Beside a torch, lantern, ladder, plant or
+  leaf block a thin line of daylight showed along the edge of the wall. Gone.
+- **The bed says what it does** (#1456). Aiming at a bed or heal tank shows "E: set home spawn ·
+  heals slowly nearby"; the crew quarters no longer promise "sleep to skip time". All 14 languages.
+- **Cameras stop at walls** (#1460). The third-person and chase cameras pull in instead of clipping
+  into geometry, and the stuck-in-block guard also checks head height and blocks placed beside you.
+- **The painted hand updates at once** (#1464) when you edit the arm painting or suit colours.
+- **Updates no longer hang on "not responding"** (#1448). The restart into the updater happens off
+  the main loop and the game quits itself, after a running singleplayer world has been saved.
+- **Far less memory when returning to the main menu** (#1463) — the spike that could end a long
+  browser session with an out-of-memory at the menu is an eighth of what it was.
+
+### ☀️ Brighter days (#1457)
+
+- **Worlds read brighter by day** (#1457). "The worlds feel dark and oppressive even at noon" — the
+  club's browser verdict. Overcast skies dim the day less (swamp, ashen and fungal worlds, which
+  never clear, no longer live in permanent dusk), shaded block faces get a touch more light, the
+  vignette and extra contrast are eased, the browser's Low and Potato presets use a gentler colour
+  finish, and the **brightness slider sits at the top of the graphics settings**.
+
+### 🛰️ Your own space station — Lyxette's rounds 5 and 6 (#1469–#1478 #1480–#1489 #1493)
+
+Lyxette commissioned a station from his own ship, built it out, walked its edge — and found
+everything that was still missing. Player stations are now a proper place to live:
+
+- **Drawn once, and it stays** (#1469 #1470). A station with a built hull no longer also shows the
+  generic spinning placeholder, and the hull survives your next landing instead of vanishing until
+  the next restart.
+- **Your station is only in its own orbit** (#1480). It used to appear as a dockable contact in every
+  orbit of the star system — floating in the next moon's rings at the wrong coordinates.
+- **Stations built before this update are found again** (#1493). A station deployed by a ship that
+  had never landed anywhere was keyed by its planet's *type*; those rows are re-keyed on first load.
+- **What you build inside stays built** (#1481). Every block placed or mined aboard is written back
+  into the station and persisted — a restart no longer resets your rebuilt interior. Doors built
+  inside stay doors and count as airtight. (Blocks mined *before* this update come back once.)
+- **The spawn never carves into your build** (#1493). Where you appear aboard is judged after the
+  station is restored; if that spot is blocked, you appear at the nearest free cell instead of the
+  game cutting a hole into your wall every start.
+- **Sealed rooms have air** (#1473). A station breathes only inside a pocket enclosed by airtight
+  blocks (glass counts), doors and the core. A hole means helmet on, with a one-time warning; a force
+  field plugs it. The HUD shows "(station life support)" while you are sealed in.
+- **Nobody falls off the edge for ever** (#1485). Step over the rim while building and the suit now
+  floats — jump rises, crouch sinks, you drift to a stop and float back to the deck or build the
+  outer hull from outside. Drift far enough away and the station pulls you back to the pad.
+- **Crew on demand** (#1472 #1487). The two filler civilians appear only around a built vendor or
+  mission board — and the post is staffed only while that room is sealed and breathable; a message
+  tells you when it is not.
+- **Windows show something** (#1474). The host planet fills the view at eye level, with a moon and
+  a sibling world for the other walls.
+- **A few smaller things**: station numbering no longer collides after a restart (#1478); "falling"
+  while standing on the deck now writes a diagnostic line we can act on (#1488); tint, glow and shape
+  of interior blocks are visible from a spacewalk (#1493).
+
+### 🧱 Bases — walls that hold, wildlife kept out (#1451 #1452 #1482 #1483 #1495)
+
+- **No wild animals within 24 blocks of a base core** (#1451) — a plain guarantee for every base,
+  no wall needed. Contributed by **ahmdkaml** — thank you! The base-core text and the codex now name
+  this rule first and keep the wall-ring rule for larger yards (#1495).
+- **Walls stop the walking robots** (#1482). A walker used to stroll straight through a wall seven
+  blocks high. Walkers now climb two blocks at most, drones hover over three, and a wall of four or
+  more stops the scan-drones too.
+- **`/basewalls` tells you why animals got in** (#1452). Lyxette had elephants on his walled pad.
+  The new admin command names the nearest base core, reads your yard as sealed, enclosed or open,
+  and lists the rules — which the base-core text, VEGA's hint and the codex now state honestly:
+  walls at least two high and closed at feet level, an open wooden door is a gap while slide and
+  energy doors always count, unloaded neighbouring areas read as open, cave dwellers ignore walls.
+- **Torches burn in base air** (#1483). A sealed base room on an airless world refused a torch;
+  breathable base air now counts as atmosphere.
+- **`/creatures`** (#1489) lists every animal within 48 blocks with where it stands and whether it
+  is on the ground — the tool that found the walking-robot bug.
+
+### 📦 Cargo, salvage, codex, controls (#1471 #1475–#1477 #1484 #1486)
+
+- **Cargo tiers explain themselves** (#1471). Tier I says "+24", and the Modules tab reads
+  "72 slots = 48 + 24 · tier 1 of 3 · next: II (+32)". The German remove button is "Entfernen".
+- **Space salvage is lossless** (#1475). Ore that does not fit floats at the rock, survives leaving
+  and returning, and a ship without a tractor beam collects it by flying through.
+- **The codex lists every ore per planet type** with its start depth — and says plainly when a
+  type has no rare metals (#1476). The tractor beam's range comes from its module stat now (#1477).
+- **No more accidental discards** (#1484). The inventory stops moving under your click when a
+  message or the contact list refreshes, the list keeps its scroll position, the discard confirm
+  names the item, and suit gear gets a Keep / Throw-away choice.
+- **Sneak lets you look over the edge** (#1486). The edge-stop leaves your eye past the rim, so you
+  can build the outer face of a wall from above without stepping off.
+
+### 🙏 Thanks
+
+- **Lyxette** — two rounds of reports in two days, more than twenty issues, every one reproducible:
+  the whole station chapter, the base walls, the robots, the inventory, the sneak edge.
+- **Ben, Marie and Nikita** from the school club — first evening, first reports, first Credits entry.
+- **ahmdkaml** for the base-core spawn guarantee (#1451), his first code contribution.
+- Everyone who pressed F1 on the desktop — the updater, beacon and menu-memory fixes came from your reports.
 
 ## [2026.8.26] — 2026-09-01
 
@@ -4445,7 +4489,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...HEAD
+[2026.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...v2026.9.1
 [2026.8.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...v2026.8.26
 [2026.8.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...v2026.8.25
 [2026.8.24]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.23...v2026.8.24
