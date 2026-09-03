@@ -192,6 +192,12 @@ and our short **[Code of Conduct](CODE_OF_CONDUCT.md)** (the gist: be kind to on
 
 *(This is the same credit shown in the game's Credits screen — `ui.credits.body`.)*
 
+### School club "Building Games with AI"
+
+The after-school club (Schul-AG „Spiele entwickeln mit KI“) playtests the browser build, and its reports go straight into the game:
+
+- **Ben**, **Marie** and **Nikita** — the first club day's reports — a bed that looked unusable, a frozen body after the heal-tank retrieval, a landing on the sea floor with no way off the planet, and see-through block edges ([#1456](https://github.com/marceld23/BlocksBeyondTheStars/issues/1456), [#1462](https://github.com/marceld23/BlocksBeyondTheStars/issues/1462), [#1453](https://github.com/marceld23/BlocksBeyondTheStars/issues/1453)–[#1455](https://github.com/marceld23/BlocksBeyondTheStars/issues/1455), [#1459](https://github.com/marceld23/BlocksBeyondTheStars/issues/1459))
+
 ### Contributors
 
 Community contributions we're grateful for:
@@ -209,7 +215,6 @@ Community contributions we're grateful for:
 - **Bastian** — hands-on playtest of the Linux build
 - **Lyxette** — detailed in-game (F1) bug report after building a second ship: pilot wedged in the hull and stale cargo after a ship switch, base settler standing inside a wall ([#1247](https://github.com/marceld23/BlocksBeyondTheStars/issues/1247), [#1248](https://github.com/marceld23/BlocksBeyondTheStars/issues/1248))
 - **sasas** — the first real macOS crash report, which uncovered why the Mac client could not send a single network message ([#1250](https://github.com/marceld23/BlocksBeyondTheStars/issues/1250))
-- **Schul-AG** (the after-school game club, playing the browser build) — **Ben**, **Marie** and **Nikita**: the first club day's reports — a bed that looked unusable, a frozen body after the heal-tank retrieval, a landing on the sea floor with no way off the planet, and see-through block edges ([#1456](https://github.com/marceld23/BlocksBeyondTheStars/issues/1456), [#1462](https://github.com/marceld23/BlocksBeyondTheStars/issues/1462), [#1453](https://github.com/marceld23/BlocksBeyondTheStars/issues/1453)–[#1455](https://github.com/marceld23/BlocksBeyondTheStars/issues/1455), [#1459](https://github.com/marceld23/BlocksBeyondTheStars/issues/1459))
 
 Want to see your name here? Pick something from **[Contribute](#-contribute)** — we add every merged
 contributor to this list and to the in-game Credits screen ourselves

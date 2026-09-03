@@ -218,6 +218,10 @@ go to the console; every other error keeps the loud alert path. Desktop with eno
 The school game club's first playtest day (browser build) gets its own playtester entry — README
 "Playtesters" list + `ui.credits.body` in all 14 locales (line after "sasas"), first names only. Verena
 accompanies the club and is already credited as family.
+**2026-09-03 (branch docs/credits-schul-ag-top):** the club moved out of the Playtesters list into its own
+block under its official name — README `### School club "Building Games with AI"` (with the German
+Schul-AG „Spiele entwickeln mit KI“) directly above `### Contributors`, and a matching block above
+"Community contributions:" in `ui.credits.body` (EN/DE hand-written, 12 locales re-translated).
 
 ### ★ Base walls: `/basewalls` admin report + texts that match the fill (#1452, 2026-09-02, branch fix/basewalls-diagnostics)
 Follow-up to Lyxette's "elephants on my walled pad": the enclosure fill (`GameServerBaseWalls`) fails open
