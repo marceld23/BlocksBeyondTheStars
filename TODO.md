@@ -243,6 +243,39 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Chunk payload and transport: RLE from the backing array, single-buffer MessagePack encode, one encoded payload per chunk version, WebSocket JSON conversion once per payload (#1532, #1531 part, 2026-09-04, branch perf/1531-1532-transport)
+
+**Why.** PR bundle 9 of the performance package (#1501). `StreamChunkNow` cloned the 4096-cell block array per
+player per chunk only to run-length it (a growing `List<ushort>` + `ToArray`), `NetCodec.Encode` allocated the
+MessagePack body and then a second tag-prefixed copy of it, N co-located players meant N encodes of the same
+chunk, and `WebSocketServerTransport.Send` decoded MessagePack and re-encoded JSON once per recipient although
+`BroadcastToWorld` / the presence beat hand it the same bytes for every browser connection.
+
+**What changed — wire bytes identical.** `ChunkBlocksRle.Encode(ReadOnlySpan<ushort>)` runs from
+`ChunkData.RawBlocks` with a reusable run buffer and an exact-size result (the array overload delegates to it).
+`NetCodec.EncodeMessagePack` writes tag + body into one thread-static `ArrayBufferWriter` and copies out once;
+the #1250 formatter fallback and its test seam keep their byte-array form. `ChunkData.Version` is a process-wide
+monotonic stamp taken at construction and on every `Set` / `SetModifier` / `SetShape`; `LoadedWorld.ChunkPayloads`
+caches the encoded `ChunkDataMessage` per (coord, version, codec format), capped at 1024 entries, so co-located
+players and a re-stream after a sweep reuse the bytes (`GameServer.ChunkPayloadEncodes` / `ChunkPayloadCacheHits`
+are the diagnostics). `WebSocketServerTransport` memoises the last MessagePack→JSON conversion by payload
+reference (`JsonConversions` counts them), so N browser recipients pay it once. Dense chunks (RLE not smaller)
+still clone — the message must not alias the live chunk.
+
+**Deferred to a WebGL-verified PR (#1531 stays open for them):** the object-passing in-process loopback for the
+browser singleplayer (needs an `IServerTransport` object overload, an object inbox in `NetworkClient`, an
+object-aware `IsChunkPayload`, and copy-on-adopt of the dense array — `ChunkData.FromRaw` wraps without copying)
+and the HEAP-pointer bridge for the browser WebSocket client (four base64 copies per message today). Both change
+only WebGL code paths that PR CI cannot compile.
+
+**Verified.** `ChunkPayloadTests`: the span overload matches the array overload bit for bit on terrain,
+checkerboard, noisy and mostly-uniform chunks; `Encode` is exactly tag + `MessagePackSerializer.Serialize` for
+chunk, presence and player-state messages (and the reused buffer never leaks a tail); the version stamp changes
+on every mutation and never repeats; two co-located players share one encoded payload per chunk; the WebSocket
+transport converts a shared payload once. `NetworkingTests` (RLE sizes, codec round trips), `NetCodecTests`
+(both formats for every registered message, the fallback pair), `WebSocketTransportTests`, `ChunkStreamingTests`,
+the client↔server harness and the full fast tier are green.
+
 ### ★ Server: presence on change + keep-alive, one entity list per type per tick, one player state per tick, NPC area of interest, single-read sightlines, allocation-free reconcile and space tick (#1530, 2026-09-04, branch perf/1530-server-presence)
 
 **Why.** PR bundle 8 of the performance package (#1501). `TickPresence` encoded and sent every subject to every

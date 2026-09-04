@@ -124,6 +124,10 @@ internal sealed class LoadedWorld
     public bool CreatureListDirty { get; set; }
     public bool NpcListDirty { get; set; }
 
+    /// <summary>#1532: the encoded ChunkDataMessage per chunk, valid for one chunk version and codec format —
+    /// co-located players and a re-stream after a sweep reuse the bytes instead of re-encoding.</summary>
+    public Dictionary<ChunkCoord, (long Version, bool Json, byte[] Payload)> ChunkPayloads { get; } = new();
+
     /// <summary>#1530: the per-world fauna jitter of <c>WorldCreatureCap</c> (a pure function of seed + location,
     /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
     public double? FaunaJitter { get; set; }

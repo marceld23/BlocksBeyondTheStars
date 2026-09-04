@@ -2338,30 +2338,58 @@ public sealed partial class GameServer
     private void StreamChunkNow(PlayerSession session, ChunkCoord coord)
     {
         var chunk = _world.GetOrLoadChunk(coord);
-        var dense = chunk.ToArray();
-        // Ship the run-length-encoded payload when it is smaller (terrain almost always is; a rare
-        // unrunnable chunk goes dense). Decisive on the browser JSON path — ~15-25 KB of JSON
-        // numbers per chunk shrink to usually a few hundred bytes — and it trims native payloads
-        // and VPS egress too. The client accepts both representations (ChunkDataMessage.DecodeBlocks).
-        var rle = ChunkBlocksRle.Encode(dense);
+        SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord));
+        session.SentChunks.Add(coord);
+        MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
+    }
+
+    /// <summary>Diagnostics for #1532: chunk payloads encoded vs served from the per-version cache.</summary>
+    public int ChunkPayloadEncodes { get; private set; }
+    public int ChunkPayloadCacheHits { get; private set; }
+    private const int ChunkPayloadCacheCap = 1024; // ~2–20 KB each
+
+    /// <summary>#1532: the encoded ChunkDataMessage of a chunk, cached per (chunk version, codec format) on the
+    /// world. Two players streaming the same chunk used to encode it twice, and a player returning after a
+    /// sweep re-encoded it again. The RLE runs straight from the chunk's backing array (no 4096-cell clone);
+    /// the client accepts both representations (ChunkDataMessage.DecodeBlocks), dense only for a degenerate
+    /// chunk. Decisive on the browser JSON path — ~15-25 KB of JSON numbers per chunk shrink to usually a few
+    /// hundred bytes — and it trims native payloads and VPS egress too.</summary>
+    private byte[] ChunkPayloadFor(ChunkData chunk, ChunkCoord coord)
+    {
+        var cache = _worlds.Active.ChunkPayloads;
+        bool json = NetCodec.UseJsonEncoding;
+        if (cache.TryGetValue(coord, out var hit) && hit.Version == chunk.Version && hit.Json == json)
+        {
+            ChunkPayloadCacheHits++;
+            return hit.Payload;
+        }
+
         var msg = new ChunkDataMessage
         {
             Cx = coord.X,
             Cy = coord.Y,
             Cz = coord.Z,
         };
-        if (rle.Length < dense.Length)
+        var rle = ChunkBlocksRle.Encode(chunk.RawBlocks);
+        if (rle.Length < WorldConstants.BlocksPerChunk)
         {
             msg.BlocksRle = rle;
         }
         else
         {
-            msg.Blocks = dense;
+            msg.Blocks = chunk.ToArray();
         }
+
         PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
-        Send(session, msg);
-        session.SentChunks.Add(coord);
-        MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
+        var payload = NetCodec.Encode(msg);
+        ChunkPayloadEncodes++;
+        if (cache.Count >= ChunkPayloadCacheCap)
+        {
+            cache.Clear();
+        }
+
+        cache[coord] = (chunk.Version, json, payload);
+        return payload;
     }
 
     /// <summary>Pre-loads the ground under a player about to be snapped to <paramref name="feet"/>: the

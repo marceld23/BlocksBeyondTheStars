@@ -14,14 +14,28 @@ public static class ChunkBlocksRle
 {
     /// <summary>Encodes a dense cell array as flat (value, runLength) pairs. A run is capped at
     /// ushort.MaxValue, comfortably above the 4096 cells a chunk holds.</summary>
-    public static ushort[] Encode(ushort[] dense)
+    public static ushort[] Encode(ushort[] dense) => Encode((System.ReadOnlySpan<ushort>)dense);
+
+    // #1532: the run buffer is a reusable thread-static (worst case 2·n entries — a checkerboard) trimmed to an
+    // exact-size result; the old path grew a List and copied it once more with ToArray().
+    [System.ThreadStatic] private static ushort[]? _runScratch;
+
+    /// <summary>The same encoding straight from a chunk's backing array (<c>ChunkData.RawBlocks</c>) — the
+    /// server no longer clones 4096 cells per streamed chunk just to run-length them (#1532).</summary>
+    public static ushort[] Encode(System.ReadOnlySpan<ushort> dense)
     {
         if (dense.Length == 0)
         {
             return System.Array.Empty<ushort>();
         }
 
-        var runs = new List<ushort>(64);
+        var runs = _runScratch;
+        if (runs == null || runs.Length < dense.Length * 2)
+        {
+            runs = _runScratch = new ushort[System.Math.Max(dense.Length * 2, 256)];
+        }
+
+        int w = 0;
         ushort value = dense[0];
         int count = 1;
         for (int i = 1; i < dense.Length; i++)
@@ -32,15 +46,17 @@ public static class ChunkBlocksRle
                 continue;
             }
 
-            runs.Add(value);
-            runs.Add((ushort)count);
+            runs[w++] = value;
+            runs[w++] = (ushort)count;
             value = dense[i];
             count = 1;
         }
 
-        runs.Add(value);
-        runs.Add((ushort)count);
-        return runs.ToArray();
+        runs[w++] = value;
+        runs[w++] = (ushort)count;
+        var result = new ushort[w];
+        System.Array.Copy(runs, result, w);
+        return result;
     }
 
     /// <summary>Decodes flat (value, runLength) pairs into a dense array of exactly
