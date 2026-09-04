@@ -80,6 +80,13 @@ public sealed class ServerConfig
     /// first-visit generations can't stall the frame. Dedicated servers leave this off.</summary>
     public double ChunkStreamBudgetMs { get; set; }
 
+    /// <summary>Opt-in tick profiling (#1504): when > 0, the server accumulates the wall-clock time of every
+    /// Guard-wrapped tick system and logs one summary line every this-many seconds of sim time — the top systems
+    /// by milliseconds per second, tick p50/p95/max and how many ticks overran the tick budget. 0 (the default)
+    /// = off: no timestamps and no allocation on the tick path. Meant for answering "where does the tick go" on a
+    /// live host without attaching a profiler. Also settable via <c>BBS_TICK_TIMING_LOG_SECONDS</c>.</summary>
+    public double TickTimingLogSeconds { get; set; }
+
     public string Difficulty { get; set; } = "normal";
     public bool AllowGuests { get; set; } = true;
 
@@ -757,6 +764,7 @@ public sealed class ServerConfig
         if (Env("BBS_VIEW_DISTANCE") is { } vdStr && int.TryParse(vdStr, out var vd)) { ViewDistanceChunks = vd; applied.Add("BBS_VIEW_DISTANCE"); }
         if (Env("BBS_CHUNK_STREAM_PER_TICK") is { } csptStr && int.TryParse(csptStr, out var cspt) && cspt >= 1) { ChunkStreamPerTick = cspt; applied.Add("BBS_CHUNK_STREAM_PER_TICK"); }
         if (Env("BBS_CHUNK_STREAM_BUDGET_MS") is { } csbStr && double.TryParse(csbStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var csb) && csb >= 0) { ChunkStreamBudgetMs = csb; applied.Add("BBS_CHUNK_STREAM_BUDGET_MS"); }
+        if (Env("BBS_TICK_TIMING_LOG_SECONDS") is { } ttlStr && double.TryParse(ttlStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var ttl) && ttl >= 0) { TickTimingLogSeconds = ttl; applied.Add("BBS_TICK_TIMING_LOG_SECONDS"); }
         if (Env("BBS_FREE_FLIGHT") is { } ffStr && bool.TryParse(ffStr, out var ff)) { Rules.FreeSpaceFlight = ff; applied.Add("BBS_FREE_FLIGHT"); }
         if (Env("BBS_SPACE_COMBAT") is { } scStr && Enum.TryParse<SpaceCombatMode>(scStr, ignoreCase: true, out var sc)) { Rules.SpaceCombat = sc; applied.Add("BBS_SPACE_COMBAT"); }
         if (Env("BBS_SHIP_WEAPONS") is { } swStr && Enum.TryParse<ShipWeaponMode>(swStr, ignoreCase: true, out var sw)) { Rules.ShipWeapons = sw; applied.Add("BBS_SHIP_WEAPONS"); }

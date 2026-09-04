@@ -239,6 +239,21 @@ block under its official name — README `### School club "Building Games with A
 Schul-AG „Spiele entwickeln mit KI“) directly above `### Contributors`, and a matching block above
 "Community contributions:" in `ui.credits.body` (EN/DE hand-written, 12 locales re-translated).
 
+### ★ Performance guardrails: worldgen golden checksums + opt-in tick timing (#1503, #1504, 2026-09-04, branch perf/1503-1504-guardrails)
+PR bundle 1 of the performance package (epic #1501) — the two safety nets every later optimisation PR relies on.
+**Golden checksums (#1503):** `WorldGenerationGoldenTests` pins an FNV-1a checksum of the generated blocks +
+colour modifiers + shape descriptors for 8 generator groups (6 planet types in default mode, one 5472-block
+torus world with a location salt, one cratered asteroid) × 3 columns × 3 chunk kinds (surface, deep solid,
+all-air above the surface). Any single-block change fails the test; the failure message prints every group's
+current value so a deliberate terrain change re-pins in one step. Goldens are pinned **per OS** (terrain uses
+`Math.Cos/Sin`; Windows and Linux libm may differ in the last ulp) — the Windows table from a local run, the
+Linux table from the CI log; a missing OS entry falls back to the Windows value and reports the mismatch.
+**Tick timing (#1504):** `ServerConfig.TickTimingLogSeconds` (also `BBS_TICK_TIMING_LOG_SECONDS`; default 0 =
+off, no timestamps on the tick path) makes the `Guard` wrapper accumulate each system's wall-clock time and
+logs one line per window: `Tick timing (last 30.0 s, 450 ticks): avg … p50 … p95 … max …, over 66.7 ms
+budget: N | StreamChunks 1200 ms (40.0 ms/s), TickCreatures …` (top 6). `TickTimingTests` cover the window
+cadence, the off-by-default silence and the report format.
+
 ### ★ Base walls: `/basewalls` admin report + texts that match the fill (#1452, 2026-09-02, branch fix/basewalls-diagnostics)
 Follow-up to Lyxette's "elephants on my walled pad": the enclosure fill (`GameServerBaseWalls`) fails open
 silently (budget, unloaded chunk, 1-high segment, open hinge door) and nothing logs a spawn. `AdminBaseWalls`
