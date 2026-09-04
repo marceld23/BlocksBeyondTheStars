@@ -66,7 +66,20 @@ namespace BlocksBeyondTheStars.Client
         /// world, core not yet hacked, no duel up. Gates the touch ATTACK/hold button (#1042).</summary>
         public bool BreachAvailable => FinaleActive && OnGuardianWorld && !_hacked && !_duelActive;
 
-        private void Awake() => Instance = this;
+        private ImguiOverlay _overlay; // #1553: on-demand OnGUI — see ImguiOverlay
+
+        private void Awake()
+        {
+            Instance = this;
+            _overlay = ImguiOverlay.Attach(gameObject, DrawOverlay, repaintOnly: false); // the duel has buttons
+        }
+
+        private void LateUpdate()
+        {
+            _overlay.Sync(_duelActive
+                          || (_won && Time.time < _resolveVisibleUntil)
+                          || Time.time < _hackBarVisibleUntil);
+        }
 
         private void Update()
         {
@@ -155,7 +168,7 @@ namespace BlocksBeyondTheStars.Client
 
         private string L(string key, string fallback) => Game?.Localizer?.Get(key) ?? fallback;
 
-        private void OnGUI()
+        private void DrawOverlay()
         {
             EnsureStyles();
 

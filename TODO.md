@@ -283,6 +283,27 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client garbage, part 2: the IMGUI overlays exist only while they draw (#1553, 2026-09-04, branch perf/1553-imgui-overlays)
+
+**Why.** PR bundle 14 of the performance package (#1501). Every enabled behaviour with an `OnGUI` makes Unity run the
+IMGUI event loop for it every frame — a Layout and a Repaint pass, each allocating a `GUILayoutGroup` plus the event
+plumbing — whether or not it draws anything. `WeatherFx` (rain streaks, frost, droplets, lightning, the underwater
+wash) and `FinaleView` (duel, banner, hack bar) are on screen a fraction of the time, yet cost 146 KB/s and 1600
+allocations/s in clear weather.
+
+**What ships.** `ImguiOverlay`, the one `OnGUI` in the client: a component the owner attaches with a draw delegate,
+`useGUILayout = false` (both owners draw with absolute `GUI` calls), and `RepaintOnly` for the weather washes. Each
+owner syncs the overlay's `enabled` from `LateUpdate` — `WeatherFx` while anything is fading, falling or flashing or
+precipitation is on under an open sky; `FinaleView` while the duel, the resolution banner or the hack bar is visible.
+A disabled behaviour gets no `OnGUI` at all, so a quiet frame costs nothing. The former `OnGUI` bodies are unchanged
+as `DrawOverlay`.
+
+**Measured (walk capture, machine quiet).** `GUILayoutUtility.Begin` / `GUILayoutGroup` gone (146 KB/s, 1624/s → 0).
+The remaining 1.3 MB/s and ~6800 allocs/s in the `GUI.Repaint` scope are NOT ours: they persist with both overlays
+disabled and have no managed frame above `ScriptableRenderContext.Submit` — that is the Development player's own
+watermark / IMGUI overlay, absent from the release build. Total walk garbage 4.4 → 4.1 MB/s (per frame: 75 → 65
+allocations, of which ~36 are the dev watermark).
+
 ### ★ Client garbage, part 1: hash-based ground scatter, pooled voice bakes, and the per-frame tail (#1551 #1554 #1556, 2026-09-04, branch perf/1551-1554-1556-small-allocs)
 
 **Why.** PR bundle 13 of the performance package (#1501), the first three follow-ups of the #1537 attribution: the
