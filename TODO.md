@@ -283,6 +283,17 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Water opaque from outside since the on-demand opaque copy — the water shader holds its own request (#1577, 2026-09-05, branch fix/1577-water-opaque)
+
+**Why.** Playtest regression from #1520 (PR #1542): the camera opaque texture became on-demand for the heat-haze and
+thermal quads, but the screen-space water in `BlockAtlasTransparent` (Medium+) composites the bed from that texture for
+refraction — without it the water rendered a milky opaque surface and the bed was invisible from above.
+
+**What ships.** `ClientSettings` holds a standing opaque-texture request for the water for as long as the preset
+enables screen-space water (`_Sc_ScreenFx` = 1), through the same `RequestOpaqueTexture` mechanism; Low stays
+without the copy, the haze / thermal requests are unchanged. The #1520 saving therefore applies only below Medium; a
+finer gate (request only while water is in view) is a possible follow-up.
+
 ### ★ Browser transports without copies: the in-process loopback passes message objects, the WebSocket bridge moves bytes through the WASM heap (#1531, 2026-09-04, branch perf/1531-object-loopback) — ⚠ WebGL-only paths, verified headless only; a WebGL build + browser session is the real test
 
 **Why.** PR bundle 19 of the performance package (#1501), the two remaining parts of #1531 (the encode-once
