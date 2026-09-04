@@ -514,18 +514,37 @@ public sealed partial class GameServer
         string body = _world.LocationId;
         // Observers are not "present" for this purpose (issue #487) — a parked speeder with no visible owner
         // would betray the invisible admin.
-        var present = JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId)).ToList();
-        var presentOwners = new HashSet<string>(present.Select(s => s.State.PlayerId));
+        // #1530: runs every tick — scratch collections + plain loops instead of two LINQ chains, a HashSet and a
+        // closure per deployed record (same order, same outcome).
+        var present = _reconcileSessions;
+        present.Clear();
+        var presentOwners = _reconcileOwners;
+        presentOwners.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            {
+                present.Add(s);
+                presentOwners.Add(s.State.PlayerId);
+            }
+        }
 
         int before = _speeders.Count;
-        _speeders.RemoveAll(v => !presentOwners.Contains(v.OwnerId));
+        for (int i = _speeders.Count - 1; i >= 0; i--)
+        {
+            if (!presentOwners.Contains(_speeders[i].OwnerId))
+            {
+                _speeders.RemoveAt(i);
+            }
+        }
+
         bool changed = _speeders.Count != before;
 
         foreach (var s in present)
         {
             foreach (var rec in s.State.DeployedSpeeders)
             {
-                if (rec.HomeBodyId != body || _speeders.Any(v => v.Id == rec.Id))
+                if (rec.HomeBodyId != body || HasSpeeder(rec.Id))
                 {
                     continue;
                 }
@@ -542,6 +561,22 @@ public sealed partial class GameServer
         }
 
         return changed;
+    }
+
+    private readonly List<PlayerSession> _reconcileSessions = new();
+    private readonly HashSet<string> _reconcileOwners = new();
+
+    private bool HasSpeeder(string id)
+    {
+        foreach (var v in _speeders)
+        {
+            if (v.Id == id)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Materialises a joining/landing player's speeders immediately, clears any stale drive bond, and

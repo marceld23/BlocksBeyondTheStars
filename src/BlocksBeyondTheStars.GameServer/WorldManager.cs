@@ -116,6 +116,21 @@ internal sealed class LoadedWorld
     /// band is a pure function of the column's terrain surface and the world's sea level, so it is computed once
     /// per column instead of once per player per tick (a SurfaceHeight call = a full noise chain each).</summary>
     public Dictionary<(int Cx, int Cz), (int LoCy, int HiCy)> FarColumnBands { get; } = new();
+
+    // #1530: entity-list dirty flags — every Broadcast* call marks, GameServer.FlushEntityLists sends each list at
+    // most ONCE per tick (TickCreatures alone used to emit up to five CreatureLists in one tick, and the enemy +
+    // bandit sync timers published the same combined list twice per 0.2 s).
+    public bool EnemyListDirty { get; set; }
+    public bool CreatureListDirty { get; set; }
+    public bool NpcListDirty { get; set; }
+
+    /// <summary>#1530: the per-world fauna jitter of <c>WorldCreatureCap</c> (a pure function of seed + location,
+    /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
+    public double? FaunaJitter { get; set; }
+
+    /// <summary>#1530: signature of the joined set (ids + spectate flags) as of the last presence beat; a change
+    /// forces a full presence resend so a joiner / un-spectating admin sees everyone at once.</summary>
+    public long PresenceViewerSignature { get; set; }
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)

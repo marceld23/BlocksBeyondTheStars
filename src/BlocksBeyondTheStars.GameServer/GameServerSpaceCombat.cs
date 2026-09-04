@@ -1598,7 +1598,11 @@ public sealed partial class GameServer
             return;
         }
 
-        foreach (var instance in _spaceInstances.Values.ToList())
+        // #1530: the loop bodies may close an instance / change a roster, so they iterate COPIES — reused scratch
+        // lists instead of three fresh ToList() allocations per tick.
+        _spaceInstanceScratch.Clear();
+        _spaceInstanceScratch.AddRange(_spaceInstances.Values);
+        foreach (var instance in _spaceInstanceScratch)
         {
             if (instance.Players.Count == 0)
             {
@@ -1608,7 +1612,9 @@ public sealed partial class GameServer
             // Tractor beam: pull nearby salvage drops into the cargo hold (before collision, so the
             // collision bounce doesn't move the ship away from the drop first). Per pilot (#994): each
             // fitted tractor sweeps around its OWN ship into its own cargo, not the shared position.
-            foreach (var collectorId in instance.Players.ToList())
+            _spacePlayerScratch.Clear();
+            _spacePlayerScratch.AddRange(instance.Players);
+            foreach (var collectorId in _spacePlayerScratch)
             {
                 if (FindSessionByPlayerId(collectorId) is { Joined: true } collector)
                 {
@@ -1657,7 +1663,9 @@ public sealed partial class GameServer
             // left it). Runs AFTER MoveSpaceHostiles so freshly-aggroed hostiles bite within the same tick
             // (the pre-#955 ordering the combat tests rely on).
             bool instanceClosed = false;
-            foreach (var pilotId in instance.Players.ToList())
+            _spacePlayerScratch.Clear();
+            _spacePlayerScratch.AddRange(instance.Players);
+            foreach (var pilotId in _spacePlayerScratch)
             {
                 if (FindSessionByPlayerId(pilotId) is not { Joined: true } pilot
                     || !instance.PlayerPoses.TryGetValue(pilotId, out var pose))
@@ -1674,8 +1682,24 @@ public sealed partial class GameServer
                 float speed = (float)(System.Math.Sqrt(pose.Pos.DistanceSquared(sim.LastPosition))
                                       / System.Math.Max(dt, 0.0001));
                 sim.CollisionCooldown = System.Math.Max(0.0, sim.CollisionCooldown - dt);
-                bool hitAsteroid = instance.Entities.Any(e => e.Kind == CombatEntityKind.Asteroid
-                    && e.Position.DistanceSquared(pose.Pos) <= ShipCollisionRadius * ShipCollisionRadius);
+                // #1530: one pass over the entities answers both the asteroid contact and the incoming fire below
+                // (two closures + an enumerator chain per pilot per tick before). The fire sum accumulates in
+                // double like Enumerable.Sum(float) did.
+                bool hitAsteroid = false;
+                double incomingSum = 0.0;
+                foreach (var e in instance.Entities)
+                {
+                    float dsq = e.Position.DistanceSquared(pose.Pos);
+                    if (e.Kind == CombatEntityKind.Asteroid && dsq <= ShipCollisionRadius * ShipCollisionRadius)
+                    {
+                        hitAsteroid = true;
+                    }
+
+                    if (e.Hostile && dsq <= ShipEngageRange * ShipEngageRange)
+                    {
+                        incomingSum += e.DamagePerSecond;
+                    }
+                }
                 if (hitAsteroid && speed > ShipCollisionMinSpeed)
                 {
                     if (sim.CollisionCooldown <= 0.0)
@@ -1699,9 +1723,7 @@ public sealed partial class GameServer
                 }
 
                 // Hostile fire on THIS pilot: only hostiles within engagement range of their own pose.
-                float incoming = instance.Entities
-                    .Where(e => e.Hostile && e.Position.DistanceSquared(pose.Pos) <= ShipEngageRange * ShipEngageRange)
-                    .Sum(e => e.DamagePerSecond);
+                float incoming = (float)incomingSum;
                 if (incoming > 0f)
                 {
                     bool evaded = ApplyShipDamage((float)(incoming * dt));
@@ -1735,6 +1757,9 @@ public sealed partial class GameServer
             RespawnAsteroids(instance, dt);
         }
     }
+
+    private readonly List<SpaceInstance> _spaceInstanceScratch = new();
+    private readonly List<string> _spacePlayerScratch = new();
 
     private const int AsteroidFieldTarget = 3;            // large-equivalent asteroids the field tends toward
     private const double AsteroidRespawnInterval = 120.0; // seconds between replenishing spawns (B9: slower respawn)

@@ -392,18 +392,57 @@ public sealed partial class GameServer
     private IEnumerable<PlayerSession> CompanionOwnersHere()
         => JoinedInActiveWorld().Where(s => !s.Spectating && !InSpace(s.State.PlayerId));
 
-    private int CompanionCountFor(string ownerId) => _creatures.Count(c => c.OwnerId == ownerId);
+    private int CompanionCountFor(string ownerId)
+    {
+        int n = 0;
+        foreach (var c in _creatures)
+        {
+            if (c.OwnerId == ownerId)
+            {
+                n++;
+            }
+        }
+
+        return n;
+    }
+
+    private bool HasCompanionEntity(string companionId)
+    {
+        foreach (var c in _creatures)
+        {
+            if (c.CompanionId == companionId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private readonly List<PlayerSession> _companionOwnersScratch = new();
+    private readonly HashSet<string> _companionValidScratch = new();
 
     /// <summary>Despawns companions whose owner left this world and (re)spawns each present owner's home-world
     /// companions. Called every creature tick; returns true if the live creature list changed.</summary>
     private bool ReconcileCompanions()
     {
-        var present = CompanionOwnersHere().ToList();
+        // #1530: runs every creature tick — scratch collections + plain loops (same order, same outcome).
+        var present = _companionOwnersScratch;
+        present.Clear();
+        foreach (var s in JoinedInActiveWorld())
+        {
+            if (!s.Spectating && !InSpace(s.State.PlayerId))
+            {
+                present.Add(s);
+            }
+        }
+
         string body = _world.LocationId;
 
         // A live companion is valid here only if its owner is present AND it is still a record bound to this
         // world — so it despawns when the owner leaves, when it's released, or if it isn't a home-world pet.
-        var valid = new HashSet<string>();
+        var valid = _companionValidScratch;
+        valid.Clear();
         foreach (var s in present)
         {
             foreach (var tc in s.State.TamedCreatures)
@@ -416,7 +455,15 @@ public sealed partial class GameServer
         }
 
         int before = _creatures.Count;
-        _creatures.RemoveAll(c => c.IsCompanion && !valid.Contains(c.CompanionId));
+        for (int i = _creatures.Count - 1; i >= 0; i--)
+        {
+            var c = _creatures[i];
+            if (c.IsCompanion && !valid.Contains(c.CompanionId))
+            {
+                _creatures.RemoveAt(i);
+            }
+        }
+
         bool changed = _creatures.Count != before;
 
         foreach (var s in present)
@@ -428,7 +475,7 @@ public sealed partial class GameServer
                     continue;
                 }
 
-                if (_creatures.Any(c => c.CompanionId == tc.Id))
+                if (HasCompanionEntity(tc.Id))
                 {
                     continue;
                 }

@@ -392,6 +392,16 @@ public sealed class PlayerSession
     public float LastSentEnergy = 100f;
     public float LastSentHunger = 100f;
 
+    /// <summary>#1530: a combat/vitals path changed the player's state this tick — GameServer.FlushEntityLists
+    /// sends ONE PlayerStateUpdate at the end of the world tick (each biting attacker used to send its own).</summary>
+    public bool PlayerStateDirty { get; set; }
+
+    // #1530: presence on change + keep-alive. Per viewer: the hash of the presence they last received and the
+    // beat it was sent on; a subject is (re)sent to a viewer when the hash changed, the viewer never had it,
+    // or PresenceKeepAliveBeats elapsed — so a stationary player costs one message per keep-alive, not ten a second.
+    public Dictionary<int, (ulong Hash, int Beat)> PresenceSentTo { get; } = new();
+    public int PresenceBeat { get; set; }
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

@@ -226,7 +226,7 @@ public sealed partial class GameServer
                     && HasLineOfSight(enemy.Position, p.Position)) // can't bite a target it can't see — duck behind cover/into a cave to break it
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(enemy.DamagePerSecond * dt)));
-                    SendPlayerState(session);
+                    MarkPlayerStateDirty(session); // #1530: one state per tick, not one per biting machine
                     if (p.Health <= 0f)
                     {
                         RespawnPlayer(session, "@srv.death.creature");
@@ -833,7 +833,9 @@ public sealed partial class GameServer
 
     // Bandits ride the planet-enemy wire (same list message), so client targeting/health bars/defeat
     // handling work unchanged — the client tells them apart by the Kind string.
-    private void BroadcastPlanetEnemies()
+    private void BroadcastPlanetEnemies() => _worlds.Active.EnemyListDirty = true; // #1530: flushed once per tick
+
+    private void SendPlanetEnemyList()
         => BroadcastToWorld(new PlanetEnemyList { Enemies = _planetEnemies.Concat(_bandits).Select(ToNet).ToArray() });
 
     private void HandleAttackEntity(PlayerSession session, AttackEntityIntent intent)
