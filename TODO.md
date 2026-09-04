@@ -283,6 +283,29 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client garbage, part 3: text outlines rebuild without garbage, and PerfProbe names the texts that change (#1552, 2026-09-04, branch perf/1552-outline-text-rebuilds)
+
+**Why.** PR bundle 15 of the performance package (#1501). The #1537 capture showed ~2 MB/s in uGUI `Outline.ModifyMesh`
++ `CanvasRenderer.SplitUIVertexStreams` at 3.6 rebuilds/s — ~550 KB per rebuild of one outlined HUD line — but the
+profiler cannot say which text. `Outline` expands the glyph quads into a triangle stream, appends four shifted copies
+and hands the stream back through `AddUIVertexTriangleStream`, which splits it into nine attribute lists per rebuild.
+
+**What ships.** `PerfProbe` runs a text-change census per phase: every second it re-scans the scene's `Text`
+components, per frame it compares each text's string with the last one seen, and at the end of the phase it logs the
+changed texts with change rate, average length, whether a mesh effect (outline) is attached and the hierarchy path.
+That named the culprit at once: the VEGA objective chip (`VegaPanel/Panel/Text`, outlined, ~60–80 characters) rebuilds
+3–8 times a second while walking because its progress counter ticks with the distance. `UiOutline` replaces `Outline`
+in `UiKit.AddOutline`: it reads the glyph quads straight out of the `VertexHelper` into one retained scratch list and
+writes the four offset copies plus the original back as quads — no stream expansion, no split, nothing on the heap once
+the lists have grown (the general non-quad path stays for completeness). Same look (four diagonal copies, alpha
+multiplied by the glyph alpha) and the same field names.
+
+**Measured (walk capture, the chip rebuilding ~4/s).** The outline's share is gone: `Outline.ModifyMesh` 911 KB/s +
+`SplitUIVertexStreams` 946 KB/s → `UiOutline` 1.8 KB/s (one-time list growth). What remains per rebuild is Unity's own
+`TextGenerator` vertex list (133 KB/s at 3.9 rebuilds/s, ~34 KB each) — proportional to the text length, so a
+separate counter text for the chip would shave most of it; left for a later pass. Total walk garbage now 4.0 MB/s
+(12 500 allocs/s), with the Development watermark's ~1.5 MB/s inside that number.
+
 ### ★ Client garbage, part 2: the IMGUI overlays exist only while they draw (#1553, 2026-09-04, branch perf/1553-imgui-overlays)
 
 **Why.** PR bundle 14 of the performance package (#1501). Every enabled behaviour with an `OnGUI` makes Unity run the
