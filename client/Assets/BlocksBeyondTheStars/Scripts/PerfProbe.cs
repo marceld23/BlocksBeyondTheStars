@@ -493,6 +493,7 @@ namespace BlocksBeyondTheStars.Client
             public int gcGen1;
             public int gcGen2;
             public long managedMemDeltaBytes;
+            public int meshBuilds;
         }
 
         [Serializable]
@@ -516,6 +517,7 @@ namespace BlocksBeyondTheStars.Client
             var samples = new List<float>(Mathf.CeilToInt(seconds) * 300); // generous: fits 300 FPS without regrowth
             int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
             long mem = GC.GetTotalMemory(false);
+            int builds0 = GameBootstrap.MeshBuildsDispatched;
 
             var census = new TextChangeCensus();
             float t = 0f;
@@ -540,6 +542,7 @@ namespace BlocksBeyondTheStars.Client
                 gcGen1 = GC.CollectionCount(1) - gc1,
                 gcGen2 = GC.CollectionCount(2) - gc2,
                 managedMemDeltaBytes = GC.GetTotalMemory(false) - mem,
+                meshBuilds = GameBootstrap.MeshBuildsDispatched - builds0,
             };
 
             float sum = 0f, max = 0f;
@@ -690,7 +693,7 @@ namespace BlocksBeyondTheStars.Client
                 txt.AppendLine($"[{ph.name}] {ph.frames} frames / {ph.seconds:0.0}s — avg {ph.avgMs:0.00} ms ({1000f / Mathf.Max(0.001f, ph.avgMs):0} FPS), "
                              + $"p50 {ph.p50Ms:0.00}, p95 {ph.p95Ms:0.00}, p99 {ph.p99Ms:0.00}, max {ph.maxMs:0.0} ms; "
                              + $">33ms: {ph.framesOver33Ms}, >100ms: {ph.framesOver100Ms}; "
-                             + $"GC {ph.gcGen0}/{ph.gcGen1}/{ph.gcGen2}, managed Δ {ph.managedMemDeltaBytes / (1024f * 1024f):0.0} MB");
+                             + $"GC {ph.gcGen0}/{ph.gcGen1}/{ph.gcGen2}, managed Δ {ph.managedMemDeltaBytes / (1024f * 1024f):0.0} MB, mesh builds {ph.meshBuilds}");
             }
 
             // The summary always goes to the log FIRST: in the browser the console (captured over the

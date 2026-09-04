@@ -1607,8 +1607,90 @@ namespace BlocksBeyondTheStars.Client
         // _meshGen + WorldEpoch discard a build superseded by a newer edit / world change (same pattern as the
         // collider bake above).
         private readonly Dictionary<ChunkCoord, int> _meshGen = new Dictionary<ChunkCoord, int>();
-        private readonly System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch, string Error)> _builtChunks
-            = new System.Collections.Concurrent.ConcurrentQueue<(ChunkCoord Coord, ChunkMeshData Data, int Gen, int Epoch, string Error)>();
+
+        // #1550: everything a build needs lives in a pooled MeshJob — the 8 KB block copy is rented, the
+        // neighbourhood (with its three delegates) and the shape-dictionary copies are recycled, the light
+        // list is reused, and the job runs on the thread pool through one static callback. Before this every
+        // dispatch allocated the clone, a neighbourhood, five closures/delegates, a Task and its context —
+        // ~1.8 MB/s and 2400 objects/s at 141 builds/s while walking.
+        private readonly Stack<MeshJob> _jobPool = new Stack<MeshJob>();
+        private readonly Stack<ChunkMesher.Neighbourhood> _hoodPool = new Stack<ChunkMesher.Neighbourhood>();
+        private readonly Stack<Dictionary<int, int>> _shapeDictPool = new Stack<Dictionary<int, int>>();
+        private static readonly System.Threading.WaitCallback RunMeshJob = o => ((MeshJob)o).Run();
+
+        /// <summary>Builds dispatched since start-up (PerfProbe reports the per-phase delta).</summary>
+        public static int MeshBuildsDispatched { get; private set; }
+
+        private sealed class MeshJob
+        {
+            public GameBootstrap Owner;
+            public ChunkCoord Coord;
+            public ChunkData Center;
+            public ushort[] Borrowed;
+            public ChunkMesher.Neighbourhood Hood;
+            public readonly List<(Vector3i Pos, int Rgb)> Lights = new List<(Vector3i Pos, int Rgb)>();
+            public Dictionary<ushort, Color> FloraDict;
+            public GameContent Content;
+            public BlockTextureAtlas Atlas;
+            public System.Func<int, Rect?> DesignUv;
+            public int Gen, Epoch;
+            public ChunkMeshData Data;
+            public string Error;
+            public readonly System.Func<BlockId, Color> FloraTintFn;
+
+            public MeshJob()
+            {
+                // Bound once: reads the job's CURRENT flora map (RebuildFloraTints replaces the map wholesale,
+                // so the reference captured at dispatch stays immutable for the build).
+                FloraTintFn = id => FloraDict != null && FloraDict.TryGetValue(id.Value, out var c) ? c : Color.black;
+            }
+
+            public void Run()
+            {
+                try
+                {
+                    Data = ChunkMesher.BuildGeometry(Center, Content, Hood.BlockFn, Atlas, FloraTintFn, null, Lights, Hood.ShapeFn, DesignUv, Hood.LoadedFn);
+                }
+                catch (System.Exception ex)
+                {
+                    // Carry the fault back to the main thread: DrainBuiltChunks re-dirties the chunk (it left
+                    // _dirty at dispatch — swallowing here made a failed chunk a permanent hole, #421 M10) and
+                    // logs rate-limited. A teardown race is filtered there by the epoch/gen guards.
+                    Data = null;
+                    Error = ex.ToString();
+                }
+
+                Owner._builtChunks.Enqueue(this);
+            }
+        }
+
+        private void RecycleJob(MeshJob job)
+        {
+            if (job.Borrowed != null)
+            {
+                System.Buffers.ArrayPool<ushort>.Shared.Return(job.Borrowed);
+                job.Borrowed = null;
+            }
+
+            if (job.Hood != null)
+            {
+                job.Hood.Clear(_shapeDictPool);
+                _hoodPool.Push(job.Hood);
+                job.Hood = null;
+            }
+
+            job.Lights.Clear();
+            job.Center = null;
+            job.FloraDict = null;
+            job.Content = null;
+            job.Atlas = null;
+            job.DesignUv = null;
+            job.Data = null;
+            job.Error = null;
+            _jobPool.Push(job);
+        }
+        private readonly System.Collections.Concurrent.ConcurrentQueue<MeshJob> _builtChunks
+            = new System.Collections.Concurrent.ConcurrentQueue<MeshJob>();
 
         // Failed-build retry bookkeeping (#421 M10): a build that faulted on the worker re-enters _dirty (the
         // coord was already removed at dispatch, so dropping it silently would leave a permanent un-meshed,
@@ -3018,9 +3100,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             int circ = Circumference;
+            var job = _jobPool.Count > 0 ? _jobPool.Pop() : new MeshJob { Owner = this };
+            job.Coord = coord;
 
             // Centre chunk: a private deep copy, so the worker reads its blocks/modifiers/shapes consistently.
-            var center = CopyChunk(chunk);
+            // The block array is rented (#1550) and goes back to the pool in DrainBuiltChunks.
+            job.Center = CopyChunk(chunk, out job.Borrowed);
 
             // Block reads reach up to ~±18 blocks (the coloured-light flood-fill) and a vertical band a few chunks
             // tall (the skylight column scan) → capture chunk REFERENCES over a ±2 horizontal / -2..+4 vertical
@@ -3030,8 +3115,10 @@ namespace BlocksBeyondTheStars.Client
             // each slot holds the CANONICAL chunk of its offset, and the mesher's block reads resolve with a shift
             // and a mask. Shape reads reach ±1 block (the neighbour-shape face test) → the sparse shape dicts are
             // deep-copied per slot on the main thread (the worker must NOT read a live ChunkData._shapes
-            // concurrently with an edit).
-            var hood = new ChunkMesher.Neighbourhood(coord);
+            // concurrently with an edit). #1550: the neighbourhood and the dictionary copies are pooled.
+            var hood = _hoodPool.Count > 0 ? _hoodPool.Pop() : new ChunkMesher.Neighbourhood(coord);
+            hood.Reset(coord);
+            job.Hood = hood;
             for (int dx = -2; dx <= 2; dx++)
                 for (int dy = -2; dy <= 4; dy++)
                     for (int dz = -2; dz <= 2; dz++)
@@ -3039,7 +3126,7 @@ namespace BlocksBeyondTheStars.Client
                         ChunkData nch;
                         if (dx == 0 && dy == 0 && dz == 0)
                         {
-                            nch = center;
+                            nch = job.Center;
                         }
                         else
                         {
@@ -3055,7 +3142,7 @@ namespace BlocksBeyondTheStars.Client
                         Dictionary<int, int> copy = null;
                         if (nch.Shapes is { Count: > 0 } src)
                         {
-                            copy = new Dictionary<int, int>(src.Count);
+                            copy = _shapeDictPool.Count > 0 ? _shapeDictPool.Pop() : new Dictionary<int, int>(src.Count);
                             foreach (var s in src)
                             {
                                 copy[s.Key] = s.Value;
@@ -3065,53 +3152,26 @@ namespace BlocksBeyondTheStars.Client
                         hood.Set(dx, dy, dz, nch, copy);
                     }
 
-            var lights = World.LightSourcesNear(coord, ChunkMesher.LightRadius);
-            var floraDict = _floraTintByBlock; // RebuildFloraTints REPLACES this map, so the captured ref is immutable
-
-            System.Func<int, int, int, BlockId> worldBlock = hood.Block;
-            // Companion to worldBlock: worldBlock cannot distinguish "air" from "chunk we don't have" (both come
-            // back as Air), and the fluid rules need that difference — see ChunkMesher's Loaded (#987). Answers
-            // from the SAME captured neighbourhood, so it is exactly as thread-safe, and every caller stays
-            // within it (face tests read ±1 block, the shore scan ±12 → at most one chunk out).
-            System.Func<int, int, int, bool> worldLoaded = hood.Loaded;
-            System.Func<int, int, int, int> worldShape = hood.Shape;
-            System.Func<BlockId, Color> floraTint = id =>
-                floraDict != null && floraDict.TryGetValue(id.Value, out var c) ? c : Color.black;
-
-            int gen = (_meshGen.TryGetValue(coord, out var g) ? g : 0) + 1;
-            _meshGen[coord] = gen;
-            int epoch = WorldEpoch;
-            var content = Content;
-            var atlas = Atlas;
-            // Paint-design lookup snapshot (#819): captures an immutable id → UV map, safe on the worker thread.
-            var designUv = PaintAtlas?.Snapshot();
-            var capturedCoord = coord;
-
-            void Build()
-            {
-                ChunkMeshData data = null;
-                string error = null;
-                try
-                {
-                    data = ChunkMesher.BuildGeometry(center, content, worldBlock, atlas, floraTint, null, lights, worldShape, designUv, worldLoaded);
-                }
-                catch (System.Exception ex)
-                {
-                    // Carry the fault back to the main thread: DrainBuiltChunks re-dirties the chunk (it left
-                    // _dirty at dispatch — swallowing here made a failed chunk a permanent hole, #421 M10) and
-                    // logs rate-limited. A teardown race is filtered there by the epoch/gen guards.
-                    error = ex.ToString();
-                }
-
-                _builtChunks.Enqueue((capturedCoord, data, gen, epoch, error));
-            }
+            World.LightSourcesNear(coord, ChunkMesher.LightRadius, job.Lights);
+            job.FloraDict = _floraTintByBlock; // RebuildFloraTints REPLACES this map, so the captured ref is immutable
+            job.Gen = (_meshGen.TryGetValue(coord, out var g) ? g : 0) + 1;
+            _meshGen[coord] = job.Gen;
+            job.Epoch = WorldEpoch;
+            job.Content = Content;
+            job.Atlas = Atlas;
+            // Paint-design lookup snapshot (#819): an immutable id → UV map, safe on the worker thread.
+            job.DesignUv = PaintAtlas?.Snapshot();
+            job.Data = null;
+            job.Error = null;
+            MeshBuildsDispatched++;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
             // WebGL: no worker threads — build inline on the main thread. DrainBuiltChunks still uploads the
             // result next frame, exactly as it does for the async path on every other platform.
-            Build();
+            job.Run();
 #else
-            System.Threading.Tasks.Task.Run(Build);
+            // One static callback + the job as state: no Task, no closure, no execution-context capture.
+            System.Threading.ThreadPool.UnsafeQueueUserWorkItem(RunMeshJob, job);
 #endif
 
             return true;
@@ -3119,9 +3179,24 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Deep-copies a chunk (block array + the sparse colour-modifier and shape dictionaries) so a
         /// worker thread can read it without racing a live edit on the main thread.</summary>
-        private static ChunkData CopyChunk(ChunkData src)
+        private static ChunkData CopyChunk(ChunkData src, out ushort[] borrowed)
         {
-            var copy = ChunkData.FromRaw(src.Coord, src.ToArray());
+            // #1550: the 8 KB block copy comes from the shared pool (4096 is a pool bucket, so the length is
+            // exact; a mismatch falls back to a plain array that is simply not returned).
+            var blocks = System.Buffers.ArrayPool<ushort>.Shared.Rent(WorldConstants.BlocksPerChunk);
+            if (blocks.Length != WorldConstants.BlocksPerChunk)
+            {
+                System.Buffers.ArrayPool<ushort>.Shared.Return(blocks);
+                blocks = new ushort[WorldConstants.BlocksPerChunk];
+                borrowed = null;
+            }
+            else
+            {
+                borrowed = blocks;
+            }
+
+            src.RawBlocks.CopyTo(blocks);
+            var copy = ChunkData.FromRaw(src.Coord, blocks);
             if (src.Modifiers is { Count: > 0 } mods)
             {
                 foreach (var kv in mods)
@@ -3147,6 +3222,7 @@ namespace BlocksBeyondTheStars.Client
         {
             while (_builtChunks.TryDequeue(out var built))
             {
+                var job = built; // recycled on every exit path below (#1550)
                 if (built.Data == null)
                 {
                     // Failed build (#421 M10): the coord already left _dirty at dispatch, so dropping it here
@@ -3173,6 +3249,7 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
+                    RecycleJob(job);
                     continue;
                 }
 
@@ -3180,6 +3257,7 @@ namespace BlocksBeyondTheStars.Client
                     || !_meshGen.TryGetValue(built.Coord, out var gen) || gen != built.Gen)
                 {
                     built.Data.Release(); // superseded by a newer edit / a world change — recycle the buffers
+                    RecycleJob(job);
                     continue;
                 }
 
@@ -3188,6 +3266,7 @@ namespace BlocksBeyondTheStars.Client
                 // The upload copied everything into the Unity meshes (+ GroundScatter's matrices), so the
                 // pooled geometry buffers can go back for the next build.
                 built.Data.Release();
+                RecycleJob(job);
             }
         }
 

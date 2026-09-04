@@ -199,9 +199,17 @@ namespace BlocksBeyondTheStars.Client
         public List<(Vector3i Pos, int Rgb)> LightSourcesNear(ChunkCoord coord, int radius)
         {
             var result = new List<(Vector3i, int)>();
+            LightSourcesNear(coord, radius, result);
+            return result;
+        }
+
+        /// <summary>Same as <see cref="LightSourcesNear(ChunkCoord, int)"/>, appending into a caller-owned list
+        /// (#1550: the mesher dispatch reuses one list per pooled job).</summary>
+        public void LightSourcesNear(ChunkCoord coord, int radius, List<(Vector3i Pos, int Rgb)> result)
+        {
             if (_lightSources.Count == 0)
             {
-                return result;
+                return;
             }
 
             coord = WorldConstants.CanonicalChunk(coord, _circumference);
@@ -243,7 +251,6 @@ namespace BlocksBeyondTheStars.Client
                         }
                     }
 
-            return result;
         }
 
         /// <summary>Re-indexes a chunk's light sources (placed glow blocks + dedicated light blocks) into the

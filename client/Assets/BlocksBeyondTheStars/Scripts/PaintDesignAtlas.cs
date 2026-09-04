@@ -173,8 +173,19 @@ namespace BlocksBeyondTheStars.Client
         public System.Func<int, Rect?> Snapshot()
         {
             var map = _uvById;
-            return id => map.TryGetValue(id, out var r) ? r : (Rect?)null;
+            if (!ReferenceEquals(map, _snapshotMap))
+            {
+                // #1550: the map is copy-on-write, so one closure per published map serves every dispatch
+                // until the next design registers (was a closure per chunk build).
+                _snapshotMap = map;
+                _snapshot = id => map.TryGetValue(id, out var r) ? r : (Rect?)null;
+            }
+
+            return _snapshot;
         }
+
+        private Dictionary<int, Rect> _snapshotMap;
+        private System.Func<int, Rect?> _snapshot;
 
         /// <summary>True when at least one live (non-wiped) design is registered.</summary>
         public bool HasAny => _uvById.Count > 0;
