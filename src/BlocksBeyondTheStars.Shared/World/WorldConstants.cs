@@ -176,6 +176,26 @@ public static class WorldConstants
     public static ChunkCoord CanonicalChunk(ChunkCoord chunk, int circumference)
         => new(CanonicalChunkX(chunk.X, circumference), chunk.Y, CanonicalChunkZ(chunk.Z, circumference));
 
+    /// <summary>Squared chunk-grid distance measured the short way round BOTH seams (X wraps at the chunk
+    /// circumference, Z at the latitude chunk band; Y is linear). Every keep/evict/prune decision over cached or
+    /// streamed chunks must use this: the cache keys are canonical, so an unwrapped distance reads a chunk just
+    /// across a seam as a whole world away (#1502 — the spawn pad sits at x = 0 on every world).</summary>
+    public static int WrappedChunkDistanceSquared(ChunkCoord a, ChunkCoord b, int circumference)
+    {
+        int dx = WrapChunkDelta(a.X - b.X, ChunksAroundOf(circumference));
+        int dy = a.Y - b.Y;
+        int dz = WrapChunkDelta(a.Z - b.Z, LatitudePeriodFor(circumference) / ChunkSize);
+        return dx * dx + dy * dy + dz * dz;
+    }
+
+    /// <summary>Shortest signed delta on a wrapping chunk axis with the given period in chunks (chunk-unit twin
+    /// of <see cref="WrapDeltaX(int,int)"/>, whose parameter is a BLOCK circumference).</summary>
+    public static int WrapChunkDelta(int delta, int period)
+    {
+        int m = ((delta % period) + period) % period;
+        return m > period / 2 ? m - period : m;
+    }
+
     /// <summary>Canonicalizes a world block position: X into [0, circumference), Z into the latitude domain.</summary>
     public static Vector3i CanonicalBlock(Vector3i world, int circumference)
         => new(WrapX(world.X, circumference), world.Y, WrapZ(world.Z, circumference));

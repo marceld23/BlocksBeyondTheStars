@@ -30,6 +30,28 @@ public class WorldWrapTests
         Assert.Equal(C / WorldConstants.ChunkSize, WorldConstants.ChunksAround);
     }
 
+    /// <summary>#1502: chunk-grid distances used for keep/evict/prune decisions must be measured the short way
+    /// round BOTH seams — the chunk cache and the sent-sets hold canonical coords, the player anchor may not.</summary>
+    [Fact]
+    public void WrappedChunkDistanceSquared_MeasuresTheShortWayRoundBothSeams()
+    {
+        int around = WorldConstants.ChunksAroundOf(C);
+        int band = P / WorldConstants.ChunkSize; // latitude chunk band, canonical z in [−band/2, band/2)
+        int half = band / 2;
+        var origin = new ChunkCoord(0, 4, 0);
+
+        // One column west of x = 0 is canonical x = around − 1: adjacent, not a world away.
+        Assert.Equal(1, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(around - 1, 4, 0), origin, C));
+        Assert.Equal(25, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(around - 5, 4, 0), origin, C));
+        // A raw (non-canonical) anchor measures the same way.
+        Assert.Equal(4, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(around - 1, 4, 0), new ChunkCoord(1, 4, 0), C));
+        // Z wraps at the latitude band edge: the last band row and the first are neighbours.
+        Assert.Equal(1, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(0, 4, half - 1), new ChunkCoord(0, 4, -half), C));
+        // Y never wraps; ordinary nearby coords keep their plain distance.
+        Assert.Equal(1 + 4 + 9, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(1, 2, 3), origin, C));
+        Assert.Equal(40 * 40, WorldConstants.WrappedChunkDistanceSquared(new ChunkCoord(0, 44, 0), origin, C));
+    }
+
     [Theory]
     [InlineData("rocky")]
     [InlineData("desert")]

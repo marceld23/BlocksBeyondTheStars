@@ -135,6 +135,65 @@ public sealed class ChunkStreamingTests : IDisposable
         Assert.True(server.World.IsChunkLoaded(nearChunk), "the player's own region must stay resident through the sweep");
     }
 
+    /// <summary>#1502: the spawn pad sits at x = 0 on every world, i.e. ON the longitude seam, so half of a fresh
+    /// player's view lives at canonical chunk x ≈ ChunksAround−1..−4. The sweep used to measure the unwrapped
+    /// distance to the raw anchor, read those chunks as a whole world away, evicted them and dropped them from
+    /// the sent-set — and the streamer regenerated and re-sent all of them on every sweep (228 chunks per 10 s at
+    /// view distance 4, 603 at 8, 21–42 % of the tick thread while standing still). The sweep must keep every
+    /// chunk it streamed to a player who has not moved, on the seam like anywhere else.</summary>
+    [Fact]
+    [Trait("Category", "Slow")]
+    public void Sweep_KeepsTheWholeStreamedView_OfAPlayerStandingOnTheSeam()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "sweep_seam"));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig
+        {
+            WorldName = "sweep_seam",
+            Seed = 1,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            ViewDistanceChunks = 4,
+        };
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+
+        var p = server.AddLocalPlayer("Homebody");
+        var anchor = WorldConstants.WorldToChunk(p.State.Position.ToBlock());
+        int around = WorldConstants.ChunksAroundOf(server.World.Circumference);
+        int canonicalX = WorldConstants.CanonicalChunkX(anchor.X, server.World.Circumference);
+        int toSeam = Math.Min(canonicalX, around - canonicalX);
+        Assert.True(toSeam <= 2, $"precondition: the natural spawn (pad 0) must sit on the longitude seam for this test to bite (chunk x={anchor.X}, {toSeam} columns from the seam)");
+
+        // Stream the whole view (~500 chunks at radius 4 + the load-ahead ring), then let it settle.
+        for (int i = 0; i < 80; i++)
+        {
+            server.TickForTest(0.1);
+        }
+
+        var streamed = new System.Collections.Generic.List<ChunkCoord>(p.SentChunks);
+        Assert.True(streamed.Count > 200, $"precondition: the view should have streamed (got {streamed.Count} chunks)");
+        int acrossSeam = 0;
+        foreach (var c in streamed)
+        {
+            if (Math.Abs(c.X - anchor.X) > 8) acrossSeam++; // canonical coords on the far side of the seam
+        }
+
+        Assert.True(acrossSeam > 50, $"precondition: part of the view must lie across the seam (got {acrossSeam})");
+
+        // Tick past the sweep interval with the player standing still.
+        for (int i = 0; i < 15; i++)
+        {
+            server.TickForTest(1.0);
+        }
+
+        foreach (var c in streamed)
+        {
+            Assert.True(server.World.IsChunkLoaded(c), $"streamed chunk {c} was evicted by the sweep although the player never moved");
+            Assert.Contains(c, p.SentChunks);
+        }
+    }
+
     /// <summary>The multiplayer half of the sweep (#1030): the cache eviction only forgets chunks that are far
     /// from EVERY player, so chunks a camping partner kept alive stayed in a departed player's sent-set even
     /// though that player's client had long unloaded them (RepositionChunks drops everything past ~384 blocks).

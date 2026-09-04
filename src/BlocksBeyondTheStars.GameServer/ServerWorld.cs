@@ -213,13 +213,25 @@ public sealed class ServerWorld
         }
 
         int keepSq = keepRadius * keepRadius;
+
+        // #1502: the cache keys are canonical (X in [0, ChunksAround), Z in the latitude band) while a raw player
+        // anchor may sit anywhere, and the world is a torus — measure the short way round BOTH seams. The old
+        // unwrapped DistanceSquared read every chunk across a seam as a world away, so a player standing on the
+        // spawn pad (x = 0 on every world) had half their view evicted, regenerated and re-streamed on EVERY sweep
+        // (228 chunks per 10 s at view distance 4, 603 at 8 — 21–42 % of the tick thread while standing still).
+        var canonicalAnchors = new List<ChunkCoord>(anchors.Count);
+        foreach (var anchor in anchors)
+        {
+            canonicalAnchors.Add(WorldConstants.CanonicalChunk(anchor, Circumference));
+        }
+
         var toRemove = new List<ChunkCoord>();
         foreach (var coord in _loaded.Keys)
         {
             bool near = false;
-            foreach (var anchor in anchors)
+            foreach (var anchor in canonicalAnchors)
             {
-                if (coord.DistanceSquared(anchor) <= keepSq)
+                if (WorldConstants.WrappedChunkDistanceSquared(coord, anchor, Circumference) <= keepSq)
                 {
                     near = true;
                     break;
