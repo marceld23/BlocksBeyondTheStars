@@ -423,6 +423,34 @@ public sealed class WebSocketServerTransport : IServerTransport
         }
     }
 
+    // #1531: BroadcastToWorld / the presence beat hand the SAME encoded payload to Send once per browser
+    // connection — the conversion (a full MessagePack decode + JSON encode) is memoised by reference, so N
+    // recipients pay it once. Payloads are immutable after NetCodec.Encode, so identity is the whole key.
+    private byte[]? _lastConvertedSource;
+    private byte[]? _lastConvertedJson;
+
+    /// <summary>How many MessagePack→JSON conversions ran (diagnostics / tests).</summary>
+    public int JsonConversions { get; private set; }
+
+    private bool TryConvert(byte[] payload, out byte[] browserPayload)
+    {
+        if (ReferenceEquals(payload, _lastConvertedSource) && _lastConvertedJson != null)
+        {
+            browserPayload = _lastConvertedJson;
+            return true;
+        }
+
+        if (!NetCodec.TryConvertToJsonPayload(payload, out browserPayload))
+        {
+            return false;
+        }
+
+        JsonConversions++;
+        _lastConvertedSource = payload;
+        _lastConvertedJson = browserPayload;
+        return true;
+    }
+
     public void Send(int connectionId, byte[] payload, DeliveryMode mode)
     {
         if (!_clients.TryGetValue(connectionId, out var client))
@@ -430,7 +458,7 @@ public sealed class WebSocketServerTransport : IServerTransport
             return;
         }
 
-        if (!NetCodec.TryConvertToJsonPayload(payload, out var browserPayload))
+        if (!TryConvert(payload, out var browserPayload))
         {
             LogWarning($"Dropped server payload for browser connection {connectionId}: could not convert NetCodec payload to JSON.");
             return;
@@ -452,7 +480,7 @@ public sealed class WebSocketServerTransport : IServerTransport
 
     public void Broadcast(byte[] payload, DeliveryMode mode)
     {
-        if (!NetCodec.TryConvertToJsonPayload(payload, out var browserPayload))
+        if (!TryConvert(payload, out var browserPayload))
         {
             LogWarning("Dropped broadcast payload for browser clients: could not convert NetCodec payload to JSON.");
             return;

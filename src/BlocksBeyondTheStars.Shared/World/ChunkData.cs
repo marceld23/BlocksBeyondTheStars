@@ -17,6 +17,16 @@ public sealed class ChunkData
 
     private readonly ushort[] _blocks;
 
+    // #1532: a process-wide monotonic stamp, taken at construction and on every mutation, so an encoded wire
+    // payload can be cached per chunk and reused until the chunk changes (a regenerated chunk gets a fresh
+    // stamp, so a stale cache entry can never match it).
+    private static long s_versionClock;
+
+    /// <summary>Changes whenever a cell, modifier or shape of this chunk is written (#1532).</summary>
+    public long Version { get; private set; } = System.Threading.Interlocked.Increment(ref s_versionClock);
+
+    private void Touch() => Version = System.Threading.Interlocked.Increment(ref s_versionClock);
+
     /// <summary>
     /// Sparse per-voxel colour modifiers, keyed by local index: a surface tint (0xRRGGBB) and/or a
     /// light colour (0xRRGGBB) stamped on a placed dyed/glowing block. Lazily allocated — the vast
@@ -62,6 +72,7 @@ public sealed class ChunkData
     {
         int idx = WorldConstants.LocalIndex(x, y, z);
         _blocks[idx] = block.Value;
+        Touch();
 
         // A cleared (air) cell can carry no colour — drop any stale modifier so mining a dyed block
         // and re-placing a plain one there never inherits the old colour.
@@ -93,6 +104,7 @@ public sealed class ChunkData
     /// <summary>Stamps (or clears) the colour modifier at a flat local index.</summary>
     public void SetModifierLocal(int localIndex, int tint, int glow)
     {
+        Touch();
         tint &= 0xFFFFFF;
         glow &= 0xFFFFFF;
         if (tint == 0 && glow == 0)
@@ -126,6 +138,7 @@ public sealed class ChunkData
     /// <summary>Stamps (or clears) the packed shape descriptor at a flat local index.</summary>
     public void SetShapeLocal(int localIndex, int shape)
     {
+        Touch();
         if (shape == 0)
         {
             _shapes?.Remove(localIndex);

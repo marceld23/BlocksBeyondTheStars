@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using BlocksBeyondTheStars.Networking.Messages;
@@ -578,27 +579,52 @@ public static class NetCodec
             throw new InvalidOperationException($"Message type '{type.Name}' is not registered with NetCodec.");
         }
 
-        byte[] body;
+        if (MessagePackSerializeOverride is { } serialize)
+        {
+            // Test seam (#1250): the override hands back a body array — keep the prefix-copy form for it.
+            byte[] body;
+            try
+            {
+                body = serialize(type, message);
+            }
+            catch (MessagePackSerializationException ex) when (IsFormatterBuildFailure(ex))
+            {
+                UseJsonEncoding = true;
+                MessagePackFallbackActivated?.Invoke(ex);
+                return EncodeJson(message);
+            }
+
+            var prefixed = new byte[body.Length + 1];
+            prefixed[0] = tag;
+            Buffer.BlockCopy(body, 0, prefixed, 1, body.Length);
+            return prefixed;
+        }
+
+        // #1532: the tag and the body go into ONE reusable buffer, then one exact-size copy out. The old path
+        // allocated the body, then a second tag-prefixed array, and copied the whole body across — two
+        // allocations and a full copy per message, sixteen chunk payloads per tick per player.
+        var writer = _encodeScratch ??= new ArrayBufferWriter<byte>(16 * 1024);
+        writer.Clear();
+        writer.GetSpan(1)[0] = tag;
+        writer.Advance(1);
         try
         {
-            body = MessagePackSerializeOverride is { } serialize
-                ? serialize(type, message)
-                : MessagePackSerializer.Serialize(type, message, Options);
+            MessagePackSerializer.Serialize(type, writer, message, Options);
         }
         catch (MessagePackSerializationException ex) when (IsFormatterBuildFailure(ex))
         {
             // The formatter factory itself is broken for this process (see MessagePackFallbackActivated) —
             // not this message. Switch the whole codec to JSON and encode this one that way too.
+            writer.Clear();
             UseJsonEncoding = true;
             MessagePackFallbackActivated?.Invoke(ex);
             return EncodeJson(message);
         }
 
-        var payload = new byte[body.Length + 1];
-        payload[0] = tag;
-        Buffer.BlockCopy(body, 0, payload, 1, body.Length);
-        return payload;
+        return writer.WrittenSpan.ToArray();
     }
+
+    [ThreadStatic] private static ArrayBufferWriter<byte>? _encodeScratch;
 
     /// <summary>A serialization failure rooted in the formatter cache's static initializer (the dynamic
     /// assembly could not be created) rather than in the message being serialized.</summary>
