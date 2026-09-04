@@ -32,8 +32,19 @@ public sealed partial class GameServer
     /// hull work done while boarded without making leaky fills expensive.</summary>
     private const int StationAirMargin = 8;
 
-    /// <summary>Cell budget per fill; a pocket larger than this is treated as open (player stations are small).</summary>
-    private const int MaxSealedCellsPerStation = 12000;
+    /// <summary>Cell budget per fill; a pocket larger than this is treated as open. Was 12 000 — a "Superfabrik"
+    /// hall of a few hundred square blocks silently counted as breached (#1559); the fill is a plain BFS over
+    /// resident chunks, so a budget four times that of a base still costs milliseconds every 1.5 s.</summary>
+    private const int MaxSealedCellsPerStation = 64000;
+
+    /// <summary>Why a pocket is not sealed (#1559): the warning names the cause, because "a hole in the hull" was
+    /// wrong for a closed hall that was merely bigger than the budget.</summary>
+    private enum StationLeak
+    {
+        None,
+        Hull,       // the fill reached the void beyond the box + margin through an opening
+        TooLarge,   // the pocket exceeded the cell budget
+    }
 
     /// <summary>Minimum seconds between recomputes for one station's air.</summary>
     private const double StationAirRecomputeInterval = 1.5;
@@ -43,6 +54,7 @@ public sealed partial class GameServer
         public string Body = string.Empty;                 // station world the fill was computed on
         public HashSet<Vector3i> Sealed = new();           // cells known to sit in a sealed pocket
         public HashSet<Vector3i> Leaking = new();          // cells known to sit in a pocket open to the void
+        public StationLeak LastLeak = StationLeak.None;    // why the most recent leaking fill failed (#1559)
         public double ComputedAt = double.NegativeInfinity;
     }
 
@@ -87,7 +99,10 @@ public sealed partial class GameServer
             _stationAirWarnedFor[p.PlayerId] = stationId;
             if (FindSessionByPlayerId(p.PlayerId) is { } session)
             {
-                Send(session, new Networking.Messages.ServerMessage { Text = "@station_air_lost" });
+                // #1559: say WHY — the one-size warning blamed a hole in the hull for a closed hall that was only
+                // bigger than the budget, and the player went looking for a leak that was not there.
+                var leak = _stationAir.TryGetValue(stationId, out var vol) ? vol.LastLeak : StationLeak.Hull;
+                Send(session, new Networking.Messages.ServerMessage { Text = leak == StationLeak.TooLarge ? "@station_air_too_large" : "@station_air_lost" });
             }
         }
 
@@ -143,17 +158,37 @@ public sealed partial class GameServer
             return false;
         }
 
-        var pocket = FillStationPocket(station, cell, out bool sealedPocket);
+        var pocket = FillStationPocket(station, cell, out bool sealedPocket, out var leak);
         (sealedPocket ? vol.Sealed : vol.Leaking).UnionWith(pocket);
+        if (!sealedPocket)
+        {
+            vol.LastLeak = leak;
+        }
+
         return sealedPocket;
     }
 
+    /// <summary>Test seam (#1559): the sealed cells of the pocket around <paramref name="cell"/> in the active
+    /// station world (empty when it leaks), so a test can size a large hall's pocket.</summary>
+    public int StationPocketSizeForTest(string stationId, Vector3i cell)
+    {
+        if (!_stationsById.TryGetValue(stationId, out var station))
+        {
+            return 0;
+        }
+
+        var pocket = FillStationPocket(station, cell, out bool sealedPocket, out _);
+        return sealedPocket ? pocket.Count : 0;
+    }
+
     /// <summary>Flood-fills the air pocket containing <paramref name="start"/> inside the station's reach box.
-    /// Sealed = never stepped outside the box and stayed within the cell budget.</summary>
-    private HashSet<Vector3i> FillStationPocket(BoardableStation station, Vector3i start, out bool sealedPocket)
+    /// Sealed = never stepped outside the box and stayed within the cell budget; <paramref name="leak"/> says
+    /// which of the three failed (#1559).</summary>
+    private HashSet<Vector3i> FillStationPocket(BoardableStation station, Vector3i start, out bool sealedPocket, out StationLeak leak)
     {
         var cells = new HashSet<Vector3i>();
         sealedPocket = false;
+        leak = StationLeak.Hull;
         if (IsStationAirtightCell(start))
         {
             cells.Add(start);
@@ -187,7 +222,7 @@ public sealed partial class GameServer
 
                 if (n.X < minX || n.X > maxX || n.Y < minY || n.Y > maxY || n.Z < minZ || n.Z > maxZ)
                 {
-                    leaked = true; // reached the void beyond the hull box → this pocket is open
+                    leaked = true; // reached the void beyond the hull box → this pocket is open (a hole in the hull)
                     break;
                 }
 
@@ -202,6 +237,15 @@ public sealed partial class GameServer
         }
 
         sealedPocket = !leaked && cells.Count <= MaxSealedCellsPerStation;
+        if (sealedPocket)
+        {
+            leak = StationLeak.None;
+        }
+        else if (!leaked)
+        {
+            leak = StationLeak.TooLarge;
+        }
+
         return cells;
     }
 

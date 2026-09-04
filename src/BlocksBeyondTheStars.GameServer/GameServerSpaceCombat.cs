@@ -2161,17 +2161,22 @@ public sealed partial class GameServer
     };
 
     private void SendSpaceState(PlayerSession session, SpaceInstance instance, bool skipLaunch = false, bool hyperjump = false)
-        => Send(session, new SpaceState
+    {
+        var (systemName, bodyName) = LocationNamesFor(session.CurrentLocationId); // #1565: the flight names where it is
+        Send(session, new SpaceState
         {
             InstanceId = instance.Id,
             Kind = instance.Kind,
             Entities = instance.Entities.Select(ToNet).ToArray(),
             SkipLaunch = skipLaunch,
             Hyperjump = hyperjump,
+            SystemName = systemName,
+            BodyName = bodyName,
             // Other real pilots PLUS the peaceful NPC traders out here — both ride the flight view's
             // remote-ship render path (their voxel hull arrives via a "ship_remote" SpaceShipDesign).
             Players = AppendTraderPoses(OtherPlayersInSpace(session.State.PlayerId, instance), instance),
         });
+    }
 
     /// <summary>The other players this one currently sees in its space instance (ships + EVA suits).</summary>
     public NetSpacePlayer[] OtherSpacePlayers(string playerId)
@@ -2472,6 +2477,12 @@ public sealed partial class GameServer
 
         EnterSpace(playerId, skipLaunch: true, hyperjump: true); // warp in; no surface take-off
         SendStarMap(session); // refresh the travel screen with the now-known system
+        // The landing path says where you arrived; the in-flight arrival said nothing, so the chat scrollback
+        // never told the pilot the jump had happened at all (#1565).
+        Send(session, new ServerMessage
+        {
+            Text = Localize(session.Locale, "srv.travel.hyperjumped").Replace("{system}", system.Name).Replace("{planet}", anchor.Name),
+        });
         _log.Info($"Player '{session.State.Name}' hyperjumped into system '{system.Name}' (flight).");
     }
 
@@ -2513,6 +2524,17 @@ public sealed partial class GameServer
 
         if (string.IsNullOrEmpty(dest) || dest == session.CurrentLocationId)
         {
+            // #1566: the "current body" of a pilot who hyperjumped in flight is the target system's anchor —
+            // a world that was never loaded (the jump keys the flight instance there without landing). The
+            // relocate path below assumes a resident world: SetActiveWorld failed silently, the cursor stayed
+            // on the planet he had LEFT, and he was set down on that old terrain while every id said the new
+            // body — "landed on a known world that suddenly looked different". Land it like a fresh arrival.
+            if (!_worlds.IsLoaded(session.CurrentLocationId))
+            {
+                HandleTravel(session, new TravelIntent { DestinationBodyId = session.CurrentLocationId, PadIndex = intent.PadIndex }, quickTravel: false, allowCurrentBody: true);
+                return;
+            }
+
             // Land back on the current body — claim a free landing pad first (item 38); a full body refuses.
             // An observer takes no pad (#487/#996): pads are finite and communal — same rule as HandleTravel.
             SetActiveWorld(session.CurrentLocationId);

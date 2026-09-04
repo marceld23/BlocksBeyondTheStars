@@ -82,6 +82,22 @@ Last updated: 2026-08-26.
   automatically — copy the old folder over once if you want to keep it. A folder that cannot be written falls
   back to the default with a warning in `Player.log`. Not available in the browser version.
 
+### Crashes and blue screens — what to send
+
+- **Game closes or freezes:** the log of the last run is `Player.log`, the run before it `Player-prev.log`,
+  both in `%USERPROFILE%\AppData\LocalLow\JuMaVe Games\Blocks Beyond the Stars\`. Unity's crash handler
+  additionally writes a folder per crash (`crash.dmp`, `error.log`) under
+  `%LOCALAPPDATA%\Temp\JuMaVe Games\Blocks Beyond the Stars\Crashes\`. Attach the newest of each — the
+  in-game **F1** report (§7 → Player feedback) already carries your OS, CPU, GPU and driver version and notes
+  whether the previous session ended without a clean exit.
+- **Windows blue screen (the whole PC restarts):** a game cannot cause that by itself — it is almost always
+  the graphics driver, RAM/XMP, power or heat. What helps us: the **stop code** from *Event Viewer → Windows
+  Logs → System*, source **BugCheck** (event **1001**); the newest `C:\Windows\Minidump\*.dmp`; your **GPU
+  model and driver version** (updating the driver is the first thing to try); and whether it happens at a
+  particular moment (loading, mining, flying). If you have turned **VSync off** in the Settings tab, set a
+  **frame-rate cap** (e.g. 120) there — uncapped, the GPU runs at 100 % even in light scenes, which is exactly
+  the load that exposes a flaky driver or power supply.
+
 ---
 
 ## 2. On-foot controls
@@ -99,7 +115,7 @@ Last updated: 2026-08-26.
 | **1 – 9** | Select hotbar slot |
 | **Middle mouse** | **Hotbar slot actions** on the selected slot: swap it against any backpack item, and for a building material also colour it (dye / glow / own pattern) or re-form it — see §5 → Hotbar slot actions (rebindable) |
 | **F** | Attack with the held tool/weapon — hits what's **under your crosshair** (the reticle turns red over a target; with **auto-aim** on, the nearest enemy in front of you is acquired automatically) |
-| **R** | Repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
+| **R** | At your own **cockpit / ship console** while the repair panel is up: repair the ship (see §5 → Repairing your own ship); otherwise repair the targeted wreck breach with the selected hotbar block (see §5 → Wrecks); with a **shaped block, furniture, ladder or stairs** selected: rotate its placement orientation (**Shift+R** cycles backwards — see §5 → Craftable block shapes) |
 | **L** | Toggle the suit headlamp (requires a `suit_lamp`) |
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
@@ -545,8 +561,10 @@ separate unlock; admins can still disable it through server world rules.
 
 ### Repairing your own ship
 - Combat dents your ship's **hull** (it never regenerates on its own), and EVA-carved hull cells stay missing
-  until you refill them. Use the **cockpit** to fix both in one action: press **E** at the cockpit and a
-  **"Repair ship" / "Schiff reparieren"** panel appears on the HUD (a hull bar plus the materials still needed).
+  until you refill them. Whenever your ship needs work, a **"Repair ship" / "Schiff reparieren"** panel sits on
+  the right of the HUD (a hull bar plus the materials still needed; it greys out and says so while you are
+  short). To repair, stand at the **cockpit** or the **ship console** and press **R** — one action fixes hull and
+  cells together. The panel refreshes on every landing and login, so it is never stale.
 - Hull is bought with **`iron_plate`** (10 hull per plate); each missing cell costs the item that originally
   placed it (or `iron_plate` for structural blocks like lights/engine, so they never block a repair). The
   repair is **greedy/partial** — it fixes the hull first, then as many cells as your materials stretch to, and

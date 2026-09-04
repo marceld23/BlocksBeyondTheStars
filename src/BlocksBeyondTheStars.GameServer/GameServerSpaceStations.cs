@@ -425,6 +425,7 @@ public sealed partial class GameServer
         SendNpcs(session);
         SendInventory(session);
         SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the return world's
+        SendWorldScopedLists(session); // …and the teleporter pads etc. — Lyxette's "keine Auswahl E mehr" (#1560)
 
         // Drop the now-empty station world from memory (its structure is persisted, NPCs re-spawn next visit).
         if (!OccupiedLocations().Contains(stationLoc))

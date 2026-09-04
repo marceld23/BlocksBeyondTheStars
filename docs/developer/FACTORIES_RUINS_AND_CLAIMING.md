@@ -61,12 +61,15 @@ the base chain that refines ingots first). They are deliberately **excluded from
 
 ### 2.2 Operating a terminal
 
-`StationAvailable(Factory)` requires the player to stand within reach of a `factory_terminal` block
-(off-ship only — factories are world structures, never a ship module). `HandleCraft` then checks the
-**roster of the specific factory** the terminal belongs to (`FactoryTerminalNear`): a recipe not on
-*this* factory's roster is refused. The client crafting menu mirrors the gate (`CanCraft` →
-`FactoryView.PlayerAtTerminal`), but the server is authoritative. Operating a terminal is **public** —
-claiming is a separate mechanic and is *not* required to produce.
+`StationAvailable(Factory)` requires the player to stand within reach of the terminal of a **spawned
+factory instance** (`FactoryTerminalNear` scans `_factories`, off-ship only — factories are world
+structures, never a ship module). Since #1265 a `factory_terminal` block the player placed themselves is
+**decoration**: it never lights the Factory tab, and because `StampFactories` skips airless bodies and
+void worlds, no player station or moon base can ever host a working terminal (#1563). `HandleCraft` then
+checks the **roster of the specific factory** the terminal belongs to: a recipe not on *this* factory's
+roster is refused. The client crafting menu mirrors the gate (`CanCraft` → `FactoryView.PlayerAtTerminal`),
+but the server is authoritative. Operating a terminal is **public** — claiming is a separate mechanic and
+is *not* required to produce.
 
 ### 2.3 Animated machines (client)
 

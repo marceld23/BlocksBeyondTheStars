@@ -244,6 +244,39 @@ public sealed class PlayerStationPlaceablesTests : IDisposable
         }
     }
 
+    // ---------------- #1562: the container survives leaving + re-boarding within one run ----------------
+
+    [Fact]
+    public void PlacedContainer_SurvivesLeavingAndReboarding_WithItsContents()
+    {
+        // The station-derived crate used to be runtime-only: registered on the first stamp of a run, dropped
+        // with the void world when the last boarder left, and never re-derived because the stamp early-returns
+        // once the station is marked stamped — a dead block until the next server restart (#1562).
+        var server = NewServer("container_reboard", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            string id = BuildStationWithPlaceables(server, pilot);
+            BoardOwnStation(server, "Owner", id);
+            var crate = server.Containers.First(c => c.Id.StartsWith("scontainer_"));
+            pilot.State.Position = new Vector3f(crate.Position.X + 0.5f, crate.Position.Y + 0.5f, crate.Position.Z + 0.5f);
+            pilot.State.Inventory.Add("carbon", 7, 99);
+            server.DepositToContainer("Owner", crate.Id);
+            string stationLoc = "station:" + id;
+            Assert.Contains(repo.ListContainers(stationLoc), c => c.Position == crate.Position); // persisted like a placed crate
+
+            server.LeaveStation("Owner");
+            Assert.False(server.InStation("Owner"));
+            Assert.Contains(repo.ListContainers(stationLoc), c => c.Position == crate.Position); // …and leaving keeps the row
+            BoardOwnStation(server, "Owner", id);
+            Assert.True(server.InStation("Owner"));
+            Assert.Equal(stationLoc, server.World.LocationId);
+
+            var back = Assert.Single(server.Containers, c => c.Position == crate.Position);
+            Assert.Contains(back.Items, s => s.Item == "carbon" && s.Count == 7);
+        }
+    }
+
     public void Dispose()
     {
         try

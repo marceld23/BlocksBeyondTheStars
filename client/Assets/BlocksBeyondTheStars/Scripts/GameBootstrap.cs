@@ -1231,6 +1231,13 @@ namespace BlocksBeyondTheStars.Client
                     ?? "Warning: the station is no longer airtight — helmet on until the hull is patched!";
             }
 
+            // #1559: the pocket is closed but bigger than the life-support budget.
+            if (text == "@station_air_too_large")
+            {
+                return Localizer?.Get("ui.station.air_too_large")
+                    ?? "Warning: this hall is too large for the station's life support — helmet on.";
+            }
+
             // (#817/#821 block painting uses the generic "@srv.paint.*" tokens resolved above.)
             return text;
         }
@@ -2005,6 +2012,13 @@ namespace BlocksBeyondTheStars.Client
                     {
                         HyperjumpStarted?.Invoke(); // warp VFX as we arrive in flight in a new system
                     }
+                }
+
+                // #1565: an in-flight hyperjump lands nowhere, so no WorldReset renames the HUD — the flight
+                // state names its system + anchor body itself. Same composition as OnWorldReset.
+                if (!string.IsNullOrEmpty(m.BodyName))
+                {
+                    LocationName = string.IsNullOrEmpty(m.SystemName) ? m.BodyName : $"{m.SystemName} · {m.BodyName}";
                 }
 
                 Space = m;

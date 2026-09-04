@@ -121,6 +121,73 @@ public sealed class StationGravityTests : IDisposable
     }
 
     [Fact]
+    public void Boarder_WestOfTheOrigin_KeepsHisPosition_AndIsNotPulledBack()
+    {
+        // Lyxette (v2026.9.1): "zu weit abgetrieben" 16–20 blocks from the pad, only ever on the WEST side.
+        // The position handler wrapped X in every world — the station void world's circumference turned
+        // x = −20 into x ≈ 5930, i.e. 72+ blocks beyond the box → pulled back to the pad each second (#1558).
+        var transport = new RecordingTransport();
+        var server = NewServer("westwing", out var repo, transport);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Owner");
+            BuildAndBoard(server, pilot);
+
+            server.MoveForTest("Owner", -20.5f, 65f, 10.5f);
+            Assert.Equal(-20.5f, pilot.State.Position.X, 3); // stations keep their own coordinate space: no wrap
+            for (int i = 0; i < 4; i++)
+            {
+                server.TickForTest(0.5);
+            }
+
+            Assert.Equal(-20.5f, pilot.State.Position.X, 3); // …and the drift rescue never fired
+            Assert.DoesNotContain(transport.Sent, m => m is ServerMessage sm && sm.Text.Contains("drifted_back"));
+        }
+    }
+
+    [Fact]
+    public void InteriorBuiltBeforeTheWriteBack_JoinsTheBox_OnTheNextBoarding()
+    {
+        // Lyxette (v2026.9.1): everything he built inside on v2026.8.26 existed as world edits only — the cell
+        // grid (and with it the air reach and the gravity box) still described the 5³ seed hull, so a closed
+        // iron room 20 blocks out warned "not airtight" and the suit floated in it (#1559).
+        var iron = _content.GetBlock("iron_wall")!.NumericId;
+        var farFloor = new Vector3i(30, 64, 10); // a wing floor tile 18 blocks past the seed hull's east face
+        string id;
+        {
+            var s1 = NewServer("absorb", out var repo1, new RecordingTransport());
+            using (repo1)
+            {
+                var pilot = s1.AddLocalPlayer("Owner");
+                id = BuildAndBoard(s1, pilot);
+                s1.World.SetBlock(farFloor, iron); // a pre-#1481 interior edit: the world has it, the grid does not
+                Assert.False(s1.StationCellsForTest(id).ContainsKey(new Vector3i(farFloor.X - 10, farFloor.Y - 66, farFloor.Z - 10)));
+                repo1.Flush();
+            }
+        }
+
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+
+        var s2 = NewServer("absorb", out var repo2, new RecordingTransport());
+        using (repo2)
+        {
+            var pilot = s2.AddLocalPlayer("Owner");
+            pilot.State.AboardShip = true;
+            s2.EnterSpace("Owner");
+            var contact = s2.SpaceEntitiesFor("Owner").First(e => e.Id == id);
+            s2.ShipMove("Owner", contact.Position.X, contact.Position.Y, contact.Position.Z - 6f);
+            s2.BoardStation("Owner", id);
+            Assert.True(s2.InStation("Owner"));
+
+            // The boarding absorbed the wing: it is a cell of the build now, and standing on it is walking, not floating.
+            Assert.True(s2.StationCellsForTest(id).ContainsKey(new Vector3i(farFloor.X - 10, farFloor.Y - 66, farFloor.Z - 10)),
+                "the world's interior blocks must be folded into the cell grid on boarding (#1559)");
+            TickAt(s2, pilot, new Vector3f(30.5f, 65f, 10.5f));
+            Assert.False(s2.FloatingOutsideStationForTest("Owner"), "a wing the world holds is inside the gravity volume");
+        }
+    }
+
+    [Fact]
     public void Boarder_Walks_InsideTheBox_AndFloats_Outside_WithAHint()
     {
         var transport = new RecordingTransport();

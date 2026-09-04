@@ -417,6 +417,11 @@ public sealed partial class GameServer
         }
 
         var anchor = station.StampMin;
+        if (!firstStamp && AbsorbStampedWorldIntoCells(station, src))
+        {
+            (min, max) = CellBox(src); // the interior grew / shrank with what the world really holds (#1559)
+        }
+
         RefreshStationBounds(station, min, max);
 
         // Spawn at the build's centre with a guaranteed floor pad + headroom (never fall through into the void).
@@ -509,6 +514,107 @@ public sealed partial class GameServer
         _log.Info($"Player station '{station.Name}' stamped into its void world at ({station.Origin.X},{station.Origin.Y},{station.Origin.Z}).");
     }
 
+    /// <summary>Extra blocks around the cell box the world scan covers per pass; anything found inside grows the
+    /// box and the scan follows it, so a wing built far out is reached in a few passes.</summary>
+    private const int StationAbsorbMargin = 16;
+
+    /// <summary>Folds what the station's void world really holds into the cell grid (#1559). Interior edits
+    /// reach the grid only since the write-back (#1481); everything a player built inside before that release
+    /// — Lyxette's whole extension — existed as world edits only, so the cell box (the reach of the sealed-air
+    /// fill and of the gravity volume) still described the EVA-built seed hull: a perfectly closed iron room
+    /// 20 blocks from the core warned "not airtight" and the suit floated in it. Runs on every materialised
+    /// boarding BEFORE the top-up stamp: a block the world has and the grid lacks is added, and the scan widens
+    /// chunk by chunk until nothing new touches its margin. Air edits are left alone on purpose: the chunk-edit
+    /// reader carries no attribution, so a cell the player mined before the write-back is indistinguishable from
+    /// the first stamp's pad cut — and #1493 relies on the top-up restoring THAT one. Returns true when the grid
+    /// changed (then persisted).</summary>
+    private bool AbsorbStampedWorldIntoCells(BoardableStation station, SpaceStructure src)
+    {
+        string loc = _world.LocationId;
+        var (min, max) = CellBox(src);
+        var wmin = StationCellToWorld(station, min);
+        var wmax = StationCellToWorld(station, max);
+        int minX = wmin.X, minY = wmin.Y, minZ = wmin.Z, maxX = wmax.X, maxY = wmax.Y, maxZ = wmax.Z;
+        var scanned = new HashSet<ChunkCoord>();
+        int added = 0;
+        for (int pass = 0; pass < 64; pass++)
+        {
+            bool grew = false;
+            var cMin = WorldConstants.WorldToChunk(new Vector3i(minX - StationAbsorbMargin, minY - StationAbsorbMargin, minZ - StationAbsorbMargin));
+            var cMax = WorldConstants.WorldToChunk(new Vector3i(maxX + StationAbsorbMargin, maxY + StationAbsorbMargin, maxZ + StationAbsorbMargin));
+            for (int cx = cMin.X; cx <= cMax.X; cx++)
+                for (int cz = cMin.Z; cz <= cMax.Z; cz++)
+                    for (int cy = cMin.Y; cy <= cMax.Y; cy++)
+                    {
+                        var coord = WorldConstants.CanonicalChunk(new ChunkCoord(cx, cy, cz), _world.Circumference);
+                        if (!scanned.Add(coord))
+                        {
+                            continue;
+                        }
+
+                        foreach (var e in _repo.LoadChunkEdits(loc, coord))
+                        {
+                            if (e.Block == BlockId.AirValue)
+                            {
+                                continue; // see the summary: a mined cell and the pad cut look the same here
+                            }
+
+                            var cell = WorldToStationCell(station, e.WorldPosition);
+                            if (src.Cells.ContainsKey(cell) && src.Get(cell).Value == e.Block)
+                            {
+                                continue; // the grid already says so
+                            }
+
+                            src.Set(cell, new BlockId(e.Block), e.Tint, e.Glow, e.Shape);
+                            added++;
+                            var w = e.WorldPosition;
+                            if (w.X < minX) { minX = w.X; grew = true; }
+                            if (w.Y < minY) { minY = w.Y; grew = true; }
+                            if (w.Z < minZ) { minZ = w.Z; grew = true; }
+                            if (w.X > maxX) { maxX = w.X; grew = true; }
+                            if (w.Y > maxY) { maxY = w.Y; grew = true; }
+                            if (w.Z > maxZ) { maxZ = w.Z; grew = true; }
+                        }
+                    }
+
+            if (!grew)
+            {
+                break;
+            }
+        }
+
+        if (added == 0)
+        {
+            return false;
+        }
+
+        if (_stationHostBody.TryGetValue(station.Id, out var hostLoc))
+        {
+            PersistStation(hostLoc, src);
+        }
+
+        _log.Info($"Player station '{station.Name}': absorbed {added} interior block(s) from its world into the build (#1559).");
+        return true;
+    }
+
+    /// <summary>Re-derives a player station's box after a door was built or torn down inside it (#1559): doors
+    /// are entities, not cells, so the cell grid alone never sees a doorway on the outer face of a room.</summary>
+    private void RefreshStationBoundsAfterDoorChange()
+    {
+        if (!IsPlayerStationWorld(_world.LocationId))
+        {
+            return;
+        }
+
+        string stationId = _world.LocationId.Substring("station:".Length);
+        if (_stationsById.TryGetValue(stationId, out var station) && station.Materialised
+            && _playerStationCells.TryGetValue(stationId, out var s))
+        {
+            var (min, max) = CellBox(s);
+            RefreshStationBounds(station, min, max);
+        }
+    }
+
     /// <summary>The cell-grid bounding box of a build (both corners inclusive; the origin cell for an empty build).</summary>
     private static (Vector3i Min, Vector3i Max) CellBox(SpaceStructure src)
     {
@@ -556,11 +662,29 @@ public sealed partial class GameServer
     }
 
     /// <summary>The build's world-space box in its interior world: the sealed-air fill (#1473) treats anything
-    /// beyond it (+ margin) as void. Follows the cells, so a wing built from inside widens the breathable reach.</summary>
-    private static void RefreshStationBounds(BoardableStation station, Vector3i min, Vector3i max)
+    /// beyond it (+ margin) as void. Follows the cells, so a wing built from inside widens the breathable reach;
+    /// player-built doors count too (#1559) — a doorway is an entity, never a cell, yet it is part of the hull.</summary>
+    private void RefreshStationBounds(BoardableStation station, Vector3i min, Vector3i max)
     {
-        station.BoundsMin = StationCellToWorld(station, min);
-        station.BoundsMax = StationCellToWorld(station, max);
+        var bmin = StationCellToWorld(station, min);
+        var bmax = StationCellToWorld(station, max);
+        if (_world.LocationId == "station:" + station.Id)
+        {
+            foreach (var d in _doors)
+            {
+                if (!d.PlayerBuilt)
+                {
+                    continue;
+                }
+
+                var cell = d.Pos.ToBlock();
+                bmin = new Vector3i(System.Math.Min(bmin.X, cell.X), System.Math.Min(bmin.Y, cell.Y), System.Math.Min(bmin.Z, cell.Z));
+                bmax = new Vector3i(System.Math.Max(bmax.X, cell.X), System.Math.Max(bmax.Y, cell.Y + 2), System.Math.Max(bmax.Z, cell.Z));
+            }
+        }
+
+        station.BoundsMin = bmin;
+        station.BoundsMax = bmax;
     }
 
     /// <summary>Build cell → interior-world cell through the station's stamp anchor (#1481).</summary>
@@ -671,26 +795,27 @@ public sealed partial class GameServer
         }
     }
 
-    /// <summary>Registers a player-placed station container as an (empty) lootable/stash-able crate in the
-    /// active station world, reusing the existing container code paths. The container BLOCK persists via the
-    /// station's cells, so the entity is re-derived per board (its in-session contents are runtime only).</summary>
+    /// <summary>Registers an EVA-built station container cell as an (empty) lootable/stash-able crate in the
+    /// station world, reusing the existing container code paths. Persisted like a placed crate (#1562): the
+    /// runtime-only entity of before disappeared with the void world on the first leave and only a server
+    /// restart brought it back. Deduplicated by position, because a container placed from inside goes through
+    /// <see cref="PlaceCrate"/> with its own id and the cell grid then re-derives the same spot on the next
+    /// first stamp.</summary>
     private void RegisterStationContainer(BoardableStation station, Vector3i pos)
     {
-        string id = "scontainer_" + station.Id + "_" + pos.X + "_" + pos.Y + "_" + pos.Z;
-        if (_containers.Any(c => c.Id == id))
+        if (_containers.Any(c => c.Position == pos && c.Kind == "crate"))
         {
             return;
         }
 
-        _containers.Add(new StoredContainer
+        AddContainer(new StoredContainer
         {
-            Id = id,
+            Id = "scontainer_" + station.Id + "_" + pos.X + "_" + pos.Y + "_" + pos.Z,
             Planet = _world.LocationId,
             Kind = "crate",
             Position = pos,
             Items = new List<Shared.State.ItemStack>(),
         });
-        BroadcastContainers();
     }
 
     /// <summary>The owner (or an admin) renames a commissioned station they built — via the Map detail "Rename"

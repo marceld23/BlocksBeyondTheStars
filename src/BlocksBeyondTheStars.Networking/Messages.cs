@@ -1425,6 +1425,12 @@ public sealed class SpaceState
     /// client plays the warp VFX as the view opens (there is no surface take-off).</summary>
     public bool Hyperjump { get; set; }
 
+    /// <summary>Friendly names of the star system and the body this flight is anchored on (#1565). An in-flight
+    /// hyperjump never lands, so no <see cref="WorldReset"/> carries the new identity — the HUD, the F1 form and
+    /// the orbit view kept the departure system's name until the next landing.</summary>
+    public string SystemName { get; set; } = string.Empty;
+    public string BodyName { get; set; } = string.Empty;
+
     /// <summary>The OTHER players sharing this space instance (excludes the recipient) — their ship or floating
     /// EVA suit, so everyone can see each other out here.</summary>
     public NetSpacePlayer[] Players { get; set; } = System.Array.Empty<NetSpacePlayer>();

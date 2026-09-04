@@ -432,6 +432,23 @@ namespace BlocksBeyondTheStars.Client
 
         private FeedbackReport BuildReport(string title, string desc, string email)
         {
+            var reportJson = new Dictionary<string, object>
+            {
+                ["location"] = Game != null ? Game.LocationName : string.Empty,
+                ["station"] = Game != null ? Game.StationName : string.Empty,
+                ["worldSeed"] = Game != null ? Game.WorldSeed : 0L,
+                ["health"] = Game != null ? Mathf.RoundToInt(Game.Health) : 0,
+                ["oxygen"] = Game != null ? Mathf.RoundToInt(Game.Oxygen) : 0,
+                ["energy"] = Game != null ? Mathf.RoundToInt(Game.SuitEnergy) : 0,
+                ["hunger"] = Game != null ? Mathf.RoundToInt(Game.Hunger) : 0,
+                ["sessionSeconds"] = Game != null ? Mathf.RoundToInt(Game.SessionSeconds) : 0,
+                ["language"] = Settings != null ? Settings.Language : string.Empty,
+            };
+            // Machine facts + "did the last session die?" — the same keys the crash reporter sends, so a blue
+            // screen / driver-reset report can be judged without asking the player (#1564). Main thread here.
+            DeviceInfo.Get().WriteTo(reportJson);
+            SessionMarker.WriteTo(reportJson);
+
             var report = new FeedbackReport
             {
                 Title = title,
@@ -446,18 +463,7 @@ namespace BlocksBeyondTheStars.Client
                 Platform = Application.platform.ToString(),
                 ClientTimestamp = DateTime.UtcNow.ToString("o"),
                 ScreenshotFileName = "feedback_" + DateTime.UtcNow.ToString("yyyyMMdd_HHmmss") + ".jpg",
-                ReportJson = new Dictionary<string, object>
-                {
-                    ["location"] = Game != null ? Game.LocationName : string.Empty,
-                    ["station"] = Game != null ? Game.StationName : string.Empty,
-                    ["worldSeed"] = Game != null ? Game.WorldSeed : 0L,
-                    ["health"] = Game != null ? Mathf.RoundToInt(Game.Health) : 0,
-                    ["oxygen"] = Game != null ? Mathf.RoundToInt(Game.Oxygen) : 0,
-                    ["energy"] = Game != null ? Mathf.RoundToInt(Game.SuitEnergy) : 0,
-                    ["hunger"] = Game != null ? Mathf.RoundToInt(Game.Hunger) : 0,
-                    ["sessionSeconds"] = Game != null ? Mathf.RoundToInt(Game.SessionSeconds) : 0,
-                    ["language"] = Settings != null ? Settings.Language : string.Empty,
-                },
+                ReportJson = reportJson,
             };
             return report;
         }

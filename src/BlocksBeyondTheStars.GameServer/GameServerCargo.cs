@@ -71,9 +71,12 @@ public sealed partial class GameServer
         return moved;
     }
 
-    /// <summary>Loose materials/components stow into cargo; tools, weapons and equipment stay on the player.</summary>
+    /// <summary>Loose materials, components and building blocks stow into cargo; tools, weapons and equipment
+    /// stay on the player. The same category rule a storage crate stashes by (<c>Stashable</c>) — blocks were
+    /// missing here since #1264 added them there, so "stow all" left every stack of stone, glass and wall
+    /// panels in the pack while it happily stowed a helmet (#1562).</summary>
     private bool IsStowable(string item)
-        => _content.GetItem(item)?.Category is ItemCategory.Material or ItemCategory.Component;
+        => _content.GetItem(item)?.Category is ItemCategory.Material or ItemCategory.Component or ItemCategory.Block;
 
     /// <summary>Moves slot <paramref name="index"/> of <paramref name="src"/> into <paramref name="dst"/>, leaving
     /// whatever did not fit (full destination) in place. Returns true if at least one item moved.</summary>

@@ -576,6 +576,7 @@ public sealed partial class GameServer
         LoadWeatherDeposits(); // #900: restore settled snow so a restart doesn't strand cells that can never melt
         var resident = world.World;
         resident.BlockSet += cell => MarkBaseWallsDirty(resident, cell); // #1367: a build inside a base's box refreshes its wall fill
+        LoadContainers(); // every world, void ones included: a station's placed crates persist like a planet's (#1562)
 
         // A void world (an orbital station) has no terrain, so it gets none of the OTHER planet-surface
         // content — no fauna/fluids, no settlements/wrecks/landing zones. Only its stamped structure lives
@@ -588,7 +589,6 @@ public sealed partial class GameServer
             InitFire();
             LoadFireState(); // #784: restore burn timers so a restart doesn't strand permanent, inert flames
             InitCreatures();
-            LoadContainers();
 
             if (locationId == GuardianCoreBodyId)
             {
@@ -730,7 +730,7 @@ public sealed partial class GameServer
     /// shortcut: it is gated by the Instant Travel world rule — when that rule is off you may only quick-travel
     /// to bodies you've already landed on. <paramref name="quickTravel"/> = false is a manual flight landing
     /// (you flew there and chose to set down), which is always allowed.</summary>
-    private void HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel = true, bool adminBypass = false)
+    private void HandleTravel(PlayerSession session, TravelIntent intent, bool quickTravel = true, bool adminBypass = false, bool allowCurrentBody = false)
     {
         Serve(session); // act on the traveller's own world + ship (the jump-drive check below needs it)
 
@@ -764,9 +764,9 @@ public sealed partial class GameServer
             return;
         }
 
-        if (body.Id == session.CurrentLocationId)
+        if (body.Id == session.CurrentLocationId && !allowCurrentBody)
         {
-            Reject(session, "travel", "@srv.travel.already_there");
+            Reject(session, "travel", "@srv.travel.already_there"); // allowCurrentBody: the body was never loaded (a hyperjump anchor, #1566)
             return;
         }
 
@@ -885,6 +885,7 @@ public sealed partial class GameServer
         BroadcastLandingPads(session); // the arrival claimed a pad — everyone's map must show it (#1020)
         SendContainers(session);
         SendStarMap(session);
+        SendShipRepairStatus(session); // the repair panel follows the ship, not the last console press (#1561)
         SyncAppearance(session); // faces + body paintings both ways — appearance is per-world state (#982)
         Send(session, new ServerMessage
         {
@@ -1410,6 +1411,10 @@ public sealed partial class GameServer
         // this runs once and is identical to the old flat tick. When no world is occupied we still tick the
         // active one (so its weather/fluids advance — and so headless tests with no players still simulate).
         var ticking = OccupiedLocations();
+        // #1566: a pilot who hyperjumped in flight occupies a body whose world was never loaded (the jump
+        // anchors the flight instance there without landing). Skipping it silently used to leave NOTHING
+        // ticking — weather, day cycle, fluids and fauna froze for as long as he cruised the new system.
+        ticking.RemoveAll(loc => !_worlds.IsLoaded(loc));
         if (ticking.Count == 0 && _worlds.Active != null)
         {
             ticking.Add(_worlds.Active.LocationId);
@@ -1528,6 +1533,15 @@ public sealed partial class GameServer
 
     /// <summary>Test helper kept explicit so tests can drive one authoritative server tick.</summary>
     public void TickForTest(double deltaSeconds) => Tick(deltaSeconds);
+
+    /// <summary>Test seam (#1558): a client position report through the real handler (wrap rules included).</summary>
+    public void MoveForTest(string playerId, float x, float y, float z)
+    {
+        if (FindSessionByPlayerId(playerId) is { } session)
+        {
+            HandleMove(session, new MoveIntent { X = x, Y = y, Z = z, Yaw = session.State.Yaw, Pitch = session.State.Pitch });
+        }
+    }
 
     /// <summary>Test entrypoint mirroring the AI damage ticks (creatures/bandits/machines/speeders): a direct
     /// <see cref="RespawnPlayer"/> call, deliberately WITHOUT serving the victim first — those ticks run with
@@ -2093,6 +2107,24 @@ public sealed partial class GameServer
         SendContainers(session);
         SendNpcs(session);
         SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the home world's
+        SendWorldScopedLists(session); // …and every other per-world list it drops (#1560)
+    }
+
+    /// <summary>Every per-world list the client wipes on a <see cref="WorldReset"/> besides doors and the ship
+    /// placement: teleporter pads, beacons, bases, markers, factories, data cubes, net fragments, speeders.
+    /// Travel/landing and join always sent them; the death-recovery, custom-respawn and station-return resets
+    /// re-sent only the doors (#1429), so a pad you walked back to after leaving your station kept its glow
+    /// but stopped answering E until the next landing or relog (#1560).</summary>
+    private void SendWorldScopedLists(PlayerSession session)
+    {
+        SendDataCubes(session);
+        SendNetFragments(session);
+        SendFactories(session);
+        SendBeacons(session);
+        SendMarkers(session);
+        SendBeams(session);
+        SendBases(session);
+        SendSpeeders(session);
     }
 
     /// <summary>Upper bound on a client-requested render distance (matches the in-game slider's max), so a
@@ -3266,6 +3298,7 @@ public sealed partial class GameServer
         });
         SendInventory(session);
         SendPlayerState(session);
+        SendShipRepairStatus(session); // a ship at 1/200 hull shows its repair panel from the first frame (#1561)
         SendRules(session);
         // Online admins carry a player-mode roster in their rule set (#1121) — refresh it now that this
         // player is on it.
@@ -3736,16 +3769,20 @@ public sealed partial class GameServer
             // ROUND WORLDS: the client transform runs unbounded as it laps the world in any direction; the
             // authoritative position is canonical — X in [0, Circumference), Z in the latitude domain
             // (±period/2, period ≈ circumference/2). The old pole clamp is gone: north–south wraps seamlessly
-            // like east–west. Stations/space keep their own small coordinate space (no wrap there).
+            // like east–west. Stations/space keep their own small coordinate space (no wrap there): a
+            // player station's void world reports a circumference too, and wrapping X there turned every
+            // step west of x 0 into x ≈ 5950 — beyond the gravity box, airless, and "drifted away" (#1558).
             int circ = _world.Circumference; // this world's size (asteroids small, planets large)
+            float x = move.X;
             float z = move.Z;
             bool onSurface = !InStation(session.State.PlayerId) && !InSpace(session.State.PlayerId);
             if (onSurface)
             {
+                x = (float)WorldConstants.WrapX((double)move.X, circ);
                 z = (float)WorldConstants.WrapZ((double)move.Z, circ);
             }
 
-            var reported = new Vector3f((float)WorldConstants.WrapX(move.X, circ), move.Y, z);
+            var reported = new Vector3f(x, move.Y, z);
 
             // Spawn-adoption gate (#865): right after the server places this player (join, travel landing,
             // respawn), the client may still be streaming a stale pose from before it processed the snap —
@@ -5881,13 +5918,18 @@ public sealed partial class GameServer
     /// <summary>Resolves the friendly (system, planet) names for the currently active world (the Active
     /// cursor's location), so per-world init/tick label the right body even with several worlds resident.</summary>
     private (string System, string Planet) ActiveLocationNames()
+        => LocationNamesFor(_worlds.Active?.LocationId ?? _meta.ActiveLocationId);
+
+    /// <summary>Resolves the friendly (system, planet) names for any body id — resident or not (#1567: a bump
+    /// filed in flight right after a hyperjump describes a body that has never been loaded). Falls back to the
+    /// active world's planet type for non-galaxy locations (stations, ship interiors).</summary>
+    private (string System, string Planet) LocationNamesFor(string locationId)
     {
-        string activeId = _worlds.Active?.LocationId ?? _meta.ActiveLocationId;
         foreach (var sys in _galaxy.Systems)
         {
             foreach (var body in sys.Bodies)
             {
-                if (body.Id == activeId)
+                if (body.Id == locationId)
                 {
                     return (sys.Name, body.Name);
                 }

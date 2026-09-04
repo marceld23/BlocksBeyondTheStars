@@ -291,6 +291,7 @@ public sealed partial class GameServer
         SendContainers(session);
         SendNpcs(session);
         SendDoors(session); // the client drops all doors on WorldReset (#1429) — restock the spawn world's
+        SendWorldScopedLists(session); // …and the pads/beacons/bases/markers it drops with them (#1560)
         return true;
     }
 
