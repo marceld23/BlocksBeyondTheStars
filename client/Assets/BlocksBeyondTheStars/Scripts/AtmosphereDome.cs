@@ -18,7 +18,10 @@ namespace BlocksBeyondTheStars.Client
         public GameBootstrap Game;
         public Camera Camera;
 
+        private static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
+
         private Transform _dome;
+        private MeshRenderer _renderer;
         private Material _mat;
         private float _brightness; // smoothed 0..1 fade
 
@@ -32,7 +35,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mat = new Material(shader);
-            _mat.SetFloat("_Brightness", 0f);
 
             var go = new GameObject("Atmosphere");
             go.transform.SetParent(transform, false);
@@ -43,7 +45,21 @@ namespace BlocksBeyondTheStars.Client
             mr.receiveShadows = false;
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            _renderer = mr;
             _dome = go.transform;
+            ApplyBrightness(0f);
+        }
+
+        /// <summary>Writes the shader brightness and switches the renderer off while the halo is faded out
+        /// (#1513): in space and on airless bodies the whole-sky dome used to be drawn at brightness 0.</summary>
+        private void ApplyBrightness(float value)
+        {
+            _mat.SetFloat(BrightnessId, value);
+            bool visible = value > 0.001f;
+            if (_renderer != null && _renderer.enabled != visible)
+            {
+                _renderer.enabled = visible;
+            }
         }
 
         private void LateUpdate()
@@ -63,7 +79,7 @@ namespace BlocksBeyondTheStars.Client
                             || (Game.Environment != null && Game.Environment.SpaceSky) || Game.OnFootInSpace;
             float target = spaceSky ? 0f : 1f;
             _brightness = Mathf.MoveTowards(_brightness, target, Time.deltaTime * 0.9f);
-            _mat.SetFloat("_Brightness", _brightness);
+            ApplyBrightness(_brightness);
         }
 
         /// <summary>A unit UV-sphere dome (positions only — the shader derives the view direction from them).</summary>

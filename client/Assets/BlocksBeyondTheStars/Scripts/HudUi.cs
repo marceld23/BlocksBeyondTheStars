@@ -733,7 +733,10 @@ namespace BlocksBeyondTheStars.Client
             _toast.text = Game.LastMessage ?? string.Empty;
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
             _observer.text = Game.Spectating ? loc.Get("ui.hud.observer") : string.Empty;
-            _hint.text = InputMap.ActiveDevice switch
+            // #1516: compose the hint in a local and assign ONCE — assigning the base line first and then
+            // appending with `+=` dirtied the Text (mesh regeneration) on every refresh even when the final
+            // string was identical; the setter only early-outs on an equal string.
+            string hint = InputMap.ActiveDevice switch
             {
                 // On touch the on-screen buttons are self-labelling, so the text hint just adds clutter.
                 InputDeviceKind.Touch => string.Empty,
@@ -743,29 +746,31 @@ namespace BlocksBeyondTheStars.Client
 
             // Creative/Sandbox worlds only: the one control the hint can't afford to omit, because flight has
             // no other tell. Appended rather than baked into ui.hud.hint so Explorer worlds stay uncluttered.
-            if (Game.CanFly && _hint.text.Length > 0)
+            if (Game.CanFly && hint.Length > 0)
             {
-                _hint.text += " · " + loc.Get("ui.hud.hint_fly");
+                hint += " · " + loc.Get("ui.hud.hint_fly");
             }
 
             // Holding a rotatable block (a crafted shape or furniture): surface the rotate control (#863) —
             // nothing else in the game ever said the key exists. Appended only while it applies, like the
             // fly hint, so the always-on line stays short.
-            if (Game.HoldingRotatableBlock && _hint.text.Length > 0)
+            if (Game.HoldingRotatableBlock && hint.Length > 0)
             {
-                _hint.text += " · " + loc.Get("ui.hud.hint_rotate")
+                hint += " · " + loc.Get("ui.hud.hint_rotate")
                     .Replace("{key}", GlyphText(loc, InputAction.RotateShape));
             }
 
             // The middle-click slot-action ring (#924) has no other on-screen tell (#935): advertise it
             // while the hotbar is up and the selected slot holds anything to act on, like the hints above.
             // RefreshHotbar ran just before this, so the root's active state is current for this frame.
-            if (_hint.text.Length > 0 && _hotbarRoot != null && _hotbarRoot.activeSelf
+            if (hint.Length > 0 && _hotbarRoot != null && _hotbarRoot.activeSelf
                 && !string.IsNullOrEmpty(Game.ItemInSlot(Game.SelectedHotbarSlot)))
             {
-                _hint.text += " · " + loc.Get("ui.hud.hint_slot_actions")
+                hint += " · " + loc.Get("ui.hud.hint_slot_actions")
                     .Replace("{key}", GlyphText(loc, InputAction.HotbarAction));
             }
+
+            _hint.text = hint;
 
             // Prompts — on-foot only. While piloting/EVA the flight view draws its own prompts, so don't leak
             // a stale on-foot "Use: Cockpit" into the centre of the space view (you reach the cockpit/helm on

@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int GradeParamsId = Shader.PropertyToID("_Sc_GradeParams");
         private static readonly int IndoorId = Shader.PropertyToID("_Sc_Indoor");
         private static readonly int FloraTintId = Shader.PropertyToID("_Sc_FloraTint");
+        private static readonly int LampColorId = Shader.PropertyToID("_Sc_LampColor");
         // Explicit distance haze for the block shaders (Unity's MixFog doesn't engage on the unlit voxels):
         // x=start, y=end, z=max strength (already faded out indoors), w=on.
         private static readonly int FogId = Shader.PropertyToID("_Sc_Fog");
@@ -149,7 +150,7 @@ namespace BlocksBeyondTheStars.Client
                 Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off
                 UrpScenePost.Instance?.ApplyGrade(Color.white, 1f, 1f);        // …and off on the URP volume too
                 UrpScenePost.Instance?.SetMoodLut(null);                       // …and drop the biome mood LUT in space
-                Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f));
+                Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f));
                 Shader.SetGlobalFloat(IndoorId, 0f);
                 Shader.SetGlobalColor(FloraTintId, new Color(0f, 0f, 0f, 0f)); // no planet flora tint in space
                 Shader.SetGlobalVector(FogId, new Vector4(0f, 1f, 0f, 0f)); // distance haze off in space
@@ -352,9 +353,19 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Drives the post-FX colour grade (the per-system/biome "mood LUT"): a biome tint +
         /// saturation/contrast, folded with the star system's sun colour as a subtle hue shift. Applied via the
         /// URP <c>UrpScenePost</c> volume (ColorAdjustments + mood LUT); only visible when tonemapping/post is on.</summary>
+        private string _gradeBiome;
+        private (Color tint, float sat, float contrast) _grade = (Color.white, 1f, 1.03f);
+
         private void SetGrade(string biome, Color sunColor)
         {
-            var (tint, sat, contrast) = GradeFor(biome);
+            // #1516: GradeFor lower-cases the biome key — once per biome change, not once per frame.
+            if (!ReferenceEquals(biome, _gradeBiome) && biome != _gradeBiome)
+            {
+                _gradeBiome = biome;
+                _grade = GradeFor(biome);
+            }
+
+            var (tint, sat, contrast) = _grade;
             float m = Mathf.Max(sunColor.r, Mathf.Max(sunColor.g, sunColor.b));
             Color norm = m > 0.001f ? new Color(sunColor.r / m, sunColor.g / m, sunColor.b / m) : Color.white;
             // The star's hue folds into the grade so each system visibly tints its worlds (0.4 keeps it a
@@ -523,7 +534,7 @@ namespace BlocksBeyondTheStars.Client
         {
             // Clear the tint so other scenes (menu) aren't affected.
             Shader.SetGlobalColor(LightId, new Color(1f, 1f, 1f, 0f));
-            Shader.SetGlobalColor(Shader.PropertyToID("_Sc_LampColor"), new Color(0f, 0f, 0f, 0f)); // headlamp off
+            Shader.SetGlobalColor(LampColorId, new Color(0f, 0f, 0f, 0f)); // headlamp off
             Shader.SetGlobalColor(GradeTintId, new Color(0f, 0f, 0f, 0f)); // colour grade off (menu/space)
             UrpScenePost.Instance?.SetMoodLut(null); // drop the biome mood LUT (menu/space)
             Shader.SetGlobalFloat(IndoorId, 0f); // interior fill off (menu/space)

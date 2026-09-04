@@ -265,21 +265,64 @@ namespace BlocksBeyondTheStars.Client
             {
                 _urpTime += Time.deltaTime;
                 bool fx = Settings == null || Settings.VisorEffects;
-                m.SetTexture("_HudTex", _rt);
-                m.SetFloat("_VisorTime", _urpTime);
-                m.SetFloat("_Aspect", Screen.height > 0 ? (float)Screen.width / Screen.height : 1.78f);
-                m.SetFloat("_HudOpacity", 0.97f);
-                m.SetColor("_RimColor", ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
-                m.SetFloat("_ScanCount", Mathf.Max(120f, _h * 0.5f));
-                m.SetFloat("_Intensity", fx ? _intensity : 0f);
-                m.SetFloat("_Curvature", fx ? 0.012f : 0f);   // gentle bow (was 0.045 — warped/softened the HUD)
-                m.SetFloat("_Chroma", fx ? 0.0015f : 0f);     // whisper of fringe (was 0.005)
-                m.SetVector("_Parallax", fx ? new Vector4(_parallax.x, _parallax.y, 0f, 0f) : Vector4.zero);
-                m.SetFloat("_Glow", fx ? 0.35f : 0f);         // softer hologram bloom (was 0.6)
-                m.SetFloat("_Reflect", fx ? 0.02f : 0f);      // barely-there world reflection (was 0.08 — ghosted the frame)
-                m.SetFloat("_RimIntensity", fx ? 0.05f : 0f); // faint edge glow (was 0.10)
+
+                // #1516: only the live values go every frame; the constants (and the rarely changing aspect,
+                // scan count and HUD texture) are written when they actually change — ids resolved once.
+                if (!ReferenceEquals(_urpLastRt, _rt))
+                {
+                    _urpLastRt = _rt;
+                    m.SetTexture(HudTexId, _rt);
+                }
+
+                float aspect = Screen.height > 0 ? (float)Screen.width / Screen.height : 1.78f;
+                if (aspect != _urpLastAspect)
+                {
+                    _urpLastAspect = aspect;
+                    m.SetFloat(AspectId, aspect);
+                }
+
+                if (_h != _urpLastH)
+                {
+                    _urpLastH = _h;
+                    m.SetFloat(ScanCountId, Mathf.Max(120f, _h * 0.5f));
+                }
+
+                int fxState = fx ? 1 : 0;
+                if (fxState != _urpLastFx)
+                {
+                    _urpLastFx = fxState;
+                    m.SetFloat(HudOpacityId, 0.97f);
+                    m.SetColor(RimColorId, ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
+                    m.SetFloat(CurvatureId, fx ? 0.012f : 0f);   // gentle bow (was 0.045 — warped/softened the HUD)
+                    m.SetFloat(ChromaId, fx ? 0.0015f : 0f);     // whisper of fringe (was 0.005)
+                    m.SetFloat(GlowId, fx ? 0.35f : 0f);         // softer hologram bloom (was 0.6)
+                    m.SetFloat(ReflectId, fx ? 0.02f : 0f);      // barely-there world reflection (was 0.08 — ghosted the frame)
+                    m.SetFloat(RimIntensityId, fx ? 0.05f : 0f); // faint edge glow (was 0.10)
+                }
+
+                m.SetFloat(VisorTimeId, _urpTime);
+                m.SetFloat(IntensityId, fx ? _intensity : 0f);
+                m.SetVector(ParallaxId, fx ? new Vector4(_parallax.x, _parallax.y, 0f, 0f) : Vector4.zero);
             }
         }
+
+        private static readonly int HudTexId = Shader.PropertyToID("_HudTex");
+        private static readonly int VisorTimeId = Shader.PropertyToID("_VisorTime");
+        private static readonly int AspectId = Shader.PropertyToID("_Aspect");
+        private static readonly int HudOpacityId = Shader.PropertyToID("_HudOpacity");
+        private static readonly int RimColorId = Shader.PropertyToID("_RimColor");
+        private static readonly int ScanCountId = Shader.PropertyToID("_ScanCount");
+        private static readonly int IntensityId = Shader.PropertyToID("_Intensity");
+        private static readonly int CurvatureId = Shader.PropertyToID("_Curvature");
+        private static readonly int ChromaId = Shader.PropertyToID("_Chroma");
+        private static readonly int ParallaxId = Shader.PropertyToID("_Parallax");
+        private static readonly int GlowId = Shader.PropertyToID("_Glow");
+        private static readonly int ReflectId = Shader.PropertyToID("_Reflect");
+        private static readonly int RimIntensityId = Shader.PropertyToID("_RimIntensity");
+        private RenderTexture _urpLastRt;
+        private float _urpLastAspect = -1f;
+        private int _urpLastH = -1;
+        private int _urpLastFx = -1;
 
         private void OnDestroy()
         {

@@ -2410,6 +2410,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True when the player can fire the jetpack: carries one and has suit energy left.</summary>
         private bool CanJetpack() => Game != null && Game.SuitEnergy > 0f && HasItem("jetpack");
 
+        // Persistent jetpack thrust emitters (#1511), created on first use and toggled per frame.
+        private ParticleSystem _jetFlameL, _jetFlameR;
+
         /// <summary>Drives the jetpack thrust VFX/audio while firing and reports state edges to the server
         /// (which is authoritative for the suit-energy drain).</summary>
         private void UpdateJetpack(bool active)
@@ -2417,14 +2420,17 @@ namespace BlocksBeyondTheStars.Client
             if (active)
             {
                 ClientAudio.Instance?.JetTick();
-                if (Weapons != null)
+                if (Weapons != null && _jetFlameL == null && _jetFlameR == null)
                 {
-                    // Twin thrust flames at the player's feet (offset left/right of the pack).
-                    var feet = transform.position + Vector3.down * 0.1f;
-                    Weapons.Sparks(feet - transform.right * 0.2f, new Color(1f, 0.72f, 0.3f), 3);
-                    Weapons.Sparks(feet + transform.right * 0.2f, new Color(1f, 0.55f, 0.2f), 3);
+                    // Twin thrust flames at the player's feet (offset left/right of the pack) — persistent looping
+                    // emitters (#1511), created once and switched on/off below instead of a fresh burst per frame.
+                    _jetFlameL = Weapons.CreateThrustFlame(transform, new Vector3(-0.2f, -0.1f, 0f), new Color(1f, 0.72f, 0.3f));
+                    _jetFlameR = Weapons.CreateThrustFlame(transform, new Vector3(0.2f, -0.1f, 0f), new Color(1f, 0.55f, 0.2f));
                 }
             }
+
+            WeaponFx.SetThrust(_jetFlameL, active);
+            WeaponFx.SetThrust(_jetFlameR, active);
 
             if (active != _jetpackActive)
             {

@@ -1,8 +1,10 @@
 // Additive atmospheric scattering glow drawn on a dome behind the world on planets with air. It does NOT
 // replace the camera's sky colour (Sky.cs still clears to the day/night sky) — it ADDS a horizon brightening
 // band + a soft sun-scattering halo (Mie) that warms toward orange when the sun is low, so dawn/dusk glow and
-// the horizon read like a real atmosphere instead of a flat fill. Additive + ZWrite Off in the Background queue,
-// so opaque geometry paints over it and it can only ever brighten the open sky (never black it out). Reads the
+// the horizon read like a real atmosphere instead of a flat fill. Additive + ZWrite Off at the end of the opaque
+// queue (Geometry+499, #1513): drawn after the terrain so the depth test rejects covered pixels instead of shading
+// the whole sky first; it can only ever brighten the open sky (never black it out), and additive-over-opaque is
+// order-independent, so the picture is unchanged. Reads the
 // same sky globals Sky.cs sets: _Sc_SunDir (dir TO the sun), _Sc_Sky (sky colour), _Sc_Light (sun colour ×
 // brightness; dark at night → the glow self-fades). Dual-pipeline (URP + Built-in RP).
 Shader "BlocksBeyondTheStars/Atmosphere"
@@ -15,7 +17,7 @@ Shader "BlocksBeyondTheStars/Atmosphere"
     // ---------------- URP ----------------
     SubShader
     {
-        Tags { "RenderType" = "Background" "Queue" = "Background" "RenderPipeline" = "UniversalPipeline" }
+        Tags { "RenderType" = "Background" "Queue" = "Geometry+499" "RenderPipeline" = "UniversalPipeline" }
         Cull Off
         ZWrite Off
         Blend One One // additive — only ever brightens the sky
@@ -79,7 +81,7 @@ Shader "BlocksBeyondTheStars/Atmosphere"
     // ---------------- Built-in RP (fallback) ----------------
     SubShader
     {
-        Tags { "RenderType" = "Background" "Queue" = "Background" }
+        Tags { "RenderType" = "Background" "Queue" = "Geometry+499" }
         Cull Off
         ZWrite Off
         Blend One One

@@ -28,6 +28,14 @@ namespace BlocksBeyondTheStars.Client
             public float GestureTimer;     // counts down to the next work gesture (mine/place/talk swing)
             public float GestureLo, GestureHi; // cadence range from the NPC's theme/role
             public string Greeting;        // item 15: a contextual speech-bubble line (empty = none showing)
+
+            // #1516: the per-frame nameplate/bubble strings, rebuilt only when their inputs change.
+            public string CachedLabel;
+            public string CachedLabelBase;
+            public string CachedStageKey;
+            public object CachedLabelLoc;
+            public string CachedGreetingSource;
+            public string CachedGreetingQuoted;
             public float GreetingUntil;    // world time after which the bubble fades out
         }
 
@@ -231,7 +239,17 @@ namespace BlocksBeyondTheStars.Client
                 string label = n.Label;
                 if (Game != null && Game.NpcStandings.TryGetValue(pair.Key, out string stageKey))
                 {
-                    label = $"{label} · {Game.Localizer?.Get(stageKey) ?? stageKey}";
+                    // #1516: format once per (name, stage, locale) instead of once per NPC per frame.
+                    var loc = Game.Localizer;
+                    if (n.CachedLabel == null || n.CachedStageKey != stageKey || !ReferenceEquals(n.CachedLabelBase, n.Label) || !ReferenceEquals(n.CachedLabelLoc, loc))
+                    {
+                        n.CachedStageKey = stageKey;
+                        n.CachedLabelBase = n.Label;
+                        n.CachedLabelLoc = loc;
+                        n.CachedLabel = $"{n.Label} · {loc?.Get(stageKey) ?? stageKey}";
+                    }
+
+                    label = n.CachedLabel;
                 }
 
                 // Names only read up close: fade out between 18 m and 28 m so distant NPCs stay anonymous.
@@ -240,7 +258,13 @@ namespace BlocksBeyondTheStars.Client
                 // A live greeting bubble sits just above the nameplate (item 15).
                 if (!string.IsNullOrEmpty(n.Greeting) && WorldNow < n.GreetingUntil)
                 {
-                    labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, $"“{n.Greeting}”", UiKit.TextCol, false, 18f, 28f);
+                    if (!ReferenceEquals(n.CachedGreetingSource, n.Greeting))
+                    {
+                        n.CachedGreetingSource = n.Greeting;
+                        n.CachedGreetingQuoted = $"“{n.Greeting}”";
+                    }
+
+                    labels.World(cam, n.Go.transform.position + Vector3.up * 2.5f, n.CachedGreetingQuoted, UiKit.TextCol, false, 18f, 28f);
                 }
             }
         }

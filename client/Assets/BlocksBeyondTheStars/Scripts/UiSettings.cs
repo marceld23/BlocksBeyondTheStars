@@ -189,7 +189,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             UiKit.AddButton(_content, _x, y, _rowW, 44, L("ui.settings.reset_controls"),
-                () => { S.KeyBindings.Clear(); S.PadBindings.Clear(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
+                () => { S.ResetBindings(); S.Save(); _rebinding = null; _rebindingPad = null; Rebuild(); });
             y += 52f;
 
             // Controller (#1219). Everything here is pad-only, so say plainly when there is no pad to tune

@@ -79,10 +79,23 @@ namespace BlocksBeyondTheStars.Client
 
         public InputDeviceKind Kind => InputDeviceKind.Gamepad;
 
-        /// <summary>Whether at least one joystick is connected (a non-empty name). Recomputed cheaply per
-        /// call; when false the source stays fully inert so an unplugged pad costs nothing.</summary>
+        private static bool _connected;
+        private static int _connectedFrame = -1;
+
+        /// <summary>Whether at least one joystick is connected (a non-empty name). Evaluated once per frame
+        /// (#1512 — <c>Input.GetJoystickNames()</c> allocates a fresh string array, and this used to run on
+        /// every ActionDown/Held/Up poll); when false the source stays fully inert so an unplugged pad costs
+        /// nothing.</summary>
         public static bool Connected()
         {
+            int frame = Time.frameCount;
+            if (frame == _connectedFrame)
+            {
+                return _connected;
+            }
+
+            _connectedFrame = frame;
+            _connected = false;
             var names = Input.GetJoystickNames();
             if (names == null)
             {
@@ -93,6 +106,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (!string.IsNullOrEmpty(names[i]))
                 {
+                    _connected = true;
                     return true;
                 }
             }
@@ -344,6 +358,28 @@ namespace BlocksBeyondTheStars.Client
         /// UI (<see cref="ClientSettings.PadBindings"/>) if set, else <see cref="DefaultButtonFor"/>.</summary>
         public static KeyCode ButtonFor(InputAction action)
         {
+            if (Settings == null)
+            {
+                return DefaultButtonFor(action);
+            }
+
+            // #1512: per-action table instead of action.ToString() + string scan + Enum.TryParse per poll.
+            if (_padTable == null || !ReferenceEquals(_padTableSettings, Settings) || _padTableVersion != Settings.BindingsVersion)
+            {
+                RebuildPadTable();
+            }
+
+            int i = (int)action;
+            return i >= 0 && i < _padTable.Length ? _padTable[i] : ResolveButton(action);
+        }
+
+        private static KeyCode[] _padTable;
+        private static ClientSettings _padTableSettings;
+        private static int _padTableVersion = -1;
+
+        /// <summary>The uncached resolution — the player's override if set, else the default.</summary>
+        private static KeyCode ResolveButton(InputAction action)
+        {
             var def = DefaultButtonFor(action);
             if (Settings == null)
             {
@@ -352,6 +388,26 @@ namespace BlocksBeyondTheStars.Client
 
             string name = Settings.BoundPadName(action.ToString());
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
+        }
+
+        private static void RebuildPadTable()
+        {
+            var values = (InputAction[])System.Enum.GetValues(typeof(InputAction));
+            int max = 0;
+            foreach (var v in values)
+            {
+                max = Mathf.Max(max, (int)v);
+            }
+
+            var table = new KeyCode[max + 1];
+            foreach (var v in values)
+            {
+                table[(int)v] = ResolveButton(v);
+            }
+
+            _padTable = table;
+            _padTableSettings = Settings;
+            _padTableVersion = Settings.BindingsVersion;
         }
 
         /// <summary>The two verbs that live on the d-pad's vertical axis (#1220). An axis cannot be

@@ -25,7 +25,10 @@ namespace BlocksBeyondTheStars.Client
         private const int StarCount = 1500;
         private const float MaxBrightness = 1.3f; // additive cap (per-star dots, so the sky as a whole stays dark)
 
+        private static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
+
         private Transform _dome;
+        private MeshRenderer _renderer;
         private Material _mat;
         private float _brightness; // smoothed 0..1 fade
 
@@ -39,7 +42,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mat = new Material(shader) { mainTexture = BuildDotTexture() };
-            _mat.SetFloat("_Brightness", 0f);
 
             var go = new GameObject("Starfield");
             go.transform.SetParent(transform, false);
@@ -50,7 +52,22 @@ namespace BlocksBeyondTheStars.Client
             mr.receiveShadows = false;
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            _renderer = mr;
             _dome = go.transform;
+            ApplyBrightness(0f);
+        }
+
+        /// <summary>Writes the shader brightness and switches the renderer off entirely while the field is dark
+        /// (#1513): the 1500 additive sprites cover the whole sky and used to be drawn — and shaded — at
+        /// brightness 0 all day long on a planet, pure fill rate for nothing.</summary>
+        private void ApplyBrightness(float value)
+        {
+            _mat.SetFloat(BrightnessId, value);
+            bool visible = value > 0.001f;
+            if (_renderer != null && _renderer.enabled != visible)
+            {
+                _renderer.enabled = visible;
+            }
         }
 
         private void LateUpdate()
@@ -70,7 +87,7 @@ namespace BlocksBeyondTheStars.Client
             if (MenuBrightness >= 0f)
             {
                 _brightness = Mathf.Clamp01(MenuBrightness);
-                _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+                ApplyBrightness(_brightness * MaxBrightness);
                 return;
             }
 
@@ -93,7 +110,7 @@ namespace BlocksBeyondTheStars.Client
             float dayLen = Game.Environment != null ? Mathf.Max(30f, Game.Environment.DayLengthSeconds) : 600f;
             float rate = Mathf.Clamp(240f / dayLen, 0.25f, 1.0f);
             _brightness = hardSky ? target : Mathf.MoveTowards(_brightness, target, Time.deltaTime * rate);
-            _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+            ApplyBrightness(_brightness * MaxBrightness);
         }
 
         /// <summary>How visible the stars should be: full in space / on airless worlds / inside a station,

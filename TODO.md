@@ -121,6 +121,32 @@ behaviour stays covered outside the radius. `.vscode/` git-ignored. Player texts
 `vega.hint.base_walls`, `base-air` codex EN+DE) now name the 24-block guarantee beside the ring (#1495,
 all 14 locales, machine pass for the 12). UNRELEASED.
 
+### ★ Client quick wins: looping jetpack flames, input-binding tables, sky domes off when dark, shared creature materials, chunk bookkeeping, per-frame hygiene (#1511–#1516, 2026-09-04, branch perf/1511-1516-client-quick-wins)
+PR bundle 3 of the performance package (epic #1501); Unity client + Client.Core, nothing visible changes.
+**#1511** the jetpack drives two persistent looping thrust emitters (`WeaponFx.CreateThrustFlame` /
+`SetThrust`, the `SpaceView.BuildThruster` pattern) instead of spawning two one-shot particle systems every
+frame (~120 GameObject + ParticleSystem creations/s while flying); remote avatars get one emitter each.
+**#1512** `InputMap.Key` and `GamepadInputSource.ButtonFor` resolve through per-action `KeyCode[]` tables
+rebuilt only when `ClientSettings.BindingsVersion` changes (bumped by `SetBoundKey`/`SetBoundPad`/the new
+`ResetBindings`), and `Connected()` evaluates `Input.GetJoystickNames()` once per frame — the previous
+`action.ToString()` + string scan + `Enum.TryParse` (+ a fresh joystick-name array) ran on every one of the
+~25–35 polls per frame. **#1513** Starfield, NebulaField and AtmosphereDome switch their renderer off at
+brightness ≤ 0.001 and their shaders moved from the Background queue to Geometry+499 — drawn after the
+terrain, so the depth test rejects covered pixels instead of shading the whole sky first (additive over
+opaque is order-independent → same image). **#1514** `CreatureBuilder.Unlit/Lit` share one Material per
+(shader, colour, texture) and cache the shader lookups (8–16 fresh, never-destroyed Materials per creature
+build before); `SpaceView.Unlit` caches its shader. **#1515** all-air chunks get no GameObject at all,
+`RepositionChunks` writes a chunk's transform only when its seam-aware scene position changes, the mesh
+dispatcher picks the nearest `MeshChunksPerFrame` chunks by partial selection over precomputed distances
+instead of sorting the whole dirty set with a closure, and `ClientWorld` buckets light sources per chunk
+(`RemoveChunk` = one remove instead of 4096; `LightSourcesNear` visits the 27 neighbouring buckets instead
+of every light in the world). **#1516** HUD and flight-overlay hints are composed once and assigned once
+(the `text +=` pattern re-generated the Text mesh every refresh), the flight hint/cargo/instrument and
+radar readouts are formatted only when a displayed value changes, NPC nameplates cache their stage/greeting
+strings, `Sky` caches the biome grade and the lamp-colour property id, `VisorHud` writes its constant
+material properties once per effects-state and uses property ids, one-shot spatial SFX come from a pool of
+24 AudioSources instead of a GameObject per play, and the IMGUI weather overlay skips the Layout event.
+
 ### ★ Lyxette round 6 — the station stays where you built it and how you rebuilt it; walls stop the walking robots; torches burn in base air; the inventory stops moving under your click (#1480–#1484, #1486–#1489, 2026-09-03, branch fix/lyxette-reports-2026-09-03b)
 Eight F1 reports from the morning of 2026-09-03 (v2026.8.26), decisions Marcel 2026-09-03. **Station in every
 orbit (#1480):** `AddStationContacts` listed every `SpaceStation` body of the star system in every orbit — a

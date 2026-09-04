@@ -27,6 +27,13 @@ namespace BlocksBeyondTheStars.Client
         private Text _stationLabel;
         private Image _wpBlip;    // the nav waypoint (#597), amber — distinct from every entity colour
         private Text _wpLabel;    // waypoint distance readout under the radar
+
+        // #1516: last-formatted readout state so the label strings are built on change, not every frame.
+        private int _wpLastMeters = -1;
+        private string _readoutName;
+        private int _readoutMeters = -1;
+        private int _readoutVert;
+        private int _readoutKind; // 0 = none, 1 = station, 2 = body
         private readonly List<Image> _blips = new List<Image>();
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
@@ -250,20 +257,42 @@ namespace BlocksBeyondTheStars.Client
 
                 _wpBlip.rectTransform.anchoredPosition = wv;
                 _wpBlip.rectTransform.SetAsLastSibling(); // over the entity/body blips
-                _wpLabel.text = $"⌖ {Mathf.RoundToInt(wdir.magnitude)}m";
+                int wpMeters = Mathf.RoundToInt(wdir.magnitude);
+                if (wpMeters != _wpLastMeters) // #1516: build the label only when the rounded distance moves
+                {
+                    _wpLastMeters = wpMeters;
+                    _wpLabel.text = $"⌖ {wpMeters}m";
+                }
             }
 
             // Readout under the radar: prefer a station name (dockable), else the nearest planet to head for.
+            // #1516: formatted only when the name, the rounded distance or the arrow changes (per frame before).
             if (nearestStation != null)
             {
                 // The disc is flat — an arrow says "it's above/below you" so a station parked over the
                 // flight plane isn't searched for at eye level.
-                string vert = nearestUp > 10f ? " ▲" : nearestUp < -10f ? " ▼" : string.Empty;
-                _stationLabel.text = $"{nearestStation} · {Mathf.RoundToInt(nearestDist)}m{vert}";
+                int vertState = nearestUp > 10f ? 1 : nearestUp < -10f ? -1 : 0;
+                int meters = Mathf.RoundToInt(nearestDist);
+                if (!ReferenceEquals(nearestStation, _readoutName) || meters != _readoutMeters || vertState != _readoutVert || _readoutKind != 1)
+                {
+                    _readoutName = nearestStation;
+                    _readoutMeters = meters;
+                    _readoutVert = vertState;
+                    _readoutKind = 1;
+                    string vert = vertState > 0 ? " ▲" : vertState < 0 ? " ▼" : string.Empty;
+                    _stationLabel.text = $"{nearestStation} · {meters}m{vert}";
+                }
             }
             else if (nearestBody != null)
             {
-                _stationLabel.text = $"➜ {nearestBody} · {Mathf.RoundToInt(nearestBodyDist)}m";
+                int meters = Mathf.RoundToInt(nearestBodyDist);
+                if (!ReferenceEquals(nearestBody, _readoutName) || meters != _readoutMeters || _readoutKind != 2)
+                {
+                    _readoutName = nearestBody;
+                    _readoutMeters = meters;
+                    _readoutKind = 2;
+                    _stationLabel.text = $"➜ {nearestBody} · {meters}m";
+                }
             }
 
             _stationLabel.gameObject.SetActive(nearestStation != null || nearestBody != null);

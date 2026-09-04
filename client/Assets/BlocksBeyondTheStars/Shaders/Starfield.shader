@@ -1,8 +1,9 @@
 // Additive starfield dome drawn behind the world. Each star carries a twinkle phase + speed (TEXCOORD1)
 // and a colour (vertex colour); the shader pulses its brightness over time. _Brightness (set per-frame by
 // the Starfield component) fades the whole field in at night / in space and out during a bright day.
-// Background queue + ZWrite Off: stars draw right after the sky clear, and any opaque geometry (terrain,
-// the planet, the ship) drawn afterwards paints over them — so stars only show in open sky.
+// End of the opaque queue (Geometry+499, #1513) + ZWrite Off: stars draw AFTER the terrain/planet/ship, so the
+// depth test rejects every covered pixel instead of shading the whole sky and overpainting it — stars only show
+// in open sky, and additive-over-opaque is order-independent, so the picture is unchanged.
 // DUAL-PIPELINE: URP HLSL SubShader first, original Built-in CG below.
 Shader "BlocksBeyondTheStars/Starfield"
 {
@@ -15,7 +16,7 @@ Shader "BlocksBeyondTheStars/Starfield"
     // ---------------- URP ----------------
     SubShader
     {
-        Tags { "Queue" = "Background" "RenderType" = "Background" "IgnoreProjector" = "True" "RenderPipeline" = "UniversalPipeline" }
+        Tags { "Queue" = "Geometry+499" "RenderType" = "Background" "IgnoreProjector" = "True" "RenderPipeline" = "UniversalPipeline" }
         Blend One One     // additive — stars add light onto the dark sky
         ZWrite Off
         Cull Off
@@ -73,7 +74,7 @@ Shader "BlocksBeyondTheStars/Starfield"
     // ---------------- Built-in RP (original, unchanged) ----------------
     SubShader
     {
-        Tags { "Queue" = "Background" "RenderType" = "Background" "IgnoreProjector" = "True" }
+        Tags { "Queue" = "Geometry+499" "RenderType" = "Background" "IgnoreProjector" = "True" }
         Blend One One     // additive — stars add light onto the dark sky
         ZWrite Off
         Cull Off

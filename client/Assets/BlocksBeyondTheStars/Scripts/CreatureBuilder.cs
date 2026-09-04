@@ -584,10 +584,25 @@ namespace BlocksBeyondTheStars.Client
             return h & 0x7fffffff;
         }
 
+        // #1514: creature materials are never mutated after creation, so identical (shader, colour, texture)
+        // requests share ONE Material — every build used to create 8–16 fresh Materials (each behind a
+        // Shader.Find string lookup) that nothing ever destroyed, growing for the whole session as fauna
+        // spawned and despawned. Shared materials also let the SRP batcher group the parts.
+        private static Shader _unlitShader, _litShader;
+        private static readonly Dictionary<Color, Material> UnlitCache = new Dictionary<Color, Material>();
+        private static readonly Dictionary<(Color Color, Texture2D Tex), Material> LitCache = new Dictionary<(Color, Texture2D), Material>();
+
         private static Material Unlit(Color color)
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = ShaderColor.Srgb(color) };
+            if (UnlitCache.TryGetValue(color, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            _unlitShader ??= Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
+            var m = new Material(_unlitShader) { color = ShaderColor.Srgb(color) };
+            UnlitCache[color] = m;
+            return m;
         }
 
         // Shared (loaded once) tintable grayscale hide tiles; the body multiplies them by the species colour.
@@ -721,8 +736,14 @@ namespace BlocksBeyondTheStars.Client
 
         private static Material Lit(Color color, Texture2D tex)
         {
-            var shader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-            var m = new Material(shader) { color = ShaderColor.Srgb(color) };
+            var key = (color, tex);
+            if (LitCache.TryGetValue(key, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            _litShader ??= Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            var m = new Material(_litShader) { color = ShaderColor.Srgb(color) };
             if (tex != null)
             {
                 m.mainTexture = tex;
@@ -734,6 +755,7 @@ namespace BlocksBeyondTheStars.Client
                 m.SetFloat("_Fill", CreatureFill);
             }
 
+            LitCache[key] = m;
             return m;
         }
     }

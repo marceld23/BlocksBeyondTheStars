@@ -1478,6 +1478,8 @@ namespace BlocksBeyondTheStars.Client
             public MeshCollider Collider = null!;
             public bool ColliderEnabled = true;
             public bool RendererEnabled = true;
+            public Vector3 ScenePos;      // last position written to the transform (#1515: write only on change)
+            public bool ScenePosKnown;
         }
 
         private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
@@ -1507,6 +1509,7 @@ namespace BlocksBeyondTheStars.Client
         public int MeshChunksPerFrame = 4;
 #endif
         private readonly List<ChunkCoord> _dirtyScratch = new List<ChunkCoord>();
+        private readonly List<float> _dirtyDistScratch = new List<float>(); // parallel to _dirtyScratch during dispatch (#1515)
 
         // Distance culling (A4): chunks farther than this (blocks, seam-aware 3D distance) have their renderer
         // disabled — the client never unloads chunks, so without this the accumulated far chunks keep costing
@@ -2358,16 +2361,38 @@ namespace BlocksBeyondTheStars.Client
                 _dirtyScratch.Clear();
                 _dirtyScratch.AddRange(_dirty);
                 var pp = PlayerPosition;
-                _dirtyScratch.Sort((a, b) => ChunkDistSqToPlayer(a, pp).CompareTo(ChunkDistSqToPlayer(b, pp)));
+
+                // #1515: nearest-first WITHOUT sorting the whole set — the distances are computed once and the
+                // `budget` nearest entries are picked by partial selection (O(n·k), k ≤ MeshChunksPerFrame),
+                // instead of an O(n log n) sort with a closure and two seam-aware distances per comparison to
+                // take four. Same order as the sort produced.
+                _dirtyDistScratch.Clear();
+                for (int i = 0; i < _dirtyScratch.Count; i++)
+                {
+                    _dirtyDistScratch.Add(ChunkDistSqToPlayer(_dirtyScratch[i], pp));
+                }
 
                 int budget = Mathf.Max(1, MeshChunksPerFrame);
                 int built = 0;
-                foreach (var coord in _dirtyScratch)
+                while (built < budget && _dirtyScratch.Count > 0)
                 {
-                    if (built >= budget)
+                    int best = 0;
+                    float bestDist = _dirtyDistScratch[0];
+                    for (int i = 1; i < _dirtyScratch.Count; i++)
                     {
-                        break;
+                        if (_dirtyDistScratch[i] < bestDist)
+                        {
+                            bestDist = _dirtyDistScratch[i];
+                            best = i;
+                        }
                     }
+
+                    var coord = _dirtyScratch[best];
+                    int last = _dirtyScratch.Count - 1;
+                    _dirtyScratch[best] = _dirtyScratch[last];
+                    _dirtyDistScratch[best] = _dirtyDistScratch[last];
+                    _dirtyScratch.RemoveAt(last);
+                    _dirtyDistScratch.RemoveAt(last);
 
                     // Neighbours not yet streamed are no-ops — flush them without spending budget; they
                     // re-mark themselves dirty once their own data arrives.
@@ -2431,7 +2456,16 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var origin = WorldConstants.ChunkOrigin(kv.Key);
-                view.Go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
+                // #1515: only chunks across a wrap seam ever change scene position, yet every chunk's transform
+                // was written per block moved (a native call + transform-change notifications to the renderer
+                // and an enabled collider, ~1700 of them at VD 8). Write on change only.
+                var scenePos = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z));
+                if (!view.ScenePosKnown || view.ScenePos != scenePos)
+                {
+                    view.Go.transform.position = scenePos;
+                    view.ScenePos = scenePos;
+                    view.ScenePosKnown = true;
+                }
 
                 float distSq = ChunkDistSqToPlayer(kv.Key, pp);
 
@@ -3050,12 +3084,31 @@ namespace BlocksBeyondTheStars.Client
             bool exists = _chunkObjects.TryGetValue(coord, out var view) && view?.Go != null;
             var (mesh, collider) = data.ToMeshes();
 
+            // #1515: an all-air (or all-fluid-free, geometry-less) chunk gets NO GameObject. A large share of the
+            // streamed set at a big view distance is sky, and each empty chunk used to carry a GameObject + three
+            // components + three materials + an empty mesh with full 16³ bounds — a transform write per block
+            // moved and a culling entry each. The chunk re-materialises through the normal path the moment an
+            // edit gives it geometry (the rebuild then finds no view and creates one).
+            if (!exists && collider == null && (mesh == null || mesh.vertexCount == 0) && (data.Scatter == null || data.Scatter.Count == 0))
+            {
+                if (mesh != null)
+                {
+                    Destroy(mesh);
+                }
+
+                int emptyGen = (_colliderGen.TryGetValue(coord, out var eg) ? eg : 0) + 1;
+                _colliderGen[coord] = emptyGen;
+                _colliderAppliedGen[coord] = emptyGen; // nothing to cook — no fall-guard "pending" state either
+                return;
+            }
+
             if (!exists)
             {
                 var go = new GameObject($"Chunk {coord.X},{coord.Y},{coord.Z}");
                 go.transform.SetParent(transform);
                 var origin = WorldConstants.ChunkOrigin(coord);
-                go.transform.position = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z)); // seam-aware on both ground axes (torus)
+                var scenePos = new Vector3(SceneX(origin.X), origin.Y, SceneZ(origin.Z)); // seam-aware on both ground axes (torus)
+                go.transform.position = scenePos;
                 var filter = go.AddComponent<MeshFilter>();
                 var mr = go.AddComponent<MeshRenderer>();
                 // Submesh 0 → opaque atlas, submesh 1 → see-through atlas (glass/fields), submesh 2 → paint
@@ -3066,7 +3119,7 @@ namespace BlocksBeyondTheStars.Client
                         ? new[] { ChunkMaterial, ChunkMaterialTransparent }
                         : new[] { ChunkMaterial };
                 var mc = go.AddComponent<MeshCollider>();
-                view = new ChunkView { Go = go, Filter = filter, Renderer = mr, Collider = mc };
+                view = new ChunkView { Go = go, Filter = filter, Renderer = mr, Collider = mc, ScenePos = scenePos, ScenePosKnown = true };
                 _chunkObjects[coord] = view;
             }
 
