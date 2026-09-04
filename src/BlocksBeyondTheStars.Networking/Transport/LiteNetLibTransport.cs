@@ -13,6 +13,7 @@ internal static class DeliveryMapping
     {
         DeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
         DeliveryMode.Unreliable => DeliveryMethod.Unreliable,
+        DeliveryMode.Sequenced => DeliveryMethod.Sequenced, // #1534: its own queue — not behind chunk resends
         _ => DeliveryMethod.ReliableOrdered,
     };
 }

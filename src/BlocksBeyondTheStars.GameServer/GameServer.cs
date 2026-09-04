@@ -6238,15 +6238,31 @@ public sealed partial class GameServer
 
     private void SendInventory(PlayerSession session)
     {
+        // #1535: the unlocked set rides only when it changed since this session's last update (a signature over
+        // the set, so scan unlocks / achievement rewards / creative grants all count, not just HandleUnlock).
+        var unlocked = session.State.UnlockedBlueprints;
+        long signature = unchecked(unlocked.Count * 1000003L);
+        foreach (var key in unlocked)
+        {
+            signature = unchecked(signature * 31 + StringComparer.Ordinal.GetHashCode(key));
+        }
+
+        bool unchanged = session.SentBlueprintsOnce && session.SentBlueprintsSignature == signature;
+        session.SentBlueprintsOnce = true;
+        session.SentBlueprintsSignature = signature;
         Send(session, new InventoryUpdate
         {
             Personal = DumpInventory(session.State.Inventory),
             Cargo = session.State.AboardShip ? DumpInventory(_ship.Cargo) : Array.Empty<NetItemStack>(),
             CargoSlotCount = session.State.AboardShip ? _ship.Cargo.SlotCount : 0,
-            UnlockedBlueprints = session.State.UnlockedBlueprints.ToArray(),
+            UnlockedBlueprints = unchanged ? Array.Empty<string>() : unlocked.ToArray(),
+            BlueprintsUnchanged = unchanged,
             KnowledgePoints = session.State.KnowledgePoints,
         });
     }
+
+    /// <summary>Test seam for #1535.</summary>
+    internal void SendInventoryForTest(PlayerSession session) => SendInventory(session);
 
     private static NetItemStack[] DumpInventory(Inventory inv)
     {
@@ -6267,8 +6283,8 @@ public sealed partial class GameServer
 
     /// <summary>Sends an already-encoded payload (so a broadcast encodes the message once and reuses the same
     /// bytes for every recipient instead of re-serializing per send). The payload is read-only after encoding.</summary>
-    private void SendEncoded(int connectionId, byte[] payload)
-        => _transport.Send(connectionId, payload, DeliveryMode.ReliableOrdered);
+    private void SendEncoded(int connectionId, byte[] payload, DeliveryMode mode = DeliveryMode.ReliableOrdered)
+        => _transport.Send(connectionId, payload, mode);
 
     private void SendTo(int connectionId, object message)
         => _transport.Send(connectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);

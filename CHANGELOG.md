@@ -13,6 +13,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+⚠️ **Compatibility:** the network protocol version moves to **4** (#1533 #1534 #1535 — LZ4-compressed entity
+lists and chunks, a sequenced presence beat, and inventory updates that no longer re-send the unchanged
+blueprint list). Updated servers reject older game versions at join with a clear "protocol mismatch" message —
+update the game (desktop installs auto-update; the browser version is always current).
+
 ## [2026.9.1] — 2026-09-03
 
 The school-club release. On 2 September the game-development club at the Kurfürst-Balduin

@@ -448,7 +448,7 @@ public sealed partial class GameServer
                 }
 
                 payload ??= NetCodec.Encode(presence);
-                SendEncoded(viewer.ConnectionId, payload);
+                SendEncoded(viewer.ConnectionId, payload, DeliveryMode.Sequenced); // #1534: never behind a chunk resend
                 subject.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
             }
 
