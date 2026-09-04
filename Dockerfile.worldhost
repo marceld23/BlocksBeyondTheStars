@@ -36,6 +36,8 @@ COPY --from=build /app ./
 
 # In a container the app must bind all interfaces (its own default is loopback); reachability is then
 # controlled by the docker network / reverse proxy. The registry lives on the /data volume.
+# #1536: the host itself is small; the same memory knob as the world image (see Dockerfile).
+ENV DOTNET_GCConserveMemory=5
 ENV BBS_WH_BIND=0.0.0.0
 ENV BBS_WH_DATA_DIR=/data
 

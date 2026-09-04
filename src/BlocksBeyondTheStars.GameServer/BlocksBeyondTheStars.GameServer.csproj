@@ -26,4 +26,19 @@
     <Compile Remove="Program.cs" />
   </ItemGroup>
 
+  <!-- #1536 runtime configuration of the server HOST (the net10.0 exe; the Unity/WebGL library flavour has no
+       runtimeconfig of its own). Workstation GC is pinned explicitly so the many-worlds VPS can never flip to
+       server GC by accident. Measured on the dev box (bundled server, idle) and REJECTED — do not re-try blind:
+         · ConcurrentGarbageCollection=false: +7.5 MB private / +8 MB working set per process (the non-concurrent
+           GC keeps a larger gen0 budget); the background GC thread it saves only runs during rare gen2 passes.
+         · PublishReadyToRun: no measurable change in time-to-"started" (worldgen dominates), +28 MB exe, +10 MB
+           working set.
+         · InvariantGlobalization: NameScreenTests' "hïtler" evasion stopped matching — the name screening
+           normalises diacritics with string.Normalize, which needs ICU. ICU stays; its RSS is the price of that filter.
+       The Windows run loop's timer resolution (HighResolutionTimerScope) is the knob that paid off: 68–70 → 76 ticks
+       per 5 s window, i.e. the configured 15 Hz instead of ~13.8. -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+  </PropertyGroup>
+
 </Project>

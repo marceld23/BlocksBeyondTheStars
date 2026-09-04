@@ -56,6 +56,11 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Default the admin UI/portal bind to all interfaces (the app's own default is loopback, which would be
 # unreachable from outside the container). ALWAYS pair a public admin port with BBS_ADMIN_PASSWORD.
 ENV BBS_ADMIN_BIND=0.0.0.0
+# #1536: give memory back readily on the many-worlds VPS (the cgroup limit already bounds each heap;
+# GCConserveMemory=5 measured −1.3 MB private at idle and trims harder under load). NOT gcConcurrent=0 (+7.5 MB
+# per process on the dev box) and NOT invariant globalization (the name screening normalises diacritics with
+# ICU — a "hïtler" evasion stopped matching without it).
+ENV DOTNET_GCConserveMemory=5
 
 # 31415/udp native client · 31415/tcp browser WebSocket (when BBS_ENABLE_WEBSOCKET=true) · 31416/tcp admin+portal+download+/play
 EXPOSE 31415/udp 31415/tcp 31416/tcp
