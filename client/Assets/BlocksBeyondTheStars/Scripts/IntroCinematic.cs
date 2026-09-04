@@ -341,7 +341,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _atlas = new BlockTextureAtlas(content);
+            _atlas = BlockTextureAtlas.Acquire(content); // shared per process (#1523)
             _chunkMat = new Material(atlasShader) { mainTexture = _atlas.Texture };
             _chunkMat.SetTexture("_NormalTex", _atlas.NormalTexture);
             var transparentShader = Shader.Find("BlocksBeyondTheStars/BlockAtlasTransparent");
@@ -453,7 +453,7 @@ namespace BlocksBeyondTheStars.Client
                 _chunkMatT = null;
             }
 
-            _atlas?.Destroy();
+            _atlas?.Release();
             _atlas = null;
         }
     }

@@ -224,7 +224,7 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(_chunkMatT);
             }
 
-            _atlas?.Destroy();
+            _atlas?.Release(); // shared per process (#1523)
         }
 
         /// <summary>Builds the block texture atlas + chunk materials once for the menu (same recipe as
@@ -238,7 +238,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _atlas = new BlockTextureAtlas(content);
+            _atlas = BlockTextureAtlas.Acquire(content); // shared with the bootstrap/intro/editors (#1523)
             _chunkMat = new Material(atlasShader) { mainTexture = _atlas.Texture };
             _chunkMat.SetTexture("_NormalTex", _atlas.NormalTexture);
 

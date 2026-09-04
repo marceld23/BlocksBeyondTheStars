@@ -114,7 +114,7 @@ namespace BlocksBeyondTheStars.Client
         private void Start()
         {
             // Editor-local block atlas: gives the palette (and the placed cells) the real material look.
-            _atlas = Shell != null && Shell.Content != null ? new BlockTextureAtlas(Shell.Content) : null;
+            _atlas = Shell != null && Shell.Content != null ? BlockTextureAtlas.Acquire(Shell.Content) : null; // shared per process (#1523)
             _palette = BuildPalette();
 
             var camGo = new GameObject("EditorCamera");
@@ -536,7 +536,7 @@ namespace BlocksBeyondTheStars.Client
             _view?.Dispose();
             _ghost?.Dispose();
             _frame?.Dispose();
-            _atlas?.Destroy(); // palette sprites reference this texture; the editor owns it (#423 lesson)
+            _atlas?.Release(); // palette sprites reference this texture; the editor holds a reference (#423 lesson, shared since #1523)
             _atlas = null;
             if (_canvas != null)
             {

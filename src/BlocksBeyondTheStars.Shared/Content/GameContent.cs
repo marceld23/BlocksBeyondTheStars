@@ -32,6 +32,14 @@ public sealed class GameContent
     private readonly Dictionary<string, MissionDefinition> _missions;
     private readonly BlockDefinition?[] _blocksById;
     private readonly Dictionary<GameLocale, Dictionary<string, string>> _locales;
+    // #1522: locale tables the loader did not parse eagerly — parsed on first use (CreateLocalizer /
+    // LocaleCoverage) and cached in _locales from then on. The loader keeps only English + the active
+    // locale eager; the other twelve tables (~3 MB JSON, ~45k strings) stay on disk until asked for.
+    private readonly Dictionary<GameLocale, Func<Dictionary<string, string>>> _lazyLocales = new();
+    // #1522: build-time coverage manifest (data/locale_coverage.json, scripts/locale-coverage.py) so the
+    // language picker can answer without parsing every table; an unlisted locale is measured instead.
+    private readonly Dictionary<GameLocale, double> _localeCoverageManifest = new();
+    private readonly object _localeGate = new();
     private readonly Dictionary<string, int> _craftDepth = new(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, BlockDefinition> Blocks => _blocks;
@@ -286,7 +294,9 @@ public sealed class GameContent
         IEnumerable<PlanetType>? planets = null,
         IEnumerable<MissionDefinition>? missions = null,
         IEnumerable<ShipDefinition>? ships = null,
-        IEnumerable<ShipLayout>? shipLayouts = null)
+        IEnumerable<ShipLayout>? shipLayouts = null,
+        IDictionary<GameLocale, Func<Dictionary<string, string>>>? lazyLocales = null,
+        IDictionary<GameLocale, double>? localeCoverage = null)
     {
         _blocks = blocks.ToDictionary(b => b.Key);
         _items = items.ToDictionary(i => i.Key);
@@ -298,6 +308,24 @@ public sealed class GameContent
         _planets = (planets ?? Enumerable.Empty<PlanetType>()).ToDictionary(p => p.Key);
         _missions = (missions ?? Enumerable.Empty<MissionDefinition>()).ToDictionary(m => m.Id);
         _locales = new Dictionary<GameLocale, Dictionary<string, string>>(locales);
+        if (lazyLocales != null)
+        {
+            foreach (var kv in lazyLocales)
+            {
+                if (!_locales.ContainsKey(kv.Key))
+                {
+                    _lazyLocales[kv.Key] = kv.Value;
+                }
+            }
+        }
+
+        if (localeCoverage != null)
+        {
+            foreach (var kv in localeCoverage)
+            {
+                _localeCoverageManifest[kv.Key] = kv.Value;
+            }
+        }
 
         AssignBlockIds();
         MarkTintableDefaults();
@@ -564,6 +592,55 @@ public sealed class GameContent
 
     public int MaxStackOf(string itemKey) => _items.TryGetValue(ItemKey.Base(itemKey), out var i) ? i.MaxStack : 1;
 
+    /// <summary>The parsed table for a locale, parsing a lazily registered one on first use (#1522).
+    /// Null when the locale has no table at all.</summary>
+    private Dictionary<string, string>? LocaleTable(GameLocale locale)
+    {
+        lock (_localeGate)
+        {
+            if (_locales.TryGetValue(locale, out var table))
+            {
+                return table;
+            }
+
+            if (_lazyLocales.Remove(locale, out var load))
+            {
+                table = load();
+                _locales[locale] = table;
+                return table;
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>Whether the locale has a table at all — parsed or still on disk.</summary>
+    public bool HasLocale(GameLocale locale)
+    {
+        lock (_localeGate)
+        {
+            return _locales.ContainsKey(locale) || _lazyLocales.ContainsKey(locale);
+        }
+    }
+
+    /// <summary>How many locale tables are parsed and resident right now (diagnostics and the lazy-load
+    /// tests; the loader starts at one or two).</summary>
+    public int LoadedLocaleCount
+    {
+        get
+        {
+            lock (_localeGate)
+            {
+                return _locales.Count;
+            }
+        }
+    }
+
+    /// <summary>Coverage for the picker: the manifest value when the build shipped one (no table parse for
+    /// one click), the measured value for a locale the manifest does not know yet.</summary>
+    private double SelectableCoverage(GameLocale locale)
+        => _localeCoverageManifest.TryGetValue(locale, out var fromManifest) ? fromManifest : LocaleCoverage(locale);
+
     /// <summary>Fraction of the English key set the given locale covers (1.0 for English itself,
     /// 0.0 when the locale has no table). The settings language picker uses this to decide which
     /// community languages are complete enough to offer.</summary>
@@ -574,8 +651,9 @@ public sealed class GameContent
             return 1.0;
         }
 
-        if (!_locales.TryGetValue(GameLocale.English, out var en) || en.Count == 0
-            || !_locales.TryGetValue(locale, out var table))
+        var en = LocaleTable(GameLocale.English);
+        var table = LocaleTable(locale);
+        if (en == null || en.Count == 0 || table == null)
         {
             return 0.0;
         }
@@ -601,7 +679,7 @@ public sealed class GameContent
         foreach (GameLocale locale in Enum.GetValues(typeof(GameLocale)))
         {
             if (locale == GameLocale.English || locale == GameLocale.German
-                || LocaleCoverage(locale) >= minCoverage)
+                || (HasLocale(locale) && SelectableCoverage(locale) >= minCoverage))
             {
                 result.Add(locale);
             }
@@ -613,8 +691,8 @@ public sealed class GameContent
     /// <summary>Builds a localizer for the given locale, with English as the fallback table.</summary>
     public Localizer CreateLocalizer(GameLocale locale)
     {
-        var active = _locales.TryGetValue(locale, out var table) ? table : new Dictionary<string, string>();
-        var fallback = _locales.TryGetValue(GameLocale.English, out var en) ? en : active;
+        var active = LocaleTable(locale) ?? new Dictionary<string, string>();
+        var fallback = LocaleTable(GameLocale.English) ?? active;
         return new Localizer(locale, active, fallback);
     }
 

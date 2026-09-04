@@ -243,6 +243,44 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Startup & memory: one content snapshot per process, lazy locale tables + coverage manifest, shared block atlas, ambience loops compressed in memory, browser save blob only when dirty (#1522–#1525, 2026-09-04, branch perf/1522-1525-startup-memory)
+
+**Why.** PR bundle 5 of the performance package (#1501). The client parsed the whole content set on the shell AND
+again on every world entry, all fourteen locale tables each time (~3.6 MB JSON, ~55k strings, resident twice);
+five owners rebuilt the 2 × 4 MiB block atlas on the main thread on every menu↔world↔editor transition; every
+audio clip imported as DecompressOnLoad, so each playing ambience loop sat in memory as ~10× PCM; the browser
+save re-serialized and re-gzipped (Optimal) the whole world every two minutes even when nothing had changed.
+
+**What changed.** **#1522** `ContentLoader.LoadFromDirectory` only collects the locale files (base table + story
+packs, in merge order) and parses English + the requested `eagerLocale`; every other table parses on its first
+`CreateLocalizer` / `LocaleCoverage` (`GameContent.LocaleTable`, locked, cached from then on).
+`AppShell.LoadLocalizer` keeps its snapshot when the data directory is unchanged — a language change only builds
+a new localizer — and `GameBootstrap` reuses the shell's snapshot for a world entry from the same directory
+(`AppShell.ContentDataDir`): one `GameContent` per process. The language picker answers from
+`data/locale_coverage.json` (`scripts/locale-coverage.py`; all 14 locales at 100 % today), so one click parses
+nothing; a locale the manifest does not list is measured at runtime as before. `LocaleCoverageManifestTests`
+fails when the manifest drifts from the tables (±2 % or across the 45 % bar) or a locale stops localizing
+through the lazy path. Deferred (needs a WebGL-verified change to StreamingAssetsCache): the browser still
+prefetches every locale file. **#1523** `BlockTextureAtlas.Acquire`/`Release`: one atlas per process and
+content snapshot, reference-counted across GameBootstrap, MenuBackground, IntroCinematic, ShipEditor and
+StructureEditor; the current one stays warm for the next owner, a superseded one dies with its last reference.
+The normal atlas uploads with `makeNoLongerReadable` (−5 MiB); the colour atlas stays readable on purpose
+(`AverageColor`, the editor palette and the shape icons sample its tiles). Not done: `SetPixels32` tile painting
+(identical-texture risk for a build that now runs once) and the worker-thread Sobel (every owner needs the
+normal texture synchronously). **#1524** the 29 looping beds ClientAudio binds to a looping source (`amb_*`,
+weather/water/engine loops) import CompressedInMemory; the 101 guid-only metas now carry the explicit importer
+block (identical to Unity's defaults, so nothing else changes); Vorbis quality stays at 100 %. **#1525**
+`MemoryWorldRepository` keeps a dirty flag over all 44 mutators; `ExportSnapshotBlob` hands back the previous
+blob while nothing changed (an import leaves the repository clean, so the first export after a load is free),
+gzip level Optimal → Fastest (same format), and the import deserializes straight from the gzip stream instead
+of inflating into a second buffer. Not done: raw JSON pass-through for the JSON-string stores (a handful of
+rows; the typed round trip is what the damaged-JSON test pins). `MemorySnapshotBlobTests` pin reuse,
+invalidation and the clean import.
+
+**Consequences.** A language switch parses one table instead of re-parsing all content; the shared atlas stays
+resident for the process lifetime (2 × 4 MiB, intended); ambience loops decode on the fly (a few percent of one
+core) instead of holding PCM; a browser save with no change since the last one costs a file write only.
+
 ### ★ Render/engine configuration: no phantom light loop, shadow lookup gated, depth prepass for the browser, physics without a fixed step, opaque copy on demand, shader prewarm + desktop build flags (#1517–#1521, 2026-09-04, branch perf/1517-1521-render-config)
 PR bundle 4 of the performance package (epic #1501); same picture at every preset. **#1517** the URP asset had
 Additional Lights on Per-Pixel (per-object limit 4) while no project shader consumes them — URP culled the 19
