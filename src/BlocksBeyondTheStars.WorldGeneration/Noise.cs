@@ -31,9 +31,9 @@ public static class Noise
     public static double Value01(long seed, long x, long y, long z)
         => (Hash(seed, x, y, z) >> 11) * (1.0 / 9007199254740992.0); // 53-bit mantissa
 
-    private static double Smooth(double t) => t * t * (3.0 - 2.0 * t);
+    internal static double Smooth(double t) => t * t * (3.0 - 2.0 * t);
 
-    private static double Lerp(double a, double b, double t) => a + (b - a) * t;
+    internal static double Lerp(double a, double b, double t) => a + (b - a) * t;
 
     /// <summary>2D value noise in [0,1], sampled at continuous coordinates.</summary>
     public static double Value2D(long seed, double x, double z)
@@ -95,7 +95,11 @@ public static class Noise
         return norm > 0 ? sum / norm : 0;
     }
 
-    private const double Tau = 2.0 * System.Math.PI;
+    internal const double Tau = 2.0 * System.Math.PI;
+    /// <summary>Layer-seed primes of <see cref="Value4D"/> / <see cref="Value5D"/> — shared with
+    /// <see cref="TorusColumnSampler"/>, which must derive the identical layer seeds (#1527).</summary>
+    internal const long Value4DLayerPrime = 0x100000001B3L;
+    internal const long Value5DLayerPrime = unchecked((long)0x9E3779B97F4A7C15UL);
 
     /// <summary>
     /// 4D value noise in [0,1]. Built from two <see cref="Value3D"/> layers (at integer w) smoothly
@@ -107,8 +111,8 @@ public static class Noise
         double tw = Smooth(w - w0);
         unchecked
         {
-            long sa = seed + w0 * 0x100000001B3L;       // FNV prime, distinct layer per integer w
-            long sb = seed + (w0 + 1) * 0x100000001B3L;
+            long sa = seed + w0 * Value4DLayerPrime;       // FNV prime, distinct layer per integer w
+            long sb = seed + (w0 + 1) * Value4DLayerPrime;
             return Lerp(Value3D(sa, x, y, z), Value3D(sb, x, y, z), tw);
         }
     }
@@ -170,7 +174,7 @@ public static class Noise
         double tv = Smooth(v - v0);
         unchecked
         {
-            const long layerPrime = unchecked((long)0x9E3779B97F4A7C15UL); // distinct from Value4D's FNV prime
+            const long layerPrime = Value5DLayerPrime; // distinct from Value4D's FNV prime
             long sa = seed + v0 * layerPrime;
             long sb = seed + (v0 + 1) * layerPrime;
             return Lerp(Value4D(sa, x, y, z, w), Value4D(sb, x, y, z, w), tv);

@@ -85,6 +85,7 @@ public sealed class WorldGenerator
         // boost rides OUTSIDE the calibration, like the world-option ore factor, so the memoised
         // calibration cache needs no key extension.
         _frontierOreBoost = frontierOreBoost;
+        InvalidateColumnCaches(); // #1526: the column memos assume a fixed world mode
     }
 
     /// <summary>Rare-vein multiplier for the CURRENT body (#1122), set per world via
@@ -108,7 +109,11 @@ public sealed class WorldGenerator
     /// <summary>Enables the continents feature for this generator (#704) — from the save's
     /// <c>WorldDescription.TerrainContinents</c> on the server, from the join handshake on the client.
     /// Call BEFORE any chunk or height query, like <see cref="SetWorldOptionFactors"/>.</summary>
-    public void SetContinentsEnabled(bool enabled) => _continentsEnabled = enabled;
+    public void SetContinentsEnabled(bool enabled)
+    {
+        _continentsEnabled = enabled;
+        InvalidateColumnCaches(); // #1526
+    }
 
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)
@@ -225,6 +230,7 @@ public sealed class WorldGenerator
     {
         _floraFactor = floraFactor;
         _oreFactor = oreFactor;
+        InvalidateColumnCaches(); // #1526 (the column phase does not read them today — cheap insurance)
     }
 
     /// <summary>
@@ -374,8 +380,65 @@ public sealed class WorldGenerator
     // almost always hit the instance slot and never touch the lock.
     private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), WonderProfile> _wonders = new();
     private static readonly object _wonderLock = new object();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _wonderOrder = new();
     private WonderProfile? _wonderCached;
     private (long, string, int, bool, long, bool) _wonderCachedKey;
+
+    /// <summary>#1527: the bounded static caches evict their OLDEST entry instead of clearing wholesale, so a
+    /// world past the cap only re-derives one entry, not every resident body's.</summary>
+    private static void EvictOldest<TValue>(
+        System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), TValue> cache,
+        System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> order, int cap)
+    {
+        while (cache.Count >= cap && order.Count > 0)
+        {
+            cache.Remove(order.Dequeue()); // a key evicted earlier and re-inserted is simply gone already
+        }
+
+        if (cache.Count >= cap)
+        {
+            cache.Clear(); // unreachable unless the order queue and the cache disagree — keep the bound anyway
+        }
+    }
+
+    // #1526: per-instance column memos. SurfaceHeight and the whole column phase of Generate are pure functions
+    // of (world mode, planet, x, z) — the ~6 stacked chunks of a column, the tree/prop margins, the pond/river
+    // probes and the server's far-column band all asked for the same columns again and again. Keyed on the
+    // planet key + the raw (unwrapped) column; cleared by the world-mode setters and at the cap. Locked because
+    // the client's minimap bakes on its own thread while a server instance may be shared.
+    private readonly System.Collections.Generic.Dictionary<(string, long), int> _surfaceCache = new();
+    private readonly System.Collections.Generic.Dictionary<(string, long), double> _forestCache = new();
+    private readonly System.Collections.Generic.Dictionary<(string, long), ColumnProfile> _columnProfiles = new();
+    private readonly object _columnLock = new object();
+    private const int SurfaceCacheCap = 262_144;   // ~6 MB of entries at most
+    private const int ColumnProfileCap = 100_000;  // ~12 MB: a VD-8 view is ~74k columns
+
+    private static long ColumnKey(int worldX, int worldZ) => ((long)(uint)worldX << 32) | (uint)worldZ;
+
+    /// <summary>Drops every per-column memo — the world-mode setters call this because the memos are keyed
+    /// on the planet + column only and rely on the mode (circumference, cratered, body salt, continents,
+    /// option factors) staying put in between.</summary>
+    private void InvalidateColumnCaches()
+    {
+        lock (_columnLock)
+        {
+            _surfaceCache.Clear();
+            _forestCache.Clear();
+            _columnProfiles.Clear();
+        }
+    }
+
+    /// <summary>How many column profiles are memoised right now (tests).</summary>
+    internal int CachedColumnProfiles
+    {
+        get
+        {
+            lock (_columnLock)
+            {
+                return _columnProfiles.Count;
+            }
+        }
+    }
 
     private WonderProfile WonderFor(PlanetType planet)
     {
@@ -423,12 +486,9 @@ public sealed class WorldGenerator
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
                 w.HybridA = 0.34 + (uh & 0xFF) / 255.0 * 0.08;
                 w.HybridB = w.HybridA + 0.08;
-                if (_wonders.Count >= 256)
-                {
-                    _wonders.Clear(); // soft cap — profiles are a few dozen bytes each
-                }
-
+                EvictOldest(_wonders, _wonderOrder, 256); // #1527: oldest-out, never the whole cache
                 _wonders[key] = w;
+                _wonderOrder.Enqueue(key);
             }
 
             _wonderCached = w;
@@ -444,6 +504,32 @@ public sealed class WorldGenerator
     /// Everything that consumes terrain (rivers, settlements, pads, previews) goes through here, so
     /// every system sees the same mountain.</summary>
     public int SurfaceHeight(PlanetType planet, int worldX, int worldZ)
+    {
+        var key = (planet.Key, ColumnKey(worldX, worldZ));
+        lock (_columnLock)
+        {
+            if (_surfaceCache.TryGetValue(key, out int cached))
+            {
+                return cached; // #1526
+            }
+        }
+
+        int h = SurfaceHeightUncached(planet, worldX, worldZ);
+        lock (_columnLock)
+        {
+            if (_surfaceCache.Count >= SurfaceCacheCap)
+            {
+                _surfaceCache.Clear();
+            }
+
+            _surfaceCache[key] = h;
+        }
+
+        return h;
+    }
+
+    /// <summary>The memo-free surface height — what <see cref="SurfaceHeight"/> caches (tests compare the two).</summary>
+    internal int SurfaceHeightUncached(PlanetType planet, int worldX, int worldZ)
     {
         var w = WonderFor(planet); // #712: every gate below is a cached boolean, not a re-derivation
         int h = RawSurfaceHeight(planet, w, worldX, worldZ);
@@ -2609,6 +2695,7 @@ public sealed class WorldGenerator
     // otherwise re-sample ~17k heights + 2×4096 field points.
     private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), WorldCalibration> _calibs = new();
     private static readonly object _calibLock = new object();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _calibOrder = new();
 
     private WorldCalibration CalibFor(PlanetType planet)
     {
@@ -2621,12 +2708,9 @@ public sealed class WorldGenerator
             }
 
             var calib = BuildCalibration(planet);
-            if (_calibs.Count >= 64)
-            {
-                _calibs.Clear(); // soft cap — entries are ~150 KB each (the sorted height sample)
-            }
-
+            EvictOldest(_calibs, _calibOrder, 64); // #1527: oldest-out — entries are ~150 KB each
             _calibs[key] = calib;
+            _calibOrder.Enqueue(key);
             return calib;
         }
     }
@@ -3114,6 +3198,7 @@ public sealed class WorldGenerator
     // re-run the ~300 ms network build per instance.
     private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), RiverField> _riverFields = new();
     private static readonly object _riverLock = new object();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _riverOrder = new();
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
@@ -3128,12 +3213,9 @@ public sealed class WorldGenerator
             }
 
             var field = BuildRiverField(planet);
-            if (_riverFields.Count >= 8)
-            {
-                _riverFields.Clear(); // soft cap: only a handful of worlds are resident at once
-            }
-
+            EvictOldest(_riverFields, _riverOrder, 8); // #1527: a ship alternating past 8 bodies no longer re-runs the ~300 ms build
             _riverFields[key] = field;
+            _riverOrder.Enqueue(key);
             return field;
         }
     }
@@ -3535,220 +3617,74 @@ public sealed class WorldGenerator
         var origin = WorldConstants.ChunkOrigin(coord);
 
         // Scratch spans reused by every column (#705/#708) — allocated once per chunk (CA2014).
-        System.Span<ColumnBand> bands = stackalloc ColumnBand[MaxColumnBands];
-        System.Span<(int Lo, int Hi)> tunnelSpans = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
+        System.Span<ColumnBand> bandScratch = stackalloc ColumnBand[MaxColumnBands];
+        System.Span<(int Lo, int Hi)> tunnelScratch = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
+
+        // #1526: everything the column phase reads, bundled once per chunk for ComputeColumn.
+        var ctx = new ColumnContext
+        {
+            Planet = planet,
+            Seed = seed,
+            Calib = calib,
+            RiverField = riverField,
+            Biomes = biomes,
+            FluidLevel = fluidLevel,
+            FluidId = fluidId,
+            SeaWaterId = seaWaterId,
+            CraterLavaId = craterLavaId,
+            BeachId = beachId,
+            SnowId = snowId,
+            IceId = iceId,
+            BasaltId = basaltId,
+            SaltBlockId = saltBlockId,
+            DeepId = deepId,
+            Ponds = ponds,
+            PondThreshold = pondThreshold,
+            VolcanoWorld = volcanoWorld,
+            TravertineWorld = travertineWorld,
+            CenoteWorld = cenoteWorld,
+            FreezeWater = freezeWater,
+            BeachPossible = beachPossible,
+            SnowPossible = snowPossible,
+            PenitenteWorld = penitenteWorld,
+            BasaltFieldWorld = basaltFieldWorld,
+            AnyBands = anyBands,
+            CavernWorld = cavernWorld,
+            TunnelWorld = tunnelWorld,
+        };
+
+        // #1527: per-chunk ore invariants + one lazily built noise lattice per (column, field): slot 0 caves,
+        // slot 1 the lava pockets, then a coarse + fine slot per vein.
+        var oreSlots = BuildOreSlots(planet, seed, oreRichness);
+        var samplers = new TorusColumnSampler[2 + oreSlots.Length * 2];
 
         for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
             for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
             {
                 int worldX = origin.X + lx;
                 int worldZ = origin.Z + lz;
-                int surfaceY = SurfaceHeight(planet, worldX, worldZ);
-
-                // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
-                // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
-                // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
-                int seabedY = surfaceY;
-                int waterTop = fluidLevel;
-                var columnFluid = fluidId;
-                bool pondHere = false;
-                double? pondMask = null; // computed at most once per column; shared with the beach rim test (#679)
-                if (ponds && surfaceY > fluidLevel)
-                {
-                    pondMask = PondMaskAt(planet, seed, worldX, worldZ);
-                    int pondDepth = PondDepthFromMask(planet, seed, worldX, worldZ, pondThreshold, pondMask.Value);
-                    if (pondDepth > 0)
-                    {
-                        seabedY = surfaceY - pondDepth;
-                        waterTop = surfaceY;
-                        columnFluid = seaWaterId;
-                        pondHere = true;
-                    }
-                }
-
-                // Volcano (#477): the summit crater overrides the column's fluid to a molten pool — the same
-                // per-column mechanism ponds/rivers use — and the cone's flanks turn to basalt below.
-                bool craterHere = false;
-                double coneRise = 0.0;
-                if (volcanoWorld && TryGetVolcano(planet, seed, worldX, worldZ, out var vCone, out double vDist))
-                {
-                    coneRise = ConeOffsetOf(vCone, vDist);
-                    if (vDist < vCone.CraterR - 0.5)
-                    {
-                        craterHere = true;
-                        seabedY = surfaceY;
-                        waterTop = CraterLavaTop(planet, vCone);
-                        columnFluid = craterLavaId;
-                    }
-                }
-
-                // Rivers (routed): the RiverField places a channel whose water surface FOLLOWS the terrain — a
-                // thin sheet on a flowing reach (no floating wall), the pooled level inside a capped lake, and at
-                // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond,
-                // a volcano crater or the global sea already claims the column. The river bed is carved to BedY.
-                bool riverHere = false;
-                if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
-                {
-                    riverHere = true;
-                    seabedY = river.BedY;
-                    if (river.WaterfallDrop > 0)
-                    {
-                        // River incision (#709): the plunge pool under a waterfall cuts a slot into the bed —
-                        // the erosion look without simulating erosion.
-                        seabedY -= System.Math.Min(6, river.WaterfallDrop);
-                    }
-
-                    waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
-                    columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
-                }
-
-                // Travertine deck pools (#701): shallow 1-deep water flush on the white terrace decks.
-                bool travertineHere = false;
-                if (travertineWorld && !pondHere && !craterHere && !riverHere && surfaceY > fluidLevel
-                    && TryGetTravertine(seed, worldX, worldZ, out double travDeck, out bool travPool))
-                {
-                    travertineHere = travDeck > 0.0 || travPool;
-                    if (travPool && !seaWaterId.IsAir)
-                    {
-                        seabedY = surfaceY - 1;
-                        waterTop = surfaceY;
-                        columnFluid = seaWaterId;
-                    }
-                }
-
-                // Cenote pools (#707): a turquoise pool standing over the shaft floor.
-                if (cenoteWorld && !pondHere && !craterHere && !riverHere && !seaWaterId.IsAir
-                    && TryGetCenotePool(planet, worldX, worldZ, out int cenotePoolTop)
-                    && cenotePoolTop > surfaceY)
-                {
-                    seabedY = surfaceY;
-                    waterTop = cenotePoolTop;
-                    columnFluid = seaWaterId;
-                }
-
-                // Frozen water (#494): a cold column's water freezes from the waterline down — a walkable
-                // ice sheet with liquid below on merely-cold bodies, frozen through to the seabed in the
-                // deep cold or where the sheet reaches the bed anyway. Lava columns never freeze.
-                int iceTop = 0;
-                if (freezeWater && columnFluid == seaWaterId && !seaWaterId.IsAir && waterTop > seabedY)
-                {
-                    iceTop = IceSheetThickness(calib, seed, worldX, worldZ, waterTop, waterTop - seabedY);
-                }
-
-                // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
-                int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, surfaceY);
-                var biome = biomes[biomeIndex];
-                var surfaceId = biome.Surface;
-                var subSurfaceId = biome.Sub;
-
-                // Beaches (#679): near a water shoreline the ground turns to the beach block — surface AND
-                // sub-surface, so the varied topsoil depth yields a real sand layer, and the shallow seabed
-                // apron continues the beach under water. The coast mask alternates beach and bare shore;
-                // the snow pass below still dusts cold coasts, and volcano basalt still wins near a cone.
-                bool beachHere = false;
-                if (beachPossible)
-                {
-                    if (surfaceY < fluidLevel && fluidId == seaWaterId)
-                    {
-                        beachHere = fluidLevel - surfaceY <= BeachApronDepth
-                            && CoastMaskAt(planet, seed, worldX, worldZ);
-                    }
-                    else if (!pondHere && !craterHere && !riverHere)
-                    {
-                        beachHere = DryBeachAt(planet, calib, seed, riverField, seaWaterId,
-                            worldX, worldZ, surfaceY, pondMask);
-                    }
-
-                    if (beachHere)
-                    {
-                        surfaceId = beachId;
-                        subSurfaceId = beachId;
-                    }
-                }
-
-                // Altitude climate (#476): above the snow line the ground gets a snow cover, further up solid
-                // ice. Dithered (±1.5 °C noise) so the line wanders naturally instead of cutting a contour.
-                if (snowPossible && surfaceY > waterTop)
-                {
-                    double surfT = TempAt(calib, surfaceY)
-                        + (FbmT(seed + 0x51F0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
-                    if (surfT < IceLineC && !iceId.IsAir)
-                    {
-                        surfaceId = iceId;
-                        subSurfaceId = iceId;
-                    }
-                    else if (surfT < SnowLineC)
-                    {
-                        surfaceId = snowId;
-                    }
-                }
-
-                // Volcano flanks read as dark volcanic rock wherever the cone meaningfully rises (#477) —
-                // after the snow pass, so the warm basalt wins over a snow cap near the vent.
-                if (coneRise > 3.0 && !basaltId.IsAir)
-                {
-                    surfaceId = basaltId;
-                    subSurfaceId = basaltId;
-                }
-
-                // Travertine terraces read blinding white (#701) — salt is the closest shipped block.
-                if (travertineHere && !saltBlockId.IsAir)
-                {
-                    surfaceId = saltBlockId;
-                    subSurfaceId = saltBlockId;
-                }
-
-                // Penitente blades freeze to solid ice (#701) where they rise meaningfully.
-                if (penitenteWorld && !iceId.IsAir && PenitenteRise(planet, seed, worldX, worldZ) > 1.5)
-                {
-                    surfaceId = iceId;
-                    subSurfaceId = iceId;
-                }
-
-                // Basalt column fields read as dark columnar rock (#701).
-                if (basaltFieldWorld && !basaltId.IsAir && TryGetBasaltColumns(seed, worldX, worldZ, out _))
-                {
-                    surfaceId = basaltId;
-                    subSurfaceId = basaltId;
-                }
-
-                // Ejecta rays (#699): bright/contrast streaks radiating from the primary chain crater —
-                // repainted with the body's deep rock so the rays pop against the regolith.
-                if ((planet.Cratered || _crateredWorld) && CraterRayAt(planet, worldX, worldZ))
-                {
-                    surfaceId = deepId;
-                    subSurfaceId = deepId;
-                }
-
-                // Extra column bands (#705): sky-island tiers (with ponds + stalactites), arch bars,
-                // sea-stack/hoodoo caps, cenote lips and island waterfalls. Tier 0 keeps the classic
-                // sky-island fill; islandTop below feeds the island flora pass like before.
-                int bandCount = anyBands ? GetExtraBands(planet, worldX, worldZ, bands) : 0;
-                int islandTop = int.MinValue;
-                for (int b = 0; b < bandCount; b++)
-                {
-                    if (bands[b].Kind == BandKind.Island && bands[b].Top > islandTop)
-                    {
-                        islandTop = bands[b].Top;
-                    }
-                }
-
-                // Underground mega-cavern (#707): this column's void span, if a cavern covers it.
-                int cavLo = 0, cavHi = -1, cavLakeY = int.MinValue;
-                bool cavernHere = cavernWorld
-                    && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
-
-                // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns).
-                int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
-
-                // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
-                // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
-                BlockId? craterMetal = (planet.Cratered || _crateredWorld)
-                    ? CraterFloorMetal(planet, seed, worldX, worldZ) : (BlockId?)null;
-
-                // Non-uniform topsoil: this column's surface/sub-surface layer thickness (varies per column, not a
-                // flat band) so the stone/ore boundary undulates and reaches close to the surface in the thin spots.
-                int effSurfaceDepth = VariedSurfaceDepth(planet, seed, worldX, worldZ);
+                // #1526: the whole column phase is memoised per (planet, column) — every stacked chunk of a column
+                // used to recompute it; now only the first one does (ComputeColumn holds the original code).
+                var col = ColumnProfileFor(ctx, worldX, worldZ, bandScratch, tunnelScratch);
+                TorusColumnSampler.ResetAll(samplers); // #1527: the per-column noise lattices rebuild lazily
+                int surfaceY = col.SurfaceY;
+                int seabedY = col.SeabedY;
+                int waterTop = col.WaterTop;
+                var columnFluid = col.ColumnFluid;
+                int iceTop = col.IceTop;
+                var biome = biomes[col.BiomeIndex];
+                var surfaceId = col.SurfaceId;
+                var subSurfaceId = col.SubSurfaceId;
+                bool beachHere = col.BeachHere;
+                var bands = col.Bands;
+                int bandCount = bands.Length;
+                int islandTop = col.IslandTop;
+                bool cavernHere = col.CavernHere;
+                int cavLo = col.CavLo, cavHi = col.CavHi, cavLakeY = col.CavLakeY;
+                var tunnelSpans = col.Tunnels;
+                int tunnelCount = tunnelSpans.Length;
+                BlockId? craterMetal = col.CraterMetal;
+                int effSurfaceDepth = col.EffSurfaceDepth;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -3857,7 +3793,7 @@ public sealed class WorldGenerator
                         {
                             // Below the lava table the same molten-pocket rule as blob caves applies (#580).
                             if (!airlessBody && depth > lavaTableDepth
-                                && ValueT(seed + 0xDEE9, worldX, worldY, worldZ, 56.0, 40.0, 56.0) > 0.47)
+                                && SampleField(samplers, LavaSampler, seed + 0xDEE9, worldX, worldZ, 56.0, 40.0, 56.0, worldY) > 0.47)
                             {
                                 chunk.Set(lx, ly, lz, lavaFloorId);
                             }
@@ -3869,7 +3805,7 @@ public sealed class WorldGenerator
                     // Carve caves below the surface layer (quantile-calibrated per world, #472).
                     if (caveThreshold > 0.0 && depth > 1)
                     {
-                        double cave = ValueT(seed + 7777, worldX, worldY, worldZ, 22.0, 16.0, 22.0);
+                        double cave = SampleField(samplers, CaveSampler, seed + 7777, worldX, worldZ, 22.0, 16.0, 22.0, worldY);
                         if (cave > caveThreshold)
                         {
                             // Below the world's lava table a carved cell fills with molten rock instead of
@@ -3880,7 +3816,7 @@ public sealed class WorldGenerator
                             // bath (mining down must stay rewarding, not frustrating). The pocket scale is
                             // large so each region reads as one coherent cave system, not salt-and-pepper.
                             if (!airlessBody && depth > lavaTableDepth
-                                && ValueT(seed + 0xDEE9, worldX, worldY, worldZ, 56.0, 40.0, 56.0) > 0.47)
+                                && SampleField(samplers, LavaSampler, seed + 0xDEE9, worldX, worldZ, 56.0, 40.0, 56.0, worldY) > 0.47)
                             {
                                 chunk.Set(lx, ly, lz, lavaFloorId);
                             }
@@ -3903,7 +3839,7 @@ public sealed class WorldGenerator
                         // Deep crust turns to a dark basalt mantle below this world's mantle depth (item 21), so the
                         // interior isn't one uniform stone column on every world. Ores still vein through it.
                         var rock = depth >= mantleDepth ? mantleId : deepId;
-                        block = SelectOre(planet, calib, seed, worldX, worldY, worldZ, depth, fallback: rock, oreRichness);
+                        block = SelectOre(calib, oreSlots, samplers, worldX, worldZ, worldY, depth, fallback: rock);
 
                         if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
                         {
@@ -4005,6 +3941,383 @@ public sealed class WorldGenerator
         return chunk;
     }
 
+    /// <summary>#1526: one column's terrain profile — everything Generate's y-loop needs that depends only on
+    /// (planet, x, z). Immutable once built; shared by every stacked chunk of the column.</summary>
+    private sealed class ColumnProfile
+    {
+        public int SurfaceY, SeabedY, WaterTop, IceTop, BiomeIndex, IslandTop, CavLo, CavHi, CavLakeY, EffSurfaceDepth;
+        public bool CavernHere, BeachHere;
+        public BlockId ColumnFluid, SurfaceId, SubSurfaceId;
+        public BlockId? CraterMetal;
+        public ColumnBand[] Bands = System.Array.Empty<ColumnBand>();
+        public (int Lo, int Hi)[] Tunnels = System.Array.Empty<(int Lo, int Hi)>();
+    }
+
+    /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
+    private sealed class ColumnContext
+    {
+        public PlanetType Planet = null!;
+        public long Seed;
+        public WorldCalibration Calib = null!;
+        public RiverField RiverField = null!;
+        public List<BiomeResolved> Biomes = null!;
+        public int FluidLevel;
+        public BlockId FluidId, SeaWaterId, CraterLavaId, BeachId, SnowId, IceId, BasaltId, SaltBlockId, DeepId;
+        public bool Ponds, VolcanoWorld, TravertineWorld, CenoteWorld, FreezeWater, BeachPossible, SnowPossible;
+        public bool PenitenteWorld, BasaltFieldWorld, AnyBands, CavernWorld, TunnelWorld;
+        public double PondThreshold;
+    }
+
+    private ColumnProfile ColumnProfileFor(ColumnContext c, int worldX, int worldZ,
+        System.Span<ColumnBand> bands, System.Span<(int Lo, int Hi)> tunnelSpans)
+    {
+        var key = (c.Planet.Key, ColumnKey(worldX, worldZ));
+        lock (_columnLock)
+        {
+            if (_columnProfiles.TryGetValue(key, out var hit))
+            {
+                return hit;
+            }
+        }
+
+        var profile = ComputeColumn(c, worldX, worldZ, bands, tunnelSpans);
+        lock (_columnLock)
+        {
+            if (_columnProfiles.Count >= ColumnProfileCap)
+            {
+                _columnProfiles.Clear();
+            }
+
+            _columnProfiles[key] = profile;
+        }
+
+        return profile;
+    }
+
+    /// <summary>The column phase of <see cref="Generate"/>, moved here verbatim (#1526) — the same calls in the
+    /// same order on the same operands, so the profile is what the inline code computed.</summary>
+    private ColumnProfile ComputeColumn(ColumnContext c, int worldX, int worldZ,
+        System.Span<ColumnBand> bands, System.Span<(int Lo, int Hi)> tunnelSpans)
+    {
+        var planet = c.Planet;
+        long seed = c.Seed;
+        var calib = c.Calib;
+        var riverField = c.RiverField;
+        var biomes = c.Biomes;
+        int fluidLevel = c.FluidLevel;
+        var fluidId = c.FluidId;
+        var seaWaterId = c.SeaWaterId;
+        var craterLavaId = c.CraterLavaId;
+        var beachId = c.BeachId;
+        var snowId = c.SnowId;
+        var iceId = c.IceId;
+        var basaltId = c.BasaltId;
+        var saltBlockId = c.SaltBlockId;
+        var deepId = c.DeepId;
+        bool ponds = c.Ponds;
+        double pondThreshold = c.PondThreshold;
+        bool volcanoWorld = c.VolcanoWorld;
+        bool travertineWorld = c.TravertineWorld;
+        bool cenoteWorld = c.CenoteWorld;
+        bool freezeWater = c.FreezeWater;
+        bool beachPossible = c.BeachPossible;
+        bool snowPossible = c.SnowPossible;
+        bool penitenteWorld = c.PenitenteWorld;
+        bool basaltFieldWorld = c.BasaltFieldWorld;
+        bool anyBands = c.AnyBands;
+        bool cavernWorld = c.CavernWorld;
+        bool tunnelWorld = c.TunnelWorld;
+
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+
+        // An upland pond carves a shallow bowl here (seabed below the terrain) and fills it with water up to
+        // the original surface (a pond flush with the surrounding ground), so the column reads as a swimmable
+        // pool. Normal columns leave seabed=surface and fill the sea up to the global level, unchanged.
+        int seabedY = surfaceY;
+        int waterTop = fluidLevel;
+        var columnFluid = fluidId;
+        bool pondHere = false;
+        double? pondMask = null; // computed at most once per column; shared with the beach rim test (#679)
+        if (ponds && surfaceY > fluidLevel)
+        {
+            pondMask = PondMaskAt(planet, seed, worldX, worldZ);
+            int pondDepth = PondDepthFromMask(planet, seed, worldX, worldZ, pondThreshold, pondMask.Value);
+            if (pondDepth > 0)
+            {
+                seabedY = surfaceY - pondDepth;
+                waterTop = surfaceY;
+                columnFluid = seaWaterId;
+                pondHere = true;
+            }
+        }
+
+        // Volcano (#477): the summit crater overrides the column's fluid to a molten pool — the same
+        // per-column mechanism ponds/rivers use — and the cone's flanks turn to basalt below.
+        bool craterHere = false;
+        double coneRise = 0.0;
+        if (volcanoWorld && TryGetVolcano(planet, seed, worldX, worldZ, out var vCone, out double vDist))
+        {
+            coneRise = ConeOffsetOf(vCone, vDist);
+            if (vDist < vCone.CraterR - 0.5)
+            {
+                craterHere = true;
+                seabedY = surfaceY;
+                waterTop = CraterLavaTop(planet, vCone);
+                columnFluid = craterLavaId;
+            }
+        }
+
+        // Rivers (routed): the RiverField places a channel whose water surface FOLLOWS the terrain — a
+        // thin sheet on a flowing reach (no floating wall), the pooled level inside a capped lake, and at
+        // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond,
+        // a volcano crater or the global sea already claims the column. The river bed is carved to BedY.
+        bool riverHere = false;
+        if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
+        {
+            riverHere = true;
+            seabedY = river.BedY;
+            if (river.WaterfallDrop > 0)
+            {
+                // River incision (#709): the plunge pool under a waterfall cuts a slot into the bed —
+                // the erosion look without simulating erosion.
+                seabedY -= System.Math.Min(6, river.WaterfallDrop);
+            }
+
+            waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
+            columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
+        }
+
+        // Travertine deck pools (#701): shallow 1-deep water flush on the white terrace decks.
+        bool travertineHere = false;
+        if (travertineWorld && !pondHere && !craterHere && !riverHere && surfaceY > fluidLevel
+            && TryGetTravertine(seed, worldX, worldZ, out double travDeck, out bool travPool))
+        {
+            travertineHere = travDeck > 0.0 || travPool;
+            if (travPool && !seaWaterId.IsAir)
+            {
+                seabedY = surfaceY - 1;
+                waterTop = surfaceY;
+                columnFluid = seaWaterId;
+            }
+        }
+
+        // Cenote pools (#707): a turquoise pool standing over the shaft floor.
+        if (cenoteWorld && !pondHere && !craterHere && !riverHere && !seaWaterId.IsAir
+            && TryGetCenotePool(planet, worldX, worldZ, out int cenotePoolTop)
+            && cenotePoolTop > surfaceY)
+        {
+            seabedY = surfaceY;
+            waterTop = cenotePoolTop;
+            columnFluid = seaWaterId;
+        }
+
+        // Frozen water (#494): a cold column's water freezes from the waterline down — a walkable
+        // ice sheet with liquid below on merely-cold bodies, frozen through to the seabed in the
+        // deep cold or where the sheet reaches the bed anyway. Lava columns never freeze.
+        int iceTop = 0;
+        if (freezeWater && columnFluid == seaWaterId && !seaWaterId.IsAir && waterTop > seabedY)
+        {
+            iceTop = IceSheetThickness(calib, seed, worldX, worldZ, waterTop, waterTop - seabedY);
+        }
+
+        // Per-column biome → surface/sub-surface blocks (single-biome worlds use index 0).
+        int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, surfaceY);
+        var biome = biomes[biomeIndex];
+        var surfaceId = biome.Surface;
+        var subSurfaceId = biome.Sub;
+
+        // Beaches (#679): near a water shoreline the ground turns to the beach block — surface AND
+        // sub-surface, so the varied topsoil depth yields a real sand layer, and the shallow seabed
+        // apron continues the beach under water. The coast mask alternates beach and bare shore;
+        // the snow pass below still dusts cold coasts, and volcano basalt still wins near a cone.
+        bool beachHere = false;
+        if (beachPossible)
+        {
+            if (surfaceY < fluidLevel && fluidId == seaWaterId)
+            {
+                beachHere = fluidLevel - surfaceY <= BeachApronDepth
+                    && CoastMaskAt(planet, seed, worldX, worldZ);
+            }
+            else if (!pondHere && !craterHere && !riverHere)
+            {
+                beachHere = DryBeachAt(planet, calib, seed, riverField, seaWaterId,
+                    worldX, worldZ, surfaceY, pondMask);
+            }
+
+            if (beachHere)
+            {
+                surfaceId = beachId;
+                subSurfaceId = beachId;
+            }
+        }
+
+        // Altitude climate (#476): above the snow line the ground gets a snow cover, further up solid
+        // ice. Dithered (±1.5 °C noise) so the line wanders naturally instead of cutting a contour.
+        if (snowPossible && surfaceY > waterTop)
+        {
+            double surfT = TempAt(calib, surfaceY)
+                + (FbmT(seed + 0x51F0, worldX, worldZ, 24.0, octaves: 2) - 0.5) * 3.0;
+            if (surfT < IceLineC && !iceId.IsAir)
+            {
+                surfaceId = iceId;
+                subSurfaceId = iceId;
+            }
+            else if (surfT < SnowLineC)
+            {
+                surfaceId = snowId;
+            }
+        }
+
+        // Volcano flanks read as dark volcanic rock wherever the cone meaningfully rises (#477) —
+        // after the snow pass, so the warm basalt wins over a snow cap near the vent.
+        if (coneRise > 3.0 && !basaltId.IsAir)
+        {
+            surfaceId = basaltId;
+            subSurfaceId = basaltId;
+        }
+
+        // Travertine terraces read blinding white (#701) — salt is the closest shipped block.
+        if (travertineHere && !saltBlockId.IsAir)
+        {
+            surfaceId = saltBlockId;
+            subSurfaceId = saltBlockId;
+        }
+
+        // Penitente blades freeze to solid ice (#701) where they rise meaningfully.
+        if (penitenteWorld && !iceId.IsAir && PenitenteRise(planet, seed, worldX, worldZ) > 1.5)
+        {
+            surfaceId = iceId;
+            subSurfaceId = iceId;
+        }
+
+        // Basalt column fields read as dark columnar rock (#701).
+        if (basaltFieldWorld && !basaltId.IsAir && TryGetBasaltColumns(seed, worldX, worldZ, out _))
+        {
+            surfaceId = basaltId;
+            subSurfaceId = basaltId;
+        }
+
+        // Ejecta rays (#699): bright/contrast streaks radiating from the primary chain crater —
+        // repainted with the body's deep rock so the rays pop against the regolith.
+        if ((planet.Cratered || _crateredWorld) && CraterRayAt(planet, worldX, worldZ))
+        {
+            surfaceId = deepId;
+            subSurfaceId = deepId;
+        }
+
+        // Extra column bands (#705): sky-island tiers (with ponds + stalactites), arch bars,
+        // sea-stack/hoodoo caps, cenote lips and island waterfalls. Tier 0 keeps the classic
+        // sky-island fill; islandTop below feeds the island flora pass like before.
+        int bandCount = anyBands ? GetExtraBands(planet, worldX, worldZ, bands) : 0;
+        int islandTop = int.MinValue;
+        for (int b = 0; b < bandCount; b++)
+        {
+            if (bands[b].Kind == BandKind.Island && bands[b].Top > islandTop)
+            {
+                islandTop = bands[b].Top;
+            }
+        }
+
+        // Underground mega-cavern (#707): this column's void span, if a cavern covers it.
+        int cavLo = 0, cavHi = -1, cavLakeY = int.MinValue;
+        bool cavernHere = cavernWorld
+            && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
+
+        // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns).
+        int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
+
+        // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
+        // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
+        BlockId? craterMetal = (planet.Cratered || _crateredWorld)
+            ? CraterFloorMetal(planet, seed, worldX, worldZ) : (BlockId?)null;
+
+        // Non-uniform topsoil: this column's surface/sub-surface layer thickness (varies per column, not a
+        // flat band) so the stone/ore boundary undulates and reaches close to the surface in the thin spots.
+        int effSurfaceDepth = VariedSurfaceDepth(planet, seed, worldX, worldZ);
+
+        return new ColumnProfile
+        {
+            SurfaceY = surfaceY,
+            SeabedY = seabedY,
+            WaterTop = waterTop,
+            ColumnFluid = columnFluid,
+            IceTop = iceTop,
+            BiomeIndex = biomeIndex,
+            SurfaceId = surfaceId,
+            SubSurfaceId = subSurfaceId,
+            BeachHere = beachHere,
+            Bands = bandCount > 0 ? bands.Slice(0, bandCount).ToArray() : System.Array.Empty<ColumnBand>(),
+            IslandTop = islandTop,
+            CavernHere = cavernHere,
+            CavLo = cavLo,
+            CavHi = cavHi,
+            CavLakeY = cavLakeY,
+            Tunnels = tunnelCount > 0 ? tunnelSpans.Slice(0, tunnelCount).ToArray() : System.Array.Empty<(int Lo, int Hi)>(),
+            CraterMetal = craterMetal,
+            EffSurfaceDepth = effSurfaceDepth,
+        };
+    }
+
+    // #1527: the two non-ore noise fields of the y-loop and their sampler slots (ore veins follow at 2 + 2i).
+    private const int CaveSampler = 0;
+    private const int LavaSampler = 1;
+
+    /// <summary>ValueT for one column and field through its lazily built lattice sampler (#1527) — the same
+    /// value <see cref="ValueT"/> returns, without the per-voxel trig and corner hashes.</summary>
+    private double SampleField(TorusColumnSampler[] samplers, int slot, long seed, int worldX, int worldZ,
+        double scaleX, double scaleY, double scaleZ, int worldY)
+    {
+        ref var s = ref samplers[slot];
+        if (!s.Ready)
+        {
+            s = new TorusColumnSampler(seed, worldX, worldZ, _circumference, LatPeriod, scaleX, scaleY, scaleZ);
+        }
+
+        return s.Sample(worldY);
+    }
+
+    /// <summary>#1527: a vein's per-chunk invariants — the depth band, the shallow/deep split, the rarity×richness
+    /// product (the first factor of the original <c>rarity * richness * depthBonus * scale</c>, so the association
+    /// is unchanged), the field seeds and the resolved block.</summary>
+    private readonly struct OreSlot
+    {
+        public readonly int MinDepth, MaxDepth;
+        public readonly double Scale, Cap, RarityRichness;
+        public readonly bool Shallow;
+        public readonly long CoarseSeed, FineSeed;
+        public readonly BlockId? Block;
+
+        public OreSlot(int minDepth, int maxDepth, double scale, double cap, double rarityRichness, bool shallow,
+            long coarseSeed, long fineSeed, BlockId? block)
+        {
+            MinDepth = minDepth;
+            MaxDepth = maxDepth;
+            Scale = scale;
+            Cap = cap;
+            RarityRichness = rarityRichness;
+            Shallow = shallow;
+            CoarseSeed = coarseSeed;
+            FineSeed = fineSeed;
+            Block = block;
+        }
+    }
+
+    private OreSlot[] BuildOreSlots(PlanetType planet, long seed, double richness)
+    {
+        var slots = new OreSlot[planet.Ores.Count];
+        for (int i = 0; i < slots.Length; i++)
+        {
+            var ore = planet.Ores[i];
+            bool shallow = ore.MinDepth <= 8;
+            double rarity = ore.RareTier ? ore.Rarity * _frontierOreBoost : ore.Rarity;
+            slots[i] = new OreSlot(ore.MinDepth, ore.MaxDepth, shallow ? 0.30 : 0.15, shallow ? 0.08 : 0.05,
+                rarity * richness, shallow, seed + 100 + i * 31, seed + OreFineFieldSalt + i * 31,
+                _content.GetBlock(ore.Block)?.NumericId);
+        }
+
+        return slots;
+    }
+
     /// <summary>Stamps sparse scatter props ("Welten reicher" W-R2): boulder clusters (the world's deep rock),
     /// crystal shard outcrops, and bare dead trees — per-column deterministic rolls with a margin scan so a
     /// prop straddling a chunk edge generates identically from either side. Props sit ON the surface
@@ -4050,6 +4363,11 @@ public sealed class WorldGenerator
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 > origin.Y + cs - 1 || sy + MaxStampRise < origin.Y)
+                {
+                    continue; // #1527: props write sy+1 .. sy+7 — none of it lands in this chunk
+                }
+
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
                 {
                     continue; // dry ground only
@@ -4148,6 +4466,11 @@ public sealed class WorldGenerator
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
+                if (sy < origin.Y || sy >= origin.Y + cs)
+                {
+                    continue; // #1527: the vent is the surface cell itself — not in this chunk
+                }
+
                 if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
                 {
                     continue; // a vent needs open ground (not a sea/pond column)
@@ -4198,6 +4521,11 @@ public sealed class WorldGenerator
                 }
 
                 int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 > origin.Y + cs - 1 || sy + MaxStampRise < origin.Y)
+                {
+                    continue; // #1527: a mushroom writes sy+1 .. sy+15 — none of it lands in this chunk
+                }
+
                 var surf = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)].Surface;
                 if (surf != myceliumId)
                 {
@@ -4300,20 +4628,42 @@ public sealed class WorldGenerator
         var calib = CalibFor(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         var riverField = RiverFieldFor(planet); // cached — needed for the beach ground check (#679)
+
+        // #1527: the density roll is tested against a conservative UPPER BOUND of every biome's multiplier first,
+        // so the ~99 % of margin columns the exact test rejects never pay SurfaceHeight / BiomeIndex. The exact
+        // test still runs for the survivors: roll >= bound >= localDensity, and the bound carries a 1e-9 slack
+        // so float association can never put it below a biome's own product.
+        double maxTreeMul = 0.0;
+        foreach (var b in biomes)
+        {
+            maxTreeMul = System.Math.Max(maxTreeMul, b.TreeMul * b.Theme.TreeMul);
+        }
+
+        maxTreeMul *= 1.0 + 1e-9;
         for (int wx = origin.X - maxCrown; wx < origin.X + cs + maxCrown; wx++)
             for (int wz = origin.Z - maxCrown; wz < origin.Z + cs + maxCrown; wz++)
             {
-                int sy = SurfaceHeight(planet, wx, wz);
-                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
-
                 // FORESTS: a low-frequency mask gathers trees into real groves/woods. Inside a forest patch the
                 // density is ~9x, on the fringe ~2x, the open land between almost bare — scaled by the biome's
                 // (and its theme's) tree density so savanna stays sparse, jungle dense, fungal/crystal treeless.
-                double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
-                double localDensity = density * biome.TreeMul * biome.Theme.TreeMul
-                    * (forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15);
-                if (localDensity <= 0.0
-                    || Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz)) >= localDensity)
+                double forest = ForestMaskAt(planet, seed, wx, wz);
+                double forestFactor = forest > 0.62 ? 9.0 : forest > 0.52 ? 2.0 : 0.15;
+                double roll = Noise.Value01(seed + 5150, WorldConstants.WrapX(wx, _circumference), 11, Wz(wz));
+                double densityBound = density * maxTreeMul * forestFactor;
+                if (densityBound <= 0.0 || roll >= densityBound)
+                {
+                    continue; // the exact test below cannot pass either
+                }
+
+                int sy = SurfaceHeight(planet, wx, wz);
+                if (sy + 1 > origin.Y + cs - 1 || sy + MaxStampRise < origin.Y)
+                {
+                    continue; // every cell a tree here could write lies outside this chunk — SetCell would clip them all
+                }
+
+                var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
+                double localDensity = density * biome.TreeMul * biome.Theme.TreeMul * forestFactor;
+                if (localDensity <= 0.0 || roll >= localDensity)
                 {
                     continue;
                 }
@@ -4385,6 +4735,39 @@ public sealed class WorldGenerator
                     default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
                 }
             }
+    }
+
+    /// <summary>The highest cell any surface stamp writes above its column's surface: the jungle crown
+    /// (trunk ≤ 14 + crown radius ≤ 4 = 18); conifers reach 14, giant mushrooms 15, props 7. A chunk whose
+    /// cells all lie above surface + 18 (or below surface + 1) cannot receive a single write from that
+    /// column, so the stamps skip it (#1527) — SetCell clipped those writes before, one by one.</summary>
+    private const int MaxStampRise = 18;
+
+    /// <summary>The forest mask of a column (#1527: memoised — StampTrees asks for the 576 margin columns of every
+    /// stacked chunk).</summary>
+    private double ForestMaskAt(PlanetType planet, long seed, int wx, int wz)
+    {
+        var key = (planet.Key, ColumnKey(wx, wz));
+        lock (_columnLock)
+        {
+            if (_forestCache.TryGetValue(key, out double cached))
+            {
+                return cached;
+            }
+        }
+
+        double forest = FbmT(seed + 0xF07E57, wx, wz, planet.TerrainScale * 2.0, octaves: 3);
+        lock (_columnLock)
+        {
+            if (_forestCache.Count >= SurfaceCacheCap)
+            {
+                _forestCache.Clear();
+            }
+
+            _forestCache[key] = forest;
+        }
+
+        return forest;
     }
 
     /// <summary>Picks one tree archetype for this column from the theme's palette. A low-frequency grove mask
@@ -4617,76 +5000,45 @@ public sealed class WorldGenerator
     private const double OreFineScale = 4.5;
     private const long OreFineFieldSalt = 61000;
 
-    private BlockId SelectOre(PlanetType planet, WorldCalibration calib, long seed, int x, int y, int z,
-        int depth, BlockId fallback, double richness)
+    private BlockId SelectOre(WorldCalibration calib, OreSlot[] ores, TorusColumnSampler[] samplers,
+        int x, int z, int y, int depth, BlockId fallback)
     {
-        for (int i = 0; i < planet.Ores.Count; i++)
+        for (int i = 0; i < ores.Length; i++)
         {
-            var ore = planet.Ores[i];
+            var ore = ores[i];
             if (depth < ore.MinDepth || depth > ore.MaxDepth)
             {
                 continue;
             }
 
-            // The coarse noise clusters into vein-like patches; the threshold comes from the field's OWN
-            // measured distribution (#472), so the kept fraction is exactly what we ask for. The old fixed
-            // formula assumed a uniform field and sat unreachably far in the interpolated torus sampler's
-            // tail — the root cause of the recurring "can't find any ore" feedback. The scale keeps the
-            // UNION over a planet's ~8 stacked veins near ~10 % of deep rock (measured) — without it,
-            // per-vein literalism turned half the underground into ore. SHALLOW starter veins (minDepth
-            // ≤ 8: iron/copper/silicate class) run twice as dense as the deep rarities: the quantile blobs
-            // cluster, and a new player's first ten blocks must reward digging (Severin M3, user playtest
-            // 2026-07-26 — "nothing but rock at the spawn").
-            double scale = ore.MinDepth <= 8 ? 0.30 : 0.15;
-            double cap = ore.MinDepth <= 8 ? 0.08 : 0.05;
-
-            // Depth pays (#580): ore density ramps up to +60 % over the first ~600 blocks down, so the
-            // now-reachable deep kilometre rewards the descent instead of frustrating it. Shallow bands
-            // are untouched (bonus ≈ 0 near the surface) — nothing moves away from new players.
             double depthBonus = 1.0 + 0.6 * System.Math.Min(1.0, depth / 600.0);
-            // Frontier scaling (#1122): only the RARE-tier veins (tier-2 tool gate) get richer out there —
-            // the starter iron/copper economy is the same everywhere, so the frontier never becomes the
-            // better place to begin, only the better place to RETURN to.
-            double rarity = ore.RareTier ? ore.Rarity * _frontierOreBoost : ore.Rarity;
-            double frac = System.Math.Clamp(rarity * richness * depthBonus * scale, 0.0, cap);
+            double frac = System.Math.Clamp(ore.RarityRichness * depthBonus * ore.Scale, 0.0, ore.Cap);
             if (frac <= 0.0)
             {
                 continue;
             }
 
             bool hit;
-            if (ore.MinDepth <= 8)
+            if (ore.Shallow)
             {
-                // Two-scale split (#1024): a quantile over ONE smooth 9-block field concentrates a vein's
-                // whole budget into few huge deposits (measured: >90 % of copper sat in ≥64-block blobs and
-                // a straight tunnel needed a median ~90 m to meet the first one — "which ore you find is a
-                // lottery"). Shallow starter veins therefore spend half their budget on the coarse field
-                // (big strikes stay worth prospecting for) and half on a fine 4.5-block field whose small
-                // veins turn up regularly while digging. The union stays ≈ frac (overlap is frac²/4).
                 double half = frac * 0.5;
                 double coarseThr = calib.OreCdf[(int)((1.0 - half) * (calib.OreCdf.Length - 1))];
-                hit = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0) > coarseThr;
+                hit = SampleField(samplers, 2 + i * 2, ore.CoarseSeed, x, z, 9.0, 9.0, 9.0, y) > coarseThr;
                 if (!hit)
                 {
                     double fineThr = calib.OreFineCdf[(int)((1.0 - half) * (calib.OreFineCdf.Length - 1))];
-                    hit = ValueT(seed + OreFineFieldSalt + i * 31, x, y, z, OreFineScale, OreFineScale, OreFineScale) > fineThr;
+                    hit = SampleField(samplers, 3 + i * 2, ore.FineSeed, x, z, OreFineScale, OreFineScale, OreFineScale, y) > fineThr;
                 }
             }
             else
             {
-                // Deep rarities keep the single coarse field: a rare strike SHOULD be a find, and their
-                // budgets are too thin to split without dissolving into single-block specks.
                 double threshold = calib.OreCdf[(int)((1.0 - frac) * (calib.OreCdf.Length - 1))];
-                hit = ValueT(seed + 100 + i * 31, x, y, z, 9.0, 9.0, 9.0) > threshold;
+                hit = SampleField(samplers, 2 + i * 2, ore.CoarseSeed, x, z, 9.0, 9.0, 9.0, y) > threshold;
             }
 
-            if (hit)
+            if (hit && ore.Block.HasValue)
             {
-                var oreBlock = _content.GetBlock(ore.Block);
-                if (oreBlock is not null)
-                {
-                    return oreBlock.NumericId;
-                }
+                return ore.Block.Value; // an unknown vein block falls through to the next vein, as before
             }
         }
 

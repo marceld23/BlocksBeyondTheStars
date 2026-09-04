@@ -243,6 +243,44 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Worldgen, output-preserving: column profiles shared by the stacked chunks, memoised SurfaceHeight, per-column noise lattices, ore invariants, tree pre-filter, oldest-out static caches (#1526 #1527, 2026-09-04, branch perf/1526-1527-worldgen)
+
+**Why.** PR bundle 6 of the performance package (#1501), gated by the golden checksums (#1503). Every stacked chunk
+of a column recomputed the whole column phase (SurfaceHeight + ~20 wonder probes per column), every solid voxel
+re-projected the torus noise (4 trig + 32 hashes per field, up to 15 fields), StampTrees paid SurfaceHeight +
+BiomeIndex + a 3-octave FBM for all 576 margin columns before a roll that rejects ~99 % of them, and the static
+river/calibration/wonder caches evicted with `Clear()`.
+
+**What changed — same bits out.** **#1526** `SurfaceHeight` is memoised per generator instance, keyed on
+(planet, raw column) and dropped by `SetWorldMode` / `SetContinentsEnabled` / `SetWorldOptionFactors` or at the
+cap (262k entries); `SurfaceHeightUncached` stays for the tests. The column phase of `Generate` moved verbatim into
+`ComputeColumn` (a line-range move, not a rewrite) and is memoised as an immutable `ColumnProfile` per (planet,
+column), capped at 100k entries — the y-loop reads the profile, so only the first chunk of a column pays the
+phase. The forest mask of `StampTrees` is memoised the same way. **#1527** `TorusColumnSampler` samples one
+`ValueTorus` field for one column: the torus projection (the trig), the lattice x/z cell, the layer seeds and the
+blend weights are computed once per column with the original expressions, the eight corner hashes once per lattice
+row, and `Sample` finishes with the original `Lerp` chain in the original order — `WorldGenColumnCacheTests` proves
+bit-identity against `Noise.ValueTorus` on 24k random samples. The y-loop uses one lazily built sampler per
+(column, field): caves, lava pockets, a coarse + fine slot per vein. `SelectOre` reads per-chunk `OreSlot`
+invariants (depth band, shallow split, `rarity × richness` as the first factor of the original product, field
+seeds, the resolved `BlockId`) instead of re-deriving them and re-looking up the block string per hit.
+`StampTrees` rolls first against a conservative upper bound of every biome's density multiplier (1e-9 slack), then
+gates on whether any cell in `[surface+1, surface+18]` lands in this chunk, and only then does the exact work;
+the mushroom, prop and geyser stamps gate the same way (`MaxStampRise` = the jungle crown). The three static
+caches evict their oldest entry instead of clearing. Dropped from the plan: a `Y ≥ 320` all-air early-out
+(no chunk in the streamed band reaches it; the profile cache makes an all-air chunk sub-millisecond anyway) and
+the `Value3D` hash-prefix sharing (marginal after the lattice reuse).
+
+**Measured (scratch bench, non-tiered JIT, six columns × five planets, ms per chunk).** Stacked chunks of a
+column: deep solid 29–39 → 6–8, surface 15–18 → 2.5–5, all-air 3.5–8.4 → 0.5–1.0. First chunk of a column
+(pays the column phase + the static region caches): 48–80 → 47–60. `SurfaceHeight`, 20k columns asked twice:
+the repeat 31–76 ms → 2.6–3.5 ms. Goldens unchanged on every group; `WorldGenColumnCacheTests` pins that a warm
+generator produces what a cold one does for every stacked chunk and that a world-mode change drops the memos.
+
+**Consequences.** A generator instance now holds up to ~18 MB of column memos on a VD-8 world (server and browser
+host alike; the browser's VD 2–4 is a few MB); the memos assume a fixed world mode between the setters, which the
+server and client already guarantee (they call the setters before any query).
+
 ### ★ Startup & memory: one content snapshot per process, lazy locale tables + coverage manifest, shared block atlas, ambience loops compressed in memory, browser save blob only when dirty (#1522–#1525, 2026-09-04, branch perf/1522-1525-startup-memory)
 
 **Why.** PR bundle 5 of the performance package (#1501). The client parsed the whole content set on the shell AND
