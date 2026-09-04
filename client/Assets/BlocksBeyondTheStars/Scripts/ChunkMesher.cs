@@ -153,14 +153,46 @@ namespace BlocksBeyondTheStars.Client
             public const int SpanX = 5, SpanY = 7, SpanZ = 5, LoX = -2, LoY = -2, LoZ = -2;
             private readonly ChunkData[] _chunks = new ChunkData[SpanX * SpanY * SpanZ];
             private readonly Dictionary<int, int>[] _shapes = new Dictionary<int, int>[SpanX * SpanY * SpanZ];
-            private readonly int _ox, _oy, _oz;
+            private int _ox, _oy, _oz;
+
+            // #1550: the three lookups BuildGeometry takes, bound once per instance — a pooled neighbourhood is
+            // reused across builds, so no delegate is allocated per dispatch.
+            public readonly System.Func<int, int, int, BlockId> BlockFn;
+            public readonly System.Func<int, int, int, bool> LoadedFn;
+            public readonly System.Func<int, int, int, int> ShapeFn;
 
             public Neighbourhood(ChunkCoord center)
+            {
+                BlockFn = Block;
+                LoadedFn = Loaded;
+                ShapeFn = Shape;
+                Reset(center);
+            }
+
+            /// <summary>Re-centres an empty (cleared) neighbourhood for the next build.</summary>
+            public void Reset(ChunkCoord center)
             {
                 var origin = WorldConstants.ChunkOrigin(center);
                 _ox = origin.X;
                 _oy = origin.Y;
                 _oz = origin.Z;
+            }
+
+            /// <summary>Drops every chunk reference and hands the shape-dictionary copies back to
+            /// <paramref name="shapePool"/> (cleared), so the instance can go back to its pool.</summary>
+            public void Clear(Stack<Dictionary<int, int>> shapePool)
+            {
+                for (int s = 0; s < _chunks.Length; s++)
+                {
+                    _chunks[s] = null;
+                    var sh = _shapes[s];
+                    if (sh != null)
+                    {
+                        _shapes[s] = null;
+                        sh.Clear();
+                        shapePool?.Push(sh);
+                    }
+                }
             }
 
             private static int Slot(int dx, int dy, int dz) => ((dy - LoY) * SpanZ + (dz - LoZ)) * SpanX + (dx - LoX);

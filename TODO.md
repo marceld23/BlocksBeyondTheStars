@@ -283,6 +283,33 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client garbage, part 4: the chunk-build dispatch runs on pooled jobs — no clone, no closures, no Task per build (#1550, 2026-09-04, branch perf/1550-dispatch-pool)
+
+**Why.** PR bundle 16 of the performance package (#1501). The largest client-side source in the #1537 attribution: every
+mesh dispatch cloned the 8 KB block array, allocated a `Neighbourhood`, five closures / delegates, the shape-dictionary
+copies, a light list, a paint-design snapshot closure, and a `Task` with its execution-context capture — ~1.8 MB/s
+and ~2400 objects/s at ~140 builds/s while walking.
+
+**What ships.** A pooled `MeshJob` (GameBootstrap) carries everything a build needs: the block copy is rented from
+`ArrayPool<ushort>` (4096 is a pool bucket, so the length is exact) and returned in `DrainBuiltChunks`; the
+`ChunkMesher.Neighbourhood` is recycled (`Reset` / `Clear`) and binds its three lookup delegates once per instance;
+the shape-dictionary copies come from a pool; the light list is reused through a new fill-a-list overload of
+`ClientWorld.LightSourcesNear`; the flora-tint delegate is bound once per job; `PaintDesignAtlas.Snapshot` returns one
+closure per published (copy-on-write) map instead of one per dispatch; and the job runs through a single static
+`ThreadPool.UnsafeQueueUserWorkItem` callback instead of `Task.Run` (WebGL keeps the inline path). Every exit of
+`DrainBuiltChunks` recycles the job. `PerfProbe` now prints the mesh builds per phase.
+
+**Tried and dropped.** Deferring the FIRST build of a far chunk until its six neighbours are present (to avoid the
+"built with open seams, rebuilt when the last neighbour lands" double) did not reduce the builds — 1809 vs 1444 per
+walk phase — because a neighbour arrival pulls a never-built chunk straight into `_dirty`; reverted, the frontier
+streams exactly as before.
+
+**Measured (walk capture, machine quiet).** `Array.Clone`, `Neighbourhood..ctor`, `DispatchChunkBuild`, `Task.*`,
+`ExecutionContext.Capture`, `UnitySynchronizationContext` all absent; the `GameBootstrap.Update` scope 2.46 MB/s →
+0.52 MB/s; total walk garbage 4.0 → 2.5 MB/s and 12 500 → 10 300 allocs/s (of which the Development watermark is
+~1.5 MB/s / 7800 allocs/s, i.e. ~60 % of what is left). PerfProbe walk collections 14 → 9 per 10 s. What remains
+of the game's own garbage is the receive path (#1555, ~0.6 MB/s) and the sampler's pool warm-up.
+
 ### ★ Client garbage, part 3: text outlines rebuild without garbage, and PerfProbe names the texts that change (#1552, 2026-09-04, branch perf/1552-outline-text-rebuilds)
 
 **Why.** PR bundle 15 of the performance package (#1501). The #1537 capture showed ~2 MB/s in uGUI `Outline.ModifyMesh`
