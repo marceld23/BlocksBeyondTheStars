@@ -1033,13 +1033,16 @@ namespace BlocksBeyondTheStars.Client
                 // which also disables every dependent effect for free (the features early-out without the textures).
                 bool wantsScreenSpace = Preset >= QualityPreset.Medium;
                 urp.supportsCameraDepthTexture = wantsScreenSpace;
-                // #1520: the opaque colour copy (an MSAA resolve + a half-res blit EVERY frame at Medium+) has
-                // exactly two consumers — the heat-haze and thermal-vision screen quads — and they are inactive
-                // in deserts, caves, space and most of the time on temperate worlds. So the asset no longer
-                // requests the copy; the two effects request it per camera while they are active
-                // (RequestOpaqueTexture), still gated to the presets that had it.
+                // #1520: the opaque colour copy (an MSAA resolve + a half-res blit EVERY frame at Medium+) is
+                // requested per camera by its consumers instead of by the asset (RequestOpaqueTexture), still
+                // gated to the presets that had it. The heat-haze and thermal-vision quads hold a request only
+                // while they are visible. #1577: the screen-space WATER (BlockAtlasTransparent, Medium+) is the
+                // third consumer — it composites the bed from the opaque copy for refraction, and without the
+                // texture it rendered a milky opaque surface — so the water's request is held for as long as the
+                // preset enables screen-space water. (A finer gate — only while water is in view — is open.)
                 urp.supportsCameraOpaqueTexture = false;
                 _opaqueTexturePresetAllows = wantsScreenSpace;
+                RequestOpaqueTexture(wantsScreenSpace, ref _waterOpaqueHeld);
                 ApplyOpaqueTextureRequest();
 
                 // Tell the shaders whether the depth/opaque textures exist this preset. The water shader uses it to
@@ -1067,6 +1070,7 @@ namespace BlocksBeyondTheStars.Client
         private static UniversalAdditionalCameraData _activeCameraData;
         private static bool _opaqueTexturePresetAllows;
         private static int _opaqueTextureRequests;
+        private static bool _waterOpaqueHeld; // #1577: the water shader's standing request at Medium+
 
         /// <summary>#1520: a screen-space effect that samples <c>_CameraOpaqueTexture</c> (heat haze, thermal
         /// vision) holds a request while it is visible; the camera copies the opaque colour only while at least
