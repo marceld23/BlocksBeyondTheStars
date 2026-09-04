@@ -35,6 +35,7 @@ namespace BlocksBeyondTheStars.Client
         // second so block edits and freshly streamed chunks are picked up.
         private readonly Dictionary<long, bool> _skyOpen = new Dictionary<long, bool>(256);
         private float _skyCacheTimer;
+        private string _loggedPrecip = "none"; // diagnostics: last precipitation kind written to the log
 
         // Saved global fog state so storm fog restores cleanly when the weather clears / we leave the world.
         private bool _fogSaved;
@@ -130,6 +131,14 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var s = StyleFor(precip, env.Weather == "storm");
+            if (!ReferenceEquals(precip, _loggedPrecip) && precip != _loggedPrecip)
+            {
+                // Playtest 2026-09-05 ("no rain in a thunderstorm"): one line per precipitation change so the
+                // Player.log says what the client was told and how many drops it tried to show.
+                _loggedPrecip = precip;
+                Debug.Log($"[Weather3D] precipitation '{precip}' (weather {env.Weather}, intensity {env.Intensity:0.00}, exposed {Game?.ExposedToSky})");
+            }
+
             Color drop = ShaderColor.Srgb(s.Color);
             if (_mat.color != drop) { _mat.color = drop; } // all drops share one material → one precip form at a time
             // Intensity comes from the SMOOTHED client value (#900), so an episode's swell and fade shows
