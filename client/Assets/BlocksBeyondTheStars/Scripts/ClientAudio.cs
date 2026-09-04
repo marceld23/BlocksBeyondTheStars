@@ -553,9 +553,10 @@ namespace BlocksBeyondTheStars.Client
                 clip = SampleKit.Muffle(clip);
             }
 
-            var go = new GameObject("sfx_" + label);
-            go.transform.position = pos;
-            var src = go.AddComponent<AudioSource>();
+            // #1516: pooled emitters instead of a GameObject + AudioSource per one-shot (creature phrases, growls,
+            // factory hums — 5–20 spawns/s) with a deferred Destroy each.
+            var src = PooledSfxSource();
+            src.transform.position = pos;
             src.clip = clip;
             src.spatialBlend = 1f;
             src.minDistance = 4f;
@@ -564,7 +565,40 @@ namespace BlocksBeyondTheStars.Client
             src.pitch = pitch;
             src.volume = Mathf.Clamp01(vol * SfxVol());
             src.Play();
-            Destroy(go, clip.length / Mathf.Max(0.1f, pitch) + 0.2f);
+        }
+
+        private readonly List<AudioSource> _sfxPool = new List<AudioSource>();
+        private int _sfxPoolNext;
+        private const int SfxPoolMax = 24;
+
+        /// <summary>A free pooled spatial AudioSource (idle one first; a new one up to the cap; else the oldest
+        /// in round-robin, which cuts the longest-running one-shot — same audible behaviour as Unity's own voice
+        /// limit).</summary>
+        private AudioSource PooledSfxSource()
+        {
+            for (int i = 0; i < _sfxPool.Count; i++)
+            {
+                var s = _sfxPool[i];
+                if (s != null && !s.isPlaying)
+                {
+                    return s;
+                }
+            }
+
+            if (_sfxPool.Count < SfxPoolMax)
+            {
+                var go = new GameObject("sfx_pooled");
+                go.transform.SetParent(transform, false);
+                var created = go.AddComponent<AudioSource>();
+                created.playOnAwake = false;
+                _sfxPool.Add(created);
+                return created;
+            }
+
+            _sfxPoolNext = (_sfxPoolNext + 1) % _sfxPool.Count;
+            var reused = _sfxPool[_sfxPoolNext];
+            reused.Stop();
+            return reused;
         }
 
         /// <summary>The raw clip behind a cue id, or null — creature voices need the AudioClip itself to

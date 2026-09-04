@@ -1,7 +1,8 @@
 // Procedural nebula backdrop for deep space — wispy coloured gas clouds + faint distant galaxies drawn on a
-// dome behind the starfield, so the void reads with depth and colour instead of flat black. Additive, in the
-// Background queue with ZWrite Off, so opaque geometry (ships, asteroids, planets) paints over it and it only
-// shows in open sky. Per-vertex COLOR carries the per-region nebula hue; _Brightness fades the whole field in
+// dome behind the starfield, so the void reads with depth and colour instead of flat black. Additive, ZWrite Off,
+// at the END of the opaque queue range (Geometry+499, #1513): drawn after the terrain/ships/planets, so the depth
+// test rejects every covered pixel instead of shading the whole sky first and overpainting it — it only shows in
+// open sky, and additive-over-opaque is order-independent, so the picture is unchanged. Per-vertex COLOR carries the per-region nebula hue; _Brightness fades the whole field in
 // (full in space / airless / station, off on lived-in planet skies). Dual-pipeline (URP + Built-in RP) to match
 // the rest of the project's shaders; only the active pipeline's SubShader compiles.
 Shader "BlocksBeyondTheStars/Nebula"
@@ -14,7 +15,7 @@ Shader "BlocksBeyondTheStars/Nebula"
     // ---------------- URP ----------------
     SubShader
     {
-        Tags { "RenderType" = "Background" "Queue" = "Background" "RenderPipeline" = "UniversalPipeline" }
+        Tags { "RenderType" = "Background" "Queue" = "Geometry+499" "RenderPipeline" = "UniversalPipeline" }
         Cull Off
         ZWrite Off
         Blend One One // additive — clouds glow over the dark sky
@@ -77,7 +78,7 @@ Shader "BlocksBeyondTheStars/Nebula"
     // ---------------- Built-in RP (fallback; the game ships on URP) ----------------
     SubShader
     {
-        Tags { "RenderType" = "Background" "Queue" = "Background" }
+        Tags { "RenderType" = "Background" "Queue" = "Geometry+499" }
         Cull Off
         ZWrite Off
         Blend One One

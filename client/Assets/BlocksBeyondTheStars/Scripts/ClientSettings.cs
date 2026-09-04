@@ -607,6 +607,21 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        /// <summary>#1512: bumped whenever a key or pad binding changes, so <see cref="InputMap"/> and the gamepad
+        /// backend can keep a per-action lookup table instead of resolving <c>action.ToString()</c> + a string scan
+        /// + <c>Enum.TryParse</c> on EVERY poll (~25–35 polls per frame ⇒ ~100 allocations per frame). Not
+        /// persisted; a freshly loaded settings object starts at 0 and the tables rebuild on first use.</summary>
+        [NonSerialized] public int BindingsVersion;
+
+        /// <summary>Clears every key AND pad override (the settings screen's "reset controls"), bumping
+        /// <see cref="BindingsVersion"/> so the lookup tables rebuild.</summary>
+        public void ResetBindings()
+        {
+            KeyBindings?.Clear();
+            PadBindings?.Clear();
+            BindingsVersion++;
+        }
+
         /// <summary>The bound KeyCode NAME for an input action (empty = the action uses its default key). String-
         /// keyed so this stays decoupled from the <see cref="InputAction"/> enum; <see cref="InputMap"/> parses it.</summary>
         public string BoundKeyName(string action)
@@ -633,12 +648,14 @@ namespace BlocksBeyondTheStars.Client
                     if (KeyBindings[i].Key == keyName) return false;
                     if (string.IsNullOrEmpty(keyName)) KeyBindings.RemoveAt(i);
                     else KeyBindings[i].Key = keyName;
+                    BindingsVersion++;
                     return true;
                 }
             }
 
             if (string.IsNullOrEmpty(keyName)) return false;
             KeyBindings.Add(new KeyBinding { Action = action, Key = keyName });
+            BindingsVersion++;
             return true;
         }
 
@@ -668,12 +685,14 @@ namespace BlocksBeyondTheStars.Client
                     if (PadBindings[i].Key == keyName) return false;
                     if (string.IsNullOrEmpty(keyName)) PadBindings.RemoveAt(i);
                     else PadBindings[i].Key = keyName;
+                    BindingsVersion++;
                     return true;
                 }
             }
 
             if (string.IsNullOrEmpty(keyName)) return false;
             PadBindings.Add(new KeyBinding { Action = action, Key = keyName });
+            BindingsVersion++;
             return true;
         }
 

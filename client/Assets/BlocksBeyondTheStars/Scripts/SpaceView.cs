@@ -4450,24 +4450,38 @@ namespace BlocksBeyondTheStars.Client
                 var loc = Game.Localizer;
                 // Device-aware controls hint (pad glyphs on a gamepad; blank on touch — the on-screen buttons
                 // are self-labelling; the keyboard text otherwise).
-                _hint.text = InputMap.ActiveDevice switch
+                // #1516: the hint depends only on (device, autopilot tier, localizer) — build it when one of
+                // those changes and assign once. Assigning the base and appending with `+=` every frame dirtied
+                // the Text mesh each frame although the final string never changed.
+                var device = InputMap.ActiveDevice;
+                bool autopilot = Game.AiCoreTier >= 2;
+                if (_flightHint == null || device != _flightHintDevice || autopilot != _flightHintAutopilot || !ReferenceEquals(loc, _flightHintLoc))
                 {
-                    InputDeviceKind.Touch => string.Empty,
-                    InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.controls_pad")
-                        : "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
-                    _ => loc != null ? loc.Get("ui.space.controls").Replace("{feedback_key}", FeedbackUi.HotkeyName)
-                        : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
-                };
-                if (Game.AiCoreTier >= 2 && InputMap.ActiveDevice != InputDeviceKind.Touch)
-                {
-                    _hint.text += " · " + Loc("ui.vega.autopilot.hint", "[P] Autopilot");
+                    _flightHintDevice = device;
+                    _flightHintAutopilot = autopilot;
+                    _flightHintLoc = loc;
+                    string hint = device switch
+                    {
+                        InputDeviceKind.Touch => string.Empty,
+                        InputDeviceKind.Gamepad => loc != null ? loc.Get("ui.space.controls_pad")
+                            : "Left stick fly · Right stick steer · RB fire · (X) land/dock · (Y) view",
+                        _ => loc != null ? loc.Get("ui.space.controls").Replace("{feedback_key}", FeedbackUi.HotkeyName)
+                            : "WASD/Mouse fly · V view · E land/dock · L return · G EVA",
+                    };
+                    if (autopilot && device != InputDeviceKind.Touch)
+                    {
+                        hint += " · " + Loc("ui.vega.autopilot.hint", "[P] Autopilot");
+                    }
+
+                    if (device != InputDeviceKind.Touch)
+                    {
+                        hint += " · " + Loc("ui.spacemap.key_hint", "[M] Chart"); // system chart (#597)
+                    }
+
+                    _flightHint = hint;
                 }
 
-                if (InputMap.ActiveDevice != InputDeviceKind.Touch)
-                {
-                    _hint.text += " · " + Loc("ui.spacemap.key_hint", "[M] Chart"); // system chart (#597)
-                }
-
+                _hint.text = _flightHint;
                 _hint.gameObject.SetActive(true);
 
                 // Prompt whichever you're closest to: dock a station or land on a body you've flown up to —
@@ -4492,7 +4506,15 @@ namespace BlocksBeyondTheStars.Client
                 _board.gameObject.SetActive(showStation || showBody);
 
                 string cargoLabel = loc != null ? loc.Get("ui.space.cargo") : "Cargo";
-                _cargo.text = $"{cargoLabel}: {Game.Cargo.Length}";
+                int cargoCount = Game.Cargo.Length;
+                if (_cargoText == null || cargoCount != _cargoTextCount || !ReferenceEquals(cargoLabel, _cargoTextLabel))
+                {
+                    _cargoTextCount = cargoCount;
+                    _cargoTextLabel = cargoLabel;
+                    _cargoText = $"{cargoLabel}: {cargoCount}"; // #1516: formatted on change, not per frame
+                }
+
+                _cargo.text = _cargoText;
                 _cargo.color = Color.Lerp(UiKit.TextCol, UiKit.Cyan, _cargoFlash);
                 _cargo.gameObject.SetActive(true);
             }
@@ -4798,9 +4820,27 @@ namespace BlocksBeyondTheStars.Client
 
             int thr = Mathf.RoundToInt(Mathf.Clamp01(InputMap.MoveY()) * 100f);
             int hdg = Mathf.RoundToInt(Mathf.Repeat(_yaw, 360f));
+            int spd10 = Mathf.RoundToInt(_instSpeed * 10f);
             // Hull/shield are NOT repeated here — they're gauges in the ship-status block now (#915).
-            _instruments.text = $"SPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
+            // #1516: format only when a displayed digit changes (the readout shows one decimal of speed).
+            if (spd10 != _instLastSpd10 || thr != _instLastThr || hdg != _instLastHdg)
+            {
+                _instLastSpd10 = spd10;
+                _instLastThr = thr;
+                _instLastHdg = hdg;
+                _instruments.text = $"SPD {_instSpeed:0.0}   THR {thr}%   HDG {hdg:000}°";
+            }
         }
+
+        // #1516: last-formatted flight overlay state (hint, cargo line, instruments).
+        private string _flightHint;
+        private InputDeviceKind _flightHintDevice;
+        private bool _flightHintAutopilot;
+        private object _flightHintLoc;
+        private string _cargoText;
+        private int _cargoTextCount = -1;
+        private string _cargoTextLabel;
+        private int _instLastSpd10 = -1, _instLastThr = -1, _instLastHdg = -1;
 
         private bool _hullWarn, _shieldWarn;
         private float _hullBeepTimer;
@@ -4883,10 +4923,12 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        private static Shader _unlitShader;
+
         private static Material Unlit(Color c)
         {
-            var shader = Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque");
-            return new Material(shader) { color = ShaderColor.Srgb(c) };
+            _unlitShader ??= Shader.Find("Unlit/Color") ?? Shader.Find("BlocksBeyondTheStars/VertexColorOpaque"); // #1514: no string lookup per part
+            return new Material(_unlitShader) { color = ShaderColor.Srgb(c) };
         }
 
         /// <summary>A translucent tinted "energy field" quad material — the same alpha-blend Cloud shader the

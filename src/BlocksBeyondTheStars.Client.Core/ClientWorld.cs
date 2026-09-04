@@ -20,9 +20,12 @@ namespace BlocksBeyondTheStars.Client
         private int _circumference = WorldConstants.Circumference;
 
         // World positions of coloured light sources (placed glow blocks + dedicated light blocks) → light
-        // colour (0xRRGGBB). Lets the chunk mesher pull in nearby lights ACROSS chunk seams so a placed lamp's
-        // colour propagates into neighbouring chunks, not just its own.
-        private readonly Dictionary<Vector3i, int> _lightSources = new Dictionary<Vector3i, int>();
+        // colour (0xRRGGBB), bucketed per canonical chunk (#1515). Lets the chunk mesher pull in nearby lights
+        // ACROSS chunk seams so a placed lamp's colour propagates into neighbouring chunks, not just its own.
+        // Per-chunk buckets make unloading a chunk one dictionary remove (it used to be 4096 removes per chunk,
+        // 200k in one frame for a 50-chunk unload batch) and let LightSourcesNear visit only the neighbouring
+        // chunks instead of every light in the world per mesh dispatch.
+        private readonly Dictionary<ChunkCoord, Dictionary<Vector3i, int>> _lightSources = new Dictionary<ChunkCoord, Dictionary<Vector3i, int>>();
 
         // The inherent light colour of a block id (0 = not a light block), supplied once from GameContent.
         private System.Func<ushort, int> _blockLightColor = _ => 0;
@@ -90,20 +93,8 @@ namespace BlocksBeyondTheStars.Client
                 return false;
             }
 
-            // Clear this chunk's glow-block light sources too (only if any exist — usually none, so skip the
-            // 16³ scan entirely on the common path).
-            if (_lightSources.Count > 0)
-            {
-                var origin = WorldConstants.ChunkOrigin(coord);
-                int nsz = WorldConstants.ChunkSize;
-                for (int x = 0; x < nsz; x++)
-                    for (int y = 0; y < nsz; y++)
-                        for (int z = 0; z < nsz; z++)
-                        {
-                            _lightSources.Remove(new Vector3i(origin.X + x, origin.Y + y, origin.Z + z));
-                        }
-            }
-
+            // Clear this chunk's glow-block light sources too: one bucket remove (#1515).
+            _lightSources.Remove(coord);
             return true;
         }
 
@@ -182,11 +173,17 @@ namespace BlocksBeyondTheStars.Client
             int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
             if (rgb != 0)
             {
-                _lightSources[pos] = rgb;
+                if (!_lightSources.TryGetValue(affected, out var bucket))
+                {
+                    bucket = new Dictionary<Vector3i, int>();
+                    _lightSources[affected] = bucket;
+                }
+
+                bucket[pos] = rgb;
             }
-            else
+            else if (_lightSources.TryGetValue(affected, out var bucket) && bucket.Remove(pos) && bucket.Count == 0)
             {
-                _lightSources.Remove(pos);
+                _lightSources.Remove(affected);
             }
 
             return true;
@@ -211,57 +208,80 @@ namespace BlocksBeyondTheStars.Client
             var origin = WorldConstants.ChunkOrigin(coord);
             int nsz = WorldConstants.ChunkSize;
             int lo = -radius, hi = nsz + radius;
-            foreach (var kv in _lightSources)
-            {
-                var p = kv.Key;
-                int dy = p.Y - origin.Y;
-                if (dy < lo || dy > hi)
-                {
-                    continue;
-                }
 
-                int dx = WorldConstants.WrapDeltaX(p.X - origin.X, _circumference);
-                int dz = WorldConstants.WrapDeltaZ(p.Z - origin.Z, _circumference);
-                if (dx < lo || dx > hi || dz < lo || dz > hi)
-                {
-                    continue;
-                }
+            // #1515: only the chunks that can hold a source within `radius` blocks of this chunk's box are
+            // visited (the 3×3×3 neighbourhood for the mesher's radius) — the per-source distance test below is
+            // unchanged, so the result set is exactly what the world-wide scan produced.
+            int span = (radius + nsz - 1) / nsz;
+            for (int cx = -span; cx <= span; cx++)
+                for (int cy = -span; cy <= span; cy++)
+                    for (int cz = -span; cz <= span; cz++)
+                    {
+                        var neighbour = WorldConstants.CanonicalChunk(new ChunkCoord(coord.X + cx, coord.Y + cy, coord.Z + cz), _circumference);
+                        if (!_lightSources.TryGetValue(neighbour, out var bucket))
+                        {
+                            continue;
+                        }
 
-                result.Add((new Vector3i(origin.X + dx, p.Y, origin.Z + dz), kv.Value));
-            }
+                        foreach (var kv in bucket)
+                        {
+                            var p = kv.Key;
+                            int dy = p.Y - origin.Y;
+                            if (dy < lo || dy > hi)
+                            {
+                                continue;
+                            }
+
+                            int dx = WorldConstants.WrapDeltaX(p.X - origin.X, _circumference);
+                            int dz = WorldConstants.WrapDeltaZ(p.Z - origin.Z, _circumference);
+                            if (dx < lo || dx > hi || dz < lo || dz > hi)
+                            {
+                                continue;
+                            }
+
+                            result.Add((new Vector3i(origin.X + dx, p.Y, origin.Z + dz), kv.Value));
+                        }
+                    }
 
             return result;
         }
 
-        /// <summary>Re-indexes a chunk's light sources (placed glow blocks + dedicated light blocks).</summary>
+        /// <summary>Re-indexes a chunk's light sources (placed glow blocks + dedicated light blocks) into the
+        /// chunk's own bucket — built fresh per store, so no per-cell removes for the (usual) all-dark chunk.</summary>
         private void ScanChunkLightSources(ChunkCoord coord, ChunkData chunk)
         {
             var origin = WorldConstants.ChunkOrigin(coord);
             int nsz = WorldConstants.ChunkSize;
+            Dictionary<Vector3i, int>? bucket = null;
             for (int x = 0; x < nsz; x++)
                 for (int y = 0; y < nsz; y++)
                     for (int z = 0; z < nsz; z++)
                     {
                         var id = chunk.Get(x, y, z);
-                        var pos = new Vector3i(origin.X + x, origin.Y + y, origin.Z + z);
-                        int rgb = 0;
-                        if (!id.IsAir)
+                        if (id.IsAir)
                         {
-                            // Same priority as ApplyBlockChange (#1126): glow > dye-on-a-light-source > natural.
-                            var (tint, glow) = chunk.GetModifier(x, y, z);
-                            int baseRgb = _blockLightColor != null ? _blockLightColor(id.Value) : 0;
-                            rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
+                            continue;
                         }
 
+                        // Same priority as ApplyBlockChange (#1126): glow > dye-on-a-light-source > natural.
+                        var (tint, glow) = chunk.GetModifier(x, y, z);
+                        int baseRgb = _blockLightColor != null ? _blockLightColor(id.Value) : 0;
+                        int rgb = glow != 0 ? glow : (baseRgb != 0 && tint != 0 ? tint : baseRgb);
                         if (rgb != 0)
                         {
-                            _lightSources[pos] = rgb;
-                        }
-                        else
-                        {
-                            _lightSources.Remove(pos);
+                            bucket ??= new Dictionary<Vector3i, int>();
+                            bucket[new Vector3i(origin.X + x, origin.Y + y, origin.Z + z)] = rgb;
                         }
                     }
+
+            if (bucket != null)
+            {
+                _lightSources[coord] = bucket;
+            }
+            else
+            {
+                _lightSources.Remove(coord);
+            }
         }
     }
 }

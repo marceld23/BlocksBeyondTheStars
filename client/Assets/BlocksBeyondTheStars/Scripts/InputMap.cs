@@ -215,8 +215,33 @@ namespace BlocksBeyondTheStars.Client
             _ => KeyCode.None,
         };
 
+        // #1512: the per-action key table. Resolving a binding used to cost action.ToString() + a linear string
+        // scan over the overrides + Enum.TryParse on EVERY poll — ~25–35 polls per frame across the controller,
+        // the flight view and the UI, i.e. ~100 small allocations per frame. The table is rebuilt only when the
+        // settings object or its BindingsVersion changes (rebind UI, reset, reload).
+        private static KeyCode[] _keyTable;
+        private static ClientSettings _keyTableSettings;
+        private static int _keyTableVersion = -1;
+
         /// <summary>The currently bound key for an action — the player's override if set, else the default.</summary>
         public static KeyCode Key(InputAction action)
+        {
+            if (_settings == null || KeyboardLocked(action))
+            {
+                return DefaultKey(action);
+            }
+
+            if (_keyTable == null || !ReferenceEquals(_keyTableSettings, _settings) || _keyTableVersion != _settings.BindingsVersion)
+            {
+                RebuildKeyTable();
+            }
+
+            int i = (int)action;
+            return i >= 0 && i < _keyTable.Length ? _keyTable[i] : ResolveKey(action);
+        }
+
+        /// <summary>The uncached resolution (the player's override if set, else the default) — the table's source.</summary>
+        private static KeyCode ResolveKey(InputAction action)
         {
             var def = DefaultKey(action);
             if (_settings == null || KeyboardLocked(action))
@@ -226,6 +251,26 @@ namespace BlocksBeyondTheStars.Client
 
             string name = _settings.BoundKeyName(action.ToString());
             return !string.IsNullOrEmpty(name) && System.Enum.TryParse<KeyCode>(name, out var kc) ? kc : def;
+        }
+
+        private static void RebuildKeyTable()
+        {
+            var values = (InputAction[])System.Enum.GetValues(typeof(InputAction));
+            int max = 0;
+            foreach (var v in values)
+            {
+                max = Mathf.Max(max, (int)v);
+            }
+
+            var table = new KeyCode[max + 1];
+            foreach (var v in values)
+            {
+                table[(int)v] = ResolveKey(v);
+            }
+
+            _keyTable = table;
+            _keyTableSettings = _settings;
+            _keyTableVersion = _settings.BindingsVersion;
         }
 
         // ---- Injected edges ------------------------------------------------------------------------------

@@ -90,6 +90,88 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private static Material _sparkMat;
+        private static Shader _particleShader;
+
+        /// <summary>#1511: a persistent, LOOPING thrust flame with the same look as a <see cref="Sparks"/> burst
+        /// (additive glow dots, world-space, arcing under gravity, fading + shrinking), parented to an avatar and
+        /// driven through <see cref="SetThrust"/>. The jetpack used to spawn two one-shot particle systems EVERY
+        /// FRAME while firing (a GameObject + ParticleSystem + ~10 module setups + a deferred Destroy each — ~120
+        /// creations/s and ~55 live systems at 60 fps). Returns null when the particle shader is unavailable.</summary>
+        public ParticleSystem CreateThrustFlame(Transform parent, Vector3 localOffset, Color color)
+        {
+            _particleShader ??= Shader.Find("BlocksBeyondTheStars/Particle");
+            if (_particleShader == null)
+            {
+                return null;
+            }
+
+            _sparkMat ??= new Material(_particleShader) { mainTexture = SparkDot() };
+
+            var go = new GameObject("ThrustFlame");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localOffset;
+            var ps = go.AddComponent<ParticleSystem>();
+            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            var main = ps.main;
+            main.loop = true;
+            main.duration = 1f;
+            main.startLifetime = new ParticleSystem.MinMaxCurve(0.45f * 0.6f, 0.45f);
+            main.startSpeed = new ParticleSystem.MinMaxCurve(3.6f * 0.3f, 3.6f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.13f * 0.6f, 0.13f);
+            main.startColor = color;
+            main.maxParticles = 96;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = 0.9f;
+
+            var em = ps.emission;
+            em.rateOverTime = 0f; // driven by SetThrust
+
+            var shape = ps.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = 0.05f;
+
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var grad = new Gradient();
+            grad.SetKeys(
+                new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
+            col.color = new ParticleSystem.MinMaxGradient(grad);
+
+            var sol = ps.sizeOverLifetime;
+            sol.enabled = true;
+            sol.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.EaseInOut(0f, 1f, 1f, 0.2f));
+
+            var r = go.GetComponent<ParticleSystemRenderer>();
+            r.material = _sparkMat;
+            r.renderMode = ParticleSystemRenderMode.Billboard;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.sortMode = ParticleSystemSortMode.None;
+            ps.Play();
+            return ps;
+        }
+
+        /// <summary>Particles per second one thrust flame emits while firing — three per frame at 60 fps was what
+        /// the per-frame bursts produced.</summary>
+        public const float ThrustRate = 180f;
+
+        /// <summary>Turns a <see cref="CreateThrustFlame"/> emitter on or off (cheap to call every frame).</summary>
+        public static void SetThrust(ParticleSystem flame, bool on)
+        {
+            if (flame == null)
+            {
+                return;
+            }
+
+            var em = flame.emission;
+            float want = on ? ThrustRate : 0f;
+            if (em.rateOverTime.constant != want)
+            {
+                em.rateOverTime = want;
+            }
+        }
 
         /// <summary>One-shot additive particle burst (sparks / flashes): <paramref name="count"/> glowing bits in
         /// <paramref name="color"/> flying out of a point, fading + shrinking, optionally arcing under gravity, then

@@ -31,6 +31,7 @@ namespace BlocksBeyondTheStars.Client
             public string Name;
             public RemoteEntityInterpolator Interp; // buffered snapshot interpolation of the reported pose (B Tier1b)
             public bool Jetpacking;        // show a thrust flame under the avatar while firing
+            public ParticleSystem Thrust;  // the persistent flame emitter (#1511), created on first use; dies with Go
             public bool Seated;            // sit pose (#806) — avatar lowered onto the chair seat
             public bool Hidden;            // stealth field active, or the player is up in space — no avatar
             public int Gear = -1;          // cached so gear is only rebuilt on change
@@ -147,10 +148,15 @@ namespace BlocksBeyondTheStars.Client
                     r.Go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
                 }
 
-                if (r.Jetpacking && !r.Hidden && Weapons != null)
+                // Thrust flame under a jetpacking avatar: one persistent looping emitter per remote (#1511),
+                // switched on/off instead of a fresh particle burst per frame.
+                bool thrust = r.Jetpacking && !r.Hidden;
+                if (thrust && r.Thrust == null && Weapons != null && r.Go != null)
                 {
-                    Weapons.Sparks(r.Go.transform.position + Vector3.down * 0.1f, new Color(1f, 0.65f, 0.25f), 3);
+                    r.Thrust = Weapons.CreateThrustFlame(r.Go.transform, new Vector3(0f, -0.1f, 0f), new Color(1f, 0.65f, 0.25f));
                 }
+
+                WeaponFx.SetThrust(r.Thrust, thrust);
             }
         }
 

@@ -48,7 +48,6 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _mat = new Material(shader);
-            _mat.SetFloat("_Brightness", 0f);
 
             var go = new GameObject("Nebula");
             go.transform.SetParent(transform, false);
@@ -61,7 +60,24 @@ namespace BlocksBeyondTheStars.Client
             mr.receiveShadows = false;
             mr.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
             mr.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            _renderer = mr;
             _dome = go.transform;
+            ApplyBrightness(0f);
+        }
+
+        private static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
+        private MeshRenderer _renderer;
+
+        /// <summary>Writes the shader brightness and switches the renderer off while the gas is dark (#1513): the
+        /// dome covers the whole sky and its two per-pixel fbm evaluations used to run by day at brightness 0.</summary>
+        private void ApplyBrightness(float value)
+        {
+            _mat.SetFloat(BrightnessId, value);
+            bool visible = value > 0.001f;
+            if (_renderer != null && _renderer.enabled != visible)
+            {
+                _renderer.enabled = visible;
+            }
         }
 
         private void LateUpdate()
@@ -94,7 +110,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _brightness = Mathf.Clamp01(MenuBrightness);
-                _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+                ApplyBrightness(_brightness * MaxBrightness);
                 return;
             }
 
@@ -140,7 +156,7 @@ namespace BlocksBeyondTheStars.Client
                 _brightness = Mathf.MoveTowards(_brightness, target, Time.deltaTime * 0.7f);
             }
 
-            _mat.SetFloat("_Brightness", _brightness * MaxBrightness);
+            ApplyBrightness(_brightness * MaxBrightness);
         }
 
         /// <summary>Night strength 0..1 from the local time of day — mirrors the Starfield's dusk/dawn curve so

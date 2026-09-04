@@ -347,6 +347,13 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnGUI()
         {
+            // IMGUI calls OnGUI once per event; everything below is GUI.DrawTexture (up to ~300 streaks + drops in
+            // rain), which only has an effect during the Repaint event — skip the Layout pass entirely (#1516).
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             // Subtle blue submerged wash, drawn before (and independent of) the weather overlay so it shows
             // even underwater in a cave or at night. Hidden in space and while the menu is open.
             if (_underwater > 0.01f && Game != null && !Game.SpaceViewActive && !Game.MenuOpen)
