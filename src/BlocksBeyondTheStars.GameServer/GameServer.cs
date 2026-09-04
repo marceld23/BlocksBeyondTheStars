@@ -1097,6 +1097,9 @@ public sealed partial class GameServer
         _runLoopActive = true;
         _stopped.Reset();
         double tickSeconds = 1.0 / System.Math.Max(1, _config.TickRate);
+        // #1536: on Windows Thread.Sleep quantises to the system timer (15.6 ms by default), so a 66.7 ms
+        // period slept as 62.5 / 78 ms — raise the resolution to 1 ms for the lifetime of the loop.
+        using var timerResolution = HighResolutionTimerScope.Enter();
         var sw = System.Diagnostics.Stopwatch.StartNew();
         double last = sw.Elapsed.TotalSeconds;
 

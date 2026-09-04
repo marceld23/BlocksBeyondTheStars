@@ -243,6 +243,31 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Server runtime configuration: a 1 ms timer for the Windows run loop, explicit workstation GC, GCConserveMemory in the images; ReadyToRun, non-concurrent GC and invariant globalization measured and rejected (#1536, 2026-09-04, branch perf/1536-runtime-config)
+
+**Why.** PR bundle 11 of the performance package (#1501). No GC/JIT/globalization settings existed; the issue listed
+four knobs. Each was measured on its own (bundled server on the dev box, three starts each, idle working set,
+tick count per 5 s window) and only what paid off ships — the rest is recorded next to the setting.
+
+**What ships.** `HighResolutionTimerScope`: the run loop's `Thread.Sleep` quantised to the Windows 15.6 ms timer, so
+the 66.7 ms period slept as alternating 62.5 / 78 ms and the server ran ~13.8 Hz instead of 15 (68–70 ticks per
+window); `Run()` now holds `timeBeginPeriod(1)` for the loop's lifetime (restored on exit; a no-op elsewhere and in
+the Unity/WebGL library flavour) → 76–77 ticks per window. `GameServer.csproj` pins `ServerGarbageCollector=false`
+explicitly (the many-worlds VPS must never flip to server GC by accident). The container images set
+`DOTNET_GCConserveMemory=5` (−1.3 MB private at idle, trims harder under load; the cgroup limit already bounds each
+heap).
+
+**Rejected with numbers.** `ConcurrentGarbageCollection=false`: +7.5 MB private / +8 MB working set per idle
+process (larger gen0 budget); the background thread it saves only runs during rare gen2 passes. `PublishReadyToRun`
+(bundled + container): time-to-"started" unchanged (4.4–8.5 s either way — worldgen dominates), +28 MB exe
+(76 → 104 MB in every client download), +10 MB working set. `InvariantGlobalization`: the server fast tier under
+`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` fails `NameScreenTests.BlockList_CatchesEvasions("hïtler")` — the name
+screening normalises diacritics with `string.Normalize`, which needs ICU; without it an accented slur slips past the
+block list. ICU stays; its RSS is the price of that filter.
+
+**Consequences.** Windows-hosted servers (the bundled singleplayer server, LAN hosts) tick at the configured
+15 Hz; nothing changes on Linux. The VPS images trade a little GC CPU for memory.
+
 ### ★ Protocol v4: LZ4 block arrays above 256 B, the presence beat on a sequenced delivery, inventory updates without the unchanged blueprint list (#1533 #1534 #1535, 2026-09-04, branch perf/1533-1535-protocol-v4) — ⚠ RELEASE NOTE: older game versions cannot join a v4 server
 
 **Why.** PR bundle 10 of the performance package (#1501), the one wire-incompatible bundle, shipped as ONE version
