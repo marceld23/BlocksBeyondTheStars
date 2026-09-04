@@ -3322,9 +3322,9 @@ namespace BlocksBeyondTheStars.Client
                 var go = new GameObject($"VoxChunk {cx},{cy},{cz}");
                 go.transform.SetParent(parent, false);
                 go.transform.localPosition = new Vector3(origin.X, origin.Y, origin.Z) - centre;
+                go.AddComponent<MeshCollider>().sharedMesh = collider; // S2/S3: hull/ore collision (suit + future) — added FIRST, see LandedShipView
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
-                go.AddComponent<MeshCollider>().sharedMesh = collider; // S2/S3: hull/ore collision (suit + future)
             }
         }
 

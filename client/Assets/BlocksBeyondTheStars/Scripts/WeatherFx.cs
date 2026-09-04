@@ -1,3 +1,13 @@
+            bool wanted = anyWash || precipitation;
+            if (wanted != _loggedOverlay)
+            {
+                // Playtest 2026-09-05 diagnostics: when the screen overlay switches on/off and why.
+                _loggedOverlay = wanted;
+                Debug.Log($"[WeatherFx] overlay {(wanted ? "on" : "off")} (precip '{env?.Precipitation}', weather {env?.Weather}, exposed {Game?.ExposedToSky}, wash {anyWash})");
+            }
+
+            _overlay.Sync(wanted);
+        }
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
@@ -58,6 +68,7 @@ namespace BlocksBeyondTheStars.Client
         // screen — an always-on OnGUI ran Unity's Layout + Repaint event loop every frame, even in clear
         // weather (1.6 k allocations/s for the two handlers in the #1537 capture).
         private ImguiOverlay _overlay;
+        private bool _loggedOverlay; // diagnostics: last overlay state written to the log
 
         private void Awake()
         {

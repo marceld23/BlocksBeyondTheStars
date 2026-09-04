@@ -230,9 +230,12 @@ namespace BlocksBeyondTheStars.Client
                 var go = new GameObject($"ShipChunk {cx},{cy},{cz}");
                 go.transform.SetParent(root.transform, false);
                 go.transform.localPosition = new Vector3(origin.X, origin.Y, origin.Z);
+                // The collider FIRST: a MeshCollider added after the MeshFilter adopts the render mesh and tries to
+                // cook it — since #1528 that mesh is uploaded non-readable, so the cook logs an error per chunk
+                // (playtest 2026-09-05) before the real collider mesh replaces it.
+                go.AddComponent<MeshCollider>().sharedMesh = collider; // walk on the wings, stand in the cabin
                 go.AddComponent<MeshFilter>().sharedMesh = mesh;
                 go.AddComponent<MeshRenderer>().sharedMaterials = mats;
-                go.AddComponent<MeshCollider>().sharedMesh = collider; // walk on the wings, stand in the cabin
             }
         }
     }
