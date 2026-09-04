@@ -3,6 +3,8 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BlocksBeyondTheStars.Persistence;
@@ -41,9 +43,12 @@ public sealed partial class GameServer
 
     /// <summary>Runs one no-argument tick subsystem and contains any exception it throws. Returns true when
     /// the body completed without throwing. Pass a method group (e.g. <c>Guard("StreamChunks", StreamChunks)</c>)
-    /// so the delegate is cached and the guard allocates nothing on the hot path.</summary>
+    /// so the delegate is cached and the guard allocates nothing on the hot path. With tick timing enabled
+    /// (#1504) the wall-clock time of the body is accumulated per system name.</summary>
     private bool Guard(string system, Action body)
     {
+        bool timed = TickTimingEnabled;
+        long t0 = timed ? Stopwatch.GetTimestamp() : 0;
         try
         {
             body();
@@ -54,14 +59,23 @@ public sealed partial class GameServer
             RecordTickFault(system, ex);
             return false;
         }
+        finally
+        {
+            if (timed)
+            {
+                AccumulateSystemTime(system, Stopwatch.GetTimestamp() - t0);
+            }
+        }
     }
 
     /// <summary>Runs one delta-time tick subsystem and contains any exception it throws. Returns true when the
     /// body completed without throwing. Pass a method group (e.g. <c>Guard("TickFluids", dt, TickFluids)</c>):
     /// the method-group conversion to <see cref="Action{Double}"/> is cached by the compiler, so no delegate
-    /// is allocated per tick.</summary>
+    /// is allocated per tick. With tick timing enabled (#1504) the body's wall-clock time is accumulated.</summary>
     private bool Guard(string system, double dt, Action<double> body)
     {
+        bool timed = TickTimingEnabled;
+        long t0 = timed ? Stopwatch.GetTimestamp() : 0;
         try
         {
             body(dt);
@@ -72,6 +86,119 @@ public sealed partial class GameServer
             RecordTickFault(system, ex);
             return false;
         }
+        finally
+        {
+            if (timed)
+            {
+                AccumulateSystemTime(system, Stopwatch.GetTimestamp() - t0);
+            }
+        }
+    }
+
+    // ---------------- Tick timing (#1504) ----------------
+    // Opt-in "where does the tick go" instrumentation: every Guard-wrapped system accumulates its wall-clock
+    // time per name (the string keys are the literal system names passed to Guard, so the dictionary never
+    // allocates on the tick path); the whole tick is sampled too. Every ServerConfig.TickTimingLogSeconds of
+    // sim time one summary line is logged and the window resets. Off by default: TickTimingEnabled is a
+    // single property read per Guard call and nothing else runs.
+
+    private bool TickTimingEnabled => _config.TickTimingLogSeconds > 0;
+
+    /// <summary>Stopwatch ticks accumulated per system since the last report.</summary>
+    private readonly Dictionary<string, long> _tickSystemTime = new();
+
+    /// <summary>Whole-tick durations (ms) in the current window, for p50/p95/max.</summary>
+    private readonly List<double> _tickDurationsMs = new();
+
+    private double _sinceTickTimingLog;
+    private long _tickTimingStart;
+
+    private void AccumulateSystemTime(string system, long stopwatchTicks)
+    {
+        _tickSystemTime.TryGetValue(system, out long sum);
+        _tickSystemTime[system] = sum + stopwatchTicks;
+    }
+
+    /// <summary>Call at the top of <c>Tick</c>: stamps the tick start when timing is on.</summary>
+    private void BeginTickTiming()
+    {
+        if (TickTimingEnabled)
+        {
+            _tickTimingStart = Stopwatch.GetTimestamp();
+        }
+    }
+
+    /// <summary>Call on every exit path of <c>Tick</c>: records the tick's duration and, once the configured
+    /// window of sim time has elapsed, logs the report and resets the window.</summary>
+    private void EndTickTiming(double deltaSeconds)
+    {
+        if (!TickTimingEnabled)
+        {
+            return;
+        }
+
+        _tickDurationsMs.Add((Stopwatch.GetTimestamp() - _tickTimingStart) * 1000.0 / Stopwatch.Frequency);
+        _sinceTickTimingLog += deltaSeconds;
+        if (_sinceTickTimingLog < _config.TickTimingLogSeconds)
+        {
+            return;
+        }
+
+        _log.Info(BuildTickTimingReport(_sinceTickTimingLog));
+        _sinceTickTimingLog = 0;
+        _tickDurationsMs.Clear();
+        _tickSystemTime.Clear();
+    }
+
+    /// <summary>The report line for the current window: tick count, avg/p50/p95/max tick time, ticks over the
+    /// tick budget (1000 / TickRate ms) and the top systems by accumulated time with their ms per second of
+    /// sim time. Allocates only here (once per window). Public for tests and diagnostics.</summary>
+    public string BuildTickTimingReport(double windowSeconds)
+    {
+        var sorted = new List<double>(_tickDurationsMs);
+        sorted.Sort();
+        int n = sorted.Count;
+        double avg = 0, p50 = 0, p95 = 0, max = 0;
+        int over = 0;
+        double budgetMs = 1000.0 / System.Math.Max(1, _config.TickRate);
+        if (n > 0)
+        {
+            double sum = 0;
+            foreach (double d in sorted)
+            {
+                sum += d;
+                if (d > budgetMs)
+                {
+                    over++;
+                }
+            }
+
+            avg = sum / n;
+            p50 = sorted[System.Math.Min(n - 1, n / 2)];
+            p95 = sorted[System.Math.Min(n - 1, (int)(n * 0.95))];
+            max = sorted[n - 1];
+        }
+
+        var systems = new List<KeyValuePair<string, long>>(_tickSystemTime);
+        systems.Sort((a, b) => b.Value.CompareTo(a.Value));
+        var sb = new StringBuilder(256);
+        sb.Append(System.FormattableString.Invariant(
+            $"Tick timing (last {windowSeconds:0.0} s, {n} ticks): avg {avg:0.00} ms, p50 {p50:0.00}, p95 {p95:0.00}, max {max:0.0}, over {budgetMs:0.0} ms budget: {over}"));
+        int shown = 0;
+        double window = System.Math.Max(windowSeconds, 1e-9);
+        foreach (var kv in systems)
+        {
+            if (shown++ >= 6)
+            {
+                break;
+            }
+
+            double ms = kv.Value * 1000.0 / Stopwatch.Frequency;
+            sb.Append(shown == 1 ? " | " : ", ");
+            sb.Append(System.FormattableString.Invariant($"{kv.Key} {ms:0} ms ({ms / window:0.0} ms/s)"));
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>Records a contained tick fault: logs the full exception (first occurrence, then at most once

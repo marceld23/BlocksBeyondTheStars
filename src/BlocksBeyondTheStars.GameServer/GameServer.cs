@@ -1375,6 +1375,7 @@ public sealed partial class GameServer
 
     public void Tick(double deltaSeconds)
     {
+        BeginTickTiming(); // #1504: no-op unless ServerConfig.TickTimingLogSeconds > 0
         _transport.Poll();
 
         // A held world still pumps the network (the unpause has to get through) and still runs the moderation /
@@ -1392,6 +1393,7 @@ public sealed partial class GameServer
             // #996: an observer neither holds nor counts toward the pause (#973) and keeps flying — without
             // streaming they run off the already-sent chunks into void until somebody resumes the world.
             Guard("SpectatorChunks", StreamChunksToSpectators);
+            EndTickTiming(deltaSeconds);
             return;
         }
         Guard("TickSpace", deltaSeconds, TickSpace); // space instances are keyed by location and handle their own players
@@ -1482,6 +1484,8 @@ public sealed partial class GameServer
                 _log.Info("Autosave complete.");
             }
         }
+
+        EndTickTiming(deltaSeconds);
     }
 
     /// <summary>Advances the world's cumulative playtime — but only while at least one player is joined, so an
