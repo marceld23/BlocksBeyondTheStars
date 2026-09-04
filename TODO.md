@@ -243,6 +243,34 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client allocations attributed: a Development-build switch, `PerfProbe -perfProfile`, a headless profiler-capture report; seven follow-up issues ranked (#1537, 2026-09-04, branch perf/1537-gc-investigation)
+
+**Why.** The last item of the performance package (#1501): the client collected 4–7 times per second at
+Medium/High and the p95 sat at 2–3× the p50, and nothing was attributed. The issue asked for a ranked allocation
+list with call sites before any fix, so this PR ships the tooling and the list, no code change to the game.
+
+**What ships.** `BBS_DEV_BUILD=1` makes `BuildScript` produce a `BuildOptions.Development` player (never set by the
+release scripts; deep-profiling support was tried and rejected — it instruments every method, 3–7 fps and 18 GB of
+capture in 40 s, while the plain Development player runs at release speed). `PerfProbe -perfProfile <file>` turns
+the profiler's binary log with allocation call stacks on for the idle + walk phases (a documented no-op in a
+release player). `Editor/ProfilerCaptureReport.cs` loads such a `.raw` headless (`-executeMethod
+BlocksBeyondTheStars.Client.EditorTools.ProfilerCaptureReport.Run`, env `BBS_PROFILE_RAW` / `BBS_PROFILE_OUT`),
+walks every frame's raw sample tree, attributes each `GC.Alloc` to its profiler scope path and to the resolved
+call stack, and prints KB/s + allocs/s tables (scopes, methods, 6-frame chains). The Editor keeps the last 2000
+frames of a capture, so the phases stay at 10 s.
+
+**Findings (walk, High / VD 8, 7.0 MB/s, 20 400 allocs/s; ranked list on #1537).** Chunk-build dispatch ~1.8 MB/s
+(the 8 KB `ChunkData.ToArray` clone per build at 141 builds/s, `Neighbourhood`, closures, `Task.Run`) → #1550;
+uGUI `Outline` text rebuilds ~2.0 MB/s (550 KB per rebuild, 3.6/s) → #1552; IMGUI overlays (`WeatherFx.OnGUI`,
+`FinaleView.OnGUI`) 146 KB/s certain plus 1.4 MB/s in `GUI.Repaint` to verify → #1553; `GroundScatter.Setup` with a
+`System.Random` per scatter point 440 KB/s → #1551; the receive path copies (`ChunkBlocksRle.Decode` 412 KB/s,
+LiteNetLib packet copy, NPC-list strings) → #1555; creature voice variants resolved at runtime (250 KB LOH each)
+→ #1556; the per-frame tail (`RingBand` randoms, `VoiceChat`, `PlayersWithin`, `ToLowerInvariant`, HUD strings)
+→ #1554.
+
+**Consequences.** None for players: the release build and PerfProbe results are unchanged. Every follow-up's
+acceptance check is one capture + one report.
+
 ### ★ Server runtime configuration: a 1 ms timer for the Windows run loop, explicit workstation GC, GCConserveMemory in the images; ReadyToRun, non-concurrent GC and invariant globalization measured and rejected (#1536, 2026-09-04, branch perf/1536-runtime-config)
 
 **Why.** PR bundle 11 of the performance package (#1501). No GC/JIT/globalization settings existed; the issue listed
