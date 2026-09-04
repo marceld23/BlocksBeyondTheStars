@@ -120,7 +120,8 @@ Shader "BlocksBeyondTheStars/BlockAtlasTransparent"
                 float emission = i.mat.a;              // glow (energy fields shine; plain glass = 0)
 
                 // Sun shadow on the directional half only — shadowed water/glass dims, never blacks out.
-                float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
+                // #1518: only multiplied by ndl, so faces turned away from the sun skip the lookup (identical result).
+                float shadow = (ndl > 0.0) ? MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)) : 0.0;
 
                 float3 col = albedo * light * (0.55 + 0.45 * ndl * shadow) * shade;
                 col += albedo * emission * 2.0;        // emissive energy-field glow (bloom catches it)

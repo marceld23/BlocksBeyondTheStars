@@ -142,6 +142,41 @@ Shader "BlocksBeyondTheStars/LitColor"
             half4 shadowFrag(SVary i) : SV_Target { return 0; }
             ENDHLSL
         }
+
+        // #1518: depth prepass (see BlockAtlas) — models must land in _CameraDepthTexture where URP draws a
+        // prepass instead of copying depth (WebGL + MSAA, depth priming).
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On ColorMask R Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex depthVert
+            #pragma fragment depthFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            // Same UnityPerMaterial layout as the forward pass (SRP Batcher).
+            CBUFFER_START(UnityPerMaterial)
+                float4 _MainTex_ST;
+                float4 _Color;
+                float _Floor;
+                float _Fill;
+            CBUFFER_END
+
+            struct DAttr { float4 positionOS : POSITION; };
+            struct DVary { float4 positionCS : SV_POSITION; };
+
+            DVary depthVert(DAttr v)
+            {
+                DVary o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                return o;
+            }
+
+            half4 depthFrag(DVary i) : SV_Target { return 0; }
+            ENDHLSL
+        }
     }
 
     // ---------------- Built-in RP (original, unchanged) ----------------

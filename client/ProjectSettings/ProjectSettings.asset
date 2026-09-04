@@ -343,7 +343,9 @@ PlayerSettings:
     m_StaticBatching: 0
     m_DynamicBatching: 0
   m_BuildTargetShaderSettings: []
-  m_BuildTargetGraphicsJobs: []
+  m_BuildTargetGraphicsJobs:
+  - m_BuildTarget: WindowsStandaloneSupport
+    m_GraphicsJobs: 0
   m_BuildTargetGraphicsJobMode: []
   m_BuildTargetGraphicsAPIs: []
   m_BuildTargetVRSettings: []
@@ -639,6 +641,7 @@ PlayerSettings:
     WebGL: 0
   il2cppStacktraceInformation: {}
   managedStrippingLevel:
+    Standalone: 0
     WebGL: 2
   incrementalIl2cppBuild: {}
   suppressCommonWarnings: 1

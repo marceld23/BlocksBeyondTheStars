@@ -1655,6 +1655,14 @@ namespace BlocksBeyondTheStars.Client
             // Procedurally generate the block texture atlas and a material that samples it
             // (M27). Falls back to whatever WorldRig assigned if the shader is missing.
             Atlas = new BlockTextureAtlas(Content);
+
+            // #1521: compile the world shaders' variants now, behind the opaque loading veil, instead of one
+            // hitch each when the weather/sun/preset first switches a keyword mid-game. Once per process.
+            int warmedVariants = ShaderPrewarm.WarmUp();
+            if (warmedVariants > 0)
+            {
+                Debug.Log($"[Shaders] Prewarmed {warmedVariants} variants.");
+            }
             var atlasShader = Shader.Find("BlocksBeyondTheStars/BlockAtlas");
             if (atlasShader != null)
             {

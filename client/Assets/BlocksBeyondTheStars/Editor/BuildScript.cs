@@ -127,12 +127,28 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             Directory.CreateDirectory(outDir);
             string locationPathName = target == BuildTarget.WebGL ? outDir : Path.Combine(outDir, exeName);
 
+            // #1521 (desktop players only — WebGL keeps its own tuned settings below): Graphics Jobs let URP's
+            // Render Graph build the ~1.5–2.5k chunk/shadow draws off the main thread; LZ4HC compresses the data
+            // files at build time for a faster asset load (and smaller Velopack packages); managed stripping at
+            // Low uses the link.xml the WebGL build already relies on, so the reflection-based codec/content
+            // paths keep their types while unused framework code is dropped.
+            bool desktop = target != BuildTarget.WebGL;
+            if (desktop)
+            {
+                // Graphics Jobs stay OFF: measured 2026-09-04 (RTX 2000 Ada, High/VD 8, CPU-bound at ~180 fps) they cost
+                // 1.5–2 ms per frame (idle 5.2→7.0 ms, walk 5.3→6.7 ms); without them the same build runs 4.3–5.2 ms.
+                PlayerSettings.graphicsJobs = false;
+                // Managed stripping stays Disabled on desktop: Low already removes the generic Serialize overloads that
+                // MessagePack's non-generic path looks up by reflection (NetCodec.Encode → "Sequence contains no matching element").
+                PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
+            }
+
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
                 locationPathName = locationPathName,
                 target = target,
-                options = BuildOptions.None,
+                options = desktop ? BuildOptions.CompressWithLz4HC : BuildOptions.None,
             };
 
             var report = BuildPipeline.BuildPlayer(options);

@@ -54,6 +54,13 @@ namespace BlocksBeyondTheStars.Client
             go.SetActive(false);
         }
 
+        private bool _opaqueHeld; // #1520: our open opaque-texture request, released when the quad hides or we die
+
+        private void OnDestroy()
+        {
+            ClientSettings.RequestOpaqueTexture(false, ref _opaqueHeld);
+        }
+
         private void Update()
         {
             if (_quad == null)
@@ -89,6 +96,7 @@ namespace BlocksBeyondTheStars.Client
             if (_quad.gameObject.activeSelf != active)
             {
                 _quad.gameObject.SetActive(active);
+                ClientSettings.RequestOpaqueTexture(active, ref _opaqueHeld); // #1520: the haze quad samples the opaque copy
             }
 
             if (!active)

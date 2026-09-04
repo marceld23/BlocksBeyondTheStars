@@ -243,6 +243,27 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Render/engine configuration: no phantom light loop, shadow lookup gated, depth prepass for the browser, physics without a fixed step, opaque copy on demand, shader prewarm + desktop build flags (#1517–#1521, 2026-09-04, branch perf/1517-1521-render-config)
+PR bundle 4 of the performance package (epic #1501); same picture at every preset. **#1517** the URP asset had
+Additional Lights on Per-Pixel (per-object limit 4) while no project shader consumes them — URP culled the 19
+spawned point lights and built per-object light lists for every chunk renderer each frame for nothing → Disabled;
+the three renderer assets drop `IntermediateTextureMode: Always` to Auto (an extra blit for the off-screen
+preview/HUD cameras); video shaders are no longer force-included. The dead Built-in-RP SubShaders and the stock
+always-included entries stay for a WebGL-verified follow-up. **#1518** `BlockAtlas`/`BlockAtlasTransparent`
+evaluate the soft-shadow tent filter only where `ndl*sky` (resp. `ndl`) is non-zero — about half of all voxel
+faces skipped, identical result — and `BlockAtlas`, `LitColor`, `VertexColorOpaque` gain a `DepthOnly` pass:
+URP draws a depth prepass wherever it cannot copy depth (WebGL + MSAA, depth priming) and only shaders with
+that pass land in `_CameraDepthTexture`, so browser SSAO / water depth / heat fade read the far plane before.
+The cutout-submesh split stays open. **#1519** `DynamicsManager` simulation mode → Update: the project has no
+Rigidbody, FixedUpdate or collision callback (CharacterController + raycasts against static colliders), yet
+PhysX stepped 50 Hz with up to 16 catch-up steps per frame at low fps (playtest: station fall, ladders, boat,
+speeder, EVA). **#1520** the opaque colour copy (an MSAA resolve + half-res blit every frame at Medium+) has
+exactly two consumers, the heat-haze and thermal quads — the asset no longer requests it; `ClientSettings
+.RequestOpaqueTexture` lets those two hold a per-camera request while visible (still Medium+ only). **#1521**
+`ShaderPrewarm` compiles the four world shaders' fog × shadow × soft variants once per process behind the
+loading veil (a 20–100 ms hitch per first use before); desktop builds get `CompressWithLz4HC`; Graphics Jobs were measured and stay OFF (+1.5–2 ms per frame on a CPU-bound 180 fps scene, A/B in the PR);
+managed stripping stays **Disabled** on desktop: a Low trial stripped the generic Serialize overloads that MessagePack's non-generic path finds by reflection, so the client could not encode its join request (caught by the PerfProbe A/B, pinned in BuildScript with the reason). WebGL wasm2023/BigInt stay for a WebGL-verified PR.
+
 ### ★ WebGL shell memory guard: low-RAM pre-flight warning + readable out-of-memory panels (#1445, 2026-09-01, branch feat/webgl-memory-guard)
 A low-memory device dies in one of three ways (instantiate OOM at startup, abort("OOM") mid-game,
 silent lmkd kill) and players saw a developer stack trace at best. The shell now guards all the paths

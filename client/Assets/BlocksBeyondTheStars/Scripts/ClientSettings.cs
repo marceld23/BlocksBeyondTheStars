@@ -1033,7 +1033,14 @@ namespace BlocksBeyondTheStars.Client
                 // which also disables every dependent effect for free (the features early-out without the textures).
                 bool wantsScreenSpace = Preset >= QualityPreset.Medium;
                 urp.supportsCameraDepthTexture = wantsScreenSpace;
-                urp.supportsCameraOpaqueTexture = wantsScreenSpace;
+                // #1520: the opaque colour copy (an MSAA resolve + a half-res blit EVERY frame at Medium+) has
+                // exactly two consumers — the heat-haze and thermal-vision screen quads — and they are inactive
+                // in deserts, caves, space and most of the time on temperate worlds. So the asset no longer
+                // requests the copy; the two effects request it per camera while they are active
+                // (RequestOpaqueTexture), still gated to the presets that had it.
+                urp.supportsCameraOpaqueTexture = false;
+                _opaqueTexturePresetAllows = wantsScreenSpace;
+                ApplyOpaqueTextureRequest();
 
                 // Tell the shaders whether the depth/opaque textures exist this preset. The water shader uses it to
                 // fall back to the simple alpha look on Potato/Low (otherwise its depth colour / refraction / SSR
@@ -1047,7 +1054,55 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>The active gameplay camera's URP data, set by <see cref="WorldRig"/> so graphics changes made in
         /// the pause menu push live (SMAA + the SSAO-renderer choice). Null in the main menu (no world camera yet);
         /// the camera reads the settings on creation, so menu changes still apply on entry. Static (not serialized).</summary>
-        public static UniversalAdditionalCameraData ActiveCameraData;
+        public static UniversalAdditionalCameraData ActiveCameraData
+        {
+            get => _activeCameraData;
+            set
+            {
+                _activeCameraData = value;
+                ApplyOpaqueTextureRequest();
+            }
+        }
+
+        private static UniversalAdditionalCameraData _activeCameraData;
+        private static bool _opaqueTexturePresetAllows;
+        private static int _opaqueTextureRequests;
+
+        /// <summary>#1520: a screen-space effect that samples <c>_CameraOpaqueTexture</c> (heat haze, thermal
+        /// vision) holds a request while it is visible; the camera copies the opaque colour only while at least
+        /// one request is open — and only on the presets that had the copy before (Medium+). Balanced on/off
+        /// calls per requester; idempotent for repeated calls with the same state.</summary>
+        public static void RequestOpaqueTexture(bool on, ref bool held)
+        {
+            if (on == held)
+            {
+                return;
+            }
+
+            held = on;
+            _opaqueTextureRequests += on ? 1 : -1;
+            if (_opaqueTextureRequests < 0)
+            {
+                _opaqueTextureRequests = 0;
+            }
+
+            ApplyOpaqueTextureRequest();
+        }
+
+        private static void ApplyOpaqueTextureRequest()
+        {
+            if (_activeCameraData == null)
+            {
+                return;
+            }
+
+            bool want = _opaqueTexturePresetAllows && _opaqueTextureRequests > 0;
+            var option = want ? CameraOverrideOption.On : CameraOverrideOption.Off;
+            if (_activeCameraData.requiresColorOption != option)
+            {
+                _activeCameraData.requiresColorOption = option;
+            }
+        }
 
         /// <summary>Pushes the per-camera look settings to the gameplay camera: post-processing on (the global
         /// Volume — bloom/tonemap/grade — and SMAA both need it), SMAA from <see cref="Smaa"/> (Medium+), and the
