@@ -215,12 +215,22 @@ public sealed partial class GameServer
         }
 
         var deposits = _worlds.Active.WeatherDeposits;
-        if (ShouldAccumulateSnow())
+        bool snowing = ShouldAccumulateSnow();
+        if (!snowing && deposits.Count == 0)
         {
-            AccumulateSnow(deposits);
+            return; // nothing to lay down or melt — don't open an empty transaction
         }
 
-        MeltSnow(deposits);
+        // #1505: one commit per pass (deposits + melts), not one per cell.
+        _repo.RunInTransaction(() =>
+        {
+            if (snowing)
+            {
+                AccumulateSnow(deposits);
+            }
+
+            MeltSnow(deposits);
+        });
     }
 
     /// <summary>Snow only settles while snow is genuinely falling on this world.</summary>

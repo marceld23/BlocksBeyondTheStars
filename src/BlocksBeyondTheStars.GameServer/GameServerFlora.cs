@@ -268,13 +268,37 @@ public sealed partial class GameServer
         });
     }
 
+    /// <summary>Regrow timers are stepped once per second of sim time (#1508), not every tick: the timers are in
+    /// seconds and every cell's step evaluates the local weather (biome + temperature + precipitation — three
+    /// generator/noise lookups per cell), so at 15 Hz a harvested meadow of a few hundred cells cost thousands of
+    /// noise evaluations per second for nothing. Regrowth lands at most one second later than before.</summary>
+    private const double FloraStepSeconds = 1.0;
+
+    private double _sinceFloraStep;
+
     private void TickFlora(double dt)
     {
         if (_floraRegrow.Count == 0)
         {
+            _sinceFloraStep = 0;
             return;
         }
 
+        _sinceFloraStep += dt;
+        if (_sinceFloraStep < FloraStepSeconds)
+        {
+            return;
+        }
+
+        double stepDt = _sinceFloraStep;
+        _sinceFloraStep = 0;
+        _repo.RunInTransaction(() => StepFlora(stepDt)); // #1505: one commit per step for the regrown cells + row deletes
+    }
+
+    /// <summary>One regrow step over every tracked cell with the accumulated sim time (the body of
+    /// <see cref="TickFlora"/>; runs inside a repository transaction).</summary>
+    private void StepFlora(double dt)
+    {
         List<Vector3i>? done = null;
         // Iterate over a copy of the keys so we can update/remove entries safely.
         foreach (var pos in new List<Vector3i>(_floraRegrow.Keys))

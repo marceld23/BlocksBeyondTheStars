@@ -208,12 +208,36 @@ public sealed partial class GameServer
         return (hull, speed, handling);
     }
 
-    /// <summary>Derived stats of a specific self-built ship (from its persisted blob).</summary>
+    /// <summary>#1509: derived custom-ship stats memoised per <see cref="ShipState.BuiltCells"/> blob INSTANCE.
+    /// <c>RecomputeShipCombatStats</c> runs on every ship-cursor switch — with N players that is N times per
+    /// tick — and for a self-built ship it re-parsed the whole cell blob (string split per cell + LINQ) each
+    /// time. Strings are immutable, so the same blob instance always yields the same stats; a rebuilt hull is a
+    /// new string and misses the cache. The table holds the key weakly, so replaced blobs are collected.</summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<string, CustomStatsBox> _customStatsCache = new();
+
+    private sealed class CustomStatsBox
+    {
+        public (float HullMax, float FlightSpeed, float Handling) Stats;
+    }
+
+    /// <summary>Diagnostic: how many times the custom-ship blob was actually parsed (cache misses).</summary>
+    public int CustomShipStatsParsesForTest { get; private set; }
+
+    /// <summary>Derived stats of a specific self-built ship (from its persisted blob), memoised per blob instance.</summary>
     private (float HullMax, float FlightSpeed, float Handling) CustomShipStatsFor(ShipState ship)
     {
-        var cells = ParseCustomCells(ship.BuiltCells);
+        string blob = ship.BuiltCells ?? string.Empty;
+        if (_customStatsCache.TryGetValue(blob, out var cached))
+        {
+            return cached.Stats;
+        }
+
+        var cells = ParseCustomCells(blob);
         int engines = cells.Values.Count(b => IsBlockId(b, ShipEngineBlock));
-        return CustomShipStats(cells.Count, engines);
+        var stats = CustomShipStats(cells.Count, engines);
+        _customStatsCache.AddOrUpdate(blob, new CustomStatsBox { Stats = stats });
+        CustomShipStatsParsesForTest++;
+        return stats;
     }
 
     // ---------------- Keel placement (construction start) ----------------

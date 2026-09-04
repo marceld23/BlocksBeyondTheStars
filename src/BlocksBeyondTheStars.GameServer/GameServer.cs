@@ -245,6 +245,10 @@ public sealed partial class GameServer
         // content update would silently decode every stored edit to the wrong block.
         _repo.EnsureBlockPalette(_content.BlockPalette());
 
+        // #1510: build every message formatter now, not one by one during the first player's join burst.
+        int warmed = NetCodec.WarmUp();
+        _log.Info($"NetCodec warm-up: {warmed} message formatters compiled.");
+
         var launchRules = _config.Rules.Clone();
         _meta = _repo.LoadMetadata() ?? CreateInitialMetadata();
 
@@ -2130,6 +2134,16 @@ public sealed partial class GameServer
     /// surface band, and stays within the sweep's keepRadius (maxViewRadius + 4) so it is not immediately evicted.</summary>
     private const int LoadAheadRings = 1;
 
+    /// <summary>#1507: a settled view is re-enumerated at least this often (ticks) even when nothing observable
+    /// changed — a cheap safety net against any sent-set change the count-based check could miss.</summary>
+    private const int StreamSettledRecheckTicks = 30;
+
+    /// <summary>#1507: upper bound for the per-world far-column band cache (entries are 16 bytes).</summary>
+    private const int FarColumnBandCacheCap = 250_000;
+
+    /// <summary>Diagnostic: how many full view-column enumerations StreamChunks ran (per player pass).</summary>
+    public int StreamEnumerationsForTest { get; private set; }
+
     /// <summary>This player's streaming radius in chunks: their requested view distance (clamped to the slider
     /// range) when they sent one, otherwise the host's configured default.</summary>
     private int EffectiveViewRadius(PlayerSession session)
@@ -2187,6 +2201,24 @@ public sealed partial class GameServer
             var center = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
             center = new ChunkCoord(center.X, System.Math.Clamp(center.Y, minChunkY, maxChunkY), center.Z);
 
+            // #1507: a settled view (the last pass found nothing to send) is skipped until something that can
+            // change the answer changes — the centre chunk, the radius or the sent-set size (sweep/prune/ghost/
+            // footing all add or remove entries) — or the periodic re-check comes due. The enumeration below is
+            // up to ~1200 coords + one terrain lookup per far column, per player, per tick; standing still it
+            // produced an empty list every time.
+            int sentCount = session.SentChunks.Count;
+            if (session.StreamSettled
+                && session.StreamSettledCenter == center
+                && session.StreamSettledRadius == streamRadius
+                && session.StreamSettledSentCount == sentCount
+                && ++session.StreamSettledTicks < StreamSettledRecheckTicks)
+            {
+                continue;
+            }
+
+            session.StreamSettled = false;
+            StreamEnumerationsForTest++;
+
             // Collect the not-yet-sent chunks in the view column and stream them NEAREST-FIRST. The player's
             // own chunk (its floor) then loads before everything else, so a freshly spawned/teleported player
             // gets solid ground under them immediately instead of falling through while a fixed bottom-up
@@ -2213,15 +2245,30 @@ public sealed partial class GameServer
                     }
                     else
                     {
-                        int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
-                        int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
                         // SurfaceHeight is the TERRAIN top — under a sea that is the seabed, and the generator
                         // fills everything from there up to the sea level with the sea fluid. Anchoring the band
                         // at the seabed therefore cut a deep ocean off mid-water, and the client (which reads a
                         // missing chunk as air) rendered that cut as a wavy water SURFACE hanging in mid-water,
                         // with fake waterfall streaks down the band's side edges (#987). FarColumnBand stretches
                         // a submerged column up to its real waterline instead.
-                        var band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel);
+                        // #1507: cached per canonical column on the world — the band is a pure function of the
+                        // generator's surface and the world's sea level, so it never changes for a world.
+                        var bands = _worlds.Active.FarColumnBands;
+                        var columnKey = (WorldConstants.CanonicalChunkX(center.X + dx, _world.Circumference),
+                            WorldConstants.CanonicalChunkZ(center.Z + dz, _world.Circumference));
+                        if (!bands.TryGetValue(columnKey, out var band))
+                        {
+                            int worldX = (center.X + dx) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+                            int worldZ = (center.Z + dz) * WorldConstants.ChunkSize + WorldConstants.ChunkSize / 2;
+                            band = FarColumnBand(_generator.SurfaceHeight(planet, worldX, worldZ), seaLevel);
+                            if (bands.Count >= FarColumnBandCacheCap)
+                            {
+                                bands.Clear(); // a lap around a big world at VD 8 is ~50k columns; keep the table bounded
+                            }
+
+                            bands[columnKey] = band;
+                        }
+
                         loDy = band.LoCy - center.Y;
                         hiDy = band.HiCy - center.Y;
                     }
@@ -2245,6 +2292,17 @@ public sealed partial class GameServer
                         pending.Add((coord, dx * dx + dy * dy + dz * dz));
                     }
                 }
+
+            if (pending.Count == 0)
+            {
+                // Nothing to send for this view: remember it, so the next ticks skip the enumeration (#1507).
+                session.StreamSettled = true;
+                session.StreamSettledCenter = center;
+                session.StreamSettledRadius = streamRadius;
+                session.StreamSettledSentCount = sentCount;
+                session.StreamSettledTicks = 0;
+                continue;
+            }
 
             pending.Sort((a, b) => a.DistSq.CompareTo(b.DistSq));
 

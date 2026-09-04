@@ -52,7 +52,18 @@ public sealed class PostgreSqlWorldRepository : IWorldRepository
         {
             _paths.EnsureDirectories();
 
-            _connection = new NpgsqlConnection(_connectionString);
+            // #1506: every repository call builds a fresh command, so without automatic preparation each hot
+            // statement (SetBlock per fluid/fire cell, LoadChunkEdits per streamed chunk) is re-planned by the
+            // server on every round trip. Npgsql's auto-prepare turns the recurring statements into server-side
+            // prepared statements transparently; an operator who set MaxAutoPrepare explicitly keeps their value.
+            var builder = new NpgsqlConnectionStringBuilder(_connectionString);
+            if (builder.MaxAutoPrepare == 0)
+            {
+                builder.MaxAutoPrepare = 64;
+                builder.AutoPrepareMinUsages = 2;
+            }
+
+            _connection = new NpgsqlConnection(builder.ConnectionString);
             _connection.Open();
 
             Execute($"CREATE SCHEMA IF NOT EXISTS {QuoteIdentifier(_schemaName)};");

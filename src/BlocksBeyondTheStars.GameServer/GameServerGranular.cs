@@ -74,7 +74,7 @@ public sealed partial class GameServer
         }
 
         _sinceGranular = 0;
-        StepGranular();
+        _repo.RunInTransaction(StepGranular); // #1505: one commit per step, not per settled cell
     }
 
     /// <summary>One settle step over the woken cells (the fluid cadence, its own budget).</summary>
