@@ -32,8 +32,10 @@ public static class ContentLoader
     /// <paramref name="userContentDir"/> is given and exists, hand-designed structure templates dropped
     /// there by the in-game editor (<c>station_templates/*.json</c>, <c>settlement_templates/*.json</c>,
     /// one <see cref="StructureTemplate"/> per file) are merged into the pools — so a structure built
-    /// in-game appears in the next new world without a Python merge or rebuild.</summary>
-    public static GameContent LoadFromDirectory(string dataDir, string? userContentDir = null, Action<string>? warn = null)
+    /// in-game appears in the next new world without a Python merge or rebuild.
+    /// <para>#1522: only the English locale table and <paramref name="eagerLocale"/> are parsed here; every
+    /// other locale parses on its first <see cref="GameContent.CreateLocalizer"/>.</para></summary>
+    public static GameContent LoadFromDirectory(string dataDir, string? userContentDir = null, Action<string>? warn = null, GameLocale? eagerLocale = null)
     {
         if (!Directory.Exists(dataDir))
         {
@@ -50,7 +52,9 @@ public static class ContentLoader
         var planets = LoadArray<PlanetType>(Path.Combine(dataDir, "planets.json"));
         var missions = LoadArray<BlocksBeyondTheStars.Shared.Missions.MissionDefinition>(Path.Combine(dataDir, "missions.json"));
 
-        var locales = new Dictionary<GameLocale, Dictionary<string, string>>();
+        // #1522: the locale files are only COLLECTED here — base table first, then every story pack's table
+        // in merge order. English and the requested locale parse now; the rest parse on first use.
+        var localeFiles = new Dictionary<GameLocale, List<string>>();
         var localeDir = Path.Combine(dataDir, "locales");
         if (Directory.Exists(localeDir))
         {
@@ -59,16 +63,32 @@ public static class ContentLoader
                 var file = Path.Combine(localeDir, locale.Code() + ".json");
                 if (File.Exists(file))
                 {
-                    locales[locale] = LoadObject(file);
+                    localeFiles[locale] = new List<string> { file };
                 }
             }
         }
 
         // Pluggable story packs: data/stories/<id>/story.json + each pack's optional locale files (merged
-        // into the shared locale tables BEFORE the content is built so the beat text localizes normally).
-        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), locales);
+        // into the shared locale tables so the beat text localizes normally).
+        var stories = LoadStoryPacks(Path.Combine(dataDir, "stories"), localeFiles);
 
-        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions, ships, shipLayouts);
+        var locales = new Dictionary<GameLocale, Dictionary<string, string>>();
+        var lazyLocales = new Dictionary<GameLocale, Func<Dictionary<string, string>>>();
+        foreach (var kv in localeFiles)
+        {
+            var files = kv.Value;
+            if (kv.Key == GameLocale.English || kv.Key == eagerLocale)
+            {
+                locales[kv.Key] = MergeLocaleFiles(files);
+            }
+            else
+            {
+                lazyLocales[kv.Key] = () => MergeLocaleFiles(files);
+            }
+        }
+
+        var content = new GameContent(blocks, items, recipes, blueprints, modules, locales, planets, missions, ships, shipLayouts,
+            lazyLocales, LoadLocaleCoverage(Path.Combine(dataDir, "locale_coverage.json")));
 
         // Optional hand-designed structure template pools (empty when the files are absent).
         var stationTemplates = LoadArray<StructureTemplate>(Path.Combine(dataDir, "station_templates.json"));
@@ -178,6 +198,50 @@ public static class ContentLoader
     private static Dictionary<string, string> LoadObject(string path)
         => ParseLocaleTable(File.ReadAllText(path));
 
+    /// <summary>Parses one locale's files in order (base table, then each story pack's table) into one
+    /// merged map — later files win on duplicate keys, exactly as the eager loader merged them.</summary>
+    private static Dictionary<string, string> MergeLocaleFiles(List<string> files)
+    {
+        var map = LoadObject(files[0]);
+        for (int i = 1; i < files.Count; i++)
+        {
+            foreach (var kv in LoadObject(files[i]))
+            {
+                map[kv.Key] = kv.Value;
+            }
+        }
+
+        return map;
+    }
+
+    /// <summary>Reads the build-time locale coverage manifest (<c>data/locale_coverage.json</c>, written by
+    /// <c>scripts/locale-coverage.py</c>): locale code → fraction of the English key set it covers. An
+    /// absent file yields an empty map and the language picker measures the tables instead (#1522).</summary>
+    private static Dictionary<GameLocale, double> LoadLocaleCoverage(string path)
+    {
+        var result = new Dictionary<GameLocale, double>();
+        if (!File.Exists(path))
+        {
+            return result;
+        }
+
+        var raw = JsonSerializer.Deserialize<Dictionary<string, double>>(File.ReadAllText(path), JsonOptions);
+        if (raw == null)
+        {
+            return result;
+        }
+
+        foreach (var kv in raw)
+        {
+            if (GameLocaleExtensions.TryParse(kv.Key, out var locale))
+            {
+                result[locale] = kv.Value;
+            }
+        }
+
+        return result;
+    }
+
     /// <summary>Parses one locale table (a flat key→text JSON object) from an in-memory string. Public
     /// because the browser client fetches <c>locales/*.json</c> over HTTP before its content cache is
     /// complete — the shell screens must localize without waiting for the full load — and has to use the
@@ -189,7 +253,7 @@ public static class ContentLoader
     /// <summary>Loads pluggable story packs from <c>data/stories/&lt;id&gt;/story.json</c> and merges each
     /// pack's optional <c>locales/&lt;code&gt;.json</c> into the shared locale tables. An absent directory
     /// yields no packs (the content then falls back to the built-in default pack).</summary>
-    private static List<StoryDefinition> LoadStoryPacks(string storiesDir, Dictionary<GameLocale, Dictionary<string, string>> locales)
+    private static List<StoryDefinition> LoadStoryPacks(string storiesDir, Dictionary<GameLocale, List<string>> localeFiles)
     {
         var result = new List<StoryDefinition>();
         if (!Directory.Exists(storiesDir))
@@ -236,15 +300,12 @@ public static class ContentLoader
                     continue;
                 }
 
-                if (!locales.TryGetValue(locale, out var map))
+                if (!localeFiles.TryGetValue(locale, out var files))
                 {
-                    locales[locale] = map = new Dictionary<string, string>();
+                    localeFiles[locale] = files = new List<string>();
                 }
 
-                foreach (var kv in LoadObject(file))
-                {
-                    map[kv.Key] = kv.Value;
-                }
+                files.Add(file); // merged after the base table by MergeLocaleFiles, on first use
             }
         }
 

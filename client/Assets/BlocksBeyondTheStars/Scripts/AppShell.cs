@@ -33,6 +33,10 @@ namespace BlocksBeyondTheStars.Client
         public ShellPhase Phase { get; private set; } = ShellPhase.Studio; // studio splash → title splash → menu
         public ClientSettings Settings { get; private set; }
         public GameContent Content { get; private set; }
+
+        /// <summary>The data directory <see cref="Content"/> was parsed from — GameBootstrap reuses the
+        /// snapshot for a world entry from the same directory instead of parsing it again (#1522).</summary>
+        public string ContentDataDir { get; private set; }
         public Localizer Localizer { get; private set; }
 
         /// <summary>The live in-game world (its <see cref="GameBootstrap"/>), or null in the shell screens.
@@ -587,30 +591,40 @@ namespace BlocksBeyondTheStars.Client
             }
 
             string dataDir = StreamingAssetsCache.DataDir;
-            GameContent loaded;
-            try
+            var locale = GameLocaleExtensions.Parse(Settings.Language);
+            // #1522: the same data directory is already parsed → keep the snapshot; only the language may
+            // have changed (Settings → CloseSettings, the language button), and the new locale's table
+            // parses on first use inside CreateLocalizer. Nothing else is re-read.
+            bool reuse = Content != null && string.Equals(ContentDataDir, dataDir, System.StringComparison.Ordinal);
+            if (!reuse)
             {
-                loaded = ContentLoader.LoadFromDirectory(dataDir);
-            }
-            catch (System.Exception e)
-            {
-                // One malformed data file (corrupted install, interrupted patch, AV lock) must not escape
-                // Awake and brick the shell with per-frame NREs (#422 M8). With content already loaded
-                // (e.g. a re-load via Settings→CloseSettings) keep the working in-memory snapshot; on a
-                // cold start the error+retry overlay takes over.
-                Debug.LogError($"Content load from '{dataDir}' failed: {e}");
-                if (!ContentReady)
+                GameContent loaded;
+                try
                 {
-                    ContentLoadError = e.Message;
+                    // Only English + the active locale parse now; the other tables parse on demand (#1522).
+                    loaded = ContentLoader.LoadFromDirectory(dataDir, eagerLocale: locale);
+                }
+                catch (System.Exception e)
+                {
+                    // One malformed data file (corrupted install, interrupted patch, AV lock) must not escape
+                    // Awake and brick the shell with per-frame NREs (#422 M8). With content already loaded
+                    // (e.g. a re-load via Settings→CloseSettings) keep the working in-memory snapshot; on a
+                    // cold start the error+retry overlay takes over.
+                    Debug.LogError($"Content load from '{dataDir}' failed: {e}");
+                    if (!ContentReady)
+                    {
+                        ContentLoadError = e.Message;
+                    }
+
+                    return;
                 }
 
-                return;
+                Content = loaded;
+                ContentDataDir = dataDir;
+                ContentLoadError = "";
+                Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
             }
 
-            Content = loaded;
-            ContentLoadError = "";
-            Debug.Log($"Content loaded from '{dataDir}' ({Content.Blocks.Count} blocks, {Content.Items.Count} items, {Content.Recipes.Count} recipes, {Content.Planets.Count} planet types).");
-            var locale = GameLocaleExtensions.Parse(Settings.Language);
             Localizer = Content.CreateLocalizer(locale);
             UiKit.Localize = L;
             ContentReady = true;

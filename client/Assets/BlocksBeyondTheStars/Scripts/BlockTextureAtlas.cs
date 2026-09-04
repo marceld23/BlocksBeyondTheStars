@@ -49,6 +49,44 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
+        // #1523: one atlas per process and content snapshot. Five owners (GameBootstrap, MenuBackground,
+        // IntroCinematic, ShipEditor, StructureEditor) used to build + destroy their own 2 × 4 MiB atlas on
+        // every menu↔world↔editor transition — ~100 ms of main-thread painting and Sobel each time. Now the
+        // first owner builds it, the others share it, and the current one stays warm for the next owner.
+        private static BlockTextureAtlas _shared;
+        private static GameContent _sharedContent;
+        private int _refs;
+
+        /// <summary>The process-wide atlas for this content snapshot (built on first request), with one
+        /// reference for the caller — pair with <see cref="Release"/>. A different content snapshot (a
+        /// content re-load) gets a fresh atlas; the old one lives until its last owner releases it.</summary>
+        public static BlockTextureAtlas Acquire(GameContent content)
+        {
+            if (_shared == null || _sharedContent != content || _shared.Texture == null)
+            {
+                _shared = new BlockTextureAtlas(content);
+                _sharedContent = content;
+            }
+
+            _shared._refs++;
+            return _shared;
+        }
+
+        /// <summary>Drops one owner's reference. The current shared atlas stays cached for the next owner;
+        /// a superseded one is destroyed with its last reference.</summary>
+        public void Release()
+        {
+            if (_refs > 0)
+            {
+                _refs--;
+            }
+
+            if (_refs == 0 && !ReferenceEquals(this, _shared))
+            {
+                Destroy();
+            }
+        }
+
         public BlockTextureAtlas(GameContent content)
         {
             Texture = new Texture2D(Cols * Tile, Rows * Tile, TextureFormat.RGBA32, mipChain: true)
@@ -426,7 +464,9 @@ namespace BlocksBeyondTheStars.Client
             }
 
             NormalTexture.SetPixels32(dst);
-            NormalTexture.Apply(updateMipmaps: true);
+            // #1523: nothing reads the normal atlas back → drop its CPU copy (-5 MiB). The colour atlas stays
+            // readable on purpose: AverageColor, the editor palette and the shape icons sample its tiles.
+            NormalTexture.Apply(updateMipmaps: true, makeNoLongerReadable: true);
         }
 
         private readonly System.Collections.Generic.Dictionary<ushort, Color> _avgColor = new();

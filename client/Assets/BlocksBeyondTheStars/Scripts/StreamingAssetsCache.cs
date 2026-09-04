@@ -36,6 +36,7 @@ namespace BlocksBeyondTheStars.Client
             "blocks.json",
             "blueprints.json",
             "items.json",
+            "locale_coverage.json",
             "locales/de.json",
             "locales/en.json",
             "locales/es.json",

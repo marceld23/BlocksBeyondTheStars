@@ -134,6 +134,11 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
     private string? _metadataJson;
 
+    // #1525: every mutator flips _dirty; ExportSnapshotBlob hands back the previous blob while nothing
+    // changed (the browser host asks every 120 s and on every tab hide — most of those find a clean world).
+    private bool _dirty = true;
+    private byte[]? _lastBlob;
+
     public MemoryWorldRepository(SaveGamePaths paths) => _paths = paths;
 
     /// <summary>Raised by <see cref="Flush"/> — the moment the server would have committed durably.
@@ -146,20 +151,31 @@ public sealed class MemoryWorldRepository : IWorldRepository
 
     // ---------------- Snapshot blob (the save payload) ----------------
 
-    /// <summary>Serializes the whole world state to a gzip'd JSON blob (the cloud/IndexedDB payload).</summary>
+    /// <summary>Serializes the whole world state to a gzip'd JSON blob (the cloud/IndexedDB payload).
+    /// Unchanged since the last export (or import) → the previous blob comes back as-is, no rebuild (#1525);
+    /// callers must treat the array as read-only.</summary>
     public byte[] ExportSnapshotBlob()
     {
         lock (_gate)
         {
+            if (!_dirty && _lastBlob != null)
+            {
+                return _lastBlob;
+            }
+
             var snapshot = BuildSnapshotLocked();
             using var buffer = new MemoryStream();
-            using (var gzip = new GZipStream(buffer, CompressionLevel.Optimal, leaveOpen: true))
+            // Fastest: same gzip format (ImportSnapshotBlob and the peek reader are unchanged), a fraction of the
+            // CPU of Optimal — this runs on the browser's render thread every two minutes (#1525).
+            using (var gzip = new GZipStream(buffer, CompressionLevel.Fastest, leaveOpen: true))
             {
                 using var writer = new Utf8JsonWriter(gzip);
                 JsonSerializer.Serialize(writer, snapshot, JsonOptions);
             }
 
-            return buffer.ToArray();
+            _lastBlob = buffer.ToArray();
+            _dirty = false;
+            return _lastBlob;
         }
     }
 
@@ -169,14 +185,15 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         using var input = new MemoryStream(blob);
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
-        using var plain = new MemoryStream();
-        gzip.CopyTo(plain);
-        var snapshot = JsonSerializer.Deserialize<MemoryWorldSnapshot>(plain.ToArray(), JsonOptions)
+        // Straight from the gzip stream — no inflated copy + ToArray() of the multi-MB JSON in between (#1525).
+        var snapshot = JsonSerializer.Deserialize<MemoryWorldSnapshot>(gzip, JsonOptions)
             ?? throw new InvalidDataException("The save blob does not contain a world snapshot.");
 
         lock (_gate)
         {
             RestoreSnapshotLocked(snapshot);
+            _lastBlob = blob; // the state IS this blob — the first export after a load is free
+            _dirty = false;
         }
     }
 
@@ -409,6 +426,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             if (_palette.Count == 0)
             {
                 WritePaletteLocked(currentPalette);
@@ -497,6 +515,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _metadataJson = JsonSerializer.Serialize(metadata, JsonOptions);
         }
     }
@@ -507,6 +526,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             SetBlockLocked(planet, worldPosition, block, tint, glow, shape, owner);
         }
     }
@@ -611,6 +631,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             var doomed = _blockEdits.Keys
                 .Where(k => k.Planet == planet
                     && k.X >= min.X && k.X <= max.X
@@ -640,6 +661,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _flora[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (block, timer);
         }
     }
@@ -659,6 +681,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _flora.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
@@ -669,6 +692,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _deposits[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (block, timer);
         }
     }
@@ -688,6 +712,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _deposits.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
@@ -698,6 +723,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _fluidCells[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (level, falling);
         }
     }
@@ -717,6 +743,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _fluidCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
@@ -727,6 +754,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _fireCells[(planet, worldPosition.X, worldPosition.Y, worldPosition.Z)] = (remaining, generation);
         }
     }
@@ -746,6 +774,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _fireCells.Remove((planet, worldPosition.X, worldPosition.Y, worldPosition.Z));
         }
     }
@@ -769,6 +798,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _players[player.PlayerId] = JsonSerializer.Serialize(StateMapper.ToSnapshot(player), JsonOptions);
         }
     }
@@ -795,6 +825,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _ships[shipId] = JsonSerializer.Serialize(StateMapper.ToSnapshot(ship), JsonOptions);
         }
     }
@@ -805,6 +836,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _containers[container.Id] = JsonSerializer.Serialize(container, JsonOptions);
         }
     }
@@ -824,6 +856,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _containers.Remove(id);
         }
     }
@@ -866,6 +899,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _doors[(door.Planet, door.X, door.Y, door.Z)] = CloneDoor(door);
         }
     }
@@ -882,6 +916,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _doors.Remove((planet, x, y, z));
         }
     }
@@ -890,6 +925,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _beacons[(beacon.Planet, beacon.X, beacon.Y, beacon.Z)] = CloneBeacon(beacon);
         }
     }
@@ -914,6 +950,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _beacons.Remove((planet, x, y, z));
         }
     }
@@ -922,6 +959,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _paintDesigns[design.Id] = ClonePaintDesign(design);
         }
     }
@@ -938,6 +976,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _paintDesigns.Remove(id);
         }
     }
@@ -946,6 +985,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _customShapes[shape.Id] = CloneCustomShape(shape);
         }
     }
@@ -962,6 +1002,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _customShapes.Remove(id);
         }
     }
@@ -970,6 +1011,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _paintReports.Add(ClonePaintReport(report));
         }
     }
@@ -986,6 +1028,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _beams[(beam.Planet, beam.X, beam.Y, beam.Z)] = CloneBeam(beam);
         }
     }
@@ -1010,6 +1053,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _beams.Remove((planet, x, y, z));
         }
     }
@@ -1018,6 +1062,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _bases[(basePoint.Planet, basePoint.X, basePoint.Y, basePoint.Z)] = CloneBase(basePoint);
         }
     }
@@ -1034,6 +1079,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _bases.Remove((planet, x, y, z));
         }
     }
@@ -1044,6 +1090,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _alliances[(alliance.PlayerA, alliance.PlayerB)] = new StoredAlliance
             {
                 PlayerA = alliance.PlayerA,
@@ -1067,6 +1114,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             // Order-independent, mirroring the SQLite DELETE (the store key is already normalized).
             _alliances.Remove((playerA, playerB));
             _alliances.Remove((playerB, playerA));
@@ -1085,6 +1133,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _crews[crew.CrewId] = CloneCrew(crew);
         }
     }
@@ -1093,6 +1142,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _crews.Remove(crewId);
             foreach (var key in _crewMembers.Keys.Where(k => k.Crew == crewId).ToList())
             {
@@ -1113,6 +1163,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _crewMembers[(member.CrewId, member.PlayerId)] = CloneCrewMember(member);
         }
     }
@@ -1121,6 +1172,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _crewMembers.Remove((crewId, playerId));
         }
     }
@@ -1137,6 +1189,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _storyStates[state.StoryId] = JsonSerializer.Serialize(state, JsonOptions);
         }
     }
@@ -1153,6 +1206,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _spaceStructures[structure.Id] = JsonSerializer.Serialize(structure, JsonOptions);
         }
     }
@@ -1169,6 +1223,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _spaceStructures.Remove(id);
         }
     }
@@ -1177,6 +1232,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _structureEdits[(structureId, position.X, position.Y, position.Z)] = block;
         }
     }
@@ -1196,6 +1252,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             foreach (var key in _structureEdits.Keys.Where(k => k.StructureId == structureId).ToList())
             {
                 _structureEdits.Remove(key);
@@ -1207,6 +1264,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _locationStatuses[locationId] = status;
         }
     }
@@ -1223,6 +1281,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _missions[mission.Id] = JsonSerializer.Serialize(mission, JsonOptions);
         }
     }
@@ -1239,6 +1298,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _missions.Remove(id);
         }
     }
@@ -1273,6 +1333,7 @@ public sealed class MemoryWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
+            _dirty = true;
             _players[playerId] = json;
         }
     }

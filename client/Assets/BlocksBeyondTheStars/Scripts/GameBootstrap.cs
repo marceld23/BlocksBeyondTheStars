@@ -1630,7 +1630,13 @@ namespace BlocksBeyondTheStars.Client
             string dataDir = StreamingAssetsCache.DataDir;
             try
             {
-                Content = ContentLoader.LoadFromDirectory(dataDir);
+                // #1522: the shell parsed this exact data directory at startup — reuse that snapshot (one
+                // GameContent per process) instead of parsing ~4 MB of JSON again on every world entry.
+                var shellContent = FindAnyObjectByType<AppShell>();
+                Content = shellContent != null && shellContent.Content != null
+                          && string.Equals(shellContent.ContentDataDir, dataDir, System.StringComparison.Ordinal)
+                    ? shellContent.Content
+                    : ContentLoader.LoadFromDirectory(dataDir, eagerLocale: Locale);
             }
             catch (System.Exception e)
             {
@@ -1654,7 +1660,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Procedurally generate the block texture atlas and a material that samples it
             // (M27). Falls back to whatever WorldRig assigned if the shader is missing.
-            Atlas = new BlockTextureAtlas(Content);
+            Atlas = BlockTextureAtlas.Acquire(Content); // #1523: one atlas per process, shared with menu/intro/editors
 
             // #1521: compile the world shaders' variants now, behind the opaque loading veil, instead of one
             // hitch each when the weather/sun/preset first switches a keyword mid-game. Once per process.
@@ -1684,7 +1690,7 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                Atlas.Destroy(); // free the just-built textures — nothing will ever sample them
+                Atlas.Release(); // drop this owner's reference — nothing here will ever sample it
                 Atlas = null; // no atlas shader → fall back to the flat palette + vertex-colour material
             }
 
@@ -3299,7 +3305,7 @@ namespace BlocksBeyondTheStars.Client
                 Destroy(ChunkMaterialPaint);
             }
 
-            Atlas?.Destroy();
+            Atlas?.Release(); // shared per process (#1523) — the last owner decides, not this world
             PaintAtlas?.Destroy();
             CustomShapes?.Clear(); // the next world registers its own forms under the same indices (#423)
         }
