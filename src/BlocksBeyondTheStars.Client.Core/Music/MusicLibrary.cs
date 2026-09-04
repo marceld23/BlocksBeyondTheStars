@@ -183,6 +183,21 @@ namespace BlocksBeyondTheStars.Client.Music
         /// <summary>Maps the server's planet/biome key (data/planets.json) to a surface context key.</summary>
         public static string ContextForBiome(string? biome)
         {
+            // #1554: called per frame from ClientMusic.Update — remember the last biome → context pair.
+            if (_contextResult != null && string.Equals(biome, _contextBiome, StringComparison.Ordinal))
+            {
+                return _contextResult;
+            }
+
+            _contextBiome = biome;
+            _contextResult = ContextForBiomeUncached(biome);
+            return _contextResult;
+        }
+
+        private static string? _contextBiome, _contextResult;
+
+        private static string ContextForBiomeUncached(string? biome)
+        {
             string key = (biome ?? string.Empty).ToLowerInvariant();
             switch (key)
             {

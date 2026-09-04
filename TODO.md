@@ -243,6 +243,31 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client garbage, part 1: hash-based ground scatter, pooled voice bakes, and the per-frame tail (#1551 #1554 #1556, 2026-09-04, branch perf/1551-1554-1556-small-allocs)
+
+**Why.** PR bundle 13 of the performance package (#1501), the first three follow-ups of the #1537 attribution: the
+mechanical ones. Nothing here changes what the player sees or hears; every site was measured in the walk capture
+before and after (Development player, High / VD 8, the persisted PerfProbe save).
+
+**What ships.** `GroundScatter.Setup` derives yaw / scale / jitter from an xorshift mix of the cell hash instead of a
+`System.Random` per scatter point (a `Random` is ~250 B of seed table), and builds into two shared scratch lists
+(#1551: 440 → 46 KB/s, 2000 → 52 allocs/s). `SampleKit` keeps the decoded mono source per clip (the same handful of
+sample files feeds every species) and rents every intermediate bake buffer from `ArrayPool<float>` for the duration
+of one `Variant()` call — the ops work on `Span<float>`, the reverb's four comb lines share one pooled buffer, and the
+clip is filled through the `ReadOnlySpan` overload of `SetData` (#1556: ~250 KB of Large-Object-Heap garbage per bake
+→ pool warm-up only; `SampleKit.ReadMono` 244 → 26 KB/s once, `Comb` gone). The per-frame tail (#1554): `RingBand`
+derives the ring-plane rotation once per ring seed (was two `System.Random` per frame); `VoiceChat` polls
+`Microphone.devices` every 2 s and parses the push-to-talk key per setting value; `RemotePlayers.FirstPlayerWithin`
+replaces the per-frame `PlayersWithin` list in `PlayerInteractions`; `UrpScenePost.MoodKey`, `MicroFauna.Richness` /
+`SurfaceKinds` and `MusicLibrary.ContextForBiome` remember the last biome → key instead of lower-casing per call;
+`MicroFaunaView` keeps its `RemoveAll` predicate; `GamepadInputSource.Connected` re-polls the joystick names once a
+second; `HudUi` formats the vitals, hotbar numbers / counts, the time-of-day read-out and the playtime only when
+their inputs changed; `VegaPanel`'s typewriter substrings once per revealed character.
+
+**Measured (walk, same capture recipe).** 7.0 → 4.4 MB/s and 20 400 → 13 400 allocs/s; PerfProbe walk collections
+19 → 11 per 10 s. The remaining sources are the next bundles: the chunk-build dispatch (#1550), the IMGUI overlays
+(#1553), the receive path (#1555), the outlined HUD texts (#1552 — absent from this capture, so it is situational).
+
 ### ★ Client allocations attributed: a Development-build switch, `PerfProbe -perfProfile`, a headless profiler-capture report; seven follow-up issues ranked (#1537, 2026-09-04, branch perf/1537-gc-investigation)
 
 **Why.** The last item of the performance package (#1501): the client collected 4–7 times per second at

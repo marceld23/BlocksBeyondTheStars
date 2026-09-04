@@ -59,6 +59,23 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, string[]> _bodyPaints = new Dictionary<string, string[]>();
         private bool _subscribed;
 
+        /// <summary>The first other player within <paramref name="range"/> of <paramref name="from"/>, or null —
+        /// the same pick as <see cref="PlayersWithin"/>'s first entry, without building a list (#1554: this runs
+        /// from PlayerInteractions' Update and LateUpdate every frame).</summary>
+        public string FirstPlayerWithin(Vector3 from, float range)
+        {
+            float sq = range * range;
+            foreach (var r in _remotes.Values)
+            {
+                if (!r.TimedOut && (r.Go.transform.position - from).sqrMagnitude <= sq)
+                {
+                    return r.Name;
+                }
+            }
+
+            return null;
+        }
+
         /// <summary>Names of other players within <paramref name="range"/> of <paramref name="from"/> (for dock/trade targeting).</summary>
         public List<string> PlayersWithin(Vector3 from, float range)
         {

@@ -383,7 +383,21 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Maps a biome string to a mood key (mirrors Sky.GradeFor's grouping). Null/empty → "" (LUT off);
         /// any other unmatched biome → the gentle "default" film look.</summary>
+        private static string _moodBiome, _moodKeyCached; // #1554: called per frame from Sky.SetGrade
+
         private static string MoodKey(string biome)
+        {
+            if (_moodKeyCached != null && string.Equals(biome, _moodBiome, System.StringComparison.Ordinal))
+            {
+                return _moodKeyCached;
+            }
+
+            _moodBiome = biome;
+            _moodKeyCached = MoodKeyUncached(biome);
+            return _moodKeyCached;
+        }
+
+        private static string MoodKeyUncached(string biome)
         {
             switch ((biome ?? string.Empty).ToLowerInvariant())
             {

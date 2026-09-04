@@ -22,6 +22,7 @@ namespace BlocksBeyondTheStars.Client
         private Material _mat;
         private string _builtFor = "\0";
         private int _ringSeed;
+        private Quaternion _ringRot; // #1554: seeded tilt/azimuth, derived once per ring (was two System.Random per frame)
         private Color _tint;
         private float _fade = -1f; // smoothed day/night strength; <0 = snap to the target on first sight
                                    // (playtest: the ramp-in from 0 left the band invisible for minutes)
@@ -81,8 +82,7 @@ namespace BlocksBeyondTheStars.Client
             // halo; steep arcs read as "the ring stands in the sky"), seeded azimuth. Offsetting the plane
             // from the eye along its normal is what gives the arc its visible width (~10-12°).
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.35f;
-            var rot = Quaternion.AngleAxis(PlanetRings.AzimuthDegrees(_ringSeed), Vector3.up)
-                      * Quaternion.AngleAxis(90f - Mathf.Abs(PlanetRings.TiltDegrees(_ringSeed)), Vector3.right);
+            var rot = _ringRot;
             Vector3 normal = rot * Vector3.up;
             _band.SetPositionAndRotation(Camera.transform.position + normal * (r * 0.3f), rot);
             _band.localScale = new Vector3(r, r, r);
@@ -141,6 +141,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 _mat.mainTexture = PlanetRings.BandTexture(_ringSeed);
                 _tint = PlanetRings.TintFor(_ringSeed, Color.white);
+                _ringRot = Quaternion.AngleAxis(PlanetRings.AzimuthDegrees(_ringSeed), Vector3.up)
+                           * Quaternion.AngleAxis(90f - Mathf.Abs(PlanetRings.TiltDegrees(_ringSeed)), Vector3.right);
             }
         }
     }
