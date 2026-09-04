@@ -128,6 +128,10 @@ internal sealed class LoadedWorld
     /// co-located players and a re-stream after a sweep reuse the bytes instead of re-encoding.</summary>
     public Dictionary<ChunkCoord, (long Version, bool Json, byte[] Payload)> ChunkPayloads { get; } = new();
 
+    /// <summary>#1531: the same per-version cache for the decoded chunk MESSAGE, handed over as an object on the
+    /// in-process loopback (no encoding at all). Read-only once cached — the client never writes into it.</summary>
+    public Dictionary<ChunkCoord, (long Version, BlocksBeyondTheStars.Networking.Messages.ChunkDataMessage Message)> ChunkMessages { get; } = new();
+
     /// <summary>#1530: the per-world fauna jitter of <c>WorldCreatureCap</c> (a pure function of seed + location,
     /// documented "stable per world") — hashed once instead of an interpolated string 15× per second.</summary>
     public double? FaunaJitter { get; set; }

@@ -10,6 +10,14 @@ namespace BlocksBeyondTheStars.Networking.Transport;
 /// <see cref="LoopbackClientTransport"/>. Enables singleplayer (the client hosts the
 /// server in-process) and deterministic tests using the exact same server logic as
 /// multiplayer — no sockets involved.
+/// <para>#1531: server→client traffic passes the message OBJECTS themselves (<see cref="PassObjects"/>)
+/// instead of encoding and decoding them — sender and receiver share the process, and the
+/// JSON round trip the browser singleplayer had to use (IL2CPP cannot run MessagePack's runtime formatters)
+/// cost three payload-sized allocations per message on the render thread. Client→server stays encoded:
+/// intents are tiny, and the server must never keep a reference into a client-owned object (it stores
+/// design arrays, pixel payloads and the like — the round trip is its deep copy). Every message a server
+/// hands over is built fresh for that send or cached read-only (the chunk message cache), and the client
+/// treats received messages as read-only — that contract is what makes the object path safe.</para>
 /// </summary>
 public sealed class LoopbackLink
 {
@@ -17,7 +25,16 @@ public sealed class LoopbackLink
 
     private readonly object _gate = new();
     private readonly Queue<byte[]> _clientToServer = new();
-    private readonly Queue<byte[]> _serverToClient = new();
+    private readonly Queue<object> _serverToClient = new();
+
+    /// <summary>Hand server→client messages over as objects. Off by default so every test that reads the wire
+    /// as bytes keeps working; the browser singleplayer host and the client harness switch it on.</summary>
+    public bool PassObjects { get; set; }
+
+    /// <summary>Diagnostics / tests: how many server→client messages went over as objects, and as bytes.</summary>
+    public long ObjectsToClient { get; private set; }
+
+    public long BytesToClient { get; private set; }
 
     internal bool ConnectRequested;
     internal bool ConnectAcknowledgedByServer;
@@ -33,7 +50,26 @@ public sealed class LoopbackLink
 
     internal void EnqueueToClient(byte[] payload)
     {
-        lock (_gate) { _serverToClient.Enqueue(payload); }
+        lock (_gate)
+        {
+            _serverToClient.Enqueue(payload);
+            BytesToClient++;
+        }
+    }
+
+    internal void EnqueueMessageToClient(object message)
+    {
+        if (!PassObjects)
+        {
+            EnqueueToClient(NetCodec.Encode(message));
+            return;
+        }
+
+        lock (_gate)
+        {
+            _serverToClient.Enqueue(message);
+            ObjectsToClient++;
+        }
     }
 
     internal List<byte[]> DrainToServer()
@@ -46,18 +82,18 @@ public sealed class LoopbackLink
         }
     }
 
-    internal List<byte[]> DrainToClient()
+    internal List<object> DrainToClient()
     {
         lock (_gate)
         {
-            var list = new List<byte[]>(_serverToClient);
+            var list = new List<object>(_serverToClient);
             _serverToClient.Clear();
             return list;
         }
     }
 }
 
-public sealed class LoopbackServerTransport : IServerTransport
+public sealed class LoopbackServerTransport : IServerTransport, IObjectServerTransport
 {
     private readonly LoopbackLink _link;
 
@@ -72,6 +108,11 @@ public sealed class LoopbackServerTransport : IServerTransport
     public void Send(int connectionId, byte[] payload, DeliveryMode mode) => _link.EnqueueToClient(payload);
 
     public void Broadcast(byte[] payload, DeliveryMode mode) => _link.EnqueueToClient(payload);
+
+    /// <summary>#1531: the object path — no encoding at all when the link passes objects.</summary>
+    public void SendMessage(int connectionId, object message, DeliveryMode mode) => _link.EnqueueMessageToClient(message);
+
+    public void BroadcastMessage(object message, DeliveryMode mode) => _link.EnqueueMessageToClient(message);
 
     /// <summary>Server-side hang-up (kick). The loopback has exactly one client, so the id only has to
     /// match it; the disconnect surfaces on the next <see cref="Poll"/> like a client-side one.</summary>
@@ -108,13 +149,14 @@ public sealed class LoopbackServerTransport : IServerTransport
     public void Dispose() { }
 }
 
-public sealed class LoopbackClientTransport : IClientTransport
+public sealed class LoopbackClientTransport : IClientTransport, IObjectClientTransport
 {
     private readonly LoopbackLink _link;
 
     public event Action? Connected;
     public event Action? Disconnected;
     public event Action<byte[]>? PayloadReceived;
+    public event Action<object>? MessageReceived;
 
     public LoopbackClientTransport(LoopbackLink link) => _link = link;
 
@@ -130,9 +172,17 @@ public sealed class LoopbackClientTransport : IClientTransport
             Connected?.Invoke();
         }
 
-        foreach (var payload in _link.DrainToClient())
+        // One queue for both kinds keeps the server's send order — a byte payload never overtakes an object.
+        foreach (var item in _link.DrainToClient())
         {
-            PayloadReceived?.Invoke(payload);
+            if (item is byte[] payload)
+            {
+                PayloadReceived?.Invoke(payload);
+            }
+            else
+            {
+                MessageReceived?.Invoke(item);
+            }
         }
 
         // The server can hang up too (a kick, #497) — the client has to notice, or it sits in a world

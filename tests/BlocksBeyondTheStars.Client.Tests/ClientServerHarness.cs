@@ -45,7 +45,11 @@ public sealed class ClientServerHarness : IDisposable
     /// <summary>Builds the full in-process stack. <paramref name="repository"/> lets a test swap the
     /// persistence backend (e.g. the browser singleplayer's <see cref="MemoryWorldRepository"/>); the
     /// caller keeps ownership of an injected repository — the default SQLite one is disposed here.</summary>
-    public ClientServerHarness(GameContent content, Action<ServerConfig>? configure = null, IWorldRepository? repository = null)
+    /// <summary>The in-memory wire (#1531: <c>PassObjects</c> decides whether server→client messages go over as
+    /// objects — the default, what the browser singleplayer runs — or encoded like on a socket).</summary>
+    public LoopbackLink Link => _link;
+
+    public ClientServerHarness(GameContent content, Action<ServerConfig>? configure = null, IWorldRepository? repository = null, bool passObjects = true)
     {
         _root = Path.Combine(Path.GetTempPath(), "bbts_client_" + Guid.NewGuid().ToString("N"));
 
@@ -63,7 +67,7 @@ public sealed class ClientServerHarness : IDisposable
 
         _ownsRepo = repository is null;
         _repo = repository ?? new SqliteWorldRepository(new SaveGamePaths(_root, config.WorldName));
-        _link = new LoopbackLink();
+        _link = new LoopbackLink { PassObjects = passObjects };
         Server = new SvGameServer(config, content, new LoopbackServerTransport(_link), _repo);
         Server.Start();
 

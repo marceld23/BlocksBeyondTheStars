@@ -283,6 +283,39 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Browser transports without copies: the in-process loopback passes message objects, the WebSocket bridge moves bytes through the WASM heap (#1531, 2026-09-04, branch perf/1531-object-loopback) — ⚠ WebGL-only paths, verified headless only; a WebGL build + browser session is the real test
+
+**Why.** PR bundle 19 of the performance package (#1501), the two remaining parts of #1531 (the encode-once
+part shipped in PR 9). The browser singleplayer runs the real server in-process, yet every server→client
+message was JSON-serialised, parsed and deserialised on the render thread — three payload-sized allocations
+per message, sixteen chunks per tick during streaming — on the device class where the heap is the crash
+budget (the tablet OOM path). And the browser WebSocket client moved every frame through four base64 copies
+(btoa, string marshal, FromBase64String, atob).
+
+**What ships.** `IObjectServerTransport` / `IObjectClientTransport`: a transport may carry decoded message
+objects; `LoopbackLink.PassObjects` (opt-in — the tests that read the wire as bytes keep working; the browser
+host and the client harness switch it on) queues server→client messages as objects in the same queue as
+bytes, so the send order holds across both kinds. The server prefers the object path on every send site
+(`Send`, `SendTo`, `Broadcast`, `BroadcastToWorld`, the radio audience, the presence beat, the chunk stream —
+which hands over a cached `ChunkDataMessage` per chunk version, `WorldManager.ChunkMessages`, instead of the
+encoded payload). `NetworkClient`'s inbox holds bytes or objects; the receive budget, the pre-join hold and
+the world-id ordering (#1534) treat both alike. Client→server stays encoded on purpose: intents are tiny, and
+the server must never hold a reference into a client-owned object (it stores design arrays and pixel payloads
+— the round trip is its deep copy). The contract that makes the object path safe: the server builds every
+message fresh for the send or caches it read-only, and the client treats received messages as read-only
+(the chunk blocks are copied into the pooled array since #1555). In the browser WebSocket client
+(`BrowserWebSocketClientTransport` + `BbsWebSocket.jslib`) outbound frames go as pointer + length straight
+out of `HEAPU8` (`WebSocket.send` copies synchronously), inbound frames are parked per socket as views and
+`Poll` pulls each one into an exact-size managed array — one copy, the one the array needs anyway; only
+open / close / error still travel as SendMessage strings.
+
+**Verification.** `LoopbackObjectPassingTests` (object mode: join + chunk stream with zero server→client
+encodes; byte mode still works; a re-streamed cached chunk message stays intact), the whole client test
+project in object mode through the harness, the server integration / transport / protocol suites in byte
+mode. NOT verified: the WebGL build itself (`#if UNITY_WEBGL` code and the jslib compile only on a WebGL
+build — Marcel tests one after the desktop playtest, on his go). Nothing changes for desktop or the hosted
+LiteNetLib / WebSocket servers: their transports do not implement the object interfaces.
+
 ### ★ Protocol v5: the world stream on its own LiteNetLib channel, ordered by a world id (#1534, 2026-09-04, branch perf/1534-second-channel) — ⚠ RELEASE NOTE: older game versions cannot join a v5 server
 
 **Why.** PR bundle 18 of the performance package (#1501), part B of #1534 (part A — the presence beat on a Sequenced

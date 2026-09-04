@@ -69,6 +69,10 @@ public sealed partial class GameServer
     private readonly ServerConfig _config;
     private readonly GameContent _content;
     private readonly IServerTransport _transport;
+
+    /// <summary>#1531: set when the transport can carry message objects (the in-process loopback) — every send
+    /// site below prefers it, skipping the codec entirely. Null for socket transports.</summary>
+    private readonly IObjectServerTransport? _objectTransport;
     private readonly IWorldRepository _repo;
     private readonly IGameLogger _log;
     private readonly IAiMissionProvider _ai;
@@ -189,6 +193,7 @@ public sealed partial class GameServer
         _config = config;
         _content = content;
         _transport = transport;
+        _objectTransport = transport as IObjectServerTransport;
         _repo = repo;
         _log = logger ?? new NullGameLogger();
         // Everything the AI writes for players passes the world's content screen (#1221). Wrapped HERE,
@@ -2373,7 +2378,15 @@ public sealed partial class GameServer
     private void StreamChunkNow(PlayerSession session, ChunkCoord coord)
     {
         var chunk = _world.GetOrLoadChunk(coord);
-        SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord), DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
+        if (_objectTransport != null)
+        {
+            // #1531: the cached chunk MESSAGE goes over as an object — no RLE encode, no codec, no decode.
+            _objectTransport.SendMessage(session.ConnectionId, ChunkMessageFor(chunk, coord), DeliveryMode.ReliableOrderedBulk);
+        }
+        else
+        {
+            SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord), DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
+        }
         session.SentChunks.Add(coord);
         MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
     }
@@ -2389,22 +2402,16 @@ public sealed partial class GameServer
     /// the client accepts both representations (ChunkDataMessage.DecodeBlocks), dense only for a degenerate
     /// chunk. Decisive on the browser JSON path — ~15-25 KB of JSON numbers per chunk shrink to usually a few
     /// hundred bytes — and it trims native payloads and VPS egress too.</summary>
-    private byte[] ChunkPayloadFor(ChunkData chunk, ChunkCoord coord)
+    /// <summary>The chunk as a wire message: RLE when it runs (nearly always), dense otherwise, plus the sparse
+    /// modifier / shape arrays. Fresh per chunk version; both caches below hold the result read-only.</summary>
+    private ChunkDataMessage BuildChunkMessage(ChunkData chunk, ChunkCoord coord)
     {
-        var cache = _worlds.Active.ChunkPayloads;
-        bool json = NetCodec.UseJsonEncoding;
-        if (cache.TryGetValue(coord, out var hit) && hit.Version == chunk.Version && hit.Json == json)
-        {
-            ChunkPayloadCacheHits++;
-            return hit.Payload;
-        }
-
         var msg = new ChunkDataMessage
         {
             Cx = coord.X,
             Cy = coord.Y,
             Cz = coord.Z,
-            WorldId = ActiveWorldId, // #1534: the payload cache is per world, so this is stable per entry
+            WorldId = ActiveWorldId, // #1534: the caches are per world, so this is stable per entry
         };
         var rle = ChunkBlocksRle.Encode(chunk.RawBlocks);
         if (rle.Length < WorldConstants.BlocksPerChunk)
@@ -2417,6 +2424,42 @@ public sealed partial class GameServer
         }
 
         PackChunkModifiers(chunk, msg); // dyed-block / coloured-light cells, if any
+        return msg;
+    }
+
+    /// <summary>#1531: the object-path twin of <see cref="ChunkPayloadFor"/> — the decoded message, cached per
+    /// chunk version, handed to the loopback client as is (the client copies the blocks it keeps).</summary>
+    private ChunkDataMessage ChunkMessageFor(ChunkData chunk, ChunkCoord coord)
+    {
+        var cache = _worlds.Active.ChunkMessages;
+        if (cache.TryGetValue(coord, out var hit) && hit.Version == chunk.Version)
+        {
+            ChunkPayloadCacheHits++;
+            return hit.Message;
+        }
+
+        var msg = BuildChunkMessage(chunk, coord);
+        ChunkPayloadEncodes++;
+        if (cache.Count >= ChunkPayloadCacheCap)
+        {
+            cache.Clear();
+        }
+
+        cache[coord] = (chunk.Version, msg);
+        return msg;
+    }
+
+    private byte[] ChunkPayloadFor(ChunkData chunk, ChunkCoord coord)
+    {
+        var cache = _worlds.Active.ChunkPayloads;
+        bool json = NetCodec.UseJsonEncoding;
+        if (cache.TryGetValue(coord, out var hit) && hit.Version == chunk.Version && hit.Json == json)
+        {
+            ChunkPayloadCacheHits++;
+            return hit.Payload;
+        }
+
+        var msg = BuildChunkMessage(chunk, coord);
         var payload = NetCodec.Encode(msg);
         ChunkPayloadEncodes++;
         if (cache.Count >= ChunkPayloadCacheCap)
@@ -6362,6 +6405,12 @@ public sealed partial class GameServer
                 break;
         }
 
+        if (_objectTransport != null)
+        {
+            _objectTransport.SendMessage(session.ConnectionId, message, mode); // #1531: no codec on the loopback
+            return;
+        }
+
         _transport.Send(session.ConnectionId, NetCodec.Encode(message), mode);
     }
 
@@ -6371,10 +6420,26 @@ public sealed partial class GameServer
         => _transport.Send(connectionId, payload, mode);
 
     private void SendTo(int connectionId, object message)
-        => _transport.Send(connectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+    {
+        if (_objectTransport != null)
+        {
+            _objectTransport.SendMessage(connectionId, message, DeliveryMode.ReliableOrdered);
+            return;
+        }
+
+        _transport.Send(connectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+    }
 
     private void Broadcast(object message)
-        => _transport.Broadcast(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+    {
+        if (_objectTransport != null)
+        {
+            _objectTransport.BroadcastMessage(message, DeliveryMode.ReliableOrdered);
+            return;
+        }
+
+        _transport.Broadcast(NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+    }
 
     // ---------------- Radio reach (tiered comms: text chat + voice) ----------------
 
@@ -6418,6 +6483,16 @@ public sealed partial class GameServer
     /// <see cref="DeliveryMode.Unreliable"/> (latency over delivery — a dropped 20 ms frame is inaudible).</summary>
     private void SendToRadioAudience(PlayerSession sender, object message, DeliveryMode mode)
     {
+        if (_objectTransport != null)
+        {
+            foreach (var s in RadioAudience(sender))
+            {
+                _objectTransport.SendMessage(s.ConnectionId, message, mode);
+            }
+
+            return;
+        }
+
         var payload = NetCodec.Encode(message);
         foreach (var s in RadioAudience(sender))
         {
@@ -6429,7 +6504,7 @@ public sealed partial class GameServer
     /// not hear their own relayed frames (text chat, by contrast, echoes the sender's own line into their log).</summary>
     private void SendToRadioAudienceExcept(PlayerSession sender, object message, DeliveryMode mode)
     {
-        var payload = NetCodec.Encode(message);
+        byte[]? payload = _objectTransport == null ? NetCodec.Encode(message) : null;
         foreach (var s in RadioAudience(sender))
         {
             if (s.ConnectionId == sender.ConnectionId)
@@ -6437,7 +6512,14 @@ public sealed partial class GameServer
                 continue;
             }
 
-            _transport.Send(s.ConnectionId, payload, mode);
+            if (_objectTransport != null)
+            {
+                _objectTransport.SendMessage(s.ConnectionId, message, mode);
+            }
+            else
+            {
+                _transport.Send(s.ConnectionId, payload!, mode);
+            }
         }
     }
 
@@ -6468,6 +6550,16 @@ public sealed partial class GameServer
         {
             change.WorldId = ActiveWorldId; // #1534: the recipients are exactly the active world's players
             mode = DeliveryMode.ReliableOrderedBulk;
+        }
+
+        if (_objectTransport != null)
+        {
+            foreach (var s in JoinedInActiveWorld())
+            {
+                _objectTransport.SendMessage(s.ConnectionId, message, mode); // #1531: the object itself, once per recipient
+            }
+
+            return;
         }
 
         var payload = NetCodec.Encode(message);
