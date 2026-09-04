@@ -27,6 +27,11 @@ station, and every one of them is fixed here too. Thank you, Lyxette! 🙏
 turn away older game versions at join with a clear "protocol mismatch" message — update the game
 (desktop installs update themselves; the browser version is always current). Saves migrate unchanged.
 
+### 🎓 Credits
+
+- **Christopher Korb (K&K Multimedia) joins the school-club block** in the README and the in-game Credits,
+  in all 14 languages — for the IT support behind the club.
+
 ### 🚀 Smoother on your screen (#1511–#1529 #1550–#1556)
 
 - **Walking is smooth** (#1528 #1529 #1550 #1555). The tiny freezes every few seconds while you
