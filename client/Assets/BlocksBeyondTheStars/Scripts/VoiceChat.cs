@@ -201,26 +201,46 @@ namespace BlocksBeyondTheStars.Client
             _hudBuilt = true;
         }
 
+        // #1554: Microphone.devices allocates a fresh string[] per call — poll it every 2 s, not every frame.
+        private float _micPollAt = -1f;
+        private bool _micPresent;
+
         private bool CodecAndMicReady()
         {
 #if BBS_VOICE
             // Playback works regardless; a mic is only needed to transmit. Treat "voice available" as having a
             // capture device — VoiceInputEnabled then gates whether we actually transmit (see HandlePushToTalk).
-            return Microphone.devices.Length > 0;
+            float now = Time.unscaledTime;
+            if (now >= _micPollAt)
+            {
+                _micPollAt = now + 2f;
+                _micPresent = Microphone.devices.Length > 0;
+            }
+
+            return _micPresent;
 #else
             return false; // voice requires the Concentus plugin (BBS_VOICE) — see docs/developer/VOICE_CHAT.md
 #endif
         }
 
+        // #1554: Enum.TryParse splits the name and boxes the result on every call — cache per setting value
+        // (the setting string is reference-stable until the player rebinds it).
+        private string _pttName;
+        private KeyCode _pttKey = KeyCode.V;
+
         private KeyCode PushToTalkKey()
         {
             string name = Settings?.PushToTalkKey;
-            if (!string.IsNullOrEmpty(name) && System.Enum.TryParse(name, ignoreCase: true, out KeyCode k))
+            if (string.Equals(name, _pttName, System.StringComparison.Ordinal))
             {
-                return k;
+                return _pttKey;
             }
 
-            return KeyCode.V;
+            _pttName = name;
+            _pttKey = !string.IsNullOrEmpty(name) && System.Enum.TryParse(name, ignoreCase: true, out KeyCode k)
+                ? k
+                : KeyCode.V;
+            return _pttKey;
         }
 
         private void HandlePushToTalk()

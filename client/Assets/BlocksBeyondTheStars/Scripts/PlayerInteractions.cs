@@ -94,8 +94,7 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            var near = Remotes.PlayersWithin(Game.PlayerPosition, InteractRange);
-            return near.Count > 0 ? near[0] : null;
+            return Remotes.FirstPlayerWithin(Game.PlayerPosition, InteractRange);
         }
 
         /// <summary>True while a trade / dock request could be sent right now: a player in reach, and we are

@@ -51,6 +51,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
         private float _shown;     // characters revealed so far
+        private int _shownChars = -1; // #1554: the character count last pushed into the text (skip equal frames)
 
         // Long lines are split into panel-sized pages, advanced with the same continue key (#736). German
         // runs 12–20 % longer than English, so the bandit briefing and several hints exceed the ~4 visible
@@ -531,7 +532,13 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Still typing: the continue key fast-completes the reveal instead of skipping the page.
                 _shown = pressed ? _current.Length : Mathf.Min(_current.Length, _shown + Time.deltaTime * CharsPerSecond);
-                _speechText.text = _current.Substring(0, (int)_shown);
+                int visible = (int)_shown;
+                if (visible != _shownChars) // #1554: one Substring per revealed character, not per frame
+                {
+                    _shownChars = visible;
+                    _speechText.text = _current.Substring(0, visible);
+                }
+
                 if (_shown >= _current.Length)
                 {
                     StopChatter();
@@ -570,6 +577,7 @@ namespace BlocksBeyondTheStars.Client
             _page = index;
             _current = _pages.Count > 0 ? _pages[index] : string.Empty;
             _shown = 0f;
+            _shownChars = -1;
             _speechText.text = string.Empty;
             _continueHint.gameObject.SetActive(false);
         }

@@ -1,6 +1,7 @@
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
+using System;
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
@@ -42,6 +43,33 @@ namespace BlocksBeyondTheStars.Client
 
         private static readonly Dictionary<string, Entry> _cache = new Dictionary<string, Entry>();
         private static readonly List<string> _evictScratch = new List<string>();
+
+        // #1556: a bake used to allocate ~250 KB of throw-away float[] (the decoded source, the mono downmix,
+        // one buffer per op stage) — Large Object Heap garbage twice a second while creatures are around.
+        // The decoded sources are kept (the same handful of sample files feeds every species), and every
+        // intermediate buffer is rented from the shared pool for the duration of one Variant() call.
+        private const int MaxMonoEntries = 32;
+        private static readonly Dictionary<string, float[]> _mono = new Dictionary<string, float[]>();
+        private static readonly List<float[]> _rented = new List<float[]>();
+
+        private static Span<float> Rent(int length)
+        {
+            var array = System.Buffers.ArrayPool<float>.Shared.Rent(Mathf.Max(1, length));
+            _rented.Add(array);
+            var span = array.AsSpan(0, Mathf.Max(1, length));
+            span.Clear(); // pooled memory is not zeroed; the delay lines and mix targets rely on silence
+            return length > 0 ? span : span.Slice(0, 0);
+        }
+
+        private static void ReturnRented()
+        {
+            for (int i = 0; i < _rented.Count; i++)
+            {
+                System.Buffers.ArrayPool<float>.Shared.Return(_rented[i]);
+            }
+
+            _rented.Clear();
+        }
 
         /// <summary>A dripping-cavern tail for cave-dweller calls (replaces AudioReverbFilter.Cave):
         /// small Schroeder reverb — 4 parallel feedback combs into 2 series allpasses, ~0.9 s tail.</summary>
@@ -85,33 +113,42 @@ namespace BlocksBeyondTheStars.Client
 
             // Mono throughout: these are 3D point sources, so a stereo bake doubles both the memory and the
             // DSP cost for something the spatialiser collapses anyway.
-            var data = ReadMono(src);
-            if (data == null)
+            var mono = ReadMono(src);
+            if (mono == null)
             {
                 return src; // unreadable (not Decompress-On-Load) — play the dry clip rather than nothing
             }
 
-            int rate = src.frequency;
-            if (layer != null)
+            try
             {
-                var lay = ReadMono(layer);
-                if (lay != null)
+                var data = Rent(mono.Length);
+                mono.AsSpan().CopyTo(data); // the ops work in place, and the decoded source is shared
+                int rate = src.frequency;
+                if (layer != null)
                 {
-                    data = MixLayer(data, lay, rate, layerOffsetMs, layerDetune);
+                    var lay = ReadMono(layer);
+                    if (lay != null)
+                    {
+                        data = MixLayer(data, lay, rate, layerOffsetMs, layerDetune);
+                    }
                 }
-            }
 
-            data = Apply(op, data, rate, amount);
-            if (tail > 0)
+                data = Apply(op, data, rate, amount);
+                if (tail > 0)
+                {
+                    data = Reverb(data, rate, tail);
+                }
+
+                Normalise(data);
+                var clip = AudioClip.Create(key, data.Length, 1, rate, false);
+                clip.SetData(data, 0); // the ReadOnlySpan overload copies into the clip
+                Insert(key, clip);
+                return clip;
+            }
+            finally
             {
-                data = Reverb(data, rate, tail);
+                ReturnRented();
             }
-
-            Normalise(data);
-            var clip = AudioClip.Create(key, data.Length, 1, rate, false);
-            clip.SetData(data, 0);
-            Insert(key, clip);
-            return clip;
         }
 
         /// <summary>Frees every baked clip. MUST be called on world teardown (GameBootstrap.OnDestroy):
@@ -123,11 +160,12 @@ namespace BlocksBeyondTheStars.Client
             {
                 if (entry.Clip != null)
                 {
-                    Object.Destroy(entry.Clip);
+                    UnityEngine.Object.Destroy(entry.Clip);
                 }
             }
 
             _cache.Clear();
+            _mono.Clear();
         }
 
         /// <summary>How many variants are currently resident — used by the client's audio diagnostics.</summary>
@@ -177,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
                 {
                     if (entry.Clip != null)
                     {
-                        Object.Destroy(entry.Clip);
+                        UnityEngine.Object.Destroy(entry.Clip);
                     }
 
                     _cache.Remove(key2);
@@ -185,40 +223,61 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        /// <summary>Decodes a clip to mono float PCM. Returns null when the clip is not readable — which on
-        /// Web means it was not imported Decompress-On-Load.</summary>
+        /// <summary>Decodes a clip to mono float PCM, kept per source clip (callers must NOT write into it).
+        /// Returns null when the clip is not readable — which on Web means it was not imported
+        /// Decompress-On-Load.</summary>
         private static float[] ReadMono(AudioClip src)
         {
-            var raw = new float[src.samples * src.channels];
-            if (!src.GetData(raw, 0))
+            if (_mono.TryGetValue(src.name, out var kept) && kept.Length == src.samples)
             {
-                return null;
+                return kept;
             }
 
-            if (src.channels == 1)
-            {
-                return raw;
-            }
-
-            var mono = new float[src.samples];
+            // GetData wants an array of exactly the clip's sample count (no span overload) — this is the one
+            // allocation left per distinct source, and the stereo scratch is pooled.
             int ch = src.channels;
-            for (int i = 0; i < mono.Length; i++)
+            float[] mono;
+            if (ch == 1)
             {
-                float sum = 0f;
-                for (int c = 0; c < ch; c++)
+                mono = new float[src.samples];
+                if (!src.GetData(mono, 0))
                 {
-                    sum += raw[i * ch + c];
+                    return null;
+                }
+            }
+            else
+            {
+                var raw = new float[src.samples * ch];
+                if (!src.GetData(raw, 0))
+                {
+                    return null;
                 }
 
-                mono[i] = sum / ch;
+                mono = new float[src.samples];
+                for (int i = 0; i < mono.Length; i++)
+                {
+                    float sum = 0f;
+                    for (int c = 0; c < ch; c++)
+                    {
+                        sum += raw[i * ch + c];
+                    }
+
+                    mono[i] = sum / ch;
+                }
             }
 
+            if (_mono.Count >= MaxMonoEntries)
+            {
+                _mono.Clear(); // a handful of files per world; a full reset is simpler than an LRU here
+            }
+
+            _mono[src.name] = mono;
             return mono;
         }
 
         // ── species timbre ops (#903) — each a plain float[] → float[] pass, all WebGL-safe ────────────
 
-        private static float[] Apply(VoiceOp op, float[] d, int rate, int amount)
+        private static Span<float> Apply(VoiceOp op, Span<float> d, int rate, int amount)
         {
             int a = Mathf.Clamp(amount, 0, 2);
             switch (op)
@@ -236,7 +295,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Algebraic soft-clip — a throaty, saturated edge for hostile fauna.</summary>
-        private static float[] Drive(float[] d, int amount)
+        private static Span<float> Drive(Span<float> d, int amount)
         {
             float g = new[] { 2.5f, 5f, 9f }[amount];
             for (int i = 0; i < d.Length; i++)
@@ -249,7 +308,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Amplitude modulation — the alien warble, and what a limbless buzzing body reads as.</summary>
-        private static float[] Tremolo(float[] d, int rate, int amount)
+        private static Span<float> Tremolo(Span<float> d, int rate, int amount)
         {
             float hz = new[] { 7f, 12f, 19f }[amount];
             float depth = new[] { 0.35f, 0.55f, 0.75f }[amount];
@@ -264,11 +323,11 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Feed-forward comb — evenly spaced notches read as metallic/insectoid resonance. Chosen
         /// over a feedback comb because it cannot ring away into instability.</summary>
-        private static float[] Comb(float[] d, int rate, int amount)
+        private static Span<float> Comb(Span<float> d, int rate, int amount)
         {
             int delay = Mathf.Max(1, Mathf.RoundToInt(new[] { 1.2f, 2.2f, 3.5f }[amount] * 0.001f * rate));
             float g = new[] { 0.6f, 0.75f, 0.9f }[amount];
-            var wet = new float[d.Length];
+            var wet = Rent(d.Length);
             for (int i = 0; i < d.Length; i++)
             {
                 wet[i] = d[i] + (i >= delay ? d[i - delay] * g : 0f);
@@ -278,7 +337,7 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Bit + sample-rate reduction — chittery and slightly artificial, good on insect bodies.</summary>
-        private static float[] Crush(float[] d, int amount)
+        private static Span<float> Crush(Span<float> d, int amount)
         {
             float levels = new[] { 64f, 24f, 10f }[amount];
             int hold = new[] { 2, 3, 5 }[amount];
@@ -298,12 +357,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Appends a reversed, quieter echo of the sample. Baked rather than played at a negative
         /// pitch because Unity Web forbids negative pitch outright.</summary>
-        private static float[] ReverseTail(float[] d, int amount)
+        private static Span<float> ReverseTail(Span<float> d, int amount)
         {
             float gain = new[] { 0.35f, 0.5f, 0.7f }[amount];
             int gap = d.Length / 8;
-            var wet = new float[d.Length + gap + d.Length];
-            System.Array.Copy(d, wet, d.Length);
+            var wet = Rent(d.Length + gap + d.Length);
+            d.CopyTo(wet);
             for (int i = 0; i < d.Length; i++)
             {
                 float fade = 1f - i / (float)d.Length;
@@ -315,14 +374,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Envelope reshape: a clipped bark at amount 0, a slow drawn-out swell at amount 2 — the
         /// difference between an animal that snaps and one that sighs, from the same sample.</summary>
-        private static float[] Shape(float[] d, int rate, int amount)
+        private static Span<float> Shape(Span<float> d, int rate, int amount)
         {
             int n = d.Length;
             if (amount == 0)
             {
                 int keep = Mathf.Max(rate / 8, n / 3); // a short bark, then a fast fade
-                var bark = new float[Mathf.Min(n, keep)];
-                System.Array.Copy(d, bark, bark.Length);
+                var bark = d.Slice(0, Mathf.Min(n, keep)); // in place: the fade only touches the kept head
                 int fade = bark.Length / 4;
                 for (int i = 0; i < fade; i++)
                 {
@@ -347,13 +405,13 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Mixes a second sample in behind the first, offset and detuned — the only op here that
         /// truly multiplies the palette, because it combines two samples rather than modulating one.</summary>
-        private static float[] MixLayer(float[] baseData, float[] layerData, int rate, int offsetMs, int detune)
+        private static Span<float> MixLayer(Span<float> baseData, float[] layerData, int rate, int offsetMs, int detune)
         {
             float ratio = new[] { 0.82f, 1f, 1.28f }[Mathf.Clamp(detune, 0, 2)];
             int offset = Mathf.Max(0, Mathf.RoundToInt(offsetMs * 0.001f * rate));
             int layerLen = Mathf.Max(1, (int)(layerData.Length / ratio));
-            var wet = new float[Mathf.Max(baseData.Length, offset + layerLen)];
-            System.Array.Copy(baseData, wet, baseData.Length);
+            var wet = Rent(Mathf.Max(baseData.Length, offset + layerLen));
+            baseData.CopyTo(wet);
             for (int i = 0; i < layerLen; i++)
             {
                 // Linear resample of the layer — pitch and speed move together, exactly like a sampler.
@@ -377,31 +435,37 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Small Schroeder cave reverb: 4 mutually-prime feedback combs into 2 series allpasses.
         /// The tail length and wet mix scale with <paramref name="amount"/> so a species can have "a little
         /// space" without sounding like it lives in a cavern.</summary>
-        private static float[] Reverb(float[] dry, int rate, int amount)
+        private static readonly float[] CombMs = { 29.7f, 37.1f, 41.1f, 43.7f };
+        private static readonly float[] CombGain = { 0.72f, 0.70f, 0.68f, 0.66f };
+
+        private static Span<float> Reverb(Span<float> dry, int rate, int amount)
         {
-            float[] combMs = { 29.7f, 37.1f, 41.1f, 43.7f };
-            float[] combGain = { 0.72f, 0.70f, 0.68f, 0.66f };
             float tailSec = new[] { 0f, 0.45f, 0.9f }[Mathf.Clamp(amount, 0, 2)];
             float wetMix = new[] { 0f, 0.22f, 0.45f }[Mathf.Clamp(amount, 0, 2)];
             int tail = Mathf.CeilToInt(tailSec * rate);
-            var wet = new float[dry.Length + tail];
+            var wet = Rent(dry.Length + tail);
 
-            var combBuf = new float[combMs.Length][];
-            for (int c = 0; c < combMs.Length; c++)
+            // The four comb delay lines, back to back in one pooled buffer (Rent zeroes it).
+            Span<int> combLen = stackalloc int[CombMs.Length];
+            Span<int> combStart = stackalloc int[CombMs.Length];
+            int total = 0;
+            for (int c = 0; c < CombMs.Length; c++)
             {
-                combBuf[c] = new float[Mathf.Max(1, Mathf.RoundToInt(combMs[c] * 0.001f * rate))];
+                combLen[c] = Mathf.Max(1, Mathf.RoundToInt(CombMs[c] * 0.001f * rate));
+                combStart[c] = total;
+                total += combLen[c];
             }
 
+            var combBuf = Rent(total);
             for (int i = 0; i < wet.Length; i++)
             {
                 float x = i < dry.Length ? dry[i] : 0f;
                 float sum = 0f;
-                for (int c = 0; c < combBuf.Length; c++)
+                for (int c = 0; c < CombMs.Length; c++)
                 {
-                    var buf = combBuf[c];
-                    int j = i % buf.Length;
-                    float y = x + buf[j] * combGain[c]; // buf[j] still holds y from one delay ago
-                    buf[j] = y;
+                    int j = combStart[c] + i % combLen[c];
+                    float y = x + combBuf[j] * CombGain[c]; // combBuf[j] still holds y from one delay ago
+                    combBuf[j] = y;
                     sum += y;
                 }
 
@@ -422,9 +486,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>In-place series allpass (y = z − g·w, w = x + g·z) — smears the comb output into a dense
         /// tail without colouring the spectrum.</summary>
-        private static void Allpass(float[] s, int delaySamples, float g)
+        private static void Allpass(Span<float> s, int delaySamples, float g)
         {
-            var buf = new float[Mathf.Max(1, delaySamples)];
+            var buf = Rent(Mathf.Max(1, delaySamples));
             for (int i = 0; i < s.Length; i++)
             {
                 int j = i % buf.Length;
@@ -435,7 +499,7 @@ namespace BlocksBeyondTheStars.Client
             }
         }
 
-        private static float[] LowPass(float[] d, int rate, float cutoff)
+        private static Span<float> LowPass(Span<float> d, int rate, float cutoff)
         {
             float a = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff / rate);
             float state = 0f;
@@ -448,7 +512,7 @@ namespace BlocksBeyondTheStars.Client
             return d;
         }
 
-        private static float[] HighPass(float[] d, int rate, float cutoff)
+        private static Span<float> HighPass(Span<float> d, int rate, float cutoff)
         {
             float a = 1f - Mathf.Exp(-2f * Mathf.PI * cutoff / rate);
             float state = 0f;
@@ -463,7 +527,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Levels the bake back to the source's headroom. Drive and layering both add gain, and an
         /// un-levelled variant would make a species louder rather than different.</summary>
-        private static void Normalise(float[] d)
+        private static void Normalise(Span<float> d)
         {
             float peak = 0f;
             for (int i = 0; i < d.Length; i++)

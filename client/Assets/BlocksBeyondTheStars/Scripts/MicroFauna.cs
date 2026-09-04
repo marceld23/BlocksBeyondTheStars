@@ -138,9 +138,24 @@ namespace BlocksBeyondTheStars.Client
         public static int Index(string key) => IndexByKey.TryGetValue(key, out int i) ? i : 0;
 
         /// <summary>0 = no surface micro-fauna here, up to ~1.3 = lush. Drives the target population per biome.</summary>
+        // #1554: Richness and SurfaceKinds run every frame while the population is short — lower-case the
+        // biome key once per distinct value instead of per call.
+        private static string _lowerSrc, _lowerBiome = string.Empty;
+
+        private static string LowerBiome(string biome)
+        {
+            if (!string.Equals(biome, _lowerSrc, System.StringComparison.Ordinal))
+            {
+                _lowerSrc = biome;
+                _lowerBiome = (biome ?? string.Empty).ToLowerInvariant();
+            }
+
+            return _lowerBiome;
+        }
+
         public static float Richness(string biome)
         {
-            switch ((biome ?? string.Empty).ToLowerInvariant())
+            switch (LowerBiome(biome))
             {
                 case "jungle":
                 case "forest":
@@ -176,7 +191,7 @@ namespace BlocksBeyondTheStars.Client
         public static void SurfaceKinds(string biome, bool night, bool wet, List<int> into)
         {
             into.Clear();
-            string b = (biome ?? string.Empty).ToLowerInvariant();
+            string b = LowerBiome(biome);
             bool lush = b is "jungle" or "forest" or "tropical" or "swamp" or "wetland";
             bool cold = b is "ice" or "frozen" or "tundra" or "snow" or "alpine";
             bool hot = b is "desert" or "lava" or "ashen" or "volcanic";

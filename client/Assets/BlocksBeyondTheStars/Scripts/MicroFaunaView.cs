@@ -264,6 +264,8 @@ namespace BlocksBeyondTheStars.Client
 
         // --- spawning ---------------------------------------------------------------------------------------
 
+        private System.Predicate<int> _notKeptOnPlanet;
+
         private bool SpawnSurfaceOrWater(bool night)
         {
             // Roughly a third of spawns go to the water roster when a pond/sea is nearby.
@@ -280,7 +282,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool anyKept = false;
                 for (int i = 0; i < _surfaceKinds.Count && !anyKept; i++) anyKept = _planetKeep[_surfaceKinds[i]];
-                if (anyKept) _surfaceKinds.RemoveAll(i => !_planetKeep[i]);
+                if (anyKept) _surfaceKinds.RemoveAll(_notKeptOnPlanet ??= i => !_planetKeep[i]); // #1554: one delegate, not one per spawn
             }
 
             if (_surfaceKinds.Count == 0) return false;

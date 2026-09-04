@@ -82,7 +82,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
 
-        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; }
+        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; public string LastLabel; public int LastValue; }
         private VitalRow[] _vitals;
         private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
 
@@ -155,6 +155,11 @@ namespace BlocksBeyondTheStars.Client
         // that anyway. Motion-coupled elements (compass blips) still update per frame, and a hotbar
         // selection change forces an immediate refresh so input feedback never lags.
         private const float RefreshInterval = 0.1f;
+        private int _todKey = int.MinValue; // #1554 change keys of the formatted read-outs
+        private string _todWeather, _todPrecip, _todFamily;
+        private bool _todSpaceSky;
+        private object _todLoc, _playtimeLoc;
+        private long _playtimeShown = -1;
         private float _refreshTimer;
         private int _lastCompassDist = int.MinValue;
         private int _lastCompassWpDist = int.MinValue;
@@ -922,7 +927,28 @@ namespace BlocksBeyondTheStars.Client
             if (!active) return;
             v.Fill.color = color;
             v.Fill.fillAmount = Mathf.Clamp01(frac);
-            v.Label.text = $"{label}  {Mathf.RoundToInt(value)}";
+            int shown = Mathf.RoundToInt(value);
+            if (shown != v.LastValue || !ReferenceEquals(label, v.LastLabel) || v.LastLabel == null)
+            {
+                // #1554: 10 Hz × 6 rows of interpolated strings — only when the rounded value or label changed.
+                v.LastValue = shown;
+                v.LastLabel = label;
+                _vitals[i] = v;
+                v.Label.text = $"{label}  {shown}";
+            }
+        }
+
+        /// <summary>Small-integer strings for the hotbar (slot numbers, stack counts) without a ToString per refresh.</summary>
+        private static readonly string[] _smallInts = new string[1000];
+
+        private static string SmallInt(int n)
+        {
+            if (n < 0 || n >= _smallInts.Length)
+            {
+                return n.ToString();
+            }
+
+            return _smallInts[n] ??= n.ToString();
         }
 
         private static readonly Color VitalWarnRed = new(1f, 0.25f, 0.2f);
@@ -995,7 +1021,7 @@ namespace BlocksBeyondTheStars.Client
                 var s = _hotbar[i];
                 bool sel = i == Game.SelectedHotbarSlot;
                 UiKit.StyleQuickSlot(s, sel);
-                s.Num.text = (i + 1).ToString();
+                s.Num.text = SmallInt(i + 1);
 
                 string item = Game.ItemInSlot(i);
                 if (string.IsNullOrEmpty(item))
@@ -1008,7 +1034,7 @@ namespace BlocksBeyondTheStars.Client
 
                 // Stack size top-right (#744): only for real stacks, so tools (max stack 1) stay clean.
                 int count = Game.CountInSlot(i);
-                s.Count.text = count > 1 ? count.ToString() : string.Empty;
+                s.Count.text = count > 1 ? SmallInt(count) : string.Empty;
 
                 var blockDef = Game.Content?.GetBlock(item);
                 if (blockDef == null && Game.Content?.GetItem(item)?.PlacesBlock is string pb && pb.Length > 0)
@@ -1556,6 +1582,24 @@ namespace BlocksBeyondTheStars.Client
             float frac = nextEdge - t; if (frac < 0f) frac += 1f;
             float secs = frac * Mathf.Max(1f, env.DayLengthSeconds);
             int mm = Mathf.FloorToInt(secs / 60f), ss = Mathf.FloorToInt(secs % 60f);
+            // #1554: the readout only changes once a second (or with the weather / temperature / gravity), so
+            // skip the five-part interpolation on the other nine refreshes.
+            int todKey = (day ? 1 : 0) ^ (mm << 1) ^ (ss << 12) ^ (Mathf.RoundToInt(env.Temperature) << 18)
+                         ^ (Mathf.RoundToInt(env.GravityFactor * 10f) << 26) ^ (Game.OnFootInSpace ? 1 << 30 : 0);
+            if (todKey == _todKey && ReferenceEquals(env.Weather, _todWeather) && ReferenceEquals(env.Precipitation, _todPrecip)
+                && ReferenceEquals(env.WeatherFamily, _todFamily) && env.SpaceSky == _todSpaceSky
+                && ReferenceEquals(loc, _todLoc))
+            {
+                _todMarker.anchoredPosition = new Vector2(10 + 150 * t, _todMarker.anchoredPosition.y);
+                return;
+            }
+
+            _todKey = todKey;
+            _todWeather = env.Weather;
+            _todPrecip = env.Precipitation;
+            _todFamily = env.WeatherFamily;
+            _todSpaceSky = env.SpaceSky;
+            _todLoc = loc;
             string tempStr = env.Temperature <= -900f ? "—" : ColoredTemp(env.Temperature);
             // Show this world's gravity (e.g. "0.6 g") only when it notably differs from Earth-like, so normal
             // worlds stay uncluttered. Hidden in space (on-foot zero-g) where gravity doesn't apply.
@@ -1640,7 +1684,15 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            _playtimeText.text = $"{loc.Get("ui.hud.playtime")}  {FormatDuration((long)Game.SessionSeconds)}"
+            long session = (long)Game.SessionSeconds;
+            if (session == _playtimeShown && ReferenceEquals(loc, _playtimeLoc))
+            {
+                return; // #1554: changes once a second, refreshed ten times a second
+            }
+
+            _playtimeShown = session;
+            _playtimeLoc = loc;
+            _playtimeText.text = $"{loc.Get("ui.hud.playtime")}  {FormatDuration(session)}"
                                  + $"  ·  {loc.Get("ui.hud.playtime_total")}  {FormatDuration(Game.TotalPlaytimeSeconds)}";
         }
 

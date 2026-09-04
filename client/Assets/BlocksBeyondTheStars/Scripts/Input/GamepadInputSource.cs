@@ -80,21 +80,21 @@ namespace BlocksBeyondTheStars.Client
         public InputDeviceKind Kind => InputDeviceKind.Gamepad;
 
         private static bool _connected;
-        private static int _connectedFrame = -1;
+        private static float _connectedUntil = -1f; // #1554: re-poll once a second (the names array is a fresh allocation)
 
-        /// <summary>Whether at least one joystick is connected (a non-empty name). Evaluated once per frame
+        /// <summary>Whether at least one joystick is connected (a non-empty name). Evaluated once a second
         /// (#1512 — <c>Input.GetJoystickNames()</c> allocates a fresh string array, and this used to run on
         /// every ActionDown/Held/Up poll); when false the source stays fully inert so an unplugged pad costs
         /// nothing.</summary>
         public static bool Connected()
         {
-            int frame = Time.frameCount;
-            if (frame == _connectedFrame)
+            float now = Time.unscaledTime;
+            if (now < _connectedUntil)
             {
                 return _connected;
             }
 
-            _connectedFrame = frame;
+            _connectedUntil = now + 1f;
             _connected = false;
             var names = Input.GetJoystickNames();
             if (names == null)

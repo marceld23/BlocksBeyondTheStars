@@ -32,6 +32,11 @@ namespace BlocksBeyondTheStars.Client
         private static Camera _cam;
         private static int _camFrame = -1;
 
+        // #1551: Setup ran per chunk mesh with a System.Random per point (~250 B each, ~2000 allocs/s while
+        // walking) — the variation now comes from a hash mix, and the two build lists are shared scratch.
+        private static readonly List<Matrix4x4> _tuftScratch = new List<Matrix4x4>();
+        private static readonly List<Matrix4x4> _pebbleScratch = new List<Matrix4x4>();
+
         private Matrix4x4[] _tufts;
         private Matrix4x4[] _pebbles;
         private Vector3 _worldCenter;
@@ -52,18 +57,20 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var tufts = new List<Matrix4x4>();
-            var pebbles = new List<Matrix4x4>();
+            var tufts = _tuftScratch;
+            var pebbles = _pebbleScratch;
+            tufts.Clear();
+            pebbles.Clear();
             var l2w = transform.localToWorldMatrix;
             foreach (var p in points)
             {
-                // Deterministic per-point variation from the local cell position.
-                int h = unchecked((int)p.x * 73856093 ^ (int)p.z * 19349663 ^ Mathf.RoundToInt(p.y) * 83492791);
-                var rng = new System.Random(h);
-                float yaw = (float)rng.NextDouble() * 360f;
-                float scale = 0.7f + (float)rng.NextDouble() * 0.6f;
-                float jx = ((float)rng.NextDouble() - 0.5f) * 0.5f;
-                float jz = ((float)rng.NextDouble() - 0.5f) * 0.5f;
+                // Deterministic per-point variation from the local cell position: four hash draws (a different
+                // but equally uniform sequence than the System.Random this replaced — the look is unchanged).
+                uint h = unchecked((uint)((int)p.x * 73856093 ^ (int)p.z * 19349663 ^ Mathf.RoundToInt(p.y) * 83492791));
+                float yaw = Draw(ref h) * 360f;
+                float scale = 0.7f + Draw(ref h) * 0.6f;
+                float jx = (Draw(ref h) - 0.5f) * 0.5f;
+                float jz = (Draw(ref h) - 0.5f) * 0.5f;
                 var local = Matrix4x4.TRS(
                     new Vector3(p.x + jx, p.y, p.z + jz),
                     Quaternion.Euler(0f, yaw, 0f),
@@ -79,12 +86,24 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _tufts = tufts.ToArray();
-            _pebbles = pebbles.ToArray();
+            _tufts = tufts.Count > 0 ? tufts.ToArray() : null;
+            _pebbles = pebbles.Count > 0 ? pebbles.ToArray() : null;
+            tufts.Clear();
+            pebbles.Clear();
             _worldCenter = transform.TransformPoint(new Vector3(
                 WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f, WorldConstants.ChunkSize * 0.5f));
             _ready = true;
             enabled = true;
+        }
+
+        /// <summary>One uniform [0,1) draw from a 32-bit state (xorshift step + a multiplicative mix).</summary>
+        private static float Draw(ref uint state)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            uint mixed = unchecked(state * 2654435761u);
+            return (mixed >> 8) * (1f / 16777216f);
         }
 
         private void Update()
