@@ -54,6 +54,27 @@ namespace BlocksBeyondTheStars.Client
         private readonly float[] _boltJitter = new float[12];
         private readonly System.Random _boltRng = new System.Random(91);
 
+        // #1553: the IMGUI overlay is a separate behaviour that only exists (enabled) while something is on
+        // screen — an always-on OnGUI ran Unity's Layout + Repaint event loop every frame, even in clear
+        // weather (1.6 k allocations/s for the two handlers in the #1537 capture).
+        private ImguiOverlay _overlay;
+
+        private void Awake()
+        {
+            _overlay = ImguiOverlay.Attach(gameObject, DrawOverlay, repaintOnly: true);
+        }
+
+        private void LateUpdate()
+        {
+            // Mirrors the early-outs of DrawOverlay: anything fading, falling or flashing keeps the overlay
+            // alive; a quiet clear-sky frame leaves it off.
+            bool anyWash = _underwater > 0.01f || _frost > 0.01f || (_wet > 0.01f && _dropInit) || _flash > 0.01f || _boltTimer > 0.01f;
+            var env = Game?.Environment;
+            bool precipitation = env != null && !Game.SpaceViewActive && Game.ExposedToSky
+                                 && !string.IsNullOrEmpty(env.Precipitation) && env.Precipitation != "none";
+            _overlay.Sync(anyWash || precipitation);
+        }
+
         private void Init()
         {
             var rng = new System.Random(7);
@@ -345,15 +366,10 @@ namespace BlocksBeyondTheStars.Client
             return def?.Key == "water";
         }
 
-        private void OnGUI()
+        /// <summary>The screen overlay, drawn by <see cref="ImguiOverlay"/> on Repaint only: everything below is
+        /// GUI.DrawTexture (up to ~300 streaks + drops in rain), which has no effect in any other event (#1516).</summary>
+        private void DrawOverlay()
         {
-            // IMGUI calls OnGUI once per event; everything below is GUI.DrawTexture (up to ~300 streaks + drops in
-            // rain), which only has an effect during the Repaint event — skip the Layout pass entirely (#1516).
-            if (Event.current.type != EventType.Repaint)
-            {
-                return;
-            }
-
             // Subtle blue submerged wash, drawn before (and independent of) the weather overlay so it shows
             // even underwater in a cave or at night. Hidden in space and while the menu is open.
             if (_underwater > 0.01f && Game != null && !Game.SpaceViewActive && !Game.MenuOpen)
