@@ -7,15 +7,22 @@ using LiteNetLib;
 namespace BlocksBeyondTheStars.Networking.Transport;
 
 /// <summary>Maps our <see cref="DeliveryMode"/> onto LiteNetLib delivery methods.</summary>
-internal static class DeliveryMapping
+public static class DeliveryMapping
 {
     public static DeliveryMethod ToLiteNetLib(this DeliveryMode mode) => mode switch
     {
         DeliveryMode.ReliableOrdered => DeliveryMethod.ReliableOrdered,
+        DeliveryMode.ReliableOrderedBulk => DeliveryMethod.ReliableOrdered,
         DeliveryMode.Unreliable => DeliveryMethod.Unreliable,
         DeliveryMode.Sequenced => DeliveryMethod.Sequenced, // #1534: its own queue — not behind chunk resends
         _ => DeliveryMethod.ReliableOrdered,
     };
+
+    /// <summary>The LiteNetLib channel: the world stream (chunks, block changes) rides channel 1, everything
+    /// else channel 0 (#1534). Both peers run <see cref="ChannelCount"/> channels — protocol v5.</summary>
+    public static byte Channel(this DeliveryMode mode) => mode == DeliveryMode.ReliableOrderedBulk ? (byte)1 : (byte)0;
+
+    public const byte ChannelCount = 2;
 }
 
 /// <summary>
@@ -53,6 +60,7 @@ public sealed class LiteNetLibServerTransport : IServerTransport
             // server also runs an app-level heartbeat on top.
             DisconnectTimeout = 10000,
             PingInterval = 1000,
+            ChannelsCount = DeliveryMapping.ChannelCount, // #1534
         };
 
         _listener.ConnectionRequestEvent += request =>
@@ -103,12 +111,12 @@ public sealed class LiteNetLibServerTransport : IServerTransport
     {
         if (_peers.TryGetValue(connectionId, out var peer))
         {
-            peer.Send(payload, mode.ToLiteNetLib());
+            peer.Send(payload, mode.Channel(), mode.ToLiteNetLib());
         }
     }
 
     public void Broadcast(byte[] payload, DeliveryMode mode)
-        => _manager.SendToAll(payload, mode.ToLiteNetLib());
+        => _manager.SendToAll(payload, mode.Channel(), mode.ToLiteNetLib());
 
     /// <summary>Disconnects one native peer (kick). LiteNetLib flushes the reliable queue before the
     /// disconnect packet, so a message sent just before this still reaches the client.</summary>
@@ -143,7 +151,7 @@ public sealed class LiteNetLibClientTransport : IClientTransport
     public LiteNetLibClientTransport()
     {
         // Explicit, matching the server side (#964) — see the note there.
-        _manager = new NetManager(_listener) { AutoRecycle = true, DisconnectTimeout = 10000, PingInterval = 1000 };
+        _manager = new NetManager(_listener) { AutoRecycle = true, DisconnectTimeout = 10000, PingInterval = 1000, ChannelsCount = DeliveryMapping.ChannelCount };
 
         _listener.PeerConnectedEvent += peer =>
         {
@@ -170,7 +178,7 @@ public sealed class LiteNetLibClientTransport : IClientTransport
         _manager.Connect(host, port, ConnectionKey);
     }
 
-    public void Send(byte[] payload, DeliveryMode mode) => _serverPeer?.Send(payload, mode.ToLiteNetLib());
+    public void Send(byte[] payload, DeliveryMode mode) => _serverPeer?.Send(payload, mode.Channel(), mode.ToLiteNetLib());
 
     public void Poll() => _manager.PollEvents();
 

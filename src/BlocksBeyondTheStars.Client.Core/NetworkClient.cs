@@ -214,6 +214,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 bool wasConnected = Connected;
                 Connected = false;
+                ResetWorldOrdering();
                 if (wasConnected)
                 {
                     Disconnected?.Invoke();
@@ -244,6 +245,98 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Payloads still waiting to be dispatched (diagnostics / tests).</summary>
         public int PendingPayloads => _inbox.Count;
+
+        // ---- World-stream ordering (#1534, protocol v5) ----
+        // Chunks and block changes arrive on their own transport channel, so they can overtake or trail the
+        // JoinAccepted / WorldReset that introduces their world. Every such message carries the server's WorldId:
+        // before the join the world stream is held back as raw payloads and replayed after JoinAccepted; after a
+        // world switch a message of the world just left is dropped, one of a world not announced yet waits for
+        // its WorldReset. Transports without channels (loopback, WebSocket) never trigger either path.
+        private const int MaxHeldWorldStream = 512;
+        private bool _joined;
+        private int _previousWorldId;
+        private int _futureWorldId;
+        private readonly Queue<byte[]> _heldBeforeJoin = new();
+        private readonly Queue<object> _futureWorld = new();
+
+        /// <summary>The WorldId of the last JoinAccepted / WorldReset (0 before the join or on a v4 server).</summary>
+        public int CurrentWorldId { get; private set; }
+
+        /// <summary>World-stream messages parked for a world the client has not been told about yet (diagnostics / tests).</summary>
+        public int PendingFutureWorldMessages => _futureWorld.Count;
+
+        private void ResetWorldOrdering()
+        {
+            _joined = false;
+            CurrentWorldId = 0;
+            _previousWorldId = 0;
+            _futureWorldId = 0;
+            _heldBeforeJoin.Clear();
+            _futureWorld.Clear();
+        }
+
+        private void AdoptWorld(int worldId)
+        {
+            _previousWorldId = CurrentWorldId;
+            CurrentWorldId = worldId;
+        }
+
+        /// <summary>True when a world-stream message belongs to the current world (or carries no id — a v4-era
+        /// path). A message of the world just left is dropped; one of an unannounced world is parked.</summary>
+        private bool AcceptWorldStream(int worldId, object message)
+        {
+            if (worldId == 0 || worldId == CurrentWorldId)
+            {
+                return true;
+            }
+
+            if (worldId == _previousWorldId)
+            {
+                return false; // the stream of the world we just left, still draining on its channel
+            }
+
+            if (_futureWorldId != worldId)
+            {
+                _futureWorld.Clear();
+                _futureWorldId = worldId;
+            }
+
+            if (_futureWorld.Count < MaxHeldWorldStream)
+            {
+                _futureWorld.Enqueue(message);
+            }
+
+            return false;
+        }
+
+        private void ReplayFutureWorld()
+        {
+            if (_futureWorldId != CurrentWorldId)
+            {
+                return;
+            }
+
+            _futureWorldId = 0;
+            while (_futureWorld.Count > 0)
+            {
+                switch (_futureWorld.Dequeue())
+                {
+                    case ChunkDataMessage c: ChunkReceived?.Invoke(c); break;
+                    case BlockChanged b: BlockChanged?.Invoke(b); break;
+                }
+            }
+        }
+
+        private void ReplayHeldBeforeJoin()
+        {
+            while (_heldBeforeJoin.Count > 0)
+            {
+                OnPayload(_heldBeforeJoin.Dequeue());
+            }
+        }
+
+        private static bool IsWorldStreamPayload(byte[] payload)
+            => NetCodec.IsMessageType<ChunkDataMessage>(payload) || NetCodec.IsMessageType<BlockChanged>(payload);
 
         private void EnqueuePayload(byte[] payload) => _inbox.Enqueue(payload);
 
@@ -736,6 +829,17 @@ namespace BlocksBeyondTheStars.Client
                     chunks++;
                 }
 
+                if (!_joined && IsWorldStreamPayload(payload))
+                {
+                    // #1534: the world stream overtook the JoinAccepted on the other channel — park it.
+                    if (_heldBeforeJoin.Count < MaxHeldWorldStream)
+                    {
+                        _heldBeforeJoin.Enqueue(payload);
+                    }
+
+                    continue;
+                }
+
                 OnPayload(payload);
             }
         }
@@ -751,10 +855,15 @@ namespace BlocksBeyondTheStars.Client
         {
             switch (NetCodec.Decode(payload))
             {
-                case JoinAccepted m: JoinAccepted?.Invoke(m); break;
+                case JoinAccepted m:
+                    _joined = true;
+                    AdoptWorld(m.WorldId);
+                    JoinAccepted?.Invoke(m);
+                    ReplayHeldBeforeJoin();
+                    break;
                 case JoinRejected m: JoinRejected?.Invoke(m); break;
-                case ChunkDataMessage m: ChunkReceived?.Invoke(m); break;
-                case BlockChanged m: BlockChanged?.Invoke(m); break;
+                case ChunkDataMessage m: if (AcceptWorldStream(m.WorldId, m)) { ChunkReceived?.Invoke(m); } break;
+                case BlockChanged m: if (AcceptWorldStream(m.WorldId, m)) { BlockChanged?.Invoke(m); } break;
                 case InventoryUpdate m: InventoryUpdated?.Invoke(m); break;
                 case PlayerStateUpdate m: PlayerStateUpdated?.Invoke(m); break;
                 case CraftResult m: CraftCompleted?.Invoke(m); break;
@@ -811,7 +920,11 @@ namespace BlocksBeyondTheStars.Client
                 case CustomShapeList m: CustomShapeListReceived?.Invoke(m); break;
                 case OwnedShips m: OwnedShipsReceived?.Invoke(m); break;
                 case WorldEnvironment m: WorldEnvironmentReceived?.Invoke(m); break;
-                case WorldReset m: WorldResetReceived?.Invoke(m); break;
+                case WorldReset m:
+                    AdoptWorld(m.WorldId);
+                    WorldResetReceived?.Invoke(m);
+                    ReplayFutureWorld();
+                    break;
                 case NpcList m: NpcsReceived?.Invoke(m); break;
                 case DoorList m: DoorsReceived?.Invoke(m); break;
                 case DataCubeList m: DataCubesReceived?.Invoke(m); break;

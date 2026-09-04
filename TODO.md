@@ -283,6 +283,33 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Protocol v5: the world stream on its own LiteNetLib channel, ordered by a world id (#1534, 2026-09-04, branch perf/1534-second-channel) — ⚠ RELEASE NOTE: older game versions cannot join a v5 server
+
+**Why.** PR bundle 18 of the performance package (#1501), part B of #1534 (part A — the presence beat on a Sequenced
+delivery — shipped with v4). Every server→client message shared ONE reliable-ordered LiteNetLib channel, so a lost
+fragment of a 1–12 KB chunk stalled every presence / creature / NPC update queued behind it for a resend round trip
+(head-of-line blocking — avatar and creature stutter on lossy Wi-Fi). Part B was deferred because chunks on a second
+channel can overtake or trail the JoinAccepted / WorldReset that introduces their world.
+
+**What ships.** `DeliveryMode.ReliableOrderedBulk`: the world stream — chunks and `BlockChanged` — on LiteNetLib
+channel 1 (`ChannelsCount = 2` on both peers; transports without channels treat it as ReliableOrdered). The ordering
+problem is solved with a world id: the server numbers every world once per run (`WorldIdOf`), stamps it on
+`ChunkDataMessage` (cache-stable: the payload cache is per world), `BlockChanged`, `WorldReset` and `JoinAccepted`,
+and `NetworkClient` orders the two channels with it — world-stream payloads that arrive before the JoinAccepted are
+held as raw bytes and replayed after it; after a world switch a message of the world just left is dropped and one of a
+world not announced yet is parked until its WorldReset arrives (both bounded at 512). Messages without an id (0) pass
+as before, so the loopback and JSON paths — single ordered streams — never take either branch. `Protocol.Version`
+5; a v4 peer would drop channel-1 packets, so the join-time version check keeps the two apart (CHANGELOG note
+extended).
+
+**Verification.** `ProtocolV5Tests` (version + channel mapping; a real UDP localhost LiteNetLib server ↔ client
+exchanging bulk and ordinary payloads on two channels, order kept within the bulk channel),
+`ProtocolV5ClientOrderingTests` (5: held before join, dropped for the world just left, parked for an unannounced world,
+id-less accepted, disconnect resets), the codec / chunk-payload / integration / WebSocket suites and the full fast
+tier green; the Development player joins the bundled v5 server over LiteNetLib and streams a world as before
+(PerfProbe run). Not measured: the packet-loss case itself — LiteNetLib's loss simulation is a DEBUG-build feature of
+the library, absent from the NuGet package; the mechanism (a second reliable queue) is the whole fix.
+
 ### ★ Client garbage, part 5: chunks decode into pooled arrays that live with the chunk, the codec interns short strings (#1555, 2026-09-04, branch perf/1555-receive-path)
 
 **Why.** PR bundle 17 of the performance package (#1501). After the dispatch pooling the receive path was the largest

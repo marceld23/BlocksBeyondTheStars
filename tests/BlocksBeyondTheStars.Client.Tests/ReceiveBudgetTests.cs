@@ -47,6 +47,9 @@ public sealed class ReceiveBudgetTests
 
     private static byte[] Message(string text) => NetCodec.Encode(new ServerMessage { Text = text });
 
+    // #1534 (v5): the world stream is held back until the JoinAccepted has been dispatched.
+    private static byte[] Join() => NetCodec.Encode(new JoinAccepted { WorldId = 1 });
+
     [Fact]
     public void ChunkBacklog_IsPacedAcrossFrames_AndNothingIsLost()
     {
@@ -56,6 +59,7 @@ public sealed class ReceiveBudgetTests
         int received = 0;
         client.ChunkReceived += _ => received++;
 
+        transport.Pending.Enqueue(Join());
         int queued = (client.MaxChunksPerPoll * 3) + 5;
         for (int i = 0; i < queued; i++)
         {
@@ -108,6 +112,7 @@ public sealed class ReceiveBudgetTests
         client.ChunkReceived += m => order.Add("chunk" + m.Cx);
         client.BlockChanged += _ => order.Add("block");
 
+        transport.Pending.Enqueue(Join());
         transport.Pending.Enqueue(Chunk(0));
         transport.Pending.Enqueue(Chunk(1));
         transport.Pending.Enqueue(Chunk(2));                                  // over the cap → next frame

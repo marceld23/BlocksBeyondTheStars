@@ -50,10 +50,11 @@ public sealed class ProtocolV4Tests : IDisposable
         };
 
     [Fact]
-    public void Version_IsFour()
+    public void Version_IsFive()
     {
-        Assert.Equal(4, Protocol.Version);
-        Assert.Equal(4, new JoinRequest().ProtocolVersion);
+        // v4 = LZ4 + BlueprintsUnchanged (this file); v5 = the second LiteNetLib channel + WorldId (ProtocolV5Tests).
+        Assert.Equal(5, Protocol.Version);
+        Assert.Equal(5, new JoinRequest().ProtocolVersion);
     }
 
     [Fact]

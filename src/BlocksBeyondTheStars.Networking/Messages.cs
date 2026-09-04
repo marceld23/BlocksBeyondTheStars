@@ -808,6 +808,9 @@ public sealed class JoinAccepted
     public string PlanetName { get; set; } = string.Empty;
     public string SystemName { get; set; } = string.Empty;
 
+    /// <summary>The server's id of the joined world (#1534, v5) — see <see cref="ChunkDataMessage.WorldId"/>.</summary>
+    public int WorldId { get; set; }
+
     /// <summary>Total seconds this world has been played (server-accumulated, see
     /// <c>WorldMetadata.CumulativePlaytimeSeconds</c>); shown alongside the per-session timer in the HUD.</summary>
     public long CumulativePlaytimeSeconds { get; set; }
@@ -827,6 +830,10 @@ public sealed class ChunkDataMessage
     public int Cx { get; set; }
     public int Cy { get; set; }
     public int Cz { get; set; }
+
+    /// <summary>The server's id of the world this chunk belongs to (#1534, v5): the world stream travels on its own
+    /// channel, so the client matches it against the WorldId of the last JoinAccepted / WorldReset. 0 = unknown.</summary>
+    public int WorldId { get; set; }
 
     /// <summary>Dense per-cell block ids. Empty when <see cref="BlocksRle"/> carries the payload instead —
     /// the server sends whichever representation is smaller (a rare unrunnable chunk ships dense).</summary>
@@ -889,6 +896,9 @@ public sealed class BlockChanged
 
     /// <summary>Packed shape descriptor of the placed block (shape index + orientation; see ShapeCode); 0 = plain cube.</summary>
     public int Shape { get; set; }
+
+    /// <summary>The world this change belongs to (#1534, v5) — see <see cref="ChunkDataMessage.WorldId"/>.</summary>
+    public int WorldId { get; set; }
 }
 
 /// <summary>A harvested surface plant has begun regrowing on its (now bare) cell: the server broadcasts this
@@ -1357,6 +1367,9 @@ public sealed class WorldReset
 
     /// <summary>True when the arrival was a hyperspace jump to a different star system (drives the client warp animation).</summary>
     public bool Hyperjump { get; set; }
+
+    /// <summary>The server's id of the world whose stream follows (#1534, v5) — see <see cref="ChunkDataMessage.WorldId"/>.</summary>
+    public int WorldId { get; set; }
 }
 
 /// <summary>The player's current vitals are respawning at the ship heal-tank (Medbay).</summary>

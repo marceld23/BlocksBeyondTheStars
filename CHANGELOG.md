@@ -13,7 +13,7 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-⚠️ **Compatibility:** the network protocol version moves to **4** (#1533 #1534 #1535 — LZ4-compressed entity
+⚠️ **Compatibility:** the network protocol version moves to **5** (#1533 #1534 #1535 — chunks and block changes on a second LiteNetLib channel with a world id, so a lost chunk no longer stalls presence and chat; — LZ4-compressed entity
 lists and chunks, a sequenced presence beat, and inventory updates that no longer re-send the unchanged
 blueprint list). Updated servers reject older game versions at join with a clear "protocol mismatch" message —
 update the game (desktop installs auto-update; the browser version is always current).
