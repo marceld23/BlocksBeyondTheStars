@@ -402,6 +402,10 @@ public sealed class PlayerSession
     public Dictionary<int, (ulong Hash, int Beat)> PresenceSentTo { get; } = new();
     public int PresenceBeat { get; set; }
 
+    // #1535: signature of the unlocked-blueprint set as last sent — SendInventory omits the list while it holds.
+    public long SentBlueprintsSignature { get; set; }
+    public bool SentBlueprintsOnce { get; set; }
+
     public PlayerSession(int connectionId, PlayerState state)
     {
         ConnectionId = connectionId;

@@ -30,7 +30,9 @@ public sealed class ChunkPayloadTests : IDisposable
     private static readonly MessagePackSerializerOptions SameAsCodec =
         MessagePackSerializerOptions.Standard
             .WithResolver(ContractlessStandardResolver.Instance)
-            .WithSecurity(MessagePackSecurity.UntrustedData);
+            .WithSecurity(MessagePackSecurity.UntrustedData)
+            .WithCompression(MessagePackCompression.Lz4BlockArray)
+            .WithCompressionMinLength(NetCodec.CompressionMinLengthBytes);
 
     [Fact]
     public void Rle_SpanOverload_MatchesTheArrayOverload_Exactly()
@@ -82,7 +84,7 @@ public sealed class ChunkPayloadTests : IDisposable
         var big = NetCodec.Encode(new ChunkDataMessage { Cx = 1, Blocks = new ushort[WorldConstants.BlocksPerChunk] });
         var smallAgain = NetCodec.Encode(new PlayerStateUpdate { PlayerId = "p1" });
         Assert.Equal(small, smallAgain);
-        Assert.True(big.Length > small.Length);
+        Assert.Equal(WorldConstants.BlocksPerChunk, ((ChunkDataMessage)NetCodec.Decode(big)!).Blocks.Length); // a dense chunk of one value LZ4-compresses below a state update — compare content, not size
     }
 
     [Fact]

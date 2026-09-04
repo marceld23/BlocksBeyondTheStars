@@ -243,6 +243,43 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Protocol v4: LZ4 block arrays above 256 B, the presence beat on a sequenced delivery, inventory updates without the unchanged blueprint list (#1533 #1534 #1535, 2026-09-04, branch perf/1533-1535-protocol-v4) — ⚠ RELEASE NOTE: older game versions cannot join a v4 server
+
+**Why.** PR bundle 10 of the performance package (#1501), the one wire-incompatible bundle, shipped as ONE version
+bump 3 → 4. Contractless MessagePack repeats every property name as a map key and resends static species
+descriptors at 2–5 Hz (a 30-creature list = 14.9 KB, ~85 % repeated strings); every server→client message rode
+one ReliableOrdered stream, so a lost fragment of a 1–12 KB chunk stalled every avatar pose queued behind it for
+a resend round trip; and `InventoryUpdate` carried the whole unlocked-blueprint list (100+ keys, 2–3 KB) on
+every pickup.
+
+**What changed.** **#1533** `NetCodec.Options` gains `Lz4BlockArray` with `CompressionMinLength` =
+`NetCodec.CompressionMinLengthBytes` (256): a 30-creature list shrinks to well under a third, a presence (~150 B)
+stays byte-identical to v3; `Decode` catches every exception from untrusted bytes (a corrupted LZ4 block must
+drop, not throw). The JSON envelope (browser) is untouched. **#1534 part A** the presence beat is
+`DeliveryMode.Sequenced` (new enum member → LiteNetLib `Sequenced`, its own queue; loopback/WebSocket treat it as
+reliable); the join snapshot stays reliable. **Part B (a second channel for chunks + BlockChanged) is deferred**:
+LiteNetLib orders only within a channel, and the client relies on `JoinAccepted` / `WorldReset` / paint-and-shape
+registry pushes preceding the chunks and edits that depend on them — that needs a client-side epoch gate and a
+real-UDP test first (noted on the issue). **#1535** `InventoryUpdate.BlueprintsUnchanged`: `SendInventory`
+signs the unlocked set per session and omits the list while the signature holds (scan unlocks, achievement
+rewards and creative grants all count — the signature is over the set, not the handler); `GameBootstrap` keeps
+its set when the flag is set (an omitted list used to mean "none" and would grey out the tech tree).
+`Protocol.Version` = 4 with the v4 line in its changelog comment; CHANGELOG `[Unreleased]` carries the
+compatibility note (desktop installs auto-update via Velopack, the browser is always current).
+
+**Consequences.** Pre-v4 native clients are rejected at join with the localized "protocol mismatch" text until
+they update. The server pays an LZ4 decompress per browser recipient when it converts a native payload to JSON
+(the #1531 memo makes that once per payload). `ChunkPayloads` (#1532) caches encoded — now compressed — bytes;
+the cache key already carries the codec format.
+
+**Verified.** `ProtocolV4Tests`: version 4 on the wire; a 30-creature list compresses below a third while a
+presence is byte-identical to v3; a v3 reader throws on a compressed body (the reason for the bump); corrupted
+and truncated compressed payloads decode to null without throwing; `Sequenced` maps to LiteNetLib `Sequenced`;
+the presence beat is the only Sequenced traffic; the inventory update omits the list until the set changes.
+`ChunkPayloadTests` mirrors the compressed options; `NetCodecTests` (both formats for every registered message,
+fuzz, the #1250 fallback), `NetworkingTests`, hardening, presence, observer, hosted-worlds, LAN regression,
+creative and scanning suites, the client fast tier and the full server fast tier are green; local Unity build.
+
 ### ★ Chunk payload and transport: RLE from the backing array, single-buffer MessagePack encode, one encoded payload per chunk version, WebSocket JSON conversion once per payload (#1532, #1531 part, 2026-09-04, branch perf/1531-1532-transport)
 
 **Why.** PR bundle 9 of the performance package (#1501). `StreamChunkNow` cloned the 4096-cell block array per

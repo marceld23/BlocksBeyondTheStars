@@ -11,8 +11,12 @@ public static class Protocol
     /// cannot decode it, so the join-time version check keeps them off newer servers).
     /// v3: the pixel-payload alphabet widened from hex to base32 (#899 — a 32-colour palette). An older
     /// server charset-checks against hex and would drop a face/body painting/block design containing any
-    /// of the new symbols WITHOUT telling anyone; refusing the join says so plainly instead.</summary>
-    public const int Version = 3;
+    /// of the new symbols WITHOUT telling anyone; refusing the join says so plainly instead.
+    /// v4 (#1533/#1535): MessagePack bodies above NetCodec.CompressionMinLengthBytes are LZ4 block arrays — a
+    /// v3 reader hands the LZ4 ext block to the plain formatter and silently drops every entity list and
+    /// chunk; and InventoryUpdate.BlueprintsUnchanged lets the server omit the unlocked-blueprint list, which
+    /// a v3 client would read as "no blueprints" and grey out its whole tech tree.</summary>
+    public const int Version = 4;
 
     public const int DefaultGameplayPort = 31415;
     public const int DefaultAdminPort = 31416;
@@ -31,4 +35,9 @@ public enum DeliveryMode
 
     /// <summary>Best-effort, may drop/reorder — for frequent position updates.</summary>
     Unreliable,
+
+    /// <summary>Best-effort, never duplicated, arrives in order (an older packet behind a newer one is dropped)
+    /// — for the presence beat (#1534): a lost fragment of a chunk on the reliable stream no longer holds every
+    /// avatar pose behind its resend round trip. Transports without the distinction treat it as reliable.</summary>
+    Sequenced,
 }

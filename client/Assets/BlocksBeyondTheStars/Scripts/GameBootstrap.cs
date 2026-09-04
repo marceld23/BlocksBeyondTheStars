@@ -1859,7 +1859,10 @@ namespace BlocksBeyondTheStars.Client
                 RefreshSuitStats();
                 Cargo = m.Cargo;
                 CargoSlots = m.CargoSlotCount;
-                UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+                if (!m.BlueprintsUnchanged) // #1535: an omitted list means "same as before", not "none"
+                {
+                    UnlockedBlueprints = new System.Collections.Generic.HashSet<string>(m.UnlockedBlueprints ?? System.Array.Empty<string>());
+                }
 
                 // Research toast (#763): a knowledge gain that crosses a still-locked blueprint's
                 // threshold makes it newly researchable — queue it for the HUD. Threshold-only on

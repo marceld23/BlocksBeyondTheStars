@@ -916,6 +916,11 @@ public sealed class InventoryUpdate
     /// <summary>Blueprint keys the player has unlocked — lets the client show craftable/locked status.</summary>
     public string[] UnlockedBlueprints { get; set; } = System.Array.Empty<string>();
 
+    /// <summary>#1535 (protocol v4): true = the unlocked set has not changed since this session's last
+    /// InventoryUpdate, so <see cref="UnlockedBlueprints"/> is omitted and the client keeps what it has (the
+    /// list used to ride every pickup — 100+ keys, 2–3 KB, ReliableOrdered).</summary>
+    public bool BlueprintsUnchanged { get; set; }
+
     /// <summary>The player's current knowledge total (kept in sync so the HUD/menu/trade panel show it).</summary>
     public int KnowledgePoints { get; set; }
 

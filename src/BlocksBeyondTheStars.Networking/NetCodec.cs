@@ -30,10 +30,18 @@ public static class NetCodec
     // UntrustedData (#424 S10): every decoded payload is attacker-controlled, so deserialization must be
     // depth-limited (a ~5-byte header can declare an absurdly nested/huge structure inside the 1 MB cap)
     // and allocation-clamped. Security options only affect reading — the encode path is unchanged.
+    /// <summary>#1533 (protocol v4): MessagePack bodies at or above this many bytes are LZ4 block arrays.
+    /// Entity lists are ~85 % repeated key strings and static descriptors (a 30-creature list shrinks to
+    /// ~13 %); a presence (~150 B) would only grow, so it stays plain. Both peers must run v4: a reader
+    /// without compression hands the LZ4 ext block to the plain formatter and fails.</summary>
+    public const int CompressionMinLengthBytes = 256;
+
     private static readonly MessagePackSerializerOptions Options =
         MessagePackSerializerOptions.Standard
             .WithResolver(ContractlessStandardResolver.Instance)
-            .WithSecurity(MessagePackSecurity.UntrustedData);
+            .WithSecurity(MessagePackSecurity.UntrustedData)
+            .WithCompression(MessagePackCompression.Lz4BlockArray)
+            .WithCompressionMinLength(CompressionMinLengthBytes);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -707,9 +715,11 @@ public static class NetCodec
             var body = new ReadOnlyMemory<byte>(payload, 1, payload.Length - 1);
             return MessagePackSerializer.Deserialize(type, body, Options);
         }
-        catch (MessagePackSerializationException)
+        catch (Exception)
         {
-            return null; // corrupt/truncated body for this tag — drop it
+            // Untrusted bytes must never throw out of the codec — the formatter's own exception, and since
+            // #1533 whatever a corrupted LZ4 block makes the decompressor raise, all mean "drop it".
+            return null;
         }
     }
 
