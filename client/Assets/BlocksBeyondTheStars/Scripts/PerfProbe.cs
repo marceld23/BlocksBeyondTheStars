@@ -9,6 +9,7 @@ using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 
 namespace BlocksBeyondTheStars.Client
 {
@@ -516,6 +517,7 @@ namespace BlocksBeyondTheStars.Client
             int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
             long mem = GC.GetTotalMemory(false);
 
+            var census = new TextChangeCensus();
             float t = 0f;
             yield return null; // don't count the setup frame
             while (t < seconds)
@@ -523,8 +525,11 @@ namespace BlocksBeyondTheStars.Client
                 float dt = Time.unscaledDeltaTime;
                 samples.Add(dt * 1000f);
                 t += dt;
+                census.Tick();
                 yield return null;
             }
+
+            census.Report(name, t);
 
             var r = new PhaseResult
             {
@@ -553,6 +558,100 @@ namespace BlocksBeyondTheStars.Client
             r.p99Ms = Percentile(samples, 0.99f);
             r.maxMs = max;
             done(r);
+        }
+
+        /// <summary>
+        /// #1552: which uGUI texts change (and therefore rebuild their mesh) during a phase. A text with an
+        /// <see cref="Outline"/> costs five vertex copies per rebuild, so the census names every text that changed,
+        /// with its change count, average length and whether it is outlined — the profiler capture only shows
+        /// <c>Outline.ModifyMesh</c> without the object. Once a second the scene is re-scanned for new texts.
+        /// </summary>
+        private sealed class TextChangeCensus
+        {
+            private sealed class Entry
+            {
+                public string Last;
+                public int Changes;
+                public long Chars;
+                public bool Outlined;
+                public string Path;
+            }
+
+            private readonly Dictionary<Text, Entry> _entries = new Dictionary<Text, Entry>();
+            private Text[] _texts = Array.Empty<Text>();
+            private float _rescanAt;
+
+            public void Tick()
+            {
+                if (Time.unscaledTime >= _rescanAt)
+                {
+                    _rescanAt = Time.unscaledTime + 1f;
+                    _texts = UnityEngine.Object.FindObjectsByType<Text>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+                }
+
+                foreach (var text in _texts)
+                {
+                    if (text == null)
+                    {
+                        continue;
+                    }
+
+                    string now = text.text;
+                    if (!_entries.TryGetValue(text, out var e))
+                    {
+                        e = new Entry { Last = now, Outlined = text.GetComponent<BaseMeshEffect>() != null, Path = PathOf(text.transform) };
+                        _entries[text] = e;
+                        continue;
+                    }
+
+                    if (!ReferenceEquals(now, e.Last) && !string.Equals(now, e.Last, StringComparison.Ordinal))
+                    {
+                        e.Changes++;
+                        e.Chars += now?.Length ?? 0;
+                        e.Last = now;
+                    }
+                }
+            }
+
+            public void Report(string phase, float seconds)
+            {
+                var changed = new List<Entry>();
+                foreach (var e in _entries.Values)
+                {
+                    if (e.Changes > 0)
+                    {
+                        changed.Add(e);
+                    }
+                }
+
+                changed.Sort((a, b) => (b.Changes * (b.Outlined ? 5L : 1L) * Math.Max(1, b.Chars / Math.Max(1, b.Changes)))
+                    .CompareTo(a.Changes * (a.Outlined ? 5L : 1L) * Math.Max(1, a.Chars / Math.Max(1, a.Changes))));
+                var sb = new StringBuilder();
+                sb.Append($"[PerfProbe] text-rebuilds '{phase}': {changed.Count} of {_entries.Count} texts changed in {seconds:0.0}s");
+                int shown = 0;
+                foreach (var e in changed)
+                {
+                    if (shown++ >= 12)
+                    {
+                        break;
+                    }
+
+                    sb.Append('\n').Append($"  {e.Changes / Math.Max(0.001f, seconds),6:0.0}/s  avg {e.Chars / Math.Max(1, e.Changes),4} chars  {(e.Outlined ? "OUTLINE" : "plain  ")}  {e.Path}");
+                }
+
+                Debug.Log(sb.ToString());
+            }
+
+            private static string PathOf(Transform tr)
+            {
+                string path = tr.name;
+                for (var p = tr.parent; p != null && path.Length < 120; p = p.parent)
+                {
+                    path = p.name + "/" + path;
+                }
+
+                return path;
+            }
         }
 
         private static float Percentile(List<float> sorted, float p)

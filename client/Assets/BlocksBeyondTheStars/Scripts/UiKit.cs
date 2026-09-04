@@ -814,7 +814,7 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
-            var o = g.gameObject.AddComponent<Outline>();
+            var o = g.gameObject.AddComponent<UiOutline>(); // #1552: allocation-free rebuilds (see UiOutline)
             o.effectColor = new Color(0f, 0f, 0f, 0.85f);
             o.effectDistance = new Vector2(1.2f, -1.2f);
         }
