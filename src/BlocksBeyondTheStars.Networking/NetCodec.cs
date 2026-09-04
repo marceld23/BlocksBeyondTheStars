@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using BlocksBeyondTheStars.Networking.Messages;
 using MessagePack;
+using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
 namespace BlocksBeyondTheStars.Networking;
@@ -36,9 +37,15 @@ public static class NetCodec
     /// without compression hands the LZ4 ext block to the plain formatter and fails.</summary>
     public const int CompressionMinLengthBytes = 256;
 
+    // #1555: short strings (entity names, role/biome/item keys) are interned per decoding thread — the same
+    // text arrives in every entity list several times a second. Encoding is unchanged.
+    private static readonly IFormatterResolver Resolver = CompositeResolver.Create(
+        new IMessagePackFormatter[] { InterningStringFormatter.Instance },
+        new IFormatterResolver[] { ContractlessStandardResolver.Instance });
+
     private static readonly MessagePackSerializerOptions Options =
         MessagePackSerializerOptions.Standard
-            .WithResolver(ContractlessStandardResolver.Instance)
+            .WithResolver(Resolver)
             .WithSecurity(MessagePackSecurity.UntrustedData)
             .WithCompression(MessagePackCompression.Lz4BlockArray)
             .WithCompressionMinLength(CompressionMinLengthBytes);

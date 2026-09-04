@@ -118,9 +118,12 @@ namespace BlocksBeyondTheStars.Client
             _npcs.Clear();
         }
 
+        private readonly HashSet<int> _seenScratch = new HashSet<int>(); // #1555: one set, not one per list
+
         private void OnNpcs(NpcList m)
         {
-            var seen = new HashSet<int>();
+            var seen = _seenScratch;
+            seen.Clear();
             foreach (var nd in m.Npcs)
             {
                 seen.Add(nd.Id);
