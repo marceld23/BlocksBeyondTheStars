@@ -42,8 +42,7 @@ namespace BlocksBeyondTheStars.Client
         /// mask and the AO occluder set — they drifted apart once (#382/#1031 grew the cull, the bevel mask
         /// stayed behind) and the mismatch opened a 6 cm see-through slit along every such edge (#1459).</summary>
         public static bool NeighbourExposesOpaqueFace(GameContent content, BlockId neighbour)
-            => neighbour.IsAir || IsTransparent(content, neighbour) || IsFloraBlock(content, neighbour)
-                || IsFoliageBlock(content, neighbour) || IsSlimPropBlock(content, neighbour);
+            => TraitsFor(content).ExposesOpaqueFace(neighbour);
 
         /// <summary>How far a water SURFACE cell's top face sits below the block top (fraction of a block), so
         /// standing water reads as liquid in a hollow instead of a glass cube flush with the bank (#658). Water
@@ -55,14 +54,43 @@ namespace BlocksBeyondTheStars.Client
         // because desktop geometry builds run on thread-pool workers (each thread runs at most one build at a
         // time, and none of these ever escapes the call), so a Clear() at the point of use is all the isolation
         // needed. On WebGL everything runs on the single main thread — same invariant, one buffer set.
-        [System.ThreadStatic] private static Dictionary<long, int> _colTopScratch;
         [System.ThreadStatic] private static Dictionary<(int X, int Y, int Z), Vector4> _waterCellsScratch;
-        [System.ThreadStatic] private static Dictionary<(int, int, int), bool> _aoOccScratch;
+        // #1528: dense per-build scratch for the world-chunk path — the AO occluder probes, the skylight column
+        // tops and the block-light flood all address a bounded window around the chunk, so a flat array indexed by
+        // (coordinate - window origin) replaces a tuple-keyed dictionary (order 10^5 hash lookups per chunk).
+        [System.ThreadStatic] private static byte[] _aoDenseScratch;      // AoWindow³: 0 unknown, 1 open, 2 occluder
+        [System.ThreadStatic] private static int[] _colTopDenseScratch;   // SkyWindow²: column top (int.MinValue = none)
+        [System.ThreadStatic] private static byte[] _colTopKnownScratch;  // SkyWindow²: 1 = computed
+        [System.ThreadStatic] private static LightField _lightFieldDense;
+        [System.ThreadStatic] private static byte[] _lightOpaqueDense;    // LightField.W³: 0 unknown, 1 open, 2 opaque
+        [System.ThreadStatic] private static Queue<int> _lightQueueDense;
+        [System.ThreadStatic] private static List<int> _lightTouchedScratch;
+        private const int AoWindow = 20;   // probes reach [-2, 18) around the chunk
+        private const int SkyWindow = 24;  // the 5×5 kernel around [-1, 17) → [-3, 19)
+
+        /// <summary>#1528: the coloured block-light field of one build as a dense window — the flood reaches at
+        /// most LightRadius - 1 cells past a source, sources lie within LightRadius of the chunk, so a
+        /// (16 + 2·(2·LightRadius - 1) + 2)³ box holds every lit cell. Values stay on the flood's 0..LightRadius
+        /// scale; <see cref="At"/> applies the same 1/LightRadius the old normalisation copy did.</summary>
+        private sealed class LightField
+        {
+            public const int W = WorldConstants.ChunkSize + 2 * (2 * LightRadius - 1) + 2;
+            public readonly Vector3[] Cells = new Vector3[W * W * W];
+            public int Ox, Oy, Oz;
+
+            public int IndexOf(int wx, int wy, int wz)
+            {
+                int ix = wx - Ox, iy = wy - Oy, iz = wz - Oz;
+                return (uint)ix < W && (uint)iy < W && (uint)iz < W ? (iy * W + iz) * W + ix : -1;
+            }
+
+            public Vector3 At(int wx, int wy, int wz)
+            {
+                int i = IndexOf(wx, wy, wz);
+                return i >= 0 ? Cells[i] * (1f / LightRadius) : Vector3.zero;
+            }
+        }
         [System.ThreadStatic] private static List<(int X, int Y, int Z, Vector3 Col)> _lightSourcesScratch;
-        [System.ThreadStatic] private static Dictionary<(int, int, int), bool> _lightOpaqueScratch;
-        [System.ThreadStatic] private static Dictionary<(int, int, int), Vector3> _lightFieldScratch;
-        [System.ThreadStatic] private static Dictionary<(int, int, int), Vector3> _lightResultScratch;
-        [System.ThreadStatic] private static Queue<(int, int, int)> _lightQueueScratch;
 
         // Per-face quad/UV scratch (one 4-element array per CALL SITE, so two live quads never alias): the
         // mesher touches these thousands of times per chunk, and a fresh array per face was a real share of
@@ -114,6 +142,67 @@ namespace BlocksBeyondTheStars.Client
         /// dictionary mutation (see the planet streamer's neighbourhood snapshot in GameBootstrap).
         /// <paramref name="worldLoaded"/> tells the fluid rules apart which empty cells are real air and which are
         /// merely un-streamed (see <c>Loaded</c> below); null = the caller has all the data (ship/speeder meshers).</summary>
+        /// <summary>#1528: the world-chunk mesher's neighbourhood — the centre chunk plus every chunk within
+        /// ±2 horizontally and -2..+4 vertically, addressed by shift/mask instead of canonicalise → floor-divide →
+        /// dictionary → modulo per block read (30–60k reads per build). Slots are filled from the CANONICAL chunk
+        /// of each offset (two offsets of a tiny body may share a chunk), so a read at any unwrapped coordinate
+        /// within the box lands exactly where the old canonicalising lambda looked; anything outside the box
+        /// is Air / not loaded, as before. Requires a chunk-aligned circumference (every body is).</summary>
+        public sealed class Neighbourhood
+        {
+            public const int SpanX = 5, SpanY = 7, SpanZ = 5, LoX = -2, LoY = -2, LoZ = -2;
+            private readonly ChunkData[] _chunks = new ChunkData[SpanX * SpanY * SpanZ];
+            private readonly Dictionary<int, int>[] _shapes = new Dictionary<int, int>[SpanX * SpanY * SpanZ];
+            private readonly int _ox, _oy, _oz;
+
+            public Neighbourhood(ChunkCoord center)
+            {
+                var origin = WorldConstants.ChunkOrigin(center);
+                _ox = origin.X;
+                _oy = origin.Y;
+                _oz = origin.Z;
+            }
+
+            private static int Slot(int dx, int dy, int dz) => ((dy - LoY) * SpanZ + (dz - LoZ)) * SpanX + (dx - LoX);
+
+            /// <summary>Places the chunk that sits at chunk offset (dx, dy, dz) from the centre.</summary>
+            public void Set(int dx, int dy, int dz, ChunkData chunk, Dictionary<int, int> shapes)
+            {
+                int s = Slot(dx, dy, dz);
+                _chunks[s] = chunk;
+                _shapes[s] = shapes;
+            }
+
+            public ChunkData ChunkAt(int dx, int dy, int dz) => _chunks[Slot(dx, dy, dz)];
+
+            private int SlotOf(int wx, int wy, int wz)
+            {
+                // arithmetic shift = floor division by 16 for negatives too; the box test rejects everything else
+                int dx = ((wx - _ox) >> 4) - LoX, dy = ((wy - _oy) >> 4) - LoY, dz = ((wz - _oz) >> 4) - LoZ;
+                return (uint)dx < SpanX && (uint)dy < SpanY && (uint)dz < SpanZ ? (dy * SpanZ + dz) * SpanX + dx : -1;
+            }
+
+            public BlockId Block(int wx, int wy, int wz)
+            {
+                int s = SlotOf(wx, wy, wz);
+                var ch = s >= 0 ? _chunks[s] : null;
+                return ch == null ? BlockId.Air : ch.Get(wx & 15, wy & 15, wz & 15);
+            }
+
+            public bool Loaded(int wx, int wy, int wz)
+            {
+                int s = SlotOf(wx, wy, wz);
+                return s >= 0 && _chunks[s] != null;
+            }
+
+            public int Shape(int wx, int wy, int wz)
+            {
+                int s = SlotOf(wx, wy, wz);
+                var sh = s >= 0 ? _shapes[s] : null;
+                return sh != null && sh.TryGetValue(WorldConstants.LocalIndex(wx & 15, wy & 15, wz & 15), out var v) ? v : 0;
+            }
+        }
+
         public static ChunkMeshData BuildGeometry(ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock, BlockTextureAtlas atlas = null,
             System.Func<BlockId, Color> floraTint = null, System.Func<BlockId, Color> paintTint = null,
             IReadOnlyList<(Vector3i Pos, int Rgb)> lights = null,
@@ -161,9 +250,10 @@ namespace BlocksBeyondTheStars.Client
             // blocks + dedicated light blocks), baked per-vertex so placed lights actually illuminate their
             // surroundings (in caves/at night), independent of the sun + flora tint. Cost is proportional to
             // the lit volume — chunks with no light nearby pay nothing.
+            var traits = TraitsFor(content); // #1528: every block classification below is a table read
             var blockLightField = BuildBlockLight(chunk, content, worldBlock, origin, n, lights);
             Vector3 BlockLightAt(int wx, int wy, int wz)
-                => blockLightField != null && blockLightField.TryGetValue((wx, wy, wz), out var v) ? v : Vector3.zero;
+                => blockLightField != null ? blockLightField.At(wx, wy, wz) : Vector3.zero;
 
             // Dominant direction TOWARD the block-light source at a cell: the gradient of the light field's
             // luminance (brighter neighbours pull the vector their way). Lets the shader shade placed lights
@@ -192,14 +282,19 @@ namespace BlocksBeyondTheStars.Client
             // above its column's top (so caves, building/ship interiors and overhang undersides go dark,
             // while open ground + cliff faces stay sunlit). The sun/sky terms are scaled by this in the
             // block shader; the headlamp + emissive blocks light regardless, so caves need a lamp/lights.
-            var colTop = _colTopScratch ??= new Dictionary<long, int>();
-            colTop.Clear();
+            // #1528: dense window instead of a long-keyed dictionary; a probe outside the window (never, by the
+            // kernel's reach) is simply computed uncached.
+            var colTopDense = _colTopDenseScratch ??= new int[SkyWindow * SkyWindow];
+            var colTopKnown = _colTopKnownScratch ??= new byte[SkyWindow * SkyWindow];
+            System.Array.Clear(colTopKnown, 0, colTopKnown.Length);
+            int skyOx = origin.X - 3, skyOz = origin.Z - 3;
             int Top(int wx, int wz)
             {
-                long key = ((long)(uint)wx) | ((long)wz << 32);
-                if (colTop.TryGetValue(key, out var t))
+                int kx = wx - skyOx, kz = wz - skyOz;
+                int key = (uint)kx < SkyWindow && (uint)kz < SkyWindow ? kz * SkyWindow + kx : -1;
+                if (key >= 0 && colTopKnown[key] != 0)
                 {
-                    return t;
+                    return colTopDense[key];
                 }
 
                 int top = int.MinValue;
@@ -212,7 +307,12 @@ namespace BlocksBeyondTheStars.Client
                     }
                 }
 
-                colTop[key] = top;
+                if (key >= 0)
+                {
+                    colTopDense[key] = top;
+                    colTopKnown[key] = 1;
+                }
+
                 return top;
             }
 
@@ -252,6 +352,9 @@ namespace BlocksBeyondTheStars.Client
             // band's side edges (#987). Null (the one-shot ship/speeder meshers, which hold all their own data,
             // and the tests) = everything is loaded, i.e. exactly the old behaviour.
             bool Loaded(int lx, int ly, int lz) => worldLoaded == null || worldLoaded(lx, ly, lz);
+            // #1528: one delegate for the whole build — the local function captures worldLoaded, so every
+            // conversion at a call site used to allocate a fresh delegate (once per water/lava cell).
+            System.Func<int, int, int, bool> loadedFn = Loaded;
 
             // Per-cell water classification cache for this build (each cell is sampled by up to four
             // corners; classify it once).
@@ -262,7 +365,7 @@ namespace BlocksBeyondTheStars.Client
                 var key = (cwx, cwy, cwz);
                 if (!waterCells.TryGetValue(key, out var d))
                 {
-                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz, Loaded);
+                    d = WaterSurface.Classify(worldBlock, waterId, cwx, cwy, cwz, loadedFn);
                     waterCells[key] = d;
                 }
 
@@ -304,18 +407,30 @@ namespace BlocksBeyondTheStars.Client
             // shader already multiplies into the lighting — no shader change. Air, glass, water, plants + slim
             // props (torch/lantern/ladder) don't occlude; opaque solids do. The outward-cell probes are cached
             // for the chunk.
-            var aoOcc = _aoOccScratch ??= new Dictionary<(int, int, int), bool>();
-            aoOcc.Clear();
+            // #1528: dense window (a probe outside it — never, by construction — is computed uncached).
+            var aoDense = _aoDenseScratch ??= new byte[AoWindow * AoWindow * AoWindow];
+            System.Array.Clear(aoDense, 0, aoDense.Length);
+            int aoOx = origin.X - 2, aoOy = origin.Y - 2, aoOz = origin.Z - 2;
             bool AoOccluder(int ax, int ay, int az)
             {
-                var key = (ax, ay, az);
-                if (aoOcc.TryGetValue(key, out var o))
+                int ix = ax - aoOx, iy = ay - aoOy, iz = az - aoOz;
+                int key = (uint)ix < AoWindow && (uint)iy < AoWindow && (uint)iz < AoWindow
+                    ? (iy * AoWindow + iz) * AoWindow + ix : -1;
+                if (key >= 0)
                 {
-                    return o;
+                    byte state = aoDense[key];
+                    if (state != 0)
+                    {
+                        return state == 2;
+                    }
                 }
 
-                bool res = !NeighbourExposesOpaqueFace(content, worldBlock(ax, ay, az));
-                aoOcc[key] = res;
+                bool res = !traits.ExposesOpaqueFace(worldBlock(ax, ay, az));
+                if (key >= 0)
+                {
+                    aoDense[key] = res ? (byte)2 : (byte)1;
+                }
+
                 return res;
             }
 
@@ -360,27 +475,28 @@ namespace BlocksBeyondTheStars.Client
 
                 // See-through blocks (glass, force fields) render in a separate alpha-blended submesh and
                 // don't hide the world behind them, so windows + energy barriers show space through.
-                bool transparent = IsTransparent(content, id);
+                uint tf = traits.FlagsOf(id);
+                bool transparent = (tf & TraitTransparent) != 0;
 
                 // With an atlas, the texture carries the colour and vertex colour is just the
                 // per-face shade; without one, fall back to the flat palette × shade.
                 Color baseColor = atlas == null ? BlockColor(content, id) : Color.white;
                 Rect uv = atlas != null ? atlas.TileUv(id.Value) : new Rect(0f, 0f, 1f, 1f);
                 // Per-block reflection params (gloss, metal) for the lit atlas shader.
-                var mat = BlockMaterial(content, id);
+                var mat = traits.MaterialOf(id);
                 float matR = mat.x, matG = mat.y;
                 // Emission (ores/crystals/lava/light blocks glow — the bloom pass catches them, and they
                 // stay lit at night). Packed into the vertex-colour alpha for the atlas shader.
-                float emission = atlas != null ? BlockEmission(content, id) : 0f;
+                float emission = atlas != null ? traits.EmissionOf(id) : 0f;
                 // Flora flag (TEXCOORD1.y): the block shader desaturates + re-tints these. With a tint
                 // resolver every SPECIES rolls its own per-world colour (TEXCOORD2.yzw); without one the
                 // shader falls back to the planet's uniform flora hue. Tree trunks (wood_log) take their own
                 // per-world DARK bark hue (mode 4) so they read clearly darker than the leaves.
-                bool isFlora = IsFloraBlock(content, id);
+                bool isFlora = (tf & TraitFlora) != 0;
                 // Tree trunk: a per-world DARK bark hue (resolved like flora, mode 4) so trunks read clearly
                 // darker than the leaves. Only on planet chunks (floraTint != null) — ship meshes carry no
                 // resolver, so wood_log stays a normal paintable hull block there.
-                bool isWood = floraTint != null && IsWoodBlock(content, id);
+                bool isWood = floraTint != null && (tf & TraitWood) != 0;
                 Color speciesTint = (isFlora || isWood) && floraTint != null ? floraTint(id) : Color.black;
                 // Hull paint (item 32): ship meshes pass a per-block paint resolver — a painted face raises
                 // the tint-mode flag (TEXCOORD1.y) to 2 and carries the ship's hull colour in TEXCOORD2.yzw
@@ -396,24 +512,23 @@ namespace BlocksBeyondTheStars.Client
                 float floraFlag = dyed ? 3f : isWood ? 4f : isFlora ? 1f : painted ? 2f : 0f;
                 // Foliage flag (TEXCOORD2.x): tree crowns + leafy plants whose tile carries a baked alpha
                 // mask — the shader clips it so the leaves are see-through (holes), not a solid cube.
-                bool foliage = IsFoliageBlock(content, id);
+                bool foliage = (tf & TraitFoliage) != 0;
                 // TEXCOORD2.x: +1 foliage cutout, -1 clear glass (#1274 — the transparent shader skips its frost
                 // on the negative sentinel; the channel is already packed for every face, so no layout change), 0 else.
-                float leafFlag = foliage ? 1f : IsClearGlass(content, id) ? -1f : 0f;
+                float leafFlag = foliage ? 1f : (tf & TraitClearGlass) != 0 ? -1f : 0f;
                 // Water + fire render but don't collide — you swim/sink into water and walk through (and burn
                 // in) fire. Lava DOES collide: you stand on its surface (and take contact damage from the cell
                 // below) rather than dropping straight through it into a cave/void — you must not fall through
                 // lava. The energy gate is a walk-through membrane: players (and server-side NPCs) pass it,
                 // only fauna are held back by the server's fence check.
-                var collKey = content.BlockById(id)?.Key;
-                bool collidable = collKey != "water" && collKey != "fire" && collKey != "energy_gate";
+                bool collidable = (tf & TraitCollidable) != 0;
                 int wx = origin.X + x, wy = origin.Y + y, wz = origin.Z + z;
 
                 // Per-cell flora tint jitter (#675): a deterministic ±8 % brightness wobble on the species
                 // tint so a field stops being one flat colour. Flora species only (not tree leaves/logs —
                 // a speckled crown would read as noise) and deliberately SMALL, so species identity (incl.
                 // recognising a toxic species by its colour) stays readable.
-                if (isFlora && collKey != null && collKey.StartsWith("flora_", System.StringComparison.Ordinal)
+                if (isFlora && (tf & TraitFloraPrefix) != 0
                     && speciesTint != Color.black)
                 {
                     float tintJit = CrossPlantScale(wx, 0, wz, 0x9, 0.08f); // per column — stacked strands stay one shade
@@ -428,7 +543,7 @@ namespace BlocksBeyondTheStars.Client
                 // (no collider, no mesh geometry) — a world-cell hash keeps it stable + identical on all clients.
                 if (atlas != null)
                 {
-                    int stype = ScatterType(collKey);
+                    int stype = traits.ScatterOf(id);
                     if (stype >= 0 && worldBlock(wx, wy + 1, wz).IsAir)
                     {
                         int sh = unchecked(wx * 374761393 + wz * 668265263 + stype * 1013904223);
@@ -469,20 +584,22 @@ namespace BlocksBeyondTheStars.Client
                 // Water SURFACE cells (air above) get a body classification — open water with gentle
                 // waves + coastal foam, calm lake, or flowing river — packed into the top face's
                 // TEXCOORD2 for the transparent shader. Other faces/blocks keep the flora-tint layout.
-                bool isWaterSurface = collKey == "water" && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
+                bool isWater = (tf & TraitWater) != 0;
+                bool isWaterSurface = isWater && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
                 Vector4 waterData = isWaterSurface ? WaterCellData(id, wx, wy, wz) : Vector4.zero;
                 // Falling-water column (a waterfall): fed from above + open on its sides. Its vertical flanks
                 // would normally be culled (see the submerged-fluid test below) so the cascade reads flat; keep
                 // them and tag them mode 4 so the transparent shader streaks them downward.
-                bool isFallingWater = collKey == "water" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, Loaded);
+                bool isFallingWater = isWater && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, loadedFn);
 
                 // Lava SURFACE cell (air above): tag its faces as tint mode 5 so the opaque atlas shader animates
                 // a slow molten crust over the otherwise-static glow (L1). Lava is opaque, so unlike water this
                 // rides the opaque shader's skyl.y mode channel, not the transparent water layout.
-                bool isLavaSurface = collKey == "lava" && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
+                bool isLava = (tf & TraitLava) != 0;
+                bool isLavaSurface = isLava && worldBlock(wx, wy + 1, wz).IsAir && Loaded(wx, wy + 1, wz);
                 // Falling-lava column (a lavafall, L3): like falling water, but mode 6 → the opaque shader streaks
                 // a hot glow straight DOWN the vertical flanks. WaterfallDetect is fluid-agnostic (takes the id).
-                bool isFallingLava = collKey == "lava" && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, Loaded);
+                bool isFallingLava = isLava && WaterfallDetect.IsFalling(worldBlock, id, wx, wy, wz, loadedFn);
 
                 // Graphics quick-win: small leafy plants render as classic CROSS BILLBOARDS (two crossed
                 // cutout quads, both windings) instead of decal-textured cubes — they read as real plants.
@@ -491,9 +608,9 @@ namespace BlocksBeyondTheStars.Client
                 // A TORCH rides the same cross-billboard path: it must be a slim prop you can walk past, not a
                 // full glowing cube — and it deliberately does NOT take the flora tint (isFlora is false for it,
                 // so speciesTint stays black), because a torch is not a plant to be recoloured per world.
-                bool isTorchProp = collKey == "torch" || collKey == "lantern"; // the lantern (#809) rides the same slim-prop path
-                if (atlas != null && collKey != null
-                    && (isTorchProp || (foliage && collKey.StartsWith("flora_", System.StringComparison.Ordinal))))
+                bool isTorchProp = (tf & TraitTorchProp) != 0; // the lantern (#809) rides the same slim-prop path
+                if (atlas != null
+                    && (isTorchProp || (foliage && (tf & TraitFloraPrefix) != 0)))
                 {
                     float plantSky = Skylight(wx, wy + 1, wz); // open sky above the plant
                     Vector3 plantBl = BlockLightAt(wx, wy, wz);  // coloured block-light reaching the plant
@@ -507,7 +624,7 @@ namespace BlocksBeyondTheStars.Client
                     // per-cell white noise alone averages back to a uniform carpet at viewing distance.
                     // Tall species (ferns, reeds, grass tufts…) get a taller billboard, so vegetation reads in
                     // layers — low ground cover beneath a taller upper storey — rather than one flat carpet.
-                    float tallBoost = TallFlora.Contains(collKey) ? 1.85f : 1f;
+                    float tallBoost = (tf & TraitTallFlora) != 0 ? 1.85f : 1f;
                     float plantOutlier = FloraOutlier(wx, wz);
                     float plantH = FloraScale(wx, wy, wz, 0x1, 0.35f) * tallBoost * plantOutlier;
                     // A giant's width is left nearly alone (the cell clamp would eat it anyway); a runt shrinks fully.
@@ -533,7 +650,7 @@ namespace BlocksBeyondTheStars.Client
                     // The lantern is squatter and wider than the slim torch stick.
                     if (isTorchProp)
                     {
-                        bool lanternProp = collKey == "lantern";
+                        bool lanternProp = (tf & TraitLantern) != 0;
                         plantH = lanternProp ? 0.55f : 0.8f;
                         plantW = lanternProp ? 0.42f : 0.28f;
                         plantLean = Vector2.zero;
@@ -561,7 +678,7 @@ namespace BlocksBeyondTheStars.Client
                 // side it was given and no longer flips when a neighbouring wall is mined. A ladder with no
                 // descriptor — placed before #909, by worldgen, or inside a ship layout — falls back to the
                 // original heuristic: lean on the first solid horizontal neighbour, else stand as a pole.
-                if (atlas != null && collKey == "ladder")
+                if (atlas != null && (tf & TraitLadder) != 0)
                 {
                     var dumpTris = _ladderColliderTrisDump ??= new List<int>();
                     var dumpVerts = _ladderColliderVertsDump ??= new List<Vector3>();
@@ -585,7 +702,7 @@ namespace BlocksBeyondTheStars.Client
                 // Solid flora (cactus/crystal/mushroom/puffball/…): render as a fitting 3D form (cylinder/cone/
                 // dome/sphere) via the tested building-shape geometry instead of a plain cube — a big step up in
                 // "plant" read at ~cube cost, carrying the same flora tint (mode 1) + emission (glowcaps etc.).
-                if (atlas != null && collKey != null && SolidFlora.Contains(collKey))
+                if (atlas != null && (tf & TraitSolidFlora) != 0)
                 {
                     float flSky = Skylight(wx, wy + 1, wz);
                     Vector3 flBl = BlockLightAt(wx, wy + 1, wz);
@@ -605,7 +722,7 @@ namespace BlocksBeyondTheStars.Client
                     float flSizeY = Mathf.Clamp(flBase * (1f + flSquash), 0.4f, 1f);
                     float flSizeXZ = Mathf.Clamp(flBase * (1f - flSquash * 0.6f), 0.4f, 1f);
                     AddShapedBlock(verts, tris, colliderTris, colliderVerts, colors, uvs, tangents, skyUv, leafUv, blockLight, blockLightDir,
-                        SolidFloraShape(collKey), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
+                        traits.SolidFloraShapeOf(id), 0, ShapeCode.UpPlusY, new Vector3(x, y, z), uv,
                         matR, matG, emission, flTint, flMode, flSky, flBl, flBlDir, flSizeXZ, flSizeY);
                     continue;
                 }
@@ -644,7 +761,7 @@ namespace BlocksBeyondTheStars.Client
 
                     // Flower pot (#809): a small cross-billboard flower sits on the shaped planter, tinted
                     // like wild flora on this world (per-world species hue). Purely visual — no collider.
-                    if (collKey == "flower_pot" && content.GetBlock("flora_flower") is { } potFlower
+                    if ((tf & TraitFlowerPot) != 0 && content.GetBlock("flora_flower") is { } potFlower
                         && potFlower.NumericId.Value != 0)
                     {
                         var flowerUv = atlas.TileUv(potFlower.NumericId.Value);
@@ -661,7 +778,7 @@ namespace BlocksBeyondTheStars.Client
                 // fields, flora + foliage keep hard edges (their shaders/geometry are special). openMask marks
                 // which of the 6 faces are exposed — used to inset only the beveled edges + emit chamfers/corners.
                 bool bevel = BevelAmount > 0f && atlas != null && !transparent && !isFlora && !isWood && !foliage
-                    && collKey != "water" && collKey != "lava" && collKey != "fire"
+                    && (tf & (TraitWater | TraitLava | TraitFire)) == 0
                     && designId == 0; // painted cubes keep hard edges — the bevel strips would sample the design edge texels
                 int openMask = 0;
                 if (bevel)
@@ -674,7 +791,7 @@ namespace BlocksBeyondTheStars.Client
                         // MUST agree with drawFace below: a face that is drawn but not "open" here gets no
                         // chamfer while its neighbouring face is still inset → a BevelAmount-wide slit along the
                         // edge you can look through (#1459: torches, plants, ladders, leaves beside a wall).
-                        if (NeighbourExposesOpaqueFace(content, onb)
+                        if (traits.ExposesOpaqueFace(onb)
                             || (worldShape != null && !ShapeCode.IsCube(worldShape(ox, oy, oz))))
                         {
                             openMask |= 1 << bf;
@@ -712,8 +829,8 @@ namespace BlocksBeyondTheStars.Client
                     // region's edge. Opaque blocks deliberately keep theirs — culling those would turn the edge
                     // of the loaded world see-through instead of closing it off with an ordinary wall.
                     bool drawFace = transparent ? (nb.IsAir && Loaded(nx, ny, nz))
-                        : foliage ? (nb.IsAir || IsTransparent(content, nb))
-                        : NeighbourExposesOpaqueFace(content, nb);
+                        : foliage ? (nb.IsAir || traits.Has(nb, TraitTransparent))
+                        : traits.ExposesOpaqueFace(nb);
 
                     // A non-cube SHAPED neighbour doesn't fill its cell, so it can't seal this face — draw toward
                     // it (otherwise a cube beside a sphere/ramp would leave a hole). Only checked when the face
@@ -727,7 +844,7 @@ namespace BlocksBeyondTheStars.Client
                     // SIDE faces: they'd paint the surface-looking water tile onto an underwater edge — e.g. the
                     // step between deep (swimmable) and shallow water — which looks wrong seen from below (B43).
                     // Only the true top layer (air above) keeps its faces, so the real water surface still shows.
-                    if (drawFace && dir.Y == 0 && IsFluidBlock(content, id) && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater && !isFallingLava)
+                    if (drawFace && dir.Y == 0 && (tf & TraitFluid) != 0 && worldBlock(wx, wy + 1, wz).Value == id.Value && !isFallingWater && !isFallingLava)
                     {
                         drawFace = false;
                     }
@@ -830,7 +947,7 @@ namespace BlocksBeyondTheStars.Client
                     // Ship hull greeble (T2): a sparse set of raised, slightly darker plating panels on exposed
                     // hull faces so ships read as "built" rather than bare cubes. Ship/structure context only
                     // (paintTint != null), render-only, deterministic per world cell + face. Density/size tunable.
-                    if (paintTint != null && collKey == "iron_wall" && GreebleAt(wx, wy, wz, f))
+                    if (paintTint != null && (tf & TraitIronWall) != 0 && GreebleAt(wx, wy, wz, f))
                     {
                         var gTint = dyed ? dye : painted ? paint : speciesTint;
                         var gLeaf = new Vector4(leafFlag, gTint.r, gTint.g, gTint.b);
@@ -878,6 +995,7 @@ namespace BlocksBeyondTheStars.Client
             // Interleave the per-attribute lists into the compact GPU vertex layout (#966). Done HERE, on the
             // build (worker) thread, because it is pure struct maths — doing it in ToMeshes would put a
             // per-vertex loop back on the main thread right next to the upload.
+            data.ColliderHash = ChunkMeshData.HashCollider(colliderVerts, colliderTris); // #1529: on the worker
             data.Pack();
 
             // Return plain data — the Unity Mesh upload happens in ChunkMeshData.ToMeshes() on the main thread.
@@ -1316,7 +1434,9 @@ namespace BlocksBeyondTheStars.Client
         /// plants (block key "flora_*") and tree crowns ("tree_leaves"). The server's flora colour is "one hue
         /// for all of a planet's plant life", so leaves recolour per planet too; the wood_log trunk keeps its
         /// natural bark colour.</summary>
-        private static bool IsFloraBlock(GameContent content, BlockId id)
+        private static bool IsFloraBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitFlora);
+
+        private static bool IsFloraBlockSlow(GameContent content, BlockId id)
         {
             var key = content.BlockById(id)?.Key;
             return key != null
@@ -1327,7 +1447,9 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>True for the tree trunk (wood_log): the block shader recolours it with a per-world DARK
         /// bark hue (tint mode 4) so trunks read clearly darker than the leaves they carry — never the same
         /// colour. Separate from <see cref="IsFloraBlock"/> because the bark uses its own (darker) tint band.</summary>
-        private static bool IsWoodBlock(GameContent content, BlockId id)
+        private static bool IsWoodBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitWood);
+
+        private static bool IsWoodBlockSlow(GameContent content, BlockId id)
             => content.BlockById(id)?.Key == "wood_log";
 
         // Tall cross-billboard flora (an upper vegetation layer above the low ground cover). MUST mirror the
@@ -1353,7 +1475,9 @@ namespace BlocksBeyondTheStars.Client
         /// tree crowns + leafy/flowering plants. The leaf tiles carry a baked alpha mask; the block shader
         /// clips it for leaf-flagged faces. Excludes structural/glowing flora (cactus, crystal, caps…) and
         /// never the ground "grass" block.</summary>
-        private static bool IsFoliageBlock(GameContent content, BlockId id)
+        private static bool IsFoliageBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitFoliage);
+
+        private static bool IsFoliageBlockSlow(GameContent content, BlockId id)
         {
             if (id.IsAir)
             {
@@ -1371,7 +1495,9 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>True for fluids (water/lava) — they render but are excluded from the collision mesh.</summary>
-        private static bool IsFluidBlock(GameContent content, BlockId id)
+        private static bool IsFluidBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitFluid);
+
+        private static bool IsFluidBlockSlow(GameContent content, BlockId id)
         {
             var key = content.BlockById(id)?.Key;
             return key is "water" or "lava";
@@ -1382,7 +1508,9 @@ namespace BlocksBeyondTheStars.Client
         /// seal a neighbouring opaque block's face (#1031: the wall behind a placed torch turned see-through),
         /// must not occlude AO corners, and must not stop placed-light propagation. The other non-solid
         /// blocks (water/fire/energy_gate) are already covered by <see cref="IsTransparent"/>.</summary>
-        private static bool IsSlimPropBlock(GameContent content, BlockId id)
+        private static bool IsSlimPropBlock(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitSlimProp);
+
+        private static bool IsSlimPropBlockSlow(GameContent content, BlockId id)
         {
             if (id.IsAir)
             {
@@ -1448,7 +1576,9 @@ namespace BlocksBeyondTheStars.Client
             _ => 4, // sphere (puffball, succulent, bulb, gasbloom, …)
         };
 
-        private static Vector2 BlockMaterial(GameContent content, BlockId id)
+        private static Vector2 BlockMaterial(GameContent content, BlockId id) => TraitsFor(content).MaterialOf(id);
+
+        private static Vector2 BlockMaterialSlow(GameContent content, BlockId id)
         {
             var def = content.BlockById(id);
             // Data-driven override (Material Editor materials carry their own gloss/metal).
@@ -1481,7 +1611,9 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Per-block emission (0 = none .. 1 = full glow) packed into the atlas vertex alpha:
         /// light blocks + lava glow strongly, crystals + glowing flora medium, ores a faint sheen.</summary>
-        private static float BlockEmission(GameContent content, BlockId id)
+        private static float BlockEmission(GameContent content, BlockId id) => TraitsFor(content).EmissionOf(id);
+
+        private static float BlockEmissionSlow(GameContent content, BlockId id)
         {
             var def = content.BlockById(id);
             if (def?.Emission is float e)
@@ -1575,7 +1707,7 @@ namespace BlocksBeyondTheStars.Client
         /// none are passed (ship/asteroid meshes), the light blocks found inside the chunk itself. Light stops
         /// at solid blocks and passes through air/glass/water/plants. Cost scales with the lit volume.
         /// </summary>
-        private static Dictionary<(int, int, int), Vector3> BuildBlockLight(
+        private static LightField BuildBlockLight(
             ChunkData chunk, GameContent content, System.Func<int, int, int, BlockId> worldBlock,
             Vector3i origin, int n, IReadOnlyList<(Vector3i Pos, int Rgb)> lights)
         {
@@ -1629,43 +1761,77 @@ namespace BlocksBeyondTheStars.Client
                 return null;
             }
 
-            var field = _lightFieldScratch ??= new Dictionary<(int, int, int), Vector3>();
-            field.Clear();
-            var opaqueCache = _lightOpaqueScratch ??= new Dictionary<(int, int, int), bool>();
-            opaqueCache.Clear();
-            bool Opaque(int wx, int wy, int wz)
+            // #1528: a dense window instead of three tuple-keyed dictionaries + a normalisation copy. A cell is
+            // "present" exactly when it is non-zero (every stored level has a positive channel — the same
+            // condition that enqueued it), so the max-merge below reads identically. Cleared per build by the
+            // touched-index list, not a 1.7 MB Array.Clear.
+            var field = _lightFieldDense ??= new LightField();
+            var touched = _lightTouchedScratch ??= new List<int>();
+            for (int i = 0; i < touched.Count; i++)
             {
-                var key = (wx, wy, wz);
-                if (opaqueCache.TryGetValue(key, out var o))
+                field.Cells[touched[i]] = Vector3.zero;
+            }
+
+            touched.Clear();
+            field.Ox = origin.X - (2 * LightRadius - 1) - 1;
+            field.Oy = origin.Y - (2 * LightRadius - 1) - 1;
+            field.Oz = origin.Z - (2 * LightRadius - 1) - 1;
+            int W = LightField.W;
+            var opaqueCache = _lightOpaqueDense ??= new byte[W * W * W];
+            System.Array.Clear(opaqueCache, 0, opaqueCache.Length);
+            bool Opaque(int wx, int wy, int wz, int key)
+            {
+                byte state = opaqueCache[key];
+                if (state != 0)
                 {
-                    return o;
+                    return state == 2;
                 }
 
                 var b = worldBlock(wx, wy, wz);
                 bool res = !b.IsAir && !IsTransparent(content, b) && !IsFloraBlock(content, b) && !IsFoliageBlock(content, b)
                     && !IsSlimPropBlock(content, b);
-                opaqueCache[key] = res;
+                opaqueCache[key] = res ? (byte)2 : (byte)1;
                 return res;
             }
 
-            var queue = _lightQueueScratch ??= new Queue<(int, int, int)>();
+            var queue = _lightQueueDense ??= new Queue<int>();
             queue.Clear();
+            var cells = field.Cells;
             foreach (var s in sources)
             {
-                var key = (s.X, s.Y, s.Z);
+                int key = field.IndexOf(s.X, s.Y, s.Z);
+                if (key < 0)
+                {
+                    continue; // outside the window — cannot happen for a source inside the light box
+                }
+
                 var lvl = s.Col * LightRadius; // per-channel start level (0..LightRadius)
-                field[key] = field.TryGetValue(key, out var ex) ? Vector3.Max(ex, lvl) : lvl;
+                var ex = cells[key];
+                if (ex == Vector3.zero)
+                {
+                    touched.Add(key);
+                }
+
+                cells[key] = ex != Vector3.zero ? Vector3.Max(ex, lvl) : lvl;
                 queue.Enqueue(key);
             }
 
+            int WW = W * W;
             while (queue.Count > 0)
             {
-                var p = queue.Dequeue();
-                var cur = field[p];
+                int p = queue.Dequeue();
+                var cur = cells[p];
+                int px = p % W, pz = p / W % W, py = p / WW;
                 for (int f = 0; f < Faces.Length; f++)
                 {
-                    int nx = p.Item1 + Faces[f].X, ny = p.Item2 + Faces[f].Y, nz = p.Item3 + Faces[f].Z;
-                    if (Opaque(nx, ny, nz))
+                    int ix = px + Faces[f].X, iy = py + Faces[f].Y, iz = pz + Faces[f].Z;
+                    if ((uint)ix >= W || (uint)iy >= W || (uint)iz >= W)
+                    {
+                        continue; // beyond the window — unreachable within LightRadius - 1 steps of a source
+                    }
+
+                    int key = (iy * W + iz) * W + ix;
+                    if (Opaque(field.Ox + ix, field.Oy + iy, field.Oz + iz, key))
                     {
                         continue; // solid blocks stop light (sources are already seeded)
                     }
@@ -1676,8 +1842,8 @@ namespace BlocksBeyondTheStars.Client
                         continue;
                     }
 
-                    var key = (nx, ny, nz);
-                    if (field.TryGetValue(key, out var exist))
+                    var exist = cells[key];
+                    if (exist != Vector3.zero)
                     {
                         var merged = Vector3.Max(exist, nl);
                         if (merged == exist)
@@ -1685,33 +1851,26 @@ namespace BlocksBeyondTheStars.Client
                             continue; // no channel improved
                         }
 
-                        field[key] = merged;
+                        cells[key] = merged;
                     }
                     else
                     {
-                        field[key] = nl;
+                        cells[key] = nl;
+                        touched.Add(key);
                     }
 
                     queue.Enqueue(key);
                 }
             }
 
-            float inv = 1f / LightRadius;
-            // Thread-static like the other scratch: the caller consumes the field within the SAME build on the
-            // same thread; the next build on this thread clears it here before refilling.
-            var result = _lightResultScratch ??= new Dictionary<(int, int, int), Vector3>();
-            result.Clear();
-            foreach (var kv in field)
-            {
-                result[kv.Key] = kv.Value * inv; // normalise 0..1
-            }
-
-            return result;
+            return field; // At() applies the 1/LightRadius normalisation the old copy baked in
         }
 
         /// <summary>See-through blocks: rendered in the alpha-blended submesh and treated like air when
         /// culling neighbouring opaque faces, so the world behind shows through (windows, energy fields).</summary>
-        private static bool IsTransparent(GameContent content, BlockId id)
+        private static bool IsTransparent(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitTransparent);
+
+        private static bool IsTransparentSlow(GameContent content, BlockId id)
         {
             if (id.IsAir)
             {
@@ -1725,8 +1884,127 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>The one deliberately CLEAR glass (#1274): the canopy/dome exception to the frosted rule
         /// (ART_BIBLE). Marked for the transparent shader via a -1 in TEXCOORD2.x.</summary>
-        private static bool IsClearGlass(GameContent content, BlockId id)
+        private static bool IsClearGlass(GameContent content, BlockId id) => TraitsFor(content).Has(id, TraitClearGlass);
+
+        private static bool IsClearGlassSlow(GameContent content, BlockId id)
             => !id.IsAir && content.BlockById(id)?.Key == "glass_clear";
+
+        // #1528: block-trait flags. Every predicate the mesher's inner loops used to derive from the block KEY
+        // (string compares, StartsWith, HashSet lookups, switches — ~100 string operations per solid voxel) is
+        // resolved ONCE per content snapshot into a flat table indexed by the numeric id. The table is built by
+        // the very same *Slow helpers, so the semantics cannot drift; the golden EditMode test pins the output.
+        private const uint TraitTransparent = 1u << 0;
+        private const uint TraitFlora = 1u << 1;
+        private const uint TraitFoliage = 1u << 2;
+        private const uint TraitSlimProp = 1u << 3;
+        private const uint TraitFluid = 1u << 4;
+        private const uint TraitClearGlass = 1u << 5;
+        private const uint TraitWood = 1u << 6;
+        private const uint TraitCollidable = 1u << 7;
+        private const uint TraitFloraPrefix = 1u << 8;
+        private const uint TraitTallFlora = 1u << 9;
+        private const uint TraitSolidFlora = 1u << 10;
+        private const uint TraitWater = 1u << 11;
+        private const uint TraitLava = 1u << 12;
+        private const uint TraitTorchProp = 1u << 13;
+        private const uint TraitLantern = 1u << 14;
+        private const uint TraitLadder = 1u << 15;
+        private const uint TraitIronWall = 1u << 16;
+        private const uint TraitFlowerPot = 1u << 17;
+        private const uint TraitFire = 1u << 18;
+        private const uint TraitExposesOpaqueFace = 1u << 19; // transparent | flora | foliage | slim prop (air handled by the caller)
+
+        private sealed class BlockTraits
+        {
+            public readonly GameContent Content;
+            private readonly uint[] _flags;
+            private readonly float[] _emission;
+            private readonly Vector2[] _material;
+            private readonly sbyte[] _scatter;
+            private readonly byte[] _solidFloraShape;
+
+            public BlockTraits(GameContent content)
+            {
+                Content = content;
+                int size = 1;
+                foreach (var b in content.Blocks.Values)
+                {
+                    size = Mathf.Max(size, b.NumericId.Value + 1);
+                }
+
+                _flags = new uint[size];
+                _emission = new float[size];
+                _material = new Vector2[size];
+                _scatter = new sbyte[size];
+                _solidFloraShape = new byte[size];
+                for (int i = 0; i < size; i++)
+                {
+                    var id = new BlockId((ushort)i);
+                    string key = content.BlockById(id)?.Key;
+                    uint f = 0;
+                    if (IsTransparentSlow(content, id)) f |= TraitTransparent;
+                    if (IsFloraBlockSlow(content, id)) f |= TraitFlora;
+                    if (IsFoliageBlockSlow(content, id)) f |= TraitFoliage;
+                    if (IsSlimPropBlockSlow(content, id)) f |= TraitSlimProp;
+                    if (IsFluidBlockSlow(content, id)) f |= TraitFluid;
+                    if (IsClearGlassSlow(content, id)) f |= TraitClearGlass;
+                    if (IsWoodBlockSlow(content, id)) f |= TraitWood;
+                    if (key != "water" && key != "fire" && key != "energy_gate") f |= TraitCollidable;
+                    if (key != null && key.StartsWith("flora_", System.StringComparison.Ordinal)) f |= TraitFloraPrefix;
+                    if (key != null && TallFlora.Contains(key)) f |= TraitTallFlora;
+                    if (key != null && SolidFlora.Contains(key)) f |= TraitSolidFlora;
+                    if (key == "water") f |= TraitWater;
+                    if (key == "lava") f |= TraitLava;
+                    if (key == "fire") f |= TraitFire;
+                    if (key == "torch" || key == "lantern") f |= TraitTorchProp;
+                    if (key == "lantern") f |= TraitLantern;
+                    if (key == "ladder") f |= TraitLadder;
+                    if (key == "iron_wall") f |= TraitIronWall;
+                    if (key == "flower_pot") f |= TraitFlowerPot;
+                    if ((f & (TraitTransparent | TraitFlora | TraitFoliage | TraitSlimProp)) != 0) f |= TraitExposesOpaqueFace;
+                    _flags[i] = f;
+                    _emission[i] = BlockEmissionSlow(content, id);
+                    _material[i] = BlockMaterialSlow(content, id);
+                    _scatter[i] = (sbyte)ScatterType(key);
+                    _solidFloraShape[i] = (byte)SolidFloraShape(key);
+                }
+            }
+
+            // An id beyond the table (no definition) behaves like a null key: no traits, collidable, no scatter.
+            public uint FlagsOf(BlockId id) => id.Value < _flags.Length ? _flags[id.Value] : TraitCollidable;
+            public bool Has(BlockId id, uint flag) => (FlagsOf(id) & flag) != 0;
+            public bool ExposesOpaqueFace(BlockId id) => id.IsAir || (FlagsOf(id) & TraitExposesOpaqueFace) != 0;
+            public float EmissionOf(BlockId id) => id.Value < _emission.Length ? _emission[id.Value] : 0f;
+            public Vector2 MaterialOf(BlockId id) => id.Value < _material.Length ? _material[id.Value] : new Vector2(0.05f, 0.0f);
+            public int ScatterOf(BlockId id) => id.Value < _scatter.Length ? _scatter[id.Value] : -1;
+            public int SolidFloraShapeOf(BlockId id) => id.Value < _solidFloraShape.Length ? _solidFloraShape[id.Value] : 4;
+        }
+
+        private static volatile BlockTraits _traitsSlot;
+        private static readonly object TraitsLock = new object();
+
+        /// <summary>The trait table of a content snapshot (one per process in practice, #1522); a different
+        /// snapshot replaces the slot. Thread-safe: builds race benignly, the slot swap is atomic.</summary>
+        private static BlockTraits TraitsFor(GameContent content)
+        {
+            var t = _traitsSlot;
+            if (t != null && ReferenceEquals(t.Content, content))
+            {
+                return t;
+            }
+
+            lock (TraitsLock)
+            {
+                t = _traitsSlot;
+                if (t == null || !ReferenceEquals(t.Content, content))
+                {
+                    t = new BlockTraits(content);
+                    _traitsSlot = t;
+                }
+
+                return t;
+            }
+        }
 
         private static Color BlockColor(GameContent content, BlockId id)
         {
@@ -2025,9 +2303,37 @@ namespace BlocksBeyondTheStars.Client
         /// valid entries (the array itself is grown geometrically and reused with the pooled instance).</summary>
         public PackedVertex[] Packed = System.Array.Empty<PackedVertex>();
 
+        // Main-thread scratch for the 16-bit index upload (ToMeshes runs on the main thread only).
+        private static ushort[] _index16Scratch;
+
         /// <summary>How many entries of <see cref="Packed"/> are valid (equals <c>Verts.Count</c> after
         /// <see cref="Pack"/>).</summary>
         public int PackedCount;
+
+        /// <summary>#1529: FNV-1a over the collider vertices + triangles, computed on the worker. GameBootstrap
+        /// skips the collision Mesh + the Physics cook when a rebuild's collider geometry is byte-identical to
+        /// the one the chunk already carries (tint/glow/paint edits, neighbour re-dirties). 0 = not computed.</summary>
+        public ulong ColliderHash;
+
+        public static ulong HashCollider(List<Vector3> verts, List<int> tris)
+        {
+            ulong h = 14695981039346656037UL;
+            for (int i = 0; i < verts.Count; i++)
+            {
+                var v = verts[i];
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(v.x)) * 1099511628211UL;
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(v.y)) * 1099511628211UL;
+                h = (h ^ (uint)System.BitConverter.SingleToInt32Bits(v.z)) * 1099511628211UL;
+            }
+
+            for (int i = 0; i < tris.Count; i++)
+            {
+                h = (h ^ (uint)tris[i]) * 1099511628211UL;
+            }
+
+            h = (h ^ (uint)verts.Count) * 1099511628211UL;
+            return h == 0 ? 1UL : h;
+        }
 
         // Small bounded pool: builds run on worker threads while Release happens on the main thread, so access
         // is lock-guarded (a handful of ops per frame — contention is negligible). The cap bounds how much list
@@ -2069,6 +2375,7 @@ namespace BlocksBeyondTheStars.Client
                 Colors.Clear(); Uvs.Clear(); SkyUv.Clear(); LeafUv.Clear();
                 BlockLight.Clear(); BlockLightDir.Clear(); Tangents.Clear(); Normals.Clear(); Scatter.Clear();
                 PackedCount = 0; // the array itself stays — it is the buffer the next build packs into
+                ColliderHash = 0;
                 Bounds = default;
                 ColliderBounds = default;
                 _pooled = true;
@@ -2220,9 +2527,14 @@ namespace BlocksBeyondTheStars.Client
         /// A consequence of the non-readable upload is that the previous mesh can no longer be Clear()ed and
         /// refilled, so every build returns a FRESH mesh — callers must destroy the one they replace (Unity does
         /// not collect Mesh objects), which is what <c>GameBootstrap.ApplyChunkMesh</c> does.</summary>
-        public (Mesh Render, Mesh Collider) ToMeshes()
+        /// <param name="buildCollider">false = the caller keeps the collider it already has (#1529, identical
+        /// collider hash) — no collision Mesh is created.</param>
+        public (Mesh Render, Mesh Collider) ToMeshes(bool buildCollider = true)
         {
-            var mesh = new Mesh { indexFormat = Rendering.IndexFormat.UInt32 };
+            // #1528: a chunk with ≤ 65535 vertices (all but pathological layouts) uploads 16-bit indices — half
+            // the index bandwidth, and the format GLES/WebGL prefers.
+            var indexFormat = PackedCount <= ushort.MaxValue ? Rendering.IndexFormat.UInt16 : Rendering.IndexFormat.UInt32;
+            var mesh = new Mesh { indexFormat = indexFormat };
             mesh.SetVertexBufferParams(PackedCount, VertexLayout);
             if (PackedCount > 0)
             {
@@ -2234,20 +2546,41 @@ namespace BlocksBeyondTheStars.Client
             // the materials in the same order. An empty submesh just draws nothing — chunks without glass or
             // paint pay no extra draw call. They share one index buffer, laid out opaque | transparent | paint.
             int nOpaque = OpaqueTris.Count, nTransparent = TransparentTris.Count, nPaint = PaintTris.Count;
-            mesh.SetIndexBufferParams(nOpaque + nTransparent + nPaint, Rendering.IndexFormat.UInt32);
-            if (nOpaque > 0)
+            int nTotal = nOpaque + nTransparent + nPaint;
+            mesh.SetIndexBufferParams(nTotal, indexFormat);
+            if (indexFormat == Rendering.IndexFormat.UInt16)
             {
-                mesh.SetIndexBufferData(OpaqueTris, 0, 0, nOpaque, UploadFlags);
-            }
+                if (nTotal > 0)
+                {
+                    var buf = _index16Scratch;
+                    if (buf == null || buf.Length < nTotal)
+                    {
+                        buf = _index16Scratch = new ushort[Mathf.NextPowerOfTwo(Mathf.Max(nTotal, 4096))];
+                    }
 
-            if (nTransparent > 0)
-            {
-                mesh.SetIndexBufferData(TransparentTris, 0, nOpaque, nTransparent, UploadFlags);
+                    int w = 0;
+                    for (int i = 0; i < nOpaque; i++) buf[w++] = (ushort)OpaqueTris[i];
+                    for (int i = 0; i < nTransparent; i++) buf[w++] = (ushort)TransparentTris[i];
+                    for (int i = 0; i < nPaint; i++) buf[w++] = (ushort)PaintTris[i];
+                    mesh.SetIndexBufferData(buf, 0, 0, nTotal, UploadFlags);
+                }
             }
-
-            if (nPaint > 0)
+            else
             {
-                mesh.SetIndexBufferData(PaintTris, 0, nOpaque + nTransparent, nPaint, UploadFlags);
+                if (nOpaque > 0)
+                {
+                    mesh.SetIndexBufferData(OpaqueTris, 0, 0, nOpaque, UploadFlags);
+                }
+
+                if (nTransparent > 0)
+                {
+                    mesh.SetIndexBufferData(TransparentTris, 0, nOpaque, nTransparent, UploadFlags);
+                }
+
+                if (nPaint > 0)
+                {
+                    mesh.SetIndexBufferData(PaintTris, 0, nOpaque + nTransparent, nPaint, UploadFlags);
+                }
             }
 
             mesh.subMeshCount = 3;
@@ -2265,7 +2598,7 @@ namespace BlocksBeyondTheStars.Client
             // on the plain float layout: Physics.BakeMesh/MeshCollider read this mesh back to cook it, and its
             // vertex count is a fraction of the render mesh's, so it is not where the memory sits.
             Mesh collider = null;
-            if (ColliderTris.Count > 0)
+            if (buildCollider && ColliderTris.Count > 0)
             {
                 collider = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
                 collider.SetVertices(ColliderVerts);
