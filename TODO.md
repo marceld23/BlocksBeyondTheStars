@@ -243,6 +243,41 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Server: presence on change + keep-alive, one entity list per type per tick, one player state per tick, NPC area of interest, single-read sightlines, allocation-free reconcile and space tick (#1530, 2026-09-04, branch perf/1530-server-presence)
+
+**Why.** PR bundle 8 of the performance package (#1501). `TickPresence` encoded and sent every subject to every
+viewer in reach at 10 Hz whether anything changed or not; `TickCreatures` could emit up to five `CreatureList`s in
+one tick (reconcile, spawn, prune, sleeper eviction, the 2 Hz beat) and the enemy + bandit sync timers published the
+same combined `PlanetEnemyList` twice per 0.2 s; every biting attacker sent its own `PlayerStateUpdate` per tick and
+the 2 Hz vitals gate followed with a duplicate; every NPC on a world simulated every tick (ground-column scan,
+O(n²) separation across settlements kilometres apart, wall sweep) as soon as one player stood anywhere on it;
+`IsSightBlockingCell` read the cell twice on the common clear-air sample and `HasLineOfSight` tested the same cell
+up to four times; `ReconcileSpeeders` / `ReconcileCompanions` / `TickSpace` allocated LINQ chains, sets and closures
+every tick; `WorldCreatureCap` interpolated and hashed a string 15× a second.
+
+**What changed — same messages, fewer of them.** Presence: each subject's `PlayerPresence` is hashed per beat and
+sent to a viewer only when the hash changed, the viewer never had it, or `PresenceKeepAliveBeats` (5 = 0.5 s)
+elapsed; a change of the joined set (join, leave, spectate toggle) forgets what everyone has seen so the next
+beat is a full resend (`PlayerSession.PresenceSentTo`, `LoadedWorld.PresenceViewerSignature`). The client hides
+after 3 s of silence, so the keep-alive keeps 6× headroom; `RemoteEntityInterpolator.Push` treats a repeated pose
+after a gap as the keep-alive (re-stamp, no new point) and a new pose after a gap as "just started moving"
+(a synthetic bridge one beat back), so motion starts within 0.1 s instead of smearing over the silent stretch.
+Entity lists: `BroadcastPlanetEnemies` / `BroadcastCreatures` / `BroadcastNpcs` mark `LoadedWorld.*ListDirty`;
+`FlushEntityLists` (a new `Guard` section right after `StreamChunks`) sends each list at most once per tick and
+world. Player state: the three bite paths call `MarkPlayerStateDirty` (records the vitals as sent, sends at
+once on a lethal hit) and the flush sends one `PlayerStateUpdate` per session per tick. NPCs: `MoveNpcs` skips
+NPCs beyond every player's streamed radius + two chunks (`MaxStreamRadiusBlocks`, the creature gate's formula);
+they stay in the list at their frozen pose. Sightlines: one block read per sample and consecutive samples in the
+same cell are tested once. Reconcile + `TickSpace`: reused scratch lists and plain loops (the fire sum accumulates
+in double like `Enumerable.Sum(float)`); `WorldCreatureCap`'s jitter is hashed once per world.
+
+**Consequences.** A standing player is re-sent every 0.5 s instead of 10× a second (viewer-visible: none — the
+avatar keeps its pose; a player entering another's area of interest sees the stationary one within 0.5 s).
+Entity lists and bite damage reach the client at the end of the tick instead of mid-tick (≤ 66 ms). An NPC
+beyond ~9 chunks of every player stands still until someone comes near. `PresenceKeepAliveTests` pins the counts
+(standing ≤ 3 per second, moving every beat, a joiner sees everyone on the next beat); the existing presence,
+observer, visibility, NPC, creature, taming, speeder, boat, enemy, space-combat and tick-timing tests are green.
+
 ### ★ Mesher core without strings, dictionaries or coordinate math per voxel; chunk pipeline builds each streamed chunk once, cooks colliders only when changed and in reach (#1528 #1529, 2026-09-04, branch perf/1528-1529-mesher)
 
 **Why.** PR bundle 7 of the performance package (#1501). Per surface chunk the mesher did 30–60k neighbour reads

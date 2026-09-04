@@ -243,8 +243,28 @@ public sealed partial class GameServer
     private void MoveNpcs(List<PlayerSession> targets, double dt)
     {
         double moveDt = System.Math.Min(dt, NpcMoveDtCap);
+        // #1530: area of interest — an NPC farther than every player's streamed radius (+ a two-chunk margin)
+        // stands still: nobody can see it, its leash keeps it within 1.6 blocks of home anyway, and the ground
+        // column scan + O(n²) separation + wall sweep it would pay are the whole cost of a far settlement.
+        float aoi = MaxStreamRadiusBlocks(targets) + 2 * BlocksBeyondTheStars.Shared.World.WorldConstants.ChunkSize;
+        float aoiSq = aoi * aoi;
         foreach (var npc in _npcs)
         {
+            bool inReach = false;
+            foreach (var t in targets)
+            {
+                if (WrapDistSq(t.State.Position, npc.Pos) <= aoiSq)
+                {
+                    inReach = true;
+                    break;
+                }
+            }
+
+            if (!inReach)
+            {
+                continue;
+            }
+
             // Loiter ↔ stroll around home: stand a while, then potter to a new spot within the leash, then stand
             // again (instead of forever tracing one closed drift loop). Stray past the leash → head straight home.
             float hx = npc.Pos.X - npc.Home.X, hz = npc.Pos.Z - npc.Home.Z;
@@ -391,12 +411,21 @@ public sealed partial class GameServer
         float dx = dst.X - ax, dy = (dst.Y + eye) - ay, dz = dst.Z - az;
         float dist = (float)System.Math.Sqrt(dx * dx + dy * dy + dz * dz);
         int steps = System.Math.Max(1, (int)System.Math.Ceiling(dist / 0.25f));
+        int px = int.MinValue, py = int.MinValue, pz = int.MinValue;
         for (int s = 1; s < steps; s++) // skip both endpoints — the bodies themselves aren't occluders
         {
             float f = s / (float)steps;
             int x = (int)System.Math.Floor(ax + dx * f);
             int y = (int)System.Math.Floor(ay + dy * f);
             int z = (int)System.Math.Floor(az + dz * f);
+            if (x == px && y == py && z == pz)
+            {
+                continue; // #1530: four samples per block land in the same cell most of the time — test it once
+            }
+
+            px = x;
+            py = y;
+            pz = z;
             if (IsSightBlockingCell(x, y, z)) // fluids occlude like before water lost its Solid flag
             {
                 return false;
@@ -428,7 +457,10 @@ public sealed partial class GameServer
     /// count as entombed — see GameServerSpawnSafety), but a body of water must keep breaking the sightline
     /// exactly as before: no aggro through a lake.</summary>
     private bool IsSightBlockingCell(int x, int y, int z)
-        => IsSolidCell(x, y, z) || IsFluid(_world.GetBlock(new Vector3i(x, y, z)).Value);
+    {
+        var id = _world.GetBlock(new Vector3i(x, y, z)); // #1530: one read — the clear-air sample used to read the cell twice
+        return IsSolidBlock(id) || IsFluid(id.Value);
+    }
 
     /// <summary>Whether a cell is a movement-blocking solid block. Keyed on the block's <c>Solid</c> flag, not
     /// just "non-air", so the two are kept distinct: <b>glass</b> is solid-but-transparent (blocks NPCs, you see
@@ -491,7 +523,9 @@ public sealed partial class GameServer
 
     // NOTE: BroadcastNpcs runs on the 0.2 s position-sync cadence — per-receiver standings (#1118) must
     // NOT ride on it; they go out via SendNpcs (world entry) and explicitly when a relationship changes.
-    private void BroadcastNpcs() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
+    private void BroadcastNpcs() => _worlds.Active.NpcListDirty = true; // #1530: flushed once per tick
+
+    private void SendNpcList() => BroadcastToWorld(new NpcList { Npcs = _npcs.Select(ToNetNpc).ToArray() });
 
     private void SendNpcs(PlayerSession session)
     {

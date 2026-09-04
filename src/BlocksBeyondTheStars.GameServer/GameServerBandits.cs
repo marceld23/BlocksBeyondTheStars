@@ -156,7 +156,7 @@ public sealed partial class GameServer
                     && HasLineOfSight(bandit.Position, p.Position))
                 {
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, (float)(dps * dt)));
-                    SendPlayerState(session);
+                    MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {
                         RespawnPlayer(session, "@srv.death.bandit");

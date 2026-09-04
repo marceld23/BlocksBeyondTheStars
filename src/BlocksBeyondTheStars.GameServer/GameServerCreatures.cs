@@ -157,8 +157,8 @@ public sealed partial class GameServer
         }
 
         double size = System.Math.Clamp(_world.Circumference / 6000.0, 0.5, 1.8);
-        uint h = (uint)WorldGenerator.StableHash($"fauna:{_meta.Seed}:{_worlds.Active.LocationId}");
-        double jitter = 0.7 + 0.6 * (h % 1000 / 999.0); // 0.7..1.3, stable per world
+        // #1530: hashed once per world (the string interpolation + hash ran 15× per second before).
+        double jitter = _worlds.Active.FaunaJitter ??= 0.7 + 0.6 * ((uint)WorldGenerator.StableHash($"fauna:{_meta.Seed}:{_worlds.Active.LocationId}") % 1000 / 999.0); // 0.7..1.3, stable per world
         return (int)System.Math.Round(baseN * size * jitter * System.Math.Sqrt(System.Math.Max(1, players)));
     }
 
@@ -299,7 +299,7 @@ public sealed partial class GameServer
                     }
 
                     p.Health = System.Math.Max(0f, p.Health - Mitigate(p, bite));
-                    SendPlayerState(session);
+                    MarkPlayerStateDirty(session); // #1530
                     if (p.Health <= 0f)
                     {
                         RespawnPlayer(session, "@srv.death.wildlife");
@@ -2118,7 +2118,9 @@ public sealed partial class GameServer
         return best;
     }
 
-    private void BroadcastCreatures() => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
+    private void BroadcastCreatures() => _worlds.Active.CreatureListDirty = true; // #1530: flushed once per tick
+
+    private void SendCreatureList() => BroadcastToWorld(new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });
 
     private void SendCreatures(PlayerSession session)
         => Send(session, new CreatureList { Creatures = _creatures.Select(ToNetCreature).ToArray() });

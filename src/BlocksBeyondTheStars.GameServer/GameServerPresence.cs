@@ -16,6 +16,10 @@ namespace BlocksBeyondTheStars.GameServer;
 public sealed partial class GameServer
 {
     private const double PresenceInterval = 0.1; // ~10 Hz
+    // #1530: a subject whose presence did not change is re-sent to a viewer only every this many beats
+    // (0.5 s at 10 Hz) — the client hides an avatar after 3 s of silence (RemotePlayers.StaleHideSeconds),
+    // so this keeps 6× headroom while a standing player costs a fifth of the traffic.
+    private const int PresenceKeepAliveBeats = 5;
 
     // Per-world (routes through the active world) — see LoadedWorld.SincePresence for why a shared field starves worlds.
     private double _sincePresence { get => _worlds.Active.SincePresence; set => _worlds.Active.SincePresence = value; }
@@ -264,6 +268,43 @@ public sealed partial class GameServer
         }
     }
 
+    /// <summary>FNV-1a over every wire field of a presence — equal hashes mean an identical message (#1530).</summary>
+    private static ulong PresenceHash(PlayerPresence p)
+    {
+        ulong h = 14695981039346656037UL;
+        void Mix(ulong v) => h = (h ^ v) * 1099511628211UL;
+        void MixText(string? s)
+        {
+            if (s == null)
+            {
+                Mix(0xFFFFFFFFUL);
+                return;
+            }
+
+            foreach (char c in s)
+            {
+                Mix(c);
+            }
+
+            Mix(0x1FUL);
+        }
+
+        MixText(p.PlayerId);
+        MixText(p.Name);
+        Mix((uint)BitConverter.SingleToInt32Bits(p.X));
+        Mix((uint)BitConverter.SingleToInt32Bits(p.Y));
+        Mix((uint)BitConverter.SingleToInt32Bits(p.Z));
+        Mix((uint)BitConverter.SingleToInt32Bits(p.Yaw));
+        Mix((uint)p.Skin);
+        Mix((uint)p.Torso);
+        Mix((uint)p.Arms);
+        Mix((uint)p.Legs);
+        Mix((p.Stealthed ? 1UL : 0UL) | (p.Jetpacking ? 2UL : 0UL) | (p.Seated ? 4UL : 0UL));
+        Mix((uint)p.Gear);
+        MixText(p.Held);
+        return h;
+    }
+
     private PlayerPresence PresenceOf(PlayerSession s)
     {
         var p = s.State;
@@ -355,6 +396,24 @@ public sealed partial class GameServer
         double aoi = (_config.ViewDistanceChunks + 4) * WorldConstants.ChunkSize;
         double aoiSq = aoi * aoi;
 
+        // #1530: a change of the joined set (a join, a leave, a spectate toggle) forgets what every viewer has
+        // seen, so the next beat is a full resend — a joiner or an un-spectating admin sees everyone at once.
+        long signature = 17;
+        foreach (var s in joined)
+        {
+            signature = unchecked(signature * 31 + s.ConnectionId * 2 + (s.Spectating ? 1 : 0));
+        }
+
+        var world = _worlds.Active;
+        if (world.PresenceViewerSignature != signature)
+        {
+            world.PresenceViewerSignature = signature;
+            foreach (var s in joined)
+            {
+                s.PresenceSentTo.Clear();
+            }
+        }
+
         foreach (var subject in joined)
         {
             if (subject.Spectating)
@@ -362,9 +421,13 @@ public sealed partial class GameServer
                 continue; // observer: nothing about them is ever broadcast (issue #487)
             }
 
-            // Encode each subject's presence once, then fan it out to every nearby viewer — the old per-viewer
-            // Send re-serialized it, making this O(players²) encodes per presence tick.
-            var payload = NetCodec.Encode(PresenceOf(subject));
+            // #1530: send on change + keep-alive. The presence is hashed per beat; a viewer who already holds
+            // this exact presence and received it fewer than PresenceKeepAliveBeats ago gets nothing. Encoded
+            // lazily and once per subject (the old per-viewer Send re-serialized it, O(players²) encodes).
+            int beat = ++subject.PresenceBeat;
+            var presence = PresenceOf(subject);
+            ulong hash = PresenceHash(presence);
+            byte[]? payload = null;
             var subjectPos = subject.State.Position;
             foreach (var viewer in joined)
             {
@@ -378,7 +441,20 @@ public sealed partial class GameServer
                     continue; // out of this viewer's area of interest
                 }
 
+                if (subject.PresenceSentTo.TryGetValue(viewer.ConnectionId, out var last)
+                    && last.Hash == hash && beat - last.Beat < PresenceKeepAliveBeats)
+                {
+                    continue; // unchanged and recent — the client keeps rendering the pose it has
+                }
+
+                payload ??= NetCodec.Encode(presence);
                 SendEncoded(viewer.ConnectionId, payload);
+                subject.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
+            }
+
+            if (subject.PresenceSentTo.Count > 64)
+            {
+                subject.PresenceSentTo.Clear(); // viewers that left accumulate here — a cheap reset now and then
             }
         }
     }

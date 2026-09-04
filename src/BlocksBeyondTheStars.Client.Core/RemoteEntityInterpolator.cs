@@ -52,6 +52,12 @@ namespace BlocksBeyondTheStars.Client
 
         public bool HasData => _buffer.Count > 0;
 
+        /// <summary>Longer than this between two samples = a keep-alive pause, not a normal beat (#1530).</summary>
+        public const double GapSeconds = 0.25;
+
+        /// <summary>The presence beat the server sends on change (~10 Hz).</summary>
+        public const double NominalIntervalSeconds = 0.1;
+
         /// <summary>Adds a freshly received pose stamped with the client's (monotonic) clock. A sample older than
         /// the latest is dropped; one with the same timestamp replaces the latest (two arrivals in one frame).</summary>
         public void Push(double clientTime, Vector3f worldPos, float yaw)
@@ -66,6 +72,23 @@ namespace BlocksBeyondTheStars.Client
 
                 _buffer[last] = new Snapshot(clientTime, worldPos, yaw); // same frame — keep the freshest
                 return;
+            }
+
+            // #1530: presence now arrives on change + a keep-alive (0.5 s) instead of a fixed 10 Hz. A sample that
+            // repeats the previous pose after a gap is the keep-alive — re-stamp the pose instead of adding a point
+            // (nothing to interpolate). A DIFFERENT pose after a gap means the entity just started moving: bridge
+            // the gap with a synthetic copy of the old pose one nominal interval back, so the motion begins within
+            // ~0.1 s instead of being smeared across the whole silent stretch.
+            if (last >= 0 && clientTime - _buffer[last].Time > GapSeconds)
+            {
+                var prev = _buffer[last];
+                if (prev.Pos.X == worldPos.X && prev.Pos.Y == worldPos.Y && prev.Pos.Z == worldPos.Z && prev.Yaw == yaw)
+                {
+                    _buffer[last] = new Snapshot(clientTime, worldPos, yaw);
+                    return;
+                }
+
+                _buffer.Add(new Snapshot(clientTime - NominalIntervalSeconds, prev.Pos, prev.Yaw));
             }
 
             _buffer.Add(new Snapshot(clientTime, worldPos, yaw));
