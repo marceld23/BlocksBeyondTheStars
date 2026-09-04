@@ -63,6 +63,26 @@ public sealed class CargoTransferTests : IDisposable
     }
 
     [Fact]
+    public void StowAll_MovesBuildingBlocksToo()
+    {
+        // #1562: "stow all" mirrored the crate rule from before #1264 — materials + components only — so a
+        // builder's stone, glass and wall panels stayed in the pack while a helmet (component) was stowed.
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var p = AboardPilot(server);
+            p.State.Inventory.Add("stone", 40, 1024);
+            p.State.Inventory.Add("glass_clear", 12, 1024);
+
+            Assert.True(server.MoveCargoForTest("Pilot", toCargo: true, bulkAll: true));
+
+            Assert.Equal(0, p.State.Inventory.CountOf("stone"));
+            Assert.Equal(40, server.Ship.Cargo.CountOf("stone"));
+            Assert.Equal(12, server.Ship.Cargo.CountOf("glass_clear"));
+        }
+    }
+
+    [Fact]
     public void TakeAll_PullsEverythingBackOut()
     {
         var server = Started(out var repo);

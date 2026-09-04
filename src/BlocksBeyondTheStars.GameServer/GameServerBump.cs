@@ -156,7 +156,11 @@ public sealed partial class GameServer
     private void CaptureBump(PlayerSession session, string description, byte[]? image, string clientVersion, string replyKey)
     {
         var p = session.State;
-        var (systemName, planetName) = ActiveLocationNames();
+        // #1567: name the REPORTER's body, not the world cursor — after an in-flight hyperjump the arrival body
+        // is not resident yet, SetActiveWorld above silently keeps the previous planet, and the old lookup then
+        // labelled the report (and its environment) with the system the player had just left.
+        var (systemName, planetName) = LocationNamesFor(p.CurrentLocationId);
+        bool worldResident = string.IsNullOrEmpty(p.CurrentLocationId) || _worlds.IsLoaded(p.CurrentLocationId);
         float r2 = 24f * 24f;
         bool inSpace = InSpace(p.PlayerId);
 
@@ -279,13 +283,16 @@ public sealed partial class GameServer
                 screenshot = imageName, // null when the client could not capture one
                 world = _meta.WorldName,
                 // locationId is the body this whole snapshot describes — the reporter's own, and the same
-                // value as player.currentLocation. activeLocationId stays for continuity with older reports.
+                // value as player.currentLocation. worldResident=false means the body has not been loaded yet
+                // (in flight after a hyperjump): environment/surroundings below then describe nothing (#1567).
+                // defaultJoinBody is the save's start body (was misleadingly called activeLocationId).
                 location = new
                 {
                     system = systemName,
                     planet = planetName,
                     locationId = p.CurrentLocationId,
-                    activeLocationId = _meta.ActiveLocationId,
+                    worldResident,
+                    defaultJoinBody = _meta.ActiveLocationId,
                     planetType = _meta.DefaultPlanetType,
                 },
                 player = new
@@ -315,7 +322,7 @@ public sealed partial class GameServer
                     inventory,
                     rations,
                 },
-                environment = BuildEnvironment(p.Position), // the player's local biome weather
+                environment = worldResident ? BuildEnvironment(p.Position) : null, // the player's local biome weather; null while the body is not loaded (#1567)
                 ship = new { _ship.ShipType, _ship.Hull, hullMax = _shipHullMax, _ship.Shield, shieldMax = _shipShieldMax, modules = _ship.Modules },
                 surroundings = blocks,
                 surroundingsCensus = census, // wider block-type histogram (terrain + voxel flora); empty in space

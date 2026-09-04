@@ -650,6 +650,7 @@ public sealed partial class GameServer
         SendShipCombatStatus(session);
         SendEnvironment(session);
         SendDoors(session);
+        SendShipRepairStatus(session); // the repair panel follows the ship, not the last console press (#1561)
         BroadcastShipTransit(session, session.CurrentLocationId, pad.CenterX + 0.5f, surfaceY, pad.CenterZ + 0.5f, landing: true); // others see the descent
     }
 

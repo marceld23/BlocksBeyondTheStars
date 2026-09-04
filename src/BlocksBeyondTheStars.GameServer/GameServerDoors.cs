@@ -331,6 +331,7 @@ public sealed partial class GameServer
         });
         _repo.SaveDoor(new StoredDoor { Planet = _world.LocationId, X = pos.X, Y = pos.Y, Z = pos.Z, Kind = kind, AxisX = axisX });
         BroadcastDoors();
+        RefreshStationBoundsAfterDoorChange(); // a doorway on a station's outer face is part of its box (#1559)
     }
 
     /// <summary>If a player-built door fills the mined cell's column (its ~3-tall opening), remove it, return the
@@ -368,6 +369,7 @@ public sealed partial class GameServer
 
         pool.Add(doorItem, 1); // give the door block back
         BroadcastDoors();
+        RefreshStationBoundsAfterDoorChange(); // #1559
         SendInventory(session);
         return true;
     }

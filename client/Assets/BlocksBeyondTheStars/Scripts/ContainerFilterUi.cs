@@ -71,12 +71,14 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Everything stashable in the backpack (same category rule the server stashes by).
+            // Everything stashable in the backpack (same category rule the server stashes by: materials,
+            // components AND building blocks — a stone/glass crate was impossible to set up while the picker
+            // silently dropped every block item, #1562).
             foreach (var s in Game.Personal)
             {
                 string baseKey = ItemKey.Base(s.Item);
                 if (baseKey.Length > 0 && !_candidates.Contains(baseKey)
-                    && Game.Content?.GetItem(baseKey)?.Category is Shared.Definitions.ItemCategory.Material or Shared.Definitions.ItemCategory.Component)
+                    && Game.Content?.GetItem(baseKey)?.Category is Shared.Definitions.ItemCategory.Material or Shared.Definitions.ItemCategory.Component or Shared.Definitions.ItemCategory.Block)
                 {
                     _candidates.Add(baseKey);
                 }

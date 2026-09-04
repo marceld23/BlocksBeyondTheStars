@@ -354,6 +354,38 @@ public sealed class TravelTests : IDisposable
     }
 
     [Fact]
+    public void HyperjumpInFlight_ThenLandingOnTheAnchor_LoadsThatWorld_AndTheTickKeepsRunning()
+    {
+        // Lyxette (v2026.9.1): "Ich landete auf einer BEKANNTEN Welt, die sich plötzlich anders darstellte."
+        // The in-flight jump anchors the flight on a body whose world is never loaded; landing "back on the
+        // current body" then ran the relocate path against the planet he had LEFT (#1566).
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator"); // the pilot's OWN ship (the fixture fitted the pre-join one)
+            string originSystem = server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId;
+            var target = server.Galaxy.Systems.First(s => s.Id != originSystem
+                && s.Bodies.Any(b => !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null));
+
+            server.HyperjumpToSystem("Pilot", target.Id);
+            Assert.True(server.InSpace("Pilot"));
+            var anchor = server.Galaxy.FindBody(pilot.CurrentLocationId)!;
+            Assert.Equal(target.Id, anchor.SystemId);
+
+            // The anchor world is not resident yet — the tick must still simulate something instead of
+            // skipping every occupied world (weather/day/fauna froze for the whole cruise, #1566).
+            server.TickForTest(1.0);
+
+            server.LandOnBody("Pilot", anchor.Id);
+            Assert.False(server.InSpace("Pilot"));
+            Assert.Equal(anchor.Id, pilot.CurrentLocationId);
+            Assert.Equal(anchor.Id, server.ActiveLocationId);
+            Assert.Equal(anchor.Id, server.World.LocationId); // the terrain under his feet IS the new body's
+        }
+    }
+
+    [Fact]
     public void InSystemTravel_NeedsNoJumpGenerator()
     {
         var server = Started(out var repo, jumpDrive: false);

@@ -18,6 +18,34 @@ lists and chunks, a sequenced presence beat, and inventory updates that no longe
 blueprint list). Updated servers reject older game versions at join with a clear "protocol mismatch" message —
 update the game (desktop installs auto-update; the browser version is always current).
 
+### 🛰️ Lyxette round 7 — stations, teleporter pads, ship repair, hyperjumps (#1558–#1568)
+
+- **Your station's west wing is part of the station again** (#1558). One step west of the original core
+  counted as thousands of blocks away: the suit floated, the air stopped and "drifted too far — pulled
+  back to the pad" fired every second. Stations keep their own coordinates now.
+- **Air and gravity follow the whole build** (#1559). Everything you built inside before the last update
+  is folded into the station on boarding, doors count towards the hull, halls up to 64 000 cells breathe,
+  and an oversized hall says so instead of blaming a hole in the hull.
+- **Teleporter pads work after a station visit** (#1560). Leaving a station, respawning at home or being
+  recovered to the ship dropped the pads, beacons, bases and map markers from your screen until the next
+  landing — the pad kept glowing but ignored E. All of them come back now, and a pad shows "Press E:
+  Transporter".
+- **Repair your ship with R** (#1561). Stand at the cockpit or the ship console and press R; the panel on
+  the right greys out and tells you what is still missing, and it is up to date after every landing.
+- **Stow blocks in the ship's hold and set up a stone crate** (#1562). "Stow all" and the crate filter
+  refused building blocks; the station container no longer vanishes after you leave.
+- **The factory terminal says what it is** (#1563): decoration for your own halls — only the terminal of
+  a found factory produces.
+- **Bug reports carry your system info** (#1564): OS, CPU, RAM, GPU and driver, plus whether the last
+  session ended without a clean shutdown; the manual explains what to send after a blue screen. A memory
+  leak in the item-drop bundles is fixed.
+- **Hyperjumps arrive with a name** (#1565 #1566 #1567). The HUD, the orbit view and the F1 form named
+  the system you had left; landing on the arrival planet set you down on the OLD planet's terrain; and the
+  world stopped simulating while you cruised the new system. All three fixed, and bug-report snapshots
+  now name the body you are really at.
+- **No sunburn above your own station** (#1568). Floating past the gravity box no longer applies the
+  spacewalk heat.
+
 ## [2026.9.1] — 2026-09-03
 
 The school-club release. On 2 September the game-development club at the Kurfürst-Balduin

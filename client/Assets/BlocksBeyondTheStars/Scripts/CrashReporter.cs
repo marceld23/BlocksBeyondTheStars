@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
         private string _version = string.Empty;
         private string _platform = string.Empty;
         private string _buildGuid = string.Empty;
+        private DeviceInfo.Snapshot _device; // OS/CPU/GPU/driver facts, read once on the main thread (#1564)
 
 #if UNITY_WEBGL && !UNITY_EDITOR
         // WebGL ships without threads (webGLThreadsSupport:0), so the Task.Run upload bodies below never
@@ -64,6 +65,8 @@ namespace BlocksBeyondTheStars.Client
             _version = AppShell.Version;
             _platform = Application.platform.ToString();
             _buildGuid = Application.buildGUID ?? string.Empty;
+            _device = DeviceInfo.Get();
+            SessionMarker.Begin(); // "last session died?" verdict + this session's marker (#1564)
             _spool = new CrashReportSpool(Path.Combine(AppPaths.Root, "crashreports"));
             _uploader = new FeedbackUploader(FeedbackUploader.DefaultEndpoint, BugReportBuildSecrets.ApiKey);
 
@@ -85,6 +88,16 @@ namespace BlocksBeyondTheStars.Client
             var uploader = _uploader;
             _ = Task.Run(() => FlushPending(spool, uploader));
 #endif
+        }
+
+        private void Update()
+        {
+            SessionMarker.Touch(); // keeps the marker's "last alive" time current; rate-limited inside
+        }
+
+        private void OnApplicationQuit()
+        {
+            SessionMarker.End(); // a clean exit removes the marker; a blue screen / kill leaves it behind
         }
 
         private void OnDestroy()
@@ -179,6 +192,16 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var settings = Settings; // local copy: may be reassigned on the main thread
+                var reportJson = new Dictionary<string, object>
+                {
+                    ["kind"] = "crash",
+                    ["source"] = "client",
+                    ["logType"] = "Exception",
+                    ["stackTrace"] = stack,
+                };
+                _device?.WriteTo(reportJson);      // os / cpu / ramMb / gpu / gpuDriver / vramMb (#1564)
+                SessionMarker.WriteTo(reportJson); // lastSessionUnclean / lastSessionEndedAt (#1564)
+
                 var report = new FeedbackReport
                 {
                     Title = string.IsNullOrEmpty(firstLine) ? "Client crash" : "Client crash: " + firstLine,
@@ -191,13 +214,7 @@ namespace BlocksBeyondTheStars.Client
                     SessionId = _sessionId,
                     Platform = _platform,
                     ClientTimestamp = DateTime.UtcNow.ToString("o"),
-                    ReportJson = new Dictionary<string, object>
-                    {
-                        ["kind"] = "crash",
-                        ["source"] = "client",
-                        ["logType"] = "Exception",
-                        ["stackTrace"] = stack,
-                    },
+                    ReportJson = reportJson,
                 };
 
                 return FeedbackUploader.Serialize(report, null);

@@ -161,7 +161,9 @@ public sealed partial class GameServer
                         continue;
                     }
 
-                    if ((def.Key == "torch" && !AtmospherePresent)
+                    // Same torch rule as HandlePlace: a sealed base room / station pocket holds air too (#1483,
+                    // #1563 — a pasted torch silently vanished where a hand-placed one burned).
+                    if ((def.Key == "torch" && !AtmospherePresent && !BreathableAirAt(pos))
                         || (IsFlora(def.NumericId.Value) && (!IsValidFloraHost(def.NumericId.Value, pos) || !IsFloraEnclosedForVoidWorld(pos))))
                     {
                         skippedSpecial++; // a dud here by hand too (airless torch, plant without its host block)
@@ -191,6 +193,7 @@ public sealed partial class GameServer
                     int tint = def.Tintable ? cell.Tint : 0;
                     int glow = def.Tintable ? cell.Glow : 0;
                     _world.SetBlock(pos, def.NumericId, tint, glow, shape, session.State.PlayerId);
+                    WriteBackStationCell(pos, def.NumericId, tint, glow, shape); // a pasted wing is part of the station's build too (#1481, #1563)
                     BroadcastToWorld(new BlockChanged { X = pos.X, Y = pos.Y, Z = pos.Z, Block = def.NumericId.Value, Tint = tint, Glow = glow, Shape = shape });
                     OnBlockPlaced(session, def, pos); // build missions advance like any hand-placed block (#1116)
                     placed++;

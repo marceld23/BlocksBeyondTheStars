@@ -33,8 +33,11 @@ public sealed partial class GameServer
     private List<StoredContainer> _containers => _worlds.Active.Containers;
 
     /// <summary>Blocks that become a storage container when placed (share the "crate" container kind,
-    /// so loot/stash/HUD treat them identically — the block key only decides capacity).</summary>
-    private static bool IsContainerBlock(string key) => key is "crate" or "wood_crate";
+    /// so loot/stash/HUD treat them identically — the block key only decides capacity). The station
+    /// container joined the list with #1562: placed from inside a player station it used to be a dead
+    /// block until a server restart re-derived it from the cell grid, and the derived one vanished again
+    /// with the void world on the first leave. Now it is placed, persisted and mined like a crate.</summary>
+    private static bool IsContainerBlock(string key) => key is "crate" or "wood_crate" or "station_container";
 
     /// <summary>Lootable containers on the current planet (salvage capsules / corpses / crates). Ground drop
     /// packets share the same store but are not containers to the player — see <see cref="DropPackets"/>.</summary>

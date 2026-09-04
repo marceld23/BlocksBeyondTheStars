@@ -48,6 +48,9 @@ namespace BlocksBeyondTheStars.Client
         /// the panel stays pinned regardless (see <see cref="RefreshScan"/>).</summary>
         private const float ScanHoldSeconds = 20f;
 
+        /// <summary>Reach at which a teleporter pad answers E (mirrors PlayerController's beam press, #1560).</summary>
+        private const float BeamUseRange = 2.2f;
+
         private static readonly Color Health = new Color(0.92f, 0.32f, 0.34f);
         private static readonly Color Oxygen = new Color(0.36f, 0.78f, 1f);
         private static readonly Color Energy = new Color(1f, 0.82f, 0.25f);
@@ -805,6 +808,12 @@ namespace BlocksBeyondTheStars.Client
                 {
                     // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
                     prompt = loc.Get("ui.station.block." + Game.AimedStationBlock);
+                }
+                else if (BeamView.Instance != null && BeamView.Instance.NearestUsableBeam(Game.PlayerPosition, BeamUseRange) != 0)
+                {
+                    // Standing on / beside an own or allied teleporter pad: the same reach PlayerController
+                    // uses for the E press. The pad never announced itself before (#1560).
+                    prompt = loc.Get("ui.beam.use_hint");
                 }
                 else if (HoldingScanner() && Game.ScanTargetInView)
                 {
@@ -1916,10 +1925,14 @@ namespace BlocksBeyondTheStars.Client
             // The breach count already leads the panel when the hull is full — only repeat it next to the
             // materials while the top line is busy showing hull numbers.
             string cells = hullShort && sr.MissingCells > 0 ? $"  ({sr.MissingCells} {loc.Get("ui.shiprepair.cells")})" : string.Empty;
-            _shipRepairHint.text = loc.Get("ui.shiprepair.hint") + needs + cells;
+            // #1561: say what is still short — the server computes CanAfford but the panel never showed it, so a
+            // player with "Material vorhanden" (a hull-plating MODULE, no plates) saw a button that did nothing.
+            string missing = sr.CanAfford ? string.Empty : "\n" + loc.Get("ui.shiprepair.missing");
+            _shipRepairHint.text = loc.Get("ui.shiprepair.hint") + needs + cells + missing;
 
             var t = _shipRepairBtn.GetComponentInChildren<Text>();
             if (t != null) { t.text = loc.Get("ui.shiprepair.repair"); }
+            _shipRepairBtn.interactable = sr.CanAfford;
         }
 
         private void RefreshTaming(BlocksBeyondTheStars.Shared.Localization.Localizer loc)

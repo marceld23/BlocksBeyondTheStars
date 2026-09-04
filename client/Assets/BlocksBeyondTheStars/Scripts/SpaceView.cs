@@ -2772,8 +2772,12 @@ namespace BlocksBeyondTheStars.Client
             // big or small in orbit instead of all identical — an approximate reflection of how varied they are.
             float homeBias = current?.SizeBias ?? 0f;
             float homeDiameter = OrbitDiameterFor(current?.Id ?? Game?.LocationName ?? "home", current?.Kind, current?.PlanetType, homeBias) * 3.2f;
-            SpawnBody("HomePlanet", current?.Id, current?.Kind, Game?.LocationName ?? "home", homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
-            _landables.Add((string.Empty, Game?.LocationName ?? "home", homePos, homeDiameter * 0.5f));
+            // Label the home body by what the star map calls it; LocationName only as a fallback — after an
+            // in-flight hyperjump it still named the DEPARTURE planet, so the alien anchor world was drawn and
+            // land-prompted as "Crossway Reach · Seana" (#1565).
+            string homeName = !string.IsNullOrEmpty(current?.Name) ? current.Name : (Game?.LocationName ?? "home");
+            SpawnBody("HomePlanet", current?.Id, current?.Kind, homeName, homePos, homeDiameter, homeType, homeBias, current?.RingSeed ?? 0);
+            _landables.Add((string.Empty, homeName, homePos, homeDiameter * 0.5f));
             _keepOut.Add((homePos, homeDiameter * 0.5f + KeepOutMargin));
             float maxDist = homePos.magnitude;
 

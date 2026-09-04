@@ -125,7 +125,9 @@ public sealed partial class GameServer
 
         // Vacuum exposure (EVA spacewalk, or on foot above the atmosphere line): sun-dependent hull
         // temperature; no block probe (an EVA position is space-instance coordinates) and no roof.
-        if (p.InEva || p.AboveAtmosphere)
+        // A station boarder floating past the gravity box (#1485) is AboveAtmosphere too, but the station's
+        // void world is not a sun-exposed orbit — hull work from outside the deck stays heat-free (#1568).
+        if (p.InEva || (p.AboveAtmosphere && !InStation(p.PlayerId)))
         {
             session.EffectiveTemperatureC = VacuumTemperature(_dayFraction);
             return TemperatureSeverityFor(session.EffectiveTemperatureC);

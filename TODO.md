@@ -110,6 +110,46 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Lyxette round 7 — the station's west wing is station again, the box follows the whole build, the pads survive a station visit, R repairs the ship, hyperjumps arrive with a name (#1558–#1568, 2026-09-04, branch fix/lyxette-reports-2026-09-04)
+Eight F1 reports from the night and afternoon of 2026-09-04 (v2026.8.26 → v2026.9.1). **X wrap in the station world
+(#1558):** `HandleMove` wrapped X for EVERY world (only Z was gated by `onSurface`); a player station's void world
+carries a circumference of ~5950, so one step west of x 0 became x ≈ 5950 — beyond box+72 → `RescueDriftingBoarder`
+each second ("zu weit abgetrieben"), airless, floating, and a vendor west of the origin unreachable forever. Stations
+and space keep their own coordinate space now; `MoveForTest` + `Boarder_WestOfTheOrigin_KeepsHisPosition_AndIsNotPulledBack`.
+**The box is the whole build (#1559):** `AbsorbStampedWorldIntoCells` folds the void world's persisted block edits
+(chunk by chunk from the cell box outwards, `LoadChunkEdits`) into `_playerStationCells` on every materialised boarding
+BEFORE the top-up stamp — everything built inside before the write-back (#1481) existed as world edits only, so the
+sealed-air reach and the gravity volume still described the 5³ seed hull. Mined cells drop out of the grid (the top-up
+never restores them again), player-built doors extend `RefreshStationBounds` (door entities are never cells), the
+pocket budget is 64 000 (was 12 000), and a hall over budget says so (`@station_air_too_large`) instead of blaming a
+hole. `InteriorBuiltBeforeTheWriteBack_JoinsTheBox_OnTheNextBoarding`. **Every per-world list follows a WorldReset
+(#1560):** `LeaveStation`, `RecoverToShip` and `TryCustomRespawn` restocked only the doors (#1429); the teleporter pads,
+beacons, bases, markers, factories, data cubes, net fragments and speeders stayed wiped client-side until the next
+landing — Lyxette's "keine Auswahl E mehr" after a station visit. `SendWorldScopedLists`, `BeamView.OnWorldReset`, a
+"Press E: Transporter" prompt (the pad never had one), `AssertDoorsFollowTheReset` now checks all lists +
+`LeavingAStation_RestocksEveryWorldList_AfterTheWorldReset`. **Ship repair reachable (#1561):** the HUD button was the
+only sender of `RepairShipIntent` and cannot be clicked with a locked cursor; **R at the cockpit or the ship console**
+now repairs (`RepairOwnShipAtConsole`, falls through to the wreck repair), the panel greys the button and names the
+shortfall from `CanAfford`, the status is pushed on join and on every landing, and the cockpit/console/VEGA texts say R.
+**Storage (#1562):** `IsStowable` and the crate-filter picker accept Block items like `Stashable` has since #1264
+(`StowAll_MovesBuildingBlocksToo`); `station_container` is a normal container block (placed → persisted → mined
+with contents), the EVA-built ones persist too and dedupe by position
+(`PlacedContainer_SurvivesLeavingAndReboarding_WithItsContents`). **Factory terminal (#1563):** wiki/item texts and the
+factories doc say a self-placed terminal is decoration (#1265); blueprint paste uses the same torch air fallback as
+`HandlePlace` and writes pasted cells back into the station grid. **Diagnostics (#1564):** F1 + crash reports carry
+`os/cpu/ramMb/gpu/gpuDriver/vramMb` (`DeviceInfo`) and `lastSessionUnclean/lastSessionEndedAt` (`SessionMarker`, a
+marker file beside the settings, touched every 60 s, deleted on clean quit); `DropPacketView` caches the remapped mesh
+per atlas tile and the tint material per item instead of leaking both per packet; the manual has a "Crashes and blue
+screens — what to send" section. **Hyperjump (#1565/#1566/#1567):** `SpaceState` carries `SystemName/BodyName` and the
+client sets `LocationName` from it (an in-flight jump never sends a WorldReset), the orbit view labels the home body
+from the star map, the arrival posts the "hyperjumped to" chat line; landing on the never-loaded anchor goes through
+`HandleTravel(allowCurrentBody)` (LoadWorld + WorldReset) instead of relocating onto the departure planet's terrain; the
+multi-world tick skips unloaded occupied locations and falls back to the active world; bump snapshots name the
+reporter's body (`LocationNamesFor`), carry `worldResident`, and `activeLocationId` is `defaultJoinBody`.
+`HyperjumpInFlight_ThenLandingOnTheAnchor_LoadsThatWorld_AndTheTickKeepsRunning`,
+`HyperjumpInFlight_NamesTheNewSystem_AndLandingThereResetsTheWorld`. **Vacuum heat (#1568):** a station boarder floating
+past the gravity box no longer gets the EVA sun temperature. UNRELEASED — PR after the performance branch lands.
+
 ### ★ Creature spawn exclusion radius: nothing wild within 24 blocks of a base_core (#1451, 2026-09-03, PR #1492 by @ahmdkaml)
 Lyxette's herbivores on the walled landing pad (~20 blocks from the core) exposed that the wall-ring fill is
 the ONLY spawn rule near a base and that it fails open silently. `SpawnSpotClear` now rejects every non-Air

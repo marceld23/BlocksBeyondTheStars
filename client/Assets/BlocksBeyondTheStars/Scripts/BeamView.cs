@@ -46,6 +46,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.BeamsReceived += OnBeams;
                 Game.Network.BeamFxReceived += OnBeamFx;
+                Game.Network.WorldResetReceived += OnWorldReset;
                 _subscribed = true;
                 OnBeams(new BeamList { Beams = Game.Beams }); // seed from whatever arrived before we subscribed
             }
@@ -99,6 +100,23 @@ namespace BlocksBeyondTheStars.Client
                     _pads.Remove(id);
                 }
             }
+        }
+
+        /// <summary>A world change wipes <c>Game.Beams</c> (pad ids are per world); the pad objects must go with
+        /// it, or a pad of the previous world keeps glowing and humming at its old coordinates while E finds
+        /// nothing — the "teleporter looks fine but ignores E" report (#1560). The server re-sends the
+        /// destination's pads after every WorldReset.</summary>
+        private void OnWorldReset(WorldReset m)
+        {
+            foreach (var p in _pads.Values)
+            {
+                if (p.Go != null)
+                {
+                    Destroy(p.Go);
+                }
+            }
+
+            _pads.Clear();
         }
 
         private Pad Build(NetBeam nb)
@@ -256,6 +274,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.BeamsReceived -= OnBeams;
                 Game.Network.BeamFxReceived -= OnBeamFx;
+                Game.Network.WorldResetReceived -= OnWorldReset;
             }
 
             if (Instance == this) Instance = null;

@@ -648,7 +648,12 @@ namespace BlocksBeyondTheStars.Client
 
             if (InputMap.Down(InputAction.RepairWreck))
             {
-                RepairWreckCell();
+                // R at your own cockpit / ship console repairs the SHIP (#1561): the HUD panel's button was the
+                // only sender of the repair intent, and it cannot be clicked while the cursor is locked.
+                if (!RepairOwnShipAtConsole())
+                {
+                    RepairWreckCell();
+                }
             }
 
             if (InputMap.Down(InputAction.ToggleLamp))
@@ -1554,6 +1559,25 @@ namespace BlocksBeyondTheStars.Client
                     ClientAudio.Instance?.Cue("terrain_scan");        // the sonar sweep (Feature 40)
                     break;
             }
+        }
+
+        /// <summary>R at the cockpit or the ship console while the repair panel is up: asks the server for the
+        /// full repair (hull + breach cells, paid in metal — it answers with the material chat line when short).
+        /// Returns false when nothing applies, so R keeps its wreck meaning everywhere else (#1561).</summary>
+        private bool RepairOwnShipAtConsole()
+        {
+            if (Game?.Network == null || Game.ShipRepair is not { NeedsRepair: true })
+            {
+                return false;
+            }
+
+            if (Game.NearbyStation != "cockpit" && Game.NearbyStation != "console")
+            {
+                return false;
+            }
+
+            Game.Network.SendRepairShip("all");
+            return true;
         }
 
         /// <summary>Fills the targeted breach cell of a crashed wreck with the selected hotbar block (server validates).</summary>

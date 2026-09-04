@@ -33,6 +33,13 @@ namespace BlocksBeyondTheStars.Client
         private readonly Dictionary<string, Packet> _packets = new Dictionary<string, Packet>();
         private bool _subscribed;
 
+        // Shared per-tile cube meshes and per-item tint materials (#1564). Each packet used to instantiate its
+        // own remapped Mesh (and every non-block item its own Material) while removal only destroyed the
+        // GameObject — so mining with a full backpack leaked a mesh per collected packet for the whole
+        // session. Now a tile / item key is built once, every packet shares it, and OnDestroy releases them.
+        private readonly Dictionary<Rect, Mesh> _tileMeshes = new Dictionary<Rect, Mesh>();
+        private readonly Dictionary<string, Material> _tintMaterials = new Dictionary<string, Material>();
+
         private const float Size = 0.42f;      // a mini block: clearly smaller than a real one
         private const float HoverHeight = 0.3f;
 
@@ -131,18 +138,49 @@ namespace BlocksBeyondTheStars.Client
             if (def != null && Game?.Atlas != null && Game.ChunkMaterial != null)
             {
                 cube.GetComponent<Renderer>().sharedMaterial = Game.ChunkMaterial;
-                RemapToTile(cube.GetComponent<MeshFilter>(), Game.Atlas.TileUv(def.NumericId.Value));
+                var filter = cube.GetComponent<MeshFilter>();
+                if (filter != null)
+                {
+                    filter.sharedMesh = TileMesh(filter.sharedMesh, Game.Atlas.TileUv(def.NumericId.Value));
+                }
             }
             else
             {
-                if (_litShader == null)
-                {
-                    _litShader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
-                }
-
-                var tint = HashTint(item);
-                cube.GetComponent<Renderer>().sharedMaterial = new Material(_litShader) { color = ShaderColor.Srgb(tint) };
+                cube.GetComponent<Renderer>().sharedMaterial = TintMaterial(item);
             }
+        }
+
+        /// <summary>The cube mesh remapped onto one atlas tile — built once per tile rect and shared by every
+        /// packet showing that block (#1564).</summary>
+        private Mesh TileMesh(Mesh source, Rect uv)
+        {
+            if (_tileMeshes.TryGetValue(uv, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var mesh = RemapToTile(source, uv);
+            _tileMeshes[uv] = mesh;
+            return mesh;
+        }
+
+        /// <summary>The flat-colour material for a non-block item — one per item key, shared (#1564).</summary>
+        private Material TintMaterial(string item)
+        {
+            string key = item ?? string.Empty;
+            if (_tintMaterials.TryGetValue(key, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            if (_litShader == null)
+            {
+                _litShader = Shader.Find("BlocksBeyondTheStars/LitColor") ?? Shader.Find("Unlit/Color");
+            }
+
+            var mat = new Material(_litShader) { color = ShaderColor.Srgb(HashTint(item)) };
+            _tintMaterials[key] = mat;
+            return mat;
         }
 
         /// <summary>The block an item key stands for — through <c>PlacesBlock</c> and past any dye/glow/shape
@@ -164,16 +202,12 @@ namespace BlocksBeyondTheStars.Client
             return def;
         }
 
-        /// <summary>Rewrites the primitive cube's 0..1 UVs onto one atlas tile — the same trick the chunk
-        /// mesher does per face, minus the per-face variation a 0.4 m bundle would never show.</summary>
-        private static void RemapToTile(MeshFilter filter, Rect uv)
+        /// <summary>Copies the primitive cube mesh with its 0..1 UVs rewritten onto one atlas tile — the same
+        /// trick the chunk mesher does per face, minus the per-face variation a 0.4 m bundle would never show.
+        /// The copy is owned by the caller's cache (<see cref="TileMesh"/>); the shared primitive is never edited.</summary>
+        private static Mesh RemapToTile(Mesh source, Rect uv)
         {
-            if (filter == null)
-            {
-                return;
-            }
-
-            var mesh = Instantiate(filter.sharedMesh); // never edit the shared primitive mesh
+            var mesh = Instantiate(source);
             var uvs = mesh.uv;
             for (int i = 0; i < uvs.Length; i++)
             {
@@ -181,7 +215,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             mesh.uv = uvs;
-            filter.sharedMesh = mesh;
+            return mesh;
         }
 
         private static Shader _litShader;
@@ -200,6 +234,21 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.Network.DropPacketsReceived -= OnPackets;
             }
+
+            // Release the shared meshes/materials — the packet GameObjects go down with this view's own
+            // hierarchy, but Mesh/Material assets are only freed by an explicit Destroy (#1564).
+            foreach (var mesh in _tileMeshes.Values)
+            {
+                if (mesh != null) Destroy(mesh);
+            }
+
+            foreach (var mat in _tintMaterials.Values)
+            {
+                if (mat != null) Destroy(mat);
+            }
+
+            _tileMeshes.Clear();
+            _tintMaterials.Clear();
         }
     }
 }

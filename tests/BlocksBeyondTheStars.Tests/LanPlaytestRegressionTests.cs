@@ -712,6 +712,82 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         int doors = msgs.FindLastIndex(m => m is DoorList);
         Assert.True(reset >= 0, "a death away from the ship's world must reset the world");
         Assert.True(doors > reset, "…and restock the doors AFTER that reset (#1429)");
+
+        // #1560: the client drops every per-world list on that reset, not only the doors — the teleporter
+        // pads kept glowing but stopped answering E until the next landing because nothing restocked them.
+        Assert.True(msgs.FindLastIndex(m => m is BeamList) > reset, "…and restock the beam pads AFTER that reset (#1560)");
+        Assert.True(msgs.FindLastIndex(m => m is BeaconList) > reset, "…and the beacons (#1560)");
+        Assert.True(msgs.FindLastIndex(m => m is BaseList) > reset, "…and the bases (#1560)");
+        Assert.True(msgs.FindLastIndex(m => m is FactoryList) > reset, "…and the factories (#1560)");
+        Assert.True(msgs.FindLastIndex(m => m is DataCubeList) > reset, "…and the data cubes (#1560)");
+        Assert.True(msgs.FindLastIndex(m => m is NetFragmentList) > reset, "…and the net fragments (#1560)");
+    }
+
+    [Fact]
+    public void HyperjumpInFlight_NamesTheNewSystem_AndLandingThereResetsTheWorld()
+    {
+        // Lyxette (v2026.9.1): "Angeblich habe ich neue Systeme erreicht, bin aber immer noch in meiner Heimat"
+        // — the jump arrives in flight without a WorldReset, and nothing else carried the new names (#1565).
+        var transport = new RecordingTransport();
+        var server = NewServer("jump_names", transport);
+        var pilot = server.AddLocalPlayer("Pilot");
+        server.Ship.Modules.Add("jump_generator");
+        string originSystem = server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId;
+        var target = server.Galaxy.Systems.First(s => s.Id != originSystem
+            && s.Bodies.Any(b => !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null));
+        transport.Sent.Clear();
+
+        server.HyperjumpToSystem("Pilot", target.Id);
+
+        var msgs = transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).ToList();
+        var state = Assert.Single(msgs.OfType<SpaceState>().Where(s => s.Hyperjump));
+        Assert.Equal(target.Name, state.SystemName);
+        Assert.Equal(server.Galaxy.FindBody(pilot.CurrentLocationId)!.Name, state.BodyName);
+        Assert.Contains(msgs.OfType<ServerMessage>(), m => m.Text.Contains(target.Name));
+
+        // Landing on the anchor right after the jump is a fresh arrival: the client still holds the departure
+        // world, so a WorldReset naming the new body must follow (#1566).
+        transport.Sent.Clear();
+        server.LandOnBody("Pilot", pilot.CurrentLocationId);
+        var reset = Assert.Single(transport.Sent.Where(x => x.Conn == pilot.ConnectionId).Select(x => x.Msg).OfType<WorldReset>());
+        Assert.Equal(target.Name, reset.SystemName);
+    }
+
+    [Fact]
+    public void LeavingAStation_RestocksEveryWorldList_AfterTheWorldReset()
+    {
+        // Lyxette (v2026.8.26): "Die Teleporter haben bisher immer funktioniert. Jetzt plötzlich keine Auswahl E
+        // mehr." — he had just come back from his station. LeaveStation reset the world and restocked only the
+        // doors (#1429); the pads, beacons, bases and markers stayed wiped until the next landing (#1560).
+        var transport = new RecordingTransport();
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "station_leave_lists"));
+        var config = new ServerConfig
+        {
+            WorldName = "station_leave_lists",
+            Seed = 42,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            PlaceSettlements = false,
+            PlaceWrecks = false,
+            World = new WorldDescription { SpaceStations = Frequency.Frequent },
+        };
+        config.Rules.FreeSpaceFlight = true;
+        var server = new SvGameServer(config, _content, transport, repo);
+        server.Start();
+        _repos.Add(repo);
+
+        var host = server.AddLocalPlayer("Host");
+        server.EnterSpace("Host");
+        var station = server.SpaceEntitiesFor("Host").First(e => e.Kind == CombatEntityKind.SpaceStation);
+        server.ShipMove("Host", station.Position.X, station.Position.Y, station.Position.Z - 8f);
+        server.BoardStation("Host", station.Id);
+        Assert.True(server.InStation("Host"));
+        transport.Sent.Clear();
+
+        server.LeaveStation("Host");
+
+        Assert.False(server.InStation("Host"));
+        AssertDoorsFollowTheReset(transport, host);
     }
 
     [Fact]
