@@ -13,10 +13,67 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-⚠️ **Compatibility:** the network protocol version moves to **5** (#1533 #1534 #1535 — chunks and block changes on a second LiteNetLib channel with a world id, so a lost chunk no longer stalls presence and chat; — LZ4-compressed entity
-lists and chunks, a sequenced presence beat, and inventory updates that no longer re-send the unchanged
-blueprint list). Updated servers reject older game versions at join with a clear "protocol mismatch" message —
-update the game (desktop installs auto-update; the browser version is always current).
+## [2026.9.2] — 2026-09-05
+
+The tune-up release. Nothing new to build or discover this time — instead the whole game went in for
+service. We measured where the time really went, then fixed it, piece by piece: the game now draws
+**three to four times as many frames per second** on the same computer, the small stutters while
+walking are almost gone, hosted worlds idle quietly instead of churning, and a busy world sends far
+less data to your screen. Nothing looks or sounds different — it is simply smoother, on the desktop
+and in the browser. On top of that, **Lyxette** sent his seventh round of reports from his space
+station, and every one of them is fixed here too. Thank you, Lyxette! 🙏
+
+⚠️ **Compatibility:** the network protocol version moves to **5** (#1533 #1534 #1535). Updated servers
+turn away older game versions at join with a clear "protocol mismatch" message — update the game
+(desktop installs update themselves; the browser version is always current). Saves migrate unchanged.
+
+### 🚀 Smoother on your screen (#1511–#1529 #1550–#1556)
+
+- **Walking is smooth** (#1528 #1529 #1550 #1555). The tiny freezes every few seconds while you
+  explore — the game tidying up memory behind the terrain — are almost gone. Standing still, they do not
+  happen at all.
+- **Less work per frame** (#1517–#1521). Lights, shadows, physics and screen effects now do only what
+  you can actually see. The first rain, the first sunrise or a change of graphics preset no longer
+  stutters, because the game prepares its shaders while the loading screen is up.
+- **The sky and the jetpack got cheaper** (#1511 #1513). Stars and nebulae switch off by day when they
+  are invisible anyway, and the jetpack's flames are two steady jets instead of a shower of sparks
+  created anew every frame.
+- **A quieter HUD** (#1512 #1516 #1552 #1554). Hints, the radar, the instruments and the outlined
+  texts only redraw when something on them actually changed.
+- **Less memory, quicker into the world** (#1522–#1525). Game content is loaded once per session
+  instead of once per world, the block textures are shared between menu, editors and world, and the
+  browser only re-packs your save when something changed.
+- **Small savings everywhere** (#1514 #1551 #1553 #1556): weather and finale overlays cost nothing while
+  they are not showing, creature materials no longer pile up over a long session, and the ground scatter
+  and creature voices are generated without leaving litter behind.
+
+### 🖥️ A calmer server (#1502–#1510 #1526 #1527 #1530 #1536)
+
+- **The home pad no longer keeps the server busy** (#1502). Every world's home pad sits right on the
+  map seam, and the server mistook everything across that seam for "far away" — so while you stood at the
+  pad it threw out and rebuilt the terrain around you every ten seconds. Fixed; a resting server now
+  rests.
+- **Terrain is generated several times faster** (#1526 #1527). The pieces stacked above each other share
+  their work, and trees, mushrooms and geysers are only computed where they can land. The worlds come out
+  exactly as before — a new safety net checks that on every change (#1503).
+- **Lakes, fires and snow no longer flood the database** (#1505 #1506). A breached lake used to save every
+  single cell on its own; the steps now save in one go.
+- **Only what changed goes out** (#1530). Other players' positions are sent only when they moved,
+  creature lists once per tick instead of several times, and far-away villagers stand still instead of
+  pathfinding for nobody.
+- **Streaming and idling are smarter** (#1507–#1510 #1536): a view that is fully sent is not re-scanned
+  every tick, plants regrow on a one-second clock, and the server is tuned for a small container.
+- **For operators** (#1504): an optional log shows where the tick time goes.
+
+### 📡 Leaner network — protocol 5 (#1531–#1535)
+
+- **Creature and villager lists are a third of their size** (#1533), and inventory updates no longer
+  re-send the unchanged blueprint list (#1535).
+- **Terrain travels on its own lane** (#1534). Player positions no longer wait behind a lost piece of
+  terrain — on a shaky Wi-Fi, other avatars and creatures stop stuttering when the world hiccups.
+- **The browser game keeps its memory** (#1531 #1532). Singleplayer in the browser and the connection to
+  hosted worlds copy each message once instead of three times — good news for tablets, where memory is
+  what ends a session.
 
 ### 🛰️ Lyxette round 7 — stations, teleporter pads, ship repair, hyperjumps (#1558–#1568)
 
@@ -45,6 +102,18 @@ update the game (desktop installs auto-update; the browser version is always cur
   now name the body you are really at.
 - **No sunburn above your own station** (#1568). Floating past the gravity box no longer applies the
   spacewalk heat.
+
+### 🔧 Playtest fixes (#1577 #1579 #1580)
+
+- **Water shows its bed again** (#1577). At Medium and above the water had turned milky and opaque —
+  a side effect of the screen-effect savings above. You can see to the bottom again.
+- **No more error lines when a ship is built** (#1579 #1580), and the weather now notes every change of
+  rain or snow in the log, so a "no rain in this thunderstorm" report can be traced next time.
+
+### 🛠️ For developers
+
+- **A Development-build switch and an allocation report** (#1537) — the tools that found the savings
+  above; what was measured and rejected is documented in #1536.
 
 ## [2026.9.1] — 2026-09-03
 
@@ -4522,7 +4591,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...HEAD
+[2026.9.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...v2026.9.2
 [2026.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...v2026.9.1
 [2026.8.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...v2026.8.26
 [2026.8.25]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.24...v2026.8.25
