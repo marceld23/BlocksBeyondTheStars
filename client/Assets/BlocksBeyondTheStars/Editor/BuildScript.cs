@@ -143,12 +143,22 @@ namespace BlocksBeyondTheStars.Client.EditorTools
                 PlayerSettings.SetManagedStrippingLevel(NamedBuildTarget.Standalone, ManagedStrippingLevel.Disabled);
             }
 
+            // #1537: BBS_DEV_BUILD=1 → a Development player, so PerfProbe -perfProfile
+            // can write a Unity Profiler capture (allocation call stacks) headless. Never set by the release scripts.
+            bool devBuild = string.Equals(Environment.GetEnvironmentVariable("BBS_DEV_BUILD"), "1", StringComparison.OrdinalIgnoreCase);
+            var buildOptions = desktop ? BuildOptions.CompressWithLz4HC : BuildOptions.None;
+            if (devBuild)
+            {
+                buildOptions |= BuildOptions.Development; // NOT EnableDeepProfilingSupport: it instruments every method — 3 fps and 18 GB per 40 s capture
+                Debug.Log("BlocksBeyondTheStars build: DEVELOPMENT player (BBS_DEV_BUILD=1) — profiler capture enabled");
+            }
+
             var options = new BuildPlayerOptions
             {
                 scenes = new[] { ScenePath },
                 locationPathName = locationPathName,
                 target = target,
-                options = desktop ? BuildOptions.CompressWithLz4HC : BuildOptions.None,
+                options = buildOptions,
             };
 
             var report = BuildPipeline.BuildPlayer(options);

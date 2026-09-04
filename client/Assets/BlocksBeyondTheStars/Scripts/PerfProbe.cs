@@ -63,6 +63,11 @@ namespace BlocksBeyondTheStars.Client
         // clock stays daytime, so strictly nocturnal glow species may be under-represented; cathemeral/passive
         // species and the raw entity-view density still populate the scene. A first dense probe, refine later.
         private bool _dense;
+
+        // #1537: -perfProfile <file> — in a Development player, write a Unity Profiler capture (binary log with
+        // allocation call stacks) of the idle + walk phases so the allocations can be attributed headless
+        // (Editor: ProfilerCaptureReport). Ignored in a release player (Profiler.enabled is a no-op there).
+        private string _profilePath;
         private const float DenseSettle = 12f; // extra settle so the creature ring fills toward its cap before sampling
         private const string DensePlanet = "jungle"; // breathable + vegetated ⇒ dense fauna (incl. glowers)
 
@@ -84,6 +89,7 @@ namespace BlocksBeyondTheStars.Client
             int vd = -1;
             string feature = null;
             bool dense = false;
+            string profilePath = null;
             for (int i = 0; i < args.Length; i++)
             {
                 string a = args[i];
@@ -122,6 +128,10 @@ namespace BlocksBeyondTheStars.Client
                 else if (string.Equals(a, "-perfDense", StringComparison.OrdinalIgnoreCase))
                 {
                     dense = true;
+                }
+                else if (string.Equals(a, "-perfProfile", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+                {
+                    profilePath = args[i + 1];
                 }
             }
 
@@ -169,6 +179,7 @@ namespace BlocksBeyondTheStars.Client
             p._vdOverride = vd;
             p._featureSpec = feature;
             p._dense = dense;
+            p._profilePath = profilePath;
         }
 
         private void Start() => StartCoroutine(Run());
@@ -273,6 +284,26 @@ namespace BlocksBeyondTheStars.Client
 
             // Phase 1: idle — steady-state cost with the spawn area fully streamed.
             PhaseResult r = null;
+            if (!string.IsNullOrEmpty(_profilePath))
+            {
+                // #1537: capture idle + walk. Debug.isDebugBuild = a Development player; the release player has
+                // no profiler, so the flag is a documented no-op there.
+                if (Debug.isDebugBuild)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(_profilePath)));
+                    UnityEngine.Profiling.Profiler.logFile = _profilePath;
+                    UnityEngine.Profiling.Profiler.enableBinaryLog = true;
+                    UnityEngine.Profiling.Profiler.enableAllocationCallstacks = true;
+                    UnityEngine.Profiling.Profiler.maxUsedMemory = 512 * 1024 * 1024;
+                    UnityEngine.Profiling.Profiler.enabled = true;
+                    Debug.Log($"[PerfProbe] Profiler capture → {_profilePath}.raw");
+                }
+                else
+                {
+                    Debug.LogWarning("[PerfProbe] -perfProfile needs a Development player (BBS_DEV_BUILD=1) — ignored.");
+                }
+            }
+
             yield return Sample("idle", _idleSeconds, x => r = x);
             phases.Add(r);
 
@@ -292,6 +323,13 @@ namespace BlocksBeyondTheStars.Client
             InputMap.ScriptedMove = Vector2.zero;
             StopCoroutine(hop);
             phases.Add(r);
+            if (!string.IsNullOrEmpty(_profilePath) && Debug.isDebugBuild)
+            {
+                UnityEngine.Profiling.Profiler.enabled = false;
+                UnityEngine.Profiling.Profiler.enableBinaryLog = false;
+                UnityEngine.Profiling.Profiler.logFile = string.Empty;
+                Debug.Log("[PerfProbe] Profiler capture closed.");
+            }
 
             // Phase 3 (optional): dense — force visual midnight and stand among the Extreme creature pack so the
             // glowing entities' point lights dominate the frame (#361). Walking first left a filled ring; a short
