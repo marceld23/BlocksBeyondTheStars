@@ -172,6 +172,22 @@ chunks (the `[FallGuard]` line no longer says "bake pending" for ever there); th
 now say scan-drones are stopped by a wall of four or more (they were, since #1452's own probe window).
 Tests: `StationGravityTests` (2).
 
+### ★ Chunk sweep: seam-aware eviction — the spawn pad no longer re-streams half its view every 10 s (#1502, 2026-09-04, branch perf/1502-seam-sweep)
+First PR of the performance package (epic #1501). Measured with the real server + a headless client: a player
+standing on the spawn pad — pad 0 is at world (0,0) on EVERY world, i.e. on the longitude seam — had **228
+chunks (view distance 4) / 603 chunks (view distance 8) evicted, regenerated and re-sent on every 10-s
+sweep**, 21–42 % of the tick thread while standing still, with the client re-meshing all of them; a control
+spawn 11 chunks off the seam showed 0 re-sends and a 0.18 ms idle tick. Cause: `StreamChunks` and the chunk
+cache use canonical coords (X in `[0, ChunksAround)`, Z in the latitude band), but `SweepFarChunks` /
+`ServerWorld.UnloadFarChunks` compared the raw player anchor with the unwrapped `ChunkCoord.DistanceSquared`,
+so everything across either seam read as a world away. Now `WorldConstants.WrappedChunkDistanceSquared`
+(the sent-set prune's private helper, promoted to Shared) measures the short way round both seams and the
+anchors are canonicalised in both the eviction and the prune. Tests: `WorldWrapTests
+.WrappedChunkDistanceSquared_MeasuresTheShortWayRoundBothSeams` (fast) and
+`ChunkStreamingTests.Sweep_KeepsTheWholeStreamedView_OfAPlayerStandingOnTheSeam` (Slow: real server, natural
+spawn, asserts the precondition that the spawn sits on the seam, streams the view, sweeps, every streamed
+chunk still resident + still in the sent-set).
+
 ### ★ Lyxette round 5 — player stations get real: hull drawn once, sealed-volume air, crew on demand, windows with a view; cargo tiers explain themselves; space salvage is lossless (#1469–#1478, 2026-09-03, branch fix/lyxette-reports-2026-09-03)
 Three F1 reports from the evening of 2026-09-02 (v2026.8.26), all decisions Marcel 2026-09-03. **Station drawn
 twice (#1469, #1470):** one player-built station id was rendered by two client paths — the voxel hull from its

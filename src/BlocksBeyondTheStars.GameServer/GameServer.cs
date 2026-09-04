@@ -2344,7 +2344,8 @@ public sealed partial class GameServer
         int maxViewRadius = 1;
         foreach (var session in JoinedInActiveWorld())
         {
-            anchors.Add(WorldConstants.WorldToChunk(session.State.Position.ToBlock()));
+            // Canonical like the cache keys (X in [0, ChunksAround), Z in the latitude band) — see #1502.
+            anchors.Add(WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(session.State.Position.ToBlock()), _world.Circumference));
             maxViewRadius = System.Math.Max(maxViewRadius, EffectiveViewRadius(session));
         }
 
@@ -2381,33 +2382,18 @@ public sealed partial class GameServer
         // sent-set by ITS OWN session's anchor too. The prune radius must stay below the client's 24-chunk
         // unload distance (or a client-unloaded chunk could survive in the sent-set); a chunk pruned while the
         // client still holds it merely re-streams when it re-enters the view, which is idempotent.
+        // Both the eviction above and this prune measure the short way round BOTH seams
+        // (WorldConstants.WrappedChunkDistanceSquared): the sent-set and the cache hold CANONICAL coords, so an
+        // unwrapped distance would read a chunk just across a seam as "far" — and a player standing near a seam
+        // (the spawn pad is at x = 0 on every world) would re-stream half their view every sweep (#1502).
         foreach (var session in JoinedInActiveWorld())
         {
-            var anchor = WorldConstants.WorldToChunk(session.State.Position.ToBlock());
+            var anchor = WorldConstants.CanonicalChunk(WorldConstants.WorldToChunk(session.State.Position.ToBlock()), _world.Circumference);
             int pruneRadius = System.Math.Min(EffectiveViewRadius(session) + 4, 20);
             int pruneSq = pruneRadius * pruneRadius;
             int circumference = _world.Circumference;
-            session.SentChunks.RemoveWhere(c => WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
+            session.SentChunks.RemoveWhere(c => WorldConstants.WrappedChunkDistanceSquared(c, anchor, circumference) > pruneSq);
         }
-    }
-
-    /// <summary>Squared chunk-grid distance measured the short way round BOTH seams (X wraps at the chunk
-    /// circumference, Z at the latitude chunk band; Y is linear). The sent-set prune must not read a chunk just
-    /// across a seam as "far", or a player standing near a seam would re-stream half their view every sweep.</summary>
-    private static int WrappedChunkDistanceSquared(ChunkCoord a, ChunkCoord b, int circumference)
-    {
-        int dx = WrapChunkDelta(a.X - b.X, WorldConstants.ChunksAroundOf(circumference));
-        int dy = a.Y - b.Y;
-        int dz = WrapChunkDelta(a.Z - b.Z, WorldConstants.LatitudePeriodFor(circumference) / WorldConstants.ChunkSize);
-        return dx * dx + dy * dy + dz * dz;
-    }
-
-    /// <summary>Shortest signed delta on a wrapping chunk axis with the given period (chunk-unit twin of
-    /// <see cref="WorldConstants.WrapDeltaX(int,int)"/>, whose parameter is a BLOCK circumference).</summary>
-    private static int WrapChunkDelta(int delta, int period)
-    {
-        int m = ((delta % period) + period) % period;
-        return m > period / 2 ? m - period : m;
     }
 
     /// <summary>Fills a chunk message's sparse colour-modifier + shape arrays from the chunk's dyed/glowing/
