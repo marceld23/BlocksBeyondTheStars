@@ -243,6 +243,41 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Mesher core without strings, dictionaries or coordinate math per voxel; chunk pipeline builds each streamed chunk once, cooks colliders only when changed and in reach (#1528 #1529, 2026-09-04, branch perf/1528-1529-mesher)
+
+**Why.** PR bundle 7 of the performance package (#1501). Per surface chunk the mesher did 30–60k neighbour reads
+through a delegate that canonicalised, floor-divided, probed a dictionary and took modulos for every read,
+classified blocks by string compares / `StartsWith` / `HashSet<string>` lookups (~100 string operations per solid
+voxel), kept AO, skylight and the light flood in tuple-keyed dictionaries, and allocated a `Loaded` delegate per
+water cell. Every received chunk re-dirtied its six neighbours at once, so a chunk was built 3–5× during a fresh
+load, each time with a new collision mesh and a cook — also for tint/glow/paint edits, and for chunks whose
+collider is disabled by distance anyway.
+
+**What changed — same meshes out.** The new `ChunkMesherGoldenEditModeTests` pins the mesher's COMPLETE output
+(every vertex list, the collider, the packed GPU stream) for a synthetic world with terrain, caves, water/lava,
+glass, foliage, cross-plants, solid flora, props, ladders, hull plates and light blocks; the pins were taken from
+the mesher before this change and hold after it. **#1528** a per-content `BlockTraits` table (built once, by the
+very string helpers it replaces) answers every classification by numeric id; `ChunkMesher.Neighbourhood` (5×7×5
+slots filled with the canonical chunk of each offset) makes a block read a shift + mask + array index; the AO
+probes, skylight column tops and the light flood live in dense windows (the flood keeps its 0..LightRadius scale
+and normalises on read — the exact multiplication the old copy baked in); the `Loaded` delegate is created once;
+`ToMeshes` uploads 16-bit indices whenever the chunk fits. **#1529** neighbour re-dirties raised by a chunk
+ARRIVAL are parked (`_deferredDirty`) and promoted when the burst settles (150 ms without an arrival), all six
+neighbours are present, the chunk is within ~2 chunks of the player, or 1 s elapsed; block edits keep their
+immediate path. Every build hashes its collider geometry on the worker (`ChunkMeshData.ColliderHash`); an identical
+hash → no collision `Mesh`, no cook. Beyond the collider range the collider is held un-cooked (`ChunkView.PendingCollider`)
+and cooked when `RepositionChunks` brings the chunk into range. Not done: `AccumulateFlatNormals` without the
+cross product (needs per-triangle provenance; small) and `Value3D`-style hash tricks in the mesher (none apply).
+
+**Consequences.** During streaming a seam face between two chunks can lag up to 150 ms (fog hides it); the
+first cook of a chunk that enters collider range happens on entry (async on desktop, a few frames), the same
+window the settle-freeze already tolerates. The loading veil counts parked entries as pending, so it still
+waits for the last seam refresh.
+
+**Measured (PerfProbe A/B, PR 4 build vs this build, High/VD 8, two alternating pairs).** Walk p95 7.3–7.7 → 5.5–5.6 ms,
+walk p99 14.5–15.0 → 6.3–6.8 ms, GC collections while walking 164–177 → 36–41 per 30 s, idle p99 10.5–13.3 → 6.4–6.5 ms;
+averages unchanged (CPU-bound elsewhere at 200+ fps). Unity EditMode suite 96 green incl. the golden test.
+
 ### ★ Worldgen, output-preserving: column profiles shared by the stacked chunks, memoised SurfaceHeight, per-column noise lattices, ore invariants, tree pre-filter, oldest-out static caches (#1526 #1527, 2026-09-04, branch perf/1526-1527-worldgen)
 
 **Why.** PR bundle 6 of the performance package (#1501), gated by the golden checksums (#1503). Every stacked chunk

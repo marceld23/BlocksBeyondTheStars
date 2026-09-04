@@ -1480,10 +1480,24 @@ namespace BlocksBeyondTheStars.Client
             public bool RendererEnabled = true;
             public Vector3 ScenePos;      // last position written to the transform (#1515: write only on change)
             public bool ScenePosKnown;
+            public ulong ColliderHash;    // #1529: hash of the collider geometry the chunk carries (or holds pending)
+            public Mesh PendingCollider;  // #1529: built but not cooked — the chunk was beyond collider range
+            public int PendingColliderGen;
         }
 
         private readonly Dictionary<ChunkCoord, ChunkView> _chunkObjects = new Dictionary<ChunkCoord, ChunkView>();
         private readonly HashSet<ChunkCoord> _dirty = new HashSet<ChunkCoord>();
+
+        // #1529: neighbour re-dirties raised by a chunk ARRIVAL are parked here (coord → time parked) instead of
+        // entering _dirty at once. With nearest-first streaming the dirty set drains within a few frames while the
+        // neighbours keep arriving for seconds, so an already-meshed chunk was rebuilt 3–5× per fresh load — each
+        // time with a new render mesh and a collider cook. PromoteDeferredDirty releases an entry once the
+        // arrivals settle, all six neighbours are in, it is within reach of the player, or a hard cap elapses.
+        // Block edits keep their immediate path (OnBlockChanged marks _dirty directly).
+        private readonly Dictionary<ChunkCoord, float> _deferredDirty = new Dictionary<ChunkCoord, float>();
+        private readonly List<ChunkCoord> _deferredScratch = new List<ChunkCoord>();
+        private const float DeferredDirtySettleSeconds = 0.15f;
+        private const float DeferredDirtyMaxSeconds = 1.0f;
 
         // When the last chunk arrived from the server. The loading veil uses "no new chunk for a moment" (plus a
         // drained mesh queue) as the "initial view is fully streamed + meshed" signal so it doesn't lift mid-fill
@@ -1495,7 +1509,7 @@ namespace BlocksBeyondTheStars.Client
         public float TimeSinceLastChunk => Time.time - _lastChunkArrivalTime;
 
         /// <summary>Chunks still queued to be (re)meshed — the client-side mesh backlog.</summary>
-        public int PendingMeshCount => _dirty.Count;
+        public int PendingMeshCount => _dirty.Count + _deferredDirty.Count;
 
         // Performance (P1): cap how many chunk meshes are (re)built per frame so a burst of chunks arriving
         // while moving fast spreads over several frames instead of stalling one. Nearest chunks build first;
@@ -2370,6 +2384,7 @@ namespace BlocksBeyondTheStars.Client
             // Kick off off-thread (re)builds for chunks that changed, but cap how many we DISPATCH per frame (P1)
             // so a burst of chunks arriving while moving fast spreads over several frames instead of stalling one.
             // Nearest chunks build first; chunks past the budget stay queued for the next frames.
+            PromoteDeferredDirty(); // #1529
             if (_dirty.Count > 0)
             {
                 _dirtyScratch.Clear();
@@ -2511,6 +2526,21 @@ namespace BlocksBeyondTheStars.Client
                     view.Collider.enabled = collide;
                     view.ColliderEnabled = collide;
                 }
+
+                if (collide && view.PendingCollider != null)
+                {
+                    // #1529: the chunk entered collider range — cook the collider it has been holding un-baked.
+                    var pending = view.PendingCollider;
+                    view.PendingCollider = null;
+                    if (_colliderGen.TryGetValue(kv.Key, out var wanted) && wanted == view.PendingColliderGen)
+                    {
+                        StartColliderBake(kv.Key, view, pending, view.PendingColliderGen);
+                    }
+                    else
+                    {
+                        Destroy(pending); // superseded by a newer rebuild
+                    }
+                }
             }
 
             // Process the far-chunk unloads collected above (after iterating, so the dictionary isn't mutated
@@ -2526,6 +2556,7 @@ namespace BlocksBeyondTheStars.Client
 
                 _chunkObjects.Remove(coord);
                 _dirty.Remove(coord);
+                _deferredDirty.Remove(coord);
                 _colliderGen.Remove(coord);
                 _colliderAppliedGen.Remove(coord);
                 _meshGen.Remove(coord);
@@ -2573,13 +2604,81 @@ namespace BlocksBeyondTheStars.Client
         private void MarkChunkAndNeighborsDirty(ChunkCoord coord)
         {
             _dirty.Add(coord);
+            _deferredDirty.Remove(coord);
+            float now = Time.time;
             foreach (var d in _faceDirs)
             {
-                _dirty.Add(new ChunkCoord(
+                var n = new ChunkCoord(
                     WorldConstants.CanonicalChunkX(coord.X + d.X, Circumference),
                     coord.Y + d.Y,
-                    WorldConstants.CanonicalChunkZ(coord.Z + d.Z, Circumference)));
+                    WorldConstants.CanonicalChunkZ(coord.Z + d.Z, Circumference));
+                if (_dirty.Contains(n))
+                {
+                    continue; // already queued — nothing to defer
+                }
+
+                if (_meshGen.ContainsKey(n))
+                {
+                    // #1529: a neighbour that already has (or is building) a mesh only needs its seam faces
+                    // refreshed — parked until the arrivals settle, see PromoteDeferredDirty.
+                    if (!_deferredDirty.ContainsKey(n))
+                    {
+                        _deferredDirty[n] = now;
+                    }
+                }
+                else
+                {
+                    _dirty.Add(n); // never dispatched: either already pending or not streamed yet (a no-op at dispatch)
+                }
             }
+        }
+
+        /// <summary>#1529: releases parked neighbour re-dirties into <see cref="_dirty"/> once the streaming burst
+        /// has settled (no arrival for <see cref="DeferredDirtySettleSeconds"/>), all six neighbours of the chunk
+        /// are present (its seams cannot change again), the chunk is within reach of the player (its seam faces
+        /// are in view), or the entry is older than <see cref="DeferredDirtyMaxSeconds"/>.</summary>
+        private void PromoteDeferredDirty()
+        {
+            if (_deferredDirty.Count == 0)
+            {
+                return;
+            }
+
+            float now = Time.time;
+            bool settled = now - _lastChunkArrivalTime >= DeferredDirtySettleSeconds;
+            var pp = PlayerPosition;
+            const float near = 2 * WorldConstants.ChunkSize + 8; // within ~2 chunks of the player
+            _deferredScratch.Clear();
+            foreach (var kv in _deferredDirty)
+            {
+                if (settled || now - kv.Value >= DeferredDirtyMaxSeconds
+                    || ChunkDistSqToPlayer(kv.Key, pp) <= near * near || AllNeighboursLoaded(kv.Key))
+                {
+                    _deferredScratch.Add(kv.Key);
+                }
+            }
+
+            for (int i = 0; i < _deferredScratch.Count; i++)
+            {
+                _deferredDirty.Remove(_deferredScratch[i]);
+                _dirty.Add(_deferredScratch[i]);
+            }
+        }
+
+        private bool AllNeighboursLoaded(ChunkCoord c)
+        {
+            foreach (var d in _faceDirs)
+            {
+                var n = new ChunkCoord(
+                    WorldConstants.CanonicalChunkX(c.X + d.X, Circumference), c.Y + d.Y,
+                    WorldConstants.CanonicalChunkZ(c.Z + d.Z, Circumference));
+                if (!World.TryGetChunk(n, out _))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>Scans straight up from the player's head for a roof/ceiling — false = covered (cave/indoors).</summary>
@@ -2630,6 +2729,12 @@ namespace BlocksBeyondTheStars.Client
             if (view.Collider != null && view.Collider.sharedMesh != null)
             {
                 Destroy(view.Collider.sharedMesh);
+            }
+
+            if (view.PendingCollider != null)
+            {
+                Destroy(view.PendingCollider); // #1529: a collider built but never cooked
+                view.PendingCollider = null;
             }
 
             if (view.Go != null)
@@ -2693,6 +2798,7 @@ namespace BlocksBeyondTheStars.Client
 
             _chunkObjects.Clear();
             _dirty.Clear();
+            _deferredDirty.Clear();
             // Mesh/bake bookkeeping for the old world is now stale; WorldEpoch (bumped below) fences any
             // in-flight off-thread builds + bakes so they're dropped in DrainBuiltChunks/DrainBakedColliders
             // instead of landing on the new world's chunks.
@@ -2903,74 +3009,55 @@ namespace BlocksBeyondTheStars.Client
             // tall (the skylight column scan) → capture chunk REFERENCES over a ±2 horizontal / -2..+4 vertical
             // neighbourhood. Reads use ChunkData.Get (atomic, no dictionary), so a live reference is safe. Key by
             // the chunk's own canonical Coord, exactly as ClientWorld stores + looks them up.
-            var blocks = new Dictionary<ChunkCoord, ChunkData> { [center.Coord] = center };
+            // #1528: a fixed 5×7×5 slot array (ChunkMesher.Neighbourhood) instead of a coord-keyed dictionary —
+            // each slot holds the CANONICAL chunk of its offset, and the mesher's block reads resolve with a shift
+            // and a mask. Shape reads reach ±1 block (the neighbour-shape face test) → the sparse shape dicts are
+            // deep-copied per slot on the main thread (the worker must NOT read a live ChunkData._shapes
+            // concurrently with an edit).
+            var hood = new ChunkMesher.Neighbourhood(coord);
             for (int dx = -2; dx <= 2; dx++)
                 for (int dy = -2; dy <= 4; dy++)
                     for (int dz = -2; dz <= 2; dz++)
                     {
+                        ChunkData nch;
                         if (dx == 0 && dy == 0 && dz == 0)
                         {
-                            continue;
+                            nch = center;
                         }
-
-                        var nc = new ChunkCoord(
-                            WorldConstants.CanonicalChunkX(coord.X + dx, circ), coord.Y + dy,
-                            WorldConstants.CanonicalChunkZ(coord.Z + dz, circ));
-                        if (World.TryGetChunk(nc, out var nch))
+                        else
                         {
-                            blocks[nch.Coord] = nch;
+                            var nc = new ChunkCoord(
+                                WorldConstants.CanonicalChunkX(coord.X + dx, circ), coord.Y + dy,
+                                WorldConstants.CanonicalChunkZ(coord.Z + dz, circ));
+                            if (!World.TryGetChunk(nc, out nch))
+                            {
+                                continue;
+                            }
                         }
-                    }
 
-            // Shape reads reach ±1 block (the neighbour-shape face test) → deep-copy the sparse shape dicts for the
-            // captured neighbourhood (the worker must NOT read a live ChunkData._shapes concurrently with an edit).
-            // Copied on the main thread, where edits don't run concurrently.
-            var shapes = new Dictionary<ChunkCoord, Dictionary<int, int>>();
-            foreach (var kv in blocks)
-            {
-                if (kv.Value.Shapes is { Count: > 0 } src)
-                {
-                    var copy = new Dictionary<int, int>(src.Count);
-                    foreach (var s in src)
-                    {
-                        copy[s.Key] = s.Value;
-                    }
+                        Dictionary<int, int> copy = null;
+                        if (nch.Shapes is { Count: > 0 } src)
+                        {
+                            copy = new Dictionary<int, int>(src.Count);
+                            foreach (var s in src)
+                            {
+                                copy[s.Key] = s.Value;
+                            }
+                        }
 
-                    shapes[kv.Key] = copy;
-                }
-            }
+                        hood.Set(dx, dy, dz, nch, copy);
+                    }
 
             var lights = World.LightSourcesNear(coord, ChunkMesher.LightRadius);
             var floraDict = _floraTintByBlock; // RebuildFloraTints REPLACES this map, so the captured ref is immutable
 
-            System.Func<int, int, int, BlockId> worldBlock = (wx, wy, wz) =>
-            {
-                var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ);
-                if (!blocks.TryGetValue(WorldConstants.WorldToChunk(pos), out var ch))
-                {
-                    return BlockId.Air;
-                }
-
-                var local = WorldConstants.WorldToLocal(pos);
-                return ch.Get(local.X, local.Y, local.Z);
-            };
+            System.Func<int, int, int, BlockId> worldBlock = hood.Block;
             // Companion to worldBlock: worldBlock cannot distinguish "air" from "chunk we don't have" (both come
             // back as Air), and the fluid rules need that difference — see ChunkMesher's Loaded (#987). Answers
             // from the SAME captured neighbourhood, so it is exactly as thread-safe, and every caller stays
             // within it (face tests read ±1 block, the shore scan ±12 → at most one chunk out).
-            System.Func<int, int, int, bool> worldLoaded = (wx, wy, wz) =>
-                blocks.ContainsKey(WorldConstants.WorldToChunk(WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ)));
-            System.Func<int, int, int, int> worldShape = (wx, wy, wz) =>
-            {
-                var pos = WorldConstants.CanonicalBlock(new Vector3i(wx, wy, wz), circ);
-                if (!shapes.TryGetValue(WorldConstants.WorldToChunk(pos), out var sh))
-                {
-                    return 0;
-                }
-
-                var local = WorldConstants.WorldToLocal(pos);
-                return sh.TryGetValue(WorldConstants.LocalIndex(local.X, local.Y, local.Z), out var s) ? s : 0;
-            };
+            System.Func<int, int, int, bool> worldLoaded = hood.Loaded;
+            System.Func<int, int, int, int> worldShape = hood.Shape;
             System.Func<BlockId, Color> floraTint = id =>
                 floraDict != null && floraDict.TryGetValue(id.Value, out var c) ? c : Color.black;
 
@@ -3096,7 +3183,12 @@ namespace BlocksBeyondTheStars.Client
             // non-readable mesh cannot be rewritten. So every rebuild gets a fresh mesh and the outgoing one is
             // destroyed below; Unity never collects Mesh objects, and A2's rebuild rate would grow that leak fast.
             bool exists = _chunkObjects.TryGetValue(coord, out var view) && view?.Go != null;
-            var (mesh, collider) = data.ToMeshes();
+            // #1529: a rebuild whose collider geometry hashes identically to what the chunk already carries (or
+            // holds pending) needs no new collision Mesh and no cook — tint/glow/paint edits and neighbour
+            // re-dirties are the common case.
+            bool colliderUnchanged = exists && data.ColliderHash != 0 && view.ColliderHash == data.ColliderHash
+                && ((view.Collider != null && view.Collider.sharedMesh != null) || view.PendingCollider != null);
+            var (mesh, collider) = data.ToMeshes(buildCollider: !colliderUnchanged);
 
             // #1515: an all-air (or all-fluid-free, geometry-less) chunk gets NO GameObject. A large share of the
             // streamed set at a big view distance is sky, and each empty chunk used to carry a GameObject + three
@@ -3169,8 +3261,24 @@ namespace BlocksBeyondTheStars.Client
             int bakeGen = (_colliderGen.TryGetValue(coord, out var g) ? g : 0) + 1;
             _colliderGen[coord] = bakeGen;
             var mcol = view!.Collider;
-            if (collider == null)
+            if (colliderUnchanged)
             {
+                // #1529: the cooked collider the chunk carries (or the un-cooked one it holds pending) is still right.
+                _colliderAppliedGen[coord] = bakeGen;
+                if (view.PendingCollider != null)
+                {
+                    view.PendingColliderGen = bakeGen;
+                }
+            }
+            else if (collider == null)
+            {
+                view.ColliderHash = data.ColliderHash;
+                if (view.PendingCollider != null)
+                {
+                    Destroy(view.PendingCollider);
+                    view.PendingCollider = null;
+                }
+
                 if (mcol != null && mcol.sharedMesh != null)
                 {
                     var stale = mcol.sharedMesh; // chunk became all-fluid/air — free the outgoing collision mesh
@@ -3182,40 +3290,76 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-#if UNITY_WEBGL && !UNITY_EDITOR
-                // WebGL: no worker threads to bake on, so cook synchronously by assigning the mesh directly —
-                // MeshCollider.sharedMesh cooks the collision mesh on the spot. The collider is live in THIS
-                // frame, so the spawn ground-check raycast finds footing and the player never falls through.
-                if (mcol != null)
+                view.ColliderHash = data.ColliderHash;
+                if (view.PendingCollider != null)
                 {
-                    var oldWebgl = mcol.sharedMesh; // freshly cooked each remesh — free the previous one (leak otherwise)
-                    mcol.sharedMesh = collider;
-                    _colliderAppliedGen[coord] = bakeGen; // #1493: cooked on the spot — the fall-guard log must not call it pending
-                    if (oldWebgl != null && oldWebgl != collider)
-                    {
-                        Destroy(oldWebgl);
-                    }
+                    Destroy(view.PendingCollider);
+                    view.PendingCollider = null;
                 }
-#else
-                var meshId = collider.GetEntityId();
-                var capturedCoord = coord;
-                var capturedCollider = collider;
-                int epoch = WorldEpoch;
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    try
-                    {
-                        Physics.BakeMesh(meshId, false);
-                    }
-                    catch
-                    {
-                        // Mesh may have been destroyed before the bake ran; DrainBakedColliders drops stale ones.
-                    }
 
-                    _bakedColliders.Enqueue((capturedCoord, capturedCollider, bakeGen, epoch));
-                });
-#endif
+                var (_, colliderRange, _) = EffectiveChunkDistances();
+                if (ChunkDistSqToPlayer(coord, PlayerPosition) > colliderRange * colliderRange)
+                {
+                    // #1529: beyond collider range the MeshCollider is disabled anyway (RepositionChunks) — keep the
+                    // un-cooked mesh and cook it when the chunk comes into range. At VD 8 that was ~44 % of all cooks.
+                    view.PendingCollider = collider;
+                    view.PendingColliderGen = bakeGen;
+                }
+                else
+                {
+                    StartColliderBake(coord, view, collider, bakeGen);
+                }
             }
+        }
+
+        /// <summary>Cooks a chunk's collision mesh: synchronously on WebGL (assigning cooks on the spot), on a
+        /// worker via <see cref="Physics.BakeMesh"/> elsewhere (DrainBakedColliders assigns the cached cook).</summary>
+        private void StartColliderBake(ChunkCoord coord, ChunkView view, Mesh collider, int bakeGen)
+        {
+            var mcol = view.Collider;
+#if UNITY_WEBGL && !UNITY_EDITOR
+            // WebGL: no worker threads to bake on, so cook synchronously by assigning the mesh directly —
+            // MeshCollider.sharedMesh cooks the collision mesh on the spot. The collider is live in THIS
+            // frame, so the spawn ground-check raycast finds footing and the player never falls through.
+            if (mcol != null)
+            {
+                var oldWebgl = mcol.sharedMesh; // freshly cooked each remesh — free the previous one (leak otherwise)
+                mcol.sharedMesh = collider;
+                _colliderAppliedGen[coord] = bakeGen; // #1493: cooked on the spot — the fall-guard log must not call it pending
+                if (oldWebgl != null && oldWebgl != collider)
+                {
+                    Destroy(oldWebgl);
+                }
+            }
+            else
+            {
+                Destroy(collider);
+            }
+#else
+            if (mcol == null)
+            {
+                Destroy(collider);
+                return;
+            }
+
+            var meshId = collider.GetEntityId();
+            var capturedCoord = coord;
+            var capturedCollider = collider;
+            int epoch = WorldEpoch;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    Physics.BakeMesh(meshId, false);
+                }
+                catch
+                {
+                    // Mesh may have been destroyed before the bake ran; DrainBakedColliders drops stale ones.
+                }
+
+                _bakedColliders.Enqueue((capturedCoord, capturedCollider, bakeGen, epoch));
+            });
+#endif
         }
 
         /// <summary>Assigns collision meshes whose off-thread <see cref="Physics.BakeMesh"/> has finished.
