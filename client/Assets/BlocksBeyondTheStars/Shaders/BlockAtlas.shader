@@ -174,7 +174,10 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
 
                 // Sun shadow map (URP main light): 1 where lit, →0 in shadow. Only the direct-sun terms are
                 // shadowed (ambient/sky fill + emissive stay), so shadowed faces dim but never go black.
-                float shadow = MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp));
+                // #1518: the lookup only feeds terms multiplied by ndl*sky, so a face turned away from the sun
+                // or without skylight (caves, interiors — about half of all voxel faces) skips the soft-shadow
+                // tent filter entirely; the branch is per-face coherent and the result is identical.
+                float shadow = (ndl * sky > 0.0) ? MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)) : 0.0;
 
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
                 // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
@@ -347,6 +350,48 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
             {
                 float a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a;
                 clip(a - _LeafCutoff); // opaque tiles (a=1) always pass; foliage holes clip
+                return 0;
+            }
+            ENDHLSL
+        }
+
+        // #1518: depth prepass. URP renders one whenever it cannot copy the depth buffer — on WebGL (GLES3)
+        // with MSAA on, and whenever depth priming is enabled — and it only draws shaders that HAVE this pass.
+        // Without it the terrain was missing from _CameraDepthTexture in browsers at Medium/High, so SSAO,
+        // the water depth and the heat-haze fade all read the far plane. Same leaf clip as the shadow caster.
+        Pass
+        {
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On ColorMask R Cull Back
+
+            HLSLPROGRAM
+            #pragma vertex depthVert
+            #pragma fragment depthFrag
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            TEXTURE2D(_MainTex); SAMPLER(sampler_MainTex);
+
+            // Must match the forward pass's UnityPerMaterial layout exactly (SRP Batcher requirement).
+            CBUFFER_START(UnityPerMaterial)
+                float _LeafCutoff;
+            CBUFFER_END
+
+            struct DAttr { float4 positionOS : POSITION; float2 uv : TEXCOORD0; };
+            struct DVary { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; };
+
+            DVary depthVert(DAttr v)
+            {
+                DVary o;
+                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.uv = v.uv;
+                return o;
+            }
+
+            half4 depthFrag(DVary i) : SV_Target
+            {
+                float a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, i.uv).a;
+                clip(a - _LeafCutoff); // foliage holes stay holes in the depth buffer too
                 return 0;
             }
             ENDHLSL

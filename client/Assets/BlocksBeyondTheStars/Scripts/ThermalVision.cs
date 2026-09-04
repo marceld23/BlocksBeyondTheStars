@@ -91,11 +91,19 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 _active = value;
+                ClientSettings.RequestOpaqueTexture(value, ref _opaqueHeld); // #1520: the thermal quad samples the opaque copy
                 if (value)
                 {
                     _lavaTimer = 0f; // sweep for lava immediately, not a second after switching on
                 }
             }
+        }
+
+        private bool _opaqueHeld;
+
+        private void OnDestroy()
+        {
+            ClientSettings.RequestOpaqueTexture(false, ref _opaqueHeld);
         }
 
         private void Update()
