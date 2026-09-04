@@ -2373,7 +2373,7 @@ public sealed partial class GameServer
     private void StreamChunkNow(PlayerSession session, ChunkCoord coord)
     {
         var chunk = _world.GetOrLoadChunk(coord);
-        SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord));
+        SendEncoded(session.ConnectionId, ChunkPayloadFor(chunk, coord), DeliveryMode.ReliableOrderedBulk); // #1534: the world-stream channel
         session.SentChunks.Add(coord);
         MarkExploredCell(session, coord); // #1113: the planet map remembers this across sessions
     }
@@ -2404,6 +2404,7 @@ public sealed partial class GameServer
             Cx = coord.X,
             Cy = coord.Y,
             Cz = coord.Z,
+            WorldId = ActiveWorldId, // #1534: the payload cache is per world, so this is stable per entry
         };
         var rle = ChunkBlocksRle.Encode(chunk.RawBlocks);
         if (rle.Length < WorldConstants.BlocksPerChunk)
@@ -3293,6 +3294,7 @@ public sealed partial class GameServer
             PlanetType = joinBodyType,
             PlanetName = planetName,
             SystemName = systemName,
+            WorldId = WorldIdOf(state.CurrentLocationId), // #1534
             CumulativePlaytimeSeconds = _meta.CumulativePlaytimeSeconds,
             TerrainContinents = _meta.Description.TerrainContinents,
         });
@@ -6323,8 +6325,45 @@ public sealed partial class GameServer
         return list.ToArray();
     }
 
+    // #1534 (v5): every world is numbered once per server run; the world stream (chunks, block changes) carries
+    // the number and rides its own transport channel, and JoinAccepted / WorldReset tell the client which number
+    // is current — that is how the client orders the two channels. The numbering is per process (not persisted).
+    private readonly Dictionary<string, int> _worldIds = new(StringComparer.Ordinal);
+
+    private int WorldIdOf(string? locationId)
+    {
+        if (string.IsNullOrEmpty(locationId))
+        {
+            return 0;
+        }
+
+        if (!_worldIds.TryGetValue(locationId, out int id))
+        {
+            id = _worldIds.Count + 1;
+            _worldIds[locationId] = id;
+        }
+
+        return id;
+    }
+
+    private int ActiveWorldId => WorldIdOf(_worlds.Active?.LocationId);
+
     private void Send(PlayerSession session, object message)
-        => _transport.Send(session.ConnectionId, NetCodec.Encode(message), DeliveryMode.ReliableOrdered);
+    {
+        var mode = DeliveryMode.ReliableOrdered;
+        switch (message)
+        {
+            case WorldReset reset:
+                reset.WorldId = WorldIdOf(session.CurrentLocationId); // the stream that follows is this world's
+                break;
+            case BlockChanged change:
+                change.WorldId = WorldIdOf(session.CurrentLocationId);
+                mode = DeliveryMode.ReliableOrderedBulk;
+                break;
+        }
+
+        _transport.Send(session.ConnectionId, NetCodec.Encode(message), mode);
+    }
 
     /// <summary>Sends an already-encoded payload (so a broadcast encodes the message once and reuses the same
     /// bytes for every recipient instead of re-serializing per send). The payload is read-only after encoding.</summary>
@@ -6424,10 +6463,17 @@ public sealed partial class GameServer
     {
         // Encode ONCE and reuse the bytes for every recipient — re-encoding per send made a 4-player world
         // serialize the same block-change / entity / environment message 4× (the biggest steady-state GC cost).
+        var mode = DeliveryMode.ReliableOrdered;
+        if (message is BlockChanged change)
+        {
+            change.WorldId = ActiveWorldId; // #1534: the recipients are exactly the active world's players
+            mode = DeliveryMode.ReliableOrderedBulk;
+        }
+
         var payload = NetCodec.Encode(message);
         foreach (var s in JoinedInActiveWorld())
         {
-            SendEncoded(s.ConnectionId, payload);
+            SendEncoded(s.ConnectionId, payload, mode);
         }
     }
 
