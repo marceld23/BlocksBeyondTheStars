@@ -239,7 +239,13 @@ public sealed partial class GameServer
 
         float step = (float)_sinceFire;
         _sinceFire = 0;
+        _repo.RunInTransaction(() => StepFire(step)); // #1505: one commit per step, not per burning cell
+    }
 
+    /// <summary>One burn step over the active cells (the body of <see cref="TickFire"/>; runs inside a
+    /// repository transaction).</summary>
+    private void StepFire(float step)
+    {
         var todo = new List<Vector3i>(_activeFire);
         _activeFire.Clear();
         int budget = FireUpdatesPerTick;

@@ -491,6 +491,36 @@ public static class NetCodec
         TagToType[tag] = type;
         TypeToTag[type] = tag;
     }
+    /// <summary>#1510: compiles every registered message type's formatter up front by encoding and decoding an
+    /// empty instance. The contractless resolver builds each type's formatter with Reflection.Emit on FIRST use —
+    /// measured 26–39 ms per type — and the join burst touches ~40 types, so a fresh server (and a fresh client)
+    /// paid about a second of formatter compilation on first contact. Call once after content load, before any
+    /// player joins. A type without a parameterless constructor (or whose empty instance refuses to serialize)
+    /// simply stays cold. Returns the number of types warmed.</summary>
+    public static int WarmUp()
+    {
+        int warmed = 0;
+        foreach (var type in TagToType.Values)
+        {
+            try
+            {
+                if (Activator.CreateInstance(type) is not { } instance)
+                {
+                    continue;
+                }
+
+                Decode(Encode(instance));
+                warmed++;
+            }
+            catch
+            {
+                // stays cold — compiled on its first real use like before
+            }
+        }
+
+        return warmed;
+    }
+
     public static byte[] Encode(object message)
         => UseJsonEncoding ? EncodeJson(message) : EncodeMessagePack(message);
 

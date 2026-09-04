@@ -142,6 +142,16 @@ public sealed class PlayerSession
     /// <summary>Chunks already streamed to this client, to avoid resending.</summary>
     public HashSet<ChunkCoord> SentChunks { get; } = new();
 
+    /// <summary>#1507: the streaming pass found nothing left to send for this view — recorded with the centre
+    /// chunk, the stream radius and the sent-set size it was true for, so the next ticks can skip the whole
+    /// (2R+3)² column enumeration (up to ~1200 coords + hundreds of terrain lookups per player per tick) until
+    /// the player moves, the view changes, the sent-set changes, or the periodic re-check comes due.</summary>
+    public bool StreamSettled { get; set; }
+    public ChunkCoord StreamSettledCenter { get; set; }
+    public int StreamSettledRadius { get; set; }
+    public int StreamSettledSentCount { get; set; }
+    public int StreamSettledTicks { get; set; }
+
     /// <summary>Uptime at which each chunk last triggered a full ghost re-stream for this session (#965), so a
     /// burst of ghosts in one chunk costs one re-stream (and one log line), not one per cell.</summary>
     public Dictionary<ChunkCoord, double> GhostChunkSeen { get; } = new();

@@ -230,6 +230,29 @@ testing); **startup** — a refused initial wasm memory from `createUnityInstanc
 `[BBS-Heap]` peak so the number is readable on-device without USB debugging. Original messages still
 go to the console; every other error keeps the loud alert path. Desktop with enough RAM: no change.
 
+### ★ Server quick wins: one transaction per simulation step, prepared statements, settled-view streaming skip, 1 Hz flora, ship-stats memo, codec warm-up (#1505–#1510, 2026-09-04, branch perf/1505-1510-server-quick-wins)
+PR bundle 2 of the performance package (epic #1501); server-only, no behaviour change. **#1505** fluid, fire,
+granular, flora-regrow and weather-snow steps now run inside `IWorldRepository.RunInTransaction` (SQLite,
+PostgreSQL and the Memory repo all implement it reentrantly) — measured 100–142 µs per autocommitted cell
+before vs 24–35 µs batched; a breached lake was ≈ 1600 commits/s on the tick thread. Consequence: a crash
+mid-step loses at most that one ≤ 0.25 s step. **#1506** `SqliteWorldRepository` keeps one prepared
+`SqliteCommand` per hot statement (SetBlock, LoadChunkEdits, fluid + fire cell rows — parameters bound
+once, values rebound per call) instead of re-parsing the SQL per call, plus `cache_size=-32000`,
+`mmap_size=256 MB`, `temp_store=MEMORY`; PostgreSQL gets Npgsql auto-prepare (`MaxAutoPrepare=64`) unless
+the operator set it. **#1507** `StreamChunks` remembers per session that the last pass found nothing to send
+(centre chunk, radius, sent-set size) and skips the `(2R+3)²` column enumeration until one of those changes
+or the 30-tick re-check comes due; the far-column surface band is cached per canonical column on the world
+(a pure function of terrain + sea level). Measured before: 0.2 ms per idle tick at VD 4 for one player,
+scaling with players × VD. **#1508** `TickFlora` steps the regrow timers once per second of sim time
+(accumulated dt) instead of 15× — each cell's step evaluates the local weather (three noise lookups);
+regrowth lands ≤ 1 s later. **#1509** custom-ship stats are memoised per `BuiltCells` blob instance
+(`ConditionalWeakTable`) so the per-cursor-switch recompute no longer re-parses the hull; the presence gear
+mask was NOT cached on purpose (inventory mutation is not centralised and the scan measured negligible).
+**#1510** `NetCodec.WarmUp()` encodes + decodes an empty instance of every registered message type at server
+start (26–39 ms per type on first use before — ~1 s during the first join burst). Tests:
+`ServerQuickWinsTests` (transactions per step, prepared-statement rebinding, settled skip + invalidation on
+move, blob memo, warm-up coverage).
+
 ### ★ Credits: Schul-AG — Ben, Marie, Nikita (2026-09-02, branch docs/schul-ag-credits)
 The school game club's first playtest day (browser build) gets its own playtester entry — README
 "Playtesters" list + `ui.credits.body` in all 14 locales (line after "sasas"), first names only. Verena

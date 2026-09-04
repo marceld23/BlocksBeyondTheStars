@@ -111,6 +111,11 @@ internal sealed class LoadedWorld
     public List<SettlementInstance> Settlements { get; } = new();                 // 0..N settlements on this world
     public List<(string Type, Vector3f Pos)> WreckMarkers { get; } = new();
     public Dictionary<Vector3i, (ushort FloraId, double Timer)> FloraRegrow { get; } = new();
+
+    /// <summary>#1507: the far-column streaming band per chunk column (see <c>GameServer.FarColumnBand</c>). The
+    /// band is a pure function of the column's terrain surface and the world's sea level, so it is computed once
+    /// per column instead of once per player per tick (a SurfaceHeight call = a full noise chain each).</summary>
+    public Dictionary<(int Cx, int Cz), (int LoCy, int HiCy)> FarColumnBands { get; } = new();
     public Dictionary<Vector3i, byte> FluidLevel { get; } = new();
     public HashSet<Vector3i> ActiveFluid { get; } = new();
     public HashSet<Vector3i> FallingFluid { get; } = new(); // flowing cells filled from above (feed a waterfall)

@@ -42,6 +42,53 @@ public sealed class SqliteWorldRepository : IWorldRepository
     private SqliteConnection Connection =>
         _connection ?? throw new InvalidOperationException("Repository is not initialized. Call Initialize() first.");
 
+    // #1506: cached, prepared commands for the hot statements. Microsoft.Data.Sqlite caches prepared
+    // statements per SqliteCommand INSTANCE, so the old create-a-command-per-call pattern re-parsed ~400
+    // characters of SQL on every block, fluid and fire write and on every streamed chunk's edit load. One
+    // long-lived command per statement — parameters added once, values rebound per call — is prepared on first
+    // use and disposed with the connection. Every caller holds _gate, so a command is never used concurrently.
+    private SqliteCommand? _setBlockCmd;
+    private SqliteCommand? _loadChunkEditsCmd;
+    private SqliteCommand? _saveFluidCellCmd;
+    private SqliteCommand? _deleteFluidCellCmd;
+    private SqliteCommand? _saveFireCellCmd;
+    private SqliteCommand? _deleteFireCellCmd;
+
+    private SqliteCommand Prepared(ref SqliteCommand? slot, string sql, params (string Name, SqliteType Type)[] parameters)
+    {
+        if (slot is not null && ReferenceEquals(slot.Connection, _connection))
+        {
+            return slot;
+        }
+
+        slot?.Dispose();
+        var cmd = Connection.CreateCommand();
+        cmd.CommandText = sql;
+        foreach (var (name, type) in parameters)
+        {
+            cmd.Parameters.Add(name, type);
+        }
+
+        cmd.Prepare();
+        slot = cmd;
+        return cmd;
+    }
+
+    private void DisposePreparedCommands()
+    {
+        _setBlockCmd?.Dispose();
+        _loadChunkEditsCmd?.Dispose();
+        _saveFluidCellCmd?.Dispose();
+        _deleteFluidCellCmd?.Dispose();
+        _saveFireCellCmd?.Dispose();
+        _deleteFireCellCmd?.Dispose();
+        _setBlockCmd = _loadChunkEditsCmd = _saveFluidCellCmd = _deleteFluidCellCmd = _saveFireCellCmd = _deleteFireCellCmd = null;
+    }
+
+    /// <summary>Diagnostic: how many <see cref="RunInTransaction"/> batches were opened (nested calls join the
+    /// outer batch and do not count). Lets a test prove a simulation step writes as ONE transaction (#1505).</summary>
+    public int TransactionsBegun { get; private set; }
+
     public void Initialize()
     {
         try
@@ -62,6 +109,12 @@ public sealed class SqliteWorldRepository : IWorldRepository
             Execute("PRAGMA journal_mode=WAL;");
             Execute("PRAGMA synchronous=NORMAL;");
             Execute("PRAGMA foreign_keys=ON;");
+            // #1506: a 32 MB page cache (default 2 MB) keeps the block_edit index of a built-up world in memory,
+            // mmap lets reads bypass the page-copy path, and temp tables/indices stay off the disk. All three are
+            // per-connection, file-format neutral, and safe on the smallest hosts (the mmap is a size CAP).
+            Execute("PRAGMA cache_size=-32000;");
+            Execute("PRAGMA mmap_size=268435456;");
+            Execute("PRAGMA temp_store=MEMORY;");
 
             Execute(@"
             CREATE TABLE IF NOT EXISTS world_meta (id INTEGER PRIMARY KEY CHECK (id = 0), json TEXT NOT NULL);
@@ -370,24 +423,27 @@ public sealed class SqliteWorldRepository : IWorldRepository
             int ownerId = string.IsNullOrEmpty(owner) ? 0 : InternPlayerLocked(owner);
             long now = ownerId == 0 ? 0 : DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText =
+            var cmd = Prepared(ref _setBlockCmd,
                 "INSERT INTO block_edit (planet, x, y, z, block, tint, glow, shape, owner_id, edited_unix) " +
                 "VALUES ($p, $x, $y, $z, $b, $t, $g, $s, $o, $u) " +
                 "ON CONFLICT(planet, x, y, z) DO UPDATE SET block = excluded.block, tint = excluded.tint, " +
                 "glow = excluded.glow, shape = excluded.shape, " +
                 "owner_id = CASE WHEN excluded.owner_id = 0 THEN block_edit.owner_id ELSE excluded.owner_id END, " +
-                "edited_unix = CASE WHEN excluded.owner_id = 0 THEN block_edit.edited_unix ELSE excluded.edited_unix END;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$x", worldPosition.X);
-            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
-            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
-            cmd.Parameters.AddWithValue("$b", block);
-            cmd.Parameters.AddWithValue("$t", tint);
-            cmd.Parameters.AddWithValue("$g", glow);
-            cmd.Parameters.AddWithValue("$s", shape);
-            cmd.Parameters.AddWithValue("$o", ownerId);
-            cmd.Parameters.AddWithValue("$u", now);
+                "edited_unix = CASE WHEN excluded.owner_id = 0 THEN block_edit.edited_unix ELSE excluded.edited_unix END;",
+                ("$p", SqliteType.Text), ("$x", SqliteType.Integer), ("$y", SqliteType.Integer), ("$z", SqliteType.Integer),
+                ("$b", SqliteType.Integer), ("$t", SqliteType.Integer), ("$g", SqliteType.Integer), ("$s", SqliteType.Integer),
+                ("$o", SqliteType.Integer), ("$u", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = worldPosition.X;
+            ps[2].Value = worldPosition.Y;
+            ps[3].Value = worldPosition.Z;
+            ps[4].Value = (int)block;
+            ps[5].Value = tint;
+            ps[6].Value = glow;
+            ps[7].Value = shape;
+            ps[8].Value = ownerId;
+            ps[9].Value = now;
             cmd.ExecuteNonQuery();
         }
     }
@@ -510,16 +566,19 @@ public sealed class SqliteWorldRepository : IWorldRepository
         {
             // Attribution (owner_id/edited_unix) is deliberately NOT selected here: this runs for every streamed
             // chunk and the mesher has no use for it. Admin queries fetch it per cell via GetBlockAttribution.
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "SELECT x, y, z, block, tint, glow, shape FROM block_edit WHERE planet = $p " +
-                              "AND x BETWEEN $minx AND $maxx AND y BETWEEN $miny AND $maxy AND z BETWEEN $minz AND $maxz;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$minx", origin.X);
-            cmd.Parameters.AddWithValue("$maxx", maxX);
-            cmd.Parameters.AddWithValue("$miny", origin.Y);
-            cmd.Parameters.AddWithValue("$maxy", maxY);
-            cmd.Parameters.AddWithValue("$minz", origin.Z);
-            cmd.Parameters.AddWithValue("$maxz", maxZ);
+            var cmd = Prepared(ref _loadChunkEditsCmd,
+                "SELECT x, y, z, block, tint, glow, shape FROM block_edit WHERE planet = $p " +
+                "AND x BETWEEN $minx AND $maxx AND y BETWEEN $miny AND $maxy AND z BETWEEN $minz AND $maxz;",
+                ("$p", SqliteType.Text), ("$minx", SqliteType.Integer), ("$maxx", SqliteType.Integer),
+                ("$miny", SqliteType.Integer), ("$maxy", SqliteType.Integer), ("$minz", SqliteType.Integer), ("$maxz", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = origin.X;
+            ps[2].Value = maxX;
+            ps[3].Value = origin.Y;
+            ps[4].Value = maxY;
+            ps[5].Value = origin.Z;
+            ps[6].Value = maxZ;
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
@@ -860,16 +919,19 @@ public sealed class SqliteWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO fluid_cell (planet, x, y, z, level, falling) " +
-                              "VALUES ($p, $x, $y, $z, $l, $f) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET level=excluded.level, falling=excluded.falling;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$x", worldPosition.X);
-            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
-            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
-            cmd.Parameters.AddWithValue("$l", level);
-            cmd.Parameters.AddWithValue("$f", falling ? 1 : 0);
+            var cmd = Prepared(ref _saveFluidCellCmd,
+                "INSERT INTO fluid_cell (planet, x, y, z, level, falling) " +
+                "VALUES ($p, $x, $y, $z, $l, $f) " +
+                "ON CONFLICT(planet, x, y, z) DO UPDATE SET level=excluded.level, falling=excluded.falling;",
+                ("$p", SqliteType.Text), ("$x", SqliteType.Integer), ("$y", SqliteType.Integer), ("$z", SqliteType.Integer),
+                ("$l", SqliteType.Integer), ("$f", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = worldPosition.X;
+            ps[2].Value = worldPosition.Y;
+            ps[3].Value = worldPosition.Z;
+            ps[4].Value = (int)level;
+            ps[5].Value = falling ? 1 : 0;
             cmd.ExecuteNonQuery();
         }
     }
@@ -899,12 +961,14 @@ public sealed class SqliteWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM fluid_cell WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$x", worldPosition.X);
-            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
-            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
+            var cmd = Prepared(ref _deleteFluidCellCmd,
+                "DELETE FROM fluid_cell WHERE planet = $p AND x = $x AND y = $y AND z = $z;",
+                ("$p", SqliteType.Text), ("$x", SqliteType.Integer), ("$y", SqliteType.Integer), ("$z", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = worldPosition.X;
+            ps[2].Value = worldPosition.Y;
+            ps[3].Value = worldPosition.Z;
             cmd.ExecuteNonQuery();
         }
     }
@@ -915,16 +979,19 @@ public sealed class SqliteWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "INSERT INTO fire_cell (planet, x, y, z, remaining, gen) " +
-                              "VALUES ($p, $x, $y, $z, $r, $g) " +
-                              "ON CONFLICT(planet, x, y, z) DO UPDATE SET remaining=excluded.remaining, gen=excluded.gen;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$x", worldPosition.X);
-            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
-            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
-            cmd.Parameters.AddWithValue("$r", remaining);
-            cmd.Parameters.AddWithValue("$g", generation);
+            var cmd = Prepared(ref _saveFireCellCmd,
+                "INSERT INTO fire_cell (planet, x, y, z, remaining, gen) " +
+                "VALUES ($p, $x, $y, $z, $r, $g) " +
+                "ON CONFLICT(planet, x, y, z) DO UPDATE SET remaining=excluded.remaining, gen=excluded.gen;",
+                ("$p", SqliteType.Text), ("$x", SqliteType.Integer), ("$y", SqliteType.Integer), ("$z", SqliteType.Integer),
+                ("$r", SqliteType.Real), ("$g", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = worldPosition.X;
+            ps[2].Value = worldPosition.Y;
+            ps[3].Value = worldPosition.Z;
+            ps[4].Value = remaining;
+            ps[5].Value = generation;
             cmd.ExecuteNonQuery();
         }
     }
@@ -954,12 +1021,14 @@ public sealed class SqliteWorldRepository : IWorldRepository
     {
         lock (_gate)
         {
-            using var cmd = Connection.CreateCommand();
-            cmd.CommandText = "DELETE FROM fire_cell WHERE planet = $p AND x = $x AND y = $y AND z = $z;";
-            cmd.Parameters.AddWithValue("$p", planet);
-            cmd.Parameters.AddWithValue("$x", worldPosition.X);
-            cmd.Parameters.AddWithValue("$y", worldPosition.Y);
-            cmd.Parameters.AddWithValue("$z", worldPosition.Z);
+            var cmd = Prepared(ref _deleteFireCellCmd,
+                "DELETE FROM fire_cell WHERE planet = $p AND x = $x AND y = $y AND z = $z;",
+                ("$p", SqliteType.Text), ("$x", SqliteType.Integer), ("$y", SqliteType.Integer), ("$z", SqliteType.Integer));
+            var ps = cmd.Parameters;
+            ps[0].Value = planet;
+            ps[1].Value = worldPosition.X;
+            ps[2].Value = worldPosition.Y;
+            ps[3].Value = worldPosition.Z;
             cmd.ExecuteNonQuery();
         }
     }
@@ -1753,6 +1822,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
             }
 
             _inTransaction = true;
+            TransactionsBegun++;
             Execute("BEGIN;");
             try
             {
@@ -1832,6 +1902,7 @@ public sealed class SqliteWorldRepository : IWorldRepository
         {
             if (_connection is not null)
             {
+                DisposePreparedCommands(); // #1506: the cached statements belong to this connection
                 try
                 {
                     using var cmd = _connection.CreateCommand();

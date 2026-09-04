@@ -233,6 +233,17 @@ public sealed partial class GameServer
         _worlds.Active.FluidStep++;
         bool lavaRests = (_worlds.Active.FluidStep & 1) == 1; // #1316: lava moves on every second step only
 
+        // #1505: one transaction per step. Every cell the step touches persists through SetBlock/SaveFluidCell/
+        // DeleteFluidCell — as autocommits that was one commit per cell (measured 100–142 µs each on NVMe, far
+        // more on SD cards), i.e. up to 400 commits per step and a breached lake ≈ 1600 commits/s on the tick
+        // thread. Batched, the same writes cost ~24–35 µs each. A crash mid-step loses at most this one step.
+        _repo.RunInTransaction(() => StepFluids(lavaRests));
+    }
+
+    /// <summary>One fluid step over the woken cells (the body of <see cref="TickFluids"/>; runs inside a
+    /// repository transaction).</summary>
+    private void StepFluids(bool lavaRests)
+    {
         var todo = new List<Vector3i>(_activeFluid);
         _activeFluid.Clear();
         int budget = FluidUpdatesPerTick;
