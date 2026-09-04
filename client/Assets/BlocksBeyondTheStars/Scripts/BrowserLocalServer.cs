@@ -158,7 +158,9 @@ namespace BlocksBeyondTheStars.Client
                 BlocksBeyondTheStars.Networking.NetCodec.UseJsonEncoding = true;
 #endif
 
-                Link = new LoopbackLink();
+                // #1531: server→client messages cross the loopback as OBJECTS — no JSON round trip on the render
+                // thread (the UseJsonEncoding flag above still covers the client→server intents).
+                Link = new LoopbackLink { PassObjects = true };
                 _server = new SvGameServer(config, content, new LoopbackServerTransport(Link), _repo,
                     new UnityGameLogger(), aiProvider: new BlocksBeyondTheStars.GameServer.NullAiMissionProvider());
                 _repo.Flushed += PersistBlob; // server autosaves + shutdown both end in Flush()

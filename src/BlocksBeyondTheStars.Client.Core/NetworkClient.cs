@@ -221,6 +221,10 @@ namespace BlocksBeyondTheStars.Client
                 }
             };
             _transport.PayloadReceived += EnqueuePayload;
+            if (_transport is IObjectClientTransport objects)
+            {
+                objects.MessageReceived += EnqueueMessage; // #1531: the loopback hands decoded messages over
+            }
         }
 
         // ---- Receive budget (#963) ----
@@ -230,7 +234,9 @@ namespace BlocksBeyondTheStars.Client
         // of traffic inside a single frame: a multi-second freeze, then a long stutter while the resulting
         // mesh backlog drained at a few chunks per frame. The server has always budgeted its SENDING
         // (ChunkStreamPerTick / ChunkStreamBudgetMs); this is the receive-side counterpart.
-        private readonly Queue<byte[]> _inbox = new();
+        // #1531: an entry is either an encoded byte[] (socket transports) or a decoded message object (the
+        // in-process loopback); one queue keeps the server's send order across both kinds.
+        private readonly Queue<object> _inbox = new();
 
         /// <summary>Max payloads dispatched per <see cref="Poll"/>. Generous — a healthy frame never queues
         /// anywhere near this — so normal play behaves exactly as before and only a backlog is paced.</summary>
@@ -256,7 +262,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _joined;
         private int _previousWorldId;
         private int _futureWorldId;
-        private readonly Queue<byte[]> _heldBeforeJoin = new();
+        private readonly Queue<object> _heldBeforeJoin = new();
         private readonly Queue<object> _futureWorld = new();
 
         /// <summary>The WorldId of the last JoinAccepted / WorldReset (0 before the join or on a v4 server).</summary>
@@ -331,14 +337,32 @@ namespace BlocksBeyondTheStars.Client
         {
             while (_heldBeforeJoin.Count > 0)
             {
-                OnPayload(_heldBeforeJoin.Dequeue());
+                DispatchItem(_heldBeforeJoin.Dequeue());
             }
         }
 
-        private static bool IsWorldStreamPayload(byte[] payload)
-            => NetCodec.IsMessageType<ChunkDataMessage>(payload) || NetCodec.IsMessageType<BlockChanged>(payload);
+        private static bool IsWorldStreamItem(object item)
+            => item is ChunkDataMessage or BlocksBeyondTheStars.Networking.Messages.BlockChanged
+               || (item is byte[] payload && (NetCodec.IsMessageType<ChunkDataMessage>(payload) || NetCodec.IsMessageType<BlockChanged>(payload)));
+
+        private static bool IsChunkItem(object item)
+            => item is ChunkDataMessage || (item is byte[] payload && IsChunkPayload(payload));
+
+        private void DispatchItem(object item)
+        {
+            if (item is byte[] payload)
+            {
+                OnPayload(payload);
+            }
+            else
+            {
+                Dispatch(item);
+            }
+        }
 
         private void EnqueuePayload(byte[] payload) => _inbox.Enqueue(payload);
+
+        private void EnqueueMessage(object message) => _inbox.Enqueue(message);
 
         public void Connect(string host, int port) => _transport.Connect(host, port);
 
@@ -817,30 +841,30 @@ namespace BlocksBeyondTheStars.Client
             {
                 // Chunks are capped separately; stop once that cap is hit and the next payload is a chunk,
                 // rather than reordering the stream (block edits must not overtake the chunk they patch).
-                if (chunks >= MaxChunksPerPoll && IsChunkPayload(_inbox.Peek()))
+                if (chunks >= MaxChunksPerPoll && IsChunkItem(_inbox.Peek()))
                 {
                     break;
                 }
 
-                var payload = _inbox.Dequeue();
+                var item = _inbox.Dequeue();
                 dispatched++;
-                if (IsChunkPayload(payload))
+                if (IsChunkItem(item))
                 {
                     chunks++;
                 }
 
-                if (!_joined && IsWorldStreamPayload(payload))
+                if (!_joined && IsWorldStreamItem(item))
                 {
                     // #1534: the world stream overtook the JoinAccepted on the other channel — park it.
                     if (_heldBeforeJoin.Count < MaxHeldWorldStream)
                     {
-                        _heldBeforeJoin.Enqueue(payload);
+                        _heldBeforeJoin.Enqueue(item);
                     }
 
                     continue;
                 }
 
-                OnPayload(payload);
+                DispatchItem(item);
             }
         }
 
@@ -851,9 +875,11 @@ namespace BlocksBeyondTheStars.Client
         private void Send(object message, DeliveryMode mode = DeliveryMode.ReliableOrdered)
             => _transport.Send(NetCodec.Encode(message), mode);
 
-        private void OnPayload(byte[] payload)
+        private void OnPayload(byte[] payload) => Dispatch(NetCodec.Decode(payload));
+
+        private void Dispatch(object? message)
         {
-            switch (NetCodec.Decode(payload))
+            switch (message)
             {
                 case JoinAccepted m:
                     _joined = true;

@@ -447,8 +447,16 @@ public sealed partial class GameServer
                     continue; // unchanged and recent — the client keeps rendering the pose it has
                 }
 
-                payload ??= NetCodec.Encode(presence);
-                SendEncoded(viewer.ConnectionId, payload, DeliveryMode.Sequenced); // #1534: never behind a chunk resend
+                if (_objectTransport != null)
+                {
+                    _objectTransport.SendMessage(viewer.ConnectionId, presence, DeliveryMode.Sequenced); // #1531
+                }
+                else
+                {
+                    payload ??= NetCodec.Encode(presence);
+                    SendEncoded(viewer.ConnectionId, payload, DeliveryMode.Sequenced); // #1534: never behind a chunk resend
+                }
+
                 subject.PresenceSentTo[viewer.ConnectionId] = (hash, beat);
             }
 

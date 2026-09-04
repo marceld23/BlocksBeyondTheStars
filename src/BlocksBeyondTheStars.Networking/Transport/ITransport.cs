@@ -47,3 +47,22 @@ public interface IClientTransport : IDisposable
 
     void Disconnect();
 }
+
+/// <summary>#1531: a server transport that can hand decoded message OBJECTS to its peer instead of encoded bytes —
+/// the in-process loopback, where sender and receiver share the heap. The server prefers this path whenever the
+/// transport offers it; every other transport keeps the byte path. Contract: a message handed over is never
+/// mutated by the sender afterwards (built fresh per send, or cached read-only), and the receiver treats it as
+/// read-only.</summary>
+public interface IObjectServerTransport
+{
+    void SendMessage(int connectionId, object message, DeliveryMode mode);
+
+    void BroadcastMessage(object message, DeliveryMode mode);
+}
+
+/// <summary>#1531: the client side of the object path — decoded messages arrive through
+/// <see cref="MessageReceived"/> in the same order as byte payloads through <c>PayloadReceived</c>.</summary>
+public interface IObjectClientTransport
+{
+    event Action<object>? MessageReceived;
+}
