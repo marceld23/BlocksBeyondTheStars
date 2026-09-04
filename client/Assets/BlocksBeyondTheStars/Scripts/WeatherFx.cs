@@ -1,13 +1,3 @@
-            bool wanted = anyWash || precipitation;
-            if (wanted != _loggedOverlay)
-            {
-                // Playtest 2026-09-05 diagnostics: when the screen overlay switches on/off and why.
-                _loggedOverlay = wanted;
-                Debug.Log($"[WeatherFx] overlay {(wanted ? "on" : "off")} (precip '{env?.Precipitation}', weather {env?.Weather}, exposed {Game?.ExposedToSky}, wash {anyWash})");
-            }
-
-            _overlay.Sync(wanted);
-        }
 // Blocks Beyond the Stars — Copyright (c) 2026 Justus Dütscher & Marcel Dütscher (JuMaVe Games)
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
@@ -83,7 +73,15 @@ namespace BlocksBeyondTheStars.Client
             var env = Game?.Environment;
             bool precipitation = env != null && !Game.SpaceViewActive && Game.ExposedToSky
                                  && !string.IsNullOrEmpty(env.Precipitation) && env.Precipitation != "none";
-            _overlay.Sync(anyWash || precipitation);
+            bool wanted = anyWash || precipitation;
+            if (wanted != _loggedOverlay)
+            {
+                // Playtest 2026-09-05 diagnostics: when the screen overlay switches on/off and why.
+                _loggedOverlay = wanted;
+                Debug.Log($"[WeatherFx] overlay {(wanted ? "on" : "off")} (precip '{env?.Precipitation}', weather {env?.Weather}, exposed {Game?.ExposedToSky}, wash {anyWash})");
+            }
+
+            _overlay.Sync(wanted);
         }
 
         private void Init()
