@@ -1618,6 +1618,51 @@ namespace BlocksBeyondTheStars.Client
         private readonly Stack<Dictionary<int, int>> _shapeDictPool = new Stack<Dictionary<int, int>>();
         private static readonly System.Threading.WaitCallback RunMeshJob = o => ((MeshJob)o).Run();
 
+        // #1555: a chunk's block array is rented from the shared pool when it arrives and returned once the chunk
+        // is unloaded or replaced — after a grace period, because a mesh job in flight may still read the old
+        // ChunkData through its neighbourhood (builds take milliseconds; two seconds is far beyond that).
+        private readonly Dictionary<ChunkCoord, ushort[]> _chunkArrays = new Dictionary<ChunkCoord, ushort[]>();
+
+        /// <summary>The pool behind every chunk-sized block array on the client (#1555): the stored chunks, the
+        /// dispatch copies. <c>ArrayPool.Shared</c> keeps only a few arrays per size bucket, and the stored
+        /// chunks hold hundreds of them for minutes, so it ran dry and both callers allocated afresh. Main thread
+        /// only. Bounded so a teardown cannot pin more than ~4 MB.</summary>
+        private static class ChunkArrayPool
+        {
+            private const int MaxKept = 512;
+            private static readonly Stack<ushort[]> _free = new Stack<ushort[]>();
+
+            public static ushort[] Rent() => _free.Count > 0 ? _free.Pop() : new ushort[WorldConstants.BlocksPerChunk];
+
+            public static void Return(ushort[] array)
+            {
+                if (array != null && array.Length == WorldConstants.BlocksPerChunk && _free.Count < MaxKept)
+                {
+                    _free.Push(array);
+                }
+            }
+        }
+        private readonly Queue<(ushort[] Array, float RetiredAt)> _retiredChunkArrays = new Queue<(ushort[], float)>();
+        private const float ChunkArrayRetireSeconds = 2f;
+
+        private void RetireChunkArray(ChunkCoord canonical)
+        {
+            if (_chunkArrays.TryGetValue(canonical, out var old))
+            {
+                _chunkArrays.Remove(canonical);
+                _retiredChunkArrays.Enqueue((old, Time.unscaledTime));
+            }
+        }
+
+        private void ReturnRetiredChunkArrays()
+        {
+            float now = Time.unscaledTime;
+            while (_retiredChunkArrays.Count > 0 && now - _retiredChunkArrays.Peek().RetiredAt >= ChunkArrayRetireSeconds)
+            {
+                ChunkArrayPool.Return(_retiredChunkArrays.Dequeue().Array);
+            }
+        }
+
         /// <summary>Builds dispatched since start-up (PerfProbe reports the per-phase delta).</summary>
         public static int MeshBuildsDispatched { get; private set; }
 
@@ -1668,7 +1713,7 @@ namespace BlocksBeyondTheStars.Client
         {
             if (job.Borrowed != null)
             {
-                System.Buffers.ArrayPool<ushort>.Shared.Return(job.Borrowed);
+                ChunkArrayPool.Return(job.Borrowed);
                 job.Borrowed = null;
             }
 
@@ -1758,6 +1803,8 @@ namespace BlocksBeyondTheStars.Client
 
             Localizer = Content.CreateLocalizer(Locale);
             World = new ClientWorld();
+            _chunkArrays.Clear(); // #1555: a new world — the old arrays are unreachable and simply garbage
+            _retiredChunkArrays.Clear();
             // Index dedicated light blocks (+ placed glow blocks) as coloured light sources for the mesher.
             World.SetBlockLightResolver(id => ChunkMesher.BlockLightColor(Content, new BlockId(id), 0));
 
@@ -2477,6 +2524,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Upload + assign chunk geometry whose async build finished (A2), then assign collision meshes whose
             // async bake finished (both cheap on the main thread — the heavy work ran on worker threads).
+            ReturnRetiredChunkArrays(); // #1555
             DrainBuiltChunks();
             DrainBakedColliders();
 
@@ -2661,6 +2709,7 @@ namespace BlocksBeyondTheStars.Client
                 _meshGen.Remove(coord);
                 _meshFailCounts.Remove(coord);
                 World.RemoveChunk(coord);
+                RetireChunkArray(WorldConstants.CanonicalChunk(coord, Circumference)); // #1555
             }
         }
 
@@ -2675,15 +2724,21 @@ namespace BlocksBeyondTheStars.Client
             // the RLE payload (usual) or the dense array — and returns null for an undecodable RLE stream, so
             // this only fires on a genuinely truncated/corrupt payload; the warning is the diagnostic to watch.
             int expected = WorldConstants.BlocksPerChunk;
-            var blocks = m.DecodeBlocks(expected);
-            if (blocks == null || blocks.Length != expected)
+            // #1555: decode straight into a pooled array that the chunk keeps until it unloads.
+            var blocks = ChunkArrayPool.Rent();
+            if (!m.DecodeBlocksInto(blocks, expected))
             {
+                ChunkArrayPool.Return(blocks);
+
                 Debug.LogWarning($"[Chunk] Dropped malformed chunk {coord}: expected {expected} blocks, got "
-                    + (m.BlocksRle != null && m.BlocksRle.Length > 0 ? $"an undecodable RLE payload ({m.BlocksRle.Length} entries)" : $"{blocks?.Length ?? 0}") + ".");
+                    + (m.BlocksRle != null && m.BlocksRle.Length > 0 ? $"an undecodable RLE payload ({m.BlocksRle.Length} entries)" : $"{m.Blocks?.Length ?? 0}") + ".");
                 return;
             }
 
             World.StoreChunk(coord, blocks, m.ModIndex, m.ModTint, m.ModGlow, m.ShapeIndex, m.ShapeData);
+            var canonical = WorldConstants.CanonicalChunk(coord, Circumference);
+            RetireChunkArray(canonical); // a re-sent chunk replaces its array; the old one goes back after the grace period
+            _chunkArrays[canonical] = blocks;
             MarkChunkAndNeighborsDirty(coord);
             _lastChunkArrivalTime = Time.time; // feed the view-settle gate (#390)
 
@@ -3181,20 +3236,9 @@ namespace BlocksBeyondTheStars.Client
         /// worker thread can read it without racing a live edit on the main thread.</summary>
         private static ChunkData CopyChunk(ChunkData src, out ushort[] borrowed)
         {
-            // #1550: the 8 KB block copy comes from the shared pool (4096 is a pool bucket, so the length is
-            // exact; a mismatch falls back to a plain array that is simply not returned).
-            var blocks = System.Buffers.ArrayPool<ushort>.Shared.Rent(WorldConstants.BlocksPerChunk);
-            if (blocks.Length != WorldConstants.BlocksPerChunk)
-            {
-                System.Buffers.ArrayPool<ushort>.Shared.Return(blocks);
-                blocks = new ushort[WorldConstants.BlocksPerChunk];
-                borrowed = null;
-            }
-            else
-            {
-                borrowed = blocks;
-            }
-
+            // #1550: the 8 KB block copy comes from the chunk-array pool and goes back in DrainBuiltChunks.
+            var blocks = ChunkArrayPool.Rent();
+            borrowed = blocks;
             src.RawBlocks.CopyTo(blocks);
             var copy = ChunkData.FromRaw(src.Coord, blocks);
             if (src.Modifiers is { Count: > 0 } mods)

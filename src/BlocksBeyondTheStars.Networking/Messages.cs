@@ -842,6 +842,25 @@ public sealed class ChunkDataMessage
     public ushort[]? DecodeBlocks(int expectedLength)
         => BlocksRle.Length > 0 ? ChunkBlocksRle.Decode(BlocksRle, expectedLength) : Blocks;
 
+    /// <summary>Decodes into a caller-owned array of at least <paramref name="expectedLength"/> cells (#1555:
+    /// the client keeps chunk arrays in a pool). False when the payload is malformed or the dense array has
+    /// the wrong length — the same cases in which <see cref="DecodeBlocks"/> yields null or a wrong length.</summary>
+    public bool DecodeBlocksInto(ushort[] into, int expectedLength)
+    {
+        if (BlocksRle.Length > 0)
+        {
+            return ChunkBlocksRle.DecodeInto(BlocksRle, into, expectedLength);
+        }
+
+        if (Blocks == null || Blocks.Length != expectedLength || into.Length < expectedLength)
+        {
+            return false;
+        }
+
+        System.Array.Copy(Blocks, into, expectedLength);
+        return true;
+    }
+
     // Sparse per-voxel colour modifiers (dyed surface tint / glow light colour), parallel arrays
     // keyed by local cell index. Empty for the overwhelming majority of chunks (no colour edits).
     public int[] ModIndex { get; set; } = System.Array.Empty<int>();

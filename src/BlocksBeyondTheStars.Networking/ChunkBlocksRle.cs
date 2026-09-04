@@ -65,12 +65,21 @@ public static class ChunkBlocksRle
     /// wrong-length dense payload is handled.</summary>
     public static ushort[]? Decode(ushort[] rle, int expectedLength)
     {
-        if (rle.Length == 0 || (rle.Length & 1) != 0)
+        var dense = new ushort[expectedLength];
+        return DecodeInto(rle, dense, expectedLength) ? dense : null;
+    }
+
+    /// <summary>Decodes into a caller-owned array (#1555: the client rents it for the chunk's lifetime; a pooled
+    /// array is not zeroed, so the first <paramref name="expectedLength"/> cells are cleared here). Same
+    /// validation and result as <see cref="Decode"/>; false when the stream is malformed.</summary>
+    public static bool DecodeInto(ushort[] rle, ushort[] dense, int expectedLength)
+    {
+        if (rle.Length == 0 || (rle.Length & 1) != 0 || dense.Length < expectedLength)
         {
-            return null;
+            return false;
         }
 
-        var dense = new ushort[expectedLength];
+        Array.Clear(dense, 0, expectedLength);
         int pos = 0;
         for (int i = 0; i < rle.Length; i += 2)
         {
@@ -78,7 +87,7 @@ public static class ChunkBlocksRle
             int count = rle[i + 1];
             if (count == 0 || pos + count > expectedLength)
             {
-                return null;
+                return false;
             }
 
             if (value == 0)
@@ -94,6 +103,6 @@ public static class ChunkBlocksRle
             }
         }
 
-        return pos == expectedLength ? dense : null;
+        return pos == expectedLength;
     }
 }

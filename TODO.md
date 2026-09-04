@@ -283,6 +283,31 @@ is read from the module stat (16) instead of being dead, and the station deploy 
 persisted ids after a restart (id collision). Tests: `PlayerStationReportsTests` (7), `DropLootTests` (+2).
 Locales: 9 new keys + 2 rewordings, EN/DE hand-written, 12 MT via translate_locale.
 
+### ★ Client garbage, part 5: chunks decode into pooled arrays that live with the chunk, the codec interns short strings (#1555, 2026-09-04, branch perf/1555-receive-path)
+
+**Why.** PR bundle 17 of the performance package (#1501). After the dispatch pooling the receive path was the largest
+game-side source left: `ChunkBlocksRle.Decode` allocated the 8 KB block array of every arriving chunk (~0.4–0.5 MB/s
+while walking), MessagePack decoded the same NPC names / role keys / item ids into fresh strings on every entity list
+(~280 strings/s), and `NpcView` built a set per list.
+
+**What ships.** `ChunkBlocksRle.DecodeInto` / `ChunkDataMessage.DecodeBlocksInto` decode into a caller-owned array
+(clearing it first — pooled memory is not zeroed); the client rents that array from a new `ChunkArrayPool` (a
+bounded stack of chunk-sized arrays; `ArrayPool.Shared` keeps only a few arrays per bucket, so the stored chunks ran
+it dry) and keeps it for the chunk's lifetime — unload or replacement retires it, and it returns to the pool after a
+two-second grace period because a mesh job in flight may still read the old `ChunkData` through its neighbourhood.
+The dispatch copies (#1550) now come from the same pool. `InterningStringFormatter` sits in front of the contractless
+resolver: strings of at most 64 UTF-8 bytes are looked up in a per-thread FNV-keyed cache (verified by re-encoding,
+bounded, reset when full), longer ones decode as before; encoding is untouched, so the wire format and every round-trip
+test are unchanged — only the identity of equal short strings, which nothing depends on. `NpcView` reuses its `seen`
+set. The LiteNetLib packet copy (`GetRemainingBytes`, ~25 KB/s) and the RLE array MessagePack allocates per chunk
+(~40 KB/s) stay: the transport interface hands out owned `byte[]`s and the RLE array is the message's own field.
+
+**Measured (walk capture, machine quiet).** `ChunkBlocksRle.Decode` 490 KB/s → gone; `String.CreateStringFromEncoding`
+(12 KB/s, 280/s) → gone (`InterningStringFormatter` 2 KB/s); what the pool still allocates (`ChunkArrayPool.Rent`
+~340 KB/s) is the world growing ahead of the player faster than it unloads behind — live chunk data, not garbage.
+Total walk allocations 2.5 → 2.3 MB/s and 10 300 → 9 300 per second (the Development watermark is 1.4 MB/s of
+that); PerfProbe walk collections 9 → 5–8 per 10 s. Tests: `InterningStringFormatterTests` (4).
+
 ### ★ Client garbage, part 4: the chunk-build dispatch runs on pooled jobs — no clone, no closures, no Task per build (#1550, 2026-09-04, branch perf/1550-dispatch-pool)
 
 **Why.** PR bundle 16 of the performance package (#1501). The largest client-side source in the #1537 attribution: every
