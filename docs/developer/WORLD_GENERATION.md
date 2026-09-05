@@ -193,7 +193,7 @@ same planet type rolls gentle on one world and jagged on the next. A **~6 % tail
 
 **d) Landmark landforms** (#477/#577/#578) — sparse discrete features on a deterministic hotspot-cell
 grid, at most **one per column** (precedence volcano > massif > table mountain > rift): volcano cones
-with molten craters, rare **massifs** (+120–220, ridged flanks, snow/ice summits), flat-topped
+with molten craters (on every non-cratered body since #1631 — a lava core — and lifted into **volcanic islands** where the centre lies under a sea), rare **massifs** (+120–220, ridged flanks, snow/ice summits), flat-topped
 **table mountains** (radius 40–120, near-vertical walls) on dry rocky-reading worlds, and **rift
 chasms** (50–130 deep, fjord-flooded below sea level). `SurfaceHeight` clamps everything at **Y 288**,
 safely under the ~Y 320 atmosphere line.

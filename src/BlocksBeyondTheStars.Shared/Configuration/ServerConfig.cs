@@ -122,6 +122,7 @@ public sealed class ServerConfig
         SystemVariance = true,
         AsteroidBelts = true,
         TerrainContinents = true,
+        LavaCoreVolcanoes = true,
         SpaceStations = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
         StationTemplateUse = BlocksBeyondTheStars.Shared.World.Frequency.Normal,
         SettlementTemplateUse = BlocksBeyondTheStars.Shared.World.Frequency.Normal,

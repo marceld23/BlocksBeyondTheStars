@@ -115,6 +115,17 @@ public sealed class WorldGenerator
         InvalidateColumnCaches(); // #1526
     }
 
+    /// <summary>Volcanoes on every lava-core world + sea-mount lift (#1631) — from the save's
+    /// <c>WorldDescription.LavaCoreVolcanoes</c>. Off = the #477 rule (watery breathable worlds, cones
+    /// measured from the ground), so existing saves keep their terrain. Call BEFORE any height query.</summary>
+    public void SetLavaCoreVolcanoes(bool enabled)
+    {
+        _lavaCoreVolcanoes = enabled;
+        InvalidateColumnCaches();
+    }
+
+    private bool _lavaCoreVolcanoes;
+
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)
         => PadColumnAt(worldX, worldZ, out var pad, out int target) && target == pad.SurfaceY ? target : null;
@@ -476,6 +487,11 @@ public sealed class WorldGenerator
             _forestCache.Clear();
             _columnProfiles.Clear();
         }
+
+        lock (_volcanoLock)
+        {
+            _volcanoCells.Clear(); // #1631: the sea-mount lift depends on the world mode + calibration
+        }
     }
 
     /// <summary>How many column profiles are memoised right now (tests).</summary>
@@ -762,8 +778,10 @@ public sealed class WorldGenerator
     private const double VolcanoCellSize = 1280.0; // hotspot grid pitch (≈2–5 candidate cells on a default world)
     private const double VolcanoChance = 0.55;     // fraction of hotspot cells that actually grow a cone
 
-    /// <summary>Volcanoes grow only on watery, breathable-atmosphere worlds (#477): lava/ashen worlds have
-    /// their own lava seas + flows, airless/cratered bodies are geologically dead, skylands stay floaty.</summary>
+    /// <summary>Volcanoes grow on every world with a lava core (#1631, decision 2026-09-05): any body whose
+    /// world floor ends in the molten band — that is every non-cratered body (the cratered airless moons
+    /// and asteroids bottom out in basalt and are geologically dead). Void worlds (ship interiors, station
+    /// decks) and skylands stay out. Until #1631 only watery, breathable worlds qualified (#477).</summary>
     private bool HasVolcanoes(PlanetType planet)
     {
         if (planet.Void || planet.Cratered || _crateredWorld || planet.FloatingIslands)
@@ -771,10 +789,39 @@ public sealed class WorldGenerator
             return false;
         }
 
+        if (_lavaCoreVolcanoes)
+        {
+            return true; // #1631: every body with a molten core
+        }
+
+        // Legacy rule (#477) for saves created before #1631: watery, breathable-atmosphere worlds only.
         bool hasAir = !string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase);
         double waterAb = planet.WaterAbundance ?? (hasAir ? 0.55 : 0.0);
         return hasAir && waterAb > 0.0;
     }
+
+    /// <summary>Sea-mount volcanoes (#1631): a cone whose centre lies under the sea is lifted so its crater
+    /// rim clears the water by this much (seeded 12–36 blocks) — a volcanic island instead of a drowned
+    /// bump. The rolled radius may grow by up to <see cref="SeaMountRadiusGrow"/>, which is exactly the
+    /// placement margin every centre keeps from its cell border, so seam safety is untouched.</summary>
+    private const double SeaMountClearanceMin = 12.0;
+    private const double SeaMountClearanceRange = 24.0;
+    private const double SeaMountRadiusGrow = 24.0;
+
+    /// <summary>The cone profile's share of its height at the crater rim: t = 1 − CraterR/Radius = 0.84 for
+    /// every radius ≥ 25, and 0.84^1.6 (see <see cref="ConeOffsetOf"/>).</summary>
+    private const double ConeRimShare = 0.7566;
+
+    /// <summary>True while <see cref="BuildCalibration"/> samples the world on this thread: the sea level is
+    /// not known yet, so cones keep their rolled height for the sample (the sea percentile barely notices a
+    /// few cones) and the column memos filled meanwhile are dropped once the calibration exists.</summary>
+    [System.ThreadStatic]
+    private static bool _calibrating;
+
+    /// <summary>Cones memoised per hotspot cell (#1631): the sea-mount lift costs a sea-level lookup and one
+    /// raw-height sample per cell, which must not be paid per column. Never filled while calibrating.</summary>
+    private readonly System.Collections.Generic.Dictionary<(string, long, int, int, int), (bool Has, VolcanoCone Cone)> _volcanoCells = new();
+    private readonly object _volcanoLock = new();
 
     private readonly struct VolcanoCone
     {
@@ -815,32 +862,126 @@ public sealed class WorldGenerator
         int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
         int czI = System.Math.Min(nz - 1, (int)(zc / ch));
 
-        ulong h = Noise.Hash(seed ^ 0x70C4A0, cxI, 0, czI);
-        if ((h & 0xFFFF) / 65536.0 >= VolcanoChance)
+        if (!TryGetVolcanoInCell(planet, seed, cxI, czI, cw, ch, period, out cone))
         {
             return false; // this hotspot cell grew no volcano
         }
 
-        double radius = 34.0 + ((h >> 16) & 0x3FF) / 1023.0 * 26.0; // 34..60
-        double height = 24.0 + ((h >> 26) & 0x3FF) / 1023.0 * 22.0; // 24..46
-        double margin = radius + 24.0;
-        double ox = margin + ((h >> 36) & 0x3FF) / 1023.0 * System.Math.Max(1.0, cw - 2.0 * margin);
-        double oz = margin + ((h >> 46) & 0x3FF) / 1023.0 * System.Math.Max(1.0, ch - 2.0 * margin);
-        int centerX = (int)(cxI * cw + ox);
-        int centerZc = (int)(czI * ch + oz);
-
-        double dx = WorldConstants.WrapDeltaX(wx - centerX, _circumference);
-        double dz = zc - centerZc;
+        double dx = WorldConstants.WrapDeltaX(wx - cone.CenterX, _circumference);
+        double dz = zc - (cone.CenterZ + period / 2);
         if (dz > period / 2.0) dz -= period;
         if (dz < -period / 2.0) dz += period;
         dist = System.Math.Sqrt(dx * dx + dz * dz);
-        if (dist > radius)
+        if (dist > cone.Radius)
         {
+            cone = default;
             return false;
         }
 
-        cone = new VolcanoCone(centerX, centerZc - period / 2, radius, height);
         return true;
+    }
+
+    /// <summary>The cone a hotspot cell grew, if any — position, radius and height from the cell hash, plus
+    /// the sea-mount lift (#1631) when the centre lies under the sea. Memoised per cell outside calibration.</summary>
+    private bool TryGetVolcanoInCell(PlanetType planet, long seed, int cxI, int czI, double cw, double ch, int period, out VolcanoCone cone)
+    {
+        var key = (planet.Key, _locationSalt, _circumference, cxI, czI); // the flags reset the memo via InvalidateColumnCaches
+        bool memo = !_calibrating;
+        if (memo)
+        {
+            lock (_volcanoLock)
+            {
+                if (_volcanoCells.TryGetValue(key, out var hit))
+                {
+                    cone = hit.Cone;
+                    return hit.Has;
+                }
+            }
+        }
+
+        cone = default;
+        bool has = false;
+        ulong h = Noise.Hash(seed ^ 0x70C4A0, cxI, 0, czI);
+        if ((h & 0xFFFF) / 65536.0 < VolcanoChance)
+        {
+            double radius = 34.0 + ((h >> 16) & 0x3FF) / 1023.0 * 26.0; // 34..60
+            double height = 24.0 + ((h >> 26) & 0x3FF) / 1023.0 * 22.0; // 24..46
+            double margin = radius + SeaMountRadiusGrow;
+            double ox = margin + ((h >> 36) & 0x3FF) / 1023.0 * System.Math.Max(1.0, cw - 2.0 * margin);
+            double oz = margin + ((h >> 46) & 0x3FF) / 1023.0 * System.Math.Max(1.0, ch - 2.0 * margin);
+            int centerX = (int)(cxI * cw + ox);
+            int centerZ = (int)(czI * ch + oz) - period / 2;
+
+            // Sea-mount (#1631): a centre under the sea lifts the cone until the crater rim clears the water,
+            // and widens the base (never beyond the placement margin) so the island is a mountain, not a spike.
+            if (_lavaCoreVolcanoes && !_calibrating)
+            {
+                int sea = SeaLevel(planet);
+                if (sea != int.MinValue)
+                {
+                    int raw = RawSurfaceHeight(planet, centerX, centerZ);
+                    if (raw < sea)
+                    {
+                        double clear = SeaMountClearanceMin + ((h >> 56) & 0xFF) / 255.0 * SeaMountClearanceRange;
+                        double need = (sea - raw + clear) / ConeRimShare;
+                        if (need > height)
+                        {
+                            height = need;
+                            radius = System.Math.Min(radius + SeaMountRadiusGrow, System.Math.Max(radius, height * 0.9));
+                        }
+                    }
+                }
+            }
+
+            cone = new VolcanoCone(centerX, centerZ, radius, height);
+            has = true;
+        }
+
+        if (memo)
+        {
+            lock (_volcanoLock)
+            {
+                if (_volcanoCells.Count >= 4096)
+                {
+                    _volcanoCells.Clear();
+                }
+
+                _volcanoCells[key] = (has, cone);
+            }
+        }
+
+        return has;
+    }
+
+    /// <summary>Test hook (#1631): every volcano of the configured body — centre, radius, height, the crater
+    /// rim's surface height and whether the cone was lifted out of a sea.</summary>
+    public System.Collections.Generic.List<(int X, int Z, double Radius, double Height, int RimY, bool SeaMount)> VolcanoesForTest(PlanetType planet)
+    {
+        var list = new System.Collections.Generic.List<(int, int, double, double, int, bool)>();
+        if (!HasVolcanoes(planet))
+        {
+            return list;
+        }
+
+        long seed = PlanetSeed(planet);
+        int period = LatPeriod;
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / VolcanoCellSize));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / VolcanoCellSize));
+        double cw = _circumference / (double)nx;
+        double ch = period / (double)nz;
+        int sea = SeaLevel(planet);
+        for (int cz = 0; cz < nz; cz++)
+            for (int cx = 0; cx < nx; cx++)
+            {
+                if (TryGetVolcanoInCell(planet, seed, cx, cz, cw, ch, period, out var v))
+                {
+                    int rimY = SurfaceHeight(planet, v.CenterX + (int)System.Math.Round(v.CraterR), v.CenterZ);
+                    bool seaMount = sea != int.MinValue && RawSurfaceHeight(planet, v.CenterX, v.CenterZ) < sea;
+                    list.Add((v.CenterX, v.CenterZ, v.Radius, v.Height, rimY, seaMount));
+                }
+            }
+
+        return list;
     }
 
     /// <summary>The cone's height contribution at a distance from its centre: a smooth basalt slope rising
@@ -2757,10 +2898,26 @@ public sealed class WorldGenerator
                 return cached;
             }
 
-            var calib = BuildCalibration(planet);
+            WorldCalibration calib;
+            bool outer = !_calibrating;
+            _calibrating = true; // #1631: cones sample without the sea-mount lift while the sea is unknown
+            try
+            {
+                calib = BuildCalibration(planet);
+            }
+            finally
+            {
+                _calibrating = !outer;
+            }
+
             EvictOldest(_calibs, _calibOrder, 64); // #1527: oldest-out — entries are ~150 KB each
             _calibs[key] = calib;
             _calibOrder.Enqueue(key);
+            if (outer)
+            {
+                InvalidateColumnCaches(); // #1631: drop the un-lifted cone columns memoised during the sample
+            }
+
             return calib;
         }
     }
