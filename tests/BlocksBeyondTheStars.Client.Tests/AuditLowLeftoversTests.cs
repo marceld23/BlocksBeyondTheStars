@@ -70,7 +70,7 @@ public sealed class AuditLowLeftoversTests
         Assert.Contains("UiTextChunks.Split(", feedback); // unbounded thread text goes through the splitter
 
         string hud = File.ReadAllText(Scripts("HudUi.cs"));
-        Assert.Contains("_toast.supportRichText = false", hud);
+        Assert.Contains("_toast.richText = false", hud); // TMP label since the HUD look pass (#1623): richText is the supportRichText twin
     }
 
     [Fact]
