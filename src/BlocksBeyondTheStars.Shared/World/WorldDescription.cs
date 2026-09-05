@@ -154,6 +154,13 @@ public sealed class WorldDescription
     /// description carries true; a loaded save keeps whatever it stored).</summary>
     public bool TerrainContinents { get; set; }
 
+    /// <summary>Volcanoes on every lava-core world + sea-mount cones (#1631): when true, every non-cratered body
+    /// may grow basalt cones (not only watery breathable worlds) and a cone whose base lies under a sea is
+    /// lifted into a volcanic island. MUST default to false like <see cref="TerrainContinents"/>: terrain is
+    /// re-derived from the seed, and a new mountain on an existing desert save could bury a player base. New
+    /// worlds switch it on at creation (ServerConfig's default description carries true).</summary>
+    public bool LavaCoreVolcanoes { get; set; }
+
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
     /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every

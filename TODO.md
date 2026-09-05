@@ -24,6 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Volcanoes on every lava-core world; sea-mount cones rise out of the sea as volcanic islands (#1631, 2026-09-05, branch feat/volcanoes-1631)
+
+Marcel (2026-09-05): ocean worlds should sometimes show volcanoes as mountains out of the water; volcanoes on
+other world types too, but only where there is a lava core. Worldgen already had cones (#477) but gated
+them to `atmosphere != none && waterAbundance > 0`, and a 24–46-block cone on an ocean seabed never broke
+the surface. **`HasVolcanoes`** = `!Void && !Cratered && !_crateredWorld && !FloatingIslands` — the same
+bodies whose world floor ends in the molten band. **Sea-mount lift** in the new `TryGetVolcanoInCell`
+(the per-cell half of `TryGetVolcano`): a centre whose `RawSurfaceHeight` is below `SeaLevel` gets
+`height = (sea − raw + 12..36) / ConeRimShare` (0.84^1.6) and `radius` grown up to +24 (= the placement
+margin, so seam safety holds); cones memoised per (planet, salt, circ, cell) in `_volcanoCells`.
+Re-entrancy: `BuildCalibration` samples `SurfaceHeight` before the sea exists → `[ThreadStatic] _calibrating`
+skips the lift during the sample and `CalibFor` invalidates the column caches afterwards, so the un-lifted
+rim columns never stick (`SeaMountLift_IsDeterministic_AndIndependentOfQueryOrder`). Tests:
+`VolcanoLavaCoreTests` (ocean sea-mounts clear the sea, desert + lava worlds grow cones, cratered asteroid
+none, order independence, legacy rule with the flag off). `VolcanoesForTest` hook. **Gated to new worlds** like
+continents (#704): `WorldDescription.LavaCoreVolcanoes` (load-safe false; ServerConfig's default description
+true) → `WorldGenerator.SetLavaCoreVolcanoes` at server start — a cone appearing on an existing desert save could
+bury a base, and the worldgen goldens (`desert-default`) prove old saves are byte-identical. The client's
+minimap preview does not carry the flag (cones are invisible at map resolution).
+
 ### ★ Ocean landings: 2-D pad nudge, islet for every deep all-water pad, wider islets, dry-pad preference, blue seabed markers with depth (#1618 #1619 #1620 #1621 #1622, 2026-09-05, branch fix/ocean-pads-2d-nudge)
 
 Follow-up to #1453/#1454 after Marcel's 2026-09-05 impression that "the islets do not work": a 12-seed probe

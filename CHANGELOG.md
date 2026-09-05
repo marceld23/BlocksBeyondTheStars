@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🌋 Volcanoes wherever the core is molten, and volcanic islands in the sea (#1631)
+
+- **Volcanoes on every world with a lava core.** Basalt cones with a molten crater used to grow only on
+  watery, breathable worlds; now any world whose depths end in lava can carry them — desert, salt flats,
+  toxic rock, even the lava worlds themselves. Cratered moons and asteroids stay dead.
+- **Volcanic islands.** A volcano whose base lies under the sea now rises until its crater clears the
+  water by a good margin, with a wider base — an ocean world's horizon gets a smoking mountain instead of
+  a drowned bump. Which cells get one is still the same seeded roll, so some ocean worlds have several and
+  some none.
+- **New worlds only.** Like the continents, this switches on at world creation; your existing saves keep
+  exactly the terrain they have — no mountain grows over a base you already built.
+
 ### 🏝️ Landing on ocean worlds: real islands first, proper islets otherwise, the seabed only in the shallows (#1618 #1619 #1620 #1621 #1622)
 
 - **Landing pads look for land north and south too.** Until now a pad only searched east and west along
