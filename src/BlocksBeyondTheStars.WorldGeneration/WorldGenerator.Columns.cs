@@ -113,8 +113,21 @@ public sealed partial class WorldGenerator
         // strata (tilted granite bands in the upper crust). Both gates are false on a generation-0 world.
         var wonderGates = WonderFor(planet);
         bool geodeWorld = wonderGates.Geodes && !cavernCrystalId.IsAir;
-        var strataId = _content.GetBlock("granite")?.NumericId ?? BlockId.Air;
+        var graniteId = _content.GetBlock("granite")?.NumericId ?? BlockId.Air;
+        var sandstoneId = _content.GetBlock("sandstone")?.NumericId ?? BlockId.Air;
+        var strataId = sandstoneId.IsAir ? graniteId : sandstoneId; // #1647: sandstone strata now that the block exists
         bool strataWorld = wonderGates.Strata && !strataId.IsAir;
+
+        // Generation-1 bodies + paints (#1647): the block ids the paint chain writes, resolved once per chunk.
+        bool gen1Paints = wonderGates.Generation >= 1 && !planet.Void && !planet.Cratered && !_crateredWorld && !planet.FloatingIslands;
+        var grassId = _content.GetBlock("grass")?.NumericId ?? BlockId.Air;
+        var dirtId = _content.GetBlock("dirt")?.NumericId ?? BlockId.Air;
+        var mudId = _content.GetBlock("mud")?.NumericId ?? BlockId.Air;
+        var sandId = _content.GetBlock("sand")?.NumericId ?? BlockId.Air;
+        var stoneId = _content.GetBlock("stone")?.NumericId ?? BlockId.Air;
+        var mossStoneId = _content.GetBlock("moss_stone")?.NumericId ?? BlockId.Air;
+        var screeId = _content.GetBlock("scree")?.NumericId ?? BlockId.Air;
+        var ashId = _content.GetBlock("ash")?.NumericId ?? BlockId.Air;
 
         // Geysers / vents (item 21 follow-up): sparse erupting spouts — water geysers on reasonably wet worlds,
         // steam/lava vents on volcanic/ashen worlds. A marker block at the surface; the client attaches the
@@ -197,6 +210,17 @@ public sealed partial class WorldGenerator
             TunnelWorld = tunnelWorld,
             GeodeWorld = geodeWorld,
             StrataWorld = strataWorld,
+            Gen1Paints = gen1Paints,
+            GrassId = grassId,
+            DirtId = dirtId,
+            MudId = mudId,
+            SandId = sandId,
+            StoneId = stoneId,
+            GraniteId = graniteId,
+            MossStoneId = mossStoneId,
+            ScreeId = screeId,
+            SandstoneId = sandstoneId,
+            AshId = ashId,
         };
 
         // #1527: per-chunk ore invariants + one lazily built noise lattice per (column, field): slot 0 caves,
@@ -535,6 +559,8 @@ public sealed partial class WorldGenerator
         public bool Ponds, VolcanoWorld, TravertineWorld, CenoteWorld, FreezeWater, BeachPossible, SnowPossible;
         public bool PenitenteWorld, BasaltFieldWorld, AnyBands, CavernWorld, TunnelWorld;
         public bool GeodeWorld, StrataWorld; // #1646
+        public bool Gen1Paints; // #1647
+        public BlockId GrassId, DirtId, MudId, SandId, StoneId, GraniteId, MossStoneId, ScreeId, SandstoneId, AshId; // #1647
         public double PondThreshold;
     }
 
@@ -597,6 +623,7 @@ public sealed partial class WorldGenerator
         bool anyBands = c.AnyBands;
         bool cavernWorld = c.CavernWorld;
         bool tunnelWorld = c.TunnelWorld;
+        var wonder = WonderFor(planet); // #712/#1644/#1647: the per-world profile (gates, rows, generation)
 
         int surfaceY = SurfaceHeight(planet, worldX, worldZ);
 
@@ -681,6 +708,17 @@ public sealed partial class WorldGenerator
             columnFluid = seaWaterId;
         }
 
+        // Generation-1 bodies (#1647): marsh sheets, oases, hot springs, caldera / shield / maar lakes, playas,
+        // tarns — only on a column no classic body claimed (still plain: bed = surface, water = the sea line).
+        // TryGetGen1Water is the same function the surface-water helpers read, so they agree by construction.
+        if (c.Gen1Paints && seabedY == surfaceY && waterTop == fluidLevel && surfaceY > fluidLevel
+            && TryGetGen1Water(planet, wonder, worldX, worldZ, surfaceY, out int g1Top, out int g1Bed, out var g1Fluid))
+        {
+            seabedY = g1Bed;
+            waterTop = g1Top;
+            columnFluid = g1Fluid;
+        }
+
         // Frozen water (#494): a cold column's water freezes from the waterline down — a walkable
         // ice sheet with liquid below on merely-cold bodies, frozen through to the seabed in the
         // deep cold or where the sheet reaches the bed anyway. Lava columns never freeze.
@@ -718,6 +756,18 @@ public sealed partial class WorldGenerator
             {
                 surfaceId = beachId;
                 subSurfaceId = beachId;
+            }
+        }
+
+        // Generation-1 paints (#1647) on plain dry land (no body on the column, no beach): marsh mud, oasis
+        // ring, spring crust, playa salt, scree slopes, ash fall, dry beds, deck bands, soil patches, moss.
+        if (c.Gen1Paints && !beachHere && seabedY == surfaceY && waterTop <= surfaceY && surfaceY > fluidLevel
+            && Gen1SurfacePaint(planet, wonder, c, worldX, worldZ, surfaceY, biome.Surface, out var g1Sub) is { } g1Painted)
+        {
+            surfaceId = g1Painted;
+            if (g1Sub is { } g1SubId)
+            {
+                subSurfaceId = g1SubId;
             }
         }
 
@@ -770,7 +820,6 @@ public sealed partial class WorldGenerator
         // Landmark-table paints (#1644): the active rows' surface repaints, table order. Empty on every
         // classic world — the families above keep their inline paints because those interleave with the
         // beach/snow order; new families register a paint delegate instead of editing this method.
-        var wonder = WonderFor(planet);
         var landmarkPaints = wonder.ActivePaints;
         for (int i = 0; i < landmarkPaints.Length; i++)
         {

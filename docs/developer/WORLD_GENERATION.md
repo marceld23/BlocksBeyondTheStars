@@ -688,5 +688,38 @@ wet generation-1 worlds seven of eight mega-caverns hold a lake that fills most 
 (inside a 420-block region mask the upper crust between the topsoil and 48 deep carries tilted granite bands,
 2 of every 7 cells; ores keep their cells; sandstone replaces granite once part 4 ships the block).
 
-Parts 4–6 (water bodies, paints, props, trees, data-only planet types, monument archetypes) are documented
-here as they land.
+### 12.3 Part 4 — new blocks, water / lava bodies, surface paints (#1647, generation ≥ 1)
+
+**Blocks.** `moss_stone`, `tar`, `bone`, `sandstone`, `scree` (category terrain, each with a material item that
+places it, EN/DE names + descriptions, the other locales via `translate_locale.py`, AI-generated 64-px tiles
+bundled as `client/Assets/Resources/textures/<key>.bytes`, listed in NOTICES). `moss_stone`, `sandstone`,
+`scree`, `bone` join the curated dye/shape set (`GameContent.TintableDefaults`) like granite; the editors list
+every placeable block by category, so all five appear in the structure and ship editors without a code
+change. Numeric block ids are assigned alphabetically at content load, so adding a block shifts every later
+id: saves remap through the persisted block palette, and the worldgen goldens now hash block KEYS instead
+of raw ids (`WorldGenerationGoldenTests.HashChunk`) — the classic groups' terrain is unchanged, only their
+pin values moved. Sediment strata (§12.2) use sandstone now that the block exists.
+
+**Bodies — `WorldGenerator.FluidsGen1.cs`, `TryGetGen1Water`.** ONE function decides the generation-1
+bodies for a surface column no classic body (sea, pond, crater, river, travertine pool, cenote pool) claims;
+the column phase fills what it returns and the helper queries (`TryGetRawWaterColumn` → `TryGetWaterSurface`
+/ `IsSurfaceWater`, `TryGetLavaSurface`, the new `SurfaceGen1WaterDepth` the tree / prop stamps read) call
+the same function, so they agree by construction (`LandscapeFluidsPaintsTests` samples thousands of columns
+on four world types). Fixed order, first hit wins: marsh sheets (`wetland` tag, water ≥ 0.4: inside a broad
+marsh region on slope ≤ 2, a 9-block mask alternates 1-deep water with mud — the reed host), oases (dry
+sand worlds: a 6–14-radius pond 1–3 deep per 900-block cell, a grass ring, palms — `OasisPalmFringeAt`
+makes `StampTrees` grow dense palms there), hot springs (wet volcano worlds: 1–3 pools r 2–4 with a basalt
+crust), caldera lakes (the ring caldera's interior to 60 % of its basin; lava on dry volcanic worlds),
+shield-volcano summit lakes (lava, or water where there is no lava block), maar lakes, playas (salt-painted
+desert flats, the wettest tenth a film of water), tarns (the glacial trough's deep end). Lava rivers already
+route on every `volcanic` type since #1644 (a probe test now proves it).
+
+**Paints — `Gen1SurfacePaint`,** on plain dry land after the beach paint and before the snow line: marsh
+mud, oasis grass ring, hot-spring crust, playa salt; then scree where the surface slope exceeds 6 and bare
+deep rock above 10 (`SurfaceSlope`, four memoised neighbours), ash fall on the skirt from a volcano's cone
+foot to 1.5 radii (dithered), dry riverbeds on dry worlds (a ridged channel mask → scree on rock ground,
+sand elsewhere), deck banding on mesa / tablelands / terraces worlds (every third 6-block deck sandstone,
+every other third granite), soil patches in grass biomes, moss stone on the rock of temperate wet worlds.
+
+Parts 5–6 (props, trees, giant flora, data-only planet types, monument archetypes) are documented here as
+they land.

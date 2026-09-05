@@ -204,6 +204,12 @@ TEXTURES = [
     # loaders do NOT brighten tiles like CreatureBuilder does: desaturated 70 % and lifted
     # v' = 1 - (1 - v) * 0.76 so the plates sit at ~0.40 mean grey.
     ("enemy_robot", "dark grey armoured sci-fi robot plating with bolted panel seams and etched light-grey circuit-board traces and solder pads, matte metal, coarse large panels, no lights, no glow, no colour"),
+    # Landscape variety 4/6 (#1647): the five terrain blocks of the generation-1 paints, fluids and props.
+    ("moss_stone", "grey cobbled stone rock surface thickly overgrown with soft green moss patches in the cracks, damp, top-down"),
+    ("tar", "glossy black tar pitch surface with a few slow dull bubbles and faint oily sheen, very dark, top-down"),
+    ("bone", "bleached pale ivory bone surface, a dense mass of old dry bones and skull fragments, slightly yellowed, top-down"),
+    ("sandstone", "warm ochre sandstone rock with fine horizontal sediment banding in tan, rust and cream, top-down"),
+    ("scree", "loose grey and brown angular rock fragments and gravel, a talus slope of broken stone, top-down"),
 ]
 
 if TYPE_CHECKING:

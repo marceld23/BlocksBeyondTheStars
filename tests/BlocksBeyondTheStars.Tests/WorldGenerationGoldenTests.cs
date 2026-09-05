@@ -56,6 +56,9 @@ public sealed class WorldGenerationGoldenTests
         // #1646 (part 3): landmark families, bands and underground finds on generation-1 worlds.
         new("tundra-gen1", 424242, "tundra", 0, false, null, 1),
         new("rocky-gen1", 1, "rocky", 5472, false, "golden:rocky-body", 1),
+        // #1647 (part 4): water / lava bodies and paints on generation-1 worlds.
+        new("ocean-gen1", 424242, "ocean", 0, false, null, 1),
+        new("jungle-gen1", 20260903, "jungle", 0, false, null, 1),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -68,21 +71,24 @@ public sealed class WorldGenerationGoldenTests
         // Pinned 2026-09-04 from main @ 75fe9397 (Windows 11, .NET 10). Per-chunk values are in the failure report.
         ["windows"] = new()
         {
-            ["varied-default"] = 0x8cbecc0ad775fbd8UL,
-            ["rocky-default"] = 0x6a2db75f8a72597cUL,
-            ["desert-default"] = 0x2d0f68b62a055e40UL,
-            ["ocean-default"] = 0xcd5b96126e2b095fUL,
-            ["ice-default"] = 0xca83725ec07d4f02UL,
-            ["jungle-default"] = 0xfafe0246f460230cUL,
-            ["varied-world-5472"] = 0xd184d06aee4c17feUL,
-            ["asteroid-cratered-800"] = 0xea45216efb76ba71UL,
+            ["varied-default"] = 0x41037a332a1ecbe6UL,
+            ["rocky-default"] = 0x018f3fcd29dc3072UL,
+            ["desert-default"] = 0xc9aebd668ca714e7UL,
+            ["ocean-default"] = 0x161920f6b7dc1f68UL,
+            ["ice-default"] = 0xad1d02f2b2814251UL,
+            ["jungle-default"] = 0x9f198f0eb8281da4UL,
+            ["varied-world-5472"] = 0x2dcf8cfc85d02359UL,
+            ["asteroid-cratered-800"] = 0x0ccae399034733eeUL,
             // Pinned 2026-09-05 (#1645, Windows 11, .NET 10).
-            ["varied-gen1"] = 0x06b7238c0bfd64a9UL,
-            ["desert-gen1"] = 0x3a9c31b0e73aca33UL,
-            ["highland-gen1"] = 0x5ca22595bc582292UL, // re-pinned for #1646 (gen-1 landmarks; unreleased)
+            ["varied-gen1"] = 0x39e14dd48827b658UL, // re-pinned for #1647 (gen-1 bodies + paints; unreleased)
+            ["desert-gen1"] = 0x0e94fb4685e1fb71UL, // re-pinned for #1647
+            ["highland-gen1"] = 0xd587b8e9a3784938UL, // re-pinned for #1646 + #1647
             // Pinned 2026-09-05 (#1646, Windows 11, .NET 10).
-            ["tundra-gen1"] = 0x0fc36734f6fd655bUL,
-            ["rocky-gen1"] = 0xc8a627b43c22e758UL,
+            ["tundra-gen1"] = 0x75a685d971bd98a4UL, // re-pinned for #1647
+            ["rocky-gen1"] = 0xde6420a248761193UL, // re-pinned for #1647
+            // Pinned 2026-09-05 (#1647, Windows 11, .NET 10).
+            ["ocean-gen1"] = 0xcd2223af53fc3766UL,
+            ["jungle-gen1"] = 0xbf0fe45f613e46e8UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
@@ -200,15 +206,44 @@ public sealed class WorldGenerationGoldenTests
 
     /// <summary>FNV-1a over the dense block ids, then the sparse colour modifiers and shape descriptors in
     /// ascending cell order (dictionary order is not deterministic, so they are sorted first).</summary>
+    /// <summary>Per numeric id, the FNV hash of the block's KEY (#1647): numeric ids are assigned alphabetically
+    /// at content load, so adding any block shifts the ids of every block sorting after it — hashing raw ids
+    /// made every golden move whenever a block was added, although no terrain had changed. Hashing the key
+    /// keeps the goldens about the terrain. Ids without a block (synthetic test chunks) hash as themselves.</summary>
+    private static readonly ulong[] KeyHashById = BuildKeyHashes();
+
+    private static ulong[] BuildKeyHashes()
+    {
+        var content = Content();
+        ushort max = 0;
+        foreach (var b in content.Blocks.Values)
+        {
+            max = Math.Max(max, b.NumericId.Value);
+        }
+
+        var table = new ulong[max + 1];
+        foreach (var b in content.Blocks.Values)
+        {
+            ulong kh = FnvOffset;
+            foreach (char c in b.Key)
+            {
+                kh ^= c;
+                kh *= FnvPrime;
+            }
+
+            table[b.NumericId.Value] = kh == 0 ? 1UL : kh;
+        }
+
+        return table;
+    }
+
     internal static ulong HashChunk(ChunkData chunk)
     {
         ulong h = FnvOffset;
         foreach (ushort id in chunk.RawBlocks)
         {
-            h ^= (ulong)(id & 0xFF);
-            h *= FnvPrime;
-            h ^= (ulong)(id >> 8);
-            h *= FnvPrime;
+            ulong v = id < KeyHashById.Length && KeyHashById[id] != 0 ? KeyHashById[id] : id;
+            h = FnvMix(h, v);
         }
 
         if (chunk.Modifiers is { Count: > 0 } mods)
