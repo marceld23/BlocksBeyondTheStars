@@ -576,7 +576,9 @@ public sealed class ShipAiTests : IDisposable
 
         // Ticks with the world clock pinned to deep night (a full day is only 600 s here).
         float oxygenPin = 100f;
-        void Night(int seconds) => TickSeconds(server, client, seconds, () => { server.SetDayFractionForTest(0.95); p.Oxygen = oxygenPin; p.Hunger = 100f; });
+        // Health is pinned too: since the 2-D pad nudge (#1618) the home pad sits on a colder column, where a
+        // rocky night's exposure kills within the 157 s this test ticks — cold is not what it exercises.
+        void Night(int seconds) => TickSeconds(server, client, seconds, () => { server.SetDayFractionForTest(0.95); p.Oxygen = oxygenPin; p.Hunger = 100f; p.Health = 100f; });
 
         // The join-quiet minute: nothing yet, however long the lamp stays off.
         Night(30);

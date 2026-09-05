@@ -1492,7 +1492,12 @@ namespace BlocksBeyondTheStars.Client
                 string label = (p.Index + 1).ToString();
                 if (free)
                 {
-                    UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
+                    var btn = UiKit.AddButton(panel.transform, mx, my, marker, marker, label, () => LandOnPad(padIndex));
+                    if (p.Wet && btn != null && btn.TryGetComponent<Image>(out var wetImg))
+                    {
+                        wetImg.color = new Color(0.18f, 0.40f, 0.72f, 0.98f); // a seabed pad is blue on the map (#1622)
+                    }
+
                     _captureFreePads.Add((new Vector2(mx + marker * 0.5f, my + marker * 0.5f), padIndex));
                     float captionY = my + marker;
                     if (p.Mine)
@@ -1505,8 +1510,10 @@ namespace BlocksBeyondTheStars.Client
 
                     if (p.Wet)
                     {
-                        // A seabed pad (#1454): still selectable — the shaft is dry — but say so before the player commits.
-                        UiKit.AddText(panel.transform, mx - 40, captionY, marker + 80, 18, Loc("ui.space.pad_wet", "underwater"),
+                        // A seabed pad (#1454): still selectable — the shaft is dry — but say so, and how deep
+                        // (#1622), before the player commits.
+                        string wetCaption = p.Depth > 0 ? $"{Loc("ui.space.pad_wet", "underwater")} · {p.Depth} m" : Loc("ui.space.pad_wet", "underwater");
+                        UiKit.AddText(panel.transform, mx - 50, captionY, marker + 100, 18, wetCaption,
                             12, new Color(0.55f, 0.75f, 1f), TextAnchor.UpperCenter);
                     }
                 }

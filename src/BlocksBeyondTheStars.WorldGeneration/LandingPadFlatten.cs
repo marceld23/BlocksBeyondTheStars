@@ -13,24 +13,27 @@ public readonly struct LandingPadFlatten
     public readonly int SurfaceY;
     public readonly int Radius;
 
-    /// <summary>An islet pad (#1453): the pad sits ABOVE the sea on an ocean-class world whose pad column
-    /// is all water, so the generator raises a sand mound from the seabed up to <see cref="SurfaceY"/> —
-    /// flat over <see cref="Radius"/>, then a 1:1 beach slope out to <see cref="IsletRadius"/>.</summary>
+    /// <summary>An islet pad (#1453/#1620): the pad sits ABOVE the sea on a world whose pad footprint is
+    /// all water, so the generator raises a mound from the seabed up to <see cref="SurfaceY"/> — level
+    /// over <see cref="PlateauRadius"/>, then a 2:1 beach slope out to <see cref="IsletRadius"/>, both
+    /// rims wobbled by seeded noise so the island is not a perfect disc.</summary>
     public readonly bool Islet;
+    public readonly int PlateauRadius;
     public readonly int IsletRadius;
 
     public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius)
-        : this(centerX, centerZ, surfaceY, radius, islet: false, isletRadius: radius)
+        : this(centerX, centerZ, surfaceY, radius, islet: false, plateauRadius: radius, isletRadius: radius)
     {
     }
 
-    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int isletRadius)
+    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius)
     {
         CenterX = centerX;
         CenterZ = centerZ;
         SurfaceY = surfaceY;
         Radius = radius;
         Islet = islet;
-        IsletRadius = islet ? System.Math.Max(radius, isletRadius) : radius;
+        PlateauRadius = islet ? System.Math.Max(radius, plateauRadius) : radius;
+        IsletRadius = islet ? System.Math.Max(PlateauRadius, isletRadius) : radius;
     }
 }

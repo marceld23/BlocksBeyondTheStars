@@ -379,6 +379,7 @@ public sealed partial class GameServer
         // of (seed, N), so the grown systems come back byte-identical, in the same pass as the fixed ones.
         int systemCount = _meta.Description.StarSystemCount + Math.Max(0, _meta.GalaxyGrownSystems);
         _galaxy = new UniverseGenerator(_meta.Seed, _meta.Description, _content).Generate(systemCount);
+        _padCache.Clear(); // pads are a function of the galaxy (#1618)
 
         var stored = _repo.LoadLocationStatuses();
         foreach (var body in _galaxy.AllBodies())
@@ -3450,7 +3451,7 @@ public sealed partial class GameServer
             // First spawn: drop the new player on the first free landing pad of the home body (item 38). The pad
             // is NOT claimed here — occupancy is live, and a pad is only held once the player's ship is parked
             // on it (PlayerPad), which is also where the claim starts being persisted (#848).
-            int idx = FirstFreePadIndex(_world.LocationId, _landingPads.Count, name);
+            int idx = PreferredFreePadIndex(_world.LocationId, _landingPads, name); // dry > islet > seabed (#1621)
             var pad = _landingPads[idx >= 0 ? idx : 0];
             spawnX = pad.CenterX;
             spawnZ = pad.CenterZ;
