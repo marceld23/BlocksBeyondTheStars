@@ -658,5 +658,35 @@ escarpment at its own latitude → three storeys; the first escarpment is forced
 (~3 %, a 30–60-block wall 24–44 wide girdling the planet along X, meandering like the mega-rift).
 Never on sky, void or cratered worlds.
 
-Parts 3–6 (new landmarks, water bodies, paints, props, trees, data-only planet types, monument archetypes)
-are documented here as they land.
+### 12.2 Part 3 — landmark families, overhang bands, underground finds (#1646, generation ≥ 1)
+
+`WorldGenerator.LandmarksGen1.cs`. Every family is a hotspot-cell feature on the #477 recipe and gates on a
+profile flag that `WonderFor` only sets on generation-1 worlds, so the classic table order and every
+generation-0 world are untouched. The new rows are appended after `mega-rift` in footprint order (largest
+first): `shield-volcano` (r 200–400, h 20–40, a 6-deep summit bowl for part 4's lava lake; volcanic tag or a
+quarter of volcano worlds), `impact-basin` (r 120–250, 20–35 deep, raised rim; floods where it dips under the
+sea), `glacial-trough` (U-valley 25–45 deep whose floor slopes to one end; `glacial` tag or ≤ −5 °C),
+`yardangs` (grain-aligned rock ridges 6–12 tall inside a round field; `wind`), `drumlin-field` (rounded
+whalebacks; `glacial`, unless the world rolled the drumlins style), `inselberg` (granite dome r 60–150,
+h 40–90 with a granite paint delegate; `inselbergs`), `star-dunes` (pyramidal dune 15–30 tall with 3–5 arms;
+`wind` + sand), `mud-volcanoes` (fields of 3–6-tall cones on wet volcano worlds), `sinkhole-chain` (3–5
+sheer shafts along a line; cenote worlds), `maar` (bowl r 20–40, 8–14 deep with a low rim; the lake is part
+4), `mushroom-rock` (a 5–8 stem under a wide cap band; buttes worlds), `glacier-tongue` (paint only: ice on
+one flank sector of a cold massif). Tags in `planets.json`: `inselbergs` on rocky/savanna/desert/tablelands,
+`wind` on desert/tablelands/badlands/salt_flats, `glacial` on ice/tundra.
+
+**Bands** (`GetExtraBands`, `MaxColumnBands` 6 → 8): a natural bridge over a rift (1–2 rolled points per
+gorge, a 3-thick deck at the pre-rift rim ground, `TryGetRiftGeometry` repeats the rift's rolls so the classic
+`RiftOffset` stays byte-identical), a wave-cut coastal ledge (a 2-thick band just above the waterline on a
+shallow-water column next to ground 4+ above the sea, half of all such coasts by mask), ice cornices (a
+2-thick lip at crest level on a column 3 from a crest that stands 6+ higher, inside sparse regions of the
+coldest worlds), and the mushroom-rock cap.
+
+**Underground:** crystal geodes (hollow spheres r 6–14, 30–80 below base, crystal shell 1.6 thick, the
+interior air — `TryGetGeodeSpan` in the column profile, filled before caves and tunnels), aquifer caverns (on
+wet generation-1 worlds seven of eight mega-caverns hold a lake that fills most of the bowl), sediment strata
+(inside a 420-block region mask the upper crust between the topsoil and 48 deep carries tilted granite bands,
+2 of every 7 cells; ores keep their cells; sandstone replaces granite once part 4 ships the block).
+
+Parts 4–6 (water bodies, paints, props, trees, data-only planet types, monument archetypes) are documented
+here as they land.

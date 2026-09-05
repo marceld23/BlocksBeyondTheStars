@@ -393,6 +393,11 @@ public sealed partial class WorldGenerator
         public double[]? ReliefMuls;
         public bool Tilted, Stepped, EquatorRidge;
 
+        // #1646 (generation 1): landmark families, overhang bands and underground finds — all false on gen 0.
+        public bool ShieldVolcanoes, ImpactBasins, GlacialTroughs, Yardangs, DrumlinFields, Inselbergs;
+        public bool StarDunes, MudVolcanoes, SinkholeChains, Maars, MushroomRocks, GlacierTongues;
+        public bool NaturalBridges, CoastalOverhangs, IceCornices, Geodes, Strata;
+
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
         public LandmarkOffsetFn[] ActiveLandmarks = System.Array.Empty<LandmarkOffsetFn>();
@@ -444,6 +449,22 @@ public sealed partial class WorldGenerator
         new("crevasse", w => w.Crevasses, static (g, p, w, x, z) => g.CrevasseOffset(w.Seed, x, z)),
         new("rift", w => w.Rifts, static (g, p, w, x, z) => g.RiftOffset(w.Seed, x, z)),
         new("mega-rift", w => w.MegaRift, static (g, p, w, x, z) => g.MegaRiftOffset(w.Seed, x, z)),
+        // Generation-1 families (#1646), appended after the classic rows in footprint order (largest first);
+        // their gates are false on every generation-0 world, so the classic precedence is untouched.
+        new("shield-volcano", w => w.ShieldVolcanoes, static (g, p, w, x, z) => g.ShieldVolcanoOffset(p, w.Seed, x, z)),
+        new("impact-basin", w => w.ImpactBasins, static (g, p, w, x, z) => g.ImpactBasinOffset(w.Seed, x, z)),
+        new("glacial-trough", w => w.GlacialTroughs, static (g, p, w, x, z) => g.GlacialTroughOffset(w.Seed, x, z)),
+        new("yardangs", w => w.Yardangs, static (g, p, w, x, z) => g.YardangOffset(w, x, z)),
+        new("drumlin-field", w => w.DrumlinFields, static (g, p, w, x, z) => g.DrumlinFieldOffset(w, x, z)),
+        new("inselberg", w => w.Inselbergs, static (g, p, w, x, z) => g.InselbergOffset(p, w.Seed, x, z),
+            static (g, p, w, x, z, y) => g.InselbergPaint(p, w, x, z)),
+        new("star-dunes", w => w.StarDunes, static (g, p, w, x, z) => g.StarDuneOffset(w.Seed, x, z)),
+        new("mud-volcanoes", w => w.MudVolcanoes, static (g, p, w, x, z) => g.MudVolcanoOffset(w.Seed, x, z)),
+        new("sinkhole-chain", w => w.SinkholeChains, static (g, p, w, x, z) => g.SinkholeChainOffset(w.Seed, x, z)),
+        new("maar", w => w.Maars, static (g, p, w, x, z) => g.MaarOffset(w.Seed, x, z)),
+        new("mushroom-rock", w => w.MushroomRocks, static (g, p, w, x, z) => g.MushroomStemOffset(p, w, x, z)),
+        new("glacier-tongue", w => w.GlacierTongues, static (g, p, w, x, z) => 0.0,
+            static (g, p, w, x, z, y) => g.GlacierTonguePaint(w, x, z)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -621,6 +642,25 @@ public sealed partial class WorldGenerator
                     {
                         w.Escarpment = true; // three storeys = the classic escarpment plus a second one
                     }
+
+                    // #1646 landmark families, bands and underground finds.
+                    w.ShieldVolcanoes = HasShieldVolcanoes(planet, seed);
+                    w.ImpactBasins = HasImpactBasins(planet);
+                    w.GlacialTroughs = HasGlacialTroughs(planet);
+                    w.Yardangs = HasYardangs(planet);
+                    w.DrumlinFields = HasDrumlinFields(planet, w.Styles);
+                    w.Inselbergs = HasInselbergs(planet);
+                    w.StarDunes = HasStarDunes(planet);
+                    w.MudVolcanoes = HasMudVolcanoes(planet);
+                    w.SinkholeChains = HasSinkholeChains(planet);
+                    w.Maars = HasMaars(planet);
+                    w.MushroomRocks = HasMushroomRocks(planet);
+                    w.GlacierTongues = HasGlacierTongues(planet);
+                    w.NaturalBridges = HasNaturalBridges(planet);
+                    w.CoastalOverhangs = HasCoastalOverhangs(planet);
+                    w.IceCornices = HasIceCornices(planet);
+                    w.Geodes = HasGeodes(planet);
+                    w.Strata = HasStrata(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
@@ -641,7 +681,8 @@ public sealed partial class WorldGenerator
 
                 w.ActiveLandmarks = offsets.ToArray();
                 w.ActivePaints = paints.ToArray();
-                w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes;
+                w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes
+                    || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks; // #1646
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0

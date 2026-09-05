@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 3 of 6 — new kinds of mountains, holes and hidden places (#1646)
+
+- **New worlds only.** Twelve new landform kinds join the volcanoes, buttes and rifts: broad shield
+  volcanoes, round impact basins that fill with water, glacier-carved U-valleys, wind-carved yardang ridges,
+  drumlin fields, lone granite domes (inselbergs), star dunes, fields of little mud volcanoes, chains of
+  sinkholes, small crater bowls (maars), mushroom rocks, and glacier tongues running down cold mountains.
+- **Things that hang in the air:** natural rock bridges over gorges, wave-cut ledges at the foot of sea
+  cliffs, snow cornices on the ridges of the coldest worlds.
+- **Under the ground:** hollow crystal geodes to break into, caverns that hold whole underground lakes on
+  wet worlds, and layered rock strata in the upper crust.
+- Existing worlds are byte-identical.
+
 ### 🏔️ Landscape variety, part 2 of 6 — every new world rolls its own relief (#1645)
 
 - **New worlds only.** A planet type used to have one landscape: every desert a dune sea, every highland a

@@ -36,8 +36,9 @@ public sealed partial class WorldGenerator
         public BandKind Kind;
     }
 
-    /// <summary>Max extra bands a column can carry (#705): 3 island tiers + a cap + a waterfall.</summary>
-    public const int MaxColumnBands = 6;
+    /// <summary>Max extra bands a column can carry (#705): 3 island tiers + a cap + a waterfall, plus room for
+    /// the generation-1 bands (#1646: bridge, coastal ledge, cornice, mushroom cap) stacking on one column.</summary>
+    public const int MaxColumnBands = 8;
 
     /// <summary>Collects every extra band covering this column (#705): sky-island tiers (with ponds,
     /// stalactites and edge waterfalls, #707), arch bars, sea-stack and hoodoo caps and cenote lips
@@ -96,6 +97,32 @@ public sealed partial class WorldGenerator
         if (n < bands.Length && w.Cenotes && TryGetCenoteLip(planet, seed, worldX, worldZ, out int clLo, out int clHi))
         {
             bands[n++] = new ColumnBand { Bottom = clLo, Top = clHi, Kind = BandKind.Cap };
+        }
+
+        // Generation-1 bands (#1646): natural bridges over rifts, wave-cut coastal ledges, ice cornices,
+        // mushroom-rock caps. Every gate is false on a generation-0 world.
+        if (n < bands.Length && w.NaturalBridges && TryGetNaturalBridge(planet, seed, worldX, worldZ, out int nbLo, out int nbHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = nbLo, Top = nbHi, Kind = BandKind.Cap };
+        }
+
+        if (n < bands.Length && w.MushroomRocks && TryGetMushroomCap(planet, w, worldX, worldZ, out int mcLo, out int mcHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = mcLo, Top = mcHi, Kind = BandKind.Cap };
+        }
+
+        if (n < bands.Length && (w.CoastalOverhangs || w.IceCornices))
+        {
+            int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+            if (w.CoastalOverhangs && TryGetCoastalOverhang(planet, seed, worldX, worldZ, surfaceY, out int coLo, out int coHi))
+            {
+                bands[n++] = new ColumnBand { Bottom = coLo, Top = coHi, Kind = BandKind.Cap };
+            }
+
+            if (n < bands.Length && w.IceCornices && TryGetIceCornice(planet, seed, worldX, worldZ, surfaceY, out int icLo, out int icHi))
+            {
+                bands[n++] = new ColumnBand { Bottom = icLo, Top = icHi, Kind = BandKind.Cap };
+            }
         }
 
         return n;

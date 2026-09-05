@@ -55,7 +55,16 @@ public sealed partial class WorldGenerator
         double half = ry * System.Math.Sqrt(q);
         yLo = cy - (int)half;
         yHi = cy + (int)half;
-        if (((h >> 50) & 0x1) != 0)
+        if (w.Generation >= 1 && WaterAbundanceOf(planet) >= 0.4)
+        {
+            // Aquifer caverns (#1646): on wet generation-1 worlds seven of eight caverns hold a lake that fills
+            // most of the bowl — a still underground sea, not a puddle.
+            if (((h >> 50) & 0x7) != 0)
+            {
+                lakeY = cy - (int)(ry * 0.15);
+            }
+        }
+        else if (((h >> 50) & 0x1) != 0)
         {
             lakeY = cy - (int)(ry * (0.35 + ((h >> 52) & 0x3) * 0.05)); // lake fills the lower bowl
         }

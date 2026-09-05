@@ -53,6 +53,9 @@ public sealed class WorldGenerationGoldenTests
         new("varied-gen1", 424242, "varied", 5472, false, "golden:varied-body", 1),
         new("desert-gen1", 1, "desert", 0, false, null, 1),
         new("highland-gen1", 20260903, "highland", 0, false, null, 1),
+        // #1646 (part 3): landmark families, bands and underground finds on generation-1 worlds.
+        new("tundra-gen1", 424242, "tundra", 0, false, null, 1),
+        new("rocky-gen1", 1, "rocky", 5472, false, "golden:rocky-body", 1),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -76,7 +79,10 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-05 (#1645, Windows 11, .NET 10).
             ["varied-gen1"] = 0x06b7238c0bfd64a9UL,
             ["desert-gen1"] = 0x3a9c31b0e73aca33UL,
-            ["highland-gen1"] = 0x350b70a0088675a2UL,
+            ["highland-gen1"] = 0x5ca22595bc582292UL, // re-pinned for #1646 (gen-1 landmarks; unreleased)
+            // Pinned 2026-09-05 (#1646, Windows 11, .NET 10).
+            ["tundra-gen1"] = 0x0fc36734f6fd655bUL,
+            ["rocky-gen1"] = 0xc8a627b43c22e758UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
