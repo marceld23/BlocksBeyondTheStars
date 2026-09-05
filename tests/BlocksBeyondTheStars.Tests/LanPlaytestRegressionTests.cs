@@ -687,6 +687,112 @@ public sealed class LanPlaytestRegressionTests : IDisposable
         Assert.Contains(transport.Sent, x => x.Conn == ann.ConnectionId && x.Msg is InventoryUpdate); // the hold still refreshes
     }
 
+    // ---------------- #1584 (Lyxette, v2026.9.2): a switched-in ship launched into its OLD orbit ----------------
+
+    /// <summary>Two real galaxy bodies other than the start world, reached by real travels so every ship record
+    /// carries a proper body id. Returns the server with the STARTER last flown at A and the pilot standing on B
+    /// aboard a hauler.</summary>
+    private (SvGameServer Server, PlayerSession Pilot, string BodyA, string BodyB, string StarterId)
+        StarterLastFlownAtA_PilotOnBWithHauler(string name, RecordingTransport transport)
+    {
+        var server = NewServer(name, transport);
+        var ann = server.AddLocalPlayer("Ann");
+        ann.State.InstantBuild = true;
+        ann.State.UnlockedBlueprints.Add("ship_hauler");
+        server.SetInstantTravelForTest(true);
+        var planets = server.Galaxy.AllBodies().Where(b =>
+                b.Kind == CelestialKind.Planet
+                && !string.IsNullOrEmpty(b.PlanetType)
+                && _content.GetPlanet(b.PlanetType!) is not null
+                && b.Id != ann.CurrentLocationId)
+            .Take(2).ToArray();
+        var (bodyA, bodyB) = (planets[0].Id, planets[1].Id);
+
+        server.RequestLandingPadsForTest(ann, ann.CurrentLocationId); // serves Ann → server.Ship is her starter
+        string starterId = server.OwnedShips.Single().Key;
+        server.Ship.Modules.Add("jump_generator");
+        Assert.True(server.QuickTravelForTest("Ann", bodyA)); // the starter's last flight ends on A
+        Assert.Equal(bodyA, server.Ship.CurrentLocationId);
+
+        var (ok, haulerId) = server.CraftShip("Ann", "hauler");
+        Assert.True(ok);
+        Assert.True(server.SwitchShip(haulerId));
+        server.Ship.Modules.Add("jump_generator");
+        Assert.True(server.QuickTravelForTest("Ann", bodyB)); // …and the hauler carries her on to B
+        Assert.Equal(bodyB, ann.CurrentLocationId);
+        Assert.Equal(bodyA, server.OwnedShips[starterId].CurrentLocationId); // the starter still remembers A
+        return (server, ann, bodyA, bodyB, starterId);
+    }
+
+    [Fact]
+    public void SwitchShipWhileLanded_ParksTheSwitchedInShipOnThisBody()
+    {
+        // "Port Nou im falschen System": the starter, last flown at a home-system moon, was switched back in on a
+        // planet three systems away, launched — and its orbit was the moon's, station, pod and asteroids included.
+        var transport = new RecordingTransport();
+        var (server, ann, bodyA, bodyB, starterId) = StarterLastFlownAtA_PilotOnBWithHauler("switch_loc", transport);
+        ann.State.AboardShip = true;
+
+        Assert.True(server.SwitchShip(starterId));
+
+        Assert.Equal(bodyB, server.Ship.CurrentLocationId); // the hull stands on THIS pad, so it is parked here
+        Assert.NotEqual(bodyA, server.OwnedShips[starterId].CurrentLocationId);
+    }
+
+    [Fact]
+    public void EnterSpace_KeysTheFlightByThePilotsBody_EvenWhenTheShipRemembersAnother()
+    {
+        // The launch half must hold on its own: a stale fleet record (persisted before the switch sync existed,
+        // a claimed wreck, a shipyard purchase with its creation placeholder) may still name another body.
+        var transport = new RecordingTransport();
+        var (server, ann, bodyA, bodyB, starterId) = StarterLastFlownAtA_PilotOnBWithHauler("launch_loc", transport);
+        ann.State.AboardShip = true;
+        Assert.True(server.SwitchShip(starterId));
+        server.Ship.CurrentLocationId = bodyA; // the stale record the sync did not reach
+
+        server.EnterSpace("Ann");
+
+        Assert.True(server.InSpace("Ann"));
+        Assert.Equal("space:" + bodyB, server.SpaceInstanceIdForTest("Ann"));
+        Assert.Equal(bodyB, server.Ship.CurrentLocationId);
+        var state = transport.Sent.Where(x => x.Conn == ann.ConnectionId).Select(x => x.Msg).OfType<SpaceState>().Last();
+        Assert.Equal(server.Galaxy.FindBody(bodyB)!.Name, state.BodyName); // the scenery and the names agree
+    }
+
+    [Fact]
+    public void DyingInThatOrbit_RehomesTheCloneToThePilotsBody_NotTheShipsOldOne()
+    {
+        // Side effect of the same stale record: RecoverToShip re-homed a dead pilot to the ship's remembered body —
+        // a silent cross-system teleport on death.
+        var transport = new RecordingTransport();
+        var (server, ann, bodyA, bodyB, starterId) = StarterLastFlownAtA_PilotOnBWithHauler("death_loc", transport);
+        ann.State.AboardShip = true;
+        Assert.True(server.SwitchShip(starterId));
+        server.Ship.CurrentLocationId = bodyA;
+        server.EnterSpace("Ann");
+
+        server.KillPlayerForTest(ann, "@srv.death.wildlife");
+
+        Assert.False(server.InSpace("Ann"));
+        Assert.Equal(bodyB, ann.CurrentLocationId);
+        Assert.Equal(bodyB, server.Ship.CurrentLocationId);
+    }
+
+    [Fact]
+    public void SwitchShipInSpace_ParksTheSwitchedInShipAtTheOrbitsAnchor()
+    {
+        var transport = new RecordingTransport();
+        var (server, ann, bodyA, bodyB, starterId) = StarterLastFlownAtA_PilotOnBWithHauler("switch_space", transport);
+        ann.State.AboardShip = true;
+        server.EnterSpace("Ann"); // the hauler lifts off B
+        Assert.Equal("space:" + bodyB, server.SpaceInstanceIdForTest("Ann"));
+
+        Assert.True(server.SwitchShip(starterId)); // rebuilt in THIS orbit
+
+        Assert.Equal(bodyB, server.Ship.CurrentLocationId);
+        Assert.NotEqual(bodyA, server.OwnedShips[starterId].CurrentLocationId);
+    }
+
     // ---------------- #1346: the ship blip survives a death respawn ----------------
 
     /// <summary>Since #1308 the client clears its ship marker on EVERY WorldReset; a reset that is not followed
