@@ -269,9 +269,13 @@ public sealed partial class GameServer
         }
 
         SendInventory(session);
+        var (missingAfter, _) = ComputeShipRepairCost(live, design);
+        if (missingAfter == 0 && _ship.Hull >= _shipHullMax)
+        {
+            _ship.Shield = _shipShieldMax;
+        }
         SendShipCombatStatus(session);
 
-        var (missingAfter, _) = ComputeShipRepairCost(live, design);
         string note = Localize(session.Locale, "srv.repair.result")
             .Replace("{hull}", ((int)System.Math.Round(hullGained)).ToString());
         if (cellsRepaired > 0)
@@ -388,6 +392,32 @@ public sealed partial class GameServer
 
         Serve(session);
         _ship.Hull = System.Math.Max(0f, System.Math.Min(_shipHullMax, hull));
+    }
+
+    /// <summary>Test hook: current shield / max for a player.</summary>
+    public (float Shield, float ShieldMax) ShipShieldForTest(string playerId)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return (0f, 0f);
+        }
+
+        Serve(session);
+        return (_ship.Shield, _shipShieldMax);
+    }
+
+    /// <summary>Test hook: set the shield to a chosen value (clamped to [0, max]).</summary>
+    public void SetShipShieldForTest(string playerId, float shield)
+    {
+        var session = FindSessionByPlayerId(playerId);
+        if (session is null)
+        {
+            return;
+        }
+
+        Serve(session);
+        _ship.Shield = System.Math.Max(0f, System.Math.Min(_shipShieldMax, shield));
     }
 
     /// <summary>Test hook: the repair readout exactly as the cockpit would receive it (null when the player

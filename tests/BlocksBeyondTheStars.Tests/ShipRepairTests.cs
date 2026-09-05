@@ -101,6 +101,37 @@ public sealed class ShipRepairTests : IDisposable
     }
 
     [Fact]
+    public void RepairShipAll_WhenFullyRepaired_RestoresShield()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var player = server.AddLocalPlayer("Host");
+
+            var (_, hullMax) = server.ShipHullForTest("Host");
+            var (_, shieldMax) = server.ShipShieldForTest("Host");
+
+            // Simulate a damaged ship with a partially depleted shield.
+            server.SetShipHullForTest("Host", hullMax - 10f);
+            server.SetShipShieldForTest("Host", shieldMax - 10f);
+
+            player.State.Inventory.Add("iron_plate", 5, 99);
+
+            Assert.True(server.RepairShipForTest(
+                "Host",
+                new RepairShipIntent { Mode = "all" }));
+
+            var (hull, actualHullMax) = server.ShipHullForTest("Host");
+            Assert.True(
+                Math.Abs(actualHullMax - hull) < 0.01f,
+                $"hull {hull} should be back at max {actualHullMax}");
+
+            var (shield, actualShieldMax) = server.ShipShieldForTest("Host");
+            Assert.Equal(actualShieldMax, shield);
+        }
+    }
+    
+    [Fact]
     public void ShipRepairStatus_ListsTheBreachCells_AndClearsThemOnceRepaired()
     {
         // #1368: the readout carries the missing design cells (structure-local) so the client can outline every
