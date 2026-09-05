@@ -64,6 +64,11 @@ public sealed partial class GameServer
     /// <summary>Ore rarity (per planet ore table) at or below which VEGA calls an ore "rare here".</summary>
     private const double VegaTipRareOreRarity = 0.03;
 
+    /// <summary>On foot this far (m) from the landed ship, VEGA explains the compass's ship blip (#1594);
+    /// walking back within <see cref="VegaTipShipNearDistance"/> counts as "learned".</summary>
+    private const double VegaTipShipFarDistance = 150.0;
+    private const double VegaTipShipNearDistance = 30.0;
+
     /// <summary>The kind byte for a REPEATED context tip. The first occurrence of any tip goes out as a Kind-1
     /// advisor line (teaching moment, appended to the tips log); repeats use Kind 5 so the client can drop
     /// them when its speech queue is already busy. Both obey the VegaHints settings mute.</summary>
@@ -93,6 +98,9 @@ public sealed partial class GameServer
         new("wrong_tool",     VegaTipPriority.Equipment,   0,  600, 3, false),
         new("scanner_idle",   VegaTipPriority.Equipment,   0,  900, 2, true),
         new("speeder_far",    VegaTipPriority.Equipment,  10,  900, 2, true),
+        // #1594: on foot and a long walk from the landed ship — tells a first-time player what the blue
+        // compass blip is. Not gated on the scan stage (the player who needs it has not scanned anything yet).
+        new("ship_far",       VegaTipPriority.Equipment,  30, 1800, 2, false),
         // Materials + progression (#1079).
         new("rare_ore_near",  VegaTipPriority.Opportunity, 3,  600, 3, true),
         new("needed_ore_near", VegaTipPriority.Opportunity, 3, 600, 3, true),
@@ -490,6 +498,24 @@ public sealed partial class GameServer
                 {
                     Add("speeder_far");
                     break;
+                }
+            }
+        }
+
+        // --- Far from the landed ship (#1594) — the same shape as speeder_far, against the ship's heal tank ---
+        if (onFoot)
+        {
+            var landed = _worlds.Active.LandedFor(p.PlayerId);
+            if (landed.Placed)
+            {
+                double shipDistSq = WrapDistSq(p.Position, landed.HealTank);
+                if (shipDistSq > VegaTipShipFarDistance * VegaTipShipFarDistance)
+                {
+                    Add("ship_far");
+                }
+                else if (shipDistSq < VegaTipShipNearDistance * VegaTipShipNearDistance)
+                {
+                    ShipAiTipLearned(session, "ship_far"); // walked back after the tip → never again
                 }
             }
         }

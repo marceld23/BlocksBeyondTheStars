@@ -2796,6 +2796,7 @@
   "vega.hint.wrong_tool": "Du gräbst mit der Hand, obwohl ein guter Bohrer im Rucksack steckt. Nimm den Bohrer — geht schneller.",
   "vega.hint.scanner_idle": "Blind graben? Der Geländescanner in deinem Rucksack zeigt jedes Erz im Umkreis von zwanzig Blöcken. Probier ihn aus.",
   "vega.hint.speeder_far": "Dein Speeder steht einen weiten Fußmarsch von hier. Hol ihn zurück — oder pack ihn nächstes Mal ein.",
+  "vega.hint.ship_far": "Du bist ein gutes Stück vom Schiff entfernt. Das blaue Quadrat auf dem Kompass ist es — dreh dich, bis es oben auf der Scheibe steht, und lauf los. M öffnet die Karte.",
   "vega.hint.rare_ore_near": "Das ist {0} — selten auf dieser Welt. Ich würde es mitnehmen.",
   "vega.hint.needed_ore_near": "{0}, direkt hier — genau das fehlt dir noch für {1}.",
   "vega.hint.data_cache_near": "Ein Datencache in der Nähe. Scanne ihn — Wissen ist es, was Baupläne freischaltet.",
