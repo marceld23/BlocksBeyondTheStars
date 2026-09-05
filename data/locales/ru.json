@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Разнообразие систем",
   "ui.worldopt.belts": "Пояса астероидов",
   "ui.worldopt.continents": "Континенты и океаны",
+  "ui.worldopt.terrain_generation": "Генерация ландшафта",
+  "ui.worldopt.terrain_generation_value": "Генерация {gen} (новейшие формы рельефа)",
   "ui.worldopt.packs_title": "Паки шаблонов",
   "ui.worldopt.packs_none": "Паков шаблонов ещё нет. Построй станции/города в редакторах, чтобы добавить.",
   "ui.worldopt.packs_toggle": "•",

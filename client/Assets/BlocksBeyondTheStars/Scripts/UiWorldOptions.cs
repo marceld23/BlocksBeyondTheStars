@@ -256,6 +256,15 @@ namespace BlocksBeyondTheStars.Client
             AddSliderRow(parent, 30f, y, 740f, shell.L("ui.worldopt.continents"), galaxyOnOff,
                 () => opt.TerrainContinents ? 1 : 0, v => opt.TerrainContinents = v == 1, rebuilders: null);
 
+            // Landscape-variety package (#1644): the terrain generation is pinned to the newest one this launcher
+            // knows (WorldCreationOptions.TerrainGeneration) — shown read-only so the panel says which landform
+            // set the new world rolls; the classic set (0) stays a server-CLI escape hatch, not a slider.
+            y += 62f;
+            UiKit.AddText(parent, 30f, y, 280f, 40f, shell.L("ui.worldopt.terrain_generation"), 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiKit.AddText(parent, 320f, y, 450f, 40f,
+                shell.L("ui.worldopt.terrain_generation_value").Replace("{gen}", opt.TerrainGeneration.ToString()),
+                15, UiKit.Cyan, TextAnchor.MiddleLeft);
+
             // Pack picker (right column): one toggle per pack; "on" = enabled = not in DisabledPacks.
             float px = 820f, py = 96f;
             UiKit.AddText(parent, px, py, 740f, 24f, shell.L("ui.worldopt.packs_title"), 16, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);

@@ -17,10 +17,11 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 - **Nothing visible changes yet — every existing world stays byte-identical.** New worlds now carry a
   *terrain generation* number in their save (the classic generators are generation 0), so the coming
-  landscape parts reach new worlds only and never move terrain under an existing base. Under the hood the
-  world generator is split into one file per landform family, its planet-type gates read data tags instead
-  of type names, and landmarks and scatter props are registered in tables — adding a new kind of mountain
-  or prop is one row from now on.
+  landscape parts reach new worlds only and never move terrain under an existing base. The world-options
+  panel ("Hand-designed structures…" page, under *Galaxy & terrain*) shows which landscape generation a new
+  world gets. Under the hood the world generator is split into one file per landform family, its
+  planet-type gates read data tags instead of type names, and landmarks and scatter props are registered
+  in tables — adding a new kind of mountain or prop is one row from now on.
 
 ### 🧭 A star system you jumped into but never landed in can be jumped to again (#1638)
 

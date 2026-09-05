@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "System variety",
   "ui.worldopt.belts": "Asteroid belts",
   "ui.worldopt.continents": "Continents & oceans",
+  "ui.worldopt.terrain_generation": "Landscape generation",
+  "ui.worldopt.terrain_generation_value": "Generation {gen} (newest landforms)",
   "ui.worldopt.packs_title": "Template packs",
   "ui.worldopt.packs_none": "No template packs installed yet. Build stations/towns in the editors to add some.",
   "ui.worldopt.packs_toggle": "•",

@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Systeemvariatie",
   "ui.worldopt.belts": "Asteroïdengordels",
   "ui.worldopt.continents": "Continenten & oceanen",
+  "ui.worldopt.terrain_generation": "Landschapsgeneratie",
+  "ui.worldopt.terrain_generation_value": "Generatie {gen} (nieuwste landvormen)",
   "ui.worldopt.packs_title": "Sjabloonpakketten",
   "ui.worldopt.packs_none": "Nog geen sjabloonpakketten geïnstalleerd. Maak stations/steden in de editors om ze toe te voegen.",
   "ui.worldopt.packs_toggle": "•",

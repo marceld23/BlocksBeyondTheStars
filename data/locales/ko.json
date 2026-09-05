@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "계통 다양성",
   "ui.worldopt.belts": "소행성대",
   "ui.worldopt.continents": "대륙 & 대양",
+  "ui.worldopt.terrain_generation": "지형 생성",
+  "ui.worldopt.terrain_generation_value": "생성 {gen} (가장 최신 지형)",
   "ui.worldopt.packs_title": "템플릿 팩",
   "ui.worldopt.packs_none": "설치된 템플릿 팩이 없습니다. 편집기에서 역/마을을 만들어 추가하세요.",
   "ui.worldopt.packs_toggle": "•",

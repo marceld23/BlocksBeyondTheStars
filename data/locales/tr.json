@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Sistem çeşitliliği",
   "ui.worldopt.belts": "Asteroit kuşakları",
   "ui.worldopt.continents": "Kıtalar ve okyanuslar",
+  "ui.worldopt.terrain_generation": "Arazi oluşturma",
+  "ui.worldopt.terrain_generation_value": "Oluşturma {gen} (en yeni arazi şekilleri)",
   "ui.worldopt.packs_title": "Şablon paketleri",
   "ui.worldopt.packs_none": "Henüz şablon paketi yüklenmedi. Şablon eklemek için editörlerde istasyonlar/kasabalar oluştur.",
   "ui.worldopt.packs_toggle": "•",

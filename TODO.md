@@ -28,8 +28,9 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 Foundation for the landscape-variety package (#1644–#1649), deliberately **invisible**: all seven worldgen
 goldens unchanged. `WorldDescription.TerrainGeneration` (int, load-safe 0; `CurrentTerrainGeneration` = 1 for
-new worlds via ServerConfig, CLI `--terrain-generation`, `JoinAccepted.TerrainGeneration` → client preview
-bakes; `WorldGenerator.SetTerrainGeneration`, folded into every per-world memo key together with the
+new worlds via ServerConfig, CLI `--terrain-generation` — the launcher always sends it via
+`WorldCreationOptions` and the world-options structures page shows it read-only; `JoinAccepted.TerrainGeneration`
+→ client preview bakes; `WorldGenerator.SetTerrainGeneration`, folded into every per-world memo key together with the
 lava-core flag). `PlanetType.TerrainTags` → `TerrainTag` flags resolved at content load (`volcanic`, `salt`,
 `buttes`, `hoodoos`, `crystal`; `wind`/`wetland`/`glacial`/`inselbergs` reserved) replace the 11 planet-KEY /
 style-string gates — `TerrainTagsAndGenerationTests` proves equivalence for every type. `LandmarkKinds`

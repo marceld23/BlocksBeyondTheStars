@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Variedade de sistemas",
   "ui.worldopt.belts": "Cinturões de asteroides",
   "ui.worldopt.continents": "Continentes e oceanos",
+  "ui.worldopt.terrain_generation": "Geração de terreno",
+  "ui.worldopt.terrain_generation_value": "Geração {gen} (formas de terra mais novas)",
   "ui.worldopt.packs_title": "Pacotes de modelos",
   "ui.worldopt.packs_none": "Nenhum pacote de modelos instalado ainda. Construa estações/vilas nos editores para adicionar.",
   "ui.worldopt.packs_toggle": "•",

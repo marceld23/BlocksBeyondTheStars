@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Variété des systèmes",
   "ui.worldopt.belts": "Ceintures d'astéroïdes",
   "ui.worldopt.continents": "Continents et océans",
+  "ui.worldopt.terrain_generation": "Génération du paysage",
+  "ui.worldopt.terrain_generation_value": "Génération {gen} (formes de terrain les plus récentes)",
   "ui.worldopt.packs_title": "Packs de modèles",
   "ui.worldopt.packs_none": "Aucun pack de modèles installé pour le moment. Construis des stations/villes dans les éditeurs pour en ajouter.",
   "ui.worldopt.packs_toggle": "•",

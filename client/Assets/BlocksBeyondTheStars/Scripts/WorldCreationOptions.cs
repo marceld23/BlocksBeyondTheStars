@@ -47,6 +47,12 @@ namespace BlocksBeyondTheStars.Client
         public bool AsteroidBelts = true;
         public bool TerrainContinents = true;
 
+        /// <summary>Landscape-variety package (#1644): the terrain generation this launcher bakes its previews
+        /// with. Always sent (see <see cref="ToArgs"/>) so the server creates the world with the generation the
+        /// client understands — the panel shows it read-only; 0 (classic landforms only) stays a CLI-only
+        /// escape hatch. A loaded save always keeps the generation stored in its metadata.</summary>
+        public int TerrainGeneration = BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration;
+
         // Hand-designed structure templates: how readily an authored station/settlement is used in place
         // of a procedural one (Freq index; server default = Rare). 0 (Off) ⇒ always procedural.
         public int StationTemplates = 2;     // Rare
@@ -116,6 +122,7 @@ namespace BlocksBeyondTheStars.Client
             Flora = other.Flora; Ore = other.Ore; Settlements = other.Settlements; Wrecks = other.Wrecks;
             Vaults = other.Vaults; Stations = other.Stations; Exotic = other.Exotic; UniverseSize = other.UniverseSize;
             SystemVariance = other.SystemVariance; AsteroidBelts = other.AsteroidBelts; TerrainContinents = other.TerrainContinents;
+            TerrainGeneration = other.TerrainGeneration;
             StationTemplates = other.StationTemplates; SettlementTemplates = other.SettlementTemplates;
             Oxygen = other.Oxygen; Hunger = other.Hunger; Hazards = other.Hazards; DeathPenalty = other.DeathPenalty;
             SpaceCombat = other.SpaceCombat; KeepShip = other.KeepShip; AutoAim = other.AutoAim;
@@ -159,6 +166,11 @@ namespace BlocksBeyondTheStars.Client
             if (!SystemVariance) Arg("variance", "false");
             if (!AsteroidBelts) Arg("belts", "false");
             if (!TerrainContinents) Arg("continents", "false");
+
+            // Always emitted (the one exception to "non-default only"): it PINS the world to the generation this
+            // client bakes its minimap / orbit previews with, so a server whose default moved on still creates
+            // the world the previews show (#1644).
+            Arg("terrain-generation", TerrainGeneration.ToString());
 
             if (StationTemplates != 2) Arg("station-templates", Freq[StationTemplates]);
             if (SettlementTemplates != 2) Arg("settlement-templates", Freq[SettlementTemplates]);

@@ -579,10 +579,14 @@ change from part 2 on gates on the world's generation number and reaches **new w
 **The switch — `WorldDescription.TerrainGeneration` (int).** 0 = every world created before the package
 (the classic generators; the load-safe default, like `TerrainContinents`); 1 = the 2026-09 package.
 `ServerConfig`'s creation-time description carries `WorldDescription.CurrentTerrainGeneration`; the CLI
-`--terrain-generation N` is the escape hatch (0 = classic). The server applies it via
-`WorldGenerator.SetTerrainGeneration` before any height query and hands it to the client in
-`JoinAccepted.TerrainGeneration`, so the minimap / sky-body / space-view preview bakes use the same
-generation. One integer instead of one bool per wave: a later wave is a single `>=` compare.
+`--terrain-generation N` is the escape hatch (0 = classic). The launcher ALWAYS sends it
+(`WorldCreationOptions.TerrainGeneration`, the one non-default-only exception in `ToArgs`): it pins the
+new world to the generation the client bakes its previews with, so a server whose default moved on still
+creates the world the previews show; the world-options structures page lists it read-only under "Galaxy
+& terrain". The server applies it via `WorldGenerator.SetTerrainGeneration` before any height query and
+hands it to the client in `JoinAccepted.TerrainGeneration`, so the minimap / sky-body / space-view
+preview bakes use the same generation. One integer instead of one bool per wave: a later wave is a
+single `>=` compare.
 
 **Terrain tags — `PlanetType.TerrainTags` → `TerrainTag` flags.** The generator no longer gates any
 landform family on a planet-type KEY or on the style string: `volcanic` (lava rivers, basalt column

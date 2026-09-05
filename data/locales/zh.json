@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "星系多样性",
   "ui.worldopt.belts": "小行星带",
   "ui.worldopt.continents": "大陆与海洋",
+  "ui.worldopt.terrain_generation": "地形生成",
+  "ui.worldopt.terrain_generation_value": "生成 {gen}（最新地貌）",
   "ui.worldopt.packs_title": "模板包",
   "ui.worldopt.packs_none": "尚未安装任何模板包。在编辑器中建造站点/城镇以添加模板包。",
   "ui.worldopt.packs_toggle": "•",

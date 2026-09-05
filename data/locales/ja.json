@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "系の多様性",
   "ui.worldopt.belts": "小惑星帯",
   "ui.worldopt.continents": "大陸と海洋",
+  "ui.worldopt.terrain_generation": "地形生成",
+  "ui.worldopt.terrain_generation_value": "Generation {gen}（最新の地形）",
   "ui.worldopt.packs_title": "テンプレートパック",
   "ui.worldopt.packs_none": "テンプレートパックはまだインストールされていません。エディタでステーションや町を作って追加しましょう。",
   "ui.worldopt.packs_toggle": "•",
