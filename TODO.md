@@ -24,6 +24,14 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ CI: main green again — the view-distance streaming test wraps its probe columns at the longitude seam (#1640, 2026-09-05, branch fix/streaming-test-seam)
+
+Every push to `main` since #1632 failed the full tier on one `Slow` test (PR CI skips the Slow tier, so five
+merges went through green): `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire` compared unwrapped chunk X,
+and the dry-pad preference (#1621) moved this seed's spawn pad to column 733 of 735 — "center + 2" named a column
+the server only ever streams canonically as 0. Test-only fix: both probe columns go through
+`WorldConstants.CanonicalChunkX(x, circumference)`, like the server's own chunk keys. Streaming was never wrong.
+
 ### ★ VEGA continue key works right after the chat closes — the hidden chat box no longer counts as "a text field has focus" (#1634, 2026-09-05, branch fix/vega-n-after-chat)
 
 Marcel (2026-09-05, local playtest): Enter → type → Esc closed the chat fine, but N would not dismiss the VEGA
