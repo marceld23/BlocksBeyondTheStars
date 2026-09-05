@@ -34,6 +34,11 @@ public sealed class NetLandingPad
     /// ship's pad. Drawn as theirs and stays selectable in the chooser. Appended field: contractless
     /// MessagePack, so an older peer simply reads it as false (no protocol bump).</summary>
     public bool Mine { get; set; }
+
+    /// <summary>Blocks of water standing over a <see cref="Wet"/> pad's ground (#1622), 0 when dry — the
+    /// chooser prints it so a wade and a shaft read differently. Appended contractless field: an older peer
+    /// reads 0.</summary>
+    public int Depth { get; set; }
 }
 
 /// <summary>A body's fixed landing pads + occupancy (server → client): drives the land chooser in the flight

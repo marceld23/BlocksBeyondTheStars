@@ -24,6 +24,32 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Ocean landings: 2-D pad nudge, islet for every deep all-water pad, wider islets, dry-pad preference, blue seabed markers with depth (#1618 #1619 #1620 #1621 #1622, 2026-09-05, branch fix/ocean-pads-2d-nudge)
+
+Follow-up to #1453/#1454 after Marcel's 2026-09-05 impression that "the islets do not work": a 12-seed probe
+(analysis, not committed) showed the islet generation was fine but the X-only pad march left 83 of 164 ocean
+pads in the water although 92 % of them had land within a 2-D ±180 search, 37 % of those went to the seabed
+by the 60 % roll (seed 9: 88 blocks deep), and the r 8 sand islet read as a sandbank. **#1618** —
+`NudgePadToDryAndFlat` is a ring search over X and Z (step 3, `PadSearchBudget` 180 / `PadSearchBudgetOcean`
+300 for `waterAbundance ≥ 1`, |Z| clamped to the latitude band; east/west visited first on each ring so ties
+stay on the planned latitude); `ComputeLandingPads` is memoised per body (`_padCache`, cleared with the
+galaxy) because the chooser recomputes remote bodies per approach. After: 157/164 pads on natural land,
+7 islets, 0 seabed. **#1619** — `DecidePad`: an all-water footprint whose sea depth (`seaLevel − median
+ground`) exceeds `ShallowSeabedDepth` = 8 becomes an islet on ANY world whose sea is water
+(`WorldGenerator.SeaIsWater`); shallow water, ponds/rivers and lava seas keep the seabed shaft (`Wet`,
+plus `Depth` from `TryGetWaterSurface`). The 60 % `IsletRoll` is gone. **#1620** — `LandingPadFlatten`
+carries `PlateauRadius` (12) + `IsletRadius` (28), `IsletRise` 3; `PadColumnAt` wobbles both rims by ±3
+blocks of `FbmT` noise (never inside the reserved pad) and slopes 2:1; `FlattenLandingPads` puts the biome
+surface on the plateau over beach fill, beach block on the slope, and `FloraForSurface` tufts at 16 % on the
+plateau off the pad. **#1621** — `PreferredFreePadIndex` (dry > islet > seabed, ties by index) replaces
+`FirstFreePadIndex` for players in `CreateNewPlayer`, `PlayerPad` and the auto path of `TryClaimPad`
+(`PadsForBody` computes an unloaded body's pads); traders keep the plain rule. **#1622** — `NetLandingPad.Depth`
+(appended contractless field); SpaceView paints a free wet pad's button blue and captions
+"underwater · seabed · N m"; WorldMap lists the depth. No new locale keys. Tests: `LandingPadTests`
+(`OceanWorld_RaisesAnIsletUnderDeepPads_AndOnlyShallowOnesStayOnTheSeabed` on seed 9,
+`PadNudge_FindsLandNorthOrSouth_NotOnlyAlongTheLatitude`, `PlayerPadPreference_…`,
+`NewPlayer_SpawnsOnAPadNoWorseThanTheBestFreeOne`). Local Unity build before merge (client/Assets touched).
+
 ### ★ Planet lighting: shade is shade, not a cave — depth-aware skylight, dappled sun through the shadow map, de-stacked AO, star light normalised, caves a touch brighter, shadow fade (#1608 #1609 #1610 #1611 #1612, 2026-09-05, branch fix/shade-skylight-lighting)
 Marcel: "auf manchen Welten immer noch recht dunkel; im Schatten braucht es die Lampe, um eine Textur zu erkennen".
 Analysis: the URP shadow map is mild (shadowStrength 0.7 → ×0.73); what crushed shade was the mesher SKYLIGHT —

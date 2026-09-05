@@ -425,6 +425,11 @@ separate unlock; admins can still disable it through server world rules.
 - Ship hull, station, settlement and other players' protected landing zones cannot be mined — **except
   plants**: you may always pick flora, wherever it grows (that is what makes a settlement greenhouse worth
   visiting), you just cannot take the building apart.
+- **Landing pads are on dry land whenever the world offers any** — the pad search looks in every direction,
+  and on ocean worlds further. A pad that still sits in open sea rises on a small island (beach, grass, a few
+  plants); only in shallow water does the ship park in a dry shaft on the seabed. The approach map draws such
+  pads **blue** and says how deep the water is ("underwater Â· seabed Â· 6 m"); your first landing and any
+  landing you do not pick by hand prefer dry ground.
 - **Your ship is a real parked object** on its landing pad (pads are naturally flat). You can
   **furnish the interior**: place blocks in free cabin space (and mine those again) — they stay with
   the ship across launches, landings and the walk-in interior. The hull cannot be damaged and ship
