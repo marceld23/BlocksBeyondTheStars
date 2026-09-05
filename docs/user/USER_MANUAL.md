@@ -1101,7 +1101,7 @@ separate unlock; admins can still disable it through server world rules.
 - **Visitors at the base** (Settings → world rules, world admin, off by default): bandit scouts look at a
   founded base from its edge while the owner is home — never inside, never destructive; see § Bases. Gated
   on the **Bandits** slider (no robbers, no scouts); the `dangerous` preset ships with it on.
-- **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 8
+- **Growing galaxy** (world creation → Universe size → **"Growing"**): the galaxy starts at the normal 12
   systems — but every time someone hyperjumps into one of the current **outermost** systems, deep-space
   telescopes report a **brand-new system beyond it**. The galaxy literally grows at your frontier, up to a
   generous cap ("the frontier is quiet"). Growth is permanent: new systems survive save/reload like any

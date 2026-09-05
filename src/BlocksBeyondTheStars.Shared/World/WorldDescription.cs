@@ -107,7 +107,11 @@ public static class FrequencyExtensions
 /// </summary>
 public sealed class WorldDescription
 {
-    public int StarSystemCount { get; set; } = 8;
+    /// <summary>Systems in a fixed galaxy. 12 since #1616 (was 8): the launcher's "Normal" tier sends no
+    /// explicit count, so this default IS a normal singleplayer world and every dedicated server without
+    /// <c>--systems</c>. The galaxy is metadata only (worlds load per occupied body), so the count is a
+    /// content knob, not a performance one; the CLI clamps it to 1..32.</summary>
+    public int StarSystemCount { get; set; } = 12;
 
     public int PlanetsPerSystemMin { get; set; } = 2;
     public int PlanetsPerSystemMax { get; set; } = 6;

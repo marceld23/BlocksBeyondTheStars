@@ -40,6 +40,18 @@ public sealed class UniverseTests : IDisposable
     }
 
     [Fact]
+    public void DefaultDescription_GeneratesTwelveSystems()
+    {
+        // #1616: the default (= the launcher's "Normal" tier + every dedicated server without --systems)
+        // grew from 8 to 12 systems. Pinned so a stray default change never silently shrinks new worlds.
+        var galaxy = new UniverseGenerator(42, new WorldDescription(), _content).Generate();
+
+        Assert.Equal(12, new WorldDescription().StarSystemCount);
+        Assert.Equal(12, galaxy.Systems.Count);
+        Assert.Equal(12, galaxy.Systems.Select(s => s.Id).Distinct().Count());
+    }
+
+    [Fact]
     public void BodyPositions_AreDeterministic_AndSpreadOut()
     {
         var desc = new WorldDescription { StarSystemCount = 4, PlanetsPerSystemMin = 3, PlanetsPerSystemMax = 5 };
