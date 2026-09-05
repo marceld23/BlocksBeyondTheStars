@@ -1831,26 +1831,28 @@ namespace BlocksBeyondTheStars.Client
                 y = BuildFlightAction();
             }
 
-            // A distant system you've NEVER entered hides its bodies — it's a single "hyperjump here" target.
-            if (!isCurrent && !Game.KnowsSystem(sys.Id))
+            // Every OTHER system is a "hyperjump here" target — you arrive in flight and fly to its worlds.
+            // A system you've never entered hides its bodies, so the jump entry is all it shows. A KNOWN system
+            // (entered before, #1638) lists its bodies below, but with Instant Travel off they stay locked until
+            // you have LANDED on them — so a system you only ever jumped into would otherwise be unreachable again.
+            if (!isCurrent)
             {
-                UiKit.AddText(_listContent, 8, y, 760, 56, L("ui.map.system_unexplored"), 19, UiKit.CyanDim, TextAnchor.UpperLeft);
+                bool knownSystem = Game.KnowsSystem(sys.Id);
+                UiKit.AddText(_listContent, 8, y, 760, 56, L(knownSystem ? "ui.map.system_known_jump" : "ui.map.system_unexplored"), 19, UiKit.CyanDim, TextAnchor.UpperLeft);
                 y += 64f;
-                var jump = UiKit.AddButton(_listContent, 0, y, 760, 60, L("ui.map.hyperjump_here"), () => Game.Network?.SendHyperjumpSystem(sys.Id));
-                jump.GetComponent<Image>().color = new Color(0.30f, 0.18f, 0.46f); // hyperspace-violet accent
-                if (!AboardShipNow())
-                {
-                    SetInteractable(jump, false); // travel happens from your ship — board it first
-                }
-
-                y += 76f;
+                y = AddSystemJumpButton(_listContent, 0, y, 760, sys.Id);
                 if (HasClientLane(CurrentSystemId(), sys.Id))
                 {
                     UiKit.AddText(_listContent, 8, y, 760, 24, "⇄ " + L("ui.map.lane_hint"), 16, UiKit.Cyan, TextAnchor.UpperLeft);
                     y += 30f;
                 }
 
-                return y;
+                if (!knownSystem)
+                {
+                    return y;
+                }
+
+                y += 12f; // then the system's bodies (landed ones are quick-travel targets)
             }
 
             // The selected system's bodies (reachable targets).
@@ -4370,12 +4372,35 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                // Locked: never landed here + Instant Travel off — you must fly there and land manually.
-                UiKit.AddText(_detail, 8, y, 600, 56, L("ui.map.locked_hint"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                // Locked: never landed here + Instant Travel off — you must fly there and land manually. In
+                // ANOTHER system "fly there" means: hyperjump into the system first (#1638) — offer that jump here,
+                // so a world you've only ever seen from orbit still has a way back onto the screen.
+                var lockedSystem = map.Systems.FirstOrDefault(s => s.Bodies.Any(b => b.Id == body.Id));
+                bool lockedCrossSystem = lockedSystem != null && lockedSystem.Id != CurrentSystemId();
+                UiKit.AddText(_detail, 8, y, 600, 56, L(lockedCrossSystem ? "ui.map.locked_cross_hint" : "ui.map.locked_hint"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
                 y += 64f;
+                if (lockedCrossSystem)
+                {
+                    y = AddSystemJumpButton(_detail, 8, y, 280, lockedSystem.Id);
+                }
             }
 
             return y;
+        }
+
+        /// <summary>The violet "Hyperjump to this system" button (arrive in flight, then fly to its worlds) — the
+        /// same entry the system list and the locked-body detail share (#1638). Disabled off the ship. Returns the
+        /// y below it.</summary>
+        private float AddSystemJumpButton(RectTransform parent, float x, float y, float width, string systemId)
+        {
+            var jump = UiKit.AddButton(parent, x, y, width, 60, L("ui.map.hyperjump_here"), () => Game.Network?.SendHyperjumpSystem(systemId));
+            jump.GetComponent<Image>().color = new Color(0.30f, 0.18f, 0.46f); // hyperspace-violet accent
+            if (!AboardShipNow())
+            {
+                SetInteractable(jump, false); // travel happens from your ship — board it first
+            }
+
+            return y + 76f;
         }
 
         /// <summary>An inline name field + confirm button for renaming an owned station or base from the Map detail
