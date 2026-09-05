@@ -110,6 +110,31 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Space distances in km, roomier star systems (flight-view scale 0.16 → 0.24), moons ride 1.5× the clear gap (#1599 #1600 #1601, 2026-09-05, branch feat/space-km-roomier-systems)
+
+**Why.** Marcel: on a world the HUD's metres are right, but in space the radar/chart said "83 m" to a planet — the
+flight scene is not metric (ship at half size, a 6 km planet a 35-unit ball), so the label only made the system feel
+like a toy. And systems still looked squat: measured over ~1 000 generated systems, one planet in ten had barely a
+planet-width of empty space to its neighbour (p10 1.2 widths, median 4.2), and 100 % of moons sat on their minimum
+orbit at every view scale — the #499 clamp IS the moon layout. Decisions: km at 10 km per unit (EVA keeps metres),
+scale 0.24 (not 0.32), planet render sizes unchanged, no travel-time compensation yet, moon gap ×1.5.
+
+**What ships.** `Client.Core/SpaceDistance` (10 km per unit, space-grouped thousands, localized `ui.space.km_fmt`
+in all 14 locales; `ui.spacemap.distance_fmt` now says km) used by the three radar readouts and the chart waypoint
+line; the EVA "Fly to your ship — 40 m" is untouched. `SystemBodyLayout.FlightViewScale` 0.16 → 0.24 (shared —
+the server's belt rock clusters follow; measured: nearest-planet hop 13 → 20 s, launch → farthest body 28 → 40 s in
+the starter ship, empty space p10 1.2 → 2.3 planet widths). `SystemBodyLayout.MoonOrbitGapFactor` 1.5 inside
+`MinOrbitFor` (parent pair only; the moon ladder and the relax pass keep the plain gap). Tests reference the constant
+instead of `0.16f`; new `SpaceDistanceTests` + two layout pins. Manual row for **M** names the unit.
+
+**Consequences accepted.** Persisted flight positions (player-built space structures, the ship pose saved on
+entering the interior) live in a launch-body-centred frame: near the launch body nothing moves, a structure parked
+beside *another* planet is now off it by 1.5× (changelog says so). NPC stations/traders/hostiles sit at fixed
+offsets around the launch spot — unaffected. Surface sky, star map and generator use raw system coords — unaffected.
+Rejected again: generator constants (`OrbitStep`, moon orbit) — they move bodies in existing saves and shrink the
+parent planet in a moon's sky (`SkyBodiesView`). Stage 2 if 0.24 still reads cramped after the playtest: 0.32
+together with a cruise mode. Client change → local Unity build.
+
 ### ★ First-person scale: field of view 80° by default, a 50–100° setting, a smaller held item that keeps its size (#1589 #1590 #1591, 2026-09-05, branch feat/fov-setting)
 
 **Why.** Playtest 2026-09-05: "the blocks feel huge — one right in front of you fills the whole view". The world is

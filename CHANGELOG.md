@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🪐 More room between the planets (#1599 #1600 #1601)
+
+- **Space distances in kilometres.** The radar and the system chart now say "830 km" to the next planet
+  instead of "83 m" — a scale that fits what you are looking at. On a spacewalk the way back to your ship
+  is still given in metres (#1599).
+- **Roomier star systems.** Planets, moons and asteroids sit half as far apart again in the flight view, so a
+  system no longer looks like a huddle. The hop to the next planet takes a little longer (about 20 s instead
+  of 13 s in the starter ship). Anything you built in space next to the planet you launch from stays exactly
+  where it was; a structure parked beside *another* planet is now a bit off it (#1600).
+- **Moons keep their distance.** A moon rides one and a half times the clear gap off its planet instead of
+  hugging it — a planet with moons reads as a family, not a clump (#1601).
+
 ### 👁️ A wider view (#1589 #1590 #1591)
 
 - **The world no longer feels oversized.** The first-person camera now looks through an 80° field of view
