@@ -19,8 +19,11 @@ public static class SystemBodyLayout
     /// <summary>System (star-map) units → flight-view units. The client renders the resident system at
     /// this scale; the server uses the SAME constant when it parks mineable rock clusters at the
     /// flight-view positions of the system's asteroid bodies (#683) — one number, or the two sides
-    /// disagree about where "at that asteroid" is.</summary>
-    public const float FlightViewScale = 0.16f;
+    /// disagree about where "at that asteroid" is.
+    /// <para>History: 0.30 until 2026-06 ("a slog"), 0.16 until 2026-09 ("planets huddle" — one planet in
+    /// ten had barely a planet-width of empty space to its neighbour). 0.24 (#1600) trades a longer hop
+    /// (nearest planet ≈ 20 s instead of 13 s in the starter ship) for roughly twice the room.</para></summary>
+    public const float FlightViewScale = 0.24f;
 
     /// <summary>Smallest clear space between two bodies' surfaces, in flight-view units. Deliberately
     /// above the ship's keep-out margin (10) so there is always a gap the ship can fly through.</summary>
@@ -36,10 +39,16 @@ public static class SystemBodyLayout
     public static float ClearGapFor(float radiusA, float radiusB)
         => System.MathF.Max(MinBodyGap, (radiusA + radiusB) * BodyGapFraction);
 
+    /// <summary>A moon's clear gap to its parent is this much wider than the general body gap (#1601).
+    /// Every moon's star-map orbit lies inside its drawn planet, so the clamp below IS the moon layout —
+    /// at the plain gap a planet and its moons read as one clump. Applies to the parent pair only; moon ↔
+    /// moon spacing in the ladder and the relax pass keep <see cref="ClearGapFor"/>.</summary>
+    public const float MoonOrbitGapFactor = 1.5f;
+
     /// <summary>Centre distance at which a body of <paramref name="bodyRadius"/> clears the surface of
-    /// its parent — the minimum orbit a moon is drawn at.</summary>
+    /// its parent by <see cref="MoonOrbitGapFactor"/> × the clear gap — the minimum orbit a moon is drawn at.</summary>
     public static float MinOrbitFor(float parentRadius, float bodyRadius)
-        => parentRadius + bodyRadius + ClearGapFor(parentRadius, bodyRadius);
+        => parentRadius + bodyRadius + ClearGapFor(parentRadius, bodyRadius) * MoonOrbitGapFactor;
 
     /// <summary>
     /// Relaxes overlapping bodies apart in the x-z plane until every pair has its

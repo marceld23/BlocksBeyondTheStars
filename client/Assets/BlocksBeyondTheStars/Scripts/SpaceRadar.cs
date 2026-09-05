@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
+using BlocksBeyondTheStars.Client.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -29,6 +30,7 @@ namespace BlocksBeyondTheStars.Client
         private Text _wpLabel;    // waypoint distance readout under the radar
 
         // #1516: last-formatted readout state so the label strings are built on change, not every frame.
+        // Tracked in rounded flight units; the labels print them as km (#1599, SpaceDistance).
         private int _wpLastMeters = -1;
         private string _readoutName;
         private int _readoutMeters = -1;
@@ -261,7 +263,7 @@ namespace BlocksBeyondTheStars.Client
                 if (wpMeters != _wpLastMeters) // #1516: build the label only when the rounded distance moves
                 {
                     _wpLastMeters = wpMeters;
-                    _wpLabel.text = $"⌖ {wpMeters}m";
+                    _wpLabel.text = $"⌖ {Km(wpMeters)}";
                 }
             }
 
@@ -280,7 +282,7 @@ namespace BlocksBeyondTheStars.Client
                     _readoutVert = vertState;
                     _readoutKind = 1;
                     string vert = vertState > 0 ? " ▲" : vertState < 0 ? " ▼" : string.Empty;
-                    _stationLabel.text = $"{nearestStation} · {meters}m{vert}";
+                    _stationLabel.text = $"{nearestStation} · {Km(meters)}{vert}";
                 }
             }
             else if (nearestBody != null)
@@ -291,12 +293,16 @@ namespace BlocksBeyondTheStars.Client
                     _readoutName = nearestBody;
                     _readoutMeters = meters;
                     _readoutKind = 2;
-                    _stationLabel.text = $"➜ {nearestBody} · {meters}m";
+                    _stationLabel.text = $"➜ {nearestBody} · {Km(meters)}";
                 }
             }
 
             _stationLabel.gameObject.SetActive(nearestStation != null || nearestBody != null);
         }
+
+        /// <summary>A flight-scene distance as the instruments print it — km at 10 km per unit (#1599).</summary>
+        private string Km(float units)
+            => SpaceDistance.Label(units, Game != null && Game.Localizer != null ? Game.Localizer.Get("ui.space.km_fmt") : null);
 
         private void OnDestroy()
         {

@@ -38,7 +38,9 @@ namespace BlocksBeyondTheStars.Client
         private const float OrbitAlpha = 0.34f;   // faint enough to stay behind the markers it connects
         private const float MaxBodyDisc = 46f;    // body discs are clamped to this diameter, however big the body
         private const float MarkerPad = MaxBodyDisc * 0.5f + 8f; // chart room a rim body's disc + backing needs
-        private const float BeltGroupGap = 26f;   // flight units: asteroid orbit radii this close = one belt (#683)
+        // Flight units: asteroid orbit radii this close = one belt (#683). Stated in system units (160 ≈ 1.3× a
+        // belt's full radial jitter of 120) so a change of the view scale (#1600) cannot split a belt in two.
+        private const float BeltGroupGap = 160f * SystemBodyLayout.FlightViewScale;
         private const float BeltBandPad = 8f;     // chart units the belt band extends past its outermost member
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
@@ -508,7 +510,7 @@ namespace BlocksBeyondTheStars.Client
                 float dist = Camera != null ? Vector3.Distance(Camera.transform.localPosition, wp) : 0f;
                 string name = WaypointName();
                 _info.text = (string.IsNullOrEmpty(name) ? L("ui.spacemap.free_point") : name)
-                    + "\n" + string.Format(L("ui.spacemap.distance_fmt"), Mathf.RoundToInt(dist))
+                    + "\n" + string.Format(L("ui.spacemap.distance_fmt"), BlocksBeyondTheStars.Client.Core.SpaceDistance.Group(BlocksBeyondTheStars.Client.Core.SpaceDistance.Km(dist))) // km, #1599
                     + "\n\n" + L(Game.AiCoreTier >= 2 ? "ui.spacemap.autopilot_ready" : "ui.spacemap.autopilot_needs_core");
             }
             else

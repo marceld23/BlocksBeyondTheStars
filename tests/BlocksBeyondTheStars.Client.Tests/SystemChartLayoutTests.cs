@@ -26,7 +26,7 @@ public sealed class SystemChartLayoutTests
     private const float ChartHalf = (900f * 0.5f) - 30f; // usable chart radius, canvas units
     private const float MaxBodyDisc = 46f;               // discs are clamped to this diameter
     private const float MarkerPad = (MaxBodyDisc * 0.5f) + 8f;
-    private const float SystemViewScale = 0.16f;         // system units → flight-view units
+    private const float SystemViewScale = SystemBodyLayout.FlightViewScale; // system units → flight-view units
     private const float HomeZ = -20f;                    // the launch body's fixed spot (x = 0)
     private const float Tolerance = 0.05f;
 

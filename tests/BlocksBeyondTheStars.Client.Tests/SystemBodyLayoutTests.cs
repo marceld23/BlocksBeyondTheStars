@@ -18,7 +18,7 @@ namespace BlocksBeyondTheStars.Client.Tests;
 public sealed class SystemBodyLayoutTests
 {
     // Mirrors SpaceView: system units → flight-view units, and body diameter from real circumference.
-    private const float SystemViewScale = 0.16f;
+    private const float SystemViewScale = SystemBodyLayout.FlightViewScale;
     private const float KeepOutMargin = 10f; // the shell the ship is held at, from SpaceView
     private const float Tolerance = 0.01f;
 
@@ -56,6 +56,26 @@ public sealed class SystemBodyLayoutTests
         Assert.True(
             orbit - planetRadius - moonRadius >= SystemBodyLayout.MinBodyGap - Tolerance,
             $"orbit {orbit} leaves only {orbit - planetRadius - moonRadius} of clear space");
+    }
+
+    [Fact]
+    public void MinOrbit_GivesAMoonMoreRoomThanTwoStrangers()
+    {
+        // #1601: every moon's star-map orbit lies inside its drawn planet, so the clamp IS the moon layout.
+        // At the plain body gap a planet and its moons read as one clump; the parent pair gets 1.5× it.
+        const float planetRadius = 27f, moonRadius = 11.5f;
+        float clear = SystemBodyLayout.MinOrbitFor(planetRadius, moonRadius) - planetRadius - moonRadius;
+        float plain = SystemBodyLayout.ClearGapFor(planetRadius, moonRadius);
+        Assert.Equal(1.5f, SystemBodyLayout.MoonOrbitGapFactor);
+        Assert.InRange(clear, plain * SystemBodyLayout.MoonOrbitGapFactor - Tolerance, plain * SystemBodyLayout.MoonOrbitGapFactor + Tolerance);
+    }
+
+    [Fact]
+    public void FlightViewScale_IsTheRoomierSetting()
+    {
+        // #1600: 0.16 read as "planets huddle"; 0.24 is the measured compromise (nearest planet ≈ 20 s
+        // in the starter ship, ~2× the empty space). A silent drift either way is a gameplay change.
+        Assert.Equal(0.24f, SystemBodyLayout.FlightViewScale);
     }
 
     [Fact]
