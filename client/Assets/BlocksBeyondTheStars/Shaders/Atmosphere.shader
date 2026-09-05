@@ -4,7 +4,8 @@
 // the horizon read like a real atmosphere instead of a flat fill. Additive + ZWrite Off at the end of the opaque
 // queue (Geometry+499, #1513): drawn after the terrain so the depth test rejects covered pixels instead of shading
 // the whole sky first; it can only ever brighten the open sky (never black it out), and additive-over-opaque is
-// order-independent, so the picture is unchanged. Reads the
+// order-independent, so the picture is unchanged. The vertex shader pushes the dome to the far plane (#1582), so
+// covered pixels are rejected at ANY distance, not only inside the dome's radius. Reads the
 // same sky globals Sky.cs sets: _Sc_SunDir (dir TO the sun), _Sc_Sky (sky colour), _Sc_Light (sun colour ×
 // brightness; dark at night → the glow self-fades). Dual-pipeline (URP + Built-in RP).
 Shader "BlocksBeyondTheStars/Atmosphere"
@@ -45,6 +46,15 @@ Shader "BlocksBeyondTheStars/Atmosphere"
             {
                 Varyings o;
                 o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                // #1582: the dome draws at the END of the opaque queue with ZWrite Off (#1513), so its depth test must
+                // reject exactly the pixels an opaque draw already covers — at ANY distance, not only nearer than the
+                // dome's 0.45 × far radius (a moon beyond it got stars painted across it). Push the vertex to the far
+                // plane (a hair inside it, so no driver clips it): the dome is at infinity, its radius stops mattering.
+                #if UNITY_REVERSED_Z
+                    o.positionCS.z = o.positionCS.w * 1.0e-6;         // reversed-Z: far plane = 0
+                #else
+                    o.positionCS.z = o.positionCS.w * (1.0 - 1.0e-6); // far plane = w
+                #endif
                 o.dir = normalize(v.positionOS.xyz); // dome is camera-centred → object dir ≈ view dir
                 return o;
             }
@@ -105,6 +115,11 @@ Shader "BlocksBeyondTheStars/Atmosphere"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
+                #if UNITY_REVERSED_Z
+                    o.pos.z = o.pos.w * 1.0e-6;         // #1582: dome at the far plane (reversed-Z: far = 0)
+                #else
+                    o.pos.z = o.pos.w * (1.0 - 1.0e-6); // #1582: dome at the far plane (far = w)
+                #endif
                 o.dir = normalize(v.vertex.xyz);
                 return o;
             }

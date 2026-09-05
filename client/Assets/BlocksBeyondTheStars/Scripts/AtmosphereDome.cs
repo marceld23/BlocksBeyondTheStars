@@ -70,7 +70,7 @@ namespace BlocksBeyondTheStars.Client
             }
 
             _dome.SetPositionAndRotation(Camera.transform.position, Quaternion.identity);
-            float r = Mathf.Max(200f, Camera.farClipPlane) * 0.43f; // just inside the star/nebula domes
+            float r = Mathf.Max(200f, Camera.farClipPlane) * 0.43f; // just inside the star/nebula domes; depth-wise all three sit at the far plane (#1582)
             _dome.localScale = new Vector3(r, r, r);
 
             // Visible only where there IS an atmosphere: a normal planet sky. Off in the space view, on airless

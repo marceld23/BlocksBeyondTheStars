@@ -90,7 +90,7 @@ namespace BlocksBeyondTheStars.Client
             // Ride the camera at "infinity", just inside the star dome (0.44 of the far plane) so stars layer
             // in front of the gas. Distance only sets placement — every vertex is a pure direction.
             _dome.SetPositionAndRotation(Camera.transform.position, Quaternion.identity);
-            float r = Mathf.Max(200f, Camera.farClipPlane) * 0.44f;
+            float r = Mathf.Max(200f, Camera.farClipPlane) * 0.44f; // clipping only — the shader draws at the far plane (#1582)
             _dome.localScale = new Vector3(r, r, r);
 
             // Menu attract scene: no game — build the fixed-seed dome once and hold a fixed brightness.
