@@ -97,6 +97,16 @@ suite is touched (client/Assets only). Marcel approved the look on the screensho
 `PerfProbe` text-change tracker only sees legacy `Text`; a runtime `SpriteAtlas` for the remaining icon textures
 (Unity 6.4 API); PerfProbe A/B of the sub-canvas split.
 
+**WebGL verification + glow-target fallback (#1636, 2026-09-05, branch fix/visor-glow-format-fallback).** A local
+WebGL build of the HUD pass (`BBS_WEBGL_FAST_LOCAL`, served + captured headed) compiled clean and rendered the whole
+new HUD in the browser — SDF text, holo chrome, glow, icons — with no new console errors (only the known engine
+noise, #1099). The one real gap found in review: the glow chain's quarter-res blur targets were hard-wired to
+`B10G11R11_UFloatPack32`, which as a render target needs `EXT_color_buffer_float` under WebGL 2 — desktop browsers
+have it, older tablets do not, and the render graph would then fail the visor pass every frame. `VisorUrpCompositor`
+now picks the format once per session via `SystemInfo.IsFormatSupported` (render + linear) and falls back to
+`R8G8B8A8_UNorm`; the glow input is the LDR HUD RT and the threshold never exceeds 1, so nothing visible changes
+where the float format works. Not measured: browser frame times (another agent's Unity build was running).
+
 ### ★ Ocean landings: 2-D pad nudge, islet for every deep all-water pad, wider islets, dry-pad preference, blue seabed markers with depth (#1618 #1619 #1620 #1621 #1622, 2026-09-05, branch fix/ocean-pads-2d-nudge)
 
 Follow-up to #1453/#1454 after Marcel's 2026-09-05 impression that "the islets do not work": a 12-seed probe
