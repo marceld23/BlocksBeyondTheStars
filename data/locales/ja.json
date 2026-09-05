@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "アンビエント・シンセ",
   "ui.settings.music_style.tracks": "楽曲トラック",
   "ui.settings.mouse_sensitivity": "マウス感度",
+  "ui.settings.fov": "視野",
+  "ui.settings.fov_hint": "広くすると世界がより多く見えますが、フレームレートが少し落ちます。",
   "ui.settings.invert_y": "上下視点反転",
   "ui.settings.camera_motion": "カメラ動作（揺れ/振動）",
   "ui.settings.comfort": "快適性",

@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Ortam synth",
   "ui.settings.music_style.tracks": "Müzik parçaları",
   "ui.settings.mouse_sensitivity": "Fare hassasiyeti",
+  "ui.settings.fov": "Görüş alanı",
+  "ui.settings.fov_hint": "Daha geniş alan daha fazla dünya gösterir ve biraz FPS maliyeti olur.",
   "ui.settings.invert_y": "Dikey bakışı tersine çevir",
   "ui.settings.camera_motion": "Kamera hareketi (sallanma/titreşim)",
   "ui.settings.comfort": "Konfor & iyi hissetme",

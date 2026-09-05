@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Ambient synth",
   "ui.settings.music_style.tracks": "Ścieżki muzyczne",
   "ui.settings.mouse_sensitivity": "Czułość myszy",
+  "ui.settings.fov": "Pole widzenia",
+  "ui.settings.fov_hint": "Szersze pokazuje więcej świata, ale może trochę obniżyć liczbę klatek.",
   "ui.settings.invert_y": "Odwróć pionowy widok",
   "ui.settings.camera_motion": "Ruch kamery (kołysanie/odbijanie)",
   "ui.settings.comfort": "Komfort i dobre samopoczucie",

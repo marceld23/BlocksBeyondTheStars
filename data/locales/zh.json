@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "氛围 合成器",
   "ui.settings.music_style.tracks": "音乐 曲目",
   "ui.settings.mouse_sensitivity": "鼠标 灵敏度",
+  "ui.settings.fov": "视野",
+  "ui.settings.fov_hint": "更宽能看到更多世界，但会稍微影响帧率。",
   "ui.settings.invert_y": "垂直视角反转",
   "ui.settings.camera_motion": "镜头运动（晃动）",
   "ui.settings.comfort": "舒适与健康",

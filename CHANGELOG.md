@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 👁️ A wider view (#1589 #1590 #1591)
+
+- **The world no longer feels oversized.** The first-person camera now looks through a 70° field of view
+  instead of the narrow 60° it silently used before, so blocks take up about a fifth less of your screen and a wall
+  only fills the view when you are really standing at it (#1589).
+- **Field of view setting.** Settings → Controls has a new *Field of view* stepper, 50° to 100°. It applies
+  right away, even from the pause menu; wider shows more of the world and costs a little frame rate (#1590).
+- **A smaller tool in hand.** The drill, block or hand you hold is a fifth smaller and stays the same size on
+  screen whatever field of view you pick (#1591).
+
 ## [2026.9.2] — 2026-09-05
 
 The tune-up release. Nothing new to build or discover this time — instead the whole game went in for

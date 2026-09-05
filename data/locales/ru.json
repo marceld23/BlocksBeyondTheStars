@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Амбиентный синт",
   "ui.settings.music_style.tracks": "Трековая музыка",
   "ui.settings.mouse_sensitivity": "Чувствительность мыши",
+  "ui.settings.fov": "Поле зрения",
+  "ui.settings.fov_hint": "Шире показывает больше мира, но немного снижает FPS.",
   "ui.settings.invert_y": "Инвертировать вертикаль",
   "ui.settings.camera_motion": "Движение камеры (качка/тряска)",
   "ui.settings.comfort": "Комфорт и самочувствие",

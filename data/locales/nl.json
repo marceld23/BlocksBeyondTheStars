@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Ambient synth",
   "ui.settings.music_style.tracks": "Muziektracks",
   "ui.settings.mouse_sensitivity": "Muisgevoeligheid",
+  "ui.settings.fov": "Gezichtsveld",
+  "ui.settings.fov_hint": "Breder toont meer van de wereld en kost ietsje meer frames.",
   "ui.settings.invert_y": "Verticaal omkeren",
   "ui.settings.camera_motion": "Camerabeweging (bob/schud)",
   "ui.settings.comfort": "Comfort & welzijn",
