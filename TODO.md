@@ -174,6 +174,21 @@ plane (a hair inside it, reversed-Z aware), so the depth test rejects exactly th
 any distance. The late draw and its saving stay; the dome radius only sets clipping and star size now, which the
 three components say in a comment. Additive domes at one depth layer in any order, so the picture is unchanged.
 
+### ★ A shield module built on the ground and a completed R repair charge the shield to its new maximum (#1586, 2026-09-05, PR #1606 by @ahmdkaml)
+
+**Why.** Player report (Lyxette, v2026.9.2): after installing a shield generator and repairing the hull on the ground,
+the shield sat at its old value (55) until the next launch, when it jumped to the new maximum (135) — the module looked
+dead. The charge only ever filled at launch (`EnterSpace`) and in the space tick's out-of-combat regen;
+`RecomputeShipCombatStats` clamps downwards only, so `HandleBuildModule` and the ship repair left the stored charge alone.
+
+**What ships.** `HandleBuildModule`: after `RecomputeShipCombatStats`, a module carrying a `shield` or `shield_regen`
+stat sets `_ship.Shield = _shipShieldMax` — the workshop charges the new shields. `RepairShipAll`: when the repair
+completes (no missing cell, hull at max) the shield is topped up before `ShipCombatStatus` goes out. No regeneration
+while landed (decided). Tests: `ShipRepairTests.RepairShipAll_WhenFullyRepaired_RestoresShield`,
+`ShipFleetTests.BuildShieldGenerator_RestoresShieldToMax` (135 for the starter) and
+`BuildNonShieldModule_DoesNotChangeShield`; new test seams `ShipShieldForTest` / `SetShipShieldForTest`.
+Community contribution — Ahmed's first gameplay (non-test) PR.
+
 ### ★ The HUD compass gets a rotating N marker instead of the fixed ▲ that looked like a north needle (#1597, 2026-09-05, branch feat/compass-north-marker-1597)
 
 **Why.** Follow-up decision from #1594: the `▲` at the top of the dial was a fixed decoration on a heading-up compass,
