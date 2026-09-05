@@ -154,6 +154,10 @@ public sealed class ChunkStreamingTests : IDisposable
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
             ViewDistanceChunks = 4,
+            // #1645: the seam precondition below relies on where seed 1's dry-pad search lands pad 0 on the
+            // CLASSIC relief; the generation-1 relief moves it off the seam (chunk x=740). Streaming, not
+            // terrain, is the subject — pin the classic generation.
+            World = { TerrainGeneration = 0 },
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
