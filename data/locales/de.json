@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "System-Vielfalt",
   "ui.worldopt.belts": "Asteroidengürtel",
   "ui.worldopt.continents": "Kontinente & Ozeane",
+  "ui.worldopt.terrain_generation": "Landschafts-Generation",
+  "ui.worldopt.terrain_generation_value": "Generation {gen} (neueste Landformen)",
   "ui.worldopt.packs_title": "Vorlagen-Pakete",
   "ui.worldopt.packs_none": "Noch keine Vorlagen-Pakete vorhanden. Baue Stationen/Dörfer in den Editoren, um welche hinzuzufügen.",
   "ui.worldopt.packs_toggle": "•",

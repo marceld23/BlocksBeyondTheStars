@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 1 of 6 — the foundation (#1644)
+
+- **Nothing visible changes yet — every existing world stays byte-identical.** New worlds now carry a
+  *terrain generation* number in their save (the classic generators are generation 0), so the coming
+  landscape parts reach new worlds only and never move terrain under an existing base. The world-options
+  panel ("Hand-designed structures…" page, under *Galaxy & terrain*) shows which landscape generation a new
+  world gets. Under the hood the world generator is split into one file per landform family, its
+  planet-type gates read data tags instead of type names, and landmarks and scatter props are registered
+  in tables — adding a new kind of mountain or prop is one row from now on.
+
 ### 🧭 A star system you jumped into but never landed in can be jumped to again (#1638)
 
 - **"Hyperjump to this system" for every other system.** The travel screen used to offer the jump only for

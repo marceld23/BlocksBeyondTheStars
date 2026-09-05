@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Varietà dei sistemi",
   "ui.worldopt.belts": "Fasce di asteroidi",
   "ui.worldopt.continents": "Continenti e oceani",
+  "ui.worldopt.terrain_generation": "Generazione del paesaggio",
+  "ui.worldopt.terrain_generation_value": "Generazione {gen} (forme di terreno più recenti)",
   "ui.worldopt.packs_title": "Pacchetti di template",
   "ui.worldopt.packs_none": "Nessun pacchetto di template installato. Costruisci stazioni/città negli editor per aggiungerne.",
   "ui.worldopt.packs_toggle": "•",

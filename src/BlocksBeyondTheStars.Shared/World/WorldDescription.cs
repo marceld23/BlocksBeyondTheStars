@@ -161,6 +161,19 @@ public sealed class WorldDescription
     /// worlds switch it on at creation (ServerConfig's default description carries true).</summary>
     public bool LavaCoreVolcanoes { get; set; }
 
+    /// <summary>Terrain generation number (#1644): which wave of landform generators a world was created with.
+    /// 0 = every world created before the landscape-variety package (the classic generators only); 1 = the
+    /// 2026-09 package (regional style pools, per-world scale, biome relief, new landmarks, water bodies,
+    /// paints, props). MUST default to 0 like <see cref="TerrainContinents"/>: terrain is re-derived from the
+    /// seed, so a loaded save keeps the generation it was created with and its terrain never moves. New worlds
+    /// get the current generation from ServerConfig's creation-time description
+    /// (<see cref="CurrentTerrainGeneration"/>). One integer instead of one bool per wave — every later wave is
+    /// a single compare.</summary>
+    public int TerrainGeneration { get; set; }
+
+    /// <summary>The terrain generation new worlds are created with today (#1644).</summary>
+    public const int CurrentTerrainGeneration = 1;
+
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and
     /// persisted via <c>WorldMetadata.GalaxyGrownSystems</c>), up to a soft cap. Defaults to false so every

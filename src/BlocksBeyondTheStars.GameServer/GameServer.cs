@@ -318,6 +318,7 @@ public sealed partial class GameServer
             _meta.Description.RareResources.OreFactor());
         _generator.SetContinentsEnabled(_meta.Description.TerrainContinents);
         _generator.SetLavaCoreVolcanoes(_meta.Description.LavaCoreVolcanoes); // #1631: new worlds only, like continents
+        _generator.SetTerrainGeneration(_meta.Description.TerrainGeneration); // #1644: the wave this save was created with
         _worlds = new WorldManager(_content, _generator, _repo);
         BuildGalaxy(); // resolves _meta.ActiveLocationId to a concrete celestial body id
         LoadPlayerStations(); // item 20 S4: restore persisted player stations onto the star map + registry
@@ -3342,6 +3343,7 @@ public sealed partial class GameServer
             WorldId = WorldIdOf(state.CurrentLocationId), // #1534
             CumulativePlaytimeSeconds = _meta.CumulativePlaytimeSeconds,
             TerrainContinents = _meta.Description.TerrainContinents,
+            TerrainGeneration = _meta.Description.TerrainGeneration, // #1644
         });
         SendInventory(session);
         SendPlayerState(session);

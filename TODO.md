@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 1/6: terrain-generation flag, terrain tags, landmark + prop tables, WorldGenerator split (#1644, 2026-09-05, branch landscape/1644-infra)
+
+Foundation for the landscape-variety package (#1644–#1649), deliberately **invisible**: all seven worldgen
+goldens unchanged. `WorldDescription.TerrainGeneration` (int, load-safe 0; `CurrentTerrainGeneration` = 1 for
+new worlds via ServerConfig, CLI `--terrain-generation` — the launcher always sends it via
+`WorldCreationOptions` and the world-options structures page shows it read-only; `JoinAccepted.TerrainGeneration`
+→ client preview bakes; `WorldGenerator.SetTerrainGeneration`, folded into every per-world memo key together with the
+lava-core flag). `PlanetType.TerrainTags` → `TerrainTag` flags resolved at content load (`volcanic`, `salt`,
+`buttes`, `hoodoos`, `crystal`; `wind`/`wetland`/`glacial`/`inselbergs` reserved) replace the 11 planet-KEY /
+style-string gates — `TerrainTagsAndGenerationTests` proves equivalence for every type. `LandmarkKinds`
+table (gate + offset + optional paint per family, table order = precedence) drives `SurfaceHeightUncached`
+and a paint hook in `ComputeColumn`; `PropKinds` table drives the set-dressing stamp. `WorldGenerator.cs`
+split into 11 partials by seam (pure moves). Docs: WORLD_GENERATION.md §12. Parts 2–6 follow in order.
+Playtest: none needed for this part.
+
+---
+
 ### ★ CI: main green again — the view-distance streaming test wraps its probe columns at the longitude seam (#1640, 2026-09-05, branch fix/streaming-test-seam)
 
 Every push to `main` since #1632 failed the full tier on one `Slow` test (PR CI skips the Slow tier, so five

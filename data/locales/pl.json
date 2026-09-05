@@ -2929,6 +2929,8 @@
   "ui.worldopt.variance": "Różnorodność układów",
   "ui.worldopt.belts": "Pasy asteroid",
   "ui.worldopt.continents": "Kontynenty i oceany",
+  "ui.worldopt.terrain_generation": "Generowanie terenu",
+  "ui.worldopt.terrain_generation_value": "Generacja {gen} (najnowsze formy terenu)",
   "ui.worldopt.packs_title": "Pakiety szablonów",
   "ui.worldopt.packs_none": "Brak zainstalowanych pakietów szablonów. Zbuduj stacje/miasta w edytorach, by dodać.",
   "ui.worldopt.packs_toggle": "•",

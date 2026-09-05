@@ -28,9 +28,9 @@ namespace BlocksBeyondTheStars.Client
         /// world. <paramref name="locationName"/> stays the name-derived key the flora-tint rolls use.</param>
         public static Texture2D Bake(GameContent content, BlockTextureAtlas atlas, long worldSeed,
             string locationName, string planetTypeKey, int circumference, int texW, int texH,
-            string bodyId = null, bool continents = false)
+            string bodyId = null, bool continents = false, int generation = 0)
         {
-            string key = $"{worldSeed}|{locationName}|{bodyId}|{planetTypeKey}|{circumference}|{texW}x{texH}|{continents}";
+            string key = $"{worldSeed}|{locationName}|{bodyId}|{planetTypeKey}|{circumference}|{texW}x{texH}|{continents}|{generation}";
             if (_cache.TryGetValue(key, out var cached) && cached != null)
             {
                 return cached;
@@ -57,6 +57,7 @@ namespace BlocksBeyondTheStars.Client
             // terrain seed, so the preview must carry it or it would show a different world's terrain).
             gen.SetWorldMode(circumference, cratered: false, landingPads: null, bodyId);
             gen.SetContinentsEnabled(continents); // #704: same creation-time gate as the server
+            gen.SetTerrainGeneration(generation); // #1644: same landform generation as the server
             int latPeriod = WorldConstants.LatitudePeriodFor(circumference);
             int sea = gen.SeaLevel(planet);
 

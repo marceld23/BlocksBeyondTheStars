@@ -818,6 +818,11 @@ public sealed class JoinAccepted
     /// <summary>Whether this save was created with continents (#704) — the client's preview generators
     /// must apply the same gate or orbit/minimap textures would show the wrong coastlines.</summary>
     public bool TerrainContinents { get; set; }
+
+    /// <summary>The terrain generation this save was created with (#1644) — the client's preview generators
+    /// must apply the same generation as the server, like <see cref="TerrainContinents"/>. Contractless
+    /// MessagePack: an older client ignores it, an older server leaves it 0 (the classic generators).</summary>
+    public int TerrainGeneration { get; set; }
 }
 
 public sealed class JoinRejected
