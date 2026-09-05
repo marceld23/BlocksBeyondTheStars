@@ -668,7 +668,13 @@ public static class ReportHostApp
 
             var owner = ThreadOwnerOf(record);
             var pair = ReportPairActions.PairOf(store, record);
-            return Results.Content(ReportHostPages.Detail(record, store.ListReplies(owner.Id), csrf, owner, pair), "text/html; charset=utf-8");
+            // Every half's entries, merged (#1642): a pair keyed alike on both halves used to own two threads
+            // depending on which half was answered — the old split conversations stay readable from either side.
+            var replies = pair.Select(p => p.Id).Append(owner.Id).Distinct()
+                .SelectMany(pid => store.ListReplies(pid))
+                .OrderBy(x => x.CreatedUnix).ThenBy(x => x.Id)
+                .ToList();
+            return Results.Content(ReportHostPages.Detail(record, replies, csrf, owner, pair), "text/html; charset=utf-8");
         });
 
         // The reply form on the detail page: an answer, or a follow-up question (flips the status to
