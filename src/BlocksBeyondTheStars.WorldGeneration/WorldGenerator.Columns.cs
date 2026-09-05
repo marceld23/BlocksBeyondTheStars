@@ -508,6 +508,13 @@ public sealed partial class WorldGenerator
             StampGiantMushrooms(planet, seed, chunk, coord, biomes, stemId, capId, myceliumId, fluidLevel);
         }
 
+        // Generation-1 giant flora (#1648): giant ferns on jungle mud, giant crystals on crystal ground, giant
+        // cacti on sand — the same recipe as the mushrooms with their own salts; classic worlds never roll them.
+        if (wonderGates.Generation >= 1)
+        {
+            StampGiantFloraGen1(planet, seed, chunk, coord, biomes, fluidLevel);
+        }
+
         if (geysers)
         {
             StampGeysers(planet, seed, chunk, coord, geyserVentId, fluidLevel);

@@ -24,6 +24,19 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 5/6: 16 prop rows with micro-ruins, 7 tree kinds, giant-flora table (#1648, 2026-09-06, branch landscape/1648-props-trees)
+
+Generation-1 worlds only; classic goldens unchanged, `savanna-gen1` + `swamp-gen1` pinned. `WorldGenerator.StampsGen1.cs`:
+`PropKind` + `Gate` / `MaterialKey` / `SecondaryKey`, 16 rows appended (fallen log, termite mound, cairn, bone pile, rib
+cage, ice boulder, lava spatter, coral outcrop, crystal cluster, meteorite, tar pool, wall fragment, buried pillar, crashed
+probe, mining rig, rune stone — the ruins roll a data cache), scan margin 6 → 8. `TreeKind` + Baobab / Mangrove / Bamboo /
+Saguaro / Willow / MushroomTree / CrystalTree, `Theme.TreesGen1` + `PaletteFor(generation)` (gen-0 palettes untouched),
+mangroves need water within 4. `GiantFloraKinds` (fern on mud, crystal on crystal, cactus on sand) via
+`StampGiantFloraGen1`. `LandscapeStampsTests` (table order, gen-0 invariance, per-row rate within ×2 + never on an
+ineligible world, rib-cage chunk seam, palette gating, tree envelope, baobab presence, giant-flora rows + cactus probe).
+
+---
+
 ### ★ Landscape variety 4/6: five new blocks, water / lava bodies, surface paints (#1647, 2026-09-06, branch landscape/1647-blocks-fluids)
 
 New blocks `moss_stone`, `tar`, `bone`, `sandstone`, `scree` (block + material item + locales in 14 languages + AI tiles

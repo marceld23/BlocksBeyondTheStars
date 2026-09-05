@@ -26,7 +26,7 @@ public sealed partial class WorldGenerator
     private readonly struct PropStamp
     {
         public PropStamp(WorldGenerator generator, PlanetType planet, int wx, int sy, int wz, int shapeHash,
-            BlockId material, BlockId cache, System.Action<int, int, int, BlockId> set)
+            BlockId material, BlockId cache, System.Action<int, int, int, BlockId> set, BlockId secondary = default)
         {
             Generator = generator;
             Planet = planet;
@@ -37,7 +37,10 @@ public sealed partial class WorldGenerator
             Material = material;
             Cache = cache;
             Set = set;
+            Secondary = secondary;
         }
+
+        public readonly BlockId Secondary;                      // #1648: a row's second block (glass, pipe), Air if none
 
         public readonly WorldGenerator Generator;
         public readonly PlanetType Planet;
@@ -55,7 +58,8 @@ public sealed partial class WorldGenerator
     /// Adding a prop = one row + one shape method.</summary>
     private readonly struct PropKind
     {
-        public PropKind(string name, long salt, int row, double chance, PropMaterial material, System.Action<PropStamp> shape)
+        public PropKind(string name, long salt, int row, double chance, PropMaterial material, System.Action<PropStamp> shape,
+            System.Func<WonderProfile, PlanetType, bool>? gate = null, string? materialKey = null, string? secondaryKey = null)
         {
             Name = name;
             Salt = salt;
@@ -63,6 +67,9 @@ public sealed partial class WorldGenerator
             Chance = chance;
             Material = material;
             Shape = shape;
+            Gate = gate;
+            MaterialKey = materialKey;
+            SecondaryKey = secondaryKey;
         }
 
         public readonly string Name;
@@ -71,6 +78,9 @@ public sealed partial class WorldGenerator
         public readonly double Chance;  // per-column probability
         public readonly PropMaterial Material;
         public readonly System.Action<PropStamp> Shape;
+        public readonly System.Func<WonderProfile, PlanetType, bool>? Gate; // #1648: per-world gate (null = the classic material rule)
+        public readonly string? MaterialKey;   // #1648: a fixed block key instead of the classic material enum
+        public readonly string? SecondaryKey;  // #1648: the row's second block
     }
 
     private static readonly PropKind[] PropKinds =
@@ -83,7 +93,67 @@ public sealed partial class WorldGenerator
         new("boulder", 0xB01D, 29, 0.0012, PropMaterial.Boulder, StampBoulder),
         new("crystal-shard", 0xC57A, 31, 0.0008, PropMaterial.Crystal, StampCrystalShard),
         new("dead-tree", 0xDEAD, 37, 0.0009, PropMaterial.DeadLog, StampDeadTree),
+        // Generation-1 rows (#1648): each gates on the world (generation ≥ 1 + a theme / tag / climate rule) and
+        // names its block; appended after the classic rows so their precedence is untouched.
+        new("fallen-log", 0xFA11, 53, 0.0015, PropMaterial.Boulder, StampFallenLog, PropWooded, "wood_log"),
+        new("termite-mound", 0x7E21, 59, 0.0020, PropMaterial.Boulder, StampTermiteMound, PropSavanna, "dirt"),
+        new("cairn", 0xCA12, 61, 0.0012, PropMaterial.Boulder, StampCairn, PropCold, "stone"),
+        new("bone-pile", 0xB0E1, 67, 0.0008, PropMaterial.Boulder, StampBonePile, PropDry, "bone"),
+        new("rib-cage", 0x21BC, 71, 0.00015, PropMaterial.Boulder, StampRibCage, PropDry, "bone"),
+        new("ice-boulder", 0x1CEB, 73, 0.0012, PropMaterial.Boulder, StampBoulder, PropFrozen, "ice"),
+        new("lava-spatter", 0x5A77, 79, 0.0015, PropMaterial.Boulder, StampMeteorite, PropVolcanic, "basalt"),
+        new("coral-outcrop", 0xC02A, 83, 0.0030, PropMaterial.Boulder, StampCoralOutcrop, PropCoast, "flora_coral"),
+        new("crystal-cluster", 0xC1C5, 89, 0.0004, PropMaterial.Boulder, StampCrystalCluster, PropCrystal, "crystal"),
+        new("meteorite", 0x3E7E, 97, 0.0006, PropMaterial.Boulder, StampMeteorite, PropAirless, "iron_ore"),
+        new("tar-pit", 0x7A21, 101, 0.0006, PropMaterial.Boulder, StampTarPit, PropTarFlats, "tar"),
+        new("wall-fragment", 0x2A11, 103, 0.00012, PropMaterial.Boulder, StampWallFragment, PropRuins, "ancient_brick"),
+        new("buried-pillar", 0x9111, 107, 0.00012, PropMaterial.Boulder, StampBuriedPillar, PropRuins, "ancient_brick"),
+        new("crashed-probe", 0xC2A5, 109, 0.00008, PropMaterial.Boulder, StampCrashedProbe, PropRuins, "iron_wall", "glass"),
+        new("mining-rig", 0x3116, 113, 0.00008, PropMaterial.Boulder, StampMiningRig, PropRuins, "machine_block", "factory_pipe"),
+        new("rune-stone", 0x2E5E, 127, 0.00012, PropMaterial.Boulder, StampRuneStone, PropRuins, "rune_stone"),
     };
+
+    /// <summary>The prop rows active on this world (tests): the classic rows whose material exists here, plus
+    /// the generation-1 rows whose gate opens.</summary>
+    internal string[] PropActiveForTest(PlanetType planet, bool crystalWorld, bool dryWorld)
+    {
+        var w = WonderFor(planet);
+        var names = new System.Collections.Generic.List<string>();
+        foreach (var k in PropKinds)
+        {
+            bool active = k.Gate is { } gate
+                ? gate(w, planet) && !(_content.GetBlock(k.MaterialKey!)?.NumericId ?? BlockId.Air).IsAir
+                : k.Material switch { PropMaterial.Crystal => crystalWorld, PropMaterial.DeadLog => dryWorld, _ => true };
+            if (active)
+            {
+                names.Add(k.Name);
+            }
+        }
+
+        return names.ToArray();
+    }
+
+    /// <summary>Whether the named row rolls a prop at this column on this world (tests; gate + material + roll).</summary>
+    internal bool PropRollForTest(string name, PlanetType planet, int worldX, int worldZ)
+    {
+        var w = WonderFor(planet);
+        foreach (var k in PropKinds)
+        {
+            if (k.Name != name)
+            {
+                continue;
+            }
+
+            if (k.Gate is { } gate && !gate(w, planet))
+            {
+                return false;
+            }
+
+            return Noise.Value01(PlanetSeed(planet) + k.Salt, WorldConstants.WrapX(worldX, _circumference), k.Row, Wz(worldZ)) < k.Chance;
+        }
+
+        throw new System.ArgumentException($"unknown prop row '{name}'", nameof(name));
+    }
 
     /// <summary>The prop table's row names in precedence order (tests).</summary>
     internal static string[] PropOrderForTest()
@@ -131,10 +201,30 @@ public sealed partial class WorldGenerator
             _ => boulderId,
         };
 
-        // Margin 6 so the widest feature (a stone circle, radius ~4) generates identically from either side
-        // of a chunk edge.
-        for (int wx = origin.X - 6; wx < origin.X + cs + 6; wx++)
-            for (int wz = origin.Z - 6; wz < origin.Z + cs + 6; wz++)
+        // #1648: per-chunk row resolution — the classic rows by material rule, the generation-1 rows by their
+        // world gate + block key. A row that is off here never rolls (same as a missing material before).
+        var wonderProps = WonderFor(planet);
+        var rowMaterial = new BlockId[PropKinds.Length];
+        var rowSecondary = new BlockId[PropKinds.Length];
+        for (int k = 0; k < PropKinds.Length; k++)
+        {
+            ref readonly var kind = ref PropKinds[k];
+            if (kind.Gate is { } gate)
+            {
+                rowMaterial[k] = gate(wonderProps, planet) ? _content.GetBlock(kind.MaterialKey!)?.NumericId ?? BlockId.Air : BlockId.Air;
+                rowSecondary[k] = kind.SecondaryKey is { } sk ? _content.GetBlock(sk)?.NumericId ?? BlockId.Air : BlockId.Air;
+            }
+            else
+            {
+                rowMaterial[k] = MaterialOf(kind.Material);
+            }
+        }
+
+        // Margin 8 so the widest feature (a rib cage, 7 across — #1648; before that a stone circle, radius ~4)
+        // generates identically from either side of a chunk edge. The wider scan changes nothing for the
+        // classic rows: a column 7–8 away cannot write into this chunk.
+        for (int wx = origin.X - 8; wx < origin.X + cs + 8; wx++)
+            for (int wz = origin.Z - 8; wz < origin.Z + cs + 8; wz++)
             {
                 int cx = WorldConstants.WrapX(wx, _circumference);
                 int cz = Wz(wz);
@@ -144,7 +234,7 @@ public sealed partial class WorldGenerator
                 for (int k = 0; k < PropKinds.Length; k++)
                 {
                     ref readonly var kind = ref PropKinds[k];
-                    if (MaterialOf(kind.Material).IsAir)
+                    if (rowMaterial[k].IsAir)
                     {
                         continue;
                     }
@@ -175,7 +265,12 @@ public sealed partial class WorldGenerator
 
                 int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, cz) * 997); // per-column shape hash
                 ref readonly var row = ref PropKinds[hit];
-                row.Shape(new PropStamp(this, planet, wx, sy, wz, h1, MaterialOf(row.Material), cacheId, set));
+                if (row.Name == "coral-outcrop" && (sy > SeaLevel(planet) + 2 || sy <= SeaLevel(planet)))
+                {
+                    continue; // #1648: coral outcrops sit on the dry strip right above the waterline only
+                }
+
+                row.Shape(new PropStamp(this, planet, wx, sy, wz, h1, rowMaterial[hit], cacheId, set, rowSecondary[hit]));
             }
     }
 
@@ -436,6 +531,11 @@ public sealed partial class WorldGenerator
         var calib = CalibFor(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
         var riverField = RiverFieldFor(planet); // cached — needed for the beach ground check (#679)
+        var wonderTrees = WonderFor(planet);    // #1648: the generation decides the theme palette
+        int seaLevelTrees = SeaLevel(planet);
+        var stemId = _content.GetBlock("mushroom_stem")?.NumericId ?? logId;
+        var capId = _content.GetBlock("mushroom_cap")?.NumericId ?? leafId;
+        var crystalTreeId = _content.GetBlock("crystal")?.NumericId ?? leafId;
 
         // #1527: the density roll is tested against a conservative UPPER BOUND of every biome's multiplier first,
         // so the ~99 % of margin columns the exact test rejects never pay SurfaceHeight / BiomeIndex. The exact
@@ -490,10 +590,15 @@ public sealed partial class WorldGenerator
                 }
 
                 // Pick a grove kind from the biome theme's tree palette (one kind per low-frequency patch).
-                var kind = PickTreeKind(biome.Theme.Trees, seed, wx, wz, planet.TerrainScale);
+                var kind = PickTreeKind(biome.Theme.PaletteFor(wonderTrees.Generation), seed, wx, wz, planet.TerrainScale);
                 if (kind == TreeKind.None)
                 {
                     continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
+                }
+
+                if (kind == TreeKind.Mangrove && !NearWater(planet, wx, wz, seaLevelTrees))
+                {
+                    kind = TreeKind.Broadleaf; // #1648: mangroves stand beside water only
                 }
 
                 if (oasisFringe && System.Array.IndexOf(biome.Theme.Trees, TreeKind.Palm) >= 0)
@@ -535,7 +640,7 @@ public sealed partial class WorldGenerator
                 {
                     var surf = biome.Surface;
                     bool earthy = surf == grassId || surf == dirtId || surf == mudId;
-                    bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead); // palms/dead snags on sand
+                    bool sandyOk = surf == sandId && (kind == TreeKind.Palm || kind == TreeKind.Dead || kind == TreeKind.Saguaro); // palms/dead snags/saguaros on sand
                     if (!earthy && !sandyOk)
                     {
                         continue;
@@ -554,6 +659,14 @@ public sealed partial class WorldGenerator
                     case TreeKind.Palm: BuildPalm(wx, sy, wz, sizeF, hJit, cJit, logId, palmId, SetCell); break;
                     case TreeKind.Jungle: BuildJungle(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
                     case TreeKind.Dead: BuildDead(wx, sy, wz, sizeF, hJit, logId, SetCell); break;
+                    // #1648 generation-1 kinds (the palette only offers them from generation 1)
+                    case TreeKind.Baobab: BuildBaobab(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                    case TreeKind.Mangrove: BuildMangrove(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                    case TreeKind.Bamboo: BuildBamboo(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0xBA3B0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), logId, leafId, SetCell); break;
+                    case TreeKind.Saguaro: BuildSaguaro(wx, sy, wz, sizeF, hJit, (int)(Noise.Value01(seed + 0x5A6A0, WorldConstants.WrapX(wx, _circumference), 41, Wz(wz)) * 997), leafId, SetCell); break;
+                    case TreeKind.Willow: BuildWillow(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
+                    case TreeKind.MushroomTree: BuildMushroomTree(wx, sy, wz, sizeF, hJit, stemId, capId, SetCell); break;
+                    case TreeKind.CrystalTree: BuildCrystalTree(wx, sy, wz, sizeF, hJit, crystalTreeId, SetCell); break;
                     default: BuildBroadleaf(wx, sy, wz, sizeF, hJit, cJit, logId, leafId, SetCell); break;
                 }
             }
