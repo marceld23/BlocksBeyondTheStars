@@ -275,6 +275,10 @@ namespace BlocksBeyondTheStars.Client
         public Vector3 PlayerPosition;
         public float PlayerYaw;
 
+        /// <summary>The player's vertical speed (blocks/s, negative = falling), written by the controller each on-foot
+        /// frame. The chunk pipeline cooks colliders AHEAD of a fast descent with it (#1583).</summary>
+        public float PlayerVerticalVelocity;
+
         /// <summary>The held hotbar item places a rotatable block (a crafted shape or furniture) — written by
         /// the controller each on-foot frame; the HUD appends its "R — rotate" control hint while set (#863).</summary>
         public bool HoldingRotatableBlock;
@@ -1546,6 +1550,33 @@ namespace BlocksBeyondTheStars.Client
         // (the sharedMesh stays assigned, no re-bake). Generous enough to cover footing, jumps, and digging.
         public float ChunkColliderDistanceBlocks = 96f;
 
+        /// <summary>#1583: seconds of the current descent the collider cook gate looks ahead. Since #1529 a chunk
+        /// beyond <see cref="ChunkColliderDistanceBlocks"/> keeps its collision mesh un-cooked until it enters range;
+        /// a jetpack drop from 120 m arrives at ~70 blocks/s and would otherwise bring a whole ring of chunks into
+        /// range at once and rely on their bakes finishing before the feet do. The gate therefore treats every
+        /// chunk along the next few seconds of fall as in range, so the ground is cooked before it is reached.</summary>
+        private const float ColliderCookAheadSeconds = 3f;
+
+        /// <summary>Cap on the look-ahead drop (blocks), so a long free fall does not cook the whole column below.</summary>
+        private const float ColliderCookAheadMaxBlocks = 160f;
+
+        /// <summary>How far below the player the collider cook gate reaches this frame (0 unless descending).</summary>
+        private float ColliderCookAheadDrop()
+            => Mathf.Min(Mathf.Max(0f, -PlayerVerticalVelocity) * ColliderCookAheadSeconds, ColliderCookAheadMaxBlocks);
+
+        /// <summary>Squared distance from a chunk's centre to the vertical segment from <paramref name="player"/> down
+        /// to <paramref name="drop"/> blocks below it — equals <see cref="ChunkDistSqToPlayer"/> for a drop of 0.</summary>
+        private float ChunkDistSqToDescent(ChunkCoord coord, Vector3 player, float drop)
+        {
+            var o = WorldConstants.ChunkOrigin(coord);
+            const float half = WorldConstants.ChunkSize * 0.5f;
+            float cy = o.Y + half;
+            float dx = SceneX(o.X) + half - player.x;
+            float dz = SceneZ(o.Z) + half - player.z;
+            float dy = cy > player.y ? cy - player.y : cy < player.y - drop ? player.y - drop - cy : 0f;
+            return dx * dx + dy * dy + dz * dz;
+        }
+
         // Performance: the client otherwise NEVER unloads a chunk, so a long exploration grows _chunkObjects (and
         // the per-block-move RepositionChunks loop over it) without bound. Chunks farther than this are destroyed —
         // set well beyond the renderer-cull distance so a chunk that could still be visible is never dropped; the
@@ -1588,17 +1619,31 @@ namespace BlocksBeyondTheStars.Client
         /// while a cook is in flight, which is the window the falling-out guard's diagnostics ask about.</summary>
         private readonly Dictionary<ChunkCoord, int> _colliderAppliedGen = new Dictionary<ChunkCoord, int>();
 
-        /// <summary>Whether the chunk under a scene position has a collider re-bake in flight (started, not yet
-        /// assigned). Diagnostics only (#1488): the falling-out guard logs it when it fires.</summary>
+        /// <summary>Whether the chunk under a scene position has a collider cook outstanding — a re-bake in flight
+        /// (started, not yet assigned) or, since #1529, a collision mesh built beyond collider range and never
+        /// cooked (#1583). Diagnostics only (#1488): the falling-out guard logs it when it fires.</summary>
         public bool ColliderBakePendingAt(Vector3 scenePos)
         {
-            var coord = WorldConstants.WorldToChunk(new Vector3i(
-                Mathf.FloorToInt((float)WorldConstants.WrapX(scenePos.x, Circumference)),
-                Mathf.FloorToInt(scenePos.y),
-                Mathf.FloorToInt((float)WorldConstants.WrapZ(scenePos.z, Circumference))));
+            var coord = ChunkAtScene(scenePos);
             return _colliderGen.TryGetValue(coord, out int wanted)
                 && (!_colliderAppliedGen.TryGetValue(coord, out int applied) || applied != wanted);
         }
+
+        /// <summary>Whether the chunk under a scene position carries the collision it should: meshed, and its
+        /// collider cooked and assigned (or nothing to cook). False for a chunk that has not been meshed yet or
+        /// whose collision mesh is still un-cooked (#1583) — "air below" is then unknown, not open.</summary>
+        public bool ChunkColliderReadyAt(Vector3 scenePos)
+        {
+            var coord = ChunkAtScene(scenePos);
+            return _colliderGen.TryGetValue(coord, out int wanted)
+                && _colliderAppliedGen.TryGetValue(coord, out int applied) && applied == wanted;
+        }
+
+        private ChunkCoord ChunkAtScene(Vector3 scenePos)
+            => WorldConstants.WorldToChunk(new Vector3i(
+                Mathf.FloorToInt((float)WorldConstants.WrapX(scenePos.x, Circumference)),
+                Mathf.FloorToInt(scenePos.y),
+                Mathf.FloorToInt((float)WorldConstants.WrapZ(scenePos.z, Circumference))));
 
         // Performance (A2): build the chunk GEOMETRY off the main thread too (the heavy triple-loop + coloured
         // light flood-fill). DispatchChunkBuild snapshots the chunk neighbourhood on the main thread, runs
@@ -2622,6 +2667,7 @@ namespace BlocksBeyondTheStars.Client
             float cullSq = cull * cull;
             float colliderSq = collider * collider;
             float unloadSq = unload * unload;
+            float cookDrop = ColliderCookAheadDrop(); // #1583: the descent the cook gate reaches down along
             _unloadScratch.Clear();
             foreach (var kv in _chunkObjects)
             {
@@ -2674,7 +2720,11 @@ namespace BlocksBeyondTheStars.Client
                     view.ColliderEnabled = collide;
                 }
 
-                if (collide && view.PendingCollider != null)
+                // #1583: the cook gate is the collider range PLUS the next few seconds of a descent — a chunk the
+                // feet are about to reach is cooked before they arrive, not when they do. The collider itself is
+                // still enabled only within range; the cooked mesh waits on the (disabled) MeshCollider.
+                bool cook = collide || (cookDrop > 0f && ChunkDistSqToDescent(kv.Key, pp, cookDrop) <= colliderSq);
+                if (cook && view.PendingCollider != null)
                 {
                     // #1529: the chunk entered collider range — cook the collider it has been holding un-baked.
                     var pending = view.PendingCollider;
@@ -3404,10 +3454,15 @@ namespace BlocksBeyondTheStars.Client
             if (colliderUnchanged)
             {
                 // #1529: the cooked collider the chunk carries (or the un-cooked one it holds pending) is still right.
-                _colliderAppliedGen[coord] = bakeGen;
                 if (view.PendingCollider != null)
                 {
+                    // #1583: still un-cooked — the chunk awaits its first cook, so it must NOT count as applied
+                    // (ColliderBakePendingAt read "not pending" for a chunk whose MeshCollider had no mesh).
                     view.PendingColliderGen = bakeGen;
+                }
+                else
+                {
+                    _colliderAppliedGen[coord] = bakeGen;
                 }
             }
             else if (collider == null)
@@ -3438,7 +3493,7 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 var (_, colliderRange, _) = EffectiveChunkDistances();
-                if (ChunkDistSqToPlayer(coord, PlayerPosition) > colliderRange * colliderRange)
+                if (ChunkDistSqToDescent(coord, PlayerPosition, ColliderCookAheadDrop()) > colliderRange * colliderRange)
                 {
                     // #1529: beyond collider range the MeshCollider is disabled anyway (RepositionChunks) — keep the
                     // un-cooked mesh and cook it when the chunk comes into range. At VD 8 that was ~44 % of all cooks.

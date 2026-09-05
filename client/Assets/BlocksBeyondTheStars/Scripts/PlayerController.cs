@@ -242,10 +242,13 @@ namespace BlocksBeyondTheStars.Client
         private float _awaitFloorTimer;
 
         /// <summary>Whether the client actually holds the chunk under <paramref name="feet"/> — false while it
-        /// is still streaming, in which case "air below" means "unknown", not "open" (#1449).</summary>
+        /// is still streaming, in which case "air below" means "unknown", not "open" (#1449). Since #1529 a
+        /// streamed chunk may still carry an un-cooked collider, so the chunk must also have its collision
+        /// cooked (#1583): a collider metres further down answering the ray is not this chunk's floor.</summary>
         private bool FootingKnown(Vector3 feet)
             => Game?.World == null
-               || Game.World.TryGetBlock(Mathf.FloorToInt(feet.x), Mathf.FloorToInt(feet.y - 0.05f), Mathf.FloorToInt(feet.z), out _);
+               || (Game.World.TryGetBlock(Mathf.FloorToInt(feet.x), Mathf.FloorToInt(feet.y - 0.05f), Mathf.FloorToInt(feet.z), out _)
+                   && Game.ChunkColliderReadyAt(new Vector3(feet.x, feet.y - 0.05f, feet.z)));
 
         // View-settle gate (#390): hold the reveal until the streamed view has finished arriving AND meshing, so
         // the world doesn't visibly assemble after the veil lifts. "No new chunk for this long" is the reliable
@@ -533,6 +536,7 @@ namespace BlocksBeyondTheStars.Client
                 SendMovement();
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
+                Game.PlayerVerticalVelocity = 0f;
                 return;
             }
 
@@ -561,6 +565,7 @@ namespace BlocksBeyondTheStars.Client
                 SendMovement();
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
+                Game.PlayerVerticalVelocity = 0f;
                 return;
             }
 
@@ -674,11 +679,12 @@ namespace BlocksBeyondTheStars.Client
             SendMovement();
             UpdateEnemyAim();
 
-            // Publish local pose for the HUD minimap/compass.
+            // Publish local pose for the HUD minimap/compass — and the vertical speed for the collider cook-ahead (#1583).
             if (Game != null)
             {
                 Game.PlayerPosition = transform.position;
                 Game.PlayerYaw = transform.eulerAngles.y;
+                Game.PlayerVerticalVelocity = _verticalVelocity;
                 HandleStations();
             }
         }
