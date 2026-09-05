@@ -13,6 +13,14 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🧭 A star system you jumped into but never landed in can be jumped to again (#1638)
+
+- **"Hyperjump to this system" for every other system.** The travel screen used to offer the jump only for
+  a system you had never entered. After one jump into a system without landing there, its worlds showed up
+  locked ("not visited") and the jump entry was gone — the system could not be reached again from the
+  screen. Now every system other than the one you're in keeps its jump button above its worlds, and a
+  locked world in another system offers the same jump in its detail pane. Thanks to Lyxette for the report.
+
 ### 📬 Report inbox — a report pair keyed alike on both halves has one conversation again (#1642)
 
 - **The admin page of a report said "no replies yet" although the report had been answered.** Since #1359 the

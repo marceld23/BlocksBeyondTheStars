@@ -24,6 +24,16 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ CI: main green again — the view-distance streaming test wraps its probe columns at the longitude seam (#1640, 2026-09-05, branch fix/streaming-test-seam)
+
+Every push to `main` since #1632 failed the full tier on one `Slow` test (PR CI skips the Slow tier, so five
+merges went through green): `ClientViewDistance_ExtendsTheStreamedTerrain_OverTheWire` compared unwrapped chunk X,
+and the dry-pad preference (#1621) moved this seed's spawn pad to column 733 of 735 — "center + 2" named a column
+the server only ever streams canonically as 0. Test-only fix: both probe columns go through
+`WorldConstants.CanonicalChunkX(x, circumference)`, like the server's own chunk keys. Streaming was never wrong.
+
+---
+
 ### ★ Report inbox: a pair keyed alike on both halves owns ONE thread on the client row; the detail page merges split entries (#1642, 2026-09-05, branch fix/reporthost-pair-thread-owner)
 
 Lyxette's two reports of 2026-09-05 were answered through `POST /api/reports/{id}/replies` on the client row; the
@@ -55,6 +65,24 @@ uGUI EventSystem selection on close, and uGUI never deselects a deactivated Inpu
   covers the feedback dialog / beacon label closed without a click.
 - **Unchanged:** the pause-menu gate, pad Back / touch NEXT (#1041), N typed inside the chat box still types `n`.
 - **Verify:** Enter → type → Esc → N advances VEGA with no click in between; same with Enter (send).
+
+### ★ Travel screen: a star system you jumped into but never landed in is reachable again — "Hyperjump to this system" for every other system (#1638, 2026-09-05, branch fix/travel-screen-known-system-jump)
+
+Lyxette (F1 report, v2026.9.2): "I can't reach the system I have already jumped into once — I guess I could if I had
+visited a planet." Exactly right: `BuildMapList()` in `CraftingTechShipUI` offered the violet **Hyperjump to this
+system** entry only for a system the player had NEVER entered. A hyperjump in flight marks the system *known*
+(`MarkSystemKnown`), so the travel screen switched to its body list — and with Instant Travel off every body there is
+locked ("not visited": never landed) while the detail pane only said "fly there and land manually". Nothing on the
+screen could send the pilot back into that system. Server side `HyperjumpToSystem` never gated on known/unknown, so
+this was purely a client UI gap.
+
+- **Done (client):** every non-current system shows the **Hyperjump to this system** button above its bodies; a known
+  system gets its own hint (`ui.map.system_known_jump`: jump in and fly, or pick a world you've landed on). A LOCKED
+  body in another system shows `ui.map.locked_cross_hint` plus the same jump button in the detail pane (shared helper
+  `AddSystemJumpButton`, disabled off the ship). Same-system bodies unchanged.
+- **Locales:** 2 keys en/de by hand, 12 machine locales via `translate_locale.py`. Manual: travel-screen paragraph.
+- **Verify:** local Unity build; locale parity tests. Playtest: jump into a fresh system, don't land, travel home,
+  Map → that system → the jump button is back; pick one of its locked worlds → jump button in the detail pane too.
 
 ### ★ Volcanoes on every lava-core world; sea-mount cones rise out of the sea as volcanic islands (#1631, 2026-09-05, branch feat/volcanoes-1631)
 

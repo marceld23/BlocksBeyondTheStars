@@ -82,12 +82,18 @@ public sealed class JoinAndStreamingTests
 
         // A column 2 east is inside the client's radius-3 view but outside the host's radius-1 default — it only
         // reaches the client because the slider value travelled in the JoinRequest and drove server streaming.
+        // Both probe columns are wrapped at the longitude seam: streamed chunk keys are canonical, and the
+        // dry-pad preference (#1621) put this seed's spawn pad two columns short of the seam, where an
+        // unwrapped "center + 2" names a column that can never arrive.
+        int circumference = h.Server.World.Circumference;
+        int withinX = Shared.World.WorldConstants.CanonicalChunkX(center.X + 2, circumference);
+        int beyondX = Shared.World.WorldConstants.CanonicalChunkX(center.X + 5, circumference);
         bool gotWithinClientView = false;
         bool gotBeyondClientView = false;
         foreach (var key in h.Chunks.Keys)
         {
-            if (key.Item1 == center.X + 2) gotWithinClientView = true;
-            if (key.Item1 == center.X + 5) gotBeyondClientView = true; // beyond radius 3 + the one-ring load-ahead (4) — must never stream
+            if (key.Item1 == withinX) gotWithinClientView = true;
+            if (key.Item1 == beyondX) gotBeyondClientView = true; // beyond radius 3 + the one-ring load-ahead (4) — must never stream
         }
 
         Assert.True(gotWithinClientView, "client's radius-3 view should stream terrain past the host's radius-1 default");

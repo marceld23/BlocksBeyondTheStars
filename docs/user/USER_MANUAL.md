@@ -1075,7 +1075,10 @@ separate unlock; admins can still disable it through server world rules.
   - **Off (default):** you can only quick-travel to worlds you've already **landed on manually**. To reach a
     new world, **launch into space and fly there**, then land (pick a pad). A never-visited star system shows
     only as a single **"Hyperjump to this system"** entry — jumping there drops you into its flight space, and
-    you fly to its worlds and land. Once you've been somewhere, quick-travel to it works from then on.
+    you fly to its worlds and land. Once you've been somewhere, quick-travel to it works from then on. Every
+    other system keeps its **"Hyperjump to this system"** entry above its worlds, so a system you have jumped
+    into but never landed in stays reachable — a locked world in another system offers the same jump in its
+    detail pane (#1638).
   - **On:** quick-travel works for any world/system immediately, visited or not.
 - Jumping to **another star system** always requires a fitted **`jump_generator`** module.
 - A star system you have **never entered** shows as **"Unknown system"** — its name is part of what you
