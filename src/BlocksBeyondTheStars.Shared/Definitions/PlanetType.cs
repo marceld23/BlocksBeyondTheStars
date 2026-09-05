@@ -67,6 +67,18 @@ public sealed class PlanetType
     /// "mesa" (terraced plateaus + cliffs), "dunes" (parallel sand ridges), "spires" (sparse tall spikes).</summary>
     public string TerrainStyle { get; set; } = string.Empty;
 
+    /// <summary>Terrain feature tags this type opts into (#1644): "volcanic", "salt", "buttes", "hoodoos",
+    /// "crystal", "wind", "wetland", "glacial", "inselbergs" (see <see cref="TerrainTag"/>). The generator gates
+    /// its landform families on these — never on the type key — so a data-only type can carry any family.</summary>
+    public List<string> TerrainTags { get; set; } = new();
+
+    /// <summary>Computed at content load from <see cref="TerrainTags"/>, never from data (#1644).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public TerrainTag Tags { get; set; }
+
+    /// <summary>True when the type carries <paramref name="tag"/> (#1644).</summary>
+    public bool HasTag(TerrainTag tag) => (Tags & tag) != 0;
+
     /// <summary>Signature alien terrain (item 21 V5): when true, chunks of solid land float in the sky high
     /// above the surface — drifting voxel islands you reach by flying up or building a tower. Off by default.</summary>
     public bool FloatingIslands { get; set; }

@@ -42,13 +42,13 @@ public sealed partial class WorldGenerator
     // body salt), so it is safe — and important — to share across generator instances: the client bakes a
     // fresh WorldGenerator per minimap/orbit texture and the tests spin up hundreds, each of which would
     // otherwise re-sample ~17k heights + 2×4096 field points.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), WorldCalibration> _calibs = new();
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), WorldCalibration> _calibs = new();
     private static readonly object _calibLock = new object();
-    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _calibOrder = new();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _calibOrder = new();
 
     private WorldCalibration CalibFor(PlanetType planet)
     {
-        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
         lock (_calibLock)
         {
             if (_calibs.TryGetValue(key, out var cached))

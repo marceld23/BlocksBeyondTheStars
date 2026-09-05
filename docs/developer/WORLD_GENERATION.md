@@ -568,3 +568,47 @@ mega-caverns (`TryGetCavernSpan`, water/lava lakes, crystal-studded floors).
 hotspot cell (xorshift, capsule y-spans per column) — noodle tunnels, wider lava tubes on volcano
 worlds, skylight shafts, and real cave MOUTHS (tunnels may break the surface). River waterfall
 columns incise a plunge-pool slot; ≤ −8 °C worlds grow crevasse fields.
+
+---
+
+## 12. Terrain generation 1 — the landscape-variety package (#1644–#1649, 2026-09)
+
+Six parts, one worktree, merged in order. Part 1 (#1644) is the **invisible** foundation; every visible
+change from part 2 on gates on the world's generation number and reaches **new worlds only**.
+
+**The switch — `WorldDescription.TerrainGeneration` (int).** 0 = every world created before the package
+(the classic generators; the load-safe default, like `TerrainContinents`); 1 = the 2026-09 package.
+`ServerConfig`'s creation-time description carries `WorldDescription.CurrentTerrainGeneration`; the CLI
+`--terrain-generation N` is the escape hatch (0 = classic). The server applies it via
+`WorldGenerator.SetTerrainGeneration` before any height query and hands it to the client in
+`JoinAccepted.TerrainGeneration`, so the minimap / sky-body / space-view preview bakes use the same
+generation. One integer instead of one bool per wave: a later wave is a single `>=` compare.
+
+**Terrain tags — `PlanetType.TerrainTags` → `TerrainTag` flags.** The generator no longer gates any
+landform family on a planet-type KEY or on the style string: `volcanic` (lava rivers, basalt column
+fields, volcanic vents, basalt continents in a lava ocean), `salt` (salt polygons), `buttes` (table
+mountains + arches), `hoodoos`, `crystal` (shard props) reproduce the former `lava` / `ashen` /
+`salt_flats` / `savanna` / `varied` exceptions and style lists exactly (`planets.json` carries the tags;
+`TerrainTagsAndGenerationTests` proves the equivalence for all types). `wind`, `wetland`, `glacial`,
+`inselbergs` are reserved for the later parts. A new data-only type opts into any family by tag.
+
+**The landmark table — `LandmarkKinds`.** One row per landform family: `(name, active-gate,
+offset delegate, optional paint delegate)`. `WonderFor` resolves the active rows once per world into
+`WonderProfile.ActiveLandmarks` / `ActivePaints`; `SurfaceHeightUncached` loops the offsets (table
+order = precedence, first non-zero overlay wins — exactly the former if-chain) and `ComputeColumn` runs
+the paints after the classic ones. Adding a family = one row + its `Has*` / `*Offset` methods in a
+partial file; the height and column code never change.
+
+**The prop table — `PropKinds`.** The set-dressing stamp is table-driven the same way: `(name, salt,
+hash row, chance, material, shape)`, tried in table order per column, first hit wins (monolith >
+stone circle > boulder > crystal shard > dead tree, same salts as before). Adding a prop = one row +
+one shape method.
+
+**The file layout.** `WorldGenerator.cs` is split into partials by seam — `.Relief` (archetypes, styles,
+drama, grain, continents, the regional blend), `.Landmarks`, `.Overhangs`, `.Underground`, `.Craters`,
+`.Calibration`, `.Fluids`, `.Columns` (Generate + the per-column profile), `.Stamps`, `.Biomes`,
+`.Flora`. Pure moves; the core file keeps the constructor, the mode setters, the per-world profile and
+`SurfaceHeight`.
+
+Parts 2–6 (regional style pools, per-world scale, biome relief, new styles and landmarks, water bodies,
+paints, props, trees, data-only planet types, monument archetypes) are documented here as they land.

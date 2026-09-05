@@ -332,14 +332,9 @@ public sealed partial class WorldGenerator
             return false;
         }
 
-        return (planet.TerrainStyle?.ToLowerInvariant()) switch
-        {
-            "dunes" or "mesa" or "canyons" or "tablelands" or "badlands" => true,
-            // savanna since #577; varied added 2026-08-03 (visibility tuning): the START world is a
-            // varied world, and without a key exception it carried no big landmark family at all.
-            _ => string.Equals(planet.Key, "savanna", System.StringComparison.OrdinalIgnoreCase)
-                 || string.Equals(planet.Key, "varied", System.StringComparison.OrdinalIgnoreCase),
-        };
+        // #1644: the `buttes` tag (data) replaces the former style list (dunes/mesa/canyons/tablelands/badlands)
+        // plus the savanna/varied key exceptions — the tagged types are exactly those.
+        return planet.HasTag(TerrainTag.Buttes);
     }
 
     /// <summary>The table mountain's height contribution at a column, or 0 if none covers it (#577): a
@@ -678,8 +673,7 @@ public sealed partial class WorldGenerator
     private const double SaltPolyEdge = 1.7;    // |d2−d1| below this ⇒ on a plate boundary ridge
 
     private static bool HasSaltPolygons(PlanetType planet)
-        => string.Equals(planet.BeachBlock, "salt", System.StringComparison.OrdinalIgnoreCase)
-           || string.Equals(planet.Key, "salt_flats", System.StringComparison.OrdinalIgnoreCase);
+        => planet.HasTag(TerrainTag.Salt); // #1644: data tag instead of the salt_flats key / salt beach check
 
     /// <summary>+1 on the polygon boundary ridges of a salt pan, 0 on the plate interiors (#701). Seam-safe:
     /// the Voronoi cell grid is modular over the torus in both axes.</summary>
@@ -730,9 +724,7 @@ public sealed partial class WorldGenerator
             return false;
         }
 
-        return string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
-            || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase)
-            || string.Equals(planet.DeepBlock, "basalt", System.StringComparison.OrdinalIgnoreCase);
+        return planet.HasTag(TerrainTag.Volcanic); // #1644: data tag instead of the lava/ashen key check
     }
 
     /// <summary>The basalt column field's stepped height contribution at a column (#701), and whether the

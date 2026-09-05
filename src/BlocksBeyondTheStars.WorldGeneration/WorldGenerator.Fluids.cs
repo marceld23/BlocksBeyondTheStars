@@ -238,15 +238,15 @@ public sealed partial class WorldGenerator
     // STATIC like the calibration cache: the field is a pure function of (world seed, planet, size,
     // cratered, body salt), and fresh generator instances (tests, client preview bakes) would otherwise
     // re-run the ~300 ms network build per instance.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), RiverField> _riverFields = new();
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), RiverField> _riverFields = new();
     private static readonly object _riverLock = new object();
-    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _riverOrder = new();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _riverOrder = new();
 
     /// <summary>This world's routed river placement (built once per world, then cached). Empty on worlds that
     /// get no rivers (no water sea, or WaterAbundance below the river threshold).</summary>
     public RiverField RiverFieldFor(PlanetType planet)
     {
-        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
         lock (_riverLock)
         {
             if (_riverFields.TryGetValue(key, out var cached))
@@ -261,6 +261,10 @@ public sealed partial class WorldGenerator
             return field;
         }
     }
+
+    /// <summary>Whether this type routes LAVA rivers into its lava sea (#1644: the `volcanic` tag — formerly
+    /// the `lava` / `ashen` key check).</summary>
+    private static bool LavaRiversFor(PlanetType planet) => planet.HasTag(TerrainTag.Volcanic);
 
     private RiverField BuildRiverField(PlanetType planet)
     {
@@ -295,9 +299,7 @@ public sealed partial class WorldGenerator
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
         // channels are FEWER, WIDER and SHALLOWER than water brooks — thick flows creeping into the lava sea.
-        bool lavaWorld = string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
-                      || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase);
-        if (lavaWorld && seaFluid == lavaId && !lavaId.IsAir)
+        if (LavaRiversFor(planet) && seaFluid == lavaId && !lavaId.IsAir)
         {
             int sources = System.Math.Max(6, (int)System.Math.Round(26 * areaScale));
             var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);

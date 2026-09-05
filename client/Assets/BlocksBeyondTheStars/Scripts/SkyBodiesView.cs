@@ -343,7 +343,7 @@ namespace BlocksBeyondTheStars.Client
                 if (planet != null)
                 {
                     baked = WorldMinimap.Bake(Game.Content, Game.Atlas, Game.WorldSeed, locationKey, body.PlanetType, bodyCirc, 96, 48,
-                        bodyId: body.Id, continents: Game.TerrainContinents);
+                        bodyId: body.Id, continents: Game.TerrainContinents, generation: Game.TerrainGeneration);
                     tint = Color.Lerp(Color.white, sunHue, 0.35f); // light star-hue wash over the real map
                 }
                 else

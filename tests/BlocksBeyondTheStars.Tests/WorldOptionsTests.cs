@@ -104,6 +104,7 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.True(config.World.SystemVariance);
         Assert.True(config.World.AsteroidBelts);
         Assert.True(config.World.TerrainContinents);
+        Assert.Equal(WorldDescription.CurrentTerrainGeneration, config.World.TerrainGeneration); // #1644: new worlds get the current wave
         Assert.Equal(Frequency.Normal, config.World.SpaceStations); // #1114: most systems get a station
 
         // Load path: metadata that predates the fields deserializes to the classic regime — the plain
@@ -112,6 +113,7 @@ public sealed class WorldOptionsTests : IDisposable
         Assert.False(legacy.SystemVariance);
         Assert.False(legacy.AsteroidBelts);
         Assert.False(legacy.TerrainContinents);
+        Assert.Equal(0, legacy.TerrainGeneration); // #1644: a pre-package save keeps the classic generators
         Assert.Equal(Frequency.Rare, legacy.SpaceStations);
     }
 

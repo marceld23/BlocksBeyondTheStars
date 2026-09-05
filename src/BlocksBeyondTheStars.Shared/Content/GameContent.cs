@@ -859,6 +859,13 @@ public sealed class GameContent
             RequireBlock($"Planet '{planet.Key}' sub-surface", planet.SubSurfaceBlock);
             RequireBlock($"Planet '{planet.Key}' deep", planet.DeepBlock);
             RequireBlock($"Planet '{planet.Key}' beach", planet.BeachBlock);
+            // Terrain tags (#1644): resolved once here so worldgen reads a flags enum, never the string list.
+            planet.Tags = TerrainTags.Parse(planet.TerrainTags, out var unknownTag);
+            if (unknownTag is not null)
+            {
+                problems.Add($"Planet '{planet.Key}' carries unknown terrain tag '{unknownTag}'.");
+            }
+
             foreach (var biome in planet.Biomes)
             {
                 RequireBlock($"Planet '{planet.Key}' biome surface", biome.SurfaceBlock);

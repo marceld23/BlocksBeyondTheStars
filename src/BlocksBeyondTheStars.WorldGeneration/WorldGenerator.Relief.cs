@@ -284,6 +284,14 @@ public sealed partial class WorldGenerator
     /// the body is a large planet (≥ <see cref="ContinentMinCircumference"/>), carries a sea to relocate
     /// (water — or lava on the lava/ashen worlds: basalt continents in a lava ocean), and wins the ~50 %
     /// per-body roll. The ocean type keeps its 78–97 %-flooded identity and never rolls continents.</summary>
+    /// <summary>Whether a continental roll on this type means basalt continents in a LAVA ocean (#704; #1644:
+    /// the `volcanic` tag replaces the lava/ashen key check).</summary>
+    private static bool LavaOceanContinentsFor(PlanetType planet)
+    {
+        bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
+        return (planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0)) > 0.0 && planet.HasTag(TerrainTag.Volcanic);
+    }
+
     private ContinentProfile ContinentProfileFor(PlanetType planet, long seed)
     {
         if (!_continentsEnabled || _circumference < ContinentMinCircumference
@@ -300,9 +308,7 @@ public sealed partial class WorldGenerator
 
         double waterAb = planet.WaterAbundance ?? 0.55;
         bool volcanic = planet.SurfaceBlock == "basalt" || planet.DeepBlock == "basalt";
-        bool lavaOcean = (planet.LavaAbundance ?? (volcanic ? 0.7 : 0.0)) > 0.0
-            && (string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
-                || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase));
+        bool lavaOcean = LavaOceanContinentsFor(planet);
         if (waterAb >= 1.0 || (waterAb < 0.3 && !lavaOcean))
         {
             return default;

@@ -156,6 +156,10 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Whether this save was created with continents (#704, from JoinAccepted) — the local
         /// preview generators (minimap/orbit bakes) must apply the same gate as the server.</summary>
         public bool TerrainContinents { get; private set; }
+
+        /// <summary>The terrain generation this save was created with (#1644, from JoinAccepted) — the local
+        /// preview generators apply it like <see cref="TerrainContinents"/>.</summary>
+        public int TerrainGeneration { get; private set; }
         private System.Collections.Generic.Dictionary<ushort, Color> _floraTintByBlock;
 
         /// <summary>Total seconds this world has been played (from JoinAccepted, server-accumulated). The live
@@ -1942,6 +1946,7 @@ namespace BlocksBeyondTheStars.Client
                 LoadingPlanetType = m.PlanetType;
                 _worldSeed = m.WorldSeed;
                 TerrainContinents = m.TerrainContinents; // #704: previews must match the server's gate
+                TerrainGeneration = m.TerrainGeneration; // #1644: same for the landform generation
                 CumulativePlaytimeSeconds = m.CumulativePlaytimeSeconds; // saved world total; session ticks on top
                 if (_sessionStartRealtime < 0f)
                 {

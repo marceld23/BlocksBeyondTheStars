@@ -12,6 +12,16 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>chunk generation: Generate, the per-column profile and the y-loop (partial of <see cref="WorldGenerator"/>, split from the single file by seam).</summary>
 public sealed partial class WorldGenerator
 {
+    /// <summary>Whether this world vents steam/lava geysers for volcanic reasons (item 21 follow-up; #477 L-C:
+    /// volcano worlds vent too; #1644: the `volcanic` tag replaces the lava/ashen key check).</summary>
+    private static bool GeyserVolcanicFor(PlanetType planet, bool volcanoWorld)
+        => (planet.LavaAbundance ?? 0.0) > 0.0 || planet.HasTag(TerrainTag.Volcanic) || volcanoWorld;
+
+    /// <summary>Whether the set dressing scatters crystal shards here (W-R2; #1644: the `crystal` tag replaces
+    /// the "key contains crystal" check — crystal ore veins and very cavy worlds still qualify).</summary>
+    private static bool CrystalPropsFor(PlanetType planet)
+        => planet.HasTag(TerrainTag.Crystal) || planet.Ores.Exists(o => o.Block == "crystal") || planet.CaveThreshold > 0.62;
+
     public ChunkData Generate(PlanetType planet, ChunkCoord coord)
     {
         var chunk = new ChunkData(coord);
@@ -105,11 +115,7 @@ public sealed partial class WorldGenerator
         var geyserVentId = _content.GetBlock("geyser_vent")?.NumericId ?? BlockId.Air;
         double geyserWater = planet.WaterAbundance
             ?? (string.Equals(planet.Atmosphere, "none", System.StringComparison.OrdinalIgnoreCase) ? 0.0 : 0.55);
-        bool geyserVolcanic = (planet.LavaAbundance ?? 0.0) > 0.0
-            || string.Equals(planet.Key, "lava", System.StringComparison.OrdinalIgnoreCase)
-            || string.Equals(planet.Key, "ashen", System.StringComparison.OrdinalIgnoreCase)
-            || volcanoWorld; // #477 L-C: volcano worlds vent too (hot springs / fumaroles on watery worlds)
-        bool geysers = !geyserVentId.IsAir && (geyserWater > 0.25 || geyserVolcanic);
+        bool geysers = !geyserVentId.IsAir && (geyserWater > 0.25 || GeyserVolcanicFor(planet, volcanoWorld));
 
         // Aquatic flora: seabed plants (kelp stalks / coral reefs / seagrass) + lily pads on the surface, only
         // where the sea is water (never lava). World gen places them directly in the submerged columns below.
@@ -458,8 +464,7 @@ public sealed partial class WorldGenerator
         {
             var boulderId = ResolveBlock(planet.DeepBlock);
             var crystalId = _content.GetBlock("crystal")?.NumericId ?? BlockId.Air;
-            bool crystalWorld = !crystalId.IsAir
-                && (planet.Key.Contains("crystal") || planet.Ores.Exists(o => o.Block == "crystal") || planet.CaveThreshold > 0.62);
+            bool crystalWorld = !crystalId.IsAir && CrystalPropsFor(planet);
             bool dryWorld = (planet.WaterAbundance ?? 0.55) <= 0.15 && !planet.IsAirless && !logId.IsAir;
             StampSetDressing(planet, seed, chunk, coord, boulderId, crystalWorld ? crystalId : BlockId.Air,
                 dryWorld ? logId : BlockId.Air, fluidLevel);
@@ -726,6 +731,20 @@ public sealed partial class WorldGenerator
         {
             surfaceId = basaltId;
             subSurfaceId = basaltId;
+        }
+
+        // Landmark-table paints (#1644): the active rows' surface repaints, table order. Empty on every
+        // classic world — the families above keep their inline paints because those interleave with the
+        // beach/snow order; new families register a paint delegate instead of editing this method.
+        var wonder = WonderFor(planet);
+        var landmarkPaints = wonder.ActivePaints;
+        for (int i = 0; i < landmarkPaints.Length; i++)
+        {
+            if (landmarkPaints[i](this, planet, wonder, worldX, worldZ, surfaceY) is { } painted)
+            {
+                surfaceId = painted;
+                subSurfaceId = painted;
+            }
         }
 
         // Ejecta rays (#699): bright/contrast streaks radiating from the primary chain crater —

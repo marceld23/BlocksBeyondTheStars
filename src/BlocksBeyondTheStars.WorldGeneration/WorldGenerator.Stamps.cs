@@ -12,10 +12,95 @@ namespace BlocksBeyondTheStars.WorldGeneration;
 /// <summary>post-column stamps: set dressing, geysers, giant mushrooms, trees (partial of <see cref="WorldGenerator"/>, split from the single file by seam).</summary>
 public sealed partial class WorldGenerator
 {
+    /// <summary>What a set-dressing prop is built from — the world's own deep rock, crystal, or dead wood.
+    /// Each is resolved per chunk; a prop whose material is Air on this world never rolls.</summary>
+    private enum PropMaterial
+    {
+        Boulder,
+        Crystal,
+        DeadLog,
+    }
+
+    /// <summary>Everything a prop shape needs to stamp itself (#1644): the column, the surface height, the
+    /// per-column shape hash, the resolved blocks and the air-only cell setter.</summary>
+    private readonly struct PropStamp
+    {
+        public PropStamp(WorldGenerator generator, PlanetType planet, int wx, int sy, int wz, int shapeHash,
+            BlockId material, BlockId cache, System.Action<int, int, int, BlockId> set)
+        {
+            Generator = generator;
+            Planet = planet;
+            Wx = wx;
+            Sy = sy;
+            Wz = wz;
+            ShapeHash = shapeHash;
+            Material = material;
+            Cache = cache;
+            Set = set;
+        }
+
+        public readonly WorldGenerator Generator;
+        public readonly PlanetType Planet;
+        public readonly int Wx, Sy, Wz;
+        public readonly int ShapeHash;                          // per-column 0..996 (the former h1)
+        public readonly BlockId Material;                       // the row's material, resolved for this world
+        public readonly BlockId Cache;                          // data_cache (Air when the content lacks it)
+        public readonly System.Action<int, int, int, BlockId> Set; // fills AIR cells only, never carves
+    }
+
+    /// <summary>One row of the set-dressing prop table (#1644): the per-column roll (its own salt + hash row +
+    /// chance), the material whose absence disables the row, and the shape. Rows are tried in table order
+    /// and the first hit wins — the order below is exactly the former if/else precedence (monolith &gt;
+    /// circle &gt; boulder &gt; shard &gt; dead tree) with the same salts, so classic worlds are unchanged.
+    /// Adding a prop = one row + one shape method.</summary>
+    private readonly struct PropKind
+    {
+        public PropKind(string name, long salt, int row, double chance, PropMaterial material, System.Action<PropStamp> shape)
+        {
+            Name = name;
+            Salt = salt;
+            Row = row;
+            Chance = chance;
+            Material = material;
+            Shape = shape;
+        }
+
+        public readonly string Name;
+        public readonly long Salt;      // added to the world seed for this row's roll
+        public readonly int Row;        // the middle hash coordinate (keeps every row's roll independent)
+        public readonly double Chance;  // per-column probability
+        public readonly PropMaterial Material;
+        public readonly System.Action<PropStamp> Shape;
+    }
+
+    private static readonly PropKind[] PropKinds =
+    {
+        // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
+        // landmark finds with a data cache at the base/centre worth detouring for.
+        new("monolith", 0x3057, 43, 0.00018, PropMaterial.Boulder, StampMonolith),
+        new("stone-circle", 0xC1AC, 47, 0.00007, PropMaterial.Boulder, StampStoneCircle),
+        // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
+        new("boulder", 0xB01D, 29, 0.0012, PropMaterial.Boulder, StampBoulder),
+        new("crystal-shard", 0xC57A, 31, 0.0008, PropMaterial.Crystal, StampCrystalShard),
+        new("dead-tree", 0xDEAD, 37, 0.0009, PropMaterial.DeadLog, StampDeadTree),
+    };
+
+    /// <summary>The prop table's row names in precedence order (tests).</summary>
+    internal static string[] PropOrderForTest()
+    {
+        var names = new string[PropKinds.Length];
+        for (int i = 0; i < names.Length; i++)
+        {
+            names[i] = PropKinds[i].Name;
+        }
+
+        return names;
+    }
+
     /// <summary>Stamps sparse scatter props ("Welten reicher" W-R2): boulder clusters (the world's deep rock),
     /// crystal shard outcrops, and bare dead trees — per-column deterministic rolls with a margin scan so a
     /// prop straddling a chunk edge generates identically from either side. Props sit ON the surface
-    /// (air cells only) and never spawn in seas/ponds.</summary>
+    /// (air cells only) and never spawn in seas/ponds. Driven by the <see cref="PropKinds"/> table (#1644).</summary>
     private void StampSetDressing(PlanetType planet, long seed, ChunkData chunk, ChunkCoord coord,
         BlockId boulderId, BlockId crystalId, BlockId deadLogId, int fluidLevel)
     {
@@ -36,22 +121,42 @@ public sealed partial class WorldGenerator
             }
         }
 
+        System.Action<int, int, int, BlockId> set = SetCell;
+        var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
+
+        BlockId MaterialOf(PropMaterial m) => m switch
+        {
+            PropMaterial.Crystal => crystalId,
+            PropMaterial.DeadLog => deadLogId,
+            _ => boulderId,
+        };
+
         // Margin 6 so the widest feature (a stone circle, radius ~4) generates identically from either side
         // of a chunk edge.
         for (int wx = origin.X - 6; wx < origin.X + cs + 6; wx++)
             for (int wz = origin.Z - 6; wz < origin.Z + cs + 6; wz++)
             {
                 int cx = WorldConstants.WrapX(wx, _circumference);
+                int cz = Wz(wz);
 
-                // One roll per column per prop kind (distinct salts), all rare — these are scattered accents.
-                bool boulder = !boulderId.IsAir && Noise.Value01(seed + 0xB01D, cx, 29, Wz(wz)) < 0.0012;
-                bool shard = !crystalId.IsAir && Noise.Value01(seed + 0xC57A, cx, 31, Wz(wz)) < 0.0008;
-                bool deadTree = !deadLogId.IsAir && Noise.Value01(seed + 0xDEAD, cx, 37, Wz(wz)) < 0.0009;
-                // Small POIs (W-R3, blocks-only): lone monoliths + broken stone circles, rarer than the props —
-                // landmark finds with a data cache at the base/centre worth detouring for.
-                bool monolith = !boulderId.IsAir && Noise.Value01(seed + 0x3057, cx, 43, Wz(wz)) < 0.00018;
-                bool circle = !boulderId.IsAir && Noise.Value01(seed + 0xC1AC, cx, 47, Wz(wz)) < 0.00007;
-                if (!boulder && !shard && !deadTree && !monolith && !circle)
+                // Table order = precedence: the first row whose material exists here and whose roll hits wins.
+                int hit = -1;
+                for (int k = 0; k < PropKinds.Length; k++)
+                {
+                    ref readonly var kind = ref PropKinds[k];
+                    if (MaterialOf(kind.Material).IsAir)
+                    {
+                        continue;
+                    }
+
+                    if (Noise.Value01(seed + kind.Salt, cx, kind.Row, cz) < kind.Chance)
+                    {
+                        hit = k;
+                        break;
+                    }
+                }
+
+                if (hit < 0)
                 {
                     continue;
                 }
@@ -67,79 +172,85 @@ public sealed partial class WorldGenerator
                     continue; // dry ground only
                 }
 
-                int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, Wz(wz)) * 997); // per-column shape hash
-                var cacheId = _content.GetBlock("data_cache")?.NumericId ?? BlockId.Air;
-
-                if (monolith)
-                {
-                    // A lone weathered monolith, 5–7 tall, with a data cache leaning at its base.
-                    int height = 5 + h1 % 3;
-                    for (int dy = 1; dy <= height; dy++)
-                    {
-                        SetCell(wx, sy + dy, wz, boulderId);
-                    }
-
-                    if (!cacheId.IsAir)
-                    {
-                        SetCell(wx + 1, sy + 1, wz, cacheId);
-                    }
-                }
-                else if (circle)
-                {
-                    // A broken stone circle: pillars on a radius-4 ring (some collapsed), a data cache at the
-                    // centre. Each pillar grounds on its own column so the ring follows the terrain.
-                    (int X, int Z)[] ring = { (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3), (0, -4), (3, -3) };
-                    for (int r = 0; r < ring.Length; r++)
-                    {
-                        if (((h1 >> r) & 1) == 0 && r % 3 == 2)
-                        {
-                            continue; // the odd collapsed pillar
-                        }
-
-                        int px = wx + ring[r].X, pz = wz + ring[r].Z;
-                        int py = SurfaceHeight(planet, px, pz);
-                        int ph = 2 + ((h1 >> r) & 1);
-                        for (int dy = 1; dy <= ph; dy++)
-                        {
-                            SetCell(px, py + dy, pz, boulderId);
-                        }
-                    }
-
-                    if (!cacheId.IsAir)
-                    {
-                        SetCell(wx, sy + 1, wz, cacheId);
-                    }
-                }
-                else if (boulder)
-                {
-                    // An irregular 2–4 block boulder cluster of the world's own rock.
-                    SetCell(wx, sy + 1, wz, boulderId);
-                    if ((h1 & 1) == 0) SetCell(wx + 1, sy + 1, wz, boulderId);
-                    if ((h1 & 2) == 0) SetCell(wx, sy + 1, wz + 1, boulderId);
-                    if ((h1 & 12) == 0) SetCell(wx, sy + 2, wz, boulderId); // the odd two-tall rock
-                }
-                else if (shard)
-                {
-                    // A jutting crystal shard, 1–3 blocks tall (taller ones rarer).
-                    int height = 1 + h1 % 3;
-                    for (int dy = 1; dy <= height; dy++)
-                    {
-                        SetCell(wx, sy + dy, wz, crystalId);
-                    }
-                }
-                else if (deadTree)
-                {
-                    // A bare dead trunk (3–5 tall) with a single stub branch near the top — no leaves.
-                    int height = 3 + h1 % 3;
-                    for (int dy = 1; dy <= height; dy++)
-                    {
-                        SetCell(wx, sy + dy, wz, deadLogId);
-                    }
-
-                    int bx = (h1 & 4) == 0 ? 1 : -1;
-                    SetCell(wx + bx, sy + height - 1, wz, deadLogId);
-                }
+                int h1 = (int)(Noise.Value01(seed + 0x5E7D, cx, 41, cz) * 997); // per-column shape hash
+                ref readonly var row = ref PropKinds[hit];
+                row.Shape(new PropStamp(this, planet, wx, sy, wz, h1, MaterialOf(row.Material), cacheId, set));
             }
+    }
+
+    /// <summary>A lone weathered monolith, 5–7 tall, with a data cache leaning at its base.</summary>
+    private static void StampMonolith(PropStamp s)
+    {
+        int height = 5 + s.ShapeHash % 3;
+        for (int dy = 1; dy <= height; dy++)
+        {
+            s.Set(s.Wx, s.Sy + dy, s.Wz, s.Material);
+        }
+
+        if (!s.Cache.IsAir)
+        {
+            s.Set(s.Wx + 1, s.Sy + 1, s.Wz, s.Cache);
+        }
+    }
+
+    /// <summary>A broken stone circle: pillars on a radius-4 ring (some collapsed), a data cache at the
+    /// centre. Each pillar grounds on its own column so the ring follows the terrain.</summary>
+    private static void StampStoneCircle(PropStamp s)
+    {
+        (int X, int Z)[] ring = { (4, 0), (3, 3), (0, 4), (-3, 3), (-4, 0), (-3, -3), (0, -4), (3, -3) };
+        for (int r = 0; r < ring.Length; r++)
+        {
+            if (((s.ShapeHash >> r) & 1) == 0 && r % 3 == 2)
+            {
+                continue; // the odd collapsed pillar
+            }
+
+            int px = s.Wx + ring[r].X, pz = s.Wz + ring[r].Z;
+            int py = s.Generator.SurfaceHeight(s.Planet, px, pz);
+            int ph = 2 + ((s.ShapeHash >> r) & 1);
+            for (int dy = 1; dy <= ph; dy++)
+            {
+                s.Set(px, py + dy, pz, s.Material);
+            }
+        }
+
+        if (!s.Cache.IsAir)
+        {
+            s.Set(s.Wx, s.Sy + 1, s.Wz, s.Cache);
+        }
+    }
+
+    /// <summary>An irregular 2–4 block boulder cluster of the world's own rock.</summary>
+    private static void StampBoulder(PropStamp s)
+    {
+        int h1 = s.ShapeHash;
+        s.Set(s.Wx, s.Sy + 1, s.Wz, s.Material);
+        if ((h1 & 1) == 0) s.Set(s.Wx + 1, s.Sy + 1, s.Wz, s.Material);
+        if ((h1 & 2) == 0) s.Set(s.Wx, s.Sy + 1, s.Wz + 1, s.Material);
+        if ((h1 & 12) == 0) s.Set(s.Wx, s.Sy + 2, s.Wz, s.Material); // the odd two-tall rock
+    }
+
+    /// <summary>A jutting crystal shard, 1–3 blocks tall (taller ones rarer).</summary>
+    private static void StampCrystalShard(PropStamp s)
+    {
+        int height = 1 + s.ShapeHash % 3;
+        for (int dy = 1; dy <= height; dy++)
+        {
+            s.Set(s.Wx, s.Sy + dy, s.Wz, s.Material);
+        }
+    }
+
+    /// <summary>A bare dead trunk (3–5 tall) with a single stub branch near the top — no leaves.</summary>
+    private static void StampDeadTree(PropStamp s)
+    {
+        int height = 3 + s.ShapeHash % 3;
+        for (int dy = 1; dy <= height; dy++)
+        {
+            s.Set(s.Wx, s.Sy + dy, s.Wz, s.Material);
+        }
+
+        int bx = (s.ShapeHash & 4) == 0 ? 1 : -1;
+        s.Set(s.Wx + bx, s.Sy + height - 1, s.Wz, s.Material);
     }
 
     /// <summary>Stamps sparse geyser/vent marker blocks on the surface (item 21 follow-up): the topmost ground

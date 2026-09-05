@@ -306,11 +306,8 @@ public sealed partial class WorldGenerator
     private const double HoodooChance = 0.5;
     private const double HoodooRegionThreshold = 0.55; // visibility tuning 2026-08-03: broader fields
 
-    private bool HasHoodoos(PlanetType planet) => (planet.TerrainStyle?.ToLowerInvariant()) switch
-    {
-        "badlands" or "tablelands" or "mesa" or "canyons" => !planet.Void && !planet.Cratered && !_crateredWorld,
-        _ => false,
-    };
+    private bool HasHoodoos(PlanetType planet) // #1644: the `hoodoos` tag replaces the style list
+        => planet.HasTag(TerrainTag.Hoodoos) && !planet.Void && !planet.Cratered && !_crateredWorld;
 
     private bool HoodooRegionAt(PlanetType planet, long seed, int worldX, int worldZ)
         => FbmT(seed + 0x400D00, worldX, worldZ, planet.TerrainScale * 1.6, octaves: 2) > HoodooRegionThreshold;

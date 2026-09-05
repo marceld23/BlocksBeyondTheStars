@@ -126,6 +126,22 @@ public sealed partial class WorldGenerator
 
     private bool _lavaCoreVolcanoes;
 
+    /// <summary>The terrain generation this world was created with (#1644, landscape-variety package) — from
+    /// the save's <c>WorldDescription.TerrainGeneration</c> on the server, from the join handshake on the
+    /// client. 0 = the classic generators only, so every existing save keeps its terrain; the per-world
+    /// profile reads it as <c>w.Generation</c> and every generation-1 feature gates on it. Call BEFORE any
+    /// height query, like the other mode setters.</summary>
+    public void SetTerrainGeneration(int generation)
+    {
+        _terrainGeneration = generation;
+        InvalidateColumnCaches();
+    }
+
+    /// <summary>The terrain generation currently applied (see <see cref="SetTerrainGeneration"/>).</summary>
+    public int TerrainGeneration => _terrainGeneration;
+
+    private int _terrainGeneration;
+
     /// <summary>The flattened pad surface height for a column, or null when it is not on a pad.</summary>
     private int? PadSurfaceAt(int worldX, int worldZ)
         => PadColumnAt(worldX, worldZ, out var pad, out int target) && target == pad.SurfaceY ? target : null;
@@ -362,22 +378,122 @@ public sealed partial class WorldGenerator
         public bool HybridEligible;        // #703
         public double HybridA, HybridB;    // #703 rolled fade thresholds
         public int SkyTiers;               // #707 (0 on non-floating worlds)
+        public int Generation;             // #1644 terrain generation of this world (0 = classic generators)
+        public TerrainTag Tags;            // #1644 the planet type's terrain tags, resolved at content load
+
+        /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
+        /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
+        public LandmarkOffsetFn[] ActiveLandmarks = System.Array.Empty<LandmarkOffsetFn>();
+
+        /// <summary>The active rows' surface repaints, table order (#1644); run by the column phase.</summary>
+        public LandmarkPaintFn[] ActivePaints = System.Array.Empty<LandmarkPaintFn>();
+    }
+
+    // --- Landmark registration table (#1644): one row per landform family. Adding a family = one row here
+    // plus its Has*/Offset methods in a partial file; SurfaceHeightUncached and ComputeColumn never change.
+    // Row order IS the per-column precedence (first non-zero overlay wins), kept exactly as the former
+    // if-chain (volcano > caldera > massif > table mountain > overhangs > travertine > penitentes > cenote >
+    // crevasse > rift > mega-rift) so every existing world is byte-identical. ---
+
+    /// <summary>A landmark family's per-column height overlay (blocks; 0 = the family has nothing here).</summary>
+    private delegate double LandmarkOffsetFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ);
+
+    /// <summary>A landmark family's optional surface repaint at a column (null = keep the block the biome and
+    /// paint chain chose). Runs after the classic paints and before the ejecta rays.</summary>
+    private delegate BlockId? LandmarkPaintFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY);
+
+    private readonly struct LandmarkKind
+    {
+        public LandmarkKind(string name, System.Func<WonderProfile, bool> active, LandmarkOffsetFn offset, LandmarkPaintFn? paint = null)
+        {
+            Name = name;
+            Active = active;
+            Offset = offset;
+            Paint = paint;
+        }
+
+        public readonly string Name;
+        public readonly System.Func<WonderProfile, bool> Active; // reads the profile's cached gate boolean
+        public readonly LandmarkOffsetFn Offset;
+        public readonly LandmarkPaintFn? Paint;
+    }
+
+    private static readonly LandmarkKind[] LandmarkKinds =
+    {
+        new("volcano", w => w.Volcanoes, static (g, p, w, x, z) => g.VolcanoOffset(p, w.Seed, x, z)),
+        new("caldera", w => w.Calderas, static (g, p, w, x, z) => g.CalderaOffset(w.Seed, x, z)),
+        new("massif", w => w.Massifs, static (g, p, w, x, z) => g.MassifOffset(p, w.Seed, x, z)),
+        new("table-mountain", w => w.TableMountains, static (g, p, w, x, z) => g.TableMountainOffset(w.Seed, x, z)),
+        new("overhang", w => w.OverhangLandmarks, static (g, p, w, x, z) => g.OverhangGroundOffset(p, w, x, z)),
+        new("travertine", w => w.Travertine,
+            static (g, p, w, x, z) => g.TryGetTravertine(w.Seed, x, z, out double deckRise, out _) ? deckRise : 0.0),
+        new("penitentes", w => w.Penitentes, static (g, p, w, x, z) => g.PenitenteRise(p, w.Seed, x, z)),
+        new("cenote", w => w.Cenotes, static (g, p, w, x, z) => g.CenoteOffset(p, w.Seed, x, z)),
+        new("crevasse", w => w.Crevasses, static (g, p, w, x, z) => g.CrevasseOffset(w.Seed, x, z)),
+        new("rift", w => w.Rifts, static (g, p, w, x, z) => g.RiftOffset(w.Seed, x, z)),
+        new("mega-rift", w => w.MegaRift, static (g, p, w, x, z) => g.MegaRiftOffset(w.Seed, x, z)),
+    };
+
+    /// <summary>The landmark families active on this world in precedence order (tests).</summary>
+    internal string[] LandmarkOrderForTest(PlanetType planet)
+    {
+        var w = WonderFor(planet);
+        var names = new System.Collections.Generic.List<string>();
+        foreach (var k in LandmarkKinds)
+        {
+            if (k.Active(w))
+            {
+                names.Add(k.Name);
+            }
+        }
+
+        return names.ToArray();
+    }
+
+    /// <summary>Every per-world feature gate by name (tests — the tag equivalence test compares them against
+    /// the pre-#1644 key/style predicates for all planet types).</summary>
+    internal System.Collections.Generic.Dictionary<string, bool> WonderGatesForTest(PlanetType planet)
+    {
+        var w = WonderFor(planet);
+        return new System.Collections.Generic.Dictionary<string, bool>
+        {
+            ["volcanoes"] = w.Volcanoes,
+            ["calderas"] = w.Calderas,
+            ["massifs"] = w.Massifs,
+            ["tableMountains"] = w.TableMountains,
+            ["rifts"] = w.Rifts,
+            ["arches"] = w.Arches,
+            ["seaStacks"] = w.SeaStacks,
+            ["hoodoos"] = w.Hoodoos,
+            ["travertine"] = w.Travertine,
+            ["penitentes"] = w.Penitentes,
+            ["cenotes"] = w.Cenotes,
+            ["crevasses"] = w.Crevasses,
+            ["saltPolygons"] = w.SaltPolygons,
+            ["basaltFields"] = w.BasaltFields,
+            ["tunnels"] = w.Tunnels,
+            ["caverns"] = w.Caverns,
+            ["lavaRivers"] = LavaRiversFor(planet),
+            ["lavaOceanContinents"] = LavaOceanContinentsFor(planet),
+            ["geyserVolcanic"] = GeyserVolcanicFor(planet, w.Volcanoes),
+            ["crystalProps"] = CrystalPropsFor(planet),
+        };
     }
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
     // PLUS a lock-free instance fast path: a generator works one world at a time, so per-column lookups
     // almost always hit the instance slot and never touch the lock.
-    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), WonderProfile> _wonders = new();
+    private static readonly System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), WonderProfile> _wonders = new();
     private static readonly object _wonderLock = new object();
-    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> _wonderOrder = new();
+    private static readonly System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> _wonderOrder = new();
     private WonderProfile? _wonderCached;
-    private (long, string, int, bool, long, bool) _wonderCachedKey;
+    private (long, string, int, bool, long, bool, bool, int) _wonderCachedKey;
 
     /// <summary>#1527: the bounded static caches evict their OLDEST entry instead of clearing wholesale, so a
     /// world past the cap only re-derives one entry, not every resident body's.</summary>
     private static void EvictOldest<TValue>(
-        System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool), TValue> cache,
-        System.Collections.Generic.Queue<(long, string, int, bool, long, bool)> order, int cap)
+        System.Collections.Generic.Dictionary<(long, string, int, bool, long, bool, bool, int), TValue> cache,
+        System.Collections.Generic.Queue<(long, string, int, bool, long, bool, bool, int)> order, int cap)
     {
         while (cache.Count >= cap && order.Count > 0)
         {
@@ -436,7 +552,7 @@ public sealed partial class WorldGenerator
 
     private WonderProfile WonderFor(PlanetType planet)
     {
-        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled);
+        var key = (_worldSeed, planet.Key, _circumference, _crateredWorld, _locationSalt, _continentsEnabled, _lavaCoreVolcanoes, _terrainGeneration);
         if (_wonderCached is { } fast && _wonderCachedKey == key)
         {
             return fast;
@@ -473,8 +589,28 @@ public sealed partial class WorldGenerator
                     Tunnels = HasTunnels(planet),
                     Caverns = HasCaverns(planet),
                     SkyTiers = planet.FloatingIslands ? SkyTiersFor(seed) : 0,
+                    Generation = _terrainGeneration,
+                    Tags = planet.Tags,
                 };
                 w.OverhangLandmarks = w.Arches || w.SeaStacks || w.Hoodoos;
+                var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
+                var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
+                foreach (var kind in LandmarkKinds)
+                {
+                    if (!kind.Active(w))
+                    {
+                        continue;
+                    }
+
+                    offsets.Add(kind.Offset);
+                    if (kind.Paint is { } paint)
+                    {
+                        paints.Add(paint);
+                    }
+                }
+
+                w.ActiveLandmarks = offsets.ToArray();
+                w.ActivePaints = paints.ToArray();
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes;
                 w.HybridEligible = StyleHybridEligible(w.Style);
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
@@ -492,8 +628,9 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>Computes the surface height (world Y) of a column for a planet — the raw terrain plus at
-    /// most ONE landmark overlay: volcano cones (#477), massifs, table mountains or rift chasms
-    /// (#577/#578). Precedence volcano &gt; massif &gt; butte &gt; rift, one landmark per column, so a
+    /// most ONE landmark overlay from the landmark table (#1644, <see cref="LandmarkKinds"/>): volcano cones
+    /// (#477), massifs, table mountains, rift chasms (#577/#578) and the #698–#709 families. Table order is
+    /// the precedence (volcano &gt; caldera &gt; massif &gt; butte &gt; … &gt; rift), one landmark per column, so a
     /// landmark's own summit/fluid helpers always anchor to ground no other landmark has moved.
     /// Everything that consumes terrain (rivers, settlements, pads, previews) goes through here, so
     /// every system sees the same mountain.</summary>
@@ -525,59 +662,13 @@ public sealed partial class WorldGenerator
     /// <summary>The memo-free surface height — what <see cref="SurfaceHeight"/> caches (tests compare the two).</summary>
     internal int SurfaceHeightUncached(PlanetType planet, int worldX, int worldZ)
     {
-        var w = WonderFor(planet); // #712: every gate below is a cached boolean, not a re-derivation
+        var w = WonderFor(planet); // #712: every gate is a cached boolean; #1644: the active rows are cached too
         int h = RawSurfaceHeight(planet, w, worldX, worldZ);
-        long seed = w.Seed;
-        double overlay = w.Volcanoes ? VolcanoOffset(planet, seed, worldX, worldZ) : 0.0;
-        if (overlay == 0.0 && w.Calderas)
+        double overlay = 0.0;
+        var landmarks = w.ActiveLandmarks;
+        for (int i = 0; i < landmarks.Length && overlay == 0.0; i++)
         {
-            overlay = CalderaOffset(seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.Massifs)
-        {
-            overlay = MassifOffset(planet, seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.TableMountains)
-        {
-            overlay = TableMountainOffset(seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.OverhangLandmarks)
-        {
-            overlay = OverhangGroundOffset(planet, w, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.Travertine
-            && TryGetTravertine(seed, worldX, worldZ, out double deckRise, out _))
-        {
-            overlay = deckRise;
-        }
-
-        if (overlay == 0.0 && w.Penitentes)
-        {
-            overlay = PenitenteRise(planet, seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.Cenotes)
-        {
-            overlay = CenoteOffset(planet, seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.Crevasses)
-        {
-            overlay = CrevasseOffset(seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.Rifts)
-        {
-            overlay = RiftOffset(seed, worldX, worldZ);
-        }
-
-        if (overlay == 0.0 && w.MegaRift)
-        {
-            overlay = MegaRiftOffset(seed, worldX, worldZ);
+            overlay = landmarks[i](this, planet, w, worldX, worldZ); // table order = precedence, first hit wins
         }
 
         if (overlay != 0.0)
