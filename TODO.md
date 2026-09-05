@@ -24,6 +24,24 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Planet lighting: shade is shade, not a cave — depth-aware skylight, dappled sun through the shadow map, de-stacked AO, star light normalised, caves a touch brighter, shadow fade (#1608 #1609 #1610 #1611 #1612, 2026-09-05, branch fix/shade-skylight-lighting)
+Marcel: "auf manchen Welten immer noch recht dunkel; im Schatten braucht es die Lampe, um eine Textur zu erkennen".
+Analysis: the URP shadow map is mild (shadowStrength 0.7 → ×0.73); what crushed shade was the mesher SKYLIGHT —
+`ChunkMesher.Top()` counts any non-air block (leaves, flora, glass) as the column top, so under any canopy / overhang
+≥ 5 wide the 5×5 open fraction is 0 and `BlockAtlas.shader` lit the face like a cave (ambient at the 0.26 floor, the
+direct-sun term zeroed BEFORE the shadow map, no night fill) — ~24 % of a lit face at noon, ~4 % in a crevice once
+vertex AO × normal-map cavity × after-opaque SSAO stacked on top. Open ground: `_Sc_Light` is the raw star colour, so
+late-K / M stars (about a fifth of all systems) lit every face at 64–74 % of a sun-like star all day. Changes:
+**#1608** `Skylight()` takes a shade floor from the depth below the column top (0.55 within 6 blocks, fading to 0 by
+14 — deep caves unchanged) and the URP pass gates the direct sun + specular by `saturate(sky*2)`, so the foliage
+alpha-clip holes cast real sun spots under trees; **#1609** SSAO intensity 0.5 → 0.3 on the High + Medium renderers;
+**#1610** `Sky.ApplyLighting` lifts the block light so its sRGB luma never drops below 93 % of the sun-like anchor
+(≈ 85 % linear), hue untouched, the sun disc / rays / grade keep the raw colour, `_sun.color` follows so Lit props
+match; **#1611** occluded ambient floor 0.26 → 0.32 (URP + Built-in passes); **#1612** the dead `_Sc_GradeTint` /
+`_Sc_GradeParams` uploads dropped (no shader read them) and the shadow sample blended to lit with
+`GetMainLightShadowFade`. Verification: local Unity build; the .NET suite is untouched (the mesher lives in
+`client/Assets` only). Playtest open: jungle at noon under canopy, an M-star world, a cave at 12+ blocks.
+
 ### ★ Hyperspace chart: a stars-only galaxy tab on the flight chart, jump-from-chart, real star colours, the finale out past the frontier (#1603 #1604 #1605, 2026-09-05, branch feat/hyperspace-chart-1603)
 
 **Why.** Marcel, 2026-09-05: "like the planet chart in space, I want a hyperspace map of the star systems — as a

@@ -177,13 +177,24 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // #1518: the lookup only feeds terms multiplied by ndl*sky, so a face turned away from the sun
                 // or without skylight (caves, interiors — about half of all voxel faces) skips the soft-shadow
                 // tent filter entirely; the branch is per-face coherent and the result is identical.
-                float shadow = (ndl * sky > 0.0) ? MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)) : 0.0;
+                // #1612: blended toward "lit" by the URP shadow-distance fade, so the shadow map's edge dissolves
+                // instead of marching across the terrain as a hard line at the preset distance (40/70/110 m).
+                float shadow = (ndl * sky > 0.0)
+                    ? lerp(MainLightRealtimeShadow(TransformWorldToShadowCoord(i.wp)), 1.0, GetMainLightShadowFade(i.wp))
+                    : 0.0;
 
                 // Per-vertex AO (mesher, in .b) widened to a visible contact-shadow range, then multiplied by
                 // the texture-scale cavity AO (normal map alpha). Diffuse-only — spec/reflection stay crisp.
                 float faceAo = lerp(0.62, 1.0, i.mat.b) * lerp(1.0, nrm.a, 0.6);
-                float amb = lerp(0.26, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
-                float3 col = albedo * (light * (amb + 0.5 * ndl * sky * shadow) + 0.05) * faceAo;
+                // #1611: the fully occluded (cave / interior) end of the ambient sat at 0.26 — lifted to 0.32 so a
+                // cave wall keeps a faint readable texture while still clearly asking for the lamp.
+                float amb = lerp(0.32, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
+                // #1608: the shadow map owns "is the sun blocked". The mesher skylight gates the direct sun (and the
+                // specular below) at half weight only — saturate(sky*2) — so partially covered ground keeps the sun
+                // spots the foliage alpha-clip punches through a canopy (dappled light), instead of the skylight
+                // zeroing them before the shadow map ever gets a say.
+                float sunOpen = saturate(sky * 2.0);
+                float3 col = albedo * (light * (amb + 0.5 * ndl * sunOpen * shadow) + 0.05) * faceAo;
                 col += albedo * (_Sc_Indoor * 0.5 * (1.0 - sky)) * faceAo;
 
                 // Night/atmosphere ambient floor: a faint cool fill on open-sky faces, strongest when the sun
@@ -206,7 +217,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 float dterm = nh * nh * (r2 - 1.0) + 1.00001;
                 float specTerm = r2 / ((dterm * dterm) * max(0.1, lh * lh) * (rough * 4.0 + 2.0));
                 float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metal);
-                col += light * F0 * (specTerm * ndl * sky * shadow);
+                col += light * F0 * (specTerm * ndl * sunOpen * shadow);
 
                 // Environment reflection of the sky colour, roughness-aware: metals reflect strongly (tinted by
                 // F0) even head-on, dielectrics mostly at grazing angles (Fresnel). Additive, faded by skylight.
@@ -550,7 +561,7 @@ Shader "BlocksBeyondTheStars/BlockAtlas"
                 // (outdoors ~0.70, a readable cave floor of 0.24). The directional adds the sunny side on top.
                 // A small flat term (sun/sky-independent) guarantees a minimum readable level, so blocks in a
                 // dark hole or deep cave are dim but never pure black.
-                float amb = lerp(0.26, 0.78, sky); // #1457: sky-lit faces turned away from the sun sat at 0.70 — a shade too dark by day
+                float amb = lerp(0.32, 0.78, sky); // #1457 (0.70 → 0.78); #1611 (0.26 → 0.32): occluded faces keep a faint readable texture
                 fixed3 col = albedo * (light * (amb + 0.5 * ndl * sky) + 0.05) * faceAo;
 
                 // Ship interior fill: a neutral, day/night-independent fill on skylight-occluded faces only
