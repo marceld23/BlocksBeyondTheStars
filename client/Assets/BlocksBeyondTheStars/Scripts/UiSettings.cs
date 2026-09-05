@@ -160,6 +160,16 @@ namespace BlocksBeyondTheStars.Client
                 () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity - 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
                 () => { S.MouseSensitivity = Mathf.Clamp(S.MouseSensitivity + 0.5f, 0.5f, 6f); ApplyLiveWorld(); Rebuild(); },
                 S.MouseSensitivity.ToString("0.0"));
+            // Field of view (#1590): 50–100° in 5° steps, live from the pause menu (ApplyLiveWorld → SetBaseFov).
+            // The hint says what the trade-off is — a wider view renders more chunks.
+            Stepper(ref y, L("ui.settings.fov"),
+                (S.ClampedFieldOfView - ClientSettings.FieldOfViewMin) / (ClientSettings.FieldOfViewMax - ClientSettings.FieldOfViewMin),
+                ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax,
+                () => { S.FieldOfView = Mathf.Clamp(S.ClampedFieldOfView - ClientSettings.FieldOfViewStep, ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax); ApplyLiveWorld(); Rebuild(); },
+                () => { S.FieldOfView = Mathf.Clamp(S.ClampedFieldOfView + ClientSettings.FieldOfViewStep, ClientSettings.FieldOfViewMin, ClientSettings.FieldOfViewMax); ApplyLiveWorld(); Rebuild(); },
+                Mathf.RoundToInt(S.ClampedFieldOfView) + "°");
+            UiKit.AddText(_content, _x + CtrlX, y, _rowW - CtrlX, 24, L("ui.settings.fov_hint"), 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            y += 28f;
             Toggle(ref y, L("ui.settings.invert_y"), S.InvertY, () => { S.InvertY = !S.InvertY; ApplyLiveWorld(); Rebuild(); });
             Toggle(ref y, L("ui.settings.camera_motion"), S.CameraMotion, () => { S.CameraMotion = !S.CameraMotion; ApplyLiveWorld(); Rebuild(); });
 
@@ -585,6 +595,7 @@ namespace BlocksBeyondTheStars.Client
                 pc.MouseSensitivity = S.MouseSensitivity;
                 pc.InvertY = S.InvertY;
                 pc.CameraMotion = S.CameraMotion;
+                pc.SetBaseFov(S.ClampedFieldOfView);
             }
 
             FindAnyObjectByType<VisorHud>()?.ApplyPreset(S.Preset, S.ReducedEffects);

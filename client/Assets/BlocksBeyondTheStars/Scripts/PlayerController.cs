@@ -299,10 +299,26 @@ namespace BlocksBeyondTheStars.Client
             {
                 _viewmodel = Camera.gameObject.AddComponent<Viewmodel>();
                 _viewmodel.Game = Game;
-                _baseFov = Camera.fieldOfView;
+                _baseFov = Camera.fieldOfView; // WorldRig applied the settings value (#1589) before this runs
+                _viewmodel.SetReferenceFov(_baseFov);
             }
 
             ApplyCameraMode();
+        }
+
+        /// <summary>The player's field-of-view setting (#1590), pushed live from the settings screen. Only the
+        /// BASE value changes: <see cref="UpdateCameraFeel"/> owns the camera and eases toward it every frame,
+        /// with the walking kick and the binocular zoom staying relative to it. When nothing is zoomed the camera
+        /// is written directly, so a stepper press from the pause menu shows the new view at once instead of
+        /// drifting there over a second; the viewmodel re-scales so the held item keeps its screen size (#1591).</summary>
+        public void SetBaseFov(float fov)
+        {
+            _baseFov = fov;
+            _viewmodel?.SetReferenceFov(fov);
+            if (Camera != null && !(_optic != null && _optic.Raised))
+            {
+                Camera.fieldOfView = fov;
+            }
         }
 
         private void ApplyCameraMode()

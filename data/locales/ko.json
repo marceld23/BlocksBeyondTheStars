@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "앰비언트 신스",
   "ui.settings.music_style.tracks": "음악 트랙",
   "ui.settings.mouse_sensitivity": "마우스 감도",
+  "ui.settings.fov": "시야(FOV)",
+  "ui.settings.fov_hint": "넓게 설정하면 더 많은 세계가 보이지만 프레임률이 조금 떨어질 수 있어요.",
   "ui.settings.invert_y": "수직 시선 반전",
   "ui.settings.camera_motion": "카메라 동작 (흔들림)",
   "ui.settings.comfort": "편의 & 웰빙",

@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Амбієнтний синт",
   "ui.settings.music_style.tracks": "Музичні треки",
   "ui.settings.mouse_sensitivity": "Чутливість миші",
+  "ui.settings.fov": "Кут огляду",
+  "ui.settings.fov_hint": "Ширший показує більше світу, але трохи знижує FPS.",
   "ui.settings.invert_y": "Інвертувати вертикальний вигляд",
   "ui.settings.camera_motion": "Рух камери (гойдання/тряска)",
   "ui.settings.comfort": "Комфорт і самопочуття",

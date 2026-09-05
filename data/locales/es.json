@@ -1975,6 +1975,8 @@
   "ui.settings.music_style.synth": "Sintetizador ambiental",
   "ui.settings.music_style.tracks": "Pistas musicales",
   "ui.settings.mouse_sensitivity": "Sensibilidad del ratón",
+  "ui.settings.fov": "Campo de visión",
+  "ui.settings.fov_hint": "Más amplio muestra más del mundo y cuesta un poco de rendimiento.",
   "ui.settings.invert_y": "Invertir eje vertical",
   "ui.settings.camera_motion": "Movimiento de cámara (balanceo/temblor)",
   "ui.settings.comfort": "Comodidad y bienestar",

@@ -18,6 +18,18 @@ namespace BlocksBeyondTheStars.Client
         private static readonly Vector3 RestPos = new Vector3(0.26f, -0.22f, 0.52f);
         private static readonly Vector3 RestEuler = new Vector3(6f, -10f, 4f);
 
+        /// <summary>Held-item mesh scale. 0.9 filled about a quarter of the screen height with a block in hand and
+        /// added to the "everything is huge" feel of first person; 20 % smaller (#1591).</summary>
+        private const float ItemScale = 0.72f;
+
+        /// <summary>The vertical field of view the rest pose was tuned at. The holder is scaled by
+        /// tan(fov/2) / tan(ReferenceFov/2) so the held item keeps the same screen size and corner whatever the
+        /// player's FOV setting (#1590/#1591) — a wide view would otherwise leave a tiny tool, a narrow one a
+        /// giant fist. Only the base FOV drives this (see <see cref="SetReferenceFov"/>); the walking kick and the
+        /// binocular zoom do not resize the hands.</summary>
+        private const float ReferenceFov = 60f;
+        private float _fovScale = 1f;
+
         private Transform _holder;
         private HeldItem.Kind _kind = HeldItem.Kind.None;
         private bool _visible = true;
@@ -37,9 +49,26 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("Viewmodel");
             _holder = go.transform;
             _holder.SetParent(transform, false); // transform = the camera
-            _holder.localPosition = RestPos;
+            _holder.localPosition = Compensated(RestPos);
             _holder.localEulerAngles = RestEuler;
+            _holder.localScale = Vector3.one * _fovScale;
         }
+
+        /// <summary>Base field of view of the owning camera (degrees); re-scales the holder so the held item
+        /// stays the same size on screen. Called by the controller at start and on every settings change.</summary>
+        public void SetReferenceFov(float fov)
+        {
+            _fovScale = Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad) / Mathf.Tan(ReferenceFov * 0.5f * Mathf.Deg2Rad);
+            if (_holder != null)
+            {
+                _holder.localScale = Vector3.one * _fovScale;
+                _holder.localPosition = Compensated(RestPos);
+            }
+        }
+
+        /// <summary>A camera-local offset with x/y scaled to the FOV factor and depth kept: a point at (x, y, z)
+        /// lands on the same screen position when x/y grow by the same factor as tan(fov/2).</summary>
+        private Vector3 Compensated(Vector3 local) => new Vector3(local.x * _fovScale, local.y * _fovScale, local.z);
 
         /// <summary>Sets the held item (rebuilds only when it changes — call from the controller).</summary>
         public void SetHeldItem(HeldItem.Kind kind, Color tint, string blockKey = null)
@@ -55,7 +84,7 @@ namespace BlocksBeyondTheStars.Client
             var mesh = HeldItem.Build(_holder, kind, tint, blockKey);
             if (mesh != null)
             {
-                mesh.transform.localScale = Vector3.one * 0.9f;
+                mesh.transform.localScale = Vector3.one * ItemScale;
             }
 
             ApplyVisible();
@@ -209,7 +238,7 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            _holder.localPosition = posOff;
+            _holder.localPosition = Compensated(posOff);
             _holder.localEulerAngles = rot;
         }
     }
