@@ -149,6 +149,17 @@ plane (a hair inside it, reversed-Z aware), so the depth test rejects exactly th
 any distance. The late draw and its saving stay; the dome radius only sets clipping and star size now, which the
 three components say in a comment. Additive domes at one depth layer in any order, so the picture is unchanged.
 
+### ★ The HUD compass gets a rotating N marker instead of the fixed ▲ that looked like a north needle (#1597, 2026-09-05, branch feat/compass-north-marker-1597)
+
+**Why.** Follow-up decision from #1594: the `▲` at the top of the dial was a fixed decoration on a heading-up compass,
+but it reads as a north needle — and the planet map is north-up, so a player who trusted the arrow walked off wrong.
+
+**What ships.** `HudUi` replaces the arrow with an **N** text blip that orbits the dial at bearing 0° minus the player's
+yaw (the rotation `PlaceBlip` already applies): top while facing north, swinging left as you turn right. It sits inside
+the blip radius (37 px) so it never lands on the "Ship … m" caption under the dial, and is created before the blips so
+they draw over it. The dial stays heading-up. Codex "Getting Around" + USER_MANUAL say the N marks north. Unity-only
+change; verified by a local player build.
+
 ### ★ The HUD compass explains itself — "Ship 114 m · Waypoint 138 m" captions, a "far from the ship" VEGA tip and a Codex paragraph on finding your way (#1594, 2026-09-05, branch feat/compass-explains-itself-1594)
 
 **Why.** A first-time player (ahmdkaml, #1586) walked ~110 m from the hull, saw two coloured dots and two numbers on
