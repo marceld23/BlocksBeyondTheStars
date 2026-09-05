@@ -298,9 +298,9 @@ public sealed partial class WorldGenerator
         for (int ty = sy + 1; ty <= topY; ty++)
         {
             set(wx, ty, wz, logId, true);
-            set(wx + 1, ty, wz, logId, true);
-            set(wx, ty, wz + 1, logId, true);
-            set(wx + 1, ty, wz + 1, logId, true);
+            set(wx + 1, ty, wz, logId, false); // the three offset trunk columns fill air only — their ground was not checked
+            set(wx, ty, wz + 1, logId, false);
+            set(wx + 1, ty, wz + 1, logId, false);
         }
 
         for (int dy = 0; dy <= 1; dy++)
@@ -359,7 +359,7 @@ public sealed partial class WorldGenerator
             int px = wx + spots[i].X, pz = wz + spots[i].Z;
             for (int ty = sy + 1; ty <= sy + height; ty++)
             {
-                set(px, ty, pz, logId, true);
+                set(px, ty, pz, logId, i == 0); // only the centre stem may overwrite; the others fill air
             }
 
             set(px, sy + height + 1, pz, leafId, false);
