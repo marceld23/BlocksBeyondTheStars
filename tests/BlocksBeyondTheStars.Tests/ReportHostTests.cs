@@ -676,12 +676,13 @@ public sealed class ReportHostTests : IDisposable
     /// <summary>The server's /bump forward of the same report, exactly as it lands in production: the player
     /// id is the NAME, no reply key, the description wraps the player's wording, and the snapshot carries the
     /// screenshot — which is why the admin list links to this half.</summary>
-    private static string ServerForwardPayloadFor(string playerName)
+    private static string ServerForwardPayloadFor(string playerName, string? replyKey = null)
     {
         var body = new Dictionary<string, object?>
         {
             ["title"] = $"Bump [World]: [feedback] Hat eaten by door — The door on my ship eats my hat.",
             ["description"] = "[feedback] Hat eaten by door — The door on my ship eats my hat.",
+            ["replyKey"] = replyKey,
             ["gameVersion"] = "2026.8.22",
             ["playerId"] = playerName,
             ["playerName"] = playerName,
@@ -695,6 +696,54 @@ public sealed class ReportHostTests : IDisposable
             },
         };
         return JsonSerializer.Serialize(body);
+    }
+
+    /// <summary>#1642: a current report pair carries the SAME reply key on both halves (the server forwards the
+    /// client's key with its /bump snapshot). "A keyed row owns itself" split such a pair into two threads —
+    /// an answer on the client row was invisible from the /bump half the list links to. From either half the
+    /// client-direct row owns the one conversation; the detail page merges entries that were already split.</summary>
+    [Fact]
+    public void PairKeyedAlikeOnBothHalves_OwnsOneThreadOnTheClientRow_AndTheDetailMergesSplitEntries()
+    {
+        var store = NewStore();
+        string key = KeyFor("install-secret");
+        string client = store.Add(ReportIngest.Parse(PayloadFor("token-abc", "WindowsPlayer", key), new ReportHostConfig(), out _)!, nowUnix: 100);
+        string server = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Lyxette", key), new ReportHostConfig(), out _)!, nowUnix: 101);
+
+        var clientRow = store.Get(client)!;
+        var serverRow = store.Get(server)!;
+        Assert.Equal(key, clientRow.ReplyKey);
+        Assert.Equal(key, serverRow.ReplyKey); // the production shape since #1359
+
+        // Resolution: both halves hand the conversation to the client-direct row.
+        var around = store.Around(serverRow.CreatedUnix, ReportHostPages.DuplicateWindowSeconds);
+        Assert.Equal(client, ReportHostPages.ThreadOwner(serverRow, around).Id);
+        Assert.Equal(client, ReportHostPages.ThreadOwner(clientRow, around).Id);
+
+        // A lone keyed server row (no client twin in the window) still owns itself.
+        string lone = store.Add(ReportIngest.Parse(ServerForwardPayloadFor("Lyxette", KeyFor("other-install")), new ReportHostConfig(), out _)!, nowUnix: 500);
+        Assert.Equal(lone, ReportHostPages.ThreadOwner(store.Get(lone)!, store.Around(500, ReportHostPages.DuplicateWindowSeconds)).Id);
+
+        // A conversation split before the fix: one answer on each half. The page merges them in time order,
+        // from whichever half it is opened, and names the half a foreign entry lives on.
+        Assert.True(store.AddDevReply(server, "Answered on the bump half.", isQuestion: false, nowUnix: 200) > 0);
+        Assert.True(store.AddDevReply(client, "Answered on the client half.", isQuestion: false, nowUnix: 300) > 0);
+        var merged = new[] { client, server }.SelectMany(id => store.ListReplies(id)).OrderBy(x => x.CreatedUnix).ThenBy(x => x.Id).ToList();
+        var owner = ReportHostPages.ThreadOwner(serverRow, around);
+
+        string html = ReportHostPages.Detail(serverRow, merged, null, owner, ReportHostPages.PairOf(serverRow, around));
+        Assert.Contains("Both halves of this report carry the player's key", html);
+        Assert.Contains($"/admin/report/{client}'>client row</a>", html);
+        Assert.Contains("Answered on the bump half.", html);
+        Assert.Contains("Answered on the client half.", html);
+        Assert.Contains($"stored on the <a href='/admin/report/{server}'>paired row</a>", html);
+        Assert.DoesNotContain("No replies yet", html);
+        Assert.True(html.IndexOf("Answered on the bump half.", StringComparison.Ordinal) < html.IndexOf("Answered on the client half.", StringComparison.Ordinal));
+
+        html = ReportHostPages.Detail(clientRow, merged, null, owner, ReportHostPages.PairOf(clientRow, around));
+        Assert.DoesNotContain("conversation lives on the paired", html);
+        Assert.Contains("Answered on the bump half.", html);
+        Assert.Contains("Answered on the client half.", html);
     }
 
     /// <summary>#1378: a report filed before the reply channel is a pair whose screenshot half carries no reply

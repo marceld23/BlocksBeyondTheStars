@@ -32,6 +32,26 @@ and the dry-pad preference (#1621) moved this seed's spawn pad to column 733 of 
 the server only ever streams canonically as 0. Test-only fix: both probe columns go through
 `WorldConstants.CanonicalChunkX(x, circumference)`, like the server's own chunk keys. Streaming was never wrong.
 
+---
+
+### ★ Report inbox: a pair keyed alike on both halves owns ONE thread on the client row; the detail page merges split entries (#1642, 2026-09-05, branch fix/reporthost-pair-thread-owner)
+
+Lyxette's two reports of 2026-09-05 were answered through `POST /api/reports/{id}/replies` on the client row; the
+admin list links the `/bump` half as primary and its page showed "No replies yet". Cause: `ThreadOwner` (#1378)
+predates the server forwarding the client's key (#1359) — with both halves keyed, "a keyed row owns itself" split
+the pair into two threads depending on where the operator answered. The in-game poll runs by key and saw both.
+
+- **Done:** `ReportHostPages.ThreadOwner` — a keyed server forward hands over to its client-direct twin (same key,
+  `IsSameReport`) from either side; a lone keyed row still owns itself; the key-less legacy path is unchanged.
+  `GET /admin/report/{id}` collects the replies of every row of the pair (time order) and the page marks an entry
+  stored on the other half with a link; the hand-over hint distinguishes "blank key" from "same key on both halves".
+  The reply form and `POST /api/reports/{id}/replies` keep writing to the owner (now always the client row).
+- **Unchanged:** `GET /api/reports/{id}` still returns that row's own replies (the read API is per row by design);
+  the player poll (`/api/replies`, by key) never needed this.
+- **Test:** `PairKeyedAlikeOnBothHalves_OwnsOneThreadOnTheClientRow_AndTheDetailMergesSplitEntries` (owner from
+  both sides, lone keyed row, merged + marked split entries, order); the #1378 test stays green.
+- **Deploy:** reports image redeploy (`reports-image.yml`), independent of the game release.
+
 ### ★ VEGA continue key works right after the chat closes — the hidden chat box no longer counts as "a text field has focus" (#1634, 2026-09-05, branch fix/vega-n-after-chat)
 
 Marcel (2026-09-05, local playtest): Enter → type → Esc closed the chat fine, but N would not dismiss the VEGA

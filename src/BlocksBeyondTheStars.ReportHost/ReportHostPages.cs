@@ -113,6 +113,13 @@ public static class ReportHostPages
     /// paired half when that one has a key, so the detail page shows the pair's one thread whichever half the
     /// operator opened, and an answer typed there is never stored where no game can read it. Without a keyed
     /// partner the row stays its own owner (and the page says nothing can reach the player).
+    /// <para>
+    /// Since #1359 the game server forwards the client's key with its <c>/bump</c> snapshot, so BOTH halves of a
+    /// current report carry the same key — and "a keyed row owns itself" split the pair into two threads: the
+    /// list links the <c>/bump</c> half as primary, so an answer typed there landed on that half while an answer
+    /// posted on the client row (API scripts) was invisible from it (#1642). A pair keyed alike now hands over to
+    /// its client-direct half from either side, the way the key-less legacy pair always did.
+    /// </para>
     /// </summary>
     /// <param name="candidates">Rows stamped within <see cref="DuplicateWindowSeconds"/> of <paramref name="r"/>
     /// (see <c>ReportStore.Around</c>); <paramref name="r"/> itself may be among them.</param>
@@ -120,6 +127,20 @@ public static class ReportHostPages
     {
         if (r.ReplyKey.Length > 0)
         {
+            if (r.Source.Length == 0)
+            {
+                return r; // the client-direct half owns its own thread
+            }
+
+            // A keyed server forward: its client-direct twin (same key, same report) owns the conversation (#1642).
+            foreach (var c in candidates)
+            {
+                if (c.Id != r.Id && c.Source.Length == 0 && c.ReplyKey == r.ReplyKey && IsSameReport(r, c))
+                {
+                    return c;
+                }
+            }
+
             return r;
         }
 
@@ -353,9 +374,13 @@ public static class ReportHostPages
         bool viaPartner = threadOwner.Id != r.Id;
         if (viaPartner)
         {
-            // The screenshot half of a pre-reply-channel pair (#1378): its own key is blank, the thread lives
-            // on the client-direct row — say so, and let the form below write there.
-            sb.Append($"<p class='hint'>This row's own reply key is blank; the conversation lives on the paired " +
+            // The screenshot half of a pair (#1378, #1642): the thread lives on the client-direct row — say so,
+            // and let the form below write there. A pre-reply-channel half has a blank key of its own; a current
+            // one carries the same key as its twin, so both halves reach the same game.
+            string why = r.ReplyKey.Length == 0
+                ? "This row's own reply key is blank; the conversation lives on the paired "
+                : "Both halves of this report carry the player's key; the conversation lives on the paired ";
+            sb.Append($"<p class='hint'>{why}" +
                       $"<a href='/admin/report/{threadOwner.Id}'>{(threadOwner.Source.Length > 0 ? E(threadOwner.Source) : "client")} row</a> " +
                       "— the half whose key the player's game polls with. What you write below is stored there.</p>");
         }
@@ -391,7 +416,12 @@ public static class ReportHostPages
             string who = reply.Author == ReplyRecord.AuthorDev ? (reply.IsQuestion ? "You asked" : "You") : "Player";
             string stamp = DateTimeOffset.FromUnixTimeSeconds(reply.CreatedUnix).ToString("yyyy-MM-dd HH:mm");
             string seen = reply.Author == ReplyRecord.AuthorDev ? (reply.SeenUnix > 0 ? " · read" : " · unread") : string.Empty;
-            sb.Append($"<div class='reply reply-{E(reply.Author)}'><div class='sub'>{who} · {stamp} UTC{seen}</div><pre>{E(reply.Text)}</pre></div>");
+            // A thread that was split before #1642 (answered on the /bump half) is shown merged; name the half
+            // an entry lives on when it is not the owner's, so the operator can tell why it sits here.
+            string stored = reply.ReportId != threadOwner.Id
+                ? $" · stored on the <a href='/admin/report/{E(reply.ReportId)}'>paired row</a>"
+                : string.Empty;
+            sb.Append($"<div class='reply reply-{E(reply.Author)}'><div class='sub'>{who} · {stamp} UTC{seen}{stored}</div><pre>{E(reply.Text)}</pre></div>");
         }
 
         if (threadOwner.FixedInVersion.Length > 0)

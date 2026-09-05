@@ -21,6 +21,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
   screen. Now every system other than the one you're in keeps its jump button above its worlds, and a
   locked world in another system offers the same jump in its detail pane. Thanks to Lyxette for the report.
 
+### 📬 Report inbox — a report pair keyed alike on both halves has one conversation again (#1642)
+
+- **The admin page of a report said "no replies yet" although the report had been answered.** Since #1359 the
+  game server forwards the player's reply key with its `/bump` snapshot, so both halves of a current report carry
+  the same key — and the #1378 rule "a keyed row owns its own thread" then gave each half a thread of its own.
+  The list links the `/bump` half, an answer posted on the client row was invisible from it (and vice versa);
+  the player's game, which polls by key, always saw both. Whichever half you open now hands the conversation to
+  the client row, and the page shows the entries of both halves merged, naming the half an older, split entry
+  still lives on.
+
 ### 🌋 Volcanoes wherever the core is molten, and volcanic islands in the sea (#1631)
 
 - **Volcanoes on every world with a lava core.** Basalt cones with a molten crater used to grow only on
