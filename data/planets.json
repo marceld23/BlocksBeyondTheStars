@@ -95,6 +95,7 @@
   },
   {
     "key": "jungle", "floraTheme": "tropical", "baseTemperature": 28, "nameKey": "planet.jungle.name", "atmosphereHeight": 240, "cloudColor": 15922422, "cloudDensity": 0.6,
+    "terrainTags": ["wetland"],
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "terrainStyles": ["hills", "karst", "downs"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -139,6 +140,7 @@
   },
   {
     "key": "swamp", "floraTheme": "swamp", "baseTemperature": 22, "nameKey": "planet.swamp.name", "atmosphereHeight": 230, "cloudColor": 13159360, "cloudDensity": 0.75,
+    "terrainTags": ["wetland"],
     "baseHeight": 58, "amplitude": 8, "terrainScale": 52.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "downs"],
     "surfaceBlock": "mud", "subSurfaceBlock": "mud", "deepBlock": "stone", "surfaceDepth": 4,
@@ -181,6 +183,7 @@
   },
   {
     "key": "ocean", "floraTheme": "temperate", "baseTemperature": 20, "nameKey": "planet.ocean.name", "atmosphereHeight": 230, "cloudColor": 13623026, "cloudDensity": 0.55,
+    "terrainTags": ["wetland"],
     "baseHeight": 60, "amplitude": 20, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "archipelago"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -456,6 +459,7 @@
   },
   {
     "key": "karst", "floraTheme": "tropical", "exotic": true, "baseTemperature": 27, "nameKey": "planet.karst.name", "atmosphereHeight": 210, "cloudColor": 14210014, "cloudDensity": 0.5,
+    "terrainTags": ["wetland"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 46.0, "terrainStyle": "karst",
     "terrainStyles": ["karst", "hills", "downs"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,

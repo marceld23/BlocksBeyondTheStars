@@ -373,6 +373,7 @@ public sealed class GameContent
     {
         "stone", "dirt", "basalt", "sand", "mud", "grass", "snow", "salt", "mycelium", "alien_grass",
         "deepslate", "granite", "ash", "wood_log",
+        "moss_stone", "sandstone", "scree", "bone", // #1647 landscape-variety terrain set (tar keeps its fluid look)
         "iron_wall", "steel_wall", "bronze_block", "brass_block", "steel_floor", "metal_panel", "concrete",
         "cargo_floor", "medbay_panel", "lab_panel", "engine_panel",
     };

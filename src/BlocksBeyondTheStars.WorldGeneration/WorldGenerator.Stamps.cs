@@ -167,7 +167,8 @@ public sealed partial class WorldGenerator
                     continue; // #1527: props write sy+1 .. sy+7 — none of it lands in this chunk
                 }
 
-                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
                 {
                     continue; // dry ground only
                 }
@@ -276,7 +277,8 @@ public sealed partial class WorldGenerator
                     continue; // #1527: the vent is the surface cell itself — not in this chunk
                 }
 
-                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
                 {
                     continue; // a vent needs open ground (not a sea/pond column)
                 }
@@ -342,7 +344,8 @@ public sealed partial class WorldGenerator
                     continue; // above the tree line (#476)
                 }
 
-                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                if (sy + 1 <= fluidLevel || SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
                 {
                     continue; // not in water
                 }
@@ -468,6 +471,14 @@ public sealed partial class WorldGenerator
 
                 var biome = biomes[biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, wx, wz, biomes.Count, sy)];
                 double localDensity = density * biome.TreeMul * biome.Theme.TreeMul * forestFactor;
+
+                // Oasis palm fringe (#1647): the ring around a desert oasis grows dense, and grows palms.
+                bool oasisFringe = OasisPalmFringeAt(planet, wx, wz);
+                if (oasisFringe)
+                {
+                    localDensity = System.Math.Max(localDensity * 8.0, 0.08);
+                }
+
                 if (localDensity <= 0.0 || roll >= localDensity)
                 {
                     continue;
@@ -485,14 +496,20 @@ public sealed partial class WorldGenerator
                     continue; // this theme grows no trees here (e.g. fungal → giant mushrooms instead)
                 }
 
+                if (oasisFringe && System.Array.IndexOf(biome.Theme.Trees, TreeKind.Palm) >= 0)
+                {
+                    kind = TreeKind.Palm;
+                }
+
                 if (sy + 1 <= fluidLevel)
                 {
                     continue; // not in the sea
                 }
 
-                if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0)
+                if (SurfacePondDepth(planet, wx, wz) > 0 || SurfaceRiverDepth(planet, wx, wz) > 0
+                    || SurfaceGen1WaterDepth(planet, wx, wz) > 0)
                 {
-                    continue; // B35: an upland pond/lake or a river here — a tree would stand in the water
+                    continue; // B35: an upland pond/lake, a river or a generation-1 body here — a tree would stand in the water
                 }
 
                 // Beaches (#679): on a beach column the painted ground is the beach block, NOT the biome

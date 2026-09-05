@@ -179,5 +179,10 @@
   { "key": "wood_crate", "nameKey": "block.wood_crate.name", "category": "building", "hardness": 1.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "color": 9127187, "drops": [ { "item": "wood_crate", "count": 1 } ] },
   { "key": "lantern",    "nameKey": "block.lantern.name",    "tintable": true, "category": "light",    "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "solid": false, "emission": 0.8, "color": 16758855, "drops": [ { "item": "lantern", "count": 1 } ] },
   { "key": "rug",        "nameKey": "block.rug.name",        "category": "building", "hardness": 0.2, "requiredTool": "none", "minToolTier": 0, "flammable": true, "tintable": true, "color": 11553354, "drops": [ { "item": "rug", "count": 1 } ] },
-  { "key": "flower_pot", "nameKey": "block.flower_pot.name", "category": "building", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 10841676, "drops": [ { "item": "flower_pot", "count": 1 } ] }
+  { "key": "flower_pot", "nameKey": "block.flower_pot.name", "category": "building", "hardness": 0.4, "requiredTool": "none", "minToolTier": 0, "color": 10841676, "drops": [ { "item": "flower_pot", "count": 1 } ] },
+  { "key": "moss_stone", "nameKey": "block.moss_stone.name", "category": "terrain", "hardness": 3.2, "requiredTool": "drill", "minToolTier": 0, "drops": [ { "item": "moss_stone", "count": 1 } ] },
+  { "key": "tar",        "nameKey": "block.tar.name",        "category": "terrain", "hardness": 1.2, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [ { "item": "tar", "count": 1 } ] },
+  { "key": "bone",       "nameKey": "block.bone.name",       "category": "terrain", "hardness": 1.8, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "bone", "count": 1 } ] },
+  { "key": "sandstone",  "nameKey": "block.sandstone.name",  "category": "terrain", "hardness": 3.6, "requiredTool": "drill", "minToolTier": 0, "drops": [ { "item": "sandstone", "count": 1 } ] },
+  { "key": "scree",      "nameKey": "block.scree.name",      "category": "terrain", "hardness": 1.0, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "scree", "count": 1 } ] }
 ]

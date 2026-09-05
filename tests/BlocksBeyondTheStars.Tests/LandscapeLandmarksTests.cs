@@ -396,6 +396,7 @@ public sealed class LandscapeLandmarksTests
     {
         var rocky = Content.Planets["rocky"];
         var granite = Content.GetBlock("granite")!.NumericId;
+        var sandstone = Content.GetBlock("sandstone")!.NumericId; // #1647: strata switched to sandstone
         int CountGranite(WorldGenerator gen)
         {
             int count = 0;
@@ -410,7 +411,8 @@ public sealed class LandscapeLandmarksTests
                         for (int y = 0; y < cs; y++)
                             for (int z = 0; z < cs; z++)
                             {
-                                if (chunk.Get(x, y, z) == granite)
+                                var cell = chunk.Get(x, y, z);
+                                if (cell == granite || cell == sandstone)
                                 {
                                     count++;
                                 }

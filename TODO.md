@@ -24,6 +24,23 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 4/6: five new blocks, water / lava bodies, surface paints (#1647, 2026-09-06, branch landscape/1647-blocks-fluids)
+
+New blocks `moss_stone`, `tar`, `bone`, `sandstone`, `scree` (block + material item + locales in 14 languages + AI tiles
+via `tools/ai-assets`, NOTICES; dye/shape set extended; editors list them by category automatically). Generation-1
+bodies through ONE function (`TryGetGen1Water`, `WorldGenerator.FluidsGen1.cs`) shared by the column fill and every
+surface-water helper: marsh sheets (`wetland` tag on jungle/swamp/karst/ocean), oases with grass ring + palm fringe,
+hot springs, caldera / shield / maar lakes (lava on dry volcanic worlds), playas, tarns; `SurfaceGen1WaterDepth` keeps
+trees and props out. Paints (`Gen1SurfacePaint`): marsh mud, oasis ring, spring crust, playa salt, scree + bare rock on
+steep slopes, ash fall around cones, dry riverbeds, deck banding (sandstone / granite), soil patches, moss stone; strata
+now sandstone. Goldens: the hash switched from numeric ids to block KEYS (adding a block shifts every later id — saves
+remap via the block palette, the old hash made every golden move) — all 15 groups re-pinned, classic terrain verified
+unchanged with the id hash against the old block set; `ocean-gen1` + `jungle-gen1` new. `LandscapeFluidsPaintsTests`
+(content sanity, gen-0 invariance, helper agreement on 4 types, marsh / oasis / lava lake / playa presence, scree, moss,
+sandstone strata, lava rivers on every volcanic type). Local Unity build before merge (textures under client/Assets).
+
+---
+
 ### ★ Landscape variety 3/6: 12 landmark families, 4 overhang bands, geodes / aquifers / strata (#1646, 2026-09-05, branch landscape/1646-landmarks)
 
 Generation-1 worlds only; the eight classic goldens are byte-identical, `tundra-gen1` + `rocky-gen1` pinned

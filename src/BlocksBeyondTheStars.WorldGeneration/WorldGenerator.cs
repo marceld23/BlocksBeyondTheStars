@@ -398,6 +398,9 @@ public sealed partial class WorldGenerator
         public bool StarDunes, MudVolcanoes, SinkholeChains, Maars, MushroomRocks, GlacierTongues;
         public bool NaturalBridges, CoastalOverhangs, IceCornices, Geodes, Strata;
 
+        // #1647 (generation 1): water / lava bodies and surface paints — all false on gen 0.
+        public bool Marshes, Oases, HotSprings, CalderaLakes, Playas, DeckBands, Moss, DryBeds;
+
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
         public LandmarkOffsetFn[] ActiveLandmarks = System.Array.Empty<LandmarkOffsetFn>();
@@ -661,6 +664,16 @@ public sealed partial class WorldGenerator
                     w.IceCornices = HasIceCornices(planet);
                     w.Geodes = HasGeodes(planet);
                     w.Strata = HasStrata(planet);
+
+                    // #1647 bodies + paints.
+                    w.Marshes = HasMarshes(planet);
+                    w.Oases = HasOases(planet);
+                    w.HotSprings = HasHotSprings(planet);
+                    w.CalderaLakes = HasCalderaLakes(planet);
+                    w.Playas = HasPlayas(planet);
+                    w.DeckBands = DeckStyleWorld(w.Styles);
+                    w.Moss = MossWorld(planet);
+                    w.DryBeds = DryBedWorld(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

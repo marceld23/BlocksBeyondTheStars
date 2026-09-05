@@ -235,5 +235,10 @@
   // #1203 campfire meals (field_kitchen): the three best foods in the game — cooked, not foraged.
   { "key": "hearty_stew", "nameKey": "item.hearty_stew.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.hearty_stew.desc", "consumeHealth": 30, "consumeHunger": 80 },
   { "key": "algae_soup", "nameKey": "item.algae_soup.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.algae_soup.desc", "consumeHealth": 10, "consumeHunger": 60 },
-  { "key": "mushroom_skewer", "nameKey": "item.mushroom_skewer.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.mushroom_skewer.desc", "consumeHealth": 15, "consumeHunger": 45 }
+  { "key": "mushroom_skewer", "nameKey": "item.mushroom_skewer.name", "category": "consumable", "maxStack": 20, "descriptionKey": "item.mushroom_skewer.desc", "consumeHealth": 15, "consumeHunger": 45 },
+  { "key": "moss_stone", "nameKey": "item.moss_stone.name", "category": "material", "maxStack": 1024, "placesBlock": "moss_stone" },
+  { "key": "tar",        "nameKey": "item.tar.name",        "category": "material", "maxStack": 1024, "placesBlock": "tar" },
+  { "key": "bone",       "nameKey": "item.bone.name",       "category": "material", "maxStack": 1024, "placesBlock": "bone" },
+  { "key": "sandstone",  "nameKey": "item.sandstone.name",  "category": "material", "maxStack": 1024, "placesBlock": "sandstone" },
+  { "key": "scree",      "nameKey": "item.scree.name",      "category": "material", "maxStack": 1024, "placesBlock": "scree" }
 ]

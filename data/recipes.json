@@ -209,6 +209,11 @@
 
   { "key": "stairs_granite",     "station": "hand",     "inputs": [ { "item": "granite", "count": 2 } ],                                  "outputs": [ { "item": "stairs", "count": 4 } ] },
   { "key": "concrete_deepslate", "station": "hand",     "inputs": [ { "item": "deepslate", "count": 4 }, { "item": "sand", "count": 1 } ], "outputs": [ { "item": "concrete", "count": 4 } ] },
+  { "key": "stairs_sandstone",   "station": "hand",     "inputs": [ { "item": "sandstone", "count": 2 } ],                                "outputs": [ { "item": "stairs", "count": 4 } ] },
+  { "key": "concrete_scree",     "station": "hand",     "inputs": [ { "item": "scree", "count": 4 }, { "item": "sand", "count": 1 } ],     "outputs": [ { "item": "concrete", "count": 4 } ] },
+  { "key": "torch_tar",          "station": "hand",     "inputs": [ { "item": "tar", "count": 1 }, { "item": "plant_fiber", "count": 1 } ], "outputs": [ { "item": "torch", "count": 4 } ] },
+  { "key": "bone_bait",          "station": "hand",     "inputs": [ { "item": "bone", "count": 1 }, { "item": "berries", "count": 1 } ],    "outputs": [ { "item": "meat_bait", "count": 2 } ] },
+  { "key": "moss_scrape",        "station": "hand",     "inputs": [ { "item": "moss_stone", "count": 1 } ],                               "outputs": [ { "item": "plant_fiber", "count": 2 }, { "item": "stone", "count": 1 } ] },
   // #1203 orphans: ancient masonry and volcanic glass get a use once you know what you are looking at (archaeology).
   { "key": "concrete_ancient", "station": "hand", "requiredBlueprint": "archaeology", "inputs": [ { "item": "ancient_brick", "count": 2 }, { "item": "mud", "count": 1 } ], "outputs": [ { "item": "concrete", "count": 4 } ] },
   { "key": "glass_salt",         "station": "refinery", "inputs": [ { "item": "salt", "count": 1 }, { "item": "silicate", "count": 2 } ], "outputs": [ { "item": "glass", "count": 2 } ] },

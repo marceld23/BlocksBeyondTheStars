@@ -13,6 +13,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 4 of 6 — water in the desert, moss on the rock, five new blocks (#1647)
+
+- **Five new blocks:** moss stone, tar, bone, sandstone and scree — each a material you can mine, carry and
+  place, with its own texture, available in the build editors and (except tar) in the dye and shape actions.
+- **New worlds only — water where it was missing:** marsh sheets with reeds on wet flats, oases with a grass
+  ring and palms in the desert, steaming hot springs, lakes in calderas and shield volcanoes (lava on
+  volcanic worlds), small round maar lakes, salt-crusted playas, and tarns at the head of glacial valleys.
+- **The ground tells its story:** scree and bare rock on steep slopes, ash around volcano cones, dry
+  riverbeds on dry worlds, banded sandstone and granite decks on mesa worlds, bare soil patches in the
+  grass, and moss on the rock of warm wet worlds. Underground strata are sandstone now.
+- Existing worlds are unchanged. (Under the hood the world-generation golden test now compares block
+  names instead of numeric ids, so adding a block no longer moves every checksum.)
+
 ### 🏔️ Landscape variety, part 3 of 6 — new kinds of mountains, holes and hidden places (#1646)
 
 - **New worlds only.** Twelve new landform kinds join the volcanoes, buttes and rifts: broad shield

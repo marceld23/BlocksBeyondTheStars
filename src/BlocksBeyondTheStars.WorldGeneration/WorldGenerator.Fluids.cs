@@ -444,6 +444,29 @@ public sealed partial class WorldGenerator
 
         var (seaLevel, seaFluid) = ResolveSeaFluid(planet);
         var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+
+        // Generation-1 water bodies (#1647) exist on DRY worlds too (oases, playas), so they are checked before
+        // the "no water sea" exit — on a column no classic body (sea, pond, river, crater, travertine pool,
+        // cenote pool) claims, exactly the column phase's order. Same function as the fill: agreement by construction.
+        var wg = WonderFor(planet);
+        if (wg.Generation >= 1 && !waterId.IsAir)
+        {
+            int sy = SurfaceHeight(planet, worldX, worldZ);
+            bool classic = sy <= seaLevel
+                || SurfacePondDepth(planet, worldX, worldZ) > 0
+                || TryGetVolcanoCrater(planet, worldX, worldZ, out _)
+                || RiverFieldFor(planet).TryGet(worldX, worldZ, out _)
+                || (wg.Travertine && TryGetTravertine(wg.Seed, worldX, worldZ, out _, out bool travPool) && travPool)
+                || (wg.Cenotes && TryGetCenotePool(planet, worldX, worldZ, out int cenoteTop) && cenoteTop > sy);
+            if (!classic && TryGetGen1Water(planet, wg, worldX, worldZ, sy, out int g1Top, out int g1Bed, out var g1Fluid)
+                && g1Fluid == waterId)
+            {
+                waterTopY = g1Top;
+                seabedY = g1Bed;
+                return true;
+            }
+        }
+
         if (seaFluid != waterId || waterId.IsAir)
         {
             return false; // a lava/dry world has no water bodies
@@ -518,6 +541,17 @@ public sealed partial class WorldGenerator
             {
                 lavaTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
                 bedY = col.BedY;
+                return true;
+            }
+
+            // Generation-1 lava lakes (#1647): caldera and shield-volcano summit lakes on volcanic worlds.
+            var wg = WonderFor(planet);
+            if (wg.Generation >= 1 && !field.TryGet(worldX, worldZ, out _) && SurfacePondDepth(planet, worldX, worldZ) == 0
+                && TryGetGen1Water(planet, wg, worldX, worldZ, surfaceY, out int g1Top, out int g1Bed, out var g1Fluid)
+                && g1Fluid == lavaId)
+            {
+                lavaTopY = g1Top;
+                bedY = g1Bed;
                 return true;
             }
         }

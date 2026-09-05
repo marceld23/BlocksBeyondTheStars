@@ -106,7 +106,8 @@ public sealed class TerrainTagsAndGenerationTests
         Assert.True(Content.Planets["lava"].HasTag(TerrainTag.Volcanic));
         Assert.True(Content.Planets["rocky"].HasTag(TerrainTag.Buttes | TerrainTag.Hoodoos));
         Assert.False(Content.Planets["jungle"].HasTag(TerrainTag.Buttes));
-        Assert.Equal(TerrainTag.None, Content.Planets["ocean"].Tags);
+        Assert.Equal(TerrainTag.Wetland, Content.Planets["ocean"].Tags); // #1647: marsh sheets on the ocean world's flats
+        Assert.Equal(TerrainTag.None, Content.Planets["lava"].Tags & ~TerrainTag.Volcanic);
 
         var bad = new PlanetType { Key = "bad", TerrainTags = new List<string> { "volcanic", "moon_cheese" } };
         bad.Tags = TerrainTags.Parse(bad.TerrainTags, out var unknown);
