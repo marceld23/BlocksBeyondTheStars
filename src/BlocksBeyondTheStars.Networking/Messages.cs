@@ -1294,6 +1294,12 @@ public sealed class NetStarSystem
     /// vault/monument — and, with the opt-in "Frontier danger" rule, tougher machines). The star map
     /// tags tier-2 systems so flying far has a visible reason.</summary>
     public int Tier { get; set; }
+
+    /// <summary>The system's star colour as packed RGB (#1604) — the same value the planet sky's
+    /// <c>SunColor</c> takes after landing there (the server keys both by the system's name), so the
+    /// hyperspace chart's star matches the sun you see. 0 = not sent (an older server): the client falls
+    /// back to a warm yellow. Additive field; contractless MessagePack lets older clients ignore it.</summary>
+    public int StarColor { get; set; }
 }
 
 public sealed class StarMapData

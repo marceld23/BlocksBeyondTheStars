@@ -92,9 +92,10 @@ public sealed partial class GameServer
 
         // The finale id is RESERVED: the procedural generator only emits "sys{i}" systems / "sys{i}-…" bodies,
         // so it can never produce this system (proven by UniverseTests) — the random galaxy never spawns the
-        // finale area. Hyperjump + body lookup are by id, and the client never renders systems by MapX/MapY, so
-        // the map position is purely nominal and cannot clash with a procedural system either.
-        var system = new StarSystem { Id = GuardianFinaleSystemId, Name = "Guardian Core", MapX = 980f, MapY = 980f };
+        // finale area. Hyperjump + body lookup are by id; the map position matters only for the hyperspace
+        // chart (#1603), which draws every system by MapX/MapY — see GuardianFinaleMapPosition.
+        var (mapX, mapY) = GuardianFinaleMapPosition(_galaxy);
+        var system = new StarSystem { Id = GuardianFinaleSystemId, Name = "Guardian Core", MapX = mapX, MapY = mapY };
         system.Bodies.Add(new CelestialBody
         {
             Id = GuardianCoreBodyId,
@@ -106,6 +107,55 @@ public sealed partial class GameServer
             SystemZ = 0f,                        // the core sits at the heart of its otherwise empty system
         });
         _galaxy.Systems.Add(system);
+    }
+
+    /// <summary>How far out past the home system the finale sits on the star map, in map units. The
+    /// procedural systems fill a 1000² box and grown systems (#1123) ride out to ~1520 units from home,
+    /// so this clears them all; the distance is raised further if a galaxy ever reaches beyond it.</summary>
+    internal const float GuardianFinaleMapDistance = 1600f;
+
+    /// <summary>Where the finale system goes on the star map (#1605): out PAST every other star, in the
+    /// direction that points from the galaxy's centre away through the home system — so it reads as
+    /// "beyond the frontier" the way VEGA sells it, and never sits among (or on top of) the ordinary
+    /// stars now that the hyperspace chart draws them. Seed-stable: it is a pure function of the galaxy,
+    /// which is itself regenerated from the seed on every start. A degenerate galaxy (home at the exact
+    /// centre, or a single system) falls back to a fixed diagonal.</summary>
+    internal static (float X, float Y) GuardianFinaleMapPosition(Galaxy galaxy)
+    {
+        var home = galaxy.Systems.FirstOrDefault(s => s.Id == "sys0") ?? galaxy.Systems.FirstOrDefault();
+        if (home is null)
+        {
+            return (GuardianFinaleMapDistance, GuardianFinaleMapDistance);
+        }
+
+        float sumX = 0f, sumY = 0f, farthest = 0f;
+        int count = 0;
+        foreach (var s in galaxy.Systems)
+        {
+            if (s.Id == GuardianFinaleSystemId)
+            {
+                continue;
+            }
+
+            sumX += s.MapX;
+            sumY += s.MapY;
+            count++;
+            float dx = s.MapX - home.MapX, dy = s.MapY - home.MapY;
+            farthest = MathF.Max(farthest, MathF.Sqrt(dx * dx + dy * dy));
+        }
+
+        float dirX = home.MapX - sumX / Math.Max(1, count);
+        float dirY = home.MapY - sumY / Math.Max(1, count);
+        float len = MathF.Sqrt(dirX * dirX + dirY * dirY);
+        if (len < 1f)
+        {
+            dirX = 0.7071f;
+            dirY = 0.7071f;
+            len = 1f;
+        }
+
+        float distance = MathF.Max(GuardianFinaleMapDistance, farthest + 200f);
+        return (home.MapX + dirX / len * distance, home.MapY + dirY / len * distance);
     }
 
     /// <summary>Picks a fitting stark planet type for the core body, falling back to a type that always exists.</summary>

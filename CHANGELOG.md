@@ -13,6 +13,18 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🌌 A map of the stars (#1603 #1604 #1605)
+
+- **The system chart has a Hyperspace tab.** Press M while flying and switch tabs (LB/RB on a pad): the
+  whole galaxy as stars in their real colours. The ringed star is where you are, named stars are systems
+  you have visited, a **?** is one you have never entered, and the lines are the relay network's jump
+  lanes. Click a star to read about it — and, with a jump generator aboard or a lane, hyperjump to it
+  straight from the chart (#1603).
+- **Stars in their true colour.** Every system's star colour now travels with the star map, so the chart
+  shows the same sun you will see after landing (#1604).
+- **The finale system sits beyond the frontier.** The Guardian Core, once revealed, appears out past every
+  other star on the chart instead of in a corner among them (#1605).
+
 ### 🪐 More room between the planets (#1599 #1600 #1601)
 
 - **Space distances in kilometres.** The radar and the system chart now say "830 km" to the next planet

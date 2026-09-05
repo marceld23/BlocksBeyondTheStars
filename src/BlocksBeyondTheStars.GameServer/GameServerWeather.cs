@@ -521,7 +521,7 @@ public sealed partial class GameServer
     /// <summary>A deterministic, continuously-varying star colour for a system: the system's hash picks a
     /// weighted anchor on the hot→cool stellar ramp and a second hash blends it toward a neighbour, so colours
     /// span the full ramp (not just a handful of fixed swatches) while clustering on natural sun-like hues.</summary>
-    private static int StarColor(string system)
+    internal static int StarColor(string system)
     {
         uint h = (uint)StableStringHash(system);
         int total = 0;
