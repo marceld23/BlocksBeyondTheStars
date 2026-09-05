@@ -110,6 +110,22 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Chunk colliders cook ahead of a fast descent; the footing check and the fall-guard log see an un-cooked collider (#1583, 2026-09-05, branch fix/1583-collider-cook-ahead)
+
+**Why.** Since #1529 (v2026.9.2) a chunk meshed beyond `ChunkColliderDistanceBlocks` (96) keeps its collision mesh
+un-cooked until it enters range. A jetpack drop from 120 m arrives at ~70 blocks/s and brought a whole ring of chunks
+into range at once, relying on their bakes finishing before the feet did. Two blind spots on top: the spawn-snap
+footing check (`PlayerController.FootingKnown`) answered "known" from chunk DATA alone, and the `colliderUnchanged`
+hash skip marked a still-pending collider as applied, so the fall-guard log (#1488) read "pending false" for a chunk
+whose MeshCollider had no mesh. Found by code review, not yet seen in a playtest.
+
+**What ships.** The controller publishes `PlayerVerticalVelocity`; the cook gate (RepositionChunks + the first build
+in ApplyChunkMesh) treats every chunk within collider range of the next 3 s of descent (capped at 160 blocks) as in
+range and starts its bake early — the collider itself is still enabled only within range, the cooked mesh waits on
+it. `FootingKnown` additionally requires the chunk under the feet to carry a cooked collider
+(`GameBootstrap.ChunkColliderReadyAt`). The hash skip leaves `_colliderAppliedGen` alone while a collider is pending,
+so `ColliderBakePendingAt` now reports the un-cooked state. Unity-only change; verified by a local player build.
+
 ### ★ A switched-in ship launches into the orbit it is ON — SwitchShip parks the new hull where the pilot is, EnterSpace keys the flight by the pilot's body (#1584, 2026-09-05, branch fix/1584-switched-ship-location)
 
 **Why.** Lyxette (v2026.9.2): "Port Nou im falschen System" — launched from a planet in another system and found the
