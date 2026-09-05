@@ -24,6 +24,40 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Hyperspace chart: a stars-only galaxy tab on the flight chart, jump-from-chart, real star colours, the finale out past the frontier (#1603 #1604 #1605, 2026-09-05, branch feat/hyperspace-chart-1603)
+
+**Why.** Marcel, 2026-09-05: "like the planet chart in space, I want a hyperspace map of the star systems — as a
+tab on the flight chart, a graphical picture of the systems (stars only)". The travel screen (Tab → Map) listed
+systems but drew nothing; the flight chart (M) knew only the current system.
+
+**What ships.** (#1603) `SpaceMap` gets a **System / Hyperspace** tab row (active tab cyan, LB/RB step on a pad,
+M always opens on System). The Hyperspace tab hosts a reusable `GalaxyChartWidget`: every system of
+`Game.StarMap` as a star disc with corona at its real `MapX/MapY`, fit-to-chart over all systems (the galaxy grows
+outward from home, #1123). The current system wears a cyan ring + ship glyph; known systems show their name;
+**unknown systems are dimmed and labelled `?`** (the #1113 rule, shared with the travel screen via
+`GalaxyChartLayout.DisplayName` — a radar array reveals names on both); tier-2 systems carry the "Frontier" tag;
+relay jump lanes (#1125) are thin cyan lines; other players' names sit above their star; the finale system glows
+hyperspace-violet. Click a star → info panel (been here / never entered, who is there, your station/base badges,
+lane or generator hint) with a **Hyperjump** button that sends the same `HyperjumpSystemIntent` as the travel
+screen — enabled only with a `jump_generator` aboard or a lane (the server keeps enforcing). **No distances are
+shown.** The chart now closes on `HyperjumpStarted` (an in-flight jump keeps `InSpace` true, so the old chart
+would have survived with a stale snapshot). (#1604) Additive `NetStarSystem.StarColor` filled by the server from
+the weather's `StarColor(systemName)` — the chart's star matches the sun seen after landing; 0 → warm-yellow
+fallback. (#1605) `GuardianFinaleMapPosition`: the finale system sits ≥ 1600 map units out from home, in the
+direction from the galaxy's centre through home — beyond every procedural and grown star. Locale keys
+`ui.spacemap.tab_*` / `hyper_*` in all 14 locales (en/de by hand, the rest machine first-pass); Codex
+"Finding your way" paragraph, user manual and the multi-world developer doc updated.
+
+**Tests.** `GalaxyChartLayoutTests` (client): every star of grown galaxies fits, the fit is tight, name gate,
+undirected lanes, snap picking. `HyperspaceChartServerTests`: star colour served + equals the joined world's
+`SunColor`, codec round-trip, finale position beyond every star for fixed/grown galaxies and seed-stable, revealed
+finale is tier 2.
+
+**Verification.** Local Unity build (client scripts are not compiled by PR CI); server + client suites.
+
+**Open.** Zoom/pan of the galaxy chart (not needed ≤ ~30 stars); frontier-distance rings (the 400/700 constants
+would have to move to Shared); showing the same picture on the travel screen (the widget is built for it).
+
 ## 📦 Released versions
 
 Published GitHub Releases (tag = version single-source-of-truth; each tag push builds the Windows installer

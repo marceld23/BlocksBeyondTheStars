@@ -45,7 +45,11 @@ them**; between systems you hyperjump. This combines two originally separate ide
   selection (`HyperjumpSystemIntent`, NetCodec 117 → `HyperjumpToSystem`); the jump moves the player's
   flight space to the target system (others stay put), arriving in flight anchored on the target's
   first landable body. The warp VFX (`HyperspaceWarp`, client) covers the transition; it is triggered
-  by the client's `HyperjumpStarted` event.
+  by the client's `HyperjumpStarted` event. The flight chart's **Hyperspace tab** (`SpaceMap` +
+  `GalaxyChartWidget`, #1603) draws every system at its `MapX/MapY` — stars only, in the server's
+  per-system `StarColor` (#1604) — and offers the same `HyperjumpSystemIntent` from a selected star; the
+  finale system is placed out past every other star (`GuardianFinaleMapPosition`, #1605) now that map
+  positions are visible. Pure projection/name rules live in `Shared/World/GalaxyChartLayout.cs`.
 - **Scoped presence.** A player only sees remote players / NPCs / creatures in the same world (or same
   flight space). This is enforced server-side: presence/entity broadcasts filter recipients on matching
   `CurrentLocationId` (see `GameServerPresence.cs`) rather than carrying a scope-id field on the wire.

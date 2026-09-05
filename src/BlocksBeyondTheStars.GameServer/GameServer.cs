@@ -5994,6 +5994,7 @@ public sealed partial class GameServer
             MapY = sys.MapY,
             Bodies = sys.Bodies.Select(b => ToNetBody(b, session)).ToArray(),
             Tier = FrontierTierOf(sys.Id), // #1122: the star map tags frontier systems
+            StarColor = StarColor(sys.Name), // #1604: the sky keys the sun colour by system NAME — same key here
         }).ToArray();
 
         var players = _sessions.Values
