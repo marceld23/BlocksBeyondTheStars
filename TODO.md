@@ -110,6 +110,17 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ HUD hull/shield rows read "value / max" — a shield generator built on the ground no longer looks dead at "Shield 55" (#1585, 2026-09-05, branch fix/hud-vitals-value-max)
+
+**Why.** Lyxette (v2026.9.2): "Schildgenerator, da bleibt es bei 55 als Leistungswert". The generator WAS installed
+and counted (`shieldMax` 135 = starter 25 + baseline 30 + generator 80), but the shield only charges in flight, so the
+landed HUD showed the bare charge "Schild 55" against a 41 % bar — indistinguishable from a broken module.
+
+**What ships.** `HudUi.SetVital` takes an optional `max`; the hull and shield rows pass `HullMax` / `ShieldMax` and
+render "Hülle 200 / 200", "Schild 55 / 135". The suit rows (health, O2, energy, hunger) keep their bare value; the
+flight instrument line (HULL/SHD while piloting) is untouched. The #1554 string-rebuild guard now also keys on the
+rounded max. Companion: server-side shield top-up on module build / repair is #1586.
+
 ### ★ Lyxette round 7 — the station's west wing is station again, the box follows the whole build, the pads survive a station visit, R repairs the ship, hyperjumps arrive with a name (#1558–#1568, 2026-09-04, branch fix/lyxette-reports-2026-09-04)
 Eight F1 reports from the night and afternoon of 2026-09-04 (v2026.8.26 → v2026.9.1). **X wrap in the station world
 (#1558):** `HandleMove` wrapped X for EVERY world (only Z was gated by `onSurface`); a player station's void world

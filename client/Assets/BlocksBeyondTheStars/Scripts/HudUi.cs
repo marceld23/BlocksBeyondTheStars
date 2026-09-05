@@ -85,7 +85,7 @@ namespace BlocksBeyondTheStars.Client
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
 
-        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; public string LastLabel; public int LastValue; }
+        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; public string LastLabel; public int LastValue; public int LastMax; }
         private VitalRow[] _vitals;
         private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
 
@@ -721,8 +721,11 @@ namespace BlocksBeyondTheStars.Client
             if (ship)
             {
                 var c = Game.ShipCombat;
-                SetVital(4, loc.Get("ui.hud.hull"), c.Hull, c.HullMax > 0 ? c.Hull / c.HullMax : 0f, HullC, true);
-                SetVital(5, loc.Get("ui.hud.shield"), c.Shield, c.ShieldMax > 0 ? c.Shield / c.ShieldMax : 0f, ShieldC, true);
+                // #1585: hull and shield spell out "value / max". The shield only charges in flight, so a
+                // freshly built generator on the ground reads "Shield 55" against a 41 % bar — which looks like
+                // a dead module unless the max (135) stands next to it. The suit rows keep their bare value.
+                SetVital(4, loc.Get("ui.hud.hull"), c.Hull, c.HullMax > 0 ? c.Hull / c.HullMax : 0f, HullC, true, c.HullMax);
+                SetVital(5, loc.Get("ui.hud.shield"), c.Shield, c.ShieldMax > 0 ? c.Shield / c.ShieldMax : 0f, ShieldC, true, c.ShieldMax);
             }
             else
             {
@@ -923,7 +926,7 @@ namespace BlocksBeyondTheStars.Client
             return new VitalRow { Fill = fill, Label = label, Go = go };
         }
 
-        private void SetVital(int i, string label, float value, float frac, Color color, bool active)
+        private void SetVital(int i, string label, float value, float frac, Color color, bool active, float max = 0f)
         {
             var v = _vitals[i];
             if (v.Go.activeSelf != active) v.Go.SetActive(active);
@@ -937,13 +940,15 @@ namespace BlocksBeyondTheStars.Client
             v.Fill.color = color;
             v.Fill.fillAmount = Mathf.Clamp01(frac);
             int shown = Mathf.RoundToInt(value);
-            if (shown != v.LastValue || !ReferenceEquals(label, v.LastLabel) || v.LastLabel == null)
+            int shownMax = max > 0f ? Mathf.RoundToInt(max) : 0; // 0 = no "/ max" suffix (#1585)
+            if (shown != v.LastValue || shownMax != v.LastMax || !ReferenceEquals(label, v.LastLabel) || v.LastLabel == null)
             {
-                // #1554: 10 Hz × 6 rows of interpolated strings — only when the rounded value or label changed.
+                // #1554: 10 Hz × 6 rows of interpolated strings — only when the rounded value, max or label changed.
                 v.LastValue = shown;
+                v.LastMax = shownMax;
                 v.LastLabel = label;
                 _vitals[i] = v;
-                v.Label.text = $"{label}  {shown}";
+                v.Label.text = shownMax > 0 ? $"{label}  {shown} / {shownMax}" : $"{label}  {shown}";
             }
         }
 
