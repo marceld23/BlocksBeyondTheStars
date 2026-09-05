@@ -61,6 +61,10 @@ namespace BlocksBeyondTheStars.Client.EditorTools
             "BlocksBeyondTheStars/VertexColorOpaque",
             "BlocksBeyondTheStars/Visor",
             "BlocksBeyondTheStars/VisorGlass",
+            "BlocksBeyondTheStars/UiHolo",   // shader-drawn HUD chrome (UiHolo.cs)
+            "TextMeshPro/Distance Field",    // runtime-created SDF font materials (UiText.cs) — all keyword variants (glow/underlay)
+            "TextMeshPro/Mobile/Distance Field",
+            "TextMeshPro/Sprite",
             "Unlit/Color",
             "Unlit/Transparent", // `?? Shader.Find("Unlit/Transparent")` fallbacks (glow/field quads)
             "Sprites/Default",   // MenuBackground particle fallback

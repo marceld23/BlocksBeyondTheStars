@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using BlocksBeyondTheStars.Networking.Messages;
 using BlocksBeyondTheStars.Shared.World;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,6 +15,11 @@ namespace BlocksBeyondTheStars.Client
     /// the day/night indicator, scan/wreck/loot panels, toasts and prompts — all on a DPI-independent
     /// canvas (UiKit). Built once, refreshed each frame from the authoritative <see cref="GameBootstrap"/>.
     /// Hidden while a menu is open.
+    /// Look pass (2026-09): SDF text (<see cref="UiText"/>), shader-drawn holo chrome (<see cref="UiHolo"/>),
+    /// vitals icons, a motion layer (<see cref="UiTween"/>: eased bars with a ghost trail, rolling numbers,
+    /// toast slide-in, a boot-up reveal on world entry / respawn, a visor glitch on damage) and nested
+    /// sub-canvases so the per-frame movers (compass, vitals, hotbar, crosshair) no longer re-batch the
+    /// static chrome every frame.
     /// </summary>
     public sealed class HudUi : MonoBehaviour
     {
@@ -75,23 +81,36 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Set while a scope draws its own reticle (see <see cref="BinocularOptic"/>); hides the HUD
         /// crosshair for as long as it is up.</summary>
         public static bool SuppressCrosshair;
-        private Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist, _compassWpDist;
-        private Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
+        private TMP_Text _locTitle, _locPlace, _toast, _inSpace, _prompt, _loot, _hint, _todText, _compassDist, _compassWpDist;
+        private TMP_Text _observer; // SPECTATOR badge while fleet-admin observer mode is active (issue #487)
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
-        private Text _playtimeText;
+        private TMP_Text _playtimeText;
         private RectTransform _todMarker;
         private RectTransform _compassShip, _compassWp, _compassNorth;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
 
-        private struct VitalRow { public Image Fill; public Text Label; public GameObject Go; public bool Warn; public Color BaseColor; public string LastLabel; public int LastValue; public int LastMax; }
+        private struct VitalRow
+        {
+            public Image Fill, Ghost;      // holo bar fill + the dim "what you just lost" trail behind it
+            public TMP_Text Label;
+            public GameObject Go;
+            public bool Warn, Init;
+            public Color BaseColor;
+            public string LastLabel;
+            public int LastValue, LastMax;
+            public bool LabelDirty;
+            public float TargetFrac, ShownFrac, GhostFrac, TargetValue, ShownValue; // motion state (AnimateVitals)
+        }
+
+        private const float VitalBarW = 178f;
         private VitalRow[] _vitals;
         private float _lowVitalBeepTimer; // shared low-vitals alarm cadence (#753)
 
         private UiKit.QuickSlot[] _hotbar;
         private GameObject _hotbarRoot; // backplate + cells + rings, toggled together when flying
-        private Text _slotActionBadge;  // HotbarAction key glyph over the SELECTED cell — the slot-action ring's on-hotbar tell (#935)
+        private TMP_Text _slotActionBadge;  // HotbarAction key glyph over the SELECTED cell — the slot-action ring's on-hotbar tell (#935)
         private float _hotbarX0, _hotbarPitch; // cell 0's left edge + cell spacing, for sliding the badge to the selection
 
         // Scan / wreck panels.
@@ -99,21 +118,21 @@ namespace BlocksBeyondTheStars.Client
 
         // Creature taming prompt: decoded mood + what the creature wants now, with the four response buttons.
         private GameObject _tamePanel;
-        private Text _tameName, _tameMood, _tameNeed, _tameTrust;
+        private TMP_Text _tameName, _tameMood, _tameNeed, _tameTrust;
         private Button _tameFeed, _tameCalm, _tameApproach, _tameSpace, _tameStop;
-        private Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
-        private Text _shipRepairTitle, _shipRepairProg, _shipRepairHint;
+        private TMP_Text _scanSubject, _scanInfo, _scanThreat, _scanKnow, _wreckName, _wreckProg, _wreckHint;
+        private TMP_Text _shipRepairTitle, _shipRepairProg, _shipRepairHint;
 
         // Hover-speeder vehicle HUD: integrity + energy gauges, speed and the drive prompt (shown while driving).
         private GameObject _speederPanel;
         private Image _speederHull, _speederFuel, _speederFuelBg;
-        private Text _speederTitle, _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint;
+        private TMP_Text _speederTitle, _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint;
         private Image _wreckBar, _shipRepairBar, _shipRepairTrack;
         private Button _wreckClaim, _shipRepairBtn;
 
         // Damage feedback (B21): a red screen flash + a cause label when health drops.
         private Image _dmgFlash;
-        private Text _dmgCause;
+        private TMP_Text _dmgCause;
         private float _prevHealth = 100f, _flashTimer, _causeTimer;
         private string _causeKey = string.Empty;
         private float _o2BeepTimer; // periodic low-oxygen warning tone (interval shrinks as O₂ drops)
@@ -132,7 +151,7 @@ namespace BlocksBeyondTheStars.Client
             public float Ttl;
             public GameObject Go;
             public CanvasGroup Fade;
-            public Text Label;
+            public TMP_Text Label;
         }
 
         private readonly System.Collections.Generic.List<PickupRow> _pickupRows = new System.Collections.Generic.List<PickupRow>();
@@ -148,7 +167,7 @@ namespace BlocksBeyondTheStars.Client
         private RawImage _researchIcon;
         private Image _researchGlow;
         private RectTransform _researchShine;
-        private Text _researchHead, _researchName;
+        private TMP_Text _researchHead, _researchName;
         private float _researchAge = -1f; // <0 = idle, no toast up
         private const float ResearchW = 480f, ResearchH = 86f, ResearchY = 64f;
         private const float ResearchPop = 0.25f, ResearchHold = 3.0f, ResearchFade = 0.5f;
@@ -174,6 +193,15 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>Set while a HUD exists so world-side FX (MiningFx) can hand off pickup fly-ins.</summary>
         public static HudUi Instance { get; private set; }
         private Canvas _flyCanvas; // own overlay canvas so the visor distortion can't bend the fly-ins
+
+        // Motion layer state.
+        private CanvasGroup _rootGroup;   // whole-HUD fade for the boot-up
+        private CanvasGroup _toastGroup;  // toast slide/fade
+        private Vector2 _toastBasePos;
+        private string _lastToastMsg = string.Empty;
+        private bool _bootPending = true; // play the boot reveal on the first visible frame (and after a respawn)
+        private bool _wasDead;
+        private WorldLoadingOverlay _veil;
 
         private void Awake() => Instance = this;
 
@@ -210,8 +238,15 @@ namespace BlocksBeyondTheStars.Client
 
             if (show)
             {
+                if (_bootPending && (_veil == null || !_veil.VeilActive))
+                {
+                    _bootPending = false;
+                    PlayBoot();
+                }
+
                 UpdateCrosshairState(Time.deltaTime); // per frame: aim tint must not lag the reticle
                 RefreshCompass(); // per frame: blips counter-rotate with the camera, throttling would judder
+                AnimateVitals(Time.deltaTime); // per frame: eased fills, ghost trail, rolling numbers
                 UpdateLowVitalWarnings(Time.deltaTime); // per frame: the below-10 % blink (#753) must not step
 
                 _refreshTimer -= Time.deltaTime;
@@ -265,7 +300,17 @@ namespace BlocksBeyondTheStars.Client
                 _causeTimer = 2.2f;
                 _causeKey = InferDamageCause();
                 UrpScenePost.Instance?.PulseVignette(0.4f + Mathf.Clamp01(drop / 25f) * 0.6f); // vignette kick
+                VisorHud.Kick(0.35f + Mathf.Clamp01(drop / 25f) * 0.65f); // the hologram glitches with the hit
             }
+
+            // Respawn: the suit "reboots" — replay the boot-up reveal once the HUD is visible again.
+            bool dead = h <= 0f;
+            if (_wasDead && !dead)
+            {
+                _bootPending = true;
+            }
+
+            _wasDead = dead;
 
             UpdateOxygenAlarm(dt);
 
@@ -349,6 +394,9 @@ namespace BlocksBeyondTheStars.Client
             {
                 Instance = null;
             }
+
+            UiTween.Kill(_rootGroup);
+            UiTween.Kill(_toastGroup);
         }
 
         /// <summary>A small block-tile icon flying from the mined block toward the hotbar — the
@@ -455,6 +503,9 @@ namespace BlocksBeyondTheStars.Client
             _canvas = UiKit.CreateDiegeticCanvas("HudUI", W, H); // routed through the visor HUD camera when active
             _canvas.sortingOrder = 10;
             var root = _canvas.transform;
+            _rootGroup = _canvas.gameObject.AddComponent<CanvasGroup>();
+            _rootGroup.blocksRaycasts = true;
+            _veil = FindAnyObjectByType<WorldLoadingOverlay>();
 
             // Damage feedback (B21): full-screen red flash (behind the HUD so bars stay readable) + a cause label.
             var flashGo = new GameObject("DamageFlash", typeof(RectTransform));
@@ -465,7 +516,7 @@ namespace BlocksBeyondTheStars.Client
             _dmgFlash.sprite = UiKit.SolidSprite;
             _dmgFlash.color = new Color(0.85f, 0.06f, 0.05f, 0f);
             _dmgFlash.raycastTarget = false;
-            _dmgCause = UiKit.AddText(root, W / 2f - 220, H / 2f - 90, 440, 28, string.Empty, 20, new Color(1f, 0.45f, 0.4f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            _dmgCause = UiText.Add(root, W / 2f - 220, H / 2f - 90, 440, 28, string.Empty, 20, new Color(1f, 0.45f, 0.4f), TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // Crosshair.
             _crosshair = new GameObject("Crosshair", typeof(RectTransform));
@@ -477,8 +528,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Location (top-left).
             _locationPanel = Panel(root, 10, 10, 280, 46).gameObject;
-            _locTitle = UiKit.AddText(_locationPanel.transform, 10, 3, 260, 18, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _locPlace = UiKit.AddText(_locationPanel.transform, 10, 22, 260, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _locTitle = UiText.Add(_locationPanel.transform, 10, 3, 260, 18, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _locPlace = UiText.Add(_locationPanel.transform, 10, 22, 260, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
 
             // Vitals panel (6 rows; ship rows toggled).
             _vitalsPanel = Panel(root, 10, VitalsPanelY, 226, 196).gameObject;
@@ -511,8 +562,8 @@ namespace BlocksBeyondTheStars.Client
             // frame in RefreshHotbar; lives under the hotbar root so the flying/driving states hide it too.
             _hotbarX0 = x0;
             _hotbarPitch = pitch;
-            _slotActionBadge = UiKit.AddText(hbParent, x0, hy - 34f, sw, 20f, string.Empty, 12, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            UiKit.AddOutline(_slotActionBadge);
+            _slotActionBadge = UiText.Add(hbParent, x0, hy - 34f, sw, 20f, string.Empty, 12, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            UiText.Style(_slotActionBadge, UiText.Look.Outline);
 
             // Pickup feed anchors (#745): rows sit flush with the backplate's right edge, stacking upward
             // from just above it.
@@ -523,23 +574,34 @@ namespace BlocksBeyondTheStars.Client
             var comp = new GameObject("Compass", typeof(RectTransform));
             comp.transform.SetParent(root, false);
             UiKit.Place(comp, W - 130f, 10, 120, 120);
-            var craw = comp.AddComponent<RawImage>();
-            craw.texture = UiKit.RadarCircle;
+            if (UiHolo.Available)
+            {
+                var face = comp.AddComponent<Image>();
+                face.raycastTarget = false;
+                face.color = new Color(0.04f, 0.10f, 0.20f, 1f);
+                UiHolo.Apply(face, UiHolo.Style.Ring, 60f, 2f, 1.2f).FillOpacity = 0.62f;
+            }
+            else
+            {
+                var craw = comp.AddComponent<RawImage>();
+                craw.texture = UiKit.RadarCircle;
+                craw.raycastTarget = false;
+            }
             // The dial is heading-up (the blips are rotated by the player's yaw, so the top is the way you look).
             // #1597: a rotating N marker says where north is — the fixed ▲ that sat here read as a north needle
             // and disagreed with the north-up planet map. Created before the blips so they draw over it; it
             // orbits inside the blip radius so it never lands on the captions under the dial.
-            var north = UiKit.AddText(comp.transform, 0, 0, 16, 16, "N", 12, new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.85f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            var north = UiText.Add(comp.transform, 0, 0, 16, 16, "N", 12, new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.85f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassNorth = north.rectTransform;
             _compassNorth.anchorMin = _compassNorth.anchorMax = new Vector2(0.5f, 0.5f);
             _compassNorth.pivot = new Vector2(0.5f, 0.5f);
             // Both distance lines carry their localized name ("Ship 114 m", "Waypoint 138 m") in the blip's
             // colour — #1594: a first-time player saw two coloured dots and two numbers and did not know the
             // blue one was the ship. The planet map has a legend; this is the compass's.
-            _compassDist = UiKit.AddText(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassDist = UiText.Add(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             // Waypoint distance on its own line under the ship distance — before #592 the compass number
             // was the SHIP only and the waypoint's distance existed nowhere outside the map panel.
-            _compassWpDist = UiKit.AddText(comp.transform, 0, 118, 120, 18, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassWpDist = UiText.Add(comp.transform, 0, 118, 120, 18, string.Empty, 14, new Color(1f, 0.85f, 0.3f), TextAnchor.MiddleCenter, FontStyle.Bold);
             _compassShip = Blip(comp.transform, new Color(0.3f, 0.8f, 1f), 8f);
             // The waypoint blip is the map_waypoint ICON, not another plain square — at 7 px amber it was
             // nearly indistinguishable from the 6 px amber beacon blips (#592).
@@ -548,7 +610,7 @@ namespace BlocksBeyondTheStars.Client
 
             // Time of day + temperature.
             var tod = Panel(root, W - 210f, 140, 200, 56);
-            _todText = UiKit.AddText(tod.transform, 10, 5, 184, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _todText = UiText.Add(tod.transform, 10, 5, 184, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             UiKit.AddImage(tod.transform, 10, 32, 150, 12, UiKit.SolidSprite, new Color(0.05f, 0.08f, 0.16f));
             UiKit.AddImage(tod.transform, 10 + 150 * 0.25f, 32, 150 * 0.5f, 12, UiKit.SolidSprite, new Color(0.30f, 0.55f, 0.85f, 0.85f));
             _todMarker = UiKit.AddImage(tod.transform, 10, 30, 2, 16, UiKit.SolidSprite, UiKit.Cyan).rectTransform;
@@ -556,34 +618,37 @@ namespace BlocksBeyondTheStars.Client
             // Optional playtime readout, tucked just under the clock (top-right). Hidden unless the comfort
             // setting is on; refreshed each frame in RefreshPlaytime.
             _playtimePanel = Panel(root, W - 210f, 200, 200, 40).gameObject;
-            _playtimeText = UiKit.AddText(_playtimePanel.transform, 10, 4, 184, 30, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _playtimeText = UiText.Add(_playtimePanel.transform, 10, 4, 184, 30, string.Empty, 14, UiKit.CyanDim, TextAnchor.MiddleLeft);
             _playtimePanel.SetActive(false);
 
             // Toast / indicators / prompts / hint.
-            _toast = UiKit.AddText(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _toast.supportRichText = false; // carries developer/player text (reply toasts, chat echoes) — shown verbatim (#1368)
-            _inSpace = UiKit.AddText(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _toast = UiText.Add(root, 14, 268, W - 28, 22, string.Empty, 15, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Outline);
+            _toast.richText = false; // carries developer/player text (reply toasts, chat echoes) — shown verbatim (#1368)
+            _toastGroup = _toast.gameObject.AddComponent<CanvasGroup>();
+            _toastGroup.blocksRaycasts = false;
+            _toastBasePos = _toast.rectTransform.anchoredPosition;
+            _inSpace = UiText.Add(root, W / 2f - 100, 8, 200, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
 
             // Observer badge (issue #487). Top centre, always-on while the mode is active: an admin who forgets
             // they are invisible is how you end up "fixing" a world nobody can see you in.
-            _observer = UiKit.AddText(root, W / 2f - 160, 30, 320, 24, string.Empty, 18, UiKit.Warn,
+            _observer = UiText.Add(root, W / 2f - 160, 30, 320, 24, string.Empty, 18, UiKit.Warn,
                 TextAnchor.MiddleCenter, FontStyle.Bold);
-            _prompt = UiKit.AddText(root, W / 2f - 400, H / 2f + 24, 800, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _loot = UiKit.AddText(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
-            _hint = UiKit.AddText(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
+            _prompt = UiText.Add(root, W / 2f - 400, H / 2f + 24, 800, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _loot = UiText.Add(root, W / 2f - 160, H / 2f + 48, 320, 22, string.Empty, 16, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
+            _hint = UiText.Add(root, (W - 1400) / 2f, H - 26, 1400, 20, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleCenter);
 
             // Vehicle HUD (hover speeder): integrity + energy gauges, speed + drive prompt, where the hotbar sits
             // (the hotbar is hidden while driving). Hidden until the player boards a speeder.
             _speederPanel = Panel(root, W / 2f - 170, H - 136, 340, 108).gameObject;
-            _speederTitle = UiKit.AddText(_speederPanel.transform, 12, 6, 220, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speederSpeed = UiKit.AddText(_speederPanel.transform, 108, 6, 220, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
+            _speederTitle = UiText.Add(_speederPanel.transform, 12, 6, 220, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederSpeed = UiText.Add(_speederPanel.transform, 108, 6, 220, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
             _speederHull = MakeBar(_speederPanel.transform, 12, 30, 316, 16);
-            _speederHullLabel = UiKit.AddText(_speederPanel.transform, 18, 30, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederHullLabel = UiText.Add(_speederPanel.transform, 18, 30, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
             // The fuel row keeps its own background handle: a boat (FuelMax 0, #1215) hides the whole row.
             _speederFuelBg = UiKit.AddImage(_speederPanel.transform, 12, 52, 316, 16, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
             _speederFuel = MakeBar(_speederPanel.transform, 12, 52, 316, 16);
-            _speederFuelLabel = UiKit.AddText(_speederPanel.transform, 18, 52, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speederHint = UiKit.AddText(_speederPanel.transform, 12, 80, 316, 18, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
+            _speederFuelLabel = UiText.Add(_speederPanel.transform, 18, 52, 304, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _speederHint = UiText.Add(_speederPanel.transform, 12, 80, 316, 18, string.Empty, 12, UiKit.CyanDim, TextAnchor.MiddleLeft);
             _speederPanel.SetActive(false);
 
             // Scan result panel (bottom-left): the scanner's detail readout — subject, description,
@@ -600,60 +665,115 @@ namespace BlocksBeyondTheStars.Client
             }
 
             const float scanTextW = ScanPanelW - 24f;
-            _scanSubject = UiKit.AddText(_scanPanel.transform, scanTextX, 8, ScanPanelW - 12f - scanTextX, 26, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _scanInfo = UiKit.AddText(_scanPanel.transform, 12, 40, scanTextW, 78, string.Empty, 17, UiKit.TextCol, TextAnchor.UpperLeft);
-            _scanInfo.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _scanSubject = UiText.Add(_scanPanel.transform, scanTextX, 8, ScanPanelW - 12f - scanTextX, 26, string.Empty, 19, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _scanInfo = UiText.Add(_scanPanel.transform, 12, 40, scanTextW, 78, string.Empty, 17, UiKit.TextCol, TextAnchor.UpperLeft);
+            UiText.Wrap(_scanInfo, truncate: true);
             // Truncate, NOT the AddText default Overflow: a long yield list (asteroids report every
             // distinct resource) used to run straight over the threat + knowledge lines (#482).
-            _scanInfo.verticalOverflow = VerticalWrapMode.Truncate;
-            _scanThreat = UiKit.AddText(_scanPanel.transform, 12, 122, scanTextW, 22, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _scanKnow = UiKit.AddText(_scanPanel.transform, 12, 148, scanTextW, 26, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddOutline(_scanSubject);
-            UiKit.AddOutline(_scanInfo);
-            UiKit.AddOutline(_scanThreat);
-            UiKit.AddOutline(_scanKnow);
+            // (truncate: see UiText.Wrap above)
+            _scanThreat = UiText.Add(_scanPanel.transform, 12, 122, scanTextW, 22, string.Empty, 16, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _scanKnow = UiText.Add(_scanPanel.transform, 12, 148, scanTextW, 26, string.Empty, 17, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiText.Style(_scanSubject, UiText.Look.Outline);
+            UiText.Style(_scanInfo, UiText.Look.Outline);
+            UiText.Style(_scanThreat, UiText.Look.Outline);
+            UiText.Style(_scanKnow, UiText.Look.Outline);
 
             // Wreck panel (right).
             _wreckPanel = Panel(root, W - 260f, 140, 250, 150).gameObject;
-            _wreckName = UiKit.AddText(_wreckPanel.transform, 10, 26, 230, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
-            UiKit.AddText(_wreckPanel.transform, 10, 6, 230, 18, Game?.Localizer?.Get("ui.hud.wreck") ?? "WRECK", 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddImage(_wreckPanel.transform, 10, 48, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
-            _wreckBar = UiKit.AddImage(_wreckPanel.transform, 10, 48, 230, 14, UiKit.SolidSprite, UiKit.Cyan);
-            _wreckBar.type = Image.Type.Filled;
-            _wreckBar.fillMethod = Image.FillMethod.Horizontal;
-            _wreckProg = UiKit.AddText(_wreckPanel.transform, 12, 47, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _wreckHint = UiKit.AddText(_wreckPanel.transform, 10, 68, 230, 50, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
-            _wreckHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _wreckName = UiText.Add(_wreckPanel.transform, 10, 26, 230, 18, string.Empty, 14, UiKit.TextCol, TextAnchor.MiddleLeft);
+            UiText.Add(_wreckPanel.transform, 10, 6, 230, 18, Game?.Localizer?.Get("ui.hud.wreck") ?? "WRECK", 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _wreckBar = UiHolo.AddBar(_wreckPanel.transform, 10, 48, 230, 14, new Color(0.03f, 0.07f, 0.13f), UiKit.Cyan).Fill;
+            _wreckProg = UiText.Add(_wreckPanel.transform, 12, 47, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _wreckHint = UiText.Add(_wreckPanel.transform, 10, 68, 230, 50, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiText.Wrap(_wreckHint);
             _wreckClaim = UiKit.AddButton(_wreckPanel.transform, 10, 120, 230, 24, string.Empty, () => Game.Network?.SendClaimWreck());
 
             // Ship-repair panel (right, below the wreck panel) — the cockpit "Repair ship" action: buy hull
             // back + refill EVA-carved hull cells with one click, paid in metal (docs/developer/SHIP_REPAIR.md).
             _shipRepairPanel = Panel(root, W - 260f, 300, 250, 120).gameObject;
-            _shipRepairTitle = UiKit.AddText(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _shipRepairTrack = UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f));
-            _shipRepairBar = UiKit.AddImage(_shipRepairPanel.transform, 10, 30, 230, 14, UiKit.SolidSprite, UiKit.Cyan);
-            _shipRepairBar.type = Image.Type.Filled;
-            _shipRepairBar.fillMethod = Image.FillMethod.Horizontal;
-            _shipRepairProg = UiKit.AddText(_shipRepairPanel.transform, 12, 29, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
-            _shipRepairHint = UiKit.AddText(_shipRepairPanel.transform, 10, 50, 230, 36, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
-            _shipRepairHint.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _shipRepairTitle = UiText.Add(_shipRepairPanel.transform, 10, 6, 230, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            (_shipRepairTrack, _shipRepairBar) = UiHolo.AddBar(_shipRepairPanel.transform, 10, 30, 230, 14, new Color(0.03f, 0.07f, 0.13f), UiKit.Cyan);
+            _shipRepairProg = UiText.Add(_shipRepairPanel.transform, 12, 29, 226, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _shipRepairHint = UiText.Add(_shipRepairPanel.transform, 10, 50, 230, 36, string.Empty, 12, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiText.Wrap(_shipRepairHint);
             _shipRepairBtn = UiKit.AddButton(_shipRepairPanel.transform, 10, 90, 230, 24, string.Empty, () => Game.Network?.SendRepairShip("all"));
 
             // Creature-taming prompt (bottom-centre, above the hotbar): the translator's decoded mood + need,
             // a trust bar of correct responses, and the four response actions. Captions are set in RefreshTaming.
             _tamePanel = Panel(root, W / 2f - 250f, 150f, 500f, 172f).gameObject;
-            _tameName = UiKit.AddText(_tamePanel.transform, 14, 8, 410, 22, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _tameName = UiText.Add(_tamePanel.transform, 14, 8, 410, 22, string.Empty, 18, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
             _tameStop = UiKit.AddButton(_tamePanel.transform, 432, 8, 56, 24, string.Empty, () => Respond("cancel"));
-            _tameMood = UiKit.AddText(_tamePanel.transform, 14, 34, 472, 20, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _tameNeed = UiKit.AddText(_tamePanel.transform, 14, 56, 472, 38, string.Empty, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
-            _tameNeed.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _tameTrust = UiKit.AddText(_tamePanel.transform, 14, 96, 472, 18, string.Empty, 13, UiKit.TextCol, TextAnchor.MiddleLeft);
+            _tameMood = UiText.Add(_tamePanel.transform, 14, 34, 472, 20, string.Empty, 15, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _tameNeed = UiText.Add(_tamePanel.transform, 14, 56, 472, 38, string.Empty, 14, UiKit.CyanDim, TextAnchor.UpperLeft);
+            UiText.Wrap(_tameNeed);
+            _tameTrust = UiText.Add(_tamePanel.transform, 14, 96, 472, 18, string.Empty, 13, UiKit.TextCol, TextAnchor.MiddleLeft);
             const float tby = 122f, tbw = 112f, tbh = 40f, tgap = 6f;
             _tameFeed = UiKit.AddButton(_tamePanel.transform, 14 + 0 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("feed"));
             _tameCalm = UiKit.AddButton(_tamePanel.transform, 14 + 1 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("calm"));
             _tameApproach = UiKit.AddButton(_tamePanel.transform, 14 + 2 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("approach"));
             _tameSpace = UiKit.AddButton(_tamePanel.transform, 14 + 3 * (tbw + tgap), tby, tbw, tbh, string.Empty, () => Respond("space"));
             _tamePanel.SetActive(false);
+
+            // Typography: headline labels glow like the hologram, the rest keep the readable underlay.
+            foreach (var glow in new TMP_Text[] { _locTitle, _inSpace, _prompt, _scanSubject, _tameName, _speederTitle, _shipRepairTitle, _observer })
+            {
+                UiText.Style(glow, UiText.Look.Glow);
+            }
+
+            foreach (var outline in new TMP_Text[] { _locPlace, _loot, _hint, _todText, _compassDist, _compassWpDist, _dmgCause, _playtimeText,
+                         _wreckName, _wreckProg, _wreckHint, _shipRepairProg, _shipRepairHint, _tameMood, _tameNeed, _tameTrust,
+                         _speederSpeed, _speederHullLabel, _speederFuelLabel, _speederHint })
+            {
+                UiText.Style(outline, UiText.Look.Outline);
+            }
+
+            // Per-frame movers get their own nested canvases, so their vertex updates re-batch a handful of
+            // graphics instead of the whole HUD (perf analysis 2026-09-03, item 24).
+            foreach (var mover in new[] { _vitalsPanel, comp.gameObject, _hotbarRoot, _crosshair })
+            {
+                UiKit.AddSubCanvas(mover); // copies the parent's shader channels — a bare AddComponent<Canvas> drops UV1–UV3
+            }
+        }
+
+        /// <summary>Boot-up: the whole HUD fades in while every holo panel wipes on with a short stagger —
+        /// the suit's systems coming online. Instant under reduced motion.</summary>
+        private void PlayBoot()
+        {
+            if (_canvas == null)
+            {
+                return;
+            }
+
+            if (_rootGroup != null)
+            {
+                if (!UiKit.ReducedMotion)
+                {
+                    _rootGroup.alpha = 0f;
+                }
+
+                UiTween.Alpha(_rootGroup, 1f, 0.45f, UiTween.Ease.OutQuad);
+            }
+
+            UiHolo.PlayReveal(_canvas.transform, 0.36f, 0.05f, 0.08f);
+        }
+
+        /// <summary>Toast slide-in: a new message eases in from the left and fades up.</summary>
+        private void ShowToast(string msg)
+        {
+            _toast.text = msg;
+            if (_toastGroup == null || msg.Length == 0)
+            {
+                return;
+            }
+
+            _toast.rectTransform.anchoredPosition = _toastBasePos;
+            if (!UiKit.ReducedMotion)
+            {
+                _toastGroup.alpha = 0f;
+                UiTween.Move(_toast.rectTransform, _toastBasePos + new Vector2(-16f, 0f), _toastBasePos, 0.30f, UiTween.Ease.OutCubic);
+            }
+
+            UiTween.Alpha(_toastGroup, 1f, 0.22f, UiTween.Ease.OutQuad);
         }
 
         /// <summary>Sends the player's chosen response in the current taming ritual (read from the live state).</summary>
@@ -751,7 +871,12 @@ namespace BlocksBeyondTheStars.Client
             RefreshTimeOfDay(loc);
             RefreshPlaytime(loc);
 
-            _toast.text = Game.LastMessage ?? string.Empty;
+            string toastMsg = Game.LastMessage ?? string.Empty;
+            if (!string.Equals(toastMsg, _lastToastMsg, System.StringComparison.Ordinal))
+            {
+                _lastToastMsg = toastMsg;
+                ShowToast(toastMsg);
+            }
             _inSpace.text = Game.InSpace ? loc.Get("ui.hud.in_space") : string.Empty;
             _observer.text = Game.Spectating ? loc.Get("ui.hud.observer") : string.Empty;
             // #1516: compose the hint in a local and assign ONCE — assigning the base line first and then
@@ -869,7 +994,7 @@ namespace BlocksBeyondTheStars.Client
             _speederSpeed.text = $"{Mathf.RoundToInt(Mathf.Abs(Game.SpeederSpeed))} m/s";
 
             float hullFrac = s.HullMax > 0 ? s.Hull / s.HullMax : 0f;
-            _speederHull.fillAmount = Mathf.Clamp01(hullFrac);
+            UiHolo.SetBar(_speederHull, hullFrac, 316f);
             _speederHull.color = hullFrac > 0.5f ? new Color(0.4f, 0.85f, 0.5f)
                 : (hullFrac > 0.25f ? new Color(0.95f, 0.8f, 0.3f) : new Color(0.95f, 0.35f, 0.3f));
             _speederHullLabel.text = $"{loc.Get("hud.speeder.integrity")}  {Mathf.RoundToInt(s.Hull)}";
@@ -886,7 +1011,7 @@ namespace BlocksBeyondTheStars.Client
             if (hasFuel)
             {
                 float fuelFrac = s.Fuel / s.FuelMax;
-                _speederFuel.fillAmount = Mathf.Clamp01(fuelFrac);
+                UiHolo.SetBar(_speederFuel, fuelFrac, 316f);
                 _speederFuel.color = fuelFrac > 0.2f ? new Color(0.4f, 0.8f, 1f) : new Color(0.95f, 0.5f, 0.2f);
                 _speederFuelLabel.text = $"{loc.Get("hud.speeder.fuel")}  {Mathf.RoundToInt(s.Fuel)}";
             }
@@ -911,14 +1036,7 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>A horizontal fill bar (dark track + a coloured fill) for the vehicle gauges.</summary>
         private Image MakeBar(Transform parent, float x, float y, float w, float h)
-        {
-            UiKit.AddImage(parent, x, y, w, h, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
-            var fill = UiKit.AddImage(parent, x, y, w, h, UiKit.SolidSprite, Color.white);
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            return fill;
-        }
+            => UiHolo.AddBar(parent, x, y, w, h, new Color(0.03f, 0.07f, 0.13f, 0.9f), Color.white).Fill;
 
         // --- vitals ---
 
@@ -927,13 +1045,36 @@ namespace BlocksBeyondTheStars.Client
             var go = new GameObject("Vital_" + key, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             UiKit.Place(go, x, y, 200, 16);
-            UiKit.AddImage(go.transform, 22, 0, 178, 16, UiKit.SolidSprite, new Color(0.03f, 0.07f, 0.13f, 0.9f));
-            var fill = UiKit.AddImage(go.transform, 22, 0, 178, 16, UiKit.SolidSprite, Color.white);
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            var label = UiKit.AddText(go.transform, 28, 0, 172, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft);
-            return new VitalRow { Fill = fill, Label = label, Go = go };
+            // Line icon in the 22-unit gutter the bar always left free (vital_* from tools/ai-assets/gen_hud_icons.py).
+            var icon = UiKit.Icon("vital_" + key);
+            if (icon != null)
+            {
+                UiKit.AddImage(go.transform, 1, -1, 18, 18, icon, new Color(0.86f, 0.93f, 1f, 0.92f));
+            }
+
+            var trackCol = new Color(0.03f, 0.07f, 0.13f, 0.9f);
+            var track = UiKit.AddImage(go.transform, 22, 0, VitalBarW, 16, UiKit.SolidSprite, trackCol);
+            var ghost = UiKit.AddImage(go.transform, 22, 0, VitalBarW, 16, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.4f));
+            var fill = UiKit.AddImage(go.transform, 22, 0, VitalBarW, 16, UiKit.SolidSprite, Color.white);
+            if (UiHolo.Available)
+            {
+                track.color = new Color(trackCol.r, trackCol.g, trackCol.b, 1f);
+                UiHolo.Apply(track, UiHolo.Style.Panel, 8f, 1f, 0.3f).FillOpacity = trackCol.a;
+                UiHolo.Apply(ghost, UiHolo.Style.Panel, 8f, 0f, 0f);
+                UiHolo.Apply(fill, UiHolo.Style.Panel, 8f, 0.5f, 0.9f);
+            }
+            else
+            {
+                foreach (var img in new[] { ghost, fill })
+                {
+                    img.type = Image.Type.Filled;
+                    img.fillMethod = Image.FillMethod.Horizontal;
+                    img.fillOrigin = (int)Image.OriginHorizontal.Left;
+                }
+            }
+
+            var label = UiText.Add(go.transform, 28, 0, 172, 16, string.Empty, 12, UiKit.TextCol, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
+            return new VitalRow { Fill = fill, Ghost = ghost, Label = label, Go = go, ShownFrac = -1f };
         }
 
         private void SetVital(int i, string label, float value, float frac, Color color, bool active, float max = 0f)
@@ -945,20 +1086,107 @@ namespace BlocksBeyondTheStars.Client
             // (every bar bottoms out on the respawn screen — blinking them all helps nobody).
             v.Warn = active && Game.Health > 0f && (frac < 0.10f || (v.Warn && frac < 0.15f));
             v.BaseColor = color;
-            _vitals[i] = v;
-            if (!active) return;
-            v.Fill.color = color;
-            v.Fill.fillAmount = Mathf.Clamp01(frac);
-            int shown = Mathf.RoundToInt(value);
-            int shownMax = max > 0f ? Mathf.RoundToInt(max) : 0; // 0 = no "/ max" suffix (#1585)
-            if (shown != v.LastValue || shownMax != v.LastMax || !ReferenceEquals(label, v.LastLabel) || v.LastLabel == null)
+            if (!active)
             {
-                // #1554: 10 Hz × 6 rows of interpolated strings — only when the rounded value, max or label changed.
-                v.LastValue = shown;
-                v.LastMax = shownMax;
-                v.LastLabel = label;
                 _vitals[i] = v;
-                v.Label.text = shownMax > 0 ? $"{label}  {shown} / {shownMax}" : $"{label}  {shown}";
+                return;
+            }
+
+            v.Fill.color = color;
+            v.Ghost.color = new Color(color.r, color.g, color.b, 0.38f);
+            v.TargetFrac = Mathf.Clamp01(frac);
+            v.TargetValue = value;
+            if (!v.Init || UiKit.ReducedMotion)
+            {
+                // First reading (or reduced motion): no easing, the bar simply IS the value.
+                v.Init = true;
+                v.ShownFrac = v.GhostFrac = v.TargetFrac;
+                v.ShownValue = value;
+                UiHolo.SetBar(v.Fill, v.ShownFrac, VitalBarW);
+                UiHolo.SetBar(v.Ghost, v.GhostFrac, VitalBarW);
+            }
+
+            int shownMax = max > 0f ? Mathf.RoundToInt(max) : 0; // 0 = no "/ max" suffix (#1585)
+            if (shownMax != v.LastMax || !ReferenceEquals(label, v.LastLabel))
+            {
+                v.LabelDirty = true;
+            }
+
+            v.LastMax = shownMax;
+            v.LastLabel = label;
+            UpdateVitalText(ref v);
+            _vitals[i] = v;
+        }
+
+        /// <summary>Writes the row label only when the rounded (rolling) value, the max or the label changed
+        /// (#1554: 10 Hz × 6 rows of interpolated strings otherwise).</summary>
+        private static void UpdateVitalText(ref VitalRow v)
+        {
+            int shown = Mathf.RoundToInt(v.ShownValue);
+            if (shown == v.LastValue && !v.LabelDirty && v.LastLabel != null)
+            {
+                return;
+            }
+
+            v.LastValue = shown;
+            v.LabelDirty = false;
+            v.Label.text = v.LastMax > 0 ? $"{v.LastLabel}  {shown} / {v.LastMax}" : $"{v.LastLabel}  {shown}";
+        }
+
+        /// <summary>Motion layer for the vitals (per frame): the fill eases to its target, a dim ghost trails
+        /// behind on a loss so the size of the hit stays readable for a moment, and the number rolls instead
+        /// of jumping. Cheap: four vertices per bar move, text only when the rounded value ticks.</summary>
+        private void AnimateVitals(float dt)
+        {
+            if (_vitals == null || UiKit.ReducedMotion)
+            {
+                return;
+            }
+
+            float kFill = 1f - Mathf.Exp(-dt * 11f);
+            float kGhost = 1f - Mathf.Exp(-dt * 2.6f);
+            float kNum = 1f - Mathf.Exp(-dt * 9f);
+            for (int i = 0; i < _vitals.Length; i++)
+            {
+                var v = _vitals[i];
+                if (!v.Init || v.Go == null || !v.Go.activeSelf)
+                {
+                    continue;
+                }
+
+                bool changed = false;
+                if (!Mathf.Approximately(v.ShownFrac, v.TargetFrac))
+                {
+                    v.ShownFrac = Mathf.Abs(v.TargetFrac - v.ShownFrac) < 0.002f ? v.TargetFrac : Mathf.Lerp(v.ShownFrac, v.TargetFrac, kFill);
+                    UiHolo.SetBar(v.Fill, v.ShownFrac, VitalBarW);
+                    changed = true;
+                }
+
+                // Ghost: on a gain it rides with the fill; on a loss it lags behind and slowly drains down.
+                float ghostTarget = v.ShownFrac;
+                if (v.GhostFrac < ghostTarget)
+                {
+                    v.GhostFrac = ghostTarget;
+                    changed = true;
+                }
+                else if (v.GhostFrac > ghostTarget)
+                {
+                    v.GhostFrac = v.GhostFrac - ghostTarget < 0.002f ? ghostTarget : Mathf.Lerp(v.GhostFrac, ghostTarget, kGhost);
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    UiHolo.SetBar(v.Ghost, v.GhostFrac, VitalBarW);
+                }
+
+                if (!Mathf.Approximately(v.ShownValue, v.TargetValue))
+                {
+                    v.ShownValue = Mathf.Abs(v.TargetValue - v.ShownValue) < 0.5f ? v.TargetValue : Mathf.Lerp(v.ShownValue, v.TargetValue, kNum);
+                    UpdateVitalText(ref v);
+                }
+
+                _vitals[i] = v;
             }
         }
 
@@ -1035,6 +1263,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 var ico = _hotbar[selNow].Icon.gameObject;
                 (ico.GetComponent<SlotTick>() ?? ico.AddComponent<SlotTick>()).Restart();
+                UiKit.FlashQuickSlot(_hotbar[selNow]); // the holo ring flares and settles
             }
 
             _lastSelSlot = selNow;
@@ -1250,9 +1479,9 @@ namespace BlocksBeyondTheStars.Client
             raw.raycastTarget = false;
             SetItemIcon(raw, item);
 
-            var label = UiKit.AddText(go.transform, 0f, 3f, PickupRowW - 30f, 20f, string.Empty, 15,
+            var label = UiText.Add(go.transform, 0f, 3f, PickupRowW - 30f, 20f, string.Empty, 15,
                 UiKit.TextCol, TextAnchor.MiddleRight, FontStyle.Bold);
-            UiKit.AddOutline(label);
+            UiText.Style(label, UiText.Look.Outline);
 
             return new PickupRow { Item = item, Go = go, Fade = fade, Label = label };
         }
@@ -1392,6 +1621,7 @@ namespace BlocksBeyondTheStars.Client
             bg.type = Image.Type.Sliced;
             bg.color = new Color(0.05f, 0.12f, 0.24f, 0.9f);
             bg.raycastTarget = false;
+            UiHolo.Apply(bg, UiHolo.Style.Panel, 12f, 1.5f, 1.6f); // no-op on the bitmap fallback
             _researchGo.AddComponent<RectMask2D>(); // clips the shine sweep to the panel
 
             _researchGlow = UiKit.AddImage(_researchGo.transform, 8f, 8f, 70f, 70f, UiKit.DiscSprite, new Color(0.4f, 0.82f, 1f, 0.3f));
@@ -1404,10 +1634,10 @@ namespace BlocksBeyondTheStars.Client
             _researchIcon = iconGo.AddComponent<RawImage>();
             _researchIcon.raycastTarget = false;
 
-            _researchHead = UiKit.AddText(_researchGo.transform, 92f, 16f, ResearchW - 104f, 22f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _researchName = UiKit.AddText(_researchGo.transform, 92f, 40f, ResearchW - 104f, 30f, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UiKit.AddOutline(_researchHead);
-            UiKit.AddOutline(_researchName);
+            _researchHead = UiText.Add(_researchGo.transform, 92f, 16f, ResearchW - 104f, 22f, string.Empty, 15, UiKit.CyanDim, TextAnchor.MiddleLeft, FontStyle.Bold);
+            _researchName = UiText.Add(_researchGo.transform, 92f, 40f, ResearchW - 104f, 30f, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UiText.Style(_researchHead, UiText.Look.Outline);
+            UiText.Style(_researchName, UiText.Look.Outline);
 
             var shine = UiKit.AddImage(_researchGo.transform, -80f, -20f, 46f, ResearchH + 40f, UiKit.SolidSprite, new Color(1f, 1f, 1f, 0.16f));
             shine.transform.localRotation = Quaternion.Euler(0f, 0f, 18f);
@@ -1880,7 +2110,7 @@ namespace BlocksBeyondTheStars.Client
             if (!show) return;
             _wreckName.text = wreck.WreckName;
             int done = wreck.Total - wreck.Remaining;
-            _wreckBar.fillAmount = wreck.Total > 0 ? done / (float)wreck.Total : 0f;
+            UiHolo.SetBar(_wreckBar, wreck.Total > 0 ? done / (float)wreck.Total : 0f, 230f);
             _wreckProg.text = $"{loc.Get("ui.wreck.progress")}  {done}/{wreck.Total}";
             bool claim = wreck.Claimable;
             _wreckClaim.gameObject.SetActive(claim);
@@ -1935,7 +2165,7 @@ namespace BlocksBeyondTheStars.Client
                 : string.Format(loc.Get(sr.MissingCells == 1 ? "ui.shiprepair.cells_missing_one" : "ui.shiprepair.cells_missing"), sr.MissingCells); // singular for one ("1 Hüllenzelle fehlt", #1368)
             if (hullShort)
             {
-                _shipRepairBar.fillAmount = Mathf.Clamp01(sr.Hull / sr.HullMax);
+                UiHolo.SetBar(_shipRepairBar, sr.Hull / sr.HullMax, 230f);
             }
 
             // List the materials the full repair needs (item:count pairs from the server), localized.
@@ -2053,7 +2283,7 @@ namespace BlocksBeyondTheStars.Client
         // --- helpers ---
 
         private static Image Panel(Transform parent, float x, float y, float w, float h)
-            => UiKit.AddPanel(parent, x, y, w, h, new Color(0.05f, 0.12f, 0.24f, 0.82f));
+            => UiHolo.AddPanel(parent, x, y, w, h, new Color(0.05f, 0.12f, 0.24f, 0.82f), 10f, 1.5f, 1f);
 
         private void MakeCrosshair(RectTransform parent)
         {
@@ -2125,6 +2355,7 @@ namespace BlocksBeyondTheStars.Client
 
             _hitMarkerTimer = 0.25f;
             _hitMarker.SetActive(true);
+            UiTween.Scale(_hitMarker.transform, 1.7f, 1f, 0.18f, UiTween.Ease.OutCubic); // recoil: snaps in from wide
         }
     }
 }
