@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 2 of 6 — every new world rolls its own relief (#1645)
+
+- **New worlds only.** A planet type used to have one landscape: every desert a dune sea, every highland a
+  mountain world. New worlds now roll one to three landscape styles from their type's pool and lay them
+  out as regions — a desert can be dune seas next to badlands next to flat country with buttes, a highland
+  mountains next to fjord coasts. Seven new styles join in: island archipelagos, fjordlands, chalk downs,
+  shattered rift country, terraces, drumlin fields and glacial trough highlands.
+- **Each world has its own wavelength.** Hill spacing and dune pitch vary from world to world of the same type.
+- **Biomes shape the ground.** Marsh biomes lie flatter, stone country rises rougher — on the same world.
+- **Rare whole-planet shapes:** tilted worlds (one hemisphere high, one low), three-storey stepped worlds
+  and a ridge girdling the equator. Three new regional landform types (moorland, knob-and-kettle, coastal
+  cliffs) join the blend.
+- Existing worlds are byte-identical (the generation-0 goldens prove it).
+
 ### 🏔️ Landscape variety, part 1 of 6 — the foundation (#1644)
 
 - **Nothing visible changes yet — every existing world stays byte-identical.** New worlds now carry a

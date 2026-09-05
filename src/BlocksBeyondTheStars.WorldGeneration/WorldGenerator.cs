@@ -359,6 +359,10 @@ public sealed partial class WorldGenerator
     // worlds whose subset drew the new entries, as terraced mesa country, jagged extremes or gorge lands.
     private const int TerrainArchetypeCount = 8;
 
+    /// <summary>The generation-1 archetype pool (#1645): the classic eight plus moorland, knob-and-kettle and
+    /// coastal cliffs. Generation-0 worlds keep drawing from the eight (the subset roll depends on the pool size).</summary>
+    private const int TerrainArchetypeCountGen1 = 11;
+
     // --- Per-world wonder profile (#712): every feature GATE, world roll and lowered string that the
     // #698–#709 wave added is constant for a given world, yet was re-derived per COLUMN — string
     // allocations (ToLowerInvariant), Noise.Hash world rolls and repeated planet-key hashing in the
@@ -380,6 +384,14 @@ public sealed partial class WorldGenerator
         public int SkyTiers;               // #707 (0 on non-floating worlds)
         public int Generation;             // #1644 terrain generation of this world (0 = classic generators)
         public TerrainTag Tags;            // #1644 the planet type's terrain tags, resolved at content load
+
+        // #1645 (generation 1): the styles laid out as regions (gen 0: the single type style, or empty), the
+        // per-world relief wavelength (gen 0: the type's TerrainScale exactly), the resolved biomes' relief
+        // multipliers (null = off) and the rare whole-planet baseline regimes.
+        public string[] Styles = System.Array.Empty<string>();
+        public double Scale;
+        public double[]? ReliefMuls;
+        public bool Tilted, Stepped, EquatorRidge;
 
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
@@ -593,6 +605,24 @@ public sealed partial class WorldGenerator
                     Tags = planet.Tags,
                 };
                 w.OverhangLandmarks = w.Arches || w.SeaStacks || w.Hoodoos;
+
+                // #1645 relief rolls: generation 0 takes the classic values verbatim (byte-identical worlds).
+                w.Scale = planet.TerrainScale;
+                w.Styles = w.Style.Length != 0 ? new[] { w.Style } : System.Array.Empty<string>();
+                if (_terrainGeneration >= 1)
+                {
+                    w.Scale = ScaleJitterFor(planet, seed);
+                    w.Styles = PickStyles(planet, seed, w.Style);
+                    w.ReliefMuls = ReliefMulsFor(planet);
+                    w.Tilted = HasTilt(planet, seed);
+                    w.Stepped = HasStepped(planet, seed);
+                    w.EquatorRidge = HasEquatorRidge(planet, seed);
+                    if (w.Stepped)
+                    {
+                        w.Escarpment = true; // three storeys = the classic escarpment plus a second one
+                    }
+                }
+
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
                 foreach (var kind in LandmarkKinds)
@@ -612,7 +642,11 @@ public sealed partial class WorldGenerator
                 w.ActiveLandmarks = offsets.ToArray();
                 w.ActivePaints = paints.ToArray();
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes;
-                w.HybridEligible = StyleHybridEligible(w.Style);
+                // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
+                // rolled — identity styles (flats, spires) stay pure only as the sole pick.
+                w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
+                    ? (w.Styles.Length > 1 || StyleHybridEligible(w.Styles[0]))
+                    : StyleHybridEligible(w.Style);
                 ulong uh = Noise.Hash(seed ^ 0x57FADE, 2, 4, 8);
                 w.HybridA = 0.34 + (uh & 0xFF) / 255.0 * 0.08;
                 w.HybridB = w.HybridA + 0.08;

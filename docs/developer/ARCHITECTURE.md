@@ -97,7 +97,7 @@ feature files. It is **single-threaded and tick-driven** by design (`GameServer.
   backups via `CreateBackup`. See [SELF_HOSTING.md](SELF_HOSTING.md).
 - **WorldGen** — `WorldGeneration/WorldGenerator.cs` (+ its `WorldGenerator.*.cs` partials, one per
   seam: relief, landmarks, overhangs, underground, craters, calibration, fluids, columns, stamps, biomes,
-  flora — #1644) is **seed-deterministic**: given a seed,
+  flora — #1644; regimes + the generation-1 relief rolls — #1645) is **seed-deterministic**: given a seed,
   `PlanetType` and `ChunkCoord` it always yields the same blocks, so the procedural baseline is
   never stored. `UniverseGenerator` builds the galaxy of systems/bodies from the seed; flora,
   settlements, stations, creatures, wrecks and landing-pad flattening are all deterministic

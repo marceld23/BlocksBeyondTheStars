@@ -35,7 +35,8 @@ public sealed class WorldGenerationGoldenTests
     /// <summary>One pinned group: a generator configuration whose chunks are hashed together in a fixed order.
     /// <see cref="Circumference"/> 0 = the generator's default mode (no <c>SetWorldMode</c> call, the legacy
     /// per-type seeding); otherwise the full per-world mode is applied like <c>ServerWorld.GetOrLoadChunk</c> does.</summary>
-    private sealed record Group(string Name, long Seed, string Planet, int Circumference, bool Cratered, string? LocationId);
+    private sealed record Group(string Name, long Seed, string Planet, int Circumference, bool Cratered, string? LocationId,
+        int Generation = 0);
 
     private static readonly Group[] Groups =
     {
@@ -47,6 +48,11 @@ public sealed class WorldGenerationGoldenTests
         new("jungle-default", 20260903, "jungle", 0, false, null),
         new("varied-world-5472", 424242, "varied", 5472, false, "golden:varied-body"),
         new("asteroid-cratered-800", 14, "asteroid", 800, true, "golden:asteroid"),
+        // Terrain generation 1 (#1645, landscape-variety part 2): the gen-0 groups above must never move; these
+        // pin the generation-1 relief (style regions, scale jitter, biome relief, new archetypes, regimes).
+        new("varied-gen1", 424242, "varied", 5472, false, "golden:varied-body", 1),
+        new("desert-gen1", 1, "desert", 0, false, null, 1),
+        new("highland-gen1", 20260903, "highland", 0, false, null, 1),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -67,6 +73,10 @@ public sealed class WorldGenerationGoldenTests
             ["jungle-default"] = 0xfafe0246f460230cUL,
             ["varied-world-5472"] = 0xd184d06aee4c17feUL,
             ["asteroid-cratered-800"] = 0xea45216efb76ba71UL,
+            // Pinned 2026-09-05 (#1645, Windows 11, .NET 10).
+            ["varied-gen1"] = 0x06b7238c0bfd64a9UL,
+            ["desert-gen1"] = 0x3a9c31b0e73aca33UL,
+            ["highland-gen1"] = 0x350b70a0088675a2UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
@@ -91,6 +101,11 @@ public sealed class WorldGenerationGoldenTests
             if (group.Circumference > 0)
             {
                 gen.SetWorldMode(group.Circumference, group.Cratered, null, group.LocationId);
+            }
+
+            if (group.Generation > 0)
+            {
+                gen.SetTerrainGeneration(group.Generation); // #1645
             }
 
             var perChunk = new List<string>();

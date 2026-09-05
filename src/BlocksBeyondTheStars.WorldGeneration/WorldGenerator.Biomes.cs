@@ -17,13 +17,15 @@ public sealed partial class WorldGenerator
     /// and another sparse + arid within the same world).</summary>
     internal readonly struct BiomeResolved
     {
-        public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme)
+        public BiomeResolved(BlockId surface, BlockId sub, double floraMul, double treeMul, FloraThemes.Theme theme,
+            double reliefMul = 1.0)
         {
             Surface = surface;
             Sub = sub;
             FloraMul = floraMul;
             TreeMul = treeMul;
             Theme = theme;
+            ReliefMul = reliefMul;
         }
 
         public BlockId Surface { get; }
@@ -31,6 +33,9 @@ public sealed partial class WorldGenerator
         public double FloraMul { get; }
         public double TreeMul { get; }
         public FloraThemes.Theme Theme { get; }
+
+        /// <summary>Relief multiplier under this biome (#1645, generation 1 only; 1 = the planet's relief).</summary>
+        public double ReliefMul { get; }
     }
 
     /// <summary>
@@ -79,7 +84,7 @@ public sealed partial class WorldGenerator
             var b = planet.Biomes[order[i]];
             var theme = string.IsNullOrWhiteSpace(b.FloraTheme) ? planetTheme : FloraThemes.Resolve(b.FloraTheme);
             list.Add(new BiomeResolved(ResolveBlock(b.SurfaceBlock), ResolveBlock(b.SubSurfaceBlock),
-                b.FloraDensityMul, b.TreeDensityMul, theme));
+                b.FloraDensityMul, b.TreeDensityMul, theme, b.ReliefMul));
         }
 
         return list;

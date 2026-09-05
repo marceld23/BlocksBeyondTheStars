@@ -37,6 +37,7 @@ public sealed class AtmosphereTests : IDisposable
             StartPlanet = planet,
             AutoSaveIntervalMinutes = 9999,
             PlaceStarterShip = false,
+            World = { TerrainGeneration = 0 }, // #1645: gameplay test on the classic relief — the player sits at a fixed (0, 64, 0), which generation-1 terrain may flood or bury
         };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
