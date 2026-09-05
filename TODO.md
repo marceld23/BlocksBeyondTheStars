@@ -149,6 +149,23 @@ plane (a hair inside it, reversed-Z aware), so the depth test rejects exactly th
 any distance. The late draw and its saving stay; the dome radius only sets clipping and star size now, which the
 three components say in a comment. Additive domes at one depth layer in any order, so the picture is unchanged.
 
+### ★ The HUD compass explains itself — "Ship 114 m · Waypoint 138 m" captions, a "far from the ship" VEGA tip and a Codex paragraph on finding your way (#1594, 2026-09-05, branch feat/compass-explains-itself-1594)
+
+**Why.** A first-time player (ahmdkaml, #1586) walked ~110 m from the hull, saw two coloured dots and two numbers on
+the compass and did not know the blue square was the ship — dying was the only way home he found. The planet map has
+a legend; the compass had none, no VEGA hint covered "you are far from the ship" (only `speeder_far`), and the Codex
+never mentioned the compass. The `▲` on the dial is a forward marker (the compass is heading-up), not the north
+needle the code comment claimed.
+
+**What ships.** The two compass distance lines carry the localized names the map legend already uses (`ui.hud.ship`,
+`ui.map.waypoint`) in the blip colour. Server: context tip `ship_far` (Equipment, 30 s dwell, 1800 s cooldown, twice
+per save, not gated on the scan stage) fires on foot > 150 m from the landed ship's heal tank and retires as
+"learned" when the player walks back within 30 m right after it; en + de line `vega.hint.ship_far`. Codex
+"Getting Around" opens with a compass/map paragraph (en + de). `VegaText.HintOrder` lists the new id for the
+journal. Test: `ShipAiTests.ShipFarTip_…` (candidate gating aboard/near/far, dwell, Kind-1 line, retire).
+Whether the `▲` becomes a real rotating north marker is a separate decision; an early "return to ship" action
+stays deferred. Client change → local Unity build.
+
 ### ★ Chunk colliders cook ahead of a fast descent; the footing check and the fall-guard log see an un-cooked collider (#1583, 2026-09-05, branch fix/1583-collider-cook-ahead)
 
 **Why.** Since #1529 (v2026.9.2) a chunk meshed beyond `ChunkColliderDistanceBlocks` (96) keeps its collision mesh

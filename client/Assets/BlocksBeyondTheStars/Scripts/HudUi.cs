@@ -525,7 +525,12 @@ namespace BlocksBeyondTheStars.Client
             UiKit.Place(comp, W - 130f, 10, 120, 120);
             var craw = comp.AddComponent<RawImage>();
             craw.texture = UiKit.RadarCircle;
+            // The ▲ is the FORWARD marker: the blips are rotated by the player's yaw, so the top of the dial is
+            // the way you look, not north (the planet map is north-up; the compass is heading-up).
             UiKit.AddText(comp.transform, 0, 2, 120, 18, "▲", 14, UiKit.Cyan, TextAnchor.UpperCenter, FontStyle.Bold);
+            // Both distance lines carry their localized name ("Ship 114 m", "Waypoint 138 m") in the blip's
+            // colour — #1594: a first-time player saw two coloured dots and two numbers and did not know the
+            // blue one was the ship. The planet map has a legend; this is the compass's.
             _compassDist = UiKit.AddText(comp.transform, 0, 100, 120, 18, string.Empty, 14, UiKit.Cyan, TextAnchor.MiddleCenter, FontStyle.Bold);
             // Waypoint distance on its own line under the ship distance — before #592 the compass number
             // was the SHIP only and the waypoint's distance existed nowhere outside the map panel.
@@ -1452,7 +1457,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void RefreshCompass()
         {
-            // The round compass is on-foot/EVA navigation (north arrow, ship + waypoint + beacon blips). While
+            // The round compass is on-foot/EVA navigation (forward marker, ship + waypoint + beacon blips). While
             // piloting the ship you ARE the ship and the flight view draws its own radar, so hide it then; on an
             // EVA it stays — the ship blip + distance is how you float your way back to the hull.
             bool piloting = Game.SpaceViewActive && !Game.InEva;
@@ -1476,7 +1481,7 @@ namespace BlocksBeyondTheStars.Client
             if (distNow != _lastCompassDist)
             {
                 _lastCompassDist = distNow;
-                _compassDist.text = distNow >= 0 ? $"{distNow} m" : string.Empty;
+                _compassDist.text = distNow >= 0 ? $"{CompassLabel("ui.hud.ship", "Ship")} {distNow} m" : string.Empty;
             }
 
             // Amber (matching the waypoint blip) vs the cyan ship line above — colour is the label,
@@ -1485,7 +1490,7 @@ namespace BlocksBeyondTheStars.Client
             if (wpDistNow != _lastCompassWpDist)
             {
                 _lastCompassWpDist = wpDistNow;
-                _compassWpDist.text = wpDistNow >= 0 ? $"{wpDistNow} m" : string.Empty;
+                _compassWpDist.text = wpDistNow >= 0 ? $"{CompassLabel("ui.map.waypoint", "Waypoint")} {wpDistNow} m" : string.Empty;
             }
 
             // Player-placed beacons (item 37): amber blips, pooled since their count varies.
@@ -1544,6 +1549,14 @@ namespace BlocksBeyondTheStars.Client
 
         private void PlaceBlip(RectTransform blip, bool active, Vector3 target, float radius)
             => PlaceBlip(blip, active, target, radius, out _);
+
+        /// <summary>The caption in front of a compass distance — the same locale keys the planet-map legend
+        /// uses (#1594), so both panels call the ship and the waypoint the same thing.</summary>
+        private string CompassLabel(string key, string fallback)
+        {
+            var loc = Game?.Localizer;
+            return loc != null ? loc.Get(key) : fallback;
+        }
 
         private void PlaceBlip(RectTransform blip, bool active, Vector3 target, float radius, out float dist)
         {

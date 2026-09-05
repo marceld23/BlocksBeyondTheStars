@@ -2796,6 +2796,7 @@
   "vega.hint.wrong_tool": "You are digging by hand with a perfectly good drill in your pack. Select the drill — it is faster.",
   "vega.hint.scanner_idle": "Digging blind? The terrain scanner in your pack shows every ore within twenty blocks. Try it.",
   "vega.hint.speeder_far": "Your speeder is parked a long walk from here. Head back for it, or pack it up next time.",
+  "vega.hint.ship_far": "You're a good walk from the ship. The blue square on the compass is it — turn until it sits at the top of the dial and walk. M opens the map.",
   "vega.hint.rare_ore_near": "That is {0} — rare on this world. I would take it with you.",
   "vega.hint.needed_ore_near": "{0} right there — exactly what you are short of for {1}.",
   "vega.hint.data_cache_near": "A data cache nearby. Scan it — knowledge is what unlocks blueprints.",

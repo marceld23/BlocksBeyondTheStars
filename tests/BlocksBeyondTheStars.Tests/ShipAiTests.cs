@@ -730,6 +730,69 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains("vega:hint:rare_ore_near#done", server.MilestonesForTest("Prospector"));
     }
 
+    /// <summary>#1594: a first-time player 110 m from the hull did not know the blue compass blip was the ship.
+    /// On foot and far from the landed ship VEGA says so once the dwell has passed; aboard, or near the hull,
+    /// the tip is not a candidate, and walking back right after the tip retires it for the save.</summary>
+    [Fact]
+    public void ShipFarTip_FiresOnFootFarFromTheLandedShip_NotAboard_AndRetiresOnWalkingBack()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var config = Config();
+        config.PlaceStarterShip = true; // a parked hull to be far from
+        var server = new SvGameServer(config, _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Wanderer");
+
+        var session = server.Sessions[1];
+        var p = session.State;
+        var tank = p.RespawnPoint; // the ship's heal tank — the point the compass blip and the tip measure against
+        var bounds = server.LandedShipBoundsForTest(p.PlayerId);
+        Assert.NotEqual(Vector3i.Zero, bounds.Size);
+        foreach (var other in new[] { "o2", "cold", "heat", "hunger", "energy", "medkit" })
+        {
+            p.Milestones.Add("vega:hint:" + other + "#done"); // only the deliberately triggered tip competes
+        }
+
+        // Just outside the hull (a few metres past its X extent): on foot but close — not a candidate.
+        var near = new Vector3f(bounds.Origin.X + bounds.Size.X + 3f, tank.Y, tank.Z);
+        p.AboardShip = false;
+        p.Position = near;
+        Assert.DoesNotContain("ship_far", server.VegaTipCandidatesForTest("Wanderer").Candidates);
+
+        // 200 m out on foot: a candidate — unless the player is aboard.
+        var far = new Vector3f(tank.X + 200f, tank.Y, tank.Z);
+        p.Position = far;
+        Assert.Contains("ship_far", server.VegaTipCandidatesForTest("Wanderer").Candidates);
+        p.AboardShip = true;
+        Assert.DoesNotContain("ship_far", server.VegaTipCandidatesForTest("Wanderer").Candidates);
+        p.AboardShip = false;
+
+        // The 30 s dwell: nothing after 20 s, the advisor line (Kind 1, first occurrence) after 40 s.
+        server.SkipVegaTipCooldownsForTest("Wanderer");
+        lines.Clear();
+        void Walk(int seconds) => TickSeconds(server, client, seconds, () =>
+        {
+            p.Position = far;
+            p.AboardShip = false;
+            p.Oxygen = 100f;
+            p.Hunger = 100f;
+        });
+
+        Walk(20);
+        Assert.DoesNotContain(lines, l => l.LineKey == "vega.hint.ship_far");
+        Walk(20);
+        Assert.Contains(lines, l => l.LineKey == "vega.hint.ship_far" && l.Kind == 1);
+        Assert.Contains("vega:hint:ship_far", server.MilestonesForTest("Wanderer"));
+
+        // Walking back to the hull right after the tip is the reaction VEGA hoped for: retired for this save.
+        p.Position = near;
+        server.Tick(1.0);
+        Assert.Contains("vega:hint:ship_far#done", server.MilestonesForTest("Wanderer"));
+    }
+
     private static void SqliteWorldRepositoryReset()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
