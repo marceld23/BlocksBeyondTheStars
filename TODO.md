@@ -110,6 +110,21 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ Sky domes sit at the far plane — opaque geometry beyond 0.45 × far no longer gets stars painted over it (#1582, 2026-09-05, branch fix/1582-sky-dome-depth)
+
+**Why.** Since #1513 (v2026.9.2) the three sky domes (`Starfield`, `NebulaField`, `AtmosphereDome`) draw at
+`Geometry+499` with ZWrite Off and the default ZTest — the perf win is that the depth test rejects every covered
+pixel. But "additive over opaque is order-independent" only holds while the opaque surface is NEARER than the dome
+(0.43–0.45 × far): an opaque body beyond that radius passed the dome's depth test and got star / nebula light
+painted across it. Found case: the far-side outer planet's moons in an 8-planet Swarm system seen from orbit
+(≈1320 units vs a 1350 dome radius). A silent invariant ("nothing opaque beyond ~0.45 × far") nobody placing a
+station, wreck or distant body knew about. Code review, not yet seen in a playtest.
+
+**What ships.** The three dome vertex shaders (URP and the Built-in fallback) push the clip-space depth to the far
+plane (a hair inside it, reversed-Z aware), so the depth test rejects exactly the pixels an opaque draw covers — at
+any distance. The late draw and its saving stay; the dome radius only sets clipping and star size now, which the
+three components say in a comment. Additive domes at one depth layer in any order, so the picture is unchanged.
+
 ### ★ Chunk colliders cook ahead of a fast descent; the footing check and the fall-guard log see an un-cooked collider (#1583, 2026-09-05, branch fix/1583-collider-cook-ahead)
 
 **Why.** Since #1529 (v2026.9.2) a chunk meshed beyond `ChunkColliderDistanceBlocks` (96) keeps its collision mesh

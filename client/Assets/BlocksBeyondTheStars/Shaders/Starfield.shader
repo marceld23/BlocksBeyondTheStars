@@ -3,7 +3,9 @@
 // the Starfield component) fades the whole field in at night / in space and out during a bright day.
 // End of the opaque queue (Geometry+499, #1513) + ZWrite Off: stars draw AFTER the terrain/planet/ship, so the
 // depth test rejects every covered pixel instead of shading the whole sky and overpainting it — stars only show
-// in open sky, and additive-over-opaque is order-independent, so the picture is unchanged.
+// in open sky, and additive-over-opaque is order-independent, so the picture is unchanged. The vertex shader
+// pushes the dome to the far plane (#1582), so the test rejects covered pixels at ANY distance — an opaque body
+// beyond the dome's 0.45 × far radius used to pass it and get stars painted across it.
 // DUAL-PIPELINE: URP HLSL SubShader first, original Built-in CG below.
 Shader "BlocksBeyondTheStars/Starfield"
 {
@@ -54,6 +56,15 @@ Shader "BlocksBeyondTheStars/Starfield"
             {
                 Varyings o;
                 o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                // #1582: the dome draws at the END of the opaque queue with ZWrite Off (#1513), so its depth test must
+                // reject exactly the pixels an opaque draw already covers — at ANY distance, not only nearer than the
+                // dome's 0.45 × far radius (a moon beyond it got stars painted across it). Push the vertex to the far
+                // plane (a hair inside it, so no driver clips it): the dome is at infinity, its radius stops mattering.
+                #if UNITY_REVERSED_Z
+                    o.positionCS.z = o.positionCS.w * 1.0e-6;         // reversed-Z: far plane = 0
+                #else
+                    o.positionCS.z = o.positionCS.w * (1.0 - 1.0e-6); // far plane = w
+                #endif
                 o.uv = v.uv;
                 float s = sin(_Time.y * v.tw.y + v.tw.x); // per-star pulse
                 o.tw = 0.72 + 0.28 * s; // twinkle with a brighter floor so stars never dim to near-black
@@ -109,6 +120,11 @@ Shader "BlocksBeyondTheStars/Starfield"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
+                #if UNITY_REVERSED_Z
+                    o.pos.z = o.pos.w * 1.0e-6;         // #1582: dome at the far plane (reversed-Z: far = 0)
+                #else
+                    o.pos.z = o.pos.w * (1.0 - 1.0e-6); // #1582: dome at the far plane (far = w)
+                #endif
                 o.uv = v.uv;
                 float s = sin(_Time.y * v.tw.y + v.tw.x); // per-star pulse
                 o.tw = 0.72 + 0.28 * s; // twinkle with a brighter floor so stars never dim to near-black

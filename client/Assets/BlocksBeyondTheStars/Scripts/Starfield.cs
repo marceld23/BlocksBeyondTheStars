@@ -79,6 +79,8 @@ namespace BlocksBeyondTheStars.Client
 
             // Sit the dome on the camera so the stars stay at "infinity"; scale it to ride just inside the
             // far plane (which the space view enlarges), keeping the angular star size constant everywhere.
+            // The radius is about clipping and star size only: the shader pushes every dome vertex to the far
+            // plane (#1582), so opaque geometry BEYOND this radius still covers the stars.
             _dome.SetPositionAndRotation(Camera.transform.position, Quaternion.identity);
             float r = Mathf.Max(200f, Camera.farClipPlane) * 0.45f;
             _dome.localScale = new Vector3(r, r, r);

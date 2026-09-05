@@ -2,7 +2,9 @@
 // dome behind the starfield, so the void reads with depth and colour instead of flat black. Additive, ZWrite Off,
 // at the END of the opaque queue range (Geometry+499, #1513): drawn after the terrain/ships/planets, so the depth
 // test rejects every covered pixel instead of shading the whole sky first and overpainting it — it only shows in
-// open sky, and additive-over-opaque is order-independent, so the picture is unchanged. Per-vertex COLOR carries the per-region nebula hue; _Brightness fades the whole field in
+// open sky, and additive-over-opaque is order-independent, so the picture is unchanged. The vertex shader pushes
+// the dome to the far plane (#1582), so covered pixels are rejected at ANY distance, not only inside the dome's
+// radius. Per-vertex COLOR carries the per-region nebula hue; _Brightness fades the whole field in
 // (full in space / airless / station, off on lived-in planet skies). Dual-pipeline (URP + Built-in RP) to match
 // the rest of the project's shaders; only the active pipeline's SubShader compiles.
 Shader "BlocksBeyondTheStars/Nebula"
@@ -56,6 +58,15 @@ Shader "BlocksBeyondTheStars/Nebula"
             {
                 Varyings o;
                 o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                // #1582: the dome draws at the END of the opaque queue with ZWrite Off (#1513), so its depth test must
+                // reject exactly the pixels an opaque draw already covers — at ANY distance, not only nearer than the
+                // dome's 0.45 × far radius (a moon beyond it got stars painted across it). Push the vertex to the far
+                // plane (a hair inside it, so no driver clips it): the dome is at infinity, its radius stops mattering.
+                #if UNITY_REVERSED_Z
+                    o.positionCS.z = o.positionCS.w * 1.0e-6;         // reversed-Z: far plane = 0
+                #else
+                    o.positionCS.z = o.positionCS.w * (1.0 - 1.0e-6); // far plane = w
+                #endif
                 o.dir = normalize(v.positionOS.xyz);
                 o.color = v.color;
                 return o;
@@ -115,6 +126,11 @@ Shader "BlocksBeyondTheStars/Nebula"
             {
                 v2f o;
                 o.pos = UnityObjectToClipPos(v.vertex);
+                #if UNITY_REVERSED_Z
+                    o.pos.z = o.pos.w * 1.0e-6;         // #1582: dome at the far plane (reversed-Z: far = 0)
+                #else
+                    o.pos.z = o.pos.w * (1.0 - 1.0e-6); // #1582: dome at the far plane (far = w)
+                #endif
                 o.dir = normalize(v.vertex.xyz);
                 o.color = v.color;
                 return o;
