@@ -255,11 +255,12 @@ namespace BlocksBeyondTheStars.Client
 
         /// <summary>Vertical field of view of the first-person camera in degrees (#1589/#1590). The camera used
         /// to run on Unity's 60° default, which drew every block about a fifth larger on screen than the 70°
-        /// most first-person block games use — "the blocks feel huge". 70 is the new default; the setting
-        /// steps 50–100 (a wider view shows more chunks, so the cap keeps weak machines honest). An older
-        /// settings file without the field simply gets the default.</summary>
+        /// most first-person block games use — "the blocks feel huge". The default is 80 — a trial value chosen
+        /// in the 2026-09-05 review (70 was the first candidate; at 80 a block at 2 m covers 30 % of the screen
+        /// height instead of 43 %); the setting steps 50–100 (a wider view shows more chunks, so the cap keeps weak machines
+        /// honest). An older settings file without the field simply gets the default.</summary>
         public float FieldOfView = FieldOfViewDefault;
-        public const float FieldOfViewDefault = 70f;
+        public const float FieldOfViewDefault = 80f;
         public const float FieldOfViewMin = 50f;
         public const float FieldOfViewMax = 100f;
         public const float FieldOfViewStep = 5f;

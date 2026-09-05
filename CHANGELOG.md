@@ -15,8 +15,8 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ### 👁️ A wider view (#1589 #1590 #1591)
 
-- **The world no longer feels oversized.** The first-person camera now looks through a 70° field of view
-  instead of the narrow 60° it silently used before, so blocks take up about a fifth less of your screen and a wall
+- **The world no longer feels oversized.** The first-person camera now looks through an 80° field of view
+  instead of the narrow 60° it silently used before, so blocks take up about a third less of your screen and a wall
   only fills the view when you are really standing at it (#1589).
 - **Field of view setting.** Settings → Controls has a new *Field of view* stepper, 50° to 100°. It applies
   right away, even from the pause menu; wider shows more of the world and costs a little frame rate (#1590).

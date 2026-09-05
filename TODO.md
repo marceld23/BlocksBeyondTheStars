@@ -110,14 +110,15 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
-### ★ First-person scale: field of view 70° by default, a 50–100° setting, a smaller held item that keeps its size (#1589 #1590 #1591, 2026-09-05, branch feat/fov-setting)
+### ★ First-person scale: field of view 80° by default, a 50–100° setting, a smaller held item that keeps its size (#1589 #1590 #1591, 2026-09-05, branch feat/fov-setting)
 
 **Why.** Playtest 2026-09-05: "the blocks feel huge — one right in front of you fills the whole view". The world is
 scaled normally (1 m blocks, 1.8 m player, eye at 1.6 m); the camera was the culprit. `WorldRig` creates the camera in
 code and never set its field of view, so Unity's 60° default applied — every block drew about a fifth larger on screen
 than at the 70° first-person block games use (a block filled the screen from 0.87 m instead of 0.71 m).
 
-**What ships.** (#1589) `ClientSettings.FieldOfView`, default **70°**, applied in `WorldRig`; everything derived from
+**What ships.** (#1589) `ClientSettings.FieldOfView`, default **80°** (trial value chosen in the review — 70° was the
+first candidate; at 80° a block at 2 m covers 30 % of the screen height instead of 43 %), applied in `WorldRig`; everything derived from
 the camera FOV (walking kick, binocular zoom = base / magnification, heat shimmer, thermal vision, photo camera) already
 reads it live. (#1590) A **Field of view** stepper in Settings → Controls, 50–100° in 5° steps, live from the pause
 menu through `PlayerController.SetBaseFov`, with a one-line hint about the frame-rate cost; locale keys
@@ -126,7 +127,8 @@ mesh scale 0.9 → 0.72) and the viewmodel holder is scaled by `tan(fov/2) / tan
 keeps the same screen size and corner at every FOV value.
 
 **Performance.** Streaming is radius-based and unchanged; only frustum culling lets more chunks through: ≈ +12 %
-rendered chunks outdoors at 70° (up to +21 % in ships/caves), ≈ +40 % at the 100° cap — hence the hint and the cap.
+rendered chunks outdoors at 70°, ≈ +23 % at the 80° default (up to +45 % in ships/caves), ≈ +40 % at the 100° cap —
+hence the hint and the cap.
 Per-pixel cost is unchanged.
 
 **Verification.** Local Unity build (client scripts are not compiled by PR CI); server/shared test suite

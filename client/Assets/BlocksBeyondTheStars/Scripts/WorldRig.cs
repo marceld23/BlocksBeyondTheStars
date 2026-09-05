@@ -106,7 +106,7 @@ namespace BlocksBeyondTheStars.Client
             // ~6 cm sat behind it and was clipped into a hollow open tube whenever a swing raised it into
             // view (#1428). 0.1 matches the avatar/ship preview rigs; reversed-Z depth keeps precision fine.
             cam.nearClipPlane = 0.1f;
-            // Field of view from the settings (default 70°, #1589/#1590). Left unset, a code-created camera runs
+            // Field of view from the settings (default 80°, #1589/#1590). Left unset, a code-created camera runs
             // on Unity's 60°, which is why the blocks used to feel oversized in first person. PlayerController
             // reads this as its base FOV at Start (the walking kick and the binocular zoom are relative to it).
             cam.fieldOfView = shell.Settings.ClampedFieldOfView;
