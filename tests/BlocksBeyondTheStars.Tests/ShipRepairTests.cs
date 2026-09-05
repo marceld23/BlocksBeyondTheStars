@@ -130,7 +130,7 @@ public sealed class ShipRepairTests : IDisposable
             Assert.Equal(actualShieldMax, shield);
         }
     }
-    
+
     [Fact]
     public void ShipRepairStatus_ListsTheBreachCells_AndClearsThemOnceRepaired()
     {
