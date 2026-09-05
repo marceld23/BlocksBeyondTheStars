@@ -13,6 +13,13 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### ✨ A bigger sky (#1615 #1616 #1617)
+
+- **More stars in every new world.** A Normal world now starts with 12 star systems instead of 8, and the
+  other Universe-size tiers grew with it: Small 6, Large 20, Huge 32. A Growing world also starts at 12 and
+  keeps growing at the frontier as before. Existing saves keep the galaxy they were created with (#1615).
+- Dedicated servers that do not set a system count start with the same 12 systems (#1616).
+
 ### 🌌 A map of the stars (#1603 #1604 #1605)
 
 - **The system chart has a Hyperspace tab.** Press M while flying and switch tabs (LB/RB on a pad): the

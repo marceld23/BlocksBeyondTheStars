@@ -24,6 +24,19 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Bigger galaxy by default: Universe-size tiers 6 / 12 / 20 / 32, Growing starts at 12, server default 12 (#1615 #1616 #1617, 2026-09-05, branch feat/bigger-default-galaxy)
+Marcel: "mehr Inhalt im selben Spiel". Analysis first: the galaxy is POCO metadata (~12 bodies per system);
+worlds, space instances, ticks and the save (`block_edit` deltas only) all scale with OCCUPIED bodies, never
+with the system count — so 8 → 12 (Normal) and 18 → 32 (Huge) cost nothing in singleplayer or on the VPS. The
+only thing that grows is `StarMapData` (~15–20 KB at 8 → ~60–80 KB at 32, broadcast on landing / rename /
+lane / growth) — fine natively, worth a look on WebGL before ever going past 32. Decided: no jump fuel /
+distance cost for now, the denser hyperspace chart at 32 stars is fine, the official VPS world picks up the
+new default at the next release reset. Changes: `WorldCreationOptions` tier table 4/8/12/18 → 6/12/20/32
+(Normal still sends no explicit count), `WorldDescription.StarSystemCount` 8 → 12 (+ pin test
+`DefaultDescription_GeneratesTwelveSystems`), docs (WORLD_GENERATION, USER_MANUAL). No change to the
+`--systems` clamp (1..32) or the growth soft cap (48); the chart layout tests already run at 40 systems.
+- Playtest open: does a 12-system Normal galaxy read as "more to do" on the hyperspace chart, and is Huge (32) still legible?
+
 ### ★ Planet lighting: shade is shade, not a cave — depth-aware skylight, dappled sun through the shadow map, de-stacked AO, star light normalised, caves a touch brighter, shadow fade (#1608 #1609 #1610 #1611 #1612, 2026-09-05, branch fix/shade-skylight-lighting)
 Marcel: "auf manchen Welten immer noch recht dunkel; im Schatten braucht es die Lampe, um eine Textur zu erkennen".
 Analysis: the URP shadow map is mild (shadowStrength 0.7 → ×0.73); what crushed shade was the mesher SKYLIGHT —
