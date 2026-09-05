@@ -148,7 +148,9 @@ public sealed class TerrainTagsAndGenerationTests
     [Fact]
     public void PropTable_KeepsTheFormerPrecedence()
     {
-        Assert.Equal(new[] { "monolith", "stone-circle", "boulder", "crystal-shard", "dead-tree" }, WorldGenerator.PropOrderForTest());
+        // #1648 appends the generation-1 rows after the classic five — the classic precedence is the prefix.
+        Assert.Equal(new[] { "monolith", "stone-circle", "boulder", "crystal-shard", "dead-tree" },
+            WorldGenerator.PropOrderForTest().Take(5).ToArray());
     }
 
     [Fact]

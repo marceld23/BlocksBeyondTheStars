@@ -105,12 +105,16 @@ public sealed class LandscapeFluidsPaintsTests
 
     // ---------- helper agreement ----------
 
-    /// <summary>For every sampled column: the helper's water column == the generated column's water cells.</summary>
-    private static void AssertHelpersAgree(WorldGenerator gen, PlanetType planet, int step, out int waterColumns)
+    /// <summary>Helper agreement over whole CHUNKS: a coarse scan (no chunk generation) finds columns the helper
+    /// calls water, the chunks containing them plus a fixed spread of chunks are generated once, and every column
+    /// in them is compared cell by cell — thousands of columns for a few dozen chunk generations, inside the
+    /// fast-tier budget (the old one-chunk-per-sampled-column version took 153 s on the CI runner, #1648).</summary>
+    private static void AssertHelpersAgree(WorldGenerator gen, PlanetType planet, int scanStep, out int waterColumns)
     {
         var water = Content.GetBlock("water")!.NumericId;
         int circ = WorldConstants.Circumference;
         int period = WorldConstants.LatitudePeriodFor(circ);
+        int cs = WorldConstants.ChunkSize;
         waterColumns = 0;
         var chunks = new Dictionary<(int, int, int), ChunkData>();
         ChunkData ChunkAt(int x, int y, int z)
@@ -124,46 +128,61 @@ public sealed class LandscapeFluidsPaintsTests
             return chunk;
         }
 
-        int cs = WorldConstants.ChunkSize;
-        for (int z = -period / 2; z < period / 2; z += step)
-            for (int x = 0; x < circ; x += step)
+        BlockId Cell(int x, int y, int z)
+            => ChunkAt(x, y, z).Get(((x % cs) + cs) % cs, ((y % cs) + cs) % cs, ((z % cs) + cs) % cs);
+
+        // Target chunks: up to eight around helper-water columns found by the coarse scan, plus six spread out.
+        var targets = new HashSet<(int Cx, int Cz)>();
+        for (int z = -period / 2; z < period / 2 && targets.Count < 8; z += scanStep)
+            for (int x = 0; x < circ && targets.Count < 8; x += scanStep)
             {
-                int surface = gen.SurfaceHeight(planet, x, z);
-                bool helperWater = gen.TryGetWaterSurface(planet, x, z, out int top, out int bed);
-                // The generated cell just above the reported bed must be water, and the cell above the reported
-                // top must not be; a column the helper calls dry has no water right above its surface.
-                if (helperWater)
+                if (gen.TryGetWaterSurface(planet, x, z, out _, out _) && gen.SurfaceHeight(planet, x, z) > gen.SeaLevel(planet))
                 {
-                    waterColumns++;
-                    var probe = ChunkAt(x, bed + 1, z);
-                    var cell = probe.Get(((x % cs) + cs) % cs, ((bed + 1) % cs + cs) % cs, ((z % cs) + cs) % cs);
-                    // The fill may put aquatic flora (kelp, coral, seagrass, lily) or an ice sheet into that water cell.
-                    var def = Content.Blocks.Values.FirstOrDefault(b => b.NumericId == cell);
-                    bool wet = cell == water || def?.Key == "ice" || (def?.Category == "flora");
-                    Assert.True(wet, $"{planet.Key} ({x},{z}): helper reports water over bed {bed}, generated cell is {def?.Key ?? cell.ToString()}");
-                    var above = ChunkAt(x, top + 1, z);
-                    Assert.True(above.Get(((x % cs) + cs) % cs, ((top + 1) % cs + cs) % cs, ((z % cs) + cs) % cs) != water,
-                        $"{planet.Key} ({x},{z}): water generated above the helper's top {top}");
-                }
-                else
-                {
-                    var probe = ChunkAt(x, surface + 1, z);
-                    var cell = probe.Get(((x % cs) + cs) % cs, ((surface + 1) % cs + cs) % cs, ((z % cs) + cs) % cs);
-                    Assert.True(cell != water, $"{planet.Key} ({x},{z}): generated water at {surface + 1} but the helper says dry");
+                    targets.Add((WorldConstants.WorldToChunk(x), WorldConstants.WorldToChunk(z)));
                 }
             }
+
+        for (int i = 0; i < 6; i++)
+        {
+            targets.Add((WorldConstants.WorldToChunk(i * circ / 6 + 7), WorldConstants.WorldToChunk(-period / 2 + (i * 2 + 1) * period / 12)));
+        }
+
+        foreach (var (cx, cz) in targets)
+        {
+            for (int lx = 0; lx < cs; lx++)
+                for (int lz = 0; lz < cs; lz++)
+                {
+                    int x = cx * cs + lx, z = cz * cs + lz;
+                    int surface = gen.SurfaceHeight(planet, x, z);
+                    if (gen.TryGetWaterSurface(planet, x, z, out int top, out int bed))
+                    {
+                        waterColumns++;
+                        var cell = Cell(x, bed + 1, z);
+                        // The fill may put aquatic flora (kelp, coral, seagrass, lily), an ice sheet or a mangrove's stilt
+                        // root (#1648) into that water cell — all of them stand IN the water the helper reports.
+                        var def = Content.Blocks.Values.FirstOrDefault(b => b.NumericId == cell);
+                        bool wet = cell == water || def?.Key == "ice" || def?.Key == "wood_log" || (def?.Category == "flora");
+                        Assert.True(wet, $"{planet.Key} ({x},{z}): helper reports water over bed {bed}, generated cell is {def?.Key ?? cell.ToString()}");
+                        Assert.True(Cell(x, top + 1, z) != water, $"{planet.Key} ({x},{z}): water generated above the helper's top {top}");
+                    }
+                    else
+                    {
+                        Assert.True(Cell(x, surface + 1, z) != water, $"{planet.Key} ({x},{z}): generated water at {surface + 1} but the helper says dry");
+                    }
+                }
+        }
     }
 
     [Theory]
-    [InlineData("swamp", 101)]   // marsh sheets
-    [InlineData("desert", 53)]   // oases + playas
-    [InlineData("jungle", 127)]  // hot springs, marshes, maars
-    [InlineData("tundra", 131)]  // tarns
+    [InlineData("swamp", 61)]   // marsh sheets
+    [InlineData("desert", 23)]  // oases + playas (sparse — the scan step is fine, it generates no chunks)
+    [InlineData("jungle", 61)]  // hot springs, marshes, maars
+    [InlineData("tundra", 61)]  // tarns
     public void SurfaceWaterHelpers_AgreeWithTheGeneratedColumns_OnGenerationOneWorlds(string key, int step)
     {
         var planet = Content.Planets[key];
         int totalWater = 0;
-        for (long s = 1; s <= 3; s++)
+        for (long s = 1; s <= 2; s++)
         {
             AssertHelpersAgree(Gen(s * 6151 + 3, 1), planet, step, out int n);
             totalWater += n;

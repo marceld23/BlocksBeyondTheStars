@@ -721,5 +721,32 @@ foot to 1.5 radii (dithered), dry riverbeds on dry worlds (a ridged channel mask
 sand elsewhere), deck banding on mesa / tablelands / terraces worlds (every third 6-block deck sandstone,
 every other third granite), soil patches in grass biomes, moss stone on the rock of temperate wet worlds.
 
-Parts 5–6 (props, trees, giant flora, data-only planet types, monument archetypes) are documented here as
-they land.
+### 12.4 Part 5 — props, micro-ruins, tree kinds, giant flora (#1648, generation ≥ 1)
+
+`WorldGenerator.StampsGen1.cs`. **Prop rows.** `PropKind` gained an optional per-world `Gate`, a fixed
+`MaterialKey` and a `SecondaryKey`; the classic five rows keep their salts, order and material rule, the 16
+generation-1 rows are appended (table order = precedence) and gate on the generation plus a theme / tag /
+climate rule: fallen logs (wooded worlds), termite mounds (savanna theme), cairns (≤ 5 °C), bone piles and
+**rib cages** (dry worlds; the rib cage is 7 across and raises the set-dressing scan margin 6 → 8 — a column
+7–8 away never wrote into the chunk before, so classic output is unchanged), ice boulders (≤ −5 °C), lava
+spatter (`volcanic`), coral outcrops (wet worlds, on the dry strip within 2 above the waterline), crystal
+clusters (`crystal`), meteorites (airless bodies, iron ore), tar pools (dry `buttes` / `wind` flats), and the
+micro-ruins — wall fragment, buried pillar (ancient brick), crashed probe (iron wall + glass), abandoned
+mining rig (machine block + pipe), lone rune stone — each rolling a data cache 30–50 % of the time.
+Rows fill air only, never carve. `PropActiveForTest` / `PropRollForTest` expose gate + roll.
+
+**Trees.** `TreeKind` gained Baobab (2×2 trunk, flat crown), Mangrove (stilt roots; falls back to a
+broadleaf where no water lies within 4 — `NearWater`), Bamboo (a grove of 3–6 stems 8–12 tall), Saguaro (a
+green column with arms, built from the leaf block; allowed on sand like palms), Willow (a broad crown
+dripping strands), MushroomTree (mushroom stem + cap), CrystalTree (crystal shaft + cross). A theme lists
+them in `TreesGen1`; `Theme.PaletteFor(generation)` hands generation-0 worlds the classic `Trees`, so their
+woods never change. Palettes: temperate + willow; tropical + mangrove, bamboo; savanna + baobab; desert +
+saguaro; swamp + willow, mangrove; alien + mushroom tree, crystal tree. Every kind stays inside the stamp
+envelope (|dx|, |dz| ≤ 4, height ≤ 18 — `BuildTreeForTest`).
+
+**Giant flora.** `GiantFloraKinds` is the host-block table the giant-mushroom recipe generalises to:
+giant fern on mud (log stem, a fan of leaf fronds), giant crystal on crystal ground, giant cactus on sand
+(leaf block, two arms) — each with its own salt and density; `StampGiantFloraGen1` runs after the classic
+mushroom stamp, which is untouched.
+
+Part 6 (data-only planet types, monument archetypes, cliff-hugging settlements) is documented here when it lands.

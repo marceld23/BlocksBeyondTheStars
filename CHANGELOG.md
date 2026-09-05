@@ -13,6 +13,19 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 5 of 6 — the things you meet every hundred blocks (#1648)
+
+- **New worlds only — set dressing:** fallen logs in the woods, termite mounds on the savanna, cairns in the
+  cold, bone piles and whole rib cages in the dry lands, ice boulders, lava spatter, coral on the shore,
+  crystal clusters, meteorites on airless rock, tar pools — and small ruins to stumble over: a wall
+  fragment, a buried pillar, a crashed probe, an abandoned mining rig, a lone rune stone, some with a data
+  cache hidden in them.
+- **Seven new tree kinds:** baobabs on the savanna, mangroves on stilts beside the water, bamboo groves,
+  saguaro cacti in the desert, weeping willows, alien mushroom trees and crystal trees.
+- **Giant flora beyond mushrooms:** giant ferns in the jungle mud, giant crystals on crystal ground, giant
+  cacti on the sand.
+- Existing worlds are unchanged.
+
 ### 🏔️ Landscape variety, part 4 of 6 — water in the desert, moss on the rock, five new blocks (#1647)
 
 - **Five new blocks:** moss stone, tar, bone, sandstone and scree — each a material you can mine, carry and
