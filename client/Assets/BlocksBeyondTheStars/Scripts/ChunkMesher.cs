@@ -353,9 +353,18 @@ namespace BlocksBeyondTheStars.Client
             // old hard 0/1 edge into a gradient, so a cave MOUTH (some open neighbours) is softly lit and
             // overhang shadows feather, while a DEEP cave (no open neighbours) stays ~0 and still needs a lamp.
             const int SkyKernel = 2; // 5x5 (radius 2)
+            // Shade vs. underground (#1608): a cell just below its column top — under a tree canopy, an overhang,
+            // a roof — used to get the same 0 as a cell twenty blocks down a cave, so every shaded patch lit like
+            // a cave (ambient at the cave floor, no direct sun, no night fill) and needed the lamp at noon. The
+            // depth below the top now sets a floor: full shade (ShadeFloor) within ShadeDepthFull blocks of the
+            // cover, fading to the old 0 by ShadeDepthNone blocks, so deep caves stay dark and still need a lamp.
+            const int ShadeDepthFull = 6;
+            const int ShadeDepthNone = 14;
+            const float ShadeFloor = 0.55f;
             float Skylight(int wx, int wy, int wz)
             {
-                if (wy > Top(wx, wz))
+                int top = Top(wx, wz);
+                if (wy > top)
                 {
                     return 1f; // open straight up to the sky
                 }
@@ -373,7 +382,14 @@ namespace BlocksBeyondTheStars.Client
 
                 // Linear fraction: a mouth (≈half its neighbourhood open) lands mid-bright and softly lit, a
                 // couple of blocks deeper falls off to the dark cave floor — a smooth gradient, deep stays ~0.
-                return open / (float)total;
+                float fraction = open / (float)total;
+
+                // Depth below the cover (1 = directly under it) → the shade floor; deep = the plain fraction.
+                int depth = top - wy + 1;
+                float shade = depth <= ShadeDepthFull
+                    ? ShadeFloor
+                    : ShadeFloor * Mathf.Clamp01((ShadeDepthNone - depth) / (float)(ShadeDepthNone - ShadeDepthFull));
+                return Mathf.Max(fraction, shade);
             }
 
             // A cell in a chunk the client does not hold is NOT open air — the streamer either has not sent it
