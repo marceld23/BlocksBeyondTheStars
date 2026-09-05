@@ -122,7 +122,7 @@ namespace BlocksBeyondTheStars.Client
             Row(false, shell.L("ui.worldopt.vaults"), freqSteps, () => opt.Vaults, v => opt.Vaults = v);
             Row(false, shell.L("ui.worldopt.stations"), freqSteps, () => opt.Stations, v => opt.Stations = v);
             Row(false, shell.L("ui.worldopt.exotic"), freqSteps, () => opt.Exotic, v => opt.Exotic = v);
-            // Five steps since #1123: the last one ("Growing") is a normal 8-system galaxy that appends a
+            // Five steps since #1123: the last one ("Growing") is a normal 12-system galaxy that appends a
             // new system whenever a player hyperjumps into one of the current outermost ones.
             Row(false, shell.L("ui.worldopt.universe"), L5("ui.worldopt.size"), () => opt.UniverseSize, v => opt.UniverseSize = v);
 

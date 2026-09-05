@@ -182,14 +182,17 @@ namespace BlocksBeyondTheStars.Client
             if (UniverseSize != 1)
             {
                 // Klein / Normal / Groß / Riesig / Wachsend → systems + planets-per-system + moons.
-                // "Growing" (#1123) starts as the normal 8-system galaxy and appends a system whenever a
-                // player hyperjumps into one of the current outermost ones.
+                // Tiers 6 / 12 / 20 / 32 since #1615 (were 4 / 8 / 12 / 18): more to explore in the same game.
+                // System count is metadata only — worlds load per occupied body — so Huge stays inside the
+                // server's --systems clamp (32) and the growth soft cap (48). "Growing" (#1123) starts as
+                // the normal 12-system galaxy and appends a system whenever a player hyperjumps into one of
+                // the current outermost ones.
                 (int systems, int pMin, int pMax, int moons) = UniverseSize switch
                 {
-                    0 => (4, 2, 4, 2),
-                    2 => (12, 3, 8, 3),
-                    3 => (18, 3, 10, 4),
-                    _ => (8, 2, 6, 3),
+                    0 => (6, 2, 4, 2),
+                    2 => (20, 3, 8, 3),
+                    3 => (32, 3, 10, 4),
+                    _ => (12, 2, 6, 3),
                 };
                 Arg("systems", systems.ToString());
                 Arg("planets-min", pMin.ToString());

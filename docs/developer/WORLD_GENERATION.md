@@ -39,7 +39,10 @@ SEED
 Built by [`UniverseGenerator.cs`](../../src/BlocksBeyondTheStars.WorldGeneration/UniverseGenerator.cs).
 The data shapes are in [`Galaxy.cs`](../../src/BlocksBeyondTheStars.Shared/World/Galaxy.cs).
 
-- **~8 star systems** per galaxy (`StarSystemCount`), each with a random 2D star-map position.
+- **12 star systems** per galaxy by default (`StarSystemCount`, #1616), each with a random 2D star-map
+  position. The launcher's Universe-size tiers send 6 / 12 / 20 / 32 (Small / Normal / Large / Huge, #1615);
+  "Growing" starts at 12 and appends systems at the frontier (#1123, soft cap 48). The CLI clamps
+  `--systems` to 1..32. The galaxy is metadata only — a system costs nothing until a player is in it.
 - Per system: **2–6 planets**, each with **0–3 moons**, plus **2–3 landable asteroids** and (rarely)
   **1–3 space stations**.
 - Each asteroid rolls one of five **families** (#515) — `asteroid` (stony), `asteroid_metallic`,
