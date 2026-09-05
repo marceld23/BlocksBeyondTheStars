@@ -614,5 +614,49 @@ drama, grain, continents, the regional blend), `.Landmarks`, `.Overhangs`, `.Und
 `.Flora`. Pure moves; the core file keeps the constructor, the mode setters, the per-world profile and
 `SurfaceHeight`.
 
-Parts 2–6 (regional style pools, per-world scale, biome relief, new styles and landmarks, water bodies,
-paints, props, trees, data-only planet types, monument archetypes) are documented here as they land.
+### 12.1 Part 2 — relief variety (#1645, generation ≥ 1)
+
+Everything below reads `w.Generation >= 1`; a generation-0 world takes the classic value at every step
+(single type style, the type's `TerrainScale`, no multipliers, no regimes), so the eight classic golden
+groups stay byte-identical while three new groups (`varied-gen1`, `desert-gen1`, `highland-gen1`) pin the
+generation-1 relief.
+
+**Style pools, regionally mixed — `PlanetType.TerrainStyles`.** A styled type lists a pool
+(desert `[dunes, badlands, flats, downs]`, highland `[mountains, fjordlands, canyons]`, ocean
+`[flats, archipelago]`, tundra `[hills, downs, drumlins]`, …; 16 types carry one). `WonderFor` rolls 1–3
+of them per body (25 % / 45 % / 30 %, seeded Fisher–Yates like the biome subset) into
+`WonderProfile.Styles`. `StyleOffset` partitions the surface with a broad field (`Scale × 8`) into
+contiguous style regions — 70 % of each region is one pure style, the 30 % boundary band smoothstep-blends
+the two neighbours' OFFSETS (the archetype blend's method; decks and spires cannot be blended as
+parameters). The #703 hybrid fade stays on top and runs on every multi-style world; identity styles
+(`flats`, `spires`) stay pure only as the sole pick. An empty pool keeps the single `TerrainStyle`.
+
+**Per-world scale — `WonderProfile.Scale`.** `TerrainScale × 0.75–1.35`, one roll per body. Every relief
+field (base swell, styles, archetypes, the hybrid and region fields) reads `w.Scale`; the biome, forest
+and pond masks keep `planet.TerrainScale` so flora patch sizes do not move.
+
+**Biome relief — `Biome.ReliefMul`.** Multiplies the style/archetype relief (never the baseline or a
+landmark) under a biome: mud 0.35, sand 0.8, stone/granite 1.3–1.5 in `planets.json`. Read through the
+biome REGION field alone (`ReliefMulAt`, the same FBM `BiomeIndex` spreads, without its altitude share),
+so relief cannot feed back into its own multiplier; a ±10 % band around each region boundary lerps the
+two multipliers. `WonderProfile.ReliefMuls` is null (no extra sample) when no resolved biome differs from 1.
+
+**New styles** (cases in `StyledHeightOffset`): `archipelago` (flats + one island dome per 120-block
+hotspot cell, 60 % of cells, r 25–60), `fjordlands` (mountains with deep broad troughs that flood into
+fjords), `downs` (very smooth at `Scale × 2.5`), `shattered` (2–3 straight rifts per 900-block cell at
+fixed angles, 2.2 × amplitude deep), `terraces` (mesa quantisation, fine step, no roll), `drumlins`
+(rounded whalebacks along the grain), `glacial` (broad U-troughs along the grain). `KnownTerrainStyles`
+lists every style name; a test checks every pooled name against it.
+
+**Archetype pool 8 → 11.** `ArchetypePoolFor(w)` returns 11 from generation 1 — `moorland` (flats with
+pans the pond mask fills), `knob-and-kettle` (dense domes and pits), `coastal cliffs` (a relief step
+where the swell crosses zero). The subset roll depends on the pool size, so it stays 8 on generation 0.
+
+**Baseline regimes** (`WorldGenerator.Regimes.cs`, part of the baseline like the escarpment): `tilted`
+(~8 %, a latitude sine of 20–40 blocks — one hemisphere high, one low), `stepped` (~3 %, a second
+escarpment at its own latitude → three storeys; the first escarpment is forced on), `equatorial ridge`
+(~3 %, a 30–60-block wall 24–44 wide girdling the planet along X, meandering like the mega-rift).
+Never on sky, void or cratered worlds.
+
+Parts 3–6 (new landmarks, water bodies, paints, props, trees, data-only planet types, monument archetypes)
+are documented here as they land.

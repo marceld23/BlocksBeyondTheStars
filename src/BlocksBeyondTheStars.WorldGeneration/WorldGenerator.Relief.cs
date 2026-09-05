@@ -16,7 +16,7 @@ public sealed partial class WorldGenerator
     /// <paramref name="h"/> is the base FBM swell in [-1,1]. Archetypes are explicit shapes rather than
     /// (amplitude, ridged) parameter pairs because the #576 additions — quantised decks, asymmetric
     /// gorges — cannot be expressed as parameters of one shared formula; the regional blend therefore
-    /// lerps computed OFFSETS, not parameters.</summary>
+    /// lerps computed OFFSETS, not parameters. Entries 8–10 exist on generation-1 worlds only (#1645).</summary>
     private double ArchetypeOffset(int archetype, PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
     {
         double amp = planet.Amplitude;
@@ -29,7 +29,7 @@ public sealed partial class WorldGenerator
             case 2: return h * amp * 1.00; // hills
             case 3: // mountains (lightly ridged; #700 — a directional share so ranges chain along the grain)
                 return (h * 0.58 + Ridge(h) * 0.12
-                        + OrientedRidge(seed, w.Grain, worldX, worldZ, planet.TerrainScale * 0.9) * 0.30)
+                        + OrientedRidge(seed, w.Grain, worldX, worldZ, w.Scale * 0.9) * 0.30)
                     * amp * 1.9;
             case 4: // canyons (strongly ridged)
                 return (h * 0.35 + Ridge(h) * 0.65) * amp * 1.3;
@@ -38,14 +38,14 @@ public sealed partial class WorldGenerator
                     double raw = h * amp * 1.05;
                     double step = System.Math.Max(5.0, amp * 0.5);
                     double deck = System.Math.Floor(raw / step) * step;
-                    double roll = FbmT(seed + 0x9D3C, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    double roll = FbmT(seed + 0x9D3C, worldX, worldZ, w.Scale * 0.5, octaves: 2);
                     return deck + (roll - 0.5) * 2.0; // ±1-block texture so decks read as rock, not glass
                 }
 
             case 6: // extreme peaks (#576): the far tail of relief, well above the mountains archetype
                 {
                     // #700: the extreme crests follow the world's grain too — the tallest ranges chain.
-                    double or6 = OrientedRidge(seed, w.Grain, worldX, worldZ, planet.TerrainScale * 0.9);
+                    double or6 = OrientedRidge(seed, w.Grain, worldX, worldZ, w.Scale * 0.9);
                     double r = h * 0.25 + Ridge(h) * 0.45 + or6 * 0.30;
                     if (r > 0)
                     {
@@ -55,11 +55,33 @@ public sealed partial class WorldGenerator
                     return r * amp * 3.4;
                 }
 
-            default: // 7: rift gorges (#576): gentle ground gashed by deep ridged canyons
+            case 7: // rift gorges (#576): gentle ground gashed by deep ridged canyons
                 {
                     double g = Ridge(h);
                     double swell = h * amp * 0.3;
                     return g > 0 ? swell - System.Math.Pow(g, 2.2) * amp * 3.0 : swell;
+                }
+
+            case 8: // moorland (#1645): near-flat heath dimpled with shallow pans — the pond mask fills them
+                {
+                    double p = FbmT(seed + 0x3003, worldX, worldZ, w.Scale * 0.35, octaves: 2);
+                    double pan = p < 0.3 ? -(0.3 - p) / 0.3 * amp * 0.35 : 0.0;
+                    return h * amp * 0.3 + pan;
+                }
+
+            case 9: // knob-and-kettle (#1645): dense small domes and pits, glacial-drift country
+                {
+                    double k = FbmT(seed + 0x4E0B, worldX, worldZ, w.Scale * 0.3, octaves: 3);
+                    double c = k * 2.0 - 1.0;
+                    double sharp = System.Math.Sign(c) * System.Math.Pow(System.Math.Abs(c), 0.7);
+                    return h * amp * 0.4 + sharp * amp * 0.9;
+                }
+
+            default: // 10: coastal cliffs (#1645): a relief step where the swell crosses zero — cliff lines, not ramps
+                {
+                    double s = System.Math.Clamp((h + 0.05) / 0.10, 0.0, 1.0);
+                    s = s * s * (3.0 - 2.0 * s);
+                    return h * amp * 0.6 + (s - 0.5) * amp * 1.2;
                 }
         }
     }
@@ -92,7 +114,7 @@ public sealed partial class WorldGenerator
     private int RawSurfaceHeight(PlanetType planet, WonderProfile w, int worldX, int worldZ)
     {
         long seed = w.Seed;
-        double n = FbmT(seed, worldX, worldZ, planet.TerrainScale, octaves: 4);
+        double n = FbmT(seed, worldX, worldZ, w.Scale, octaves: 4);
         double h = (n - 0.5) * 2.0; // [-1, 1] base rolling terrain
 
         // Airless moons + landable asteroids (item 33): mostly flat regolith (a gentle undulation only — no
@@ -118,6 +140,23 @@ public sealed partial class WorldGenerator
             baseline += EscarpmentOffset(seed, worldX, worldZ);
         }
 
+        // Generation-1 baseline regimes (#1645): a second escarpment (three storeys), a tilted world, an
+        // equatorial ridge. Rare rolls, all part of the baseline like the escarpment.
+        if (w.Stepped)
+        {
+            baseline += EscarpmentOffset(seed ^ SteppedSeedSalt, worldX, worldZ);
+        }
+
+        if (w.Tilted)
+        {
+            baseline += TiltOffset(seed, worldZ);
+        }
+
+        if (w.EquatorRidge)
+        {
+            baseline += EquatorialRidgeOffset(seed, worldX, worldZ);
+        }
+
         // Salt polygons (#701): the cracked-plate ridge network of salt pans.
         if (w.SaltPolygons)
         {
@@ -133,13 +172,15 @@ public sealed partial class WorldGenerator
         // A planet may dictate an overall terrain SHAPE (item 21 V2) so worlds read structurally different —
         // mesas, dunes, spires, etc. — instead of every world using the same mixed blend. Since #703 a broad
         // fade field hands 20–40 % of most styled worlds to the archetype blend, so a dunes world has gravel
-        // plains between its dune seas instead of being dunes from pole to pole.
-        if (w.Style.Length != 0)
+        // plains between its dune seas instead of being dunes from pole to pole. Generation-1 worlds (#1645)
+        // roll 1–3 styles from the type's pool and lay them out as REGIONS (see StyleOffset).
+        double relief;
+        if (w.Styles.Length != 0)
         {
-            double styled = StyledHeightOffset(planet, w, seed, h, worldX, worldZ);
+            double styled = StyleOffset(planet, w, seed, h, worldX, worldZ);
             if (w.HybridEligible)
             {
-                double fade = FbmT(seed + 0x57FAD1, worldX, worldZ, planet.TerrainScale * 6.0, octaves: 2);
+                double fade = FbmT(seed + 0x57FAD1, worldX, worldZ, w.Scale * 6.0, octaves: 2);
                 if (fade < w.HybridB)
                 {
                     double arch = BlendedArchetypeOffset(planet, w, seed, h, worldX, worldZ);
@@ -155,13 +196,25 @@ public sealed partial class WorldGenerator
                 }
             }
 
-            return planet.BaseHeight + (int)System.Math.Round(baseline + styled * drama);
+            relief = styled;
+        }
+        else
+        {
+            // Regional terrain character: a large-scale field selects how rugged this area is (a blend across
+            // the world's archetype subset), so the surface varies between flat plains, hills, mountains — and,
+            // where the subset drew the #576 archetypes, terraced decks, extreme crests or rift gorges.
+            relief = BlendedArchetypeOffset(planet, w, seed, h, worldX, worldZ);
         }
 
-        // Regional terrain character: a large-scale field selects how rugged this area is (a blend across
-        // the world's archetype subset), so the surface varies between flat plains, hills, mountains — and,
-        // where the subset drew the #576 archetypes, terraced decks, extreme crests or rift gorges.
-        return planet.BaseHeight + (int)System.Math.Round(baseline + BlendedArchetypeOffset(planet, w, seed, h, worldX, worldZ) * drama);
+        // Biome relief (#1645, generation 1): a biome may damp or boost the relief under it (a mud marsh lies
+        // flatter than the stone country next to it). Read through the REGION field only — never the
+        // altitude share of the biome pick — so relief cannot feed back into its own multiplier.
+        if (w.ReliefMuls is { } muls)
+        {
+            relief *= ReliefMulAt(muls, seed, worldX, worldZ);
+        }
+
+        return planet.BaseHeight + (int)System.Math.Round(baseline + relief * drama);
     }
 
     /// <summary>Styles that hand a rolled 20–40 % of their surface to the archetype blend (#703). The
@@ -170,7 +223,15 @@ public sealed partial class WorldGenerator
     private static bool StyleHybridEligible(string loweredStyle) => loweredStyle switch
     {
         "mountains" or "canyons" or "mesa" or "dunes" or "hills" or "tablelands" or "badlands" or "karst" => true,
+        "fjordlands" or "downs" or "shattered" or "terraces" or "drumlins" or "glacial" => true, // #1645
         _ => false,
+    };
+
+    /// <summary>Every style name <see cref="StyledHeightOffset"/> knows (content validation + tests).</summary>
+    public static readonly string[] KnownTerrainStyles =
+    {
+        "flats", "hills", "mountains", "canyons", "mesa", "dunes", "spires", "tablelands", "badlands", "karst",
+        "archipelago", "fjordlands", "downs", "shattered", "terraces", "drumlins", "glacial", // #1645
     };
 
     /// <summary>The vertical band [<paramref name="bottom"/>..<paramref name="top"/>] of a floating sky island at
@@ -343,16 +404,124 @@ public sealed partial class WorldGenerator
         return -p.BasinDepth + m * (p.BasinDepth + p.Lift);
     }
 
+    // --- Regional style pools (#1645, generation 1): a world rolls 1–3 styles from its type's pool and a
+    // broad field (Scale × 8) partitions the surface into style regions. Inside a region the style is pure;
+    // across a boundary band the two neighbours' OFFSETS blend with a smoothstep (the archetype blend's
+    // method — shapes like decks or spires cannot be blended as parameters). ---
+    private const double StyleBlendHalf = 0.15; // half-width of the boundary band in region units (70 % pure)
+
+    /// <summary>The styled offset at a column: the single style directly (every generation-0 styled world,
+    /// and generation-1 worlds that rolled one style), else the regional blend of the rolled styles.</summary>
+    private double StyleOffset(PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
+    {
+        var styles = w.Styles;
+        if (styles.Length == 1)
+        {
+            return StyledHeightOffset(styles[0], planet, w, seed, h, worldX, worldZ);
+        }
+
+        double n = FbmT(seed + 0x57F1E5, worldX, worldZ, w.Scale * 8.0, octaves: 2);
+        double spread = System.Math.Clamp((n - 0.5) * 2.4 + 0.5, 0.0, 0.9999);
+        double pos = spread * styles.Length;
+        int i0 = (int)pos;
+        double t = pos - i0;
+        double o0 = StyledHeightOffset(styles[i0], planet, w, seed, h, worldX, worldZ);
+
+        // Boundary bands: the last 15 % of a region fades toward the next style, the first 15 % from the
+        // previous one — continuous across the integer boundary (0.5 on both sides).
+        if (t > 1.0 - StyleBlendHalf && i0 + 1 < styles.Length)
+        {
+            double f = (t - (1.0 - StyleBlendHalf)) / (2.0 * StyleBlendHalf);
+            f = f * f * (3.0 - 2.0 * f);
+            double o1 = StyledHeightOffset(styles[i0 + 1], planet, w, seed, h, worldX, worldZ);
+            return o0 + (o1 - o0) * f;
+        }
+
+        if (t < StyleBlendHalf && i0 > 0)
+        {
+            double f = (t + StyleBlendHalf) / (2.0 * StyleBlendHalf);
+            f = f * f * (3.0 - 2.0 * f);
+            double oPrev = StyledHeightOffset(styles[i0 - 1], planet, w, seed, h, worldX, worldZ);
+            return oPrev + (o0 - oPrev) * f;
+        }
+
+        return o0;
+    }
+
+    /// <summary>Which style region a column falls in on a multi-style world (tests): the index into
+    /// <see cref="WonderProfile.Styles"/> whose offset dominates here.</summary>
+    internal string StyleAtForTest(PlanetType planet, int worldX, int worldZ)
+    {
+        var w = WonderFor(planet);
+        if (w.Styles.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (w.Styles.Length == 1)
+        {
+            return w.Styles[0];
+        }
+
+        double n = FbmT(w.Seed + 0x57F1E5, worldX, worldZ, w.Scale * 8.0, octaves: 2);
+        double spread = System.Math.Clamp((n - 0.5) * 2.4 + 0.5, 0.0, 0.9999);
+        return w.Styles[(int)(spread * w.Styles.Length)];
+    }
+
+    /// <summary>The biome relief multiplier at a column (#1645): the biome REGION field alone (the same field
+    /// <see cref="BiomeIndex"/> spreads, without its altitude share) picks the resolved biome whose
+    /// <c>ReliefMul</c> applies; a ±10 % band around each region boundary lerps the two multipliers so relief
+    /// never steps at a biome edge.</summary>
+    private double ReliefMulAt(double[] muls, long seed, int worldX, int worldZ)
+    {
+        double n = FbmT(seed ^ 0x0B10E, worldX, worldZ, 360.0, octaves: 3);
+        double spread = System.Math.Clamp((n - 0.5) * 2.4 + 0.5, 0.0, 0.9999);
+        double pos = spread * muls.Length;
+        int i0 = (int)pos;
+        double t = pos - i0;
+        const double band = 0.10;
+        if (t > 1.0 - band && i0 + 1 < muls.Length)
+        {
+            double f = (t - (1.0 - band)) / (2.0 * band);
+            return muls[i0] + (muls[i0 + 1] - muls[i0]) * f;
+        }
+
+        if (t < band && i0 > 0)
+        {
+            double f = (t + band) / (2.0 * band);
+            return muls[i0 - 1] + (muls[i0] - muls[i0 - 1]) * f;
+        }
+
+        return muls[i0];
+    }
+
+    /// <summary>The biome relief multiplier applied at a column (tests; 1.0 where the feature is off).</summary>
+    internal double ReliefMulAtForTest(PlanetType planet, int worldX, int worldZ)
+    {
+        var w = WonderFor(planet);
+        return w.ReliefMuls is { } muls ? ReliefMulAt(muls, w.Seed, worldX, worldZ) : 1.0;
+    }
+
+    /// <summary>One style's raw offset at a column (tests).</summary>
+    internal double StyledOffsetForTest(string style, PlanetType planet, int worldX, int worldZ)
+    {
+        var w = WonderFor(planet);
+        double n = FbmT(w.Seed, worldX, worldZ, w.Scale, octaves: 4);
+        return StyledHeightOffset(style, planet, w, w.Seed, (n - 0.5) * 2.0, worldX, worldZ);
+    }
+
     /// <summary>Height offset (blocks, added to BaseHeight) for a planet with an explicit <see cref="PlanetType.TerrainStyle"/>
     /// (item 21 V2). <paramref name="h"/> is the base FBM swell in [-1,1]. Each style reshapes it into a distinct
     /// landform so worlds look structurally different. Deterministic + seam-safe (all noise wraps on X).
-    /// Dispatches on the profile's pre-lowered style and pre-rolled grain (#712 — no per-column strings).</summary>
-    private double StyledHeightOffset(PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
+    /// Dispatches on a pre-lowered style and the profile's pre-rolled grain (#712 — no per-column strings).
+    /// The wavelength is the profile's <see cref="WonderProfile.Scale"/> (the type's TerrainScale on
+    /// generation-0 worlds, jittered per body from generation 1 — #1645).</summary>
+    private double StyledHeightOffset(string style, PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
     {
         double amp = planet.Amplitude;
         double Ridge(double v) => (1.0 - System.Math.Abs(v)) * 2.0 - 1.0; // smooth swell → sharp ridge/valley
 
-        switch (w.Style)
+        switch (style)
         {
             case "flats":
                 return h * amp * 0.22; // near-flat plains (salt flats, ocean floor, low islands)
@@ -364,7 +533,7 @@ public sealed partial class WorldGenerator
                 {
                     // #700: part of the ridging comes from an oriented field, so ranges form CHAINS along
                     // the world's grain instead of isotropic knots.
-                    double or = OrientedRidge(seed, w.Grain, worldX, worldZ, planet.TerrainScale * 0.9);
+                    double or = OrientedRidge(seed, w.Grain, worldX, worldZ, w.Scale * 0.9);
                     double r = h * 0.25 + Ridge(h) * 0.30 + or * 0.45; // sharp, rugged, directional
                     if (r > 0)
                     {
@@ -392,7 +561,7 @@ public sealed partial class WorldGenerator
                     double raw = h * amp * 1.15;
                     double step = System.Math.Max(3.0, amp * 0.30);
                     double deck = System.Math.Floor(raw / step) * step;
-                    double roll = FbmT(seed + 0x3E5A, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    double roll = FbmT(seed + 0x3E5A, worldX, worldZ, w.Scale * 0.5, octaves: 2);
                     return deck + (roll - 0.5) * 2.0; // ±2-block texture on each deck
                 }
 
@@ -401,7 +570,7 @@ public sealed partial class WorldGenerator
                     // Parallel wind-blown ridges: a ridged mid-frequency field laid over a gentle base.
                     // Since #700 the field is sampled in the world's GRAIN — every desert rolls a wind
                     // direction and its dune crests march that way instead of blobbing isotropically.
-                    double d = GrainFbm(seed + 0x0D0E, w.Grain, worldX, worldZ, planet.TerrainScale * 0.45, octaves: 2);
+                    double d = GrainFbm(seed + 0x0D0E, w.Grain, worldX, worldZ, w.Scale * 0.45, octaves: 2);
                     double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0); // 0..1 dune crests
                     return h * amp * 0.25 + ridged * amp * 0.85;
                 }
@@ -410,7 +579,7 @@ public sealed partial class WorldGenerator
                 {
                     // Mostly flat ground studded with sparse tall thin spikes (crystal needles / alien towers).
                     double basep = h * amp * 0.22;
-                    double mask = FbmT(seed + 0x591E, worldX, worldZ, planet.TerrainScale * 0.4, octaves: 2);
+                    double mask = FbmT(seed + 0x591E, worldX, worldZ, w.Scale * 0.4, octaves: 2);
                     if (mask > 0.72)
                     {
                         double t = (mask - 0.72) / 0.28; // 0..1 toward the spike centre
@@ -427,7 +596,7 @@ public sealed partial class WorldGenerator
                     double raw = h * amp * 1.2;
                     double step = System.Math.Max(8.0, amp * 0.45);
                     double deck = System.Math.Floor(raw / step) * step;
-                    double roll = FbmT(seed + 0x7B1D, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    double roll = FbmT(seed + 0x7B1D, worldX, worldZ, w.Scale * 0.5, octaves: 2);
                     return deck + (roll - 0.5) * 3.0; // rough rock texture on each deck
                 }
 
@@ -435,7 +604,7 @@ public sealed partial class WorldGenerator
                 {
                     // Fine-ridged gully country (#579): dense sharp crests + broad eroded floors over a
                     // modest base swell — canyon geology at a smaller, busier wavelength.
-                    double fine = FbmT(seed + 0x0BAD, worldX, worldZ, planet.TerrainScale * 0.35, octaves: 3);
+                    double fine = FbmT(seed + 0x0BAD, worldX, worldZ, w.Scale * 0.35, octaves: 3);
                     double r = h * 0.3 + (1.0 - System.Math.Abs(fine * 2.0 - 1.0)) * 1.4 - 0.7;
                     if (r < 0)
                     {
@@ -450,7 +619,7 @@ public sealed partial class WorldGenerator
                     // Karst tower country (#579): steep stone towers with flat, walkable tops rising from
                     // rolling green ground — denser than spires, and capped instead of needle-pointed.
                     double basep = h * amp * 0.35;
-                    double mask = FbmT(seed + 0x4A85, worldX, worldZ, planet.TerrainScale * 0.5, octaves: 2);
+                    double mask = FbmT(seed + 0x4A85, worldX, worldZ, w.Scale * 0.5, octaves: 2);
                     if (mask > 0.62)
                     {
                         double t = System.Math.Min(1.0, (mask - 0.62) / 0.22); // capped → flat tower top
@@ -460,25 +629,134 @@ public sealed partial class WorldGenerator
                     return basep;
                 }
 
+            // ---- generation-1 styles (#1645) ----
+
+            case "archipelago":
+                {
+                    // Flats studded with a dense field of island domes: with the sea calibrated high, hundreds
+                    // of islets; on dry land, a knoll country. One dome per hotspot cell (cell ≈120, 60 % of cells).
+                    double basep = h * amp * 0.22;
+                    if (!TryGetHotspot(seed ^ 0x0A9C1, ArchipelagoCellSize, 0.6, 40.0, worldX, worldZ,
+                            out ulong hh, out double dx, out double dz))
+                    {
+                        return basep;
+                    }
+
+                    double radius = 25.0 + ((hh >> 16) & 0x3FF) / 1023.0 * 35.0;   // 25..60
+                    double height = amp * (1.2 + ((hh >> 26) & 0x3FF) / 1023.0 * 1.0); // 1.2..2.2 × amp
+                    double dist = System.Math.Sqrt(dx * dx + dz * dz);
+                    if (dist >= radius)
+                    {
+                        return basep;
+                    }
+
+                    double t = 1.0 - dist / radius;
+                    return basep + height * (t * t * (3.0 - 2.0 * t));
+                }
+
+            case "fjordlands":
+                {
+                    // Mountains whose valleys plunge steep and deep below the base: once the sea percentile
+                    // calibrates, the troughs flood into fjords between the ridges.
+                    double or = OrientedRidge(seed, w.Grain, worldX, worldZ, w.Scale * 0.9);
+                    double r = h * 0.25 + Ridge(h) * 0.30 + or * 0.45;
+                    r = r > 0 ? System.Math.Pow(r, 1.35) : -System.Math.Pow(-r, 0.7); // proud crests, broad deep troughs
+                    return r * amp * 2.1;
+                }
+
+            case "downs":
+                {
+                    // Chalk downs: very smooth, very long-wavelength rolling country.
+                    double d = FbmT(seed + 0xD0E5, worldX, worldZ, w.Scale * 2.5, octaves: 2);
+                    return (d - 0.5) * 2.0 * amp * 0.9;
+                }
+
+            case "shattered":
+                {
+                    // A crossing network of straight rifts to great depth, shards of upland between them: every
+                    // ~900-block cell carries 2–3 linear features through its hotspot at fixed angles.
+                    double basep = h * amp * 0.35;
+                    if (!TryGetHotspot(seed ^ 0x5A77E, ShatteredCellSize, 1.0, 60.0, worldX, worldZ,
+                            out ulong hh, out double dx, out double dz))
+                    {
+                        return basep;
+                    }
+
+                    int lines = 2 + (int)((hh >> 8) & 1UL);
+                    double deepest = 0.0;
+                    for (int k = 0; k < lines; k++)
+                    {
+                        double angle = ((hh >> (10 + 6 * k)) & 0x3F) / 63.0 * System.Math.PI;
+                        double halfWidth = 10.0 + ((hh >> (30 + 4 * k)) & 0xF) / 15.0 * 8.0; // 10..18
+                        double cos = System.Math.Cos(angle);
+                        double sin = System.Math.Sin(angle);
+                        double along = dx * cos + dz * sin;
+                        double across = -dx * sin + dz * cos;
+                        if (System.Math.Abs(across) > halfWidth || System.Math.Abs(along) > 400.0)
+                        {
+                            continue;
+                        }
+
+                        double wv = 1.0 - System.Math.Abs(across) / halfWidth;
+                        double wall = wv >= 0.45 ? 1.0 : (wv / 0.45) * (wv / 0.45) * (3.0 - 2.0 * (wv / 0.45));
+                        double endT = 1.0 - System.Math.Abs(along) / 400.0;
+                        double taper = endT >= 0.15 ? 1.0 : (endT / 0.15) * (endT / 0.15) * (3.0 - 2.0 * (endT / 0.15));
+                        deepest = System.Math.Max(deepest, wall * taper);
+                    }
+
+                    return basep - deepest * amp * 2.2;
+                }
+
+            case "terraces":
+                {
+                    // Rice-terrace country: the mesa quantisation with a fine step and no deck roll.
+                    double raw = h * amp * 1.0;
+                    double step = System.Math.Max(2.0, amp * 0.12);
+                    return System.Math.Floor(raw / step) * step;
+                }
+
+            case "drumlins":
+                {
+                    // Glacial drift: smoothed whaleback ridges all elongated along the world's grain.
+                    double d = GrainFbm(seed + 0xD8B1, w.Grain, worldX, worldZ, w.Scale * 0.5, octaves: 2);
+                    double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0);
+                    ridged = ridged * ridged * (3.0 - 2.0 * ridged); // rounded, not sharp
+                    return h * amp * 0.45 + ridged * amp * 0.5;
+                }
+
+            case "glacial":
+                {
+                    // Broad U-shaped troughs along the grain between rounded ridges — an ice-carved highland;
+                    // the trough heads hold tarns once the sea/pond percentiles calibrate.
+                    double v = GrainFbm(seed + 0x61AC, w.Grain, worldX, worldZ, w.Scale * 1.6, octaves: 2);
+                    double u = System.Math.Abs(v * 2.0 - 1.0);          // 0 on the trough axis, 1 on the ridges
+                    double valley = u * u * (3.0 - 2.0 * u);            // flat floor, steep walls
+                    return h * amp * 0.5 + (valley - 0.5) * amp * 1.6;
+                }
+
             default:
                 return h * amp; // unknown style → plain base swell
         }
     }
 
+    private const double ArchipelagoCellSize = 120.0;
+    private const double ShatteredCellSize = 900.0;
+
     /// <summary>The blended archetype height offset for a column: a large-scale region field picks among
     /// the world's seed-chosen subset of archetypes (deterministic, seam-free across the X wrap) and
     /// smoothstep-blends the two neighbours' computed OFFSETS (#576 — shapes like quantised decks or
-    /// asymmetric gorges cannot be blended as parameters).</summary>
+    /// asymmetric gorges cannot be blended as parameters). Generation-1 worlds draw from the larger pool
+    /// (#1645: moorland, knob-and-kettle, coastal cliffs).</summary>
     private double BlendedArchetypeOffset(PlanetType planet, WonderProfile w, long seed, double h, int worldX, int worldZ)
     {
-        int pool = TerrainArchetypeCount;
+        int pool = ArchetypePoolFor(w);
         long s = seed ^ 0x7E44A1;
         ulong us = (ulong)(s < 0 ? -s : s);
         int count = 2 + (int)(us % (ulong)(pool - 1)); // this world uses 2..pool archetypes
         int rot = (int)((us >> 8) % (ulong)pool);       // …starting at a seed-rotated offset in the list
 
         // A broad field (much larger than the base terrain) picks a position across the subset + blends it.
-        double rug = FbmT(s, worldX, worldZ, planet.TerrainScale * 6.0, octaves: 3);
+        double rug = FbmT(s, worldX, worldZ, w.Scale * 6.0, octaves: 3);
         double pos = (rug < 0 ? 0 : (rug > 0.9999 ? 0.9999 : rug)) * count; // [0, count)
         int i0 = (int)pos;
         int i1 = i0 + 1 < count ? i0 + 1 : count - 1;
@@ -495,4 +773,10 @@ public sealed partial class WorldGenerator
 
         return o0 + (ArchetypeOffset(a1, planet, w, seed, h, worldX, worldZ) - o0) * f;
     }
+
+    /// <summary>The archetype pool a world draws from: the classic eight, or eleven from generation 1 (#1645).</summary>
+    private static int ArchetypePoolFor(WonderProfile w) => w.Generation >= 1 ? TerrainArchetypeCountGen1 : TerrainArchetypeCount;
+
+    /// <summary>The archetype pool size of this world (tests).</summary>
+    internal int ArchetypePoolForTest(PlanetType planet) => ArchetypePoolFor(WonderFor(planet));
 }

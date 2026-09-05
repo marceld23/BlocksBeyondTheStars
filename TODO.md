@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 2/6: regional style pools, per-world scale, biome relief, 7 new styles, 11 archetypes, planet regimes (#1645, 2026-09-05, branch landscape/1645-relief)
+
+Generation-1 worlds only (`w.Generation >= 1`; the eight classic goldens are byte-identical, three `*-gen1` groups
+pinned). `PlanetType.TerrainStyles` pools on 16 types → 1–3 styles per body laid out as REGIONS (`StyleOffset`: 70 %
+pure, 30 % offset-space blend band; the #703 hybrid fade on top). `WonderProfile.Scale` = TerrainScale × 0.75–1.35
+per body (relief fields only; biome/forest/pond masks keep the type scale). `Biome.ReliefMul` (mud 0.35, sand 0.8,
+stone 1.3–1.5) through the region-only biome field (`ReliefMulAt`, no altitude feedback). New styles `archipelago`,
+`fjordlands`, `downs`, `shattered`, `terraces`, `drumlins`, `glacial`; archetype pool 8 → 11 (moorland,
+knob-and-kettle, coastal cliffs); baseline regimes tilted (~8 %) / stepped (~3 %) / equatorial ridge (~3 %) in
+`WorldGenerator.Regimes.cs`. `LandscapeReliefTests` (pool coverage, identity purity, scale range, relief-mul
+monotonicity + continuity, style shape probes, determinism/seam/memo, regime rates). Docs: WORLD_GENERATION.md §12.1.
+**Playtest (Marcel):** one new desert + one new highland world — do the style regions read as one world?
+
+---
+
 ### ★ Landscape variety 1/6: terrain-generation flag, terrain tags, landmark + prop tables, WorldGenerator split (#1644, 2026-09-05, branch landscape/1644-infra)
 
 Foundation for the landscape-variety package (#1644–#1649), deliberately **invisible**: all seven worldgen

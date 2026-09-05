@@ -160,8 +160,16 @@ public sealed class TerrainTagsAndGenerationTests
         gen.SetTerrainGeneration(WorldDescription.CurrentTerrainGeneration);
         Assert.Equal(WorldDescription.CurrentTerrainGeneration, gen.TerrainGeneration);
         Assert.Equal(0, gen.CachedColumnProfiles);
-        // Generation 1 carries no visible feature yet in this PR — heights are identical, and stay so once
-        // the wave lands only where a feature explicitly gates on the generation.
+        // Since #1645 generation 1 reshapes the relief (scale jitter alone moves nearly every column), and
+        // switching back restores the classic height exactly — the generation is a pure input, never state.
+        bool anyDiffers = false;
+        for (int x = 0; x < 640 && !anyDiffers; x += 32)
+        {
+            anyDiffers = gen.SurfaceHeight(planet, x, 37) != new WorldGenerator(7, Content).SurfaceHeight(planet, x, 37);
+        }
+
+        Assert.True(anyDiffers, "generation 1 should change the relief somewhere");
+        gen.SetTerrainGeneration(0);
         Assert.Equal(h0, gen.SurfaceHeight(planet, 100, 37));
     }
 
