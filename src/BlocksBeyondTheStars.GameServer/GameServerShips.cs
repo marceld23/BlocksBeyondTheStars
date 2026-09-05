@@ -134,6 +134,7 @@ public sealed partial class GameServer
 
         _activeShipId = shipId;
         RecomputeShipCombatStats(); // _ship now resolves to the newly active ship
+        SyncSwitchedShipLocation(ship);
         if (_current is { Joined: true })
         {
             // The HUD hull/shield rows only ever read this message — without it they kept showing the
@@ -179,6 +180,33 @@ public sealed partial class GameServer
 
         BroadcastOwnedShips();
         return true;
+    }
+
+    /// <summary>
+    /// The switched-in hull is placed wherever the pilot IS — on this pad, or floating in this orbit — so its
+    /// remembered body must say so (#1584). Only the ACTIVE ship's location was ever updated (landing,
+    /// hyperjump, respawn), so a ship last flown elsewhere kept "believing" it was parked there: the next
+    /// launch keyed the flight instance by that stale body (Lyxette found the home system's Port Nou, escape pod
+    /// and asteroid ring in orbit over a planet three systems away), and a death re-homed the clone to it.
+    /// </summary>
+    private void SyncSwitchedShipLocation(ShipState ship)
+    {
+        if (_current is null)
+        {
+            return;
+        }
+
+        if (_playerInstance.TryGetValue(_current.State.PlayerId, out var flightId) && _spaceInstances.ContainsKey(flightId))
+        {
+            // In space: the orbit's anchor body. A legacy instance key (planet-type placeholder) is no body — the
+            // pilot's own body is the next best truth.
+            string anchor = flightId.StartsWith("space:", StringComparison.Ordinal) ? flightId.Substring("space:".Length) : flightId;
+            ship.CurrentLocationId = _galaxy?.FindBody(anchor) is not null ? anchor : _current.CurrentLocationId;
+        }
+        else if (!string.IsNullOrEmpty(_current.CurrentLocationId))
+        {
+            ship.CurrentLocationId = _current.CurrentLocationId; // landed / on foot: this body
+        }
     }
 
     /// <summary>

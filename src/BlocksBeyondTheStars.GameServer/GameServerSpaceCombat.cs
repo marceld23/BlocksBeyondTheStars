@@ -323,6 +323,9 @@ public sealed partial class GameServer
     /// <summary>True while the player is flying in a space instance.</summary>
     public bool InSpace(string playerId) => _playerInstance.ContainsKey(playerId);
 
+    /// <summary>Test hook: the id of the flight instance the player is in (null on a surface).</summary>
+    public string? SpaceInstanceIdForTest(string playerId) => _playerInstance.TryGetValue(playerId, out var id) ? id : null;
+
     /// <summary>The acting pilot's OWN position in the instance (#994). Instances are shared per body and
     /// <see cref="SpaceInstance.ShipPosition"/> is last-writer-wins across all pilots, so range checks and
     /// aim for player-triggered actions must read the pilot's pose instead. Falls back to the shared field
@@ -520,7 +523,16 @@ public sealed partial class GameServer
             }
         }
 
-        string locationId = string.IsNullOrEmpty(_ship.CurrentLocationId) ? _meta.ActiveLocationId : _ship.CurrentLocationId;
+        // #1584: the flight instance is keyed by the body the PILOT launches from, not by the body the ship
+        // remembers. The ship's record only ever followed the ACTIVE ship (landing, hyperjump, respawn), so a
+        // switched-in hull, a claimed wreck or a shipyard purchase could still carry another body — or the
+        // creation placeholder — and the launch put the pilot into THAT orbit (home-system station, pod and
+        // asteroids over a planet three systems away). The pilot is aboard, so the ship is physically here;
+        // write it back so a later death re-homes to this body too.
+        string locationId = session is not null && !string.IsNullOrEmpty(session.CurrentLocationId)
+            ? session.CurrentLocationId
+            : string.IsNullOrEmpty(_ship.CurrentLocationId) ? _meta.ActiveLocationId : _ship.CurrentLocationId;
+        _ship.CurrentLocationId = locationId;
         string instanceId = "space:" + locationId;
         if (!_spaceInstances.TryGetValue(instanceId, out var instance))
         {

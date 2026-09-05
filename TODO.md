@@ -110,6 +110,22 @@ Per-item detail lives in the dated work log below. **Since 2026-07 versions are 
 #1144, #1146, #1147), all 28 sub-issues #1102–#1129 done. The whole package is UNRELEASED pending the big
 playtest; the post-epic implementation audit spawned the follow-up fix round #1149–#1156.
 
+### ★ A switched-in ship launches into the orbit it is ON — SwitchShip parks the new hull where the pilot is, EnterSpace keys the flight by the pilot's body (#1584, 2026-09-05, branch fix/1584-switched-ship-location)
+
+**Why.** Lyxette (v2026.9.2): "Port Nou im falschen System" — launched from a planet in another system and found the
+home system's station, escape pod and asteroid ring in orbit. `EnterSpace` keyed the flight instance by the SHIP's
+remembered body (`space:sys3-p1-m1`) while the pilot stood on `sys1-p4`; only the active ship's location was ever
+updated, and `SwitchShip` never touched the switched-in ship's — the starter still "believed" it was parked at the
+home moon. The star map and flight names followed the pilot, the scenery followed the ship; docking at that station
+was a free cross-system teleport, and `RecoverToShip` re-homed a dead pilot to the stale body.
+
+**What ships.** `SwitchShip` syncs the new active ship's `CurrentLocationId` to the pilot's body (landed / on foot)
+or to the orbit's anchor body (in space) — persisted with the fleet. `EnterSpace` keys the instance by
+`session.CurrentLocationId` and writes it back into the ship, which also covers claimed wrecks, shipyard purchases
+and custom ships that start with the planet-type placeholder. No load-time repair of persisted fleets: the next switch
+or launch corrects a stale record on its own. Four regression tests in `LanPlaytestRegressionTests` (switch landed,
+launch with a stale record, death in that orbit, switch in space); all four fail without the fix.
+
 ### ★ HUD hull/shield rows read "value / max" — a shield generator built on the ground no longer looks dead at "Shield 55" (#1585, 2026-09-05, branch fix/hud-vitals-value-max)
 
 **Why.** Lyxette (v2026.9.2): "Schildgenerator, da bleibt es bei 55 als Leistungswert". The generator WAS installed
