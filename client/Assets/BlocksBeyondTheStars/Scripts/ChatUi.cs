@@ -217,6 +217,8 @@ namespace BlocksBeyondTheStars.Client
             {
                 Game.ChatTyping = false;
             }
+
+            ReleaseSelection();
         }
 
         private void OnChat(BlocksBeyondTheStars.Networking.Messages.ChatMessage m)
@@ -272,7 +274,21 @@ namespace BlocksBeyondTheStars.Client
             Game.ChatTyping = false;
             _input.text = string.Empty;
             _inputRow.gameObject.SetActive(false);
+            ReleaseSelection();
             RefreshLog();
+        }
+
+        /// <summary>Drops the EventSystem selection if it still points at the chat box. uGUI never
+        /// deselects a deactivated InputField on its own, so after Esc/Enter the hidden box stayed the
+        /// "selected" object until the next world click — and every "is a text field focused?" check
+        /// (the VEGA continue key first of all) kept answering yes (#1634).</summary>
+        private void ReleaseSelection()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es != null && _input != null && es.currentSelectedGameObject == _input.gameObject)
+            {
+                es.SetSelectedGameObject(null);
+            }
         }
 
         /// <summary>Sends a finished chat line (also the touch/browser prompt path, which has no Enter key).</summary>

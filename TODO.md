@@ -24,6 +24,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ VEGA continue key works right after the chat closes — the hidden chat box no longer counts as "a text field has focus" (#1634, 2026-09-05, branch fix/vega-n-after-chat)
+
+Marcel (2026-09-05, local playtest): Enter → type → Esc closed the chat fine, but N would not dismiss the VEGA
+line that had popped up meanwhile — until the next click into the world. Cause: `ChatUi` never released the
+uGUI EventSystem selection on close, and uGUI never deselects a deactivated InputField by itself, so
+`VegaPanel.InputCaptured()` (#1041) kept seeing "an InputField is selected" and swallowed the continue key.
+
+- **Done:** `ChatUi` drops the EventSystem selection whenever the chat box closes (end-edit for Esc *and* Enter,
+  plus disable) if it still points at the box. `VegaPanel.InputCaptured()` now requires the selected InputField
+  to be active in the hierarchy **and** `isFocused` — a closed or unfocused field captures nothing, which also
+  covers the feedback dialog / beacon label closed without a click.
+- **Unchanged:** the pause-menu gate, pad Back / touch NEXT (#1041), N typed inside the chat box still types `n`.
+- **Verify:** Enter → type → Esc → N advances VEGA with no click in between; same with Enter (send).
+
 ### ★ Volcanoes on every lava-core world; sea-mount cones rise out of the sea as volcanic islands (#1631, 2026-09-05, branch feat/volcanoes-1631)
 
 Marcel (2026-09-05): ocean worlds should sometimes show volcanoes as mountains out of the water; volcanoes on

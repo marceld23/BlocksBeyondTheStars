@@ -379,7 +379,10 @@ namespace BlocksBeyondTheStars.Client
         /// field (chat, beacon label) currently has keyboard focus. Only a focused INPUT FIELD counts —
         /// uGUI also leaves an ordinary Button selected after any click, and with pad focus
         /// (<see cref="UiNavFocus"/>) something is selected most of the time; treating that as "captured"
-        /// left the panel stuck after the first HUD click / on a pad (#1041).</summary>
+        /// left the panel stuck after the first HUD click / on a pad (#1041). And only a field that is
+        /// ACTIVE and FOCUSED: uGUI keeps a closed InputField as the selected object (nothing deselects on
+        /// deactivate), so the chat box closed with Esc or Enter counted as "captured" until the next
+        /// world click — N did nothing on a VEGA line that arrived mid-chat (#1634).</summary>
         private bool InputCaptured()
         {
             if (Game != null && Game.MenuOpen)
@@ -388,7 +391,13 @@ namespace BlocksBeyondTheStars.Client
             }
 
             var selected = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject;
-            return selected != null && selected.GetComponent<InputField>() != null;
+            if (selected == null || !selected.activeInHierarchy)
+            {
+                return false;
+            }
+
+            var field = selected.GetComponent<InputField>();
+            return field != null && field.isFocused;
         }
 
         /// <summary>True while a VEGA line is on screen (typing or waiting for continue) — gates the touch
