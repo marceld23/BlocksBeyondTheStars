@@ -85,6 +85,37 @@ namespace BlocksBeyondTheStars.Client
             private readonly Material _mat;
             public RTHandle Hud;
 
+            // Quarter-res glow target format, chosen once per session. B10G11R11 is the compact HDR-ish choice on
+            // desktop, but as a RENDER target under WebGL 2 it needs EXT_color_buffer_float, which older mobile
+            // GPUs (and some tablets' browsers) do not expose — the render graph then fails to allocate the
+            // texture and the whole visor pass errors out every frame. The glow chain's input is the LDR ARGB32
+            // HUD RT and the threshold pass never writes values above 1, so plain 8-bit RGBA loses nothing
+            // visible; it is guaranteed on every WebGL 2 / GLES 3 device. Checked for render + bilinear sampling
+            // (the blur taps rely on linear filtering).
+            private static GraphicsFormat? _glowFormat;
+
+            private static GraphicsFormat GlowFormat
+            {
+                get
+                {
+                    if (_glowFormat.HasValue)
+                    {
+                        return _glowFormat.Value;
+                    }
+
+                    var preferred = GraphicsFormat.B10G11R11_UFloatPack32;
+                    bool ok = SystemInfo.IsFormatSupported(preferred, GraphicsFormatUsage.Render)
+                              && SystemInfo.IsFormatSupported(preferred, GraphicsFormatUsage.Linear);
+                    _glowFormat = ok ? preferred : GraphicsFormat.R8G8B8A8_UNorm;
+                    if (!ok)
+                    {
+                        Debug.Log("[VisorUrpCompositor] B10G11R11_UFloatPack32 render targets unsupported here — HUD glow uses R8G8B8A8_UNorm.");
+                    }
+
+                    return _glowFormat.Value;
+                }
+            }
+
             private sealed class PassData
             {
                 public TextureHandle Source, Hud, Glow;
@@ -117,7 +148,7 @@ namespace BlocksBeyondTheStars.Client
                     var gdesc = new TextureDesc(gw, gh)
                     {
                         name = "VisorHudGlowA",
-                        colorFormat = GraphicsFormat.B10G11R11_UFloatPack32,
+                        colorFormat = GlowFormat,
                         filterMode = FilterMode.Bilinear,
                         wrapMode = TextureWrapMode.Clamp,
                         clearBuffer = false,
