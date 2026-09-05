@@ -80,7 +80,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private Text _playtimeText;
         private RectTransform _todMarker;
-        private RectTransform _compassShip, _compassWp;
+        private RectTransform _compassShip, _compassWp, _compassNorth;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
@@ -525,9 +525,14 @@ namespace BlocksBeyondTheStars.Client
             UiKit.Place(comp, W - 130f, 10, 120, 120);
             var craw = comp.AddComponent<RawImage>();
             craw.texture = UiKit.RadarCircle;
-            // The ▲ is the FORWARD marker: the blips are rotated by the player's yaw, so the top of the dial is
-            // the way you look, not north (the planet map is north-up; the compass is heading-up).
-            UiKit.AddText(comp.transform, 0, 2, 120, 18, "▲", 14, UiKit.Cyan, TextAnchor.UpperCenter, FontStyle.Bold);
+            // The dial is heading-up (the blips are rotated by the player's yaw, so the top is the way you look).
+            // #1597: a rotating N marker says where north is — the fixed ▲ that sat here read as a north needle
+            // and disagreed with the north-up planet map. Created before the blips so they draw over it; it
+            // orbits inside the blip radius so it never lands on the captions under the dial.
+            var north = UiKit.AddText(comp.transform, 0, 0, 16, 16, "N", 12, new Color(UiKit.Cyan.r, UiKit.Cyan.g, UiKit.Cyan.b, 0.85f), TextAnchor.MiddleCenter, FontStyle.Bold);
+            _compassNorth = north.rectTransform;
+            _compassNorth.anchorMin = _compassNorth.anchorMax = new Vector2(0.5f, 0.5f);
+            _compassNorth.pivot = new Vector2(0.5f, 0.5f);
             // Both distance lines carry their localized name ("Ship 114 m", "Waypoint 138 m") in the blip's
             // colour — #1594: a first-time player saw two coloured dots and two numbers and did not know the
             // blue one was the ship. The planet map has a legend; this is the compass's.
@@ -1457,7 +1462,7 @@ namespace BlocksBeyondTheStars.Client
 
         private void RefreshCompass()
         {
-            // The round compass is on-foot/EVA navigation (forward marker, ship + waypoint + beacon blips). While
+            // The round compass is on-foot/EVA navigation (north marker, ship + waypoint + beacon blips). While
             // piloting the ship you ARE the ship and the flight view draws its own radar, so hide it then; on an
             // EVA it stays — the ship blip + distance is how you float your way back to the hull.
             bool piloting = Game.SpaceViewActive && !Game.InEva;
@@ -1475,6 +1480,15 @@ namespace BlocksBeyondTheStars.Client
             const float radius = 44f;
             PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius, out float wpDist);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
+
+            // North marker (#1597): bearing 0° minus the player's yaw — the same rotation PlaceBlip applies, so the N
+            // sits at the top while facing north and swings left when the player turns right.
+            if (_compassNorth != null)
+            {
+                const float northRadius = 37f;
+                float northAng = -Game.PlayerYaw * Mathf.Deg2Rad;
+                _compassNorth.anchoredPosition = new Vector2(Mathf.Sin(northAng) * northRadius, Mathf.Cos(northAng) * northRadius);
+            }
 
             // This runs per frame, so only rebuild the distance strings when the rounded value changed.
             int distNow = Game.ShipPosition.HasValue ? Mathf.RoundToInt(dist) : -1;

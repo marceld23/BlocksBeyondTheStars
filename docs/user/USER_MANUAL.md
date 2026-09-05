@@ -303,7 +303,8 @@ separate unlock; admins can still disable it through server world rules.
   previous session — stays lifted in a lighter tone, while live terrain around you draws in full colour.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
-- **Compass** (bottom-right, on foot) — a heading-up dial: the `▲` at the top is the way you look. The blue
+- **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
+  moves around the dial marks north (the map is north-up, so the two agree). The blue
   square is your ship and the amber pin the waypoint; the captions under the dial ("Ship 114 m", "Waypoint
   138 m") give each distance. Beacons and saved markers show as smaller blips. Turn until the ship sits at the
   top and walk; VEGA reminds you of this once you are a long way from the hull.
