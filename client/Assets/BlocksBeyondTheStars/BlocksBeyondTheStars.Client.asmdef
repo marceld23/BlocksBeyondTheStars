@@ -4,7 +4,8 @@
   "references": [
     "Unity.RenderPipelines.Universal.Runtime",
     "Unity.RenderPipelines.Core.Runtime",
-    "UnityEngine.UnityWebRequestModule"
+    "UnityEngine.UnityWebRequestModule",
+    "Unity.TextMeshPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
