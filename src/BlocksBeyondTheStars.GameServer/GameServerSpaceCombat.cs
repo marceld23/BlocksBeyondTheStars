@@ -532,11 +532,17 @@ public sealed partial class GameServer
         string locationId = session is not null && !string.IsNullOrEmpty(session.CurrentLocationId)
             ? session.CurrentLocationId
             : string.IsNullOrEmpty(_ship.CurrentLocationId) ? _meta.ActiveLocationId : _ship.CurrentLocationId;
+        // The ambient-hostility shading keeps its documented rule (see CreateSpaceInstance): a ship that has never
+        // flown still carries its type placeholder, which resolves to no system — its first launch stays shaded
+        // Standard. A ship with a real (even stale) body is shaded by the system it actually launches in.
+        string hostilityAnchorId = _galaxy?.FindBody(_ship.CurrentLocationId) is null && !string.IsNullOrEmpty(_ship.CurrentLocationId)
+            ? _ship.CurrentLocationId
+            : locationId;
         _ship.CurrentLocationId = locationId;
         string instanceId = "space:" + locationId;
         if (!_spaceInstances.TryGetValue(instanceId, out var instance))
         {
-            instance = CreateSpaceInstance(instanceId);
+            instance = CreateSpaceInstance(instanceId, hostilityAnchorId);
             _spaceInstances[instanceId] = instance;
         }
 
@@ -668,7 +674,10 @@ public sealed partial class GameServer
         }
     }
 
-    private SpaceInstance CreateSpaceInstance(string instanceId)
+    /// <param name="instanceId">The flight instance key, <c>space:</c> + the body the pilot launches from (#1584).</param>
+    /// <param name="hostilityAnchorId">The body id that shades the ambient hostiles — the launch body, or a
+    /// never-flown ship's type placeholder (which resolves to no system and so to the Standard shading).</param>
+    private SpaceInstance CreateSpaceInstance(string instanceId, string? hostilityAnchorId = null)
     {
         var instance = new SpaceInstance { Id = instanceId, Kind = "orbit" };
 
@@ -728,13 +737,15 @@ public sealed partial class GameServer
                 // hammered the ship the instant it launched (continuous damage → destroyed → respawn at base).
                 // #547: the system archetype shades the ambient hostility — Desolate space is truly empty
                 // (no drones, no UFO), a Pirate Haven runs one extra drone when NPC enemies are on at all.
-                // Deliberately keyed on the RAW anchor id (not the resolved start-body fallback above):
-                // a never-launched ship carries its type placeholder here, which never resolves — so the
+                // Deliberately keyed on the RAW hostility anchor (not the resolved start-body fallback above):
+                // a never-launched ship passes its type placeholder here, which never resolves — so the
                 // first launch has always been shaded Standard, and changing that would silently raise
-                // the fresh-start difficulty in pirate-space starts.
-                var archetype = SystemArchetypeOf(_galaxy?.FindBody(anchorId)?.SystemId);
+                // the fresh-start difficulty in pirate-space starts. Since #1584 the instance itself is keyed
+                // by the pilot's body, so EnterSpace hands the ship's pre-launch record in separately.
+                string hostilityId = hostilityAnchorId ?? anchorId;
+                var archetype = SystemArchetypeOf(_galaxy?.FindBody(hostilityId)?.SystemId);
                 int drones = ActivityCount(Rules.SpaceNpcEnemies);
-                bool remnantSpace = RemnantSpaceHostile(archetype, anchorId);
+                bool remnantSpace = RemnantSpaceHostile(archetype, hostilityId);
                 if (archetype == SystemArchetype.Desolate || !remnantSpace)
                 {
                     drones = 0;
