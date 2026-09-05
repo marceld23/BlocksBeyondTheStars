@@ -13,6 +13,22 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏝️ Landing on ocean worlds: real islands first, proper islets otherwise, the seabed only in the shallows (#1618 #1619 #1620 #1621 #1622)
+
+- **Landing pads look for land north and south too.** Until now a pad only searched east and west along
+  its own latitude and gave up in open sea — while real islands lay a short swim away. The search now
+  circles outward in every direction, and on ocean worlds it looks further (#1618). On twelve test ocean
+  worlds that put 157 of 164 pads on natural land, up from 81.
+- **No more landing at the bottom of a deep sea.** A pad that still sits in open water raises an island
+  whenever the water is deeper than a wade (8 blocks); only shallow water still parks the ship in its dry
+  seabed shaft. Every world with a water sea follows the same rule now, not only ocean worlds (#1619).
+- **The islets are islands now**: a level top wider than the ship, a gentle beach into the sea, a
+  natural outline instead of a perfect disc, grass and a few plants where the world has them (#1620).
+- **Your first landing prefers dry ground.** A new player's first pad, and any landing you do not pick
+  by hand, takes natural land over an islet over the seabed (#1621).
+- **Seabed pads are blue on the approach map** and say how deep the water is ("underwater · seabed · 6 m"),
+  on the world map too (#1622).
+
 ### ✨ A bigger sky (#1615 #1616 #1617)
 
 - **More stars in every new world.** A Normal world now starts with 12 star systems instead of 8, and the

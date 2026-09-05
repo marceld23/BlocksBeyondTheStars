@@ -469,7 +469,7 @@ namespace BlocksBeyondTheStars.Client
                     PadMarker(pad.X, pad.Z, col);
                     int dist = Mathf.RoundToInt(GroundDistance(pad.X, pad.Z));
                     string occ = pad.Occupied || pad.Mine ? $" ({pad.Occupant})" : string.Empty;
-                    string wet = pad.Wet ? $" · {L("ui.space.pad_wet")}" : string.Empty; // seabed pad (#1454)
+                    string wet = pad.Wet ? (pad.Depth > 0 ? $" · {L("ui.space.pad_wet")} · {pad.Depth} m" : $" · {L("ui.space.pad_wet")}") : string.Empty; // seabed pad + depth (#1454/#1622)
                     poiLines.Append($"\n⊕ {L("ui.map.pad")} {pad.Index + 1}{occ}{wet}  —  {dist} m");
                 }
             }

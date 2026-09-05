@@ -52,19 +52,27 @@ public sealed class LandingPadTests : IDisposable
         Assert.Equal(AlienActivity.Off, peaceful.PlanetEnemies);
     }
 
-    [Fact]
-    public void OceanWorld_RaisesAnIsletUnderSomePads_AndFlagsTheSeabedOnes()
+    private SvGameServer NewOceanServer(string tag, int seed)
     {
-        // #1453/#1454: an ocean-class world floods 78–97 % of its columns, and the pad march (±180 blocks along
-        // one latitude) regularly finds no land. Such pads now either carry a seeded sand islet (surface two
-        // blocks above the sea, air above it) or stay on the seabed and are flagged Wet for the chooser.
-        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "islet"));
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, tag));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = "islet", Seed = 7, StartPlanet = "ocean", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig { WorldName = tag, Seed = seed, StartPlanet = "ocean", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         server.AddLocalPlayer("Pilot"); // loads the ocean body + builds its pads
+        return server;
+    }
 
+    [Fact]
+    public void OceanWorld_RaisesAnIsletUnderDeepPads_AndOnlyShallowOnesStayOnTheSeabed()
+    {
+        // #1453/#1454/#1619/#1620: an ocean-class world floods 78–97 % of its columns. A pad whose
+        // footprint is still all water after the 2-D nudge carries an islet (plateau three blocks above the
+        // sea, air above it) unless the water there is shallow (≤ 8 blocks) — only then does the ship park
+        // in a seabed shaft, flagged Wet with its depth for the chooser. Deep shafts are gone.
+        // The 2-D nudge (#1618) finds real land for most pads, so the test walks the wettest probe seeds
+        // (9 = 97 % water) until a world still needs an islet.
+        var server = NewOceanServer("islet9", 9);
         int seaLevel = server.SeaLevelForTest();
         int islets = 0, wet = 0, dry = 0;
         for (int i = 0; i < server.LandingPadCenters.Count; i++)
@@ -74,26 +82,80 @@ public sealed class LandingPadTests : IDisposable
             {
                 islets++;
                 Assert.False(pad.Wet, "an islet pad is dry by definition");
-                Assert.Equal(seaLevel + 2, pad.Y);
-                // The mound exists in the generated world: a beach block at the levelled height, air above.
+                Assert.Equal(0, pad.Depth);
+                Assert.Equal(seaLevel + 3, pad.Y);
+                // The mound exists in the generated world: a solid block at the levelled height, air above.
                 Assert.False(server.World.GetBlock(new Vector3i(pad.X, pad.Y, pad.Z)).IsAir);
                 Assert.True(server.World.GetBlock(new Vector3i(pad.X, pad.Y + 1, pad.Z)).IsAir);
                 Assert.True(server.World.GetBlock(new Vector3i(pad.X, pad.Y + 2, pad.Z)).IsAir);
+                // The plateau reaches beyond the reserved pad (#1620): level ground 9 blocks out (the rim
+                // wobbles ±3 around radius 12, so 9 is always plateau).
+                Assert.False(server.World.GetBlock(new Vector3i(pad.X + 9, pad.Y, pad.Z)).IsAir);
+                Assert.True(server.World.GetBlock(new Vector3i(pad.X + 9, pad.Y + 2, pad.Z)).IsAir);
             }
             else if (pad.Wet)
             {
                 wet++;
                 Assert.True(pad.Y < seaLevel, "a wet pad sits on the seabed");
+                Assert.InRange(seaLevel - pad.Y, 1, 8); // shallow only (#1619)
+                Assert.InRange(pad.Depth, 1, 8);
             }
             else
             {
                 dry++;
+                Assert.Equal(0, pad.Depth);
             }
         }
 
         Assert.True(islets + wet + dry == server.LandingPadCenters.Count);
-        Assert.True(islets > 0 || wet > 0, "an ocean world is expected to produce at least one all-water pad");
-        Assert.True(islets > 0, "the seeded roll (~60 %) should raise at least one islet across the pads");
+        Assert.True(islets > 0, "an ocean world is expected to raise at least one islet (seed 7 has deep all-water pads)");
+    }
+
+    [Fact]
+    public void PadNudge_FindsLandNorthOrSouth_NotOnlyAlongTheLatitude()
+    {
+        // #1618: on ocean seed 1 the planned column of pad 4 (x 3920, z −685) is all water along its whole
+        // latitude band (the old X-only march gave up and rolled an islet), but dry ground lies a few blocks
+        // north/south. The ring search must find it.
+        var server = NewOceanServer("nudge", 1);
+        var (x, z, dry) = server.NudgePadForTest(3920, -685, 300);
+        Assert.True(dry, $"the 2-D nudge should end on dry ground (got {x},{z})");
+        Assert.True(z != -685 || x != 3920, "the pad moved off its all-water column");
+    }
+
+    [Fact]
+    public void PlayerPadPreference_DryBeforeIsletBeforeSeabed_TiesByIndex()
+    {
+        // #1621: pads 0 = seabed, 1 = islet, 2 = dry, 3 = dry.
+        var pads = new List<(bool Wet, bool Islet)> { (true, false), (false, true), (false, false), (false, false) };
+        Assert.Equal(2, SvGameServer.PreferredPadIndexForTest(pads, Array.Empty<int>()));      // first dry pad
+        Assert.Equal(3, SvGameServer.PreferredPadIndexForTest(pads, new[] { 2 }));             // next dry pad
+        Assert.Equal(1, SvGameServer.PreferredPadIndexForTest(pads, new[] { 2, 3 }));          // islet before seabed
+        Assert.Equal(0, SvGameServer.PreferredPadIndexForTest(pads, new[] { 1, 2, 3 }));       // seabed last
+        Assert.Equal(-1, SvGameServer.PreferredPadIndexForTest(pads, new[] { 0, 1, 2, 3 }));   // full
+    }
+
+    [Fact]
+    public void NewPlayer_SpawnsOnAPadNoWorseThanTheBestFreeOne()
+    {
+        // #1621: a new player's first pad is never worse (seabed < islet < dry) than the best free pad.
+        var server = NewOceanServer("spawn", 5);
+        int bestRank = int.MaxValue, spawnRank = int.MaxValue;
+        var me = server.AddLocalPlayer("Newbie");
+        var pos = me.State.Position;
+        for (int i = 0; i < server.LandingPadCenters.Count; i++)
+        {
+            var pad = server.LandingPadInfoForTest(i);
+            int rank = pad.Wet ? 2 : pad.Islet ? 1 : 0;
+            bestRank = Math.Min(bestRank, rank);
+            if (Math.Abs(pos.X - (pad.X + 0.5f)) < 0.01f && Math.Abs(pos.Z - (pad.Z + 0.5f)) < 0.01f)
+            {
+                spawnRank = Math.Min(spawnRank, rank);
+            }
+        }
+
+        Assert.NotEqual(int.MaxValue, spawnRank); // the spawn IS a pad centre
+        Assert.Equal(bestRank, spawnRank);
     }
 
     [Fact]

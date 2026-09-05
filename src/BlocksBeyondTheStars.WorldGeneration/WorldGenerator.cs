@@ -120,8 +120,10 @@ public sealed class WorldGenerator
         => PadColumnAt(worldX, worldZ, out var pad, out int target) && target == pad.SurfaceY ? target : null;
 
     /// <summary>The pad a column belongs to and the height its ground is levelled to: the pad's surface
-    /// over the pad proper, and — for an islet pad (#1453) — a 1:1 beach slope falling away from the pad
-    /// edge out to the islet radius. False when the column is on no pad at all.</summary>
+    /// over the pad proper, and — for an islet pad (#1453/#1620) — the level plateau out to the plateau
+    /// radius, then a 2:1 beach slope falling away to the islet radius. Both islet rims are wobbled by
+    /// ±<see cref="IsletRimWobble"/> blocks of seeded noise (never inside the reserved pad), so the island
+    /// reads as a natural outline rather than a stamped disc. False when the column is on no pad at all.</summary>
     private bool PadColumnAt(int worldX, int worldZ, out LandingPadFlatten pad, out int target)
     {
         for (int i = 0; i < _landingPads.Count; i++)
@@ -137,11 +139,23 @@ public sealed class WorldGenerator
                 return true;
             }
 
-            if (p.Islet && d2 <= p.IsletRadius * p.IsletRadius)
+            if (p.Islet && d2 <= (p.IsletRadius + IsletRimWobble) * (p.IsletRadius + IsletRimWobble))
             {
-                pad = p;
-                target = p.SurfaceY - (int)System.Math.Ceiling(System.Math.Sqrt(d2) - p.Radius);
-                return true;
+                long wobbleSeed = _worldSeed ^ StableHash("islet:" + p.CenterX + ":" + p.CenterZ);
+                double dist = System.Math.Sqrt(d2) + (FbmT(wobbleSeed, worldX, worldZ, 14.0, octaves: 2) - 0.5) * 2.0 * IsletRimWobble;
+                if (dist <= p.PlateauRadius)
+                {
+                    pad = p;
+                    target = p.SurfaceY;
+                    return true;
+                }
+
+                if (dist <= p.IsletRadius)
+                {
+                    pad = p;
+                    target = p.SurfaceY - (int)System.Math.Ceiling((dist - p.PlateauRadius) * 0.5);
+                    return true;
+                }
             }
         }
 
@@ -149,6 +163,13 @@ public sealed class WorldGenerator
         target = 0;
         return false;
     }
+
+    /// <summary>How far the islet's plateau and beach rims wander from their nominal radius (#1620).</summary>
+    private const double IsletRimWobble = 3.0;
+
+    /// <summary>Flora chance per plateau column outside the reserved pad on an islet (#1620) — a few tufts
+    /// of the biome's own flora, not a meadow, so the pad stays readable from the air.</summary>
+    private const double IsletFloraChance = 0.16;
 
     private const int PadFoundationDepth = 8; // plug caves this deep under a pad (no falling into one)
 
@@ -180,13 +201,15 @@ public sealed class WorldGenerator
                     continue;
                 }
 
-                // An islet (#1453) is a sand mound raised out of the sea: every water/air cell from the seabed
-                // up to the levelled height becomes beach block, the pad top is sheared clear like any pad,
-                // and the beach slope keeps whatever sea still stands above its lower rim.
+                // An islet (#1453/#1620) is a mound raised out of the sea: every water/air cell from the seabed
+                // up to the levelled height becomes fill, the level plateau wears the biome's own surface
+                // (grass where the world has grass) over beach-block fill, the 2:1 beach slope is beach block
+                // through and through, the pad top is sheared clear like any pad, and the slope keeps
+                // whatever sea still stands above its lower rim.
                 bool islet = pad.Islet;
                 bool slope = islet && padY < pad.SurfaceY;
                 int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, padY);
-                var surfaceId = islet ? beachId : biomes[biomeIndex].Surface;
+                var surfaceId = slope ? beachId : biomes[biomeIndex].Surface;
                 var subSurfaceId = islet ? beachId : biomes[biomeIndex].Sub;
 
                 for (int ly = 0; ly < cs; ly++)
@@ -216,7 +239,34 @@ public sealed class WorldGenerator
                         chunk.Set(lx, ly, lz, subSurfaceId); // plug caves directly under the pad
                     }
                 }
+
+                // A few tufts of the biome's flora on the islet plateau, off the reserved pad (#1620).
+                if (islet && !slope && !planet.Void)
+                {
+                    int fy = padY + 1 - origin.Y;
+                    int pdx = WorldConstants.WrapDeltaX(worldX - pad.CenterX, _circumference);
+                    int pdz = worldZ - pad.CenterZ;
+                    bool offPad = pdx * pdx + pdz * pdz > pad.Radius * pad.Radius;
+                    if (offPad && fy >= 0 && fy < cs
+                        && Noise.Value01(seed + 9004, WorldConstants.WrapX(worldX, _circumference), 7, Wz(worldZ)) < IsletFloraChance)
+                    {
+                        var tuft = FloraForSurface(planet, biomes[biomeIndex], seed, worldX, worldZ, surfaceId);
+                        if (!tuft.IsAir)
+                        {
+                            chunk.Set(lx, fy, lz, tuft);
+                        }
+                    }
+                }
             }
+    }
+
+    /// <summary>True when the world's sea is water (not lava) — the islet fallback (#1619) only raises sand
+    /// out of water; a lava sea keeps the seabed shaft.</summary>
+    public bool SeaIsWater(PlanetType planet)
+    {
+        var (level, fluid) = ResolveSeaFluid(planet);
+        var waterId = _content.GetBlock("water")?.NumericId ?? BlockId.Air;
+        return level != int.MinValue && !waterId.IsAir && fluid.Value == waterId.Value;
     }
 
     // World options (creation-time, from the save's WorldDescription): global factors on top of the
