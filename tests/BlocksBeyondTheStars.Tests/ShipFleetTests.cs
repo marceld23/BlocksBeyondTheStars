@@ -248,6 +248,52 @@ public sealed class ShipFleetTests : IDisposable
         }
     }
 
+    [Fact]
+    public void BuildShieldGenerator_RestoresShieldToMax()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+            pilot.State.InstantBuild = true;
+            pilot.State.UnlockedBlueprints.Add("shield_generator");
+
+            var (_, shieldMaxBefore) = server.ShipShieldForTest("Pilot");
+            server.SetShipShieldForTest("Pilot", shieldMaxBefore - 10f);
+
+            Assert.True(server.BuildModuleForTest("Pilot", "shield_generator"));
+
+            var (shield, shieldMax) = server.ShipShieldForTest("Pilot");
+            Assert.Equal(shieldMax, shield);
+            Assert.Equal(135f, shieldMax);
+        }
+    }
+
+    [Fact]
+    public void BuildNonShieldModule_DoesNotChangeShield()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            pilot.State.AboardShip = true;
+            pilot.State.InstantBuild = true;
+            pilot.State.UnlockedBlueprints.Add("cargo_expansion_1");
+
+            var (_, shieldMax) = server.ShipShieldForTest("Pilot");
+            server.SetShipShieldForTest("Pilot", shieldMax - 10f);
+
+            var (shieldBefore, _) = server.ShipShieldForTest("Pilot");
+
+            Assert.True(server.BuildModuleForTest("Pilot", "cargo_hold_1"));
+
+            var (shieldAfter, actualShieldMax) = server.ShipShieldForTest("Pilot");
+            Assert.Equal(shieldBefore, shieldAfter);
+            Assert.Equal(shieldMax, actualShieldMax);
+        }
+    }
+
     public void Dispose()
     {
         try

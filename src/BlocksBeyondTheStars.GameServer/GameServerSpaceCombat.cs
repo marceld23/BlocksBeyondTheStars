@@ -463,6 +463,12 @@ public sealed partial class GameServer
         ResizeCargo(_ship);
         RecomputeShipCombatStats();
 
+        if (module.Stats.ContainsKey("shield") ||
+            module.Stats.ContainsKey("shield_regen"))
+        {
+            _ship.Shield = _shipShieldMax;
+        }
+
         Send(session, new ServerMessage
         {
             Text = Localize(session.Locale, "srv.module.built")
