@@ -109,6 +109,13 @@ public sealed partial class WorldGenerator
         var saltBlockId = _content.GetBlock("salt")?.NumericId ?? BlockId.Air;
         var cavernCrystalId = _content.GetBlock("crystal")?.NumericId ?? BlockId.Air;
 
+        // Generation-1 underground finds (#1646): crystal geodes (hollow crystal-lined spheres) and sediment
+        // strata (tilted granite bands in the upper crust). Both gates are false on a generation-0 world.
+        var wonderGates = WonderFor(planet);
+        bool geodeWorld = wonderGates.Geodes && !cavernCrystalId.IsAir;
+        var strataId = _content.GetBlock("granite")?.NumericId ?? BlockId.Air;
+        bool strataWorld = wonderGates.Strata && !strataId.IsAir;
+
         // Geysers / vents (item 21 follow-up): sparse erupting spouts — water geysers on reasonably wet worlds,
         // steam/lava vents on volcanic/ashen worlds. A marker block at the surface; the client attaches the
         // eruption VFX + hiss when the player is near. Deterministic, very sparse (landmark-rare).
@@ -188,6 +195,8 @@ public sealed partial class WorldGenerator
             AnyBands = anyBands,
             CavernWorld = cavernWorld,
             TunnelWorld = tunnelWorld,
+            GeodeWorld = geodeWorld,
+            StrataWorld = strataWorld,
         };
 
         // #1527: per-chunk ore invariants + one lazily built noise lattice per (column, field): slot 0 caves,
@@ -222,6 +231,9 @@ public sealed partial class WorldGenerator
                 int tunnelCount = tunnelSpans.Length;
                 BlockId? craterMetal = col.CraterMetal;
                 int effSurfaceDepth = col.EffSurfaceDepth;
+                bool geodeHere = col.GeodeHere;
+                int geoLo = col.GeoLo, geoHi = col.GeoHi, geoInLo = col.GeoInLo, geoInHi = col.GeoInHi;
+                int strataShift = col.StrataShift;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -305,6 +317,19 @@ public sealed partial class WorldGenerator
                         continue; // void (or the lake fill above)
                     }
 
+                    // Crystal geode (#1646): a hollow sphere lined with crystal — the shell is solid crystal, the
+                    // interior air; nothing else (caves, tunnels, ores) touches the cells it claims.
+                    if (geodeHere && worldY >= geoLo && worldY <= geoHi)
+                    {
+                        if (worldY >= geoInLo && worldY <= geoInHi)
+                        {
+                            continue; // the hollow
+                        }
+
+                        chunk.Set(lx, ly, lz, cavernCrystalId);
+                        continue;
+                    }
+
                     // Cavern shell glints (#707): sparse crystal studs the cell just under the cavern floor.
                     if (cavernHere && worldY == cavLo - 1 && !cavernCrystalId.IsAir
                         && Noise.Value01(seed + 0x0CAFE1, WorldConstants.WrapX(worldX, _circumference), worldY, Wz(worldZ)) < 0.10)
@@ -377,6 +402,13 @@ public sealed partial class WorldGenerator
                         // interior isn't one uniform stone column on every world. Ores still vein through it.
                         var rock = depth >= mantleDepth ? mantleId : deepId;
                         block = SelectOre(calib, oreSlots, samplers, worldX, worldZ, worldY, depth, fallback: rock);
+
+                        // Sediment strata (#1646): inside a strata region the upper crust carries tilted granite
+                        // bands (2 of every 7 cells) between the topsoil and 48 deep; ores keep their cells.
+                        if (block == rock && strataShift != int.MinValue && depth < 48 && StrataBandAt(worldY, strataShift))
+                        {
+                            block = strataId;
+                        }
 
                         if (block == rock && planet.DataCacheRarity > 0 && !dataCacheId.IsAir)
                         {
@@ -482,7 +514,8 @@ public sealed partial class WorldGenerator
     private sealed class ColumnProfile
     {
         public int SurfaceY, SeabedY, WaterTop, IceTop, BiomeIndex, IslandTop, CavLo, CavHi, CavLakeY, EffSurfaceDepth;
-        public bool CavernHere, BeachHere;
+        public int GeoLo, GeoHi, GeoInLo, GeoInHi, StrataShift = int.MinValue; // #1646
+        public bool CavernHere, BeachHere, GeodeHere;
         public BlockId ColumnFluid, SurfaceId, SubSurfaceId;
         public BlockId? CraterMetal;
         public ColumnBand[] Bands = System.Array.Empty<ColumnBand>();
@@ -501,6 +534,7 @@ public sealed partial class WorldGenerator
         public BlockId FluidId, SeaWaterId, CraterLavaId, BeachId, SnowId, IceId, BasaltId, SaltBlockId, DeepId;
         public bool Ponds, VolcanoWorld, TravertineWorld, CenoteWorld, FreezeWater, BeachPossible, SnowPossible;
         public bool PenitenteWorld, BasaltFieldWorld, AnyBands, CavernWorld, TunnelWorld;
+        public bool GeodeWorld, StrataWorld; // #1646
         public double PondThreshold;
     }
 
@@ -776,6 +810,11 @@ public sealed partial class WorldGenerator
         // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns).
         int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
 
+        // Generation-1 underground finds (#1646): the geode sphere covering this column, and the strata region.
+        int geoLo = 0, geoHi = -1, geoInLo = 1, geoInHi = 0;
+        bool geodeHere = c.GeodeWorld && TryGetGeodeSpan(planet, wonder, worldX, worldZ, out geoLo, out geoHi, out geoInLo, out geoInHi);
+        int strataShift = c.StrataWorld ? StrataShiftAt(seed, worldX, worldZ) : int.MinValue;
+
         // Crater-floor metal clumps (item 33): on a cratered world, the top cells of a metal-bearing deep
         // crater floor are exposed rare ore instead of regolith (only some craters, a few clumps each).
         BlockId? craterMetal = (planet.Cratered || _crateredWorld)
@@ -805,6 +844,12 @@ public sealed partial class WorldGenerator
             Tunnels = tunnelCount > 0 ? tunnelSpans.Slice(0, tunnelCount).ToArray() : System.Array.Empty<(int Lo, int Hi)>(),
             CraterMetal = craterMetal,
             EffSurfaceDepth = effSurfaceDepth,
+            GeodeHere = geodeHere,
+            GeoLo = geoLo,
+            GeoHi = geoHi,
+            GeoInLo = geoInLo,
+            GeoInHi = geoInHi,
+            StrataShift = strataShift,
         };
     }
 }

@@ -1,7 +1,7 @@
 [
   {
     "key": "rocky", "baseTemperature": 12, "nameKey": "planet.rocky.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.35,
-    "terrainTags": ["buttes", "hoodoos"],
+    "terrainTags": ["buttes", "hoodoos", "inselbergs"],
     "baseHeight": 64, "amplitude": 14, "terrainScale": 48.0, "terrainStyle": "mesa",
     "terrainStyles": ["mesa", "hills", "canyons", "downs"],
     "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -24,6 +24,7 @@
   },
   {
     "key": "ice", "floraTheme": "tundra", "baseTemperature": -38, "nameKey": "planet.ice.name", "atmosphereHeight": 200, "cloudColor": 14478069, "cloudDensity": 0.5,
+    "terrainTags": ["glacial"],
     "baseHeight": 60, "amplitude": 10, "terrainScale": 56.0,
     "terrainStyles": ["hills", "flats", "glacial"],
     "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
@@ -70,7 +71,7 @@
   },
   {
     "key": "desert", "floraTheme": "desert", "baseTemperature": 44, "nameKey": "planet.desert.name", "atmosphereHeight": 190, "cloudColor": 15260080, "cloudDensity": 0.3,
-    "terrainTags": ["buttes"],
+    "terrainTags": ["buttes", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 10, "terrainScale": 60.0, "terrainStyle": "dunes",
     "terrainStyles": ["dunes", "badlands", "flats", "downs"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 5,
@@ -204,7 +205,7 @@
   },
   {
     "key": "savanna", "floraTheme": "savanna", "baseTemperature": 32, "nameKey": "planet.savanna.name", "atmosphereHeight": 210, "cloudColor": 15261109, "cloudDensity": 0.3,
-    "terrainTags": ["buttes"],
+    "terrainTags": ["buttes", "inselbergs"],
     "baseHeight": 64, "amplitude": 10, "terrainScale": 58.0,
     "terrainStyles": ["hills", "downs", "flats"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -297,6 +298,7 @@
   },
   {
     "key": "tundra", "floraTheme": "tundra", "baseTemperature": -22, "nameKey": "planet.tundra.name", "atmosphereHeight": 220, "cloudColor": 14606326, "cloudDensity": 0.5,
+    "terrainTags": ["glacial"],
     "baseHeight": 62, "amplitude": 14, "terrainScale": 52.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs", "drumlins"],
     "surfaceBlock": "snow", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -369,7 +371,7 @@
   },
   {
     "key": "salt_flats", "floraTheme": "desert", "exotic": true, "baseTemperature": 40, "nameKey": "planet.salt_flats.name", "atmosphereHeight": 200, "cloudColor": 15263962, "cloudDensity": 0.2,
-    "terrainTags": ["salt"],
+    "terrainTags": ["salt", "wind"],
     "baseHeight": 60, "amplitude": 4, "terrainScale": 70.0, "terrainStyle": "flats",
     "surfaceBlock": "salt", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4, "beachBlock": "salt",
     "caveThreshold": 0.82, "dataCacheRarity": 0.0012,
@@ -409,7 +411,7 @@
   },
   {
     "key": "tablelands", "floraTheme": "savanna", "baseTemperature": 24, "nameKey": "planet.tablelands.name", "atmosphereHeight": 200, "cloudColor": 15450749, "cloudDensity": 0.25,
-    "terrainTags": ["buttes", "hoodoos"],
+    "terrainTags": ["buttes", "hoodoos", "inselbergs", "wind"],
     "baseHeight": 62, "amplitude": 26, "terrainScale": 58.0, "terrainStyle": "tablelands",
     "terrainStyles": ["tablelands", "terraces", "mesa"],
     "surfaceBlock": "granite", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 4,
@@ -431,7 +433,7 @@
   },
   {
     "key": "badlands", "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.badlands.name", "atmosphereHeight": 190, "cloudColor": 15593458, "cloudDensity": 0.2,
-    "terrainTags": ["buttes", "hoodoos"],
+    "terrainTags": ["buttes", "hoodoos", "wind"],
     "baseHeight": 60, "amplitude": 16, "terrainScale": 40.0, "terrainStyle": "badlands",
     "terrainStyles": ["badlands", "canyons", "terraces"],
     "surfaceBlock": "sand", "subSurfaceBlock": "granite", "deepBlock": "stone", "surfaceDepth": 3,

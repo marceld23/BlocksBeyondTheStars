@@ -24,6 +24,20 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 3/6: 12 landmark families, 4 overhang bands, geodes / aquifers / strata (#1646, 2026-09-05, branch landscape/1646-landmarks)
+
+Generation-1 worlds only; the eight classic goldens are byte-identical, `tundra-gen1` + `rocky-gen1` pinned
+(`highland-gen1` re-pinned — the gen-1 groups move with every part until release). `WorldGenerator.LandmarksGen1.cs`:
+rows `shield-volcano`, `impact-basin`, `glacial-trough`, `yardangs`, `drumlin-field`, `inselberg` (granite paint),
+`star-dunes`, `mud-volcanoes`, `sinkhole-chain`, `maar`, `mushroom-rock`, `glacier-tongue` (ice paint) appended to
+`LandmarkKinds` after the classic rows; bands natural bridge / coastal ledge / ice cornice / mushroom cap
+(`MaxColumnBands` 8); geodes (crystal shell, hollow), aquifer caverns, sediment strata (granite until sandstone lands
+in part 4). Tags `inselbergs` / `wind` / `glacial` in `planets.json`. `LandscapeLandmarksTests` (gen-0 invariance,
+table order, per-row shape ranges, granite/ice paints, clamp + determinism + seam, bridge/cap/cornice bands, geode
+hollow, strata count gen 0 vs 1, aquifer lake rate). Docs: WORLD_GENERATION.md §12.2.
+
+---
+
 ### ★ Landscape variety 2/6: regional style pools, per-world scale, biome relief, 7 new styles, 11 archetypes, planet regimes (#1645, 2026-09-05, branch landscape/1645-relief)
 
 Generation-1 worlds only (`w.Generation >= 1`; the eight classic goldens are byte-identical, three `*-gen1` groups
