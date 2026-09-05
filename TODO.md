@@ -24,6 +24,44 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ HUD look pass: SDF text, shader-drawn holo chrome, a real hologram glow, vitals icons and a motion layer (2026-09-05, branch feat/hud-wow-look — WORKTREE TRIAL, unreleased, positions untouched)
+
+**Why.** Marcel, 2026-09-05: "wie würde man in Unity ein HUD bauen, das State-of-the-art aussieht (WOW-Effekt)?
+… ich will das alles in einem Worktree einmal ausprobieren." The research (analysis doc, gitignored) found the
+gap was not the UI system but four missing layers every modern sci-fi HUD has: SDF text, light that actually
+blooms, resolution-independent chrome, and motion. uGUI stays (Unity 6.4 still names it the primary runtime
+choice); nothing moved on screen (playtest feedback #485/#915 owns the layout); WebGL keeps the flat overlay path.
+
+**What ships.** (1) **Text:** `UiText` — TextMeshPro (already inside our uGUI 2.0 package) with a font asset built
+at RUNTIME from the bundled Rajdhani TTF (dynamic SDF atlas, Noto Sans + JP/KR/SC as dynamic fallbacks — no baked
+asset, ADR 0002), three looks on one atlas: plain, a dark underlay (replaces the 5×-vertex `UiOutline` on the HUD)
+and a cyan glow for headline labels. The TMP essential resources (`Assets/TextMesh Pro`: settings, SDF shaders,
+Liberation fallback) are extracted from the package and committed; the SDF shaders join the always-included list so
+the runtime materials' glow/underlay keyword variants survive the build. HUD only — `HudUi`, `VegaPanel`,
+`SpaceRadar`, the quick-bar cells; menus stay on legacy `Text`. (2) **Chrome:** `UiHolo` + `BlocksBeyondTheStars/UiHolo`
+— a signed-distance rounded rect / ring on a plain quad, one shared material, per-element parameters (size, radius,
+border, glow, reveal, fill opacity) in UV1–UV3 via a `BaseMeshEffect`, so everything still batches: soft outer glow,
+corner-bright brackets, a slow border sweep, a left→right boot reveal, `_ClipRect`/stencil aware. Panels, the compass
+and radar rings, the hotbar backplate/cells/selection ring, every bar (vitals, wreck, repair, speeder) use it; the
+bitmap sprites remain as the fallback when the shader is missing. (3) **Glow:** the visor composite gains a real
+hologram bloom — the HUD RT is thresholded + downsampled to quarter resolution and blurred (two 9-tap passes,
+`Visor.shader` passes 1–3, render-graph blits in `VisorUrpCompositor`) and added in the composite; a damage
+**glitch** (row jitter + chroma burst, `VisorHud.Kick`) fires with every health drop. Medium+ only, like the visor
+itself. (4) **Icons:** `tools/ai-assets/gen_hud_icons.py` (Pillow, no paid generation) draws white line icons
+for health/oxygen/energy/hunger/hull/shield into the 22-unit gutter the bars always left free. (5) **Motion:**
+`UiTween` (in-house, ~200 lines, unscaled time, reduced-motion aware): vitals ease with a **ghost trail** that
+shows what a hit just took and numbers **roll**; the hotbar ring flares on selection; toasts slide in; the hit
+marker recoils; the whole HUD **boots** (fade + staggered panel reveal) on world entry and after a respawn.
+(6) **Perf:** the per-frame movers (vitals, compass, hotbar, crosshair) sit on nested sub-canvases, so their
+vertex updates no longer re-batch the static chrome (perf analysis 2026-09-03, item 24).
+
+**Verification.** Local Unity build in the worktree (client scripts are not compiled by PR CI); no .NET suite is
+touched (client/Assets only). Playtest: Marcel looks at the built client.
+
+**Open.** Marcel's verdict on the look; glow/threshold tuning; TMP for the menus (they still use `Text`); the
+`PerfProbe` text-change tracker only sees legacy `Text`; a runtime `SpriteAtlas` for the remaining icon textures
+(Unity 6.4 API); PerfProbe A/B of the sub-canvas split.
+
 ### ★ Hyperspace chart: a stars-only galaxy tab on the flight chart, jump-from-chart, real star colours, the finale out past the frontier (#1603 #1604 #1605, 2026-09-05, branch feat/hyperspace-chart-1603)
 
 **Why.** Marcel, 2026-09-05: "like the planet chart in space, I want a hyperspace map of the star systems — as a

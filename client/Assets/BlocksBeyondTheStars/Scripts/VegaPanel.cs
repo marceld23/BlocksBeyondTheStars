@@ -43,10 +43,10 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private GameObject _speech;
-        private Text _speechText;
-        private Text _continueHint;
+        private TMPro.TMP_Text _speechText;
+        private TMPro.TMP_Text _continueHint;
         private GameObject _chip;
-        private Text _chipText;
+        private TMPro.TMP_Text _chipText;
 
         private readonly Queue<(string Text, bool Prologue)> _queue = new Queue<(string, bool)>();
         private string _current = string.Empty;  // the page being typed/read (not the whole line)
@@ -58,7 +58,7 @@ namespace BlocksBeyondTheStars.Client
         // lines — they used to be silently truncated.
         private readonly List<string> _pages = new List<string>();
         private int _page;
-        private static readonly TextGenerator Measurer = new TextGenerator();
+        // (Page measurement now uses TMP's own line info — see SplitPages.)
 
         // First-spawn narrative prologue (#738, reworked in #754): Kind-4 lines run through the SAME speech
         // panel as every other VEGA line (same measure, same paging, same user UI scale) — they used to get
@@ -104,7 +104,7 @@ namespace BlocksBeyondTheStars.Client
             // Speech panel: left side above the vitals, out of the crosshair's way. VEGA gets a small
             // generated avatar chip beside her name (uGUI icon pass). Coordinates are in HUD reference
             // units; the left column is tight (vitals → speech → chip → scan panel → hotbar), see #482.
-            _speech = UiKit.AddPanel(_canvas.transform, 24, SpeechY, 640, SpeechH, new Color(0.05f, 0.10f, 0.16f, 0.82f)).gameObject;
+            _speech = UiHolo.AddPanel(_canvas.transform, 24, SpeechY, 640, SpeechH, new Color(0.05f, 0.10f, 0.16f, 0.82f), 12f, 1.5f, 1.2f).gameObject;
             var avatar = UiKit.Icon("icon_vega");
             float nameX = 14f;
             if (avatar != null)
@@ -113,28 +113,24 @@ namespace BlocksBeyondTheStars.Client
                 nameX = 54f;
             }
 
-            UiKit.AddText(_speech.transform, nameX, 6, 320, 30, L("ui.vega.name"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold);
-            _speechText = UiKit.AddText(_speech.transform, 14, 44, SpeechTextW, SpeechTextH, string.Empty, 22, UiKit.TextCol, TextAnchor.UpperLeft);
-            _speechText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            UiText.Add(_speech.transform, nameX, 6, 320, 30, L("ui.vega.name"), 22, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Bold, UiText.Look.Glow);
+            _speechText = UiText.Add(_speech.transform, 14, 44, SpeechTextW, SpeechTextH, string.Empty, 22, UiKit.TextCol, TextAnchor.UpperLeft, FontStyle.Normal, UiText.Look.Outline);
             // Truncate, NOT Overflow: an LLM-authored line has no length bound on the wire, and an
             // over-long one used to run over the continue hint and out of the panel background (#482).
-            _speechText.verticalOverflow = VerticalWrapMode.Truncate;
-            UiKit.AddOutline(_speechText); // readable over bright terrain / snow / sky
+            UiText.Wrap(_speechText, truncate: true); // readable over bright terrain / snow / sky (underlay look)
             // Lines advance on a KEYPRESS (they queued straight through each other before — unreadable).
-            _continueHint = UiKit.AddText(_speech.transform, 14, 160, 612, 24, L("ui.vega.next"), 16, UiKit.CyanDim, TextAnchor.MiddleRight);
+            _continueHint = UiText.Add(_speech.transform, 14, 160, 612, 24, L("ui.vega.next"), 16, UiKit.CyanDim, TextAnchor.MiddleRight, FontStyle.Normal, UiText.Look.Outline);
             _continueHint.gameObject.SetActive(false);
             _speech.SetActive(false);
 
             // Objective chip: small persistent strip below the speech spot. (Skipping/restarting the
             // tutorial lives in the Settings tab — the mouse is captured for camera control out here,
             // so a button on the chip was unreachable.)
-            _chip = UiKit.AddPanel(_canvas.transform, 24, ChipY, 640, 48, new Color(0.05f, 0.10f, 0.16f, 0.66f)).gameObject;
-            _chipText = UiKit.AddText(_chip.transform, 14, 0, 614, 48, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft);
+            _chip = UiHolo.AddPanel(_canvas.transform, 24, ChipY, 640, 48, new Color(0.05f, 0.10f, 0.16f, 0.66f), 10f, 1.2f, 0.9f).gameObject;
+            _chipText = UiText.Add(_chip.transform, 14, 0, 614, 48, string.Empty, 20, UiKit.Cyan, TextAnchor.MiddleLeft, FontStyle.Normal, UiText.Look.Outline);
             // Wrap + truncate as a safety net — the UiKit default (Overflow) would let an over-long
             // objective label spill outside the chip background (#736 side finding).
-            _chipText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _chipText.verticalOverflow = VerticalWrapMode.Truncate;
-            UiKit.AddOutline(_chipText);
+            UiText.Wrap(_chipText, truncate: true);
             _chip.SetActive(false);
 
             if (Game?.Network != null)
@@ -648,21 +644,36 @@ namespace BlocksBeyondTheStars.Client
         }
 
         /// <summary>Splits a line into pages that fit the speech box, cutting only on wrap-line boundaries.
-        /// Layout is measured with an explicit scaleFactor of 1, so line heights come back in HUD reference
-        /// units regardless of canvas scaling (the What's-new dialog's proven measurement pattern).</summary>
+        /// TMP lays the text out against the label's own rect (HUD reference units, independent of the canvas
+        /// scale) without rendering it; each line's first character maps back to its index in the raw string,
+        /// so pages cut on the same boundaries the legacy TextGenerator measurement did.</summary>
         private List<string> SplitPages(string text)
         {
-            var settings = _speechText.GetGenerationSettings(new Vector2(SpeechTextW, 0f));
-            settings.scaleFactor = 1f;
-            settings.verticalOverflow = VerticalWrapMode.Overflow;
-            Measurer.Populate(text, settings);
-            var lines = Measurer.lines;
-            var starts = new List<int>(lines.Count);
-            var heights = new List<float>(lines.Count);
-            for (int i = 0; i < lines.Count; i++)
+            bool wasActive = _speech.activeSelf;
+            if (!wasActive)
             {
-                starts.Add(lines[i].startCharIdx);
-                heights.Add(lines[i].height);
+                _speech.SetActive(true); // TMP needs a live rect to lay out against
+            }
+
+            var prevOverflow = _speechText.overflowMode;
+            _speechText.overflowMode = TMPro.TextOverflowModes.Overflow;
+            var info = _speechText.GetTextInfo(text);
+            _speechText.overflowMode = prevOverflow;
+            if (!wasActive)
+            {
+                _speech.SetActive(false);
+            }
+
+            int lineCount = info != null ? info.lineCount : 0;
+            var starts = new List<int>(lineCount);
+            var heights = new List<float>(lineCount);
+            for (int i = 0; i < lineCount; i++)
+            {
+                var line = info.lineInfo[i];
+                int first = line.firstCharacterIndex;
+                int raw = first >= 0 && first < info.characterCount ? info.characterInfo[first].index : 0;
+                starts.Add(Mathf.Clamp(raw, 0, text.Length));
+                heights.Add(Mathf.Max(line.lineHeight, 1f));
             }
 
             var pages = new List<string>();

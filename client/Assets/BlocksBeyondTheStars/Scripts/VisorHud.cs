@@ -30,6 +30,21 @@ namespace BlocksBeyondTheStars.Client
 
         private Camera _hudCam;
         private RenderTexture _rt;
+        private RTHandle _rtHandle; // the HUD RT wrapped for the render graph (glow chain input)
+        private float _glitch;      // damage glitch envelope, 0..1, decays every frame
+
+        /// <summary>The live visor (null while no world is up) — for <see cref="Kick"/>.</summary>
+        public static VisorHud Instance { get; private set; }
+
+        /// <summary>Damage feedback: the HUD hologram glitches for a moment (row jitter + chroma burst),
+        /// strength 0..1. No-op on the flat path / reduced effects.</summary>
+        public static void Kick(float amount)
+        {
+            if (Instance != null && !UiKit.ReducedMotion)
+            {
+                Instance._glitch = Mathf.Max(Instance._glitch, Mathf.Clamp01(amount));
+            }
+        }
         private VisorComposite _composite;     // Built-in RP path (OnRenderImage)
         private VisorUrpCompositor _urp;       // URP path (render-graph blit after post)
         private float _urpTime;
@@ -84,6 +99,8 @@ namespace BlocksBeyondTheStars.Client
                 return;
             }
 
+            Instance = this;
+
             if (PipelineWanted())
             {
                 EngagePipeline();
@@ -118,6 +135,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 // URP: composite via a render-graph blit pass after post (OnRenderImage never runs under URP).
                 _urp = new VisorUrpCompositor(MainCamera, _shader);
+                _urp.SetHud(_rtHandle);
             }
             else
             {
@@ -159,6 +177,7 @@ namespace BlocksBeyondTheStars.Client
 
             _urp?.Dispose();
             _urp = null;
+            ReleaseRtHandle();
 
             if (_hudCam != null)
             {
@@ -191,6 +210,17 @@ namespace BlocksBeyondTheStars.Client
                 antiAliasing = 1,
             };
             _rt.Create();
+            ReleaseRtHandle();
+            _rtHandle = RTHandles.Alloc(_rt);
+        }
+
+        private void ReleaseRtHandle()
+        {
+            if (_rtHandle != null)
+            {
+                RTHandles.Release(_rtHandle);
+                _rtHandle = null;
+            }
         }
 
         private void LateUpdate()
@@ -240,6 +270,8 @@ namespace BlocksBeyondTheStars.Client
                 {
                     _hudCam.targetTexture = _rt;
                 }
+
+                _urp?.SetHud(_rtHandle);
 
                 if (_composite != null)
                 {
@@ -295,13 +327,16 @@ namespace BlocksBeyondTheStars.Client
                     m.SetColor(RimColorId, ShaderColor.Srgb(new Color(0.4f, 0.85f, 1f, 1f)));
                     m.SetFloat(CurvatureId, fx ? 0.012f : 0f);   // gentle bow (was 0.045 — warped/softened the HUD)
                     m.SetFloat(ChromaId, fx ? 0.0015f : 0f);     // whisper of fringe (was 0.005)
-                    m.SetFloat(GlowId, fx ? 0.35f : 0f);         // softer hologram bloom (was 0.6)
+                    m.SetFloat(GlowId, fx ? 0.55f : 0f);         // blurred hologram glow (quarter-res chain)
+                    m.SetFloat(GlowThresholdId, 0.28f);          // only the bright cyan/white HUD pixels bloom
                     m.SetFloat(ReflectId, fx ? 0.02f : 0f);      // barely-there world reflection (was 0.08 — ghosted the frame)
                     m.SetFloat(RimIntensityId, fx ? 0.05f : 0f); // faint edge glow (was 0.10)
                 }
 
                 m.SetFloat(VisorTimeId, _urpTime);
                 m.SetFloat(IntensityId, fx ? _intensity : 0f);
+                _glitch = Mathf.Max(0f, _glitch - Time.deltaTime * 2.8f);
+                m.SetFloat(GlitchId, fx ? _glitch * _glitch : 0f); // squared: a sharp hit that fades fast
                 m.SetVector(ParallaxId, fx ? new Vector4(_parallax.x, _parallax.y, 0f, 0f) : Vector4.zero);
             }
         }
@@ -317,6 +352,8 @@ namespace BlocksBeyondTheStars.Client
         private static readonly int ChromaId = Shader.PropertyToID("_Chroma");
         private static readonly int ParallaxId = Shader.PropertyToID("_Parallax");
         private static readonly int GlowId = Shader.PropertyToID("_Glow");
+        private static readonly int GlowThresholdId = Shader.PropertyToID("_GlowThreshold");
+        private static readonly int GlitchId = Shader.PropertyToID("_Glitch");
         private static readonly int ReflectId = Shader.PropertyToID("_Reflect");
         private static readonly int RimIntensityId = Shader.PropertyToID("_RimIntensity");
         private RenderTexture _urpLastRt;
@@ -326,6 +363,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+
             if (UiKit.HudCamera == _hudCam)
             {
                 UiKit.HudCamera = null;
@@ -339,6 +381,7 @@ namespace BlocksBeyondTheStars.Client
 
             _urp?.Dispose();
             _urp = null;
+            ReleaseRtHandle();
 
             if (_rt != null)
             {

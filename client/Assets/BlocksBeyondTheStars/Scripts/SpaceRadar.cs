@@ -25,9 +25,9 @@ namespace BlocksBeyondTheStars.Client
 
         private Canvas _canvas;
         private RectTransform _center;
-        private Text _stationLabel;
+        private TMPro.TMP_Text _stationLabel;
         private Image _wpBlip;    // the nav waypoint (#597), amber — distinct from every entity colour
-        private Text _wpLabel;    // waypoint distance readout under the radar
+        private TMPro.TMP_Text _wpLabel;    // waypoint distance readout under the radar
 
         // #1516: last-formatted readout state so the label strings are built on change, not every frame.
         // Tracked in rounded flight units; the labels print them as km (#1599, SpaceDistance).
@@ -63,9 +63,20 @@ namespace BlocksBeyondTheStars.Client
             face.pivot = new Vector2(0.5f, 1f);
             face.sizeDelta = new Vector2((Radius + 8f) * 2f, (Radius + 8f) * 2f);
             face.anchoredPosition = new Vector2(0f, -16f);
-            var faceImg = faceGo.AddComponent<RawImage>();
-            faceImg.texture = UiKit.RadarCircle;
-            faceImg.raycastTarget = false;
+            // Holo ring face (crisp at any DPI, slow border sweep) — the bitmap disc when the shader is out.
+            if (UiHolo.Available)
+            {
+                var faceImg = faceGo.AddComponent<Image>();
+                faceImg.raycastTarget = false;
+                faceImg.color = new Color(0.04f, 0.10f, 0.20f, 1f);
+                UiHolo.Apply(faceImg, UiHolo.Style.Ring, Radius + 8f, 2f, 1.2f).FillOpacity = 0.62f;
+            }
+            else
+            {
+                var faceRaw = faceGo.AddComponent<RawImage>();
+                faceRaw.texture = UiKit.RadarCircle;
+                faceRaw.raycastTarget = false;
+            }
 
             // A centred anchor that the ship marker + blips position around (+y = up/forward).
             var centerGo = new GameObject("Center", typeof(RectTransform));
@@ -85,13 +96,16 @@ namespace BlocksBeyondTheStars.Client
             lrt.pivot = new Vector2(0.5f, 1f);
             lrt.sizeDelta = new Vector2(280f, 22f);
             lrt.anchoredPosition = new Vector2(0f, -(16f + (Radius + 8f) * 2f + 4f));
-            _stationLabel = labelGo.AddComponent<Text>();
-            _stationLabel.font = UiKit.Font;
-            _stationLabel.fontSize = 15;
-            _stationLabel.color = new Color(0.4f, 0.85f, 1f);
-            _stationLabel.alignment = TextAnchor.MiddleCenter;
-            _stationLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _stationLabel.raycastTarget = false;
+            var station = labelGo.AddComponent<TMPro.TextMeshProUGUI>();
+            station.font = UiText.Font;
+            station.fontSize = 15;
+            station.color = new Color(0.4f, 0.85f, 1f);
+            station.alignment = TMPro.TextAlignmentOptions.Center;
+            station.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            station.overflowMode = TMPro.TextOverflowModes.Overflow;
+            station.raycastTarget = false;
+            UiText.Style(station, UiText.Look.Outline);
+            _stationLabel = station;
 
             // Nav waypoint (#597): the map_waypoint glyph as a radar blip + a distance line of its own —
             // amber like the surface compass waypoint, so the two systems read as one feature.
@@ -111,13 +125,16 @@ namespace BlocksBeyondTheStars.Client
             wrt.pivot = new Vector2(0.5f, 1f);
             wrt.sizeDelta = new Vector2(280f, 20f);
             wrt.anchoredPosition = new Vector2(0f, -(16f + (Radius + 8f) * 2f + 26f));
-            _wpLabel = wpGo.AddComponent<Text>();
-            _wpLabel.font = UiKit.Font;
-            _wpLabel.fontSize = 14;
-            _wpLabel.color = WaypointCol;
-            _wpLabel.alignment = TextAnchor.MiddleCenter;
-            _wpLabel.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _wpLabel.raycastTarget = false;
+            var wp = wpGo.AddComponent<TMPro.TextMeshProUGUI>();
+            wp.font = UiText.Font;
+            wp.fontSize = 14;
+            wp.color = WaypointCol;
+            wp.alignment = TMPro.TextAlignmentOptions.Center;
+            wp.textWrappingMode = TMPro.TextWrappingModes.NoWrap;
+            wp.overflowMode = TMPro.TextOverflowModes.Overflow;
+            wp.raycastTarget = false;
+            UiText.Style(wp, UiText.Look.Outline);
+            _wpLabel = wp;
             _wpLabel.gameObject.SetActive(false);
         }
 
