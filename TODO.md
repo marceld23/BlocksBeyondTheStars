@@ -24,7 +24,7 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
-### ★ HUD look pass: SDF text, shader-drawn holo chrome, a real hologram glow, vitals icons and a motion layer (2026-09-05, branch feat/hud-wow-look — WORKTREE TRIAL, unreleased, positions untouched)
+### ★ HUD look pass: SDF text, shader-drawn holo chrome, a real hologram glow, vitals icons and a motion layer (#1623 #1624 #1625 #1626 #1627 #1628, 2026-09-05, branch feat/hud-wow-look — unreleased, positions untouched)
 
 **Why.** Marcel, 2026-09-05: "wie würde man in Unity ein HUD bauen, das State-of-the-art aussieht (WOW-Effekt)?
 … ich will das alles in einem Worktree einmal ausprobieren." The research (analysis doc, gitignored) found the
@@ -55,8 +55,9 @@ marker recoils; the whole HUD **boots** (fade + staggered panel reveal) on world
 (6) **Perf:** the per-frame movers (vitals, compass, hotbar, crosshair) sit on nested sub-canvases, so their
 vertex updates no longer re-batch the static chrome (perf analysis 2026-09-03, item 24).
 
-**Verification.** Local Unity build in the worktree (client scripts are not compiled by PR CI); no .NET suite is
-touched (client/Assets only). Playtest: Marcel looks at the built client.
+**Verification.** Local Unity build in the worktree (client scripts are not compiled by PR CI) + the automated
+screenshot capture of the built client (cockpit, planet surface, space flight; no player-log exceptions); no .NET
+suite is touched (client/Assets only). Marcel approved the look on the screenshots ("sieht prima aus").
 
 **Open.** Marcel's verdict on the look; glow/threshold tuning; TMP for the menus (they still use `Text`); the
 `PerfProbe` text-change tracker only sees legacy `Text`; a runtime `SpriteAtlas` for the remaining icon textures
