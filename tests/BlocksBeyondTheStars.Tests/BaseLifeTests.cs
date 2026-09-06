@@ -287,4 +287,52 @@ public sealed class BaseLifeTests : IDisposable
             Assert.Equal(1, server.NpcSnapshots.Count(n => n.Role == "settler"));
         }
     }
+
+    // ---------------- #1658: the settler never stands under water ----------------
+
+    /// <summary>Lyxette's shore base: the classic settler spot is a sand column under two cells of water. The
+    /// entombment predicate calls water "free", the walking predicate calls it a wall — the settler used to be
+    /// homed on the seabed and could never leave. Now a wet column is not a home, and a home that floods
+    /// afterwards re-homes them on the next scan.</summary>
+    [Fact]
+    public void TheSettler_NeverMovesIntoWater_AndMovesOutWhenFlooded()
+    {
+        var server = Start(out var repo);
+        using (repo)
+        {
+            var owner = server.AddLocalPlayer("Homesteader");
+            var feet = owner.State.Position;
+            var core = new Vector3i((int)Math.Floor(feet.X) + 3, (int)Math.Floor(feet.Y), (int)Math.Floor(feet.Z));
+            server.PlaceBaseForTest(owner, core);
+            int baseId = server.BaseSnapshots.Single(b => b.OwnerId == owner.State.PlayerId).Id;
+            var workbench = _content.GetBlock("workbench")!.NumericId;
+            server.World.SetBlock(new Vector3i(core.X + 1, core.Y, core.Z), workbench, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(core.X - 1, core.Y, core.Z), workbench, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(core.X, core.Y, core.Z - 1), workbench, 0, 0, 0, "Homesteader");
+
+            // A pond exactly where the classic spot is: sand floor, two water cells over it.
+            var water = _content.GetBlock("water")!.NumericId;
+            var sand = _content.GetBlock("sand")!.NumericId;
+            var pond = new Vector3i(core.X + 2, core.Y + 1, core.Z + 2);
+            server.World.SetBlock(new Vector3i(pond.X, pond.Y - 1, pond.Z), sand, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(pond, water, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(pond.X, pond.Y + 1, pond.Z), water, 0, 0, 0, "Homesteader");
+
+            server.ScanBaseLifeForTest();
+            int settlerId = server.BaseSettlerForTest(baseId)!.Value;
+            var settler = server.NpcSnapshots.Single(n => n.Id == settlerId && n.Role == "settler");
+            AssertStandable(server, settler.Home);
+            Assert.NotEqual(new Vector3f(pond.X + 0.5f, pond.Y, pond.Z + 0.5f), settler.Home);
+
+            // The sea rises over the home after the settler moved in — same re-home as a wall (#1248).
+            var h = new Vector3i((int)Math.Floor(settler.Home.X), (int)Math.Floor(settler.Home.Y), (int)Math.Floor(settler.Home.Z));
+            server.World.SetBlock(h, water, 0, 0, 0, "Homesteader");
+            server.World.SetBlock(new Vector3i(h.X, h.Y + 1, h.Z), water, 0, 0, 0, "Homesteader");
+
+            server.ScanBaseLifeForTest();
+            var moved = server.NpcSnapshots.Single(n => n.Id == settlerId && n.Role == "settler");
+            Assert.NotEqual(settler.Home, moved.Home);
+            AssertStandable(server, moved.Home);
+        }
+    }
 }

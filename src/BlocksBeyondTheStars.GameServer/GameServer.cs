@@ -3960,7 +3960,8 @@ public sealed partial class GameServer
         // of — glass, beds, frame — stays protected.
         bool harvestingPlant = IsFlora(current.Value);
 
-        if (!harvestingPlant && IsSettlementBlock(pos))
+        // A natural tree inside the box is not the settlement's either (#1659) — see IsSettlementProtected.
+        if (!harvestingPlant && IsSettlementProtected(pos, current))
         {
             Reject(session, "mine", "@srv.protect.settlement");
             return;
@@ -4173,7 +4174,7 @@ public sealed partial class GameServer
 
                     var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
                     var b = _world.GetBlock(p);
-                    if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                    if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
                         || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
                     {
                         continue;
