@@ -120,7 +120,7 @@ Last updated: 2026-08-26.
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
-| **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world to the pad (see §5 → Hover speeder) |
+| **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world straight into your inventory (parked beside the ship, with a marker, only when no slot is free; see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
@@ -1209,11 +1209,15 @@ separate unlock; admins can still disable it through server world rules.
   A speeder wedged against a lip hops over it by itself after a moment; a hull that ends up inside a block lifts out.
 - **Dismounting** puts you on the ground **beside** the hull, and a parked speeder or boat is **solid** — you can
   stand on it, not walk through it.
-- **Lost it?** Walk within 5 m to pack it up (the HUD names the vehicle and its distance when it is a little out of
-  reach). If it is somewhere you cannot get to — the far shore, a ravine — go to your landed ship's **cockpit or
-  console** and press **X**: the ship **recalls** every speeder and boat you left out on this world and parks it
-  beside the pad (a boat on the nearest water). Only from the landed ship, never while someone drives it, never from
-  another world. Dying while driving releases the seat, so you can board or pack it up again afterwards.
+- **Boarding:** walk up to your parked speeder or boat — the centre prompt reads **Board (E) · Pack up (X)** (pad and
+  touch: the USE button boards, the ACT list carries the pack-up).
+- **Lost it?** Walk within 5 m to pack it up (the HUD names the vehicle and its distance while it is within 30 m).
+  If it is somewhere you cannot get to — the far shore, a ravine — go to your landed ship's **cockpit or console**
+  and press **X**: the ship **recalls** every speeder and boat you left out on this world **straight into your
+  inventory**. Only when no slot is free is it parked beside the ship instead — on the cell nearest you, with a
+  "look here" marker on the spot and its distance in the message. Only from the landed ship, never while someone
+  drives it, never from another world. Dying while driving releases the seat, so you can board or pack it up again
+  afterwards.
 
 #### Boat (water vehicle)
 - The **boat** (`boat`) is the water kind of the same system — an early-game workshop craft with **no

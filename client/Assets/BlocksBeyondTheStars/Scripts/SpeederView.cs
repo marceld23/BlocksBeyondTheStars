@@ -160,12 +160,15 @@ namespace BlocksBeyondTheStars.Client
 
             // Solid only while parked (#1662). A driven hull would collide with its own driver's capsule (and a
             // remote driver's body), and a local player standing inside the bounds — dismounted before the
-            // server stepped them off, or walked in while it was disabled — must be able to walk out.
+            // server stepped them off, or walked in while it was disabled — must be able to walk out. "Inside"
+            // is the hull box itself shrunk by the capsule radius (VehicleHull, #1669): the old root-centred
+            // box overhung the hull on two sides (walk-through) and counted the hull's roof as inside (fall-through).
             if (obj.Collider != null)
             {
                 bool driven = !string.IsNullOrEmpty(s.DriverId);
                 Vector3 local = t.InverseTransformPoint(Game.PlayerPosition);
-                bool localInside = !driven && local.y > -1.2f && local.y < 2.4f && Mathf.Abs(local.x) < 1.9f && Mathf.Abs(local.z) < 3.1f;
+                Vector3 off = obj.Boat ? BoatMeshOffset : MeshOffset;
+                bool localInside = !driven && VehicleHull.Encloses(local.x, local.y, local.z, off.x, off.y, off.z);
                 bool solid = !driven && !localInside;
                 if (obj.Collider.enabled != solid)
                 {
