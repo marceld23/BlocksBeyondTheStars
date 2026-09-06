@@ -32,15 +32,117 @@ public sealed class UniverseGenerator
 
     private readonly long _seed;
     private readonly WorldDescription _desc;
+    private readonly GameContent _content;
     private readonly List<(string key, int weight)> _planetWeights;
+    private readonly List<(string key, int weight)> _gen1Weights;
     private readonly List<(string key, int weight)> _asteroidWeights;
 
     public UniverseGenerator(long seed, WorldDescription description, GameContent content)
     {
         _seed = seed;
         _desc = description;
+        _content = content;
         _planetWeights = BuildPlanetWeights(description, content);
+        _gen1Weights = BuildGenerationWeights(description, content);
         _asteroidWeights = BuildAsteroidWeights(content);
+    }
+
+    /// <summary>Share of the eligible planets and moons (outside the start system) a generation-1 galaxy retypes
+    /// into the generation-1 planet types (#1649) — the classic layout stays byte-identical, some worlds are new kinds.</summary>
+    private const int Gen1RetypeChance = 46; // of 256 ≈ 18 %
+
+    /// <summary>The generation-gated types (#1649: <see cref="PlanetType.MinTerrainGeneration"/> &gt; 0) this
+    /// description may roll, weighted like the classic table (player override, else spawn weight × exotic).</summary>
+    private static List<(string, int)> BuildGenerationWeights(WorldDescription desc, GameContent content)
+    {
+        double exotic = desc.ExoticWorlds switch
+        {
+            Frequency.Off => 0.0,
+            Frequency.VeryRare => 0.34,
+            Frequency.Rare => 0.6,
+            Frequency.Frequent => 2.5,
+            _ => 1.0,
+        };
+
+        var list = new List<(string, int)>();
+        foreach (var key in content.Planets.Keys)
+        {
+            if (content.GetPlanet(key) is not { Selectable: true } p || p.MinTerrainGeneration <= 0 || p.MinTerrainGeneration > desc.TerrainGeneration)
+            {
+                continue;
+            }
+
+            int weight = desc.PlanetTypeFrequencies.TryGetValue(key, out var freq)
+                ? freq.Weight()
+                : p.Exotic ? (int)System.Math.Round(System.Math.Max(0, p.SpawnWeight) * exotic) : System.Math.Max(0, p.SpawnWeight);
+            if (weight > 0)
+            {
+                list.Add((key, weight));
+            }
+        }
+
+        list.Sort((a, b) => string.CompareOrdinal(a.Item1, b.Item1));
+        return list;
+    }
+
+    /// <summary>Retypes a share of the planets and moons into the generation-1 types (#1649) AFTER the classic
+    /// generation ran: the layout, ids, names and every rng draw stay exactly as on a classic galaxy (the
+    /// weighted classic roll never sees the new types), only the retyped bodies read as new kinds. The start
+    /// system and the galaxy's first breathable planet (the server's start-body rule) are left alone, so the
+    /// start world and its neighbourhood are what they always were. Deterministic per body from the seed.</summary>
+    private void ApplyGenerationTypes(Galaxy galaxy)
+    {
+        if (_gen1Weights.Count == 0)
+        {
+            return;
+        }
+
+        CelestialBody? firstBreathable = null;
+        foreach (var b in galaxy.AllBodies())
+        {
+            if (b.Kind == CelestialKind.Planet && b.PlanetType is { } t && _content.GetPlanet(t) is { } p
+                && string.Equals(p.Atmosphere, "breathable", System.StringComparison.OrdinalIgnoreCase))
+            {
+                firstBreathable = b;
+                break;
+            }
+        }
+
+        int total = 0;
+        foreach (var (_, w) in _gen1Weights)
+        {
+            total += w;
+        }
+
+        for (int si = 1; si < galaxy.Systems.Count; si++)
+        {
+            var system = galaxy.Systems[si];
+            for (int bi = 0; bi < system.Bodies.Count; bi++)
+            {
+                var body = system.Bodies[bi];
+                if ((body.Kind != CelestialKind.Planet && body.Kind != CelestialKind.Moon) || ReferenceEquals(body, firstBreathable))
+                {
+                    continue;
+                }
+
+                ulong h = Noise.Hash(_seed ^ 0x6E1A7, si, bi, 0x1649);
+                if ((h & 0xFF) >= (ulong)Gen1RetypeChance)
+                {
+                    continue;
+                }
+
+                int roll = (int)((h >> 8) % (ulong)total) + 1;
+                foreach (var (key, w) in _gen1Weights)
+                {
+                    roll -= w;
+                    if (roll <= 0)
+                    {
+                        body.PlanetType = key;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>The landable-asteroid families and their relative frequency (#515). Every non-selectable
@@ -99,6 +201,11 @@ public sealed class UniverseGenerator
             if (content.GetPlanet(key) is not { Selectable: true } p)
             {
                 continue; // service types stay out — even when an override names them explicitly
+            }
+
+            if (p.MinTerrainGeneration > 0)
+            {
+                continue; // #1649: generation-gated types never enter the classic weighted roll — ApplyGenerationTypes retypes a share of the bodies afterwards, so every layout stays byte-identical
             }
 
             int weight;
@@ -478,6 +585,7 @@ public sealed class UniverseGenerator
             galaxy.Systems.Add(system);
         }
 
+        ApplyGenerationTypes(galaxy); // #1649: generation-1 planet types, layout untouched
         return galaxy;
     }
 

@@ -749,4 +749,39 @@ giant fern on mud (log stem, a fan of leaf fronds), giant crystal on crystal gro
 (leaf block, two arms) — each with its own salt and density; `StampGiantFloraGen1` runs after the classic
 mushroom stamp, which is untouched.
 
-Part 6 (data-only planet types, monument archetypes, cliff-hugging settlements) is documented here when it lands.
+### 12.5 Part 6 — eight planet types, six monuments, structures on rugged ground (#1649)
+
+**Planet types (data only, `planets.json` + locales + name flavours):** `red_desert` (badlands / dunes /
+terraces, `buttes hoodoos wind inselbergs`, sandstone sub-surface), `boreal` (conifer woods, bogs, drumlins,
+`glacial`), `archipelago` (water 0.9, `archipelago` style, mangrove shores, `wetland`), `glacier` (ice,
+`glacial` style, −45 °C, exotic), `meadowlands` (chalk downs, temperate meadows), `ashen_ocean` (basalt
+world with a lava ocean 0.9 + `volcanic` → basalt continents in a lava sea — possible since the `volcanic`
+tag replaced the lava/ashen key check in part 1; exotic), `dust_bowl` (dry flats with a scree biome, dead
+trees, `wind buttes`), `frozen_ocean` (water 0.9 at −40 °C → a walkable ice sea with rocky islands).
+Spawn weights 4–7 so the classic types keep dominating; `NameGenerator.PlanetFlavors` borrows each type's
+nearest classic flavour; `WorldMetadata.BodyPlanetTypes` (#468) pins every body's type, so old saves never
+re-roll into the new types — and `PlanetType.MinTerrainGeneration` (`"minTerrainGeneration": 1` on the
+eight) keeps them out of the classic weighted roll altogether, so `UniverseGenerator` produces the same
+layout (ids, body counts, names, every rng draw) for every description as before
+(`GalaxyLayoutRegressionTests`). On a generation-1 description `ApplyGenerationTypes` then retypes ~18 %
+of the planets and moons outside the start system into the new types, deterministically per body, never
+the galaxy's first breathable planet (the server's start-body rule): the start world and its neighbourhood
+stay as they were, the new kinds are found further out. A retyped body keeps its classic-flavoured name. The content cross-check test walks every type: blocks, ores, biome blocks,
+styles, tags, theme, EN/DE name + description.
+
+**Monuments.** `MonumentGenerator.ArchetypesGen1` = the classic five + `bridge` (abutment piers, a
+corbelled 9–13 span with parapets, the deck partly fallen), `watchtower` (4×4 hollow tower 10–14 tall,
+doorway, arrow slits, jagged top), `tomb` (stepped mound with a walk-in chamber and a rune sarcophagus),
+`ziggurat` (three tiers, a stair ramp, a shrine on top), `colossus` (a seated 12-tall figure, one arm and
+often the head fallen), `aqueduct` (tall piers, an arcade, a walled channel, one bay collapsed). The
+server draws a generation-1 world's monuments from the larger pool (`_meta.Description.TerrainGeneration
+>= 1`); generation-0 worlds keep the classic five in the same order. The two-anchor bridge placement of
+the plan was not built: the bridge stands as a free monument over whatever it lands on.
+
+**Structures on rugged ground.** The guaranteed placement search of #586 (best-fit rings, slope / shelf /
+stilt seats) already carries generation-1 relief: the part-6 tests start fresh generation-1 highland,
+red-desert and glacier worlds and assert every stamp the rolls requested stands. No placement code changed.
+
+The landscape-variety package is complete with this part; release steps are in the runbook (whats-new
+export before the tag, non-technical changelog, devblog draft, tell ahmdkaml, the pending VPS world
+re-create covers the wave — generation 1 reaches new worlds only).

@@ -35,7 +35,17 @@ public sealed class CustomShipTests : IDisposable
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, "customship"));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = "customship", Seed = 7, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig
+        {
+            WorldName = "customship",
+            Seed = 7,
+            AutoSaveIntervalMinutes = 9999,
+            PlaceStarterShip = false,
+            // #1649: the keel goes down at a fixed column of the start world, which the generation-1 relief may
+            // flood or bury. Ship construction, not terrain, is the subject — pin the classic generation like the
+            // other fixed-position gameplay tests.
+            World = { TerrainGeneration = 0 },
+        };
         var server = new SvGameServer(config, _content, st, repo);
         server.Start();
         server.AddLocalPlayer("Host");

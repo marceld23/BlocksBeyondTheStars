@@ -68,7 +68,10 @@ public sealed class TerrainTagsAndGenerationTests
     {
         var gen = new WorldGenerator(424242, Content);
         gen.SetLavaCoreVolcanoes(true); // the creation-time default — the gates below are independent of it
-        foreach (var planet in Content.Planets.Values)
+        // The eight data-only types of #1649 exist BECAUSE the tags decide (an ash-sea world routes lava rivers
+        // without carrying the lava/ashen key) — the frozen predicates only describe the classic types.
+        var gen1Types = new HashSet<string> { "red_desert", "boreal", "archipelago", "glacier", "meadowlands", "ashen_ocean", "dust_bowl", "frozen_ocean" };
+        foreach (var planet in Content.Planets.Values.Where(p => !gen1Types.Contains(p.Key)))
         {
             var gates = gen.WonderGatesForTest(planet);
             string k = planet.Key;

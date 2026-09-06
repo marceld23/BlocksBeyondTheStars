@@ -119,7 +119,10 @@ public sealed partial class GameServer
         }
 
         // Each monument on a body is a different silhouette, so a world never shows the same relic twice.
-        var pool = MonumentGenerator.Archetypes.OrderBy(a => WorldGenerator.StableHash(a + ':' + mSeed)).ToList();
+        // #1649: generation-1 worlds draw from the larger pool (six more silhouettes); classic worlds keep the
+        // five, in the same order, so a loaded save meets the same relics.
+        var archetypes = _meta.Description.TerrainGeneration >= 1 ? MonumentGenerator.ArchetypesGen1 : MonumentGenerator.Archetypes;
+        var pool = archetypes.OrderBy(a => WorldGenerator.StableHash(a + ':' + mSeed)).ToList();
 
         var placed = new List<(PlacedSettlement Placement, string Archetype, int Index)>();
         for (int i = 0; i < count && i < pool.Count; i++)

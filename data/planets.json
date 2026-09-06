@@ -480,6 +480,185 @@
     ]
   },
   {
+    "key": "red_desert", "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 38, "nameKey": "planet.red_desert.name", "atmosphereHeight": 190, "cloudColor": 14915916, "cloudDensity": 0.25,
+    "terrainTags": ["buttes", "hoodoos", "wind", "inselbergs"],
+    "baseHeight": 62, "amplitude": 16, "terrainScale": 56.0, "terrainStyle": "badlands",
+    "terrainStyles": ["badlands", "dunes", "terraces"],
+    "surfaceBlock": "sand", "subSurfaceBlock": "sandstone", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.80, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "stormChance": 0.15, "dayLengthSeconds": 660, "worldRadius": 900, "floraDensity": 0.04, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.45, "spawnWeight": 6, "waterAbundance": 0.0,
+    "weatherVolatility": 1.2, "seasonAmplitude": 0.2,
+    "weatherEvents": { "gale": 2.6, "heatwave": 2.4, "fog": 0.1, "ground_fog": 0.2, "drizzle": 0.1 },
+    "biomes": [
+      { "surfaceBlock": "sand",      "subSurfaceBlock": "sandstone" },
+      { "surfaceBlock": "sandstone", "subSurfaceBlock": "sandstone", "reliefMul": 1.3 },
+      { "surfaceBlock": "stone",     "subSurfaceBlock": "stone", "reliefMul": 1.5 }
+    ],
+    "ores": [
+      { "block": "iron_ore", "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "gold_ore", "rarity": 0.02, "minDepth": 20, "maxDepth": 2048 },
+      { "block": "silicate", "rarity": 0.07, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "sulfur_ore", "rarity": 0.03, "minDepth": 4, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "boreal", "minTerrainGeneration": 1, "floraTheme": "tundra", "baseTemperature": -4, "nameKey": "planet.boreal.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.55,
+    "terrainTags": ["glacial"],
+    "baseHeight": 63, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "hills",
+    "terrainStyles": ["hills", "downs", "drumlins"],
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0015,
+    "weather": "dynamic", "stormChance": 0.5, "dayLengthSeconds": 620, "worldRadius": 840, "floraDensity": 0.12, "treeDensity": 0.03, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 6, "waterAbundance": 0.6,
+    "weatherVolatility": 1.0, "seasonAmplitude": 0.45,
+    "weatherEvents": { "blizzard": 1.6, "ground_fog": 1.6, "gale": 1.2, "drizzle": 1.4 },
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.1 },
+      { "surfaceBlock": "mud",   "subSurfaceBlock": "mud", "floraTheme": "swamp", "floraDensityMul": 1.0, "treeDensityMul": 0.6, "reliefMul": 0.35 },
+      { "surfaceBlock": "snow",  "subSurfaceBlock": "dirt", "floraDensityMul": 0.7 },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone", "floraTheme": "alpine", "floraDensityMul": 0.5, "reliefMul": 1.5 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.07, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "nickel_ore", "rarity": 0.03, "minDepth": 8,  "maxDepth": 2048 },
+      { "block": "aluminium_ore", "rarity": 0.03, "minDepth": 6, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "archipelago", "minTerrainGeneration": 1, "floraTheme": "tropical", "baseTemperature": 26, "nameKey": "planet.archipelago.name", "atmosphereHeight": 220, "cloudColor": 15922422, "cloudDensity": 0.55,
+    "terrainTags": ["wetland"],
+    "baseHeight": 60, "amplitude": 18, "terrainScale": 56.0, "terrainStyle": "archipelago",
+    "terrainStyles": ["archipelago", "flats"],
+    "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "stormChance": 0.6, "dayLengthSeconds": 600, "worldRadius": 900, "floraDensity": 0.16, "treeDensity": 0.03, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 6, "waterAbundance": 0.9, "beachBlock": "sand",
+    "weatherVolatility": 1.2, "seasonAmplitude": 0.3,
+    "weatherEvents": { "gale": 1.8, "drizzle": 1.6, "fog": 1.2 },
+    "biomes": [
+      { "surfaceBlock": "sand",  "subSurfaceBlock": "sand", "reliefMul": 0.8 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.3 },
+      { "surfaceBlock": "mud",   "subSurfaceBlock": "mud", "floraTheme": "swamp", "reliefMul": 0.35 }
+    ],
+    "ores": [
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "iron_ore",   "rarity": 0.05, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.06, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "gold_ore",   "rarity": 0.015, "minDepth": 24, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "glacier", "minTerrainGeneration": 1, "floraTheme": "alpine", "exotic": true, "baseTemperature": -45, "nameKey": "planet.glacier.name", "atmosphereHeight": 240, "cloudColor": 14606326, "cloudDensity": 0.4,
+    "terrainTags": ["glacial"],
+    "baseHeight": 64, "amplitude": 20, "terrainScale": 52.0, "terrainStyle": "glacial",
+    "terrainStyles": ["glacial", "hills"],
+    "surfaceBlock": "ice", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 6,
+    "caveThreshold": 0.70, "dataCacheRarity": 0.002,
+    "weather": "dynamic", "stormChance": 0.55, "dayLengthSeconds": 640, "worldRadius": 860, "floraDensity": 0.0, "treeDensity": 0.0, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 4, "waterAbundance": 0.5,
+    "weatherVolatility": 0.9, "seasonAmplitude": 0.4,
+    "weatherEvents": { "blizzard": 3.0, "gale": 1.6, "ion_storm": 1.2 },
+    "biomes": [
+      { "surfaceBlock": "ice",   "subSurfaceBlock": "ice" },
+      { "surfaceBlock": "snow",  "subSurfaceBlock": "ice" },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone", "reliefMul": 1.5 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "cobalt_ore", "rarity": 0.03, "minDepth": 16, "maxDepth": 2048 },
+      { "block": "silver_ore", "rarity": 0.03, "minDepth": 16, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4,  "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "meadowlands", "minTerrainGeneration": 1, "floraTheme": "temperate", "baseTemperature": 16, "nameKey": "planet.meadowlands.name", "atmosphereHeight": 230, "cloudColor": 15592941, "cloudDensity": 0.45,
+    "terrainTags": [],
+    "baseHeight": 64, "amplitude": 12, "terrainScale": 54.0, "terrainStyle": "downs",
+    "terrainStyles": ["downs", "hills"],
+    "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.74, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "stormChance": 0.4, "dayLengthSeconds": 600, "worldRadius": 880, "floraDensity": 0.22, "treeDensity": 0.02, "creatureAbundance": "many", "atmosphere": "breathable", "spawnWeight": 7, "waterAbundance": 0.55,
+    "weatherVolatility": 1.0, "seasonAmplitude": 0.35,
+    "weatherEvents": { "drizzle": 1.8, "fog": 1.2, "gale": 0.8 },
+    "biomes": [
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraDensityMul": 1.3 },
+      { "surfaceBlock": "dirt",  "subSurfaceBlock": "dirt", "floraDensityMul": 0.8, "treeDensityMul": 0.5 },
+      { "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "floraTheme": "savanna", "floraDensityMul": 1.0, "treeDensityMul": 0.7 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "aluminium_ore", "rarity": 0.03, "minDepth": 6, "maxDepth": 2048 },
+      { "block": "lithium_ore", "rarity": 0.02, "minDepth": 12, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "ashen_ocean", "minTerrainGeneration": 1, "floraTheme": "ashen", "exotic": true, "baseTemperature": 60, "nameKey": "planet.ashen_ocean.name", "atmosphereHeight": 200, "cloudColor": 9337256, "cloudDensity": 0.6,
+    "terrainTags": ["volcanic"],
+    "baseHeight": 58, "amplitude": 18, "terrainScale": 44.0, "terrainStyle": "mountains",
+    "terrainStyles": ["mountains", "shattered"],
+    "surfaceBlock": "basalt", "subSurfaceBlock": "basalt", "deepBlock": "basalt", "surfaceDepth": 5,
+    "caveThreshold": 0.78, "dataCacheRarity": 0.0018,
+    "weather": "dynamic", "stormChance": 0.3, "dayLengthSeconds": 560, "worldRadius": 860, "floraDensity": 0.01, "treeDensity": 0.002, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.3, "spawnWeight": 4, "waterAbundance": 0.0, "lavaAbundance": 0.9,
+    "weatherVolatility": 1.3, "seasonAmplitude": 0.1,
+    "weatherEvents": { "ember_fall": 3.0, "acid_rain": 1.4, "heatwave": 2.0, "gale": 1.4, "fog": 0.2 },
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.06, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "sulfur_ore", "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "titanium_ore", "rarity": 0.03, "minDepth": 16, "maxDepth": 2048 },
+      { "block": "carbon",     "rarity": 0.05, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4,  "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "dust_bowl", "minTerrainGeneration": 1, "floraTheme": "desert", "baseTemperature": 30, "nameKey": "planet.dust_bowl.name", "atmosphereHeight": 200, "cloudColor": 13740673, "cloudDensity": 0.35,
+    "terrainTags": ["wind", "buttes"],
+    "baseHeight": 62, "amplitude": 8, "terrainScale": 64.0, "terrainStyle": "flats",
+    "terrainStyles": ["flats", "downs"],
+    "surfaceBlock": "dirt", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
+    "caveThreshold": 0.76, "dataCacheRarity": 0.0012,
+    "weather": "dynamic", "stormChance": 0.25, "dayLengthSeconds": 620, "worldRadius": 880, "floraDensity": 0.03, "treeDensity": 0.004, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 5, "waterAbundance": 0.08,
+    "weatherVolatility": 1.4, "seasonAmplitude": 0.25,
+    "weatherEvents": { "gale": 3.0, "heatwave": 1.8, "drizzle": 0.3, "fog": 0.2 },
+    "biomes": [
+      { "surfaceBlock": "dirt", "subSurfaceBlock": "dirt" },
+      { "surfaceBlock": "sand", "subSurfaceBlock": "dirt", "reliefMul": 0.8 },
+      { "surfaceBlock": "scree", "subSurfaceBlock": "stone", "floraDensityMul": 0.3, "treeDensityMul": 0.0 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.05, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4, "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.07, "minDepth": 2, "maxDepth": 2048 },
+      { "block": "lithium_ore", "rarity": 0.03, "minDepth": 10, "maxDepth": 2048 }
+    ]
+  },
+  {
+    "key": "frozen_ocean", "minTerrainGeneration": 1, "floraTheme": "tundra", "baseTemperature": -40, "nameKey": "planet.frozen_ocean.name", "atmosphereHeight": 220, "cloudColor": 14606326, "cloudDensity": 0.45,
+    "terrainTags": ["glacial"],
+    "baseHeight": 60, "amplitude": 16, "terrainScale": 60.0, "terrainStyle": "flats",
+    "terrainStyles": ["flats", "archipelago"],
+    "surfaceBlock": "snow", "subSurfaceBlock": "ice", "deepBlock": "stone", "surfaceDepth": 5,
+    "caveThreshold": 0.72, "dataCacheRarity": 0.0015,
+    "weather": "dynamic", "stormChance": 0.55, "dayLengthSeconds": 620, "worldRadius": 900, "floraDensity": 0.02, "treeDensity": 0.0, "creatureAbundance": "few", "atmosphere": "toxic", "oxygenExtractability": 0.5, "spawnWeight": 4, "waterAbundance": 0.9,
+    "weatherVolatility": 1.0, "seasonAmplitude": 0.4,
+    "weatherEvents": { "blizzard": 2.8, "gale": 1.6, "ground_fog": 1.4 },
+    "biomes": [
+      { "surfaceBlock": "snow",  "subSurfaceBlock": "ice" },
+      { "surfaceBlock": "ice",   "subSurfaceBlock": "ice" },
+      { "surfaceBlock": "stone", "subSurfaceBlock": "stone", "reliefMul": 1.3 }
+    ],
+    "ores": [
+      { "block": "iron_ore",   "rarity": 0.05, "minDepth": 6,  "maxDepth": 2048 },
+      { "block": "nickel_ore", "rarity": 0.03, "minDepth": 8,  "maxDepth": 2048 },
+      { "block": "silicate",   "rarity": 0.05, "minDepth": 2,  "maxDepth": 2048 },
+      { "block": "cobalt_ore", "rarity": 0.025, "minDepth": 16, "maxDepth": 2048 },
+      { "block": "copper_ore", "rarity": 0.04, "minDepth": 4,  "maxDepth": 2048 }
+    ]
+  },
+  {
     "key": "asteroid", "baseTemperature": -25, "nameKey": "planet.asteroid.name", "atmosphereHeight": 100, "cloudColor": 15593458, "cloudDensity": 0.0,
     "baseHeight": 48, "amplitude": 8, "terrainScale": 36.0, "cratered": true,
     "surfaceBlock": "stone", "subSurfaceBlock": "stone", "deepBlock": "stone", "surfaceDepth": 3,

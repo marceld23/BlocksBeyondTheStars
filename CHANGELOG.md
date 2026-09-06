@@ -13,6 +13,16 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### 🏔️ Landscape variety, part 6 of 6 — eight new kinds of world, six new relics (#1649)
+
+- **Eight new planet types** for new galaxies: red desert worlds, boreal forest worlds, island archipelagos,
+  glacier worlds, meadow worlds, ash-sea worlds with basalt continents in a lava ocean, dust bowls and frozen
+  seas you can walk across. They stay rarer than the familiar kinds; existing galaxies keep their planets.
+- **Six new ancient relics** on new worlds: a stone bridge, a watchtower, a tomb you can walk into, a
+  ziggurat, a fallen colossus and an aqueduct — with runes and hidden caches like the old five.
+- Villages and stations still find their footing on the rougher new landscapes.
+- Existing worlds are unchanged. This completes the landscape-variety package.
+
 ### 🏔️ Landscape variety, part 5 of 6 — the things you meet every hundred blocks (#1648)
 
 - **New worlds only — set dressing:** fallen logs in the woods, termite mounds on the savanna, cairns in the
