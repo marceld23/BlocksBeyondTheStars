@@ -222,6 +222,11 @@ public static class CreatureGenerator
         // client-side id hash gave the whole game nine voices per habitat.
         species.VoiceSeed = unchecked((int)(speciesSeed ^ (speciesSeed >> 32)) ^ 0x5EED_1CE);
 
+        // Fins: folded from the voice seed above, NOT drawn from `rng` — same discipline as the seed itself,
+        // so adding them changed no existing world's traits by a single bit. Must come after the body plan
+        // (a medusa never has fins) and after the voice seed it reads.
+        species.HasFins = CreatureMotion.FinsFor(species);
+
         if (species.Habitat == CreatureHabitat.Air && species.HoverAltitude <= 0f)
         {
             // Per-species hover altitude (#637) so the sky gets layers instead of one uniform band.

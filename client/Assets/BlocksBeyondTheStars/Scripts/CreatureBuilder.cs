@@ -3,6 +3,7 @@
 // This file is part of Blocks Beyond the Stars. See LICENSE for the full AGPL-3.0 text.
 using System.Collections.Generic;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Definitions;
 using UnityEngine;
 
 namespace BlocksBeyondTheStars.Client
@@ -16,11 +17,22 @@ namespace BlocksBeyondTheStars.Client
     /// </summary>
     public sealed class CreatureBuilder
     {
+        /// <summary>How the finished rig's feet find real ground. <see cref="CreatureView"/> supplies it (it
+        /// owns the world handle); left null the rig animates its gait in body space, as it always did.</summary>
+        public CreatureFeet.GroundProbe Ground;
+
         private readonly List<Renderer> _renderers = new List<Renderer>();
-        private readonly List<Transform> _legPivots = new List<Transform>();
-        private readonly List<Transform> _wingPivots = new List<Transform>();
-        private Transform _tailPivot;
+        private readonly List<LegRig> _legs = new List<LegRig>();
+        private readonly List<WingRig> _wings = new List<WingRig>();
+        private readonly List<Transform> _tailChain = new List<Transform>();
+        private readonly List<Transform> _neckChain = new List<Transform>();
+        private readonly List<Transform> _eyelids = new List<Transform>();
+        private readonly List<Transform> _ears = new List<Transform>();
+        private readonly List<Transform[]> _tentacleChains = new List<Transform[]>();
+        private readonly List<Transform> _trunkChain = new List<Transform>();
+        private readonly List<Transform> _fins = new List<Transform>();
         private Transform _headPivot;
+        private Transform _jawPivot;
         private Material _bodyMat;
         private Light _glow;
 
@@ -96,9 +108,11 @@ namespace BlocksBeyondTheStars.Client
                 new Vector3(unit * 1.02f * bodyWide, unit * 0.32f, segments * segLen * 0.9f), bellyMat);
 
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.6f;
-            // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture.
-            _headPivot = AddPivotPart(body, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f),
-                new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.9f * headScale, unit * 0.85f * headScale, unit * 0.8f * headScale), _bodyMat);
+            // Head on a neck pivot (behind the head) so it can bob/graze/lunge as an idle gesture, with a
+            // hinged lower jaw so the species' voice actually moves a mouth (the calls have been coming out
+            // of a sealed head since #902).
+            _headPivot = NewPivot(body.transform, "Head", new Vector3(0f, bodyY + unit * 0.2f, frontZ - unit * 0.45f));
+            AddHeadBox(unit * 0.9f * headScale, unit * 0.85f * headScale, unit * 0.8f * headScale, unit * 0.45f, _bodyMat);
 
             // Eyes: optional (0 = eyeless) and a random count (often two, sometimes three/four/six). Bigger,
             // with a dark pupil so they clearly read as eyes — spread in a row across the head front.
@@ -118,34 +132,71 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
-            // Legs: paired under the body along its length, each on a hip pivot so it can swing.
+            // Legs: paired under the body along its FULL length, each on a hip pivot so it can swing.
+            // Two fixes over the original layout: the hips sit at the body's real half-width (they used to be
+            // pinned at 0.5 units while a wide body reaches 0.77, so broad species grew their legs out of the
+            // middle of the belly), and the rows spread across the whole torso instead of over a single
+            // segment's length (a 4-segment body used to carry all its legs in a cluster at the centre).
+            // Row 0 is the FRONT pair on every body plan — the titan path numbered from the front and this one
+            // from the rear, which mirrored any gait keyed off the row.
             int legs = Mathf.Clamp(c.Legs, 0, 8);
-            int pairs = legs / 2;
+            int rows = legs / 2;
             float legH = bodyY * 0.9f * legLong;
-            for (int p = 0; p < pairs; p++)
+            float legThick = unit * (0.13f + 0.09f * legLong) * Mathf.Clamp(Mathf.Pow(Mathf.Max(0.4f, c.Size), 0.3f), 0.75f, 1.5f);
+            float hipSpan = (segments - 1) * 0.5f * segLen + segLen * 0.22f;
+            for (int row = 0; row < rows; row++)
             {
-                float z = pairs == 1 ? 0f : Mathf.Lerp(-segLen * 0.7f, segLen * 0.7f, p / (float)(pairs - 1));
-                _legPivots.Add(AddPivotPart(body, "LegL" + p, new Vector3(-unit * 0.5f, legH, z),
-                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
-                _legPivots.Add(AddPivotPart(body, "LegR" + p, new Vector3(unit * 0.5f, legH, z),
-                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.18f, legH, unit * 0.18f), _bodyMat));
+                float z = rows == 1 ? segLen * 0.15f : Mathf.Lerp(hipSpan, -hipSpan, row / (float)(rows - 1));
+                float hipX = unit * 0.55f * bodyWide * TaperAt(z, segLen, segments) + unit * 0.06f;
+                _legs.Add(AddLeg(body.transform, row, 0, rows, new Vector3(-hipX, legH, z), legH, legThick, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 1, rows, new Vector3(hipX, legH, z), legH, legThick, _bodyMat));
             }
 
             if (c.HasWings)
             {
-                float wingW = unit * 0.9f;
-                _wingPivots.Add(AddPivotPart(body, "WingL", new Vector3(-unit * 0.45f, bodyY + unit * 0.2f, 0f),
-                    new Vector3(-wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
-                _wingPivots.Add(AddPivotPart(body, "WingR", new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f),
-                    new Vector3(wingW * 0.5f, 0f, 0f), new Vector3(wingW, unit * 0.08f, unit * 1.2f), _bodyMat));
+                AddWings(body.transform, unit * 0.9f, unit * 1.2f, unit * 0.08f,
+                    new Vector3(unit * 0.45f, bodyY + unit * 0.2f, 0f), _bodyMat);
             }
 
             if (c.HasTail)
             {
-                float tailLen = segLen * 0.9f;
-                float tailZ = -(segments - 1) * 0.5f * segLen - segLen * 0.6f;
-                _tailPivot = AddPivotPart(body, "Tail", new Vector3(0f, bodyY, tailZ + tailLen * 0.5f),
-                    new Vector3(0f, 0f, -tailLen * 0.5f), new Vector3(unit * 0.35f, unit * 0.35f, tailLen), _bodyMat);
+                float tailBaseZ = -(segments - 1) * 0.5f * segLen - segLen * 0.2f;
+                AddTail(body.transform, new Vector3(0f, bodyY, tailBaseZ), segLen * 1.1f, unit * 0.35f, 3, _bodyMat);
+            }
+
+            // Fins: a legless swimmer used to be a weaving box with no limbs at all. Pectorals on the flanks,
+            // a vertical tail fin at the back (on the tail's last link when there is one), and a dorsal when
+            // the species is not already wearing a crest there.
+            if (c.HasFins)
+            {
+                float finLen = unit * 0.75f;
+                for (int f = 0; f < 2; f++)
+                {
+                    float sx = f == 0 ? -1f : 1f;
+                    var pec = NewPivot(body.transform, f == 0 ? "FinL" : "FinR",
+                        new Vector3(sx * unit * 0.5f * bodyWide, bodyY - unit * 0.1f, frontZ - unit * 0.7f));
+                    AddPartTo(pec, "FinBlade", new Vector3(sx * finLen * 0.5f, 0f, -finLen * 0.15f),
+                        new Vector3(finLen, unit * 0.07f, finLen * 0.8f), bellyMat);
+                    _fins.Add(pec);
+                }
+
+                var tailFinParent = _tailChain.Count > 0 ? _tailChain[_tailChain.Count - 1] : body.transform;
+                float tailFinZ = _tailChain.Count > 0
+                    ? -segLen * 1.1f / 3f
+                    : -(segments - 1) * 0.5f * segLen - segLen * 0.55f;
+                var caudal = NewPivot(tailFinParent, "FinTail",
+                    new Vector3(0f, _tailChain.Count > 0 ? 0f : bodyY, tailFinZ));
+                AddPartTo(caudal, "FinTailBlade", new Vector3(0f, 0f, -finLen * 0.45f),
+                    new Vector3(unit * 0.07f, finLen * 1.5f, finLen * 0.9f), bellyMat);
+                _fins.Add(caudal);
+
+                if (!c.HasCrest)
+                {
+                    var dorsal = NewPivot(body.transform, "FinDorsal", new Vector3(0f, bodyY + unit * 0.45f, 0f));
+                    AddPartTo(dorsal, "FinDorsalBlade", new Vector3(0f, finLen * 0.4f, -finLen * 0.1f),
+                        new Vector3(unit * 0.07f, finLen * 0.8f, finLen), bellyMat);
+                    _fins.Add(dorsal);
+                }
             }
 
             // Dorsal crest: a row of spiny plates along the spine, tallest at the shoulders — silhouette variety.
@@ -170,20 +221,15 @@ namespace BlocksBeyondTheStars.Client
             int tentacles = Mathf.Clamp(c.Tentacles, 0, 8);
             if (tentacles > 0)
             {
+                // Nested pivots, not a stack of static cubes: these are arms, and they were frozen solid.
                 float tentLen = unit * (c.Legs > 0 ? 0.8f : 1.1f); // longer on legless swimmers/floaters
                 for (int tn = 0; tn < tentacles; tn++)
                 {
                     float fx = Mathf.Lerp(-unit * 0.42f * bodyWide, unit * 0.42f * bodyWide, tentacles == 1 ? 0.5f : tn / (float)(tentacles - 1));
                     float fz = frontZ - unit * (0.5f + 0.45f * (tn % 2)); // two staggered rows up front
-                    float y = bodyY - unit * 0.45f;
-                    for (int seg = 0; seg < 3; seg++)
-                    {
-                        float w = unit * (0.16f - 0.04f * seg);
-                        float h = tentLen * (0.4f - 0.07f * seg);
-                        AddPart(body, $"Tent{tn}_{seg}", new Vector3(fx, y - h * 0.5f, fz + seg * unit * 0.06f),
-                            new Vector3(w, h, w), bellyMat);
-                        y -= h;
-                    }
+                    _tentacleChains.Add(AddChain(body.transform, $"Tent{tn}_",
+                        new Vector3(fx, bodyY - unit * 0.45f, fz), unit * 0.06f,
+                        3, unit * 0.16f, tentLen * 0.4f, 0.25f, bellyMat));
                 }
             }
 
@@ -214,11 +260,10 @@ namespace BlocksBeyondTheStars.Client
                 _glow.shadows = LightShadows.None;
             }
 
-            // Procedural limb animation (leg swing while moving, wing flap, tail sway) + per-temperament
-            // idle head gestures (graze / alert / lunge); aquatic species also undulate the body rig (swim).
+            // Procedural limb animation (a speed-locked gait, wing flap, tail sway) + per-temperament idle
+            // head gestures (graze / alert / lunge); aquatic species also undulate the body rig (swim).
             var anim = root.AddComponent<CreatureAnimator>();
-            anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, body.transform,
-                c.Hostile, c.Asleep, c.Habitat == "Water" || c.Habitat == "Amphibian", c.Temperament);
+            anim.Init(Describe(c, body.transform, unit, legH, idh));
         }
 
         /// <summary>Rounded sphere eyes with a dark pupil (+ a white glint when not stalked), or snail-like
@@ -252,6 +297,7 @@ namespace BlocksBeyondTheStars.Client
                         new Vector3(eyeSize * 0.28f, stalkH, eyeSize * 0.28f), _bodyMat);
                     AddPartTo(_headPivot, "Eye" + e, top, Vector3.one * (eyeSize * 0.9f), eyeMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Pupil" + e, top + new Vector3(0f, 0f, eyeSize * 0.38f), Vector3.one * (eyeSize * 0.5f), pupilMat, PrimitiveType.Sphere);
+                    AddEyelid(top, eyeSize * 0.9f, _bodyMat);
                 }
             }
             else
@@ -264,6 +310,7 @@ namespace BlocksBeyondTheStars.Client
                     AddPartTo(_headPivot, "Eye" + e, pos, Vector3.one * eyeSize, eyeMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Pupil" + e, pos + new Vector3(0f, 0f, eyeSize * 0.42f), Vector3.one * (eyeSize * 0.55f), pupilMat, PrimitiveType.Sphere);
                     AddPartTo(_headPivot, "Glint" + e, pos + new Vector3(eyeSize * 0.16f, eyeSize * 0.18f, eyeSize * 0.5f), Vector3.one * (eyeSize * 0.16f), glintMat, PrimitiveType.Sphere);
+                    AddEyelid(pos, eyeSize, _bodyMat);
                 }
             }
         }
@@ -331,26 +378,16 @@ namespace BlocksBeyondTheStars.Client
 
             // Tentacles: long tapering chains hanging from the bell RIM in a circle (not two chin rows) —
             // each on its own pivot so the animator can sway them out of phase.
-            var tentaclePivots = new List<Transform>();
+            // Every segment is its own pivot, so the sway propagates down the arm as a travelling wave. As one
+            // rigid rod per arm they swung like antennae rather than trailing behind the bell.
             int tentacles = Mathf.Clamp(c.Tentacles, 3, 10);
             float tentLen = unit * 2.2f;
             for (int tn = 0; tn < tentacles; tn++)
             {
                 float a = tn / (float)tentacles * Mathf.PI * 2f;
-                var pivot = new GameObject("TentP" + tn).transform;
-                pivot.SetParent(bell.transform, false);
-                pivot.localPosition = new Vector3(Mathf.Cos(a) * bellR * 0.75f, -bellR * 0.45f, Mathf.Sin(a) * bellR * 0.75f);
-
-                float y = 0f;
-                for (int seg = 0; seg < 5; seg++)
-                {
-                    float w = unit * (0.15f - 0.02f * seg);
-                    float h = tentLen * (0.26f - 0.025f * seg);
-                    AddPartTo(pivot, $"Tent{tn}_{seg}", new Vector3(0f, y - h * 0.5f, 0f), new Vector3(w, h, w), bellyMat);
-                    y -= h;
-                }
-
-                tentaclePivots.Add(pivot);
+                _tentacleChains.Add(AddChain(bell.transform, $"Tent{tn}_",
+                    new Vector3(Mathf.Cos(a) * bellR * 0.75f, -bellR * 0.45f, Mathf.Sin(a) * bellR * 0.75f), 0f,
+                    5, unit * 0.15f, tentLen * 0.26f, 0.14f, bellyMat));
             }
 
             if (c.Glows)
@@ -365,10 +402,12 @@ namespace BlocksBeyondTheStars.Client
                 _glow.shadows = LightShadows.None;
             }
 
+            // No fish-weave and no gait — the bell pulse carries all of this body's motion.
+            var rig = Describe(c, body.transform, unit, unit, StableIdHash(c.SpeciesId));
+            rig.Aquatic = false;
+            rig.Bell = bell.transform;
             var anim = root.AddComponent<CreatureAnimator>();
-            anim.Init(System.Array.Empty<Transform>(), System.Array.Empty<Transform>(), null, null, body.transform,
-                c.Hostile, c.Asleep, false, c.Temperament); // no fish-weave — the bell pulse carries the motion
-            anim.InitMedusa(bell.transform, tentaclePivots.ToArray());
+            anim.Init(rig);
         }
 
         /// <summary>The titan plan (#638): elephant/giraffe-scale megafauna — a heavy multi-segment torso on
@@ -420,40 +459,57 @@ namespace BlocksBeyondTheStars.Client
             AddPart(body, "Belly", new Vector3(0f, bodyY - unit * 0.5f, 0f),
                 new Vector3(unit * 1.15f * bodyWide, unit * 0.35f, segments * segLen * 0.9f), bellyMat);
 
-            for (int p = 0; p < 2; p++)
+            // Pillar legs, row 0 at the front (the shared convention). The hips sit at the torso's real
+            // half-width so a broad titan carries its pillars under the flanks, not under the belly.
+            for (int row = 0; row < 2; row++)
             {
-                float z = (p == 0 ? 1f : -1f) * segLen * (segments - 1) * 0.5f;
-                _legPivots.Add(AddPivotPart(body, "LegL" + p, new Vector3(-unit * 0.55f, legH, z),
-                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.34f, legH, unit * 0.34f), _bodyMat));
-                _legPivots.Add(AddPivotPart(body, "LegR" + p, new Vector3(unit * 0.55f, legH, z),
-                    new Vector3(0f, -legH * 0.5f, 0f), new Vector3(unit * 0.34f, legH, unit * 0.34f), _bodyMat));
+                float z = (row == 0 ? 1f : -1f) * segLen * (segments - 1) * 0.5f;
+                float hipX = unit * 0.62f * bodyWide * TaperAt(z, segLen, segments);
+                _legs.Add(AddLeg(body.transform, row, 0, 2, new Vector3(-hipX, legH, z), legH, unit * 0.34f, _bodyMat));
+                _legs.Add(AddLeg(body.transform, row, 1, 2, new Vector3(hipX, legH, z), legH, unit * 0.34f, _bodyMat));
             }
 
             // Neck: stacked shrinking segments rising forward from the torso front; the head pivots at its top,
             // so the existing graze gesture becomes a giraffe lowering its neck — for free.
             float frontZ = (segments - 1) * 0.5f * segLen + segLen * 0.55f;
+            // Nested pivots, so lowering the head actually lowers the NECK. As a static stack the graze
+            // gesture could only nod the head at the top of a rigid column — a giraffe that cannot reach the
+            // ground. The chain distributes the gesture and the animal really bends down.
             int neck = Mathf.Clamp(c.NeckLength, 0, 3);
+            var neckParent = body.transform;
             float headY = bodyY + unit * 0.25f;
             float headZ = frontZ - unit * 0.35f;
             for (int nk = 0; nk < neck; nk++)
             {
                 float taper = 1f - 0.15f * nk;
+                var seg = NewPivot(neckParent, "Neck" + nk, nk == 0
+                    ? new Vector3(0f, headY, headZ - unit * 0.05f)
+                    : new Vector3(0f, unit * 0.62f, unit * 0.18f));
+                AddPartTo(seg, "NeckSeg" + nk, new Vector3(0f, unit * 0.34f, unit * 0.09f),
+                    new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _bodyMat);
+                _neckChain.Add(seg);
+                neckParent = seg;
                 headY += unit * 0.62f;
                 headZ += unit * 0.18f;
-                AddPart(body, "Neck" + nk, new Vector3(0f, headY - unit * 0.28f, headZ - unit * 0.05f),
-                    new Vector3(unit * 0.55f * taper, unit * 0.75f, unit * 0.55f * taper), _bodyMat);
             }
 
-            _headPivot = AddPivotPart(body, "Head", new Vector3(0f, headY + unit * 0.2f, headZ),
-                new Vector3(0f, 0f, unit * 0.45f), new Vector3(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale), _bodyMat);
+            _headPivot = NewPivot(neckParent, "Head", neck > 0
+                ? new Vector3(0f, unit * 0.82f, unit * 0.23f)
+                : new Vector3(0f, headY + unit * 0.2f, headZ));
+            AddHeadBox(unit * 0.95f * headScale, unit * 0.85f * headScale, unit * 0.9f * headScale, unit * 0.45f, _bodyMat);
 
             AddEyes(c, unit, headScale);
 
             // Ears: two flat slabs at the head sides — the elephant read, and scale-scaffolding for the eye.
-            AddPartTo(_headPivot, "EarL", new Vector3(-unit * 0.55f * headScale, unit * 0.2f * headScale, unit * 0.2f),
-                new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat);
-            AddPartTo(_headPivot, "EarR", new Vector3(unit * 0.55f * headScale, unit * 0.2f * headScale, unit * 0.2f),
-                new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat);
+            // On pivots at the top edge, so they can flick on a long idle.
+            for (int e = 0; e < 2; e++)
+            {
+                float ex = (e == 0 ? -1f : 1f) * unit * 0.55f * headScale;
+                _ears.Add(AddPivotPart(_headPivot, e == 0 ? "EarL" : "EarR",
+                    new Vector3(ex, unit * 0.5f * headScale, unit * 0.2f),
+                    new Vector3(0f, -unit * 0.3f * headScale, 0f),
+                    new Vector3(unit * 0.12f, unit * 0.6f * headScale, unit * 0.5f * headScale), _bodyMat));
+            }
 
             // Tusks: the species' horns, worn forward from the lower jaw instead of upright on the crown.
             int tusks = Mathf.Clamp(c.Horns, 0, 4);
@@ -471,23 +527,16 @@ namespace BlocksBeyondTheStars.Client
             // Trunk: shrinking segments hanging from the head front, slightly forward — the elephant.
             if (c.HasTrunk)
             {
-                float ty = -unit * 0.2f * headScale;
-                for (int seg = 0; seg < 4; seg++)
-                {
-                    float w = unit * (0.3f - 0.05f * seg);
-                    float h = unit * 0.42f;
-                    AddPartTo(_headPivot, "Trunk" + seg, new Vector3(0f, ty - h * 0.5f, unit * (0.5f + 0.04f * seg) * headScale),
-                        new Vector3(w, h, w), _bodyMat);
-                    ty -= h;
-                }
+                // A chain, so the trunk can curl and sway instead of hanging off the head like a pipe.
+                _trunkChain.AddRange(AddChain(_headPivot, "Trunk",
+                    new Vector3(0f, -unit * 0.2f * headScale, unit * 0.5f * headScale), unit * 0.04f,
+                    4, unit * 0.3f, unit * 0.42f, 0.17f, _bodyMat));
             }
 
             if (c.HasTail)
             {
-                float tailLen = segLen * 0.8f;
-                float tailZ = -(segments - 1) * 0.5f * segLen - segLen * 0.55f;
-                _tailPivot = AddPivotPart(body, "Tail", new Vector3(0f, bodyY + unit * 0.2f, tailZ + tailLen * 0.5f),
-                    new Vector3(0f, 0f, -tailLen * 0.5f), new Vector3(unit * 0.22f, unit * 0.22f, tailLen), _bodyMat);
+                float tailBaseZ = -(segments - 1) * 0.5f * segLen - segLen * 0.15f;
+                AddTail(body.transform, new Vector3(0f, bodyY + unit * 0.2f, tailBaseZ), segLen * 1.0f, unit * 0.22f, 4, _bodyMat);
             }
 
             if (c.Glows)
@@ -503,20 +552,210 @@ namespace BlocksBeyondTheStars.Client
                 _glow.shadows = LightShadows.None;
             }
 
+            var rig = Describe(c, body.transform, unit, legH, idh);
+            rig.Aquatic = false;
             var anim = root.AddComponent<CreatureAnimator>();
-            anim.Init(_legPivots.ToArray(), _wingPivots.ToArray(), _tailPivot, _headPivot, body.transform,
-                c.Hostile, c.Asleep, false, c.Temperament);
-            // Bigger animals stride slower — a giant taking sheep-paced steps is the classic scale-breaking
-            // tell. Size 3.5 → ~0.8× cadence, size 6 → ~0.5×.
-            anim.CadenceScale = Mathf.Clamp(1.6f / Mathf.Max(1f, c.Size * 0.55f), 0.4f, 1f);
+            anim.Init(rig);
+            // A giant's slow stride now falls out of the geometry — its stride length is metres, so the
+            // speed-locked cycle rate is low by construction. This stays as a small extra drag on the beat
+            // (the hand-tuned 1/size curve it replaces was doing the whole job on its own).
+            anim.CadenceScale = Mathf.Clamp(1.15f / Mathf.Max(1f, c.Size * 0.35f), 0.6f, 1f);
         }
+
+        /// <summary>A pair of two-panel wings: shoulder → inner panel → wrist → outer panel. The wrist is what
+        /// makes a fold read as a fold — the single slab this replaces could only be rotated bodily up over
+        /// the back, which is not what a bird does with its wings when it lands.</summary>
+        private void AddWings(Transform parent, float span, float chord, float thick, Vector3 shoulderPos, Material mat)
+        {
+            float inner = span * 0.45f, outer = span - span * 0.45f;
+            for (int w = 0; w < 2; w++)
+            {
+                float sx = w == 0 ? -1f : 1f;
+                var shoulder = NewPivot(parent, w == 0 ? "WingL" : "WingR",
+                    new Vector3(sx * shoulderPos.x, shoulderPos.y, shoulderPos.z));
+                AddPartTo(shoulder, "WingInner", new Vector3(sx * inner * 0.5f, 0f, 0f),
+                    new Vector3(inner, thick, chord), mat);
+
+                var wrist = NewPivot(shoulder, "WingWrist", new Vector3(sx * inner, 0f, 0f));
+                AddPartTo(wrist, "WingOuter", new Vector3(sx * outer * 0.5f, 0f, 0f),
+                    new Vector3(outer, thick * 0.8f, chord * 0.82f), mat);
+
+                _wings.Add(new WingRig
+                {
+                    Shoulder = shoulder,
+                    Wrist = wrist,
+                    Side = w,
+                    ShoulderRest = shoulder.localRotation,
+                    WristRest = wrist.localRotation,
+                });
+            }
+        }
+
+        /// <summary>A tapering tail as a chain of nested pivots, so the beat travels outward as a wave instead
+        /// of the whole tail swinging as one rigid box.</summary>
+        private void AddTail(Transform parent, Vector3 basePos, float length, float thick, int links, Material mat)
+        {
+            float linkLen = length / Mathf.Max(1, links);
+            var chainParent = parent;
+            for (int i = 0; i < links; i++)
+            {
+                float w = thick * (1f - 0.22f * i);
+                var seg = NewPivot(chainParent, "Tail" + i, i == 0 ? basePos : new Vector3(0f, 0f, -linkLen));
+                AddPartTo(seg, "TailSeg" + i, new Vector3(0f, 0f, -linkLen * 0.5f), new Vector3(w, w, linkLen), mat);
+                _tailChain.Add(seg);
+                chainParent = seg;
+            }
+        }
+
+        /// <summary>A chain of nested, shrinking pivots — the shape every soft appendage on a creature wants:
+        /// tentacles, an elephant's trunk, a medusa's rim arms. Returns the chain, root first.</summary>
+        private Transform[] AddChain(Transform parent, string name, Vector3 basePos, float zDrift,
+            int links, float width, float linkLen, float taper, Material mat)
+        {
+            var chain = new Transform[links];
+            var chainParent = parent;
+            float prevLen = 0f;
+            for (int i = 0; i < links; i++)
+            {
+                float shrink = 1f - taper * i;
+                float w = width * shrink;
+                float h = linkLen * shrink;
+                var seg = NewPivot(chainParent, name + i, i == 0 ? basePos : new Vector3(0f, -prevLen, zDrift));
+                AddPartTo(seg, name + "Seg" + i, new Vector3(0f, -h * 0.5f, 0f), new Vector3(w, h, w), mat);
+                chain[i] = seg;
+                chainParent = seg;
+                prevLen = h;
+            }
+
+            return chain;
+        }
+
+        /// <summary>How much of a leg is thigh; the rest is shin. Slightly over half, as in most animals (and
+        /// in <see cref="PlayerAvatar"/>, whose legs this rig now matches).</summary>
+        private const float UpperLegShare = 0.55f;
+
+        /// <summary>A bare pivot (no geometry) — the hinge other parts hang from.</summary>
+        private static Transform NewPivot(Transform parent, string partName, Vector3 localPos)
+        {
+            var pivot = new GameObject(partName).transform;
+            pivot.SetParent(parent, false);
+            pivot.localPosition = localPos;
+            return pivot;
+        }
+
+        /// <summary>Splits the head box into a fixed upper skull and a hinged lower jaw, so a vocalising
+        /// creature opens its mouth. The two parts together occupy exactly the volume the single head cube
+        /// used to, and the hinge sits at the jaw's REAR so it swings open like a jaw rather than sliding.</summary>
+        private void AddHeadBox(float w, float h, float d, float headZ, Material mat)
+        {
+            const float JawShare = 0.3f; // the lower 30 % of the head is jaw
+            AddPartTo(_headPivot, "HeadUpper", new Vector3(0f, h * JawShare * 0.5f, headZ),
+                new Vector3(w, h * (1f - JawShare), d), mat);
+            _jawPivot = AddPivotPart(_headPivot, "Jaw",
+                new Vector3(0f, -h * (0.5f - JawShare * 0.5f), headZ - d * 0.44f),
+                new Vector3(0f, 0f, d * 0.44f), new Vector3(w * 0.92f, h * JawShare, d * 0.88f), mat);
+        }
+
+        /// <summary>An eyelid: a skin-coloured box over the eye, held at zero height (invisible) and scaled up
+        /// to cover it for a blink. Cheap — one cube per eye — and blinking is out of all proportion to its
+        /// cost for making a body read as alive rather than as a prop.</summary>
+        private void AddEyelid(Vector3 eyePos, float eyeSize, Material mat)
+        {
+            var lid = NewPivot(_headPivot, "Eyelid" + _eyelids.Count, eyePos);
+            AddPartTo(lid, "EyelidBox", Vector3.zero, new Vector3(eyeSize * 1.12f, eyeSize * 1.12f, eyeSize * 1.12f), mat);
+            lid.localScale = new Vector3(1f, 0f, 1f); // open
+            _eyelids.Add(lid);
+        }
+
+        /// <summary>Body half-width multiplier at a point along the spine. The segments taper toward the head,
+        /// so a hip under the shoulders sits narrower than one at the hips — without this the flank offset is
+        /// wrong for every body with more than one segment.</summary>
+        private static float TaperAt(float z, float segLen, int segments)
+        {
+            int i = Mathf.Clamp(Mathf.RoundToInt(z / Mathf.Max(0.01f, segLen) + (segments - 1) * 0.5f), 0, segments - 1);
+            return 1f - 0.12f * i;
+        }
+
+        /// <summary>Builds one jointed leg — hip → thigh → knee → shin → foot — and records the identity the
+        /// gait needs (side, row, segment lengths, which way the knee folds). A single rigid stick can only
+        /// pendulum; the knee is what lets the leg shorten to clear the ground on the swing and straighten to
+        /// carry weight on the plant, and the foot is what stops the leg ending in a cut-off pole.</summary>
+        private LegRig AddLeg(Transform parent, int row, int side, int rows, Vector3 hipPos, float legLen, float thick, Material mat)
+        {
+            float upper = legLen * UpperLegShare;
+            float lower = legLen - upper;
+
+            var hip = NewPivot(parent, (side == 0 ? "LegL" : "LegR") + row, hipPos);
+            AddPartTo(hip, "Thigh", new Vector3(0f, -upper * 0.5f, 0f), new Vector3(thick, upper, thick), mat);
+
+            var knee = NewPivot(hip, "Knee", new Vector3(0f, -upper, 0f));
+            AddPartTo(knee, "Shin", new Vector3(0f, -lower * 0.5f, 0f), new Vector3(thick * 0.85f, lower, thick * 0.85f), mat);
+
+            var foot = NewPivot(knee, "Foot", new Vector3(0f, -lower, 0f));
+            AddPartTo(foot, "Sole", new Vector3(0f, -thick * 0.26f, thick * 0.3f),
+                new Vector3(thick * 1.4f, thick * 0.52f, thick * 1.8f), mat);
+
+            return new LegRig
+            {
+                Hip = hip,
+                Knee = knee,
+                Foot = foot,
+                Side = side,
+                Row = row,
+                Rows = rows,
+                UpperLen = upper,
+                LowerLen = lower,
+                // Positive folds the shin BACKWARDS (a +X rotation swings a downward-hanging segment toward
+                // -Z). Fore-limbs fold back like our elbow, hind-limbs forward like a stifle — a quadruped
+                // whose knees all bend the same way reads as a table, not an animal. Many-legged bodies fold
+                // uniformly back and stand splayed instead.
+                KneeSign = rows >= 3 ? 1 : row == 0 && rows >= 2 ? 1 : -1,
+                HipRest = hip.localRotation,
+                HipRestPos = hip.localPosition,
+            };
+        }
+
+        /// <summary>Assembles the hand-over to the animator from whatever this build path collected.</summary>
+        private RigDescription Describe(NetCreature c, Transform body, float unit, float legLength, int idHash)
+            => new RigDescription
+            {
+                Legs = _legs.ToArray(),
+                Wings = _wings.ToArray(),
+                Tail = _tailChain.ToArray(),
+                Neck = _neckChain.ToArray(),
+                Tentacles = _tentacleChains.ToArray(),
+                Trunk = _trunkChain.ToArray(),
+                Fins = _fins.ToArray(),
+                Head = _headPivot,
+                Jaw = _jawPivot,
+                Eyelids = _eyelids.ToArray(),
+                Ears = _ears.ToArray(),
+                Body = body,
+                Hostile = c.Hostile,
+                Asleep = c.Asleep,
+                Aquatic = c.Habitat == "Water" || c.Habitat == "Amphibian",
+                Temperament = c.Temperament ?? string.Empty,
+                BodyPlan = c.BodyPlan ?? "Standard",
+                Size = c.Size,
+                LegCount = Mathf.Clamp(c.Legs, 0, 8),
+                Giant = c.BodyPlan == "Titan" || c.Size >= CreatureMotion.GiantSize,
+                LegLength = legLength,
+                Unit = unit,
+                IdHash = idHash,
+                Ground = Ground,
+            };
 
         /// <summary>Adds a part on its own pivot (hinge) so it can be rotated for animation. The cube hangs
         /// at <paramref name="cubeOffset"/> from the pivot; returns the pivot transform.</summary>
         private Transform AddPivotPart(GameObject root, string partName, Vector3 pivotPos, Vector3 cubeOffset, Vector3 scale, Material mat)
+            => AddPivotPart(root.transform, partName, pivotPos, cubeOffset, scale, mat);
+
+        /// <summary>Pivot overload for parts that hang off another pivot (a knee under a hip, a neck segment
+        /// under the one below it) rather than off a build root.</summary>
+        private Transform AddPivotPart(Transform parent, string partName, Vector3 pivotPos, Vector3 cubeOffset, Vector3 scale, Material mat)
         {
             var pivot = new GameObject(partName).transform;
-            pivot.SetParent(root.transform, false);
+            pivot.SetParent(parent, false);
             pivot.localPosition = pivotPos;
 
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);

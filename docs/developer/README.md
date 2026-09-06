@@ -63,6 +63,8 @@ refreshed 2026-08-08.
 - [SHIP_REPAIR.md](SHIP_REPAIR.md) — own-ship repair (hull + EVA-carved cells).
 - [CUSTOM_SHAPES.md](CUSTOM_SHAPES.md) — player-designed block forms: the micro-voxel format, the per-save
   form registry, the box budget, and how forms are shared.
+- [CREATURE_RIG.md](CREATURE_RIG.md) — how a blocky animal is built and animated: the gait, jointed
+  limbs, fins, foot planting on real blocks, and the distance LOD tiers.
 - [CREATURE_TAMING.md](CREATURE_TAMING.md) — taming wild creatures into companions.
 - [NPC_TRADER_SHIPS.md](NPC_TRADER_SHIPS.md) — peaceful ambient NPC trader traffic.
 - [MATTER_CONVERTER.md](MATTER_CONVERTER.md) — the Transmuter station: craft scarce ore from spare

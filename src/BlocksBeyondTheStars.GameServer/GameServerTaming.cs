@@ -688,6 +688,7 @@ public sealed partial class GameServer
                 Tentacles = sp.Tentacles,
                 EyeStalks = sp.EyeStalks,
                 HasGasSac = sp.HasGasSac,
+                HasFins = CreatureMotion.HasFins(sp), // lifts a snapshot saved before the trait existed
                 BodyPlan = sp.BodyPlan.ToString(),
                 NeckLength = sp.NeckLength,
                 HasTrunk = sp.HasTrunk,
@@ -786,6 +787,7 @@ public sealed partial class GameServer
         Tentacles = s.Tentacles,
         EyeStalks = s.EyeStalks,
         HasGasSac = s.HasGasSac,
+        HasFins = CreatureMotion.HasFins(s), // derive rather than copy, so an old roster entry is lifted too
         BellyRgb = s.BellyRgb,
         Glows = s.Glows,
         BiomeAffinity = s.BiomeAffinity,

@@ -123,6 +123,12 @@ public sealed class CreatureSpecies
     /// <summary>A translucent buoyancy gas-sac above the body (floating grazers) — item-21 morphology.</summary>
     public bool HasGasSac { get; set; }
 
+    /// <summary>Pectoral + tail fins instead of legs — a legless swimmer's only limbs. Derived from the
+    /// species' own traits rather than drawn from the generator's RNG (see
+    /// <see cref="CreatureMotion.FinsFor"/>), so adding it left every existing world's species untouched and
+    /// a companion snapshot saved before it existed can be lifted on load.</summary>
+    public bool HasFins { get; set; }
+
     /// <summary>Secondary/belly accent colour (packed RGB) for a two-tone body, for more visible variety.</summary>
     public int BellyRgb { get; set; } = 0xFFFFFF;
 

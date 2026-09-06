@@ -18,6 +18,16 @@ namespace BlocksBeyondTheStars.Client
     {
         public GameBootstrap Game;
 
+        /// <summary>Pulls the rig detail distances in (the same setting that halves the micro-fauna).</summary>
+        public bool ReducedEffects;
+
+        // Distance tiers for the creature rigs. Beyond the last one a body still moves, it just stops posing
+        // itself — which is what every creature in the world used to do at every distance.
+        private const float LodNear = 20f;
+        private const float LodMid = 45f;
+        private const float LodFar = 90f;
+        private const float LodHysteresis = 2f; // so a creature sitting on a boundary does not flicker
+
         private sealed class Entry
         {
             public GameObject Root;
@@ -92,7 +102,7 @@ namespace BlocksBeyondTheStars.Client
                     var root = new GameObject("Creature_" + c.SpeciesId);
                     root.transform.SetParent(transform, true); // under the game root → destroyed on teardown (not leaked into menus/editors)
                     root.transform.position = Game.ScenePos(pos.x, pos.y, pos.z); // seam-aware (longitude wraps)
-                    new CreatureBuilder().Build(root, c);
+                    new CreatureBuilder { Ground = ProbeGround }.Build(root, c);
                     // The generated voice (#902–#907): call sample, phrase rhythm, pitch contour, calling
                     // rate and timbre op, all derived from the species' world-unique voice seed and the
                     // traits it already has — so the sound reads as coming from THAT body. Deterministic
@@ -189,7 +199,11 @@ namespace BlocksBeyondTheStars.Client
                     bool medusa = string.Equals(c.BodyPlan, "Medusa", System.StringComparison.OrdinalIgnoreCase)
                         || c.Motion == "hoverer"; // a buoyant body has no nose to pitch either (#1333)
                     float targetPitch = 0f, targetRoll = 0f;
-                    if (!medusa)
+                    // While the feet are planted on real ground the rig tilts the body from the plane they
+                    // describe, which is strictly better than guessing the slope from vertical velocity — and
+                    // applying both would tilt the creature twice.
+                    bool footPitch = entry.Animator != null && entry.Animator.FootPitchActive;
+                    if (!medusa && !footPitch)
                     {
                         float horiz = vel.magnitude;
                         targetPitch = Mathf.Clamp(
@@ -221,7 +235,21 @@ namespace BlocksBeyondTheStars.Client
                     // it airborne; an older one still says "perched" but sends the fall velocity — either way the
                     // wings unfold for the drop instead of a folded bird sliding down.
                     bool airborne = c.Airborne || (c.Perched && c.VertVel < -0.01f);
-                    entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne);
+                    // A ground bird mid-bound (#1334) holds its wings spread rather than beating them — the
+                    // server's own predicate, plus "not still climbing", so the spread starts at the apex.
+                    bool gliding = c.Glides && airborne && c.VertVel <= 0.05f;
+                    entry.Animator.SetMotion(c.Motion, airborne, c.Perched && !airborne, c.Asleep, gliding);
+
+                    // Where to look. Only bother while the player is close enough for a head turn to read;
+                    // beyond that the gaze is released and the head goes back to its own idle business.
+                    var toPlayer = entry.Root.transform.position - Game.PlayerPosition;
+                    entry.Animator.SetGazeTarget(Game.PlayerPosition, toPlayer.sqrMagnitude < 144f);
+
+                    // How much of the rig is worth posing at this distance.
+                    float camDist = cam != null
+                        ? Vector3.Distance(cam.transform.position, entry.Root.transform.position)
+                        : toPlayer.magnitude;
+                    entry.Animator.SetLod(PickLod(camDist, entry.Animator.Lod));
                 }
 
                 SetStasis(entry, c.Frozen, c.Size); // icy-blue shell while held in stasis (item 36)
@@ -300,6 +328,7 @@ namespace BlocksBeyondTheStars.Client
                     {
                         entry.NextAttack = now + Random.Range(1.5f, 3.5f);
                         PlayCue(entry, "_attack", 1f);
+                        entry.Animator?.Bite();                     // a hard snap, not just a call
                         entry.AttackUntil = now + 0.22f;            // lunge
                         SpawnAttackFx(Vector3.Lerp(Game.PlayerPosition, entry.Settled, 0.35f) + Vector3.up * 0.9f);
                     }
@@ -584,9 +613,66 @@ namespace BlocksBeyondTheStars.Client
                 ClientAudio.Instance?.AtClip(clip, pos, pitch, e.PhraseVol * decay * VolJitter(), clipId);
             }
 
+            // The mouth opens on the pulse, not on the phrase: a click train visibly chatters.
+            e.Animator?.Pulse(c.Asleep ? 0.2f : e.PhraseVol * decay);
+
             e.PulseIndex++;
             e.PulsesLeft--;
             e.NextPulseAt = now + voice.PulseGapMs * 0.001f;
+        }
+
+        /// <summary>Finds the ground under a foot target: a short downward scan for the first solid cell, then
+        /// the top of it. Called once per new foot target — never per frame — so a walking creature costs a
+        /// handful of block lookups a second. Scene coordinates are the player's own world coordinates offset
+        /// by whole wrap periods, so they index the world grid directly (the same assumption the micro-fauna
+        /// probe makes). Water is not ground: a walker wading through a pond keeps its feet on the bed.</summary>
+        private bool ProbeGround(Vector3 scenePos, float maxDrop, out float groundY)
+        {
+            groundY = scenePos.y;
+            if (Game?.World == null || Game.Content == null)
+            {
+                return false;
+            }
+
+            int x = Mathf.FloorToInt(scenePos.x);
+            int z = Mathf.FloorToInt(scenePos.z);
+            int top = Mathf.FloorToInt(scenePos.y + 1.1f);
+            int bottom = Mathf.FloorToInt(scenePos.y - Mathf.Max(0.5f, maxDrop));
+            for (int y = top; y >= bottom; y--)
+            {
+                var def = Game.Content.BlockById(Game.World.GetBlock(x, y, z));
+                if (def == null || !def.Solid)
+                {
+                    continue;
+                }
+
+                string key = def.Key;
+                if (key == "water" || key == "lava" || key == "tree_leaves"
+                    || key.StartsWith("flora_", System.StringComparison.Ordinal))
+                {
+                    continue; // stand on the bed, not on the surface, and not on a leaf
+                }
+
+                groundY = y + 1f;
+                return true;
+            }
+
+            return false; // unloaded chunk, a hole, or open water — the caller keeps the body-relative pose
+        }
+
+        /// <summary>The detail tier for a creature at <paramref name="dist"/> metres from the camera. The tier
+        /// it is already in gets a couple of metres of extra room in both directions, so an animal grazing on
+        /// a boundary does not flip back and forth between two levels of detail every frame.</summary>
+        private CreatureLod PickLod(float dist, CreatureLod current)
+        {
+            float scale = ReducedEffects ? 0.55f : 1f;
+            float near = LodNear * scale + (current == CreatureLod.Near ? LodHysteresis : -LodHysteresis);
+            float mid = LodMid * scale + (current == CreatureLod.Mid ? LodHysteresis : -LodHysteresis);
+            float far = LodFar * scale + (current == CreatureLod.Far ? LodHysteresis : -LodHysteresis);
+            return dist < near ? CreatureLod.Near
+                : dist < mid ? CreatureLod.Mid
+                : dist < far ? CreatureLod.Far
+                : CreatureLod.Frozen;
         }
 
         /// <summary>How long a full phrase takes — so an answering animal waits for the first to finish.</summary>
@@ -605,6 +691,8 @@ namespace BlocksBeyondTheStars.Client
                 ClientAudio.Instance?.AtClip(clip, e.Root.transform.position,
                     e.Pitch * PitchJitter(), volume * VolJitter(), clipId);
             }
+
+            e.Animator?.Pulse(volume); // every cue this creature makes also opens its mouth
         }
 
         /// <summary>A brief red "claw slash" burst at the player so a creature's attack reads clearly.</summary>
