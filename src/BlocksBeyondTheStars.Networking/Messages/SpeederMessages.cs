@@ -60,9 +60,20 @@ public sealed class EnterSpeederIntent
 }
 
 /// <summary>The driving player asks to dismount (client → server). The server parks the speeder where it is and
-/// places the player back on foot beside it.</summary>
+/// places the player back on foot beside it (#1662 — before that the player stayed on the seat, inside the hull).</summary>
 public sealed class ExitSpeederIntent
 {
+}
+
+/// <summary>The owner, standing at their landed ship's cockpit or console, asks the ship to bring one of their
+/// deployed vehicles back (client → server, #1661): a speeder sunk on the seabed or wedged in a hillside, a boat
+/// left on the far shore. The server parks the vehicle beside the ship — a speeder on the nearest dry standable
+/// cell off the pad, a boat on the nearest waterline — and refuses while it is driven, when the ship is not landed
+/// here, or when the vehicle lives on another world. Bound to the ship on purpose: it is a recovery, not a free
+/// teleport across the map.</summary>
+public sealed class RecallVehicleIntent
+{
+    public string VehicleId { get; set; } = string.Empty;
 }
 
 /// <summary>The owner asks to pack a deployed speeder back into the <c>speeder</c> item (client → server). The

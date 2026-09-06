@@ -164,15 +164,22 @@ public sealed class WorldDescription
     /// <summary>Terrain generation number (#1644): which wave of landform generators a world was created with.
     /// 0 = every world created before the landscape-variety package (the classic generators only); 1 = the
     /// 2026-09 package (regional style pools, per-world scale, biome relief, new landmarks, water bodies,
-    /// paints, props). MUST default to 0 like <see cref="TerrainContinents"/>: terrain is re-derived from the
-    /// seed, so a loaded save keeps the generation it was created with and its terrain never moves. New worlds
-    /// get the current generation from ServerConfig's creation-time description
-    /// (<see cref="CurrentTerrainGeneration"/>). One integer instead of one bool per wave — every later wave is
-    /// a single compare.</summary>
+    /// paints, props); 2 = the ocean-pad wave (#1618–#1622, gated by #1665: the two-dimensional dry-land
+    /// nudge, deep-water islets on every world with a water sea, the plateau-and-beach islet shape). MUST
+    /// default to 0 like <see cref="TerrainContinents"/>: terrain is re-derived from the seed, so a loaded
+    /// save keeps the generation it was created with and its terrain never moves — and neither do its
+    /// landing pads, which are re-derived the same way. New worlds get the current generation from
+    /// ServerConfig's creation-time description (<see cref="CurrentTerrainGeneration"/>). One integer instead
+    /// of one bool per wave — every later wave is a single compare.</summary>
     public int TerrainGeneration { get; set; }
 
-    /// <summary>The terrain generation new worlds are created with today (#1644).</summary>
-    public const int CurrentTerrainGeneration = 1;
+    /// <summary>The terrain generation new worlds are created with today (#1644, #1665).</summary>
+    public const int CurrentTerrainGeneration = 2;
+
+    /// <summary>The generation from which landing pads use the ocean-pad rules (#1665): the 2-D nudge with the
+    /// ocean search budget, islets under every deep all-water pad, the plateau islet shape. Older saves keep the
+    /// longitude-only march, the rolled ocean-world islet and the plain sand mound they were created with.</summary>
+    public const int OceanPadsGeneration = 2;
 
     /// <summary>Growing galaxy (#1123): when true, hyperjumping into one of the current OUTERMOST systems
     /// appends a brand-new system beyond it (deterministic — system N is a pure function of seed + N — and

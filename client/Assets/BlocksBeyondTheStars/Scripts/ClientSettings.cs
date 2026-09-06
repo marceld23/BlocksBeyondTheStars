@@ -508,6 +508,11 @@ namespace BlocksBeyondTheStars.Client
         /// always shows until the tutorial is finished or skipped; this mutes the optional coaching.</summary>
         public bool VegaHints = true;
 
+        /// <summary>#1663: whether VEGA has explained the flight chart (M) once — that clicking a disc there
+        /// sets the waypoint the radar and autopilot follow. A client-side one-shot UI lesson, not world
+        /// progress, so it lives here rather than in a server milestone.</summary>
+        public bool ChartWaypointHintShown;
+
         /// <summary>Show floating health bars over enemies and creatures in combat (#692) — planet surface
         /// and space flight alike. Purely cosmetic (the values are replicated either way); off hides them.</summary>
         public bool ShowEnemyHealthBars = true;

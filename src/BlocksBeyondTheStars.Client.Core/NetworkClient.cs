@@ -829,6 +829,9 @@ namespace BlocksBeyondTheStars.Client
         public void SendSpeederImpact(string speederId, float speed)
             => Send(new SpeederImpactIntent { SpeederId = speederId ?? string.Empty, Speed = speed });
 
+        /// <summary>Ask the landed ship to bring one of my deployed vehicles back beside it (#1661).</summary>
+        public void SendRecallVehicle(string vehicleId) => Send(new RecallVehicleIntent { VehicleId = vehicleId ?? string.Empty });
+
         /// <summary>Pumps the transport and dispatches up to one frame's worth of queued payloads; call once
         /// per frame from a MonoBehaviour Update. Anything beyond the budget stays queued for the next frame
         /// (#963), so a backlog costs a few paced frames instead of one multi-second freeze.</summary>

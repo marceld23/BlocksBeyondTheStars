@@ -330,6 +330,7 @@ public static class NetCodec
         Register(232, typeof(MarkerActionIntent));       // Client -> Server (set/remove/ping/list)
         Register(233, typeof(MarkerList));               // Server -> Client (visible markers + pings)
         Register(234, typeof(UninstallShipModuleIntent)); // Client -> Server (remove a fitted module, #1269)
+        Register(235, typeof(RecallVehicleIntent));      // Client -> Server (call a stranded speeder/boat back to the ship, #1661)
 
         // Always-available "Shape" crafting: re-form a held building material into another geometric shape
         // (sphere/dome/pyramid/ramp/…). Output is the same item with the shape encoded in its key.

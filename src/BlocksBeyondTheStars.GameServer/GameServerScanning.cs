@@ -185,7 +185,9 @@ public sealed partial class GameServer
         return result;
     }
 
-    /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).</summary>
+    /// <summary>Ship scan of a space asteroid — reveals whether it holds resources (server knows the loot).
+    /// Anomalies (#1129) and derelict wrecks (#1664) are scannable too; a wreck's scan is also what flying
+    /// up to it triggers (see <see cref="CheckSpaceWreckApproach"/>).</summary>
     public ScanResult ScanSpaceEntity(string playerId, string entityId)
     {
         var session = FindSessionByPlayerId(playerId);
@@ -197,9 +199,14 @@ public sealed partial class GameServer
         if (!_playerInstance.TryGetValue(playerId, out var instanceId)
             || !_spaceInstances.TryGetValue(instanceId, out var instance)
             || instance.Entities.FirstOrDefault(e => e.Id == entityId) is not { } target
-            || target.Kind is not (CombatEntityKind.Asteroid or CombatEntityKind.Anomaly))
+            || target.Kind is not (CombatEntityKind.Asteroid or CombatEntityKind.Anomaly or CombatEntityKind.Wreck))
         {
             return Rejected(session, entityId, "ui.scan.not_scannable", "Not a scannable object.");
+        }
+
+        if (target.Kind == CombatEntityKind.Wreck)
+        {
+            return ScanSpaceWreck(session, target); // #1664: the manifest readout + derelict lore + "visited"
         }
 
         // An anomaly (#1129): the scan is the whole encounter — knowledge once per save per player,

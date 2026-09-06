@@ -1989,6 +1989,7 @@ public sealed partial class GameServer
         p.InEva = false; // a death ends any spacewalk
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
+        ReleaseDrivenVehicle(p);            // and the seat of a speeder/boat — the bond used to survive (#1661)
 
         if (useCustomSpawn && TryCustomRespawn(session, reason, salvaged, sameWorld))
         {
@@ -3064,6 +3065,7 @@ public sealed partial class GameServer
             case StowSpeederIntent stowSpeeder: HandleStowSpeeder(session, stowSpeeder); break;
             case RefuelSpeederIntent refuelSpeeder: HandleRefuelSpeeder(session, refuelSpeeder); break;
             case SpeederImpactIntent speederImpact: HandleSpeederImpact(session, speederImpact); break;
+            case RecallVehicleIntent recallVehicle: HandleRecallVehicle(session, recallVehicle); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;

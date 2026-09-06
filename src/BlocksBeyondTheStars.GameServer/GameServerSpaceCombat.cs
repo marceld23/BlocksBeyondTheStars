@@ -28,6 +28,7 @@ public enum CombatEntityKind
     BanditShip,   // space raider that hails the player ship and demands cargo before opening fire
     EscapePod,    // #1129: a drifting life pod — fly close to rescue the survivor (never hostile/targetable)
     Anomaly,      // #1129: a shimmering unknown — scan it for knowledge + a lore text (never hostile)
+    Wreck,        // #1664: the star map's derelict ship — a voxel hull you carve for salvage (never hostile)
 }
 
 /// <summary>A server-authoritative combat entity (space object or planet enemy).</summary>
@@ -603,9 +604,10 @@ public sealed partial class GameServer
             // item 20 S3: also send every voxel asteroid body so the flight view renders + can mine them —
             // and every player-built station (#1470): its design was only ever sent at commission, so after a
             // landing or a restart re-entering pilots saw the generic placeholder instead of the real hull.
+            // The system's derelict (#1664) is a voxel hull of the same family.
             foreach (var st in instance.Structures.Values)
             {
-                if (st.Kind == "asteroid" || st.Kind == "station")
+                if (st.Kind == "asteroid" || st.Kind == "station" || st.Kind == "wreck")
                 {
                     SendShipDesign(session, st);
                 }
@@ -714,6 +716,7 @@ public sealed partial class GameServer
         }
 
         AddBeltRockClusters(instance, anchor); // #683 S2: mineable rocks AT the system's asteroid bodies
+        AddSpaceWrecks(instance, anchor);      // #1664: the system's derelict, AT its star-map position
 
         AddStationContacts(instance);
         AddPersistedStations(instance); // item 20 S4: re-create player-built stations floating in this instance
@@ -1067,7 +1070,8 @@ public sealed partial class GameServer
         target.Hull -= weapon.Damage;
 
         // item 20 S3: a voxel ore asteroid carves down to match its hull as you shoot it (visible depletion).
-        if (target.Kind == CombatEntityKind.Asteroid && instance.Structures.ContainsKey(target.Id))
+        // A derelict hull (#1664) is salvaged the same way — plating comes off shot by shot.
+        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck && instance.Structures.ContainsKey(target.Id))
         {
             CarveAsteroidToHull(instance, target);
         }
@@ -1105,10 +1109,15 @@ public sealed partial class GameServer
             }
         }
 
-        if (target.Kind == CombatEntityKind.Asteroid && instance.Structures.ContainsKey(target.Id))
+        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck && instance.Structures.ContainsKey(target.Id))
         {
             RemoveAsteroidStructure(instance, target.Id); // S3: drop the voxel body too (loot handled below)
             // fall through to the loot branch (voxel asteroids are tier 0 → they yield ore)
+        }
+
+        if (target.Kind == CombatEntityKind.Wreck && session is not null)
+        {
+            MarkSpaceWreckVisited(session, target.Id); // #1664: salvaged down to nothing counts as having been there
         }
 
         if (target.Kind == CombatEntityKind.Asteroid && target.AsteroidTier > 0)
@@ -1263,9 +1272,10 @@ public sealed partial class GameServer
     {
         reason = string.Empty;
 
-        if (target.Kind == CombatEntityKind.Asteroid)
+        if (target.Kind is CombatEntityKind.Asteroid or CombatEntityKind.Wreck)
         {
-            // Asteroid mining/breaking is governed by AsteroidDestruction, independent of combat.
+            // Asteroid mining/breaking is governed by AsteroidDestruction, independent of combat. A derelict
+            // hull (#1664) is salvage, not a fight — it follows the same rule.
             if (Rules.AsteroidDestruction == AsteroidDestructionMode.Off)
             {
                 reason = "@srv.space.asteroids_off";
@@ -1613,6 +1623,8 @@ public sealed partial class GameServer
         // Per-player pose for visibility — so the others in this instance can render this ship / EVA suit.
         bool eva = FindSessionByPlayerId(playerId)?.State.InEva ?? false;
         instance.PlayerPoses[playerId] = new SpacePlayerPose(pos, yaw, eva);
+
+        CheckSpaceWreckApproach(instance, playerId, pos); // #1664: flying up to a derelict "visits" it
     }
 
     private void HandleShipMove(PlayerSession session, ShipMoveIntent move)
