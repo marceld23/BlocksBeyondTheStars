@@ -13,164 +13,116 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
-### 🏔️ Landscape variety, part 6 of 6 — eight new kinds of world, six new relics (#1649)
+## [2026.9.3] — 2026-09-06
 
-- **Eight new planet types** for new galaxies: red desert worlds, boreal forest worlds, island archipelagos,
-  glacier worlds, meadow worlds, ash-sea worlds with basalt continents in a lava ocean, dust bowls and frozen
-  seas you can walk across. They stay rarer than the familiar kinds; existing galaxies keep their planets.
-- **Six new ancient relics** on new worlds: a stone bridge, a watchtower, a tomb you can walk into, a
-  ziggurat, a fallen colossus and an aqueduct — with runes and hidden caches like the old five.
-- Villages and stations still find their footing on the rougher new landscapes.
-- Existing worlds are unchanged. This completes the landscape-variety package.
+The landscape release. Every new world you create from now on rolls its own landscape — dune seas next to
+badlands, fjord coasts under mountain country, glacier valleys, impact basins full of water, rock bridges,
+hidden geodes, oases in the desert — and there are **eight new kinds of planet**, six new ancient relics
+and dozens of small things to stumble over. **Existing worlds keep exactly the terrain they have.** Space
+grew too: a new galaxy starts with twelve star systems, the flight chart shows every star, wrecks really
+drift out there, and distances are in kilometres. The HUD has a new look, the view is wider, shade no
+longer looks like a cave, and the speeder stays on land and comes back when you call it. **Lyxette** sent
+his eighth and ninth rounds of reports and **ahmdkaml** contributed a first code fix — thank you both! 🙏
 
-### 🏔️ Landscape variety, part 5 of 6 — the things you meet every hundred blocks (#1648)
+ℹ️ **Compatibility:** the network protocol stays at version 5, saves migrate unchanged. New landscapes,
+volcanoes and ocean-landing rules reach **new worlds only** — nothing moves under a base you already built.
 
-- **New worlds only — set dressing:** fallen logs in the woods, termite mounds on the savanna, cairns in the
-  cold, bone piles and whole rib cages in the dry lands, ice boulders, lava spatter, coral on the shore,
-  crystal clusters, meteorites on airless rock, tar pools — and small ruins to stumble over: a wall
-  fragment, a buried pillar, a crashed probe, an abandoned mining rig, a lone rune stone, some with a data
-  cache hidden in them.
-- **Seven new tree kinds:** baobabs on the savanna, mangroves on stilts beside the water, bamboo groves,
-  saguaro cacti in the desert, weeping willows, alien mushroom trees and crystal trees.
-- **Giant flora beyond mushrooms:** giant ferns in the jungle mud, giant crystals on crystal ground, giant
-  cacti on the sand.
-- Existing worlds are unchanged.
+### 🏔️ New worlds: the landscape package (#1644 #1645 #1646 #1647 #1648 #1649 #1631 #1657)
 
-### 🏔️ Landscape variety, part 4 of 6 — water in the desert, moss on the rock, five new blocks (#1647)
+- **Every new world rolls its own relief.** A planet type used to have one landscape; now a new world
+  mixes one to three landscape styles as regions, with its own hill spacing, biomes that shape the ground,
+  and rare whole-planet shapes (tilted, stepped, an equatorial ridge). Seven new styles join in, from
+  island archipelagos and fjordlands to chalk downs and shattered rift country (#1645).
+- **New kinds of mountains, holes and hidden places:** shield volcanoes, water-filled impact basins,
+  U-valleys, yardang ridges, drumlins, granite domes, star dunes, mud volcanoes, sinkhole chains, maars,
+  mushroom rocks, glacier tongues; rock bridges, wave-cut ledges and snow cornices; crystal geodes,
+  underground lakes and layered strata beneath the surface (#1646).
+- **Water where it was missing, and the ground tells its story:** marshes with reeds, oases with palms,
+  hot springs, caldera lakes, maars, salt playas and glacial tarns; scree on steep slopes, ash around
+  volcanoes, dry riverbeds, banded sandstone, moss on warm wet rock. **Five new blocks** to mine and build
+  with: moss stone, tar, bone, sandstone and scree (#1647).
+- **Things you meet every hundred blocks:** fallen logs, termite mounds, cairns, bone piles, ice boulders,
+  coral, crystal clusters, meteorites, tar pools, and small ruins with the odd data cache; **seven new tree
+  kinds** (baobab, mangrove, bamboo, saguaro, willow, mushroom and crystal trees) and giant ferns, crystals
+  and cacti (#1648).
+- **Eight new planet types** — red deserts, boreal forests, archipelagos, glacier worlds, meadows, ash seas
+  with basalt continents, dust bowls and frozen seas — and **six new ancient relics**: a stone bridge, a
+  watchtower, a tomb, a ziggurat, a fallen colossus and an aqueduct (#1649). The world-options page fits
+  all 29 planet types again (#1657).
+- **Volcanoes on every world with a lava core**, and volcanoes under the sea rise as smoking islands (#1631).
+- Every new world carries a *terrain generation* number in its save, so all of this reaches new worlds
+  only; existing worlds are byte-identical (#1644).
 
-- **Five new blocks:** moss stone, tar, bone, sandstone and scree — each a material you can mine, carry and
-  place, with its own texture, available in the build editors and (except tar) in the dye and shape actions.
-- **New worlds only — water where it was missing:** marsh sheets with reeds on wet flats, oases with a grass
-  ring and palms in the desert, steaming hot springs, lakes in calderas and shield volcanoes (lava on
-  volcanic worlds), small round maar lakes, salt-crusted playas, and tarns at the head of glacial valleys.
-- **The ground tells its story:** scree and bare rock on steep slopes, ash around volcano cones, dry
-  riverbeds on dry worlds, banded sandstone and granite decks on mesa worlds, bare soil patches in the
-  grass, and moss on the rock of warm wet worlds. Underground strata are sandstone now.
-- Existing worlds are unchanged. (Under the hood the world-generation golden test now compares block
-  names instead of numeric ids, so adding a block no longer moves every checksum.)
+### 🏝️ Landing on ocean worlds (#1618 #1619 #1620 #1621 #1622 #1665)
 
-### 🏔️ Landscape variety, part 3 of 6 — new kinds of mountains, holes and hidden places (#1646)
+- Landing pads now search in every direction for real land, and further on ocean worlds. Where only deep
+  water remains, the pad raises a proper island — a level top, a gentle beach, a natural outline, some
+  grass. Only shallow water still parks the ship on the seabed, and those pads are blue on the approach
+  map with the depth written next to them. Your first landing prefers dry ground. **New worlds only**;
+  older saves keep their pads exactly where they are.
 
-- **New worlds only.** Twelve new landform kinds join the volcanoes, buttes and rifts: broad shield
-  volcanoes, round impact basins that fill with water, glacier-carved U-valleys, wind-carved yardang ridges,
-  drumlin fields, lone granite domes (inselbergs), star dunes, fields of little mud volcanoes, chains of
-  sinkholes, small crater bowls (maars), mushroom rocks, and glacier tongues running down cold mountains.
-- **Things that hang in the air:** natural rock bridges over gorges, wave-cut ledges at the foot of sea
-  cliffs, snow cornices on the ridges of the coldest worlds.
-- **Under the ground:** hollow crystal geodes to break into, caverns that hold whole underground lakes on
-  wet worlds, and layered rock strata in the upper crust.
-- Existing worlds are byte-identical.
+### 🌌 Space: a bigger galaxy, a chart of every star, wrecks to salvage (#1615 #1616 #1617 #1603 #1604 #1605 #1599 #1600 #1601 #1664 #1663 #1638 #1584 #1582)
 
-### 🏔️ Landscape variety, part 2 of 6 — every new world rolls its own relief (#1645)
+- **More stars.** A Normal galaxy starts with 12 star systems instead of 8 (Small 6, Large 20, Huge 32);
+  Growing worlds start at 12 too, and dedicated servers default to 12. Existing saves keep their galaxy
+  (#1615 #1616 #1617).
+- **The flight chart has a Hyperspace tab** (M while flying, LB/RB on a pad): the whole galaxy as stars in
+  their true colours, visited systems named, unvisited ones a **?**, the relay lanes drawn between them.
+  Click a star to read about it and hyperjump straight from the chart. The finale system sits out past
+  the frontier (#1603 #1604 #1605).
+- **Kilometres and roomier systems.** Radar and chart say "830 km" instead of "83 m"; planets, moons and
+  asteroids sit half as far apart again, so a system reads as a family rather than a huddle. The hop to
+  the next planet takes a little longer (#1599 #1600 #1601).
+- **Wrecks in space are real now.** Every wreck the travel screen has listed drifts in its system as a
+  hull you can fly to, read on approach and cut apart with the mining laser for plating, cable, metal and
+  data fragments (#1664). **Distant asteroids stay findable**: never smaller than a dot, named on the radar
+  rim, and VEGA explains chart waypoints once (#1663).
+- **Three space fixes from Lyxette:** a system you jumped into but never landed in can be jumped to again
+  (#1638); a ship you switched into launches into the orbit it is really on, not your home system's
+  (#1584); and the starfield is no longer painted over far-side moons (#1582).
 
-- **New worlds only.** A planet type used to have one landscape: every desert a dune sea, every highland a
-  mountain world. New worlds now roll one to three landscape styles from their type's pool and lay them
-  out as regions — a desert can be dune seas next to badlands next to flat country with buttes, a highland
-  mountains next to fjord coasts. Seven new styles join in: island archipelagos, fjordlands, chalk downs,
-  shattered rift country, terraces, drumlin fields and glacial trough highlands.
-- **Each world has its own wavelength.** Hill spacing and dune pitch vary from world to world of the same type.
-- **Biomes shape the ground.** Marsh biomes lie flatter, stone country rises rougher — on the same world.
-- **Rare whole-planet shapes:** tilted worlds (one hemisphere high, one low), three-storey stepped worlds
-  and a ridge girdling the equator. Three new regional landform types (moorland, knob-and-kettle, coastal
-  cliffs) join the blend.
-- Existing worlds are byte-identical (the generation-0 goldens prove it).
+### 🖥️ HUD and view: a new look, a wider view, shade you can see in (#1623 #1624 #1625 #1626 #1627 #1628 #1636 #1589 #1590 #1591 #1594 #1597 #1585 #1608 #1609 #1610 #1611 #1612)
 
-### 🏔️ Landscape variety, part 1 of 6 — the foundation (#1644)
+- **The HUD's new look:** crisp text at any size, holographic panels, rings and bars with a soft glow,
+  icons on the vitals rows, a hologram glow that glitches when you take damage (Medium graphics and up),
+  and motion — ghost-trail bars, rolling numbers, toasts that slide in, a boot-up when you enter a world.
+  Nothing moved on screen; the reduced-motion setting is honoured; the browser keeps its flat overlay and
+  the glow runs on older tablets too (#1623–#1628 #1636).
+- **A wider view.** First person now looks through 80° instead of the narrow 60° it silently used, with a
+  50–100° *Field of view* setting under Controls and a held tool that keeps its size (#1589 #1590 #1591).
+- **The compass explains itself:** "Ship 114 m" and "Waypoint 138 m" instead of bare numbers, a rotating
+  **N** that marks north (the old ▲ only meant "ahead"), a VEGA tip when you wander far from your ship, and
+  a Codex paragraph on finding your way (#1594 #1597). Hull and shield rows show value and maximum, so a
+  fresh shield generator no longer looks dead while landed (#1585).
+- **Shade is shade, not a cave.** The ground under trees and overhangs was lit like a cave; it now stays
+  daylight with sun spots through the leaves, corners are less crushed, orange and red suns light the
+  ground as well as a yellow one, and shadows fade out instead of ending in a hard line (#1608–#1612).
 
-- **Nothing visible changes yet — every existing world stays byte-identical.** New worlds now carry a
-  *terrain generation* number in their save (the classic generators are generation 0), so the coming
-  landscape parts reach new worlds only and never move terrain under an existing base. The world-options
-  panel ("Hand-designed structures…" page, under *Galaxy & terrain*) shows which landscape generation a new
-  world gets. Under the hood the world generator is split into one file per landform family, its
-  planet-type gates read data tags instead of type names, and landmarks and scatter props are registered
-  in tables — adding a new kind of mountain or prop is one row from now on.
+### 🛵 Speeder and boat (#1660 #1661 #1662 #1668 #1669 #1670 #1671)
 
-### 🧭 A star system you jumped into but never landed in can be jumped to again (#1638)
+- **The speeder stays on land**: it hovers reliably again, stops at the shore, hops free when stuck, and a
+  wet driver is set back on dry ground (#1660).
+- **A vehicle is never lost.** X at your landed ship's cockpit or console packs every speeder and boat left
+  on this world back into your inventory; with no free slot it is parked beside the ship with a marker and
+  the distance. The seat frees on respawn, and the HUD tells you where the vehicle is (#1661 #1668).
+- **Parked vehicles are solid from every side** and you can stand on them; getting off puts you on firm
+  ground beside the hull, or in the water if you leave a boat mid-lake (#1662 #1669 #1671).
+- **"Board (E) · Pack up (X)" on screen** next to your own vehicle, with the right buttons on pad and touch (#1670).
 
-- **"Hyperjump to this system" for every other system.** The travel screen used to offer the jump only for
-  a system you had never entered. After one jump into a system without landing there, its worlds showed up
-  locked ("not visited") and the jump entry was gone — the system could not be reached again from the
-  screen. Now every system other than the one you're in keeps its jump button above its worlds, and a
-  locked world in another system offers the same jump in its detail pane. Thanks to Lyxette for the report.
+### 🏘️ Ship, settlements and small fixes (#1586 #1658 #1659 #1583 #1634)
 
-### 📬 Report inbox — a report pair keyed alike on both halves has one conversation again (#1642)
+- **The shield is topped up after a repair** — once the hull is whole, the shield fills at once instead of
+  waiting for the next flight. Contributed by **ahmdkaml** (#1586, PR #1606). 🙏
+- **Settlers never make their home in water**, and trees are cleared out of village and station footprints
+  (#1658 #1659).
+- **The ground is solid when you drop fast** — collision is prepared ahead of a fast descent (#1583).
+- **N continues a VEGA line right after the chat closes**, no click into the world needed (#1634).
 
-- **The admin page of a report said "no replies yet" although the report had been answered.** Since #1359 the
-  game server forwards the player's reply key with its `/bump` snapshot, so both halves of a current report carry
-  the same key — and the #1378 rule "a keyed row owns its own thread" then gave each half a thread of its own.
-  The list links the `/bump` half, an answer posted on the client row was invisible from it (and vice versa);
-  the player's game, which polls by key, always saw both. Whichever half you open now hands the conversation to
-  the client row, and the page shows the entries of both halves merged, naming the half an older, split entry
-  still lives on.
+### 🔩 Under the hood (#1642 #1640 #1641 #1652)
 
-### 🌋 Volcanoes wherever the core is molten, and volcanic islands in the sea (#1631)
-
-- **Volcanoes on every world with a lava core.** Basalt cones with a molten crater used to grow only on
-  watery, breathable worlds; now any world whose depths end in lava can carry them — desert, salt flats,
-  toxic rock, even the lava worlds themselves. Cratered moons and asteroids stay dead.
-- **Volcanic islands.** A volcano whose base lies under the sea now rises until its crater clears the
-  water by a good margin, with a wider base — an ocean world's horizon gets a smoking mountain instead of
-  a drowned bump. Which cells get one is still the same seeded roll, so some ocean worlds have several and
-  some none.
-- **New worlds only.** Like the continents, this switches on at world creation; your existing saves keep
-  exactly the terrain they have — no mountain grows over a base you already built.
-
-### 🏝️ Landing on ocean worlds: real islands first, proper islets otherwise, the seabed only in the shallows (#1618 #1619 #1620 #1621 #1622)
-
-- **Landing pads look for land north and south too.** Until now a pad only searched east and west along
-  its own latitude and gave up in open sea — while real islands lay a short swim away. The search now
-  circles outward in every direction, and on ocean worlds it looks further (#1618). On twelve test ocean
-  worlds that put 157 of 164 pads on natural land, up from 81.
-- **No more landing at the bottom of a deep sea.** A pad that still sits in open water raises an island
-  whenever the water is deeper than a wade (8 blocks); only shallow water still parks the ship in its dry
-  seabed shaft. Every world with a water sea follows the same rule now, not only ocean worlds (#1619).
-- **The islets are islands now**: a level top wider than the ship, a gentle beach into the sea, a
-  natural outline instead of a perfect disc, grass and a few plants where the world has them (#1620).
-- **Your first landing prefers dry ground.** A new player's first pad, and any landing you do not pick
-  by hand, takes natural land over an islet over the seabed (#1621).
-- **Seabed pads are blue on the approach map** and say how deep the water is ("underwater · seabed · 6 m"),
-  on the world map too (#1622).
-
-### ✨ A bigger sky (#1615 #1616 #1617)
-
-- **More stars in every new world.** A Normal world now starts with 12 star systems instead of 8, and the
-  other Universe-size tiers grew with it: Small 6, Large 20, Huge 32. A Growing world also starts at 12 and
-  keeps growing at the frontier as before. Existing saves keep the galaxy they were created with (#1615).
-- Dedicated servers that do not set a system count start with the same 12 systems (#1616).
-
-### 🌌 A map of the stars (#1603 #1604 #1605)
-
-- **The system chart has a Hyperspace tab.** Press M while flying and switch tabs (LB/RB on a pad): the
-  whole galaxy as stars in their real colours. The ringed star is where you are, named stars are systems
-  you have visited, a **?** is one you have never entered, and the lines are the relay network's jump
-  lanes. Click a star to read about it — and, with a jump generator aboard or a lane, hyperjump to it
-  straight from the chart (#1603).
-- **Stars in their true colour.** Every system's star colour now travels with the star map, so the chart
-  shows the same sun you will see after landing (#1604).
-- **The finale system sits beyond the frontier.** The Guardian Core, once revealed, appears out past every
-  other star on the chart instead of in a corner among them (#1605).
-
-### 🪐 More room between the planets (#1599 #1600 #1601)
-
-- **Space distances in kilometres.** The radar and the system chart now say "830 km" to the next planet
-  instead of "83 m" — a scale that fits what you are looking at. On a spacewalk the way back to your ship
-  is still given in metres (#1599).
-- **Roomier star systems.** Planets, moons and asteroids sit half as far apart again in the flight view, so a
-  system no longer looks like a huddle. The hop to the next planet takes a little longer (about 20 s instead
-  of 13 s in the starter ship). Anything you built in space next to the planet you launch from stays exactly
-  where it was; a structure parked beside *another* planet is now a bit off it (#1600).
-- **Moons keep their distance.** A moon rides one and a half times the clear gap off its planet instead of
-  hugging it — a planet with moons reads as a family, not a clump (#1601).
-
-### 👁️ A wider view (#1589 #1590 #1591)
-
-- **The world no longer feels oversized.** The first-person camera now looks through an 80° field of view
-  instead of the narrow 60° it silently used before, so blocks take up about a third less of your screen and a wall
-  only fills the view when you are really standing at it (#1589).
-- **Field of view setting.** Settings → Controls has a new *Field of view* stepper, 50° to 100°. It applies
-  right away, even from the pause menu; wider shows more of the world and costs a little frame rate (#1590).
-- **A smaller tool in hand.** The drill, block or hand you hold is a fifth smaller and stays the same size on
-  screen whatever field of view you pick (#1591).
+- The report inbox shows one conversation per report again — the two halves of a report no longer open
+  separate threads (#1642). Two streaming tests wrap at the world's longitude seam so main stays green
+  (#1640 #1641 #1652), and the world-generation golden test compares block names instead of ids.
 
 ## [2026.9.2] — 2026-09-05
 
@@ -4755,7 +4707,8 @@ A graphics-quality pass and a licensing/foundation cleanup.
 
 - Initial public release.
 
-[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...HEAD
+[Unreleased]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.3...HEAD
+[2026.9.3]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.2...v2026.9.3
 [2026.9.2]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.9.1...v2026.9.2
 [2026.9.1]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.26...v2026.9.1
 [2026.8.26]: https://github.com/marceld23/BlocksBeyondTheStars/compare/v2026.8.25...v2026.8.26
