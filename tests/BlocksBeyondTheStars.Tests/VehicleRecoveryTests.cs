@@ -213,8 +213,35 @@ public sealed class VehicleRecoveryTests : IDisposable
         }
     }
 
+    /// <summary>No slot left: one stack of stone in every free slot (#1668's park-beside branch).</summary>
+    private static void FillInventory(BlocksBeyondTheStars.GameServer.PlayerSession p)
+    {
+        while (p.State.Inventory.Add("stone", 64, 64) == 0)
+        {
+        }
+    }
+
+    /// <summary>A level stone apron around the pad, outside the reserved pad volume (the ship stays untouched):
+    /// every recall-ring cell standable, so "nearest the cockpit" is decided by geometry alone.</summary>
+    private void Apron(SvGameServer server, int padX, int padY, int padZ)
+    {
+        for (int dx = -20; dx <= 20; dx++)
+            for (int dz = -20; dz <= 20; dz++)
+            {
+                if (Math.Max(Math.Abs(dx), Math.Abs(dz)) < 9)
+                {
+                    continue;
+                }
+
+                Fill(server, "stone", padX + dx, padX + dx, padY - 2, padY - 1, padZ + dz, padZ + dz);
+                Fill(server, "air", padX + dx, padX + dx, padY, padY + 3, padZ + dz, padZ + dz);
+            }
+    }
+
+    private static float Planar(Vector3f a, Vector3f b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+
     [Fact]
-    public void Recall_ParksTheSpeederBesideTheShip_OnlyFromTheCockpit_AndNeverWhileDriven()
+    public void Recall_PacksTheSpeederIntoTheInventory_OnlyFromTheCockpit_AndNeverWhileDriven()
     {
         var t = new RecordingTransport();
         var server = NewServer(out var repo, ship: true, transport: t);
@@ -225,42 +252,84 @@ public sealed class VehicleRecoveryTests : IDisposable
             string id = server.DeploySpeederForTest("Pilot");
             var rec = p.State.DeployedSpeeders.Single();
 
-            // Far from the cockpit: refused, nothing moves.
+            // Far from the cockpit: refused, nothing moves, nothing packed.
             p.State.Position = Stand;
             server.RecallVehicleForTest("Pilot", id);
             Assert.Contains("@srv.station.too_far", RejectionsTo(t, p));
             Assert.Equal(Stand.Z + 2.5f, rec.Z, 1);
-
-            // At the cockpit.
-            var cockpit = server.StationPosition("cockpit")!.Value;
-            p.State.Position = cockpit;
-            p.State.AboardShip = true;
-            var pad = server.LandingPadInfoForTest(p.State.LandingPadIndex);
-            var rim = 12; // LandingPadRadius (8) + the recall ring (2..10)
-
-            server.RecallVehicleForTest("Pilot", id);
-
-            Assert.Contains("@srv.speeder.recalled", MessagesTo(t, p));
-            var parked = server.SpeederSnapshots.Single();
-            float dx = Math.Abs(parked.Pos.X - pad.X), dz = Math.Abs(parked.Pos.Z - pad.Z);
-            Assert.True(Math.Max(dx, dz) > 8 && Math.Max(dx, dz) <= rim + 9, $"parked at {parked.Pos}, pad ({pad.X}, {pad.Z})");
-            AssertStandable(server, parked.Pos);
-            Assert.Equal(parked.Pos.X, rec.X);
-            Assert.Equal(string.Empty, parked.DriverId);
+            Assert.Equal(0, p.State.Inventory.CountOf("speeder"));
 
             // Driven: refused.
-            p.State.Position = parked.Pos;
-            p.State.AboardShip = false;
+            var cockpit = server.StationPosition("cockpit")!.Value;
+            p.State.Position = new Vector3f(rec.X, rec.Y, rec.Z);
             server.EnterSpeederForTest("Pilot", id);
             p.State.Position = cockpit;
             p.State.AboardShip = true;
             server.RecallVehicleForTest("Pilot", id);
             Assert.Contains("@srv.speeder.driven", RejectionsTo(t, p));
+            Assert.Single(server.SpeederSnapshots);
+
+            // Parked, at the cockpit, a slot free: the recall IS a pack-up (#1668) — the item is back in the
+            // inventory, the record and the live vehicle are gone, and the message says so.
+            p.State.Position = new Vector3f(rec.X, rec.Y, rec.Z);
+            p.State.AboardShip = false;
+            server.ExitSpeederForTest("Pilot");
+            p.State.Position = cockpit;
+            p.State.AboardShip = true;
+
+            server.RecallVehicleForTest("Pilot", id);
+
+            Assert.Contains("@srv.speeder.recalled_packed", MessagesTo(t, p));
+            Assert.Equal(1, p.State.Inventory.CountOf("speeder"));
+            Assert.Empty(p.State.DeployedSpeeders);
+            Assert.Empty(server.SpeederSnapshots);
         }
     }
 
     [Fact]
-    public void Recall_BringsTheBoatToWaterNearThePad_OrSaysThereIsNone()
+    public void Recall_WithAFullInventory_ParksTheSpeederNearestTheCockpit_AndPingsTheSpot()
+    {
+        var t = new RecordingTransport();
+        var server = NewServer(out var repo, ship: true, transport: t);
+        using (repo)
+        {
+            var p = Pilot(server);
+            StonePad(server);
+            string id = server.DeploySpeederForTest("Pilot");
+            var rec = p.State.DeployedSpeeders.Single();
+            var cockpit = server.StationPosition("cockpit")!.Value;
+            var pad = server.LandingPadInfoForTest(p.State.LandingPadIndex);
+            Apron(server, pad.X, pad.Y, pad.Z);
+            FillInventory(p);
+
+            p.State.Position = cockpit;
+            p.State.AboardShip = true;
+            server.RecallVehicleForTest("Pilot", id);
+
+            // Parked on the recall rings (pad radius 8 + 2..10 cells), standable, still out (no slot for it).
+            string msg = MessagesTo(t, p).Single(m => m.StartsWith("@srv.speeder.recalled_parked:", StringComparison.Ordinal));
+            var parked = server.SpeederSnapshots.Single();
+            float dx = Math.Abs(parked.Pos.X - pad.X), dz = Math.Abs(parked.Pos.Z - pad.Z);
+            Assert.True(Math.Max(dx, dz) >= 9.5f && Math.Max(dx, dz) <= 18.5f, $"parked at {parked.Pos}, pad ({pad.X}, {pad.Z})");
+            AssertStandable(server, parked.Pos);
+            Assert.Equal(parked.Pos.X, rec.X);
+            Assert.Equal(0, p.State.Inventory.CountOf("speeder"));
+
+            // Nearest the cockpit — not the first ring's (−r, −r) corner, where the old scan order always put it.
+            float toParked = Planar(cockpit, parked.Pos);
+            float toCorner = Planar(cockpit, new Vector3f(pad.X - 9.5f, parked.Pos.Y, pad.Z - 9.5f));
+            Assert.True(toParked < toCorner - 1f, $"parked {toParked:F1} m from the cockpit, the old corner is {toCorner:F1} m");
+
+            // The message carries the distance, and the spot is pinged for the owner.
+            int metres = int.Parse(msg.Substring(msg.IndexOf(':') + 1), System.Globalization.CultureInfo.InvariantCulture);
+            float d3 = MathF.Sqrt(toParked * toParked + (cockpit.Y - parked.Pos.Y) * (cockpit.Y - parked.Pos.Y));
+            Assert.InRange(metres, (int)MathF.Floor(d3) - 1, (int)MathF.Ceiling(d3) + 1);
+            Assert.Contains(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
+        }
+    }
+
+    [Fact]
+    public void Recall_PacksTheBoat_AndWithAFullInventory_FloatsItOnWaterNearThePad_OrSaysThereIsNone()
     {
         var t = new RecordingTransport();
         var server = NewServer(out var repo, ship: true, transport: t);
@@ -271,21 +340,37 @@ public sealed class VehicleRecoveryTests : IDisposable
             Pool(server);
             string id = server.DeployVehicleForTest("Pilot", "boat");
             Assert.NotEqual(string.Empty, id);
-            var rec = p.State.DeployedSpeeders.Single();
 
             var cockpit = server.StationPosition("cockpit")!.Value;
             p.State.Position = cockpit;
             p.State.AboardShip = true;
             var pad = server.LandingPadInfoForTest(p.State.LandingPadIndex);
 
-            // Either the starter world has water within reach of the pad, or the recall says there is none —
-            // never a silent no-op, and never a boat dumped onto dry ground.
+            // A slot free: packed (#1668).
+            server.RecallVehicleForTest("Pilot", id);
+            Assert.Contains("@srv.boat.recalled_packed", MessagesTo(t, p));
+            Assert.Equal(1, p.State.Inventory.CountOf("boat"));
+            Assert.Empty(p.State.DeployedSpeeders);
+            Assert.Empty(server.SpeederSnapshots);
+
+            // Out again, and no slot free this time: either the starter world has water within reach of the
+            // pad, or the recall says there is none — never a silent no-op, never a boat dumped onto dry ground.
+            p.State.Position = Stand;
+            p.State.AboardShip = false;
+            id = server.DeployVehicleForTest("Pilot", "boat");
+            Assert.NotEqual(string.Empty, id);
+            var rec = p.State.DeployedSpeeders.Single();
+            FillInventory(p);
+            p.State.Position = cockpit;
+            p.State.AboardShip = true;
+
             server.RecallVehicleForTest("Pilot", id);
             bool none = RejectionsTo(t, p).Contains("@srv.boat.recall_no_water");
-            Assert.True(none || MessagesTo(t, p).Contains("@srv.boat.recalled"));
+            Assert.True(none || MessagesTo(t, p).Any(m => m.StartsWith("@srv.boat.recalled_parked:", StringComparison.Ordinal)));
+            Assert.Equal(0, p.State.Inventory.CountOf("boat"));
 
             // A pond dug just off the pad rim is always within reach: the recall floats the boat on water beside
-            // the ship, on a real waterline.
+            // the ship, on a real waterline, and pings the spot.
             int px = pad.X + 9, pz = pad.Z;
             int surface = pad.Y;
             Fill(server, "water", px, px + 2, surface - 2, surface - 1, pz - 1, pz + 1);
@@ -294,11 +379,12 @@ public sealed class VehicleRecoveryTests : IDisposable
 
             server.RecallVehicleForTest("Pilot", id);
 
-            Assert.Contains("@srv.boat.recalled", MessagesTo(t, p));
+            Assert.Contains(MessagesTo(t, p), m => m.StartsWith("@srv.boat.recalled_parked:", StringComparison.Ordinal));
             Assert.True(Math.Max(Math.Abs(rec.X - pad.X), Math.Abs(rec.Z - pad.Z)) <= 14, $"boat at ({rec.X}, {rec.Z}), pad ({pad.X}, {pad.Z})");
             var hull = new Vector3i((int)Math.Floor(rec.X), (int)Math.Floor(rec.Y) - 1, (int)Math.Floor(rec.Z));
             Assert.Equal(_content.GetBlock("water")!.NumericId, server.World.GetBlock(hull)); // afloat, not beached
             Assert.Equal("boat", server.VehicleKindForTest(id));
+            Assert.Contains(server.VisibleMarkersForTest("Pilot"), m => m.Ping);
         }
     }
 

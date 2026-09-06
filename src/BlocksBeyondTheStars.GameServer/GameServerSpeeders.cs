@@ -317,7 +317,9 @@ public sealed partial class GameServer
 
     /// <summary>Where a driver stands after dismounting: the nearest standable cell just outside the hull, side
     /// cells first (the hull is 3 wide and 5 long, so two to three cells to either side clear it at any
-    /// yaw), then a wider ring; the seat itself when nothing around is standable (a boat mid-lake).</summary>
+    /// yaw), then a wider ring. A boat with nothing dry around (mid-lake) puts the driver <b>in the water beside
+    /// the hull</b> (#1671) — the seat is the hull's centre, and a driver left there sank through the now-solid
+    /// hull and fought its collider from below. The seat itself only when there is no water either.</summary>
     private Vector3f DismountSpot(ServerSpeeder s, PlayerState p)
     {
         double yawRad = p.Yaw * Math.PI / 180.0;
@@ -366,6 +368,24 @@ public sealed partial class GameServer
                         return spot;
                     }
                 }
+
+        if (IsBoat(s.Rec))
+        {
+            // Mid-lake (#1671): into the water beside the hull, feet a block under the waterline so the client's
+            // swim physics takes over at once. Same side cells as the dry search, nearest first.
+            foreach (int side in new[] { 2, -2, 3, -3 })
+            {
+                foreach (int ahead in new[] { 0, 1, -1 })
+                {
+                    int cx = (int)Math.Floor(WorldConstants.WrapX(p.Position.X + rx * side + fx * ahead, circ));
+                    int cz = (int)Math.Floor(WorldConstants.WrapZ(p.Position.Z + rz * side + fz * ahead, circ));
+                    if (TryFindWaterline(cx, cz, fy, out float waterline) && Math.Abs(waterline - p.Position.Y) <= 2f)
+                    {
+                        return new Vector3f(cx + 0.5f, waterline - 1f, cz + 0.5f);
+                    }
+                }
+            }
+        }
 
         return p.Position;
     }
@@ -485,8 +505,11 @@ public sealed partial class GameServer
     /// <summary>The owner at their landed ship's cockpit/console asks for a deployed vehicle back. Looks the record
     /// up on the player blob (so a vehicle that is not materialised right now is still addressable), refuses while
     /// it is driven, when the ship is not landed on this body, when the player is not at the cockpit or console,
-    /// or when the vehicle lives on another world; then parks it beside the ship — a speeder on the nearest dry
-    /// standable cell outside the pad rim, a boat on the nearest waterline around the pad.</summary>
+    /// or when the vehicle lives on another world; then <b>packs it into the inventory</b> (#1668: X means "pack
+    /// up" everywhere else, and a recall that parked the speeder 14 m behind the ship read as "it vanished").
+    /// Only when no slot is free is the vehicle parked beside the ship — on the dry standable cell (speeder) /
+    /// waterline (boat) <b>nearest the player</b>, with a "look here" ping on the spot and the distance in the
+    /// message, so a parked-beside vehicle is never a search.</summary>
     private void HandleRecallVehicle(PlayerSession session, RecallVehicleIntent intent)
     {
         var p = session.State;
@@ -526,9 +549,25 @@ public sealed partial class GameServer
             return;
         }
 
-        var pad = PlayerPad(session);
         bool boat = IsBoat(rec);
-        Vector3f? spot = boat ? FindBoatWaterNearPad(pad) : FindSpeederParkingNearPad(pad);
+        if (p.Inventory.Add(VehicleItem(rec), 1, 1) == 0)
+        {
+            // Room in the inventory: the recall IS a pack-up (#1668).
+            p.DeployedSpeeders.Remove(rec);
+            if (live != null)
+            {
+                _speeders.Remove(live);
+            }
+
+            _repo.SavePlayer(p);
+            SendInventory(session);
+            BroadcastSpeeders();
+            Send(session, new ServerMessage { Text = VehicleMsg(rec, "recalled_packed") });
+            return;
+        }
+
+        var pad = PlayerPad(session);
+        Vector3f? spot = boat ? FindBoatWaterNearPad(pad, p.Position) : FindSpeederParkingNearPad(pad, p.Position);
         if (spot is null)
         {
             Reject(session, "speeder", boat ? "@srv.boat.recall_no_water" : "@srv.speeder.recall_no_room");
@@ -556,15 +595,21 @@ public sealed partial class GameServer
         _repo.SavePlayer(p);
         BroadcastSpeeders();
         BroadcastToWorld(new SpeederFx { X = at.X, Y = at.Y, Z = at.Z, Kind = boat ? "splash" : "deploy" });
-        Send(session, new ServerMessage { Text = VehicleMsg(rec, "recalled") });
+        RaisePingAt(session, at); // the #1217 "look here" pulse on the spot — a parked-beside vehicle is never a search
+        int metres = (int)Math.Round(Math.Sqrt(WrapDistSq(p.Position, at)));
+        Send(session, new ServerMessage { Text = VehicleMsg(rec, "recalled_parked") + ":" + metres });
     }
 
-    /// <summary>A dry standable cell for a recalled speeder: rings just outside the pad rim, nearest first, feet
-    /// within three cells of the pad surface. Never on the pad (the reserved landing volume) and never inside
+    /// <summary>A dry standable cell for a recalled speeder that did not fit the inventory: on the rings just
+    /// outside the pad rim, feet within three cells of the pad surface, the candidate <b>nearest <paramref
+    /// name="near"/></b> (the player at the cockpit) — not the first ring cell in scan order, which was always the
+    /// same corner 14 m behind the ship (#1668). Never on the pad (the reserved landing volume) and never inside
     /// the parked ship (<see cref="StandableSpot"/> checks the hull).</summary>
-    private Vector3f? FindSpeederParkingNearPad(LandingPad pad)
+    private Vector3f? FindSpeederParkingNearPad(LandingPad pad, Vector3f near)
     {
         int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
+        Vector3f? best = null;
+        double bestSq = double.MaxValue;
         for (int r = pad.Radius + VehicleRecallRingMin; r <= pad.Radius + VehicleRecallRingMax; r++)
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++)
@@ -578,20 +623,30 @@ public sealed partial class GameServer
                     {
                         if (StandableSpot(pad.CenterX + dx, y, pad.CenterZ + dz) is { } spot)
                         {
-                            return spot;
+                            double d = WrapDistSq(near, spot);
+                            if (d < bestSq)
+                            {
+                                bestSq = d;
+                                best = spot;
+                            }
+
+                            break;
                         }
                     }
                 }
 
-        return null;
+        return best;
     }
 
-    /// <summary>The nearest waterline around the pad for a recalled boat (the launch rule's search window per
-    /// column, so the boat gets the same headroom it needs to launch).</summary>
-    private Vector3f? FindBoatWaterNearPad(LandingPad pad)
+    /// <summary>The waterline around the pad nearest <paramref name="near"/> for a recalled boat that did not fit
+    /// the inventory (the launch rule's search window per column, so the boat gets the same headroom it needs
+    /// to launch).</summary>
+    private Vector3f? FindBoatWaterNearPad(LandingPad pad, Vector3f near)
     {
         int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
         int circ = _world.Circumference;
+        Vector3f? best = null;
+        double bestSq = double.MaxValue;
         for (int r = 1; r <= BoatRecallRadius; r++)
             for (int dx = -r; dx <= r; dx++)
                 for (int dz = -r; dz <= r; dz++)
@@ -605,11 +660,17 @@ public sealed partial class GameServer
                     int cz = WorldConstants.WrapZ(pad.CenterZ + dz, circ);
                     if (TryFindWaterline(cx, cz, refY, out float waterline))
                     {
-                        return new Vector3f(cx + 0.5f, waterline + BoatFloatAboveWaterline, cz + 0.5f);
+                        var spot = new Vector3f(cx + 0.5f, waterline + BoatFloatAboveWaterline, cz + 0.5f);
+                        double d = WrapDistSq(near, spot);
+                        if (d < bestSq)
+                        {
+                            bestSq = d;
+                            best = spot;
+                        }
                     }
                 }
 
-        return null;
+        return best;
     }
 
     /// <summary>Refuels a speeder from one energy cell in the owner's inventory (seated or within reach).</summary>

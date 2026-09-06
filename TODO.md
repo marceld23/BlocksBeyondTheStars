@@ -39,6 +39,26 @@ red_desert + archipelago from the launcher (orbit names and colours).
 
 ---
 
+### ★ Vehicle playtest follow-ups: the cockpit recall packs the vehicle up, a parked hull you cannot walk through, "Board (E)" on screen, a boat you leave into the water (#1668–#1671, 2026-09-06, branch fix/vehicle-playtest-2026-09-06)
+
+Marcel's first playtest of the #1667 build. **#1668** the cockpit recall parked the speeder on the first ring's
+(−r, −r) corner — 14 m diagonally behind the ship, past the 14 m HUD hint — and X means "pack up" everywhere else, so
+it read as "the speeder vanished". Now the recall **packs the vehicle into the inventory**; only with no slot free is it
+parked beside the ship, on the candidate **nearest the player**, with a server-raised #1217 ping on the spot and the
+distance in the message (`@srv.<kind>.recalled_parked:<m>`); the HUD hint range is 30 m. **#1669** `SpeederView` switched
+the parked hull's collider off while the player was inside a hand-typed box centred on the root; the hull is meshed at
+an offset (x −1…2, z −2…3), so the box overhung two faces (walk-through) and counted the roof as inside
+(fall-through). `VehicleHull.Encloses` (Client.Core, tested) is the hull box shrunk by the capsule radius and capped
+under the roof. **#1670** no on-screen "how to board": the centre prompt now reads "Board (E) · Pack up (X)" beside an
+own parked speeder/boat (the pad/touch ACT list already carries the pack-up). **#1671** `DismountSpot` fell back to the
+seat for a boat mid-lake — inside the now-solid hull; it now puts the driver in the water beside the hull. Tests:
+`VehicleRecoveryTests` (packed / full-inventory speeder + boat, nearest-cell, ping), `BoatTests` mid-lake exit,
+`VehicleHullTests`. Locale keys `srv.{speeder,boat}.recalled` → `recalled_packed` + `recalled_parked`.
+PLAYTEST (Marcel): X at the cockpit → item in the inventory; full inventory → marker + distance; walk into a parked
+speeder from all four sides; stand on it; boat exit mid-lake; "Board (E)" prompt with keyboard, pad and touch.
+
+---
+
 ### ★ Lyxette round 9: settlers out of the water, trees out of settlements, a speeder that stays on land and comes back, solid parked vehicles, space wrecks that exist, findable asteroids, ocean pads gated to new saves (#1658–#1665, 2026-09-06, branch fix/lyxette-reports-2026-09-06)
 
 Five F1 reports from the morning of 2026-09-06 (v2026.9.2) plus one release-risk finding. **#1658** `StandableSpot` judges a

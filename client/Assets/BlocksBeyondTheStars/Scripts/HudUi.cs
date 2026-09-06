@@ -948,6 +948,14 @@ namespace BlocksBeyondTheStars.Client
                 {
                     prompt = BaseAirPrompt(loc, ownBase);
                 }
+                else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleInBoardReach())
+                {
+                    // Beside an own parked speeder/boat (#1670): nothing on screen ever said how to board —
+                    // "Board (E) · Pack up (X)", the same verbs PlayerController polls on foot. Glyphs follow
+                    // the active device, and the pad/touch ACT list carries the pack-up too.
+                    prompt = $"{loc.Get("hud.speeder.board")} ({InputMap.Glyph(InputAction.Interact)})"
+                        + $"  ·  {loc.Get("hud.speeder.stow")} ({InputMap.Glyph(InputAction.StowVehicle)})";
+                }
                 else if (!string.IsNullOrEmpty(Game.AimedStationBlock))
                 {
                     // #1073: "Workbench — crafting: menu (Tab) → Crafting" — the block names the tab it powers.
@@ -1007,11 +1015,35 @@ namespace BlocksBeyondTheStars.Client
             return n;
         }
 
+        /// <summary>An own parked (not driven) vehicle within the on-foot board reach — the "Board (E)" prompt's
+        /// gate (#1670). The reach mirrors <c>PlayerController.SpeederBoardRange</c>.</summary>
+        private bool OwnParkedVehicleInBoardReach()
+        {
+            const float boardReach = 3.2f;
+            if (Game?.Speeders == null)
+            {
+                return false;
+            }
+
+            foreach (var s in Game.Speeders)
+            {
+                if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId)
+                    && (Game.ScenePos(s.X, s.Y, s.Z) - Game.PlayerPosition).sqrMagnitude < boardReach * boardReach)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>The nearest own parked vehicle that is beyond the pack-up reach (5 m, the server's) but
-        /// within a few metres — its kind and distance for the "walk up to it" hint (#1661).</summary>
+        /// within a few metres — its kind and distance for the "walk up to it" hint (#1661). The range covers
+        /// the recall's park-beside spots (up to 18 blocks from the pad centre, #1668), which the old 14 m
+        /// missed from the cockpit.</summary>
         private bool OwnParkedVehicleOutOfReach(out string kind, out float distance)
         {
-            const float reach = 5f, hintRange = 14f;
+            const float reach = 5f, hintRange = 30f;
             kind = string.Empty;
             distance = 0f;
             if (Game?.Speeders == null)

@@ -201,6 +201,40 @@ public sealed class BoatTests : IDisposable
     }
 
     [Fact]
+    public void Exit_MidLake_PutsTheDriverInTheWaterBesideTheHull_NotOnTheSeat()
+    {
+        var server = NewServer(out var repo);
+        using (repo)
+        {
+            var p = Pilot(server);
+            // A wide lake: stone to y=79 everywhere, water at y=78..79 from z=12 on, banks ≥ 8 cells from the middle.
+            Fill(server, "stone", 0, 24, 73, 79, 0, 30);
+            Fill(server, "air", 0, 24, 80, 84, 0, 30);
+            Fill(server, "water", 2, 22, 78, 79, 12, 28);
+            string id = server.DeployVehicleForTest("Pilot", "boat");
+            var water = server.SpeederSnapshots.Single().Pos;
+            p.State.Position = water;
+            server.EnterSpeederForTest("Pilot", id);
+            server.DriveSpeederStepForTest("Pilot", water);
+            server.DriveSpeederStepForTest("Pilot", new Vector3f(12.5f, 80.3f, 15.5f));
+            var mid = new Vector3f(12.5f, 80.3f, 20.5f);
+            server.DriveSpeederStepForTest("Pilot", mid);
+
+            server.ExitSpeederForTest("Pilot");
+
+            // Beside the hull, in the water, a block under the waterline — not on the seat inside the hull (#1671).
+            var feet = p.State.Position;
+            float planar = MathF.Sqrt((feet.X - mid.X) * (feet.X - mid.X) + (feet.Z - mid.Z) * (feet.Z - mid.Z));
+            Assert.InRange(planar, 1.5f, 3.5f);
+            Assert.Equal(79f, feet.Y, 2);
+            var cell = new Vector3i((int)Math.Floor(feet.X), 79, (int)Math.Floor(feet.Z));
+            Assert.Equal(_content.GetBlock("water")!.NumericId, server.World.GetBlock(cell));
+            Assert.Equal(mid.X, server.SpeederSnapshots.Single().Pos.X, 2); // the boat stays where the driver got out
+            Assert.Equal(string.Empty, p.State.InSpeeder);
+        }
+    }
+
+    [Fact]
     public void DrivingAshore_ForLongEnough_SnapsBackToTheLastWaterPose()
     {
         var server = NewServer(out var repo);

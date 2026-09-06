@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
 
 namespace BlocksBeyondTheStars.GameServer;
@@ -167,6 +168,29 @@ public sealed partial class GameServer
             X = intent.X,
             Y = intent.Y,
             Z = intent.Z,
+            ExpiresAt = _uptime + PingTtlSeconds,
+        });
+        BroadcastMarkersOn(loc);
+    }
+
+    /// <summary>A ping the SERVER raises for a player (#1668): the spot it chose for something of theirs — the
+    /// vehicle it parked beside the ship when the inventory was full. Same lifetime and audience as a player's
+    /// own ping, no rate limit (it is not a key press).</summary>
+    private void RaisePingAt(PlayerSession session, Vector3f at)
+    {
+        string loc = session.CurrentLocationId;
+        if (string.IsNullOrEmpty(loc))
+        {
+            return;
+        }
+
+        _pings.Add(new ServerPing
+        {
+            OwnerId = session.State.PlayerId,
+            LocationId = loc,
+            X = at.X,
+            Y = at.Y,
+            Z = at.Z,
             ExpiresAt = _uptime + PingTtlSeconds,
         });
         BroadcastMarkersOn(loc);
