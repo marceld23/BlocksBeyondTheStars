@@ -24,6 +24,21 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Landscape variety 6/6: eight planet types, six monuments, structures on rugged ground (#1649, 2026-09-06, branch landscape/1649-worlds)
+
+Eight data-only types (`red_desert`, `boreal`, `archipelago`, `glacier`, `meadowlands`, `ashen_ocean`, `dust_bowl`,
+`frozen_ocean`) with style pools, tags, biomes (relief multipliers), ores, weather, EN/DE names + descriptions (12 locales
+via `translate_locale.py`), `NameGenerator.PlanetFlavors`; spawn weights 4–7, exotic where it fits; `BodyPlanetTypes` keeps
+old saves. `MonumentGenerator.ArchetypesGen1` + bridge / watchtower / tomb / ziggurat / colossus / aqueduct; the server
+draws generation-1 monuments from the larger pool, generation 0 keeps the five. Settlement placement unchanged: the #586
+guarantee already seats structures on generation-1 relief (tests on highland / red_desert / glacier gen-1 worlds).
+`LandscapeWorldsTests` (content cross-check for all types, new types generate + names, ashen-ocean lava sea + land,
+monument canvases + runes + caches, placement guarantee). **The package is complete** — release steps in the runbook;
+PLAYTEST (Marcel, after release build): new desert + highland (style regions), jungle (marsh / oasis / scree),
+red_desert + archipelago from the launcher (orbit names and colours).
+
+---
+
 ### ★ Landscape variety 5/6: 16 prop rows with micro-ruins, 7 tree kinds, giant-flora table (#1648, 2026-09-06, branch landscape/1648-props-trees)
 
 Generation-1 worlds only; classic goldens unchanged, `savanna-gen1` + `swamp-gen1` pinned. `WorldGenerator.StampsGen1.cs`:

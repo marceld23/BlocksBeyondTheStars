@@ -134,6 +134,15 @@ public static class NameGenerator
         ["ocean"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
         ["crystal"] = (new[] { "k", "z", "x", "ch", "s", "kr" }, new[] { "iel", "ith", "yne", "ir", "iss", "ax" }),
         ["crystal_living"] = (new[] { "k", "z", "x", "ch", "s", "kr" }, new[] { "iel", "ith", "yne", "ir", "iss", "ax" }),
+        // Landscape variety 6/6 (#1649): the eight data-only types borrow the flavour of their nearest classic kin.
+        ["red_desert"] = (new[] { "s", "z", "k", "r", "dr", "sh" }, new[] { "ara", "un", "akh", "ir", "um", "at" }),
+        ["dust_bowl"] = (new[] { "s", "z", "k", "r", "dr", "sh" }, new[] { "ara", "un", "akh", "ir", "um", "at" }),
+        ["boreal"] = (new[] { "fr", "kr", "th", "v", "sk", "h", "gl" }, new[] { "heim", "fell", "gard", "yr", "os", "ost" }),
+        ["glacier"] = (new[] { "fr", "kr", "th", "v", "sk", "h", "gl" }, new[] { "heim", "fell", "gard", "yr", "os", "ost" }),
+        ["frozen_ocean"] = (new[] { "fr", "kr", "th", "v", "sk", "h", "gl" }, new[] { "mar", "fell", "ea", "yr", "os", "ion" }),
+        ["archipelago"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
+        ["meadowlands"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
+        ["ashen_ocean"] = (new[] { "p", "k", "dr", "z", "r", "kr", "v" }, new[] { "ax", "arr", "eth", "ur", "ash", "gar" }),
     };
 
     /// <summary>Substrings no coined celestial name may contain (EN + DE) — the syllable mill can and

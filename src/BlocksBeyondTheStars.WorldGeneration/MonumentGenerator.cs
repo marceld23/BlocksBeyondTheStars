@@ -29,6 +29,13 @@ public static class MonumentGenerator
     /// so a body never shows the same kind twice.</summary>
     public static readonly string[] Archetypes = { "arcade", "gate", "circle", "obelisk", "altar" };
 
+    /// <summary>The generation-1 pool (#1649): the classic five plus bridge, watchtower, tomb, ziggurat, colossus
+    /// and aqueduct. Generation-0 worlds keep drawing from <see cref="Archetypes"/> so their relics stay put.</summary>
+    public static readonly string[] ArchetypesGen1 =
+    {
+        "arcade", "gate", "circle", "obelisk", "altar", "bridge", "watchtower", "tomb", "ziggurat", "colossus", "aqueduct",
+    };
+
     /// <summary>Rune glow colours (0xRRGGBB) — one is drawn per monument, so a whole relic glows in one hue.</summary>
     private static readonly int[] RuneGlows = { 0x3FD8E8, 0xA870F0, 0xF0A03C, 0x5FE08A };
 
@@ -53,6 +60,12 @@ public static class MonumentGenerator
             "circle" => Circle(mat, rng),
             "obelisk" => Obelisk(mat, rng),
             "altar" => Altar(mat, rng),
+            "bridge" => Bridge(mat, rng),
+            "watchtower" => Watchtower(mat, rng),
+            "tomb" => Tomb(mat, rng),
+            "ziggurat" => Ziggurat(mat, rng),
+            "colossus" => Colossus(mat, rng),
+            "aqueduct" => Aqueduct(mat, rng),
             _ => Arcade(mat, rng),
         };
 
@@ -571,6 +584,301 @@ public static class MonumentGenerator
         }
 
         c.Markers.Add(new SettlementMarker("relic_cache", new Vector3i(cx, 1, cz)));
+    }
+
+    // ---------------- generation-1 archetypes (#1649) ----------------
+
+    /// <summary>A stone bridge: two abutment piers carrying a corbelled span 9–13 long with a parapet, the
+    /// deck partly fallen in — it stands over whatever it lands on (a dip, a brook, dry ground).</summary>
+    private static Canvas Bridge(Materials mat, System.Random rng)
+    {
+        int span = 9 + rng.Next(3) * 2; // 9, 11, 13
+        var c = new Canvas(span + 4, 9, 5);
+        int cz = c.L / 2;
+        int x0 = 1, x1 = c.W - 2;
+        const int Deck = 4;
+        for (int dz = -1; dz <= 1; dz++)
+        {
+            Column(c, x0, cz + dz, Deck, mat.Masonry);
+            Column(c, x1, cz + dz, Deck, mat.Masonry);
+            Column(c, x0 + 1, cz + dz, Deck - 1, mat.Masonry);
+            Column(c, x1 - 1, cz + dz, Deck - 1, mat.Masonry);
+        }
+
+        int gap = 2 + rng.Next(span / 2);
+        int gapAt = x0 + 3 + rng.Next(System.Math.Max(1, span - 6));
+        for (int x = x0; x <= x1; x++)
+        {
+            bool fallen = x >= gapAt && x < gapAt + gap && rng.NextDouble() < 0.7;
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                if (!fallen)
+                {
+                    c.Set(x, Deck + 1, cz + dz, mat.Masonry);
+                }
+            }
+
+            if (!fallen && rng.NextDouble() < 0.75)
+            {
+                c.Set(x, Deck + 2, cz - 1, mat.Masonry, ShapeCode.Pack(BlockShape.Slab, 0)); // parapet
+                c.Set(x, Deck + 2, cz + 1, mat.Masonry, ShapeCode.Pack(BlockShape.Slab, 0));
+            }
+
+            if (fallen && rng.NextDouble() < 0.5)
+            {
+                c.Set(x, 1, cz + rng.Next(-1, 2), mat.Rubble); // the fallen deck lies below
+            }
+        }
+
+        // corbels under the deck ends
+        c.Set(x0 + 2, Deck, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 1));
+        c.Set(x1 - 2, Deck, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 3));
+        Erode(c, rng, baseP: 0.02, topP: 0.2, protectY: 3);
+        return c;
+    }
+
+    /// <summary>A square watchtower 4×4, 10–14 tall, hollow, with a doorway and a jagged broken top.</summary>
+    private static Canvas Watchtower(Materials mat, System.Random rng)
+    {
+        int height = 10 + rng.Next(5);
+        var c = new Canvas(7, height + 3, 7);
+        int x0 = 1, z0 = 1, x1 = 4, z1 = 4;
+        for (int y = 0; y <= height; y++)
+        {
+            for (int x = x0; x <= x1; x++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    bool wall = x == x0 || x == x1 || z == z0 || z == z1;
+                    if (!wall)
+                    {
+                        continue;
+                    }
+
+                    // the top comes down unevenly
+                    int crumble = y > height - 3 ? rng.Next(3) : 0;
+                    if (y + crumble > height)
+                    {
+                        continue;
+                    }
+
+                    // the doorway on the −Z face, two tall
+                    if (z == z0 && (x == 2 || x == 3) && y >= 1 && y <= 2)
+                    {
+                        continue;
+                    }
+
+                    // arrow slits every third course
+                    if (y % 3 == 0 && y > 3 && ((x == x0 || x == x1) && z == 2))
+                    {
+                        continue;
+                    }
+
+                    c.Set(x, y, z, mat.Masonry);
+                }
+        }
+
+        // a rune band round the middle
+        for (int x = x0; x <= x1; x++)
+        {
+            c.Set(x, height / 2, z1, mat.Rune, glow: mat.Glow);
+        }
+
+        Erode(c, rng, baseP: 0.0, topP: 0.3, protectY: 3);
+        return c;
+    }
+
+    /// <summary>A tomb: a low stepped mound with a walk-in chamber, a sarcophagus slab and the relic inside.</summary>
+    private static Canvas Tomb(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(11, 7, 9);
+        int cx = c.W / 2, cz = c.L / 2;
+        // three courses shrinking inwards
+        for (int tier = 0; tier < 3; tier++)
+        {
+            int rx = 5 - tier, rz = 4 - tier;
+            for (int dx = -rx; dx <= rx; dx++)
+                for (int dz = -rz; dz <= rz; dz++)
+                {
+                    c.Set(cx + dx, tier, cz + dz, mat.Masonry);
+                    if (tier == 2 && (System.Math.Abs(dx) == rx || System.Math.Abs(dz) == rz))
+                    {
+                        c.Set(cx + dx, tier + 1, cz + dz, mat.Masonry, ShapeCode.Pack(BlockShape.Slab, 0));
+                    }
+                }
+        }
+
+        // the chamber: hollow the middle of courses 1–2, open a passage to −Z
+        for (int dx = -2; dx <= 2; dx++)
+            for (int dz = -1; dz <= 1; dz++)
+            {
+                c.Clear(cx + dx, 1, cz + dz);
+                c.Clear(cx + dx, 2, cz + dz);
+            }
+
+        for (int z = 0; z < cz - 1; z++)
+        {
+            c.Clear(cx, 1, z);
+            c.Clear(cx, 2, z);
+        }
+
+        // the sarcophagus slab and a rune lintel over the passage
+        c.Set(cx, 1, cz + 1, mat.Rune, ShapeCode.Pack(BlockShape.Slab, 0), mat.Glow);
+        c.Set(cx, 3, 0, mat.Rune, glow: mat.Glow);
+        Erode(c, rng, baseP: 0.0, topP: 0.18, protectY: 2);
+        return c;
+    }
+
+    /// <summary>A ziggurat: three stepped tiers with a stair ramp up the −Z face and a shrine on top.</summary>
+    private static Canvas Ziggurat(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(13, 10, 13);
+        int cx = c.W / 2, cz = c.L / 2;
+        int[] half = { 6, 4, 2 };
+        for (int tier = 0; tier < 3; tier++)
+        {
+            int y0 = tier * 2;
+            for (int dx = -half[tier]; dx <= half[tier]; dx++)
+                for (int dz = -half[tier]; dz <= half[tier]; dz++)
+                {
+                    c.Set(cx + dx, y0, cz + dz, mat.Masonry);
+                    c.Set(cx + dx, y0 + 1, cz + dz, mat.Masonry);
+                }
+        }
+
+        // the stair up the −Z face: ramps on every tier edge
+        for (int tier = 0; tier < 3; tier++)
+        {
+            int z = cz - half[tier] - 1;
+            c.Set(cx, tier * 2, z, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 0));
+            c.Set(cx, tier * 2 + 1, z + 1, mat.Masonry, ShapeCode.Pack(BlockShape.Ramp, 0));
+        }
+
+        // the shrine: four posts and a rune lintel
+        for (int dx = -1; dx <= 1; dx += 2)
+            for (int dz = -1; dz <= 1; dz += 2)
+            {
+                c.Set(cx + dx, 6, cz + dz, mat.Masonry, ShapeCode.Pack(BlockShape.Post, 0));
+                c.Set(cx + dx, 7, cz + dz, mat.Masonry, ShapeCode.Pack(BlockShape.Post, 0));
+            }
+
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            c.Set(cx + dx, 8, cz - 1, mat.Rune, glow: mat.Glow);
+            c.Set(cx + dx, 8, cz + 1, mat.Rune, glow: mat.Glow);
+        }
+
+        Erode(c, rng, baseP: 0.0, topP: 0.25, protectY: 3);
+        return c;
+    }
+
+    /// <summary>A colossus: a seated figure 12–14 tall — legs, a torso, shoulders and a head — one arm and often
+    /// the head fallen to the ground beside the plinth.</summary>
+    private static Canvas Colossus(Materials mat, System.Random rng)
+    {
+        var c = new Canvas(11, 16, 9);
+        int cx = c.W / 2, cz = c.L / 2;
+        // plinth
+        for (int dx = -3; dx <= 3; dx++)
+            for (int dz = -2; dz <= 2; dz++)
+            {
+                c.Set(cx + dx, 0, cz + dz, mat.Masonry);
+            }
+
+        // legs (seated: thighs forward, shins down)
+        for (int side = -1; side <= 1; side += 2)
+        {
+            for (int y = 1; y <= 4; y++)
+            {
+                c.Set(cx + side, y, cz - 2, mat.Masonry);
+            }
+
+            c.Set(cx + side, 4, cz - 1, mat.Masonry);
+            c.Set(cx + side, 4, cz, mat.Masonry);
+        }
+
+        // torso
+        for (int y = 4; y <= 9; y++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                c.Set(cx + dx, y, cz, mat.Masonry);
+                c.Set(cx + dx, y, cz + 1, mat.Masonry);
+            }
+
+        // shoulders + arms (the right arm stands, the left has fallen)
+        for (int y = 9; y >= 5; y--)
+        {
+            c.Set(cx + 2, y, cz, mat.Masonry, y == 5 ? ShapeCode.Pack(BlockShape.Post, 0) : 0);
+        }
+
+        c.Set(cx - 2, 9, cz, mat.Masonry);
+        for (int i = 0; i < 3; i++)
+        {
+            c.Set(cx - 3 - (i > 1 ? 1 : 0), 1, cz - 1 + i, mat.Rubble, ShapeCode.Pack(BlockShape.Cylinder, 0)); // the fallen arm
+        }
+
+        // rune breastplate
+        c.Set(cx, 7, cz - 1, mat.Rune, glow: mat.Glow);
+
+        // head — standing or fallen
+        if (rng.NextDouble() < 0.5)
+        {
+            for (int dx = -1; dx <= 1; dx++)
+                for (int dz = 0; dz <= 1; dz++)
+                {
+                    c.Set(cx + dx, 10, cz + dz, mat.Masonry);
+                    c.Set(cx + dx, 11, cz + dz, mat.Masonry);
+                }
+
+            c.Set(cx, 12, cz, mat.Masonry, ShapeCode.Pack(BlockShape.Pyramid, 0));
+        }
+        else
+        {
+            for (int dx = 0; dx <= 1; dx++)
+                for (int dz = 0; dz <= 1; dz++)
+                {
+                    c.Set(cx + 3 + dx, 1, cz + 2 + dz - 1, mat.Masonry); // the head on the ground
+                }
+        }
+
+        Erode(c, rng, baseP: 0.0, topP: 0.2, protectY: 4);
+        return c;
+    }
+
+    /// <summary>An aqueduct fragment: tall piers carrying an arcade and a walled channel on top, one bay collapsed.</summary>
+    private static Canvas Aqueduct(Materials mat, System.Random rng)
+    {
+        const int Span = 5;
+        const int Pier = 6;
+        int arches = 3 + rng.Next(2);
+        int w = arches * (Span - 1) + 3;
+        var c = new Canvas(w, Pier + 6, 5);
+        int cz = c.L / 2;
+        int fallen = rng.Next(arches);
+        for (int a = 0; a < arches; a++)
+        {
+            int x0 = 1 + a * (Span - 1);
+            Column(c, x0, cz, Pier, mat.Masonry);
+            Column(c, x0 + Span - 1, cz, Pier, mat.Masonry);
+            if (a != fallen)
+            {
+                Arch(c, x0, x0 + Span - 1, cz, Pier + 1, mat.Masonry);
+                for (int x = x0; x <= x0 + Span - 1; x++)
+                {
+                    c.Set(x, Pier + 4, cz - 1, mat.Masonry); // channel walls
+                    c.Set(x, Pier + 4, cz + 1, mat.Masonry);
+                }
+            }
+            else
+            {
+                for (int d = 0; d < 3; d++)
+                {
+                    c.Set(x0 + 1 + rng.Next(Span - 2), 1, cz + rng.Next(-1, 2), mat.Rubble);
+                }
+            }
+        }
+
+        Erode(c, rng, baseP: 0.02, topP: 0.22, protectY: 3);
+        return c;
     }
 
     // ---------------- canvas ----------------

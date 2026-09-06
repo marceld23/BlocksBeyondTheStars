@@ -79,6 +79,12 @@ public sealed class PlanetType
     /// generation-1 styles ("archipelago", "fjordlands", "downs", "shattered", "terraces", "drumlins", "glacial").</summary>
     public List<string> TerrainStyles { get; set; } = new();
 
+    /// <summary>The first terrain generation whose galaxies may roll this type (#1649). 0 = every galaxy; the
+    /// eight data-only types of the landscape-variety package carry 1, so a classic-generation galaxy (every
+    /// existing save, every test world pinned to generation 0) keeps its exact planet roll — "new worlds only"
+    /// holds for the planet mix as well as for the terrain.</summary>
+    public int MinTerrainGeneration { get; set; }
+
     /// <summary>Terrain feature tags this type opts into (#1644): "volcanic", "salt", "buttes", "hoodoos",
     /// "crystal", "wind", "wetland", "glacial", "inselbergs" (see <see cref="TerrainTag"/>). The generator gates
     /// its landform families on these — never on the type key — so a data-only type can carry any family.</summary>
