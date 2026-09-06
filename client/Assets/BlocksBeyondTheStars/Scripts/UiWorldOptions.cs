@@ -201,8 +201,14 @@ namespace BlocksBeyondTheStars.Client
                 _ => 4,     // Frequent
             };
 
-            float x = 30f, y = 86f;
-            int column = 0;
+            // Two columns whose row pitch follows the type count (#1649 added eight types — 29 selectable): the
+            // longer column must end above the footer, so the pitch shrinks from the comfortable 56 px down to
+            // 40 px (a slider row is 40 px tall) before the list would ever run under the Back button.
+            const float FirstRowY = 86f;
+            int perColumn = Mathf.Max(1, Mathf.CeilToInt(types.Count / 2f));
+            float pitch = Mathf.Clamp((FooterY - 16f - FirstRowY) / perColumn, 40f, 56f);
+            float x = 30f, y = FirstRowY;
+            int row = 0;
             foreach (var p in types)
             {
                 string key = p.Key;
@@ -212,12 +218,11 @@ namespace BlocksBeyondTheStars.Client
                     v => opt.PlanetTypes[key] = v,
                     rebuilders: null);
 
-                y += 56f;
-                if (y > 640f && column == 0)
+                y += pitch;
+                if (++row == perColumn)
                 {
-                    column = 1;
                     x = 820f;
-                    y = 86f;
+                    y = FirstRowY;
                 }
             }
 
