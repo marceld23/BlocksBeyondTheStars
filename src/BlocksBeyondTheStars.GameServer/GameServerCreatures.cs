@@ -2186,6 +2186,9 @@ public sealed partial class GameServer
             Tentacles = sp?.Tentacles ?? 0,
             EyeStalks = sp?.EyeStalks ?? false,
             HasGasSac = sp?.HasGasSac ?? false,
+            // Through the helper, not the raw flag: a companion tamed before fins existed carries a snapshot
+            // with the flag false, and every input the derivation needs is in that snapshot.
+            HasFins = CreatureMotion.HasFins(sp),
             BodyPlan = (sp?.BodyPlan ?? CreatureBodyPlan.Standard).ToString(),
             NeckLength = sp?.NeckLength ?? 0,
             HasTrunk = sp?.HasTrunk ?? false,

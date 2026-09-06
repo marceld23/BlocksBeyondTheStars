@@ -61,6 +61,37 @@ public static class CreatureMotion
         return MotionClass.Walker;
     }
 
+    /// <summary>Whether a species carries fins. Deliberately <b>not</b> a generator roll: it folds the
+    /// species' own voice seed (which is itself derived, not drawn) so no RNG is consumed and every world
+    /// created before fins existed keeps its species bit-for-bit — the same discipline
+    /// <see cref="ClassOf"/> follows. Legless water and amphibian bodies almost always have them, a legged
+    /// water body sometimes does, and a medusa never does (its bell and rim arms are its whole anatomy).
+    /// </summary>
+    public static bool FinsFor(CreatureSpecies sp)
+    {
+        if (sp.BodyPlan == CreatureBodyPlan.Medusa)
+        {
+            return false;
+        }
+
+        bool water = sp.Habitat == CreatureHabitat.Water;
+        bool amphibian = sp.Habitat == CreatureHabitat.Amphibian;
+        if (!water && !amphibian)
+        {
+            return false;
+        }
+
+        // A stable 0..99 from the seed, mixed so it does not correlate with anything else derived from it.
+        int roll = (int)((uint)(sp.VoiceSeed * 2654435761u ^ 0x9E3779B9u) % 100u);
+        return sp.Legs <= 0 ? roll < 75 : water && roll < 15;
+    }
+
+    /// <summary>Whether this species should be drawn with fins, self-healing for companion snapshots saved
+    /// before the trait existed (their stored flag is false, but every input <see cref="FinsFor"/> needs is
+    /// persisted, so the derivation fills it back in). Use this at the wire boundary, not the raw property.
+    /// </summary>
+    public static bool HasFins(CreatureSpecies? sp) => sp != null && (sp.HasFins || FinsFor(sp));
+
     /// <summary>The class in effect right now: amphibians swim while in water and walk/crawl ashore
     /// (#1334); everyone else keeps <see cref="ClassOf"/>.</summary>
     public static MotionClass EffectiveClass(CreatureSpecies sp, bool inWater)

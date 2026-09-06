@@ -35,6 +35,11 @@ geometric detail.
 7. **Preset-gated effects.** Anything expensive scales over Potato/Low/Medium/High; comfort
    effects honour `ReducedEffects` (and `UiKit.ReducedMotion`), camera motion honours
    `CameraMotion`.
+8. **Bodies are jointed cubes.** Anything alive — the player avatar, remote players, NPCs, creatures
+   — is built from cuboids on pivots and animated procedurally: limbs bend at a knee/elbow, feet are
+   flat soles that stay level, soft parts (tails, tentacles, necks, trunks) are chains that lag the
+   body. No skinned meshes, no imported clips, no Mecanim. Joints are cubes too — a sphere joint
+   would read as a different material language. See [CREATURE_RIG.md](CREATURE_RIG.md).
 
 ## 3. Color palette
 

@@ -458,6 +458,7 @@ namespace BlocksBeyondTheStars.Client
             // Procedural creatures / fauna (World systems §12).
             var creatures = root.AddComponent<CreatureView>();
             creatures.Game = boot;
+            creatures.ReducedEffects = shell.Settings.ReducedEffects; // pulls the rig detail distances in
 
             // Geyser / vent eruptions (item 21): rising plume + hiss at geyser_vent blocks.
             var geysers = root.AddComponent<GeyserView>();

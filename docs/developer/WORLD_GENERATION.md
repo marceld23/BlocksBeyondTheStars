@@ -307,6 +307,12 @@ live by `GameServerCreatures.cs`.
   usually glowing, never hostile, per-species hover altitude 3–12; **Titan** (18 % of Land species) —
   size 3.5–6, pillar legs, neck (≥2 segments reads giraffe) or trunk, horns worn as tusks, HP ×3.5,
   drops 3–6, dangerous when provoked but never a pack-hunter. Everything else stays **Standard**.
+- **Fins:** legless water and amphibian bodies almost always carry pectoral, caudal and dorsal fins
+  (a legged water species sometimes does; a medusa never). Like the voice seed, this is **derived
+  rather than drawn** — `CreatureMotion.FinsFor` folds the species' own seed, so it consumes no RNG
+  and existing worlds keep their species bit-for-bit. Because the derivation reads only persisted
+  fields, a companion snapshot saved before fins existed is lifted on load. See
+  [CREATURE_RIG.md](CREATURE_RIG.md).
 - **Social species (#639):** each species rolls a `SocialGroupSize` (1 = solitary): titan herds 2–4,
   schooling water species 3–5, some flocks of fliers 2–4, occasional grazer pairs/trios. The spawner
   places the whole group together (4–8 blocks apart, each member habitat-gated and cap-counted), and

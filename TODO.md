@@ -24,6 +24,29 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Creatures get real limbs: a speed-locked gait, knees and feet, foot planting on real blocks (#1674, 2026-09-06, branch feat/creature-limbs)
+
+Six packages in one branch. **WP1 gait:** new pure `CreatureGait` (Shared) — cycle rate = speed ÷ stride length, so a
+planted foot no longer slides (the old wave beat at `3 + speed·2.2`, unrelated to the distance covered, and every animal
+in the game skated); the stance angle is an arcsine so the foot's ground velocity is constant; six footfall patterns
+(lateral-sequence walk, trot, bound, insect tripod, metachronal wave, paddle) with hysteresis + cross-fade; hips moved to
+the body's real half-width and spread over the whole torso; `LegRig` gives every leg an explicit side/row (the two body
+plans numbered their legs in opposite orders, so any row-keyed gait ran mirrored on titans). **WP2 character:** a hinged
+jaw that opens on every vocalisation and bite (the voices had been coming out of a sealed head since #902), a lie-down
+sleep pose, blinking, a gaze that follows the player, ear flicks / tail swats / weight shifts on long idles. **WP3 LOD:**
+Near/Mid/Far/Frozen distance tiers (there were none — up to 45 full rigs animated every frame at any distance), scaled to
+55 % under Reduced effects. **WP4 joints:** hip → knee → foot with fore/hind limbs bending opposite ways, wings with a
+wrist that folds the outer panel along the flank, tail / neck / tentacle / trunk chains; the titan neck is a chain now, so
+a giraffe's graze bends the neck instead of nodding at the top of a column. **WP5 fins:** `HasFins` species trait, derived
+from the species' own voice seed rather than drawn, so no RNG is consumed and existing worlds keep their species
+bit-for-bit; old companion snapshots are lifted on load. **WP6 planting:** `CreatureFeet` + analytic two-bone
+`CreatureIk` — feet get world-space targets on real blocks, body pitch/roll come from the plane through them, and network
+corrections re-plant rather than drag. Tests: `CreatureGaitTests`, `CreatureIkTests` (forward-kinematics round trip over
+the whole reachable volume), `CreatureFinsTests`. Docs: new `docs/developer/CREATURE_RIG.md`.
+**Not done yet:** playtest, PerfProbe numbers, WebGL measurement.
+
+---
+
 ### ★ Landscape variety 6/6: eight planet types, six monuments, structures on rugged ground (#1649, 2026-09-06, branch landscape/1649-worlds)
 
 Eight data-only types (`red_desert`, `boreal`, `archipelago`, `glacier`, `meadowlands`, `ashen_ocean`, `dust_bowl`,

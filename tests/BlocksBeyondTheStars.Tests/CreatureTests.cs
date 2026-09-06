@@ -321,6 +321,7 @@ public sealed class CreatureTests : IDisposable
                 Assert.Equal(few[i].Habitat, many[i].Habitat);
                 Assert.Equal(few[i].Size, many[i].Size);
                 Assert.Equal(few[i].BodyPlan, many[i].BodyPlan);
+                Assert.Equal(few[i].HasFins, many[i].HasFins);
             }
         }
     }
