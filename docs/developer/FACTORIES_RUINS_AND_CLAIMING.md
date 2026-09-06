@@ -113,6 +113,9 @@ reload never resurrects blocks the player cleared.
 Ruins are *statistically* eroded architecture, so they can never produce a deliberate silhouette.
 `StampMonuments` (`GameServer/GameServerMonuments.cs`) adds the authored counterpart: 0–3 relics per body,
 one per archetype (`arcade`, `gate`, `circle`, `obelisk`, `altar`) from `WorldGeneration/MonumentGenerator.cs`.
+Generation-1 worlds (#1649, terrain generation ≥ 1) draw from `MonumentGenerator.ArchetypesGen1` — the same
+five plus `bridge`, `watchtower`, `tomb`, `ziggurat`, `colossus`, `aqueduct`; classic worlds keep the five in
+the same order, so a loaded save meets the same relics (see [WORLD_GENERATION.md §12.5](WORLD_GENERATION.md)).
 Each is built intact, then run through an erosion pass plus a **settle** pass (a stone with nothing under
 it, nothing corbelled under its shoulder and nothing beside it falls) so what survives still reads as the
 thing it was. It is the first procedural generator to emit per-cell **shapes and glow** — arches are

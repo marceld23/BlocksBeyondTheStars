@@ -49,7 +49,7 @@ Design your ship block by block, fly real system-scale routes, dock at space sta
 
 **Explore**
 
-*   **System-scale flight:** procedurally generated star systems — each with its own sun, planets, moons and mineable asteroid belts — and **21 planet types** (airless rocks, lava fields, jungles, oceans, skylands, fungal and crystal worlds, …) with their own terrain, flora, fauna and sky. Worlds wrap east–west, so you can walk around a planet. Jump between systems; the far **frontier** is richer, and a *Growing* galaxy grows a new system every time you push past its edge.
+*   **System-scale flight:** procedurally generated star systems — each with its own sun, planets, moons and mineable asteroid belts — and **29 planet types** (airless rocks, lava fields, jungles, oceans, skylands, fungal and crystal worlds, red deserts, archipelagos, glaciers, …) with their own terrain, flora, fauna and sky. Worlds wrap east–west, so you can walk around a planet. Jump between systems; the far **frontier** is richer, and a *Growing* galaxy grows a new system every time you push past its edge.
 *   **Living worlds:** per-position **weather and seasons** (storms that drift across the land, fog, blizzards, acid rain, ember fall, ion storms, meteor showers — with real consequences and opportunities), a true day/night terminator, creatures you can scan, hunt or **tame as companions**, binoculars with thermal vision and an in-game camera with a photo album.
 *   **Places to find:** settlements and space stations with NPCs, rare **factories**, fallen ruins, treasure chests, **monuments with glowing runes**, bandit camps and pirate space — and a handful of **one-of-a-kind mysteries** per galaxy.
 
@@ -485,7 +485,7 @@ changes are needed to add content. Player-facing names use localization keys res
 A fully playable client + server game: **multiple star systems** (each with its own sun, planets,
 moons and **asteroid belts** you can mine from the ship or on an EVA), procedurally generated
 worlds that wrap east–west (walk around the planet, seam-free) with a real day/night terminator,
-21 planet types including exotic ones (skylands, fungal, corrupted, ocean, salt flats, …) with their
+29 planet types including exotic ones (skylands, fungal, corrupted, ocean, salt flats, ash seas, …) with their
 own flora and fauna, **per-position weather and seasons** (episodic fronts that drift across the
 world — rain, fog, blizzards, acid rain, ember fall, spore blooms, ion storms, meteor showers — with
 gameplay consequences and a weather scanner), swimming/diving, a survival **temperature/climate

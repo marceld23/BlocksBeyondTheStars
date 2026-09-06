@@ -199,7 +199,9 @@ chasms** (50–130 deep, fjord-flooded below sea level). `SurfaceHeight` clamps 
 safely under the ~Y 320 atmosphere line.
 
 **e) Overriding shapes** — `TerrainStyle` (mesa, **tablelands**, dunes, **badlands**, spires,
-**karst**, flats… — the bold three are #579), `Cratered` (flat regolith + impact craters for airless
+**karst**, flats… — the bold three are #579; generation-1 worlds roll 1–3 styles from a per-type
+`terrainStyles` pool and lay them out as regions, with seven more styles — §12.1), `Cratered` (flat
+regolith + impact craters for airless
 bodies), and `FloatingIslands`. A cratered body skips (c) and (d) entirely and instead rolls a
 **`CraterProfile`** from its own body seed (#518): crater density, basin width, depth (5–12 blocks),
 rim height and how rolling the regolith between craters is — so one rock is a pounded ruin and the
