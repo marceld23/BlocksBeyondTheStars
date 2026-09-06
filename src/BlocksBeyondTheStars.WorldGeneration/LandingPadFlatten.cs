@@ -21,12 +21,18 @@ public readonly struct LandingPadFlatten
     public readonly int PlateauRadius;
     public readonly int IsletRadius;
 
+    /// <summary>The islet as worlds before terrain generation 2 got it (#1453, #1665): a plain sand mound with a
+    /// 1:1 slope from the pad rim straight down to the sea, no plateau, no rim wobble, no flora. A save created
+    /// before the ocean-pad wave keeps exactly this shape, so the mound a player already lives on never changes
+    /// under them when a neighbouring chunk generates later.</summary>
+    public readonly bool ClassicShape;
+
     public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius)
         : this(centerX, centerZ, surfaceY, radius, islet: false, plateauRadius: radius, isletRadius: radius)
     {
     }
 
-    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius)
+    public LandingPadFlatten(int centerX, int centerZ, int surfaceY, int radius, bool islet, int plateauRadius, int isletRadius, bool classicShape = false)
     {
         CenterX = centerX;
         CenterZ = centerZ;
@@ -35,5 +41,6 @@ public readonly struct LandingPadFlatten
         Islet = islet;
         PlateauRadius = islet ? System.Math.Max(radius, plateauRadius) : radius;
         IsletRadius = islet ? System.Math.Max(PlateauRadius, isletRadius) : radius;
+        ClassicShape = islet && classicShape;
     }
 }

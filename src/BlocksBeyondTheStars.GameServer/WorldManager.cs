@@ -23,6 +23,10 @@ internal sealed class SettlementInstance
     public string Name { get; set; } = string.Empty;
     public string Inhabitant { get; set; } = string.Empty;
     public bool OnIsland { get; set; } // stands on a floating sky island rather than the terrain surface
+    public int GroundY { get; set; }   // world Y of structure-local y = 0 (the foundation row)
+    /// <summary>The stamped layout, so protection can tell the settlement's own blocks from whatever else
+    /// stands inside its box (a natural tree in a lane is not the village's — #1659).</summary>
+    public SettlementStructure? Layout { get; set; }
     public List<(string Type, Vector3f Pos)> Markers { get; } = new();
     public HashSet<string> MissionIds { get; } = new();
 }

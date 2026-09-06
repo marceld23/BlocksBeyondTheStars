@@ -8,6 +8,7 @@ using BlocksBeyondTheStars.Persistence;
 using BlocksBeyondTheStars.Shared.Configuration;
 using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Geometry;
+using BlocksBeyondTheStars.Shared.Primitives;
 using Xunit;
 using SvGameServer = BlocksBeyondTheStars.GameServer.GameServer;
 
@@ -40,13 +41,35 @@ public sealed class SpeederTests : IDisposable
         return server;
     }
 
-    private static BlocksBeyondTheStars.GameServer.PlayerSession Player(SvGameServer server, string name, Vector3f at)
+    private BlocksBeyondTheStars.GameServer.PlayerSession Player(SvGameServer server, string name, Vector3f at)
     {
         var p = server.AddLocalPlayer(name);
         p.State.Position = at;
         p.State.Inventory.Add("speeder", 1, 1);
         p.State.SuitEnergy = 100f;
+        StoneStage(server, at);
         return p;
+    }
+
+    /// <summary>Dry, level stone under and around the stand: since #1660 a speeder only unfolds on dry ground,
+    /// and the raw seed-1 terrain at the stands these tests use is under water.</summary>
+    private void StoneStage(SvGameServer server, Vector3f at)
+    {
+        int cx = (int)Math.Floor(at.X), cy = (int)Math.Floor(at.Y), cz = (int)Math.Floor(at.Z);
+        var stone = _content.GetBlock("stone")!.NumericId;
+        for (int x = cx - 12; x <= cx + 40; x++)
+            for (int z = cz - 12; z <= cz + 12; z++)
+            {
+                for (int y = cy - 3; y <= cy - 1; y++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, z), stone);
+                }
+
+                for (int y = cy; y <= cy + 4; y++)
+                {
+                    server.World.SetBlock(new Vector3i(x, y, z), BlockId.Air);
+                }
+            }
     }
 
     [Fact]
@@ -103,12 +126,13 @@ public sealed class SpeederTests : IDisposable
 
             p.State.Position = new Vector3f(pos.X + 25, pos.Y, pos.Z + 5); // drive somewhere
             server.DriveSpeederStepForTest("Pilot", p.State.Position);
+            var seat = p.State.Position;
             server.ExitSpeederForTest("Pilot");
 
             Assert.Equal(string.Empty, p.State.InSpeeder);
             var s = server.SpeederSnapshots.Single();
             Assert.Equal(string.Empty, s.DriverId);
-            Assert.Equal(p.State.Position.X, s.Pos.X, 2); // parked where the player got out
+            Assert.Equal(seat.X, s.Pos.X, 2); // parked where the player got out (the player steps off the seat, #1662)
         }
     }
 

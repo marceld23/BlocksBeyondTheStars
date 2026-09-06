@@ -1919,6 +1919,10 @@ namespace BlocksBeyondTheStars.Client
                     {
                         status += "   · " + L("ui.map.fly_to_unlock");
                     }
+                    else if (b.Kind == "Wreck")
+                    {
+                        status += "   · " + L("ui.map.wreck_hint"); // #1664: a derelict is flown to, never travelled to
+                    }
                 }
 
                 AddCard(y, b.Name, "cat_planet", status, here ? UiKit.Cyan : UiKit.CyanDim,
@@ -4341,6 +4345,14 @@ namespace BlocksBeyondTheStars.Client
                 UiKit.AddText(_detail, 8, y, 620, 28, label, 20, UiKit.Cyan, TextAnchor.UpperLeft);
                 y += 36f;
                 y = AddRenameRow(y, myBase, L("ui.map.rename_base"), name => Game.Network?.SendSetBaseName(body.Id, name));
+            }
+
+            // The system's derelict (#1664): not a place you travel to but one you fly to — its manifest is
+            // read on approach and its plating carved in flight. Say so instead of silently offering nothing.
+            if (body.Kind == "Wreck")
+            {
+                UiKit.AddText(_detail, 8, y, 600, 90, L("ui.map.wreck_detail"), 18, new Color(1f, 0.8f, 0.45f), TextAnchor.UpperLeft);
+                return y + 98f;
             }
 
             if (here || string.IsNullOrEmpty(body.PlanetType))

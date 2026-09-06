@@ -513,8 +513,9 @@ public sealed partial class GameServer
         }
 
         // S2/S3: you may mine your OWN ship or any asteroid; placing is only on your own ship. Other players'
-        // ships + game stations stay protected (S5).
-        bool isAsteroid = s.Kind == "asteroid";
+        // ships + game stations stay protected (S5). A derelict wreck (#1664) is ownerless salvage: hand-mine
+        // it like a rock.
+        bool isAsteroid = s.Kind == "asteroid" || s.Kind == "wreck";
         bool isOwn = s.OwnerId == p.PlayerId; // your own ship or your own station
         // Allies co-own each other's STATIONS (build/mine the floating structure), but never each other's ship —
         // the ship stays owner-only by design, so the alliance grant is scoped to station structures.

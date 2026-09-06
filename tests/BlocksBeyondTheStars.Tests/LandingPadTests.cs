@@ -194,6 +194,72 @@ public sealed class LandingPadTests : IDisposable
         Assert.Equal(server.LandingPadCenters, server.ApproachMapPadsForTest());
     }
 
+    private (SvGameServer Server, SqliteWorldRepository Repo) NewOceanServerOfGeneration(string tag, int seed, int generation)
+    {
+        var repo = new SqliteWorldRepository(new SaveGamePaths(_root, tag));
+        var st = new LoopbackServerTransport(new LoopbackLink());
+        var config = new ServerConfig { WorldName = tag, Seed = seed, StartPlanet = "ocean", AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        config.World.TerrainGeneration = generation;
+        var server = new SvGameServer(config, _content, st, repo);
+        server.Start();
+        server.AddLocalPlayer("Pilot");
+        return (server, repo);
+    }
+
+    [Fact]
+    public void ASaveFromBeforeTheOceanPadWave_KeepsItsClassicPads_AndTheSameSeedCreatedTodayDoesNot()
+    {
+        // #1665: pads are not persisted — they are re-derived from the seed on every load, so the RULE is the
+        // only thing holding them in place. A world created before the ocean-pad wave (#1618–#1622) keeps the
+        // longitude-only march (pad 0 stays on the equator), the rolled ocean islet two blocks over the sea and
+        // the plain sand mound; the same seed created today plans by the generation-2 rules.
+        var (classic, classicRepo) = NewOceanServerOfGeneration("classic9", 9, 1);
+        int seaLevel = classic.SeaLevelForTest();
+        var classicPads = classic.LandingPadCenters;
+        Assert.Equal(0, classicPads[0].Z);
+        int classicIslets = 0;
+        for (int i = 0; i < classicPads.Count; i++)
+        {
+            var pad = classic.LandingPadInfoForTest(i);
+            if (pad.Islet)
+            {
+                classicIslets++;
+                Assert.Equal(seaLevel + 2, pad.Y);
+                Assert.False(classic.World.GetBlock(new Vector3i(pad.X, pad.Y, pad.Z)).IsAir);
+                Assert.True(classic.World.GetBlock(new Vector3i(pad.X, pad.Y + 1, pad.Z)).IsAir);
+            }
+            else if (pad.Wet)
+            {
+                Assert.True(pad.Y < seaLevel, "a classic wet pad sits on the seabed, however deep");
+            }
+        }
+
+        Assert.True(classicIslets > 0, "the 97 % water seed rolls at least one classic islet");
+        classicRepo.Dispose();
+
+        // Reopening the save (a config that now asks for the current generation) keeps the stored generation
+        // and therefore the very same pads.
+        var (again, againRepo) = NewOceanServerOfGeneration("classic9", 9, BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration);
+        Assert.Equal(classicPads, again.LandingPadCenters);
+        againRepo.Dispose();
+
+        // The same seed created today: generation-2 islets stand three blocks over the sea.
+        var (modern, modernRepo) = NewOceanServerOfGeneration("modern9", 9, BlocksBeyondTheStars.Shared.World.WorldDescription.CurrentTerrainGeneration);
+        int modernIslets = 0;
+        for (int i = 0; i < modern.LandingPadCenters.Count; i++)
+        {
+            var pad = modern.LandingPadInfoForTest(i);
+            if (pad.Islet)
+            {
+                modernIslets++;
+                Assert.Equal(seaLevel + 3, pad.Y);
+            }
+        }
+
+        Assert.True(modernIslets > 0);
+        modernRepo.Dispose();
+    }
+
     [Fact]
     public void Pads_AreDeterministic_FromTheSeed()
     {

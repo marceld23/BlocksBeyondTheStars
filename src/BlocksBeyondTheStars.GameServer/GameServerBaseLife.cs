@@ -126,10 +126,15 @@ public sealed partial class GameServer
     }
 
     /// <summary>The feet position for a cell a human-sized NPC can stand in: a blocking floor under two
-    /// free cells, outside every parked ship's hull (nobody moves into the owner's cockpit); null otherwise.</summary>
+    /// free cells, outside every parked ship's hull (nobody moves into the owner's cockpit); null otherwise.
+    /// "Free" is judged the way the NPC WALKS (<see cref="IsCollidingCell"/>, fluids are a wall) and not only
+    /// the way a body is entombed (<see cref="IsBodyBlockingCell"/>, fluids pass): the two disagreed on water,
+    /// so a shore base homed its settler on the seabed under two water cells — a place the leash could never
+    /// walk them out of, and that the re-home below kept calling "still a place to stand" (#1658).</summary>
     private Vector3f? StandableSpot(int x, int y, int z)
     {
-        if (!WithinBuildHeight(y) || !IsBodyBlockingCell(x, y - 1, z) || IsBodyBlockingCell(x, y, z) || IsBodyBlockingCell(x, y + 1, z))
+        if (!WithinBuildHeight(y) || !IsBodyBlockingCell(x, y - 1, z) || IsBodyBlockingCell(x, y, z) || IsBodyBlockingCell(x, y + 1, z)
+            || IsCollidingCell(x, y, z) || IsCollidingCell(x, y + 1, z))
         {
             return null;
         }

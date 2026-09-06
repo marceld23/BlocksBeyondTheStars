@@ -334,6 +334,7 @@ public sealed class BoatTests : IDisposable
             StonePad(server);
             Pool(server);
             string boat = server.DeployVehicleForTest("Pilot", "boat");
+            owner.State.Yaw = 180f; // the speeder unfolds on the stone behind — never into the pool (#1660)
             string speeder = server.DeployVehicleForTest("Pilot", "speeder");
             Assert.NotEqual(string.Empty, boat);
             Assert.NotEqual(string.Empty, speeder);

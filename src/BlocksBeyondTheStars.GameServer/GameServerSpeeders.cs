@@ -43,6 +43,12 @@ public sealed partial class GameServer
     private const float SpeederDestroyDriverDamage = 18f; // jolt to the driver when the speeder is destroyed under them
     private const double SpeederGaugeInterval = 0.4;    // min seconds between HUD hull/fuel pushes to the driver
     private const double SpeederDeployCooldown = 1.0;   // gadget cooldown after deploying
+    private const int SpeederDeployHeadroom = 2;        // air cells a deployed speeder needs over its feet cell (#1660)
+    private const int SpeederDeployScan = 4;            // how far above/below the player's feet the deploy spot may sit
+    private const int SpeederWetReports = 30;           // consecutive "water under the hull" move reports (~3 s) before the snap back to dry ground
+    private const int VehicleRecallRingMin = 2;         // recall parks the vehicle this far outside the pad rim …
+    private const int VehicleRecallRingMax = 10;        // … up to this far (#1661)
+    private const int BoatRecallRadius = 14;            // how far around the pad the recall looks for water for a boat
 
     /// <summary>A live, materialised speeder on a world. Its durable state (position, hull, fuel, paint) lives on
     /// the owner's <see cref="DeployedSpeeder"/> record; this adds the runtime driver bond + bookkeeping.</summary>
@@ -57,6 +63,9 @@ public sealed partial class GameServer
         public Vector3f LastWaterPos;           // boat: last driven pose with water under the hull (#1215)
         public bool HasWaterPos;                // boat: LastWaterPos is valid
         public int AshoreReports;               // boat: consecutive move reports without water under the hull
+        public Vector3f LastDryPos;             // speeder: last driven pose with no water under the hull (#1660)
+        public bool HasDryPos;                  // speeder: LastDryPos is valid
+        public int WetReports;                  // speeder: consecutive move reports with water under the hull
     }
 
     private List<ServerSpeeder> _speeders => _worlds.Active.Speeders;
@@ -143,8 +152,24 @@ public sealed partial class GameServer
             float fz = (float)Math.Cos(yawRad);
             int circ = _world.Circumference;
             x = (float)WorldConstants.WrapX(p.Position.X + fx * SpeederDeployDistance, circ);
-            y = p.Position.Y;
             z = (float)WorldConstants.WrapZ((double)(p.Position.Z + fz * SpeederDeployDistance), circ);
+
+            // The spot used to be taken at the player's own height with no look at the ground (#1660): deployed
+            // from a bank it unfolded over water and sank, deployed mid-jump it unfolded in the air. Now it snaps
+            // to the standable cell in that column nearest the player's feet when there is one (a column the
+            // probe cannot read — unloaded, or a stamped floor the generator knows nothing about — keeps the
+            // player's height, as before), and a wet column is refused outright: the speeder is a land vehicle.
+            int cx = (int)Math.Floor(x), cz = (int)Math.Floor(z);
+            int feetY = TryGroundFeetYAt(cx, cz, (int)Math.Floor(p.Position.Y), SpeederDeployHeadroom, SpeederDeployScan, out int ground)
+                ? ground
+                : (int)Math.Floor(p.Position.Y);
+            if (IsWaterCell(new Vector3i(cx, feetY, cz)) || IsWaterCell(new Vector3i(cx, feetY - 1, cz)) || IsWaterCell(new Vector3i(cx, feetY - 2, cz)))
+            {
+                Reject(session, "speeder", "@srv.speeder.need_land");
+                return;
+            }
+
+            y = feetY;
         }
 
         p.Inventory.Remove(itemKey, 1);
@@ -271,11 +296,100 @@ public sealed partial class GameServer
             s.Rec.Z = p.Position.Z;
             s.Rec.Yaw = p.Yaw;
             s.DriverId = string.Empty;
+
+            // Then step the player off the seat (#1662). The seat is the hull's centre, so leaving them there put
+            // them inside a 3×5 hull that — now that a parked vehicle is solid — would hold them. Nearest standable
+            // cell beside the hull; a boat in open water finds none and the driver simply drops into the water.
+            var spot = DismountSpot(s, p);
+            if (!spot.Equals(p.Position))
+            {
+                p.Position = spot;
+                session.AwaitingSpawnAdopt = true; // #865: the client still streams the seat pose for a beat
+                Send(session, new BeamTeleported { X = spot.X, Y = spot.Y, Z = spot.Z });
+            }
+
             _repo.SavePlayer(p);
             BroadcastSpeeders();
         }
 
         SendPlayerState(session);
+    }
+
+    /// <summary>Where a driver stands after dismounting: the nearest standable cell just outside the hull, side
+    /// cells first (the hull is 3 wide and 5 long, so two to three cells to either side clear it at any
+    /// yaw), then a wider ring; the seat itself when nothing around is standable (a boat mid-lake).</summary>
+    private Vector3f DismountSpot(ServerSpeeder s, PlayerState p)
+    {
+        double yawRad = p.Yaw * Math.PI / 180.0;
+        double fx = Math.Sin(yawRad), fz = Math.Cos(yawRad);
+        double rx = fz, rz = -fx; // right-hand perpendicular
+        int fy = (int)Math.Floor(p.Position.Y);
+        int circ = _world.Circumference;
+
+        Vector3f? Probe(double wx, double wz)
+        {
+            int cx = (int)Math.Floor(WorldConstants.WrapX(wx, circ));
+            int cz = (int)Math.Floor(WorldConstants.WrapZ(wz, circ));
+            for (int y = fy + 1; y >= fy - 2; y--)
+            {
+                if (StandableSpot(cx, y, cz) is { } spot)
+                {
+                    return spot;
+                }
+            }
+
+            return null;
+        }
+
+        foreach (int side in new[] { 2, -2, 3, -3 })
+        {
+            foreach (int ahead in new[] { 0, 1, -1, 2, -2 })
+            {
+                if (Probe(p.Position.X + rx * side + fx * ahead, p.Position.Z + rz * side + fz * ahead) is { } spot)
+                {
+                    return spot;
+                }
+            }
+        }
+
+        for (int r = 3; r <= 5; r++)
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
+                    {
+                        continue;
+                    }
+
+                    if (Probe(p.Position.X + dx, p.Position.Z + dz) is { } spot)
+                    {
+                        return spot;
+                    }
+                }
+
+        return p.Position;
+    }
+
+    /// <summary>Drops a player's driver bond on death/respawn (#1661): the seat used to survive a respawn — the
+    /// vehicle kept its <c>DriverId</c>, so the owner could neither board nor pack it until they left the body and
+    /// came back. The vehicle stays parked where it was.</summary>
+    private void ReleaseDrivenVehicle(PlayerState p)
+    {
+        bool changed = false;
+        foreach (var s in _speeders)
+        {
+            if (s.DriverId == p.PlayerId)
+            {
+                s.DriverId = string.Empty;
+                changed = true;
+            }
+        }
+
+        p.InSpeeder = string.Empty;
+        if (changed)
+        {
+            BroadcastSpeeders();
+        }
     }
 
     /// <summary>Called from <c>HandleMove</c>: while a player drives, slave the live speeder to their reported
@@ -309,6 +423,10 @@ public sealed partial class GameServer
         {
             TickBoatAshore(session, s); // may set the driver back onto the last water pose (#1215)
         }
+        else
+        {
+            TickSpeederInWater(session, s); // may set the driver back onto the last dry pose (#1660)
+        }
 
         s.Rec.X = p.Position.X;
         s.Rec.Y = p.Position.Y;
@@ -321,6 +439,177 @@ public sealed partial class GameServer
             s.LastGaugeSentAt = _uptime;
             BroadcastSpeeders(); // driver's HUD gauges + other players' view of the moving speeder stay current
         }
+    }
+
+    /// <summary>The speeder's mirror of <see cref="TickBoatAshore"/> (#1660): a hover speeder is a land vehicle —
+    /// the client stops it at the shoreline — but a client that keeps driving into the sea anyway (or one that
+    /// sank before the shore stop existed) is set back onto the last pose judged dry after
+    /// <see cref="SpeederWetReports"/> consecutive wet reports. Judged only in loaded chunks, like the boat.</summary>
+    private void TickSpeederInWater(PlayerSession session, ServerSpeeder s)
+    {
+        var p = session.State;
+        bool? wet = BoatOverWater(p.Position);
+        if (wet != true)
+        {
+            if (wet == false)
+            {
+                s.LastDryPos = p.Position;
+                s.HasDryPos = true;
+            }
+
+            s.WetReports = 0;
+            return;
+        }
+
+        if (!s.HasDryPos || ++s.WetReports < SpeederWetReports)
+        {
+            return;
+        }
+
+        s.WetReports = 0;
+        p.Position = s.LastDryPos;
+        s.Rec.X = p.Position.X;
+        s.Rec.Y = p.Position.Y;
+        s.Rec.Z = p.Position.Z;
+        s.LastDriverPos = p.Position;
+        session.AwaitingSpawnAdopt = true;
+        SendPlayerState(session);
+        Send(session, new BeamTeleported { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z });
+        Send(session, new ServerMessage { Text = "@srv.speeder.in_water" });
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Recall (#1661): the landed ship brings a stranded vehicle back beside it.
+    // ---------------------------------------------------------------------------------------------
+
+    /// <summary>The owner at their landed ship's cockpit/console asks for a deployed vehicle back. Looks the record
+    /// up on the player blob (so a vehicle that is not materialised right now is still addressable), refuses while
+    /// it is driven, when the ship is not landed on this body, when the player is not at the cockpit or console,
+    /// or when the vehicle lives on another world; then parks it beside the ship — a speeder on the nearest dry
+    /// standable cell outside the pad rim, a boat on the nearest waterline around the pad.</summary>
+    private void HandleRecallVehicle(PlayerSession session, RecallVehicleIntent intent)
+    {
+        var p = session.State;
+        var rec = p.DeployedSpeeders.FirstOrDefault(r => r.Id == intent.VehicleId);
+        if (rec is null)
+        {
+            Reject(session, "speeder", NotYoursKey(null));
+            return;
+        }
+
+        var live = _speeders.FirstOrDefault(v => v.Id == rec.Id);
+        if (live != null && !string.IsNullOrEmpty(live.DriverId))
+        {
+            Reject(session, "speeder", VehicleMsg(rec, "driven"));
+            return;
+        }
+
+        if (rec.HomeBodyId != _world.LocationId)
+        {
+            Reject(session, "speeder", VehicleMsg(rec, "other_body"));
+            return;
+        }
+
+        var landed = _worlds.Active.LandedFor(p.PlayerId);
+        if (!landed.Placed)
+        {
+            Reject(session, "speeder", "@srv.speeder.recall_no_ship");
+            return;
+        }
+
+        // The same reach rule the ship stations use — server-authoritative, so the recall is really tied to
+        // standing at the helm and not just to owning a ship somewhere on the body.
+        var console = StationPosition("cockpit") ?? StationPosition("console");
+        if (console is null || !p.AboardShip || WrapDistSq(p.Position, console.Value) > ShipStationReach * ShipStationReach)
+        {
+            Reject(session, "station", "@srv.station.too_far");
+            return;
+        }
+
+        var pad = PlayerPad(session);
+        bool boat = IsBoat(rec);
+        Vector3f? spot = boat ? FindBoatWaterNearPad(pad) : FindSpeederParkingNearPad(pad);
+        if (spot is null)
+        {
+            Reject(session, "speeder", boat ? "@srv.boat.recall_no_water" : "@srv.speeder.recall_no_room");
+            return;
+        }
+
+        var at = spot.Value;
+        rec.X = at.X;
+        rec.Y = at.Y;
+        rec.Z = at.Z;
+        rec.Yaw = (float)(Math.Atan2(at.X - pad.CenterX, at.Z - pad.CenterZ) * 180.0 / Math.PI); // nose away from the pad
+        if (live != null)
+        {
+            live.LastDriverPos = at;
+            live.HasWaterPos = false;
+            live.AshoreReports = 0;
+            live.HasDryPos = false;
+            live.WetReports = 0;
+        }
+        else
+        {
+            ReconcileSpeeders(); // the owner is here and the record is home — materialise it
+        }
+
+        _repo.SavePlayer(p);
+        BroadcastSpeeders();
+        BroadcastToWorld(new SpeederFx { X = at.X, Y = at.Y, Z = at.Z, Kind = boat ? "splash" : "deploy" });
+        Send(session, new ServerMessage { Text = VehicleMsg(rec, "recalled") });
+    }
+
+    /// <summary>A dry standable cell for a recalled speeder: rings just outside the pad rim, nearest first, feet
+    /// within three cells of the pad surface. Never on the pad (the reserved landing volume) and never inside
+    /// the parked ship (<see cref="StandableSpot"/> checks the hull).</summary>
+    private Vector3f? FindSpeederParkingNearPad(LandingPad pad)
+    {
+        int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
+        for (int r = pad.Radius + VehicleRecallRingMin; r <= pad.Radius + VehicleRecallRingMax; r++)
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
+                    {
+                        continue;
+                    }
+
+                    for (int y = refY + 3; y >= refY - 3; y--)
+                    {
+                        if (StandableSpot(pad.CenterX + dx, y, pad.CenterZ + dz) is { } spot)
+                        {
+                            return spot;
+                        }
+                    }
+                }
+
+        return null;
+    }
+
+    /// <summary>The nearest waterline around the pad for a recalled boat (the launch rule's search window per
+    /// column, so the boat gets the same headroom it needs to launch).</summary>
+    private Vector3f? FindBoatWaterNearPad(LandingPad pad)
+    {
+        int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
+        int circ = _world.Circumference;
+        for (int r = 1; r <= BoatRecallRadius; r++)
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
+                    {
+                        continue;
+                    }
+
+                    int cx = WorldConstants.WrapX(pad.CenterX + dx, circ);
+                    int cz = WorldConstants.WrapZ(pad.CenterZ + dz, circ);
+                    if (TryFindWaterline(cx, cz, refY, out float waterline))
+                    {
+                        return new Vector3f(cx + 0.5f, waterline + BoatFloatAboveWaterline, cz + 0.5f);
+                    }
+                }
+
+        return null;
     }
 
     /// <summary>Refuels a speeder from one energy cell in the owner's inventory (seated or within reach).</summary>
@@ -646,6 +935,22 @@ public sealed partial class GameServer
             HandleStowSpeeder(s, new StowSpeederIntent { SpeederId = speederId });
         }
     }
+
+    /// <summary>Test/util: ask the landed ship to bring a deployed vehicle back beside it (#1661).</summary>
+    public void RecallVehicleForTest(string playerId, string vehicleId)
+    {
+        if (FindSessionByPlayerId(playerId) is { } s)
+        {
+            Serve(s);
+            HandleRecallVehicle(s, new RecallVehicleIntent { VehicleId = vehicleId });
+        }
+    }
+
+    /// <summary>Test/util: the player's persisted vehicle records (id, kind, home body, pose).</summary>
+    public IReadOnlyList<(string Id, string Kind, string HomeBodyId, Vector3f Pos)> DeployedVehiclesForTest(string playerId)
+        => FindSessionByPlayerId(playerId) is { } s
+            ? s.State.DeployedSpeeders.Select(r => (r.Id, VehicleKind(r), r.HomeBodyId, new Vector3f(r.X, r.Y, r.Z))).ToList()
+            : new List<(string, string, string, Vector3f)>();
 
     /// <summary>Test/util: refuel a speeder.</summary>
     public void RefuelSpeederForTest(string playerId, string speederId)

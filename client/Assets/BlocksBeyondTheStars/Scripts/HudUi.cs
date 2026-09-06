@@ -937,6 +937,12 @@ namespace BlocksBeyondTheStars.Client
                         ? "ui.station.helm"
                         : $"ui.station.{Game.NearbyStation}";
                     prompt = $"{loc.Get("ui.hud.use")}: {loc.Get(stationKey)}";
+                    if ((Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
+                        && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount() > 0)
+                    {
+                        // The ship can call a vehicle left out on this world back beside it (#1661).
+                        prompt += $"  ·  {loc.Get("ui.key.recall_vehicle")} ({InputMap.Glyph(InputAction.RecallVehicle)})";
+                    }
                 }
                 else if (Game.AimedOwnBase is { } ownBase)
                 {
@@ -959,6 +965,14 @@ namespace BlocksBeyondTheStars.Client
                     // target the scan can't acquire read as "titans can't be scanned" (#1458).
                     prompt = loc.Get("ui.scan.use_hint");
                 }
+                else if (string.IsNullOrEmpty(Game.InSpeeder) && OwnParkedVehicleOutOfReach(out string vehicleKind, out float vehicleDist))
+                {
+                    // An own vehicle a few metres off but beyond the pack-up reach (#1661): the X action used to
+                    // stay silent exactly when the speeder had sunk or wedged just out of reach.
+                    prompt = string.Format(loc.Get("hud.speeder.out_of_reach"),
+                        loc.Get(vehicleKind == "boat" ? "item.boat.name" : "item.speeder.name"),
+                        Mathf.RoundToInt(vehicleDist), InputMap.Glyph(InputAction.StowVehicle));
+                }
             }
 
             _prompt.text = prompt;
@@ -971,6 +985,58 @@ namespace BlocksBeyondTheStars.Client
             RefreshShipRepair(loc);
             RefreshTaming(loc);
             RefreshSpeeder(loc);
+        }
+
+        /// <summary>Own vehicles parked (not driven) on this world — the cockpit recall prompt's gate (#1661).</summary>
+        private int OwnParkedVehicleCount()
+        {
+            if (Game?.Speeders == null)
+            {
+                return 0;
+            }
+
+            int n = 0;
+            foreach (var s in Game.Speeders)
+            {
+                if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
+                {
+                    n++;
+                }
+            }
+
+            return n;
+        }
+
+        /// <summary>The nearest own parked vehicle that is beyond the pack-up reach (5 m, the server's) but
+        /// within a few metres — its kind and distance for the "walk up to it" hint (#1661).</summary>
+        private bool OwnParkedVehicleOutOfReach(out string kind, out float distance)
+        {
+            const float reach = 5f, hintRange = 14f;
+            kind = string.Empty;
+            distance = 0f;
+            if (Game?.Speeders == null)
+            {
+                return false;
+            }
+
+            float best = hintRange;
+            foreach (var s in Game.Speeders)
+            {
+                if (s == null || s.OwnerId != Game.LocalPlayerId || !string.IsNullOrEmpty(s.DriverId))
+                {
+                    continue;
+                }
+
+                float d = (Game.ScenePos(s.X, s.Y, s.Z) - Game.PlayerPosition).magnitude;
+                if (d > reach && d < best)
+                {
+                    best = d;
+                    kind = s.Kind;
+                }
+            }
+
+            distance = best;
+            return best < hintRange;
         }
 
         /// <summary>Vehicle HUD while driving a hover speeder: integrity + energy gauges (colour-graded), the

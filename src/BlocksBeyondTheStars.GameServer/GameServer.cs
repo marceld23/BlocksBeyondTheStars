@@ -1989,6 +1989,7 @@ public sealed partial class GameServer
         p.InEva = false; // a death ends any spacewalk
         _inShipInterior.Remove(p.PlayerId); // and any in-ship walkabout
         _dockedFromEva.Remove(p.PlayerId);  // and any "ship floating while docked" memory
+        ReleaseDrivenVehicle(p);            // and the seat of a speeder/boat — the bond used to survive (#1661)
 
         if (useCustomSpawn && TryCustomRespawn(session, reason, salvaged, sameWorld))
         {
@@ -3064,6 +3065,7 @@ public sealed partial class GameServer
             case StowSpeederIntent stowSpeeder: HandleStowSpeeder(session, stowSpeeder); break;
             case RefuelSpeederIntent refuelSpeeder: HandleRefuelSpeeder(session, refuelSpeeder); break;
             case SpeederImpactIntent speederImpact: HandleSpeederImpact(session, speederImpact); break;
+            case RecallVehicleIntent recallVehicle: HandleRecallVehicle(session, recallVehicle); break;
             case SetBeaconLabelIntent beacon: HandleSetBeaconLabel(session, beacon); break;
             case SetBeamNameIntent beamName: HandleSetBeamName(session, beamName); break;
             case BeamTeleportIntent beamJump: HandleBeamTeleport(session, beamJump); break;
@@ -3960,7 +3962,8 @@ public sealed partial class GameServer
         // of — glass, beds, frame — stays protected.
         bool harvestingPlant = IsFlora(current.Value);
 
-        if (!harvestingPlant && IsSettlementBlock(pos))
+        // A natural tree inside the box is not the settlement's either (#1659) — see IsSettlementProtected.
+        if (!harvestingPlant && IsSettlementProtected(pos, current))
         {
             Reject(session, "mine", "@srv.protect.settlement");
             return;
@@ -4173,7 +4176,7 @@ public sealed partial class GameServer
 
                     var p = new Vector3i(center.X + dx, center.Y + dy, center.Z + dz);
                     var b = _world.GetBlock(p);
-                    if (b.IsAir || IsShipBlock(p) || IsSettlementBlock(p) || IsStationBlock(p)
+                    if (b.IsAir || IsShipBlock(p) || IsSettlementProtected(p, b) || IsStationBlock(p)
                         || IsBaseProtected(p, session.State.PlayerId, session.State.IsAdmin))
                     {
                         continue;

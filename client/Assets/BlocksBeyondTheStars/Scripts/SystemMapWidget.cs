@@ -147,7 +147,9 @@ namespace BlocksBeyondTheStars.Client
         {
             if (string.IsNullOrEmpty(type))
             {
-                return kind == "AsteroidField" ? new Color(0.55f, 0.5f, 0.45f) : new Color(0.6f, 0.7f, 0.8f);
+                return kind == "AsteroidField" ? new Color(0.55f, 0.5f, 0.45f)
+                    : kind == "Wreck" ? new Color(0.85f, 0.65f, 0.35f) // scorched amber, like its radar/chart marker (#1664)
+                    : new Color(0.6f, 0.7f, 0.8f);
             }
 
             string t = type.ToLowerInvariant();

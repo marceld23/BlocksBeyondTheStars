@@ -407,6 +407,8 @@ public sealed partial class GameServer
                 Name = p.Name,
                 Inhabitant = p.Structure.Inhabitant,
                 OnIsland = p.OnIsland,
+                GroundY = p.GroundY,
+                Layout = p.Structure,
             };
 
             foreach (var m in p.Structure.Markers)
@@ -490,6 +492,44 @@ public sealed partial class GameServer
                 {
                     _world.SetBlock(new Vector3i(origin.X + x, gy + y, origin.Z + z), BlockId.Air);
                 }
+
+        // 1b) Vegetation carve (#1659). The terrain carve above is only as deep as the ground rises — on flat
+        //    ground two rows — but a tree stands up to MaxStampRise cells over the surface and the tree
+        //    stamper knows nothing about settlements. So the rows of a trunk from the third cell up, and the
+        //    whole crown, used to survive INSIDE the protected box: a tree in front of a door that nobody
+        //    could ever fell (a player report). This pass takes every tree block out of the footprint up to
+        //    tree height, and out of a crown-wide ring around it (a trunk just outside the box hangs its
+        //    crown into the lanes). Only tree blocks go — terrain and anything built stays — and the ring is
+        //    left alone entirely when a player has built there (a log cabin beside the village is theirs).
+        //    Runs on every load, so worlds stamped before this pass heal on their next start.
+        var vegetation = SettlementVegetationIds;
+        bool ringIsSomeonesBuild = FootprintHasPlayerEdits(origin.X - (SettlementCrownMargin - 2), origin.Z - (SettlementCrownMargin - 2),
+            gy, s.Width + 2 * (SettlementCrownMargin - 2), SettlementVegetationRise, s.Length + 2 * (SettlementCrownMargin - 2));
+        for (int x = -SettlementCrownMargin; x < s.Width + SettlementCrownMargin; x++)
+            for (int z = -SettlementCrownMargin; z < s.Length + SettlementCrownMargin; z++)
+            {
+                bool inside = x >= 0 && x < s.Width && z >= 0 && z < s.Length;
+                if (!inside && ringIsSomeonesBuild)
+                {
+                    continue;
+                }
+
+                // Inside, everything below clearH is air already; the ring starts a few rows down so a trunk
+                // rooted on lower ground beside the plinth goes with its crown instead of leaving a stump.
+                for (int y = inside ? clearH : -SettlementCrownMargin; y <= SettlementVegetationRise; y++)
+                {
+                    var cell = new Vector3i(origin.X + x, gy + y, origin.Z + z);
+                    if (!WithinBuildHeight(cell.Y))
+                    {
+                        continue;
+                    }
+
+                    if (vegetation.Contains(_world.GetBlock(cell).Value))
+                    {
+                        _world.SetBlock(cell, BlockId.Air);
+                    }
+                }
+            }
 
         // 2) Foundation row + support skirt. The buildings are authored on one flat plane, so the floor at gy
         //    must stay level — but on a slope a single flat slab would hang in mid-air on the downhill side. So
@@ -1439,6 +1479,68 @@ public sealed partial class GameServer
 
         return null;
     }
+
+    /// <summary>How far over the foundation row the vegetation carve reaches: the tallest tree the stamper
+    /// grows (<c>WorldGenerator.MaxStampRise</c> = 18) plus the three rows the terrain carve minimum covers.</summary>
+    private const int SettlementVegetationRise = 21;
+
+    /// <summary>Ring around the footprint the vegetation carve also clears — the widest crown the tree stamper
+    /// grows (its own chunk-edge scan margin), so a trunk just outside the box cannot hang leaves into it.</summary>
+    private const int SettlementCrownMargin = 4;
+
+    private HashSet<ushort>? _settlementVegetationIds;
+
+    /// <summary>The blocks a natural tree is made of — never structural, so never the settlement's (#1659).
+    /// Small flora is not listed: it is walk-through and already exempt from protection as harvestable.</summary>
+    private HashSet<ushort> SettlementVegetationIds
+        => _settlementVegetationIds ??= HostIds("wood_log", "tree_leaves", "pine_needles", "palm_frond");
+
+    /// <summary>Whether the settlement's own layout puts a block at this world cell — the greenhouse frame,
+    /// a stilt pile, a wall — as opposed to whatever else happens to stand inside its box.</summary>
+    private bool IsSettlementLayoutCell(Vector3i pos)
+    {
+        int circ = _world.Circumference;
+        foreach (var s in _settlements)
+        {
+            if (s.Layout is not { } layout)
+            {
+                continue;
+            }
+
+            int lx = WorldConstants.WrapDeltaX(pos.X - s.Min.X, circ);
+            int ly = pos.Y - s.GroundY;
+            int lz = pos.Z - s.Min.Z;
+            if (lx < 0 || lx >= layout.Width || ly < 0 || ly >= layout.Height || lz < 0 || lz >= layout.Length)
+            {
+                continue;
+            }
+
+            if (layout.Get(lx, ly, lz) != 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Settlement protection for one block: inside an intact settlement's box, unless the block is a
+    /// natural tree the layout never placed there (#1659). Protection exists so nobody tears the houses down;
+    /// a tree that grew in a lane is not a house, and until this rule a tree in front of a door locked the
+    /// building for good — the carve in <c>StampSettlementBlocks</c> removes such trees on load, this is the
+    /// belt to that brace for anything it misses.</summary>
+    private bool IsSettlementProtected(Vector3i pos, BlockId id)
+        => IsSettlementBlock(pos) && !(SettlementVegetationIds.Contains(id.Value) && !IsSettlementLayoutCell(pos));
+
+    /// <summary>Test seam for <see cref="IsSettlementProtected"/> against the block currently at the cell.</summary>
+    public bool IsSettlementProtectedForTest(Vector3i pos) => IsSettlementProtected(pos, _world.GetBlock(pos));
+
+    /// <summary>Test seam for <see cref="IsSettlementLayoutCell"/>.</summary>
+    public bool IsSettlementLayoutCellForTest(Vector3i pos) => IsSettlementLayoutCell(pos);
+
+    /// <summary>Per-settlement full 3-D box + foundation row — test seam for the vegetation carve (#1659).</summary>
+    public IReadOnlyList<(Vector3i Min, Vector3i Max, int GroundY, bool Ruined)> SettlementBoxesForTest
+        => _settlements.Select(s => (s.Min, s.Max, s.GroundY, s.Ruined)).ToList();
 
     /// <summary>True if the block belongs to an intact (protected) settlement — ruins are scavengeable.</summary>
     public bool IsSettlementBlock(Vector3i pos)

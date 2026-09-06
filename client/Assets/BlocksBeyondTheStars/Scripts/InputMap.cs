@@ -17,6 +17,7 @@ namespace BlocksBeyondTheStars.Client
         Interact,          // generic "use / board / open" — default E
         PrimaryFire,       // melee swing / fire the held weapon — default F
         StowVehicle,       // pack up a deployed speeder you're standing next to — default X
+        RecallVehicle,     // at the own cockpit/console: the ship brings a stranded speeder/boat back (#1661) — default X
         ToggleThirdPerson, // switch first/third-person camera — default V
         LootContainer,     // loot the nearest container — default G
         DepositToCrate,    // deposit into the nearest storage crate — default H
@@ -136,7 +137,7 @@ namespace BlocksBeyondTheStars.Client
         /// <summary>On-foot actions exposed in the controls-rebinding UI, in display order.</summary>
         public static readonly InputAction[] Remappable =
         {
-            InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle,
+            InputAction.Interact, InputAction.PrimaryFire, InputAction.StowVehicle, InputAction.RecallVehicle,
             InputAction.ToggleThirdPerson, InputAction.LootContainer, InputAction.DepositToCrate,
             InputAction.RepairWreck, InputAction.ToggleLamp, InputAction.RotateShape,
             InputAction.ToggleThermal, InputAction.ToggleChat, InputAction.OpenChat, InputAction.HotbarAction,
@@ -185,6 +186,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Interact => KeyCode.E,
             InputAction.PrimaryFire => KeyCode.F,
             InputAction.StowVehicle => KeyCode.X,
+            InputAction.RecallVehicle => KeyCode.X, // shares X with the pack-up: a parked vehicle beside you wins, the cockpit recall otherwise
             InputAction.ToggleThirdPerson => KeyCode.V,
             InputAction.LootContainer => KeyCode.G,
             InputAction.DepositToCrate => KeyCode.H,
@@ -411,6 +413,7 @@ namespace BlocksBeyondTheStars.Client
             InputAction.Interact => "ui.key.interact",
             InputAction.PrimaryFire => "ui.key.primary_fire",
             InputAction.StowVehicle => "ui.key.stow_vehicle",
+            InputAction.RecallVehicle => "ui.key.recall_vehicle",
             InputAction.ToggleThirdPerson => "ui.key.toggle_third_person",
             InputAction.LootContainer => "ui.key.loot_container",
             InputAction.DepositToCrate => "ui.key.deposit_to_crate",

@@ -54,6 +54,7 @@ namespace BlocksBeyondTheStars.Client
         private const string FinaleSystemId = "guardian_finale";
 
         private static readonly Color WaypointCol = new Color(1f, 0.85f, 0.3f);
+        private static readonly Color WreckCol = new Color(0.85f, 0.65f, 0.35f);          // the radar's wreck amber (#1664)
         private static readonly Color DiscCol = new Color(0.01f, 0.03f, 0.07f, 0.78f); // WorldMap's backing disc
         private static readonly Color StarFallbackCol = new Color(1f, 0.94f, 0.74f);   // an older server sends no star colour
         private static readonly Color JumpCol = new Color(0.30f, 0.18f, 0.46f);        // the travel screen's hyperspace-violet button
@@ -169,6 +170,17 @@ namespace BlocksBeyondTheStars.Client
             }
 
             Build();
+
+            // #1663: the first time the chart ever opens, VEGA says what it is for — nothing else in the game
+            // told a new pilot that clicking a disc here sets the waypoint the radar and autopilot follow.
+            // A client-side one-shot (a UI lesson, not world progress), remembered in the client settings.
+            var settings = Game.Settings;
+            if (settings != null && !settings.ChartWaypointHintShown)
+            {
+                settings.ChartWaypointHintShown = true;
+                settings.Save();
+                VegaPanel.Instance?.SayLocal("vega.hint.chart_waypoint");
+            }
         }
 
         public void Close()
@@ -331,7 +343,7 @@ namespace BlocksBeyondTheStars.Client
             {
                 foreach (var e in Game.Space.Entities)
                 {
-                    if (e.Kind == "SpaceStation")
+                    if (e.Kind == "SpaceStation" || e.Kind == "Wreck") // both are fixed chart markers
                     {
                         fitX.Add(e.X);
                         fitZ.Add(e.Z);
@@ -467,6 +479,27 @@ namespace BlocksBeyondTheStars.Client
                 }
             }
 
+            // The system's derelict (#1664): a static wreck entity at its chart position — a small disc of
+            // scorched plating with its coined name + the localized kind, and a snap target, so a click sets it
+            // as the waypoint (the autopilot then flies you into salvage range). It never moves, so it is drawn
+            // once here rather than as a live blip.
+            if (Game.Space != null)
+            {
+                foreach (var e in Game.Space.Entities)
+                {
+                    if (e.Kind != "Wreck")
+                    {
+                        continue;
+                    }
+
+                    var p = Clamp(ToChart(new Vector3(e.X, e.Y, e.Z)));
+                    Centered(_chart, p, new Vector2(20f, 20f), UiKit.DiscSprite, DiscCol);
+                    Centered(_chart, p, new Vector2(12f, 12f), UiKit.DiscSprite, WreckCol);
+                    Label(_chart, p + new Vector2(0f, -18f), $"{e.Name} · {L("ui.map.kind_wreck")}");
+                    _targets.Add((e.Id, p, e.Name));
+                }
+            }
+
             // Ship marker (updated live), on top of the bodies.
             _ship = Centered(_chart, Vector2.zero, new Vector2(30f, 30f), UiKit.Icon("map_ship") ?? UiKit.SolidSprite, new Color(0.5f, 0.9f, 1f)).rectTransform;
 
@@ -516,10 +549,11 @@ namespace BlocksBeyondTheStars.Client
                 foreach (var e in Game.Space.Entities)
                 {
                     bool station = e.Kind == "SpaceStation";
-                    bool wreck = e.Kind == "Wreck";
-                    if (!station && !wreck && !e.Hostile)
+                    if (!station && !e.Hostile)
                     {
-                        continue; // asteroids/drops would dust the chart — radar range covers those
+                        // Asteroids/drops would dust the chart — radar range covers those; the wreck is a
+                        // static named marker drawn once in Build (#1664).
+                        continue;
                     }
 
                     var blip = EntityBlip(i++);

@@ -89,6 +89,8 @@ namespace BlocksBeyondTheStars.Client
 
         private void Start()
         {
+            Instance = this;
+
             // The HUD reference (1536×864), NOT the 1920×1080 default — VEGA was missed by the 2026-06-07
             // "bigger HUD" pass (#482), so her lines rendered 25 % smaller than every other HUD element at
             // every resolution. Subtitle-class text has to read while the eye is on the crosshair.
@@ -156,6 +158,30 @@ namespace BlocksBeyondTheStars.Client
         }
 
         private string L(string key) => Game?.Localizer?.Get(key) ?? key;
+
+        /// <summary>The live panel (one per rig), for client-side one-shot hints (<see cref="SayLocal"/>).</summary>
+        public static VegaPanel Instance { get; private set; }
+
+        /// <summary>A client-side hint spoken in VEGA's voice without a server round-trip (#1663) — for UI
+        /// lessons only the client knows the moment for (the first time a screen opens). Follows the advisor
+        /// rules of a Kind-1 server line: the VegaHints mute, <c>{key:Action}</c> glyphs, the same speech
+        /// queue, and the tips log for the session (a rejoin rebuilds the log from server milestones, so a
+        /// purely local lesson drops out of it then — by design, it is a one-liner).</summary>
+        public void SayLocal(string lineKey)
+        {
+            if (string.IsNullOrEmpty(lineKey) || Settings is { VegaHints: false })
+            {
+                return;
+            }
+
+            _queue.Enqueue((VegaText.ExpandKeyTokens(L(lineKey), KeyGlyphFor), false));
+            if (Game != null && !Game.VegaLogKeys.Contains(lineKey))
+            {
+                Game.VegaLogKeys.Add(lineKey);
+            }
+
+            Refresh();
+        }
 
         /// <summary>Resolver for <c>{key:Action}</c> tokens in VEGA lines: the pad glyph or bound key for a
         /// known action; on touch the on-screen action menu is the way to reach every toggle, so the token
@@ -705,6 +731,11 @@ namespace BlocksBeyondTheStars.Client
 
         private void OnDestroy()
         {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+
             if (Game?.Network != null)
             {
                 Game.Network.ShipAiLineReceived -= OnLine;

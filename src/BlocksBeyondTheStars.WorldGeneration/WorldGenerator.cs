@@ -166,6 +166,20 @@ public sealed partial class WorldGenerator
                 return true;
             }
 
+            if (p.ClassicShape)
+            {
+                // The pre-generation-2 islet (#1453): a 1:1 beach slope from the pad rim out to the islet
+                // radius, no plateau, no wobble — kept byte-for-byte for saves created with it (#1665).
+                if (d2 <= p.IsletRadius * p.IsletRadius)
+                {
+                    pad = p;
+                    target = p.SurfaceY - (int)System.Math.Ceiling(System.Math.Sqrt(d2) - p.Radius);
+                    return true;
+                }
+
+                continue;
+            }
+
             if (p.Islet && d2 <= (p.IsletRadius + IsletRimWobble) * (p.IsletRadius + IsletRimWobble))
             {
                 long wobbleSeed = _worldSeed ^ StableHash("islet:" + p.CenterX + ":" + p.CenterZ);
@@ -236,7 +250,8 @@ public sealed partial class WorldGenerator
                 bool islet = pad.Islet;
                 bool slope = islet && padY < pad.SurfaceY;
                 int biomeIndex = biomes.Count <= 1 ? 0 : BiomeIndex(calib, seed, worldX, worldZ, biomes.Count, padY);
-                var surfaceId = slope ? beachId : biomes[biomeIndex].Surface;
+                // A classic islet (#1665) is beach block through and through, like the worlds it was made for.
+                var surfaceId = slope || pad.ClassicShape ? beachId : biomes[biomeIndex].Surface;
                 var subSurfaceId = islet ? beachId : biomes[biomeIndex].Sub;
 
                 for (int ly = 0; ly < cs; ly++)
@@ -268,7 +283,7 @@ public sealed partial class WorldGenerator
                 }
 
                 // A few tufts of the biome's flora on the islet plateau, off the reserved pad (#1620).
-                if (islet && !slope && !planet.Void)
+                if (islet && !slope && !planet.Void && !pad.ClassicShape)
                 {
                     int fy = padY + 1 - origin.Y;
                     int pdx = WorldConstants.WrapDeltaX(worldX - pad.CenterX, _circumference);

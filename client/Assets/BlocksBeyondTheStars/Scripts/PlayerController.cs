@@ -72,7 +72,8 @@ namespace BlocksBeyondTheStars.Client
         public float SpeederHopSpeed = 6f;       // Space gives a quick lift over a low obstacle
         public float SpeederImpactThreshold = 9f; // a hard stop above this speed reports a collision
         public float SpeederBoardRange = 3.2f;
-        public float SpeederStowRange = 3.5f;
+        public float SpeederStowRange = 5f;       // = the server's pack-up reach (was 3.5: a sunk speeder was silently out of reach, #1661)
+        public float SpeederHintRange = 14f;      // own parked vehicle within this but beyond stow reach → the HUD says so
 
         // Boat (#1215) — the water kind of the same vehicle system: slower, lazier steering, it drifts, and it
         // floats on the water column instead of hovering over a ground raycast. Speeds come from the item's
@@ -126,6 +127,35 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return false;
+            }
+        }
+
+        /// <summary>Standing at the own landed ship's cockpit or console with a deployed vehicle out on this world
+        /// (RecallVehicle applies, #1661). Never aboard the floating interior — the ship is not landed there.</summary>
+        public bool CanRecallVehicle
+            => Game != null && (Game.NearbyStation == "cockpit" || Game.NearbyStation == "console")
+               && Game.LoadingPlanetType != "ship_interior" && OwnParkedVehicleCount > 0;
+
+        /// <summary>How many of our own vehicles stand parked (not driven) on this world.</summary>
+        public int OwnParkedVehicleCount
+        {
+            get
+            {
+                if (Game?.Speeders == null)
+                {
+                    return 0;
+                }
+
+                int n = 0;
+                foreach (var s in Game.Speeders)
+                {
+                    if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
+                    {
+                        n++;
+                    }
+                }
+
+                return n;
             }
         }
 
@@ -275,6 +305,10 @@ namespace BlocksBeyondTheStars.Client
 
         // Boat drive state (#1215).
         private bool _drivingBoat;        // the vehicle we boarded is a boat (remembered for the dismount cue)
+        private float _speederBlockedSeconds; // the speeder wants to move but the capsule does not: wedged against a lip (#1660)
+        private bool _speederAutoHop;         // next frame's hover gets a hop to clear that lip
+        private Vector3 _speederLastDryPos;   // last driven pose with no water under the hull (shore stop, #1660)
+        private bool _speederHasDryPos;
         private Vector3 _boatVel;         // planar hull velocity — lags the bow, so the boat drifts through turns
         private float _boatBobPhase;      // sine phase of the idle bob
         private float _boatDrySeconds;    // how long the hull has had no water under it (aground)
@@ -605,6 +639,12 @@ namespace BlocksBeyondTheStars.Client
             }
 
             if (InputMap.Down(InputAction.StowVehicle) && TryStowNearbySpeeder())
+            {
+                return;
+            }
+
+            // Same key at the own cockpit/console: ask the ship for a vehicle left out on this world (#1661).
+            if (InputMap.Down(InputAction.RecallVehicle) && TryRecallVehiclesAtConsole())
             {
                 return;
             }
@@ -2503,6 +2543,9 @@ namespace BlocksBeyondTheStars.Client
                 _boatVel = Vector3.zero;
                 _boatDrySeconds = 0f;
                 _boatHasWetPos = false;
+                _speederBlockedSeconds = 0f;
+                _speederAutoHop = false;
+                _speederHasDryPos = false;
                 Avatar?.SetVisible(true);   // sit visibly in the vehicle
                 _viewmodel?.SetVisible(false);
                 ClientAudio.Instance?.SpeederStart(boat);
@@ -2577,13 +2620,59 @@ namespace BlocksBeyondTheStars.Client
             }
             else
             {
-                _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * Time.deltaTime);
+                // Shore stop (#1660): the hover speeder is a LAND vehicle (the boat exists for the water). Water in
+                // the cells it is about to enter caps the throttle at zero — reverse stays free — and if it is
+                // over water anyway (a slope pushed it in, or it was deployed into the sea before the deploy
+                // check existed) it floats on the surface, can only back out, and eases toward the last dry
+                // pose the way a beached boat eases back to the water.
+                bool overWater = SpeederOverWater(transform.position, out float waterSurface);
+                if (overWater)
+                {
+                    targetSpeed = Mathf.Min(0f, throttle) * cruise * 0.3f;
+                    _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * 2.5f * Time.deltaTime);
+                }
+                else
+                {
+                    _speederLastDryPos = transform.position;
+                    _speederHasDryPos = true;
+                    if (_speederSpeed > 0f && WaterAhead(transform.position, transform.forward, 1.6f + _speederSpeed * 0.3f))
+                    {
+                        targetSpeed = Mathf.Min(targetSpeed, 0f);
+                        _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * 2.5f * Time.deltaTime);
+                    }
+                    else
+                    {
+                        _speederSpeed = Mathf.MoveTowards(_speederSpeed, targetSpeed, accel * Time.deltaTime);
+                    }
+                }
 
-                // Hover: hold a fixed height above whatever ground is below; sink gently over a void/edge.
-                if (Physics.Raycast(transform.position + Vector3.up * 2.5f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
+                // Hover: hold a fixed height above whatever ground is below; sink gently over a void/edge. The
+                // ray starts INSIDE the driver's capsule — from 2.5 m up it met the capsule's own top first
+                // (1.8 m), failed the self-hit guard and fell through to the "sink" branch every frame, so
+                // hover never really engaged and nothing stopped a speeder from following the seabed (#1660).
+                // The block column backs the physics ray up: it knows a chunk whose collider is still baking,
+                // and it is what lifts a hull that got wedged into a block back out.
+                float groundY = float.NaN;
+                if (Physics.Raycast(transform.position + Vector3.up * 1.0f, Vector3.down, out var hit, 12f, ~0, QueryTriggerInteraction.Ignore)
                     && hit.collider != _controller)
                 {
-                    float targetY = hit.point.y + SpeederHoverHeight;
+                    groundY = hit.point.y;
+                }
+
+                if (BlockColumnGround(transform.position, out float columnY) && (float.IsNaN(groundY) || columnY > groundY))
+                {
+                    groundY = columnY;
+                }
+
+                bool hovering = !float.IsNaN(groundY) || overWater;
+                if (hovering)
+                {
+                    float targetY = float.IsNaN(groundY) ? waterSurface + 0.4f : groundY + SpeederHoverHeight;
+                    if (overWater)
+                    {
+                        targetY = Mathf.Max(targetY, waterSurface + 0.4f); // never below the surface
+                    }
+
                     vSpeed = Mathf.Clamp((targetY - transform.position.y) * 6f, -10f, 8f);
                 }
                 else
@@ -2591,17 +2680,47 @@ namespace BlocksBeyondTheStars.Client
                     vSpeed = -Gravity * 0.2f;
                 }
 
-                if (InputMap.JumpDown() && !outOfFuel)
+                if ((InputMap.JumpDown() || _speederAutoHop) && !outOfFuel)
                 {
                     vSpeed = SpeederHopSpeed; // a quick hover-hop over a low obstacle
+                    _speederAutoHop = false;
                 }
 
                 planar = transform.forward * _speederSpeed;
-                Game.VehicleAground = false;
+                if (overWater && _speederHasDryPos)
+                {
+                    Vector3 back = _speederLastDryPos - transform.position;
+                    back.y = 0f;
+                    if (back.sqrMagnitude > 0.01f)
+                    {
+                        planar += back.normalized * 1.2f;
+                    }
+                }
+
+                Game.VehicleAground = overWater;
             }
 
             Vector3 before = transform.position;
             _controller.Move((planar + Vector3.up * vSpeed) * Time.deltaTime);
+
+            if (!boat)
+            {
+                // Wedged (#1660): the speeder wants to move but the capsule does not — a lip it cannot slide
+                // over, a block it drove into. After a moment it hops by itself, and the on-foot rescue keeps
+                // watching for a capsule that ended up inside geometry.
+                Vector3 step = transform.position - before;
+                step.y = 0f;
+                bool blocked = Mathf.Abs(_speederSpeed) > 2f && step.magnitude / Mathf.Max(1e-4f, Time.deltaTime) < 0.3f;
+                _speederBlockedSeconds = blocked ? _speederBlockedSeconds + Time.deltaTime : 0f;
+                if (_speederBlockedSeconds > 0.8f)
+                {
+                    _speederBlockedSeconds = 0f;
+                    _speederAutoHop = true;
+                }
+
+                _verticalVelocity = 0f;
+                GuardAgainstFallingOut(grounded: Mathf.Abs(vSpeed) < 2f, inWater: false, onLadder: false);
+            }
 
             // A hard horizontal stop at speed = ran into a wall/cliff → report the impact (server scales the hull
             // damage from the speed and jolts the driver). For the boat the intended speed is the drifting hull's,
@@ -2683,6 +2802,102 @@ namespace BlocksBeyondTheStars.Client
             float targetY = surface + BoatFloatHeight + Mathf.Sin(_boatBobPhase) * 0.06f;
             vSpeed = Mathf.Clamp((targetY - pos.y) * 5f, -6f, 6f);
             return true;
+        }
+
+        /// <summary>Whether the hover speeder at <paramref name="pos"/> has water under its hull (the feet cell or
+        /// the two below), and the top of that water. Unknown terrain (a chunk not streamed yet) is not judged.</summary>
+        private bool SpeederOverWater(Vector3 pos, out float surface)
+        {
+            surface = float.NaN;
+            int fx = Mathf.FloorToInt(pos.x), fz = Mathf.FloorToInt(pos.z), feet = Mathf.FloorToInt(pos.y);
+            if (Game?.World == null || !Game.World.TryGetBlock(fx, feet, fz, out _))
+            {
+                return false;
+            }
+
+            for (int y = feet; y >= feet - 2; y--)
+            {
+                if (BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z)) == "water")
+                {
+                    surface = y + 1f;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Water within <paramref name="dist"/> metres ahead at hull height (feet down to two below) —
+        /// the shore stop's look-ahead, scaled by speed by the caller so the speeder brakes before the bank.</summary>
+        private bool WaterAhead(Vector3 pos, Vector3 forward, float dist)
+        {
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 1e-4f)
+            {
+                return false;
+            }
+
+            forward.Normalize();
+            int feet = Mathf.FloorToInt(pos.y);
+            for (float d = 1f; d <= dist; d += 1f)
+            {
+                Vector3 probe = pos + forward * d;
+                for (int y = feet; y >= feet - 2; y--)
+                {
+                    if (BlockKeyAt(new Vector3(probe.x, y + 0.5f, probe.z)) == "water")
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>The top face of the first colliding block in the column from the feet cell down (eight cells),
+        /// from the streamed block data rather than the physics scene. A colliding FEET cell means the hull is
+        /// inside a block — the surface reported is then the top of that block, which lifts it out.</summary>
+        private bool BlockColumnGround(Vector3 pos, out float surfaceY)
+        {
+            surfaceY = float.NaN;
+            if (Game?.World == null)
+            {
+                return false;
+            }
+
+            int feet = Mathf.FloorToInt(pos.y);
+            for (int y = feet; y >= feet - 8; y--)
+            {
+                if (IsCollidingKey(BlockKeyAt(new Vector3(pos.x, y + 0.5f, pos.z))))
+                {
+                    surfaceY = y + 1f;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>X at the own cockpit/console: asks the ship to bring every vehicle we left out on this world
+        /// back beside it (#1661). Returns true if at least one request went out.</summary>
+        private bool TryRecallVehiclesAtConsole()
+        {
+            if (Game?.Network == null || Game.Speeders == null || !CanRecallVehicle)
+            {
+                return false;
+            }
+
+            bool any = false;
+            foreach (var s in Game.Speeders)
+            {
+                if (s != null && s.OwnerId == Game.LocalPlayerId && string.IsNullOrEmpty(s.DriverId))
+                {
+                    Game.Network.SendRecallVehicle(s.Id);
+                    any = true;
+                }
+            }
+
+            return any;
         }
 
         /// <summary>Sends a "look here" ping (#1217) at whatever the crosshair rests on: the aimed voxel when one
