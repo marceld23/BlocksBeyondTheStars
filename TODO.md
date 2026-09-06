@@ -39,6 +39,42 @@ red_desert + archipelago from the launcher (orbit names and colours).
 
 ---
 
+### ★ Lyxette round 9: settlers out of the water, trees out of settlements, a speeder that stays on land and comes back, solid parked vehicles, space wrecks that exist, findable asteroids, ocean pads gated to new saves (#1658–#1665, 2026-09-06, branch fix/lyxette-reports-2026-09-06)
+
+Five F1 reports from the morning of 2026-09-06 (v2026.9.2) plus one release-risk finding. **#1658** `StandableSpot` judges a
+base settler's home the way the NPC walks (`IsCollidingCell`, fluids are a wall) — the entombment predicate called water
+"free" and homed the settler on the seabed, where the leash could never walk them out; re-home shares the rule, so wet
+settlers on existing saves migrate on the next scan. **#1659** the settlement stamp carves every tree block out of the
+footprint up to tree height plus a crown-wide ring (skipped where a player built), on every load; `IsSettlementProtected`
+exempts natural tree blocks the layout never placed (`SettlementInstance.Layout` + `GroundY`); greenhouse frames stay
+protected. **#1660** the hover ray starts inside the driver's capsule (from 2.5 m up it hit the capsule's own top and hover
+never engaged), the block column backs it up (chunk still baking, a hull wedged into a block lifts out), shore stop: water
+ahead caps the throttle, over water the speeder floats and can only back out toward the last dry pose, a blocked speeder
+hops by itself, `GuardAgainstFallingOut` runs while driving; server `TickSpeederInWater` snaps a wet driver back to the last
+dry pose (30 reports); deploy snaps to the standable cell nearest the feet and refuses a wet column
+(`@srv.speeder.need_land`). **#1661** `ReleaseDrivenVehicle` on respawn; client stow reach = the server's 5 m plus a HUD hint
+naming the vehicle and its distance when it is 5–14 m off; `RecallVehicleIntent` (codec 235): at the own landed ship's
+cockpit/console (`ShipStationReach`) the server parks a stranded speeder on the nearest dry standable cell outside the pad rim
+and a boat on the nearest waterline around the pad (`X` = `InputAction.RecallVehicle`, cockpit prompt suffix, context action);
+refused while driven, on another body, without a landed ship. **#1662** a PARKED vehicle carries the cooked `MeshCollider`
+(off while driven and while the local player stands inside its bounds); `HandleExitSpeeder` steps the driver onto the nearest
+standable cell beside the hull (`DismountSpot`, side cells first). **#1663** `KeepFarAsteroidsVisible` holds every asteroid
+body at ≥ 20 px apparent diameter, rim-pinned radar blips carry a name label, one-shot VEGA hint `chart_waypoint` on the
+first flight chart. **#1664** `GameServerSpaceWrecks.cs`: every `CelestialKind.Wreck` body drifts in its system's space as a
+`WreckGenerator` hull (`SpaceStructure` kind "wreck", `CombatEntityKind.Wreck`, salt `spacewreck:`), carved by the mining laser
+like an asteroid into plating / cable / a metal + data fragments, manifest read on approach (≤ 45 units: scan readout, "derelict"
+lore, body visited); client renders the design, amber rim-pinned radar blip, chart marker + click-snap, waypoint arrival 30,
+travel-screen "fly there to salvage". **#1665** `WorldDescription.CurrentTerrainGeneration = 2`, `OceanPadsGeneration = 2`:
+pads are re-derived from the seed on every load, so pre-generation-2 saves keep the frozen longitude-only march, the rolled
+ocean-world islet two blocks over the sea and the plain sand-mound shape (`LandingPadFlatten.ClassicShape`,
+`DecideClassicPad`); only new worlds get the 2-D nudge, deep-water islets and the plateau shape. Tests: `BaseLifeTests` (+1),
+`SettlementVegetationTests` (2), `VehicleRecoveryTests` (7), `SpaceWreckTests` (5), `LandingPadTests` (+1), `NetCodecTests`
+golden list; locales EN/DE + 12 via `translate_locale.py`. PLAYTEST (Marcel, local build + a flat-world save with speeder and
+boat): shore stop at a lake, dismount beside the hull, walk into a parked speeder, X at the cockpit with the speeder left far
+away, a wreck on the flight chart, distant asteroids on a belt world.
+
+---
+
 ### ★ Landscape variety 5/6: 16 prop rows with micro-ruins, 7 tree kinds, giant-flora table (#1648, 2026-09-06, branch landscape/1648-props-trees)
 
 Generation-1 worlds only; classic goldens unchanged, `savanna-gen1` + `swamp-gen1` pinned. `WorldGenerator.StampsGen1.cs`:

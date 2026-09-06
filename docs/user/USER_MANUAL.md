@@ -120,7 +120,7 @@ Last updated: 2026-08-26.
 | **G** | Loot the nearest container |
 | **H** | Store your loose materials and blocks in the nearest storage crate / wood box (tools, weapons and equipment stay with you) |
 | **E** | Use a nearby ship/station tile (cockpit, workshop, cargo, medbay, …); **trade with a vendor** (opens the Market); **board your hover speeder**; **beam** from a teleporter pad you're standing on; **choose what belongs in a storage crate** you're aiming at (see §5 → Storage crates) |
-| **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item |
+| **X** | Pack up (stow) a nearby deployed hover speeder or boat back into its item; at your own landed ship's **cockpit / console**: **recall** every speeder / boat you left out on this world to the pad (see §5 → Hover speeder) |
 | **T** | Send a trade request to a nearby player |
 | **K** | Send a dock request to a nearby player |
 | **U** | Undock from a player / leave a boarded space station |
@@ -867,6 +867,13 @@ separate unlock; admins can still disable it through server world rules.
 - Space holds two friendly surprises: a **life pod** sometimes drifts through a system — **fly close**
   and you rescue the survivor (a small thank-you, a new person in *People you know*, and a radio call
   later) — and an **anomaly** no catalogue explains: **scan** it for knowledge and a field record.
+- Many systems also hold a **space wreck**: the travel screen lists it with its ship's name and "Wreck",
+  it shows amber on the radar and on the system chart (**M**, click it to set a waypoint), and it is a
+  **fly-to**, never a quick-travel destination. Coming close reads its manifest (a field record, and the
+  wreck counts as visited); the **mining laser** carves it up like an asteroid for plating, cabling, a metal
+  and now and then a data fragment — an EVA pick works too.
+- Every **asteroid** listed for a system stays a visible dot from anywhere in that system, and the green
+  bearing blips on the radar's rim carry the body's name — the chart's waypoint is still the quickest way there.
 - Everything in this section is peaceful and appears under every preset — nothing here fights back.
 
 ### Bandits (robbers, camps, pirate space)
@@ -1197,6 +1204,16 @@ separate unlock; admins can still disable it through server world rules.
   and **F** dismounts. Press **X** near a parked speeder you own to **pack it back up** into the item.
 - The speeder has its **own energy tank** (driving drains it) and a **voxel hull** that takes collision damage —
   hard impacts dent it and enough damage destroys it. It persists with you across reloads (like a companion).
+- It is a **land vehicle**: it unfolds only on dry ground (deploying towards water is refused) and **stops at the
+  shoreline** — water ahead caps the throttle, and if it does get pushed into water it floats and can only back out.
+  A speeder wedged against a lip hops over it by itself after a moment; a hull that ends up inside a block lifts out.
+- **Dismounting** puts you on the ground **beside** the hull, and a parked speeder or boat is **solid** — you can
+  stand on it, not walk through it.
+- **Lost it?** Walk within 5 m to pack it up (the HUD names the vehicle and its distance when it is a little out of
+  reach). If it is somewhere you cannot get to — the far shore, a ravine — go to your landed ship's **cockpit or
+  console** and press **X**: the ship **recalls** every speeder and boat you left out on this world and parks it
+  beside the pad (a boat on the nearest water). Only from the landed ship, never while someone drives it, never from
+  another world. Dying while driving releases the seat, so you can board or pack it up again afterwards.
 
 #### Boat (water vehicle)
 - The **boat** (`boat`) is the water kind of the same system — an early-game workshop craft with **no
