@@ -679,9 +679,19 @@ public sealed partial class WorldGenerator
     /// the Voronoi cell grid is modular over the torus in both axes.</summary>
     private double SaltPolygonRidge(long seed, int worldX, int worldZ)
     {
+        PolygonNet(seed, worldX, worldZ, SaltPolyCell, out double d1, out double d2, out _);
+        return d2 - d1 < SaltPolyEdge ? 1.0 : 0.0;
+    }
+
+    /// <summary>The Voronoi net behind the salt polygons (and, from generation 3, the frost polygons): the
+    /// distances to the nearest and second-nearest plate centre at a <paramref name="pitch"/>, and the nearest
+    /// plate's hash (its identity, for per-plate rolls). The arithmetic is the #701 salt-polygon code moved
+    /// here unchanged, so the classic salt pans are byte-identical.</summary>
+    private void PolygonNet(long seed, int worldX, int worldZ, double pitch, out double d1, out double d2, out ulong nearest)
+    {
         int period = LatPeriod;
-        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / SaltPolyCell));
-        int nz = System.Math.Max(1, (int)System.Math.Round(period / SaltPolyCell));
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / pitch));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / pitch));
         double cw = _circumference / (double)nx;
         double ch = period / (double)nz;
         int wx = WorldConstants.WrapX(worldX, _circumference);
@@ -689,7 +699,9 @@ public sealed partial class WorldGenerator
         int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
         int czI = System.Math.Min(nz - 1, (int)(zc / ch));
 
-        double d1 = double.MaxValue, d2 = double.MaxValue;
+        d1 = double.MaxValue;
+        d2 = double.MaxValue;
+        nearest = 0;
         for (int ix = -1; ix <= 1; ix++)
             for (int iz = -1; iz <= 1; iz++)
             {
@@ -703,11 +715,9 @@ public sealed partial class WorldGenerator
                 if (ddz > period / 2.0) { ddz -= period; }
                 if (ddz < -period / 2.0) { ddz += period; }
                 double d = System.Math.Sqrt(ddx * ddx + ddz * ddz);
-                if (d < d1) { d2 = d1; d1 = d; }
+                if (d < d1) { d2 = d1; d1 = d; nearest = ph; }
                 else if (d < d2) { d2 = d; }
             }
-
-        return d2 - d1 < SaltPolyEdge ? 1.0 : 0.0;
     }
 
     // --- Hexagonal basalt column fields (#701): Giant's-Causeway patches on volcanic-reading worlds —

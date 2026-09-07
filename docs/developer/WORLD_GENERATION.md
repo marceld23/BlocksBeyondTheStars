@@ -939,3 +939,36 @@ proportion. No new gate — the tag and the generation decide.
 The gate is deliberately narrower than "every wet world with caves": most planet types inherit the default
 water abundance, and the `highland` control world (the generation-3 golden that must equal its
 generation-1 twin because no family is active there) has to stay a world without dripstone.
+
+### 13.4 Part 4 — volcanic and desert
+
+Four forms (`WorldGenerator.VolcanicDesertGen3.cs`), every one a row in a table that already existed, and
+all of them trig-free: a direction is a hash-drawn integer vector normalised by a square root, which every
+libm rounds the same way, so the Windows and Linux goldens agree.
+
+**Obsidian fields** (Obsidianfelder) are a paint alone: inside a ragged-edged region 40–90 across on
+flat-ish ground of a dry volcanic world, obsidian three deep (the paint fill) with a dithered 15 % of
+crystal glints on the surface — a stud, not a vein, so a glint's fill is the topsoil only.
+
+**Lava flows** (Lavafelder) are three mechanisms on one geometry. `TryGetLavaFlow` walks the volcano cones
+of the 3×3 hotspot cells around a column (a tongue may cross its cell's border) and, per cone, 2–3 tongues
+of four bent segments each, starting at the cone's foot (the cone's own row owns the cells inside its
+radius) and tapering from 8–16 wide to half that at the toe. The offset row lifts the ground 1–3 in a ropy
+ridged field; the paint lays basalt three deep; and one cell in eight on the core is a 1-deep lava pocket
+— a body of the generation-1 chain (`TryGetGen1Water`, appended after every generation-1 body), so every
+surface-fluid query agrees with what the column fills. A pocket never sits over a cave mouth: generated
+fluid is a bottomless source to the automaton, and a tunnel under the bed would drink lava forever
+(`CaveMouthNear`). The same guard covers the frost ponds below.
+
+**Barchans** (Sicheldünen) are an offset row on wind-and-sand worlds that did NOT roll the dune-sea styles
+(their crests would swallow a crescent): a field 150–300 across on a 24–40 pitch grid, modular over the
+torus, one pitch cell in eight left bare so the field breathes. Each dune is a dome 4–9 high and 10–16
+across minus a smaller dome shifted downwind, which leaves the thick convex side upwind and the two horns
+trailing downwind. The wind is the world's grain, the same one the dune crests march in.
+
+**Frost polygons** (Polygonböden) reuse the salt-polygon Voronoi net — `SaltPolygonRidge` now calls a
+shared `PolygonNet` that also reports the nearest plate's hash; the salt pans are byte-identical. On cold
+(≤ −8 °C), wet, air-bearing ground that is not a salt pan, inside a broad region mask, the ridges stand
+one block proud (an offset row) with a stone skin (a paint), and a fifth of the plates hold a 1-deep pond
+(a body) that the classic freeze pass covers with ice. The `frozen_ocean` world qualifies, so its
+generation-3 golden moved with this part.

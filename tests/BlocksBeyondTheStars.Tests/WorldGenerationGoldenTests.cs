@@ -76,6 +76,10 @@ public sealed class WorldGenerationGoldenTests
         new("dust_bowl-gen3", 20260903, "dust_bowl", 0, false, null, 3),
         // Part 3 (caves): dripstone in tunnels and caverns, karst cathedrals — karst-gen3 re-pinned, jungle drips too.
         new("jungle-gen3", 20260903, "jungle", 0, false, null, 3),
+        // Part 4 (volcanic + desert): lava flows / obsidian fields on the lava world, frost polygons on the tundra;
+        // barchans may move the desert groups (re-pinned).
+        new("lava-gen3", 20260903, "lava", 0, false, null, 3),
+        new("tundra-gen3", 20260903, "tundra", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -113,7 +117,7 @@ public sealed class WorldGenerationGoldenTests
             // re-pin these). ocean-gen3 equals ocean-gen1 (no seamount under the three sample columns) and
             // highland-gen3 MUST equal highland-gen1: no generation-3 family is active there.
             ["ocean-gen3"] = 0xcd2223af53fc3766UL,
-            ["frozen_ocean-gen3"] = 0xe6a4f91f378c89b3UL,
+            ["frozen_ocean-gen3"] = 0x97a7ec609a2d7b2aUL, // re-pinned for part 4: frost polygons pattern its cold wet ground
             ["karst-gen3"] = 0x112bb9862281777cUL, // re-pinned for part 2: the stone-forest style joined the karst pool
             ["highland-gen3"] = 0x49f4107c54801291UL, // arêtes are gated on since part 2 but roll none under the sample columns
             // Pinned 2026-09-07 (part 2, the rock landforms; unreleased — later parts re-pin these).
@@ -122,6 +126,9 @@ public sealed class WorldGenerationGoldenTests
             ["dust_bowl-gen3"] = 0x4aa0227f75eb2f2aUL,
             // Pinned 2026-09-07 (part 3, the caves; unreleased — later parts re-pin these).
             ["jungle-gen3"] = 0x830c938ef5e9f19fUL, // karst-gen3 stayed: no dripstone under its sample columns
+            // Pinned 2026-09-07 (part 4, volcanic + desert; unreleased — later parts re-pin these).
+            ["lava-gen3"] = 0xe08b8deab2d122deUL,
+            ["tundra-gen3"] = 0xae79304259a4ff1dUL, // the desert groups stayed: no barchan field under their sample columns
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

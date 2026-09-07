@@ -129,6 +129,24 @@ public sealed partial class WorldGenerator
             return true;
         }
 
+        // Terrain generation 3 (part 4) — appended after every generation-1 body so no earlier precedence
+        // moves; both gates are false below generation 3. A lava flow's glowing pockets, a frost plate's pond.
+        if (w.LavaFlows && !lava.IsAir && LavaPocketAt(planet, w, worldX, worldZ, surfaceY))
+        {
+            top = surfaceY;
+            bed = surfaceY - 1;
+            fluid = lava;
+            return true;
+        }
+
+        if (w.FrostPolygons && FrostPondAt(planet, w, worldX, worldZ, surfaceY))
+        {
+            top = surfaceY;
+            bed = surfaceY - 1;
+            fluid = water;
+            return true;
+        }
+
         return false;
     }
 

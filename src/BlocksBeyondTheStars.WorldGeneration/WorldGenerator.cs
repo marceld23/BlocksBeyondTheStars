@@ -427,6 +427,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 3 — the caves: dripstone in every tunnel and cavern of a wet karst / wetland world.
         public bool Dripstone;
 
+        // Terrain generation 3, part 4 — the volcanic and desert landforms.
+        public bool ObsidianFields, LavaFlows, Barchans, FrostPolygons;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -537,6 +540,15 @@ public sealed partial class WorldGenerator
         new("rainbow-strata", w => w.RainbowStrata, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.RainbowStrataPaint(p, w, x, z, y, out fill),
             cycle: static (g, p, w, x, z) => g.RainbowStrataCycle(w, x, z)),
+        // Part 4 — volcanic and desert. The lava flow starts where the cone's own row ends (its foot); the
+        // frost net's ridge is a one-block heave with a stone skin; the obsidian field is a paint alone.
+        new("lava-flow", w => w.LavaFlows, static (g, p, w, x, z) => g.LavaFlowOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.LavaFlowPaint(p, w, x, z, y, out fill)),
+        new("barchans", w => w.Barchans, static (g, p, w, x, z) => g.BarchanOffset(w, x, z)),
+        new("frost-polygons", w => w.FrostPolygons, static (g, p, w, x, z) => g.FrostPolygonOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FrostPolygonPaint(w, x, z, out fill)),
+        new("obsidian-field", w => w.ObsidianFields, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ObsidianFieldPaint(p, w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -596,6 +608,10 @@ public sealed partial class WorldGenerator
             ["petrifiedDunes"] = w.PetrifiedDunes,
             ["rainbowStrata"] = w.RainbowStrata,
             ["dripstone"] = w.Dripstone,
+            ["obsidianFields"] = w.ObsidianFields,
+            ["lavaFlows"] = w.LavaFlows,
+            ["barchans"] = w.Barchans,
+            ["frostPolygons"] = w.FrostPolygons,
         };
     }
 
@@ -605,6 +621,7 @@ public sealed partial class WorldGenerator
     {
         "seamounts", "icebergs", "undergroundRivers", "slotCanyons", "aretes", "toothRows",
         "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata", "dripstone",
+        "obsidianFields", "lavaFlows", "barchans", "frostPolygons",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -791,6 +808,12 @@ public sealed partial class WorldGenerator
 
                     // Part 3: the caves.
                     w.Dripstone = HasDripstone(planet);
+
+                    // Part 4: the volcanic and desert landforms.
+                    w.ObsidianFields = HasObsidianFields(planet);
+                    w.LavaFlows = HasLavaFlows(planet);
+                    w.Barchans = HasBarchans(planet, w.Styles);
+                    w.FrostPolygons = HasFrostPolygons(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

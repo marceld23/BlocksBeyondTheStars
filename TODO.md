@@ -51,10 +51,15 @@ stone-forest style joined the pool).
 **Part 3 (caves) — DONE on the branch (2026-09-07):** dripstone — stalactites hanging from the roof and
 stalagmites rising from the floor of every worm tunnel and mega-cavern on a wet karst / wetland world
 (salt-white on limestone country, the deep rock elsewhere; an underground river's passage never drips — its
-headroom is the promise the reach is passable); karst cathedrals — caverns up to 40 tall instead of 28 on `karst`-tagged worlds. Golden
-`jungle-gen3` pinned, `karst-gen3` re-pinned.
-**Parts 4–8 (open):** volcanic and desert, wetlands and rivers, coast and sea floor, ice, then the new
-planet types and docs.
+headroom is the promise the reach is passable); karst cathedrals — caverns up to 40 tall instead of 28 on
+`karst`-tagged worlds. Golden `jungle-gen3` pinned, `karst-gen3` re-pinned.
+**Part 4 (volcanic + desert) — DONE on the branch (2026-09-07):** obsidian fields (a paint three deep with
+crystal glints on dry volcanic worlds), lava flows (2–3 bent tongues from every cone foot: a ropy 1–3 rise,
+a basalt skin three deep, and 1-deep lava pockets on the core through the body chain — never over a cave
+mouth), barchans (fields of crescent dunes on wind-and-sand worlds that rolled no dune sea), frost polygons
+(the salt-polygon net on cold wet ground: 1-high stone ridges, ice-covered ponds in a fifth of the plates).
+All geometry trig-free. Goldens `lava-gen3`, `tundra-gen3` pinned, `frozen_ocean-gen3` re-pinned.
+**Parts 5–8 (open):** wetlands and rivers, coast and sea floor, ice, then the new planet types and docs.
 
 ---
 
