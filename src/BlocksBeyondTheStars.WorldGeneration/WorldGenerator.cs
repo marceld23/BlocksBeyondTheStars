@@ -436,6 +436,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 6 — the coast and the sea floor.
         public bool SeaArches, Blowholes, CausewayIslands, ReefRings, ReefFields, BlueHoles, SubmarineCanyons, Trenches;
 
+        // Terrain generation 3, part 7 — ice as a volume.
+        public bool Glaciers, IceSheets, HangingValleys, IceCaves, SheetCaves;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -551,15 +554,15 @@ public sealed partial class WorldGenerator
         new("lava-flow", w => w.LavaFlows, static (g, p, w, x, z) => g.LavaFlowOffset(p, w, x, z),
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.LavaFlowPaint(p, w, x, z, y, out fill)),
         new("barchans", w => w.Barchans, static (g, p, w, x, z) => g.BarchanOffset(w, x, z)),
-        new("frost-polygons", w => w.FrostPolygons, static (g, p, w, x, z) => g.FrostPolygonOffset(w, x, z),
-            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FrostPolygonPaint(w, x, z, out fill)),
+        new("frost-polygons", w => w.FrostPolygons, static (g, p, w, x, z) => g.FrostPolygonOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FrostPolygonPaint(p, w, x, z, out fill)),
         new("obsidian-field", w => w.ObsidianFields, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ObsidianFieldPaint(p, w, x, z, y, out fill)),
         // Part 5 — wetlands and rivers. The ria is sea-relative (it drowns the shelf coast, so it must know the
         // sea); the thaw-pond rim is a one-block heave; the floodplain and the bog are paints (peat last, so a
         // bog on a floodplain is peat).
         new("ria", w => w.Rias, static (g, p, w, x, z) => g.RiaOffset(p, w, x, z), seaRelative: true),
-        new("thermokarst", w => w.Thermokarst, static (g, p, w, x, z) => g.ThermokarstOffset(w, x, z)),
+        new("thermokarst", w => w.Thermokarst, static (g, p, w, x, z) => g.ThermokarstOffset(p, w, x, z)),
         new("floodplain", w => w.RiverMorphology, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FloodplainPaint(p, w, x, z, out fill)),
         new("peat-bog", w => w.PeatBogs, static (g, p, w, x, z) => 0.0,
@@ -578,6 +581,13 @@ public sealed partial class WorldGenerator
             seaRelative: true),
         new("submarine-canyon", w => w.SubmarineCanyons, static (g, p, w, x, z) => g.SubmarineCanyonOffset(p, w, x, z), seaRelative: true),
         new("trench", w => w.Trenches, static (g, p, w, x, z) => g.TrenchOffset(p, w, x, z), seaRelative: true),
+        // Part 7 — ice as a volume (land rows, appended after every earlier land row: a massif or a trough owns its
+        // column first, which is what makes a nunatak poke through the ice sheet).
+        new("hanging-valley", w => w.HangingValleys, static (g, p, w, x, z) => g.HangingValleyOffset(w.Seed, x, z)),
+        new("glacier", w => w.Glaciers, static (g, p, w, x, z) => g.GlacierOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GlacierPaint(p, w, x, z, y, out fill)),
+        new("ice-sheet", w => w.IceSheets, static (g, p, w, x, z) => g.IceSheetOffset(w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.IceSheetPaint(w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -654,6 +664,11 @@ public sealed partial class WorldGenerator
             ["blueHoles"] = w.BlueHoles,
             ["submarineCanyons"] = w.SubmarineCanyons,
             ["trenches"] = w.Trenches,
+            ["glaciers"] = w.Glaciers,
+            ["iceSheets"] = w.IceSheets,
+            ["hangingValleys"] = w.HangingValleys,
+            ["iceCaves"] = w.IceCaves,
+            ["sheetCaves"] = w.SheetCaves,
         };
     }
 
@@ -666,6 +681,7 @@ public sealed partial class WorldGenerator
         "obsidianFields", "lavaFlows", "barchans", "frostPolygons",
         "riverMorphology", "rias", "floatingMats", "peatBogs", "thermokarst",
         "seaArches", "blowholes", "causewayIslands", "reefRings", "reefFields", "blueHoles", "submarineCanyons", "trenches",
+        "glaciers", "iceSheets", "hangingValleys", "iceCaves", "sheetCaves",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -875,6 +891,13 @@ public sealed partial class WorldGenerator
                     w.BlueHoles = HasBlueHoles(planet);
                     w.SubmarineCanyons = HasSubmarineCanyons(planet);
                     w.Trenches = HasTrenches(planet);
+
+                    // Part 7: ice as a volume.
+                    w.Glaciers = HasGlaciers(planet);
+                    w.IceSheets = HasIceSheets(planet);
+                    w.HangingValleys = HasHangingValleys(planet);
+                    w.IceCaves = HasIceCaves(planet);
+                    w.SheetCaves = HasSheetCaves(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

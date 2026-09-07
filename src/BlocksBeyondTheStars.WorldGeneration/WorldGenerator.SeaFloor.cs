@@ -194,9 +194,9 @@ public sealed partial class WorldGenerator
         }
 
         int ground = SurfaceHeight(planet, worldX, worldZ);
-        if (ground > sea - IcebergMinDepth)
+        if (ground > sea - IcebergMinDepth || PadColumnAt(worldX, worldZ, out _, out _))
         {
-            return false;
+            return false; // never over a landing pad's footprint (part 7)
         }
 
         double f = FbmT(w.Seed + IcebergFacetSalt, worldX, worldZ, 6.0, octaves: 2); // 0..1 facets

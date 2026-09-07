@@ -1078,3 +1078,40 @@ floor, only where the raw floor already lies twenty below the sea. All three res
 
 **Two new blocks** this part and the last: `peat` (part 5) and `coral_rock` (part 6), both with generated
 textures (`tools/ai-assets`, bundled as raw RGBA) and names in all fourteen locales.
+
+### 13.7 Part 7 — ice as a volume
+
+Part 1 made the glacier tongue a paint six deep. Part 7 makes ice a VOLUME (`WorldGenerator.IceGen3.cs`).
+
+**Glaciers** are a hotspot of their own (a massif is a find on one world in five; a glacier should not wait
+for one): the tongue starts at the cell centre — its head — and runs down the steepest descent of the raw
+ground (eight probes forty out, memoised per cell) for 150–400 blocks, 30–70 wide, 12–30 thick at the
+crown in a lens across, ramped at the head and tapering to the snout. The offset row lifts the ground by
+the ice thickness and the paint fills ice from the surface down to the old ground (part 1's paint fill),
+so a cut face shows ice on rock. The tongue carries its own **crevasses** (the slits of a ridged field, a
+few blocks deep) and becomes an **icefall** where the ground under it drops fifteen or more over sixteen
+blocks: the ice breaks into three-block decks and the crevasses come three times as dense. **Moraines**
+are the same row's other answer — a scree ridge 4–10 high along both flanks and across the snout.
+
+**Glacier gates and ice caves** are two worm families riding the glacier's own hotspot cell: the gate is
+one horizontal worm 3–5 in radius from just inside the snout 30–60 back into the ice at the old ground's
+level; the caves are 3–5 segments along the tongue at half the ice thickness, radius 2–4. Their walls are
+ice because the fill is ice. **Sheet caves** are a third family on ice-surface worlds (ice, glacier):
+worms 4–6 segments long hanging 6–14 under the raw ground of their cell instead of off `BaseHeight`, so
+they run through the crust. (The plan's meltwater sheet on the gate's floor and the river stroke out of it
+are not implemented — the gate is dry.)
+
+**Ice sheets and nunataks**: on the coldest glacial worlds (≤ −20 °C) a broad region mask caps the ground
+with 10–25 of ice (an offset row plus the ice paint filling to the old ground). The massif and trough rows
+precede it in the table, so a massif inside the region keeps its bare rock — the nunatak — as a matter of
+row precedence alone. The cold ground patterns of parts 4 and 5 (frost polygons, thaw ponds) yield to any
+ice cover (`IceCoveredAt`): their one-block heave would otherwise fire first and leave a pit in the sheet.
+
+**Hanging valleys** ride the glacial trough's own hotspot cell and its rolled angle (the trough uses the
+libm angle, so the two must share it): a side trough 80–160 long, 30–50 wide, a U 15–25 deep entering the
+main trough at a right angle, shallower than the main trough's 25–45 so its floor hangs above the main
+floor and ends at the trough wall.
+
+**Icebergs** (part 1) now keep off a landing pad's footprint. The plan's `VoidBelow` probe for pads is
+already there: the pad fill plugs caves under a pad to `PadFoundationDepth`; structures still do not read
+the underground, which stays a known gap.

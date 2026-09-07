@@ -86,6 +86,9 @@ public sealed class WorldGenerationGoldenTests
         new("boreal-gen3", 20260903, "boreal", 0, false, null, 3),
         // Part 6 (coast + sea floor): reef rings, reef fields, causeways, arches, blue holes on the archipelago.
         new("archipelago-gen3", 20260903, "archipelago", 0, false, null, 3),
+        // Part 7 (ice): glaciers, ice sheets and nunataks, hanging valleys, ice caves on the two ice worlds.
+        new("glacier-gen3", 20260903, "glacier", 0, false, null, 3),
+        new("ice-gen3", 20260903, "ice", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -123,7 +126,7 @@ public sealed class WorldGenerationGoldenTests
             // re-pin these). ocean-gen3 equals ocean-gen1 (no seamount under the three sample columns) and
             // highland-gen3 equalled highland-gen1 through part 4 (no family active); part 5 re-pinned it.
             ["ocean-gen3"] = 0xd332372ad8f67b85UL, // re-pinned for part 5: a ria drowns a coast column
-            ["frozen_ocean-gen3"] = 0x97a7ec609a2d7b2aUL, // re-pinned for part 4: frost polygons pattern its cold wet ground
+            ["frozen_ocean-gen3"] = 0x13b8385bbef612d6UL, // re-pinned for part 7 (glaciers, ice sheet; part 4: frost polygons)
             ["karst-gen3"] = 0xbb494ccb1798e108UL, // re-pinned for part 5 (river morphology; part 2: the stone-forest style)
             ["highland-gen3"] = 0x7f796ec06cb54308UL, // re-pinned for part 5: since then the wet alpine world has river morphology + rias — the no-family control lives in the gate-searching test
             // Pinned 2026-09-07 (part 2, the rock landforms; unreleased — later parts re-pin these).
@@ -134,12 +137,15 @@ public sealed class WorldGenerationGoldenTests
             ["jungle-gen3"] = 0x604c4eaed2ed4148UL, // re-pinned for part 5 (river morphology, flora on paints)
             // Pinned 2026-09-07 (part 4, volcanic + desert; unreleased — later parts re-pin these).
             ["lava-gen3"] = 0xe08b8deab2d122deUL,
-            ["tundra-gen3"] = 0xae79304259a4ff1dUL, // the desert groups stayed: no barchan field under their sample columns
+            ["tundra-gen3"] = 0xd568581839e0daf1UL, // re-pinned for part 7 (glaciers, ice sheet, hanging valleys)
             // Pinned 2026-09-07 (part 5, wetlands + rivers; unreleased — later parts re-pin these).
             ["swamp-gen3"] = 0x6f5636cb565bf8cfUL,
             ["boreal-gen3"] = 0x0db4acbd71f6b6bdUL,
             // Pinned 2026-09-08 (part 6, coast + sea floor; unreleased — later parts re-pin these).
             ["archipelago-gen3"] = 0x819963dbc81a43bbUL,
+            // Pinned 2026-09-08 (part 7, ice; unreleased — later parts re-pin these).
+            ["glacier-gen3"] = 0xaaf721d431838ceaUL,
+            ["ice-gen3"] = 0x3e04e32f31a07609UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -234,6 +234,14 @@ public sealed partial class WorldGenerator
             static (g, p, w, h, cx, cz) => g.RockGateSegments(p, w, h, cx, cz)),
         new("mountain-halls", 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0, static w => w.MountainHalls,
             static (g, p, w, h, cx, cz) => g.MountainHallSegments(p, w, h, cx, cz)),
+        // Part 7. The gate and the ice caves ride the glacier's own cell; the sheet caves have a cell of their own
+        // on ice-surface worlds, hanging under the raw ground instead of off BaseHeight.
+        new("glacier-gates", GlacierSalt, GlacierCellSize, GlacierChance, GlacierMaxLen + GlacierMaxHalf + MoraineWidth + 8.0, static w => w.Glaciers,
+            static (g, p, w, h, cx, cz) => g.GlacierGateSegments(p, w, h, cx, cz)),
+        new("ice-caves", GlacierSalt, GlacierCellSize, GlacierChance, GlacierMaxLen + GlacierMaxHalf + MoraineWidth + 8.0, static w => w.Glaciers && w.IceCaves,
+            static (g, p, w, h, cx, cz) => g.IceCaveSegments(p, w, h, cx, cz)),
+        new("sheet-caves", SheetCaveSalt, SheetCaveCellSize, SheetCaveChance, SheetCaveMargin, static w => w.SheetCaves,
+            static (g, p, w, h, cx, cz) => g.SheetCaveSegments(p, w, h, cx, cz)),
     };
 
     /// <summary>The registered worm families in table order (tests).</summary>

@@ -184,9 +184,10 @@ public sealed partial class WorldGenerator
     /// lies on the pond's polygonal rim. Three plates in four of a region hold a pond; the pond is the plate's
     /// interior (so its outline is the Voronoi polygon), the rim the band just outside it. The frost-polygon
     /// region is excluded so the two cold patterns never stack.</summary>
-    private (int Depth, bool Rim) ThermokarstAt(WonderProfile w, int worldX, int worldZ)
+    private (int Depth, bool Rim) ThermokarstAt(PlanetType planet, WonderProfile w, int worldX, int worldZ)
     {
-        if (FbmT(w.Seed + ThermoSalt, worldX, worldZ, 420.0, octaves: 2) <= 0.60 || (w.FrostPolygons && FrostRegionAt(w, worldX, worldZ)))
+        if (FbmT(w.Seed + ThermoSalt, worldX, worldZ, 420.0, octaves: 2) <= 0.60 || (w.FrostPolygons && FrostRegionAt(planet, w, worldX, worldZ))
+            || IceCoveredAt(planet, w, worldX, worldZ))
         {
             return (0, false);
         }
@@ -208,14 +209,14 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>+1 on the rim of a thaw pond.</summary>
-    private double ThermokarstOffset(WonderProfile w, int worldX, int worldZ)
-        => ThermokarstAt(w, worldX, worldZ).Rim ? 1.0 : 0.0;
+    private double ThermokarstOffset(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+        => ThermokarstAt(planet, w, worldX, worldZ).Rim ? 1.0 : 0.0;
 
     /// <summary>The pond itself — 2–4 deep on flat ground (a body of the generation-1 chain; the freeze pass
     /// covers it with ice). <paramref name="depth"/> is the pond's depth when true.</summary>
     private bool ThermokarstPondAt(PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY, out int depth)
     {
-        depth = ThermokarstAt(w, worldX, worldZ).Depth;
+        depth = ThermokarstAt(planet, w, worldX, worldZ).Depth;
         return depth > 0 && SurfaceSlope(planet, worldX, worldZ) <= 2
                && !CaveMouthNear(planet, worldX, worldZ, surfaceY - depth + 1);
     }
@@ -229,7 +230,7 @@ public sealed partial class WorldGenerator
         return name switch
         {
             "ria" => w.Rias ? RiaOffset(planet, w, worldX, worldZ) : 0.0,
-            "thermokarst" => w.Thermokarst ? ThermokarstOffset(w, worldX, worldZ) : 0.0,
+            "thermokarst" => w.Thermokarst ? ThermokarstOffset(planet, w, worldX, worldZ) : 0.0,
             _ => throw new System.ArgumentException(name, nameof(name)),
         };
     }
@@ -238,7 +239,7 @@ public sealed partial class WorldGenerator
     internal (int Depth, bool Rim) ThermokarstForTest(PlanetType planet, int worldX, int worldZ)
     {
         var w = WonderFor(planet);
-        return w.Thermokarst ? ThermokarstAt(w, worldX, worldZ) : (0, false);
+        return w.Thermokarst ? ThermokarstAt(planet, w, worldX, worldZ) : (0, false);
     }
 
     /// <summary>Whether a column lies in a peat region (tests).</summary>

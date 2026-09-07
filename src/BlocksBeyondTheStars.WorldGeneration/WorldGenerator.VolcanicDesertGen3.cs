@@ -341,13 +341,13 @@ public sealed partial class WorldGenerator
         => !planet.Void && !planet.Cratered && !_crateredWorld && !planet.FloatingIslands && HasAir(planet)
            && planet.BaseTemperature <= -8.0 && WaterAbundanceOf(planet) >= 0.4 && !planet.HasTag(TerrainTag.Salt);
 
-    private bool FrostRegionAt(WonderProfile w, int worldX, int worldZ)
-        => FbmT(w.Seed + FrostRegionSalt, worldX, worldZ, 380.0, octaves: 2) > 0.56;
+    private bool FrostRegionAt(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+        => FbmT(w.Seed + FrostRegionSalt, worldX, worldZ, 380.0, octaves: 2) > 0.56 && !IceCoveredAt(planet, w, worldX, worldZ);
 
     /// <summary>The polygon net at a column: on a ridge, or inside a plate that holds a pond (a fifth of them).</summary>
-    private (bool Ridge, bool Pond) FrostPolygonAt(WonderProfile w, int worldX, int worldZ)
+    private (bool Ridge, bool Pond) FrostPolygonAt(PlanetType planet, WonderProfile w, int worldX, int worldZ)
     {
-        if (!FrostRegionAt(w, worldX, worldZ))
+        if (!FrostRegionAt(planet, w, worldX, worldZ))
         {
             return (false, false);
         }
@@ -359,14 +359,14 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>+1 on the ridges of the net (the frost heave), 0 on the plates.</summary>
-    private double FrostPolygonOffset(WonderProfile w, int worldX, int worldZ)
-        => FrostPolygonAt(w, worldX, worldZ).Ridge ? 1.0 : 0.0;
+    private double FrostPolygonOffset(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+        => FrostPolygonAt(planet, w, worldX, worldZ).Ridge ? 1.0 : 0.0;
 
     /// <summary>Bare stone on the ridges; the plates keep the tundra's own skin.</summary>
-    private BlockId? FrostPolygonPaint(WonderProfile w, int worldX, int worldZ, out int fillToY)
+    private BlockId? FrostPolygonPaint(PlanetType planet, WonderProfile w, int worldX, int worldZ, out int fillToY)
     {
         fillToY = int.MinValue;
-        if (!FrostPolygonAt(w, worldX, worldZ).Ridge)
+        if (!FrostPolygonAt(planet, w, worldX, worldZ).Ridge)
         {
             return null;
         }
@@ -378,7 +378,7 @@ public sealed partial class WorldGenerator
     /// <summary>A 1-deep pond in a fifth of the plates on flat ground — the freeze pass makes it the ice-covered
     /// pool of a patterned tundra (a body of the generation-1 chain).</summary>
     private bool FrostPondAt(PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY)
-        => FrostPolygonAt(w, worldX, worldZ).Pond && SurfaceSlope(planet, worldX, worldZ) <= 2
+        => FrostPolygonAt(planet, w, worldX, worldZ).Pond && SurfaceSlope(planet, worldX, worldZ) <= 2
            && !CaveMouthNear(planet, worldX, worldZ, surfaceY);
 
     // ================= test hooks =================
@@ -391,7 +391,7 @@ public sealed partial class WorldGenerator
         {
             "lava-flow" => w.LavaFlows ? LavaFlowOffset(planet, w, worldX, worldZ) : 0.0,
             "barchans" => w.Barchans ? BarchanOffset(w, worldX, worldZ) : 0.0,
-            "frost-polygons" => w.FrostPolygons ? FrostPolygonOffset(w, worldX, worldZ) : 0.0,
+            "frost-polygons" => w.FrostPolygons ? FrostPolygonOffset(planet, w, worldX, worldZ) : 0.0,
             _ => throw new System.ArgumentException(name, nameof(name)),
         };
     }
@@ -400,7 +400,7 @@ public sealed partial class WorldGenerator
     internal (bool Ridge, bool Pond) FrostPolygonForTest(PlanetType planet, int worldX, int worldZ)
     {
         var w = WonderFor(planet);
-        return w.FrostPolygons ? FrostPolygonAt(w, worldX, worldZ) : (false, false);
+        return w.FrostPolygons ? FrostPolygonAt(planet, w, worldX, worldZ) : (false, false);
     }
 
     /// <summary>The lava tongue's core value at a column (tests): 0 off every tongue or below generation 3.</summary>

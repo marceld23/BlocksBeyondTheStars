@@ -75,7 +75,13 @@ joined to the coast by a sandbar one below the sea), lagoons and atolls (reef ri
 block, the atoll with sand islets), reef fields (bumpy coral shallows with 4× seabed flora), blue holes,
 submarine canyons and trenches. The partition rule now has an explicit new-land allow-list (islets, stems)
 and permits sea-floor cuts above the floor cap. Golden `archipelago-gen3` pinned; `ocean-gen3` unchanged.
-**Parts 7–8 (open):** ice, then the new planet types and docs.
+**Part 7 (ice) — DONE on the branch (2026-09-08):** glaciers as a volume (a hotspot tongue 150–400 long down the
+steepest descent, 12–30 thick, ice filled to the old ground, own crevasses, icefall decks where the ground
+drops, scree moraines on the flanks and the snout), glacier gates and ice caves (worm families on the glacier
+cell), sheet caves through the crust of ice-surface worlds, ice sheets with nunataks by row precedence,
+hanging valleys beside the glacial troughs, icebergs off the pads; frost polygons and thaw ponds yield to ice
+cover. Goldens `glacier-gen3`, `ice-gen3` pinned, `tundra-gen3`, `frozen_ocean-gen3` re-pinned.
+**Part 8 (open):** the new planet types (`coral_sea`, `icecap`, `river_lowlands`) and the docs/changelog.
 
 ---
 
