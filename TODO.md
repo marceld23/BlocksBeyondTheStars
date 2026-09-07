@@ -33,14 +33,16 @@ foundation followed by the families built on it. Everything gates on `TerrainGen
 0–2 worlds stay byte-identical and the classic golden checksums never move. See
 [docs/developer/WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §13.
 
-**Part 1 (foundation), landed so far:** the generation-3 switch and the `karst` / `reef` terrain tags;
-underground river reaches in the rasteriser (cover ramp, swallow hole and spring, bank ledges that seal the
-water laterally); the worm carver turned into a family table with a generation-gated span budget.
-**Still open in part 1:** landmark paints that fill a column, sea-relative landmark rows, ice and fluid
-overhang bands, sub-surface fluid spans in the column phase, the reference families (glacier-tongue fill,
-seamounts, icebergs), the generation-3 golden groups and the chunk-cost guard.
-**Parts 2–8:** rock, caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then the
-new planet types and docs.
+**Part 1 (foundation) — DONE on the branch (2026-09-07):** the generation-3 switch and the `karst` / `reef`
+terrain tags; the worm carver as a family table with a generation-gated span budget; and the four
+structural extensions, each proven by one real family — landmark paints that fill a column (glacier tongues
+ice six deep), sea-relative landmark rows that never touch the calibration (seamounts), ice / fluid bands
+inside the water span (icebergs), sub-surface fluid spans with a cave shield (underground river reaches on
+wet karst worlds: swallow hole, sealed passage with bank ledges, spring). Golden groups `ocean-gen3`,
+`frozen_ocean-gen3`, `karst-gen3`, `highland-gen3` (= `highland-gen1`, the control); a Slow-tier chunk-cost
+guard. Not released: the whole package ships together after Marcel's local Unity playtest.
+**Parts 2–8 (open):** rock, caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then
+the new planet types and docs.
 
 ---
 

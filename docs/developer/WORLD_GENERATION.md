@@ -831,3 +831,38 @@ scratch grew from 6 to 10 spans because the generation-3 column phase appends pa
 generation 0–2 world is still capped at six, because a column that used to drop its seventh span must keep
 dropping it or its caves would move.
 
+**Four structural extensions, each shipped with one real family** (`LandformGen3Tests` proves each by its
+feature, not by a test hook):
+
+- **Paint fill.** A landmark paint delegate may claim the column down to a `fillToY`
+  (`ColumnProfile.PaintFillToY`): every solid cell from the surface to it becomes the paint block before
+  ores, strata and data caches; caves, tunnels and caverns still carve through it. Reference: the
+  generation-3 **glacier tongue** is ice six deep where generation 1 painted only the topsoil.
+- **Sea-relative landmark rows.** A `LandmarkKind` flagged `SeaRelative` runs after every classic row and
+  **never inside the calibration sample** (the #1631 sea-mount rule generalised via `_calibrating`), so the
+  sea percentile it reads is never its own output. Contract: 0 on a dry world, 0 wherever the raw ground
+  is not at least two below the sea, never lifting the result above one below the sea — the land/sea
+  partition the calibration saw stays exactly that. Per-cell rolls are memoised in `_seaCells` and dropped
+  with the column memos. Reference: **seamounts** (`WorldGenerator.SeaFloor.cs`) — a cone on the sea floor
+  whose summit stays three below the surface; it adapts its height to the water above its centre, so the
+  shallow classic seas get knolls and the deep seas of later parts get mountains. `ocean`-class worlds
+  (water ≥ 0.6).
+- **Material bands.** `BandKind.Ice` and `BandKind.Fluid` may stand INSIDE a column's water span; the
+  y-loop writes them before the sea fill, so the sea stays below them (`ColumnProfile.MaterialBands`).
+  Reference: **icebergs** — a faceted ice mass, seven eighths below the waterline, in water at least three
+  deep on cold watery worlds (base temperature ≤ 2 °C); kelp never grows through a hull.
+- **Sub-surface fluid spans + the cave shield.** `ColumnProfile.SubFluid` holds up to two fluid spans below
+  the seabed, written after the mega-cavern and before the geode; `[ShieldLo, ShieldHi]` is never cave-carved
+  and the classic worm spans are clipped out of it, so the pocket is sealed. Reference: the **underground
+  river reaches** above, switched on for wet `karst` worlds: the column phase turns a sunk `RiverColumn`
+  into one more tunnel span (clamped under the surface unless it is the mouth) plus the water on its floor;
+  a bank column carries air only. The surface-water queries (`IsSurfaceWater`, `TryGetWaterSurface`,
+  `SurfaceRiverDepth`) skip underground columns; `TryGetUndergroundRiver` is the one helper that reports
+  them, with the column phase's own precedence (the sea, a pond or a crater owns the column outright and
+  the passage does not exist there).
+
+Golden groups `ocean-gen3`, `frozen_ocean-gen3`, `karst-gen3` pin the families; `highland-gen3` activates
+none of them and must equal `highland-gen1` — the control that generation 3 without a family IS generation
+1. A Slow-tier guard keeps a generation-3 chunk within 1.3× a generation-1 chunk (the client bakes up to
+32 768 columns on its main thread; no generation-time budget existed before).
+
