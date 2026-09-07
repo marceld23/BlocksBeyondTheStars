@@ -424,6 +424,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 2 — the rock landforms.
         public bool SlotCanyons, Aretes, ToothRows, DesertPavement, RockGates, MountainHalls, PetrifiedDunes, RainbowStrata;
 
+        // Terrain generation 3, part 3 — the caves: dripstone in every tunnel and cavern of a wet karst / wetland world.
+        public bool Dripstone;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -592,6 +595,7 @@ public sealed partial class WorldGenerator
             ["mountainHalls"] = w.MountainHalls,
             ["petrifiedDunes"] = w.PetrifiedDunes,
             ["rainbowStrata"] = w.RainbowStrata,
+            ["dripstone"] = w.Dripstone,
         };
     }
 
@@ -600,7 +604,7 @@ public sealed partial class WorldGenerator
     internal static readonly string[] Gen3GateNames =
     {
         "seamounts", "icebergs", "undergroundRivers", "slotCanyons", "aretes", "toothRows",
-        "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata",
+        "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata", "dripstone",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -784,6 +788,9 @@ public sealed partial class WorldGenerator
                     w.MountainHalls = HasMountainHalls(planet);
                     w.PetrifiedDunes = HasPetrifiedDunes(w.Styles);
                     w.RainbowStrata = HasRainbowStrata(planet);
+
+                    // Part 3: the caves.
+                    w.Dripstone = HasDripstone(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

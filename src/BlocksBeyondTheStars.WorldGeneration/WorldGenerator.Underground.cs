@@ -44,7 +44,10 @@ public sealed partial class WorldGenerator
 
         double rx = 30.0 + ((h >> 16) & 0x3FF) / 1023.0 * (CavernMaxRx - 30.0); // 30..70
         double rz = rx * (0.75 + ((h >> 26) & 0xFF) / 255.0 * 0.5);             // slightly oval
-        double ry = 14.0 + ((h >> 34) & 0x3FF) / 1023.0 * 14.0;                 // 14..28 tall
+        // Karst cathedrals (generation 3): on limestone country the halls roll up to 40 tall, not 28. The lake
+        // rules below read ry, so a taller hall holds a deeper lake in the same proportion.
+        double ryRange = w.Generation >= 3 && planet.HasTag(TerrainTag.Karst) ? 26.0 : 14.0;
+        double ry = 14.0 + ((h >> 34) & 0x3FF) / 1023.0 * ryRange;              // 14..28 tall (14..40 karst)
         double q = 1.0 - (dx / rx) * (dx / rx) - (dz / rz) * (dz / rz);
         if (q <= 0.0)
         {

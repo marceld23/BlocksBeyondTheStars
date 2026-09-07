@@ -108,6 +108,9 @@ public sealed partial class WorldGenerator
         bool tunnelWorld = HasTunnels(planet);        // #708: worm tunnels + cave mouths
         var saltBlockId = _content.GetBlock("salt")?.NumericId ?? BlockId.Air;
         var cavernCrystalId = _content.GetBlock("crystal")?.NumericId ?? BlockId.Air;
+        // Dripstone (generation 3, part 3): white like the travertine repaint on limestone country, the deep rock
+        // elsewhere. Read only where a column carries dripstone lengths, which no generation 0–2 column does.
+        var dripstoneId = planet.HasTag(TerrainTag.Karst) && !saltBlockId.IsAir ? saltBlockId : deepId;
 
         // Generation-1 underground finds (#1646): crystal geodes (hollow crystal-lined spheres) and sediment
         // strata (tilted granite bands in the upper crust). Both gates are false on a generation-0 world.
@@ -266,6 +269,7 @@ public sealed partial class WorldGenerator
                 int subFluidCount = subFluid.Length;
                 int shieldLo = col.ShieldLo, shieldHi = col.ShieldHi;
                 bool materialBands = col.MaterialBands;
+                int dripDown = col.DripDown, dripUp = col.DripUp;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -393,6 +397,15 @@ public sealed partial class WorldGenerator
                     // Underground mega-cavern (#707): a vast void with an optional still lake in its bowl.
                     if (cavernHere && worldY >= cavLo && worldY <= cavHi)
                     {
+                        // Dripstone (generation 3): a spike from the roof, a spike from the floor, never a wall —
+                        // both keep an air cell between them. Zero-length on every generation 0–2 column.
+                        if ((dripDown | dripUp) != 0 && DripstoneFits(cavLo, cavHi, dripDown, dripUp, seabedY)
+                            && (worldY > cavHi - dripDown || worldY < cavLo + dripUp))
+                        {
+                            chunk.Set(lx, ly, lz, dripstoneId);
+                            continue;
+                        }
+
                         if (worldY <= cavLakeY && !airlessBody)
                         {
                             chunk.Set(lx, ly, lz, depth > lavaTableDepth ? lavaFloorId : seaWaterId);
@@ -448,11 +461,14 @@ public sealed partial class WorldGenerator
                     if (tunnelCount > 0)
                     {
                         bool inTunnel = false;
+                        int spanLo = 0, spanHi = -1;
                         for (int t = 0; t < tunnelCount; t++)
                         {
                             if (worldY >= tunnelSpans[t].Lo && worldY <= tunnelSpans[t].Hi)
                             {
                                 inTunnel = true;
+                                spanLo = tunnelSpans[t].Lo;
+                                spanHi = tunnelSpans[t].Hi;
                                 break;
                             }
                         }
@@ -464,6 +480,16 @@ public sealed partial class WorldGenerator
                                 && SampleField(samplers, LavaSampler, seed + 0xDEE9, worldX, worldZ, 56.0, 40.0, 56.0, worldY) > 0.47)
                             {
                                 chunk.Set(lx, ly, lz, lavaFloorId);
+                            }
+                            else if ((dripDown | dripUp) != 0 && DripstoneFits(spanLo, spanHi, dripDown, dripUp, seabedY)
+                                && !(spanLo >= shieldLo && spanHi <= shieldHi)
+                                && (worldY > spanHi - dripDown || worldY < spanLo + dripUp))
+                            {
+                                // Dripstone (generation 3) at the span's ends. An underground river's passage is the
+                                // one span inside the cave shield and never drips: its floor is water or a bank
+                                // ledge and its three cells of headroom are the promise the reach is passable.
+                                // Zero-length on every generation 0–2 column.
+                                chunk.Set(lx, ly, lz, dripstoneId);
                             }
 
                             continue;
@@ -656,6 +682,9 @@ public sealed partial class WorldGenerator
         public int ShieldLo = 1, ShieldHi = 0;
         /// <summary>True when a band of kind Ice or Fluid covers the column (they must be written before the sea fill).</summary>
         public bool MaterialBands;
+        /// <summary>Dripstone lengths (part 3): cells hanging from a carve span's roof / rising from its floor; 0/0 unless
+        /// the world drips and the column carries a tunnel or a cavern.</summary>
+        public byte DripDown, DripUp;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -1040,6 +1069,15 @@ public sealed partial class WorldGenerator
             tunnelSpans[tunnelCount++] = (passageLo, passageHi);
         }
 
+        // Dripstone (generation 3, part 3): resolved once per column, and only where a carve exists to hang it in.
+        byte dripDown = 0, dripUp = 0;
+        if (wonder.Dripstone && (tunnelCount > 0 || cavernHere))
+        {
+            var (down, up) = DripstoneAt(wonder, worldX, worldZ);
+            dripDown = (byte)down;
+            dripUp = (byte)up;
+        }
+
         // Generation-1 underground finds (#1646): the geode sphere covering this column, and the strata region.
         int geoLo = 0, geoHi = -1, geoInLo = 1, geoInHi = 0;
         bool geodeHere = c.GeodeWorld && TryGetGeodeSpan(planet, wonder, worldX, worldZ, out geoLo, out geoHi, out geoInLo, out geoInHi);
@@ -1089,6 +1127,8 @@ public sealed partial class WorldGenerator
             ShieldLo = shieldLo,
             ShieldHi = shieldHi,
             MaterialBands = materialBands,
+            DripDown = dripDown,
+            DripUp = dripUp,
         };
     }
 }

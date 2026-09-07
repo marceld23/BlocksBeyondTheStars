@@ -913,3 +913,29 @@ pool would otherwise be rolled by the worlds created before it and move their re
 filters the pool through `StyleMinGeneration` before the draw: an older world sees exactly the pool it
 always saw. `desert`, `red_desert`, `tablelands` and `badlands` gained `labyrinth` (and the two deserts
 `petrified-dunes`); `karst`, `jungle` and `fungal` gained `stone-forest`.
+
+### 13.3 Part 3 — the caves
+
+Two forms, both inside carves that already existed (`WorldGenerator.CavesGen3.cs`).
+
+**Dripstone** (Tropfsteinhöhlen) is a per-column length pair, not a landmark: the column phase resolves once
+how many cells hang from a carve span's roof (1–4 on ~8 % of columns) and how many rise from its floor
+(1–3 on ~6 %), and only on a column that carries a worm tunnel or a mega-cavern on a world that drips
+(`WonderProfile.Dripstone`: cave-bearing, air-bearing, water abundance ≥ 0.4 AND `karst` or `wetland`
+tagged — jungle, karst, fungal, boreal, swamp, ocean, archipelago). The y-loop reads the pair at the span
+ends in the tunnel branch and the cavern branch: a spike from the roof, a spike from the floor, never a
+wall — a span takes dripstone only where both fit with an air cell between them and rock stands above the
+roof (a span open to the sky is a cave mouth; a spike hanging from nothing is a floating block). The
+lava-pocket rule keeps precedence below the lava table. An underground river's passage — the one tunnel
+span inside the cave shield — never drips: its floor is water or a bank ledge, and its three cells of
+headroom are the promise that the reach is passable. On
+limestone country the block is `salt` (the white of the travertine repaint), elsewhere the deep rock.
+
+**Karst cathedrals** (Höhlenkathedralen) are the mega-cavern's own height roll widened: `TryGetCavernSpan`
+draws the half-height from 14–28 to 14–40 on a `karst`-tagged generation-3 world, so a hall can stand
+80 tall at its centre. The lake rules read the same `ry`, so a taller hall holds a deeper lake in the same
+proportion. No new gate — the tag and the generation decide.
+
+The gate is deliberately narrower than "every wet world with caves": most planet types inherit the default
+water abundance, and the `highland` control world (the generation-3 golden that must equal its
+generation-1 twin because no family is active there) has to stay a world without dripstone.

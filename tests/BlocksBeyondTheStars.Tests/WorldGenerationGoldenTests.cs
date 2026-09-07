@@ -74,6 +74,8 @@ public sealed class WorldGenerationGoldenTests
         new("desert-gen3", 1, "desert", 0, false, null, 3),
         new("red_desert-gen3", 1, "red_desert", 0, false, null, 3),
         new("dust_bowl-gen3", 20260903, "dust_bowl", 0, false, null, 3),
+        // Part 3 (caves): dripstone in tunnels and caverns, karst cathedrals — karst-gen3 re-pinned, jungle drips too.
+        new("jungle-gen3", 20260903, "jungle", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -118,6 +120,8 @@ public sealed class WorldGenerationGoldenTests
             ["desert-gen3"] = 0x2a8b8eb6b2a731b2UL,
             ["red_desert-gen3"] = 0xc81c9b00f5725077UL,
             ["dust_bowl-gen3"] = 0x4aa0227f75eb2f2aUL,
+            // Pinned 2026-09-07 (part 3, the caves; unreleased — later parts re-pin these).
+            ["jungle-gen3"] = 0x830c938ef5e9f19fUL, // karst-gen3 stayed: no dripstone under its sample columns
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

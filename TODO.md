@@ -48,8 +48,13 @@ so a style added to an existing pool never moves an older world's relief. Rainbo
 via the paint CYCLE — a paint row may lay its fill down in 3-thick bands parallel to the surface.
 Goldens `desert-gen3`, `red_desert-gen3`, `dust_bowl-gen3` pinned, `karst-gen3` re-pinned (the
 stone-forest style joined the pool).
-**Parts 3–8 (open):** caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then
-the new planet types and docs.
+**Part 3 (caves) — DONE on the branch (2026-09-07):** dripstone — stalactites hanging from the roof and
+stalagmites rising from the floor of every worm tunnel and mega-cavern on a wet karst / wetland world
+(salt-white on limestone country, the deep rock elsewhere; an underground river's passage never drips — its
+headroom is the promise the reach is passable); karst cathedrals — caverns up to 40 tall instead of 28 on `karst`-tagged worlds. Golden
+`jungle-gen3` pinned, `karst-gen3` re-pinned.
+**Parts 4–8 (open):** volcanic and desert, wetlands and rivers, coast and sea floor, ice, then the new
+planet types and docs.
 
 ---
 
