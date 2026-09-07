@@ -793,3 +793,41 @@ red-desert and glacier worlds and assert every stamp the rolls requested stands.
 The landscape-variety package is complete with this part; release steps are in the runbook (whats-new
 export before the tag, non-technical changelog, devblog draft, tell ahmdkaml, the pending VPS world
 re-create covers the wave — generation 1 reaches new worlds only).
+
+---
+
+## 13. Terrain generation 3 — the landform completion package (in progress)
+
+Where generation 1 gave the surface its variety, generation 3 fills the gaps a landform audit found: the
+sea floor is designed instead of merely flooded, ice becomes a volume instead of a paint, rivers gain
+morphology, and water can exist below the surface. `WorldDescription.CurrentTerrainGeneration` is **3**;
+every visible change reads `w.Generation >= 3`, so generation 0, 1 and 2 worlds stay byte-identical and
+the classic golden checksums never move.
+
+**Two new terrain tags.** `karst` (jungle, karst, fungal, boreal) marks soluble rock: reaches that run
+underground, dripstone, stone forests. `reef` (ocean, archipelago, jungle) marks warm shallow coasts: reef
+relief, lagoons, atolls, blue holes. Like every tag since #1644 a family gates on the tag, never on a
+planet-type key, so a data-only type can opt into any of them.
+
+### 13.1 Part 1 — the foundation
+
+**Underground river reaches.** `RiverField.Build` takes an optional `sunkRegion` predicate over coarse
+cells. Where both ends of a stroke lie inside it the reach runs under a rock roof: the terrain surface is
+untouched, and the water hangs a constant cover below it — so it still descends exactly as the ground
+does and the network's downhill guarantee carries over. A stroke with one end inside ramps the cover over
+its length, and the column where the roof closes (or last opens) keeps an open shaft: the swallow hole the
+river vanishes into, and the spring it comes back out of. Each side of the channel gets a **bank** ledge,
+solid up to the waterline and air above it — that is also what seals the water sideways, so its lateral
+neighbour at its own height is rock rather than air (generated water is a bottomless source to the fluid
+automaton, and an air neighbour is what it would flow into once a player wakes it).
+
+`RiverColumn` carries `Underground`, `RoofY` and `Mouth` for this. Like the water surface, `RoofY` is the
+CENTERLINE's value for the whole cross-section, so on a slope it can sit above a band column's own ground;
+the column phase keeps a non-mouth carve under the surface.
+
+**The worm carver is a table.** `TunnelSpans` loops a family registration table, so a later wave (ice caves
+inside a glacier) adds a row instead of editing the carver. The classic worms stay row 0. The per-column
+scratch grew from 6 to 10 spans because the generation-3 column phase appends passages of its own — but a
+generation 0–2 world is still capped at six, because a column that used to drop its seventh span must keep
+dropping it or its caves would move.
+

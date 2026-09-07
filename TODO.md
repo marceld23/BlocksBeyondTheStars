@@ -24,6 +24,26 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ⚙ Terrain generation 3 — the landform completion package (IN PROGRESS, branch feat/terrain-gen3)
+
+A landform audit measured the generator against a list of 84 real-world landforms: 43 present, 15 partial,
+26 missing. The misses cluster around four things the generator had no concept of — a designed sea floor,
+ice as a volume, river morphology, and water below the surface — so the package is one invisible
+foundation followed by the families built on it. Everything gates on `TerrainGeneration >= 3`; generation
+0–2 worlds stay byte-identical and the classic golden checksums never move. See
+[docs/developer/WORLD_GENERATION.md](docs/developer/WORLD_GENERATION.md) §13.
+
+**Part 1 (foundation), landed so far:** the generation-3 switch and the `karst` / `reef` terrain tags;
+underground river reaches in the rasteriser (cover ramp, swallow hole and spring, bank ledges that seal the
+water laterally); the worm carver turned into a family table with a generation-gated span budget.
+**Still open in part 1:** landmark paints that fill a column, sea-relative landmark rows, ice and fluid
+overhang bands, sub-surface fluid spans in the column phase, the reference families (glacier-tongue fill,
+seamounts, icebergs), the generation-3 golden groups and the chunk-cost guard.
+**Parts 2–8:** rock, caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then the
+new planet types and docs.
+
+---
+
 ### ★ Lyxette round 10: the hyperjump arrives where it says, two ships never share a pad, the compass points at the ship (#1677–#1684, 2026-09-07, branch fix/lyxette-reports-2026-09-07)
 
 Three player reports and one silent crash report from the evening of 2026-09-06, on two builds (the hyperjump
