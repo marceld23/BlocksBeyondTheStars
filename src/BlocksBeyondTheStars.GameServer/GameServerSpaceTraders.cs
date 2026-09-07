@@ -108,6 +108,11 @@ public sealed partial class GameServer
     private sealed class NpcLandedTrader
     {
         public string Id = string.Empty;
+
+        /// <summary>The body this trader is parked on (#1680). The map is keyed by it, but every cleanup path
+        /// used to reach for the ACTIVE world's id instead — which is the trader's body only by accident of
+        /// who is being ticked, and left parked hulls behind on the pads it thought it had freed.</summary>
+        public string BodyId = string.Empty;
         public string ShipType = "starter";
         public string Name = string.Empty;
         public int HullRgb;
@@ -623,6 +628,7 @@ public sealed partial class GameServer
         _landedTraders[t.DestBodyId] = new NpcLandedTrader
         {
             Id = t.Id,
+            BodyId = t.DestBodyId,
             ShipType = t.ShipType,
             Name = t.Name,
             HullRgb = t.HullRgb,
@@ -673,15 +679,15 @@ public sealed partial class GameServer
 
     /// <summary>Re-creates a landed trader's parked ship + pilot on the active world if they aren't there yet —
     /// called both when a trader lands on an occupied world and when a body world (re)loads with one registered.</summary>
-    private void MaterializeLandedTraderHere()
+    private void MaterializeLandedTraderHere(bool ignoreOverlap = false)
     {
         if (_world is not null && _landedTraders.TryGetValue(_world.LocationId, out var lt) && lt.ExpiresAt > _uptime)
         {
-            MaterializeLandedTraderHere(lt);
+            MaterializeLandedTraderHere(lt, ignoreOverlap);
         }
     }
 
-    private void MaterializeLandedTraderHere(NpcLandedTrader lt)
+    private void MaterializeLandedTraderHere(NpcLandedTrader lt, bool ignoreOverlap = false)
     {
         var world = _worlds.Active;
         if (world.LandedShips.TryGetValue(lt.OwnerId, out var existing) && existing.Placed)
@@ -707,6 +713,18 @@ public sealed partial class GameServer
         var s = BuildNpcShipStructure(lt.StructureId, lt.ShipType);
         if (s.Cells.Count == 0)
         {
+            return;
+        }
+
+        // #1678: never stamp a hull onto ground another hull already occupies. The pad reservation is derived
+        // state and can disagree with what is actually standing there (a player who kept a stale pad claim, a
+        // record whose hull outlived its sweep) — and the player walled into the resulting overlap has no way
+        // out. Give up the pad instead: this trader simply never sets down.
+        var (fx, fz) = FootprintOriginFor(pad, s.Width, s.Length);
+        if (!ignoreOverlap && LandedFootprintTaken(fx, fz, s.Width, s.Length, lt.OwnerId))
+        {
+            _log.Warn($"Trader '{lt.Name}' cannot set down on {lt.BodyId} pad {lt.PadIndex} — another hull stands there; the pad is released.");
+            _landedTraders.Remove(lt.BodyId);
             return;
         }
 
@@ -744,24 +762,52 @@ public sealed partial class GameServer
 
     private void DepartLandedTrader(NpcLandedTrader lt)
     {
-        var world = _worlds.Active;
+        // #1680: everything here is keyed on the trader's OWN body. Reaching for the active world's id worked
+        // only while the caller happened to be that body's tick — the sweep of unwatched bodies dropped the
+        // record while its hull kept standing on the pad it had just declared free.
+        RemoveLandedTraderObjects(lt);
+        _landedTraders.Remove(lt.BodyId);
+        _log.Info($"Trader '{lt.Name}' lifted off {lt.BodyId} — pad {lt.PadIndex} free again.");
+    }
+
+    /// <summary>Takes a landed trader's parked hull and pilot back out of its body world (#1680). Works on a
+    /// world that is loaded but not active; a world that is not loaded at all holds no runtime objects, so
+    /// there is nothing to remove there. The lift-off FX only plays for the body's own watchers.</summary>
+    private void RemoveLandedTraderObjects(NpcLandedTrader lt)
+    {
+        var world = _worlds.Find(lt.BodyId);
+        if (world is null)
+        {
+            return;
+        }
+
+        // Every broadcast path is scoped to the ACTIVE world, which is right: the only case where a trader's
+        // body is not the active one is the sweep of bodies nobody is on, and there is nobody there to tell.
+        bool watched = string.Equals(lt.BodyId, _worlds.Active?.LocationId, System.StringComparison.Ordinal);
         if (world.LandedShips.TryGetValue(lt.OwnerId, out var rec) && rec.Placed)
         {
-            var at = new Vector3f(
-                rec.Origin.X + rec.Structure.Width / 2f + 0.5f, rec.Origin.Y - 1f, rec.Origin.Z + rec.Structure.Length / 2f + 0.5f);
-            BroadcastNpcShipTransit(_world!.LocationId, lt, at, landing: false); // others see it lift off
+            if (watched)
+            {
+                var at = new Vector3f(
+                    rec.Origin.X + rec.Structure.Width / 2f + 0.5f, rec.Origin.Y - 1f, rec.Origin.Z + rec.Structure.Length / 2f + 0.5f);
+                BroadcastNpcShipTransit(lt.BodyId, lt, at, landing: false); // others see it lift off
+            }
+
             rec.Placed = false;
             world.LandedShips.Remove(lt.OwnerId);
-            BroadcastToWorld(new LandedShipState { PlayerId = lt.OwnerId, StructureId = lt.StructureId, Removed = true });
+            if (watched)
+            {
+                BroadcastToWorld(new LandedShipState { PlayerId = lt.OwnerId, StructureId = lt.StructureId, Removed = true });
+            }
         }
 
-        if (_npcs.RemoveAll(n => n.Id == lt.PilotNpcId) > 0)
+        // A trader registered but never materialised has no pilot, and its id field is still the default 0 —
+        // removing "the NPC with id 0" would take an unrelated one out of the world.
+        if (lt.PilotNpcId != 0 && world.Npcs.RemoveAll(n => n.Id == lt.PilotNpcId) > 0)
         {
-            BroadcastNpcs();
+            lt.PilotNpcId = 0;
+            world.NpcListDirty = true; // flushed by that world's own tick (a no-op while nobody is on it)
         }
-
-        _landedTraders.Remove(_world!.LocationId);
-        _log.Info($"Trader '{lt.Name}' lifted off {_world!.LocationId} — pad {lt.PadIndex} free again.");
     }
 
     /// <summary>Plays a landing/launch animation of a trader's REAL ship for everyone already on the body
@@ -838,6 +884,13 @@ public sealed partial class GameServer
         {
             foreach (var b in drop)
             {
+                // #1680: the record used to be dropped on its own, leaving a materialised hull standing on the
+                // very pad this sweep had just declared free — the next arrival was then stamped on top of it.
+                if (_landedTraders.TryGetValue(b, out var lt))
+                {
+                    RemoveLandedTraderObjects(lt);
+                }
+
                 _landedTraders.Remove(b);
             }
         }
@@ -867,11 +920,55 @@ public sealed partial class GameServer
         _landedTraders[bodyId] = new NpcLandedTrader
         {
             Id = "test" + _nextTraderId++,
+            BodyId = bodyId,
             ShipType = _content.Ships.Keys.FirstOrDefault(k => k != "starter") ?? "starter",
             Name = "Test Trader",
             PadIndex = pad,
             ExpiresAt = _uptime + 9999.0,
         };
+        return true;
+    }
+
+    /// <summary>Test hook: run the materialisation the per-world tick does, on the ACTIVE world. Returns
+    /// whether the trader's hull ended up standing there (#1678/#1680).</summary>
+    public bool MaterializeLandedTraderForTest(bool ignoreOverlap = false)
+    {
+        MaterializeLandedTraderHere(ignoreOverlap); // ignoreOverlap reproduces the pre-#1678 stamp
+        return _world is not null
+            && _landedTraders.TryGetValue(_world.LocationId, out var lt)
+            && _worlds.Active.LandedShips.TryGetValue(lt.OwnerId, out var rec)
+            && rec.Placed;
+    }
+
+    /// <summary>Test hook: forget a body's landed-trader record while its hull keeps standing — the
+    /// reservation-vs-reality desync that put two ships on one pad (#1678/#1680).</summary>
+    public bool ReleaseLandedTraderRecordForTest(string bodyId) => _landedTraders.Remove(bodyId);
+
+    /// <summary>Test hook: move a body's landed trader onto a given pad, bypassing the reservation — the
+    /// bookkeeping desync the stamp guard has to survive (#1678).</summary>
+    public bool ForceTraderPadForTest(string bodyId, int padIndex)
+    {
+        if (!_landedTraders.TryGetValue(bodyId, out var lt))
+        {
+            return false;
+        }
+
+        lt.PadIndex = padIndex;
+        return true;
+    }
+
+    /// <summary>Test hook: drop the landed-trader records whose dwell has run out on bodies nobody is on.</summary>
+    public void SweepExpiredLandedTradersForTest() => SweepExpiredLandedTraders();
+
+    /// <summary>Test hook: expire a body's landed trader right now (its dwell is otherwise minutes long).</summary>
+    public bool ExpireLandedTraderForTest(string bodyId)
+    {
+        if (!_landedTraders.TryGetValue(bodyId, out var lt))
+        {
+            return false;
+        }
+
+        lt.ExpiresAt = _uptime - 1.0;
         return true;
     }
 

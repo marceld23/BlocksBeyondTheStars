@@ -72,6 +72,7 @@ namespace BlocksBeyondTheStars.Client
         private static Sprite _solidSprite;
         private static Sprite _spinnerSprite;
         private static Sprite _discSprite;
+        private static Sprite _triangleSprite;
 
         /// <summary>A plain white sprite (tint via Image.color) — used for fills/bars.</summary>
         public static Sprite SolidSprite
@@ -123,6 +124,42 @@ namespace BlocksBeyondTheStars.Client
                 }
 
                 return _discSprite;
+            }
+        }
+
+        /// <summary>
+        /// A filled, anti-aliased triangle pointing UP (apex at the top edge, base along the bottom) — the
+        /// direction glyph for HUD markers that have to say "that way", rotated by the caller (#1682). Drawn
+        /// here rather than taken from a font: the HUD's SDF atlas is built at runtime from Rajdhani, which
+        /// carries no geometric shapes, so a "▲" would be a missing-glyph box on some machines. Cached.
+        /// </summary>
+        public static Sprite TriangleSprite
+        {
+            get
+            {
+                if (_triangleSprite == null)
+                {
+                    const int n = 64;
+                    var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                    var px = new Color[n * n];
+                    for (int y = 0; y < n; y++)
+                    {
+                        // Half-width of the triangle at this row: full at the base (y = 0), zero at the apex.
+                        float t = y / (float)(n - 1);
+                        float half = (1f - t) * (n * 0.5f);
+                        for (int x = 0; x < n; x++)
+                        {
+                            float d = half - Mathf.Abs(x - (n - 1) * 0.5f); // >0 inside, in pixels
+                            px[y * n + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(d)); // 1 px AA edge
+                        }
+                    }
+
+                    tex.SetPixels(px);
+                    tex.Apply();
+                    _triangleSprite = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
+                }
+
+                return _triangleSprite;
             }
         }
 

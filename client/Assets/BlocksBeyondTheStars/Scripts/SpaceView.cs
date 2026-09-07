@@ -331,6 +331,7 @@ namespace BlocksBeyondTheStars.Client
         private bool _combatSubscribed;
         private bool _hyperjumpSubscribed;
         private bool _hyperjumping; // a hyperspace jump is tearing down the view (warp covers it, no landing)
+        private string _sceneInstance; // flight instance the current scene was built for (#1677)
         private bool _shipDestroyed; // the ship blew up in space — tear down at once (explosion stays, no landing descent)
 
         private readonly HashSet<string> _dropIds = new HashSet<string>(); // tracked ResourceDrop entities
@@ -428,6 +429,21 @@ namespace BlocksBeyondTheStars.Client
             if (!_active)
             {
                 return;
+            }
+
+            // #1677: a hyperjump made IN FLIGHT never turns the flag off for a frame we get to see — the server
+            // sends SpaceClosed, SpaceState and the new star map in one tick, and the client pump applies all
+            // three before Update runs. Watching Game.InSpace alone therefore missed the whole transition: the
+            // scene kept the DEPARTURE system's star, planets and landables, and landing on one of those bodies
+            // was a second cross-system jump straight back to the old planet. The flight INSTANCE is the honest
+            // signal — it is keyed on the body the pilot flies over, so a jump always changes it.
+            string instance = Game.Space != null ? Game.Space.InstanceId : null;
+            if (!string.IsNullOrEmpty(instance) && !string.IsNullOrEmpty(_sceneInstance)
+                && !string.Equals(instance, _sceneInstance, System.StringComparison.Ordinal))
+            {
+                Exit();  // same teardown a jump-with-a-visible-gap would have run…
+                Enter(); // …and the same rebuild, now against the arrived system's map
+                return;  // the rest of this frame belongs to the old scene
             }
 
             // item 20 S1: the voxel ship design arrives just after we enter space (separate message), so rebuild
@@ -2518,6 +2534,7 @@ namespace BlocksBeyondTheStars.Client
 
             ResolveShipFlight();
             BuildScene();
+            _sceneInstance = Game.Space != null ? Game.Space.InstanceId : null; // what this scene depicts (#1677)
 
             // React to server-reported hull/shield damage (collisions, enemy fire) with a flash + shake,
             // and to ship destruction with an explosion burst at the hull.
@@ -2584,6 +2601,9 @@ namespace BlocksBeyondTheStars.Client
 
             if (_root != null)
             {
+                // Deactivate before destroying: Unity frees it at the END of the frame, and a same-frame
+                // rebuild (#1677) would otherwise draw the old system's planets over the new one for a frame.
+                _root.SetActive(false);
                 Destroy(_root);
                 _root = null;
             }
@@ -2631,6 +2651,7 @@ namespace BlocksBeyondTheStars.Client
             _shake = 0f;
             _hitFlash = 0f;
             _cargoFlash = 0f;
+            _sceneInstance = null;
             Game.SpaceViewActive = false;
         }
 

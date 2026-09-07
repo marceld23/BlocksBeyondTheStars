@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "调试快照 #{number} 已保存：{file}",
   "srv.misc.data_analysed": "+{name} 知识 — 数据片段已解析。",
   "srv.misc.dug_out": "你被岩石卡住了 —— 已挖出。",
+  "srv.misc.freed_from_hull": "你被困在停靠的飞船里——就放在旁边。",
   "srv.misc.fall_recovered": "已从跌落中恢复。",
   "srv.station.zero_g": "你已离开空间站的重力范围——现在宇航服会漂浮。跳跃上升，蹲下下沉；飘回甲板或按 U 返回你的飞船。",
   "srv.station.drifted_back": "你离空间站太远了——已被送回停机坪。",

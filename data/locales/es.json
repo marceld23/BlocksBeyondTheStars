@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "Instantánea de depuración #{number} guardada: {file}",
   "srv.misc.data_analysed": "+{name} de conocimiento — fragmento de datos analizado.",
   "srv.misc.dug_out": "Estabas atrapado en la roca: te hemos sacado.",
+  "srv.misc.freed_from_hull": "Estabas atrapado dentro de una nave aparcada: te dejaron junto a ella.",
   "srv.misc.fall_recovered": "Recuperado tras una caída.",
   "srv.station.zero_g": "Has salido de la gravedad de la estación: el traje flota ahora. Saltar sube, agacharse baja; regresa a la cubierta o presiona U para volver a tu nave.",
   "srv.station.drifted_back": "Te alejaste demasiado de la estación: te devolvimos a la plataforma.",

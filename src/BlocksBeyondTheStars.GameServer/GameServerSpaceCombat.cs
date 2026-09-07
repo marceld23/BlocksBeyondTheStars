@@ -587,9 +587,12 @@ public sealed partial class GameServer
         {
             ShipAiOnEnterSpace(session); // VEGA onboarding: first launch into space
             ShipAiBanditSectorWarning(session, instance); // pirate space? warn BEFORE any raider appears
+            // #1677: the star map goes FIRST. The flight view builds its scene — star, planets, landables —
+            // from the map the moment it sees the space state, so a map arriving after it (a big message, a
+            // late packet) had the view build the DEPARTURE system and offer its planets to land on.
+            SendStarMap(session); // the space view needs the system's bodies to render + land on them
             SendSpaceState(session, instance, skipLaunch, hyperjump);
             SendShipCombatStatus(session);
-            SendStarMap(session); // the space view needs the system's bodies to render + land on them
 
             // item 20 S1: carry the player's ship as a voxel structure in the instance + send it so the flight
             // view renders the real designed ship (1:1) instead of the hand-built cube model. Rebuilt fresh on
@@ -2498,6 +2501,11 @@ public sealed partial class GameServer
         LeaveSpace(playerId); // tear down any current flight instance (no-op on a surface)
 
         session.CurrentLocationId = anchor.Id;
+        // #1679: the pad claim belongs to the body we just left. Carried across, it silently reserved that
+        // index on the ANCHOR body (PadOccupiedByOther matches index + location) and PlayerPad then trusted it,
+        // stamping the first landing on a pad the pilot never claimed — including one a trader was parked on.
+        // A pilot arriving in flight holds no pad; they claim one when they land, like every other arrival.
+        session.AssignedPadIndex = -1;
         SetCurrent(session);
         if (_ship is not null)
         {

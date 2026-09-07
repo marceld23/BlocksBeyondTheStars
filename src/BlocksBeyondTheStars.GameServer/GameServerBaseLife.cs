@@ -143,6 +143,46 @@ public sealed partial class GameServer
         return ShipInteriorContains(new Vector3f(feet.X, y + 0.5f, feet.Z)) ? null : feet;
     }
 
+    /// <summary>
+    /// The standable spot nearest <paramref name="near"/> on the square rings <paramref name="ringMin"/> …
+    /// <paramref name="ringMax"/> blocks outside a pad's rim, or null when the whole band is blocked. Never on
+    /// the pad itself (that is the reserved landing volume) and never inside a parked hull — <see
+    /// cref="StandableSpot"/> rejects ship interiors. Shared by the vehicle recall (#1661) and the
+    /// wedged-in-a-hull rescue (#1681), which both need "put this down beside the ship, in the open".
+    /// </summary>
+    private Vector3f? NearestStandableSpotOutsidePad(LandingPad pad, Vector3f near, int ringMin, int ringMax)
+    {
+        int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
+        Vector3f? best = null;
+        double bestSq = double.MaxValue;
+        for (int r = pad.Radius + ringMin; r <= pad.Radius + ringMax; r++)
+            for (int dx = -r; dx <= r; dx++)
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
+                    {
+                        continue;
+                    }
+
+                    for (int y = refY + 3; y >= refY - 3; y--)
+                    {
+                        if (StandableSpot(pad.CenterX + dx, y, pad.CenterZ + dz) is { } spot)
+                        {
+                            double d = WrapDistSq(near, spot);
+                            if (d < bestSq)
+                            {
+                                bestSq = d;
+                                best = spot;
+                            }
+
+                            break;
+                        }
+                    }
+                }
+
+        return best;
+    }
+
     /// <summary>A settler whose home cell got built over since they moved in (#1248) is moved to the nearest
     /// free spot — otherwise the leash walks them straight back into the new wall every tick.</summary>
     private void RehomeWedgedSettler(ServerBase b)

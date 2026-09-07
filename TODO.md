@@ -24,6 +24,50 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Lyxette round 10: the hyperjump arrives where it says, two ships never share a pad, the compass points at the ship (#1677–#1684, 2026-09-07, branch fix/lyxette-reports-2026-09-07)
+
+Three player reports and one silent crash report from the evening of 2026-09-06, on two builds (the hyperjump
+report and the crash on v2026.9.2, the other two on v2026.9.3).
+
+**#1677 the in-flight hyperjump.** `HyperjumpToSystem` sends `SpaceClosed`, `SpaceState` and the new star map in
+ONE tick; the client pump applies all three in one frame, so `SpaceView` never saw `InSpace` go false and never
+rebuilt its scene — the flight view kept the departure system's star, planets and landables, and landing on one of
+them was a second cross-system jump back to the old planet. The view now keys the scene on the flight INSTANCE
+(`Game.Space.InstanceId`) and rebuilds when it changes; `EnterSpace` sends the star map before the space state, which
+also closes the smaller surface-launch race.
+
+**#1678/#1679/#1680 two hulls on one pad.** A trader's ship and the player's own ship were stamped cell-for-cell into
+each other on pad 0 (the world origin on every world), and he could not leave the ship. Both stampers wrote at
+`pad.Center − size/2` and trusted the pad bookkeeping alone. The stamp is authoritative now: `LandedFootprintTaken`
+(wrap-aware on both seams) plus `ClearFootprintPadFor` re-home an arriving player to a pad whose ground is actually
+clear, and `MaterializeLandedTraderHere` releases the pad instead of setting down on an occupied one. Two holes in
+the bookkeeping are closed with it: a hyperjumping pilot no longer carries the pad claim of the body they left, and a
+departing/swept trader takes its hull and pilot with it, keyed on its OWN body (`NpcLandedTrader.BodyId`) rather than
+whichever world happened to be active — including the `PilotNpcId == 0` default that removed an unrelated NPC.
+
+**#1681 the rescue.** Hulls are placed objects, not world blocks, so `IsEntombed` was blind to them and
+`SafeSpawnPoint` kept returning the heal tank inside the overlap. A player standing where their own hull and a
+foreign one overlap is now moved to standable ground outside every hull (the pad-ring search shared with the vehicle
+recall), and the heal tank is skipped while it sits inside a foreign hull.
+
+**#1682 the compass.** #1597 replaced the fixed ▲ with a rotating N, and a 90-hour player read that as "the ship is
+gone" — the ship was still there as an 8 px square among the waypoint and beacon squares. A cyan triangle now rides
+the dial rim at a constant radius and points at the ship, so the direction stays readable at any distance; the blip
+keeps showing approach progress. The glyph is a runtime-generated sprite (`UiKit.TriangleSprite`) — the HUD's SDF
+atlas is built from Rajdhani, which carries no geometric shapes.
+
+**#1683 the caret crash.** A uGUI `InputField.GenerateCaret` NRE arrived 22 s after an F1 send. Both feedback dialogs
+now release the focused input and the EventSystem selection before hiding, the treatment the chat box got in #1634.
+
+**#1684 the wreck pin.** The wreck's runtime origin was re-derived from pad 0 on every load while its blocks were
+written once; pads are not persisted, only the rule that recomputes them, and that rule changed twice inside the last
+release. The wreck now carries a `StructurePlacementRecord` like every other structure, and the settlement stamper
+reads the same shared anchor helper instead of a duplicated constant.
+
+Tests: trader refuses an occupied footprint, an expired trader takes its hull, a trader that never set down takes no
+other NPC, an arriving ship avoids a hull whose reservation is gone, a wedged player is moved into the open, a
+hyperjump releases the pad claim, the wreck record outranks the pad derivation.
+
 ### ★ Creatures get real limbs: a speed-locked gait, knees and feet, foot planting on real blocks (#1674, 2026-09-06, branch feat/creature-limbs)
 
 Six packages in one branch. **WP1 gait:** new pure `CreatureGait` (Shared) — cycle rate = speed ÷ stride length, so a

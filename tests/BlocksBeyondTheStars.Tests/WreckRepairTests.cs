@@ -56,6 +56,35 @@ public sealed class WreckRepairTests : IDisposable
         throw new Xunit.Sdk.XunitException("No wreck found across 80 seeds.");
     }
 
+    /// <summary>
+    /// #1684: where the wreck stands is pinned like every other structure. It used to be re-derived from
+    /// landing pad 0 on every load while its blocks were written exactly once — and pads are not persisted,
+    /// only the rule that recomputes them is. A changed pad rule would have slid the origin, the markers and
+    /// the repair mask off the blocks lying in the world, and every repair would answer "not part of the mask".
+    /// </summary>
+    [Fact]
+    [Trait("Category", "Slow")]
+    public void TheWreckIsPinned_AndTheRecordOutranksThePadDerivation()
+    {
+        var server = StartedWithWreck(out var repo);
+        using (repo)
+        {
+            var record = server.PlacementRecordsForTest.SingleOrDefault(r => r.Kind == "wreck");
+            Assert.NotNull(record);
+            Assert.True(record!.Placed);
+
+            // The pin describes exactly where the hull was stamped.
+            var origin = server.WreckOriginForTest;
+            Assert.Equal(origin.X, record.X);
+            Assert.Equal(origin.Z, record.Z);
+
+            // Every repair cell the server offers is inside the pinned hull, so the mask and the blocks agree.
+            var cell = server.WreckRepairCells().First().Pos;
+            Assert.InRange(cell.X - origin.X, 0, 64);
+            Assert.InRange(cell.Z - origin.Z, 0, 64);
+        }
+    }
+
     [Fact]
     [Trait("Category", "Slow")]
     public void RepairWreck_RequiresMatchingBlockItem()

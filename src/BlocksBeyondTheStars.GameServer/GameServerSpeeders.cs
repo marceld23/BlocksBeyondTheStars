@@ -606,37 +606,7 @@ public sealed partial class GameServer
     /// same corner 14 m behind the ship (#1668). Never on the pad (the reserved landing volume) and never inside
     /// the parked ship (<see cref="StandableSpot"/> checks the hull).</summary>
     private Vector3f? FindSpeederParkingNearPad(LandingPad pad, Vector3f near)
-    {
-        int refY = PadSurfaceY(pad.CenterX, pad.CenterZ);
-        Vector3f? best = null;
-        double bestSq = double.MaxValue;
-        for (int r = pad.Radius + VehicleRecallRingMin; r <= pad.Radius + VehicleRecallRingMax; r++)
-            for (int dx = -r; dx <= r; dx++)
-                for (int dz = -r; dz <= r; dz++)
-                {
-                    if (Math.Max(Math.Abs(dx), Math.Abs(dz)) != r)
-                    {
-                        continue;
-                    }
-
-                    for (int y = refY + 3; y >= refY - 3; y--)
-                    {
-                        if (StandableSpot(pad.CenterX + dx, y, pad.CenterZ + dz) is { } spot)
-                        {
-                            double d = WrapDistSq(near, spot);
-                            if (d < bestSq)
-                            {
-                                bestSq = d;
-                                best = spot;
-                            }
-
-                            break;
-                        }
-                    }
-                }
-
-        return best;
-    }
+        => NearestStandableSpotOutsidePad(pad, near, VehicleRecallRingMin, VehicleRecallRingMax);
 
     /// <summary>The waterline around the pad nearest <paramref name="near"/> for a recalled boat that did not fit
     /// the inventory (the launch rule's search window per column, so the boat gets the same headroom it needs

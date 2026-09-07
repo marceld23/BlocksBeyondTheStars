@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "Snapshot di debug #{number} salvato: {file}",
   "srv.misc.data_analysed": "+{name} conoscenza — frammento di dati analizzato.",
   "srv.misc.dug_out": "Eri bloccato nella roccia — sei stato liberato.",
+  "srv.misc.freed_from_hull": "Eri intrappolato dentro una nave parcheggiata — sei stato messo giù accanto ad essa.",
   "srv.misc.fall_recovered": "Recuperato dalla caduta.",
   "srv.station.zero_g": "Hai lasciato la gravità della stazione — la tuta ora galleggia. Salto sale, accovacciarsi scende; torna lentamente al ponte o premi U per tornare alla tua nave.",
   "srv.station.drifted_back": "Ti sei allontanato troppo dalla stazione — riportato alla piazzola.",

@@ -60,6 +60,12 @@ public sealed partial class GameServer
             return;
         }
 
+        // #1678: the stamp is authoritative about overlap, not just the pad bookkeeping. A pad reservation is
+        // derived state (live sessions + the in-memory landed-trader map) and any desync used to put two hulls
+        // on one origin — a player walled into someone else's ship with no way out. Re-home to a pad whose
+        // FOOTPRINT is actually clear before writing anything.
+        pad = ClearFootprintPadFor(_current, pad, s.Width, s.Length);
+
         rec.Structure = s;
 
         // Pre-object saves carry the old stamped hull as world block edits — on the generated median, where the
@@ -505,6 +511,11 @@ public sealed partial class GameServer
         return (rec.Origin, new Vector3i(rec.Structure.Width, rec.Structure.Height, rec.Structure.Length));
     }
 
+    /// <summary>Test/diagnostic: the owner keys of every hull currently PLACED on the active world — a player
+    /// id, a construction-site key, or "npc:&lt;id&gt;" for a landed trader (#1678).</summary>
+    public IReadOnlyList<string> PlacedHullOwnersForTest()
+        => _worlds.Active.LandedShips.Where(kv => kv.Value.Placed).Select(kv => kv.Key).ToList();
+
     /// <summary>Test/diagnostic: whether a block cell lies inside a ship interior (cell-centre probe).</summary>
     public bool ShipInteriorContainsCellForTest(int x, int y, int z)
         => ShipInteriorContains(new Vector3f(x + 0.5f, y + 0.5f, z + 0.5f));
@@ -531,6 +542,76 @@ public sealed partial class GameServer
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// The ground footprint a hull of this size occupies when stamped centred on a pad — the same
+    /// <c>Center − size / 2</c> rule <see cref="PlaceLandedShip"/> and the landed-trader stamp both use.
+    /// </summary>
+    private static (int X, int Z) FootprintOriginFor(LandingPad pad, int width, int length)
+        => (pad.CenterX - width / 2, pad.CenterZ - length / 2);
+
+    /// <summary>
+    /// True if a hull of this size stamped at this ground origin would overlap a hull already placed on this
+    /// world by anyone other than <paramref name="exceptOwnerId"/> (#1678). Footprint only — two hulls on one
+    /// pad always share the pad's surface height, and "same ground" is the condition that walls a player in.
+    /// Wrap-aware on both seams: landing pad 0 sits at the world origin on every world, so a ship parked there
+    /// has a NEGATIVE, unwrapped origin and a raw subtraction would miss the overlap entirely.
+    /// Construction sites are skipped for the same reason they are not ship interiors: an open keel frame is
+    /// meant to be walked into.
+    /// </summary>
+    private bool LandedFootprintTaken(int originX, int originZ, int width, int length, string exceptOwnerId)
+    {
+        int circ = _world.Circumference;
+        foreach (var (key, other) in _worlds.Active.LandedShips)
+        {
+            if (!other.Placed || IsConstructionKey(key) || key == exceptOwnerId)
+            {
+                continue;
+            }
+
+            var o = other.Structure;
+            int dx = WorldConstants.WrapDeltaX(other.Origin.X - originX, circ);
+            int dz = WorldConstants.WrapDeltaZ(other.Origin.Z - originZ, circ);
+            if (dx < width && -dx < o.Width && dz < length && -dz < o.Length)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The pad this player's hull may actually be stamped on (#1678): their claimed one when its footprint is
+    /// clear, else the first pad whose footprint is clear (preferred order — dry ground before an islet before
+    /// the seabed, #1621), which is then claimed. A world on which every pad is blocked keeps the original pad
+    /// and logs it: an arrival must still be placed somewhere, and overlapping is better than not existing.
+    /// </summary>
+    private LandingPad ClearFootprintPadFor(PlayerSession session, LandingPad pad, int width, int length)
+    {
+        string ownerId = session.State.PlayerId;
+        var (ox, oz) = FootprintOriginFor(pad, width, length);
+        if (!LandedFootprintTaken(ox, oz, width, length, ownerId))
+        {
+            return pad;
+        }
+
+        foreach (var candidate in PadsByPreference(_world.LocationId, _landingPads, ownerId))
+        {
+            var (cx, cz) = FootprintOriginFor(candidate, width, length);
+            if (LandedFootprintTaken(cx, cz, width, length, ownerId))
+            {
+                continue;
+            }
+
+            _log.Warn($"Pad {pad.Index} on '{_world.LocationId}' already carries another hull — parking '{session.State.Name}' on pad {candidate.Index} instead.");
+            session.AssignedPadIndex = candidate.Index;
+            return candidate;
+        }
+
+        _log.Warn($"Every pad on '{_world.LocationId}' carries a hull — parking '{session.State.Name}' on pad {pad.Index} regardless.");
+        return pad;
     }
 
     /// <summary>Whether a position lies within ONE parked ship's bounds (the hull box plus one cell of headroom).</summary>

@@ -13,6 +13,29 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Fixed
+
+- **A hyperjump from the cockpit really takes you to the new system.** Jumping between stars while flying
+  left the old system's planets in the flight view: the landing list still offered the planets you had come
+  from, and picking one jumped you straight back to the old planet. The flight view now rebuilds itself on
+  arrival, and the star chart reaches the client before the flight does (#1677).
+- **Two ships can no longer be parked on the same landing spot.** A player landed at position 1 and found a
+  trader's ship standing inside his own — he could not get out. Parking a ship now checks the ground itself
+  instead of trusting the booking: an arriving ship takes the next free spot, and a trader that finds the
+  spot taken keeps flying. A pilot who jumps between stars no longer carries the landing spot of the world
+  they left (#1678, #1679).
+- **A visiting trader takes its ship with it when it leaves.** Its parked hull could be left standing on a
+  landing spot already reported as free, and a trader that never touched down could take an unrelated
+  character out of the world with it (#1680).
+- **Anyone caught inside a parked hull is set down beside it.** The rescue only knew about blocks, not about
+  ships, so a player wedged between two hulls was teleported back into the same spot every second (#1681).
+- **The compass points at your ship again.** The ship is now marked by an arrow on the rim of the dial that
+  points the way to it and stays readable however far away it is — the small square inside the dial keeps
+  showing how close you are getting (#1682).
+- Closing the feedback window no longer risks an error while a text field still has the cursor (#1683).
+- A planet's crashed wreck is pinned to where it was built, like every other structure, so its repair plan
+  can never drift away from the hull lying in the world (#1684).
+
 ## [2026.9.3] — 2026-09-06
 
 The landscape release. Every new world you create from now on rolls its own landscape — dune seas next to

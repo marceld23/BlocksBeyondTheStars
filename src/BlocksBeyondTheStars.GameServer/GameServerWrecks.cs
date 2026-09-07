@@ -44,6 +44,9 @@ public sealed partial class GameServer
     /// <summary>Total hull cells in the intact repair mask.</summary>
     public int WreckRepairTotal => _wreck?.IntactHullCount() ?? 0;
 
+    /// <summary>Test/diagnostic: the stamped wreck's world origin (#1684).</summary>
+    public Vector3i WreckOriginForTest => _wreckOrigin;
+
     /// <summary>Whether the stamped wreck has already been claimed into the owned fleet.</summary>
     public bool WreckClaimed => _wreckClaimed;
 
@@ -87,19 +90,29 @@ public sealed partial class GameServer
         var design = designs[rng.Next(designs.Count)];
         var structure = WreckGenerator.Generate(design, wSeed, _content);
 
-        // Anchor offset from the first landing pad — its zone is reserved during settlement placement so the
-        // two never overlap. If a settlement still sits here (e.g. a hand-placed one), nudge the wreck outward.
-        int ax = -56, az = 56;
-        if (_landingPads.Count > 0)
+        // #1684: where the wreck stands is PINNED like every other structure. It used to be re-derived from
+        // landing pad 0 on every world load while its blocks were written exactly once — and pads are not
+        // persisted, only the rule that recomputes them is. Any change to that rule (the ocean-pad wave
+        // changed it twice inside one release) would have slid the origin, the markers and the repair mask off
+        // the blocks lying in the world, and every repair on a visible wreck cell would answer "not part of
+        // the repair mask".
+        var pinned = FindPlacementRecord("wreck", 0);
+        int ax, az;
+        if (pinned is { Placed: true })
         {
-            ax = _landingPads[0].CenterX - 56;
-            az = _landingPads[0].CenterZ + 56;
+            ax = pinned.X;
+            az = pinned.Z;
         }
-
-        for (int nudge = 0; nudge < 12 && OverlapsAnySettlement(ax, az, System.Math.Max(structure.Width, structure.Length) / 2); nudge++)
+        else
         {
-            ax = WorldConstants.WrapX(ax - 24, _world.Circumference);
-            az += 16;
+            // Anchor offset from the first landing pad — its zone is reserved during settlement placement so the
+            // two never overlap. If a settlement still sits here (e.g. a hand-placed one), nudge the wreck outward.
+            (ax, az) = WreckAnchorFor(_landingPads);
+            for (int nudge = 0; nudge < 12 && OverlapsAnySettlement(ax, az, System.Math.Max(structure.Width, structure.Length) / 2); nudge++)
+            {
+                ax = WorldConstants.WrapX(ax - 24, _world.Circumference);
+                az += 16;
+            }
         }
 
         int groundY = _generator.SurfaceHeight(planet, ax, az);
@@ -145,12 +158,39 @@ public sealed partial class GameServer
         }
 
         _wreckStamped = true;
+        // Pin it — on the first stamp, and once for a save whose wreck predates pinning (it keeps exactly the
+        // spot the current rule derives, which is where its blocks are: the pre-generation-2 pad rule was
+        // frozen by #1665 precisely so existing pads never move).
+        if (pinned is not { Placed: true })
+        {
+            RecordPlacement("wreck", 0, _wreckOrigin, groundY, onIsland: false, seat: "crash", name: _wreckName);
+            SavePlacementRecords();
+        }
+
         if (write)
         {
             MarkFeatureStamped("wreck");
             _log.Info($"Wreck '{_wreckName}' ({structure.Origin} {design.Key}) stamped at ({ax}, {baseY}, {az}) with {_wreckMarkers.Count} markers, {structure.BreachCount()} breaches.");
         }
     }
+
+    /// <summary>
+    /// The planned wreck anchor for a pad set: a fixed offset from landing pad 0, or a spot beside the world
+    /// origin when a body has no pads at all. Shared with the settlement stamper (#1684), which reserves this
+    /// zone up-front — the constant used to be written out twice and kept in step by hand.
+    /// </summary>
+    internal static (int X, int Z) WreckAnchorFor(IReadOnlyList<LandingPad> pads)
+    {
+        int pad0X = pads.Count > 0 ? pads[0].CenterX : 0;
+        int pad0Z = pads.Count > 0 ? pads[0].CenterZ : 0;
+        return (pad0X - WreckAnchorOffset, pad0Z + WreckAnchorOffset);
+    }
+
+    /// <summary>How far from pad 0 the wreck crash site sits, on both axes.</summary>
+    private const int WreckAnchorOffset = 56;
+
+    /// <summary>Half-extent of the zone settlements keep clear for the wreck.</summary>
+    internal const int WreckReservedHalfExtent = 14;
 
     /// <summary>Per-planet probability of a wreck (rare everywhere; a touch likelier on lived-in worlds).</summary>
     private static double WreckChance(Shared.Definitions.PlanetType planet)

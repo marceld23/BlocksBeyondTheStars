@@ -245,6 +245,65 @@ public sealed class PadSpawnTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// #1678: a player's hull is never stamped onto ground another hull already holds. Reproduces the desync
+    /// from the report — a trader's ship standing on pad 0 with its reservation gone — and asserts the arriving
+    /// player is parked on clear ground instead of inside it.
+    /// </summary>
+    [Fact]
+    public void AHullOnThePad_WithoutItsReservation_SendsTheArrivingShipToAnotherPad()
+    {
+        var server = Started(out var repo, "twohulls", ship: true);
+        using (repo)
+        {
+            var first = server.AddLocalPlayer("Host"); // loads the world and takes a pad
+            Assert.True(server.LandTraderForTest(first.CurrentLocationId));
+            Assert.True(server.ForceTraderPadForTest(first.CurrentLocationId, 1));
+            Assert.True(server.MaterializeLandedTraderForTest());
+            string traderOwner = server.PlacedHullOwnersForTest().First(o => o.StartsWith("npc:", StringComparison.Ordinal));
+            var (traderOrigin, traderSize) = server.LandedShipBoundsForTest(traderOwner);
+
+            // The reservation disappears while the hull keeps standing — what the sweep used to leave behind.
+            Assert.True(server.ReleaseLandedTraderRecordForTest(first.CurrentLocationId));
+
+            var second = server.AddLocalPlayer("Guest");
+            var (origin, size) = server.LandedShipBoundsForTest("Guest");
+            bool overlaps = origin.X < traderOrigin.X + traderSize.X && traderOrigin.X < origin.X + size.X
+                         && origin.Z < traderOrigin.Z + traderSize.Z && traderOrigin.Z < origin.Z + size.Z;
+            Assert.False(overlaps, $"the arriving hull at {origin} must not sit inside the parked one at {traderOrigin}");
+            Assert.False(Entombed(server, second.State.Position));
+        }
+    }
+
+    /// <summary>
+    /// #1681: hulls are placed OBJECTS, not world blocks, so the entombment rescue was blind to them and
+    /// SafeSpawnPoint kept returning the heal tank inside the very overlap that trapped the player. Two hulls
+    /// on one pad is exactly what a player reported: "I cannot leave the ship and am stuck".
+    /// </summary>
+    [Fact]
+    public void APlayerWedgedBetweenTwoHulls_IsMovedOutIntoTheOpen()
+    {
+        var server = Started(out var repo, "wedged", ship: true);
+        using (repo)
+        {
+            var p = server.AddLocalPlayer("Host");
+            var (origin, _) = server.LandedShipBoundsForTest("Host");
+
+            // Stamp a second hull on the same pad — the pre-#1678 behaviour, reproduced on purpose.
+            Assert.True(server.LandTraderForTest(p.CurrentLocationId));
+            Assert.True(server.ForceTraderPadForTest(p.CurrentLocationId, server.AssignedPadForTest("Host")));
+            Assert.True(server.MaterializeLandedTraderForTest(ignoreOverlap: true));
+            Assert.Equal(2, server.PlacedHullOwnersForTest().Count);
+
+            p.State.Position = server.HealTank; // where the respawn/rescue kept putting him back
+            server.Tick(1.1);                   // the 1 Hz rescue
+
+            var freed = p.State.Position;
+            Assert.False(server.ShipInteriorContainsCellForTest((int)Math.Floor(freed.X), (int)Math.Floor(freed.Y), (int)Math.Floor(freed.Z)),
+                $"the rescue must put the player outside every hull (ended at {freed}, own hull at {origin})");
+        }
+    }
+
     public void Dispose()
     {
         try

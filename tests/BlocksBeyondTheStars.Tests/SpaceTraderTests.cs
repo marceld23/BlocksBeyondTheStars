@@ -25,11 +25,11 @@ public sealed class SpaceTraderTests : IDisposable
         _content = ContentLoader.LoadFromDirectory(TestPaths.DataDir());
     }
 
-    private SvGameServer NewServer(string name, out SqliteWorldRepository repo)
+    private SvGameServer NewServer(string name, out SqliteWorldRepository repo, bool ship = false)
     {
         repo = new SqliteWorldRepository(new SaveGamePaths(_root, name));
         var st = new LoopbackServerTransport(new LoopbackLink());
-        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = false };
+        var config = new ServerConfig { WorldName = name, Seed = 1, AutoSaveIntervalMinutes = 9999, PlaceStarterShip = ship };
         config.Rules.FreeSpaceFlight = true;
         config.Rules.SpaceCombat = SpaceCombatMode.Off; // traders are independent of combat
         var server = new SvGameServer(config, _content, st, repo);
@@ -116,6 +116,81 @@ public sealed class SpaceTraderTests : IDisposable
 
             // Only one visiting trader may be parked on a body at a time.
             Assert.False(server.LandTraderForTest(body.Id));
+        }
+    }
+
+    /// <summary>
+    /// #1678: a trader never stamps its hull onto ground another hull already holds. A player report had a
+    /// trader ship and the player's own ship cell-for-cell inside each other on landing pad 0, with the player
+    /// walled in and no way out. The pad reservation is derived state and can disagree with what is standing
+    /// there; the stamp itself now has the last word, and the trader gives the pad back instead.
+    /// </summary>
+    [Fact]
+    public void ATrader_DoesNotSetDown_WhereAnotherHullAlreadyStands()
+    {
+        var server = NewServer("traderoverlap", out var repo, ship: true);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot"); // parks the player's own ship on their pad
+            string body = pilot.CurrentLocationId;
+            Assert.Contains("Pilot", server.PlacedHullOwnersForTest());
+
+            // Force the trader onto the pad the player's hull is standing on — the desync the report showed.
+            Assert.True(server.LandTraderForTest(body));
+            server.ForceTraderPadForTest(body, server.AssignedPadForTest("Pilot"));
+
+            Assert.False(server.MaterializeLandedTraderForTest());          // no second hull on that ground…
+            Assert.Equal(0, server.LandedTraderCountForTest());             // …and the pad is released again
+            Assert.Equal(new[] { "Pilot" }, server.PlacedHullOwnersForTest());
+        }
+    }
+
+    /// <summary>
+    /// #1680: a departing trader takes its parked hull off the pad it is freeing. The cleanup reached for the
+    /// ACTIVE world's id rather than the trader's own body, which is the same thing only while the caller
+    /// happens to be that body's tick — every other path left a hull standing on a pad reported as free.
+    /// </summary>
+    [Fact]
+    public void AnExpiredTrader_TakesItsParkedHullWithIt()
+    {
+        var server = NewServer("traderexpiry", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            string body = pilot.CurrentLocationId;
+
+            Assert.True(server.LandTraderForTest(body));
+            Assert.True(server.MaterializeLandedTraderForTest());
+            Assert.Contains(server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
+
+            Assert.True(server.ExpireLandedTraderForTest(body));
+            server.Tick(0.1); // the body's own tick lifts it off
+
+            Assert.Equal(0, server.LandedTraderCountForTest());
+            Assert.DoesNotContain(server.PlacedHullOwnersForTest(), o => o.StartsWith("npc:", StringComparison.Ordinal));
+        }
+    }
+
+    /// <summary>
+    /// #1680: a trader registered but never materialised has no pilot, and its id field still holds the
+    /// default 0 — the departure removed "the NPC with id 0", taking an unrelated one out of the world.
+    /// </summary>
+    [Fact]
+    public void ATraderThatNeverSetDown_TakesNoOtherNpcWithIt()
+    {
+        var server = NewServer("traderpilot", out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            string body = pilot.CurrentLocationId;
+            int npcsBefore = server.NpcCount;
+
+            Assert.True(server.LandTraderForTest(body)); // registered, never materialised → PilotNpcId stays 0
+            Assert.True(server.ExpireLandedTraderForTest(body));
+            server.Tick(0.1);
+
+            Assert.Equal(0, server.LandedTraderCountForTest());
+            Assert.Equal(npcsBefore, server.NpcCount);
         }
     }
 

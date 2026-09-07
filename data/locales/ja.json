@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "デバッグスナップショット #{number} を保存しました: {file}",
   "srv.misc.data_analysed": "+{name} 知識 — データ断片を解析しました。",
   "srv.misc.dug_out": "岩に埋まっていました — 掘り出しました。",
+  "srv.misc.freed_from_hull": "停泊中の船内に閉じ込められていました — 船のそばに降ろされました。",
   "srv.misc.fall_recovered": "落下から回復しました。",
   "srv.station.zero_g": "ステーションの重力を離れました — スーツが浮いています。ジャンプで上昇、しゃがみで下降；デッキに戻るか、Uキーで船に戻ってください。",
   "srv.station.drifted_back": "ステーションから遠くへ流されました — パッドに戻されました。",

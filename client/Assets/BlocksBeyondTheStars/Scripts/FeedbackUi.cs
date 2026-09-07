@@ -251,10 +251,40 @@ namespace BlocksBeyondTheStars.Client
             _open = false;
             _sending = false;
             _shotJpg = null;
+            ReleaseInputFocus(_titleInput, _descInput, _emailInput);
             if (_dialog != null) _dialog.SetActive(false);
 
             WorldHold.Release(); // every close path ends here (Esc, Cancel, the auto-close after a send) — sends once
             Game?.SetMenuOwner(this, false); // arbiter re-locks only once NO other owner is open (#413)
+        }
+
+        /// <summary>
+        /// Hands focus back before a dialog is hidden (#1683). uGUI never deselects a deactivated
+        /// <see cref="InputField"/> on its own: the caret keeps its place in the canvas rebuild queue, and
+        /// rebuilding it after the field's own objects have gone throws inside <c>InputField.GenerateCaret</c>
+        /// — a client crash report arrived from exactly that window, seconds after a send auto-closed the
+        /// dialog while the reply overlay was opening its own field. Same treatment the chat box got in #1634.
+        /// </summary>
+        private static void ReleaseInputFocus(params InputField[] fields)
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            foreach (var field in fields)
+            {
+                if (field == null)
+                {
+                    continue;
+                }
+
+                if (field.isFocused)
+                {
+                    field.DeactivateInputField();
+                }
+
+                if (es != null && es.currentSelectedGameObject == field.gameObject)
+                {
+                    es.SetSelectedGameObject(null);
+                }
+            }
         }
 
         private void ResetFields()
@@ -861,6 +891,7 @@ namespace BlocksBeyondTheStars.Client
             _replyOpen = false;
             _answering = false;
             _shown = null;
+            ReleaseInputFocus(_answerInput);
             if (_replyOverlay != null) _replyOverlay.SetActive(false);
             WorldHold.Release();
             Game?.SetMenuOwner(_replyOwner, false);

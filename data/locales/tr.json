@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "Hata anı görüntüsü #{number} kaydedildi: {file}",
   "srv.misc.data_analysed": "+{name} bilgi — veri parçası analiz edildi.",
   "srv.misc.dug_out": "Taşın içinde sıkışmıştın — çıkarıldın.",
+  "srv.misc.freed_from_hull": "Park halindeki bir geminin içine sıkışmıştın — yanına bırakıldın.",
   "srv.misc.fall_recovered": "Düşüşten kurtarıldın.",
   "srv.station.zero_g": "İstasyonun yerçekiminden çıktın — elbise şimdi yüzüyor. Zıpla yukarı, çömel alçal; güverteye sürüklenerek geri dön veya gemine geri dönmek için U'ya bas.",
   "srv.station.drifted_back": "İstasyondan çok uzaklaştın — padi geri getirildin.",

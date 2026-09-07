@@ -385,6 +385,42 @@ public sealed class TravelTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// #1679: a pilot who jumps in flight holds no landing pad on the system they arrive in. The claim used to
+    /// be carried across, which silently reserved that index on the ANCHOR body (occupancy is index + location)
+    /// and had the first landing stamped on a pad the pilot never chose — one an NPC trader could be parked on.
+    /// </summary>
+    [Fact]
+    public void HyperjumpInFlight_ReleasesThePadClaimedOnTheBodyLeftBehind()
+    {
+        var server = Started(out var repo);
+        using (repo)
+        {
+            var pilot = server.AddLocalPlayer("Pilot");
+            server.Ship.Modules.Add("jump_generator");
+
+            // Land somewhere in this system first, so the pilot really is holding that body's pad.
+            string originSystem = server.Galaxy.FindBody(pilot.CurrentLocationId)!.SystemId;
+            var neighbour = server.Galaxy.AllBodies().First(b =>
+                b.SystemId == originSystem && b.Id != pilot.CurrentLocationId
+                && !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null);
+            server.Travel("Pilot", neighbour.Id);
+            Assert.True(server.AssignedPadForTest("Pilot") >= 0);
+
+            var target = server.Galaxy.Systems.First(s => s.Id != originSystem
+                && s.Bodies.Any(b => !string.IsNullOrEmpty(b.PlanetType) && _content.GetPlanet(b.PlanetType!) is not null));
+
+            server.HyperjumpToSystem("Pilot", target.Id);
+
+            Assert.True(server.InSpace("Pilot"));
+            Assert.Equal(-1, server.AssignedPadForTest("Pilot")); // arrived in flight — no pad held anywhere
+
+            // Landing claims one again, normally.
+            server.LandOnBody("Pilot", pilot.CurrentLocationId);
+            Assert.True(server.AssignedPadForTest("Pilot") >= 0);
+        }
+    }
+
     [Fact]
     public void InSystemTravel_NeedsNoJumpGenerator()
     {

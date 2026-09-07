@@ -259,9 +259,8 @@ public sealed partial class GameServer
             reserved.Add((pad.CenterX, pad.CenterZ, LandingPadRadius + 2, LandingPadRadius + 2));
         }
 
-        int pad0X = _landingPads.Count > 0 ? _landingPads[0].CenterX : 0;
-        int pad0Z = _landingPads.Count > 0 ? _landingPads[0].CenterZ : 0;
-        reserved.Add((pad0X - 56, pad0Z + 56, 14, 14)); // wreck zone (see GameServerWrecks.StampWreck)
+        var (wreckX, wreckZ) = WreckAnchorFor(_landingPads); // one shared rule, not a second copy of the offset (#1684)
+        reserved.Add((wreckX, wreckZ, WreckReservedHalfExtent, WreckReservedHalfExtent));
 
         // Phase A — decide each settlement's design + a collision-free, dry/flat (or sky-island) spot.
         var placed = new List<PlacedSettlement>();

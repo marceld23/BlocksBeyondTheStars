@@ -165,7 +165,10 @@ public sealed partial class GameServer
     private Vector3f SafeSpawnPoint(string playerId)
     {
         var ownShip = _worlds.Active.LandedFor(playerId);
-        if (ownShip.Placed)
+        // #1681: the heal tank is the right answer only while it is somewhere a body can be. A second hull
+        // parked over this one makes the tank part of the trap, and returning it every second is what turned
+        // "two ships on one pad" into a player who could not get out at all.
+        if (ownShip.Placed && !InsideForeignHull(playerId, ownShip.HealTank))
         {
             return ownShip.HealTank;
         }
@@ -176,6 +179,50 @@ public sealed partial class GameServer
         int surfaceY = PadSurfaceY(px, pz); // real ground over the pad, never the generated surface alone (#1318)
         return new Vector3f(px + 0.5f, surfaceY + 2f, pz + 0.5f);
     }
+
+    /// <summary>True if this position lies inside a parked hull that belongs to someone else (#1681).
+    /// Construction sites do not count: an open keel frame is meant to be walked into.</summary>
+    private bool InsideForeignHull(string playerId, Vector3f p)
+    {
+        foreach (var (key, rec) in _worlds.Active.LandedShips)
+        {
+            if (!rec.Placed || IsConstructionKey(key) || key == playerId)
+            {
+                continue;
+            }
+
+            if (LandedBoundsContain(rec, p))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when the player is standing where their OWN parked hull and someone else's overlap (#1681) — the
+    /// signature of two ships stamped on one pad. Deliberately not "inside a foreign hull": visiting another
+    /// player's ship is normal, and only the overlap is unambiguously a place a body cannot be.
+    /// </summary>
+    private bool WedgedInOverlappingHulls(PlayerSession s)
+    {
+        var own = _worlds.Active.LandedFor(s.State.PlayerId);
+        return own.Placed
+            && LandedBoundsContain(own, s.State.Position)
+            && InsideForeignHull(s.State.PlayerId, s.State.Position);
+    }
+
+    /// <summary>Open ground beside the player's pad, outside every parked hull (#1681), or null when the whole
+    /// band around the pad is blocked — then the rescue leaves them be rather than teleporting them somewhere
+    /// worse.</summary>
+    private Vector3f? FreeSpotOutsideHulls(PlayerSession s)
+        => NearestStandableSpotOutsidePad(PlayerPad(s), s.State.Position, WedgedRescueRingMin, WedgedRescueRingMax);
+
+    /// <summary>How far outside the pad rim the wedged rescue looks for open ground (#1681) — far enough to
+    /// clear any hull centred on the pad, near enough that the player is still at their own landing site.</summary>
+    private const int WedgedRescueRingMin = 2;
+    private const int WedgedRescueRingMax = 12;
 
     /// <summary>Validates a joining player's position. If it's in the void — e.g. a position persisted
     /// mid-fall and restored on load — snap them (and a poisoned respawn point) back to a safe spawn, so a
@@ -281,6 +328,25 @@ public sealed partial class GameServer
                 // rescue "flashed too briefly to read" — mirror it into the chat scrollback as plain text.
                 Send(s, new ServerMessage { Text = Localize(s.Locale, "srv.misc.dug_out") });
                 SendPlayerState(s);
+                continue;
+            }
+
+            // #1681: hulls are placed OBJECTS, not world blocks, so IsEntombed above cannot see them at all.
+            // A player standing where two hulls overlap is walled in by geometry the block rescue is blind to.
+            if (WedgedInOverlappingHulls(s))
+            {
+                if (FreeSpotOutsideHulls(s) is { } outside)
+                {
+                    s.EntombedRescueSpot = null;
+                    p.Position = outside;
+                    p.AboardShip = false; // stepped out from between the hulls, onto open ground
+                    s.AwaitingSpawnAdopt = true;
+                    _log.Warn($"Player '{p.Name}' was wedged between two parked hulls; moved to {outside}.");
+                    Send(s, new RespawnNotice { X = outside.X, Y = outside.Y, Z = outside.Z, Reason = "@srv.misc.freed_from_hull" });
+                    Send(s, new ServerMessage { Text = Localize(s.Locale, "srv.misc.freed_from_hull") });
+                    SendPlayerState(s);
+                }
+
                 continue;
             }
 

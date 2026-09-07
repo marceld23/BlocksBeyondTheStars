@@ -670,8 +670,33 @@ public sealed partial class GameServer
         return best;
     }
 
+    /// <summary>Test/diagnostic: the landing pad a player currently holds (-1 when they hold none).</summary>
+    public int AssignedPadForTest(string playerId)
+        => FindSessionByPlayerId(playerId)?.AssignedPadIndex ?? -1;
+
     /// <summary>0 = natural dry ground, 1 = generated islet, 2 = seabed shaft.</summary>
     private static int PadRank(LandingPad pad) => pad.Wet ? 2 : pad.Islet ? 1 : 0;
+
+    /// <summary>
+    /// Every pad index of the active world in the order a player would like it (#1678): free before reserved,
+    /// then dry ground before an islet before a seabed shaft, then by index so pad 0 stays the home touchdown.
+    /// Unlike <see cref="PreferredFreePadIndex"/> this never returns "none" — the caller re-homing a hull off an
+    /// occupied footprint needs a full fallback order, and its own footprint test has the final say (the pad
+    /// bookkeeping being wrong is exactly the situation it is recovering from).
+    /// </summary>
+    private List<LandingPad> PadsByPreference(string locationId, IReadOnlyList<LandingPad> pads, string exceptPlayerId)
+    {
+        var order = new List<LandingPad>(pads);
+        order.Sort((a, b) =>
+        {
+            int ra = PadOccupiedByOther(locationId, a.Index, exceptPlayerId) ? 1 : 0;
+            int rb = PadOccupiedByOther(locationId, b.Index, exceptPlayerId) ? 1 : 0;
+            return ra != rb ? ra - rb
+                : PadRank(a) != PadRank(b) ? PadRank(a) - PadRank(b)
+                : a.Index - b.Index;
+        });
+        return order;
+    }
 
     /// <summary>A body's pads: the active world's set, or the deterministic (cached) computation for a body
     /// that is not loaded — the auto-landing preference needs the Wet/Islet flags before the world exists.</summary>

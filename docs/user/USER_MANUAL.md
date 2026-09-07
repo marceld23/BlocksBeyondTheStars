@@ -304,10 +304,11 @@ separate unlock; admins can still disable it through server world rules.
 - **HUD** — health/oxygen/hunger/energy, hotbar, location, compass, scan readout (bottom-left), and the
   wreck panel (right) when near a repairable wreck.
 - **Compass** (bottom-right, on foot) — a heading-up dial: the top is the way you look, and the **N** that
-  moves around the dial marks north (the map is north-up, so the two agree). The blue
-  square is your ship and the amber pin the waypoint; the captions under the dial ("Ship 114 m", "Waypoint
-  138 m") give each distance. Beacons and saved markers show as smaller blips. Turn until the ship sits at the
-  top and walk; VEGA reminds you of this once you are a long way from the hull.
+  moves around the dial marks north (the map is north-up, so the two agree). A blue **arrow on the rim** points
+  the way to your ship and stays readable however far off it is; the blue square inside the dial is the ship
+  itself and the amber pin the waypoint, and the captions under the dial ("Ship 114 m", "Waypoint 138 m") give
+  each distance. Beacons and saved markers show as smaller blips. Turn until the arrow points to the top of the
+  dial and walk; VEGA reminds you of this once you are a long way from the hull.
 - **VEGA panel** — the ship AI speaks through a typewriter speech panel with a persistent **objective
   chip** (live progress, e.g. "mine 1/3") during onboarding. Advance lines with **N** — a line stays on
   screen until you do (no auto-dismiss), and further lines wait in the queue. Advisor hints can

@@ -3635,6 +3635,7 @@
   "srv.misc.bump_saved": "Debug-Schnappschuss #{number} gespeichert: {file}",
   "srv.misc.data_analysed": "+{name} Wissen — Datenfragment ausgewertet.",
   "srv.misc.dug_out": "Du stecktest im Gestein — ausgegraben.",
+  "srv.misc.freed_from_hull": "Du warst in einem geparkten Schiff eingeschlossen — daneben abgesetzt.",
   "srv.misc.fall_recovered": "Nach einem Sturz geborgen.",
   "srv.station.zero_g": "Du hast die Schwerkraft der Station verlassen — der Anzug schwebt jetzt. Springen steigt, Ducken sinkt; treib zurück aufs Deck oder drück U für dein Schiff.",
   "srv.station.drifted_back": "Du bist zu weit von der Station abgetrieben — zurück auf die Plattform geholt.",

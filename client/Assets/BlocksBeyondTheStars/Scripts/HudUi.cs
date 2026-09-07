@@ -86,7 +86,7 @@ namespace BlocksBeyondTheStars.Client
         private GameObject _playtimePanel; // optional session/total playtime readout (top-right, under the clock)
         private TMP_Text _playtimeText;
         private RectTransform _todMarker;
-        private RectTransform _compassShip, _compassWp, _compassNorth;
+        private RectTransform _compassShip, _compassWp, _compassNorth, _compassShipArrow;
         private Transform _compassParent; // parent for pooled beacon blips (item 37)
         private readonly System.Collections.Generic.List<RectTransform> _compassBeacons = new();
         private readonly System.Collections.Generic.List<RectTransform> _compassMarkers = new(); // named markers + pings (#1217)
@@ -595,6 +595,17 @@ namespace BlocksBeyondTheStars.Client
             _compassNorth = north.rectTransform;
             _compassNorth.anchorMin = _compassNorth.anchorMax = new Vector2(0.5f, 0.5f);
             _compassNorth.pivot = new Vector2(0.5f, 0.5f);
+            // #1682: the ship pointer. The blip alone is an 8 px square among the waypoint's and the beacons'
+            // squares, and a player who had used the old ▲ to find his ship reported the ship as simply gone.
+            // This rides the rim at a CONSTANT radius and points at the ship, so the direction stays readable
+            // however far away it is — the blip inside the dial keeps showing how close you are getting.
+            var arrow = UiKit.AddImage(comp.transform, 0, 0, CompassArrowSize, CompassArrowSize,
+                UiKit.TriangleSprite, new Color(0.3f, 0.8f, 1f));
+            arrow.raycastTarget = false;
+            _compassShipArrow = arrow.rectTransform;
+            _compassShipArrow.anchorMin = _compassShipArrow.anchorMax = new Vector2(0.5f, 0.5f);
+            _compassShipArrow.pivot = new Vector2(0.5f, 0.5f);
+
             // Both distance lines carry their localized name ("Ship 114 m", "Waypoint 138 m") in the blip's
             // colour — #1594: a first-time player saw two coloured dots and two numbers and did not know the
             // blue one was the ship. The planet map has a legend; this is the compass's.
@@ -1809,6 +1820,26 @@ namespace BlocksBeyondTheStars.Client
             PlaceBlip(_compassWp, Game.Waypoint.HasValue, Game.Waypoint ?? Vector3.zero, radius, out float wpDist);
             PlaceBlip(_compassShip, Game.ShipPosition.HasValue, Game.ShipPosition ?? Vector3.zero, radius, out float dist);
 
+            // Ship pointer (#1682): same bearing as the blip, but at a fixed rim radius and rotated so the apex
+            // aims outward — "the ship is THAT way" stays legible when the blip has crept out to the rim.
+            if (_compassShipArrow != null)
+            {
+                bool haveShip = Game.ShipPosition.HasValue;
+                if (_compassShipArrow.gameObject.activeSelf != haveShip)
+                {
+                    _compassShipArrow.gameObject.SetActive(haveShip);
+                }
+
+                if (haveShip)
+                {
+                    float shipAng = CompassBearing(Game.ShipPosition.Value, out _);
+                    _compassShipArrow.anchoredPosition = new Vector2(Mathf.Sin(shipAng) * CompassArrowRadius, Mathf.Cos(shipAng) * CompassArrowRadius);
+                    // The sprite points up at zero rotation; Z rotates counter-clockwise, so the apex follows
+                    // the bearing when we turn by its negative.
+                    _compassShipArrow.localRotation = Quaternion.Euler(0f, 0f, -shipAng * Mathf.Rad2Deg);
+                }
+            }
+
             // North marker (#1597): bearing 0° minus the player's yaw — the same rotation PlaceBlip applies, so the N
             // sits at the top while facing north and swings left when the player turns right.
             if (_compassNorth != null)
@@ -1900,20 +1931,35 @@ namespace BlocksBeyondTheStars.Client
             return loc != null ? loc.Get(key) : fallback;
         }
 
+        /// <summary>Size and rim radius of the ship pointer on the 120 px dial (#1682): 50 + half of 14 = 57,
+        /// so the whole glyph stays inside the ring border at 60, and clear of the blips, which only reach
+        /// their 44 px rim past about 2 km. Created before the distance captions, so those draw over it in the
+        /// narrow sector where a ship directly behind you puts the pointer on the same pixels.</summary>
+        private const float CompassArrowSize = 14f;
+        private const float CompassArrowRadius = 50f;
+
+        /// <summary>
+        /// Dial-space bearing to a world target, in radians, plus the flat distance to it.
+        /// <para>#1307: <paramref name="target"/> is canonical world space, but the player transform runs
+        /// UNBOUNDED as it laps the world — measure against the copy of the target nearest the player (the
+        /// SceneX/SceneZ mapping every other world object already uses). Subtracting raw coordinates flipped
+        /// the bearing and added a whole circumference to the distance the moment either side sat across a
+        /// seam (">3000 m" to a ship a few blocks away, on a 10128-block world).</para>
+        /// </summary>
+        private float CompassBearing(Vector3 target, out float dist)
+        {
+            var near = Game.ScenePos(target.x, target.y, target.z);
+            float dx = near.x - Game.PlayerPosition.x, dz = near.z - Game.PlayerPosition.z;
+            dist = Mathf.Sqrt(dx * dx + dz * dz);
+            return (Mathf.Atan2(dx, dz) * Mathf.Rad2Deg - Game.PlayerYaw) * Mathf.Deg2Rad;
+        }
+
         private void PlaceBlip(RectTransform blip, bool active, Vector3 target, float radius, out float dist)
         {
             dist = 0f;
             if (blip == null) return;
             if (!active) { blip.gameObject.SetActive(false); return; }
-            // #1307: `target` is canonical world space, but the player transform runs UNBOUNDED as it laps the
-            // world — measure against the copy of the target nearest the player (the SceneX/SceneZ mapping every
-            // other world object already uses). Subtracting raw coordinates flipped the bearing and added a whole
-            // circumference to the distance the moment either side sat across a seam (">3000 m" to a ship a few
-            // blocks away, on a 10128-block world).
-            var near = Game.ScenePos(target.x, target.y, target.z);
-            float dx = near.x - Game.PlayerPosition.x, dz = near.z - Game.PlayerPosition.z;
-            dist = Mathf.Sqrt(dx * dx + dz * dz);
-            float ang = (Mathf.Atan2(dx, dz) * Mathf.Rad2Deg - Game.PlayerYaw) * Mathf.Deg2Rad;
+            float ang = CompassBearing(target, out dist);
             // Log-scaled radius (#592): the old linear dist*1.2 pinned everything past ~37 m to the rim,
             // so approach progress was unreadable. Log keeps direction AND lets "getting closer" show:
             // ~20 px at 40 m, ~34 px at 400 m, rim only past ~2 km.
