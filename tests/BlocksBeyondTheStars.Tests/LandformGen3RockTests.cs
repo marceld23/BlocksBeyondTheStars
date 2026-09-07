@@ -198,6 +198,8 @@ public sealed class LandformGen3RockTests
         var planet = Content.Planets["tablelands"];
         var hit = FindOverSeeds(gen =>
         {
+            // A gate column carries a carve span in the wall band; find one near a table.
+            Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[WorldGenerator.MaxColumnBands];
             foreach (var (x, z) in Grid(17, 19))
             {
                 if (gen.LandmarkOffsetForTest("table-mountain", planet, x, z) < 20.0)
@@ -205,8 +207,6 @@ public sealed class LandformGen3RockTests
                     continue;
                 }
 
-                // A gate column carries a carve span in the wall band; find one near this table.
-                Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[WorldGenerator.MaxColumnBands];
                 for (int r = 0; r < 160; r += 2)
                     for (int dir = 0; dir < 4; dir++)
                     {
@@ -249,6 +249,7 @@ public sealed class LandformGen3RockTests
         var planet = Content.Planets["highland"];
         var hit = FindOverSeeds(gen =>
         {
+            Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[WorldGenerator.MaxColumnBands];
             foreach (var (x, z) in Grid(23, 19))
             {
                 if (gen.LandmarkOffsetForTest("massif", planet, x, z) < 60.0)
@@ -256,7 +257,6 @@ public sealed class LandformGen3RockTests
                     continue;
                 }
 
-                Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[WorldGenerator.MaxColumnBands];
                 int n = gen.TunnelSpans(planet, x, z, spans);
                 for (int i = 0; i < n; i++)
                 {

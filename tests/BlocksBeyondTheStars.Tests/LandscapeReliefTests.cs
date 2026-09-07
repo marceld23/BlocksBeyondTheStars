@@ -71,6 +71,13 @@ public sealed class LandscapeReliefTests
         // A style a later wave adds to an existing pool is invisible to the worlds created before it, so the
         // pool a generation can draw from is the filtered one — and the run has to be checked per generation.
         foreach (int generation in new[] { 1, WorldDescription.CurrentTerrainGeneration })
+        {
+            EveryPoolEntryAppearsAt(generation);
+        }
+    }
+
+    private void EveryPoolEntryAppearsAt(int generation)
+    {
         foreach (var planet in PooledTypes())
         {
             var available = planet.TerrainStyles
