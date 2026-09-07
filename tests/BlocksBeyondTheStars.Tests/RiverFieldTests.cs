@@ -143,4 +143,94 @@ public class RiverFieldTests
         _out.WriteLine($"synthetic cliff: columns={field.ColumnCount}, waterfallColumns={field.WaterfallColumnCount}, " +
                        $"maxDrop={field.Columns.Max(c => c.WaterfallDrop)}");
     }
+
+    /// <summary>Terrain generation 3: inside a soluble-rock region the reach runs under a rock roof. The terrain
+    /// surface is untouched, the water sits a constant cover below it with headroom for a walkable passage,
+    /// each side gets a bank ledge that seals the water laterally, and the reach dives in / comes back out
+    /// through an open shaft. A null region reproduces the classic surface-only rasterisation exactly.</summary>
+    [Fact]
+    public void Synthetic_SunkRegion_RunsTheReachUnderARoof_WithMouthsAndBanks()
+    {
+        const int w = 160, period = 80, seaLevel = 5, cell = 4;
+        const int cover = 12, headroom = 3, minCover = 3;
+
+        int H(int x, int z)
+        {
+            int wx = ((x % w) + w) % w;
+            if (wx < 3) return 0;                       // sea sink at the west edge
+            int zc = WorldConstants.WrapZ(z, w);
+            return wx + Math.Abs(zc) / 4;               // a clean ramp down to the sea, a V that funnels flow
+        }
+
+        // The karst belt the river has to cross on its way west.
+        bool Sunk(int x, int z) => ((x % w) + w) % w is >= 40 and < 80;
+
+        var net = RiverNetwork.Build(seed: 77, circumference: w, latitudePeriod: period,
+            seaLevel: seaLevel, height: H, cellSize: cell);
+        var classic = RiverField.Build(net, H, circumference: w);
+        var field = RiverField.Build(net, H, circumference: w, sunkRegion: Sunk, sunkCover: cover, sunkHeadroom: headroom);
+        var again = RiverField.Build(net, H, circumference: w, sunkRegion: Sunk, sunkCover: cover, sunkHeadroom: headroom);
+
+        Assert.DoesNotContain(classic.Columns, c => c.Underground); // a null region is the classic field
+        Assert.Equal(field.ColumnCount, again.ColumnCount);         // determinism
+
+        var sunkCols = field.ColumnsByPosition.Where(kv => kv.Value.Underground).ToList();
+        Assert.True(sunkCols.Count > 0, "no underground reach was rasterized across the karst belt");
+
+        int mouths = 0, banks = 0, water = 0, centerlineCovered = 0;
+        foreach (var (pos, col) in sunkCols)
+        {
+            int terrain = H(pos.X, pos.Z);
+            Assert.Equal(0, col.WaterfallDrop);                     // no waterfalls inside a passage
+            Assert.True(col.RoofY > col.WaterSurfaceY, "the passage has no air above its water");
+            Assert.True(col.BedY <= col.WaterSurfaceY, "the bed sits above the waterline");
+            if (!col.Mouth && terrain - col.RoofY >= minCover)
+            {
+                centerlineCovered++;                                // real rock over the roof at this column
+            }
+
+            if (col.Mouth)
+            {
+                mouths++;                                           // the swallow hole / the spring
+                Assert.True(col.RoofY - col.WaterSurfaceY > headroom, "a mouth shaft is no taller than the passage");
+            }
+            else
+            {
+                // The whole cross-section carries the CENTERLINE's levels, so only the centerline's own cover
+                // is guaranteed against its own ground; what every column must hold is the passage geometry.
+                Assert.Equal(headroom, col.RoofY - col.WaterSurfaceY);
+            }
+
+            if (col.IsBank)
+            {
+                banks++;
+                Assert.Equal(col.WaterSurfaceY, col.BedY);           // a ledge, not a channel
+            }
+            else
+            {
+                water++;
+                Assert.True(col.WaterSurfaceY > col.BedY);
+            }
+
+            // The belt plus at most one coarse cell of ramp on either side.
+            int wx = ((pos.X % w) + w) % w;
+            Assert.InRange(wx, 40 - cell - 1, 80 + cell);
+        }
+
+        Assert.True(mouths > 0, "the reach never opened a shaft — it would step straight into a wall");
+        Assert.True(banks > 0, "no bank ledges: the underground water would have air beside it");
+        Assert.True(water > 0, "the passage carries no water at all");
+        Assert.True(centerlineCovered > sunkCols.Count / 2, "most of the passage is not actually under rock");
+
+        // Every surface column of the sunk field still matches the classic one — only the belt changed.
+        foreach (var (pos, col) in field.ColumnsByPosition.Where(kv => !kv.Value.Underground))
+        {
+            Assert.True(classic.TryGet(pos.X, pos.Z, out var c0), $"a surface column appeared at {pos}");
+            Assert.Equal(c0.WaterSurfaceY, col.WaterSurfaceY);
+            Assert.Equal(c0.BedY, col.BedY);
+        }
+
+        _out.WriteLine($"sunk belt: underground={sunkCols.Count} (water={water}, banks={banks}, mouths={mouths}), " +
+                       $"total={field.ColumnCount}, classic={classic.ColumnCount}");
+    }
 }

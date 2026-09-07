@@ -30,18 +30,44 @@ public sealed class RiverField
     {
         /// <summary>Topmost water cell Y (inclusive).</summary>
         public readonly int WaterSurfaceY;
-        /// <summary>Carved channel bed Y (last solid cell below the water).</summary>
+        /// <summary>Carved channel bed Y (last solid cell below the water). Equal to <see cref="WaterSurfaceY"/>
+        /// on an underground BANK column: the walkable ledge beside the water carries no water of its own.</summary>
         public readonly int BedY;
         /// <summary>0 = none; &gt;0 = a vertical waterfall column of this many blocks pours into this column.</summary>
         public readonly int WaterfallDrop;
         /// <summary>0 = flow runs along X, 1 = along Z (feeds the surface-water flow classification).</summary>
         public readonly byte FlowAxis;
+        /// <summary>Terrain generation 3: the reach runs UNDERGROUND here. The terrain surface is untouched —
+        /// instead a passage is carved from the bed up to <see cref="RoofY"/> with the water on its floor.
+        /// False on every classic column, so generation 0–2 worlds never see one.</summary>
+        public readonly bool Underground;
+        /// <summary>The passage roof of an underground reach — the last carved (air) cell. Unused when
+        /// <see cref="Underground"/> is false. Like the water surface it is the CENTERLINE's value for the
+        /// whole cross-section, so on a slope it can sit above a band column's own ground; the column phase
+        /// keeps the carve under the surface unless <see cref="Mouth"/> says otherwise.</summary>
+        public readonly int RoofY;
+        /// <summary>The column where the roof closes over the reach (or last opens): its shaft runs all the way
+        /// through the surface — the swallow hole the river vanishes into, and the spring it comes back out of.</summary>
+        public readonly bool Mouth;
 
         public RiverColumn(int surface, int bed, int waterfallDrop, byte flowAxis)
+            : this(surface, bed, waterfallDrop, flowAxis, false, 0, false)
+        {
+        }
+
+        public RiverColumn(int surface, int bed, int waterfallDrop, byte flowAxis, bool underground, int roofY, bool mouth)
         {
             WaterSurfaceY = surface; BedY = bed; WaterfallDrop = waterfallDrop; FlowAxis = flowAxis;
+            Underground = underground; RoofY = roofY; Mouth = mouth;
         }
+
+        /// <summary>True on an underground bank column: air from the waterline up to the roof, no water.</summary>
+        public bool IsBank => Underground && BedY == WaterSurfaceY;
     }
+
+    /// <summary>The least rock a passage roof must carry before a reach counts as underground (generation 3) —
+    /// below it the ramp is still an open channel, so a diving river cuts in gradually.</summary>
+    private const int SunkMinCover = 3;
 
     private readonly Dictionary<(int X, int Z), RiverColumn> _cols;
     private readonly Dictionary<(int X, int Z), int> _lakeShore;
@@ -85,6 +111,12 @@ public sealed class RiverField
     public bool TryGetLakeShore(int worldX, int worldZ, out int waterLevel)
         => _lakeShore.TryGetValue((WorldConstants.WrapX(worldX, _circumference), WorldConstants.WrapZ(worldZ, _circumference)), out waterLevel);
 
+    /// <summary>Rasterises the coarse network into block columns.
+    /// <paramref name="sunkRegion"/> (terrain generation 3, null = the classic surface-only rasterisation) is a
+    /// coarse-cell predicate: where BOTH ends of a stroke lie inside it the reach runs underground, where one
+    /// end does the cover ramps over the stroke, and the column where the roof first closes (or last opens) is
+    /// left as an open shaft — the swallow hole and the spring. <paramref name="sunkCover"/> is the rock kept
+    /// above the passage roof, <paramref name="sunkHeadroom"/> the air between the water and that roof.</summary>
     public static RiverField Build(
         RiverNetwork net,
         System.Func<int, int, int> height,
@@ -97,7 +129,10 @@ public sealed class RiverField
         int maxLakeDepth = 6,
         int estuaryWiden = 3,
         int lakeShoreWidth = 3,
-        int minLakeShoreColumns = 64)
+        int minLakeShoreColumns = 64,
+        System.Func<int, int, bool>? sunkRegion = null,
+        int sunkCover = 12,
+        int sunkHeadroom = 3)
     {
         var cols = new Dictionary<(int, int), RiverColumn>();
         // Pooled (flat-lake) columns and the coarse cell that set their level — the lake-shore pass below
@@ -142,18 +177,53 @@ public sealed class RiverField
             return cgz * gridW + cgx;
         }
 
-        void Stamp(int wx, int wz, int surface, int bed, int waterfallDrop, byte axis)
+        void Stamp(int wx, int wz, int surface, int bed, int waterfallDrop, byte axis,
+            bool underground = false, int roofY = 0, bool mouth = false)
         {
             var key = (WorldConstants.WrapX(wx, circumference), WorldConstants.WrapZ(wz, circumference));
             if (cols.TryGetValue(key, out var existing))
             {
+                // Generation 3, before the classic rules (both tests are always false on a classic world, so
+                // nothing below this point changes for generation 0–2).
+                // 1) A SURFACE reach always beats an underground one, whatever the levels: the visible river
+                //    must never be replaced by the tunnel of a channel that happens to pass under it.
+                if (existing.Underground != underground)
+                {
+                    if (!existing.Underground)
+                    {
+                        return;
+                    }
+
+                    if (existing.WaterfallDrop > 0) waterfalls--;
+                    if (waterfallDrop > 0) waterfalls++;
+                    cols[key] = new RiverColumn(surface, bed, waterfallDrop, axis, underground, roofY, mouth);
+                    return;
+                }
+
+                // 2) A BANK column (walkable ledge, no water) never displaces one that carries water.
+                bool existingBank = existing.BedY == existing.WaterSurfaceY;
+                bool newBank = bed == surface;
+                if (existingBank != newBank)
+                {
+                    if (newBank)
+                    {
+                        return;
+                    }
+
+                    if (existing.WaterfallDrop > 0) waterfalls--;
+                    if (waterfallDrop > 0) waterfalls++;
+                    cols[key] = new RiverColumn(surface, bed, waterfallDrop, axis, underground, roofY, mouth);
+                    return;
+                }
+
                 // Where two channel strokes overlap, keep the lower (more-downstream) water surface so the
                 // confluence never lifts water above a reach that already ran lower through here.
                 if (existing.WaterSurfaceY <= surface)
                 {
                     if (waterfallDrop > 0 && existing.WaterfallDrop == 0)
                     {
-                        cols[key] = new RiverColumn(existing.WaterSurfaceY, existing.BedY, waterfallDrop, existing.FlowAxis);
+                        cols[key] = new RiverColumn(existing.WaterSurfaceY, existing.BedY, waterfallDrop,
+                            existing.FlowAxis, existing.Underground, existing.RoofY, existing.Mouth);
                         waterfalls++;
                     }
 
@@ -164,7 +234,7 @@ public sealed class RiverField
             }
 
             if (waterfallDrop > 0) waterfalls++;
-            cols[key] = new RiverColumn(surface, bed, waterfallDrop, axis);
+            cols[key] = new RiverColumn(surface, bed, waterfallDrop, axis, underground, roofY, mouth);
         }
 
         foreach (int c in net.ChannelCells)
@@ -188,6 +258,26 @@ public sealed class RiverField
             if (net.IsSea[d]) width = System.Math.Min(width + estuaryWiden, maxWidth + estuaryWiden);
             int half = width / 2;
 
+            // Underground reaches (terrain generation 3): a stroke whose BOTH ends lie in the soluble-rock
+            // region runs under a full rock roof; a stroke with one end inside ramps the cover over its
+            // length, so the river dives in (or comes back out) instead of stepping into a wall. Sea cells
+            // never sink — the estuary has to reach the water. `sunkRegion` is null on every classic world,
+            // and then RampCover is 0 everywhere and nothing below changes.
+            bool sunkC = sunkRegion != null && !net.IsSea[c] && sunkRegion(cx, cz);
+            bool sunkD = sunkRegion != null && !net.IsSea[d] && sunkRegion(dx, dz);
+            int RampCover(int step)
+            {
+                if (!sunkC && !sunkD)
+                {
+                    return 0;
+                }
+
+                double t = step / (double)steps;
+                double f = sunkC && sunkD ? 1.0 : sunkD ? t : 1.0 - t;
+                int cv = (int)System.Math.Round(sunkCover * f);
+                return cv >= SunkMinCover ? cv : 0;
+            }
+
             int prevTerrain = height(cx, cz);
             for (int s = 0; s <= steps; s++)
             {
@@ -199,25 +289,44 @@ public sealed class RiverField
                 int poolDepth = net.FilledLevel[cellIdx] - net.Height[cellIdx];
                 bool pooled = poolDepth > 0 && poolDepth <= maxLakeDepth;
 
+                // Depth decoupled from a width-3 gate (#474): brooks are 1 deep, anything that has
+                // gathered flow runs 2, trunks 3 — deep enough that a river is swimmable, not wadable.
+                int channelDepth = width >= 4 ? 3 : width >= 2 ? 2 : 1;
+
+                // A pooled reach is a lake: it always stays on the surface, whatever the region says.
+                int cover = pooled ? 0 : RampCover(s);
+                bool underground = cover > 0;
+                // The column where the roof first closes (diving) or last opens (rising) keeps an open shaft
+                // up to the ground: the swallow hole the river vanishes into, and the spring it returns from.
+                bool mouth = underground
+                    && ((s > 0 && RampCover(s - 1) == 0) || (s < steps && RampCover(s + 1) == 0));
+
                 int surface, bed;
+                int roofY = 0;
                 if (pooled)
                 {
                     surface = net.FilledLevel[cellIdx]; // flat pool surface
                     bed = net.Height[cellIdx] - 1;
                 }
+                else if (underground)
+                {
+                    // The passage hangs a constant cover under the terrain, so the water still descends
+                    // exactly as the ground does — the network's downhill guarantee carries over unchanged.
+                    roofY = mouth ? terrain : terrain - cover;
+                    surface = terrain - cover - sunkHeadroom;
+                    bed = surface - channelDepth;
+                }
                 else
                 {
                     surface = terrain;                  // thin sheet following the ground (no floating wall)
-                    // Depth decoupled from a width-3 gate (#474): brooks are 1 deep, anything that has
-                    // gathered flow runs 2, trunks 3 — deep enough that a river is swimmable, not wadable.
-                    bed = terrain - (width >= 4 ? 3 : width >= 2 ? 2 : 1);
+                    bed = terrain - channelDepth;
                 }
 
                 // Waterfall (#475): inside a network-flagged cascade cell a 3-block sheer step fires; far
                 // from one it still takes the old 5-block cliff, so gentle slopes never sprout water pillars.
                 int drop = prevTerrain - terrain;
                 int minDrop = fallCells.Contains(cellIdx) ? 3 : waterfallMinDrop + 1;
-                int waterfallDrop = drop >= minDrop ? drop : 0;
+                int waterfallDrop = !underground && drop >= minDrop ? drop : 0;
                 prevTerrain = terrain;
 
                 // Centerline + perpendicular band (flat cross-section at the centerline's surface).
@@ -225,10 +334,25 @@ public sealed class RiverField
                 {
                     int sx = axis == 0 ? wx : wx + o;
                     int sz = axis == 0 ? wz + o : wz;
-                    Stamp(sx, sz, surface, bed, o == 0 ? waterfallDrop : 0, axis);
+                    Stamp(sx, sz, surface, bed, o == 0 ? waterfallDrop : 0, axis, underground, roofY, mouth);
                     if (pooled)
                     {
                         pooledCols[(WorldConstants.WrapX(sx, circumference), WorldConstants.WrapZ(sz, circumference))] = cellIdx;
+                    }
+                }
+
+                // Banks (generation 3): one walkable ledge on each side of an underground channel — solid up
+                // to the waterline, air from there to the roof. That is also what SEALS the water sideways:
+                // its lateral neighbour at the water's own height is rock, never air. Not at a mouth, where
+                // the shaft should stay as narrow as the channel itself.
+                if (underground && !mouth)
+                {
+                    for (int side = -1; side <= 1; side += 2)
+                    {
+                        int o = side * (half + 1);
+                        int bx = axis == 0 ? wx : wx + o;
+                        int bz = axis == 0 ? wz + o : wz;
+                        Stamp(bx, bz, surface, surface, 0, axis, underground: true, roofY);
                     }
                 }
             }
