@@ -143,6 +143,10 @@ public static class NameGenerator
         ["archipelago"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
         ["meadowlands"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
         ["ashen_ocean"] = (new[] { "p", "k", "dr", "z", "r", "kr", "v" }, new[] { "ax", "arr", "eth", "ur", "ash", "gar" }),
+        // Terrain generation 3 (part 8): the three new types borrow their kin's flavour too.
+        ["coral_sea"] = (new[] { "m", "n", "th", "s", "l", "ner" }, new[] { "mar", "une", "ea", "ys", "aris", "ion" }),
+        ["icecap"] = (new[] { "fr", "kr", "th", "v", "sk", "h", "gl" }, new[] { "heim", "fell", "gard", "yr", "os", "ost" }),
+        ["river_lowlands"] = (new[] { "l", "m", "n", "v", "s", "y" }, new[] { "ia", "ora", "une", "elle", "ys", "ana" }),
     };
 
     /// <summary>Substrings no coined celestial name may contain (EN + DE) — the syllable mill can and

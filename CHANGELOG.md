@@ -13,6 +13,20 @@ the richer, screenshot-laden versions live there. `(#123)` references the pull r
 
 ## [Unreleased]
 
+### Added
+
+- **Terrain generation 3 — the landform completion package.** A landform audit measured the generator
+  against 84 real-world landforms and found 26 missing and 15 half-done. Every new world now rolls them:
+  seamounts and icebergs, rivers that run underground on karst worlds, slot canyons, arêtes and tooth rows,
+  rock gates and mountain halls, desert pavement, petrified dunes and rainbow strata, labyrinths and stone
+  forests, dripstone caves and karst cathedrals, obsidian fields, lava flows with glowing pockets, barchans,
+  frost polygons, meandering rivers with oxbow lakes, deltas and floodplains, rias, floating mats, peat bogs,
+  thaw ponds, sea arches, blowholes, tidal islands, lagoons and atolls of coral rock, reef fields, blue holes,
+  submarine canyons and trenches, glaciers as real volumes of ice with crevasses, icefalls, moraines, ice
+  caves and glacier gates, ice sheets with nunataks, hanging valleys. Two new blocks (`peat`, `coral_rock`) and
+  three new planet types (`coral_sea`, `icecap`, `river_lowlands`). Existing worlds stay exactly as they are:
+  everything is gated on the world's terrain generation, and every classic golden checksum is unchanged.
+
 ### Fixed
 
 - **A hyperjump from the cockpit really takes you to the new system.** Jumping between stars while flying

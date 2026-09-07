@@ -89,6 +89,10 @@ public sealed class WorldGenerationGoldenTests
         // Part 7 (ice): glaciers, ice sheets and nunataks, hanging valleys, ice caves on the two ice worlds.
         new("glacier-gen3", 20260903, "glacier", 0, false, null, 3),
         new("ice-gen3", 20260903, "ice", 0, false, null, 3),
+        // Part 8: the three generation-3 planet types, where the new families are dense.
+        new("coral_sea-gen3", 20260903, "coral_sea", 0, false, null, 3),
+        new("icecap-gen3", 20260903, "icecap", 0, false, null, 3),
+        new("river_lowlands-gen3", 20260903, "river_lowlands", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -146,6 +150,10 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-08 (part 7, ice; unreleased — later parts re-pin these).
             ["glacier-gen3"] = 0xaaf721d431838ceaUL,
             ["ice-gen3"] = 0x3e04e32f31a07609UL,
+            // Pinned 2026-09-08 (part 8, the new planet types).
+            ["coral_sea-gen3"] = 0x1fb61378b5bb1fa2UL,
+            ["icecap-gen3"] = 0x786cf683677e2526UL,
+            ["river_lowlands-gen3"] = 0xee25a930cd9958d9UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -1115,3 +1115,30 @@ floor and ends at the trough wall.
 **Icebergs** (part 1) now keep off a landing pad's footprint. The plan's `VoidBelow` probe for pads is
 already there: the pad fill plugs caves under a pad to `PadFoundationDepth`; structures still do not read
 the underground, which stays a known gap.
+
+### 13.8 Part 8 — the three planet types
+
+Every family above is gated on a tag or a temperature, never on a planet key, so a data-only type can opt
+into any of them. Three new types give the new families a home where they are dense instead of a rare roll,
+all with `minTerrainGeneration: 3` — the #1649 retype roll (`ApplyGenerationTypes`) already admits every
+gated type whose generation the galaxy reaches, so a generation-3 galaxy retypes a share of its bodies into
+them and a generation-1 galaxy never sees them (the galaxy layout stays byte-identical either way):
+
+- **`coral_sea`** — a warm (27 °C), breathable world that is almost all shallow sea (water 0.95, `wetland`
+  + `reef`, the archipelago style): reef fields, lagoons and atolls, blue holes, causeway islands, sea
+  arches, meanders on the islands.
+- **`icecap`** — a bitterly cold (−30 °C) glacial world (water 0.6, snow over ice, the glacial + mountains
+  styles): the ice sheet with nunataks, glaciers with icefalls and moraines, ice caves and glacier gates,
+  frost polygons and thaw ponds on the bare ground, icebergs off the frozen coast. Toxic air, exotic.
+- **`river_lowlands`** — a mild (15 °C), breathable lowland (water 0.7, `wetland`, flats + downs): meanders
+  and oxbows, deltas, floodplains, peat bogs, floating mats, rias on the coast.
+
+Each has a name and a description in all fourteen locales (EN/DE by hand, the rest through
+`tools/translate_locale.py`), a name flavour in `NameGenerator.PlanetFlavors`, and a golden group.
+
+**What the plan asked for that this package leaves out**, for the record: the blowhole's client-side
+VFX variant (the vent reuses the geyser effect as is), the meltwater sheet and river stroke out of a
+glacier gate (the gate is dry), the `VoidBelow` probe for structures (pads already have a foundation),
+and the `packed_ice` block (the glacier reads fine with the existing ice). The slot canyon, the arête,
+the tooth row and the glacial trough still use the libm angle (`Math.Cos/Sin`, like the classic rift):
+their goldens are Windows-pinned, as every trig-derived golden has been since #1503.

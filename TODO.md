@@ -81,7 +81,10 @@ drops, scree moraines on the flanks and the snout), glacier gates and ice caves 
 cell), sheet caves through the crust of ice-surface worlds, ice sheets with nunataks by row precedence,
 hanging valleys beside the glacial troughs, icebergs off the pads; frost polygons and thaw ponds yield to ice
 cover. Goldens `glacier-gen3`, `ice-gen3` pinned, `tundra-gen3`, `frozen_ocean-gen3` re-pinned.
-**Part 8 (open):** the new planet types (`coral_sea`, `icecap`, `river_lowlands`) and the docs/changelog.
+**Part 8 (planet types + docs) — DONE on the branch (2026-09-08):** `coral_sea`, `icecap`, `river_lowlands`
+(`minTerrainGeneration: 3`, retyped into generation-3 galaxies by the #1649 roll), names + descriptions in
+all 14 locales, name flavours, goldens `coral_sea-gen3`, `icecap-gen3`, `river_lowlands-gen3`; docs §13.8,
+changelog entry. The whole package is now on the branch — next: the local Unity build, issues, the PR.
 
 ---
 
