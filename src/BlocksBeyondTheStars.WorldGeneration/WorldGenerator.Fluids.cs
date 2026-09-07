@@ -297,8 +297,12 @@ public sealed partial class WorldGenerator
             // run under a rock roof. Null on every other world, and then the rasterisation is the classic one.
             var w = WonderFor(planet);
             System.Func<int, int, bool>? sunk = w.UndergroundRivers ? (x, z) => KarstRegionAt(w, x, z) : null;
+            // River morphology (generation 3, part 5): meanders with oxbows, delta fans, floodplains — every
+            // parameter at its classic no-op below generation 3, so the field is byte-identical there.
+            bool morph = w.RiverMorphology;
             return RiverField.Build(net, Height, _circumference, fillFluid: waterId,
-                channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk);
+                channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk,
+                sinuosity: morph ? 1.0 : 0.0, distributaries: morph ? 4 : 0, floodplainWidth: morph ? 6 : 0);
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the

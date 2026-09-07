@@ -59,7 +59,17 @@ a basalt skin three deep, and 1-deep lava pockets on the core through the body c
 mouth), barchans (fields of crescent dunes on wind-and-sand worlds that rolled no dune sea), frost polygons
 (the salt-polygon net on cold wet ground: 1-high stone ridges, ice-covered ponds in a fifth of the plates).
 All geometry trig-free. Goldens `lava-gen3`, `tundra-gen3` pinned, `frozen_ocean-gen3` re-pinned.
-**Parts 5–8 (open):** wetlands and rivers, coast and sea floor, ice, then the new planet types and docs.
+**Part 5 (wetlands + rivers) — DONE on the branch (2026-09-08):** river morphology in the rasteriser behind
+classic-no-op parameters — meanders (one S per low-gradient coarse cell, oxbow pools at a quarter of the
+apexes), delta fans (2–4 half-width strokes out of every sea outlet), floodplains (mud paint, a third of it
+1-deep pools); rias (drowned shelf-coast valleys, a sea-relative row — the partition test now allows land to
+become sea, never the reverse); floating vegetation mats (a mud band at a lake's water top); peat bogs (the
+new `peat` block — texture generated, 14 locales — six deep with pools, reeds and lichen as its late-host
+flora); thermokarst ponds (2–4 deep on Voronoi plates with a 1-high polygonal rim). Surface flora follows a
+generation-3 paint (ember blooms on a lava flow, lichen on a frost ridge). Goldens `swamp-gen3`,
+`boreal-gen3` pinned; every gen-3 group re-pinned; every classic / gen-1 golden unchanged (the peat host is a
+`LateHosts` entry so the roster coverage rule never sees it).
+**Parts 6–8 (open):** coast and sea floor, ice, then the new planet types and docs.
 
 ---
 

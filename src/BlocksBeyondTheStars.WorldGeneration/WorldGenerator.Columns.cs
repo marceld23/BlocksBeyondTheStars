@@ -270,6 +270,7 @@ public sealed partial class WorldGenerator
                 int shieldLo = col.ShieldLo, shieldHi = col.ShieldHi;
                 bool materialBands = col.MaterialBands;
                 int dripDown = col.DripDown, dripUp = col.DripUp;
+                bool paintedHost = col.PaintedHost;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
@@ -304,6 +305,12 @@ public sealed partial class WorldGenerator
                                         chunk.Set(lx, ly, lz, columnFluid);
                                     }
 
+                                    bandHit = true;
+                                }
+                                else if (bands[b].Kind == BandKind.Mat)
+                                {
+                                    // A floating mat (part 5): one cell of mud at the lake's water top.
+                                    chunk.Set(lx, ly, lz, mudId.IsAir ? subSurfaceId : mudId);
                                     bandHit = true;
                                 }
                             }
@@ -359,6 +366,9 @@ public sealed partial class WorldGenerator
                                             chunk.Set(lx, ly, lz, columnFluid);
                                         }
 
+                                        break;
+                                    case BandKind.Mat: // generation 3, part 5 (normally taken by the pre-scan above)
+                                        chunk.Set(lx, ly, lz, mudId.IsAir ? subSurfaceId : mudId);
                                         break;
                                     default: // BandKind.Waterfall (#707): a standing column of falling water
                                         if (!seaWaterId.IsAir)
@@ -571,8 +581,10 @@ public sealed partial class WorldGenerator
                 {
                     // On a beach the painted ground is the beach block, not the biome surface — grow that
                     // host's flora (sparse sand tufts), never grass plants standing in sand (#679).
+                    // A generation-3 landmark paint likewise hosts its own flora (reeds on peat, lichen on a frost
+                    // ridge's stone, ember blooms on a lava flow's basalt) — never on an older world.
                     var floraId = FloraForSurface(planet, biome, seed, worldX, worldZ,
-                        beachHere ? surfaceId : (BlockId?)null);
+                        beachHere || paintedHost ? surfaceId : (BlockId?)null);
                     int fy = seabedY + 1;
                     int fly = fy - origin.Y;
                     // Local density is modulated by a vegetation-richness mask (lush forest floors / meadows vs
@@ -685,6 +697,9 @@ public sealed partial class WorldGenerator
         /// <summary>Dripstone lengths (part 3): cells hanging from a carve span's roof / rising from its floor; 0/0 unless
         /// the world drips and the column carries a tunnel or a cavern.</summary>
         public byte DripDown, DripUp;
+        /// <summary>A generation-3 landmark paint set the surface block, so the surface flora follows the painted
+        /// block instead of the biome's (part 5). Never true on a generation 0–2 column.</summary>
+        public bool PaintedHost;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -989,6 +1004,7 @@ public sealed partial class WorldGenerator
         var landmarkCycles = wonder.ActivePaintCycles;
         int paintFillToY = int.MinValue; // generation 3: the last painter that hit decides the fill, like the block
         BlockId[]? paintCycle = null;
+        bool paintedHost = false;
         for (int i = 0; i < landmarkPaints.Length; i++)
         {
             if (landmarkPaints[i](this, planet, wonder, worldX, worldZ, surfaceY, out int fillToY) is { } painted)
@@ -997,6 +1013,7 @@ public sealed partial class WorldGenerator
                 subSurfaceId = painted;
                 paintFillToY = fillToY;
                 paintCycle = landmarkCycles[i]?.Invoke(this, planet, wonder, worldX, worldZ);
+                paintedHost = wonder.Generation >= 3; // part 5: the flora follows a generation-3 paint
             }
         }
 
@@ -1020,7 +1037,7 @@ public sealed partial class WorldGenerator
             {
                 islandTop = bands[b].Top;
             }
-            else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid)
+            else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid || bands[b].Kind == BandKind.Mat)
             {
                 materialBands = true;
             }
@@ -1129,6 +1146,7 @@ public sealed partial class WorldGenerator
             MaterialBands = materialBands,
             DripDown = dripDown,
             DripUp = dripUp,
+            PaintedHost = paintedHost,
         };
     }
 }

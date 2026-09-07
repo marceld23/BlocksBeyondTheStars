@@ -61,7 +61,16 @@ public static class FloraCatalog
         bool Aquatic = false,
         FloraTag Tags = FloraTag.None,
         FloraHeight Height = FloraHeight.Short,
-        bool Cultivated = false);
+        bool Cultivated = false,
+        string[]? LateHosts = null)
+    {
+        /// <summary>Hosts a later terrain generation added (the peat of generation 3). They are NOT part of
+        /// <see cref="Hosts"/> on purpose: the roster's host-coverage rule reads <see cref="Hosts"/>, and a host
+        /// that only exists on new worlds must never change which species an older world activates. World
+        /// generation pools them from generation 3; the server's regrow and the client's fertile-ground cue
+        /// always count them (a late host block never exists on an older world).</summary>
+        public string[] LateHosts { get; init; } = LateHosts ?? System.Array.Empty<string>();
+    }
 
     /// <summary>All flora species, paired with the surface block keys they may grow on.</summary>
     public static readonly IReadOnlyList<Species> All = new[]
@@ -77,7 +86,7 @@ public static class FloraCatalog
         new Species("flora_cactus",      new[] { "sand" }, Tags: FloraTag.Dry),
         new Species("flora_dryshrub",    new[] { "sand", "dirt", "salt" }, Tags: FloraTag.Dry),
         // Swamp / wetland (mud) + fungal mycelium.
-        new Species("flora_reed",        new[] { "mud" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall),
+        new Species("flora_reed",        new[] { "mud" }, Tags: FloraTag.Wetland, Height: FloraHeight.Tall, LateHosts: new[] { "peat" }), // peat: the cotton-grass stand of a bog
         new Species("flora_glowcap",     new[] { "mud", "mycelium" }, Tags: FloraTag.Fungal | FloraTag.Glow),
         // Aquatic — kelp roots on the seabed, lily pads float on the water surface (world gen places these
         // under/at the sea; the host lets harvested plants regrow on the same spot, like land flora).
@@ -105,7 +114,7 @@ public static class FloraCatalog
         new Species("flora_pitcher",     new[] { "mud", "grass" }, Tags: FloraTag.Wetland),
         new Species("flora_puffball",    new[] { "mud", "dirt", "mycelium" }, Tags: FloraTag.Fungal),
         // Harsh worlds — icy tundra.
-        new Species("flora_lichen",      new[] { "ice", "stone", "snow" }, Tags: FloraTag.Cold | FloraTag.Rocky),
+        new Species("flora_lichen",      new[] { "ice", "stone", "snow" }, Tags: FloraTag.Cold | FloraTag.Rocky, LateHosts: new[] { "peat" }),
         new Species("flora_ashweed",     new[] { "basalt", "ash" }, Tags: FloraTag.Dry),
         // Aquatic — coral reefs + seagrass on the seabed.
         new Species("flora_coral",       new[] { "sand", "stone" }, Aquatic: true, Tags: FloraTag.Wetland | FloraTag.Rocky),

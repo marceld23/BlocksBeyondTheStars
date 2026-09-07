@@ -430,6 +430,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 4 — the volcanic and desert landforms.
         public bool ObsidianFields, LavaFlows, Barchans, FrostPolygons;
 
+        // Terrain generation 3, part 5 — wetlands and rivers.
+        public bool RiverMorphology, Rias, FloatingMats, PeatBogs, Thermokarst;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -549,6 +552,15 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FrostPolygonPaint(w, x, z, out fill)),
         new("obsidian-field", w => w.ObsidianFields, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ObsidianFieldPaint(p, w, x, z, y, out fill)),
+        // Part 5 — wetlands and rivers. The ria is sea-relative (it drowns the shelf coast, so it must know the
+        // sea); the thaw-pond rim is a one-block heave; the floodplain and the bog are paints (peat last, so a
+        // bog on a floodplain is peat).
+        new("ria", w => w.Rias, static (g, p, w, x, z) => g.RiaOffset(p, w, x, z), seaRelative: true),
+        new("thermokarst", w => w.Thermokarst, static (g, p, w, x, z) => g.ThermokarstOffset(w, x, z)),
+        new("floodplain", w => w.RiverMorphology, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FloodplainPaint(p, w, x, z, out fill)),
+        new("peat-bog", w => w.PeatBogs, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.PeatBogPaint(p, w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -612,6 +624,11 @@ public sealed partial class WorldGenerator
             ["lavaFlows"] = w.LavaFlows,
             ["barchans"] = w.Barchans,
             ["frostPolygons"] = w.FrostPolygons,
+            ["riverMorphology"] = w.RiverMorphology,
+            ["rias"] = w.Rias,
+            ["floatingMats"] = w.FloatingMats,
+            ["peatBogs"] = w.PeatBogs,
+            ["thermokarst"] = w.Thermokarst,
         };
     }
 
@@ -622,6 +639,7 @@ public sealed partial class WorldGenerator
         "seamounts", "icebergs", "undergroundRivers", "slotCanyons", "aretes", "toothRows",
         "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata", "dripstone",
         "obsidianFields", "lavaFlows", "barchans", "frostPolygons",
+        "riverMorphology", "rias", "floatingMats", "peatBogs", "thermokarst",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -814,6 +832,13 @@ public sealed partial class WorldGenerator
                     w.LavaFlows = HasLavaFlows(planet);
                     w.Barchans = HasBarchans(planet, w.Styles);
                     w.FrostPolygons = HasFrostPolygons(planet);
+
+                    // Part 5: wetlands and rivers.
+                    w.RiverMorphology = HasRiverMorphology(planet);
+                    w.Rias = HasRias(planet);
+                    w.FloatingMats = HasFloatingMats(planet);
+                    w.PeatBogs = HasPeatBogs(planet);
+                    w.Thermokarst = HasThermokarst(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

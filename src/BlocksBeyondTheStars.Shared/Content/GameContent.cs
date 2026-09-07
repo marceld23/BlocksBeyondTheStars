@@ -458,6 +458,14 @@ public sealed class GameContent
                     block.FloraHost = true;
                 }
             }
+
+            foreach (var hostKey in species.LateHosts) // a late host block only exists on a new world
+            {
+                if (_blocks.TryGetValue(hostKey, out var block))
+                {
+                    block.FloraHost = true;
+                }
+            }
         }
     }
 

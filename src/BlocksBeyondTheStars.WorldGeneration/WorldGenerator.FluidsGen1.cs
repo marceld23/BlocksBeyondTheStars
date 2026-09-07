@@ -147,6 +147,31 @@ public sealed partial class WorldGenerator
             return true;
         }
 
+        // Part 5: a floodplain's pools, a bog's pools, a thaw pond.
+        if (w.RiverMorphology && FloodplainPoolAt(planet, w, worldX, worldZ, surfaceY))
+        {
+            top = surfaceY;
+            bed = surfaceY - 1;
+            fluid = water;
+            return true;
+        }
+
+        if (w.PeatBogs && PeatPoolAt(planet, w, worldX, worldZ, surfaceY))
+        {
+            top = surfaceY;
+            bed = surfaceY - 1;
+            fluid = water;
+            return true;
+        }
+
+        if (w.Thermokarst && ThermokarstPondAt(planet, w, worldX, worldZ, surfaceY, out int thawDepth))
+        {
+            top = surfaceY;
+            bed = surfaceY - thawDepth;
+            fluid = water;
+            return true;
+        }
+
         return false;
     }
 

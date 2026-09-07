@@ -104,11 +104,19 @@ public sealed class LandformGen3Tests
         int lifted = 0;
         for (int i = 0; i < withRows.Length; i++)
         {
-            Assert.Equal(withoutRows[i] >= sea, withRows[i] >= sea); // land stays land, sea stays sea
+            // Sea stays sea: a sea-relative row never makes land the calibration did not count (a seamount stays
+            // under). Land MAY become sea — that is a ria (part 5), a drowned valley on the shelf coast.
+            Assert.True(withoutRows[i] >= sea || withRows[i] < sea, "a sea-relative row made new land");
             if (withRows[i] != withoutRows[i])
             {
                 lifted++;
-                Assert.True(withRows[i] > withoutRows[i], "a sea-relative row lowered the sea floor");
+                if (withRows[i] < withoutRows[i])
+                {
+                    // A ria (part 5) cut this column down: only ever COAST LAND (the sea floor is never lowered).
+                    Assert.True(withoutRows[i] > sea, "a sea-relative row lowered the sea floor");
+                    continue; // the seamount rules below are not its rules
+                }
+
                 Assert.True(withRows[i] <= sea - 3, $"a seamount summit at {withRows[i]} breaks the clearance under sea {sea}");
                 Assert.True(withoutRows[i] <= sea - 2, "a seamount rose where the sea did not own the column");
             }
@@ -300,7 +308,9 @@ public sealed class LandformGen3Tests
             int surface = gen.SurfaceHeight(planet, pos.X, pos.Z);
             Assert.True(roof < surface, "a non-mouth passage breaks the surface");
             Assert.NotEqual(BlockId.Air, world.Cell(pos.X, surface, pos.Z)); // the ground over it is intact
-            Assert.True(top < roof, "no headroom above the water");
+            Assert.True(top < roof,
+                $"no headroom above the water at {pos}: top {top} bed {bed} roof {roof} surface {surface}; column water {col.WaterSurfaceY} bed {col.BedY} roof {col.RoofY} mouth {col.Mouth}; "
+                + $"gen-1 surface {gen1.SurfaceHeight(planet, pos.X, pos.Z)}, floodplain {field.IsFloodplain(pos.X, pos.Z)}, pooled {field.TryGetPooled(pos.X, pos.Z, out _)}");
             for (int y = bed + 1; y <= top; y++)
             {
                 var cell = world.Cell(pos.X, y, pos.Z);

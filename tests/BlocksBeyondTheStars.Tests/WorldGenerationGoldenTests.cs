@@ -64,7 +64,8 @@ public sealed class WorldGenerationGoldenTests
         new("swamp-gen1", 20260903, "swamp", 0, false, null, 1),
         // Terrain generation 3, part 1 (the landform completion package): seamounts (sea-relative rows),
         // icebergs (material bands), underground river reaches (sub-surface fluid spans), glacier-tongue fill
-        // (paint fill). highland-gen3 activates none of them and must equal highland-gen1 exactly.
+        // (paint fill). highland-gen3 activated none of them through part 4 (= highland-gen1); since part 5 the wet alpine
+        // world has river morphology and rias, and the no-family control lives in the gate-searching test.
         new("ocean-gen3", 424242, "ocean", 0, false, null, 3),
         new("frozen_ocean-gen3", 20260903, "frozen_ocean", 0, false, null, 3),
         new("karst-gen3", 20260903, "karst", 0, false, null, 3),
@@ -80,6 +81,9 @@ public sealed class WorldGenerationGoldenTests
         // barchans may move the desert groups (re-pinned).
         new("lava-gen3", 20260903, "lava", 0, false, null, 3),
         new("tundra-gen3", 20260903, "tundra", 0, false, null, 3),
+        // Part 5 (wetlands + rivers): mats and peat on the swamp, peat and morphology on the boreal world.
+        new("swamp-gen3", 20260903, "swamp", 0, false, null, 3),
+        new("boreal-gen3", 20260903, "boreal", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -115,20 +119,23 @@ public sealed class WorldGenerationGoldenTests
             ["swamp-gen1"] = 0x5c5a1959a7982a19UL,
             // Pinned 2026-09-07 (terrain generation 3 part 1, Windows 11, .NET 10; unreleased — later parts
             // re-pin these). ocean-gen3 equals ocean-gen1 (no seamount under the three sample columns) and
-            // highland-gen3 MUST equal highland-gen1: no generation-3 family is active there.
-            ["ocean-gen3"] = 0xcd2223af53fc3766UL,
+            // highland-gen3 equalled highland-gen1 through part 4 (no family active); part 5 re-pinned it.
+            ["ocean-gen3"] = 0xd332372ad8f67b85UL, // re-pinned for part 5: a ria drowns a coast column
             ["frozen_ocean-gen3"] = 0x97a7ec609a2d7b2aUL, // re-pinned for part 4: frost polygons pattern its cold wet ground
-            ["karst-gen3"] = 0x112bb9862281777cUL, // re-pinned for part 2: the stone-forest style joined the karst pool
-            ["highland-gen3"] = 0x49f4107c54801291UL, // arêtes are gated on since part 2 but roll none under the sample columns
+            ["karst-gen3"] = 0xbb494ccb1798e108UL, // re-pinned for part 5 (river morphology; part 2: the stone-forest style)
+            ["highland-gen3"] = 0x7f796ec06cb54308UL, // re-pinned for part 5: since then the wet alpine world has river morphology + rias — the no-family control lives in the gate-searching test
             // Pinned 2026-09-07 (part 2, the rock landforms; unreleased — later parts re-pin these).
-            ["desert-gen3"] = 0x2a8b8eb6b2a731b2UL,
-            ["red_desert-gen3"] = 0xc81c9b00f5725077UL,
-            ["dust_bowl-gen3"] = 0x4aa0227f75eb2f2aUL,
+            ["desert-gen3"] = 0x12d1f68f2b91c7ddUL, // re-pinned for part 5: flora follows the generation-3 paints
+            ["red_desert-gen3"] = 0xc9b35bc8e7953302UL, // re-pinned for part 5
+            ["dust_bowl-gen3"] = 0xdbd5c91922585dd8UL, // re-pinned for part 5
             // Pinned 2026-09-07 (part 3, the caves; unreleased — later parts re-pin these).
-            ["jungle-gen3"] = 0x830c938ef5e9f19fUL, // karst-gen3 stayed: no dripstone under its sample columns
+            ["jungle-gen3"] = 0x604c4eaed2ed4148UL, // re-pinned for part 5 (river morphology, flora on paints)
             // Pinned 2026-09-07 (part 4, volcanic + desert; unreleased — later parts re-pin these).
             ["lava-gen3"] = 0xe08b8deab2d122deUL,
             ["tundra-gen3"] = 0xae79304259a4ff1dUL, // the desert groups stayed: no barchan field under their sample columns
+            // Pinned 2026-09-07 (part 5, wetlands + rivers; unreleased — later parts re-pin these).
+            ["swamp-gen3"] = 0x6f5636cb565bf8cfUL,
+            ["boreal-gen3"] = 0x0db4acbd71f6b6bdUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

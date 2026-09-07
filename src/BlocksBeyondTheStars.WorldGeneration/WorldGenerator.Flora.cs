@@ -132,6 +132,21 @@ public sealed partial class WorldGenerator
             _floraTagByBlock[flora.NumericId.Value] = sp.Tags;
             foreach (var hostKey in sp.Hosts)
             {
+                AddHost(hostKey);
+            }
+
+            // Late hosts (terrain generation 3): the peat of part 5. Pooled only on a generation-3 world, so an
+            // older world's pools — and its goldens — never see a host block it cannot generate anyway.
+            if (_terrainGeneration >= 3)
+            {
+                foreach (var hostKey in sp.LateHosts)
+                {
+                    AddHost(hostKey);
+                }
+            }
+
+            void AddHost(string hostKey)
+            {
                 if (_content.GetBlock(hostKey) is { } host)
                 {
                     if (!acc.TryGetValue(host.NumericId.Value, out var list))

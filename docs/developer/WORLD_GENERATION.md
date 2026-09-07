@@ -972,3 +972,58 @@ shared `PolygonNet` that also reports the nearest plate's hash; the salt pans ar
 one block proud (an offset row) with a stone skin (a paint), and a fifth of the plates hold a 1-deep pond
 (a body) that the classic freeze pass covers with ice. The `frozen_ocean` world qualifies, so its
 generation-3 golden moved with this part.
+
+### 13.5 Part 5 — wetlands and rivers
+
+**River morphology** lives in `RiverField.Build` behind three parameters whose defaults are the classic
+no-op (`sinuosity` 0, `distributaries` 0, `floodplainWidth` 0); `BuildRiverField` passes 1.0 / 4 / 6 on a
+`RiverMorphology` world (a wet water world with land) and the defaults everywhere else, so every older
+field is byte-identical. *Meanders*: a low-gradient surface stroke (≤ 1 block between its cell centres,
+not sunk, not the sea outlet) bends into one S between the centres — the offset is perpendicular, zero at
+both ends (consecutive strokes stay joined) and at the middle, at most what keeps the band inside the
+drainage cell row — and the terrain is sampled at the OFFSET column, so the water still follows the
+ground. A quarter of the bends leave an *oxbow*: a still crescent of 1-deep water two to four blocks beyond
+the channel at the apex. *Deltas*: at every sea outlet 2–4 half-width strokes fan out ±27–45° (a hash-drawn
+(6, ±k) unit vector, trig-free) for one or two cells with beds a single block deep. *Floodplains*: the dry
+ground beside every surface reach (half the width beside a lone brook, the full six beside a reach that
+gathered two brooks — `FlowAccum` counts SOURCES, and on a default world most rivers never merge) and
+inside a delta fan, where it lies within two blocks of the water, is flagged; a river column never is. The
+column phase paints the flag mud (`floodplain` row) and floods a third of it one deep (a body of the
+generation-1 chain).
+
+**Rias** are a sea-relative row: where a valley line of a ridged field crosses the shelf coast (raw ground
+at most 6 above the sea), the ground drops in a V to 2–5 below the sea, ramping out at the head, so the sea
+runs up the valley as a branching inlet. This is the one row that turns land into sea, and the part-1
+partition test now says exactly that: a sea-relative row may drown coast land, never make new land, never
+lower the sea floor. The soluble-rock belt of an underground-river world keeps its coast (with a coarse cell
+of margin): a sunk reach carries the centerline's levels across its cross-section, and a V cut across it
+would leave a bank with its water at the ground.
+
+**Floating mats** are a material band (`BandKind.Mat`): one cell of mud at the water top of a pooled lake
+column inside a 4–9-radius hotspot patch, written by the pre-scan before the sea fill. Nothing floats
+physically — it reads as a bog island. `RiverField.TryGetPooled` exposes the pooled columns for it.
+
+**Peat bogs** are a paint six deep (the new `peat` block — dark fibrous bog soil, texture generated, named in
+all fourteen locales) across a broad region on flat ground of cool-to-cold wet wetland / glacial worlds
+(boreal, tundra, swamp, ocean), with two fifths of the bog standing one deep in water. Reeds and lichen grow
+on peat through `Species.LateHosts` — hosts a later generation added, deliberately NOT part of `Hosts`: the
+roster's host-coverage rule reads `Hosts`, and a host that only exists on new worlds must never change which
+species an older world activates (it did, in the first attempt, and moved the classic jungle golden). World
+generation pools late hosts from generation 3; the server's regrow and the client's fertile-ground cue always
+count them.
+
+**Thermokarst** ponds reuse `PolygonNet` at a 46-block pitch: three plates in four of a region hold a pond
+that is the plate's interior (so its outline is the Voronoi polygon), 2–4 deep (a body; the freeze pass ices
+it), with a 1-high rim (an offset row) in the band just outside; the frost-polygon region is excluded so the
+two cold patterns never stack.
+
+**Flora follows a generation-3 paint.** `ColumnProfile.PaintedHost` is set when a landmark paint hits on a
+generation-3 world, and the surface flora then reads the painted block as its host (like a beach): ember
+blooms on a lava flow's basalt, lichen on a frost ridge's stone, reeds on peat. Never on an older world.
+
+**A sunk reach hangs under the lowest ground of its cross-section.** Part 1 hung the passage a constant
+cover under the CENTERLINE's terrain and let every band column carry those levels. On a karst world with
+the stone-forest style a centerline on a pinnacle can have the floor forty blocks lower right beside it, and
+the band's water would then sit above its neighbours' ground — an open hillside. The rasteriser now takes
+the minimum terrain across the band and its bank ring for the roof and water levels, so every column of the
+cross-section keeps its cover and its seal. Classic fields are untouched (no classic stroke is sunk).

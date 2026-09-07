@@ -31,6 +31,8 @@ public sealed partial class WorldGenerator
         Waterfall = 3,
         Ice = 4,
         Fluid = 5,
+        /// <summary>Generation 3, part 5: a floating vegetation mat — one cell of mud at a lake's water top.</summary>
+        Mat = 6,
     }
 
     /// <summary>One extra solid/fluid band of a column (#705), in inclusive world-Y coordinates.</summary>
@@ -135,6 +137,12 @@ public sealed partial class WorldGenerator
         if (n < bands.Length && w.Icebergs && TryGetIcebergBand(planet, w, worldX, worldZ, out int ibLo, out int ibHi))
         {
             bands[n++] = new ColumnBand { Bottom = ibLo, Top = ibHi, Kind = BandKind.Ice };
+        }
+
+        // Part 5: floating vegetation mats on pooled lake water (false below generation 3).
+        if (n < bands.Length && w.FloatingMats && TryGetMatBand(planet, w, worldX, worldZ, out int matY))
+        {
+            bands[n++] = new ColumnBand { Bottom = matY, Top = matY, Kind = BandKind.Mat };
         }
 
         return n;

@@ -47,7 +47,7 @@ public sealed partial class GameServer
             }
 
             _floraIds.Add(flora.NumericId.Value);
-            _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts);
+            _floraHostIds[flora.NumericId.Value] = HostIds(sp.Hosts.Concat(sp.LateHosts).ToArray()); // regrow on a late host too
         }
 
         // Per-BODY flora roster (#478): each archetype block gets this world's coined name + edible/toxic
