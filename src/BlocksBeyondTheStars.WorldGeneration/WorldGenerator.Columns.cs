@@ -258,12 +258,57 @@ public sealed partial class WorldGenerator
                 bool geodeHere = col.GeodeHere;
                 int geoLo = col.GeoLo, geoHi = col.GeoHi, geoInLo = col.GeoInLo, geoInHi = col.GeoInHi;
                 int strataShift = col.StrataShift;
+                // Terrain generation 3: the paint fill, the sub-surface fluid spans and the cave shield — all at
+                // their classic no-op values (MinValue / empty / an empty range) on every generation 0–2 column.
+                int paintFillToY = col.PaintFillToY;
+                var subFluid = col.SubFluid;
+                int subFluidCount = subFluid.Length;
+                int shieldLo = col.ShieldLo, shieldHi = col.ShieldHi;
+                bool materialBands = col.MaterialBands;
 
                 for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
                 {
                     int worldY = origin.Y + ly;
                     if (worldY > seabedY)
                     {
+                        // Material bands (generation 3) stand INSIDE the water span — an iceberg's hull below the
+                        // waterline — so they are consulted before the sea fill. Never present on a classic column.
+                        if (materialBands)
+                        {
+                            bool bandHit = false;
+                            for (int b = 0; b < bandCount && !bandHit; b++)
+                            {
+                                if (worldY < bands[b].Bottom || worldY > bands[b].Top)
+                                {
+                                    continue;
+                                }
+
+                                if (bands[b].Kind == BandKind.Ice)
+                                {
+                                    if (!iceId.IsAir)
+                                    {
+                                        chunk.Set(lx, ly, lz, iceId);
+                                    }
+
+                                    bandHit = true;
+                                }
+                                else if (bands[b].Kind == BandKind.Fluid)
+                                {
+                                    if (!columnFluid.IsAir)
+                                    {
+                                        chunk.Set(lx, ly, lz, columnFluid);
+                                    }
+
+                                    bandHit = true;
+                                }
+                            }
+
+                            if (bandHit)
+                            {
+                                continue;
+                            }
+                        }
+
                         if (worldY <= waterTop)
                         {
                             // Sea fill in a basin, or an upland pond above it — the top of a cold column
@@ -295,6 +340,20 @@ public sealed partial class WorldGenerator
                                         break;
                                     case BandKind.Cap:
                                         chunk.Set(lx, ly, lz, deepId); // bare rock: arch bars, caps, lips
+                                        break;
+                                    case BandKind.Ice: // generation 3 (normally taken by the pre-scan above)
+                                        if (!iceId.IsAir)
+                                        {
+                                            chunk.Set(lx, ly, lz, iceId);
+                                        }
+
+                                        break;
+                                    case BandKind.Fluid: // generation 3
+                                        if (!columnFluid.IsAir)
+                                        {
+                                            chunk.Set(lx, ly, lz, columnFluid);
+                                        }
+
                                         break;
                                     default: // BandKind.Waterfall (#707): a standing column of falling water
                                         if (!seaWaterId.IsAir)
@@ -339,6 +398,28 @@ public sealed partial class WorldGenerator
                         }
 
                         continue; // void (or the lake fill above)
+                    }
+
+                    // Sub-surface fluid spans (generation 3): an underground river's water on its passage floor —
+                    // the passage itself is a tunnel span, the cells around it are shielded from the cave carver,
+                    // so the water sits in a sealed pocket (generated fluid is a bottomless source to the automaton).
+                    if (subFluidCount > 0)
+                    {
+                        bool inFluid = false;
+                        for (int f = 0; f < subFluidCount; f++)
+                        {
+                            if (worldY >= subFluid[f].Lo && worldY <= subFluid[f].Hi)
+                            {
+                                chunk.Set(lx, ly, lz, subFluid[f].Fluid);
+                                inFluid = true;
+                                break;
+                            }
+                        }
+
+                        if (inFluid)
+                        {
+                            continue;
+                        }
                     }
 
                     // Crystal geode (#1646): a hollow sphere lined with crystal — the shell is solid crystal, the
@@ -388,8 +469,9 @@ public sealed partial class WorldGenerator
                         }
                     }
 
-                    // Carve caves below the surface layer (quantile-calibrated per world, #472).
-                    if (caveThreshold > 0.0 && depth > 1)
+                    // Carve caves below the surface layer (quantile-calibrated per world, #472). The cave shield
+                    // (generation 3) is the rock around a sub-surface fluid span; empty on a classic column.
+                    if (caveThreshold > 0.0 && depth > 1 && (worldY < shieldLo || worldY > shieldHi))
                     {
                         double cave = SampleField(samplers, CaveSampler, seed + 7777, worldX, worldZ, 22.0, 16.0, 22.0, worldY);
                         if (cave > caveThreshold)
@@ -419,6 +501,13 @@ public sealed partial class WorldGenerator
                     else if (depth < effSurfaceDepth)
                     {
                         block = depth == 0 ? surfaceId : subSurfaceId;
+                    }
+                    else if (paintFillToY != int.MinValue && worldY >= paintFillToY)
+                    {
+                        // Paint fill (generation 3): a landmark paint that claims the column down to fillToY — a
+                        // glacier that is ice through and through. No ore, strata or cache inside the fill; the
+                        // carvers above have already had their say.
+                        block = subSurfaceId;
                     }
                     else
                     {
@@ -551,6 +640,16 @@ public sealed partial class WorldGenerator
         public BlockId? CraterMetal;
         public ColumnBand[] Bands = System.Array.Empty<ColumnBand>();
         public (int Lo, int Hi)[] Tunnels = System.Array.Empty<(int Lo, int Hi)>();
+
+        // Terrain generation 3 — every field at its classic no-op value on a generation 0–2 column.
+        /// <summary>The lowest Y a landmark paint claims below the topsoil (MinValue = topsoil only).</summary>
+        public int PaintFillToY = int.MinValue;
+        /// <summary>Fluid spans below the seabed (an underground river's water); at most two.</summary>
+        public (int Lo, int Hi, BlockId Fluid)[] SubFluid = System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>();
+        /// <summary>[ShieldLo, ShieldHi] is never cave-carved — the rock around a sub-surface fluid span. Empty when Lo &gt; Hi.</summary>
+        public int ShieldLo = 1, ShieldHi = 0;
+        /// <summary>True when a band of kind Ice or Fluid covers the column (they must be written before the sea fill).</summary>
+        public bool MaterialBands;
     }
 
     /// <summary>The per-chunk constants the column phase reads (resolved once per Generate call).</summary>
@@ -676,19 +775,43 @@ public sealed partial class WorldGenerator
         // a flagged step a vertical waterfall column poured into the lower reach. Skipped where a pond,
         // a volcano crater or the global sea already claims the column. The river bed is carved to BedY.
         bool riverHere = false;
+        // Underground reach (generation 3): the surface stays; the passage and its water are carved below it.
+        bool passageHere = false;
+        int passageLo = 0, passageHi = -1, subLo = 0, subHi = -1, shieldLo = 1, shieldHi = 0;
         if (!pondHere && !craterHere && surfaceY > fluidLevel && riverField.TryGet(worldX, worldZ, out var river))
         {
-            riverHere = true;
-            seabedY = river.BedY;
-            if (river.WaterfallDrop > 0)
+            if (river.Underground)
             {
-                // River incision (#709): the plunge pool under a waterfall cuts a slot into the bed —
-                // the erosion look without simulating erosion.
-                seabedY -= System.Math.Min(6, river.WaterfallDrop);
-            }
+                // The roof is the CENTERLINE's value, so on a slope it may sit above this column's own ground —
+                // keep the carve under the surface unless this is the mouth (the shaft through the ground).
+                int roof = river.Mouth ? river.RoofY : System.Math.Min(river.RoofY, surfaceY - 1);
+                bool water = river.WaterSurfaceY > river.BedY; // a bank column carries air only
+                passageLo = water ? river.BedY + 1 : river.WaterSurfaceY + 1;
+                passageHi = roof;
+                passageHere = passageHi >= passageLo;
+                if (water)
+                {
+                    subLo = river.BedY + 1;
+                    subHi = System.Math.Min(river.WaterSurfaceY, roof);
+                }
 
-            waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
-            columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
+                shieldLo = river.BedY - 2;
+                shieldHi = roof + 2;
+            }
+            else
+            {
+                riverHere = true;
+                seabedY = river.BedY;
+                if (river.WaterfallDrop > 0)
+                {
+                    // River incision (#709): the plunge pool under a waterfall cuts a slot into the bed —
+                    // the erosion look without simulating erosion.
+                    seabedY -= System.Math.Min(6, river.WaterfallDrop);
+                }
+
+                waterTop = river.WaterfallDrop > 0 ? river.WaterSurfaceY + river.WaterfallDrop : river.WaterSurfaceY;
+                columnFluid = riverField.FillFluid; // water on watery worlds, lava on lava/ashen worlds (L2)
+            }
         }
 
         // Travertine deck pools (#701): shallow 1-deep water flush on the white terrace decks.
@@ -828,12 +951,14 @@ public sealed partial class WorldGenerator
         // classic world — the families above keep their inline paints because those interleave with the
         // beach/snow order; new families register a paint delegate instead of editing this method.
         var landmarkPaints = wonder.ActivePaints;
+        int paintFillToY = int.MinValue; // generation 3: the last painter that hit decides the fill, like the block
         for (int i = 0; i < landmarkPaints.Length; i++)
         {
-            if (landmarkPaints[i](this, planet, wonder, worldX, worldZ, surfaceY) is { } painted)
+            if (landmarkPaints[i](this, planet, wonder, worldX, worldZ, surfaceY, out int fillToY) is { } painted)
             {
                 surfaceId = painted;
                 subSurfaceId = painted;
+                paintFillToY = fillToY;
             }
         }
 
@@ -850,11 +975,16 @@ public sealed partial class WorldGenerator
         // sky-island fill; islandTop below feeds the island flora pass like before.
         int bandCount = anyBands ? GetExtraBands(planet, worldX, worldZ, bands) : 0;
         int islandTop = int.MinValue;
+        bool materialBands = false; // generation 3: Ice / Fluid bands are written before the sea fill
         for (int b = 0; b < bandCount; b++)
         {
             if (bands[b].Kind == BandKind.Island && bands[b].Top > islandTop)
             {
                 islandTop = bands[b].Top;
+            }
+            else if (bands[b].Kind == BandKind.Ice || bands[b].Kind == BandKind.Fluid)
+            {
+                materialBands = true;
             }
         }
 
@@ -863,8 +993,13 @@ public sealed partial class WorldGenerator
         bool cavernHere = cavernWorld
             && TryGetCavernSpan(planet, worldX, worldZ, out cavLo, out cavHi, out cavLakeY);
 
-        // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns).
+        // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns). An underground river's
+        // passage (generation 3) is appended as one more span: the same carve, one more source.
         int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
+        if (passageHere && tunnelCount < tunnelSpans.Length)
+        {
+            tunnelSpans[tunnelCount++] = (passageLo, passageHi);
+        }
 
         // Generation-1 underground finds (#1646): the geode sphere covering this column, and the strata region.
         int geoLo = 0, geoHi = -1, geoInLo = 1, geoInHi = 0;
@@ -906,6 +1041,14 @@ public sealed partial class WorldGenerator
             GeoInLo = geoInLo,
             GeoInHi = geoInHi,
             StrataShift = strataShift,
+            // Terrain generation 3
+            PaintFillToY = paintFillToY,
+            SubFluid = subHi >= subLo
+                ? new[] { (subLo, subHi, riverField.FillFluid) }
+                : System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>(),
+            ShieldLo = shieldLo,
+            ShieldHi = shieldHi,
+            MaterialBands = materialBands,
         };
     }
 }

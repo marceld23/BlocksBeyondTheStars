@@ -293,8 +293,12 @@ public sealed partial class WorldGenerator
             double wetness = System.Math.Min(1.0, System.Math.Max(0.0, (pondAbundance - 0.4) / 0.6));
             int sources = System.Math.Max(8, (int)System.Math.Round((40 + 80 * wetness) * areaScale));
             var net = RiverNetwork.Build(PlanetSeed(planet), _circumference, period, seaLevel, Height, cellSize: 16, sourceCount: sources);
+            // Underground reaches (generation 3): on a wet karst world the reaches crossing a soluble-rock belt
+            // run under a rock roof. Null on every other world, and then the rasterisation is the classic one.
+            var w = WonderFor(planet);
+            System.Func<int, int, bool>? sunk = w.UndergroundRivers ? (x, z) => KarstRegionAt(w, x, z) : null;
             return RiverField.Build(net, Height, _circumference, fillFluid: waterId,
-                channelFlowThreshold: 1, fullWidthAccum: 8);
+                channelFlowThreshold: 1, fullWidthAccum: 8, sunkRegion: sunk);
         }
 
         // LAVA rivers (L2): only the `lava` and `ashen` worlds (user decision). Magma is viscous, so the
@@ -357,13 +361,31 @@ public sealed partial class WorldGenerator
             return 0;
         }
 
-        if (RiverFieldFor(planet).TryGet(worldX, worldZ, out var col))
+        if (RiverFieldFor(planet).TryGet(worldX, worldZ, out var col) && !col.Underground)
         {
             int depth = col.WaterSurfaceY - col.BedY;
             return depth >= 1 ? depth : 1;
         }
 
         return 0;
+    }
+
+    /// <summary>An underground river reach under this column (terrain generation 3): the water's top cell, its
+    /// bed and the passage roof, all BELOW the untouched surface. False on a bank column (the walkable ledge
+    /// beside the water) and everywhere else. The surface-water queries never report these — this is the one
+    /// helper that does, for placement and spawn code that must know what lies under a seat.</summary>
+    public bool TryGetUndergroundRiver(PlanetType planet, int worldX, int worldZ, out int waterTopY, out int bedY, out int roofY)
+    {
+        waterTopY = bedY = roofY = 0;
+        if (!RiverFieldFor(planet).TryGet(worldX, worldZ, out var col) || !col.Underground || col.IsBank)
+        {
+            return false;
+        }
+
+        waterTopY = col.WaterSurfaceY;
+        bedY = col.BedY;
+        roofY = col.Mouth ? col.RoofY : System.Math.Min(col.RoofY, SurfaceHeight(planet, worldX, worldZ) - 1);
+        return true;
     }
 
     /// <summary>True if this surface column is under water — beneath the global water sea, inside an upland
@@ -455,7 +477,7 @@ public sealed partial class WorldGenerator
             bool classic = sy <= seaLevel
                 || SurfacePondDepth(planet, worldX, worldZ) > 0
                 || TryGetVolcanoCrater(planet, worldX, worldZ, out _)
-                || RiverFieldFor(planet).TryGet(worldX, worldZ, out _)
+                || (RiverFieldFor(planet).TryGet(worldX, worldZ, out var riverCol) && !riverCol.Underground)
                 || (wg.Travertine && TryGetTravertine(wg.Seed, worldX, worldZ, out _, out bool travPool) && travPool)
                 || (wg.Cenotes && TryGetCenotePool(planet, worldX, worldZ, out int cenoteTop) && cenoteTop > sy);
             if (!classic && TryGetGen1Water(planet, wg, worldX, worldZ, sy, out int g1Top, out int g1Bed, out var g1Fluid)
@@ -495,7 +517,7 @@ public sealed partial class WorldGenerator
         // terrain by design (that is what makes it a pool), so reconstructing the band from surfaceY put
         // the reported water into solid rock — and aquatic creatures spawned inside it.
         if (surfaceY > seaLevel && !TryGetVolcanoCrater(planet, worldX, worldZ, out _)
-            && RiverFieldFor(planet).TryGet(worldX, worldZ, out var col))
+            && RiverFieldFor(planet).TryGet(worldX, worldZ, out var col) && !col.Underground)
         {
             waterTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
             seabedY = col.BedY;
@@ -537,7 +559,7 @@ public sealed partial class WorldGenerator
         if (surfaceY > seaLevel)
         {
             var field = RiverFieldFor(planet);
-            if (field.FillFluid == lavaId && field.TryGet(worldX, worldZ, out var col))
+            if (field.FillFluid == lavaId && field.TryGet(worldX, worldZ, out var col) && !col.Underground)
             {
                 lavaTopY = col.WaterfallDrop > 0 ? col.WaterSurfaceY + col.WaterfallDrop : col.WaterSurfaceY;
                 bedY = col.BedY;

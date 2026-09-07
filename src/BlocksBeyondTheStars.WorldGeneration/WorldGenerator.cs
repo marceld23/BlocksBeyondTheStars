@@ -416,9 +416,18 @@ public sealed partial class WorldGenerator
         // #1647 (generation 1): water / lava bodies and surface paints — all false on gen 0.
         public bool Marshes, Oases, HotSprings, CalderaLakes, Playas, DeckBands, Moss, DryBeds;
 
+        // Terrain generation 3 (the landform completion package, part 1): the sea-floor family that proves the
+        // sea-relative landmark rows, the ice band that proves the band material, and the underground river
+        // reaches that prove the sub-surface fluid spans — all false below generation 3.
+        public bool Seamounts, Icebergs, UndergroundRivers;
+
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
         public LandmarkOffsetFn[] ActiveLandmarks = System.Array.Empty<LandmarkOffsetFn>();
+
+        /// <summary>The active SEA-RELATIVE rows (generation 3), run after <see cref="ActiveLandmarks"/> and only
+        /// once the sea level is known — never inside the calibration sample that computes it.</summary>
+        public LandmarkOffsetFn[] ActiveSeaLandmarks = System.Array.Empty<LandmarkOffsetFn>();
 
         /// <summary>The active rows' surface repaints, table order (#1644); run by the column phase.</summary>
         public LandmarkPaintFn[] ActivePaints = System.Array.Empty<LandmarkPaintFn>();
@@ -434,23 +443,36 @@ public sealed partial class WorldGenerator
     private delegate double LandmarkOffsetFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ);
 
     /// <summary>A landmark family's optional surface repaint at a column (null = keep the block the biome and
-    /// paint chain chose). Runs after the classic paints and before the ejecta rays.</summary>
-    private delegate BlockId? LandmarkPaintFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY);
+    /// paint chain chose). Runs after the classic paints and before the ejecta rays.
+    /// <paramref name="fillToY"/> (terrain generation 3): the lowest world Y the paint block also claims below
+    /// the topsoil — every SOLID cell from the surface down to it becomes the paint block, before ores, strata
+    /// and data caches (caves, tunnels and caverns still carve through it). <see cref="int.MinValue"/> = the
+    /// topsoil only, the classic behaviour.</summary>
+    private delegate BlockId? LandmarkPaintFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY);
 
     private readonly struct LandmarkKind
     {
-        public LandmarkKind(string name, System.Func<WonderProfile, bool> active, LandmarkOffsetFn offset, LandmarkPaintFn? paint = null)
+        public LandmarkKind(string name, System.Func<WonderProfile, bool> active, LandmarkOffsetFn offset, LandmarkPaintFn? paint = null,
+            bool seaRelative = false)
         {
             Name = name;
             Active = active;
             Offset = offset;
             Paint = paint;
+            SeaRelative = seaRelative;
         }
 
         public readonly string Name;
         public readonly System.Func<WonderProfile, bool> Active; // reads the profile's cached gate boolean
         public readonly LandmarkOffsetFn Offset;
         public readonly LandmarkPaintFn? Paint;
+
+        /// <summary>Terrain generation 3: the row shapes the SEA FLOOR and needs the calibrated sea level. It
+        /// runs after every classic row and never inside the calibration sample (the #1631 sea-mount rule,
+        /// generalised), so the percentile it reads is never its own output. Its offset must be 0 on a dry
+        /// world, 0 wherever the raw ground is not at least two below the sea, and must never lift the result
+        /// above one below the sea — so the land/sea partition the calibration saw stays exactly that.</summary>
+        public readonly bool SeaRelative;
     }
 
     private static readonly LandmarkKind[] LandmarkKinds =
@@ -475,14 +497,18 @@ public sealed partial class WorldGenerator
         new("yardangs", w => w.Yardangs, static (g, p, w, x, z) => g.YardangOffset(w, x, z)),
         new("drumlin-field", w => w.DrumlinFields, static (g, p, w, x, z) => g.DrumlinFieldOffset(w, x, z)),
         new("inselberg", w => w.Inselbergs, static (g, p, w, x, z) => g.InselbergOffset(p, w.Seed, x, z),
-            static (g, p, w, x, z, y) => g.InselbergPaint(p, w, x, z)),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.InselbergPaint(p, w, x, z, out fill)),
         new("star-dunes", w => w.StarDunes, static (g, p, w, x, z) => g.StarDuneOffset(w.Seed, x, z)),
         new("mud-volcanoes", w => w.MudVolcanoes, static (g, p, w, x, z) => g.MudVolcanoOffset(w.Seed, x, z)),
         new("sinkhole-chain", w => w.SinkholeChains, static (g, p, w, x, z) => g.SinkholeChainOffset(w.Seed, x, z)),
         new("maar", w => w.Maars, static (g, p, w, x, z) => g.MaarOffset(w.Seed, x, z)),
         new("mushroom-rock", w => w.MushroomRocks, static (g, p, w, x, z) => g.MushroomStemOffset(p, w, x, z)),
         new("glacier-tongue", w => w.GlacierTongues, static (g, p, w, x, z) => 0.0,
-            static (g, p, w, x, z, y) => g.GlacierTonguePaint(w, x, z)),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.GlacierTonguePaint(w, x, z, y, out fill)),
+        // Terrain generation 3 — sea-relative rows (SeaRelative: true). They run after every row above and only
+        // once the sea level is known, so the percentile they read is never their own output; the gates are
+        // false below generation 3.
+        new("seamount", w => w.Seamounts, static (g, p, w, x, z) => g.SeamountOffset(p, w, x, z), seaRelative: true),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -586,6 +612,11 @@ public sealed partial class WorldGenerator
         lock (_volcanoLock)
         {
             _volcanoCells.Clear(); // #1631: the sea-mount lift depends on the world mode + calibration
+        }
+
+        lock (_seaCellLock)
+        {
+            _seaCells.Clear(); // generation 3: the sea-relative families roll against the calibrated sea
         }
     }
 
@@ -691,7 +722,16 @@ public sealed partial class WorldGenerator
                     w.DryBeds = DryBedWorld(planet);
                 }
 
+                if (_terrainGeneration >= 3)
+                {
+                    // The landform completion package, part 1: one reference family per structural extension.
+                    w.Seamounts = HasSeamounts(planet);
+                    w.Icebergs = HasIcebergs(planet);
+                    w.UndergroundRivers = HasUndergroundRivers(planet);
+                }
+
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
+                var seaOffsets = new System.Collections.Generic.List<LandmarkOffsetFn>();
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
                 foreach (var kind in LandmarkKinds)
                 {
@@ -700,7 +740,7 @@ public sealed partial class WorldGenerator
                         continue;
                     }
 
-                    offsets.Add(kind.Offset);
+                    (kind.SeaRelative ? seaOffsets : offsets).Add(kind.Offset);
                     if (kind.Paint is { } paint)
                     {
                         paints.Add(paint);
@@ -708,9 +748,11 @@ public sealed partial class WorldGenerator
                 }
 
                 w.ActiveLandmarks = offsets.ToArray();
+                w.ActiveSeaLandmarks = seaOffsets.ToArray();
                 w.ActivePaints = paints.ToArray();
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes
-                    || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks; // #1646
+                    || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
+                    || w.Icebergs;
                 // #703 hybrid fade; #1645: on a multi-style world the fade runs whenever more than one style was
                 // rolled — identity styles (flats, spires) stay pure only as the sole pick.
                 w.HybridEligible = _terrainGeneration >= 1 && w.Styles.Length != 0
@@ -772,6 +814,18 @@ public sealed partial class WorldGenerator
         for (int i = 0; i < landmarks.Length && overlay == 0.0; i++)
         {
             overlay = landmarks[i](this, planet, w, worldX, worldZ); // table order = precedence, first hit wins
+        }
+
+        // Sea-relative rows (terrain generation 3) fire only once the sea is known — never inside the
+        // calibration sample, so the percentile they read is never their own output (the #1631 sea-mount
+        // rule, generalised). Last in precedence: a classic landmark always owns its column.
+        var seaRows = w.ActiveSeaLandmarks;
+        if (overlay == 0.0 && seaRows.Length != 0 && !_calibrating && !DisableSeaRowsForTest)
+        {
+            for (int i = 0; i < seaRows.Length && overlay == 0.0; i++)
+            {
+                overlay = seaRows[i](this, planet, w, worldX, worldZ);
+            }
         }
 
         if (overlay != 0.0)

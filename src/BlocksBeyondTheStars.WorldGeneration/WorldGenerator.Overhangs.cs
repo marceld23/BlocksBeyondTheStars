@@ -19,13 +19,18 @@ public sealed partial class WorldGenerator
 
     /// <summary>What an extra column band is made of (#705). Island reproduces the classic sky-island
     /// fill bit-for-bit; IslandPond is an island whose top cell is water; Cap is bare rock (arch bars,
-    /// hoodoo/sea-stack caps, cenote lips); Waterfall is a standing column of water.</summary>
+    /// hoodoo/sea-stack caps, cenote lips); Waterfall is a standing column of water. Terrain generation 3
+    /// adds two MATERIAL bands that may stand inside the column's own water span (icebergs, later ice shelves
+    /// and sea-cave pools): Ice fills solid ice, Fluid the column's fluid; Generate writes them BEFORE the sea
+    /// fill, so the sea stays below them.</summary>
     public enum BandKind : byte
     {
         Island = 0,
         IslandPond = 1,
         Cap = 2,
         Waterfall = 3,
+        Ice = 4,
+        Fluid = 5,
     }
 
     /// <summary>One extra solid/fluid band of a column (#705), in inclusive world-Y coordinates.</summary>
@@ -37,8 +42,9 @@ public sealed partial class WorldGenerator
     }
 
     /// <summary>Max extra bands a column can carry (#705): 3 island tiers + a cap + a waterfall, plus room for
-    /// the generation-1 bands (#1646: bridge, coastal ledge, cornice, mushroom cap) stacking on one column.</summary>
-    public const int MaxColumnBands = 8;
+    /// the generation-1 bands (#1646: bridge, coastal ledge, cornice, mushroom cap) and the generation-3
+    /// material bands (iceberg, a coast band) stacking on one column.</summary>
+    public const int MaxColumnBands = 10;
 
     /// <summary>Collects every extra band covering this column (#705): sky-island tiers (with ponds,
     /// stalactites and edge waterfalls, #707), arch bars, sea-stack and hoodoo caps and cenote lips
@@ -123,6 +129,12 @@ public sealed partial class WorldGenerator
             {
                 bands[n++] = new ColumnBand { Bottom = icLo, Top = icHi, Kind = BandKind.Cap };
             }
+        }
+
+        // Generation-3 material bands: icebergs standing in cold open water (false below generation 3).
+        if (n < bands.Length && w.Icebergs && TryGetIcebergBand(planet, w, worldX, worldZ, out int ibLo, out int ibHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = ibLo, Top = ibHi, Kind = BandKind.Ice };
         }
 
         return n;

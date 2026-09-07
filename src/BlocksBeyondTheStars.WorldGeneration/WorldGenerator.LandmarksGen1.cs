@@ -272,9 +272,10 @@ public sealed partial class WorldGenerator
     private double InselbergOffset(PlanetType planet, long seed, int worldX, int worldZ)
         => TryGetInselberg(planet, seed, worldX, worldZ, out double rise, out _, out _) ? rise : 0.0;
 
-    /// <summary>The dome's bare granite skin (the paint delegate of the inselberg row).</summary>
-    private BlockId? InselbergPaint(PlanetType planet, WonderProfile w, int worldX, int worldZ)
+    /// <summary>The dome's bare granite skin (the paint delegate of the inselberg row) — topsoil only.</summary>
+    private BlockId? InselbergPaint(PlanetType planet, WonderProfile w, int worldX, int worldZ, out int fillToY)
     {
+        fillToY = int.MinValue;
         if (!TryGetInselberg(planet, w.Seed, worldX, worldZ, out double rise, out _, out _) || rise < 2.5)
         {
             return null;
@@ -480,10 +481,16 @@ public sealed partial class WorldGenerator
 
     // ---------------- glacier tongue (paint only) ----------------
 
+    /// <summary>How deep a generation-3 glacier tongue is ice through and through (the paint fill).</summary>
+    private const int GlacierTongueFillDepth = 6;
+
     /// <summary>Ice paint on one flank sector of a massif on a cold world — a glacier tongue running down
-    /// from the summit region (the crevasse fields of #709 already slit the ice).</summary>
-    private BlockId? GlacierTonguePaint(WonderProfile w, int worldX, int worldZ)
+    /// from the summit region (the crevasse fields of #709 already slit the ice). From terrain generation 3
+    /// the tongue is ice <see cref="GlacierTongueFillDepth"/> deep instead of a topsoil skin — the reference
+    /// consumer of the paint fill.</summary>
+    private BlockId? GlacierTonguePaint(WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY)
     {
+        fillToY = int.MinValue;
         if (!TryGetHotspot(w.Seed ^ 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0,
                 worldX, worldZ, out ulong h, out double dx, out double dz))
         {
@@ -507,7 +514,17 @@ public sealed partial class WorldGenerator
         }
 
         var ice = _content.GetBlock("ice")?.NumericId ?? BlockId.Air;
-        return ice.IsAir ? null : ice;
+        if (ice.IsAir)
+        {
+            return null;
+        }
+
+        if (w.Generation >= 3)
+        {
+            fillToY = surfaceY - GlacierTongueFillDepth;
+        }
+
+        return ice;
     }
 
     // ---------------- natural bridge over a rift ----------------
@@ -710,13 +727,20 @@ public sealed partial class WorldGenerator
 
     /// <summary>A landmark row's paint at a column (tests).</summary>
     internal BlockId? LandmarkPaintForTest(string name, PlanetType planet, int worldX, int worldZ)
+        => LandmarkPaintForTest(name, planet, worldX, worldZ, out _);
+
+    /// <summary>A landmark row's paint at a column plus its fill depth (tests; generation 3).</summary>
+    internal BlockId? LandmarkPaintForTest(string name, PlanetType planet, int worldX, int worldZ, out int fillToY)
     {
+        fillToY = int.MinValue;
         var w = WonderFor(planet);
         foreach (var k in LandmarkKinds)
         {
             if (k.Name == name)
             {
-                return k.Active(w) && k.Paint is { } paint ? paint(this, planet, w, worldX, worldZ, SurfaceHeight(planet, worldX, worldZ)) : null;
+                return k.Active(w) && k.Paint is { } paint
+                    ? paint(this, planet, w, worldX, worldZ, SurfaceHeight(planet, worldX, worldZ), out fillToY)
+                    : null;
             }
         }
 
