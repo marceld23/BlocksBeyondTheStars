@@ -21,6 +21,7 @@
   { "key": "sand",         "nameKey": "block.sand.name", "granular": true, "category": "terrain",         "hardness": 0.5, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "sand", "count": 1 } ] },
   { "key": "mud",          "nameKey": "block.mud.name", "category": "terrain",          "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "mud", "count": 1 } ] },
   { "key": "peat",         "nameKey": "block.peat.name", "category": "terrain",         "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "peat", "count": 1 } ] },
+  { "key": "coral_rock",   "nameKey": "block.coral_rock.name", "category": "terrain",   "hardness": 1.2, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "coral_rock", "count": 1 } ] },
   { "key": "grass",        "nameKey": "block.grass.name", "category": "terrain",        "hardness": 0.6, "requiredTool": "none",  "minToolTier": 0, "drops": [ { "item": "dirt", "count": 1 } ] },
   { "key": "wood_log",     "nameKey": "block.wood_log.name", "category": "building",     "hardness": 1.6, "requiredTool": "drill", "minToolTier": 1, "flammable": true, "drops": [ { "item": "wood_log", "count": 1 } ] },
   { "key": "tree_leaves",  "nameKey": "block.tree_leaves.name", "category": "flora",  "hardness": 0.3, "requiredTool": "none",  "minToolTier": 0, "flammable": true, "drops": [] },

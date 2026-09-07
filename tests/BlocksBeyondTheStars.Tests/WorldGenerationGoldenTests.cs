@@ -84,6 +84,8 @@ public sealed class WorldGenerationGoldenTests
         // Part 5 (wetlands + rivers): mats and peat on the swamp, peat and morphology on the boreal world.
         new("swamp-gen3", 20260903, "swamp", 0, false, null, 3),
         new("boreal-gen3", 20260903, "boreal", 0, false, null, 3),
+        // Part 6 (coast + sea floor): reef rings, reef fields, causeways, arches, blue holes on the archipelago.
+        new("archipelago-gen3", 20260903, "archipelago", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -136,6 +138,8 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-07 (part 5, wetlands + rivers; unreleased — later parts re-pin these).
             ["swamp-gen3"] = 0x6f5636cb565bf8cfUL,
             ["boreal-gen3"] = 0x0db4acbd71f6b6bdUL,
+            // Pinned 2026-09-08 (part 6, coast + sea floor; unreleased — later parts re-pin these).
+            ["archipelago-gen3"] = 0x819963dbc81a43bbUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

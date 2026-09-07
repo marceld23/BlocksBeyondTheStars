@@ -32,6 +32,7 @@
   { "key": "sand",            "nameKey": "item.sand.name",            "category": "block",      "maxStack": 1024, "placesBlock": "sand" },
   { "key": "mud",             "nameKey": "item.mud.name",             "category": "block",      "maxStack": 1024, "placesBlock": "mud" },
   { "key": "peat",            "nameKey": "item.peat.name",            "category": "block",      "maxStack": 1024, "placesBlock": "peat" },
+  { "key": "coral_rock",      "nameKey": "item.coral_rock.name",      "category": "block",      "maxStack": 1024, "placesBlock": "coral_rock" },
   { "key": "crystal",         "nameKey": "item.crystal.name",         "category": "material",   "maxStack": 1024, "placesBlock": "crystal" },
   { "key": "snow",            "nameKey": "item.snow.name",            "category": "block",      "maxStack": 1024, "placesBlock": "snow" },
   { "key": "salt",            "nameKey": "item.salt.name",            "category": "material",   "maxStack": 1024, "placesBlock": "salt" },

@@ -111,6 +111,7 @@ public sealed partial class WorldGenerator
         // Dripstone (generation 3, part 3): white like the travertine repaint on limestone country, the deep rock
         // elsewhere. Read only where a column carries dripstone lengths, which no generation 0–2 column does.
         var dripstoneId = planet.HasTag(TerrainTag.Karst) && !saltBlockId.IsAir ? saltBlockId : deepId;
+        var coralRockId = _content.GetBlock("coral_rock")?.NumericId ?? BlockId.Air; // part 6: the reef floor
 
         // Generation-1 underground finds (#1646): crystal geodes (hollow crystal-lined spheres) and sediment
         // strata (tilted granite bands in the upper crust). Both gates are false on a generation-0 world.
@@ -610,8 +611,10 @@ public sealed partial class WorldGenerator
                     // The column-fluid check keeps kelp out of lava rivers and volcano craters (#477).
                     // Plants stay below any ice sheet, and no lily pads float on a frozen surface (#494);
                     // frozen-through columns (guard above) grow nothing at all.
+                    // A coral-rock floor (a generation-3 reef) grows four times the seabed flora.
                     StampWaterFlora(chunk, origin, lx, lz, seed, worldX, worldZ, seabedY, waterTop - iceTop,
-                        kelpId, iceTop > 0 ? BlockId.Air : lilyId, coralId, seagrassId, floraDensity);
+                        kelpId, iceTop > 0 ? BlockId.Air : lilyId, coralId, seagrassId,
+                        !coralRockId.IsAir && surfaceId == coralRockId ? floraDensity * 4.0 : floraDensity);
                 }
 
                 // Sky islands grow their own surface flora on top — a floating meadow, not a bare slab.
@@ -1086,6 +1089,26 @@ public sealed partial class WorldGenerator
             tunnelSpans[tunnelCount++] = (passageLo, passageHi);
         }
 
+        // Sub-surface fluid spans (generation 3): the underground river's water, and — part 6 — a blowhole's shaft:
+        // water from the sea line up to the cell under the vent, sealed by the vent block above and the cave
+        // shield around it (generated fluid is a bottomless source; a dug-into shaft gushes, which is the point).
+        var subFluidSpans = System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>();
+        if (subHi >= subLo)
+        {
+            subFluidSpans = new[] { (subLo, subHi, riverField.FillFluid) };
+        }
+
+        if (wonder.Blowholes && !seaWaterId.IsAir && seabedY == surfaceY && surfaceY > fluidLevel + 2
+            && BlowholeAt(planet, wonder, worldX, worldZ))
+        {
+            int shaftLo = fluidLevel + 1, shaftHi = surfaceY - 1;
+            subFluidSpans = subFluidSpans.Length == 0
+                ? new[] { (shaftLo, shaftHi, seaWaterId) }
+                : new[] { subFluidSpans[0], (shaftLo, shaftHi, seaWaterId) };
+            shieldLo = shieldHi >= shieldLo ? System.Math.Min(shieldLo, shaftLo - 2) : shaftLo - 2;
+            shieldHi = shieldHi >= shieldLo ? System.Math.Max(shieldHi, surfaceY + 1) : surfaceY + 1;
+        }
+
         // Dripstone (generation 3, part 3): resolved once per column, and only where a carve exists to hang it in.
         byte dripDown = 0, dripUp = 0;
         if (wonder.Dripstone && (tunnelCount > 0 || cavernHere))
@@ -1138,9 +1161,7 @@ public sealed partial class WorldGenerator
             // Terrain generation 3
             PaintFillToY = paintFillToY,
             PaintCycle = paintCycle,
-            SubFluid = subHi >= subLo
-                ? new[] { (subLo, subHi, riverField.FillFluid) }
-                : System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>(),
+            SubFluid = subFluidSpans,
             ShieldLo = shieldLo,
             ShieldHi = shieldHi,
             MaterialBands = materialBands,

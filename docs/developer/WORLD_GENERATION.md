@@ -1027,3 +1027,54 @@ the stone-forest style a centerline on a pinnacle can have the floor forty block
 the band's water would then sit above its neighbours' ground — an open hillside. The rasteriser now takes
 the minimum terrain across the band and its bank ring for the roof and water levels, so every column of the
 cross-section keeps its cover and its seal. Classic fields are untouched (no classic stroke is sunk).
+
+### 13.6 Part 6 — the coast and the sea floor
+
+Every family here is sea-relative (`WorldGenerator.CoastGen3.cs`): it needs the calibrated sea level, so it
+runs as a sea-relative landmark row (last in precedence — a classic row always owns its column — and never
+inside the calibration sample) or as a band / column feature resolved after calibration. Geometry is
+trig-free throughout; a direction is one of eight unit vectors (the diagonal a compile-time constant) or a
+hash-drawn integer vector normalised by a square root.
+
+**The partition rule, final form.** Part 1 said a sea-relative row never changes the land/sea partition the
+calibration saw. Part 5 allowed a ria to drown coast land; part 6 adds three rows that exist to make land
+out of sea — a causeway islet, an atoll islet, an arch's stem — on an explicit allow-list
+(`SeaRowMakesLandForTest`), and cuts that deepen the sea floor. What still holds for every row: no new land
+outside the allow-list, a lifted sea column stops at one below the sea (a seamount at three), a lift only
+where the sea owned the column, and no cut below the lava-table safety line (`BaseHeight − 150`).
+
+**Sea arches** (Brandungstore): a cliff-top hotspot whose raw ground stands 6–22 above the sea with the sea
+within twelve blocks in the direction of steepest descent. The *bar* is a `Cap` band 3–5 thick at the cliff
+top running 9–14 blocks out over the water; the *stem* is a sea-relative row raising a 2.5-radius pillar from
+the sea floor to the bar's underside. The cell roll (anchor, direction, length) is memoised in the sea-cell
+memo like a seamount's.
+
+**Blowholes** are a `geyser_vent` block on a cliff top (raw ground 5–20 above the sea, the sea within eight)
+over a sealed water shaft — a second sub-surface fluid span (part 1's mechanism) from the sea line up to the
+cell under the vent, shielded from the cave carver. The client's geyser VFX plays there; a shaft that is dug
+into gushes, which is what a blowhole should do. `StampGeysers` places the vent by the hotspot, not the
+density roll.
+
+**Causeway islands** (Wattinseln — the honest name: a tidal island at permanent low tide) are a sea-relative
+row: a shallow-sea hotspot with land within sixty blocks in the direction of steepest ascent grows an islet
+12–30 across whose crown stands 2–4 above the sea, joined to the coast by a 2–3-wide sandbar at exactly one
+below the sea — wadable, never dry.
+
+**Lagoons and atolls** share `TryGetReefRing`: a ring 40–110 across on a warm `reef` world. In the shallows
+(centre raw 2–12 below the sea) it is a *lagoon*: the rim raised or cut to one below the sea and painted
+coral rock two deep, the interior a bowl deepening to 3–6 below, one or two passes (a 14° cone each) where
+the rim stays what the floor was. In deep water (centre raw ≥ 12 below) it is an *atoll*: the same rim with
+3–6 sand-dome islets 2–5 above the sea at hash-drawn bearings, the interior 8–15 below.
+
+**Reef fields** (Korallenriffe as relief): inside a broad region mask, under shallow sea (2–14 below), the
+floor rises in a ridged field by up to four but never above two below the sea, painted coral rock three
+deep — and the seabed flora grows four times as dense on a coral-rock floor.
+
+**Blue holes**: a shaft 8–18 across in the shallows, its floor 40–70 below the sea with near-vertical walls
+(a quartic profile) and a lip ring raised to one below the sea around the mouth. **Submarine canyons**: from a
+shelf hotspot down the steepest descent, 200–400 long, 40–80 wide, a V 30–60 deep, only ever under the sea.
+**Trenches**: one great gash on a very wet world — 400–900 long, 40–70 wide, 60–120 below the surrounding
+floor, only where the raw floor already lies twenty below the sea. All three respect the floor cap.
+
+**Two new blocks** this part and the last: `peat` (part 5) and `coral_rock` (part 6), both with generated
+textures (`tools/ai-assets`, bundled as raw RGBA) and names in all fourteen locales.

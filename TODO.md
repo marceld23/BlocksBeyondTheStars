@@ -69,7 +69,13 @@ flora); thermokarst ponds (2–4 deep on Voronoi plates with a 1-high polygonal 
 generation-3 paint (ember blooms on a lava flow, lichen on a frost ridge). Goldens `swamp-gen3`,
 `boreal-gen3` pinned; every gen-3 group re-pinned; every classic / gen-1 golden unchanged (the peat host is a
 `LateHosts` entry so the roster coverage rule never sees it).
-**Parts 6–8 (open):** coast and sea floor, ice, then the new planet types and docs.
+**Part 6 (coast + sea floor) — DONE on the branch (2026-09-08):** sea arches (a Cap-band bar from a cliff to a
+sea-relative stem), blowholes (a geyser vent on a cliff over a sealed water shaft), causeway islands (an islet
+joined to the coast by a sandbar one below the sea), lagoons and atolls (reef rings of the new `coral_rock`
+block, the atoll with sand islets), reef fields (bumpy coral shallows with 4× seabed flora), blue holes,
+submarine canyons and trenches. The partition rule now has an explicit new-land allow-list (islets, stems)
+and permits sea-floor cuts above the floor cap. Golden `archipelago-gen3` pinned; `ocean-gen3` unchanged.
+**Parts 7–8 (open):** ice, then the new planet types and docs.
 
 ---
 

@@ -83,13 +83,14 @@ public sealed class LandformGen3Tests
         int sea = gen.SeaLevel(planet);
         Assert.NotEqual(int.MinValue, sea);
 
-        var withRows = Grid(53, 47).Select(c => gen.SurfaceHeight(planet, c.X, c.Z)).ToArray();
+        var sample = Grid(53, 47).ToArray();
+        var withRows = sample.Select(c => gen.SurfaceHeight(planet, c.X, c.Z)).ToArray();
         int[] withoutRows;
         WorldGenerator.DisableSeaRowsForTest = true;
         try
         {
             gen.SetTerrainGeneration(3); // drops the column memos, so the heights are recomputed without the rows
-            withoutRows = Grid(53, 47).Select(c => gen.SurfaceHeight(planet, c.X, c.Z)).ToArray();
+            withoutRows = sample.Select(c => gen.SurfaceHeight(planet, c.X, c.Z)).ToArray();
         }
         finally
         {
@@ -105,20 +106,30 @@ public sealed class LandformGen3Tests
         for (int i = 0; i < withRows.Length; i++)
         {
             // Sea stays sea: a sea-relative row never makes land the calibration did not count (a seamount stays
-            // under). Land MAY become sea — that is a ria (part 5), a drowned valley on the shelf coast.
-            Assert.True(withoutRows[i] >= sea || withRows[i] < sea, "a sea-relative row made new land");
+            // under) — except the three that exist to do exactly that, on an allow-list (part 6: a causeway islet,
+            // an atoll islet, an arch's stem). Land MAY become sea — that is a ria (part 5), a drowned valley.
+            if (withoutRows[i] < sea && withRows[i] >= sea)
+            {
+                var (x, z) = sample[i];
+                Assert.True(gen.SeaRowMakesLandForTest(planet, x, z), $"a sea-relative row made new land at ({x},{z}) that no island family claims");
+                continue;
+            }
+
             if (withRows[i] != withoutRows[i])
             {
                 lifted++;
                 if (withRows[i] < withoutRows[i])
                 {
-                    // A ria (part 5) cut this column down: only ever COAST LAND (the sea floor is never lowered).
-                    Assert.True(withoutRows[i] > sea, "a sea-relative row lowered the sea floor");
-                    continue; // the seamount rules below are not its rules
+                    // A cut: a ria (part 5) drowning coast land, or a blue hole / lagoon bowl / canyon / trench
+                    // (part 6) deepening the sea floor. Never below the lava-table safety line.
+                    Assert.True(withRows[i] >= planet.BaseHeight - 150, "a sea-relative row cut below the floor cap");
+                    continue; // the lift rules below are not its rules
                 }
 
-                Assert.True(withRows[i] <= sea - 3, $"a seamount summit at {withRows[i]} breaks the clearance under sea {sea}");
-                Assert.True(withoutRows[i] <= sea - 2, "a seamount rose where the sea did not own the column");
+                // A lifted sea column never reaches the sea line: a seamount keeps three of clearance, a reef rim,
+                // a causeway bar or a blue hole's lip stops at one below (part 6).
+                Assert.True(withRows[i] <= sea - 1, $"a sea-relative row lifted a column to {withRows[i]} at sea {sea}");
+                Assert.True(withoutRows[i] <= sea - 2, "a sea-relative row rose where the sea did not own the column");
             }
         }
 

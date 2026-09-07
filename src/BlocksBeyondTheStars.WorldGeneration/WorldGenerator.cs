@@ -433,6 +433,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3, part 5 — wetlands and rivers.
         public bool RiverMorphology, Rias, FloatingMats, PeatBogs, Thermokarst;
 
+        // Terrain generation 3, part 6 — the coast and the sea floor.
+        public bool SeaArches, Blowholes, CausewayIslands, ReefRings, ReefFields, BlueHoles, SubmarineCanyons, Trenches;
+
         /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
         public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
@@ -561,6 +564,20 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.FloodplainPaint(p, w, x, z, out fill)),
         new("peat-bog", w => w.PeatBogs, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.PeatBogPaint(p, w, x, z, y, out fill)),
+        // Part 6 — the coast and the sea floor: every row sea-relative. Order = precedence among them: the small
+        // sharp forms (arch stem, blue hole) before the broad ones, the reef ring before the reef field it may
+        // stand in, the great cuts last.
+        new("sea-arch", w => w.SeaArches, static (g, p, w, x, z) => g.SeaArchOffset(p, w, x, z), seaRelative: true),
+        new("blue-hole", w => w.BlueHoles, static (g, p, w, x, z) => g.BlueHoleOffset(p, w, x, z), seaRelative: true),
+        new("causeway-island", w => w.CausewayIslands, static (g, p, w, x, z) => g.CausewayIslandOffset(p, w, x, z, out _), seaRelative: true),
+        new("reef-ring", w => w.ReefRings, static (g, p, w, x, z) => g.ReefRingOffset(p, w, x, z, out _),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ReefRingPaint(p, w, x, z, y, out fill),
+            seaRelative: true),
+        new("reef-field", w => w.ReefFields, static (g, p, w, x, z) => g.ReefFieldOffset(p, w, x, z),
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.ReefFieldPaint(p, w, x, z, y, out fill),
+            seaRelative: true),
+        new("submarine-canyon", w => w.SubmarineCanyons, static (g, p, w, x, z) => g.SubmarineCanyonOffset(p, w, x, z), seaRelative: true),
+        new("trench", w => w.Trenches, static (g, p, w, x, z) => g.TrenchOffset(p, w, x, z), seaRelative: true),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -629,6 +646,14 @@ public sealed partial class WorldGenerator
             ["floatingMats"] = w.FloatingMats,
             ["peatBogs"] = w.PeatBogs,
             ["thermokarst"] = w.Thermokarst,
+            ["seaArches"] = w.SeaArches,
+            ["blowholes"] = w.Blowholes,
+            ["causewayIslands"] = w.CausewayIslands,
+            ["reefRings"] = w.ReefRings,
+            ["reefFields"] = w.ReefFields,
+            ["blueHoles"] = w.BlueHoles,
+            ["submarineCanyons"] = w.SubmarineCanyons,
+            ["trenches"] = w.Trenches,
         };
     }
 
@@ -640,6 +665,7 @@ public sealed partial class WorldGenerator
         "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata", "dripstone",
         "obsidianFields", "lavaFlows", "barchans", "frostPolygons",
         "riverMorphology", "rias", "floatingMats", "peatBogs", "thermokarst",
+        "seaArches", "blowholes", "causewayIslands", "reefRings", "reefFields", "blueHoles", "submarineCanyons", "trenches",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -839,6 +865,16 @@ public sealed partial class WorldGenerator
                     w.FloatingMats = HasFloatingMats(planet);
                     w.PeatBogs = HasPeatBogs(planet);
                     w.Thermokarst = HasThermokarst(planet);
+
+                    // Part 6: the coast and the sea floor.
+                    w.SeaArches = HasSeaArches(planet);
+                    w.Blowholes = HasBlowholes(planet);
+                    w.CausewayIslands = HasCausewayIslands(planet);
+                    w.ReefRings = HasReefRings(planet);
+                    w.ReefFields = HasReefFields(planet);
+                    w.BlueHoles = HasBlueHoles(planet);
+                    w.SubmarineCanyons = HasSubmarineCanyons(planet);
+                    w.Trenches = HasTrenches(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

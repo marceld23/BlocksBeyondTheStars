@@ -87,9 +87,9 @@ public sealed partial class WorldGenerator
             }
         }
 
-        if (n < bands.Length && w.Arches && TryGetArchBar(planet, seed, worldX, worldZ, out int abLo, out int abHi))
+        if (n < bands.Length && w.Arches && TryGetArchBar(planet, seed, worldX, worldZ, out int arcLo, out int arcHi))
         {
-            bands[n++] = new ColumnBand { Bottom = abLo, Top = abHi, Kind = BandKind.Cap };
+            bands[n++] = new ColumnBand { Bottom = arcLo, Top = arcHi, Kind = BandKind.Cap };
         }
 
         if (n < bands.Length && w.SeaStacks && TryGetSeaStackCap(planet, seed, worldX, worldZ, out int scLo, out int scHi))
@@ -143,6 +143,12 @@ public sealed partial class WorldGenerator
         if (n < bands.Length && w.FloatingMats && TryGetMatBand(planet, w, worldX, worldZ, out int matY))
         {
             bands[n++] = new ColumnBand { Bottom = matY, Top = matY, Kind = BandKind.Mat };
+        }
+
+        // Part 6: the sea arch's bar — a rock slab from the cliff foot to the stem (false below generation 3).
+        if (n < bands.Length && w.SeaArches && TryGetSeaArchBand(planet, w, worldX, worldZ, out int sbLo, out int sbHi))
+        {
+            bands[n++] = new ColumnBand { Bottom = sbLo, Top = sbHi, Kind = BandKind.Cap };
         }
 
         return n;

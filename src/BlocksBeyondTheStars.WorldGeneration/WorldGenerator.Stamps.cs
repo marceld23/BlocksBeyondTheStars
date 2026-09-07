@@ -357,11 +357,13 @@ public sealed partial class WorldGenerator
         var origin = WorldConstants.ChunkOrigin(coord);
         int cs = WorldConstants.ChunkSize;
         const double density = 0.0015; // per-column chance (rare — geysers are scattered landmarks)
+        var wonder = WonderFor(planet); // part 6: a blowhole is a vent on a cliff top, placed by its own hotspot
 
         for (int wx = origin.X; wx < origin.X + cs; wx++)
             for (int wz = origin.Z; wz < origin.Z + cs; wz++)
             {
-                if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, Wz(wz)) >= density)
+                if (Noise.Value01(seed + 0x6E7A, WorldConstants.WrapX(wx, _circumference), 23, Wz(wz)) >= density
+                    && !(wonder.Blowholes && BlowholeAt(planet, wonder, wx, wz)))
                 {
                     continue;
                 }
