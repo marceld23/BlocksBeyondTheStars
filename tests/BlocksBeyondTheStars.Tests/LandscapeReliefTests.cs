@@ -68,22 +68,29 @@ public sealed class LandscapeReliefTests
     [Fact]
     public void EveryPoolEntry_AppearsOnSomeWorld_AndPicksAreOneToThree()
     {
+        // A style a later wave adds to an existing pool is invisible to the worlds created before it, so the
+        // pool a generation can draw from is the filtered one — and the run has to be checked per generation.
+        foreach (int generation in new[] { 1, WorldDescription.CurrentTerrainGeneration })
         foreach (var planet in PooledTypes())
         {
+            var available = planet.TerrainStyles
+                .Select(x => x.ToLowerInvariant())
+                .Where(x => WorldGenerator.StyleMinGenerationForTest(x) <= generation)
+                .ToList();
             var seen = new HashSet<string>();
             for (long s = 1; s <= 80; s++)
             {
-                var styles = Gen(s * 7919 + 3, 1).StylesForTest(planet);
-                Assert.InRange(styles.Length, 1, Math.Min(3, planet.TerrainStyles.Count));
+                var styles = Gen(s * 7919 + 3, generation).StylesForTest(planet);
+                Assert.InRange(styles.Length, 1, Math.Min(3, available.Count));
                 Assert.Equal(styles.Length, styles.Distinct().Count());
                 foreach (var st in styles)
                 {
-                    Assert.Contains(st, planet.TerrainStyles.Select(x => x.ToLowerInvariant()));
+                    Assert.Contains(st, available);
                     seen.Add(st);
                 }
             }
 
-            foreach (var pooled in planet.TerrainStyles)
+            foreach (var pooled in available)
             {
                 Assert.Contains(pooled.ToLowerInvariant(), seen);
             }

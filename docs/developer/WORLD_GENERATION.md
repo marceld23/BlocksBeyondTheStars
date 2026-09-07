@@ -866,3 +866,42 @@ none of them and must equal `highland-gen1` — the control that generation 3 wi
 1. A Slow-tier guard keeps a generation-3 chunk within 1.3× a generation-1 chunk (the client bakes up to
 32 768 columns on its main thread; no generation-time budget existed before).
 
+
+### 13.2 Part 2 — the rock landforms
+
+Ten forms, every one a row or a case in a table that already existed. Each gates on a profile flag
+`WonderFor` only sets from generation 3, and the rows are appended after part 1's, so no earlier
+precedence moves.
+
+**Landmark rows** (`WorldGenerator.RockGen3.cs`). *Slot canyons* are the crevasse frame at rock scale:
+1–2 blocks of half-width, 18–35 deep, near-vertical walls and a single arc over their length, so the
+walk through one turns. They need a dry wind- or butte-carved world. *Arêtes* are the same frame turned
+upward — a 60–130-long crest 25–50 high with both flanks falling away at once, saw-toothed along its
+length by a sample of the along-distance (never of the column, or the notches would pit the ridge
+instead of crossing it). *Tooth rows* set 4–7 cones 20–30 apart in a line, each keeping its own summit.
+Both need real relief: a mountain-styled world or one whose amplitude alone builds ridges.
+
+**Paint rows.** *Desert pavement* is the stone the wind left when it took the sand: inside a broad
+region mask, on ground of slope ≤ 1, scree with a dithered third of its cells bare stone. *Petrified
+dunes* give the style below a sandstone skin twelve deep on the crests, so a cut face shows the
+cross-bedding the style quantised into decks.
+
+**Worm families** (`TunnelFamilies`). A *rock gate* is neither a landmark row nor a band — a row cannot
+fire where the table mountain's own row already owns the column, and a band adds solid where the gate
+needs air. It is what it looks like: one short horizontal capsule straight through the wall at the
+height of its foot, riding the table's OWN hotspot cell so it only ever cuts a table that exists.
+*Mountain halls* likewise ride the massif's cell and re-derive the massif's radius and height from the
+same hash bits, then hollow a 3–5-segment room 5–9 wide at a third of the mountain's height, with one
+mouth out through a flank and one shaft up past the summit.
+
+**Styles** (`StyledHeightOffset`). *Labyrinth* inverts the salt-pan Voronoi: the plate interiors rise
+into walls and the narrow cell borders stay at the base, so the borders are the passages. *Stone
+forest* is the karst case at a far finer pitch and a lower bar — hundreds of slender pinnacles with a
+walkable floor between them instead of a handful of broad towers. *Petrified dunes* are the dune ridges
+at a larger amplitude, quantised into 2-block decks.
+
+**Styles are gated by generation, not only by data.** A style a later wave adds to an existing type's
+pool would otherwise be rolled by the worlds created before it and move their relief, so `PickStyles`
+filters the pool through `StyleMinGeneration` before the draw: an older world sees exactly the pool it
+always saw. `desert`, `red_desert`, `tablelands` and `badlands` gained `labyrinth` (and the two deserts
+`petrified-dunes`); `karst`, `jungle` and `fungal` gained `stone-forest`.

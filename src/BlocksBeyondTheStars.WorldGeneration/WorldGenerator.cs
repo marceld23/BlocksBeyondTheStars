@@ -421,6 +421,9 @@ public sealed partial class WorldGenerator
         // reaches that prove the sub-surface fluid spans — all false below generation 3.
         public bool Seamounts, Icebergs, UndergroundRivers;
 
+        // Terrain generation 3, part 2 — the rock landforms.
+        public bool SlotCanyons, Aretes, ToothRows, DesertPavement, RockGates, MountainHalls, PetrifiedDunes;
+
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
         public LandmarkOffsetFn[] ActiveLandmarks = System.Array.Empty<LandmarkOffsetFn>();
@@ -509,6 +512,15 @@ public sealed partial class WorldGenerator
         // once the sea level is known, so the percentile they read is never their own output; the gates are
         // false below generation 3.
         new("seamount", w => w.Seamounts, static (g, p, w, x, z) => g.SeamountOffset(p, w, x, z), seaRelative: true),
+        // Part 2 — the rock landforms, appended after part 1 so no earlier precedence moves. The two
+        // paint-only rows carry a zero offset, like the classic glacier tongue.
+        new("slot-canyon", w => w.SlotCanyons, static (g, p, w, x, z) => g.SlotCanyonOffset(w.Seed, x, z)),
+        new("arete", w => w.Aretes, static (g, p, w, x, z) => g.AreteOffset(p, w.Seed, x, z)),
+        new("tooth-row", w => w.ToothRows, static (g, p, w, x, z) => g.ToothRowOffset(p, w.Seed, x, z)),
+        new("desert-pavement", w => w.DesertPavement, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.DesertPavementPaint(p, w, x, z, out fill)),
+        new("petrified-dunes", w => w.PetrifiedDunes, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.PetrifiedDunePaint(w, x, z, y, out fill)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -559,8 +571,23 @@ public sealed partial class WorldGenerator
             ["icebergs"] = w.Icebergs,
             ["undergroundRivers"] = w.UndergroundRivers,
             ["glacierTongues"] = w.GlacierTongues,
+            ["slotCanyons"] = w.SlotCanyons,
+            ["aretes"] = w.Aretes,
+            ["toothRows"] = w.ToothRows,
+            ["desertPavement"] = w.DesertPavement,
+            ["rockGates"] = w.RockGates,
+            ["mountainHalls"] = w.MountainHalls,
+            ["petrifiedDunes"] = w.PetrifiedDunes,
         };
     }
+
+    /// <summary>Every gate a generation-3 family reads, by name (tests) — the "is any landform family active
+    /// on this world at all" question the golden control group rests on.</summary>
+    internal static readonly string[] Gen3GateNames =
+    {
+        "seamounts", "icebergs", "undergroundRivers", "slotCanyons", "aretes", "toothRows",
+        "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes",
+    };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
     // PLUS a lock-free instance fast path: a generator works one world at a time, so per-column lookups
@@ -687,7 +714,7 @@ public sealed partial class WorldGenerator
                 if (_terrainGeneration >= 1)
                 {
                     w.Scale = ScaleJitterFor(planet, seed);
-                    w.Styles = PickStyles(planet, seed, w.Style);
+                    w.Styles = PickStyles(planet, seed, w.Style, _terrainGeneration);
                     w.ReliefMuls = ReliefMulsFor(planet);
                     w.Tilted = HasTilt(planet, seed);
                     w.Stepped = HasStepped(planet, seed);
@@ -733,6 +760,15 @@ public sealed partial class WorldGenerator
                     w.Seamounts = HasSeamounts(planet);
                     w.Icebergs = HasIcebergs(planet);
                     w.UndergroundRivers = HasUndergroundRivers(planet);
+
+                    // Part 2: the rock landforms.
+                    w.SlotCanyons = HasSlotCanyons(planet);
+                    w.Aretes = HasAretes(planet, w.Styles);
+                    w.ToothRows = w.Aretes;
+                    w.DesertPavement = HasDesertPavement(planet);
+                    w.RockGates = HasRockGates(planet);
+                    w.MountainHalls = HasMountainHalls(planet);
+                    w.PetrifiedDunes = HasPetrifiedDunes(w.Styles);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);

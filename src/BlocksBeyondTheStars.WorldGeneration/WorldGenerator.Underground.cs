@@ -220,6 +220,12 @@ public sealed partial class WorldGenerator
     {
         new("worms", 0x7A22E1, TunnelCellSize, TunnelChance, TunnelMargin, static w => w.Tunnels,
             static (g, p, w, h) => g.TunnelSegmentsFor(p, w, h)),
+        // Terrain generation 3, part 2. Both ride their landform's OWN hotspot cell (the same salt, pitch and
+        // chance), so a gate only ever cuts a table mountain that exists and a hall only hollows a real massif.
+        new("rock-gates", 0x7AB1E0, ButteCellSize, ButteChance, ButteMaxRadius + 20.0, static w => w.RockGates,
+            static (g, p, w, h) => g.RockGateSegments(p, w, h)),
+        new("mountain-halls", 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0, static w => w.MountainHalls,
+            static (g, p, w, h) => g.MountainHallSegments(p, w, h)),
     };
 
     /// <summary>The registered worm families in table order (tests).</summary>

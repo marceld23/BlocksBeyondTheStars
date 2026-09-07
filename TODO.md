@@ -41,8 +41,14 @@ inside the water span (icebergs), sub-surface fluid spans with a cave shield (un
 wet karst worlds: swallow hole, sealed passage with bank ledges, spring). Golden groups `ocean-gen3`,
 `frozen_ocean-gen3`, `karst-gen3`, `highland-gen3` (= `highland-gen1`, the control); a Slow-tier chunk-cost
 guard. Not released: the whole package ships together after Marcel's local Unity playtest.
-**Parts 2–8 (open):** rock, caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then
-the new planet types and docs.
+**Part 2 (rock) — DONE on the branch (2026-09-07):** slot canyons, arêtes and tooth rows, desert pavement
+and the petrified-dune skin (landmark rows); rock gates and mountain halls (worm families riding their
+landform's own hotspot cell); the labyrinth, stone-forest and petrified-dune styles, gated by generation
+so a style added to an existing pool never moves an older world's relief. ⚠ One golden group
+(`karst-gen3`) needs re-pinning — the stone-forest style joined the karst pool.
+**Parts 3–8 (open):** caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then
+the new planet types and docs. Rainbow strata (part 2's tenth item) is deferred: it needs a per-cell
+colour cycle in the paint fill, which is a y-loop change.
 
 ---
 

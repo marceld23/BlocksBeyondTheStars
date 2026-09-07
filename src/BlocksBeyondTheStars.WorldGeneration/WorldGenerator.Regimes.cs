@@ -94,10 +94,22 @@ public sealed partial class WorldGenerator
     // once in WonderFor. Generation-0 worlds take the classic values (single type style, type scale, no
     // multipliers) so every existing world stays byte-identical. ---
 
+    /// <summary>The first terrain generation on which a style may be ROLLED. A style a later wave adds to an
+    /// existing type's data pool must be invisible to the worlds created before it, or their relief would
+    /// move — so the pool is filtered before the draw and an older world sees exactly the pool it always saw.
+    /// A style absent here is available on every generation.</summary>
+    private static readonly System.Collections.Generic.Dictionary<string, int> StyleMinGeneration = new()
+    {
+        ["labyrinth"] = 3,
+        ["stone-forest"] = 3,
+        ["petrified-dunes"] = 3,
+    };
+
     /// <summary>The styles this world lays out as regions (#1645): 1–3 picks from the type's
     /// <see cref="PlanetType.TerrainStyles"/> pool (Fisher–Yates seeded like the biome subset; a pool of one,
-    /// or no pool, keeps the type's single <see cref="PlanetType.TerrainStyle"/>). Lowered once.</summary>
-    private static string[] PickStyles(PlanetType planet, long seed, string loweredStyle)
+    /// or no pool, keeps the type's single <see cref="PlanetType.TerrainStyle"/>). Lowered once. Styles whose
+    /// <see cref="StyleMinGeneration"/> is above this world's generation are dropped from the pool first.</summary>
+    private static string[] PickStyles(PlanetType planet, long seed, string loweredStyle, int generation)
     {
         var pool = new System.Collections.Generic.List<string>();
         foreach (var s in planet.TerrainStyles)
@@ -108,6 +120,11 @@ public sealed partial class WorldGenerator
             }
 
             string lowered = s.Trim().ToLowerInvariant();
+            if (StyleMinGeneration.TryGetValue(lowered, out int min) && generation < min)
+            {
+                continue; // a later wave's style: not on this world
+            }
+
             if (!pool.Contains(lowered))
             {
                 pool.Add(lowered);
@@ -174,6 +191,10 @@ public sealed partial class WorldGenerator
 
     /// <summary>The styles this world lays out (tests): empty on an archetype-blend world.</summary>
     internal string[] StylesForTest(PlanetType planet) => WonderFor(planet).Styles;
+
+    /// <summary>The first generation on which a style may be rolled (tests): 0 unless a later wave added it.</summary>
+    internal static int StyleMinGenerationForTest(string style)
+        => StyleMinGeneration.TryGetValue(style, out int min) ? min : 0;
 
     /// <summary>The relief wavelength of this world (tests).</summary>
     internal double ScaleForTest(PlanetType planet) => WonderFor(planet).Scale;

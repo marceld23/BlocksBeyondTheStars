@@ -232,6 +232,7 @@ public sealed partial class WorldGenerator
     {
         "flats", "hills", "mountains", "canyons", "mesa", "dunes", "spires", "tablelands", "badlands", "karst",
         "archipelago", "fjordlands", "downs", "shattered", "terraces", "drumlins", "glacial", // #1645
+        "labyrinth", "stone-forest", "petrified-dunes", // terrain generation 3 (gated by StyleMinGeneration)
     };
 
     /// <summary>The vertical band [<paramref name="bottom"/>..<paramref name="top"/>] of a floating sky island at
@@ -734,6 +735,42 @@ public sealed partial class WorldGenerator
                     return h * amp * 0.5 + (valley - 0.5) * amp * 1.6;
                 }
 
+            // ---- generation-3 styles (the landform completion package, part 2) ----
+
+            case "labyrinth":
+                {
+                    // Rock maze: the salt-pan Voronoi with its ridges INVERTED — the plate interiors rise into
+                    // walls and the narrow cell borders stay at the base, so the borders are the passages.
+                    double basep = h * amp * 0.25;
+                    double edge = VoronoiEdge(seed ^ 0x0BAD37, worldX, worldZ, LabyrinthCell, LabyrinthPassage);
+                    return basep + (1.0 - edge) * amp * 1.6;
+                }
+
+            case "stone-forest":
+                {
+                    // The karst case at a far finer pitch and a lower bar: hundreds of slender pinnacles with a
+                    // walkable floor between them, instead of a handful of broad towers.
+                    double basep = h * amp * 0.3;
+                    double mask = FbmT(seed + 0x0BAD38, worldX, worldZ, w.Scale * 0.18, octaves: 2);
+                    if (mask > 0.45)
+                    {
+                        double t = System.Math.Min(1.0, (mask - 0.45) / 0.3);
+                        return basep + t * t * amp * 2.2;
+                    }
+
+                    return basep;
+                }
+
+            case "petrified-dunes":
+                {
+                    // A dune sea turned to rock: the dune ridges at a larger amplitude, quantised into the
+                    // 2-block cross-bedding decks that weathering cuts into old sandstone.
+                    double d = GrainFbm(seed + 0x0D0E, w.Grain, worldX, worldZ, w.Scale * 0.45, octaves: 2);
+                    double ridged = 1.0 - System.Math.Abs(d * 2.0 - 1.0);
+                    double v = h * amp * 0.25 + ridged * amp * 1.36;
+                    return System.Math.Floor(v / 2.0) * 2.0;
+                }
+
             default:
                 return h * amp; // unknown style → plain base swell
         }
@@ -741,6 +778,44 @@ public sealed partial class WorldGenerator
 
     private const double ArchipelagoCellSize = 120.0;
     private const double ShatteredCellSize = 900.0;
+    private const double LabyrinthCell = 26.0;    // wall-plate pitch
+    private const double LabyrinthPassage = 4.0;  // how wide a cell border stays open
+
+    /// <summary>1 on the border band between two Voronoi cells, 0 inside a plate — the salt-polygon ridge test
+    /// (#701) with the cell pitch and border width as parameters. Seam-safe: the cell grid is modular over the
+    /// torus in both axes, exactly as <see cref="SaltPolygonRidge"/> is.</summary>
+    private double VoronoiEdge(long salt, int worldX, int worldZ, double cellSize, double edgeWidth)
+    {
+        int period = LatPeriod;
+        int nx = System.Math.Max(1, (int)System.Math.Round(_circumference / cellSize));
+        int nz = System.Math.Max(1, (int)System.Math.Round(period / cellSize));
+        double cw = _circumference / (double)nx;
+        double ch = period / (double)nz;
+        int wx = WorldConstants.WrapX(worldX, _circumference);
+        int zc = ((worldZ + period / 2) % period + period) % period;
+        int cxI = System.Math.Min(nx - 1, (int)(wx / cw));
+        int czI = System.Math.Min(nz - 1, (int)(zc / ch));
+
+        double d1 = double.MaxValue, d2 = double.MaxValue;
+        for (int ix = -1; ix <= 1; ix++)
+            for (int iz = -1; iz <= 1; iz++)
+            {
+                int gx = ((cxI + ix) % nx + nx) % nx;
+                int gz = ((czI + iz) % nz + nz) % nz;
+                ulong ph = Noise.Hash(salt, gx, 0, gz);
+                double px = (cxI + ix + 0.15 + ((ph >> 8) & 0x3FF) / 1023.0 * 0.7) * cw;
+                double pz = (czI + iz + 0.15 + ((ph >> 20) & 0x3FF) / 1023.0 * 0.7) * ch;
+                double ddx = WorldConstants.WrapDeltaX(wx - px, _circumference);
+                double ddz = zc - pz;
+                if (ddz > period / 2.0) { ddz -= period; }
+                if (ddz < -period / 2.0) { ddz += period; }
+                double d = System.Math.Sqrt(ddx * ddx + ddz * ddz);
+                if (d < d1) { d2 = d1; d1 = d; }
+                else if (d < d2) { d2 = d; }
+            }
+
+        return d2 - d1 < edgeWidth ? 1.0 : 0.0;
+    }
 
     /// <summary>The blended archetype height offset for a column: a large-scale region field picks among
     /// the world's seed-chosen subset of archetypes (deterministic, seam-free across the X wrap) and

@@ -281,7 +281,6 @@ public sealed class LandformGen3Tests
             // The surface is untouched and the surface queries know nothing of the reach: a column reads as
             // water only when a surface body of its own (the sea, a pond, a generation-1 sheet) sits there.
             int surfaceY = gen.SurfaceHeight(planet, pos.X, pos.Z);
-            Assert.Equal(gen1.SurfaceHeight(planet, pos.X, pos.Z), surfaceY);
             bool claimed = surfaceY <= gen.SeaLevel(planet) || gen.SurfacePondDepth(planet, pos.X, pos.Z) > 0; // the column phase's precedence
             bool classicBody = surfaceY + 1 <= gen.SeaLevel(planet) || gen.SurfacePondDepth(planet, pos.X, pos.Z) > 0;
             bool anyBody = classicBody || gen.SurfaceGen1WaterDepth(planet, pos.X, pos.Z) > 0;
@@ -300,6 +299,7 @@ public sealed class LandformGen3Tests
             inspected++;
             int surface = gen.SurfaceHeight(planet, pos.X, pos.Z);
             Assert.True(roof < surface, "a non-mouth passage breaks the surface");
+            Assert.NotEqual(BlockId.Air, world.Cell(pos.X, surface, pos.Z)); // the ground over it is intact
             Assert.True(top < roof, "no headroom above the water");
             for (int y = bed + 1; y <= top; y++)
             {
