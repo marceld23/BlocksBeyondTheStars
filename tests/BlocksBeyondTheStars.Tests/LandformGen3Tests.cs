@@ -331,32 +331,9 @@ public sealed class LandformGen3Tests
         Assert.True(inspected > 0, "every underground column was a bank or a mouth");
     }
 
-    // ---------- the control: generation 3 without an active family IS generation 1 ----------
-
-    [Fact]
-    public void GenerationThree_WithoutAnActiveFamily_IsGenerationOne_CellForCell()
-    {
-        // highland: water 0.55 (< 0.6, no seamounts), 8 °C (no icebergs), no karst tag (no underground rivers).
-        var planet = Content.Planets["highland"];
-        var gen1 = Gen(20260903, 1);
-        var gen3 = Gen(20260903, 3);
-        foreach (var (x, z) in new[] { (0, 0), (100, 37), (-200, 150) })
-        {
-            int cx = WorldConstants.WorldToChunk(x), cz = WorldConstants.WorldToChunk(z);
-            int surfaceCy = WorldConstants.WorldToChunk(gen1.SurfaceHeight(planet, x, z));
-            foreach (int cy in new[] { surfaceCy, surfaceCy - 3, surfaceCy + 2 })
-            {
-                var a = gen1.Generate(planet, new ChunkCoord(cx, cy, cz));
-                var b = gen3.Generate(planet, new ChunkCoord(cx, cy, cz));
-                for (int lx = 0; lx < WorldConstants.ChunkSize; lx++)
-                    for (int ly = 0; ly < WorldConstants.ChunkSize; ly++)
-                        for (int lz = 0; lz < WorldConstants.ChunkSize; lz++)
-                        {
-                            Assert.Equal(a.Get(lx, ly, lz), b.Get(lx, ly, lz));
-                        }
-            }
-        }
-    }
+    // The "generation 3 without an active family IS generation 1" control lives in LandformGen3RockTests —
+    // it searches for a world on which every generation-3 gate is false instead of assuming one (highland
+    // grows arêtes since part 2).
 
     // ---------- the cost guard ----------
 

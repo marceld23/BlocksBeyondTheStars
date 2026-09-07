@@ -892,7 +892,15 @@ needs air. It is what it looks like: one short horizontal capsule straight throu
 height of its foot, riding the table's OWN hotspot cell so it only ever cuts a table that exists.
 *Mountain halls* likewise ride the massif's cell and re-derive the massif's radius and height from the
 same hash bits, then hollow a 3–5-segment room 5–9 wide at a third of the mountain's height, with one
-mouth out through a flank and one shaft up past the summit.
+mouth out through a flank and one shaft up past the summit. Both are anchored on the RAW ground under
+their landform's centre (the family builder receives the centre; the classic worms ignore it and hang
+off `BaseHeight` as they always did) — a table rises from wherever the swell put it, not from the base.
+
+**Rainbow strata** (Bunte Berge) are the reference consumer of the **paint cycle**: a paint row may carry
+a `Cycle` delegate (`LandmarkKind.Cycle`, `ColumnProfile.PaintCycle`), and the paint fill then lays its
+blocks down in 3-thick bands parallel to the surface, top first — sandstone, granite, salt, basalt —
+forty deep, inside a broad region of hoodoo-and-butte country. A cliff, a canyon wall and a mined shaft
+all show the same stripes.
 
 **Styles** (`StyledHeightOffset`). *Labyrinth* inverts the salt-pan Voronoi: the plate interiors rise
 into walls and the narrow cell borders stay at the base, so the borders are the passages. *Stone

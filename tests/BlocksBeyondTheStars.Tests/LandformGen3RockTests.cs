@@ -477,4 +477,73 @@ public sealed class LandformGen3RockTests
             }
         }
     }
+
+    // ---------- rainbow strata ----------
+
+    /// <summary>Bunte Berge: inside its region the paint fill claims the column forty deep and cycles four
+    /// blocks in 3-thick bands parallel to the surface — the reference consumer of the paint cycle.</summary>
+    [Fact]
+    public void RainbowStrata_CycleFourBlocks_InBandsParallelToTheSurface()
+    {
+        var planet = Content.Planets["red_desert"];
+        var gen = Gen(1, 3);
+        var gen1 = Gen(1, 1);
+        Assert.True(gen.WonderGatesForTest(planet)["rainbowStrata"]);
+        Assert.False(gen1.WonderGatesForTest(planet)["rainbowStrata"]);
+
+        var chunks = new Dictionary<ChunkCoord, ChunkData>();
+        BlockId Cell(int x, int y, int z)
+        {
+            var coord = new ChunkCoord(WorldConstants.WorldToChunk(x), WorldConstants.WorldToChunk(y), WorldConstants.WorldToChunk(z));
+            if (!chunks.TryGetValue(coord, out var chunk))
+            {
+                chunk = gen.Generate(planet, coord);
+                chunks[coord] = chunk;
+            }
+
+            const int cs = WorldConstants.ChunkSize;
+            return chunk.Get(((x % cs) + cs) % cs, ((y % cs) + cs) % cs, ((z % cs) + cs) % cs);
+        }
+
+        var cycle = new[] { "sandstone", "granite", "salt", "basalt" }.Select(k => Content.GetBlock(k)!.NumericId).ToArray();
+        var seen = new HashSet<BlockId>();
+        int painted = 0, solidChecked = 0;
+        foreach (var (x, z) in Grid(31, 29))
+        {
+            var top = gen.LandmarkPaintForTest("rainbow-strata", planet, x, z, out int fill);
+            Assert.Null(gen1.LandmarkPaintForTest("rainbow-strata", planet, x, z));
+            if (top is null)
+            {
+                continue;
+            }
+
+            int surface = gen.SurfaceHeight(planet, x, z);
+            Assert.Equal(surface - 40, fill);
+            if (painted++ >= 16)
+            {
+                continue;
+            }
+
+            // Down the column every SOLID cell is the band the cycle says for its depth; a carved cell (cave,
+            // tunnel, lava pocket) is skipped, never counted against the cycle. The band variety is judged over
+            // all sampled columns, since any one column may run through a cavern.
+            for (int depth = 4; depth <= 20; depth++)
+            {
+                var cell = Cell(x, surface - depth, z);
+                if (System.Array.IndexOf(cycle, cell) < 0)
+                {
+                    continue; // air, lava, or an ore the fill never claims — not a band cell
+                }
+
+                seen.Add(cell);
+                solidChecked++;
+                Assert.True(cell == WorldGenerator.CycleBlockAt(cycle, depth),
+                    $"({x},{surface - depth},{z}) at depth {depth} is {cell}, expected band {(depth / 3) % 4}");
+            }
+        }
+
+        Assert.True(painted > 0, "no rainbow column on a red desert");
+        Assert.True(solidChecked >= 24, $"only {solidChecked} band cells were solid across the sample");
+        Assert.True(seen.Count >= 3, $"only {seen.Count} distinct bands across {painted} columns");
+    }
 }

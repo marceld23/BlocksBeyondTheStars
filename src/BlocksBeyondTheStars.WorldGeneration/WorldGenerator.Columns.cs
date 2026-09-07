@@ -261,6 +261,7 @@ public sealed partial class WorldGenerator
                 // Terrain generation 3: the paint fill, the sub-surface fluid spans and the cave shield — all at
                 // their classic no-op values (MinValue / empty / an empty range) on every generation 0–2 column.
                 int paintFillToY = col.PaintFillToY;
+                var paintCycle = col.PaintCycle;
                 var subFluid = col.SubFluid;
                 int subFluidCount = subFluid.Length;
                 int shieldLo = col.ShieldLo, shieldHi = col.ShieldHi;
@@ -505,9 +506,10 @@ public sealed partial class WorldGenerator
                     else if (paintFillToY != int.MinValue && worldY >= paintFillToY)
                     {
                         // Paint fill (generation 3): a landmark paint that claims the column down to fillToY — a
-                        // glacier that is ice through and through. No ore, strata or cache inside the fill; the
-                        // carvers above have already had their say.
-                        block = subSurfaceId;
+                        // glacier that is ice through and through, or a rainbow cliff cycling its bands parallel
+                        // to the surface. No ore, strata or cache inside the fill; the carvers above have already
+                        // had their say.
+                        block = paintCycle is null ? subSurfaceId : CycleBlockAt(paintCycle, depth);
                     }
                     else
                     {
@@ -645,6 +647,9 @@ public sealed partial class WorldGenerator
         // Terrain generation 3 — every field at its classic no-op value on a generation 0–2 column.
         /// <summary>The lowest Y a landmark paint claims below the topsoil (MinValue = topsoil only).</summary>
         public int PaintFillToY = int.MinValue;
+        /// <summary>The blocks the paint fill lays down in bands parallel to the surface, top first (null = the
+        /// single paint block). Rainbow strata are the reference consumer.</summary>
+        public BlockId[]? PaintCycle;
         /// <summary>Fluid spans below the seabed (an underground river's water); at most two.</summary>
         public (int Lo, int Hi, BlockId Fluid)[] SubFluid = System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>();
         /// <summary>[ShieldLo, ShieldHi] is never cave-carved — the rock around a sub-surface fluid span. Empty when Lo &gt; Hi.</summary>
@@ -952,7 +957,9 @@ public sealed partial class WorldGenerator
         // classic world — the families above keep their inline paints because those interleave with the
         // beach/snow order; new families register a paint delegate instead of editing this method.
         var landmarkPaints = wonder.ActivePaints;
+        var landmarkCycles = wonder.ActivePaintCycles;
         int paintFillToY = int.MinValue; // generation 3: the last painter that hit decides the fill, like the block
+        BlockId[]? paintCycle = null;
         for (int i = 0; i < landmarkPaints.Length; i++)
         {
             if (landmarkPaints[i](this, planet, wonder, worldX, worldZ, surfaceY, out int fillToY) is { } painted)
@@ -960,6 +967,7 @@ public sealed partial class WorldGenerator
                 surfaceId = painted;
                 subSurfaceId = painted;
                 paintFillToY = fillToY;
+                paintCycle = landmarkCycles[i]?.Invoke(this, planet, wonder, worldX, worldZ);
             }
         }
 
@@ -1074,6 +1082,7 @@ public sealed partial class WorldGenerator
             StrataShift = strataShift,
             // Terrain generation 3
             PaintFillToY = paintFillToY,
+            PaintCycle = paintCycle,
             SubFluid = subHi >= subLo
                 ? new[] { (subLo, subHi, riverField.FillFluid) }
                 : System.Array.Empty<(int Lo, int Hi, BlockId Fluid)>(),

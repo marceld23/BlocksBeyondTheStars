@@ -69,6 +69,11 @@ public sealed class WorldGenerationGoldenTests
         new("frozen_ocean-gen3", 20260903, "frozen_ocean", 0, false, null, 3),
         new("karst-gen3", 20260903, "karst", 0, false, null, 3),
         new("highland-gen3", 20260903, "highland", 0, false, null, 3),
+        // Part 2 (rock): slot canyons / labyrinth / petrified dunes on the deserts, rainbow strata and the
+        // hoodoo-butte families on red_desert, pavement on the dust bowl.
+        new("desert-gen3", 1, "desert", 0, false, null, 3),
+        new("red_desert-gen3", 1, "red_desert", 0, false, null, 3),
+        new("dust_bowl-gen3", 20260903, "dust_bowl", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -107,8 +112,12 @@ public sealed class WorldGenerationGoldenTests
             // highland-gen3 MUST equal highland-gen1: no generation-3 family is active there.
             ["ocean-gen3"] = 0xcd2223af53fc3766UL,
             ["frozen_ocean-gen3"] = 0xe6a4f91f378c89b3UL,
-            ["karst-gen3"] = 0x5cce16eda54ec279UL,
-            ["highland-gen3"] = 0x49f4107c54801291UL,
+            ["karst-gen3"] = 0x112bb9862281777cUL, // re-pinned for part 2: the stone-forest style joined the karst pool
+            ["highland-gen3"] = 0x49f4107c54801291UL, // arêtes are gated on since part 2 but roll none under the sample columns
+            // Pinned 2026-09-07 (part 2, the rock landforms; unreleased — later parts re-pin these).
+            ["desert-gen3"] = 0x2a8b8eb6b2a731b2UL,
+            ["red_desert-gen3"] = 0xc81c9b00f5725077UL,
+            ["dust_bowl-gen3"] = 0x4aa0227f75eb2f2aUL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.

@@ -422,7 +422,10 @@ public sealed partial class WorldGenerator
         public bool Seamounts, Icebergs, UndergroundRivers;
 
         // Terrain generation 3, part 2 — the rock landforms.
-        public bool SlotCanyons, Aretes, ToothRows, DesertPavement, RockGates, MountainHalls, PetrifiedDunes;
+        public bool SlotCanyons, Aretes, ToothRows, DesertPavement, RockGates, MountainHalls, PetrifiedDunes, RainbowStrata;
+
+        /// <summary>Aligned with <see cref="ActivePaints"/>: the row's colour cycle, or null (generation 3).</summary>
+        public LandmarkCycleFn?[] ActivePaintCycles = System.Array.Empty<LandmarkCycleFn?>();
 
         /// <summary>The landmark table rows active on this world, in precedence order (#1644) — what
         /// <see cref="SurfaceHeightUncached"/> loops instead of a hand-written if-chain.</summary>
@@ -453,22 +456,29 @@ public sealed partial class WorldGenerator
     /// topsoil only, the classic behaviour.</summary>
     private delegate BlockId? LandmarkPaintFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY);
 
+    /// <summary>A paint row's optional colour CYCLE at a column (terrain generation 3): the blocks the paint
+    /// fill lays down in <c>RainbowBandThickness</c>-thick bands parallel to the surface, top first, instead
+    /// of the single paint block. Null = the single block. Consulted only when the row's paint hit.</summary>
+    private delegate BlockId[]? LandmarkCycleFn(WorldGenerator g, PlanetType planet, WonderProfile w, int worldX, int worldZ);
+
     private readonly struct LandmarkKind
     {
         public LandmarkKind(string name, System.Func<WonderProfile, bool> active, LandmarkOffsetFn offset, LandmarkPaintFn? paint = null,
-            bool seaRelative = false)
+            bool seaRelative = false, LandmarkCycleFn? cycle = null)
         {
             Name = name;
             Active = active;
             Offset = offset;
             Paint = paint;
             SeaRelative = seaRelative;
+            Cycle = cycle;
         }
 
         public readonly string Name;
         public readonly System.Func<WonderProfile, bool> Active; // reads the profile's cached gate boolean
         public readonly LandmarkOffsetFn Offset;
         public readonly LandmarkPaintFn? Paint;
+        public readonly LandmarkCycleFn? Cycle;
 
         /// <summary>Terrain generation 3: the row shapes the SEA FLOOR and needs the calibrated sea level. It
         /// runs after every classic row and never inside the calibration sample (the #1631 sea-mount rule,
@@ -521,6 +531,9 @@ public sealed partial class WorldGenerator
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.DesertPavementPaint(p, w, x, z, out fill)),
         new("petrified-dunes", w => w.PetrifiedDunes, static (g, p, w, x, z) => 0.0,
             static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.PetrifiedDunePaint(w, x, z, y, out fill)),
+        new("rainbow-strata", w => w.RainbowStrata, static (g, p, w, x, z) => 0.0,
+            static (WorldGenerator g, PlanetType p, WonderProfile w, int x, int z, int y, out int fill) => g.RainbowStrataPaint(p, w, x, z, y, out fill),
+            cycle: static (g, p, w, x, z) => g.RainbowStrataCycle(w, x, z)),
     };
 
     /// <summary>The landmark families active on this world in precedence order (tests).</summary>
@@ -578,6 +591,7 @@ public sealed partial class WorldGenerator
             ["rockGates"] = w.RockGates,
             ["mountainHalls"] = w.MountainHalls,
             ["petrifiedDunes"] = w.PetrifiedDunes,
+            ["rainbowStrata"] = w.RainbowStrata,
         };
     }
 
@@ -586,7 +600,7 @@ public sealed partial class WorldGenerator
     internal static readonly string[] Gen3GateNames =
     {
         "seamounts", "icebergs", "undergroundRivers", "slotCanyons", "aretes", "toothRows",
-        "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes",
+        "desertPavement", "rockGates", "mountainHalls", "petrifiedDunes", "rainbowStrata",
     };
 
     // Static cross-instance cache (client bakes fresh generators per preview; tests spin up hundreds)
@@ -769,11 +783,13 @@ public sealed partial class WorldGenerator
                     w.RockGates = HasRockGates(planet);
                     w.MountainHalls = HasMountainHalls(planet);
                     w.PetrifiedDunes = HasPetrifiedDunes(w.Styles);
+                    w.RainbowStrata = HasRainbowStrata(planet);
                 }
 
                 var offsets = new System.Collections.Generic.List<LandmarkOffsetFn>(LandmarkKinds.Length);
                 var seaOffsets = new System.Collections.Generic.List<LandmarkOffsetFn>();
                 var paints = new System.Collections.Generic.List<LandmarkPaintFn>();
+                var cycles = new System.Collections.Generic.List<LandmarkCycleFn?>();
                 foreach (var kind in LandmarkKinds)
                 {
                     if (!kind.Active(w))
@@ -785,12 +801,14 @@ public sealed partial class WorldGenerator
                     if (kind.Paint is { } paint)
                     {
                         paints.Add(paint);
+                        cycles.Add(kind.Cycle);
                     }
                 }
 
                 w.ActiveLandmarks = offsets.ToArray();
                 w.ActiveSeaLandmarks = seaOffsets.ToArray();
                 w.ActivePaints = paints.ToArray();
+                w.ActivePaintCycles = cycles.ToArray();
                 w.AnyBands = planet.FloatingIslands || w.Arches || w.SeaStacks || w.Hoodoos || w.Cenotes
                     || w.NaturalBridges || w.CoastalOverhangs || w.IceCornices || w.MushroomRocks // #1646
                     || w.Icebergs;

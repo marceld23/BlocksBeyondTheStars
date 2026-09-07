@@ -237,11 +237,11 @@ public sealed partial class WorldGenerator
 
     /// <summary>One straight capsule through the steep upper wall of the table this cell grew, at a rolled
     /// bearing. Empty when the cell's table is too small to carry a gate.</summary>
-    private TunnelSeg[] RockGateSegments(PlanetType planet, WonderProfile w, ulong h)
+    private TunnelSeg[] RockGateSegments(PlanetType planet, WonderProfile w, ulong h, int centreX, int centreZ)
     {
-        // The table's own rolls, re-derived from the same bits TableMountainOffset reads.
+        // The table's radius, re-derived from the same bits TableMountainOffset reads (its height roll sits in
+        // bits 26–35 and is not needed here: the gate is cut at the wall's FOOT).
         double radius = 40.0 + ((h >> 16) & 0x3FF) / 1023.0 * (ButteMaxRadius - 40.0);
-        double height = 30.0 + ((h >> 26) & 0x3FF) / 1023.0 * 40.0;
         if (radius < 60.0)
         {
             return System.Array.Empty<TunnelSeg>(); // a small butte keeps its wall whole
@@ -255,11 +255,11 @@ public sealed partial class WorldGenerator
 
         // The wall band is the outer 30 % of the radius (TableMountainOffset: t < 0.30 is the talus-to-cliff
         // ramp). The gate runs from just inside that band out past the foot, at the height of the foot itself
-        // — an opening you walk through, not a window up the cliff.
+        // — an opening you walk through, not a window up the cliff. The foot is the RAW ground under the
+        // table's centre (the table rises from wherever the swell put it, not from BaseHeight).
         double inner = radius * 0.62;
         double outer = radius + 6.0;
-        double y = planet.BaseHeight + halfHeight + 1.0;
-        _ = height; // the table's height roll is consumed so the bit stream matches TableMountainOffset's
+        double y = RawSurfaceHeight(planet, w, centreX, centreZ) + halfHeight + 1.0;
         return new[]
         {
             new TunnelSeg(inner * cos, y, inner * sin, outer * cos, y, outer * sin, halfHeight),
@@ -277,7 +277,7 @@ public sealed partial class WorldGenerator
     private static readonly object _hallSegLock = new object();
 
     /// <summary>The hall polyline inside the massif this cell grew — cached per cell like the classic worms.</summary>
-    private TunnelSeg[] MountainHallSegments(PlanetType planet, WonderProfile w, ulong h)
+    private TunnelSeg[] MountainHallSegments(PlanetType planet, WonderProfile w, ulong h, int centreX, int centreZ)
     {
         var key = (w.Seed ^ MountainHallSalt, h);
         lock (_hallSegLock)
@@ -288,9 +288,12 @@ public sealed partial class WorldGenerator
             }
         }
 
-        // The massif's own rolls, re-derived from the bits MassifOffset reads.
+        // The massif's own rolls, re-derived from the bits MassifOffset reads (clamp included), on the raw
+        // ground under its centre — the mountain rises from the swell, not from BaseHeight.
         double radius = 150.0 + ((h >> 16) & 0x3FF) / 1023.0 * (MassifMaxRadius - 150.0);
         double massifHeight = 120.0 + ((h >> 26) & 0x3FF) / 1023.0 * 100.0;
+        massifHeight = System.Math.Min(massifHeight, MaxNaturalSurfaceY - 16.0 - planet.BaseHeight);
+        double ground = RawSurfaceHeight(planet, w, centreX, centreZ);
 
         ulong s = (h ^ (ulong)MountainHallSalt) | 1UL;
         double Next()
@@ -302,7 +305,7 @@ public sealed partial class WorldGenerator
         }
 
         int segs = 3 + (int)(Next() * 3); // 3..5
-        double py = planet.BaseHeight + massifHeight * 0.3;
+        double py = ground + massifHeight * 0.3;
         double px = 0.0, pz = 0.0;
         double vx = Next() * 2.0 - 1.0, vz = Next() * 2.0 - 1.0;
         double vlen = System.Math.Sqrt(vx * vx + vz * vz);
@@ -335,7 +338,7 @@ public sealed partial class WorldGenerator
         }
 
         // One shaft to the daylight above the summit.
-        list.Add(new TunnelSeg(px, py, pz, px, planet.BaseHeight + massifHeight + 20.0, pz, 1.7));
+        list.Add(new TunnelSeg(px, py, pz, px, ground + massifHeight + 20.0, pz, 1.7));
 
         var arr = list.ToArray();
         lock (_hallSegLock)
@@ -350,6 +353,64 @@ public sealed partial class WorldGenerator
 
         return arr;
     }
+
+    // ================= Rainbow strata (Bunte Berge) =================
+    // Layered colour on every cut face of hoodoo-and-butte country: inside a broad region the paint fill
+    // claims the column forty deep and CYCLES four blocks in 3-thick bands parallel to the surface, so a
+    // cliff, a canyon wall or a mined shaft all show the same stripes. The cycle is the reference consumer
+    // of the paint-cycle extension (ColumnProfile.PaintCycle).
+    private const long RainbowRegionSalt = 0x0BAD33;
+    private const int RainbowFillDepth = 40;
+    private const int RainbowBandThickness = 3;
+
+    private bool HasRainbowStrata(PlanetType planet)
+        => HasMassifs(planet) && planet.HasTag(TerrainTag.Buttes) && planet.HasTag(TerrainTag.Hoodoos);
+
+    private bool RainbowRegionAt(WonderProfile w, int worldX, int worldZ)
+        => FbmT(w.Seed + RainbowRegionSalt, worldX, worldZ, 460.0, octaves: 2) > 0.58;
+
+    /// <summary>The four bands, top first: the order a cut face shows from the surface down.</summary>
+    private BlockId[]? RainbowCycle()
+    {
+        var sandstone = _content.GetBlock("sandstone")?.NumericId ?? BlockId.Air;
+        var granite = _content.GetBlock("granite")?.NumericId ?? BlockId.Air;
+        var salt = _content.GetBlock("salt")?.NumericId ?? BlockId.Air;
+        var basalt = _content.GetBlock("basalt")?.NumericId ?? BlockId.Air;
+        if (sandstone.IsAir || granite.IsAir || salt.IsAir || basalt.IsAir)
+        {
+            return null;
+        }
+
+        return new[] { sandstone, granite, salt, basalt };
+    }
+
+    /// <summary>The surface block of a rainbow column (the first band) with the fill depth; the cycle below
+    /// comes from <see cref="RainbowStrataCycle"/>. Rock ground only — a soil biome keeps its topsoil.</summary>
+    private BlockId? RainbowStrataPaint(PlanetType planet, WonderProfile w, int worldX, int worldZ, int surfaceY, out int fillToY)
+    {
+        fillToY = int.MinValue;
+        if (!RainbowRegionAt(w, worldX, worldZ))
+        {
+            return null;
+        }
+
+        var cycle = RainbowCycle();
+        if (cycle is null)
+        {
+            return null;
+        }
+
+        fillToY = surfaceY - RainbowFillDepth;
+        return cycle[0];
+    }
+
+    private BlockId[]? RainbowStrataCycle(WonderProfile w, int worldX, int worldZ)
+        => RainbowRegionAt(w, worldX, worldZ) ? RainbowCycle() : null;
+
+    /// <summary>The block a rainbow fill puts <paramref name="depthBelowSurface"/> cells under the surface —
+    /// what the y-loop computes, exposed for the tests.</summary>
+    internal static BlockId CycleBlockAt(BlockId[] cycle, int depthBelowSurface)
+        => cycle[(depthBelowSurface / RainbowBandThickness) % cycle.Length];
 
     // ---------------- test seams ----------------
 

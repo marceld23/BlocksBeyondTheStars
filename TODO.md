@@ -44,11 +44,12 @@ guard. Not released: the whole package ships together after Marcel's local Unity
 **Part 2 (rock) — DONE on the branch (2026-09-07):** slot canyons, arêtes and tooth rows, desert pavement
 and the petrified-dune skin (landmark rows); rock gates and mountain halls (worm families riding their
 landform's own hotspot cell); the labyrinth, stone-forest and petrified-dune styles, gated by generation
-so a style added to an existing pool never moves an older world's relief. ⚠ One golden group
-(`karst-gen3`) needs re-pinning — the stone-forest style joined the karst pool.
+so a style added to an existing pool never moves an older world's relief. Rainbow strata (Bunte Berge)
+via the paint CYCLE — a paint row may lay its fill down in 3-thick bands parallel to the surface.
+Goldens `desert-gen3`, `red_desert-gen3`, `dust_bowl-gen3` pinned, `karst-gen3` re-pinned (the
+stone-forest style joined the pool).
 **Parts 3–8 (open):** caves, volcanic and desert, wetlands and rivers, coast and sea floor, ice, then
-the new planet types and docs. Rainbow strata (part 2's tenth item) is deferred: it needs a per-cell
-colour cycle in the paint fill, which is a y-loop change.
+the new planet types and docs.
 
 ---
 

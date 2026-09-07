@@ -200,8 +200,7 @@ public sealed partial class WorldGenerator
     private readonly struct TunnelFamily
     {
         public TunnelFamily(string name, long salt, double cellSize, double chance, double margin,
-            System.Func<WonderProfile, bool> active,
-            System.Func<WorldGenerator, PlanetType, WonderProfile, ulong, TunnelSeg[]> segments)
+            System.Func<WonderProfile, bool> active, TunnelSegmentsFn segments)
         {
             Name = name; Salt = salt; CellSize = cellSize; Chance = chance; Margin = margin;
             Active = active; Segments = segments;
@@ -213,19 +212,25 @@ public sealed partial class WorldGenerator
         public readonly double Chance;
         public readonly double Margin;
         public readonly System.Func<WonderProfile, bool> Active;
-        public readonly System.Func<WorldGenerator, PlanetType, WonderProfile, ulong, TunnelSeg[]> Segments;
+        public readonly TunnelSegmentsFn Segments;
     }
+
+    /// <summary>Builds a cell's worm polyline in cell-local X/Z with absolute Y. <paramref name="centreX"/> /
+    /// <paramref name="centreZ"/> is the feature centre in world coordinates, so a family anchored to the
+    /// ground (a gate at a wall's foot, a hall inside a massif) can read the raw height there; the classic
+    /// worms ignore it and hang off <c>BaseHeight</c> as they always did.</summary>
+    private delegate TunnelSeg[] TunnelSegmentsFn(WorldGenerator g, PlanetType planet, WonderProfile w, ulong h, int centreX, int centreZ);
 
     private static readonly TunnelFamily[] TunnelFamilies =
     {
         new("worms", 0x7A22E1, TunnelCellSize, TunnelChance, TunnelMargin, static w => w.Tunnels,
-            static (g, p, w, h) => g.TunnelSegmentsFor(p, w, h)),
+            static (g, p, w, h, cx, cz) => g.TunnelSegmentsFor(p, w, h)),
         // Terrain generation 3, part 2. Both ride their landform's OWN hotspot cell (the same salt, pitch and
         // chance), so a gate only ever cuts a table mountain that exists and a hall only hollows a real massif.
         new("rock-gates", 0x7AB1E0, ButteCellSize, ButteChance, ButteMaxRadius + 20.0, static w => w.RockGates,
-            static (g, p, w, h) => g.RockGateSegments(p, w, h)),
+            static (g, p, w, h, cx, cz) => g.RockGateSegments(p, w, h, cx, cz)),
         new("mountain-halls", 0x3A551F, MassifCellSize, MassifChance, MassifMaxRadius + 20.0, static w => w.MountainHalls,
-            static (g, p, w, h) => g.MountainHallSegments(p, w, h)),
+            static (g, p, w, h, cx, cz) => g.MountainHallSegments(p, w, h, cx, cz)),
     };
 
     /// <summary>The registered worm families in table order (tests).</summary>
@@ -262,7 +267,10 @@ public sealed partial class WorldGenerator
                 continue;
             }
 
-            var segs = family.Segments(this, planet, w, h);
+            // The centre in world coordinates (dx/dz are the integral offsets TryGetHotspot yields).
+            int cx = WorldConstants.WrapX(worldX - (int)System.Math.Round(dx), _circumference);
+            int cz = WorldConstants.WrapZ(worldZ - (int)System.Math.Round(dz), _circumference);
+            var segs = family.Segments(this, planet, w, h, cx, cz);
             for (int i = 0; i < segs.Length && n < cap; i++)
             {
                 ref readonly var sg = ref segs[i];
