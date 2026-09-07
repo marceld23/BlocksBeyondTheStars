@@ -795,6 +795,55 @@ public sealed class ShipAiTests : IDisposable
         Assert.Contains("vega:hint:ship_far#done", server.MilestonesForTest("Wanderer"));
     }
 
+    [Fact]
+    public void TierGateTip_ArmsOnARefusedSwing_ThenNamesTheBlockAndTheTool()
+    {
+        using var repo = new SqliteWorldRepository(new SaveGamePaths(_root, "vega"));
+        using var serverTransport = new LoopbackServerTransport(NewLink(out var link));
+        using var client = new LoopbackClientTransport(link);
+        var lines = CaptureVega(client);
+        var server = new SvGameServer(Config(), _content, serverTransport, repo);
+        server.Start();
+        JoinAndDrain(server, client, "Rookie");
+
+        var session = server.Sessions[1];
+        var p = session.State;
+        p.AboardShip = false;
+        // Retire the vitals hints: they outrank an equipment tip and would win every cadence slot here.
+        foreach (string other in new[] { "o2", "energy", "hunger", "cold", "heat", "medkit" })
+        {
+            p.Milestones.Add("vega:hint:" + other + "#done");
+        }
+
+        // A Machine Housing within reach, and the starter Basic Drill (tier 1) that cannot open it.
+        int px = (int)Math.Floor(p.Position.X);
+        int pz = (int)Math.Floor(p.Position.Z);
+        var pos = new Vector3i(px, (int)Math.Floor(p.Position.Y) - 1, pz);
+        server.World.SetBlock(pos, _content.GetBlock("machine_block")!.NumericId);
+
+        Assert.DoesNotContain("tier_gate", server.VegaTipCandidatesForTest("Rookie").Candidates);
+
+        server.MineBlockOnce("Rookie", pos.X, pos.Y, pos.Z);
+
+        Assert.False(server.World.GetBlock(pos).IsAir, "A tier-1 drill must not open a tier-2 block.");
+        // Collecting candidates must NOT disarm the tip — it runs every tick, but only one tip fires per
+        // cadence slot, so a losing slot used to swallow the teaching moment entirely.
+        Assert.Contains("tier_gate", server.VegaTipCandidatesForTest("Rookie").Candidates);
+        Assert.Contains("tier_gate", server.VegaTipCandidatesForTest("Rookie").Candidates);
+
+        TickSeconds(server, client, 200, () => { p.Oxygen = 100f; p.Hunger = 100f; p.Health = 100f; });
+
+        var tip = Assert.Single(lines, l => l.LineKey == "vega.hint.tier_gate");
+        Assert.Equal(1, tip.Kind); // first occurrence = advisor line, appended to the tips log
+        // The two {n} slots travel packed in one LineArg (VegaText.ArgSeparator on the client side).
+        Assert.Equal(new[] { "Machine Housing", "Titanium Drill" }, tip.LineArg.Split('\u001f'));
+        Assert.Contains("vega:hint:tier_gate", server.MilestonesForTest("Rookie"));
+
+        // Spoken once = disarmed: idling on afterwards must not repeat it off the same stale arming.
+        TickSeconds(server, client, 200, () => { p.Oxygen = 100f; p.Hunger = 100f; p.Health = 100f; });
+        Assert.Single(lines, l => l.LineKey == "vega.hint.tier_gate");
+    }
+
     private static void SqliteWorldRepositoryReset()
     {
         Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();

@@ -4003,7 +4003,8 @@ public sealed partial class GameServer
         var tool = ActiveTool(session.State);
         if (!ToolCanMine(tool, def))
         {
-            Reject(session, "mine", "@srv.mine.wrong_tool");
+            NoteTierGate(session, def);
+            Reject(session, "mine", WrongToolReason(session, def));
             return;
         }
 
@@ -5593,14 +5594,24 @@ public sealed partial class GameServer
         return new ToolProperties { Kind = ToolKind.None, Tier = 0 };
     }
 
+    /// <summary>Delegates to the shared rule (#1686) so the server, the client fluid cursor and the client's
+    /// "this block wants a better drill" hint can never disagree about what a tool may break.</summary>
     private static bool ToolCanMine(ToolProperties tool, BlockDefinition block)
-    {
-        if (block.RequiredTool != ToolKind.None && tool.Kind != block.RequiredTool)
-        {
-            return false;
-        }
+        => MiningRules.ToolCanMine(tool, block);
 
-        return tool.Tier >= block.MinToolTier;
+    /// <summary>
+    /// The reject token for a swing the held tool cannot land (#1686). The bare "your tool cannot mine this"
+    /// left a new player with no move to make — a Machine Housing in the open world simply refused to break
+    /// and never said what would work. When the content set has a tool that WOULD break it, the token carries
+    /// that tool's name (localized for this session) so the message can name it. Falls back to the old
+    /// wording when nothing in the game can break the block at all.
+    /// </summary>
+    private string WrongToolReason(PlayerSession session, BlockDefinition block)
+    {
+        var wanted = MiningRules.CheapestToolFor(_content, block);
+        return wanted is null
+            ? "@srv.mine.wrong_tool"
+            : "@srv.mine.wrong_tool_named:" + LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
     }
 
     private bool StationAvailable(PlayerState player, CraftingStation station) => StationAvailable(player, _ship, station);

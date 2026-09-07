@@ -24,6 +24,33 @@ envelope at the WebSocket edge; deterministic seed world-gen; SQLite default per
 
 ---
 
+### ★ Tool-tier gates say what they want (#1686, 2026-09-07, branch feat/1686-tool-tier-hints)
+
+Aiming the starter Basic Drill at a Machine Housing produced `Your current tool cannot mine this block.` and
+nothing else — the tool tier was never named, never shown before the swing, and never explained. Fifteen blocks
+gate this way (the tier-2 machine/metal blocks and rare ores, plus water and lava at tier 3), so the wall a new
+player meets on day one had no visible way through. Nothing about the gating rules changed; only what the game
+says about them.
+
+- **The rule has one home.** `Shared/Content/MiningRules.cs` holds `ToolCanMine` plus `CheapestToolFor` (the
+  lowest tier that clears a gate, lowest mining power among equals). `GameServer.ToolCanMine` and the client's
+  fluid-cursor check were hand-copied twins that could drift; both now call the shared predicate.
+- **The reject names the tool.** `HandleMine` and the asteroid path send `@srv.mine.wrong_tool_named:<tool>`
+  with the tool localized for the session — "Your tool is not strong enough for this block. Needs: Titanium
+  Drill." The client needed no change: `ResolveServerToken` already fills `{name}` from an `@srv.key:arg`
+  token. The bare `srv.mine.wrong_tool` stays as the fallback for a block nothing can break.
+- **The scan panel says it before the swing.** `HudUi.ScanToolLine` appends a `Needs: …` line to every scan of
+  a gated block, whether or not the held tool clears it — the readout is a datasheet, not a warning. No wire
+  change: the client already loads the full `GameContent`, `MinToolTier` included; it simply never read it.
+- **VEGA explains it once.** New `tier_gate` context tip (Equipment priority), armed by a refused swing and
+  disarmed when the line actually goes out — the candidate collector deliberately leaves it standing, because
+  it runs every tick while only one tip fires per cadence slot. Mentioned per block, so hammering the same wall
+  is one telling, not one per swing.
+- Names a **concrete tool** everywhere rather than an abstract tier: "a drill of tier 2" is not actionable,
+  "Titanium Drill" is. That titanium must come from wrecks, loot or trade (titanium ore is itself tier 2) is
+  deliberate design — the game now says so instead of leaving it as a silent dead end.
+- Three new locale keys across all 14 languages; `ToolTierGateTests` (7) + a VEGA tip test in `ShipAiTests`.
+
 ### ★ Lyxette round 10: the hyperjump arrives where it says, two ships never share a pad, the compass points at the ship (#1677–#1684, 2026-09-07, branch fix/lyxette-reports-2026-09-07)
 
 Three player reports and one silent crash report from the evening of 2026-09-06, on two builds (the hyperjump

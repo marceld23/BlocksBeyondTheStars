@@ -2135,7 +2135,7 @@ namespace BlocksBeyondTheStars.Client
 
             if (!show) return;
             _scanSubject.text = $"{loc.Get("ui.scan.title").ToUpperInvariant()}: {ScanSubjectName(loc, scan.Subject)}";
-            _scanInfo.text = ScanInfoText(loc, scan);
+            _scanInfo.text = ScanInfoText(loc, scan) + ScanToolLine(loc, scan);
             // The threat WORD comes from a locale key now; `scan.Threat` is the legacy English fallback (#484).
             string threat = !string.IsNullOrEmpty(scan.ThreatKey) ? loc.Get(scan.ThreatKey) : scan.Threat;
             _scanThreat.gameObject.SetActive(!string.IsNullOrEmpty(threat) && threat != "—");
@@ -2193,6 +2193,33 @@ namespace BlocksBeyondTheStars.Client
             }
 
             return scan.Info; // pre-#484 server
+        }
+
+        /// <summary>
+        /// The tool a scanned BLOCK wants, as a second info line (#1686). Tool-tier gates were invisible until
+        /// you swung at them: a Machine Housing refused a Basic Drill with "your current tool cannot mine this
+        /// block" and never said what would. Shown on every scan of a gated block, whether or not the tool in
+        /// hand already clears it — the readout is a datasheet, not a warning, and a player planning a trip
+        /// wants to know what to bring. Blocks anything can break (dirt, sand, flora) get no line, and neither
+        /// do creature or asteroid scans, whose subject is not a block key.
+        /// </summary>
+        private string ScanToolLine(BlocksBeyondTheStars.Shared.Localization.Localizer loc,
+            BlocksBeyondTheStars.Networking.Messages.ScanResult scan)
+        {
+            var content = Game.Content;
+            if (content == null
+                || content.GetBlock(scan.Subject) is not { } block
+                || (block.RequiredTool == BlocksBeyondTheStars.Shared.Definitions.ToolKind.None
+                    && block.MinToolTier <= 0))
+            {
+                return string.Empty;
+            }
+
+            // Names a CONCRETE tool rather than an abstract tier: "a drill of tier 2" is not something a
+            // player can act on, "Titanium Drill" is. Null when nothing in the content set opens this block
+            // (a decorative wall) — then the line would only frustrate, so it stays away.
+            var wanted = BlocksBeyondTheStars.Shared.Content.MiningRules.CheapestToolFor(content, block);
+            return wanted is null ? string.Empty : $"\n{loc.Get("ui.scan.tool")}: {loc.Get(wanted.NameKey)}";
         }
 
         /// <summary>Localized name for an item key, falling back to the block table (drop lists mix both).</summary>
