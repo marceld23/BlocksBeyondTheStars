@@ -181,6 +181,37 @@ public sealed class TerrainTagsAndGenerationTests
             WorldGenerator.PropOrderForTest().Take(5).ToArray());
     }
 
+    /// <summary>The worm carver is a table like the landmarks and the props. The classic worms stay row 0, so a
+    /// later family appended to it can never take carve budget away from an existing world's caves.</summary>
+    [Fact]
+    public void TunnelTable_KeepsTheClassicWormsFirst()
+    {
+        Assert.Equal("worms", WorldGenerator.TunnelFamilyOrderForTest()[0]);
+    }
+
+    /// <summary>Generation 0–2 worlds keep the classic six-span carve budget per column even though the buffer
+    /// is bigger now: a column that used to drop its seventh span must still drop it, or its caves would move.</summary>
+    [Fact]
+    public void TunnelSpanBudget_StaysAtSix_BelowGenerationThree()
+    {
+        var planet = Content.Planets["jungle"];
+        int circ = WorldConstants.Circumference;
+        int period = WorldConstants.LatitudePeriodFor(circ);
+        Span<(int Lo, int Hi)> spans = stackalloc (int Lo, int Hi)[16];
+
+        foreach (int generation in new[] { 0, 1, 2 })
+        {
+            var gen = new WorldGenerator(20260907, Content);
+            gen.SetTerrainGeneration(generation);
+            for (int z = -period / 2; z < period / 2; z += 53)
+                for (int x = 0; x < circ; x += 61)
+                {
+                    Assert.True(gen.TunnelSpans(planet, x, z, spans) <= 6,
+                        $"generation {generation} wrote more than the classic six spans at ({x},{z})");
+                }
+        }
+    }
+
     [Fact]
     public void TerrainGeneration_IsAppliedPerGenerator_AndInvalidatesTheColumnMemo()
     {

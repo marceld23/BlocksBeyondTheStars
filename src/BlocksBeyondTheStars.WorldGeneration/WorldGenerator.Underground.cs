@@ -80,10 +80,22 @@ public sealed partial class WorldGenerator
     private const double TunnelCellSize = 700.0;
     private const double TunnelChance = 0.5;
     private const double TunnelMargin = 320.0;
-    private const int TunnelMaxSpans = 6;
+
+    /// <summary>Scratch room for one column's carve spans. Raised from the classic 6 for terrain generation 3,
+    /// whose column phase appends spans of its own (an underground river's passage) on top of the worms'.</summary>
+    private const int TunnelMaxSpans = 10;
+
+    /// <summary>What a generation 0–2 world's worms may write. The classic buffer was exactly this big, so a
+    /// column that filled it dropped the rest; keeping the cap keeps every existing save's caves identical.</summary>
+    private const int ClassicTunnelSpanCap = 6;
 
     private bool HasTunnels(PlanetType planet)
         => !planet.Void && planet.CaveThreshold > 0.0;
+
+    /// <summary>Soluble-rock regions (terrain generation 3, the <c>karst</c> tag): broad contiguous belts where
+    /// a river can run underground. One coarse field, so the belt reads as one landscape rather than speckle.</summary>
+    private bool KarstRegionAt(WonderProfile w, int worldX, int worldZ)
+        => FbmT(w.Seed + 0x4A2571, worldX, worldZ, 420.0, octaves: 2) > 0.60;
 
     /// <summary>One capsule segment of a tunnel worm (#708), in hotspot-cell-local X/Z (Y absolute).</summary>
     private readonly struct TunnelSeg
@@ -182,29 +194,74 @@ public sealed partial class WorldGenerator
         }
     }
 
+    /// <summary>One worm family: a hotspot grid of its own and a builder for the polyline a cell grows. The
+    /// classic worms are row 0; later waves register their own (ice caves inside a glacier, for instance)
+    /// instead of editing <see cref="TunnelSpans"/>.</summary>
+    private readonly struct TunnelFamily
+    {
+        public TunnelFamily(string name, long salt, double cellSize, double chance, double margin,
+            System.Func<WonderProfile, bool> active,
+            System.Func<WorldGenerator, PlanetType, WonderProfile, ulong, TunnelSeg[]> segments)
+        {
+            Name = name; Salt = salt; CellSize = cellSize; Chance = chance; Margin = margin;
+            Active = active; Segments = segments;
+        }
+
+        public readonly string Name;
+        public readonly long Salt;
+        public readonly double CellSize;
+        public readonly double Chance;
+        public readonly double Margin;
+        public readonly System.Func<WonderProfile, bool> Active;
+        public readonly System.Func<WorldGenerator, PlanetType, WonderProfile, ulong, TunnelSeg[]> Segments;
+    }
+
+    private static readonly TunnelFamily[] TunnelFamilies =
+    {
+        new("worms", 0x7A22E1, TunnelCellSize, TunnelChance, TunnelMargin, static w => w.Tunnels,
+            static (g, p, w, h) => g.TunnelSegmentsFor(p, w, h)),
+    };
+
+    /// <summary>The registered worm families in table order (tests).</summary>
+    internal static string[] TunnelFamilyOrderForTest()
+    {
+        var names = new string[TunnelFamilies.Length];
+        for (int i = 0; i < TunnelFamilies.Length; i++)
+        {
+            names[i] = TunnelFamilies[i].Name;
+        }
+
+        return names;
+    }
+
     /// <summary>Computes this column's tunnel-carve y-spans (#708) into <paramref name="spans"/> and
     /// returns the count. Deterministic per (seed, column); the cell's worm polyline comes from the
-    /// per-cell cache (#712), so per column only capsule distance checks run.</summary>
+    /// per-cell cache (#712), so per column only capsule distance checks run. A generation 0–2 world stops
+    /// at <see cref="ClassicTunnelSpanCap"/> spans, which is exactly what its buffer used to hold.</summary>
     public int TunnelSpans(PlanetType planet, int worldX, int worldZ, System.Span<(int Lo, int Hi)> spans)
     {
         var w = WonderFor(planet); // #712
-        if (!w.Tunnels)
-        {
-            return 0;
-        }
-
-        if (!TryGetHotspot(w.Seed ^ 0x7A22E1, TunnelCellSize, TunnelChance, TunnelMargin,
-                worldX, worldZ, out ulong h, out double dx, out double dz))
-        {
-            return 0;
-        }
-
-        var segs = TunnelSegmentsFor(planet, w, h);
+        int cap = w.Generation >= 3 ? spans.Length : System.Math.Min(spans.Length, ClassicTunnelSpanCap);
         int n = 0;
-        for (int i = 0; i < segs.Length && n < spans.Length; i++)
+        foreach (var family in TunnelFamilies)
         {
-            ref readonly var sg = ref segs[i];
-            AddSegmentSpan(sg.X0, sg.Y0, sg.Z0, sg.X1, sg.Y1, sg.Z1, sg.R, dx, dz, spans, ref n);
+            if (n >= cap || !family.Active(w))
+            {
+                continue;
+            }
+
+            if (!TryGetHotspot(w.Seed ^ family.Salt, family.CellSize, family.Chance, family.Margin,
+                    worldX, worldZ, out ulong h, out double dx, out double dz))
+            {
+                continue;
+            }
+
+            var segs = family.Segments(this, planet, w, h);
+            for (int i = 0; i < segs.Length && n < cap; i++)
+            {
+                ref readonly var sg = ref segs[i];
+                AddSegmentSpan(sg.X0, sg.Y0, sg.Z0, sg.X1, sg.Y1, sg.Z1, sg.R, dx, dz, spans, ref n);
+            }
         }
 
         return n;
