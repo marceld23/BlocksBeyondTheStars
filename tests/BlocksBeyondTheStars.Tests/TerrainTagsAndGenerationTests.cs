@@ -109,12 +109,37 @@ public sealed class TerrainTagsAndGenerationTests
         Assert.True(Content.Planets["lava"].HasTag(TerrainTag.Volcanic));
         Assert.True(Content.Planets["rocky"].HasTag(TerrainTag.Buttes | TerrainTag.Hoodoos));
         Assert.False(Content.Planets["jungle"].HasTag(TerrainTag.Buttes));
-        Assert.Equal(TerrainTag.Wetland, Content.Planets["ocean"].Tags); // #1647: marsh sheets on the ocean world's flats
+        // #1647: marsh sheets on the ocean world's flats; generation 3: reef relief on its warm shallows.
+        Assert.Equal(TerrainTag.Wetland | TerrainTag.Reef, Content.Planets["ocean"].Tags);
         Assert.Equal(TerrainTag.None, Content.Planets["lava"].Tags & ~TerrainTag.Volcanic);
 
         var bad = new PlanetType { Key = "bad", TerrainTags = new List<string> { "volcanic", "moon_cheese" } };
         bad.Tags = TerrainTags.Parse(bad.TerrainTags, out var unknown);
         Assert.Equal("moon_cheese", unknown);
+    }
+
+    /// <summary>Terrain generation 3: the two new tags parse and sit on the types the landform package needs
+    /// them on — soluble rock for the underground reaches, warm shallow coasts for the reef families.</summary>
+    [Fact]
+    public void KarstAndReefTags_ParseAndSitOnTheExpectedTypes()
+    {
+        var parsed = TerrainTags.Parse(new[] { "karst", "reef" }, out var unknown);
+        Assert.Equal(TerrainTag.Karst | TerrainTag.Reef, parsed);
+        Assert.Null(unknown);
+
+        foreach (var key in new[] { "jungle", "karst", "fungal", "boreal" })
+        {
+            Assert.True(Content.Planets[key].HasTag(TerrainTag.Karst), $"{key} should carry the karst tag");
+        }
+
+        foreach (var key in new[] { "ocean", "archipelago", "jungle" })
+        {
+            Assert.True(Content.Planets[key].HasTag(TerrainTag.Reef), $"{key} should carry the reef tag");
+        }
+
+        Assert.False(Content.Planets["desert"].HasTag(TerrainTag.Karst));
+        Assert.False(Content.Planets["desert"].HasTag(TerrainTag.Reef));
+        Assert.False(Content.Planets["ice"].HasTag(TerrainTag.Reef));
     }
 
     [Fact]

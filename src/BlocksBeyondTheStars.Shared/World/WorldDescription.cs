@@ -165,7 +165,10 @@ public sealed class WorldDescription
     /// 0 = every world created before the landscape-variety package (the classic generators only); 1 = the
     /// 2026-09 package (regional style pools, per-world scale, biome relief, new landmarks, water bodies,
     /// paints, props); 2 = the ocean-pad wave (#1618–#1622, gated by #1665: the two-dimensional dry-land
-    /// nudge, deep-water islets on every world with a water sea, the plateau-and-beach islet shape). MUST
+    /// nudge, deep-water islets on every world with a water sea, the plateau-and-beach islet shape);
+    /// 3 = the landform completion package (2026-09): landmark paints that fill a whole column, sea-relative
+    /// landmark rows (sea-floor landforms), ice/fluid overhang bands, sub-surface fluid spans, river
+    /// morphology, and the landform families built on them. MUST
     /// default to 0 like <see cref="TerrainContinents"/>: terrain is re-derived from the seed, so a loaded
     /// save keeps the generation it was created with and its terrain never moves — and neither do its
     /// landing pads, which are re-derived the same way. New worlds get the current generation from
@@ -173,8 +176,8 @@ public sealed class WorldDescription
     /// of one bool per wave — every later wave is a single compare.</summary>
     public int TerrainGeneration { get; set; }
 
-    /// <summary>The terrain generation new worlds are created with today (#1644, #1665).</summary>
-    public const int CurrentTerrainGeneration = 2;
+    /// <summary>The terrain generation new worlds are created with today (#1644, #1665, landform package).</summary>
+    public const int CurrentTerrainGeneration = 3;
 
     /// <summary>The generation from which landing pads use the ocean-pad rules (#1665): the 2-D nudge with the
     /// ocean search budget, islets under every deep all-water pad, the plateau islet shape. Older saves keep the

@@ -95,7 +95,7 @@
   },
   {
     "key": "jungle", "floraTheme": "tropical", "baseTemperature": 28, "nameKey": "planet.jungle.name", "atmosphereHeight": 240, "cloudColor": 15922422, "cloudDensity": 0.6,
-    "terrainTags": ["wetland"],
+    "terrainTags": ["wetland", "karst", "reef"],
     "baseHeight": 66, "amplitude": 16, "terrainScale": 44.0,
     "terrainStyles": ["hills", "karst", "downs"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -183,7 +183,7 @@
   },
   {
     "key": "ocean", "floraTheme": "temperate", "baseTemperature": 20, "nameKey": "planet.ocean.name", "atmosphereHeight": 230, "cloudColor": 13623026, "cloudDensity": 0.55,
-    "terrainTags": ["wetland"],
+    "terrainTags": ["wetland", "reef"],
     "baseHeight": 60, "amplitude": 20, "terrainScale": 60.0, "terrainStyle": "flats",
     "terrainStyles": ["flats", "archipelago"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -326,6 +326,7 @@
   },
   {
     "key": "fungal", "floraTheme": "fungal", "exotic": true, "baseTemperature": 18, "nameKey": "planet.fungal.name", "atmosphereHeight": 220, "cloudColor": 9337256, "cloudDensity": 0.6,
+    "terrainTags": ["karst"],
     "baseHeight": 60, "amplitude": 14, "terrainScale": 48.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "karst", "downs"],
     "surfaceBlock": "mycelium", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -459,7 +460,7 @@
   },
   {
     "key": "karst", "floraTheme": "tropical", "exotic": true, "baseTemperature": 27, "nameKey": "planet.karst.name", "atmosphereHeight": 210, "cloudColor": 14210014, "cloudDensity": 0.5,
-    "terrainTags": ["wetland"],
+    "terrainTags": ["wetland", "karst"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 46.0, "terrainStyle": "karst",
     "terrainStyles": ["karst", "hills", "downs"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -504,7 +505,7 @@
   },
   {
     "key": "boreal", "minTerrainGeneration": 1, "floraTheme": "tundra", "baseTemperature": -4, "nameKey": "planet.boreal.name", "atmosphereHeight": 230, "cloudColor": 14606326, "cloudDensity": 0.55,
-    "terrainTags": ["glacial"],
+    "terrainTags": ["glacial", "karst"],
     "baseHeight": 63, "amplitude": 14, "terrainScale": 50.0, "terrainStyle": "hills",
     "terrainStyles": ["hills", "downs", "drumlins"],
     "surfaceBlock": "grass", "subSurfaceBlock": "dirt", "deepBlock": "stone", "surfaceDepth": 4,
@@ -528,7 +529,7 @@
   },
   {
     "key": "archipelago", "minTerrainGeneration": 1, "floraTheme": "tropical", "baseTemperature": 26, "nameKey": "planet.archipelago.name", "atmosphereHeight": 220, "cloudColor": 15922422, "cloudDensity": 0.55,
-    "terrainTags": ["wetland"],
+    "terrainTags": ["wetland", "reef"],
     "baseHeight": 60, "amplitude": 18, "terrainScale": 56.0, "terrainStyle": "archipelago",
     "terrainStyles": ["archipelago", "flats"],
     "surfaceBlock": "sand", "subSurfaceBlock": "sand", "deepBlock": "stone", "surfaceDepth": 4,

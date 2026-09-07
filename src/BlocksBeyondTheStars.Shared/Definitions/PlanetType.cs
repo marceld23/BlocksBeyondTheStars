@@ -86,7 +86,8 @@ public sealed class PlanetType
     public int MinTerrainGeneration { get; set; }
 
     /// <summary>Terrain feature tags this type opts into (#1644): "volcanic", "salt", "buttes", "hoodoos",
-    /// "crystal", "wind", "wetland", "glacial", "inselbergs" (see <see cref="TerrainTag"/>). The generator gates
+    /// "crystal", "wind", "wetland", "glacial", "inselbergs", plus "karst" and "reef" (terrain generation 3;
+    /// see <see cref="TerrainTag"/>). The generator gates
     /// its landform families on these — never on the type key — so a data-only type can carry any family.</summary>
     public List<string> TerrainTags { get; set; } = new();
 

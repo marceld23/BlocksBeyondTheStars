@@ -41,6 +41,13 @@ public enum TerrainTag
 
     /// <summary>Lone granite domes rising from flat ground — terrain generation 1.</summary>
     Inselbergs = 1 << 8,
+
+    /// <summary>Soluble rock country: rivers that run underground for a reach, dripstone in the caves, stone
+    /// forests and rock labyrinths — terrain generation 3.</summary>
+    Karst = 1 << 9,
+
+    /// <summary>Warm shallow-sea coasts: reef relief, lagoons, atolls and blue holes — terrain generation 3.</summary>
+    Reef = 1 << 10,
 }
 
 /// <summary>Parses the data-side tag names of <see cref="PlanetType.TerrainTags"/>.</summary>
