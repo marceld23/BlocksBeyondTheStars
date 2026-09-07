@@ -341,18 +341,22 @@ public sealed class RiverField
                     }
                 }
 
-                // Banks (generation 3): one walkable ledge on each side of an underground channel — solid up
-                // to the waterline, air from there to the roof. That is also what SEALS the water sideways:
-                // its lateral neighbour at the water's own height is rock, never air. Not at a mouth, where
-                // the shaft should stay as narrow as the channel itself.
+                // Banks (generation 3): a walkable ledge around an underground channel — solid up to the
+                // waterline, air from there to the roof. That is also what SEALS the water sideways: every
+                // 4-neighbour of a water column at the water's own height is rock (a bank is shielded from the
+                // cave carver) or the passage itself, never an unshielded column a cave may have opened. A
+                // ring rather than two flanks, because a diagonal stroke has water neighbours off its axis too.
+                // Not at a mouth, where the shaft should stay as narrow as the channel itself.
                 if (underground && !mouth)
                 {
-                    for (int side = -1; side <= 1; side += 2)
+                    for (int o = -half; o <= half; o++)
                     {
-                        int o = side * (half + 1);
-                        int bx = axis == 0 ? wx : wx + o;
-                        int bz = axis == 0 ? wz + o : wz;
-                        Stamp(bx, bz, surface, surface, 0, axis, underground: true, roofY);
+                        int sx = axis == 0 ? wx : wx + o;
+                        int sz = axis == 0 ? wz + o : wz;
+                        Stamp(sx + 1, sz, surface, surface, 0, axis, underground: true, roofY);
+                        Stamp(sx - 1, sz, surface, surface, 0, axis, underground: true, roofY);
+                        Stamp(sx, sz + 1, surface, surface, 0, axis, underground: true, roofY);
+                        Stamp(sx, sz - 1, surface, surface, 0, axis, underground: true, roofY);
                     }
                 }
             }

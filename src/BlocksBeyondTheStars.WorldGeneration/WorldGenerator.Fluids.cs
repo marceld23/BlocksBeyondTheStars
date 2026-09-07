@@ -382,9 +382,19 @@ public sealed partial class WorldGenerator
             return false;
         }
 
+        // The column phase's own precedence: the sea, an upland pond or a volcano crater owns the column
+        // outright and the river entry is ignored there — so the passage does not exist either.
+        int surfaceY = SurfaceHeight(planet, worldX, worldZ);
+        if (surfaceY <= ResolveSeaFluid(planet).Level
+            || SurfacePondDepth(planet, worldX, worldZ) > 0
+            || TryGetVolcanoCrater(planet, worldX, worldZ, out _))
+        {
+            return false;
+        }
+
         waterTopY = col.WaterSurfaceY;
         bedY = col.BedY;
-        roofY = col.Mouth ? col.RoofY : System.Math.Min(col.RoofY, SurfaceHeight(planet, worldX, worldZ) - 1);
+        roofY = col.Mouth ? col.RoofY : System.Math.Min(col.RoofY, surfaceY - 1);
         return true;
     }
 

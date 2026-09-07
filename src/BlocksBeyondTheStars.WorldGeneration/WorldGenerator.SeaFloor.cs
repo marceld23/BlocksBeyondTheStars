@@ -65,8 +65,13 @@ public sealed partial class WorldGenerator
     private const double SeamountChance = 0.35;
     private const double SeamountMaxRadius = 90.0;
     private const double SeamountMinRadius = 40.0;
-    private const int SeamountSummitClearance = 4;   // summit at most this far below the sea
-    private const int SeamountMinDepthAtCentre = 12; // the raw floor must be at least this deep
+    // The classic seas are shallow (amplitude 14–20 on the ocean types, no continents under 8000 blocks), so
+    // the family adapts to the floor it finds: a cone rises as high as the water above its centre allows,
+    // minus the clearance, and only counts when that leaves a real mountain. Deep seas (later parts) make
+    // them grand; a shallow shelf gets modest knolls rather than nothing.
+    private const int SeamountSummitClearance = 3;   // summit at most this far below the sea
+    private const int SeamountMinDepthAtCentre = 7;  // the raw floor must be at least this deep
+    private const double SeamountMinHeight = 4.0;
     private const long SeamountSalt = 0x5EA307;
 
     private bool HasSeamounts(PlanetType planet)
@@ -110,7 +115,7 @@ public sealed partial class WorldGenerator
             {
                 double rolled = 30.0 + ((h >> 26) & 0x3FF) / 1023.0 * 50.0; // 30..80
                 height = System.Math.Min(rolled, sea - SeamountSummitClearance - rawCentre);
-                has = height >= 8.0;
+                has = height >= SeamountMinHeight;
             }
 
             cell = (has, height, 0.0);
@@ -136,7 +141,13 @@ public sealed partial class WorldGenerator
     /// <summary>Seamount centres and heights on a world (tests).</summary>
     internal (bool Has, double Height) SeamountCellForTest(PlanetType planet, int worldX, int worldZ)
     {
-        double rise = SeamountOffset(planet, WonderFor(planet), worldX, worldZ);
+        var w = WonderFor(planet);
+        if (!w.Seamounts)
+        {
+            return (false, 0.0); // the table row is gated the same way
+        }
+
+        double rise = SeamountOffset(planet, w, worldX, worldZ);
         return (rise > 0.0, rise);
     }
 
@@ -147,7 +158,7 @@ public sealed partial class WorldGenerator
     private const double IcebergChance = 0.30;
     private const double IcebergMaxRadius = 24.0;
     private const double IcebergMinRadius = 8.0;
-    private const int IcebergMinDepth = 8; // only over water at least this deep (keeps them off aprons and pads)
+    private const int IcebergMinDepth = 3; // only over water at least this deep (keeps them off aprons and pads)
     private const long IcebergSalt = 0x1CEBE26;
     private const long IcebergFacetSalt = 0x1CEBE27;
 

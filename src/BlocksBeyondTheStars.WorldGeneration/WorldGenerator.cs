@@ -554,6 +554,11 @@ public sealed partial class WorldGenerator
             ["lavaOceanContinents"] = LavaOceanContinentsFor(planet),
             ["geyserVolcanic"] = GeyserVolcanicFor(planet, w.Volcanoes),
             ["crystalProps"] = CrystalPropsFor(planet),
+            // terrain generation 3
+            ["seamounts"] = w.Seamounts,
+            ["icebergs"] = w.Icebergs,
+            ["undergroundRivers"] = w.UndergroundRivers,
+            ["glacierTongues"] = w.GlacierTongues,
         };
     }
 

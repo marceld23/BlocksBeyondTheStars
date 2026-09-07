@@ -563,8 +563,9 @@ public sealed partial class WorldGenerator
                         chunk.Set(lx, fly, lz, floraId);
                     }
                 }
-                else if (waterFlora && columnFluid == seaWaterId && seabedY + 1 <= waterTop - iceTop)
+                else if (waterFlora && columnFluid == seaWaterId && seabedY + 1 <= waterTop - iceTop && !materialBands)
                 {
+                    // (materialBands: an iceberg's hull stands in this water span — no kelp through solid ice.)
                     // Submerged WATER column — the sea or an upland pond grows seabed plants / lily pads.
                     // The column-fluid check keeps kelp out of lava rivers and volcano craters (#477).
                     // Plants stay below any ice sheet, and no lily pads float on a frozen surface (#494);
@@ -996,6 +997,36 @@ public sealed partial class WorldGenerator
         // Tunnel carver (#708): this column's worm-carve y-spans (empty on most columns). An underground river's
         // passage (generation 3) is appended as one more span: the same carve, one more source.
         int tunnelCount = tunnelWorld ? TunnelSpans(planet, worldX, worldZ, tunnelSpans) : 0;
+        if (shieldHi >= shieldLo)
+        {
+            // The cave shield also keeps the worms out: a classic span overlapping the shielded rock around the
+            // passage is clipped to what lies outside it (at most one extra piece when it straddles the shield).
+            System.Span<(int Lo, int Hi)> original = stackalloc (int Lo, int Hi)[TunnelMaxSpans];
+            tunnelSpans.Slice(0, tunnelCount).CopyTo(original);
+            int kept = 0;
+            for (int t = 0; t < tunnelCount; t++)
+            {
+                var (lo, hi) = original[t];
+                if (hi < shieldLo || lo > shieldHi)
+                {
+                    tunnelSpans[kept++] = (lo, hi);
+                    continue;
+                }
+
+                if (lo < shieldLo)
+                {
+                    tunnelSpans[kept++] = (lo, shieldLo - 1);
+                }
+
+                if (hi > shieldHi && kept < tunnelSpans.Length - 1)
+                {
+                    tunnelSpans[kept++] = (shieldHi + 1, hi); // leave one slot for the passage itself
+                }
+            }
+
+            tunnelCount = kept;
+        }
+
         if (passageHere && tunnelCount < tunnelSpans.Length)
         {
             tunnelSpans[tunnelCount++] = (passageLo, passageHi);

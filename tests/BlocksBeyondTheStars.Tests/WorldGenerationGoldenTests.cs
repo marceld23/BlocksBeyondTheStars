@@ -62,6 +62,13 @@ public sealed class WorldGenerationGoldenTests
         // #1648 (part 5): props, micro-ruins, new tree kinds and giant flora on generation-1 worlds.
         new("savanna-gen1", 424242, "savanna", 0, false, null, 1),
         new("swamp-gen1", 20260903, "swamp", 0, false, null, 1),
+        // Terrain generation 3, part 1 (the landform completion package): seamounts (sea-relative rows),
+        // icebergs (material bands), underground river reaches (sub-surface fluid spans), glacier-tongue fill
+        // (paint fill). highland-gen3 activates none of them and must equal highland-gen1 exactly.
+        new("ocean-gen3", 424242, "ocean", 0, false, null, 3),
+        new("frozen_ocean-gen3", 20260903, "frozen_ocean", 0, false, null, 3),
+        new("karst-gen3", 20260903, "karst", 0, false, null, 3),
+        new("highland-gen3", 20260903, "highland", 0, false, null, 3),
     };
 
     /// <summary>Sample columns: the spawn column (pad 0 sits at (0,0) on every world), one ordinary inland
@@ -95,6 +102,13 @@ public sealed class WorldGenerationGoldenTests
             // Pinned 2026-09-06 (#1648, Windows 11, .NET 10).
             ["savanna-gen1"] = 0x1f2b23eba6c17a34UL,
             ["swamp-gen1"] = 0x5c5a1959a7982a19UL,
+            // Pinned 2026-09-07 (terrain generation 3 part 1, Windows 11, .NET 10; unreleased — later parts
+            // re-pin these). ocean-gen3 equals ocean-gen1 (no seamount under the three sample columns) and
+            // highland-gen3 MUST equal highland-gen1: no generation-3 family is active there.
+            ["ocean-gen3"] = 0xcd2223af53fc3766UL,
+            ["frozen_ocean-gen3"] = 0xe6a4f91f378c89b3UL,
+            ["karst-gen3"] = 0x5cce16eda54ec279UL,
+            ["highland-gen3"] = 0x49f4107c54801291UL,
         },
         // Linux (ubuntu CI runners): filled in from the first CI run of this test; a group absent here falls
         // back to the Windows value above and fails with the value to pin if the libm differs.
