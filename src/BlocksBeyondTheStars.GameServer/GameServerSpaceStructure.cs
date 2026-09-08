@@ -572,7 +572,8 @@ public sealed partial class GameServer
                 var tool = ActiveTool(p);
                 if (!ToolCanMine(tool, def))
                 {
-                    Reject(session, "structure", "@srv.mine.wrong_tool");
+                    NoteTierGate(session, def);
+                    Reject(session, "structure", WrongToolReason(session, def));
                     return;
                 }
 

@@ -308,6 +308,13 @@ public sealed class PlayerSession
     /// <summary>Decaying "is digging right now" score: +1 per broken block, ×0.9 per second.</summary>
     public double VegaMineRecent { get; set; }
 
+    /// <summary>Localized name of the block whose tool-tier gate just turned a swing away (#1686), and the
+    /// tool that would break it. Empty until the player runs into a gate; consumed by the <c>tier_gate</c>
+    /// context tip on the next cadence slot and cleared once it has been spoken.</summary>
+    public string VegaTierGateBlock { get; set; } = string.Empty;
+
+    public string VegaTierGateTool { get; set; } = string.Empty;
+
     // --- Deferred death respawn (choice between ship and home spawn, issue #462) ---
 
     /// <summary>Server uptime deadline for a pending respawn choice; 0 = no choice pending. While pending the

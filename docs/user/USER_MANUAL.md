@@ -415,6 +415,12 @@ separate unlock; admins can still disable it through server world rules.
   minimum tool tier; mining accumulates the tool's power until it exceeds the hardness, then the block
   breaks and yields its **drops**. Powerful drills can clear a small radius — the sweep only takes blocks
   the drill could mine directly (same tier rules).
+- **The game tells you which tool a block wants.** Scanning a block lists a `Needs:` line naming the cheapest
+  tool that opens it, and a swing the held tool cannot land is refused by name ("Needs: Titanium Drill")
+  rather than a bare "wrong tool". The first time a tier gate turns you away, VEGA explains it once.
+  Tier-2 blocks (machine housings, factory terminals, titanium/platinum/tungsten and the rare ores) will not
+  budge for the starter drill — and since titanium ore is itself tier 2, your first titanium comes from a
+  wreck, from loot or from **trade**, never from digging.
 - Some powered drills (titanium drill, mining beam) **draw suit energy with every swing**; with an empty
   suit the swing is refused. The basic and diamond drills need no energy, so you can always keep mining.
 - **A full backpack does not stop you.** When neither your inventory nor (while aboard) the cargo hold has

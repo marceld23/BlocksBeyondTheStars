@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using BlocksBeyondTheStars.Networking.Messages;
+using BlocksBeyondTheStars.Shared.Content;
 using BlocksBeyondTheStars.Shared.Definitions;
 using BlocksBeyondTheStars.Shared.Geometry;
 using BlocksBeyondTheStars.Shared.State;
@@ -96,6 +97,9 @@ public sealed partial class GameServer
         new("torch_underground", VegaTipPriority.Equipment, 15, 900, 2, false),
         new("eat_now",        VegaTipPriority.Equipment,   5,  600, 3, false),
         new("wrong_tool",     VegaTipPriority.Equipment,   0,  600, 3, false),
+        // #1686: a tool-tier gate turned a swing away. The reject toast already names the tool; VEGA adds the
+        // WHY once, because the gate is the first wall a new player meets that no amount of persistence opens.
+        new("tier_gate",      VegaTipPriority.Equipment,   0,  600, 3, false),
         new("scanner_idle",   VegaTipPriority.Equipment,   0,  900, 2, true),
         new("speeder_far",    VegaTipPriority.Equipment,  10,  900, 2, true),
         // #1594: on foot and a long walk from the landed ship — tells a first-time player what the blue
@@ -358,6 +362,14 @@ public sealed partial class GameServer
 
         SendVegaLine(session, "vega.hint." + spec.Id, count == 0 ? (byte)1 : VegaTipRepeatKind, arg);
 
+        // The tool-tier gate (#1686) is armed by a refused swing and disarmed once it has been explained —
+        // the collector deliberately leaves it standing so a losing cadence slot does not swallow the tip.
+        if (spec.Id == "tier_gate")
+        {
+            session.VegaTierGateBlock = string.Empty;
+            session.VegaTierGateTool = string.Empty;
+        }
+
         // The fragment signal (#1109) also marks the spoken-of fragment on everyone's map — the mention
         // carries its key ("frag:<key>"), and the POI drops off on its own once the fragment is picked up.
         if (spec.Id == "fragment_signal" && mention.StartsWith("frag:", System.StringComparison.Ordinal))
@@ -388,6 +400,17 @@ public sealed partial class GameServer
         bool onFoot = !p.AboardShip && !p.InEva && !inSpace && !docked && p.InSpeeder.Length == 0
                       && !ShipInteriorContains(p.Position);
         bool onSurface = !p.AboardShip && !inSpace && !docked; // on foot OR driving
+
+        // #1686: the player just hit a tool-tier gate — anywhere, because asteroid ore gates the same way.
+        // The arming SURVIVES this call: candidates are collected every tick but at most one tip fires per
+        // cadence slot, so clearing here would drop the tip whenever a safety hint outranked it. FireVegaTip
+        // clears it once the line actually goes out; the mention key keeps a player hammering the same wall
+        // to one telling rather than one per swing.
+        if (session.VegaTierGateBlock.Length > 0)
+        {
+            Add("tier_gate", session.VegaTierGateBlock + VegaArgSeparator + session.VegaTierGateTool,
+                "tier:" + session.VegaTierGateBlock);
+        }
 
         // --- Vitals (#1082) ---
         if (p.Oxygen < 25f)
@@ -817,6 +840,22 @@ public sealed partial class GameServer
 
     private string ItemDisplayName(PlayerSession session, string key)
         => LocalizedName(session.Locale, _content.GetItem(key)?.NameKey ?? _content.GetBlock(key)?.NameKey, key);
+
+    /// <summary>
+    /// Remembers that a tool-tier gate just refused a swing (#1686) so VEGA can explain it on the next cadence
+    /// slot. Only armed when the content set actually HAS a tool that opens the gate — "you need something
+    /// better" is worthless advice when nothing better exists.
+    /// </summary>
+    private void NoteTierGate(PlayerSession session, BlockDefinition block)
+    {
+        if (MiningRules.CheapestToolFor(_content, block) is not { } wanted)
+        {
+            return;
+        }
+
+        session.VegaTierGateBlock = LocalizedName(session.Locale, block.NameKey, block.Key);
+        session.VegaTierGateTool = LocalizedName(session.Locale, wanted.NameKey, wanted.Key);
+    }
 
     /// <summary>The name of something the player could make or unlock if only they had more of this ore:
     /// a known recipe using it directly (player short of the amount) or an unlockable blueprint whose
