@@ -160,8 +160,11 @@ public sealed class ScanMissionTests : IDisposable
     [Fact]
     public void EverySettlementBoard_OpensWithASurveyJob()
     {
+        // Eight full server starts, not twelve: a generation-3 start world costs more to bake (its sea-floor, river
+        // and ice families), and twelve of them broke the 120 s fast-tier budget on CI. Eight seeds still find a
+        // board every time; the assertion below only needs one.
         int boards = 0;
-        for (long seed = 1; seed <= 12; seed++)
+        for (long seed = 1; seed <= 8; seed++)
         {
             var server = Start("scanboard_" + seed, seed, out var repo);
             using (repo)
@@ -183,7 +186,7 @@ public sealed class ScanMissionTests : IDisposable
             }
         }
 
-        Assert.True(boards > 0, "expected at least one settlement with a board in 12 seeds");
+        Assert.True(boards > 0, "expected at least one settlement with a board in 8 seeds");
     }
 
     // ---------------- progress + reward ----------------
